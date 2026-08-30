@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run ShellCheck over tracked shell scripts
+        run: |
+          set -euo pipefail
+          mapfile -t scripts < <(git ls-files '*.sh')
+          if [[ ${#scripts[@]} -eq 0 ]]; then
+            echo "No shell scripts tracked yet; nothing to check."
+            exit 0
+          fi
+          printf 'Checking %d script(s):\n' "${#scripts[@]}"
+          printf '  %s\n' "${scripts[@]}"
+          shellcheck "${scripts[@]}"
