@@ -1,0 +1,25 @@
+# Runtime scratch. A name ending in .tmp is disposable, wherever it sits.
+.tmp/
+*.tmp
+
+# Per-instance Claude Code config: credentials, transcripts, memory.
+.claude-home/
+
+# Desks. A machine's live work is never part of the toolkit.
+work/
+
+# Machine-specific literals. Ship office.env.example instead.
+office.env
+
+# Editors and operating systems.
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Node.
+node_modules/
+
+# Python.
+__pycache__/
+*.pyc
