@@ -46,7 +46,14 @@ function run(instance, text, resume) {
   return new Promise((resolve) => {
     let child;
     try {
-      child = spawn("claude", args, { cwd: instance.root, env: environment(instance.root, instance.config.auth) });
+      // The question is already in the arguments, so there is nothing to send on stdin. Left as a
+      // pipe, Claude Code cannot know that: it waits three seconds for input that is never coming
+      // and says so on stderr. Closing stdin says it up front, and every answer arrives sooner.
+      child = spawn("claude", args, {
+        cwd: instance.root,
+        env: environment(instance.root, instance.config.auth),
+        stdio: ["ignore", "pipe", "pipe"],
+      });
     } catch (error) {
       resolve({ failed: true, text: `Claude Code could not be started: ${error.message}` });
       return;
