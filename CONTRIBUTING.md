@@ -69,6 +69,7 @@ Two so far:
 ```sh
 ./tests/install.sh    # install an instance, check what came out
 ./tests/chat.sh       # serve the chat, talk to it, stop it
+./tests/ow.sh         # what status reports and what login hands over
 ```
 
 Both need Node.js and neither needs Claude Code. The install test skips the checks that start
