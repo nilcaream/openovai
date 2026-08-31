@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ow — the one command of an office workspace instance.
+#
+# It works out which instance it belongs to from where it sits, checks that the machine can
+# actually run a session, and hands the rest over to Node. Nothing here is written at install
+# time and no path is baked in, so an instance can be moved and this still works.
+
+die() { echo "ow: ${*}" >&2; exit 1; }
+
+main() {
+    local bin_dir root
+
+    bin_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+    root="$(dirname -- "${bin_dir}")"
+
+    [[ -f "${root}/ow.json" ]] ||
+        die "${root} is not an office workspace instance: no ow.json in it"
+
+    # Both are prerequisites of running an instance, not of installing one, which is why they
+    # are checked here and not only by the installer.
+    command -v node >/dev/null 2>&1 ||
+        die "Node.js is required and is not on your PATH — install it, or load your version manager, then run this again"
+    command -v claude >/dev/null 2>&1 ||
+        die "Claude Code is required and is not on your PATH — install it, then run this again"
+
+    exec node "${root}/tools/ow.mjs" --root "${root}" "$@"
+}
+
+main "$@"

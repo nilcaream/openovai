@@ -52,7 +52,7 @@ const CONFIG_SCHEMA = 1;
 // else, so an instance carries its own copy of everything it runs and never reaches back to
 // where it was installed from. A release package is the same list in a different wrapper,
 // which is why this is a list and not a walk of the source directory.
-const PAYLOAD = ["tools", "templates"];
+const PAYLOAD = ["bin", "tools", "templates"];
 
 // A desk is a person: one directory, holding the one file a replacement session reads before
 // it does anything else.
@@ -311,7 +311,7 @@ function printPlan(plan) {
   console.log("");
 }
 
-function report(created) {
+function report(plan, created) {
   if (created.length === 0) {
     console.log("Everything was already in place; nothing to write.");
   } else {
@@ -321,7 +321,8 @@ function report(created) {
     }
   }
   console.log("");
-  console.log("The instance carries its own copy of everything it runs. The launcher comes next.");
+  console.log("Start it with:");
+  console.log(`  ${path.join(plan.root, "bin", "ow")} status`);
 }
 
 function main(argv) {
@@ -336,7 +337,7 @@ function main(argv) {
     printPlan(plan);
     checkSource(plan);
     checkRoot(plan);
-    report([
+    report(plan, [
       ...createLayout(plan),
       ...copyPayload(plan),
       ...writeConfig(plan),

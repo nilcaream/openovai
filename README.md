@@ -54,14 +54,24 @@ that two instances on one machine never share an account or a session history. I
 file holds no absolute path, not even the instance's own, so a workspace can be moved or
 copied and still be itself.
 
-It then copies `tools/` and `templates/` in, so the instance carries its own copy of everything
+It then copies `bin/`, `tools/` and `templates/` in, so the instance carries its own copy of everything
 runs and never reaches back to where it was installed from. Two instances share nothing, and
 one of them can install the next.
 
 Finally it opens the leader's desk at `work/<Leader>/STATE.md`, from the template in
 `templates/`. Editing that template changes what every new desk starts out looking like.
 
-The launcher is being written next; an instance cannot be started yet.
+Then use the instance's own command:
+
+```sh
+~/my-workspace/bin/ow status
+```
+
+`ow` works out which instance it belongs to from where it sits, so an instance can be moved
+and it keeps working. It refuses to run if Node.js or Claude Code is not on the PATH: those
+are needed to run an instance, not to create one, which is why the installer only warns.
+
+Starting sessions is what `ow` learns next.
 
 ## What to build first
 
