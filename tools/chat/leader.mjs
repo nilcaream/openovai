@@ -6,7 +6,12 @@
 // a word at a time, which is a trade worth making until streaming is what is wanted.
 
 import { spawn } from "node:child_process";
+import fs from "node:fs";
 import path from "node:path";
+
+// Where the thread lives between runs. One id, written after every answer: it is the whole
+// reason a per-message run can still be a conversation.
+const SESSION_FILE = path.join("chat", "session.json");
 
 // Any of these outranks the instance's own account and would answer as somebody else.
 const NEVER_INHERITED = [
@@ -26,8 +31,33 @@ function environment(root) {
   return env;
 }
 
-function run(instance, text) {
+function sessionFile(root) {
+  return path.join(root, SESSION_FILE);
+}
+
+function remembered(root) {
+  try {
+    return JSON.parse(fs.readFileSync(sessionFile(root), "utf8")).sessionId ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function remember(root, sessionId) {
+  const target = sessionFile(root);
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.writeFileSync(target, `${JSON.stringify({ sessionId }, null, 2)}\n`);
+}
+
+function forget(root) {
+  fs.rmSync(sessionFile(root), { force: true });
+}
+
+function run(instance, text, resume) {
   const args = ["-p", text, "--output-format", "json", "--model", instance.config.models.leader];
+  if (resume !== null) {
+    args.push("--resume", resume);
+  }
 
   return new Promise((resolve) => {
     let child;
@@ -76,5 +106,20 @@ function interpret(out, err) {
 }
 
 export async function ask(instance, text) {
-  return run(instance, text);
+  const resume = remembered(instance.root);
+  let answer = await run(instance, text, resume);
+
+  // A remembered thread can go away — the Claude Code home was cleared, or the conversation
+  // was never written. Rather than leave the chat permanently broken, drop the id and ask
+  // again as a new conversation. Losing the history beats losing the chat.
+  if (answer.failed && resume !== null) {
+    forget(instance.root);
+    answer = await run(instance, text, null);
+  }
+
+  if (typeof answer.sessionId === "string" && answer.sessionId !== "") {
+    remember(instance.root, answer.sessionId);
+  }
+
+  return answer;
 }

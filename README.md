@@ -84,6 +84,10 @@ Each message runs the leader once — one Claude Code run per message, on the in
 Claude Code home and the model `ow.json` names — and the answer lands in the transcript. A
 reply arrives whole rather than a word at a time.
 
+It is still one conversation: the thread's id is kept in `chat/session.json` and every message
+after the first continues it, so the server can be stopped and started again in the middle of
+one. If that thread ever goes missing the chat starts a new one rather than staying broken.
+
 A freshly installed instance has an empty Claude Code home and is therefore not logged in;
 the first message comes back saying so. Log that instance in once with:
 
