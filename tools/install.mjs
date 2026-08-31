@@ -40,6 +40,14 @@ const REQUIRED = ["root", "human", "leader"];
 //                  kept apart so two instances on one machine never share a session history
 const LAYOUT = ["work", ".claude", ".claude-home"];
 
+// The instance's own description of itself. It is deliberately free of absolute paths — not
+// where it came from, not even its own root, which anything running inside works out from
+// where it sits — so that an instance can be moved or copied and still be itself.
+const CONFIG_FILE = "ow.json";
+
+// Bumped when a field changes meaning, so an older instance can be recognised as one.
+const CONFIG_SCHEMA = 1;
+
 // A bad command line: the person can fix it and try again, so we show them the usage.
 class UsageError extends Error {}
 
@@ -192,6 +200,23 @@ function createLayout(plan) {
   return created;
 }
 
+function writeConfig(plan) {
+  const config = {
+    schema: CONFIG_SCHEMA,
+    createdAt: new Date().toISOString(),
+    human: plan.human,
+    leader: plan.leader,
+    models: {
+      leader: plan.leaderModel,
+      worker: plan.workerModel,
+    },
+  };
+
+  const target = path.join(plan.root, CONFIG_FILE);
+  fs.writeFileSync(target, `${JSON.stringify(config, null, 2)}\n`);
+  return [target];
+}
+
 function describeModel(model) {
   return model ?? "not pinned, Claude Code decides";
 }
@@ -216,15 +241,15 @@ function printPlan(plan) {
 
 function report(created) {
   if (created.length === 0) {
-    console.log("Every directory was already there; nothing to create.");
+    console.log("Everything was already in place; nothing to write.");
   } else {
-    console.log("Created:");
-    for (const directory of created) {
-      console.log(`  ${directory}`);
+    console.log("Wrote:");
+    for (const entry of created) {
+      console.log(`  ${entry}`);
     }
   }
   console.log("");
-  console.log("The instance has its directories. Its configuration and desks come next.");
+  console.log("The instance knows who works there. Its desks and its launcher come next.");
 }
 
 function main(argv) {
@@ -238,7 +263,7 @@ function main(argv) {
     const plan = resolvePlan(parsed);
     printPlan(plan);
     checkRoot(plan);
-    report(createLayout(plan));
+    report([...createLayout(plan), ...writeConfig(plan)]);
     return 0;
   } catch (error) {
     if (error instanceof UsageError) {

@@ -46,9 +46,12 @@ An instance is a directory of its own. From a clone:
 
 So far the installer creates the directories an instance is made of: `work/` for the desks,
 `.claude/` for the settings, and `.claude-home/` for the instance's own Claude Code home, so
-that two instances on one machine never share an account or a session history. The
-configuration file, the desks and the launcher are being written next; an instance cannot be
-started yet.
+that two instances on one machine never share an account or a session history. It also writes
+`ow.json`, the instance's description of itself — who works there and on which models. That
+file holds no absolute path, not even the instance's own, so a workspace can be moved or
+copied and still be itself.
+
+The desks and the launcher are being written next; an instance cannot be started yet.
 
 ## What to build first
 
