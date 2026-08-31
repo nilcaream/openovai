@@ -122,6 +122,12 @@ they were installed.
 Either way `CLAUDE_CONFIG_DIR` is the instance's own directory, so transcripts, memory and
 settings stay separate. Only the account is shared, and only when you ask for it.
 
+`ow status` reports whether the instance has a credential, and says plainly that it has not
+checked it. Nothing cheap can: asking Claude Code answers from disk and from the environment,
+so a token that expired last week still reads as present. Finding out for certain costs a
+request, which is more than a status command should spend, so the first message is where a
+dead credential shows up.
+
 `ANTHROPIC_API_KEY` and `ANTHROPIC_AUTH_TOKEN` are always removed from what an instance runs
 with, under both options. They bill differently from a subscription, and picking that up by
 accident from a shell that happened to have one exported is not a surprise worth allowing.

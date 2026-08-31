@@ -102,10 +102,20 @@ export function machineToken() {
   return typeof value === "string" && value !== "";
 }
 
-// Whether this instance can talk to Anthropic at all. Claude Code answers it directly, so ask
-// it rather than guessing from the presence of a credentials file, which says nothing about
-// whether the credential still works. Returns null when the question cannot be asked.
-export function loggedIn(root, auth) {
+// Whether this instance has a credential to run with. Claude Code is asked rather than the
+// disk being searched, because where a credential lives is Claude Code's business and not
+// ours.
+//
+// This is not the same as being able to talk to Anthropic, and it must not be reported as if
+// it were. `claude auth status` says nothing to the network: given a token of the right shape
+// but no value — `CLAUDE_CODE_OAUTH_TOKEN=sk-ant-oat01-nonsense` — it answers
+// `{"loggedIn":true,"authMethod":"oauth_token"}` and exits 0, while the first real request
+// comes back `401 OAuth access token is invalid`.
+//
+// The honest check costs a request, which is too much for a status command to spend every time
+// it is run. So this answers the cheap question and the caller says which question it was.
+// Returns null when even that cannot be asked.
+export function hasCredential(root, auth) {
   const asked = spawnSync("claude", ["auth", "status"], {
     cwd: root,
     env: environment(root, auth),

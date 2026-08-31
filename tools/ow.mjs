@@ -7,7 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { serve } from "./chat/server.mjs";
-import { home, loggedIn, login, machineToken } from "./claude.mjs";
+import { hasCredential, home, login, machineToken } from "./claude.mjs";
 
 const CONFIG_FILE = "ow.json";
 
@@ -65,19 +65,23 @@ function desks(root) {
   }
 }
 
-function describeLogin(root, auth) {
-  const signed = loggedIn(root, auth);
-  if (signed === null) {
+// What we know about this instance's credential, which is less than whether it works. Nothing
+// here has talked to Anthropic, so nothing here promises the next message will go through; the
+// row says so rather than letting "signed in: yes" stand in front of a token that expired
+// last week.
+function describeCredential(root, auth) {
+  const present = hasCredential(root, auth);
+  if (present === null) {
     return "cannot tell — Claude Code did not answer";
   }
-  if (signed) {
-    return "yes";
+  if (present) {
+    return "there is one — not checked against Anthropic";
   }
   // What to do about it depends on where the account was supposed to come from. Telling an
   // instance that inherits to run `ow login` would send it to a command that refuses.
   return auth === "inherit"
-    ? "no — CLAUDE_CODE_OAUTH_TOKEN is not set in the environment this ran in"
-    : "no — run: ow login";
+    ? "none — CLAUDE_CODE_OAUTH_TOKEN is not set in the environment this ran in"
+    : "none — run: ow login";
 }
 
 // An instance that takes its token from the environment has no account of its own to sign in,
@@ -120,7 +124,7 @@ function status(root) {
     ["worker model", config.models.worker],
     ["chat port", config.port],
     describeAuth(config),
-    ["signed in", describeLogin(root, config.auth)],
+    ["credential", describeCredential(root, config.auth)],
     ["installed", config.createdAt],
     ["desks", desks(root).join(", ") || "none"],
   ];

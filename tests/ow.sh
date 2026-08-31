@@ -4,9 +4,9 @@ set -euo pipefail
 # tests/ow.sh — check the instance command: what status reports, and what login hands over.
 #
 # Claude Code is never really run. The stand-in from helpers.sh answers `auth status` and
-# `auth login`, so this checks our side of both: that status asks rather than guesses, that a
-# signed-out instance says how to fix itself, and that a failed sign-in cannot look like a
-# success.
+# `auth login`, so this checks our side of both: that status asks rather than guesses, that an
+# instance without a credential says how to fix itself, and that a failed sign-in cannot look
+# like a success.
 #
 # Two instances are installed, one for each way of signing in, because the difference between
 # them is exactly what an instance is allowed to take from the environment it is started in.
@@ -94,13 +94,16 @@ STATE
     check "status does not name the human" "ow status | grep -q '${HUMAN}'"
     check "status does not name the leader and the model" "ow status | grep -q '${LEADER} (${MODEL})'"
     check "status does not show the port" "ow status | grep -q '${PORT}'"
-    check "a signed-in instance is not reported as signed in" "ow status | grep -qE 'signed in +yes'"
+    check "an instance with a credential is not reported as having one" \
+        "ow status | grep -qE 'credential +there is one'"
+    check "status claims the credential was checked against Anthropic" \
+        "ow status | grep -q 'not checked against Anthropic'"
     check "status did not ask Claude Code" "grep -q 'argv: auth status' '${log}'"
 
-    echo "Checking a signed-out instance"
-    check "a signed-out instance is not reported as signed out" \
-        "OW_STAND_IN_SIGNED_IN=false ow status | grep -qE 'signed in +no'"
-    check "a signed-out instance is not told how to fix itself" \
+    echo "Checking an instance with no credential"
+    check "an instance with no credential is not reported as having none" \
+        "OW_STAND_IN_SIGNED_IN=false ow status | grep -qE 'credential +none'"
+    check "an instance with no credential is not told how to fix itself" \
         "OW_STAND_IN_SIGNED_IN=false ow status | grep -q 'ow login'"
 
     echo "Checking status says how the instance signs in"
