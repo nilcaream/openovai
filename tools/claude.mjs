@@ -5,6 +5,7 @@
 // through here so there is one answer to what "as this instance" means.
 
 import { spawnSync } from "node:child_process";
+import fs from "node:fs";
 import path from "node:path";
 
 // These outrank the instance's own home and would run it as somebody else, or against somebody
@@ -26,10 +27,62 @@ export function home(root) {
   return path.join(root, ".claude-home");
 }
 
+// Claude Code's own file inside the instance's home, where it records what it knows about the
+// directories it has been run in.
+const STATE_FILE = ".claude.json";
+
+// Claude Code ignores a directory's own .claude/settings.json until that directory has been
+// trusted, and trusting one is a dialog in an interactive session — which an instance never
+// has. Left alone, an instance would silently run without the permissions it ships with, and
+// the only sign of it is a line on stderr nobody reads.
+//
+// The instance's root is its own directory, created by whoever installed it, so answering that
+// dialog on its behalf grants nothing that was not already granted. It is recorded here rather
+// than at install time because the key is an absolute path: an instance that gets moved would
+// carry a stale one, and this way the first run after a move puts it right.
+//
+// One case this does not cover: an instance installed inside a git repository, where Claude
+// Code trusts by the enclosing repository instead of the directory it was started in. Such an
+// instance runs without its own permissions until somebody trusts that repository. Installing
+// a workspace inside a checkout is odd enough to leave alone rather than to guess at.
+function trustOwnRoot(root) {
+  const file = path.join(home(root), STATE_FILE);
+  const directory = path.resolve(root);
+
+  let state = {};
+  try {
+    state = JSON.parse(fs.readFileSync(file, "utf8"));
+  } catch {
+    // No file yet, or one we cannot read. Either way the trust is not recorded, and writing a
+    // fresh file is better than refusing to run.
+  }
+
+  if (state?.projects?.[directory]?.hasTrustDialogAccepted === true) {
+    return;
+  }
+
+  const projects = { ...state?.projects };
+  projects[directory] = { ...projects[directory], hasTrustDialogAccepted: true };
+
+  try {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, `${JSON.stringify({ ...state, projects }, null, 2)}\n`, { mode: 0o600 });
+  } catch {
+    // An instance that cannot record this still runs, only without its own permissions. That
+    // is worth a degraded session, not a refusal to start.
+  }
+}
+
+// The environment Claude Code runs in as this instance — and, on the way, the one thing that
+// has to be true on disk before it will read the instance's own settings. Everything that
+// starts Claude Code goes through here, so this is the one place it cannot be forgotten.
+//
 // `auth` is what the instance was installed with, from ow.json. Anything other than "inherit"
 // is treated as "sign in on your own", so an instance from before the option existed keeps the
 // stricter behaviour rather than quietly picking up whatever token is lying around.
 export function environment(root, auth) {
+  trustOwnRoot(root);
+
   const env = { ...process.env };
   for (const name of NEVER_INHERITED) {
     delete env[name];

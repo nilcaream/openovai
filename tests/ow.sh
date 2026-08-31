@@ -77,6 +77,19 @@ main() {
     install_instance "${repo}" "${instance}" login
     install_instance "${repo}" "${inherited}" inherit
 
+    # Claude Code owns this file and writes its own things into it. Put something there first,
+    # so the checks below can tell recording the trust apart from replacing the file.
+    cat > "${inherited}/.claude-home/.claude.json" <<'STATE'
+{
+  "somethingClaudeCodeWrote": "keep-me",
+  "projects": {
+    "/somewhere-else": {
+      "hasTrustDialogAccepted": true
+    }
+  }
+}
+STATE
+
     echo "Checking what status reports"
     check "status does not name the human" "ow status | grep -q '${HUMAN}'"
     check "status does not name the leader and the model" "ow status | grep -q '${LEADER} (${MODEL})'"
@@ -113,6 +126,14 @@ main() {
         "grep -q 'CLAUDE_CONFIG_DIR: ${instance}/.claude-home' '${log}'"
     check "a credential in the environment reached Claude Code" \
         "! grep -q 'ANTHROPIC_API_KEY: must-not-be-inherited' '${log}'"
+
+    echo "Checking the instance trusts its own directory"
+    check "the instance's own directory is not recorded as trusted" \
+        "node '${repo}/tests/check-trust.mjs' '${instance}/.claude-home/.claude.json' '${instance}'"
+    check "recording it threw away what Claude Code had already written there" \
+        "grep -q 'keep-me' '${inherited}/.claude-home/.claude.json'"
+    check "recording it threw away another directory Claude Code had trusted" \
+        "node '${repo}/tests/check-trust.mjs' '${inherited}/.claude-home/.claude.json' /somewhere-else"
 
     echo "Checking an instance that signs itself in ignores the machine's token"
     check "the machine's token reached an instance installed with --auth login" \
