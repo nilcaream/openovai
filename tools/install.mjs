@@ -30,7 +30,9 @@ const OPTIONS = [
 
 const SWITCHES = [["--force", "force", "install into a directory that is not empty"]];
 
-const REQUIRED = ["root", "human", "leader"];
+// Every option is required. The installer never prompts and never guesses: a command line
+// that describes the whole instance is one that can be read back, repeated and tested.
+const REQUIRED = OPTIONS.map(([, key]) => key);
 
 // The directories an instance is made of, relative to its root.
 //
@@ -66,14 +68,13 @@ function usage() {
     "",
     "Usage:",
     "  ./install.sh --root <dir> --human <name> --leader <name>",
-    "               [--leader-model <model>] [--worker-model <model>]",
+    "               --leader-model <model> --worker-model <model>",
+    "",
+    "Every option is required. Nothing is prompted for and nothing is guessed.",
     "",
     "Options:",
     ...[...OPTIONS, ...SWITCHES].map(([flag, , help]) => `  ${flag.padEnd(16)}${help}`),
     "  --help          show this text",
-    "",
-    "A model left out is not pinned: those sessions start on whatever model Claude Code is",
-    "configured to use.",
   ].join("\n");
 }
 
@@ -145,7 +146,7 @@ function resolvePlan(parsed) {
   }
 
   for (const key of ["leaderModel", "workerModel"]) {
-    if (parsed[key] !== undefined && !MODEL_PATTERN.test(parsed[key])) {
+    if (!MODEL_PATTERN.test(parsed[key])) {
       const flag = OPTIONS.find(([, name]) => name === key)[0];
       throw new UsageError(`${flag} is not a model identifier (got ${JSON.stringify(parsed[key])})`);
     }
@@ -161,8 +162,8 @@ function resolvePlan(parsed) {
     root,
     human: parsed.human,
     leader: parsed.leader,
-    leaderModel: parsed.leaderModel ?? null,
-    workerModel: parsed.workerModel ?? null,
+    leaderModel: parsed.leaderModel,
+    workerModel: parsed.workerModel,
     force: parsed.force === true,
   };
 }
@@ -260,18 +261,14 @@ function today() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function describeModel(model) {
-  return model ?? "not pinned, Claude Code decides";
-}
-
 function printPlan(plan) {
   const rows = [
     ["toolkit", plan.toolkit],
     ["instance", plan.root],
     ["human", plan.human],
     ["leader", plan.leader],
-    ["leader model", describeModel(plan.leaderModel)],
-    ["worker model", describeModel(plan.workerModel)],
+    ["leader model", plan.leaderModel],
+    ["worker model", plan.workerModel],
   ];
   const width = Math.max(...rows.map(([label]) => label.length));
 

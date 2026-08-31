@@ -41,8 +41,10 @@ An instance is a directory of its own. From a clone:
   directory that is not, and never deletes anything.
 - `--human` — the person the team works for.
 - `--leader` — the session that leads the team.
-- `--leader-model`, `--worker-model` — optional. Leave one out and those sessions run on
-  whatever model Claude Code is configured to use.
+- `--leader-model`, `--worker-model` — the models those sessions run on.
+
+Every option is required. The installer never prompts and never guesses, so one command line
+describes a whole instance and can be read back, repeated and tested.
 
 So far the installer creates the directories an instance is made of: `work/` for the desks,
 `.claude/` for the settings, and `.claude-home/` for the instance's own Claude Code home, so
