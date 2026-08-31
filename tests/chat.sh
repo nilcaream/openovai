@@ -65,7 +65,7 @@ main() {
     echo "Installing into ${instance}"
     "${repo}/install.sh" --root "${instance}" --source "${repo}" \
         --human "${HUMAN}" --leader "${LEADER}" \
-        --leader-model "${MODEL}" --worker-model "${MODEL}" --port "$(port)" >/dev/null
+        --leader-model "${MODEL}" --worker-model "${MODEL}" --port "$(port)" --auth login >/dev/null
 
     echo "Starting the chat on ${url}"
     OW_STAND_IN_LOG="${log}" PATH="${stand_in}:${PATH}" \

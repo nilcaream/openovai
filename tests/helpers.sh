@@ -43,6 +43,7 @@ write_stand_in() {
   echo "cwd: ${PWD}"
   echo "CLAUDE_CONFIG_DIR: ${CLAUDE_CONFIG_DIR:-<unset>}"
   echo "ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-<unset>}"
+  echo "CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:-<unset>}"
 } >> "${OW_STAND_IN_LOG}"
 
 case "$*" in

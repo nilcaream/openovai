@@ -65,12 +65,28 @@ function desks(root) {
   }
 }
 
-function describeLogin(root) {
-  const signed = loggedIn(root);
+function describeLogin(root, auth) {
+  const signed = loggedIn(root, auth);
   if (signed === null) {
     return "cannot tell — Claude Code did not answer";
   }
   return signed ? "yes" : `no — run: ow login`;
+}
+
+// An instance that takes its token from the environment has no account of its own to sign in,
+// and a credential written into its home would sit there being overridden. Say so rather than
+// opening a browser for a sign-in that changes nothing.
+function signIn(root) {
+  const config = readConfig(root);
+
+  if (config.auth === "inherit") {
+    throw new UsageError(
+      "this instance signs in with CLAUDE_CODE_OAUTH_TOKEN from the environment it is started in, not with an account of its own — mint a token with: claude setup-token",
+    );
+  }
+
+  console.log(`Signing in ${home(root)}`);
+  return login(root, config.auth);
 }
 
 function status(root) {
@@ -81,7 +97,7 @@ function status(root) {
     ["leader", `${config.leader} (${config.models.leader})`],
     ["worker model", config.models.worker],
     ["chat port", config.port],
-    ["signed in", describeLogin(root)],
+    ["signed in", describeLogin(root, config.auth)],
     ["installed", config.createdAt],
     ["desks", desks(root).join(", ") || "none"],
   ];
@@ -133,8 +149,7 @@ async function main(argv) {
       return 0;
     }
     if (command === "login") {
-      console.log(`Signing in ${home(root)}`);
-      return login(root);
+      return signIn(root);
     }
 
     status(root);

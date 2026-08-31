@@ -34,7 +34,7 @@ An instance is a directory of its own. From a clone:
 
 ```sh
 ./install.sh --root ~/my-workspace --source . --human Mike --leader Superman \
-             --leader-model sonnet --worker-model haiku --port 7801
+             --leader-model sonnet --worker-model haiku --port 7801 --auth inherit
 ```
 
 - `--root` — where the instance lives. It has to be empty or new; `--force` accepts a
@@ -45,6 +45,8 @@ An instance is a directory of its own. From a clone:
 - `--leader-model`, `--worker-model` — the models those sessions run on.
 - `--port` — the port the instance's chat page will listen on, on `127.0.0.1`. Two instances
   on one machine need two different ones.
+- `--auth` — how the instance gets an account: `inherit` or `login`. See
+  [Signing in](#signing-in).
 
 Every option is required. The installer never prompts and never guesses, so one command line
 describes a whole instance and can be read back, repeated and tested.
@@ -89,9 +91,40 @@ It is still one conversation: the thread's id is kept in `chat/session.json` and
 after the first continues it, so the server can be stopped and started again in the middle of
 one. If that thread ever goes missing the chat starts a new one rather than staying broken.
 
-A freshly installed instance has an empty Claude Code home and is therefore signed in to
-nothing; `ow status` says so, and the first message would come back saying so too. `ow login`
-signs that instance in — once, to an account of its own.
+## Signing in
+
+An instance needs an Anthropic account before it can answer anything. `--auth` picks how it
+gets one, and the two answers exist for two different situations.
+
+**`--auth login`** — the instance signs itself in. A freshly installed one has an empty Claude
+Code home and is therefore signed in to nothing, so `ow login` opens a browser once and the
+credential is kept inside that instance. Use this when two instances on one machine should be
+two different accounts.
+
+**`--auth inherit`** — the instance takes `CLAUDE_CODE_OAUTH_TOKEN` from the environment it is
+started in. Mint that token once on the machine:
+
+```sh
+claude setup-token
+```
+
+Export it wherever instances are started from, and every one of them is signed in from its
+first message, with no browser in the way. This is the option to use for anything automatic:
+there is nothing interactive left in creating an instance and starting it.
+
+The token is long-lived but not forever, and it cannot refresh itself. When it expires every
+instance stops at once, with the same message; mint a new one and they all work again. That is
+deliberate. The alternative — giving each instance a copy of a signed-in credential — looks
+tidier and behaves much worse: those credentials refresh themselves independently, and copies
+of one credential go stale at different times, so the instances quietly diverge hours after
+they were installed.
+
+Either way `CLAUDE_CONFIG_DIR` is the instance's own directory, so transcripts, memory and
+settings stay separate. Only the account is shared, and only when you ask for it.
+
+`ANTHROPIC_API_KEY` and `ANTHROPIC_AUTH_TOKEN` are always removed from what an instance runs
+with, under both options. They bill differently from a subscription, and picking that up by
+accident from a shell that happened to have one exported is not a surprise worth allowing.
 
 ## What to build first
 

@@ -46,7 +46,7 @@ function run(instance, text, resume) {
   return new Promise((resolve) => {
     let child;
     try {
-      child = spawn("claude", args, { cwd: instance.root, env: environment(instance.root) });
+      child = spawn("claude", args, { cwd: instance.root, env: environment(instance.root, instance.config.auth) });
     } catch (error) {
       resolve({ failed: true, text: `Claude Code could not be started: ${error.message}` });
       return;

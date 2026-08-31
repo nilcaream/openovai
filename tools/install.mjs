@@ -21,6 +21,15 @@ const HIGHEST_PORT = 65535;
 // Model identifiers are aliases or full names, never paths.
 const MODEL_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 
+// How an instance gets an account.
+//
+//   login    it signs itself in, once, with `ow login`, and keeps the credential in its own
+//            Claude Code home. Two instances can be signed in as two different people.
+//   inherit  it takes CLAUDE_CODE_OAUTH_TOKEN from the environment it is started in, so one
+//            token minted on the machine signs every instance in and starting one needs no
+//            browser. Instances still keep their own transcripts and memory.
+const AUTH_MODES = ["inherit", "login"];
+
 const OPTIONS = [
   ["--root", "root", "directory to install the instance into"],
   ["--source", "source", "directory to install from: a clone, or an unpacked release"],
@@ -29,6 +38,7 @@ const OPTIONS = [
   ["--leader-model", "leaderModel", "model the leader runs on"],
   ["--worker-model", "workerModel", "model hired workers run on"],
   ["--port", "port", "port the chat page listens on"],
+  ["--auth", "auth", `how the instance signs in: ${AUTH_MODES.join(" or ")}`],
 ];
 
 const SWITCHES = [["--force", "force", "install into a directory that is not empty"]];
@@ -78,6 +88,7 @@ function usage() {
     "Usage:",
     "  ./install.sh --root <dir> --source <dir> --human <name> --leader <name>",
     "               --leader-model <model> --worker-model <model> --port <number>",
+    `               --auth <${AUTH_MODES.join("|")}>`,
     "",
     "Every option is required. Nothing is prompted for and nothing is guessed.",
     "",
@@ -161,6 +172,12 @@ function resolvePlan(parsed) {
     }
   }
 
+  if (!AUTH_MODES.includes(parsed.auth)) {
+    throw new UsageError(
+      `--auth must be ${AUTH_MODES.join(" or ")} (got ${JSON.stringify(parsed.auth)})`,
+    );
+  }
+
   const port = Number(parsed.port);
   if (!Number.isInteger(port) || port < LOWEST_PORT || port > HIGHEST_PORT) {
     throw new UsageError(
@@ -186,6 +203,7 @@ function resolvePlan(parsed) {
     leaderModel: parsed.leaderModel,
     workerModel: parsed.workerModel,
     port,
+    auth: parsed.auth,
     force: parsed.force === true,
   };
 }
@@ -262,6 +280,7 @@ function writeConfig(plan) {
       worker: plan.workerModel,
     },
     port: plan.port,
+    auth: plan.auth,
   };
 
   const target = path.join(plan.root, CONFIG_FILE);
@@ -316,6 +335,7 @@ function printPlan(plan) {
     ["leader model", plan.leaderModel],
     ["worker model", plan.workerModel],
     ["chat port", String(plan.port)],
+    ["signs in by", plan.auth],
   ];
   const width = Math.max(...rows.map(([label]) => label.length));
 
@@ -335,9 +355,18 @@ function report(plan, created) {
       console.log(`  ${entry}`);
     }
   }
+  const ow = path.join(plan.root, "bin", "ow");
   console.log("");
   console.log("Start it with:");
-  console.log(`  ${path.join(plan.root, "bin", "ow")} chat`);
+  if (plan.auth === "login") {
+    console.log(`  ${ow} login`);
+  }
+  console.log(`  ${ow} chat`);
+  if (plan.auth === "inherit") {
+    console.log("");
+    console.log("It signs in with CLAUDE_CODE_OAUTH_TOKEN from the environment you start it in.");
+    console.log("Mint one once with: claude setup-token");
+  }
 }
 
 function main(argv) {
