@@ -3,10 +3,10 @@
 // The office workspace installer.
 //
 // It turns a command line into one resolved description of an instance — where it lives, who
-// works there and on which models — and then creates it. This first cut stops after the
-// resolving: it prints the plan and writes nothing, so the arguments can be settled before
-// anything touches the disk.
+// works there and on which models — and then creates it. So far it creates the directories an
+// instance is made of; the configuration, the desks and the launcher follow.
 
+import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -28,9 +28,24 @@ const OPTIONS = [
   ["--worker-model", "workerModel", "model hired workers run on"],
 ];
 
+const SWITCHES = [["--force", "force", "install into a directory that is not empty"]];
+
 const REQUIRED = ["root", "human", "leader"];
 
+// The directories an instance is made of, relative to its root.
+//
+//   work/          one directory per person, holding the state a replacement session reads
+//   .claude/       settings that belong to the instance and can be shared
+//   .claude-home/  the instance's own Claude Code home: its account, transcripts and memory,
+//                  kept apart so two instances on one machine never share a session history
+const LAYOUT = ["work", ".claude", ".claude-home"];
+
+// A bad command line: the person can fix it and try again, so we show them the usage.
 class UsageError extends Error {}
+
+// A refusal to act on the machine as it is. Nothing to do with the arguments, so printing the
+// usage under it would only be noise.
+class InstallError extends Error {}
 
 function usage() {
   return [
@@ -41,7 +56,7 @@ function usage() {
     "               [--leader-model <model>] [--worker-model <model>]",
     "",
     "Options:",
-    ...OPTIONS.map(([flag, , help]) => `  ${flag.padEnd(16)}${help}`),
+    ...[...OPTIONS, ...SWITCHES].map(([flag, , help]) => `  ${flag.padEnd(16)}${help}`),
     "  --help          show this text",
     "",
     "A model left out is not pinned: those sessions start on whatever model Claude Code is",
@@ -51,6 +66,7 @@ function usage() {
 
 function parseArguments(argv) {
   const flags = new Map(OPTIONS.map(([flag, key]) => [flag, key]));
+  const switches = new Map(SWITCHES.map(([flag, key]) => [flag, key]));
   const parsed = {};
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -58,6 +74,12 @@ function parseArguments(argv) {
 
     if (argument === "--help" || argument === "-h") {
       return { help: true };
+    }
+
+    const flag = switches.get(argument);
+    if (flag !== undefined) {
+      parsed[flag] = true;
+      continue;
     }
 
     const key = flags.get(argument);
@@ -128,7 +150,46 @@ function resolvePlan(parsed) {
     leader: parsed.leader,
     leaderModel: parsed.leaderModel ?? null,
     workerModel: parsed.workerModel ?? null,
+    force: parsed.force === true,
   };
+}
+
+// Refuse to move into an occupied directory unless we are told to. An instance root is going
+// to collect desks and a Claude Code home, and dropping that on top of somebody else's files
+// is the kind of surprise that is hard to undo.
+function checkRoot(plan) {
+  let entries;
+  try {
+    entries = fs.readdirSync(plan.root);
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      return;
+    }
+    if (error.code === "ENOTDIR") {
+      throw new InstallError(`${plan.root} is a file, not a directory`);
+    }
+    throw error;
+  }
+
+  if (entries.length > 0 && !plan.force) {
+    throw new InstallError(
+      `${plan.root} is not empty. Give an empty or new directory, or pass --force to install into this one anyway.`,
+    );
+  }
+}
+
+function createLayout(plan) {
+  const created = [];
+
+  for (const directory of ["", ...LAYOUT]) {
+    const target = path.join(plan.root, directory);
+    if (!fs.existsSync(target)) {
+      created.push(target);
+    }
+    fs.mkdirSync(target, { recursive: true });
+  }
+
+  return created;
 }
 
 function describeModel(model) {
@@ -151,18 +212,33 @@ function printPlan(plan) {
     console.log(`  ${label.padEnd(width)}  ${value}`);
   }
   console.log("");
-  console.log("Nothing was written. This build resolves the arguments and stops there.");
+}
+
+function report(created) {
+  if (created.length === 0) {
+    console.log("Every directory was already there; nothing to create.");
+  } else {
+    console.log("Created:");
+    for (const directory of created) {
+      console.log(`  ${directory}`);
+    }
+  }
+  console.log("");
+  console.log("The instance has its directories. Its configuration and desks come next.");
 }
 
 function main(argv) {
-  let parsed;
   try {
-    parsed = parseArguments(argv);
+    const parsed = parseArguments(argv);
     if (parsed.help) {
       console.log(usage());
       return 0;
     }
-    printPlan(resolvePlan(parsed));
+
+    const plan = resolvePlan(parsed);
+    printPlan(plan);
+    checkRoot(plan);
+    report(createLayout(plan));
     return 0;
   } catch (error) {
     if (error instanceof UsageError) {
@@ -170,6 +246,10 @@ function main(argv) {
       console.error("");
       console.error(usage());
       return 2;
+    }
+    if (error instanceof InstallError) {
+      console.error(`install: ${error.message}`);
+      return 1;
     }
     throw error;
   }

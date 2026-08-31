@@ -30,7 +30,25 @@ Exact versions will be pinned as the first components are written.
 
 ## Install
 
-Not packaged yet. See [CONTRIBUTING.md](CONTRIBUTING.md) to work on it from a clone.
+An instance is a directory of its own. From a clone:
+
+```sh
+./install.sh --root ~/my-workspace --human Mike --leader Superman \
+             --leader-model sonnet --worker-model haiku
+```
+
+- `--root` — where the instance lives. It has to be empty or new; `--force` accepts a
+  directory that is not, and never deletes anything.
+- `--human` — the person the team works for.
+- `--leader` — the session that leads the team.
+- `--leader-model`, `--worker-model` — optional. Leave one out and those sessions run on
+  whatever model Claude Code is configured to use.
+
+So far the installer creates the directories an instance is made of: `work/` for the desks,
+`.claude/` for the settings, and `.claude-home/` for the instance's own Claude Code home, so
+that two instances on one machine never share an account or a session history. The
+configuration file, the desks and the launcher are being written next; an instance cannot be
+started yet.
 
 ## What to build first
 
