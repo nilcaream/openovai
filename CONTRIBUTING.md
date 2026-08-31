@@ -60,6 +60,19 @@ One logical change per commit.
   Silence a warning only with a `# shellcheck disable=SCxxxx` comment that says why on the
   line above.
 
+## Tests
+
+There is one test so far, and it installs an instance and checks what came out:
+
+```sh
+./tests/install.sh
+```
+
+It needs Node.js. The checks that start the instance are skipped when Claude Code is not on
+the PATH, and the test says so rather than passing quietly. It installs into `.tmp/` inside
+the clone and removes the instance when it is done. Continuous integration runs it on every
+push and pull request.
+
 ## Documentation
 
 A change in behaviour updates its documentation in the same commit. A pull request that

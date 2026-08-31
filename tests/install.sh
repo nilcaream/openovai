@@ -1,0 +1,95 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# tests/install.sh — install an instance, check it is the one that was asked for, remove it.
+#
+# It needs Node.js and nothing else. Claude Code is only needed to run an instance, so the
+# checks that would start one are skipped when it is not installed, and the test still says
+# what it did.
+
+readonly HUMAN=Mike
+readonly LEADER=Superman
+readonly LEADER_MODEL=sonnet
+readonly WORKER_MODEL=haiku
+
+checks=0
+failures=0
+
+# The instance is removed however this run ends, so the trap has to see it from outside main.
+instance=""
+cleanup() {
+    [[ -n "${instance}" ]] && rm -rf "${instance}"
+    return 0
+}
+trap cleanup EXIT
+
+pass() { checks=$(( checks + 1 )); }
+fail() { checks=$(( checks + 1 )); failures=$(( failures + 1 )); echo "  FAIL  ${1}" >&2; }
+check() { if eval "${2}" >/dev/null 2>&1; then pass; else fail "${1}"; fi; }
+
+main() {
+    local repo
+
+    repo="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
+    # Scratch lives inside the repository, where .gitignore already covers it, so a failed run
+    # leaves its evidence somewhere obvious instead of somewhere shared.
+    instance="${repo}/.tmp/install-test-$$"
+
+    rm -rf "${instance}"
+
+    echo "Installing into ${instance}"
+    "${repo}/install.sh" \
+        --root "${instance}" \
+        --source "${repo}" \
+        --human "${HUMAN}" \
+        --leader "${LEADER}" \
+        --leader-model "${LEADER_MODEL}" \
+        --worker-model "${WORKER_MODEL}" >/dev/null
+
+    echo "Checking what it made"
+    check "ow.json is missing" "[[ -f '${instance}/ow.json' ]]"
+    check "the launcher is missing" "[[ -f '${instance}/bin/ow' ]]"
+    check "the launcher is not executable" "[[ -x '${instance}/bin/ow' ]]"
+    check "the installer was not copied in" "[[ -f '${instance}/tools/install.mjs' ]]"
+    check "the instance command was not copied in" "[[ -f '${instance}/tools/ow.mjs' ]]"
+    check "the desk template was not copied in" "[[ -f '${instance}/templates/STATE.md' ]]"
+    check "the settings directory is missing" "[[ -d '${instance}/.claude' ]]"
+    check "the Claude Code home is missing" "[[ -d '${instance}/.claude-home' ]]"
+    check "the leader has no desk" "[[ -f '${instance}/work/${LEADER}/STATE.md' ]]"
+    check "the desk does not name the leader" "grep -q 'name: ${LEADER}' '${instance}/work/${LEADER}/STATE.md'"
+    check "the desk still holds an unfilled placeholder" \
+        "[[ -f '${instance}/work/${LEADER}/STATE.md' ]] && ! grep -q '{{' '${instance}/work/${LEADER}/STATE.md'"
+
+    echo "Checking the configuration says what was asked for"
+    if node "${repo}/tests/check-config.mjs" \
+        "${instance}/ow.json" "${HUMAN}" "${LEADER}" "${LEADER_MODEL}" "${WORKER_MODEL}"; then
+        pass
+    else
+        fail "ow.json does not describe the instance that was asked for"
+    fi
+
+    echo "Checking what it refuses"
+    check "installing over a non-empty directory was not refused" \
+        "! '${repo}/install.sh' --root '${instance}' --source '${repo}' --human '${HUMAN}' --leader '${LEADER}' --leader-model '${LEADER_MODEL}' --worker-model '${WORKER_MODEL}'"
+    check "--force did not install over a non-empty directory" \
+        "'${repo}/install.sh' --root '${instance}' --source '${repo}' --human '${HUMAN}' --leader '${LEADER}' --leader-model '${LEADER_MODEL}' --worker-model '${WORKER_MODEL}' --force"
+    check "a missing option was not refused" \
+        "! '${repo}/install.sh' --root '${instance}' --source '${repo}' --human '${HUMAN}' --leader '${LEADER}'"
+
+    if command -v claude >/dev/null 2>&1; then
+        echo "Checking the instance runs"
+        check "ow status failed" "'${instance}/bin/ow' status"
+        check "ow status does not name the human" "'${instance}/bin/ow' status | grep -q '${HUMAN}'"
+    else
+        echo "Skipping the checks that run the instance: Claude Code is not on the PATH"
+    fi
+
+    echo
+    if (( failures > 0 )); then
+        echo "${failures} of ${checks} checks failed"
+        return 1
+    fi
+    echo "${checks} checks passed"
+}
+
+main "$@"
