@@ -29,7 +29,8 @@ jobs:
           fi
           printf 'Checking %d script(s):\n' "${#scripts[@]}"
           printf '  %s\n' "${scripts[@]}"
-          shellcheck "${scripts[@]}"
+          # -x so a script that sources a shared helper is checked with the helper in view.
+          shellcheck -x "${scripts[@]}"
 
   install:
     name: Install

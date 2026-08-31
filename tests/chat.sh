@@ -3,10 +3,10 @@ set -euo pipefail
 
 # tests/chat.sh — start the chat server, talk to it, stop it.
 #
-# It needs Node.js and nothing else. Claude Code is never really run: a stand-in on the PATH
-# answers in the shape the real one answers in, which keeps the test deterministic and lets it
-# check the parts that are ours — the arguments the leader is run with, the thread being
-# resumed, and what the transcript says when Claude Code is missing altogether.
+# It needs Node.js and nothing else. Claude Code is never really run: the stand-in from
+# helpers.sh answers in the shape the real one answers in, which keeps the test deterministic
+# and lets it check the parts that are ours — the arguments the leader is run with, the thread
+# being resumed, and what the transcript says when Claude Code is missing altogether.
 #
 # It reaches the server through tools/ow.mjs rather than bin/ow, because bin/ow refuses to run
 # without Claude Code installed, which is the right behaviour for a person and the wrong one
@@ -16,12 +16,8 @@ readonly HUMAN=Mike
 readonly LEADER=Superman
 readonly MODEL=haiku
 
-checks=0
-failures=0
-
-pass() { checks=$(( checks + 1 )); }
-fail() { checks=$(( checks + 1 )); failures=$(( failures + 1 )); echo "  FAIL  ${1}" >&2; }
-check() { if eval "${2}" >/dev/null 2>&1; then pass; else fail "${1}"; fi; }
+# shellcheck source=tests/helpers.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/helpers.sh"
 
 instance=""
 stand_in=""
@@ -36,19 +32,6 @@ trap cleanup EXIT
 
 # A port nobody else on this machine is likely to be holding.
 port() { echo $(( 20000 + ( $$ % 20000 ) )); }
-
-write_stand_in() {
-    local dir="${1}"
-    mkdir -p "${dir}"
-    cat > "${dir}/claude" <<'FAKE'
-#!/usr/bin/env bash
-# Stands in for Claude Code. Records its arguments; answers in the measured shape of
-# `claude -p --output-format json`.
-echo "$*" >> "${OW_STAND_IN_LOG}"
-printf '{"type":"result","is_error":false,"session_id":"test-thread","result":"a reply"}\n'
-FAKE
-    chmod +x "${dir}/claude"
-}
 
 wait_for_health() {
     local url="${1}" tries=0
@@ -120,12 +103,7 @@ main() {
     check "a missing Claude Code is not reported in the transcript" \
         "say 'anyone there' '${url}' | grep -q 'not on the PATH'"
 
-    echo
-    if (( failures > 0 )); then
-        echo "${failures} of ${checks} checks failed"
-        return 1
-    fi
-    echo "${checks} checks passed"
+    report
 }
 
 main "$@"

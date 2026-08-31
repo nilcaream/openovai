@@ -13,8 +13,8 @@ readonly LEADER_MODEL=sonnet
 readonly WORKER_MODEL=haiku
 readonly PORT=7801
 
-checks=0
-failures=0
+# shellcheck source=tests/helpers.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/helpers.sh"
 
 # The instance is removed however this run ends, so the trap has to see it from outside main.
 instance=""
@@ -23,10 +23,6 @@ cleanup() {
     return 0
 }
 trap cleanup EXIT
-
-pass() { checks=$(( checks + 1 )); }
-fail() { checks=$(( checks + 1 )); failures=$(( failures + 1 )); echo "  FAIL  ${1}" >&2; }
-check() { if eval "${2}" >/dev/null 2>&1; then pass; else fail "${1}"; fi; }
 
 main() {
     local repo
@@ -90,12 +86,7 @@ main() {
         echo "Skipping the checks that run the instance: Claude Code is not on the PATH"
     fi
 
-    echo
-    if (( failures > 0 )); then
-        echo "${failures} of ${checks} checks failed"
-        return 1
-    fi
-    echo "${checks} checks passed"
+    report
 }
 
 main "$@"

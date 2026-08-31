@@ -54,8 +54,10 @@ One logical change per commit.
   every tracked `*.sh` file, so run it locally first:
 
   ```sh
-  shellcheck path/to/script.sh
+  shellcheck -x path/to/script.sh
   ```
+
+  `-x` lets it follow a `source` into a shared helper.
 
   Silence a warning only with a `# shellcheck disable=SCxxxx` comment that says why on the
   line above.
@@ -71,9 +73,11 @@ Two so far:
 
 Both need Node.js and neither needs Claude Code. The install test skips the checks that start
 an instance when Claude Code is absent, and says it skipped them rather than passing quietly.
-The chat test never runs Claude Code at all: a stand-in on the PATH answers in the shape the
-real one answers in, so what gets checked is our side — the arguments the leader is run with,
-the thread being resumed, and what the transcript says when Claude Code is missing.
+The chat test never runs Claude Code at all: the stand-in in `tests/helpers.sh` goes first on
+the PATH and answers in the shape the real one answers in, so what gets checked is our side —
+the arguments the leader is run with, the thread being resumed, and what the transcript says
+when Claude Code is missing. Anything else that needs Claude Code in a test uses that same
+stand-in; it takes its behaviour from environment variables rather than being copied.
 
 Both install into `.tmp/` inside the clone and clean up after themselves. Continuous
 integration runs them on every push and pull request.
