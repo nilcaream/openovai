@@ -337,7 +337,7 @@ function report(plan, created) {
   }
   console.log("");
   console.log("Start it with:");
-  console.log(`  ${path.join(plan.root, "bin", "ow")} status`);
+  console.log(`  ${path.join(plan.root, "bin", "ow")} chat`);
 }
 
 function main(argv) {

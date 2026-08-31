@@ -1,0 +1,19 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Office workspace chat</title>
+
+<h1 id="who">Chat</h1>
+
+<div id="transcript"></div>
+
+<form id="composer">
+  <textarea id="message" rows="3" cols="80" placeholder="Write to the leader"></textarea>
+  <button type="submit">Send</button>
+</form>
+
+<script type="module">
+  // Deliberately plain. The point of this page is that a message can be typed and an answer
+  // read; how it looks is a later question.
+  const health = await fetch("/health").then((response) => response.json());
+  document.getElementById("who").textContent = `${health.leader} — ${health.instance}`;
+</script>

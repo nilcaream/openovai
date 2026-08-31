@@ -6,6 +6,8 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import { serve } from "./chat/server.mjs";
+
 const CONFIG_FILE = "ow.json";
 
 class UsageError extends Error {}
@@ -16,6 +18,7 @@ function usage() {
     "",
     "Usage:",
     "  ow status    show who works in this instance and on which models",
+    "  ow chat      serve the chat page until you stop it",
     "",
   ].join("\n");
 }
@@ -78,7 +81,27 @@ function status(root) {
   }
 }
 
-function main(argv) {
+async function chat(root) {
+  const config = readConfig(root);
+
+  let server;
+  try {
+    server = await serve({ root, config });
+  } catch (error) {
+    if (error.code === "EADDRINUSE") {
+      throw new UsageError(
+        `port ${config.port} is already taken — stop whatever is on it, or install this instance with a different --port`,
+      );
+    }
+    throw error;
+  }
+
+  const { port } = server.address();
+  console.log(`${config.leader} is listening on http://127.0.0.1:${port}`);
+  console.log("Stop it with ctrl-c.");
+}
+
+async function main(argv) {
   try {
     const { root, rest } = readRoot(argv);
     const command = rest[0] ?? "status";
@@ -87,14 +110,18 @@ function main(argv) {
       console.log(usage());
       return 0;
     }
-    if (command !== "status") {
+    if (command !== "status" && command !== "chat") {
       throw new UsageError(`unknown command: ${command}`);
     }
     if (rest.length > 1) {
-      throw new UsageError(`status takes no arguments (got ${rest.slice(1).join(" ")})`);
+      throw new UsageError(`${command} takes no arguments (got ${rest.slice(1).join(" ")})`);
     }
 
-    status(root);
+    if (command === "chat") {
+      await chat(root);
+    } else {
+      status(root);
+    }
     return 0;
   } catch (error) {
     if (error instanceof UsageError) {
@@ -107,4 +134,4 @@ function main(argv) {
   }
 }
 
-process.exitCode = main(process.argv.slice(2));
+process.exitCode = await main(process.argv.slice(2));
