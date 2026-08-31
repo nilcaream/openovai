@@ -9,6 +9,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { append, read } from "./conversation.mjs";
+import { ask } from "./leader.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PAGE = path.join(HERE, "page.html");
@@ -64,7 +65,18 @@ async function postMessage(instance, request, response) {
     return;
   }
 
-  sendJson(response, 200, { message: append(instance.root, { from: "human", text: text.trim() }) });
+  const question = append(instance.root, { from: "human", text: text.trim() });
+
+  // The reply is waited for rather than streamed. One run of Claude Code answers one message,
+  // so the answer is ready or it is not; a page that shows it appearing is a later question.
+  const answer = await ask(instance, question.text);
+  const reply = append(instance.root, {
+    from: "leader",
+    text: answer.text,
+    ...(answer.failed ? { failed: true } : {}),
+  });
+
+  sendJson(response, 200, { message: question, reply });
 }
 
 async function handle(instance, request, response) {

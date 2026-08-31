@@ -27,7 +27,7 @@
       ...messages.map((message) => {
         const line = document.createElement("p");
         const who = message.from === "human" ? health.human : health.leader;
-        line.textContent = `${who}: ${message.text}`;
+        line.textContent = `${who}${message.failed ? " (failed)" : ""}: ${message.text}`;
         return line;
       }),
     );
@@ -40,6 +40,10 @@
       return;
     }
     box.value = "";
+    // A reply takes as long as it takes, and the page says so rather than looking broken.
+    const waiting = document.createElement("p");
+    waiting.textContent = `${health.human}: ${text}`;
+    transcript.append(waiting, Object.assign(document.createElement("p"), { textContent: "…" }));
     await fetch("/message", {
       method: "POST",
       headers: { "content-type": "application/json" },

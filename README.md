@@ -80,7 +80,18 @@ inside the instance, so stopping the server does not throw the conversation away
 and it keeps working. It refuses to run if Node.js or Claude Code is not on the PATH: those
 are needed to run an instance, not to create one, which is why the installer only warns.
 
-The leader answering is what comes next: today the page keeps what you write, and no more.
+Each message runs the leader once — one Claude Code run per message, on the instance's own
+Claude Code home and the model `ow.json` names — and the answer lands in the transcript. A
+reply arrives whole rather than a word at a time.
+
+A freshly installed instance has an empty Claude Code home and is therefore not logged in;
+the first message comes back saying so. Log that instance in once with:
+
+```sh
+CLAUDE_CONFIG_DIR=~/my-workspace/.claude-home claude
+```
+
+and use `/login` there.
 
 ## What to build first
 
