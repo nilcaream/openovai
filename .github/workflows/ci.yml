@@ -43,7 +43,7 @@ jobs:
           node-version: 20
 
       - name: Install an instance and check what it made
-        run: ./tests/install.sh
+        run: node --test tests/install.test.mjs
 
   chat:
     name: Chat
