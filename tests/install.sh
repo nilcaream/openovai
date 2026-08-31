@@ -19,8 +19,10 @@ source "$(dirname -- "${BASH_SOURCE[0]}")/helpers.sh"
 
 # The instance is removed however this run ends, so the trap has to see it from outside main.
 instance=""
+chosen=""
 cleanup() {
     [[ -n "${instance}" ]] && rm -rf "${instance}"
+    [[ -n "${chosen}" ]] && rm -rf "${chosen}"
     return 0
 }
 trap cleanup EXIT
@@ -81,8 +83,21 @@ main() {
         "! '${repo}/install.sh' --root '${instance}-badport' --source '${repo}' --human '${HUMAN}' --leader '${LEADER}' --leader-model '${LEADER_MODEL}' --worker-model '${WORKER_MODEL}' --port banana --auth '${AUTH}'"
     check "a way of signing in that does not exist was not refused" \
         "! '${repo}/install.sh' --root '${instance}-badauth' --source '${repo}' --human '${HUMAN}' --leader '${LEADER}' --leader-model '${LEADER_MODEL}' --worker-model '${WORKER_MODEL}' --port '${PORT}' --auth sometimes"
+    check "a port that is not written in digits was not refused" \
+        "! '${repo}/install.sh' --root '${instance}-hexport' --source '${repo}' --human '${HUMAN}' --leader '${LEADER}' --leader-model '${LEADER_MODEL}' --worker-model '${WORKER_MODEL}' --port 0x1f90 --auth '${AUTH}'"
     check "a missing --auth was not refused" \
         "! '${repo}/install.sh' --root '${instance}-noauth' --source '${repo}' --human '${HUMAN}' --leader '${LEADER}' --leader-model '${LEADER_MODEL}' --worker-model '${WORKER_MODEL}' --port '${PORT}'"
+
+    echo "Checking a port the machine picks"
+    chosen="${instance}-chosen"
+    check "--port 0 was refused" \
+        "'${repo}/install.sh' --root '${chosen}' --source '${repo}' --human '${HUMAN}' --leader '${LEADER}' --leader-model '${LEADER_MODEL}' --worker-model '${WORKER_MODEL}' --port 0 --auth '${AUTH}'"
+    if node "${repo}/tests/check-config.mjs" \
+        "${chosen}/ow.json" "${HUMAN}" "${LEADER}" "${LEADER_MODEL}" "${WORKER_MODEL}" 0 "${AUTH}"; then
+        pass
+    else
+        fail "ow.json did not record the port as 0"
+    fi
 
     if command -v claude >/dev/null 2>&1; then
         echo "Checking the instance runs"

@@ -122,7 +122,7 @@ function status(root) {
     ["human", config.human],
     ["leader", `${config.leader} (${config.models.leader})`],
     ["worker model", config.models.worker],
-    ["chat port", config.port],
+    ["chat port", config.port === 0 ? "0 — chosen when the chat starts" : config.port],
     describeAuth(config),
     ["credential", describeCredential(root, config.auth)],
     ["installed", config.createdAt],
@@ -150,6 +150,8 @@ async function chat(root) {
     throw error;
   }
 
+  // Always the whole address, never "the port you installed with": with --port 0 nobody knows
+  // it until now, and even with a fixed one this is the line somebody copies into a browser.
   const { port } = server.address();
   console.log(`${config.leader} is listening on http://127.0.0.1:${port}`);
   console.log("Stop it with ctrl-c.");

@@ -34,7 +34,7 @@ An instance is a directory of its own. From a clone:
 
 ```sh
 ./install.sh --root ~/my-workspace --source . --human Mike --leader Superman \
-             --leader-model sonnet --worker-model haiku --port 7801 --auth inherit
+             --leader-model sonnet --worker-model haiku --port 0 --auth inherit
 ```
 
 - `--root` — where the instance lives. It has to be empty or new; `--force` accepts a
@@ -44,7 +44,9 @@ An instance is a directory of its own. From a clone:
 - `--leader` — the session that leads the team.
 - `--leader-model`, `--worker-model` — the models those sessions run on.
 - `--port` — the port the instance's chat page will listen on, on `127.0.0.1`. Two instances
-  on one machine need two different ones.
+  on one machine need two different ones, so `0` is worth knowing about: it means "whatever is
+  free", and `ow chat` prints the address it actually got. Pick a number when you want the same
+  one every time — a bookmark, or something else pointed at it.
 - `--auth` — how the instance gets an account: `inherit` or `login`. See
   [Signing in](#signing-in).
 
@@ -74,8 +76,10 @@ Then use the instance's own command:
 ~/my-workspace/bin/ow chat
 ```
 
-`ow chat` serves the instance's chat page on the port it was installed with, on `127.0.0.1`
-only, and runs until you stop it. The page is one heading, one transcript and one text box:
+`ow chat` serves the instance's chat page on the port it was installed with — or, with
+`--port 0`, on one the machine picks — on `127.0.0.1` only, and runs until you stop it. It
+always prints the whole address it is listening on, so there is one line to open or copy
+whichever way the port was chosen. The page is one heading, one transcript and one text box:
 what it looks like is a later question. What you write is kept in `chat/conversation.json`
 inside the instance, so stopping the server does not throw the conversation away.
 

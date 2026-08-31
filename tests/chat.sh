@@ -20,11 +20,13 @@ readonly MODEL=haiku
 source "$(dirname -- "${BASH_SOURCE[0]}")/helpers.sh"
 
 instance=""
+chosen=""
 stand_in=""
 server=""
 cleanup() {
     [[ -n "${server}" ]] && kill "${server}" 2>/dev/null
     [[ -n "${instance}" ]] && rm -rf "${instance}"
+    [[ -n "${chosen}" ]] && rm -rf "${chosen}"
     [[ -n "${stand_in}" ]] && rm -rf "${stand_in}"
     return 0
 }
@@ -50,8 +52,24 @@ say() {
         -d "{\"text\":\"${1}\"}" "${2}/message"
 }
 
+# Read the address the server printed for itself. With --port 0 this is the only way to learn
+# it, which is exactly why the server has to print it.
+wait_for_url() {
+    local out="${1}" tries=0 found=""
+    while (( tries < 50 )); do
+        found="$(grep -oE 'http://127\.0\.0\.1:[0-9]+' "${out}" 2>/dev/null | head -n 1)"
+        if [[ -n "${found}" ]]; then
+            echo "${found}"
+            return 0
+        fi
+        tries=$(( tries + 1 ))
+        sleep 0.1
+    done
+    return 1
+}
+
 main() {
-    local repo url log node_dir
+    local repo url log node_dir chosen_out chosen_url
 
     repo="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
     instance="${repo}/.tmp/chat-test-$$"
@@ -102,6 +120,30 @@ main() {
     wait_for_health "${url}" || { echo "the server never answered" >&2; return 1; }
     check "a missing Claude Code is not reported in the transcript" \
         "say 'anyone there' '${url}' | grep -q 'not on the PATH'"
+
+    echo "Checking a chat installed with --port 0"
+    kill "${server}" 2>/dev/null
+    wait "${server}" 2>/dev/null || true
+
+    chosen="${instance}-chosen"
+    chosen_out="${stand_in}/chosen.txt"
+    "${repo}/install.sh" --root "${chosen}" --source "${repo}" \
+        --human "${HUMAN}" --leader "${LEADER}" \
+        --leader-model "${MODEL}" --worker-model "${MODEL}" --port 0 --auth login >/dev/null
+
+    OW_STAND_IN_LOG="${log}" PATH="${stand_in}:${PATH}" \
+        node "${chosen}/tools/ow.mjs" --root "${chosen}" chat > "${chosen_out}" 2>&1 &
+    server=$!
+    chosen_url="$(wait_for_url "${chosen_out}")" ||
+        { echo "the server never said where it was listening" >&2; return 1; }
+
+    check "the chat printed 0 back instead of the port it got" \
+        "[[ '${chosen_url}' != 'http://127.0.0.1:0' ]]"
+    check "nothing answered on the address the chat printed" "wait_for_health '${chosen_url}'"
+    check "the address it printed does not serve this instance" \
+        "curl -fsS '${chosen_url}/health' | grep -q '${chosen}'"
+    check "status does not say the port is chosen at start" \
+        "node '${chosen}/tools/ow.mjs' --root '${chosen}' status | grep -q 'chosen when the chat starts'"
 
     report
 }

@@ -18,6 +18,11 @@ const NAME_PATTERN = /^[A-Za-z][A-Za-z0-9_-]{0,31}$/;
 const LOWEST_PORT = 1024;
 const HIGHEST_PORT = 65535;
 
+// Except zero, which is not a port but a request: bind whatever is free. Picking a number by
+// hand means remembering which ones are taken, and being wrong about it only shows up as a
+// refusal to start. It has to be typed like any other value — there is still no default.
+const PORT_CHOSEN_AT_START = 0;
+
 // Model identifiers are aliases or full names, never paths.
 const MODEL_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 
@@ -37,7 +42,7 @@ const OPTIONS = [
   ["--leader", "leader", "name of the session that leads the team"],
   ["--leader-model", "leaderModel", "model the leader runs on"],
   ["--worker-model", "workerModel", "model hired workers run on"],
-  ["--port", "port", "port the chat page listens on"],
+  ["--port", "port", "port the chat page listens on, or 0 to have one picked at start"],
   ["--auth", "auth", `how the instance signs in: ${AUTH_MODES.join(" or ")}`],
 ];
 
@@ -87,7 +92,7 @@ function usage() {
     "",
     "Usage:",
     "  ./install.sh --root <dir> --source <dir> --human <name> --leader <name>",
-    "               --leader-model <model> --worker-model <model> --port <number>",
+    "               --leader-model <model> --worker-model <model> --port <number|0>",
     `               --auth <${AUTH_MODES.join("|")}>`,
     "",
     "Every option is required. Nothing is prompted for and nothing is guessed.",
@@ -178,10 +183,15 @@ function resolvePlan(parsed) {
     );
   }
 
-  const port = Number(parsed.port);
-  if (!Number.isInteger(port) || port < LOWEST_PORT || port > HIGHEST_PORT) {
+  // Digits and nothing else, because Number() is too willing: it reads "" as 0 and "0x10" as
+  // 16, and neither is something anybody meant to type.
+  const port = /^\d+$/.test(parsed.port) ? Number(parsed.port) : Number.NaN;
+  const usable =
+    Number.isInteger(port) &&
+    (port === PORT_CHOSEN_AT_START || (port >= LOWEST_PORT && port <= HIGHEST_PORT));
+  if (!usable) {
     throw new UsageError(
-      `--port must be a whole number between ${LOWEST_PORT} and ${HIGHEST_PORT} (got ${JSON.stringify(parsed.port)})`,
+      `--port must be ${PORT_CHOSEN_AT_START}, or a whole number between ${LOWEST_PORT} and ${HIGHEST_PORT} (got ${JSON.stringify(parsed.port)})`,
     );
   }
 
@@ -334,7 +344,7 @@ function printPlan(plan) {
     ["leader", plan.leader],
     ["leader model", plan.leaderModel],
     ["worker model", plan.workerModel],
-    ["chat port", String(plan.port)],
+    ["chat port", plan.port === PORT_CHOSEN_AT_START ? "0 — picked when the chat starts" : String(plan.port)],
     ["signs in by", plan.auth],
   ];
   const width = Math.max(...rows.map(([label]) => label.length));
