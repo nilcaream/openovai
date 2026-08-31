@@ -9,27 +9,11 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
+import { environment } from "../claude.mjs";
+
 // Where the thread lives between runs. One id, written after every answer: it is the whole
 // reason a per-message run can still be a conversation.
 const SESSION_FILE = path.join("chat", "session.json");
-
-// Any of these outranks the instance's own account and would answer as somebody else.
-const NEVER_INHERITED = [
-  "ANTHROPIC_API_KEY",
-  "ANTHROPIC_AUTH_TOKEN",
-  "CLAUDE_CODE_OAUTH_TOKEN",
-  "CLAUDE_CODE_PROJECT_DIR_NAME",
-];
-
-function environment(root) {
-  const env = { ...process.env };
-  for (const name of NEVER_INHERITED) {
-    delete env[name];
-  }
-  // The instance's own Claude Code home: its account, its transcripts, its memory.
-  env.CLAUDE_CONFIG_DIR = path.join(root, ".claude-home");
-  return env;
-}
 
 function sessionFile(root) {
   return path.join(root, SESSION_FILE);
