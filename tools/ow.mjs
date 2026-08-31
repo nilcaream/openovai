@@ -7,7 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { serve } from "./chat/server.mjs";
-import { home, loggedIn, login } from "./claude.mjs";
+import { home, loggedIn, login, machineToken } from "./claude.mjs";
 
 const CONFIG_FILE = "ow.json";
 
@@ -70,7 +70,14 @@ function describeLogin(root, auth) {
   if (signed === null) {
     return "cannot tell — Claude Code did not answer";
   }
-  return signed ? "yes" : `no — run: ow login`;
+  if (signed) {
+    return "yes";
+  }
+  // What to do about it depends on where the account was supposed to come from. Telling an
+  // instance that inherits to run `ow login` would send it to a command that refuses.
+  return auth === "inherit"
+    ? "no — CLAUDE_CODE_OAUTH_TOKEN is not set in the environment this ran in"
+    : "no — run: ow login";
 }
 
 // An instance that takes its token from the environment has no account of its own to sign in,
@@ -89,6 +96,21 @@ function signIn(root) {
   return login(root, config.auth);
 }
 
+// How this instance gets an account, and — when that is the machine's token — whether the
+// token is actually there. Only its presence is reported: what is being answered is whether
+// the instance can start, and printing a credential to answer that would be a poor trade.
+function describeAuth(config) {
+  if (config.auth !== "inherit") {
+    return ["signs in by", "an account of its own"];
+  }
+  return [
+    "signs in by",
+    machineToken()
+      ? "CLAUDE_CODE_OAUTH_TOKEN, which is set here"
+      : "CLAUDE_CODE_OAUTH_TOKEN, which is not set here — mint one with: claude setup-token",
+  ];
+}
+
 function status(root) {
   const config = readConfig(root);
   const rows = [
@@ -97,6 +119,7 @@ function status(root) {
     ["leader", `${config.leader} (${config.models.leader})`],
     ["worker model", config.models.worker],
     ["chat port", config.port],
+    describeAuth(config),
     ["signed in", describeLogin(root, config.auth)],
     ["installed", config.createdAt],
     ["desks", desks(root).join(", ") || "none"],

@@ -44,17 +44,21 @@ install_instance() {
 # credential that must never be inherited and a machine token that may be, depending on how
 # the instance was installed.
 run_ow() {
-    local root="${1}"
-    shift
-    OW_STAND_IN_LOG="${OW_STAND_IN_LOG:-${stand_in}/calls.txt}" \
+    local root="${1}" log="${2}"
+    shift 2
+    # The token is left alone when the caller has already set it, so that a check can ask what
+    # happens when the machine has none.
+    OW_STAND_IN_LOG="${log}" \
     ANTHROPIC_API_KEY=must-not-be-inherited \
-    CLAUDE_CODE_OAUTH_TOKEN="${TOKEN}" \
+    CLAUDE_CODE_OAUTH_TOKEN="${CLAUDE_CODE_OAUTH_TOKEN-${TOKEN}}" \
     PATH="${stand_in}:${PATH}" \
         "${root}/bin/ow" "$@"
 }
 
-ow() { run_ow "${instance}" "$@"; }
-ow_inherited() { run_ow "${inherited}" "$@"; }
+# Each instance records its calls in its own file, so that what one of them was run with can
+# never be read as evidence about the other.
+ow() { run_ow "${instance}" "${stand_in}/calls.txt" "$@"; }
+ow_inherited() { run_ow "${inherited}" "${stand_in}/inherited.txt" "$@"; }
 
 main() {
     local repo log inherited_log
@@ -86,6 +90,20 @@ main() {
     check "a signed-out instance is not told how to fix itself" \
         "OW_STAND_IN_SIGNED_IN=false ow status | grep -q 'ow login'"
 
+    echo "Checking status says how the instance signs in"
+    check "status does not say an instance signs itself in" \
+        "ow status | grep -qE 'signs in by +an account of its own'"
+    check "status does not name the variable an inheriting instance signs in with" \
+        "ow_inherited status | grep -qE 'signs in by +CLAUDE_CODE_OAUTH_TOKEN'"
+    check "status does not say the machine's token is there" \
+        "ow_inherited status | grep -q 'which is set here'"
+    check "status did not notice a missing machine token" \
+        "CLAUDE_CODE_OAUTH_TOKEN= ow_inherited status | grep -q 'not set here'"
+    check "status printed the value of the machine's token" \
+        "! ow_inherited status | grep -q '${TOKEN}'"
+    check "an inheriting instance is told to run a sign-in that would refuse it" \
+        "! OW_STAND_IN_SIGNED_IN=false ow_inherited status | grep -q 'run: ow login'"
+
     echo "Checking the sign-in"
     check "login did not hand over to Claude Code" "ow login && grep -q 'argv: auth login' '${log}'"
     check "a failed sign-in looked like a success" "! OW_STAND_IN_LOGIN_STATUS=3 ow login"
@@ -101,7 +119,7 @@ main() {
         "! grep -q 'CLAUDE_CODE_OAUTH_TOKEN: ${TOKEN}' '${log}'"
 
     echo "Checking an instance that inherits takes the machine's token"
-    OW_STAND_IN_LOG="${inherited_log}" ow_inherited status >/dev/null
+    ow_inherited status >/dev/null
     check "the machine's token did not reach an instance installed with --auth inherit" \
         "grep -q 'CLAUDE_CODE_OAUTH_TOKEN: ${TOKEN}' '${inherited_log}'"
     check "an account credential reached an instance installed with --auth inherit" \
