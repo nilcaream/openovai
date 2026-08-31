@@ -111,6 +111,20 @@ main() {
     check "a second message was not accepted" "say again '${url}'"
     check "the second message did not resume the thread" "grep -q -- '--resume test-thread' '${log}'"
 
+    echo "Checking the leader is told who it is"
+    check "the first message did not carry the persona" \
+        "grep 'argv:' '${log}' | grep -v -- '--resume' | grep -q -- '--append-system-prompt-file ${instance}/leader.md'"
+    check "the resumed message did not carry the persona" \
+        "grep -q -- '--append-system-prompt-file ${instance}/leader.md --resume test-thread' '${log}'"
+
+    echo "Checking an instance with no persona still answers"
+    rm -f "${instance}/leader.md"
+    check "a message without a persona was not accepted" "say 'and now' '${url}'"
+    check "the persona was passed although the file is gone" \
+        "[[ \$(grep 'argv:' '${log}' | tail -1) != *--append-system-prompt-file* ]]"
+    check "the reply stopped arriving without a persona" \
+        "curl -fsS '${url}/messages' | grep -q 'and now'"
+
     echo "Checking what it says when Claude Code is missing"
     kill "${server}" 2>/dev/null
     wait "${server}" 2>/dev/null || true

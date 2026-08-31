@@ -15,6 +15,11 @@ import { environment } from "../claude.mjs";
 // reason a per-message run can still be a conversation.
 const SESSION_FILE = path.join("chat", "session.json");
 
+// Who the leader is, written out at install. It is appended to Claude Code's own system prompt
+// rather than replacing it, so the leader gains a name and a desk without losing the
+// instructions that make its tools work.
+const PERSONA_FILE = "leader.md";
+
 function sessionFile(root) {
   return path.join(root, SESSION_FILE);
 }
@@ -37,8 +42,25 @@ function forget(root) {
   fs.rmSync(sessionFile(root), { force: true });
 }
 
+// The persona is passed on every run, resumed ones included. Claude Code does keep it with the
+// conversation, so a resume would carry it anyway — but a resume that fails is asked again as a
+// new conversation, and that one has no history to carry it. Passing it always means there is no
+// path through here where the leader forgets who it is.
+//
+// An instance installed before the persona existed has no such file. Claude Code refuses to
+// start at all when pointed at a file that is not there, so the flag is left off instead: a
+// leader without a name still answers, and a chat that will not answer helps nobody.
+function persona(root) {
+  const file = path.join(root, PERSONA_FILE);
+  return fs.existsSync(file) ? file : null;
+}
+
 function run(instance, text, resume) {
   const args = ["-p", text, "--output-format", "json", "--model", instance.config.models.leader];
+  const who = persona(instance.root);
+  if (who !== null) {
+    args.push("--append-system-prompt-file", who);
+  }
   if (resume !== null) {
     args.push("--resume", resume);
   }
