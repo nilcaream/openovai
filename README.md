@@ -33,12 +33,13 @@ Exact versions will be pinned as the first components are written.
 An instance is a directory of its own. From a clone:
 
 ```sh
-./install.sh --root ~/my-workspace --human Mike --leader Superman \
+./install.sh --root ~/my-workspace --source . --human Mike --leader Superman \
              --leader-model sonnet --worker-model haiku
 ```
 
 - `--root` — where the instance lives. It has to be empty or new; `--force` accepts a
   directory that is not, and never deletes anything.
+- `--source` — where to install from: a clone, or an unpacked release once there is one.
 - `--human` — the person the team works for.
 - `--leader` — the session that leads the team.
 - `--leader-model`, `--worker-model` — the models those sessions run on.
@@ -52,6 +53,10 @@ that two instances on one machine never share an account or a session history. I
 `ow.json`, the instance's description of itself — who works there and on which models. That
 file holds no absolute path, not even the instance's own, so a workspace can be moved or
 copied and still be itself.
+
+It then copies `tools/` and `templates/` in, so the instance carries its own copy of everything
+runs and never reaches back to where it was installed from. Two instances share nothing, and
+one of them can install the next.
 
 Finally it opens the leader's desk at `work/<Leader>/STATE.md`, from the template in
 `templates/`. Editing that template changes what every new desk starts out looking like.

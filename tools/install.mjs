@@ -9,9 +9,6 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
-
-const TOOLKIT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 // A name becomes a directory under work/ and an address other sessions type, so it stays
 // short, starts with a letter and holds nothing a shell or a path would read as syntax.
@@ -22,6 +19,7 @@ const MODEL_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 
 const OPTIONS = [
   ["--root", "root", "directory to install the instance into"],
+  ["--source", "source", "directory to install from: a clone, or an unpacked release"],
   ["--human", "human", "name of the person the team works for"],
   ["--leader", "leader", "name of the session that leads the team"],
   ["--leader-model", "leaderModel", "model the leader runs on"],
@@ -50,6 +48,12 @@ const CONFIG_FILE = "ow.json";
 // Bumped when a field changes meaning, so an older instance can be recognised as one.
 const CONFIG_SCHEMA = 1;
 
+// What an instance is made of. The installer copies these across from the source and nothing
+// else, so an instance carries its own copy of everything it runs and never reaches back to
+// where it was installed from. A release package is the same list in a different wrapper,
+// which is why this is a list and not a walk of the source directory.
+const PAYLOAD = ["tools", "templates"];
+
 // A desk is a person: one directory, holding the one file a replacement session reads before
 // it does anything else.
 const DESK_TEMPLATE = path.join("templates", "STATE.md");
@@ -67,7 +71,7 @@ function usage() {
     "Install an office workspace instance.",
     "",
     "Usage:",
-    "  ./install.sh --root <dir> --human <name> --leader <name>",
+    "  ./install.sh --root <dir> --source <dir> --human <name> --leader <name>",
     "               --leader-model <model> --worker-model <model>",
     "",
     "Every option is required. Nothing is prompted for and nothing is guessed.",
@@ -152,13 +156,18 @@ function resolvePlan(parsed) {
     }
   }
 
+  const source = path.resolve(expandHome(parsed.source));
   const root = path.resolve(expandHome(parsed.root));
   if (root === path.parse(root).root || root === os.homedir()) {
     throw new UsageError(`--root ${root} is too broad; give the instance its own directory`);
   }
 
+  if (root === source) {
+    throw new UsageError("--root and --source are the same directory");
+  }
+
   return {
-    toolkit: TOOLKIT_ROOT,
+    source,
     root,
     human: parsed.human,
     leader: parsed.leader,
@@ -190,6 +199,29 @@ function checkRoot(plan) {
       `${plan.root} is not empty. Give an empty or new directory, or pass --force to install into this one anyway.`,
     );
   }
+}
+
+// Everything the installer reads comes from the source, so that installing from a clone and
+// installing from an unpacked release are one code path rather than two.
+function checkSource(plan) {
+  const missing = PAYLOAD.filter((entry) => !fs.existsSync(path.join(plan.source, entry)));
+  if (missing.length > 0) {
+    throw new InstallError(
+      `${plan.source} does not look like an office workspace: no ${missing.join(", ")} in it`,
+    );
+  }
+}
+
+function copyPayload(plan) {
+  const copied = [];
+
+  for (const entry of PAYLOAD) {
+    const target = path.join(plan.root, entry);
+    fs.cpSync(path.join(plan.source, entry), target, { recursive: true });
+    copied.push(target);
+  }
+
+  return copied;
 }
 
 function createLayout(plan) {
@@ -239,7 +271,7 @@ function render(template, values) {
 }
 
 function createDesk(plan, name) {
-  const source = path.join(TOOLKIT_ROOT, DESK_TEMPLATE);
+  const source = path.join(plan.source, DESK_TEMPLATE);
   let template;
   try {
     template = fs.readFileSync(source, "utf8");
@@ -263,7 +295,7 @@ function today() {
 
 function printPlan(plan) {
   const rows = [
-    ["toolkit", plan.toolkit],
+    ["source", plan.source],
     ["instance", plan.root],
     ["human", plan.human],
     ["leader", plan.leader],
@@ -289,7 +321,7 @@ function report(created) {
     }
   }
   console.log("");
-  console.log("The leader has a desk. The launcher comes next.");
+  console.log("The instance carries its own copy of everything it runs. The launcher comes next.");
 }
 
 function main(argv) {
@@ -302,8 +334,14 @@ function main(argv) {
 
     const plan = resolvePlan(parsed);
     printPlan(plan);
+    checkSource(plan);
     checkRoot(plan);
-    report([...createLayout(plan), ...writeConfig(plan), ...createDesk(plan, plan.leader)]);
+    report([
+      ...createLayout(plan),
+      ...copyPayload(plan),
+      ...writeConfig(plan),
+      ...createDesk(plan, plan.leader),
+    ]);
     return 0;
   } catch (error) {
     if (error instanceof UsageError) {
