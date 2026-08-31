@@ -5,7 +5,7 @@
 
 import fs from "node:fs";
 
-const [file, human, leader, leaderModel, workerModel] = process.argv.slice(2);
+const [file, human, leader, leaderModel, workerModel, port] = process.argv.slice(2);
 
 const text = fs.readFileSync(file, "utf8");
 const config = JSON.parse(text);
@@ -22,6 +22,9 @@ if (config.models.leader !== leaderModel) {
 }
 if (config.models.worker !== workerModel) {
   wrong.push(`worker model is ${config.models.worker}, expected ${workerModel}`);
+}
+if (config.port !== Number(port)) {
+  wrong.push(`port is ${config.port}, expected ${port}`);
 }
 if (typeof config.schema !== "number") {
   wrong.push("there is no schema number");

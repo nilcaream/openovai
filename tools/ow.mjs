@@ -67,6 +67,7 @@ function status(root) {
     ["human", config.human],
     ["leader", `${config.leader} (${config.models.leader})`],
     ["worker model", config.models.worker],
+    ["chat port", config.port],
     ["installed", config.createdAt],
     ["desks", desks(root).join(", ") || "none"],
   ];

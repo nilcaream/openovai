@@ -11,6 +11,7 @@ readonly HUMAN=Mike
 readonly LEADER=Superman
 readonly LEADER_MODEL=sonnet
 readonly WORKER_MODEL=haiku
+readonly PORT=7801
 
 checks=0
 failures=0
@@ -44,7 +45,8 @@ main() {
         --human "${HUMAN}" \
         --leader "${LEADER}" \
         --leader-model "${LEADER_MODEL}" \
-        --worker-model "${WORKER_MODEL}" >/dev/null
+        --worker-model "${WORKER_MODEL}" \
+        --port "${PORT}" >/dev/null
 
     echo "Checking what it made"
     check "ow.json is missing" "[[ -f '${instance}/ow.json' ]]"
@@ -62,7 +64,7 @@ main() {
 
     echo "Checking the configuration says what was asked for"
     if node "${repo}/tests/check-config.mjs" \
-        "${instance}/ow.json" "${HUMAN}" "${LEADER}" "${LEADER_MODEL}" "${WORKER_MODEL}"; then
+        "${instance}/ow.json" "${HUMAN}" "${LEADER}" "${LEADER_MODEL}" "${WORKER_MODEL}" "${PORT}"; then
         pass
     else
         fail "ow.json does not describe the instance that was asked for"
@@ -70,11 +72,15 @@ main() {
 
     echo "Checking what it refuses"
     check "installing over a non-empty directory was not refused" \
-        "! '${repo}/install.sh' --root '${instance}' --source '${repo}' --human '${HUMAN}' --leader '${LEADER}' --leader-model '${LEADER_MODEL}' --worker-model '${WORKER_MODEL}'"
+        "! '${repo}/install.sh' --root '${instance}' --source '${repo}' --human '${HUMAN}' --leader '${LEADER}' --leader-model '${LEADER_MODEL}' --worker-model '${WORKER_MODEL}' --port '${PORT}'"
     check "--force did not install over a non-empty directory" \
-        "'${repo}/install.sh' --root '${instance}' --source '${repo}' --human '${HUMAN}' --leader '${LEADER}' --leader-model '${LEADER_MODEL}' --worker-model '${WORKER_MODEL}' --force"
+        "'${repo}/install.sh' --root '${instance}' --source '${repo}' --human '${HUMAN}' --leader '${LEADER}' --leader-model '${LEADER_MODEL}' --worker-model '${WORKER_MODEL}' --port '${PORT}' --force"
     check "a missing option was not refused" \
         "! '${repo}/install.sh' --root '${instance}' --source '${repo}' --human '${HUMAN}' --leader '${LEADER}'"
+    check "a port below 1024 was not refused" \
+        "! '${repo}/install.sh' --root '${instance}-lowport' --source '${repo}' --human '${HUMAN}' --leader '${LEADER}' --leader-model '${LEADER_MODEL}' --worker-model '${WORKER_MODEL}' --port 80"
+    check "a port that is not a number was not refused" \
+        "! '${repo}/install.sh' --root '${instance}-badport' --source '${repo}' --human '${HUMAN}' --leader '${LEADER}' --leader-model '${LEADER_MODEL}' --worker-model '${WORKER_MODEL}' --port banana"
 
     if command -v claude >/dev/null 2>&1; then
         echo "Checking the instance runs"

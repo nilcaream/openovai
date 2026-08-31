@@ -14,6 +14,10 @@ import path from "node:path";
 // short, starts with a letter and holds nothing a shell or a path would read as syntax.
 const NAME_PATTERN = /^[A-Za-z][A-Za-z0-9_-]{0,31}$/;
 
+// Ports below 1024 need privileges nobody should be granting a workspace.
+const LOWEST_PORT = 1024;
+const HIGHEST_PORT = 65535;
+
 // Model identifiers are aliases or full names, never paths.
 const MODEL_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 
@@ -24,6 +28,7 @@ const OPTIONS = [
   ["--leader", "leader", "name of the session that leads the team"],
   ["--leader-model", "leaderModel", "model the leader runs on"],
   ["--worker-model", "workerModel", "model hired workers run on"],
+  ["--port", "port", "port the chat page listens on"],
 ];
 
 const SWITCHES = [["--force", "force", "install into a directory that is not empty"]];
@@ -72,7 +77,7 @@ function usage() {
     "",
     "Usage:",
     "  ./install.sh --root <dir> --source <dir> --human <name> --leader <name>",
-    "               --leader-model <model> --worker-model <model>",
+    "               --leader-model <model> --worker-model <model> --port <number>",
     "",
     "Every option is required. Nothing is prompted for and nothing is guessed.",
     "",
@@ -156,6 +161,13 @@ function resolvePlan(parsed) {
     }
   }
 
+  const port = Number(parsed.port);
+  if (!Number.isInteger(port) || port < LOWEST_PORT || port > HIGHEST_PORT) {
+    throw new UsageError(
+      `--port must be a whole number between ${LOWEST_PORT} and ${HIGHEST_PORT} (got ${JSON.stringify(parsed.port)})`,
+    );
+  }
+
   const source = path.resolve(expandHome(parsed.source));
   const root = path.resolve(expandHome(parsed.root));
   if (root === path.parse(root).root || root === os.homedir()) {
@@ -173,6 +185,7 @@ function resolvePlan(parsed) {
     leader: parsed.leader,
     leaderModel: parsed.leaderModel,
     workerModel: parsed.workerModel,
+    port,
     force: parsed.force === true,
   };
 }
@@ -248,6 +261,7 @@ function writeConfig(plan) {
       leader: plan.leaderModel,
       worker: plan.workerModel,
     },
+    port: plan.port,
   };
 
   const target = path.join(plan.root, CONFIG_FILE);
@@ -301,6 +315,7 @@ function printPlan(plan) {
     ["leader", plan.leader],
     ["leader model", plan.leaderModel],
     ["worker model", plan.workerModel],
+    ["chat port", String(plan.port)],
   ];
   const width = Math.max(...rows.map(([label]) => label.length));
 

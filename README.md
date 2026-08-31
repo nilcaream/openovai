@@ -34,7 +34,7 @@ An instance is a directory of its own. From a clone:
 
 ```sh
 ./install.sh --root ~/my-workspace --source . --human Mike --leader Superman \
-             --leader-model sonnet --worker-model haiku
+             --leader-model sonnet --worker-model haiku --port 7801
 ```
 
 - `--root` — where the instance lives. It has to be empty or new; `--force` accepts a
@@ -43,6 +43,8 @@ An instance is a directory of its own. From a clone:
 - `--human` — the person the team works for.
 - `--leader` — the session that leads the team.
 - `--leader-model`, `--worker-model` — the models those sessions run on.
+- `--port` — the port the instance's chat page will listen on, on `127.0.0.1`. Two instances
+  on one machine need two different ones.
 
 Every option is required. The installer never prompts and never guesses, so one command line
 describes a whole instance and can be read back, repeated and tested.
@@ -50,7 +52,8 @@ describes a whole instance and can be read back, repeated and tested.
 So far the installer creates the directories an instance is made of: `work/` for the desks,
 `.claude/` for the settings, and `.claude-home/` for the instance's own Claude Code home, so
 that two instances on one machine never share an account or a session history. It also writes
-`ow.json`, the instance's description of itself — who works there and on which models. That
+`ow.json`, the instance's description of itself — who works there, on which models, and on
+which port. That
 file holds no absolute path, not even the instance's own, so a workspace can be moved or
 copied and still be itself.
 
