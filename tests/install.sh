@@ -69,6 +69,11 @@ main() {
         "grep -q 'work/${LEADER}/STATE.md' '${instance}/leader.md'"
     check "the persona still holds an unfilled placeholder" \
         "[[ -f '${instance}/leader.md' ]] && ! grep -q '{{' '${instance}/leader.md'"
+    check "the instance has no settings of its own" "[[ -f '${instance}/.claude/settings.json' ]]"
+    check "the settings are not valid JSON" \
+        "node -e 'JSON.parse(require(\"fs\").readFileSync(process.argv[1],\"utf8\"))' '${instance}/.claude/settings.json'"
+    check "the leader may not write its own desk" \
+        "node '${repo}/tests/check-settings.mjs' '${instance}/.claude/settings.json' '${LEADER}'"
 
     echo "Checking the configuration says what was asked for"
     if node "${repo}/tests/check-config.mjs" \

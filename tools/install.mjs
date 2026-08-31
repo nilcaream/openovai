@@ -86,6 +86,17 @@ const DESK_FILE = "STATE.md";
 const LEADER_TEMPLATE = path.join("templates", "leader.md");
 const LEADER_FILE = "leader.md";
 
+// What the instance lets its leader do without being asked. A leader that cannot write its own
+// desk cannot keep it, and a workspace whose state file goes stale is a workspace that has to be
+// explained out loud every time somebody new sits down.
+//
+// One rule, one file. `Edit(...)` is the rule that governs every built-in tool that writes a
+// file, the Write tool included; a `Write(...)` rule is never matched, so adding one would look
+// like care and do nothing. The path is relative, which is what it means here because the chat
+// starts Claude Code with the instance root as its working directory — and it keeps the instance
+// free of absolute paths, so moving one does not quietly cost the leader its hands.
+const SETTINGS_FILE = path.join(".claude", "settings.json");
+
 // A bad command line: the person can fix it and try again, so we show them the usage.
 class UsageError extends Error {}
 
@@ -348,6 +359,15 @@ function createLeader(plan) {
   return [target];
 }
 
+function writeSettings(plan) {
+  const desk = path.posix.join("work", plan.leader, DESK_FILE);
+  const settings = { permissions: { allow: [`Edit(${desk})`] } };
+  const target = path.join(plan.root, SETTINGS_FILE);
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.writeFileSync(target, `${JSON.stringify(settings, null, 2)}\n`);
+  return [target];
+}
+
 function today() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -413,6 +433,7 @@ function main(argv) {
       ...writeConfig(plan),
       ...createDesk(plan, plan.leader),
       ...createLeader(plan),
+      ...writeSettings(plan),
     ]);
     return 0;
   } catch (error) {
