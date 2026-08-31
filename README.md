@@ -51,7 +51,10 @@ that two instances on one machine never share an account or a session history. I
 file holds no absolute path, not even the instance's own, so a workspace can be moved or
 copied and still be itself.
 
-The desks and the launcher are being written next; an instance cannot be started yet.
+Finally it opens the leader's desk at `work/<Leader>/STATE.md`, from the template in
+`templates/`. Editing that template changes what every new desk starts out looking like.
+
+The launcher is being written next; an instance cannot be started yet.
 
 ## What to build first
 

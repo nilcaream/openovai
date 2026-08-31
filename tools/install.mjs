@@ -48,6 +48,11 @@ const CONFIG_FILE = "ow.json";
 // Bumped when a field changes meaning, so an older instance can be recognised as one.
 const CONFIG_SCHEMA = 1;
 
+// A desk is a person: one directory, holding the one file a replacement session reads before
+// it does anything else.
+const DESK_TEMPLATE = path.join("templates", "STATE.md");
+const DESK_FILE = "STATE.md";
+
 // A bad command line: the person can fix it and try again, so we show them the usage.
 class UsageError extends Error {}
 
@@ -217,6 +222,44 @@ function writeConfig(plan) {
   return [target];
 }
 
+// Placeholders are {{NAME}}. Anything left unfilled is a mistake in the template rather than
+// something to paper over, so say so instead of shipping the braces to a desk.
+function render(template, values) {
+  const filled = template.replace(/\{\{(\w+)\}\}/g, (match, key) =>
+    Object.hasOwn(values, key) ? values[key] : match,
+  );
+
+  const missing = filled.match(/\{\{\w+\}\}/g);
+  if (missing !== null) {
+    throw new InstallError(`the desk template has placeholders nothing fills: ${[...new Set(missing)].join(", ")}`);
+  }
+
+  return filled;
+}
+
+function createDesk(plan, name) {
+  const source = path.join(TOOLKIT_ROOT, DESK_TEMPLATE);
+  let template;
+  try {
+    template = fs.readFileSync(source, "utf8");
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      throw new InstallError(`the desk template is missing at ${source}`);
+    }
+    throw error;
+  }
+
+  const directory = path.join(plan.root, "work", name);
+  const target = path.join(directory, DESK_FILE);
+  fs.mkdirSync(directory, { recursive: true });
+  fs.writeFileSync(target, render(template, { NAME: name, DATE: today() }));
+  return [target];
+}
+
+function today() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 function describeModel(model) {
   return model ?? "not pinned, Claude Code decides";
 }
@@ -249,7 +292,7 @@ function report(created) {
     }
   }
   console.log("");
-  console.log("The instance knows who works there. Its desks and its launcher come next.");
+  console.log("The leader has a desk. The launcher comes next.");
 }
 
 function main(argv) {
@@ -263,7 +306,7 @@ function main(argv) {
     const plan = resolvePlan(parsed);
     printPlan(plan);
     checkRoot(plan);
-    report([...createLayout(plan), ...writeConfig(plan)]);
+    report([...createLayout(plan), ...writeConfig(plan), ...createDesk(plan, plan.leader)]);
     return 0;
   } catch (error) {
     if (error instanceof UsageError) {
