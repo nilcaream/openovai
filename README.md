@@ -68,6 +68,7 @@ Then use the instance's own command:
 
 ```sh
 ~/my-workspace/bin/ow status
+~/my-workspace/bin/ow login
 ~/my-workspace/bin/ow chat
 ```
 
@@ -88,14 +89,9 @@ It is still one conversation: the thread's id is kept in `chat/session.json` and
 after the first continues it, so the server can be stopped and started again in the middle of
 one. If that thread ever goes missing the chat starts a new one rather than staying broken.
 
-A freshly installed instance has an empty Claude Code home and is therefore not logged in;
-the first message comes back saying so. Log that instance in once with:
-
-```sh
-CLAUDE_CONFIG_DIR=~/my-workspace/.claude-home claude
-```
-
-and use `/login` there.
+A freshly installed instance has an empty Claude Code home and is therefore signed in to
+nothing; `ow status` says so, and the first message would come back saying so too. `ow login`
+signs that instance in — once, to an account of its own.
 
 ## What to build first
 

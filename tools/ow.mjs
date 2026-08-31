@@ -7,6 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { serve } from "./chat/server.mjs";
+import { home, loggedIn, login } from "./claude.mjs";
 
 const CONFIG_FILE = "ow.json";
 
@@ -19,6 +20,7 @@ function usage() {
     "Usage:",
     "  ow status    show who works in this instance and on which models",
     "  ow chat      serve the chat page until you stop it",
+    "  ow login     sign this instance in to an Anthropic account",
     "",
   ].join("\n");
 }
@@ -63,6 +65,14 @@ function desks(root) {
   }
 }
 
+function describeLogin(root) {
+  const signed = loggedIn(root);
+  if (signed === null) {
+    return "cannot tell — Claude Code did not answer";
+  }
+  return signed ? "yes" : `no — run: ow login`;
+}
+
 function status(root) {
   const config = readConfig(root);
   const rows = [
@@ -71,6 +81,7 @@ function status(root) {
     ["leader", `${config.leader} (${config.models.leader})`],
     ["worker model", config.models.worker],
     ["chat port", config.port],
+    ["signed in", describeLogin(root)],
     ["installed", config.createdAt],
     ["desks", desks(root).join(", ") || "none"],
   ];
@@ -110,7 +121,7 @@ async function main(argv) {
       console.log(usage());
       return 0;
     }
-    if (command !== "status" && command !== "chat") {
+    if (command !== "status" && command !== "chat" && command !== "login") {
       throw new UsageError(`unknown command: ${command}`);
     }
     if (rest.length > 1) {
@@ -119,9 +130,14 @@ async function main(argv) {
 
     if (command === "chat") {
       await chat(root);
-    } else {
-      status(root);
+      return 0;
     }
+    if (command === "login") {
+      console.log(`Signing in ${home(root)}`);
+      return login(root);
+    }
+
+    status(root);
     return 0;
   } catch (error) {
     if (error instanceof UsageError) {
