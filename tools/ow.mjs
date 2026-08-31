@@ -8,6 +8,7 @@ import path from "node:path";
 
 import { serve } from "./chat/server.mjs";
 import { hasCredential, home, login, machineToken } from "./claude.mjs";
+import { holderOf } from "./port.mjs";
 
 const CONFIG_FILE = "ow.json";
 
@@ -135,6 +136,22 @@ function status(root) {
   }
 }
 
+// The rest of "that port is taken". Naming the process turns a hunt into one `kill`, and the
+// commonest thing on the port is a chat somebody forgot to stop — its command line says which
+// instance it belongs to. When the machine cannot tell us, the advice alone still stands.
+function byWhom(port) {
+  const advice = "or install this instance with a different --port (0 takes a free one)";
+  const holder = holderOf(port);
+
+  if (holder === null) {
+    return ` — stop whatever is on it, ${advice}`;
+  }
+
+  const named =
+    holder.command === null ? `pid ${holder.pid}` : `pid ${holder.pid} (${holder.command})`;
+  return ` by ${named} — stop it, ${advice}`;
+}
+
 async function chat(root) {
   const config = readConfig(root);
 
@@ -143,9 +160,7 @@ async function chat(root) {
     server = await serve({ root, config });
   } catch (error) {
     if (error.code === "EADDRINUSE") {
-      throw new UsageError(
-        `port ${config.port} is already taken — stop whatever is on it, or install this instance with a different --port`,
-      );
+      throw new UsageError(`port ${config.port} is already taken${byWhom(config.port)}`);
     }
     throw error;
   }

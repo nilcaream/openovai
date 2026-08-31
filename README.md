@@ -79,7 +79,9 @@ Then use the instance's own command:
 `ow chat` serves the instance's chat page on the port it was installed with — or, with
 `--port 0`, on one the machine picks — on `127.0.0.1` only, and runs until you stop it. It
 always prints the whole address it is listening on, so there is one line to open or copy
-whichever way the port was chosen. The page is one heading, one transcript and one text box:
+whichever way the port was chosen. If the port is already taken it says which process is
+holding it, with the pid and the command, so the usual culprit — a chat somebody forgot to
+stop — takes one `kill` rather than a search. The page is one heading, one transcript and one text box:
 what it looks like is a later question. What you write is kept in `chat/conversation.json`
 inside the instance, so stopping the server does not throw the conversation away.
 

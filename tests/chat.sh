@@ -69,7 +69,7 @@ wait_for_url() {
 }
 
 main() {
-    local repo url log node_dir chosen_out chosen_url
+    local repo url log node_dir chosen_out chosen_url taken_out
 
     repo="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
     instance="${repo}/.tmp/chat-test-$$"
@@ -144,6 +144,25 @@ main() {
         "curl -fsS '${chosen_url}/health' | grep -q '${chosen}'"
     check "status does not say the port is chosen at start" \
         "node '${chosen}/tools/ow.mjs' --root '${chosen}' status | grep -q 'chosen when the chat starts'"
+
+    echo "Checking what it says when the port is taken"
+    kill "${server}" 2>/dev/null
+    wait "${server}" 2>/dev/null || true
+    OW_STAND_IN_LOG="${log}" PATH="${stand_in}:${PATH}" \
+        node "${instance}/tools/ow.mjs" --root "${instance}" chat >/dev/null 2>&1 &
+    server=$!
+    wait_for_health "${url}" || { echo "the server never answered" >&2; return 1; }
+
+    taken_out="${stand_in}/taken.txt"
+    node "${instance}/tools/ow.mjs" --root "${instance}" chat > "${taken_out}" 2>&1 || true
+    check "starting a second chat on a taken port was not refused" \
+        "grep -q 'already taken' '${taken_out}'"
+    check "the refusal does not name the process holding the port" \
+        "grep -q 'pid ${server}' '${taken_out}'"
+    check "the refusal does not say what that process is" \
+        "grep -q 'ow.mjs' '${taken_out}'"
+    check "the refusal does not offer a port that is free" \
+        "grep -q -- '--port (0 takes a free one)' '${taken_out}'"
 
     report
 }
