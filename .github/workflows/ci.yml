@@ -43,3 +43,16 @@ jobs:
 
       - name: Install an instance and check what it made
         run: ./tests/install.sh
+
+  chat:
+    name: Chat
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Serve the chat and talk to it
+        run: ./tests/chat.sh

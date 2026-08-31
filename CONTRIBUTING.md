@@ -62,16 +62,21 @@ One logical change per commit.
 
 ## Tests
 
-There is one test so far, and it installs an instance and checks what came out:
+Two so far:
 
 ```sh
-./tests/install.sh
+./tests/install.sh    # install an instance, check what came out
+./tests/chat.sh       # serve the chat, talk to it, stop it
 ```
 
-It needs Node.js. The checks that start the instance are skipped when Claude Code is not on
-the PATH, and the test says so rather than passing quietly. It installs into `.tmp/` inside
-the clone and removes the instance when it is done. Continuous integration runs it on every
-push and pull request.
+Both need Node.js and neither needs Claude Code. The install test skips the checks that start
+an instance when Claude Code is absent, and says it skipped them rather than passing quietly.
+The chat test never runs Claude Code at all: a stand-in on the PATH answers in the shape the
+real one answers in, so what gets checked is our side — the arguments the leader is run with,
+the thread being resumed, and what the transcript says when Claude Code is missing.
+
+Both install into `.tmp/` inside the clone and clean up after themselves. Continuous
+integration runs them on every push and pull request.
 
 ## Documentation
 
