@@ -79,6 +79,13 @@ const PAYLOAD = ["bin", "tools", "templates"];
 const DESK_TEMPLATE = path.join("templates", "STATE.md");
 const DESK_FILE = "STATE.md";
 
+// Who the leader of this instance is. The names are written into the file rather than looked up
+// from ow.json when it is read, so the installed prompt says "You are Superman, Mike's lead"
+// outright. A prompt that has to dereference a setting to learn its own name is a prompt that
+// can get it wrong; renaming somebody is then an edit to this file, which is the honest cost.
+const LEADER_TEMPLATE = path.join("templates", "leader.md");
+const LEADER_FILE = "leader.md";
+
 // A bad command line: the person can fix it and try again, so we show them the usage.
 class UsageError extends Error {}
 
@@ -299,36 +306,45 @@ function writeConfig(plan) {
 }
 
 // Placeholders are {{NAME}}. Anything left unfilled is a mistake in the template rather than
-// something to paper over, so say so instead of shipping the braces to a desk.
-function render(template, values) {
+// something to paper over, so say so instead of shipping the braces to an instance.
+function render(what, template, values) {
   const filled = template.replace(/\{\{(\w+)\}\}/g, (match, key) =>
     Object.hasOwn(values, key) ? values[key] : match,
   );
 
   const missing = filled.match(/\{\{\w+\}\}/g);
   if (missing !== null) {
-    throw new InstallError(`the desk template has placeholders nothing fills: ${[...new Set(missing)].join(", ")}`);
+    throw new InstallError(`the ${what} template has placeholders nothing fills: ${[...new Set(missing)].join(", ")}`);
   }
 
   return filled;
 }
 
-function createDesk(plan, name) {
-  const source = path.join(plan.source, DESK_TEMPLATE);
-  let template;
+function readTemplate(plan, what, relative) {
+  const source = path.join(plan.source, relative);
   try {
-    template = fs.readFileSync(source, "utf8");
+    return fs.readFileSync(source, "utf8");
   } catch (error) {
     if (error.code === "ENOENT") {
-      throw new InstallError(`the desk template is missing at ${source}`);
+      throw new InstallError(`the ${what} template is missing at ${source}`);
     }
     throw error;
   }
+}
 
+function createDesk(plan, name) {
+  const template = readTemplate(plan, "desk", DESK_TEMPLATE);
   const directory = path.join(plan.root, "work", name);
   const target = path.join(directory, DESK_FILE);
   fs.mkdirSync(directory, { recursive: true });
-  fs.writeFileSync(target, render(template, { NAME: name, DATE: today() }));
+  fs.writeFileSync(target, render("desk", template, { NAME: name, DATE: today() }));
+  return [target];
+}
+
+function createLeader(plan) {
+  const template = readTemplate(plan, "leader", LEADER_TEMPLATE);
+  const target = path.join(plan.root, LEADER_FILE);
+  fs.writeFileSync(target, render("leader", template, { LEADER: plan.leader, HUMAN: plan.human }));
   return [target];
 }
 
@@ -396,6 +412,7 @@ function main(argv) {
       ...copyPayload(plan),
       ...writeConfig(plan),
       ...createDesk(plan, plan.leader),
+      ...createLeader(plan),
     ]);
     return 0;
   } catch (error) {

@@ -61,6 +61,14 @@ main() {
     check "the desk does not name the leader" "grep -q 'name: ${LEADER}' '${instance}/work/${LEADER}/STATE.md'"
     check "the desk still holds an unfilled placeholder" \
         "[[ -f '${instance}/work/${LEADER}/STATE.md' ]] && ! grep -q '{{' '${instance}/work/${LEADER}/STATE.md'"
+    check "the leader persona template was not copied in" "[[ -f '${instance}/templates/leader.md' ]]"
+    check "the instance has no leader persona" "[[ -f '${instance}/leader.md' ]]"
+    check "the persona does not say who the leader is" \
+        "grep -q 'You are ${LEADER}, ${HUMAN}'\"'\"'s lead' '${instance}/leader.md'"
+    check "the persona does not point at the leader's own desk" \
+        "grep -q 'work/${LEADER}/STATE.md' '${instance}/leader.md'"
+    check "the persona still holds an unfilled placeholder" \
+        "[[ -f '${instance}/leader.md' ]] && ! grep -q '{{' '${instance}/leader.md'"
 
     echo "Checking the configuration says what was asked for"
     if node "${repo}/tests/check-config.mjs" \
