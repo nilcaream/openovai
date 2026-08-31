@@ -15,7 +15,14 @@ jobs:
       - name: Run ShellCheck over tracked shell scripts
         run: |
           set -euo pipefail
-          mapfile -t scripts < <(git ls-files '*.sh')
+          scripts=()
+          while IFS= read -r file; do
+            # A shell script is one that says so on its first line. Matching on a .sh suffix
+            # alone would miss the commands, which are named the way they are typed.
+            if [[ "${file}" == *.sh ]] || head -n 1 -- "${file}" | grep -qE '^#!.*\b(bash|sh)$'; then
+              scripts+=("${file}")
+            fi
+          done < <(git ls-files)
           if [[ ${#scripts[@]} -eq 0 ]]; then
             echo "No shell scripts tracked yet; nothing to check."
             exit 0
