@@ -68,7 +68,7 @@ Two so far:
 
 ```sh
 node --test tests/install.test.mjs   # install an instance, check what came out
-./tests/chat.sh       # serve the chat, talk to it, stop it
+node --test tests/chat.test.mjs      # serve the chat, talk to it, stop it
 ./tests/ow.sh         # what status reports and what login hands over
 ```
 

@@ -56,7 +56,7 @@ jobs:
           node-version: 20
 
       - name: Serve the chat and talk to it
-        run: ./tests/chat.sh
+        run: node --test tests/chat.test.mjs
 
   command:
     name: Command
