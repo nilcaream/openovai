@@ -73,13 +73,14 @@ Then use the instance's own command:
 
 `ow chat` serves the instance's chat page on the port it was installed with, on `127.0.0.1`
 only, and runs until you stop it. The page is one heading, one transcript and one text box:
-what it looks like is a later question.
+what it looks like is a later question. What you write is kept in `chat/conversation.json`
+inside the instance, so stopping the server does not throw the conversation away.
 
 `ow` works out which instance it belongs to from where it sits, so an instance can be moved
 and it keeps working. It refuses to run if Node.js or Claude Code is not on the PATH: those
 are needed to run an instance, not to create one, which is why the installer only warns.
 
-Talking to the leader through that page is what comes next.
+The leader answering is what comes next: today the page keeps what you write, and no more.
 
 ## What to build first
 
