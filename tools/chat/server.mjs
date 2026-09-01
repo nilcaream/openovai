@@ -9,11 +9,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { append, read } from "./conversation.mjs";
+import { HOST, record } from "./listening.mjs";
 import { ask, sessions } from "./session.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PAGE = path.join(HERE, "page.html");
-const HOST = "127.0.0.1";
 
 // Enough for anything a person types, small enough that a runaway client cannot fill memory.
 const LONGEST_MESSAGE = 100_000;
@@ -140,6 +140,11 @@ export function serve(instance) {
 
   return new Promise((resolve, reject) => {
     server.once("error", reject);
-    server.listen(instance.config.port, HOST, () => resolve(server));
+    server.listen(instance.config.port, HOST, () => {
+      // Written from here rather than from whatever started the server, so that every way of
+      // serving an instance leaves the address behind and none of them has to remember to.
+      record(instance.root, server.address().port);
+      resolve(server);
+    });
   });
 }

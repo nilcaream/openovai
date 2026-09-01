@@ -118,6 +118,29 @@ describe("what the chat serves", () => {
   });
 });
 
+// An instance installed with --port 0 has no address until the server has bound one, so the
+// server writes down where it ended up. Everything in the instance that has to reach the chat
+// reads it there.
+describe("where the chat says it is listening", () => {
+  let recorded;
+
+  before(() => {
+    recorded = JSON.parse(fs.readFileSync(path.join(instance, "chat", "listening.json"), "utf8"));
+  });
+
+  it("records the address it is serving on", () => {
+    assert.equal(recorded.url, URL);
+  });
+
+  it("records which process is serving it", () => {
+    assert.equal(recorded.pid, server.pid);
+  });
+
+  it("says when it started listening", () => {
+    assert.match(recorded.since, /^\d{4}-\d{2}-\d{2}T/);
+  });
+});
+
 // A desk is a person, so what the chat can host is read from work/ rather than registered
 // anywhere. Everybody with a desk gets a panel.
 describe("who the chat can host", () => {
@@ -319,6 +342,11 @@ describe("a chat installed with --port 0", () => {
 
   it("serves this instance on that address", async () => {
     assert.ok((await get(`${address}/health`)).body.includes(chosen));
+  });
+
+  it("writes down the address it got rather than the 0 it was asked for", () => {
+    const recorded = JSON.parse(fs.readFileSync(path.join(chosen, "chat", "listening.json"), "utf8"));
+    assert.equal(recorded.url, address);
   });
 
   it("says in status that the port is chosen at start", () => {
