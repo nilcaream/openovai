@@ -17,6 +17,7 @@
 
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import http from "node:http";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
@@ -29,6 +30,7 @@ import {
   remove,
   repo,
   runTool,
+  runToolLater,
   scratch,
   standInEnvironment,
   startChat,
@@ -50,6 +52,10 @@ const URL = `http://127.0.0.1:${PORT}`;
 
 const instance = scratch("chat-test");
 const chosen = `${instance}-chosen`;
+
+// An instance no chat is ever started for, so the checks about not reaching one have somewhere
+// to run that cannot disturb the chat the rest of the suite is talking to.
+const quiet = `${instance}-quiet`;
 const standIn = `${instance}-stand-in`;
 const log = path.join(standIn, "calls.txt");
 
@@ -57,7 +63,7 @@ let server;
 
 process.on("exit", () => {
   server?.kill();
-  remove(instance, chosen, standIn);
+  remove(instance, chosen, quiet, standIn);
 });
 
 after(async () => {
@@ -81,6 +87,15 @@ function say(text, to = LEADER) {
   return post(`${URL}/sessions/${to}/message`, { text });
 }
 
+// Put an address in an instance nothing is serving, so a check can ask what happens when the
+// chat that wrote one is not there any more. The directory is made here because an instance only
+// grows a chat/ once something has served it.
+function pretendChatAt(root, url) {
+  const target = path.join(root, "chat", "listening.json");
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.writeFileSync(target, `${JSON.stringify({ url, pid: 1, since: new Date().toISOString() }, null, 2)}\n`);
+}
+
 function transcriptOf(name) {
   return get(`${URL}/sessions/${name}/messages`);
 }
@@ -91,9 +106,10 @@ async function start(root, environment) {
   return server;
 }
 
-remove(instance, chosen, standIn);
+remove(instance, chosen, quiet, standIn);
 writeStandIn(standIn);
 installed(options(instance, PORT));
+installed(options(quiet, 0));
 runTool(instance, ["hire", WORKER], process.env);
 
 const standIns = standInEnvironment(standIn, log);
@@ -208,6 +224,113 @@ describe("a worker answers on its own panel", () => {
 
   it("gives the worker a thread of its own", () => {
     assert.ok(fs.existsSync(path.join(instance, "chat", WORKER, "session.json")));
+  });
+});
+
+// One session talking to another. It goes through the same route the page posts to, so the
+// exchange lands in the addressed session's transcript and its panel shows it like any other.
+describe("one session says something to another", () => {
+  let said;
+
+  before(() => {
+    said = runTool(instance, ["say", WORKER, "how", "is", "it", "going"], standIns);
+  });
+
+  it("prints the reply on its own output", () => {
+    assert.match(said.stdout, /a reply/);
+  });
+
+  it("succeeds", () => {
+    assert.equal(said.status, 0);
+  });
+
+  it("says the whole message rather than the first word of it", async () => {
+    assert.ok((await transcriptOf(WORKER)).body.includes("how is it going"));
+  });
+
+  it("leaves it in the transcript of the session it was said to", async () => {
+    assert.ok(!(await transcriptOf(LEADER)).body.includes("how is it going"));
+  });
+
+  it("refuses somebody who does not work here", () => {
+    assert.notEqual(runTool(instance, ["say", "Nobody", "hello"], standIns).status, 0);
+  });
+
+  it("says who does not work here", () => {
+    assert.match(runTool(instance, ["say", "Nobody", "hello"], standIns).stderr, /nobody called Nobody/);
+  });
+
+  // Refused here rather than by the chat: the name goes into a URL, and a message with nothing
+  // in it is a round trip to be told what we already knew.
+  it("refuses a name a session could not have", () => {
+    assert.match(runTool(instance, ["say", "../elsewhere", "hello"], standIns).stderr, /must start with a letter/);
+  });
+
+  it("refuses to say nothing", () => {
+    assert.match(runTool(instance, ["say", WORKER], standIns).stderr, /needs something to say/);
+  });
+
+  it("refuses to say it to nobody", () => {
+    assert.match(runTool(instance, ["say"], standIns).stderr, /needs somebody to say it to/);
+  });
+});
+
+// The address is written down by a chat that was running, and nothing takes it away when one
+// stops. So every way of not reaching a chat has to end in a sentence rather than in a stack.
+describe("when the chat cannot be reached", () => {
+  it("says no chat is running when none ever was", () => {
+    assert.match(runTool(quiet, ["say", LEADER, "hello"], standIns).stderr, /no chat is running/);
+  });
+
+  it("refuses rather than looking like it was heard", () => {
+    assert.notEqual(runTool(quiet, ["say", LEADER, "hello"], standIns).status, 0);
+  });
+
+  describe("the address belongs to a chat that has stopped", () => {
+    let said;
+
+    before(() => {
+      pretendChatAt(quiet, "http://127.0.0.1:1");
+      said = runTool(quiet, ["say", LEADER, "hello"], standIns);
+    });
+
+    it("says the chat did not answer", () => {
+      assert.match(said.stderr, /did not answer/);
+    });
+
+    it("says which address it tried", () => {
+      assert.match(said.stderr, /127\.0\.0\.1:1\b/);
+    });
+  });
+
+  describe("what is listening is not a chat", () => {
+    let impostor;
+    let said;
+
+    before(async () => {
+      impostor = http.createServer((request, response) => {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end("{}");
+      });
+      await new Promise((resolve) => impostor.listen(0, "127.0.0.1", resolve));
+      pretendChatAt(quiet, `http://127.0.0.1:${impostor.address().port}`);
+
+      // Not runTool: this process is the one serving the impostor, and a blocking run would
+      // leave the two of them waiting for each other.
+      said = await runToolLater(quiet, ["say", LEADER, "hello"], standIns);
+    });
+
+    after(() => {
+      impostor.close();
+    });
+
+    it("prints nothing as though it were an answer", () => {
+      assert.equal(said.stdout.trim(), "");
+    });
+
+    it("says it got nothing that reads as a reply", () => {
+      assert.match(said.stderr, /nothing that reads as a reply/);
+    });
   });
 });
 

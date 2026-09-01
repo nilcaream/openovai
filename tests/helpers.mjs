@@ -229,6 +229,29 @@ export function runTool(root, argv, environment) {
   });
 }
 
+// The same, without holding this process while it runs. A check whose instance is talking to
+// something served from here has to use this one: spawnSync blocks the event loop, so the server
+// cannot answer the child, the child cannot exit, and the two wait for each other forever.
+export function runToolLater(root, argv, environment) {
+  const child = spawn("node", [path.join(root, "tools", "ow.mjs"), "--root", root, ...argv], {
+    env: environment,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+
+  let stdout = "";
+  let stderr = "";
+  child.stdout.setEncoding("utf8");
+  child.stderr.setEncoding("utf8");
+  child.stdout.on("data", (chunk) => {
+    stdout += chunk;
+  });
+  child.stderr.on("data", (chunk) => {
+    stderr += chunk;
+  });
+
+  return new Promise((resolve) => child.on("close", (status) => resolve({ status, stdout, stderr })));
+}
+
 const PATIENCE = 50;
 const BREATH = 100;
 

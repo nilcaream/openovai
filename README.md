@@ -89,6 +89,7 @@ Then use the instance's own command:
 ~/my-workspace/bin/ow login
 ~/my-workspace/bin/ow hire Paul
 ~/my-workspace/bin/ow chat
+~/my-workspace/bin/ow say Paul what are you working on
 ```
 
 `ow hire <name>` opens a desk for a worker: the desk itself at `work/<Name>/STATE.md`, a persona
@@ -110,6 +111,14 @@ question. There is nothing special about the lead's panel; it is the same panel 
 name on it. What you write is kept in `chat/<Session>/conversation.json` inside the instance —
 one file per session, under the name of the session having that conversation — so stopping the
 server does not throw it away.
+
+`ow say <name> <message>` says something to another session in the instance and prints what it
+answers. It goes through the chat rather than starting a session of its own, so the exchange
+lands in that session's transcript and shows up on its panel like anything else. The chat writes
+the address it is listening on to `chat/listening.json` when it starts — with `--port 0` nothing
+knows the address until then — and this reads it there. It waits for the answer, which means the
+session that asked is held for the whole of the other one's turn. Without a chat running there is
+nobody to say it to, and it says so rather than starting anybody.
 
 `ow` works out which instance it belongs to from where it sits, so an instance can be moved
 and it keeps working. It refuses to run if Node.js or Claude Code is not on the PATH, and it

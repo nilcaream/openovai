@@ -6,6 +6,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import { listening } from "./chat/listening.mjs";
 import { serve } from "./chat/server.mjs";
 import { hasCredential, home, login, machineToken } from "./claude.mjs";
 import {
@@ -27,9 +28,20 @@ const CONFIG_FILE = "ow.json";
 // from — which is what lets an instance open a desk on a machine the source was never on.
 const WORKER_TEMPLATE = path.join("templates", "worker.md");
 
-const COMMANDS = ["status", "chat", "hire", "login"];
+const COMMANDS = ["status", "chat", "hire", "say", "login"];
+
+// What a command takes after its name, for the ones that take anything. A command that is not
+// here takes nothing, which is most of them.
+const TAKES = {
+  hire: { most: 1, shape: "one name" },
+  say: { most: Number.POSITIVE_INFINITY, shape: "a name and a message" },
+};
 
 class UsageError extends Error {}
+
+// The chat could not be reached, or answered a refusal. Nothing to do with the command line, so
+// the usage under it would only be noise.
+class ChatError extends Error {}
 
 function usage() {
   return [
@@ -39,6 +51,8 @@ function usage() {
     "  ow status        show who works in this instance and on which models",
     "  ow chat          serve the chat page until you stop it",
     "  ow hire <name>   open a desk for a worker, so the chat can host one",
+    "  ow say <name> <message>",
+    "                   say something to another session in this instance and wait for its reply",
     "  ow login         sign this instance in to an Anthropic account",
     "",
   ].join("\n");
@@ -120,6 +134,69 @@ function hire(root, name) {
   for (const entry of written) {
     console.log(`  ${entry}`);
   }
+}
+
+// Say something to another session and wait for what it answers.
+//
+// It goes through the chat rather than starting a session here: a session belongs to the chat
+// serving this instance, which is what keeps its transcript and its thread in one place no matter
+// who spoke to it. So this is a message posted to the same route the page posts to, and the panel
+// shows the exchange as it would any other.
+//
+// The reply is waited for. The caller is a session itself, mid-turn, and it asked because it
+// wants the answer — which costs it the whole of the other session's turn, and is the trade to
+// revisit when a session waiting is actually in the way.
+async function say(root, name, words) {
+  if (name === undefined) {
+    throw new UsageError("say needs somebody to say it to: ow say <name> <message>");
+  }
+  if (!isName(name)) {
+    throw new UsageError(describeName("a name", name));
+  }
+
+  const text = words.join(" ").trim();
+  if (text === "") {
+    throw new UsageError(`say needs something to say: ow say ${name} <message>`);
+  }
+
+  const url = listening(root);
+  if (url === null) {
+    throw new ChatError("no chat is running in this instance — start one with: ow chat");
+  }
+
+  let answered;
+  try {
+    answered = await fetch(`${url}/sessions/${encodeURIComponent(name)}/message`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+  } catch (error) {
+    // The address was written down by a chat that has since been stopped, or one that is no
+    // longer answering. Say where we tried, so the next question is about that process.
+    throw new ChatError(`the chat at ${url} did not answer (${error.cause?.code ?? error.message}) — start one with: ow chat`);
+  }
+
+  let body;
+  try {
+    body = await answered.json();
+  } catch {
+    body = null;
+  }
+
+  if (!answered.ok) {
+    throw new ChatError(body?.error ?? `the chat answered ${answered.status}`);
+  }
+
+  // The reply is what the caller asked for, so anything that is not one is said out loud rather
+  // than printed as an answer. A session reading "undefined" off its own tool has no way to tell
+  // that apart from a colleague who said it.
+  const reply = body?.reply?.text;
+  if (typeof reply !== "string") {
+    throw new ChatError(`the chat answered ${answered.status} with nothing that reads as a reply`);
+  }
+
+  console.log(reply);
 }
 
 // An instance that takes its token from the environment has no account of its own to sign in,
@@ -222,11 +299,10 @@ async function main(argv) {
       throw new UsageError(`unknown command: ${command}`);
     }
 
-    // hire is the only one that takes anything, and it takes exactly one name.
     const arguments_ = rest.slice(1);
-    const allowed = command === "hire" ? 1 : 0;
-    if (arguments_.length > allowed) {
-      throw new UsageError(`${command} takes ${allowed === 0 ? "no arguments" : "one name"} (got ${arguments_.join(" ")})`);
+    const takes = TAKES[command];
+    if (arguments_.length > (takes?.most ?? 0)) {
+      throw new UsageError(`${command} takes ${takes?.shape ?? "no arguments"} (got ${arguments_.join(" ")})`);
     }
 
     if (command === "chat") {
@@ -235,6 +311,10 @@ async function main(argv) {
     }
     if (command === "hire") {
       hire(root, arguments_[0]);
+      return 0;
+    }
+    if (command === "say") {
+      await say(root, arguments_[0], arguments_.slice(1));
       return 0;
     }
     if (command === "login") {
@@ -251,7 +331,7 @@ async function main(argv) {
       return 2;
     }
     // Nothing to do with the command line, so the usage under it would only be noise.
-    if (error instanceof DeskError) {
+    if (error instanceof DeskError || error instanceof ChatError) {
       console.error(`ow: ${error.message}`);
       return 1;
     }
