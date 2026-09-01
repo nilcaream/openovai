@@ -166,6 +166,49 @@ function permission(child, frame, asked) {
   );
 }
 
+// Every run this chat has going. A run puts itself in when it starts and takes itself out when
+// it is over, so what is in here is what is alive right now, and there is one place to look when
+// the chat is asked to stop.
+const running = new Set();
+
+// How long a run is given to go quietly before it is made to.
+const PATIENCE = 2000;
+
+// End one run and wait for it to actually be over. Asked first, because a run told to stop can
+// close its own files and write down where its conversation got to; made to only if it will not,
+// because a chat that hangs on the way out is worse than a run that loses its last few words.
+async function end(child, patience) {
+  if (child.exitCode !== null || child.signalCode !== null) {
+    return;
+  }
+  const gone = new Promise((resolve) => child.once("close", resolve));
+  child.kill("SIGTERM");
+  const made = setTimeout(() => child.kill("SIGKILL"), patience);
+  await gone;
+  clearTimeout(made);
+}
+
+// End every run this chat started, and do not return until they are gone.
+//
+// A ctrl-c in a terminal reaches them without any of this: a child is spawned into the process
+// group the terminal signals, so it is sent the same interrupt the chat is. Nothing else is. A
+// kill on the chat, or the window it was started in going away, leaves a run with a parent that
+// is no longer there — and a run does not notice. Watched: one parked on an approval outlived its
+// chat and was reparented to init, still holding the model open, still waiting for an answer
+// nobody could give it any more.
+//
+// So the chat ends what it started rather than trusting whatever stopped it to have done it. The
+// one stop this cannot cover is a SIGKILL on the chat itself, where no code of ours runs at all.
+export function endEveryRun(patience = PATIENCE) {
+  return Promise.all([...running].map((child) => end(child, patience)));
+}
+
+// How many runs are going. The chat says so on the way out: ending them takes a moment, and a
+// terminal that sits there saying nothing reads as a hang.
+export function runsGoing() {
+  return running.size;
+}
+
 // One run, one question, one answer.
 //
 // The question goes in on stdin rather than in the arguments: with --input-format stream-json a
@@ -212,6 +255,8 @@ function run(instance, name, text, resume, asked) {
       return;
     }
 
+    running.add(child);
+
     let answer = null;
     let rest = "";
     let out = "";
@@ -240,6 +285,7 @@ function run(instance, name, text, resume, asked) {
     child.stdin.on("error", () => {});
 
     child.on("error", (error) => {
+      running.delete(child);
       const why =
         error.code === "ENOENT"
           ? "Claude Code is not on the PATH of the process serving this page"
@@ -247,7 +293,10 @@ function run(instance, name, text, resume, asked) {
       resolve({ failed: true, text: why });
     });
 
-    child.on("close", () => resolve(interpret(answer, out, err)));
+    child.on("close", () => {
+      running.delete(child);
+      resolve(interpret(answer, out, err));
+    });
 
     child.stdin.write(question(text));
   });

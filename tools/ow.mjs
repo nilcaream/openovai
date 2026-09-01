@@ -8,7 +8,7 @@ import path from "node:path";
 
 import { listening } from "./chat/listening.mjs";
 import { serve } from "./chat/server.mjs";
-import { NAME_IN_ENVIRONMENT } from "./chat/session.mjs";
+import { NAME_IN_ENVIRONMENT, endEveryRun, runsGoing } from "./chat/session.mjs";
 import { hasCredential, home, login, machineToken } from "./claude.mjs";
 import {
   DeskError,
@@ -291,6 +291,31 @@ async function chat(root) {
   const { port } = server.address();
   console.log(`${config.leader} is listening on http://127.0.0.1:${port}`);
   console.log("Stop it with ctrl-c.");
+
+  // Whatever stops the chat, the sessions it started are its own to end. A ctrl-c is sent to
+  // every process in the terminal's group and so reaches them anyway, but a kill and a closed
+  // window are sent to this process alone, and a session does not notice a parent that has gone:
+  // it stays there holding a model open. Ending them here means the chat has one way out and not
+  // one per way of being stopped.
+  //
+  // Nothing is left to catch a SIGKILL on this process, where no handler of ours runs at all.
+  // That case is the reason a stopped chat is stopped with ctrl-c and not with kill -9.
+  const stop = async () => {
+    server.close();
+    const going = runsGoing();
+    if (going > 0) {
+      console.log(`Ending ${going} ${going === 1 ? "session" : "sessions"}.`);
+    }
+    await endEveryRun();
+    // Stopping a server that was asked to stop is what it was told to do, not a failure.
+    process.exit(0);
+  };
+
+  // Once, not on: a second ctrl-c from somebody who thinks it has hung would otherwise start the
+  // whole thing again underneath the first one.
+  for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
+    process.once(signal, stop);
+  }
 }
 
 async function main(argv) {

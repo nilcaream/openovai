@@ -105,6 +105,14 @@ whichever way the port was chosen. If the port is already taken it says which pr
 holding it, with the pid and the command, so the usual culprit — a chat somebody forgot to
 stop — takes one `kill` rather than a search.
 
+Stopping it stops the sessions it started. A session runs as a process of its own, and a process
+does not notice that the thing which started it has gone: left alone it sits there holding a
+model open, waiting for an answer nobody can give it any more. So the chat ends its sessions on
+its way out — asking each one first and insisting only if it will not go — whether it was stopped
+with ctrl-c, with a `kill`, or by the window it was started in going away. The one exception is
+`kill -9` on the chat itself, where nothing of the chat runs at all; that is the reason to stop
+it the ordinary way.
+
 The page is one panel per session — the lead first, then everybody who has been hired — and each
 panel is a heading, a transcript and a text box of its own: what it looks like is a later
 question. There is nothing special about the lead's panel; it is the same panel with a different

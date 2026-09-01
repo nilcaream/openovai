@@ -22,8 +22,10 @@ import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
 import {
+  alive,
   callsIn,
   heardIn,
+  pidsIn,
   get,
   installed,
   post,
@@ -973,4 +975,89 @@ describe("asking to be allowed", () => {
       assert.equal(answered.status, 400);
     });
   });
+});
+
+// A chat is stopped by a person, in a terminal, with ctrl-c — and by whatever else stops a
+// process: a kill, or the window it was started in going away. What is checked here is the same
+// thing each time, which is that nothing it started is left behind.
+//
+// The run these checks leave parked is one that will not end on its own for a full minute: it is
+// waiting to be told whether it may use a tool, and nobody is going to tell it. So a pid that is
+// gone afterwards is the chat having ended it, and not the run having finished anyway.
+//
+// The signal goes to the chat's own pid, never to its process group. That is deliberate: a
+// terminal's ctrl-c does reach the group, so a check that signalled the group would pass with
+// none of this code in place and prove nothing. Every other way a chat is stopped reaches this
+// process alone, and that is the case worth a check.
+describe("stopping the chat", () => {
+  // Long enough that a run giving up on its own cannot be mistaken for the chat having ended it.
+  const GIVES_UP = 60000;
+  const parked = { OW_STAND_IN_ASKS: "Bash", OW_STAND_IN_WAITS: String(GIVES_UP) };
+
+  // The two signals a person and a system send, and — on the last of them — a run that has been
+  // asked to stop and is not going to. Being asked is the whole of what a well behaved run needs;
+  // the third case is there because the chat has no way of knowing it is dealing with one.
+  // The last number is how long stopping may take. A run that is merely asked goes at once, so
+  // anything near the two seconds the chat waits before forcing one would mean the asking did
+  // nothing and the force did all the work. The run that will not go is the one case allowed to
+  // cost that wait.
+  const ways = [
+    ["SIGINT", "SIGINT", parked, 1000],
+    ["SIGTERM", "SIGTERM", parked, 1000],
+    ["SIGHUP, as when the window it was started in goes away", "SIGHUP", parked, 1000],
+    ["SIGINT and a run that will not go quietly", "SIGINT", { ...parked, OW_STAND_IN_DEAF: "yes" }, GIVES_UP / 4],
+  ];
+
+  for (const [way, signal, how, within] of ways) {
+    describe(`with ${way}`, () => {
+      const stopLog = path.join(standIn, `stopping-${way.replace(/ /g, "-")}.txt`);
+      let run;
+      let stopped;
+      let took;
+
+      before(async () => {
+        const chat = await start(instance, standInEnvironment(standIn, stopLog, how));
+        assert.ok(await waitForHealth(URL), "the server never answered");
+
+        // Not awaited: this is the message that never gets its answer. Its own failure is the
+        // point — the chat is stopped out from under it — so it is caught here rather than left
+        // to come back later as an unhandled rejection against whatever check is running then.
+        say(`something to be stopped in the middle of, over ${way}`).catch(() => {});
+
+        const waiting = await waitFor(async () => {
+          const { permissions } = JSON.parse((await get(`${URL}/sessions/${LEADER}/permissions`)).body);
+          return permissions.length > 0 ? permissions : null;
+        });
+        assert.ok(waiting !== null, "no run was ever parked, so there is nothing to leave behind");
+
+        [run] = pidsIn(stopLog);
+        assert.ok(alive(run), `the run at ${run} was already gone before anything was stopped`);
+
+        const ended = new Promise((resolve) => chat.once("close", resolve));
+        const at = Date.now();
+        chat.kill(signal);
+        stopped = await ended;
+        took = Date.now() - at;
+      });
+
+      // Exit code null means the signal cut it down where it stood, which is what happens when
+      // nothing is listening for one. A chat that handled it stops itself, and says 0.
+      it("stops itself rather than being cut down where it stands", () => {
+        assert.equal(stopped, 0, `the chat did not stop itself on ${way}`);
+      });
+
+      it("leaves nothing of the run behind", async () => {
+        const gone = await waitFor(() => (alive(run) ? null : true));
+        assert.ok(gone, `the run at ${run} outlived the chat that started it`);
+      });
+
+      // Without this the checks above pass by waiting: the parked run gives up on its own after a
+      // minute, so a chat that merely sat there until it did would look exactly like a chat that
+      // ended it. Watched — with the escalation taken out, this describe went from 2.2s to 60.2s
+      // and every other check in it still passed.
+      it("does not sit there until the run gives up on its own", () => {
+        assert.ok(took < within, `stopping took ${took}ms, longer than the ${within}ms it should`);
+      });
+    });
+  }
 });

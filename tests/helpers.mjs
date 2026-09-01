@@ -84,6 +84,8 @@ export function claudeIsInstalled() {
 //   OW_STAND_IN_NOISE         emit what the real one says beside an answer — a keep-alive, a
 //                             system notice, an assistant turn, and a line that is not a frame
 //   OW_STAND_IN_BROKEN        fall over in prose on stdout, framing nothing at all
+//   OW_STAND_IN_DEAF          ignore being asked to stop, so a check can watch what happens to
+//                             a run that will not go quietly
 //   OW_STAND_IN_ASKS          ask to be allowed to use this tool, wait for the answer, and make
 //                             what it was told the reply
 //   OW_STAND_IN_WAITS         milliseconds to wait for that answer before giving up on it
@@ -112,6 +114,7 @@ fs.appendFileSync(
   log,
   [
     \`argv: \${called}\`,
+    \`pid: \${process.pid}\`,
     \`cwd: \${process.cwd()}\`,
     \`CLAUDE_CONFIG_DIR: \${value("CLAUDE_CONFIG_DIR")}\`,
     \`ANTHROPIC_API_KEY: \${value("ANTHROPIC_API_KEY")}\`,
@@ -120,6 +123,14 @@ fs.appendFileSync(
     "",
   ].join("\\n"),
 );
+
+// A run that will not take no for an answer. The real one can be in the middle of anything when
+// it is told to stop, so the chat cannot assume being asked is enough.
+if ((process.env.OW_STAND_IN_DEAF ?? "") !== "") {
+  process.on("SIGTERM", () => {});
+  process.on("SIGINT", () => {});
+  process.on("SIGHUP", () => {});
+}
 
 if (called === "auth status") {
   const signedIn = process.env.OW_STAND_IN_SIGNED_IN ?? "true";
@@ -351,6 +362,26 @@ export function callsIn(log) {
 
 // The questions the stand-in was asked, newest last. The question is a frame on stdin rather than
 // an argument, so what a session was actually asked is read from here and not from callsIn.
+// The processes the stand-in ran as, newest last. A check about a run being ended needs the
+// process itself and not the promise for it: whether the chat is still holding a model open is a
+// question about the machine, and only a pid answers it.
+export function pidsIn(log) {
+  return readLog(log)
+    .split("\n")
+    .filter((line) => line.startsWith("pid: "))
+    .map((line) => Number(line.slice("pid: ".length)));
+}
+
+// Whether a process is there at all. Signal 0 asks without sending anything.
+export function alive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function heardIn(log) {
   return readLog(log)
     .split("\n")
