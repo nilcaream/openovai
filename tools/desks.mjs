@@ -9,6 +9,8 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import { readSettings, writeSettings } from "./settings.mjs";
+
 // A name becomes a directory under work/ and an address other sessions type, so it stays
 // short, starts with a letter and holds nothing a shell or a path would read as syntax.
 const NAME_PATTERN = /^[A-Za-z][A-Za-z0-9_-]{0,31}$/;
@@ -23,20 +25,9 @@ export const DESK_TEMPLATE = path.join("templates", "STATE.md");
 // than looked up when it is read, so the file says "You are Superman, Mike's lead" outright.
 export const PERSONAS = "personas";
 
-// What the instance lets a session do without being asked. A session that cannot write its own
-// desk cannot keep it, and a workspace whose state files go stale is one that has to be explained
-// out loud every time somebody new sits down.
-//
-// One rule, one file, one per desk. `Edit(...)` is the rule that governs every built-in tool that
-// writes a file, the Write tool included; a `Write(...)` rule is never matched, so adding one
-// would look like care and do nothing. The path is relative, which is what it means here because
-// the chat starts Claude Code with the instance root as its working directory — and it keeps the
-// instance free of absolute paths, so moving one does not quietly cost a session its hands.
-export const SETTINGS_FILE = path.join(".claude", "settings.json");
-
-// And what every session in the instance may do to reach the others: run the instance's own
-// command to say something to one of them. One rule serves everybody, because these settings are
-// the instance's rather than anybody's — the same reason there is one file and not one per desk.
+// What every session in the instance may do to reach the others: run the instance's own command
+// to say something to one of them. One rule serves everybody, because these settings are the
+// instance's rather than anybody's — the same reason there is one file and not one per desk.
 //
 // Both spellings of the same command, because the rule is a literal prefix rather than a path:
 // `./bin/ow say …` is the same command as `bin/ow say …` and would match neither the other's rule.
@@ -141,28 +132,27 @@ export function writePersona(root, from, name, what, relative, values) {
 // into a file that is not there yet; hiring adds one to a file that is, and must not take
 // anybody else's away doing it.
 function allow(root, rule) {
-  const target = path.join(root, SETTINGS_FILE);
-
-  let settings = {};
-  try {
-    settings = JSON.parse(fs.readFileSync(target, "utf8"));
-  } catch {
-    // No settings yet, or none we can read. Writing a fresh file is better than refusing to
-    // grant anything over it.
-  }
+  const settings = readSettings(root);
 
   const granted = Array.isArray(settings?.permissions?.allow) ? settings.permissions.allow : [];
   if (granted.includes(rule)) {
     return [];
   }
 
-  const updated = { ...settings, permissions: { ...settings.permissions, allow: [...granted, rule] } };
-  fs.mkdirSync(path.dirname(target), { recursive: true });
-  fs.writeFileSync(target, `${JSON.stringify(updated, null, 2)}\n`);
-  return [target];
+  return writeSettings(root, {
+    ...settings,
+    permissions: { ...settings.permissions, allow: [...granted, rule] },
+  });
 }
 
-// The right to keep one desk: one rule, one file, one person.
+// The right to keep one desk. A session that cannot write its own desk cannot keep it, and a
+// workspace whose state files go stale is one that has to be explained out loud every time
+// somebody new sits down.
+//
+// One rule, one person. `Edit(...)` is the rule that governs every built-in tool that writes a
+// file, the Write tool included; a `Write(...)` rule is never matched, so adding one would look
+// like care and do nothing. The path in it is relative, which is what it means to Claude Code:
+// the chat starts it with the instance root as its working directory.
 export function allowDesk(root, name) {
   return allow(root, `Edit(${path.posix.join(WORK, name, DESK_FILE)})`);
 }
