@@ -40,6 +40,12 @@ no other, and `install.sh` checks it before anything else and refuses an older m
 line — better than an instance that installs and then fails at its first message on syntax its
 Node cannot read.
 
+Both floors are checked twice, once by `install.sh` and once by the instance's own `bin/ow`.
+An instance carries its own copy of everything it runs and can be moved to a machine its
+installer was never on, so it has to say what it needs for itself. Bash 4 is a deliberate line
+rather than a measured one: neither script uses anything newer than bash 3 today, and 4 has been
+on every Linux desktop since 2009.
+
 ## Install
 
 An instance is a directory of its own. From a clone:
@@ -134,6 +140,13 @@ question. There is nothing special about the lead's panel; it is the same panel 
 name on it. What you write is kept in `chat/<Session>/conversation.json` inside the instance —
 one file per session, under the name of the session having that conversation — so stopping the
 server does not throw it away.
+
+A panel says when its session is answering. That matters most for the turns you did not start:
+a session is put to work by another session over `ow say`, and by this page open in a second
+window, and a panel that said nothing while that happened would read as one nobody is listening
+on. Waiting for a turn counts as answering — from the panel's side there is no difference
+between a message being worked on and a message queued behind one, and both mean the same thing
+to whoever is looking at it.
 
 `ow say <name> <message>` says something to another session in the instance and prints what it
 answers. It goes through the chat rather than starting a session of its own, so the exchange
