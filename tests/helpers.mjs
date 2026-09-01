@@ -77,12 +77,14 @@ export function claudeIsInstalled() {
 //   OW_STAND_IN_RESUME_FAILS  refuse to resume a thread      (default: no)
 //   OW_STAND_IN_SIGNED_IN     what `auth status` reports     (default: true)
 //   OW_STAND_IN_LOGIN_STATUS  what `auth login` exits with   (default: 0)
-// It is written as CommonJS on purpose. A command on the PATH is named the way it is typed,
-// so the file has no extension, and an extensionless file is read as CommonJS — a file of
-// import statements only runs where Node happens to look at the syntax first.
+// It is plain ESM, like everything else here. A command on the PATH is named the way it is
+// typed, so this file has no extension and Node cannot tell from the name what it is written
+// in; from 24 it works that out from the syntax instead. The one thing that would take the
+// choice away again is package.json declaring "type": "commonjs" — measured on 24.20.0, that
+// makes an extensionless module do nothing at all and exit 0, so the field is left out.
 const STAND_IN = `#!/usr/bin/env node
 
-const fs = require("node:fs");
+import fs from "node:fs";
 
 const argv = process.argv.slice(2);
 const called = argv.join(" ");
@@ -137,7 +139,7 @@ export function writeNodeStandIn(directory, version) {
     command,
     `#!${process.execPath}
 
-const { spawnSync } = require("node:child_process");
+import { spawnSync } from "node:child_process";
 
 const argv = process.argv.slice(2);
 
