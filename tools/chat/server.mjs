@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 import { append, read } from "./conversation.mjs";
 import { HOST, record } from "./listening.mjs";
 import { ask, sessions } from "./session.mjs";
+import { inTurn } from "./turns.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PAGE = path.join(HERE, "page.html");
@@ -92,19 +93,28 @@ async function postMessage(instance, name, request, response) {
     return;
   }
 
-  const question = append(instance.root, name, { from: sender?.name ?? "human", text: text.trim() });
+  // The whole exchange happens inside the session's turn, the question written down when the turn
+  // begins rather than when it arrived. A transcript then reads question, answer, question, answer,
+  // instead of two questions followed by two answers nobody can pair up.
+  const { question, reply } = await inTurn(name, async () => {
+    const asked = append(instance.root, name, { from: sender?.name ?? "human", text: text.trim() });
 
-  // The reply is waited for rather than streamed. One run of Claude Code answers one message,
-  // so the answer is ready or it is not; a page that shows it appearing is a later question.
-  const answer = await ask(
-    instance,
-    name,
-    sender === null ? question.text : wrap(sender.name, sender.role, question.text),
-  );
-  const reply = append(instance.root, name, {
-    from: name,
-    text: answer.text,
-    ...(answer.failed ? { failed: true } : {}),
+    // The reply is waited for rather than streamed. One run of Claude Code answers one message,
+    // so the answer is ready or it is not; a page that shows it appearing is a later question.
+    const answer = await ask(
+      instance,
+      name,
+      sender === null ? asked.text : wrap(sender.name, sender.role, asked.text),
+    );
+
+    return {
+      question: asked,
+      reply: append(instance.root, name, {
+        from: name,
+        text: answer.text,
+        ...(answer.failed ? { failed: true } : {}),
+      }),
+    };
   });
 
   sendJson(response, 200, { message: question, reply });

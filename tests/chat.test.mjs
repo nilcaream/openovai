@@ -571,3 +571,67 @@ describe("the port is already taken", () => {
     assert.match(refused.stderr, /--port \(0 takes a free one\)/);
   });
 });
+
+// One session answers one message at a time. Without it a second message arriving mid-run starts a
+// second child for the same session, both resuming the same thread, and the transcript comes out as
+// two questions followed by two answers nobody can pair up.
+//
+// The stand-in takes its time here, and records the moment it starts as well as the moment it is
+// done, so the log says whether the two runs overlapped rather than only that both happened.
+describe("a session answers one message at a time", () => {
+  const slowLog = path.join(standIn, "slow.txt");
+  let answered;
+
+  before(async () => {
+    await start(instance, standInEnvironment(standIn, slowLog, { OW_STAND_IN_SLOW: "700" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    const first = say("one at a time, please", WORKER);
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    const second = say("and me, when you are done", WORKER);
+    answered = await Promise.all([first, second]);
+  });
+
+  it("answers both of them", () => {
+    assert.deepEqual(
+      answered.map((exchange) => exchange.status),
+      [200, 200],
+    );
+  });
+
+  it("does not begin the second before the first is done", () => {
+    const order = readLog(slowLog)
+      .split("\n")
+      .filter((line) => line.includes("one at a time") || line.includes("and me, when"))
+      .map((line) => `${line.startsWith("argv") ? "began" : "ended"} ${line.includes("one at a time") ? "first" : "second"}`);
+    assert.deepEqual(order, ["began first", "ended first", "began second", "ended second"]);
+  });
+
+  it("keeps a transcript that can be read in order", async () => {
+    const messages = JSON.parse((await transcriptOf(WORKER)).body).messages.slice(-4);
+    assert.deepEqual(
+      messages.map((message) => (message.from === WORKER ? "answer" : "question")),
+      ["question", "answer", "question", "answer"],
+    );
+  });
+});
+
+// The queue is one per session, not one for the instance. A page with two panels on it is worth
+// nothing if a busy session holds up everybody else.
+describe("one session waiting does not hold up another", () => {
+  const bothLog = path.join(standIn, "both.txt");
+
+  before(async () => {
+    await start(instance, standInEnvironment(standIn, bothLog, { OW_STAND_IN_SLOW: "700" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    await Promise.all([say("the worker's own", WORKER), say("the lead's own", LEADER)]);
+  });
+
+  it("runs them at the same time", () => {
+    const order = readLog(bothLog)
+      .split("\n")
+      .filter((line) => line.includes("the worker's own") || line.includes("the lead's own"))
+      .map((line) => (line.startsWith("argv") ? "began" : "ended"));
+    assert.deepEqual(order, ["began", "began", "ended", "ended"]);
+  });
+});

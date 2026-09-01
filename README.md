@@ -145,6 +145,13 @@ said — `bin/ow say <leader> …`, in its own words — before it acts on it. S
 it cannot watch still hears what happened on a panel it was not on, and hears it as the worker
 read it.
 
+A session answers one message at a time. Messages for it wait their turn and are answered in the
+order they arrived; each session has its own queue, so one busy session never holds up another
+panel. Without that, a second message arriving mid-run would start a second Claude Code child for
+the same session, both resuming the same thread, and the transcript would come out as two questions
+followed by two answers nobody can pair up. The question is written down when its turn begins, so a
+transcript reads as a conversation.
+
 `ow` works out which instance it belongs to from where it sits, so an instance can be moved
 and it keeps working. It refuses to run if Node.js or Claude Code is not on the PATH, and it
 applies the same Node version floor the installer does — an instance carries its own copy of

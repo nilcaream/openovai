@@ -75,6 +75,7 @@ export function claudeIsInstalled() {
 //   OW_STAND_IN_REPLY         what an answer says            (default: a reply)
 //   OW_STAND_IN_SESSION       the thread id it returns       (default: test-thread)
 //   OW_STAND_IN_RESUME_FAILS  refuse to resume a thread      (default: no)
+//   OW_STAND_IN_SLOW          milliseconds to take answering (default: none)
 //   OW_STAND_IN_SIGNED_IN     what `auth status` reports     (default: true)
 //   OW_STAND_IN_LOGIN_STATUS  what `auth login` exits with   (default: 0)
 // It is plain ESM, like everything else here. A command on the PATH is named the way it is
@@ -117,6 +118,12 @@ if (called === "auth login") {
 if (called.includes("--resume") && (process.env.OW_STAND_IN_RESUME_FAILS ?? "") !== "") {
   process.stdout.write('{"type":"result","is_error":true,"session_id":null,"result":"No conversation found"}\\n');
   process.exit(1);
+}
+
+const slow = Number(process.env.OW_STAND_IN_SLOW ?? 0);
+if (slow > 0) {
+  await new Promise((resolve) => setTimeout(resolve, slow));
+  fs.appendFileSync(process.env.OW_STAND_IN_LOG, \`answered: \${called}\\n\`);
 }
 
 process.stdout.write(
