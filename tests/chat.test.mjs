@@ -819,6 +819,94 @@ describe("a run that frames nothing at all", () => {
   it("says what came out instead of an answer", () => {
     assert.ok(answered.body.includes("a model was never reached"));
   });
+
+});
+
+// The shape that put the protocol on a panel: stopped mid-turn, so the frames it had already
+// emitted are on stdout, there is no result frame, and stderr is empty. Stopping the chat does
+// this to a run on purpose, so it is the ordinary case and not an exotic one.
+describe("a run stopped in the middle of its turn", () => {
+  const halfLog = path.join(standIn, "half.txt");
+  let answered;
+
+  before(async () => {
+    await start(instance, standInEnvironment(standIn, halfLog, { OW_STAND_IN_HALF: "yes" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    answered = await say("this one gets cut off");
+  });
+
+  it("never offers the protocol as the answer", () => {
+    assert.ok(
+      !answered.body.includes(String.raw`\"type\":\"system\"`) &&
+        !answered.body.includes("half a thought"),
+      `the frames were put on the page as the reply: ${answered.body.slice(0, 200)}`,
+    );
+  });
+
+  it("says the run ended without answering", () => {
+    assert.ok(
+      answered.body.includes("Claude Code ended without answering"),
+      `nothing said what happened: ${answered.body.slice(0, 200)}`,
+    );
+  });
+});
+
+describe("a run that falls over saying nothing at all", () => {
+  const muteLog = path.join(standIn, "mute.txt");
+  let answered;
+
+  before(async () => {
+    await start(instance, standInEnvironment(standIn, muteLog, { OW_STAND_IN_MUTE: "yes" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    answered = await say("is anybody home");
+  });
+
+  it("says the run ended without answering", () => {
+    assert.ok(
+      answered.body.includes("Claude Code ended without answering"),
+      `nothing said what happened: ${answered.body.slice(0, 200)}`,
+    );
+  });
+
+  it("marks it as a failure", () => {
+    assert.equal(JSON.parse(answered.body).reply.failed, true);
+  });
+});
+
+// A run can end well and say nothing: the result frame arrives, is not an error, and carries an
+// empty string. It has happened twice with a real session and the cause is not known; what is
+// settled is that it must not reach a panel as a blank line, which reads as the chat having lost
+// the reply rather than as the session having had nothing to say.
+describe("a run that answers with nothing", () => {
+  const emptyLog = path.join(standIn, "empty.txt");
+  let answered;
+
+  before(async () => {
+    await start(instance, standInEnvironment(standIn, emptyLog, { OW_STAND_IN_EMPTY: "yes" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    answered = await say("say nothing at all");
+  });
+
+  it("keeps the reply as empty as it came", () => {
+    assert.equal(JSON.parse(answered.body).reply.text, "");
+  });
+
+  it("marks the row as having said nothing", () => {
+    assert.equal(JSON.parse(answered.body).reply.silent, true);
+  });
+
+  it("does not call a run that ended well a failure", () => {
+    assert.equal(JSON.parse(answered.body).reply.failed, undefined);
+  });
+
+  // The panel is built from the transcript, not from the answer to the post, so the mark has to
+  // have been written down and not merely returned.
+  it("marks it in the transcript too, not only in the answer to the post", async () => {
+    const { messages } = JSON.parse((await transcriptOf(LEADER)).body);
+    const last = messages.at(-1);
+    assert.equal(last.from, LEADER);
+    assert.equal(last.silent, true);
+  });
 });
 
 // Approvals. A run that wants a tool the instance has not already settled stops and asks; the

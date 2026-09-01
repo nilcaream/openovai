@@ -138,6 +138,9 @@ async function postMessage(instance, name, request, response) {
           from: name,
           text: answer.text,
           ...(answer.failed ? { failed: true } : {}),
+          // Kept as its own thing rather than folded into the text: the transcript should say
+          // what the session said, and it said nothing.
+          ...(answer.silent ? { silent: true } : {}),
         }),
       };
     }),

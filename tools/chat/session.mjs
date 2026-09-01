@@ -314,11 +314,9 @@ function run(instance, name, text, resume, asked) {
 
     let answer = null;
     let rest = "";
-    let out = "";
     let err = "";
 
     child.stdout.on("data", (chunk) => {
-      out += chunk;
       rest = frames(String(chunk), rest, (frame) => {
         if (frame.type === "control_request" && frame.request?.subtype === "can_use_tool") {
           permission(child, frame, asked);
@@ -350,7 +348,7 @@ function run(instance, name, text, resume, asked) {
 
     child.on("close", () => {
       running.delete(child);
-      resolve(interpret(answer, out, err));
+      resolve(interpret(answer, err));
     });
 
     child.stdin.write(question(text));
@@ -360,18 +358,32 @@ function run(instance, name, text, resume, asked) {
 // What the run amounted to. The result frame carries the answer as a plain string in `result`,
 // which is the same field and the same string the older whole-of-stdout JSON put it in, so what
 // the chat does with an answer did not have to change with how it arrives.
-function interpret(answer, out, err) {
-  // No result frame at all. Whatever went wrong was said in prose rather than in the protocol, so
-  // what it said is the answer — stdout included, because a run that fell over before it could
-  // frame anything may well have put the reason there.
+function interpret(answer, err) {
+  // No result frame at all: the run was stopped, or it fell over before it could answer. Whatever
+  // it has to say about that is on stderr, which is the only stream carrying prose — measured:
+  // a model it does not know gives `[claude-code:unrecognized_model] …`, a persona file that is
+  // not there gives `Error: Append system prompt file not found: …`, and stdout stays frames.
+  //
+  // Stdout was once read here too, back when it was one JSON document and a run that fell over
+  // could leave the reason in it. Since the switch to stream-json it is frames and nothing else,
+  // so falling back to it can only ever put the protocol on the page — watched, 14,546 characters
+  // of it, offered as what a session said. Do not put it back.
   if (answer === null) {
-    const said = err.trim() || out.trim();
-    return { failed: true, text: said === "" ? "Claude Code said nothing at all" : said };
+    const said = err.trim();
+    return { failed: true, text: said === "" ? "Claude Code ended without answering" : said };
   }
 
+  const text = typeof answer.result === "string" ? answer.result : JSON.stringify(answer);
+  const failed = answer.is_error === true;
+
   return {
-    failed: answer.is_error === true,
-    text: typeof answer.result === "string" ? answer.result : JSON.stringify(answer),
+    failed,
+    text,
+    // A run can end well and say nothing: the result frame arrives, is not an error, and carries
+    // an empty string. Twice now that has reached a panel as a blank line, which reads as the
+    // chat having lost the reply rather than as the session having had nothing to say. Why a
+    // session does it is not known and is not guessed at here; that it did is worth saying.
+    silent: !failed && text.trim() === "",
     sessionId: answer.session_id ?? null,
   };
 }

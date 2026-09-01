@@ -83,7 +83,17 @@ export function claudeIsInstalled() {
 //   OW_STAND_IN_SLOW          milliseconds to take answering (default: none)
 //   OW_STAND_IN_NOISE         emit what the real one says beside an answer — a keep-alive, a
 //                             system notice, an assistant turn, and a line that is not a frame
-//   OW_STAND_IN_BROKEN        fall over in prose on stdout, framing nothing at all
+//   OW_STAND_IN_BROKEN        fall over before framing anything, saying why on stderr — which is
+//                             where the real one puts it: a model it does not know gives
+//                             `[claude-code:unrecognized_model] …` there, a missing persona file
+//                             `Error: Append system prompt file not found: …`, and stdout stays
+//                             frames either way
+//   OW_STAND_IN_MUTE          fall over saying nothing on either stream
+//   OW_STAND_IN_HALF          frame a few things and then stop, with no result frame and nothing
+//                             on stderr — a run killed in the middle of its turn, which is what
+//                             stopping the chat does to one on purpose
+//   OW_STAND_IN_EMPTY         answer successfully with an empty result, the way a session that
+//                             ends its turn without saying anything does
 //   OW_STAND_IN_DEAF          ignore being asked to stop, and start a shell of its own the way
 //                             a tool call does — its own process group AND its own session — so a
 //                             check can watch what a forced run leaves behind
@@ -145,15 +155,29 @@ if (called === "auth login") {
   process.exit(Number(process.env.OW_STAND_IN_LOGIN_STATUS ?? 0));
 }
 
-// Falling over before anything could be framed: whatever it has to say, it says in prose and it
-// says it on stdout, which is the one place a reader of frames would otherwise throw away.
+// Falling over before anything could be framed: whatever it has to say, it says in prose, and it
+// says it on stderr — measured on the real one, where stdout stays frames whatever goes wrong.
 if ((process.env.OW_STAND_IN_BROKEN ?? "") !== "") {
-  process.stdout.write("a model was never reached\\n");
+  process.stderr.write("a model was never reached\\n");
+  process.exit(1);
+}
+
+// The same fall, with nothing said about it on either stream.
+if ((process.env.OW_STAND_IN_MUTE ?? "") !== "") {
   process.exit(1);
 }
 
 // One frame per line, the way the real one answers.
 const frame = (fields) => process.stdout.write(JSON.stringify(fields) + "\\n");
+
+// Stopped in the middle of the turn: the frames it had already emitted are on stdout, there is no
+// result frame, and stderr is empty. This is the shape that put 14,546 characters of protocol on a
+// panel as what a session had said.
+if ((process.env.OW_STAND_IN_HALF ?? "") !== "") {
+  frame({ type: "system", subtype: "init", session_id: "test-thread", tools: ["Bash", "Read"] });
+  frame({ type: "assistant", message: { role: "assistant", content: [{ type: "text", text: "half a thought" }] } });
+  process.exit(1);
+}
 
 if (called.includes("--resume") && (process.env.OW_STAND_IN_RESUME_FAILS ?? "") !== "") {
   frame({
@@ -294,7 +318,9 @@ frame({
   num_turns: 1,
   session_id: process.env.OW_STAND_IN_SESSION ?? "test-thread",
   result:
-    decided === null
+    (process.env.OW_STAND_IN_EMPTY ?? "") !== ""
+      ? ""
+      : decided === null
       ? (process.env.OW_STAND_IN_REPLY ?? "a reply")
       : \`I was told \${decided.behavior}\${decided.message === undefined ? "" : \`: \${decided.message}\`}\`,
 });

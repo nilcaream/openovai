@@ -23,7 +23,10 @@
   function said(message) {
     const line = document.createElement("p");
     const who = message.from === "human" ? health.human : message.from;
-    line.textContent = `${who}${message.failed ? " (failed)" : ""}: ${message.text}`;
+    // A session that answered with nothing gets a sentence rather than a blank line, which
+    // would read as the chat having lost the reply.
+    const said = message.silent ? "(ended its turn without saying anything)" : message.text;
+    line.textContent = `${who}${message.failed ? " (failed)" : ""}: ${said}`;
     return line;
   }
 
