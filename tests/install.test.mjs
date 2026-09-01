@@ -18,6 +18,7 @@ import {
   repo,
   runOw,
   scratch,
+  writeNodeStandIn,
 } from "./helpers.mjs";
 import { configProblems, settingsProblems } from "./inspect.mjs";
 
@@ -31,8 +32,12 @@ const AUTH = "inherit";
 const instance = scratch("install-test");
 const chosen = `${instance}-chosen`;
 
+// Everything the Node checks need: one stand-in node per version they pretend to have, and one
+// instance root per install that is expected to go through.
+const versions = `${instance}-versions`;
+
 // The instances are removed however this run ends, including one that fails half way through.
-process.on("exit", () => remove(instance, chosen));
+process.on("exit", () => remove(instance, chosen, versions));
 
 // A full command line, which a check then spoils in one place to ask what is refused.
 function options(root, changes = {}) {
@@ -47,6 +52,18 @@ function options(root, changes = {}) {
     "--auth": AUTH,
     ...changes,
   };
+}
+
+// A PATH whose node reports the version given. The installer only asks node what version it
+// is, so this is enough to put it in front of a Node nobody here has installed.
+function pretending(version) {
+  const directory = path.join(versions, "node", version);
+  writeNodeStandIn(directory, version);
+  return { ...process.env, PATH: `${directory}${path.delimiter}${process.env.PATH}` };
+}
+
+function rootFor(version) {
+  return path.join(versions, "root", version);
 }
 
 function inside(...parts) {
@@ -189,6 +206,33 @@ describe("what the installer refuses", () => {
 
   it("refuses a command line with no way of signing in", () => {
     assert.notEqual(install(options(`${instance}-noauth`, { "--auth": undefined })).status, 0);
+  });
+});
+
+// The toolkit is written against one Node. An older one reads a different language and stops
+// on syntax used freely here, so the installer says so in one line rather than leaving an
+// instance to fail at its first message.
+describe("the Node the installer needs", () => {
+  const refused = install(options(rootFor("v20.18.1")), pretending("v20.18.1"));
+
+  it("refuses a Node older than the one it needs", () => {
+    assert.notEqual(refused.status, 0);
+  });
+
+  it("says which Node it needs", () => {
+    assert.match(refused.stderr, /Node\.js 24 or newer is required/);
+  });
+
+  it("says which Node it found", () => {
+    assert.match(refused.stderr, /v20\.18\.1/);
+  });
+
+  it("installs on the Node it needs", () => {
+    assert.equal(install(options(rootFor("v24.0.0")), pretending("v24.0.0")).status, 0);
+  });
+
+  it("installs on a Node newer than the one it needs", () => {
+    assert.equal(install(options(rootFor("v99.0.0")), pretending("v99.0.0")).status, 0);
   });
 });
 

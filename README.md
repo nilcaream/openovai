@@ -34,7 +34,9 @@ them; one pinned line means the code can simply use what modern Node offers.
 
 The version is named where the tools that care will look for it: `.node-version` for the
 version managers, and the `engines` field of `package.json`. CI runs on that one version and
-no other.
+no other, and `install.sh` checks it before anything else and refuses an older major in one
+line — better than an instance that installs and then fails at its first message on syntax its
+Node cannot read.
 
 ## Install
 

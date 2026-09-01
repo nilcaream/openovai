@@ -45,15 +45,17 @@ export function optionsToArguments(options) {
 }
 
 // Install an instance. Returns the finished process, so a suite can ask for the exit status as
-// easily as for the output.
-export function install(options) {
+// easily as for the output. The environment is optional and is only worth passing when the
+// check is about something the installer reads out of it, such as which node is on the PATH.
+export function install(options, environment) {
   return spawnSync(path.join(repo, "install.sh"), optionsToArguments(options), {
     encoding: "utf8",
+    ...(environment === undefined ? {} : { env: environment }),
   });
 }
 
-export function installed(options) {
-  const done = install(options);
+export function installed(options, environment) {
+  const done = install(options, environment);
   if (done.status !== 0) {
     throw new Error(`installing failed: ${done.stderr || done.stdout}`);
   }
@@ -123,6 +125,33 @@ process.stdout.write(
   }) + "\\n",
 );
 `;
+
+// A stand-in for node itself, so a check can ask what the installer does about a Node this
+// machine has not got. It answers the version question with whatever it was told to say and
+// hands everything else to the real one, whose path is written into the shebang — a plain
+// `node` shebang would find this file again and call itself forever.
+export function writeNodeStandIn(directory, version) {
+  fs.mkdirSync(directory, { recursive: true });
+  const command = path.join(directory, "node");
+  fs.writeFileSync(
+    command,
+    `#!${process.execPath}
+
+const { spawnSync } = require("node:child_process");
+
+const argv = process.argv.slice(2);
+
+if (argv.length === 1 && argv[0] === "--version") {
+  process.stdout.write("${version}\\n");
+  process.exit(0);
+}
+
+process.exit(spawnSync(process.execPath, argv, { stdio: "inherit" }).status ?? 1);
+`,
+    { mode: 0o755 },
+  );
+  return command;
+}
 
 export function writeStandIn(directory) {
   fs.mkdirSync(directory, { recursive: true });
