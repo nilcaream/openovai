@@ -10,9 +10,14 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-// A name becomes a directory under work/ and an address other sessions type, so it stays
-// short, starts with a letter and holds nothing a shell or a path would read as syntax.
-const NAME_PATTERN = /^[A-Za-z][A-Za-z0-9_-]{0,31}$/;
+import {
+  DeskError,
+  allowDesk,
+  describeName,
+  isName,
+  writeDesk,
+  writePersona,
+} from "./desks.mjs";
 
 // Ports below 1024 need privileges nobody should be granting a workspace.
 const LOWEST_PORT = 1024;
@@ -79,31 +84,10 @@ const CONFIG_SCHEMA = 1;
 // which is why this is a list and not a walk of the source directory.
 const PAYLOAD = ["bin", "tools", "templates"];
 
-// A desk is a person: one directory, holding the one file a replacement session reads before
-// it does anything else.
-const DESK_TEMPLATE = path.join("templates", "STATE.md");
-const DESK_FILE = "STATE.md";
-
-// Who a session is. The names are written into the file rather than looked up from ow.json when
-// it is read, so the installed prompt says "You are Superman, Mike's lead" outright. A prompt
-// that has to dereference a setting to learn its own name is a prompt that can get it wrong;
-// renaming somebody is then an edit to that file, which is the honest cost.
-//
-// One file per session, named after the session, because every session in the instance is run
-// the same way and told who it is the same way.
+// The lead's persona, before the names are written into it. What becomes of it — where it is
+// written and why the names are welded in rather than looked up — is in tools/desks.mjs, which
+// every session's persona goes through.
 const LEADER_TEMPLATE = path.join("templates", "leader.md");
-const PERSONAS = "personas";
-
-// What the instance lets its leader do without being asked. A leader that cannot write its own
-// desk cannot keep it, and a workspace whose state file goes stale is a workspace that has to be
-// explained out loud every time somebody new sits down.
-//
-// One rule, one file. `Edit(...)` is the rule that governs every built-in tool that writes a
-// file, the Write tool included; a `Write(...)` rule is never matched, so adding one would look
-// like care and do nothing. The path is relative, which is what it means here because the chat
-// starts Claude Code with the instance root as its working directory — and it keeps the instance
-// free of absolute paths, so moving one does not quietly cost the leader its hands.
-const SETTINGS_FILE = path.join(".claude", "settings.json");
 
 // A bad command line: the person can fix it and try again, so we show them the usage.
 class UsageError extends Error {}
@@ -188,11 +172,9 @@ function resolvePlan(parsed) {
   }
 
   for (const key of ["human", "leader"]) {
-    if (!NAME_PATTERN.test(parsed[key])) {
+    if (!isName(parsed[key])) {
       const flag = OPTIONS.find(([, name]) => name === key)[0];
-      throw new UsageError(
-        `${flag} must start with a letter and hold only letters, digits, '-' or '_' (got ${JSON.stringify(parsed[key])})`,
-      );
+      throw new UsageError(describeName(flag, parsed[key]));
     }
   }
 
@@ -324,63 +306,6 @@ function writeConfig(plan) {
   return [target];
 }
 
-// Placeholders are {{NAME}}. Anything left unfilled is a mistake in the template rather than
-// something to paper over, so say so instead of shipping the braces to an instance.
-function render(what, template, values) {
-  const filled = template.replace(/\{\{(\w+)\}\}/g, (match, key) =>
-    Object.hasOwn(values, key) ? values[key] : match,
-  );
-
-  const missing = filled.match(/\{\{\w+\}\}/g);
-  if (missing !== null) {
-    throw new InstallError(`the ${what} template has placeholders nothing fills: ${[...new Set(missing)].join(", ")}`);
-  }
-
-  return filled;
-}
-
-function readTemplate(plan, what, relative) {
-  const source = path.join(plan.source, relative);
-  try {
-    return fs.readFileSync(source, "utf8");
-  } catch (error) {
-    if (error.code === "ENOENT") {
-      throw new InstallError(`the ${what} template is missing at ${source}`);
-    }
-    throw error;
-  }
-}
-
-function createDesk(plan, name) {
-  const template = readTemplate(plan, "desk", DESK_TEMPLATE);
-  const directory = path.join(plan.root, "work", name);
-  const target = path.join(directory, DESK_FILE);
-  fs.mkdirSync(directory, { recursive: true });
-  fs.writeFileSync(target, render("desk", template, { NAME: name, DATE: today() }));
-  return [target];
-}
-
-function createLeader(plan) {
-  const template = readTemplate(plan, "leader", LEADER_TEMPLATE);
-  const target = path.join(plan.root, PERSONAS, `${plan.leader}.md`);
-  fs.mkdirSync(path.dirname(target), { recursive: true });
-  fs.writeFileSync(target, render("leader", template, { LEADER: plan.leader, HUMAN: plan.human }));
-  return [target];
-}
-
-function writeSettings(plan) {
-  const desk = path.posix.join("work", plan.leader, DESK_FILE);
-  const settings = { permissions: { allow: [`Edit(${desk})`] } };
-  const target = path.join(plan.root, SETTINGS_FILE);
-  fs.mkdirSync(path.dirname(target), { recursive: true });
-  fs.writeFileSync(target, `${JSON.stringify(settings, null, 2)}\n`);
-  return [target];
-}
-
-function today() {
-  return new Date().toISOString().slice(0, 10);
-}
-
 function printPlan(plan) {
   const rows = [
     ["source", plan.source],
@@ -440,9 +365,12 @@ function main(argv) {
       ...createLayout(plan),
       ...copyPayload(plan),
       ...writeConfig(plan),
-      ...createDesk(plan, plan.leader),
-      ...createLeader(plan),
-      ...writeSettings(plan),
+      ...writeDesk(plan.root, plan.source, plan.leader),
+      ...writePersona(plan.root, plan.source, plan.leader, "leader", LEADER_TEMPLATE, {
+        LEADER: plan.leader,
+        HUMAN: plan.human,
+      }),
+      ...allowDesk(plan.root, plan.leader),
     ]);
     return 0;
   } catch (error) {
@@ -452,7 +380,7 @@ function main(argv) {
       console.error(usage());
       return 2;
     }
-    if (error instanceof InstallError) {
+    if (error instanceof InstallError || error instanceof DeskError) {
       console.error(`install: ${error.message}`);
       return 1;
     }
