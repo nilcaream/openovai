@@ -1,0 +1,13 @@
+{
+  "name": "office-workspace",
+  "version": "0.0.0",
+  "description": "A toolkit for running a small team of AI developer sessions on one machine.",
+  "license": "MIT",
+  "private": true,
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.mjs"
+  }
+}

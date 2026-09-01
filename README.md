@@ -23,10 +23,18 @@ session can be replaced at any time without losing the work.
 
 - Claude Code
 - Bash 5
-- Node.js (for the launchers and the web page)
+- Node.js 24 or newer (for the launchers and the web page)
 - Linux desktop
 
-Exact versions will be pinned as the first components are written.
+Node.js 24 is the line the toolkit is written and tested against. It is the one in long-term
+support today — it entered LTS on 2025-10-28 and is maintained until 2028-04-30 — which makes
+it the version a machine is most likely to already have and the one that will still be getting
+security fixes for years. Supporting every Node at once would mean writing to the oldest of
+them; one pinned line means the code can simply use what modern Node offers.
+
+The version is named where the tools that care will look for it: `.node-version` for the
+version managers, and the `engines` field of `package.json`. CI runs on that one version and
+no other.
 
 ## Install
 
