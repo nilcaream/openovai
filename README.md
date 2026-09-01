@@ -120,6 +120,12 @@ knows the address until then — and this reads it there. It waits for the answe
 session that asked is held for the whole of the other one's turn. Without a chat running there is
 nobody to say it to, and it says so rather than starting anybody.
 
+Every session in the instance is allowed to run it, and the lead's persona says so, which is what
+makes the team a team: the lead can ask a worker something mid-turn and quote the answer back to
+you. The rule is `Bash(bin/ow say:*)` and it is relative, like the rule that lets a session write
+its own desk — a session is started with the instance root as its working directory, and an
+instance that named a place on this machine would stop working the moment it was moved.
+
 `ow` works out which instance it belongs to from where it sits, so an instance can be moved
 and it keeps working. It refuses to run if Node.js or Claude Code is not on the PATH, and it
 applies the same Node version floor the installer does — an instance carries its own copy of

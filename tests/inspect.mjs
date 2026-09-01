@@ -42,10 +42,10 @@ export function configProblems(file, expected) {
   return wrong;
 }
 
-// Does the instance grant everybody who works there exactly the one thing they need: the right
-// to keep their own desk, and nothing wider?
+// Does the instance grant exactly what working there takes and nothing wider: one rule per person
+// for their own desk, and the one rule that lets a session say something to another?
 export function settingsProblems(file, names) {
-  const expected = names.map((name) => `Edit(work/${name}/STATE.md)`);
+  const expected = [...names.map((name) => `Edit(work/${name}/STATE.md)`), "Bash(bin/ow say:*)"];
 
   let settings;
   try {
@@ -71,10 +71,11 @@ export function settingsProblems(file, names) {
     wrong.push(`rules anchored outside the instance: ${JSON.stringify(absolute)}`);
   }
 
-  // One rule, one desk, and nothing else. Anything wider is a grant nobody asked for.
+  // One rule per desk, the one that lets a session speak to another, and nothing else. Anything
+  // wider is a grant nobody asked for.
   const wider = allow.filter((rule) => !expected.includes(rule));
   if (wider.length > 0) {
-    wrong.push(`rules beyond the desks of ${names.join(", ")}: ${JSON.stringify(wider)}`);
+    wrong.push(`rules beyond the desks of ${names.join(", ")} and saying something: ${JSON.stringify(wider)}`);
   }
 
   return wrong;

@@ -13,6 +13,7 @@ import path from "node:path";
 import {
   DeskError,
   allowDesk,
+  allowSay,
   describeName,
   isName,
   writeDesk,
@@ -326,7 +327,12 @@ function printPlan(plan) {
   console.log("");
 }
 
-function report(plan, created) {
+function report(plan, written) {
+  // Named once each. Two things an instance needs can land in the same file — the lead's desk
+  // rule and the rule that lets a session speak to another both go into the settings — and a
+  // list that says so twice reads as though something had been written over.
+  const created = [...new Set(written)];
+
   if (created.length === 0) {
     console.log("Everything was already in place; nothing to write.");
   } else {
@@ -371,6 +377,7 @@ function main(argv) {
         HUMAN: plan.human,
       }),
       ...allowDesk(plan.root, plan.leader),
+      ...allowSay(plan.root),
     ]);
     return 0;
   } catch (error) {

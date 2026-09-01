@@ -34,6 +34,11 @@ export const PERSONAS = "personas";
 // instance free of absolute paths, so moving one does not quietly cost a session its hands.
 export const SETTINGS_FILE = path.join(".claude", "settings.json");
 
+// And what every session in the instance may do to reach the others: run the instance's own
+// command to say something to one of them. One rule serves everybody, because these settings are
+// the instance's rather than anybody's — the same reason there is one file and not one per desk.
+export const SAY_RULE = "Bash(bin/ow say:*)";
+
 // Something is wrong with a name, a template or a file we were asked to write. The caller says
 // which command it happened under, so this carries only the reason.
 export class DeskError extends Error {}
@@ -118,28 +123,38 @@ export function writePersona(root, from, name, what, relative, values) {
   return [target];
 }
 
-// Grant one desk, leaving whatever is already granted alone. The installer writes the first rule
+// Grant one thing, leaving whatever is already granted alone. The installer writes the first rule
 // into a file that is not there yet; hiring adds one to a file that is, and must not take
 // anybody else's away doing it.
-export function allowDesk(root, name) {
+function allow(root, rule) {
   const target = path.join(root, SETTINGS_FILE);
-  const rule = `Edit(${path.posix.join(WORK, name, DESK_FILE)})`;
 
   let settings = {};
   try {
     settings = JSON.parse(fs.readFileSync(target, "utf8"));
   } catch {
     // No settings yet, or none we can read. Writing a fresh file is better than refusing to
-    // open a desk over it.
+    // grant anything over it.
   }
 
-  const allow = Array.isArray(settings?.permissions?.allow) ? settings.permissions.allow : [];
-  if (allow.includes(rule)) {
+  const granted = Array.isArray(settings?.permissions?.allow) ? settings.permissions.allow : [];
+  if (granted.includes(rule)) {
     return [];
   }
 
-  const updated = { ...settings, permissions: { ...settings.permissions, allow: [...allow, rule] } };
+  const updated = { ...settings, permissions: { ...settings.permissions, allow: [...granted, rule] } };
   fs.mkdirSync(path.dirname(target), { recursive: true });
   fs.writeFileSync(target, `${JSON.stringify(updated, null, 2)}\n`);
   return [target];
+}
+
+// The right to keep one desk: one rule, one file, one person.
+export function allowDesk(root, name) {
+  return allow(root, `Edit(${path.posix.join(WORK, name, DESK_FILE)})`);
+}
+
+// The right to say something to the others. Granted once, when the instance is made, rather than
+// per person: it names no desk, so a second copy of it would grant nothing a first one had not.
+export function allowSay(root) {
+  return allow(root, SAY_RULE);
 }

@@ -75,7 +75,7 @@ function contentOf(...parts) {
 }
 
 remove(instance, chosen);
-installed(options(instance));
+const made = installed(options(instance));
 
 describe("what the installer made", () => {
   it("writes the instance its own description", () => {
@@ -156,6 +156,30 @@ describe("what the installer made", () => {
 
   it("lets the leader write its own desk, and nothing wider", () => {
     assert.deepEqual(settingsProblems(inside(".claude", "settings.json"), [LEADER]), []);
+  });
+
+  // A lead that cannot reach the team has to do the work itself. The rule is relative, like the
+  // desk rules, because a session is started with the instance root as its working directory.
+  it("names each file it wrote once, however many things went into it", () => {
+    const settings = inside(".claude", "settings.json");
+    assert.equal(made.stdout.split("\n").filter((line) => line.trim() === settings).length, 1);
+  });
+
+  it("lets a session say something to another without being asked", () => {
+    const allow = JSON.parse(contentOf(".claude", "settings.json")).permissions.allow;
+    assert.ok(allow.includes("Bash(bin/ow say:*)"));
+  });
+
+  it("tells the leader how to say something to somebody", () => {
+    assert.match(contentOf("personas", `${LEADER}.md`), /bin\/ow say <name> <message>/);
+  });
+
+  it("tells the leader how to see who works here", () => {
+    assert.match(contentOf("personas", `${LEADER}.md`), /bin\/ow status/);
+  });
+
+  it("warns the leader that asking somebody waits for them", () => {
+    assert.match(contentOf("personas", `${LEADER}.md`), /waits for them/);
   });
 
   it("describes the instance that was asked for", () => {
