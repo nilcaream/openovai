@@ -12,7 +12,7 @@ import { append, read } from "./conversation.mjs";
 import { HOST, record } from "./listening.mjs";
 import { allow, answer as settle, giveUp, park, parked, refuse } from "./permissions.mjs";
 import { ask, sessions } from "./session.mjs";
-import { inTurn, whileWaitingFor, wouldWaitForItself } from "./turns.mjs";
+import { inTurn, midTurn, whileWaitingFor, wouldWaitForItself } from "./turns.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PAGE = path.join(HERE, "page.html");
@@ -209,7 +209,13 @@ async function handle(instance, request, response) {
   }
 
   if (request.method === "GET" && url.pathname === "/sessions") {
-    sendJson(response, 200, { sessions: sessions(instance) });
+    // Who works here, and which of them is in the middle of a turn. The second part is why the
+    // page asks again rather than only at load: a session is put to work by another session as
+    // well as by the person at the page, and a panel that says nothing while that happens reads
+    // as a panel nobody is listening on.
+    sendJson(response, 200, {
+      sessions: sessions(instance).map((session) => ({ ...session, busy: midTurn(session.name) })),
+    });
     return;
   }
 

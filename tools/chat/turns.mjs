@@ -18,6 +18,15 @@
 // instance's chat. One entry per session that has ever spoken, so it is bounded by the desks.
 const queues = new Map();
 
+// How many turns each session has going: the one being answered, plus any waiting behind it. A
+// session with anything in here is one the page should say is busy — from the panel's side there
+// is no difference between a message being answered and a message waiting its turn, and both mean
+// the same thing to whoever is looking at it: not yet.
+//
+// Counted rather than flagged, because a queued turn and the turn ahead of it both end, and a
+// flag cleared by the first would say idle while the second was still running.
+const going = new Map();
+
 // Who each session's turn is currently waiting for an answer FROM. One session at a time can be
 // waiting, because a session runs one turn at a time, which is what makes this a map and not a
 // list — and what makes the chain below a walk rather than a search.
@@ -68,19 +77,31 @@ export async function whileWaitingFor(sender, addressee, wait) {
   }
 }
 
+// Whether this session has a turn going. Counted from the moment a message is taken rather than
+// from the moment a run starts, so a page asking a fraction of a second after somebody typed is
+// told the truth.
+export function midTurn(name) {
+  return going.has(name);
+}
+
 export function inTurn(name, answer) {
   const waiting = queues.get(name) ?? Promise.resolve();
   const mine = waiting.then(answer, answer);
 
+  going.set(name, (going.get(name) ?? 0) + 1);
+  const over = () => {
+    const left = going.get(name) - 1;
+    if (left === 0) {
+      going.delete(name);
+    } else {
+      going.set(name, left);
+    }
+  };
+
   // What the next turn waits for is that this one ENDED, never how it went: a turn that failed
-  // must not take the session down with it, and a rejection nobody is left to catch would.
-  queues.set(
-    name,
-    mine.then(
-      () => {},
-      () => {},
-    ),
-  );
+  // must not take the session down with it, and a rejection nobody is left to catch would. The
+  // count comes down here, on the same handler, so it comes down exactly once either way.
+  queues.set(name, mine.then(over, over));
 
   return mine;
 }

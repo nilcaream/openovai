@@ -702,6 +702,65 @@ describe("a session answers one message at a time", () => {
 
 // The queue is one per session, not one for the instance. A page with two panels on it is worth
 // nothing if a busy session holds up everybody else.
+// A session is put to work by another session as much as by the person at the page, so a panel
+// has to be able to say that its session is busy without having been the one that made it busy.
+describe("what the page is told about a session mid-turn", () => {
+  const busyLog = path.join(standIn, "busy.txt");
+  let idle;
+  let mid;
+  let after;
+
+  // What /sessions says about one name right now.
+  async function stateOf(name) {
+    const { sessions: rows } = JSON.parse((await get(`${URL}/sessions`)).body);
+    return rows.find((row) => row.name === name) ?? null;
+  }
+
+  before(async () => {
+    await start(instance, standInEnvironment(standIn, busyLog, { OW_STAND_IN_SLOW: "1500" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    idle = await stateOf(WORKER);
+    // Not awaited: the point is what the page is told WHILE the turn is going.
+    const answering = say("take your time", WORKER);
+    mid = await waitFor(async () => {
+      const row = await stateOf(WORKER);
+      return row?.busy === true ? row : null;
+    });
+    const alongside = await stateOf(LEADER);
+    await answering;
+    after = await stateOf(WORKER);
+    mid = { worker: mid, leader: alongside };
+  });
+
+  it("says nothing is going on when nothing is", () => {
+    assert.equal(idle.busy, false);
+  });
+
+  it("says the session is busy while it is answering", () => {
+    assert.equal(mid.worker?.busy, true);
+  });
+
+  it("says it about the session that is busy and not the others", () => {
+    assert.equal(mid.leader.busy, false);
+  });
+
+  it("stops saying it once the turn is over", () => {
+    assert.equal(after.busy, false);
+  });
+
+  it("still says who works here and what they are", () => {
+    assert.deepEqual(
+      [idle.name, idle.role, idle.model],
+      [WORKER, "worker", WORKER_MODEL],
+    );
+  });
+
+  it("gives the page a word to put beside the name", async () => {
+    assert.ok((await get(`${URL}/`)).body.includes("(answering…)"));
+  });
+});
+
 describe("one session waiting does not hold up another", () => {
   const bothLog = path.join(standIn, "both.txt");
 

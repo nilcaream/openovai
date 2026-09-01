@@ -36,6 +36,12 @@
     const heading = document.createElement("h2");
     heading.textContent = `${session.name} — ${session.role} (${session.model})`;
 
+    // Whether this session is in the middle of a turn. It is a word beside the name and nothing
+    // else: the panel already shows what was said, and what is wanted here is only the difference
+    // between a session thinking and a session with nothing to do.
+    const mood = document.createElement("span");
+    heading.append(mood);
+
     const transcript = document.createElement("div");
 
     const box = document.createElement("textarea");
@@ -126,7 +132,11 @@
       await show();
     });
 
-    return { section, show, waiting };
+    function busy(is) {
+      mood.textContent = is ? " (answering…)" : "";
+    }
+
+    return { name: session.name, section, show, waiting, busy };
   }
 
   const built = sessions.map(panel);
@@ -136,12 +146,26 @@
   // Once a second, which is often enough that answering does not feel like waiting and seldom
   // enough to be free. A run asking for permission has stopped until it is answered, so there is
   // nothing else for the page to be doing meanwhile.
+  //
+  // Both things this asks for start on the far side: a session asks to use a tool, and a session
+  // is put to work by another session or by this page in another window. Neither is something the
+  // page can know by having caused it.
   const EVERY = 1000;
+
+  async function showWhoIsBusy() {
+    const { sessions } = await fetch("/sessions").then((response) => response.json());
+    const going = new Map(sessions.map((session) => [session.name, session.busy === true]));
+    for (const panel of built) {
+      panel.busy(going.get(panel.name) === true);
+    }
+  }
+
   setInterval(() => {
     for (const { waiting } of built) {
       waiting().catch(() => {
         // The chat is gone or restarting. The next tick will find out.
       });
     }
+    showWhoIsBusy().catch(() => {});
   }, EVERY);
 </script>
