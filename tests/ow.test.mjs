@@ -15,7 +15,16 @@ import fs from "node:fs";
 import path from "node:path";
 import { before, describe, it } from "node:test";
 
-import { installed, readLog, remove, repo, runOw, scratch, writeStandIn } from "./helpers.mjs";
+import {
+  installed,
+  readLog,
+  remove,
+  repo,
+  runOw,
+  scratch,
+  writeNodeStandIn,
+  writeStandIn,
+} from "./helpers.mjs";
 import { trustProblems } from "./inspect.mjs";
 
 const HUMAN = "Mike";
@@ -28,12 +37,15 @@ const instance = scratch("ow-test");
 const inherited = `${instance}-inherited`;
 const standIn = `${instance}-stand-in`;
 
+// One stand-in node per version the Node checks pretend the machine has.
+const nodes = `${instance}-nodes`;
+
 // Each instance records its calls in its own file, so that what one of them was run with can
 // never be read as evidence about the other.
 const log = path.join(standIn, "calls.txt");
 const inheritedLog = path.join(standIn, "inherited.txt");
 
-process.on("exit", () => remove(instance, inherited, standIn));
+process.on("exit", () => remove(instance, inherited, standIn, nodes));
 
 function install(root, auth) {
   installed({
@@ -61,6 +73,14 @@ function run(root, recordIn, argv, changes = {}) {
     PATH: `${standIn}${path.delimiter}${process.env.PATH}`,
     ...changes,
   });
+}
+
+// A PATH whose node reports the version given, with the stand-in for Claude Code still on it,
+// so the only thing different about the run is which Node the launcher finds first.
+function onNode(version) {
+  const directory = path.join(nodes, version);
+  writeNodeStandIn(directory, version);
+  return { PATH: [directory, standIn, process.env.PATH].join(path.delimiter) };
 }
 
 const ow = (argv, changes) => run(instance, log, argv, changes);
@@ -224,6 +244,33 @@ describe("an instance that inherits", () => {
 
   it("is told where a token comes from instead", () => {
     assert.match(owInherited(["login"]).stderr, /setup-token/);
+  });
+});
+
+// An instance carries its own copy of everything it runs and can be started on a different
+// machine from the one it was installed on, so the launcher applies the same floor the
+// installer does rather than trusting that it was checked once.
+describe("the Node the command needs", () => {
+  const refused = ow(["status"], onNode("v20.18.1"));
+
+  it("refuses a Node older than the one it needs", () => {
+    assert.notEqual(refused.status, 0);
+  });
+
+  it("says which Node it needs", () => {
+    assert.match(refused.stderr, /Node\.js 24 or newer is required/);
+  });
+
+  it("says which Node it found", () => {
+    assert.match(refused.stderr, /v20\.18\.1/);
+  });
+
+  it("runs on the Node it needs", () => {
+    assert.equal(ow(["status"], onNode("v24.0.0")).status, 0);
+  });
+
+  it("runs on a Node newer than the one it needs", () => {
+    assert.equal(ow(["status"], onNode("v99.0.0")).status, 0);
   });
 });
 

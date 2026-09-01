@@ -96,8 +96,12 @@ what it looks like is a later question. What you write is kept in `chat/conversa
 inside the instance, so stopping the server does not throw the conversation away.
 
 `ow` works out which instance it belongs to from where it sits, so an instance can be moved
-and it keeps working. It refuses to run if Node.js or Claude Code is not on the PATH: those
-are needed to run an instance, not to create one, which is why the installer only warns.
+and it keeps working. It refuses to run if Node.js or Claude Code is not on the PATH, and it
+applies the same Node version floor the installer does — an instance carries its own copy of
+everything it runs and may well be started on a different machine from the one it was
+installed on, so it checks for itself rather than trusting that somebody checked once. Claude
+Code is needed to run an instance and not to create one, which is why the installer only
+warns about that one.
 
 Each message runs the leader once — one Claude Code run per message, on the instance's own
 Claude Code home and the model `ow.json` names — and the answer lands in the transcript. A

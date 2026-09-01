@@ -7,10 +7,15 @@ set -euo pipefail
 # actually run a session, and hands the rest over to Node. Nothing here is written at install
 # time and no path is baked in, so an instance can be moved and this still works.
 
+# The Node the toolkit is written against, the same floor the installer applies. An instance
+# carries its own copy of everything it runs, so it has to say this for itself: it may well be
+# started on a different machine from the one it was installed on.
+readonly MIN_NODE_MAJOR=24
+
 die() { echo "ow: ${*}" >&2; exit 1; }
 
 main() {
-    local bin_dir root
+    local bin_dir root node_version node_major
 
     bin_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
     root="$(dirname -- "${bin_dir}")"
@@ -22,6 +27,17 @@ main() {
     # are checked here and not only by the installer.
     command -v node >/dev/null 2>&1 ||
         die "Node.js is required and is not on your PATH — install it, or load your version manager, then run this again"
+
+    # An older Node reads a different language and stops on syntax the toolkit uses freely.
+    # Saying so here costs one line; finding out at the first message costs an unplaceable
+    # parse error in the middle of a conversation.
+    node_version="$(node --version 2>/dev/null || true)"
+    node_major="${node_version#v}"
+    node_major="${node_major%%.*}"
+    if [[ ! "${node_major}" =~ ^[0-9]+$ ]] || (( node_major < MIN_NODE_MAJOR )); then
+        die "Node.js ${MIN_NODE_MAJOR} or newer is required, this one is ${node_version:-unreadable}"
+    fi
+
     command -v claude >/dev/null 2>&1 ||
         die "Claude Code is required and is not on your PATH — install it, then run this again"
 
