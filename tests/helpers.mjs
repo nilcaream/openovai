@@ -4,8 +4,13 @@
 // The stand-in matters most. A test that really ran Claude Code would need a subscription,
 // would cost money, and would answer differently every time. This one records how it was
 // called and answers in the shape measured from the real binary, which is what lets the tests
-// check the parts that are ours: the arguments, the environment, and what we do with the
-// answer.
+// check the parts that are ours: the arguments, the environment, the question, and what we do
+// with the answer.
+//
+// It speaks the streaming protocol, because that is what a session is run with: it takes its
+// question as a frame on stdin, answers with a result frame on stdout, and — as the real one
+// does — waits afterwards rather than exiting, until whoever asked closes stdin. A caller that
+// never does is named in the log instead of hanging the suite until somebody kills it.
 
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -76,6 +81,9 @@ export function claudeIsInstalled() {
 //   OW_STAND_IN_SESSION       the thread id it returns       (default: test-thread)
 //   OW_STAND_IN_RESUME_FAILS  refuse to resume a thread      (default: no)
 //   OW_STAND_IN_SLOW          milliseconds to take answering (default: none)
+//   OW_STAND_IN_NOISE         emit what the real one says beside an answer — a keep-alive, a
+//                             system notice, an assistant turn, and a line that is not a frame
+//   OW_STAND_IN_BROKEN        fall over in prose on stdout, framing nothing at all
 //   OW_STAND_IN_CALLS         "Speaker>Addressee,…" — while answering, that speaker says
 //                             something to that addressee with the instance's own command, which
 //                             is how a check builds a session that talks back mid-turn
@@ -94,9 +102,10 @@ import fs from "node:fs";
 const argv = process.argv.slice(2);
 const called = argv.join(" ");
 const value = (name) => process.env[name] || "<unset>";
+const log = process.env.OW_STAND_IN_LOG;
 
 fs.appendFileSync(
-  process.env.OW_STAND_IN_LOG,
+  log,
   [
     \`argv: \${called}\`,
     \`cwd: \${process.cwd()}\`,
@@ -119,10 +128,61 @@ if (called === "auth login") {
   process.exit(Number(process.env.OW_STAND_IN_LOGIN_STATUS ?? 0));
 }
 
-if (called.includes("--resume") && (process.env.OW_STAND_IN_RESUME_FAILS ?? "") !== "") {
-  process.stdout.write('{"type":"result","is_error":true,"session_id":null,"result":"No conversation found"}\\n');
+// Falling over before anything could be framed: whatever it has to say, it says in prose and it
+// says it on stdout, which is the one place a reader of frames would otherwise throw away.
+if ((process.env.OW_STAND_IN_BROKEN ?? "") !== "") {
+  process.stdout.write("a model was never reached\\n");
   process.exit(1);
 }
+
+// One frame per line, the way the real one answers.
+const frame = (fields) => process.stdout.write(JSON.stringify(fields) + "\\n");
+
+if (called.includes("--resume") && (process.env.OW_STAND_IN_RESUME_FAILS ?? "") !== "") {
+  frame({
+    type: "result",
+    subtype: "error_during_execution",
+    is_error: true,
+    session_id: null,
+    result: "No conversation found",
+  });
+  process.exit(1);
+}
+
+// The question arrives on stdin now, as a user frame, and not in the arguments. Reading it is
+// what says the run began — the argument line is written before there is anything to answer.
+//
+// Read with a listener rather than with for-await: leaving a for-await early closes the stream it
+// was reading, and this one has to stay open afterwards to see whether the caller ever ends it.
+process.stdin.setEncoding("utf8");
+
+let rest = "";
+let heard = null;
+const question = new Promise((resolve) => {
+  heard = resolve;
+});
+const ended = new Promise((resolve) => process.stdin.on("end", resolve));
+
+process.stdin.on("data", (chunk) => {
+  rest += chunk;
+  let at = rest.indexOf("\\n");
+  while (at !== -1) {
+    const line = rest.slice(0, at);
+    rest = rest.slice(at + 1);
+    at = rest.indexOf("\\n");
+    if (line.trim() === "") {
+      continue;
+    }
+    const said = JSON.parse(line);
+    if (said.type === "user" && heard !== null) {
+      heard(said.message.content);
+      heard = null;
+    }
+  }
+});
+
+const asked = await question;
+fs.appendFileSync(log, \`heard: \${asked}\\n\`);
 
 // Said from inside this turn, with the instance's own command, from the directory a session is
 // started in. A timeout, because the thing being checked is sometimes whether this returns at all.
@@ -134,25 +194,48 @@ for (const pair of (process.env.OW_STAND_IN_CALLS ?? "").split(",").filter(Boole
   }
   const said = spawnSync("./bin/ow", ["say", addressee, \`a word from \${me}\`], { encoding: "utf8", timeout: 5000 });
   fs.appendFileSync(
-    process.env.OW_STAND_IN_LOG,
+    log,
     \`said by \${me} to \${addressee}: status=\${said.status} out=\${JSON.stringify((said.stdout ?? "").trim())} err=\${JSON.stringify((said.stderr ?? "").trim())}\\n\`,
   );
+}
+
+// What the real one says beside an answer: a keep-alive while a long turn runs, a system notice,
+// and — because stdout is a stream and not only frames — the odd line that is not JSON at all.
+if ((process.env.OW_STAND_IN_NOISE ?? "") !== "") {
+  frame({ type: "keep_alive" });
+  frame({ type: "system", subtype: "init", session_id: "test-thread" });
+  process.stdout.write("this line is not a frame at all\\n");
+  frame({ type: "assistant", message: { role: "assistant", content: [{ type: "text", text: "thinking" }] } });
 }
 
 const slow = Number(process.env.OW_STAND_IN_SLOW ?? 0);
 if (slow > 0) {
   await new Promise((resolve) => setTimeout(resolve, slow));
-  fs.appendFileSync(process.env.OW_STAND_IN_LOG, \`answered: \${called}\\n\`);
+  fs.appendFileSync(log, \`answered: \${asked}\\n\`);
 }
 
-process.stdout.write(
-  JSON.stringify({
-    type: "result",
-    is_error: false,
-    session_id: process.env.OW_STAND_IN_SESSION ?? "test-thread",
-    result: process.env.OW_STAND_IN_REPLY ?? "a reply",
-  }) + "\\n",
-);
+frame({
+  type: "result",
+  subtype: "success",
+  is_error: false,
+  num_turns: 1,
+  session_id: process.env.OW_STAND_IN_SESSION ?? "test-thread",
+  result: process.env.OW_STAND_IN_REPLY ?? "a reply",
+});
+
+// The real one would now wait for another question: a result is not what ends it. Whoever asked
+// has to close stdin, and a run that is left holding it open is a bug worth naming rather than a
+// test that hangs until somebody kills it.
+await Promise.race([
+  ended,
+  new Promise((resolve) => {
+    setTimeout(() => {
+      fs.appendFileSync(log, \`stdin was never closed: \${asked}\\n\`);
+      resolve();
+    }, 5000);
+  }),
+]);
+process.exit(0);
 `;
 
 // A stand-in for node itself, so a check can ask what the installer does about a Node this
@@ -213,6 +296,14 @@ export function callsIn(log) {
   return readLog(log)
     .split("\n")
     .filter((line) => line.startsWith("argv: "));
+}
+
+// The questions the stand-in was asked, newest last. The question is a frame on stdin rather than
+// an argument, so what a session was actually asked is read from here and not from callsIn.
+export function heardIn(log) {
+  return readLog(log)
+    .split("\n")
+    .filter((line) => line.startsWith("heard: "));
 }
 
 // Start a chat server as a child, keeping whatever it prints. The output is where the address

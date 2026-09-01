@@ -23,6 +23,7 @@ import { after, before, describe, it } from "node:test";
 
 import {
   callsIn,
+  heardIn,
   get,
   installed,
   post,
@@ -351,7 +352,7 @@ describe("who a message is from", () => {
   });
 
   it("hands the page's own message over unwrapped", () => {
-    assert.ok(!callsIn(log).at(-1).includes("<from-session"));
+    assert.ok(!heardIn(log).at(-1).includes("<from-session"));
   });
 
   it("keeps the page's own message under the human's name", async () => {
@@ -365,15 +366,15 @@ describe("who a message is from", () => {
     });
 
     it("hands it over wrapped, under the name of who sent it", () => {
-      assert.ok(callsIn(log).at(-1).includes(`<from-session name="${LEADER}" role="lead">`));
+      assert.ok(heardIn(log).at(-1).includes(`<from-session name="${LEADER}" role="lead">`));
     });
 
     it("says what the sender is, not only who", () => {
-      assert.ok(callsIn(log).at(-1).includes('role="lead"'));
+      assert.ok(heardIn(log).at(-1).includes('role="lead"'));
     });
 
     it("hands over what was said inside the wrapper", () => {
-      assert.match(callsIn(log).at(-1), /<from-session[^>]*>this one is mine<\/from-session>/);
+      assert.match(heardIn(log).at(-1), /<from-session[^>]*>this one is mine<\/from-session>/);
     });
 
     it("keeps it in the transcript under the name of who sent it", async () => {
@@ -603,7 +604,7 @@ describe("a session answers one message at a time", () => {
     const order = readLog(slowLog)
       .split("\n")
       .filter((line) => line.includes("one at a time") || line.includes("and me, when"))
-      .map((line) => `${line.startsWith("argv") ? "began" : "ended"} ${line.includes("one at a time") ? "first" : "second"}`);
+      .map((line) => `${line.startsWith("heard") ? "began" : "ended"} ${line.includes("one at a time") ? "first" : "second"}`);
     assert.deepEqual(order, ["began first", "ended first", "began second", "ended second"]);
   });
 
@@ -631,7 +632,7 @@ describe("one session waiting does not hold up another", () => {
     const order = readLog(bothLog)
       .split("\n")
       .filter((line) => line.includes("the worker's own") || line.includes("the lead's own"))
-      .map((line) => (line.startsWith("argv") ? "began" : "ended"));
+      .map((line) => (line.startsWith("heard") ? "began" : "ended"));
     assert.deepEqual(order, ["began", "began", "ended", "ended"]);
   });
 });
@@ -722,5 +723,92 @@ describe("a message that would wait for the sender further up the chain", () => 
       .split("\n")
       .find((line) => line.startsWith(`said by ${SECOND}`));
     assert.match(refused, /is waiting for your answer/);
+  });
+});
+
+// How a session is run, now that a question is a frame and not an argument. The format is what
+// makes a run able to be asked whether it may use a tool, which is what the page is for; and the
+// question moving to stdin is not a nicety but the only way it is read at all, because a prompt
+// argument is passed over in silence once the input format is streaming.
+//
+// This block runs a chat of its own so that what it reads is its own question and nobody else's.
+describe("a session is asked over the streaming protocol", () => {
+  const askedLog = path.join(standIn, "asked.txt");
+
+  before(async () => {
+    await start(instance, standInEnvironment(standIn, askedLog));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    await say("a question of its own");
+  });
+
+  it("reads its questions as frames", () => {
+    assert.ok(callsIn(askedLog).at(-1).includes("--input-format stream-json"));
+  });
+
+  it("answers in frames too", () => {
+    assert.ok(callsIn(askedLog).at(-1).includes("--output-format stream-json"));
+  });
+
+  it("says enough for the format to be allowed at all", () => {
+    const call = callsIn(askedLog).at(-1);
+    assert.ok(call.includes("--print"), "the run is not in print mode");
+    assert.ok(call.includes("--verbose"), "streaming output is refused without it");
+  });
+
+  it("does not put the question in the arguments, where it would not be read", () => {
+    assert.ok(!callsIn(askedLog).at(-1).includes("a question of its own"));
+  });
+
+  it("hands the question over on stdin", () => {
+    assert.ok(heardIn(askedLog).at(-1).includes("a question of its own"));
+  });
+
+  it("closes the run's stdin once the answer is in", () => {
+    assert.ok(
+      !readLog(askedLog).includes("stdin was never closed"),
+      "a run left holding stdin open waits for a question that is never coming",
+    );
+  });
+});
+
+// A result arrives among everything else the format carries: a keep-alive while a long turn runs,
+// a system notice, the assistant's own turn, and — stdout being a stream and not only frames — the
+// odd line that is not JSON at all. Losing an answer because something harmless came out beside it
+// would be the whole slice undone.
+describe("an answer among the noise", () => {
+  const noisyLog = path.join(standIn, "noisy.txt");
+  let answered;
+
+  before(async () => {
+    await start(instance, standInEnvironment(standIn, noisyLog, { OW_STAND_IN_NOISE: "yes" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    answered = await say("through the noise");
+  });
+
+  it("accepts the message", () => {
+    assert.equal(answered.status, 200);
+  });
+
+  it("keeps the answer that came out after all of it", async () => {
+    const messages = JSON.parse((await transcriptOf(LEADER)).body).messages;
+    assert.equal(messages.at(-1).text, "a reply");
+  });
+});
+
+// A run can end without ever framing an answer — it fell over, or it was never going to start.
+// Reading only frames would leave a session with nothing to say about it, so what came out in
+// prose is what the transcript gets.
+describe("a run that frames nothing at all", () => {
+  const brokenLog = path.join(standIn, "broken.txt");
+  let answered;
+
+  before(async () => {
+    await start(instance, standInEnvironment(standIn, brokenLog, { OW_STAND_IN_BROKEN: "yes" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    answered = await say("is anybody home");
+  });
+
+  it("says what came out instead of an answer", () => {
+    assert.ok(answered.body.includes("a model was never reached"));
   });
 });

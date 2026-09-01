@@ -1,9 +1,11 @@
 // Asking a session something.
 //
-// One Claude Code run per message: the process starts, answers, and exits. The conversation
-// survives in a session id rather than in a running process, so the server can be stopped and
-// started again in the middle of one without losing it. The cost is that a reply cannot appear
-// a word at a time, which is a trade worth making until streaming is what is wanted.
+// One Claude Code run per message: the process starts, answers, and is closed. It need not be —
+// held open, a run answers question after question in one conversation — and it is closed anyway,
+// because the conversation surviving in a session id rather than in a running process is what lets
+// the server be stopped and started again in the middle of one without losing it. Keeping a
+// process per session would trade that away and make this the place that supervises them. The
+// price of the trade is a start-up per message, and it is knowingly paid.
 //
 // Every session in the instance is run through here, the lead included. A session differs from
 // another only in its name, the model it runs on and the persona it is given; nothing else about
@@ -91,8 +93,56 @@ export function sessions(instance) {
   }));
 }
 
+// The frame a question is sent as. Claude Code reads one JSON object per line on stdin; a user
+// message is the smallest of them, and `content` is allowed to be the plain string rather than a
+// list of blocks, which is all a question from a page ever is.
+function question(text) {
+  return `${JSON.stringify({ type: "user", message: { role: "user", content: text } })}\n`;
+}
+
+// Everything Claude Code says comes back one JSON object per line, and only the `result` line is
+// an answer. The rest is read and handed over all the same — the assistant's own turns,
+// `keep_alive` every thirty seconds while a long one runs, `system` notices — because what a frame
+// is worth is the caller's business and not the reader's. A line that is not JSON at all is
+// skipped rather than fatal: stdout is the protocol, but a stray warning on it should not lose an
+// answer that arrived beside it.
+function frames(chunk, rest, saw) {
+  const lines = (rest + chunk).split("\n");
+  const left = lines.pop();
+
+  for (const line of lines) {
+    if (line.trim() === "") {
+      continue;
+    }
+    try {
+      saw(JSON.parse(line));
+    } catch {
+      // Not a frame. Nothing on this line is ours to act on.
+    }
+  }
+  return left;
+}
+
+// One run, one question, one answer.
+//
+// The question goes in on stdin rather than in the arguments: with --input-format stream-json a
+// prompt argument is read past in silence, so passing one would look right and ask nothing. Stdin
+// then stays open until the answer arrives, because a run that is waiting to be told whether it
+// may use a tool has to be able to hear the reply, which is what this format is for. Closing it
+// once the answer is in is what ends the run: the child would otherwise sit
+// there waiting for another question, which is a conversation the chat keeps in a session id
+// instead, so that stopping the server never costs one.
 function run(instance, name, text, resume) {
-  const args = ["-p", text, "--output-format", "json", "--model", model(instance, name)];
+  const args = [
+    "--print",
+    "--input-format",
+    "stream-json",
+    "--output-format",
+    "stream-json",
+    "--verbose",
+    "--model",
+    model(instance, name),
+  ];
   const who = persona(instance.root, name);
   if (who !== null) {
     args.push("--append-system-prompt-file", who);
@@ -104,27 +154,38 @@ function run(instance, name, text, resume) {
   return new Promise((resolve) => {
     let child;
     try {
-      // The question is already in the arguments, so there is nothing to send on stdin. Left as a
-      // pipe, Claude Code cannot know that: it waits three seconds for input that is never coming
-      // and says so on stderr. Closing stdin says it up front, and every answer arrives sooner.
       child = spawn("claude", args, {
         cwd: instance.root,
         env: { ...environment(instance.root, instance.config.auth), [NAME_IN_ENVIRONMENT]: name },
-        stdio: ["ignore", "pipe", "pipe"],
+        stdio: ["pipe", "pipe", "pipe"],
       });
     } catch (error) {
       resolve({ failed: true, text: `Claude Code could not be started: ${error.message}` });
       return;
     }
 
+    let answer = null;
+    let rest = "";
     let out = "";
     let err = "";
+
     child.stdout.on("data", (chunk) => {
       out += chunk;
+      rest = frames(String(chunk), rest, (frame) => {
+        if (frame.type !== "result" || answer !== null) {
+          return;
+        }
+        answer = frame;
+        child.stdin.end();
+      });
     });
     child.stderr.on("data", (chunk) => {
       err += chunk;
     });
+
+    // Writing to a child that is already gone is an error on the pipe, not a throw, and there is
+    // nothing to do about it here: the close handler is about to say what happened.
+    child.stdin.on("error", () => {});
 
     child.on("error", (error) => {
       const why =
@@ -134,23 +195,28 @@ function run(instance, name, text, resume) {
       resolve({ failed: true, text: why });
     });
 
-    child.on("close", () => resolve(interpret(out, err)));
+    child.on("close", () => resolve(interpret(answer, out, err)));
+
+    child.stdin.write(question(text));
   });
 }
 
-function interpret(out, err) {
-  let result;
-  try {
-    result = JSON.parse(out);
-  } catch {
+// What the run amounted to. The result frame carries the answer as a plain string in `result`,
+// which is the same field and the same string the older whole-of-stdout JSON put it in, so what
+// the chat does with an answer did not have to change with how it arrives.
+function interpret(answer, out, err) {
+  // No result frame at all. Whatever went wrong was said in prose rather than in the protocol, so
+  // what it said is the answer — stdout included, because a run that fell over before it could
+  // frame anything may well have put the reason there.
+  if (answer === null) {
     const said = err.trim() || out.trim();
     return { failed: true, text: said === "" ? "Claude Code said nothing at all" : said };
   }
 
   return {
-    failed: result.is_error === true,
-    text: typeof result.result === "string" ? result.result : JSON.stringify(result),
-    sessionId: result.session_id ?? null,
+    failed: answer.is_error === true,
+    text: typeof answer.result === "string" ? answer.result : JSON.stringify(answer),
+    sessionId: answer.session_id ?? null,
   };
 }
 
