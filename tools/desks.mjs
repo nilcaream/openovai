@@ -44,6 +44,15 @@ export const SETTINGS_FILE = path.join(".claude", "settings.json");
 // asked to approve a command it was told to run is a worse answer than a second narrow rule.
 export const SAY_RULES = ["Bash(bin/ow say:*)", "Bash(./bin/ow say:*)"];
 
+// And the one that tells a session who the others are. The personas name it — a lead is told
+// `bin/ow status` lists who works here — so without the rule a session stops and asks a person
+// for a command the instance itself put in its hands, and waits there for as long as nobody is
+// looking at that panel. It reads and changes nothing, which is why it can be granted outright
+// where the rest of what a session might reach for cannot.
+//
+// Both spellings again, for the reason SAY_RULES gives: the rule is a literal prefix.
+export const STATUS_RULES = ["Bash(bin/ow status:*)", "Bash(./bin/ow status:*)"];
+
 // Something is wrong with a name, a template or a file we were asked to write. The caller says
 // which command it happened under, so this carries only the reason.
 export class DeskError extends Error {}
@@ -162,4 +171,10 @@ export function allowDesk(root, name) {
 // per person: it names no desk, so a second copy of it would grant nothing a first one had not.
 export function allowSay(root) {
   return SAY_RULES.flatMap((rule) => allow(root, rule));
+}
+
+// The right to see who else works here. Granted once with the rest, for the same reason: it
+// names no desk.
+export function allowStatus(root) {
+  return STATUS_RULES.flatMap((rule) => allow(root, rule));
 }

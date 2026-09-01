@@ -14,6 +14,7 @@ import {
   DeskError,
   allowDesk,
   allowSay,
+  allowStatus,
   describeName,
   isName,
   writeDesk,
@@ -378,6 +379,7 @@ function main(argv) {
       }),
       ...allowDesk(plan.root, plan.leader),
       ...allowSay(plan.root),
+      ...allowStatus(plan.root),
     ]);
     return 0;
   } catch (error) {

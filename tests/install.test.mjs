@@ -178,6 +178,19 @@ describe("what the installer made", () => {
     assert.ok(allow.includes("Bash(./bin/ow say:*)"));
   });
 
+  // Both personas name this command, so an instance that does not grant it stops the session it
+  // told to run it and waits on a panel nobody may be watching. Watched before the rule existed:
+  // a lead sat parked on `bin/ow status` for six and a half minutes and would not have stopped.
+  it("lets a session see who else works here without being asked", () => {
+    const allow = JSON.parse(contentOf(".claude", "settings.json")).permissions.allow;
+    assert.ok(allow.includes("Bash(bin/ow status:*)"));
+  });
+
+  it("lets that be typed the other way round as well", () => {
+    const allow = JSON.parse(contentOf(".claude", "settings.json")).permissions.allow;
+    assert.ok(allow.includes("Bash(./bin/ow status:*)"));
+  });
+
   it("tells the leader how to say something to somebody", () => {
     assert.match(contentOf("personas", `${LEADER}.md`), /bin\/ow say <name> <message>/);
   });

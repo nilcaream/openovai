@@ -49,6 +49,8 @@ export function settingsProblems(file, names) {
     ...names.map((name) => `Edit(work/${name}/STATE.md)`),
     "Bash(bin/ow say:*)",
     "Bash(./bin/ow say:*)",
+    "Bash(bin/ow status:*)",
+    "Bash(./bin/ow status:*)",
   ];
 
   let settings;
