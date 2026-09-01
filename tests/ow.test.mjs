@@ -25,13 +25,14 @@ import {
   writeNodeStandIn,
   writeStandIn,
 } from "./helpers.mjs";
-import { trustProblems } from "./inspect.mjs";
+import { settingsProblems, trustProblems } from "./inspect.mjs";
 
 const HUMAN = "Mike";
 const LEADER = "Superman";
 const MODEL = "haiku";
 const PORT = 7900;
 const TOKEN = "a-machine-token";
+const WORKER = "Paul";
 
 const instance = scratch("ow-test");
 const inherited = `${instance}-inherited`;
@@ -274,8 +275,95 @@ describe("the Node the command needs", () => {
   });
 });
 
+// Hiring is the whole of what it takes to add a person to an instance: a desk to keep state on,
+// a persona saying who they are, and the one rule that lets them write that desk.
+describe("hiring a worker", () => {
+  let said;
+
+  before(() => {
+    said = ow(["hire", WORKER]);
+  });
+
+  it("opens the worker a desk", () => {
+    assert.ok(fs.existsSync(path.join(instance, "work", WORKER, "STATE.md")));
+  });
+
+  it("names the worker on that desk", () => {
+    const desk = fs.readFileSync(path.join(instance, "work", WORKER, "STATE.md"), "utf8");
+    assert.match(desk, new RegExp(`name: ${WORKER}`));
+  });
+
+  it("writes the worker a persona", () => {
+    assert.ok(fs.existsSync(path.join(instance, "personas", `${WORKER}.md`)));
+  });
+
+  it("says in the persona who the worker is", () => {
+    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    assert.ok(persona.includes(`You are ${WORKER}`));
+  });
+
+  it("says in the persona who leads", () => {
+    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    assert.ok(persona.includes(LEADER));
+  });
+
+  it("leaves no unfilled placeholder in the worker's persona", () => {
+    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    assert.ok(!persona.includes("{{"));
+  });
+
+  it("lets the worker write its own desk, and nothing wider", () => {
+    assert.deepEqual(
+      settingsProblems(path.join(instance, ".claude", "settings.json"), [LEADER, WORKER]),
+      [],
+    );
+  });
+
+  it("says whose desk it opened", () => {
+    assert.match(said.stdout, new RegExp(WORKER));
+  });
+
+  it("lists the new desk in status", () => {
+    assert.match(ow(["status"]).stdout, new RegExp(`desks.*${WORKER}`));
+  });
+
+  it("starts no session doing it", () => {
+    assert.ok(!readLog(log).includes("argv: -p"));
+  });
+});
+
+describe("what hiring refuses", () => {
+  it("refuses to hire nobody", () => {
+    assert.notEqual(ow(["hire"]).status, 0);
+  });
+
+  it("says a name is the thing that is missing", () => {
+    assert.match(ow(["hire"]).stderr, /hire needs a name/);
+  });
+
+  it("refuses a name a directory could not be", () => {
+    assert.notEqual(ow(["hire", "../elsewhere"]).status, 0);
+  });
+
+  it("refuses somebody who already has a desk", () => {
+    assert.notEqual(ow(["hire", LEADER]).status, 0);
+  });
+
+  it("says who already has a desk", () => {
+    assert.match(ow(["hire", LEADER]).stderr, new RegExp(`${LEADER} already has a desk`));
+  });
+
+  it("refuses more than one name at a time", () => {
+    assert.notEqual(ow(["hire", "Ann", "Bob"]).status, 0);
+  });
+});
+
 describe("what the command refuses", () => {
   it("refuses a command it does not have", () => {
     assert.notEqual(ow(["nonsense"]).status, 0);
+  });
+
+  it("refuses an argument to a command that takes none", () => {
+    assert.notEqual(ow(["status", WORKER]).status, 0);
   });
 });

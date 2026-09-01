@@ -126,6 +126,10 @@ describe("what the installer made", () => {
     assert.ok(fs.existsSync(inside("templates", "leader.md")));
   });
 
+  it("copies the worker persona template in", () => {
+    assert.ok(fs.existsSync(inside("templates", "worker.md")));
+  });
+
   it("writes the leader a persona", () => {
     assert.ok(fs.existsSync(inside("personas", `${LEADER}.md`)));
   });
@@ -151,7 +155,7 @@ describe("what the installer made", () => {
   });
 
   it("lets the leader write its own desk, and nothing wider", () => {
-    assert.deepEqual(settingsProblems(inside(".claude", "settings.json"), LEADER), []);
+    assert.deepEqual(settingsProblems(inside(".claude", "settings.json"), [LEADER]), []);
   });
 
   it("describes the instance that was asked for", () => {

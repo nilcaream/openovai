@@ -42,10 +42,10 @@ export function configProblems(file, expected) {
   return wrong;
 }
 
-// Does the instance grant its leader exactly the one thing it needs: the right to keep its own
-// desk, and nothing wider?
-export function settingsProblems(file, leader) {
-  const expected = `Edit(work/${leader}/STATE.md)`;
+// Does the instance grant everybody who works there exactly the one thing they need: the right
+// to keep their own desk, and nothing wider?
+export function settingsProblems(file, names) {
+  const expected = names.map((name) => `Edit(work/${name}/STATE.md)`);
 
   let settings;
   try {
@@ -60,8 +60,9 @@ export function settingsProblems(file, leader) {
   }
 
   const wrong = [];
-  if (!allow.includes(expected)) {
-    wrong.push(`no rule ${expected}; found ${JSON.stringify(allow)}`);
+  const missing = expected.filter((rule) => !allow.includes(rule));
+  if (missing.length > 0) {
+    wrong.push(`no rule ${missing.join(", ")}; found ${JSON.stringify(allow)}`);
   }
 
   // The instance is meant to be movable, so nothing in here may name a place on this machine.
@@ -70,10 +71,10 @@ export function settingsProblems(file, leader) {
     wrong.push(`rules anchored outside the instance: ${JSON.stringify(absolute)}`);
   }
 
-  // One rule, one file. Anything wider is a grant nobody asked for.
-  const wider = allow.filter((rule) => rule !== expected);
+  // One rule, one desk, and nothing else. Anything wider is a grant nobody asked for.
+  const wider = allow.filter((rule) => !expected.includes(rule));
   if (wider.length > 0) {
-    wrong.push(`rules beyond the leader's desk: ${JSON.stringify(wider)}`);
+    wrong.push(`rules beyond the desks of ${names.join(", ")}: ${JSON.stringify(wider)}`);
   }
 
   return wrong;

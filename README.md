@@ -83,8 +83,15 @@ Then use the instance's own command:
 ```sh
 ~/my-workspace/bin/ow status
 ~/my-workspace/bin/ow login
+~/my-workspace/bin/ow hire Paul
 ~/my-workspace/bin/ow chat
 ```
+
+`ow hire <name>` opens a desk for a worker: the desk itself at `work/<Name>/STATE.md`, a persona
+at `personas/<Name>.md` with the names written into it, and the one permission rule that lets
+that session keep its own desk. It starts nothing — a chat that is already running picks the
+desk up on its own, because what the page shows is read from `work/` rather than remembered.
+Everybody with a desk is somebody the chat can host.
 
 `ow chat` serves the instance's chat page on the port it was installed with — or, with
 `--port 0`, on one the machine picks — on `127.0.0.1` only, and runs until you stop it. It

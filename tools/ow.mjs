@@ -8,9 +8,17 @@ import path from "node:path";
 
 import { serve } from "./chat/server.mjs";
 import { hasCredential, home, login, machineToken } from "./claude.mjs";
+import { DeskError, allowDesk, deskFile, describeName, isName, writeDesk, writePersona } from "./desks.mjs";
 import { holderOf } from "./port.mjs";
 
 const CONFIG_FILE = "ow.json";
+
+// A worker's persona, before the name is written into it. An instance carries its own copy of
+// the templates, so hiring reads from the instance rather than from wherever it was installed
+// from — which is what lets an instance open a desk on a machine the source was never on.
+const WORKER_TEMPLATE = path.join("templates", "worker.md");
+
+const COMMANDS = ["status", "chat", "hire", "login"];
 
 class UsageError extends Error {}
 
@@ -19,9 +27,10 @@ function usage() {
     "The command of an office workspace instance.",
     "",
     "Usage:",
-    "  ow status    show who works in this instance and on which models",
-    "  ow chat      serve the chat page until you stop it",
-    "  ow login     sign this instance in to an Anthropic account",
+    "  ow status        show who works in this instance and on which models",
+    "  ow chat          serve the chat page until you stop it",
+    "  ow hire <name>   open a desk for a worker, so the chat can host one",
+    "  ow login         sign this instance in to an Anthropic account",
     "",
   ].join("\n");
 }
@@ -83,6 +92,38 @@ function describeCredential(root, auth) {
   return auth === "inherit"
     ? "none — CLAUDE_CODE_OAUTH_TOKEN is not set in the environment this ran in"
     : "none — run: ow login";
+}
+
+// Open a desk for a worker. Everything a person is made of is written here and nothing else
+// happens: no session is started, and a chat already running picks the desk up on its own,
+// because what the page shows is read from work/ rather than remembered.
+function hire(root, name) {
+  if (name === undefined) {
+    throw new UsageError("hire needs a name: ow hire <name>");
+  }
+  if (!isName(name)) {
+    throw new UsageError(describeName("a worker name", name));
+  }
+
+  const config = readConfig(root);
+  if (fs.existsSync(deskFile(root, name))) {
+    throw new UsageError(`${name} already has a desk here`);
+  }
+
+  const written = [
+    ...writeDesk(root, root, name),
+    ...writePersona(root, root, name, "worker", WORKER_TEMPLATE, {
+      NAME: name,
+      HUMAN: config.human,
+      LEADER: config.leader,
+    }),
+    ...allowDesk(root, name),
+  ];
+
+  console.log(`${name} works here now. Wrote:`);
+  for (const entry of written) {
+    console.log(`  ${entry}`);
+  }
 }
 
 // An instance that takes its token from the environment has no account of its own to sign in,
@@ -181,15 +222,23 @@ async function main(argv) {
       console.log(usage());
       return 0;
     }
-    if (command !== "status" && command !== "chat" && command !== "login") {
+    if (!COMMANDS.includes(command)) {
       throw new UsageError(`unknown command: ${command}`);
     }
-    if (rest.length > 1) {
-      throw new UsageError(`${command} takes no arguments (got ${rest.slice(1).join(" ")})`);
+
+    // hire is the only one that takes anything, and it takes exactly one name.
+    const arguments_ = rest.slice(1);
+    const allowed = command === "hire" ? 1 : 0;
+    if (arguments_.length > allowed) {
+      throw new UsageError(`${command} takes ${allowed === 0 ? "no arguments" : "one name"} (got ${arguments_.join(" ")})`);
     }
 
     if (command === "chat") {
       await chat(root);
+      return 0;
+    }
+    if (command === "hire") {
+      hire(root, arguments_[0]);
       return 0;
     }
     if (command === "login") {
@@ -204,6 +253,11 @@ async function main(argv) {
       console.error("");
       console.error(usage());
       return 2;
+    }
+    // Nothing to do with the command line, so the usage under it would only be noise.
+    if (error instanceof DeskError) {
+      console.error(`ow: ${error.message}`);
+      return 1;
     }
     throw error;
   }
