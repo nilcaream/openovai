@@ -84,6 +84,10 @@ export function claudeIsInstalled() {
 //   OW_STAND_IN_NOISE         emit what the real one says beside an answer — a keep-alive, a
 //                             system notice, an assistant turn, and a line that is not a frame
 //   OW_STAND_IN_BROKEN        fall over in prose on stdout, framing nothing at all
+//   OW_STAND_IN_ASKS          ask to be allowed to use this tool, wait for the answer, and make
+//                             what it was told the reply
+//   OW_STAND_IN_WAITS         milliseconds to wait for that answer before giving up on it
+//                             (default: 5000) — the real one waits for good, and a suite cannot
 //   OW_STAND_IN_CALLS         "Speaker>Addressee,…" — while answering, that speaker says
 //                             something to that addressee with the instance's own command, which
 //                             is how a check builds a session that talks back mid-turn
@@ -158,6 +162,7 @@ process.stdin.setEncoding("utf8");
 
 let rest = "";
 let heard = null;
+let answered = null;
 const question = new Promise((resolve) => {
   heard = resolve;
 });
@@ -177,6 +182,10 @@ process.stdin.on("data", (chunk) => {
     if (said.type === "user" && heard !== null) {
       heard(said.message.content);
       heard = null;
+      continue;
+    }
+    if (answered !== null) {
+      answered(said);
     }
   }
 });
@@ -208,6 +217,45 @@ if ((process.env.OW_STAND_IN_NOISE ?? "") !== "") {
   frame({ type: "assistant", message: { role: "assistant", content: [{ type: "text", text: "thinking" }] } });
 }
 
+// Asking to be allowed to use a tool, the way a run does when the instance has not already
+// settled it: a control_request on stdout, then nothing at all until an answer comes back on
+// stdin. What the answer was becomes the reply, so a check can read the decision in the transcript
+// rather than only in the log.
+let decided = null;
+if ((process.env.OW_STAND_IN_ASKS ?? "") !== "") {
+  const id = "request-1";
+  frame({
+    type: "control_request",
+    request_id: id,
+    request: {
+      subtype: "can_use_tool",
+      tool_name: process.env.OW_STAND_IN_ASKS,
+      input: { command: "the one it wanted to run" },
+      tool_use_id: "use-1",
+    },
+  });
+
+  // Nothing times out on this path in the real one, and that is the point of it. Here it must,
+  // because a suite that hangs says nothing about what broke: an answer that never arrives, or one
+  // that comes back with the wrong id on it, has to read as a failed check and not as a stuck run.
+  decided = await Promise.race([
+    new Promise((resolve) => {
+      answered = (said) => {
+        if (said.type === "control_response" && said.response?.request_id === id) {
+          resolve(said.response.response);
+        }
+      };
+    }),
+    new Promise((resolve) => {
+      setTimeout(
+        () => resolve({ behavior: "never told", message: "no answer came back for " + id }),
+        Number(process.env.OW_STAND_IN_WAITS ?? 5000),
+      );
+    }),
+  ]);
+  fs.appendFileSync(log, \`told: \${JSON.stringify(decided)}\\n\`);
+}
+
 const slow = Number(process.env.OW_STAND_IN_SLOW ?? 0);
 if (slow > 0) {
   await new Promise((resolve) => setTimeout(resolve, slow));
@@ -220,7 +268,10 @@ frame({
   is_error: false,
   num_turns: 1,
   session_id: process.env.OW_STAND_IN_SESSION ?? "test-thread",
-  result: process.env.OW_STAND_IN_REPLY ?? "a reply",
+  result:
+    decided === null
+      ? (process.env.OW_STAND_IN_REPLY ?? "a reply")
+      : \`I was told \${decided.behavior}\${decided.message === undefined ? "" : \`: \${decided.message}\`}\`,
 });
 
 // The real one would now wait for another question: a result is not what ends it. Whoever asked

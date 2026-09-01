@@ -36,6 +36,7 @@ import {
   standInEnvironment,
   startChat,
   stopChat,
+  waitFor,
   waitForAddress,
   waitForHealth,
   writeStandIn,
@@ -755,6 +756,10 @@ describe("a session is asked over the streaming protocol", () => {
     assert.ok(call.includes("--verbose"), "streaming output is refused without it");
   });
 
+  it("is run so that it can ask to use a tool at all", () => {
+    assert.ok(callsIn(askedLog).at(-1).includes("--permission-prompt-tool stdio"));
+  });
+
   it("does not put the question in the arguments, where it would not be read", () => {
     assert.ok(!callsIn(askedLog).at(-1).includes("a question of its own"));
   });
@@ -810,5 +815,162 @@ describe("a run that frames nothing at all", () => {
 
   it("says what came out instead of an answer", () => {
     assert.ok(answered.body.includes("a model was never reached"));
+  });
+});
+
+// Approvals. A run that wants a tool the instance has not already settled stops and asks; the
+// request is shown on that session's panel, and what a person answers is what the run is told.
+// Nothing on that path times out on either side, which is what makes it answerable by a person
+// and what makes an unanswered one a hang — so every check here answers, or checks the refusing.
+//
+// The message is posted without being waited for: it does not come back until the whole exchange
+// is over, and the answering is the middle of it.
+describe("asking to be allowed", () => {
+  const askedLog = path.join(standIn, "asking.txt");
+
+  async function waitingOn(name) {
+    return waitFor(async () => {
+      const { permissions } = JSON.parse((await get(`${URL}/sessions/${name}/permissions`)).body);
+      return permissions.length > 0 ? permissions : null;
+    });
+  }
+
+  before(async () => {
+    await start(instance, standInEnvironment(standIn, askedLog, { OW_STAND_IN_ASKS: "Bash" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+  });
+
+  describe("what the page is shown", () => {
+    let asking;
+    let exchange;
+
+    before(async () => {
+      exchange = say("go and look");
+      asking = await waitingOn(LEADER);
+    });
+
+    after(async () => {
+      await post(`${URL}/sessions/${LEADER}/permission`, { id: asking[0].id, decision: "deny" });
+      await exchange;
+    });
+
+    it("shows the request while the run waits on it", () => {
+      assert.ok(asking !== null, "nothing was ever shown as waiting");
+      assert.equal(asking.length, 1);
+    });
+
+    it("says which tool it wants", () => {
+      assert.equal(asking[0].tool, "Bash");
+    });
+
+    it("says what the tool was going to be given", () => {
+      assert.deepEqual(asking[0].input, { command: "the one it wanted to run" });
+    });
+
+    it("does not answer it on its own while it sits there", async () => {
+      const still = JSON.parse((await get(`${URL}/sessions/${LEADER}/permissions`)).body).permissions;
+      assert.equal(still.length, 1, "something answered it that was not a person");
+    });
+  });
+
+  describe("allowing it", () => {
+    let answered;
+
+    before(async () => {
+      const exchange = say("this one is allowed");
+      const asking = await waitingOn(LEADER);
+      await post(`${URL}/sessions/${LEADER}/permission`, { id: asking[0].id, decision: "allow" });
+      answered = await exchange;
+    });
+
+    it("lets the run finish", () => {
+      assert.equal(answered.status, 200);
+    });
+
+    it("tells the run it was allowed", () => {
+      assert.ok(answered.body.includes("I was told allow"));
+    });
+
+    it("leaves nothing waiting once the run is over", async () => {
+      const left = JSON.parse((await get(`${URL}/sessions/${LEADER}/permissions`)).body).permissions;
+      assert.deepEqual(left, []);
+    });
+  });
+
+  describe("refusing it", () => {
+    let answered;
+
+    before(async () => {
+      const exchange = say("this one is not");
+      const asking = await waitingOn(LEADER);
+      await post(`${URL}/sessions/${LEADER}/permission`, {
+        id: asking[0].id,
+        decision: "deny",
+        why: "not from here",
+      });
+      answered = await exchange;
+    });
+
+    it("lets the run finish all the same", () => {
+      assert.equal(answered.status, 200);
+    });
+
+    it("tells the run it was refused, and why", () => {
+      assert.ok(answered.body.includes("I was told deny"), answered.body);
+      assert.ok(answered.body.includes("not from here"), answered.body);
+    });
+  });
+
+  // A run can end with its question still on the page: it gave up waiting, or it fell over. What
+  // must not survive it is the offer to answer — allowing something after the run that asked has
+  // gone would be a button that does nothing and says otherwise.
+  describe("a run that ends while its question is still up", () => {
+    let answered;
+
+    before(async () => {
+      await start(
+        instance,
+        standInEnvironment(standIn, path.join(standIn, "unanswered.txt"), {
+          OW_STAND_IN_ASKS: "Bash",
+          OW_STAND_IN_WAITS: "300",
+        }),
+      );
+      assert.ok(await waitForHealth(URL), "the server never answered");
+      const exchange = say("nobody will answer this one");
+      await waitingOn(LEADER);
+      answered = await exchange;
+    });
+
+    after(async () => {
+      await start(instance, standInEnvironment(standIn, askedLog, { OW_STAND_IN_ASKS: "Bash" }));
+      assert.ok(await waitForHealth(URL), "the server never answered");
+    });
+
+    it("finishes without the answer it asked for", () => {
+      assert.equal(answered.status, 200);
+    });
+
+    it("takes the question down with it", async () => {
+      const left = JSON.parse((await get(`${URL}/sessions/${LEADER}/permissions`)).body).permissions;
+      assert.deepEqual(left, [], "the page is still offering to answer a run that has gone");
+    });
+  });
+
+  describe("answering one that is not waiting", () => {
+    it("refuses an id nobody is waiting on", async () => {
+      const answered = await post(`${URL}/sessions/${LEADER}/permission`, {
+        id: "nothing-like-it",
+        decision: "allow",
+      });
+      assert.equal(answered.status, 409);
+    });
+
+    it("refuses a decision that is neither", async () => {
+      const answered = await post(`${URL}/sessions/${LEADER}/permission`, {
+        id: "request-1",
+        decision: "maybe",
+      });
+      assert.equal(answered.status, 400);
+    });
   });
 });

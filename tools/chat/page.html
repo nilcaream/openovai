@@ -48,12 +48,59 @@
     composer.className = "composer";
     composer.append(box, send);
 
-    section.append(heading, transcript, composer);
+    // Where this session says what it wants to be allowed to do. Empty almost always: only a tool
+    // the instance has not already settled one way or the other ever gets this far.
+    const asking = document.createElement("div");
+
+    section.append(heading, transcript, asking, composer);
 
     async function show() {
       const answered = await fetch(`/sessions/${session.name}/messages`);
       const { messages } = await answered.json();
       transcript.replaceChildren(...messages.map(said));
+    }
+
+    // A request is answered by whoever is at the page, so the page has to notice one arriving
+    // without having been the one who caused it. Nothing else here polls; this is the one thing
+    // that starts on the far side.
+    function question(request) {
+      const line = document.createElement("p");
+
+      const what = document.createElement("span");
+      what.textContent = `${session.name} wants to use ${request.tool}: ${JSON.stringify(request.input)} `;
+
+      const yes = document.createElement("button");
+      yes.type = "button";
+      yes.textContent = "Allow";
+
+      const no = document.createElement("button");
+      no.type = "button";
+      no.textContent = "Deny";
+
+      for (const [button, decision] of [
+        [yes, "allow"],
+        [no, "deny"],
+      ]) {
+        button.addEventListener("click", async () => {
+          yes.disabled = true;
+          no.disabled = true;
+          await fetch(`/sessions/${session.name}/permission`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ id: request.id, decision }),
+          });
+          await waiting();
+        });
+      }
+
+      line.append(what, yes, no);
+      return line;
+    }
+
+    async function waiting() {
+      const answered = await fetch(`/sessions/${session.name}/permissions`);
+      const { permissions } = await answered.json();
+      asking.replaceChildren(...permissions.map(question));
     }
 
     composer.addEventListener("submit", async (event) => {
@@ -76,10 +123,22 @@
       await show();
     });
 
-    return { section, show };
+    return { section, show, waiting };
   }
 
   const built = sessions.map(panel);
   panels.replaceChildren(...built.map(({ section }) => section));
   await Promise.all(built.map(({ show }) => show()));
+
+  // Once a second, which is often enough that answering does not feel like waiting and seldom
+  // enough to be free. A run asking for permission has stopped until it is answered, so there is
+  // nothing else for the page to be doing meanwhile.
+  const EVERY = 1000;
+  setInterval(() => {
+    for (const { waiting } of built) {
+      waiting().catch(() => {
+        // The chat is gone or restarting. The next tick will find out.
+      });
+    }
+  }, EVERY);
 </script>

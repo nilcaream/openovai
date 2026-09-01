@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 
 import { append, read } from "./conversation.mjs";
 import { HOST, record } from "./listening.mjs";
+import { allow, answer as settle, giveUp, park, parked, refuse } from "./permissions.mjs";
 import { ask, sessions } from "./session.mjs";
 import { inTurn, whileWaitingFor, wouldWaitForItself } from "./turns.mjs";
 
@@ -70,7 +71,7 @@ const THE_CHAT = "the chat";
 
 // Everything a session is asked or answers is under its own name, so one route shape serves
 // every panel and there is no path through here that only the lead can take.
-const SESSION_ROUTE = /^\/sessions\/([^/]+)\/(messages|message)$/;
+const SESSION_ROUTE = /^\/sessions\/([^/]+)\/(messages|message|permissions|permission)$/;
 
 async function postMessage(instance, name, request, response) {
   let text;
@@ -118,11 +119,18 @@ async function postMessage(instance, name, request, response) {
 
       // The reply is waited for rather than streamed. One run of Claude Code answers one message,
       // so the answer is ready or it is not; a page that shows it appearing is a later question.
-      const answer = await ask(
-        instance,
-        name,
-        sender === null ? asked.text : wrap(sender.name, sender.role, asked.text),
-      );
+      let answer;
+      try {
+        answer = await ask(
+          instance,
+          name,
+          sender === null ? asked.text : wrap(sender.name, sender.role, asked.text),
+          (request) => park(name, request),
+        );
+      } finally {
+        // Whatever it was still asking about, it is not there to hear the answer now.
+        giveUp(name);
+      }
 
       return {
         question: asked,
@@ -136,6 +144,48 @@ async function postMessage(instance, name, request, response) {
   );
 
   sendJson(response, 200, { message: question, reply });
+}
+
+// Answering what a session asked to be allowed to do.
+//
+// The decision is put together here rather than taken from the page, because the protocol is
+// unforgiving about it: a refusal without a reason does not parse as a refusal, and anything that
+// does not parse is read as one anyway. So the page says allow or deny and this says it properly.
+//
+// An id that is not waiting any more is a 409 and not a 404: the request was real, it is simply
+// answered or abandoned, and a page showing a stale one should say so rather than look broken.
+async function postPermission(name, request, response) {
+  let id;
+  let decision;
+  let why;
+  try {
+    ({ id, decision, why } = JSON.parse(await readBody(request)));
+  } catch (error) {
+    sendJson(response, 400, { error: error.message });
+    return;
+  }
+
+  if (typeof id !== "string" || id.trim() === "") {
+    sendJson(response, 400, { error: "which request is being answered" });
+    return;
+  }
+
+  if (decision !== "allow" && decision !== "deny") {
+    sendJson(response, 400, { error: "a decision is allow or deny" });
+    return;
+  }
+
+  const said =
+    decision === "allow"
+      ? allow()
+      : refuse(typeof why === "string" && why.trim() !== "" ? why.trim() : "not allowed from the chat");
+
+  if (!settle(name, id, said)) {
+    sendJson(response, 409, { error: "nothing is waiting on that any more" });
+    return;
+  }
+
+  sendJson(response, 200, { answered: id, decision });
 }
 
 async function handle(instance, request, response) {
@@ -179,6 +229,16 @@ async function handle(instance, request, response) {
 
     if (request.method === "POST" && what === "message") {
       await postMessage(instance, name, request, response);
+      return;
+    }
+
+    if (request.method === "GET" && what === "permissions") {
+      sendJson(response, 200, { permissions: parked(name) });
+      return;
+    }
+
+    if (request.method === "POST" && what === "permission") {
+      await postPermission(name, request, response);
       return;
     }
   }

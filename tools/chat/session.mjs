@@ -123,6 +123,49 @@ function frames(chunk, rest, saw) {
   return left;
 }
 
+// Being asked whether the run may use a tool, and saying.
+//
+// Only tool calls the instance's own settings leave undecided ever get here: something already
+// allowed is not asked about, and something already refused is refused without us. So this is the
+// question a person is actually needed for.
+//
+// Three things about the answer, each of which costs a run that hangs for good if it is got wrong:
+// the request id goes back exactly as it came, nothing else about the tool is named alongside it
+// (a mismatched name makes the answer be ignored and the request stay open), and one request is
+// answered once. Nothing here times out, on this side or the other.
+function permission(child, frame, asked) {
+  const request = {
+    id: frame.request_id,
+    tool: frame.request.tool_name,
+    input: frame.request.input,
+  };
+
+  asked(request).then(
+    (decision) => {
+      child.stdin.write(
+        `${JSON.stringify({
+          type: "control_response",
+          response: { subtype: "success", request_id: frame.request_id, response: decision },
+        })}\n`,
+      );
+    },
+    (error) => {
+      // Nobody could be asked. Saying so is an answer; saying nothing leaves the run waiting for
+      // one that is never coming.
+      child.stdin.write(
+        `${JSON.stringify({
+          type: "control_response",
+          response: {
+            subtype: "success",
+            request_id: frame.request_id,
+            response: { behavior: "deny", message: `nobody could be asked: ${error.message}` },
+          },
+        })}\n`,
+      );
+    },
+  );
+}
+
 // One run, one question, one answer.
 //
 // The question goes in on stdin rather than in the arguments: with --input-format stream-json a
@@ -132,7 +175,7 @@ function frames(chunk, rest, saw) {
 // once the answer is in is what ends the run: the child would otherwise sit
 // there waiting for another question, which is a conversation the chat keeps in a session id
 // instead, so that stopping the server never costs one.
-function run(instance, name, text, resume) {
+function run(instance, name, text, resume, asked) {
   const args = [
     "--print",
     "--input-format",
@@ -140,6 +183,11 @@ function run(instance, name, text, resume) {
     "--output-format",
     "stream-json",
     "--verbose",
+    // Ask us rather than refusing on the spot. The literal is reserved: it means "over the pipes
+    // to whoever started me", where any other value would have to name a tool from an MCP server
+    // and the run would not start without one.
+    "--permission-prompt-tool",
+    "stdio",
     "--model",
     model(instance, name),
   ];
@@ -172,6 +220,10 @@ function run(instance, name, text, resume) {
     child.stdout.on("data", (chunk) => {
       out += chunk;
       rest = frames(String(chunk), rest, (frame) => {
+        if (frame.type === "control_request" && frame.request?.subtype === "can_use_tool") {
+          permission(child, frame, asked);
+          return;
+        }
         if (frame.type !== "result" || answer !== null) {
           return;
         }
@@ -220,16 +272,23 @@ function interpret(answer, out, err) {
   };
 }
 
-export async function ask(instance, name, text) {
+// What a run is told when nobody has been given a way to answer it. A caller that does not care
+// about permissions still gets a session that runs; what it does not get is a session that can sit
+// there for good waiting on a question nobody will ever see.
+function nobodyToAsk() {
+  return Promise.reject(new Error("this chat was not given a way to ask"));
+}
+
+export async function ask(instance, name, text, asked = nobodyToAsk) {
   const resume = remembered(instance.root, name);
-  let answer = await run(instance, name, text, resume);
+  let answer = await run(instance, name, text, resume, asked);
 
   // A remembered thread can go away — the Claude Code home was cleared, or the conversation
   // was never written. Rather than leave the chat permanently broken, drop the id and ask
   // again as a new conversation. Losing the history beats losing the chat.
   if (answer.failed && resume !== null) {
     forget(instance.root, name);
-    answer = await run(instance, name, text, null);
+    answer = await run(instance, name, text, null, asked);
   }
 
   if (typeof answer.sessionId === "string" && answer.sessionId !== "") {
