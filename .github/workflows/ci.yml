@@ -69,4 +69,4 @@ jobs:
           node-version: 20
 
       - name: Check status and login
-        run: ./tests/ow.sh
+        run: node --test tests/ow.test.mjs

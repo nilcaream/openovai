@@ -78,3 +78,21 @@ export function settingsProblems(file, leader) {
 
   return wrong;
 }
+
+// Is the instance's own directory recorded as trusted in the Claude Code state file inside its
+// home? Without this, Claude Code ignores the settings the instance ships with and says so only
+// on a line of stderr, so a check that did not look here would not notice it happening.
+export function trustProblems(file, root) {
+  let state;
+  try {
+    state = JSON.parse(fs.readFileSync(file, "utf8"));
+  } catch (error) {
+    return [`${file} could not be read: ${error.message}`];
+  }
+
+  if (state?.projects?.[root]?.hasTrustDialogAccepted !== true) {
+    return [`${root} is not recorded as trusted in ${file}`];
+  }
+
+  return [];
+}

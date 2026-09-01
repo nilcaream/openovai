@@ -57,30 +57,33 @@ One logical change per commit.
   shellcheck -x path/to/script.sh
   ```
 
-  `-x` lets it follow a `source` into a shared helper.
-
   Silence a warning only with a `# shellcheck disable=SCxxxx` comment that says why on the
   line above.
 
 ## Tests
 
-Two so far:
+Three suites, all on Node's own test runner:
 
 ```sh
 node --test tests/install.test.mjs   # install an instance, check what came out
 node --test tests/chat.test.mjs      # serve the chat, talk to it, stop it
-./tests/ow.sh         # what status reports and what login hands over
+node --test tests/ow.test.mjs        # what status reports and what login hands over
 ```
 
-Both need Node.js and neither needs Claude Code. The install test skips the checks that start
-an instance when Claude Code is absent, and says it skipped them rather than passing quietly.
-The chat test never runs Claude Code at all: the stand-in in `tests/helpers.sh` goes first on
-the PATH and answers in the shape the real one answers in, so what gets checked is our side —
-the arguments the leader is run with, the thread being resumed, and what the transcript says
-when Claude Code is missing. Anything else that needs Claude Code in a test uses that same
-stand-in; it takes its behaviour from environment variables rather than being copied.
+Run all three with `node --test tests/*.test.mjs`.
 
-Both install into `.tmp/` inside the clone and clean up after themselves. Continuous
+They need Node.js and nothing else. The install suite skips the checks that start an instance
+when Claude Code is absent, and says it skipped them rather than passing quietly. The other two
+never run Claude Code at all: the stand-in in `tests/helpers.mjs` goes first on the PATH and
+answers in the shape the real one answers in, so what gets checked is our side — the arguments
+the leader is run with, the thread being resumed, and what the transcript says when Claude Code
+is missing. Anything else that needs Claude Code in a suite uses that same stand-in; it takes
+its behaviour from environment variables rather than being copied.
+
+A new check has to be shown failing before it is worth having. Break the thing it is about,
+watch that check fail and the unrelated ones pass, then put the code back.
+
+They install into `.tmp/` inside the clone and clean up after themselves. Continuous
 integration runs them on every push and pull request.
 
 ## Documentation
