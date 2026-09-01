@@ -175,6 +175,40 @@ rather than a word at a time. Which model a session runs on comes from its name:
 on `--leader-model`, everybody else on `--worker-model`, so there is nothing recorded that can
 disagree with `ow.json`.
 
+A session asks before it uses a tool the instance has not already settled. What the instance
+allows outright it simply does; what it forbids it never gets to try; and anything left undecided
+stops the run and appears on that session's panel, saying which tool it wants and what it was
+going to be given, with **Allow** and **Deny**. What you answer there is what the run is told, and
+it carries on from where it stopped. Denying carries a reason, and the session is told to take it
+as an instruction rather than to look for another way round.
+
+Nothing on that path times out. The run waits for as long as you take, because the answer is
+yours to give and you may not be at the page. The other end of that is that a run which ends
+before it was answered takes its question down with it, so the page never offers to allow
+something for a session that has gone.
+
+That is what a workspace has to be able to do before it is worth moving onto: without it a
+session can only do what `settings.json` was configured to permit before it started, and anything
+else comes back reading like an ordinary answer that happens to say no.
+
+### Trying it
+
+An instance allows a session to write its own desk and to run `ow say`, and nothing else, so a
+plain install is already narrow enough to watch this work. Every option is required, as always:
+
+```sh
+./install.sh --root ~/trying-it --source . --human Mike --leader Superman \
+             --leader-model sonnet --worker-model haiku --port 0 --auth inherit
+~/trying-it/bin/ow hire Paul
+~/trying-it/bin/ow chat
+```
+
+`ow chat` prints the address it is listening on. Open it, and on Paul's panel ask for something
+the instance has not been told to allow — *"list the files in this directory"* will do it. The
+panel stops and shows the request: the tool, and what it was going to be given. Choose **Deny**,
+and Paul's reply says he was refused and what he had wanted to run. Ask again and choose
+**Allow**, and he goes ahead and tells you what he found.
+
 Each panel is its own conversation: a thread's id is kept in `chat/<Session>/session.json` and
 every message after the first continues it, so the server can be stopped and started again in
 the middle of one. If a thread ever goes missing that session starts a new one rather than
