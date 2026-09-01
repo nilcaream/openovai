@@ -14,6 +14,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { environment } from "../claude.mjs";
+import { desks } from "../desks.mjs";
 
 // Where a thread lives between runs, under the name of the session having it. One id, written
 // after every answer: it is the whole reason a per-message run can still be a conversation.
@@ -66,6 +67,23 @@ function model(instance, name) {
 function persona(root, name) {
   const file = path.join(root, PERSONAS, `${name}.md`);
   return fs.existsSync(file) ? file : null;
+}
+
+// Everybody the chat can host, the lead first and the rest as the desks come. A desk is a
+// person, so this is read from work/ every time it is asked for rather than kept anywhere: a desk
+// opened while the chat is running is somebody the chat can host from that moment on.
+//
+// The lead is named whether or not it has a desk. An instance has a lead by definition, and a
+// chat that dropped it because a directory went missing would be a chat nobody can reach.
+export function sessions(instance) {
+  const leader = instance.config.leader;
+  const rest = desks(instance.root).filter((name) => name !== leader);
+
+  return [leader, ...rest].map((name) => ({
+    name,
+    role: name === leader ? "lead" : "worker",
+    model: model(instance, name),
+  }));
 }
 
 function run(instance, name, text, resume) {

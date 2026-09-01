@@ -8,7 +8,16 @@ import path from "node:path";
 
 import { serve } from "./chat/server.mjs";
 import { hasCredential, home, login, machineToken } from "./claude.mjs";
-import { DeskError, allowDesk, deskFile, describeName, isName, writeDesk, writePersona } from "./desks.mjs";
+import {
+  DeskError,
+  allowDesk,
+  deskFile,
+  describeName,
+  desks,
+  isName,
+  writeDesk,
+  writePersona,
+} from "./desks.mjs";
 import { holderOf } from "./port.mjs";
 
 const CONFIG_FILE = "ow.json";
@@ -59,19 +68,6 @@ function readConfig(root) {
     return JSON.parse(text);
   } catch (error) {
     throw new UsageError(`${file} is not readable as JSON: ${error.message}`);
-  }
-}
-
-function desks(root) {
-  const work = path.join(root, "work");
-  try {
-    return fs
-      .readdirSync(work, { withFileTypes: true })
-      .filter((entry) => entry.isDirectory())
-      .map((entry) => entry.name)
-      .sort();
-  } catch {
-    return [];
   }
 }
 

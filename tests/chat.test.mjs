@@ -2,9 +2,12 @@
 //
 // It needs Node.js and nothing else. Claude Code is never really run: the stand-in from
 // helpers.mjs answers in the shape the real one answers in, which keeps the suite
-// deterministic and lets it check the parts that are ours — the arguments the leader is run
+// deterministic and lets it check the parts that are ours — the arguments a session is run
 // with, the thread being resumed, and what the transcript says when Claude Code is missing
 // altogether.
+//
+// A worker is hired into the instance before anything else runs, because the interesting
+// question about a chat that hosts more than one session is whether two of them stay apart.
 //
 // It reaches the server through tools/ow.mjs rather than bin/ow, because bin/ow refuses to run
 // without Claude Code installed, which is the right behaviour for a person and the wrong one
@@ -39,6 +42,7 @@ const HUMAN = "Mike";
 const LEADER = "Superman";
 const LEADER_MODEL = "sonnet";
 const WORKER_MODEL = "haiku";
+const WORKER = "Paul";
 
 // A port nobody else on this machine is likely to be holding.
 const PORT = 20000 + (process.pid % 20000);
@@ -73,8 +77,12 @@ function options(root, port) {
   };
 }
 
-function say(text) {
-  return post(`${URL}/message`, { text });
+function say(text, to = LEADER) {
+  return post(`${URL}/sessions/${to}/message`, { text });
+}
+
+function transcriptOf(name) {
+  return get(`${URL}/sessions/${name}/messages`);
 }
 
 async function start(root, environment) {
@@ -86,6 +94,7 @@ async function start(root, environment) {
 remove(instance, chosen, standIn);
 writeStandIn(standIn);
 installed(options(instance, PORT));
+runTool(instance, ["hire", WORKER], process.env);
 
 const standIns = standInEnvironment(standIn, log);
 await start(instance, standIns);
@@ -101,11 +110,81 @@ describe("what the chat serves", () => {
   });
 
   it("serves a page with something to type in", async () => {
-    assert.ok((await get(`${URL}/`)).body.includes('id="composer"'));
+    assert.ok((await get(`${URL}/`)).body.includes('composer.className = "composer"'));
   });
 
   it("answers 404 where there is nothing", async () => {
     assert.equal((await get(`${URL}/nowhere`)).status, 404);
+  });
+});
+
+// A desk is a person, so what the chat can host is read from work/ rather than registered
+// anywhere. Everybody with a desk gets a panel.
+describe("who the chat can host", () => {
+  let listed;
+
+  before(async () => {
+    listed = JSON.parse((await get(`${URL}/sessions`)).body).sessions;
+  });
+
+  it("hosts the lead", () => {
+    assert.ok(listed.some((session) => session.name === LEADER));
+  });
+
+  it("hosts a worker who has been hired", () => {
+    assert.ok(listed.some((session) => session.name === WORKER));
+  });
+
+  it("puts the lead first", () => {
+    assert.equal(listed[0].name, LEADER);
+  });
+
+  it("says which of them leads", () => {
+    assert.equal(listed.find((session) => session.name === LEADER).role, "lead");
+  });
+
+  it("says the others are workers", () => {
+    assert.equal(listed.find((session) => session.name === WORKER).role, "worker");
+  });
+
+  it("says which model the lead runs on", () => {
+    assert.equal(listed.find((session) => session.name === LEADER).model, LEADER_MODEL);
+  });
+
+  it("says which model a worker runs on", () => {
+    assert.equal(listed.find((session) => session.name === WORKER).model, WORKER_MODEL);
+  });
+
+  it("will not open a conversation with somebody who does not work here", async () => {
+    assert.equal((await say("hello", "Nobody")).status, 404);
+  });
+});
+
+describe("a worker answers on its own panel", () => {
+  before(async () => {
+    await say("what are you working on", WORKER);
+  });
+
+  it("keeps the worker's message in the worker's transcript", async () => {
+    assert.ok((await transcriptOf(WORKER)).body.includes("what are you working on"));
+  });
+
+  it("keeps that message out of the lead's transcript", async () => {
+    assert.ok(!(await transcriptOf(LEADER)).body.includes("what are you working on"));
+  });
+
+  it("runs the worker on the model workers were installed for", () => {
+    assert.ok(callsIn(log).at(-1).includes(`--model ${WORKER_MODEL}`));
+  });
+
+  it("tells the worker who it is", () => {
+    assert.ok(
+      callsIn(log).at(-1).includes(path.join(instance, "personas", `${WORKER}.md`)),
+    );
+  });
+
+  it("gives the worker a thread of its own", () => {
+    assert.ok(fs.existsSync(path.join(instance, "chat", WORKER, "session.json")));
   });
 });
 
@@ -121,11 +200,11 @@ describe("a message and its reply", () => {
   });
 
   it("keeps the message in the transcript", async () => {
-    assert.ok((await get(`${URL}/messages`)).body.includes("hello"));
+    assert.ok((await transcriptOf(LEADER)).body.includes("hello"));
   });
 
   it("keeps the reply in the transcript", async () => {
-    assert.ok((await get(`${URL}/messages`)).body.includes("a reply"));
+    assert.ok((await transcriptOf(LEADER)).body.includes("a reply"));
   });
 
   it("keeps the conversation under the name of the session having it", () => {
@@ -197,7 +276,7 @@ describe("an instance with no persona still answers", () => {
   });
 
   it("still replies without a persona", async () => {
-    assert.ok((await get(`${URL}/messages`)).body.includes("and now"));
+    assert.ok((await transcriptOf(LEADER)).body.includes("and now"));
   });
 });
 

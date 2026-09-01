@@ -46,6 +46,21 @@ export function describeName(flag, value) {
   return `${flag} must start with a letter and hold only letters, digits, '-' or '_' (got ${JSON.stringify(value)})`;
 }
 
+// Everybody who works in the instance, in the order a directory listing gives them. A desk is a
+// person, so this is the roster: there is nothing else to register and nothing that can disagree
+// with what is on disk.
+export function desks(root) {
+  try {
+    return fs
+      .readdirSync(path.join(root, WORK), { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .sort();
+  } catch {
+    return [];
+  }
+}
+
 export function deskFile(root, name) {
   return path.join(root, WORK, name, DESK_FILE);
 }

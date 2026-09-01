@@ -9,7 +9,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { append, read } from "./conversation.mjs";
-import { ask } from "./session.mjs";
+import { ask, sessions } from "./session.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PAGE = path.join(HERE, "page.html");
@@ -51,7 +51,11 @@ function readBody(request) {
   });
 }
 
-async function postMessage(instance, request, response) {
+// Everything a session is asked or answers is under its own name, so one route shape serves
+// every panel and there is no path through here that only the lead can take.
+const SESSION_ROUTE = /^\/sessions\/([^/]+)\/(messages|message)$/;
+
+async function postMessage(instance, name, request, response) {
   let text;
   try {
     ({ text } = JSON.parse(await readBody(request)));
@@ -65,14 +69,13 @@ async function postMessage(instance, request, response) {
     return;
   }
 
-  const leader = instance.config.leader;
-  const question = append(instance.root, leader, { from: "human", text: text.trim() });
+  const question = append(instance.root, name, { from: "human", text: text.trim() });
 
   // The reply is waited for rather than streamed. One run of Claude Code answers one message,
   // so the answer is ready or it is not; a page that shows it appearing is a later question.
-  const answer = await ask(instance, leader, question.text);
-  const reply = append(instance.root, leader, {
-    from: "leader",
+  const answer = await ask(instance, name, question.text);
+  const reply = append(instance.root, name, {
+    from: name,
     text: answer.text,
     ...(answer.failed ? { failed: true } : {}),
   });
@@ -93,19 +96,36 @@ async function handle(instance, request, response) {
       instance: instance.root,
       human: instance.config.human,
       leader: instance.config.leader,
-      model: instance.config.models.leader,
     });
     return;
   }
 
-  if (request.method === "GET" && url.pathname === "/messages") {
-    sendJson(response, 200, { messages: read(instance.root, instance.config.leader) });
+  if (request.method === "GET" && url.pathname === "/sessions") {
+    sendJson(response, 200, { sessions: sessions(instance) });
     return;
   }
 
-  if (request.method === "POST" && url.pathname === "/message") {
-    await postMessage(instance, request, response);
-    return;
+  const route = SESSION_ROUTE.exec(url.pathname);
+  if (route !== null) {
+    const [, asked, what] = route;
+    const name = decodeURIComponent(asked);
+
+    // Only somebody with a desk can be written to. Without this the name is a path segment we
+    // were handed, and a conversation would be started for whatever was typed in the URL.
+    if (!sessions(instance).some((session) => session.name === name)) {
+      sendJson(response, 404, { error: `nobody called ${name} works here` });
+      return;
+    }
+
+    if (request.method === "GET" && what === "messages") {
+      sendJson(response, 200, { messages: read(instance.root, name) });
+      return;
+    }
+
+    if (request.method === "POST" && what === "message") {
+      await postMessage(instance, name, request, response);
+      return;
+    }
   }
 
   sendJson(response, 404, { error: `nothing at ${request.method} ${url.pathname}` });

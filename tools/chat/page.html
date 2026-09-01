@@ -4,53 +4,82 @@
 
 <h1 id="who">Chat</h1>
 
-<div id="transcript"></div>
-
-<form id="composer">
-  <textarea id="message" rows="3" cols="80" placeholder="Write to the leader"></textarea>
-  <button type="submit">Send</button>
-</form>
+<div id="panels"></div>
 
 <script type="module">
-  // Deliberately plain. The point of this page is that a message can be typed and read back;
-  // how it looks is a later question.
-  const transcript = document.getElementById("transcript");
-  const composer = document.getElementById("composer");
-  const box = document.getElementById("message");
+  // Deliberately plain. The point of this page is that every session in the workspace can be
+  // typed to and read back in one place; how it looks is a later question.
+  //
+  // One panel per session, built from what the server says works here. The server reads that from
+  // the desks each time it is asked, so a desk opened while the chat is running is a panel on the
+  // next load of this page.
+  const panels = document.getElementById("panels");
 
   const health = await fetch("/health").then((response) => response.json());
   document.getElementById("who").textContent = `${health.leader} — ${health.instance}`;
 
-  async function show() {
-    const { messages } = await fetch("/messages").then((response) => response.json());
-    transcript.replaceChildren(
-      ...messages.map((message) => {
-        const line = document.createElement("p");
-        const who = message.from === "human" ? health.human : health.leader;
-        line.textContent = `${who}${message.failed ? " (failed)" : ""}: ${message.text}`;
-        return line;
-      }),
-    );
+  const { sessions } = await fetch("/sessions").then((response) => response.json());
+
+  function said(message) {
+    const line = document.createElement("p");
+    const who = message.from === "human" ? health.human : message.from;
+    line.textContent = `${who}${message.failed ? " (failed)" : ""}: ${message.text}`;
+    return line;
   }
 
-  composer.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const text = box.value;
-    if (text.trim() === "") {
-      return;
-    }
-    box.value = "";
-    // A reply takes as long as it takes, and the page says so rather than looking broken.
-    const waiting = document.createElement("p");
-    waiting.textContent = `${health.human}: ${text}`;
-    transcript.append(waiting, Object.assign(document.createElement("p"), { textContent: "…" }));
-    await fetch("/message", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ text }),
-    });
-    await show();
-  });
+  function panel(session) {
+    const section = document.createElement("section");
 
-  await show();
+    const heading = document.createElement("h2");
+    heading.textContent = `${session.name} — ${session.role} (${session.model})`;
+
+    const transcript = document.createElement("div");
+
+    const box = document.createElement("textarea");
+    box.rows = 3;
+    box.cols = 80;
+    box.placeholder = `Write to ${session.name}`;
+
+    const send = document.createElement("button");
+    send.type = "submit";
+    send.textContent = "Send";
+
+    const composer = document.createElement("form");
+    composer.className = "composer";
+    composer.append(box, send);
+
+    section.append(heading, transcript, composer);
+
+    async function show() {
+      const answered = await fetch(`/sessions/${session.name}/messages`);
+      const { messages } = await answered.json();
+      transcript.replaceChildren(...messages.map(said));
+    }
+
+    composer.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const text = box.value;
+      if (text.trim() === "") {
+        return;
+      }
+      box.value = "";
+      // A reply takes as long as it takes, and the panel says so rather than looking broken.
+      transcript.append(
+        said({ from: "human", text }),
+        Object.assign(document.createElement("p"), { textContent: "…" }),
+      );
+      await fetch(`/sessions/${session.name}/message`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      await show();
+    });
+
+    return { section, show };
+  }
+
+  const built = sessions.map(panel);
+  panels.replaceChildren(...built.map(({ section }) => section));
+  await Promise.all(built.map(({ show }) => show()));
 </script>

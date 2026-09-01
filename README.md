@@ -16,8 +16,10 @@ session can be replaced at any time without losing the work.
   and exits; a fresh session starts on the same desk. Nothing is compacted away.
 - **One lead, many workers.** The lead delegates, takes the workers' questions and decides what
   reaches the human. Workers do the work and leave when it ships.
+- **Every session is hosted on the page.** Nobody has a terminal of their own. The lead and
+  every worker get the same panel, with the same text box under it.
 - **Built from ordinary Claude Code features**: agent personas, hooks, skills, project
-  settings, plus a few shell and Node launchers and a small web page for the lead.
+  settings, plus a few shell and Node launchers and a small web page to host them on.
 
 ## Requirements
 
@@ -64,8 +66,10 @@ Every option is required. The installer never prompts and never guesses, so one 
 describes a whole instance and can be read back, repeated and tested.
 
 So far the installer creates the directories an instance is made of: `work/` for the desks,
-`.claude/` for the settings, and `.claude-home/` for the instance's own Claude Code home, so
-that two instances on one machine never share an account or a session history. It also writes
+`personas/` for the file that tells each session who it is, `.claude/` for the settings, and
+`.claude-home/` for the instance's own Claude Code home, so that two instances on one machine
+never share an account or a session history. None of them is copied from the source: what the
+toolkit ships and what an instance accumulates stay in different directories. It also writes
 `ow.json`, the instance's description of itself — who works there, on which models, and on
 which port. That
 file holds no absolute path, not even the instance's own, so a workspace can be moved or
@@ -89,19 +93,23 @@ Then use the instance's own command:
 
 `ow hire <name>` opens a desk for a worker: the desk itself at `work/<Name>/STATE.md`, a persona
 at `personas/<Name>.md` with the names written into it, and the one permission rule that lets
-that session keep its own desk. It starts nothing — a chat that is already running picks the
-desk up on its own, because what the page shows is read from `work/` rather than remembered.
-Everybody with a desk is somebody the chat can host.
+that session keep its own desk. It starts nothing, and a chat that is already running does not
+need restarting: the panels are built from the desks the server finds, so a desk opened now is a
+panel the next time the page is loaded. Everybody with a desk is somebody the chat can host.
 
 `ow chat` serves the instance's chat page on the port it was installed with — or, with
 `--port 0`, on one the machine picks — on `127.0.0.1` only, and runs until you stop it. It
 always prints the whole address it is listening on, so there is one line to open or copy
 whichever way the port was chosen. If the port is already taken it says which process is
 holding it, with the pid and the command, so the usual culprit — a chat somebody forgot to
-stop — takes one `kill` rather than a search. The page is one heading, one transcript and one text box:
-what it looks like is a later question. What you write is kept in
-`chat/<Session>/conversation.json` inside the instance — one file per session, under the name of
-the session having that conversation — so stopping the server does not throw it away.
+stop — takes one `kill` rather than a search.
+
+The page is one panel per session — the lead first, then everybody who has been hired — and each
+panel is a heading, a transcript and a text box of its own: what it looks like is a later
+question. There is nothing special about the lead's panel; it is the same panel with a different
+name on it. What you write is kept in `chat/<Session>/conversation.json` inside the instance —
+one file per session, under the name of the session having that conversation — so stopping the
+server does not throw it away.
 
 `ow` works out which instance it belongs to from where it sits, so an instance can be moved
 and it keeps working. It refuses to run if Node.js or Claude Code is not on the PATH, and it
@@ -111,13 +119,16 @@ installed on, so it checks for itself rather than trusting that somebody checked
 Code is needed to run an instance and not to create one, which is why the installer only
 warns about that one.
 
-Each message runs the leader once — one Claude Code run per message, on the instance's own
-Claude Code home and the model `ow.json` names — and the answer lands in the transcript. A
-reply arrives whole rather than a word at a time.
+Each message runs one session once — one Claude Code run per message, on the instance's own
+Claude Code home — and the answer lands in that session's transcript. A reply arrives whole
+rather than a word at a time. Which model a session runs on comes from its name: the lead runs
+on `--leader-model`, everybody else on `--worker-model`, so there is nothing recorded that can
+disagree with `ow.json`.
 
-It is still one conversation: the thread's id is kept in `chat/session.json` and every message
-after the first continues it, so the server can be stopped and started again in the middle of
-one. If that thread ever goes missing the chat starts a new one rather than staying broken.
+Each panel is its own conversation: a thread's id is kept in `chat/<Session>/session.json` and
+every message after the first continues it, so the server can be stopped and started again in
+the middle of one. If a thread ever goes missing that session starts a new one rather than
+staying broken.
 
 ## Signing in
 
@@ -166,7 +177,8 @@ accident from a shell that happened to have one exported is not a surprise worth
 - **Launchers** — start a lead or hire a worker, assign a name, create the desk.
 - **Hooks** — to keep session names, the roster and the desks consistent.
 - **Skills** — the repeatable procedures, handover first among them.
-- **Chat page** — a browser front end to host the lead session.
+- **Chat page** — it hosts every session now, one panel each. Still to come: the lead and a
+  worker talking to each other through it, and approving what a session asks to do.
 
 ## Documentation
 
