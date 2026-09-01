@@ -324,6 +324,11 @@ describe("hiring a worker", () => {
     assert.match(persona, new RegExp(`bin/ow say ${LEADER}`));
   });
 
+  it("tells the worker what to do when the one it is telling is waiting on it", () => {
+    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    assert.match(persona, /waiting for your answer[\s\S]*say it in your reply instead/i);
+  });
+
   it("leaves no unfilled placeholder in the worker's persona", () => {
     const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
     assert.ok(!persona.includes("{{"));

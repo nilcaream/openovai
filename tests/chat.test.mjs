@@ -635,3 +635,92 @@ describe("one session waiting does not hold up another", () => {
     assert.deepEqual(order, ["began", "began", "ended", "ended"]);
   });
 });
+
+// The circle the queue makes possible: the lead's turn is held open waiting for a worker, and the
+// worker, before answering, says something back to the lead. Waiting for that would stop both of
+// them for good — nothing here times out — so it is refused with what to do instead.
+//
+// The stand-in really runs the instance's command from inside its turn, so this is the whole path
+// and not a stub of it.
+describe("a message that would wait for the sender's own turn", () => {
+  const circleLog = path.join(standIn, "circle.txt");
+
+  // The stand-in gives up on its own call after five seconds, which is the only reason a circle
+  // ends at all when nothing notices it. So how long this took is the check: the real thing has no
+  // timeout anywhere, and there a circle nobody notices never ends.
+  const PATIENCE_OF_THE_STAND_IN = 5000;
+  let asked;
+  let took;
+
+  before(async () => {
+    await start(
+      instance,
+      standInEnvironment(standIn, circleLog, { OW_STAND_IN_CALLS: `${LEADER}>${WORKER},${WORKER}>${LEADER}` }),
+    );
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    const started = Date.now();
+    asked = await say("ask the worker something", LEADER);
+    took = Date.now() - started;
+  });
+
+  it("answers the message that started it", () => {
+    assert.equal(asked.status, 200);
+  });
+
+  it("does not get there by waiting the circle out", () => {
+    assert.ok(took < PATIENCE_OF_THE_STAND_IN, `the exchange took ${took} ms`);
+  });
+
+  it("lets the lead reach the worker", () => {
+    assert.match(readLog(circleLog), new RegExp(`said by ${LEADER} to ${WORKER}: status=0`));
+  });
+
+  it("refuses the worker's message back", () => {
+    assert.match(readLog(circleLog), new RegExp(`said by ${WORKER} to ${LEADER}: status=1`));
+  });
+
+  it("says why, and what to do instead", () => {
+    assert.match(readLog(circleLog), /is waiting for your answer.*say this in your reply instead/);
+  });
+
+  it("says so in the transcript of whoever tried, not only on their command", async () => {
+    const messages = JSON.parse((await transcriptOf(WORKER)).body).messages;
+    const said = messages.find((message) => message.from === "the chat");
+    assert.ok(said !== undefined, "nothing in the transcript says what became of it");
+    assert.match(said.text, new RegExp(`not delivered to ${LEADER}`));
+  });
+});
+
+// The chain, not only the direct edge: the lead waits for one worker, that worker waits for
+// another, and the second one speaks to the lead.
+describe("a message that would wait for the sender further up the chain", () => {
+  const chainLog = path.join(standIn, "chain.txt");
+  const SECOND = "Ann";
+
+  before(async () => {
+    runTool(instance, ["hire", SECOND], process.env);
+    await start(
+      instance,
+      standInEnvironment(standIn, chainLog, {
+        OW_STAND_IN_CALLS: `${LEADER}>${WORKER},${WORKER}>${SECOND},${SECOND}>${LEADER}`,
+      }),
+    );
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    await say("start the chain", LEADER);
+  });
+
+  it("lets each link that is not a circle through", () => {
+    assert.match(readLog(chainLog), new RegExp(`said by ${WORKER} to ${SECOND}: status=0`));
+  });
+
+  it("refuses the one that closes the circle", () => {
+    assert.match(readLog(chainLog), new RegExp(`said by ${SECOND} to ${LEADER}: status=1`));
+  });
+
+  it("says the same thing about a circle three sessions long", () => {
+    const refused = readLog(chainLog)
+      .split("\n")
+      .find((line) => line.startsWith(`said by ${SECOND}`));
+    assert.match(refused, /is waiting for your answer/);
+  });
+});

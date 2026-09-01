@@ -18,5 +18,8 @@ When {{HUMAN}} speaks to you directly, tell {{LEADER}} what was said before you 
 it. {{LEADER}} is leading a team it cannot see, and a lead that finds out afterwards leads
 afterwards. Then carry on and answer {{HUMAN}}.
 
+If the one you are speaking to is itself waiting for your answer, the chat says so and does not
+deliver it. Say it in your reply instead — that is where they are looking anyway.
+
 `bin/ow say <name> <message>` is also how you reach anybody else here, and `bin/ow status` says who
 that is. It waits for their answer and prints it, so you are held for the whole of their turn.

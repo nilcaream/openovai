@@ -76,6 +76,9 @@ export function claudeIsInstalled() {
 //   OW_STAND_IN_SESSION       the thread id it returns       (default: test-thread)
 //   OW_STAND_IN_RESUME_FAILS  refuse to resume a thread      (default: no)
 //   OW_STAND_IN_SLOW          milliseconds to take answering (default: none)
+//   OW_STAND_IN_CALLS         "Speaker>Addressee,…" — while answering, that speaker says
+//                             something to that addressee with the instance's own command, which
+//                             is how a check builds a session that talks back mid-turn
 //   OW_STAND_IN_SIGNED_IN     what `auth status` reports     (default: true)
 //   OW_STAND_IN_LOGIN_STATUS  what `auth login` exits with   (default: 0)
 // It is plain ESM, like everything else here. A command on the PATH is named the way it is
@@ -85,6 +88,7 @@ export function claudeIsInstalled() {
 // makes an extensionless module do nothing at all and exit 0, so the field is left out.
 const STAND_IN = `#!/usr/bin/env node
 
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 
 const argv = process.argv.slice(2);
@@ -118,6 +122,21 @@ if (called === "auth login") {
 if (called.includes("--resume") && (process.env.OW_STAND_IN_RESUME_FAILS ?? "") !== "") {
   process.stdout.write('{"type":"result","is_error":true,"session_id":null,"result":"No conversation found"}\\n');
   process.exit(1);
+}
+
+// Said from inside this turn, with the instance's own command, from the directory a session is
+// started in. A timeout, because the thing being checked is sometimes whether this returns at all.
+const me = process.env.OW_SESSION_NAME ?? "";
+for (const pair of (process.env.OW_STAND_IN_CALLS ?? "").split(",").filter(Boolean)) {
+  const [speaker, addressee] = pair.split(">");
+  if (speaker !== me) {
+    continue;
+  }
+  const said = spawnSync("./bin/ow", ["say", addressee, \`a word from \${me}\`], { encoding: "utf8", timeout: 5000 });
+  fs.appendFileSync(
+    process.env.OW_STAND_IN_LOG,
+    \`said by \${me} to \${addressee}: status=\${said.status} out=\${JSON.stringify((said.stdout ?? "").trim())} err=\${JSON.stringify((said.stderr ?? "").trim())}\\n\`,
+  );
 }
 
 const slow = Number(process.env.OW_STAND_IN_SLOW ?? 0);

@@ -152,6 +152,15 @@ the same session, both resuming the same thread, and the transcript would come o
 followed by two answers nobody can pair up. The question is written down when its turn begins, so a
 transcript reads as a conversation.
 
+One thing a queue makes possible is a circle: the lead's turn is held open waiting for a worker,
+and the worker, before answering, says something back to the lead. Waiting for that would stop both
+of them for good, because nothing here times out. So a message that would wait for the sender's own
+turn is refused at once, with what to do instead — *"… is waiting for your answer, so it cannot take
+a message until you have given it — say this in your reply instead"* — and the refusal is written
+into the transcript of whoever tried, so the panel says why nothing was delivered. The chain is
+followed, not only the direct edge: the lead waiting on one worker who is waiting on another is a
+circle when that second one speaks to the lead.
+
 `ow` works out which instance it belongs to from where it sits, so an instance can be moved
 and it keeps working. It refuses to run if Node.js or Claude Code is not on the PATH, and it
 applies the same Node version floor the installer does — an instance carries its own copy of

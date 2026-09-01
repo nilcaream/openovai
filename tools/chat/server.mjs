@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 import { append, read } from "./conversation.mjs";
 import { HOST, record } from "./listening.mjs";
 import { ask, sessions } from "./session.mjs";
-import { inTurn } from "./turns.mjs";
+import { inTurn, whileWaitingFor, wouldWaitForItself } from "./turns.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PAGE = path.join(HERE, "page.html");
@@ -63,6 +63,11 @@ function wrap(from, role, text) {
   return `<from-session name="${from}" role="${role}">${text}</from-session>`;
 }
 
+// Who a line in a transcript is from when it is not from anybody: the chat saying what became of
+// a message. It has a space in it, so no session can ever be called this — a name is a directory
+// under work/ and cannot hold one.
+const THE_CHAT = "the chat";
+
 // Everything a session is asked or answers is under its own name, so one route shape serves
 // every panel and there is no path through here that only the lead can take.
 const SESSION_ROUTE = /^\/sessions\/([^/]+)\/(messages|message)$/;
@@ -93,29 +98,42 @@ async function postMessage(instance, name, request, response) {
     return;
   }
 
+  // A message that would close a circle is answered now rather than queued: the sender's own turn
+  // is what the addressee is waiting for, so joining the queue would stop both of them for good.
+  // The refusal is written into the sender's own transcript as well as returned, so somebody
+  // reading that panel can see why nothing was delivered.
+  if (sender !== null && wouldWaitForItself(sender.name, name)) {
+    const why = `${name} is waiting for your answer, so it cannot take a message until you have given it — say this in your reply instead`;
+    append(instance.root, sender.name, { from: THE_CHAT, text: `not delivered to ${name}: ${why}`, failed: true });
+    sendJson(response, 409, { error: why });
+    return;
+  }
+
   // The whole exchange happens inside the session's turn, the question written down when the turn
   // begins rather than when it arrived. A transcript then reads question, answer, question, answer,
   // instead of two questions followed by two answers nobody can pair up.
-  const { question, reply } = await inTurn(name, async () => {
-    const asked = append(instance.root, name, { from: sender?.name ?? "human", text: text.trim() });
+  const { question, reply } = await whileWaitingFor(sender?.name ?? null, name, () =>
+    inTurn(name, async () => {
+      const asked = append(instance.root, name, { from: sender?.name ?? "human", text: text.trim() });
 
-    // The reply is waited for rather than streamed. One run of Claude Code answers one message,
-    // so the answer is ready or it is not; a page that shows it appearing is a later question.
-    const answer = await ask(
-      instance,
-      name,
-      sender === null ? asked.text : wrap(sender.name, sender.role, asked.text),
-    );
+      // The reply is waited for rather than streamed. One run of Claude Code answers one message,
+      // so the answer is ready or it is not; a page that shows it appearing is a later question.
+      const answer = await ask(
+        instance,
+        name,
+        sender === null ? asked.text : wrap(sender.name, sender.role, asked.text),
+      );
 
-    return {
-      question: asked,
-      reply: append(instance.root, name, {
-        from: name,
-        text: answer.text,
-        ...(answer.failed ? { failed: true } : {}),
-      }),
-    };
-  });
+      return {
+        question: asked,
+        reply: append(instance.root, name, {
+          from: name,
+          text: answer.text,
+          ...(answer.failed ? { failed: true } : {}),
+        }),
+      };
+    }),
+  );
 
   sendJson(response, 200, { message: question, reply });
 }
