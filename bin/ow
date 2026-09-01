@@ -7,15 +7,24 @@ set -euo pipefail
 # actually run a session, and hands the rest over to Node. Nothing here is written at install
 # time and no path is baked in, so an instance can be moved and this still works.
 
-# The Node the toolkit is written against, the same floor the installer applies. An instance
-# carries its own copy of everything it runs, so it has to say this for itself: it may well be
-# started on a different machine from the one it was installed on.
+# The floors the installer applies, repeated rather than looked up. An instance carries its own
+# copy of everything it runs, so it has to say this for itself: it may well be started on a
+# different machine from the one it was installed on, by somebody who never ran install.sh.
+#
+# Nothing in this file needs bash 4 — the newest things in it are [[ =~ ]] and BASH_SOURCE, both
+# bash 3. The floor is install.sh's, unchanged, so that one workspace does not run under a shell
+# its own installer would have refused.
+readonly MIN_BASH_MAJOR=4
 readonly MIN_NODE_MAJOR=24
 
 die() { echo "ow: ${*}" >&2; exit 1; }
 
 main() {
     local bin_dir root node_version node_major
+
+    if (( BASH_VERSINFO[0] < MIN_BASH_MAJOR )); then
+        die "bash ${MIN_BASH_MAJOR} or newer is required, this shell is ${BASH_VERSION}"
+    fi
 
     bin_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
     root="$(dirname -- "${bin_dir}")"
