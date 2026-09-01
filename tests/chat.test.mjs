@@ -127,6 +127,10 @@ describe("a message and its reply", () => {
     assert.ok((await get(`${URL}/messages`)).body.includes("a reply"));
   });
 
+  it("keeps the conversation under the name of the session having it", () => {
+    assert.ok(fs.existsSync(path.join(instance, "chat", LEADER, "conversation.json")));
+  });
+
   it("runs the leader on the model the instance was installed with", () => {
     assert.ok(readLog(log).includes(`--model ${MODEL}`));
   });

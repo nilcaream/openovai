@@ -65,12 +65,13 @@ async function postMessage(instance, request, response) {
     return;
   }
 
-  const question = append(instance.root, { from: "human", text: text.trim() });
+  const leader = instance.config.leader;
+  const question = append(instance.root, leader, { from: "human", text: text.trim() });
 
   // The reply is waited for rather than streamed. One run of Claude Code answers one message,
   // so the answer is ready or it is not; a page that shows it appearing is a later question.
   const answer = await ask(instance, question.text);
-  const reply = append(instance.root, {
+  const reply = append(instance.root, leader, {
     from: "leader",
     text: answer.text,
     ...(answer.failed ? { failed: true } : {}),
@@ -98,7 +99,7 @@ async function handle(instance, request, response) {
   }
 
   if (request.method === "GET" && url.pathname === "/messages") {
-    sendJson(response, 200, { messages: read(instance.root) });
+    sendJson(response, 200, { messages: read(instance.root, instance.config.leader) });
     return;
   }
 

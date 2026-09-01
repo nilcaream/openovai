@@ -92,8 +92,9 @@ always prints the whole address it is listening on, so there is one line to open
 whichever way the port was chosen. If the port is already taken it says which process is
 holding it, with the pid and the command, so the usual culprit — a chat somebody forgot to
 stop — takes one `kill` rather than a search. The page is one heading, one transcript and one text box:
-what it looks like is a later question. What you write is kept in `chat/conversation.json`
-inside the instance, so stopping the server does not throw the conversation away.
+what it looks like is a later question. What you write is kept in
+`chat/<Session>/conversation.json` inside the instance — one file per session, under the name of
+the session having that conversation — so stopping the server does not throw it away.
 
 `ow` works out which instance it belongs to from where it sits, so an instance can be moved
 and it keeps working. It refuses to run if Node.js or Claude Code is not on the PATH, and it
