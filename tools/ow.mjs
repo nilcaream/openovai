@@ -20,6 +20,7 @@ import {
   writeDesk,
   writePersona,
 } from "./desks.mjs";
+import { ownInstructions } from "./instructions.mjs";
 import { holderOf } from "./port.mjs";
 
 const CONFIG_FILE = "ow.json";
@@ -273,8 +274,23 @@ function byWhom(port) {
   return ` by ${named} — stop it, ${advice}`;
 }
 
+// What the chat says about the instructions it is keeping out. One line, naming the files that
+// are actually there: the list itself is two dozen paths and mostly hypothetical, and a person
+// wondering why a session ignores the rules of the project this instance sits in needs to see
+// that it is not reading them, not to read the whole sweep.
+function describeInstructions(existing) {
+  return existing.length === 0
+    ? "This instance's instructions are its own; nothing above it holds any today."
+    : `This instance's instructions are its own; not read: ${existing.join(", ")}`;
+}
+
 async function chat(root) {
   const config = readConfig(root);
+
+  // Before anything is served, and again every time the chat starts rather than once when the
+  // instance was made: the list is absolute paths worked out from where the instance sits now,
+  // so an instance that was moved would otherwise carry the list for where it used to be.
+  console.log(describeInstructions(ownInstructions(root).existing));
 
   let server;
   try {

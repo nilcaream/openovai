@@ -61,6 +61,13 @@ const chosen = `${instance}-chosen`;
 // An instance no chat is ever started for, so the checks about not reaching one have somewhere
 // to run that cannot disturb the chat the rest of the suite is talking to.
 const quiet = `${instance}-quiet`;
+
+// An instance a couple of directories down, so the sweep over what sits above it has a parent
+// this suite owns. The directory the other instances are installed in is shared with whatever
+// else is running, and is nowhere to be dropping a CLAUDE.md.
+const nested = `${instance}-owned`;
+const owned = path.join(nested, "deep", "instance");
+const overhead = path.dirname(owned);
 const standIn = `${instance}-stand-in`;
 const log = path.join(standIn, "calls.txt");
 
@@ -68,7 +75,7 @@ let server;
 
 process.on("exit", () => {
   server?.kill();
-  remove(instance, chosen, quiet, standIn);
+  remove(instance, chosen, quiet, nested, standIn);
 });
 
 after(async () => {
@@ -111,7 +118,7 @@ async function start(root, environment) {
   return server;
 }
 
-remove(instance, chosen, quiet, standIn);
+remove(instance, chosen, quiet, nested, standIn);
 writeStandIn(standIn);
 installed(options(instance, PORT));
 installed(options(quiet, 0));
@@ -548,6 +555,78 @@ describe("a chat installed with --port 0", () => {
   it("says in status that the port is chosen at start", () => {
     const asked = runTool(chosen, ["status"], standIns);
     assert.match(asked.stdout, /chosen when the chat starts/);
+  });
+});
+
+// A session reads CLAUDE.md from the directory it is started in and from every directory above
+// it, so an instance installed under somebody's project would start every session with that
+// project's rules in its head. The chat writes the list of what is not to be read before it
+// serves anything, every time it starts.
+describe("the instructions an instance runs under", () => {
+  let excluded;
+  let said;
+
+  before(async () => {
+    installed(options(owned, 0));
+    // Something above the instance for the sweep to find. Its neighbours on the list —
+    // CLAUDE.local.md beside it, the .claude/ spellings — are deliberately not created, because
+    // the interesting half of the line is what it does not claim.
+    fs.writeFileSync(path.join(overhead, "CLAUDE.md"), "# the rules of the house\n");
+    // And something stale in the settings, from an instance that was somewhere else when it last
+    // started, to see the list written fresh rather than added to.
+    const settings = path.join(owned, ".claude", "settings.json");
+    const before_ = JSON.parse(fs.readFileSync(settings, "utf8"));
+    fs.writeFileSync(settings, JSON.stringify({ ...before_, claudeMdExcludes: ["/somewhere/else/CLAUDE.md"] }, null, 2));
+
+    await start(owned, standIns);
+    assert.ok(await waitForAddress(server), "the server never said where it was listening");
+    excluded = JSON.parse(fs.readFileSync(settings, "utf8")).claudeMdExcludes;
+    said = server.output;
+  });
+
+  it("keeps every way a directory above it can hold instructions out", () => {
+    assert.deepEqual(excluded.slice(0, 4), [
+      path.join(overhead, "CLAUDE.md"),
+      path.join(overhead, "CLAUDE.local.md"),
+      path.join(overhead, ".claude", "CLAUDE.md"),
+      path.join(overhead, ".claude", "rules", "**"),
+    ]);
+  });
+
+  it("sweeps every directory from its parent to the filesystem root", () => {
+    assert.ok(excluded.includes("/CLAUDE.md"), `nothing for the filesystem root in ${JSON.stringify(excluded)}`);
+    assert.equal(excluded.length, 4 * (owned.split(path.sep).length - 1));
+  });
+
+  it("names them absolutely, since a relative pattern excludes nothing", () => {
+    assert.deepEqual(excluded.filter((pattern) => !path.isAbsolute(pattern)), []);
+  });
+
+  it("keeps out what is not there yet as well as what is", () => {
+    assert.ok(excluded.includes(path.join(overhead, "CLAUDE.local.md")));
+  });
+
+  it("leaves the instance's own instructions alone", () => {
+    for (const mine of [path.join(owned, "CLAUDE.md"), path.join(owned, ".claude", "CLAUDE.md")]) {
+      assert.ok(!excluded.includes(mine), `${mine} is the instance's own and is on the list`);
+    }
+  });
+
+  it("writes the list fresh rather than adding to what was there", () => {
+    assert.ok(!excluded.includes("/somewhere/else/CLAUDE.md"));
+  });
+
+  it("leaves what the instance grants its sessions alone", () => {
+    const allow = JSON.parse(fs.readFileSync(path.join(owned, ".claude", "settings.json"), "utf8")).permissions.allow;
+    assert.ok(allow.includes(`Edit(work/${LEADER}/STATE.md)`), JSON.stringify(allow));
+  });
+
+  it("says at start what it found up there", () => {
+    assert.match(said, new RegExp(`^This instance's instructions are its own; not read: [^\\n]*${path.join(overhead, "CLAUDE.md")}`, "m"));
+  });
+
+  it("claims nothing about the ones that are not there", () => {
+    assert.ok(!said.includes(path.join(overhead, "CLAUDE.local.md")), said);
   });
 });
 
