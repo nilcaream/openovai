@@ -37,7 +37,8 @@ import {
 
 const HUMAN = "Mike";
 const LEADER = "Superman";
-const MODEL = "haiku";
+const LEADER_MODEL = "sonnet";
+const WORKER_MODEL = "haiku";
 
 // A port nobody else on this machine is likely to be holding.
 const PORT = 20000 + (process.pid % 20000);
@@ -65,8 +66,8 @@ function options(root, port) {
     "--source": repo,
     "--human": HUMAN,
     "--leader": LEADER,
-    "--leader-model": MODEL,
-    "--worker-model": MODEL,
+    "--leader-model": LEADER_MODEL,
+    "--worker-model": WORKER_MODEL,
     "--port": port,
     "--auth": "login",
   };
@@ -131,8 +132,8 @@ describe("a message and its reply", () => {
     assert.ok(fs.existsSync(path.join(instance, "chat", LEADER, "conversation.json")));
   });
 
-  it("runs the leader on the model the instance was installed with", () => {
-    assert.ok(readLog(log).includes(`--model ${MODEL}`));
+  it("runs the leader on the model the instance installed it for", () => {
+    assert.ok(readLog(log).includes(`--model ${LEADER_MODEL}`));
   });
 
   it("refuses a message with nothing in it", async () => {
@@ -148,7 +149,7 @@ describe("the conversation carries on", () => {
   });
 
   it("remembers the thread", () => {
-    assert.ok(fs.existsSync(path.join(instance, "chat", "session.json")));
+    assert.ok(fs.existsSync(path.join(instance, "chat", LEADER, "session.json")));
   });
 
   it("accepts a second message", () => {
@@ -165,7 +166,7 @@ describe("the leader is told who it is", () => {
     const opening = callsIn(log).filter((call) => !call.includes("--resume"));
     assert.ok(
       opening.some((call) =>
-        call.includes(`--append-system-prompt-file ${path.join(instance, "leader.md")}`),
+        call.includes(`--append-system-prompt-file ${path.join(instance, "personas", `${LEADER}.md`)}`),
       ),
     );
   });
@@ -173,7 +174,7 @@ describe("the leader is told who it is", () => {
   it("carries the persona on a resumed message", () => {
     assert.ok(
       readLog(log).includes(
-        `--append-system-prompt-file ${path.join(instance, "leader.md")} --resume test-thread`,
+        `--append-system-prompt-file ${path.join(instance, "personas", `${LEADER}.md`)} --resume test-thread`,
       ),
     );
   });
@@ -183,7 +184,7 @@ describe("an instance with no persona still answers", () => {
   let answered;
 
   before(async () => {
-    fs.rmSync(path.join(instance, "leader.md"), { force: true });
+    fs.rmSync(path.join(instance, "personas", `${LEADER}.md`), { force: true });
     answered = await say("and now");
   });
 

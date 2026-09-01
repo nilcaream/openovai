@@ -55,10 +55,15 @@ const REQUIRED = OPTIONS.map(([, key]) => key);
 // The directories an instance is made of, relative to its root.
 //
 //   work/          one directory per person, holding the state a replacement session reads
+//   personas/      one file per session, saying who it is, with the names written into it
 //   .claude/       settings that belong to the instance and can be shared
 //   .claude-home/  the instance's own Claude Code home: its account, transcripts and memory,
 //                  kept apart so two instances on one machine never share a session history
-const LAYOUT = ["work", ".claude", ".claude-home"];
+//
+// None of these is in the payload. What the toolkit ships and what an instance accumulates are
+// different things and stay in different directories, so that replacing the one never reaches
+// into the other.
+const LAYOUT = ["work", "personas", ".claude", ".claude-home"];
 
 // The instance's own description of itself. It is deliberately free of absolute paths — not
 // where it came from, not even its own root, which anything running inside works out from
@@ -79,12 +84,15 @@ const PAYLOAD = ["bin", "tools", "templates"];
 const DESK_TEMPLATE = path.join("templates", "STATE.md");
 const DESK_FILE = "STATE.md";
 
-// Who the leader of this instance is. The names are written into the file rather than looked up
-// from ow.json when it is read, so the installed prompt says "You are Superman, Mike's lead"
-// outright. A prompt that has to dereference a setting to learn its own name is a prompt that
-// can get it wrong; renaming somebody is then an edit to this file, which is the honest cost.
+// Who a session is. The names are written into the file rather than looked up from ow.json when
+// it is read, so the installed prompt says "You are Superman, Mike's lead" outright. A prompt
+// that has to dereference a setting to learn its own name is a prompt that can get it wrong;
+// renaming somebody is then an edit to that file, which is the honest cost.
+//
+// One file per session, named after the session, because every session in the instance is run
+// the same way and told who it is the same way.
 const LEADER_TEMPLATE = path.join("templates", "leader.md");
-const LEADER_FILE = "leader.md";
+const PERSONAS = "personas";
 
 // What the instance lets its leader do without being asked. A leader that cannot write its own
 // desk cannot keep it, and a workspace whose state file goes stale is a workspace that has to be
@@ -354,7 +362,8 @@ function createDesk(plan, name) {
 
 function createLeader(plan) {
   const template = readTemplate(plan, "leader", LEADER_TEMPLATE);
-  const target = path.join(plan.root, LEADER_FILE);
+  const target = path.join(plan.root, PERSONAS, `${plan.leader}.md`);
+  fs.mkdirSync(path.dirname(target), { recursive: true });
   fs.writeFileSync(target, render("leader", template, { LEADER: plan.leader, HUMAN: plan.human }));
   return [target];
 }

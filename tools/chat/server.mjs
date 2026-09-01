@@ -1,4 +1,4 @@
-// The instance's chat server: one page, one conversation, one leader session.
+// The instance's chat server: one page, and one panel for each session in the instance.
 //
 // It listens on 127.0.0.1 only. A workspace is one person's machine, and a chat that can
 // drive a Claude Code session is not something to put on a network by accident.
@@ -9,7 +9,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { append, read } from "./conversation.mjs";
-import { ask } from "./leader.mjs";
+import { ask } from "./session.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PAGE = path.join(HERE, "page.html");
@@ -70,7 +70,7 @@ async function postMessage(instance, request, response) {
 
   // The reply is waited for rather than streamed. One run of Claude Code answers one message,
   // so the answer is ready or it is not; a page that shows it appearing is a later question.
-  const answer = await ask(instance, question.text);
+  const answer = await ask(instance, leader, question.text);
   const reply = append(instance.root, leader, {
     from: "leader",
     text: answer.text,

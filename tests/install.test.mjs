@@ -127,19 +127,19 @@ describe("what the installer made", () => {
   });
 
   it("writes the leader a persona", () => {
-    assert.ok(fs.existsSync(inside("leader.md")));
+    assert.ok(fs.existsSync(inside("personas", `${LEADER}.md`)));
   });
 
   it("says in the persona who the leader is", () => {
-    assert.ok(contentOf("leader.md").includes(`You are ${LEADER}, ${HUMAN}'s lead`));
+    assert.ok(contentOf("personas", `${LEADER}.md`).includes(`You are ${LEADER}, ${HUMAN}'s lead`));
   });
 
   it("points the persona at the leader's own desk", () => {
-    assert.ok(contentOf("leader.md").includes(`work/${LEADER}/STATE.md`));
+    assert.ok(contentOf("personas", `${LEADER}.md`).includes(`work/${LEADER}/STATE.md`));
   });
 
   it("leaves no unfilled placeholder in the persona", () => {
-    assert.ok(!contentOf("leader.md").includes("{{"));
+    assert.ok(!contentOf("personas", `${LEADER}.md`).includes("{{"));
   });
 
   it("gives the instance settings of its own", () => {

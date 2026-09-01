@@ -1,9 +1,13 @@
-// Asking the leader something.
+// Asking a session something.
 //
 // One Claude Code run per message: the process starts, answers, and exits. The conversation
 // survives in a session id rather than in a running process, so the server can be stopped and
 // started again in the middle of one without losing it. The cost is that a reply cannot appear
 // a word at a time, which is a trade worth making until streaming is what is wanted.
+//
+// Every session in the instance is run through here, the lead included. A session differs from
+// another only in its name, the model it runs on and the persona it is given; nothing else about
+// the run is anybody's in particular, so there is one way to run one rather than one per kind.
 
 import { spawn } from "node:child_process";
 import fs from "node:fs";
@@ -11,53 +15,62 @@ import path from "node:path";
 
 import { environment } from "../claude.mjs";
 
-// Where the thread lives between runs. One id, written after every answer: it is the whole
-// reason a per-message run can still be a conversation.
-const SESSION_FILE = path.join("chat", "session.json");
+// Where a thread lives between runs, under the name of the session having it. One id, written
+// after every answer: it is the whole reason a per-message run can still be a conversation.
+const SESSION_FILE = "session.json";
 
-// Who the leader is, written out at install. It is appended to Claude Code's own system prompt
-// rather than replacing it, so the leader gains a name and a desk without losing the
-// instructions that make its tools work.
-const PERSONA_FILE = "leader.md";
+// Who a session is, written out when it is opened. A persona is appended to Claude Code's own
+// system prompt rather than replacing it, so a session gains a name and a desk without losing
+// the instructions that make its tools work.
+const PERSONAS = "personas";
 
-function sessionFile(root) {
-  return path.join(root, SESSION_FILE);
+function sessionFile(root, name) {
+  return path.join(root, "chat", name, SESSION_FILE);
 }
 
-function remembered(root) {
+function remembered(root, name) {
   try {
-    return JSON.parse(fs.readFileSync(sessionFile(root), "utf8")).sessionId ?? null;
+    return JSON.parse(fs.readFileSync(sessionFile(root, name), "utf8")).sessionId ?? null;
   } catch {
     return null;
   }
 }
 
-function remember(root, sessionId) {
-  const target = sessionFile(root);
+function remember(root, name, sessionId) {
+  const target = sessionFile(root, name);
   fs.mkdirSync(path.dirname(target), { recursive: true });
   fs.writeFileSync(target, `${JSON.stringify({ sessionId }, null, 2)}\n`);
 }
 
-function forget(root) {
-  fs.rmSync(sessionFile(root), { force: true });
+function forget(root, name) {
+  fs.rmSync(sessionFile(root, name), { force: true });
+}
+
+// Which model a session runs on. The instance was installed with one model for the session that
+// leads and one for everybody else, and a session's own name is enough to say which it is, so
+// there is nothing to record and nothing that can disagree with ow.json.
+function model(instance, name) {
+  const models = instance.config.models;
+  return name === instance.config.leader ? models.leader : models.worker;
 }
 
 // The persona is passed on every run, resumed ones included. Claude Code does keep it with the
 // conversation, so a resume would carry it anyway — but a resume that fails is asked again as a
 // new conversation, and that one has no history to carry it. Passing it always means there is no
-// path through here where the leader forgets who it is.
+// path through here where a session forgets who it is.
 //
-// An instance installed before the persona existed has no such file. Claude Code refuses to
-// start at all when pointed at a file that is not there, so the flag is left off instead: a
-// leader without a name still answers, and a chat that will not answer helps nobody.
-function persona(root) {
-  const file = path.join(root, PERSONA_FILE);
+// A session may have no persona file: an instance installed before personas were written out has
+// none for its lead. Claude Code refuses to start at all when pointed at a file that is not
+// there, so the flag is left off instead: a nameless session still answers, and a chat that will
+// not answer helps nobody.
+function persona(root, name) {
+  const file = path.join(root, PERSONAS, `${name}.md`);
   return fs.existsSync(file) ? file : null;
 }
 
-function run(instance, text, resume) {
-  const args = ["-p", text, "--output-format", "json", "--model", instance.config.models.leader];
-  const who = persona(instance.root);
+function run(instance, name, text, resume) {
+  const args = ["-p", text, "--output-format", "json", "--model", model(instance, name)];
+  const who = persona(instance.root, name);
   if (who !== null) {
     args.push("--append-system-prompt-file", who);
   }
@@ -118,20 +131,20 @@ function interpret(out, err) {
   };
 }
 
-export async function ask(instance, text) {
-  const resume = remembered(instance.root);
-  let answer = await run(instance, text, resume);
+export async function ask(instance, name, text) {
+  const resume = remembered(instance.root, name);
+  let answer = await run(instance, name, text, resume);
 
   // A remembered thread can go away — the Claude Code home was cleared, or the conversation
   // was never written. Rather than leave the chat permanently broken, drop the id and ask
   // again as a new conversation. Losing the history beats losing the chat.
   if (answer.failed && resume !== null) {
-    forget(instance.root);
-    answer = await run(instance, text, null);
+    forget(instance.root, name);
+    answer = await run(instance, name, text, null);
   }
 
   if (typeof answer.sessionId === "string" && answer.sessionId !== "") {
-    remember(instance.root, answer.sessionId);
+    remember(instance.root, name, answer.sessionId);
   }
 
   return answer;
