@@ -26,6 +26,7 @@ import {
   callsIn,
   heardIn,
   pidsIn,
+  shellsIn,
   get,
   installed,
   post,
@@ -1057,6 +1058,20 @@ describe("stopping the chat", () => {
       // and every other check in it still passed.
       it("does not sit there until the run gives up on its own", () => {
         assert.ok(took < within, `stopping took ${took}ms, longer than the ${within}ms it should`);
+      });
+
+      // Only the run that has to be forced starts one of these. A run that is merely asked takes
+      // its own shells with it, which is measured and is why nothing here reaches for them on
+      // that path; a forced one cannot, because it is not running any more to do it.
+      it("leaves nothing the run had started behind either", async () => {
+        const shells = shellsIn(stopLog);
+        if (shells.length === 0) {
+          return;
+        }
+        for (const shell of shells) {
+          const gone = await waitFor(() => (alive(shell) ? null : true));
+          assert.ok(gone, `the shell at ${shell} outlived the run that started it`);
+        }
       });
     });
   }

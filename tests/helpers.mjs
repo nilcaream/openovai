@@ -84,8 +84,9 @@ export function claudeIsInstalled() {
 //   OW_STAND_IN_NOISE         emit what the real one says beside an answer — a keep-alive, a
 //                             system notice, an assistant turn, and a line that is not a frame
 //   OW_STAND_IN_BROKEN        fall over in prose on stdout, framing nothing at all
-//   OW_STAND_IN_DEAF          ignore being asked to stop, so a check can watch what happens to
-//                             a run that will not go quietly
+//   OW_STAND_IN_DEAF          ignore being asked to stop, and start a shell of its own the way
+//                             a tool call does — its own process group AND its own session — so a
+//                             check can watch what a forced run leaves behind
 //   OW_STAND_IN_ASKS          ask to be allowed to use this tool, wait for the answer, and make
 //                             what it was told the reply
 //   OW_STAND_IN_WAITS         milliseconds to wait for that answer before giving up on it
@@ -102,7 +103,7 @@ export function claudeIsInstalled() {
 // makes an extensionless module do nothing at all and exit 0, so the field is left out.
 const STAND_IN = `#!/usr/bin/env node
 
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 
 const argv = process.argv.slice(2);
@@ -130,6 +131,7 @@ if ((process.env.OW_STAND_IN_DEAF ?? "") !== "") {
   process.on("SIGTERM", () => {});
   process.on("SIGINT", () => {});
   process.on("SIGHUP", () => {});
+
 }
 
 if (called === "auth status") {
@@ -203,6 +205,18 @@ process.stdin.on("data", (chunk) => {
 
 const asked = await question;
 fs.appendFileSync(log, \`heard: \${asked}\\n\`);
+
+// What a tool call looks like from the outside. detached puts it in a process group AND a session
+// of its own, which is what the real one was measured doing, and is the whole reason a signal sent
+// to this process or to the chat cannot reach it. Left alone it outlives this run.
+if ((process.env.OW_STAND_IN_DEAF ?? "") !== "") {
+  const started = spawn(process.execPath, ["-e", "setTimeout(() => {}, 60000)"], {
+    detached: true,
+    stdio: "ignore",
+  });
+  started.unref();
+  fs.appendFileSync(log, \`shell: \${started.pid}\\n\`);
+}
 
 // Said from inside this turn, with the instance's own command, from the directory a session is
 // started in. A timeout, because the thing being checked is sometimes whether this returns at all.
@@ -365,6 +379,14 @@ export function callsIn(log) {
 // The processes the stand-in ran as, newest last. A check about a run being ended needs the
 // process itself and not the promise for it: whether the chat is still holding a model open is a
 // question about the machine, and only a pid answers it.
+// The shells the stand-in started as a tool call would, newest last.
+export function shellsIn(log) {
+  return readLog(log)
+    .split("\n")
+    .filter((line) => line.startsWith("shell: "))
+    .map((line) => Number(line.slice("shell: ".length)));
+}
+
 export function pidsIn(log) {
   return readLog(log)
     .split("\n")

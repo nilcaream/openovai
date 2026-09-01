@@ -11,7 +11,7 @@
 // another only in its name, the model it runs on and the persona it is given; nothing else about
 // the run is anybody's in particular, so there is one way to run one rather than one per kind.
 
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -174,16 +174,71 @@ const running = new Set();
 // How long a run is given to go quietly before it is made to.
 const PATIENCE = 2000;
 
+// Everything running underneath a process, itself last.
+//
+// This exists for one case, and the case is measured. A run puts every tool call it makes in a
+// session of its own — not merely a process group of its own — so a shell it started is out of
+// reach of any signal sent to this chat or to the run itself. Watched: a run doing real work in a
+// shell had that shell at sid 765409 while the run was at sid 765091.
+//
+// Asked to stop, a run takes its own shells with it, so none of this is needed on that path.
+// Watched: chat, run, shell, xargs and the command all gone together. FORCED to stop, it cannot —
+// it is not running any more to do it. Watched: the run was gone and its `xargs` and a freshly
+// started `sha256sum` were still going, orphaned into their own session.
+//
+// So the tree is read BEFORE the run is forced: killing it first would reparent everything under
+// it to init and lose the only thread back to what it started.
+function descendants(pid) {
+  const asked = spawnSync("ps", ["-eo", "pid=,ppid="], { encoding: "utf8" });
+  if (asked.status !== 0 || typeof asked.stdout !== "string") {
+    return [];
+  }
+
+  const below = new Map();
+  for (const line of asked.stdout.split("\n")) {
+    const [child, parent] = line.trim().split(/\s+/).map(Number);
+    if (Number.isInteger(child) && Number.isInteger(parent)) {
+      below.set(parent, [...(below.get(parent) ?? []), child]);
+    }
+  }
+
+  const found = [];
+  const left = [pid];
+  while (left.length > 0) {
+    for (const under of below.get(left.pop()) ?? []) {
+      // A pid cannot be its own ancestor, so nothing here can loop; a table read mid-change
+      // could still name one twice, and doing it twice is only a wasted signal.
+      found.push(under);
+      left.push(under);
+    }
+  }
+  return found;
+}
+
 // End one run and wait for it to actually be over. Asked first, because a run told to stop can
-// close its own files and write down where its conversation got to; made to only if it will not,
-// because a chat that hangs on the way out is worse than a run that loses its last few words.
+// close its own files, write down where its conversation got to, and take its own shells with it;
+// made to only if it will not, because a chat that hangs on the way out is worse than a run that
+// loses its last few words.
+//
+// A run that has to be made to go cannot tidy up after itself, so this does it: what was under it
+// is read while it is still there to be read, and goes with it.
 async function end(child, patience) {
   if (child.exitCode !== null || child.signalCode !== null) {
     return;
   }
   const gone = new Promise((resolve) => child.once("close", resolve));
   child.kill("SIGTERM");
-  const made = setTimeout(() => child.kill("SIGKILL"), patience);
+  const made = setTimeout(() => {
+    const under = descendants(child.pid);
+    child.kill("SIGKILL");
+    for (const pid of under) {
+      try {
+        process.kill(pid, "SIGKILL");
+      } catch {
+        // Already gone, or not ours any more. Either way there is nothing to do about it.
+      }
+    }
+  }, patience);
   await gone;
   clearTimeout(made);
 }
