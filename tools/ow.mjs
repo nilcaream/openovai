@@ -8,6 +8,7 @@ import path from "node:path";
 
 import { listening } from "./chat/listening.mjs";
 import { serve } from "./chat/server.mjs";
+import { NAME_IN_ENVIRONMENT } from "./chat/session.mjs";
 import { hasCredential, home, login, machineToken } from "./claude.mjs";
 import {
   DeskError,
@@ -146,6 +147,10 @@ function hire(root, name) {
 // The reply is waited for. The caller is a session itself, mid-turn, and it asked because it
 // wants the answer — which costs it the whole of the other session's turn, and is the trade to
 // revisit when a session waiting is actually in the way.
+//
+// The message is signed with the name of the session running the command, which the chat put in
+// its environment when it started it. Run from a terminal there is no name and nothing is signed,
+// which is correct: the person at the keyboard is the human, and that is who it arrives as.
 async function say(root, name, words) {
   if (name === undefined) {
     throw new UsageError("say needs somebody to say it to: ow say <name> <message>");
@@ -164,12 +169,14 @@ async function say(root, name, words) {
     throw new ChatError("no chat is running in this instance — start one with: ow chat");
   }
 
+  const from = process.env[NAME_IN_ENVIRONMENT];
+
   let answered;
   try {
     answered = await fetch(`${url}/sessions/${encodeURIComponent(name)}/message`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, ...(from === undefined || from === "" ? {} : { from }) }),
     });
   } catch (error) {
     // The address was written down by a chat that has since been stopped, or one that is no

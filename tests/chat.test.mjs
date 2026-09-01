@@ -113,6 +113,10 @@ installed(options(quiet, 0));
 runTool(instance, ["hire", WORKER], process.env);
 
 const standIns = standInEnvironment(standIn, log);
+
+// What the chat puts in a session's environment, so a check can run the command the way a session
+// runs it: signed with the name of whoever is speaking.
+const asLeader = standInEnvironment(standIn, log, { OW_SESSION_NAME: LEADER });
 await start(instance, standIns);
 assert.ok(await waitForHealth(URL), "the server never answered");
 
@@ -331,6 +335,70 @@ describe("when the chat cannot be reached", () => {
     it("says it got nothing that reads as a reply", () => {
       assert.match(said.stderr, /nothing that reads as a reply/);
     });
+  });
+});
+
+// Who a message is from is the whole of slice three. The page signs nothing, so an unsigned
+// message is the human; a session signs with its own name, and what reaches the other session is
+// wrapped under that name. A turn with no wrapper is therefore the human's by construction.
+describe("who a message is from", () => {
+  before(async () => {
+    await say("straight from the page", WORKER);
+  });
+
+  it("tells a session its own name when it starts it", () => {
+    assert.match(readLog(log), new RegExp(`OW_SESSION_NAME: ${WORKER}`));
+  });
+
+  it("hands the page's own message over unwrapped", () => {
+    assert.ok(!callsIn(log).at(-1).includes("<from-session"));
+  });
+
+  it("keeps the page's own message under the human's name", async () => {
+    const messages = JSON.parse((await transcriptOf(WORKER)).body).messages;
+    assert.equal(messages.find((message) => message.text === "straight from the page").from, "human");
+  });
+
+  describe("one session speaking to another", () => {
+    before(() => {
+      runTool(instance, ["say", WORKER, "this", "one", "is", "mine"], asLeader);
+    });
+
+    it("hands it over wrapped, under the name of who sent it", () => {
+      assert.ok(callsIn(log).at(-1).includes(`<from-session name="${LEADER}" role="lead">`));
+    });
+
+    it("says what the sender is, not only who", () => {
+      assert.ok(callsIn(log).at(-1).includes('role="lead"'));
+    });
+
+    it("hands over what was said inside the wrapper", () => {
+      assert.match(callsIn(log).at(-1), /<from-session[^>]*>this one is mine<\/from-session>/);
+    });
+
+    it("keeps it in the transcript under the name of who sent it", async () => {
+      const messages = JSON.parse((await transcriptOf(WORKER)).body).messages;
+      assert.equal(messages.find((message) => message.text === "this one is mine").from, LEADER);
+    });
+
+    it("keeps the wrapper out of the transcript", async () => {
+      assert.ok(!(await transcriptOf(WORKER)).body.includes("from-session"));
+    });
+  });
+
+  it("refuses a message signed by nobody who works here", async () => {
+    assert.equal((await post(`${URL}/sessions/${WORKER}/message`, { text: "hello", from: "Nobody" })).status, 400);
+  });
+
+  it("says whose signature it did not recognise", async () => {
+    const refused = await post(`${URL}/sessions/${WORKER}/message`, { text: "hello", from: "Nobody" });
+    assert.match(refused.body, /nobody called Nobody/);
+  });
+
+  it("takes a command run from a terminal as the human, since nobody signed it", async () => {
+    runTool(instance, ["say", WORKER, "typed", "by", "hand"], standIns);
+    const messages = JSON.parse((await transcriptOf(WORKER)).body).messages;
+    assert.equal(messages.find((message) => message.text === "typed by hand").from, "human");
   });
 });
 

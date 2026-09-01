@@ -128,6 +128,17 @@ other's rule. Both are relative, like the rule that lets a session write its own
 is started with the instance root as its working directory, and an instance that named a place on
 this machine would stop working the moment it was moved.
 
+A session can see who is speaking to it. The page signs nothing, so what is typed there arrives as
+it was typed; `ow say` signs with the name of the session running it — the chat puts that name in
+the environment it starts a session with — and the chat hands a signed message over wrapped, as
+`<from-session name="Superman" role="lead">…</from-session>`. A turn that arrives with no wrapper
+is therefore the human's, by construction: nothing has to remember to say so. A signature naming
+nobody who works there is refused rather than passed on as the human's.
+
+The wrapper is only on the way in. What is kept is what was said, under the name of who said it,
+so a transcript reads as a conversation rather than as a protocol — and `ow say` run from a
+terminal signs nothing, because the person at the keyboard is the human.
+
 `ow` works out which instance it belongs to from where it sits, so an instance can be moved
 and it keeps working. It refuses to run if Node.js or Claude Code is not on the PATH, and it
 applies the same Node version floor the installer does — an instance carries its own copy of

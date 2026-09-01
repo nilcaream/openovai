@@ -98,6 +98,7 @@ fs.appendFileSync(
     \`CLAUDE_CONFIG_DIR: \${value("CLAUDE_CONFIG_DIR")}\`,
     \`ANTHROPIC_API_KEY: \${value("ANTHROPIC_API_KEY")}\`,
     \`CLAUDE_CODE_OAUTH_TOKEN: \${value("CLAUDE_CODE_OAUTH_TOKEN")}\`,
+    \`OW_SESSION_NAME: \${value("OW_SESSION_NAME")}\`,
     "",
   ].join("\\n"),
 );

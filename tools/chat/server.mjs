@@ -51,14 +51,26 @@ function readBody(request) {
   });
 }
 
+// A message from another session is handed over wrapped, under the name of whoever sent it and
+// what they are. So a turn that arrives with no wrapper is the human's, by construction: a session
+// does not have to be told who it is talking to, it can see it, and the one case it must never get
+// wrong — the human typing on its own panel — is the one that needs nothing to go right.
+//
+// It is wrapped only on the way to the session. What is kept is what was said, under the name of
+// who said it, so the transcript reads as a conversation rather than as a protocol.
+function wrap(from, role, text) {
+  return `<from-session name="${from}" role="${role}">${text}</from-session>`;
+}
+
 // Everything a session is asked or answers is under its own name, so one route shape serves
 // every panel and there is no path through here that only the lead can take.
 const SESSION_ROUTE = /^\/sessions\/([^/]+)\/(messages|message)$/;
 
 async function postMessage(instance, name, request, response) {
   let text;
+  let from;
   try {
-    ({ text } = JSON.parse(await readBody(request)));
+    ({ text, from } = JSON.parse(await readBody(request)));
   } catch (error) {
     sendJson(response, 400, { error: error.message });
     return;
@@ -69,11 +81,26 @@ async function postMessage(instance, name, request, response) {
     return;
   }
 
-  const question = append(instance.root, name, { from: "human", text: text.trim() });
+  // The page signs nothing, so an unsigned message is the person at the page or the person at a
+  // terminal — either way, the human. A signature naming nobody who works here is refused rather
+  // than passed on as the human's: a message arriving as somebody it is not is the one mistake
+  // this whole arrangement exists to prevent.
+  const signed = typeof from === "string" && from.trim() !== "" ? from.trim() : null;
+  const sender = signed === null ? null : (sessions(instance).find((session) => session.name === signed) ?? null);
+  if (signed !== null && sender === null) {
+    sendJson(response, 400, { error: `nobody called ${signed} works here` });
+    return;
+  }
+
+  const question = append(instance.root, name, { from: sender?.name ?? "human", text: text.trim() });
 
   // The reply is waited for rather than streamed. One run of Claude Code answers one message,
   // so the answer is ready or it is not; a page that shows it appearing is a later question.
-  const answer = await ask(instance, name, question.text);
+  const answer = await ask(
+    instance,
+    name,
+    sender === null ? question.text : wrap(sender.name, sender.role, question.text),
+  );
   const reply = append(instance.root, name, {
     from: name,
     text: answer.text,
