@@ -75,9 +75,12 @@ export function claudeIsInstalled() {
 //   OW_STAND_IN_RESUME_FAILS  refuse to resume a thread      (default: no)
 //   OW_STAND_IN_SIGNED_IN     what `auth status` reports     (default: true)
 //   OW_STAND_IN_LOGIN_STATUS  what `auth login` exits with   (default: 0)
+// It is written as CommonJS on purpose. A command on the PATH is named the way it is typed,
+// so the file has no extension, and an extensionless file is read as CommonJS — a file of
+// import statements only runs where Node happens to look at the syntax first.
 const STAND_IN = `#!/usr/bin/env node
 
-import fs from "node:fs";
+const fs = require("node:fs");
 
 const argv = process.argv.slice(2);
 const called = argv.join(" ");
