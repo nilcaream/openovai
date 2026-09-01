@@ -204,10 +204,12 @@ plain install is already narrow enough to watch this work. Every option is requi
 ```
 
 `ow chat` prints the address it is listening on. Open it, and on Paul's panel ask for something
-the instance has not been told to allow — *"list the files in this directory"* will do it. The
-panel stops and shows the request: the tool, and what it was going to be given. Choose **Deny**,
-and Paul's reply says he was refused and what he had wanted to run. Ask again and choose
-**Allow**, and he goes ahead and tells you what he found.
+the instance has not been told to allow. Ask him to **write** a file — *"create a file called
+hello.txt in your workspace containing the word hi"* will do it. Reading is a poor test: Claude
+Code settles read-only work such as listing a directory by itself, and that never reaches the
+page. The panel stops and shows the request: the tool, and what it was going to be given. Choose
+**Deny**, and Paul's reply opens by saying he was refused and what he had wanted to run. Ask again
+and choose **Allow**, and he goes ahead and tells you what he did.
 
 Each panel is its own conversation: a thread's id is kept in `chat/<Session>/session.json` and
 every message after the first continues it, so the server can be stopped and started again in
