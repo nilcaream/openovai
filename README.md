@@ -122,9 +122,11 @@ nobody to say it to, and it says so rather than starting anybody.
 
 Every session in the instance is allowed to run it, and the lead's persona says so, which is what
 makes the team a team: the lead can ask a worker something mid-turn and quote the answer back to
-you. The rule is `Bash(bin/ow say:*)` and it is relative, like the rule that lets a session write
-its own desk — a session is started with the instance root as its working directory, and an
-instance that named a place on this machine would stop working the moment it was moved.
+you. The rules are `Bash(bin/ow say:*)` and `Bash(./bin/ow say:*)` — two, because a rule is a
+literal prefix rather than a path, and the two spellings of the one command would each miss the
+other's rule. Both are relative, like the rule that lets a session write its own desk: a session
+is started with the instance root as its working directory, and an instance that named a place on
+this machine would stop working the moment it was moved.
 
 `ow` works out which instance it belongs to from where it sits, so an instance can be moved
 and it keeps working. It refuses to run if Node.js or Claude Code is not on the PATH, and it

@@ -45,7 +45,11 @@ export function configProblems(file, expected) {
 // Does the instance grant exactly what working there takes and nothing wider: one rule per person
 // for their own desk, and the one rule that lets a session say something to another?
 export function settingsProblems(file, names) {
-  const expected = [...names.map((name) => `Edit(work/${name}/STATE.md)`), "Bash(bin/ow say:*)"];
+  const expected = [
+    ...names.map((name) => `Edit(work/${name}/STATE.md)`),
+    "Bash(bin/ow say:*)",
+    "Bash(./bin/ow say:*)",
+  ];
 
   let settings;
   try {

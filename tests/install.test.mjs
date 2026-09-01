@@ -170,6 +170,14 @@ describe("what the installer made", () => {
     assert.ok(allow.includes("Bash(bin/ow say:*)"));
   });
 
+  // The rule is a literal prefix rather than a path, so the two spellings of the one command are
+  // two rules. A session that types the other one is the only way this fails, and it fails by
+  // asking somebody to approve a command it was told to run.
+  it("lets it be typed the other way round as well", () => {
+    const allow = JSON.parse(contentOf(".claude", "settings.json")).permissions.allow;
+    assert.ok(allow.includes("Bash(./bin/ow say:*)"));
+  });
+
   it("tells the leader how to say something to somebody", () => {
     assert.match(contentOf("personas", `${LEADER}.md`), /bin\/ow say <name> <message>/);
   });

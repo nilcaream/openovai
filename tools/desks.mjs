@@ -37,7 +37,12 @@ export const SETTINGS_FILE = path.join(".claude", "settings.json");
 // And what every session in the instance may do to reach the others: run the instance's own
 // command to say something to one of them. One rule serves everybody, because these settings are
 // the instance's rather than anybody's — the same reason there is one file and not one per desk.
-export const SAY_RULE = "Bash(bin/ow say:*)";
+//
+// Both spellings of the same command, because the rule is a literal prefix rather than a path:
+// `./bin/ow say …` is the same command as `bin/ow say …` and would match neither the other's rule.
+// Telling a session which one to type works until the first time it types the other, and being
+// asked to approve a command it was told to run is a worse answer than a second narrow rule.
+export const SAY_RULES = ["Bash(bin/ow say:*)", "Bash(./bin/ow say:*)"];
 
 // Something is wrong with a name, a template or a file we were asked to write. The caller says
 // which command it happened under, so this carries only the reason.
@@ -156,5 +161,5 @@ export function allowDesk(root, name) {
 // The right to say something to the others. Granted once, when the instance is made, rather than
 // per person: it names no desk, so a second copy of it would grant nothing a first one had not.
 export function allowSay(root) {
-  return allow(root, SAY_RULE);
+  return SAY_RULES.flatMap((rule) => allow(root, rule));
 }
