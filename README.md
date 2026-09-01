@@ -22,7 +22,7 @@ session can be replaced at any time without losing the work.
 ## Requirements
 
 - Claude Code
-- Bash 5
+- Bash 4
 - Node.js 24 or newer (for the launchers and the web page)
 - Linux desktop
 
