@@ -307,6 +307,23 @@ describe("hiring a worker", () => {
     assert.ok(persona.includes(LEADER));
   });
 
+  // The whole of the speakerphone on the worker's side: it can see that nobody wrapped the turn,
+  // it knows that means the human, and it is told to pass it on before it acts.
+  it("tells the worker that a message from a session comes wrapped", () => {
+    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    assert.match(persona, /<from-session name=/);
+  });
+
+  it("tells the worker that an unwrapped turn is the human", () => {
+    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    assert.match(persona, new RegExp(`no wrapper is ${HUMAN}`));
+  });
+
+  it("tells the worker to pass on what the human said", () => {
+    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    assert.match(persona, new RegExp(`bin/ow say ${LEADER}`));
+  });
+
   it("leaves no unfilled placeholder in the worker's persona", () => {
     const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
     assert.ok(!persona.includes("{{"));

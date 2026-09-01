@@ -186,6 +186,14 @@ describe("what the installer made", () => {
     assert.match(contentOf("personas", `${LEADER}.md`), /bin\/ow status/);
   });
 
+  it("tells the leader that a message from a session comes wrapped", () => {
+    assert.match(contentOf("personas", `${LEADER}.md`), /<from-session name=/);
+  });
+
+  it("tells the leader that an unwrapped turn is the human", () => {
+    assert.match(contentOf("personas", `${LEADER}.md`), new RegExp(`no wrapper is\\s+${HUMAN}`));
+  });
+
   it("warns the leader that asking somebody waits for them", () => {
     assert.match(contentOf("personas", `${LEADER}.md`), /waits for them/);
   });

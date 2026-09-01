@@ -139,6 +139,12 @@ The wrapper is only on the way in. What is kept is what was said, under the name
 so a transcript reads as a conversation rather than as a protocol — and `ow say` run from a
 terminal signs nothing, because the person at the keyboard is the human.
 
+That is what makes the page a speakerphone rather than a set of separate conversations. A worker
+is told that an unwrapped turn is you speaking on its own panel, and to tell the lead what was
+said — `bin/ow say <leader> …`, in its own words — before it acts on it. So a lead leading a team
+it cannot watch still hears what happened on a panel it was not on, and hears it as the worker
+read it.
+
 `ow` works out which instance it belongs to from where it sits, so an instance can be moved
 and it keeps working. It refuses to run if Node.js or Claude Code is not on the PATH, and it
 applies the same Node version floor the installer does — an instance carries its own copy of
