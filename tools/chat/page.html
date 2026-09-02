@@ -7,6 +7,15 @@
 <h2>The room</h2>
 <div id="room"></div>
 
+<!-- Opening a desk for somebody new. Written here rather than built in the script because it is
+     fixed content and not a panel: nothing about it depends on who works here, so there is nothing
+     for the script to decide and no way for it to be built and never attached. -->
+<form id="hiring">
+  <input id="named" placeholder="A name" autocomplete="off">
+  <button id="hire" type="submit">Hire</button>
+  <span id="refusal"></span>
+</form>
+
 <div id="panels"></div>
 
 <script type="module">
@@ -17,6 +26,46 @@
   // the desks each time it is asked, so a desk opened while the chat is running is a panel on the
   // next load of this page.
   const panels = document.getElementById("panels");
+
+  // Who works here is settled at load: the panels are built once from /sessions, so the set of
+  // them is a load-time fact. Anything that changes it — hiring somebody, a session leaving —
+  // loads the page again rather than growing a panel lifecycle nobody has asked for.
+  function whoWorksHereChanged() {
+    location.reload();
+  }
+
+  // Hiring, wired before anything is fetched: it is the one thing on this page that works when
+  // there is nobody to show yet.
+  const hiring = document.getElementById("hiring");
+  const named = document.getElementById("named");
+  const hire = document.getElementById("hire");
+  const refusal = document.getElementById("refusal");
+
+  hiring.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const name = named.value.trim();
+    if (name === "") {
+      return;
+    }
+    hire.disabled = true;
+    refusal.textContent = "";
+    try {
+      const answered = await fetch("/sessions", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      if (answered.ok) {
+        whoWorksHereChanged();
+        return;
+      }
+      // In the words the route used, which are the words `ow hire` prints. A page that reworded a
+      // refusal would be a second answer to what a name is refused for.
+      refusal.textContent = (await answered.json()).error;
+    } finally {
+      hire.disabled = false;
+    }
+  });
 
   const health = await fetch("/health").then((response) => response.json());
   document.getElementById("who").textContent = `${health.leader} — ${health.instance}`;
@@ -143,9 +192,20 @@
     hand.type = "button";
     hand.textContent = "Hand over";
 
+    // And the exit: the session is asked to write its desk one last time, and the desk and the
+    // panel are filed away together. Not offered on the lead's panel, because an instance has a
+    // lead by definition and this page is hosted by it — a lead that left would still be here,
+    // with nothing to read what it was doing from. The route refuses it too; this is so nobody is
+    // offered a button that cannot work.
+    const leave = session.role === "lead" ? null : document.createElement("button");
+    if (leave !== null) {
+      leave.type = "button";
+      leave.textContent = "Leave";
+    }
+
     const composer = document.createElement("form");
     composer.className = "composer";
-    composer.append(box, send, hand);
+    composer.append(box, send, hand, ...(leave === null ? [] : [leave]));
 
     // Where this session says what it wants to be allowed to do. Empty almost always: only a tool
     // the instance has not already settled one way or the other ever gets this far.
@@ -234,6 +294,21 @@
       } finally {
         hand.disabled = false;
       }
+    });
+
+    // Pressed once, for the reason the handover is: leaving is a turn, and a second one queued
+    // behind the first would be asked of a name that is not here any more. It stays disabled when
+    // it works, because the page is about to load again.
+    leave?.addEventListener("click", async () => {
+      leave.disabled = true;
+      transcript.append(Object.assign(document.createElement("p"), { textContent: "…" }));
+      const answered = await fetch(`/sessions/${session.name}/leave`, { method: "POST" });
+      if (answered.ok) {
+        whoWorksHereChanged();
+        return;
+      }
+      await show();
+      leave.disabled = false;
     });
 
     function busy(is) {

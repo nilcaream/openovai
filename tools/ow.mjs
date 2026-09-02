@@ -11,25 +11,11 @@ import { listening } from "./chat/listening.mjs";
 import { serve } from "./chat/server.mjs";
 import { NAME_IN_ENVIRONMENT, endEveryRun, runsGoing } from "./chat/session.mjs";
 import { hasCredential, home, login, machineToken } from "./claude.mjs";
-import {
-  DeskError,
-  allowDesk,
-  deskFile,
-  describeName,
-  desks,
-  isName,
-  writeDesk,
-  writePersona,
-} from "./desks.mjs";
+import { DeskError, describeName, desks, hire, isName } from "./desks.mjs";
 import { ownInstructions } from "./instructions.mjs";
 import { holderOf } from "./port.mjs";
 
 const CONFIG_FILE = "ow.json";
-
-// A worker's persona, before the name is written into it. An instance carries its own copy of
-// the templates, so hiring reads from the instance rather than from wherever it was installed
-// from — which is what lets an instance open a desk on a machine the source was never on.
-const WORKER_TEMPLATE = path.join("templates", "worker.md");
 
 const COMMANDS = ["status", "room", "chat", "hire", "say", "login"];
 
@@ -111,41 +97,16 @@ function describeCredential(root, auth) {
 // Open a desk for a worker. Everything a person is made of is written here and nothing else
 // happens: no session is started, and a chat already running picks the desk up on its own,
 // because what the page shows is read from work/ rather than remembered.
-function hire(root, name) {
+//
+// What a name is refused for lives in desks.mjs, because the page's Hire button reaches the same
+// answer through a route rather than through this. All this adds is the one refusal that is about
+// a command line rather than about a name: nothing typed at all.
+function hireHere(root, name) {
   if (name === undefined) {
     throw new UsageError("hire needs a name: ow hire <name>");
   }
-  if (!isName(name)) {
-    throw new UsageError(describeName("a worker name", name));
-  }
 
-  const config = readConfig(root);
-  if (fs.existsSync(deskFile(root, name))) {
-    throw new UsageError(`${name} already has a desk here`);
-  }
-
-  // A name is more than its desk. The chat keeps a panel and a thread under the same name, and a
-  // desk opened over the top of those is a new person answering out of somebody else's
-  // conversation, with somebody else's transcript on their panel — which looks like a fresh start
-  // until the first reply.
-  //
-  // Refused rather than cleared away: what is in there is a record somebody may want, and a
-  // command that deletes one to get its own job done is worse than the surprise it is fixing.
-  if (fs.existsSync(panelDirectory(root, name))) {
-    throw new UsageError(
-      `${name} has left a conversation here; move or remove ${path.join("chat", name)} before hiring that name again`,
-    );
-  }
-
-  const written = [
-    ...writeDesk(root, root, name),
-    ...writePersona(root, root, name, "worker", WORKER_TEMPLATE, {
-      NAME: name,
-      HUMAN: config.human,
-      LEADER: config.leader,
-    }),
-    ...allowDesk(root, name),
-  ];
+  const written = hire(root, name, panelDirectory(root, name), readConfig(root));
 
   console.log(`${name} works here now. Wrote:`);
   for (const entry of written) {
@@ -458,7 +419,7 @@ async function main(argv) {
       return 0;
     }
     if (command === "hire") {
-      hire(root, arguments_[0]);
+      hireHere(root, arguments_[0]);
       return 0;
     }
     if (command === "room") {

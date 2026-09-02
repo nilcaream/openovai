@@ -21,6 +21,11 @@ export const WORK = "work";
 export const DESK_FILE = "STATE.md";
 export const DESK_TEMPLATE = path.join("templates", "STATE.md");
 
+// A worker's persona, before the name is written into it. It lives beside the desk template
+// rather than with either caller, because hiring now happens from two places — the command and
+// the chat's route — and a template named in both would be one word in two files.
+export const WORKER_TEMPLATE = path.join("templates", "worker.md");
+
 // One persona file per session, named after the session. The names are written into it rather
 // than looked up when it is read, so the file says "You are Superman, Mike's lead" outright.
 export const PERSONAS = "personas";
@@ -285,6 +290,49 @@ export function withdrawDesk(root, name) {
     ...settings,
     permissions: { ...settings.permissions, allow: granted.filter((entry) => entry !== rule) },
   });
+}
+
+// Opening a worker's desk: everything a person is made of, written at once, or nothing written
+// at all because one of the reasons not to came first.
+//
+// It is here rather than in either caller because there are two of them — `ow hire` and the
+// chat's route, which the page's Hire button posts to — and two copies of what a name is refused
+// for would be two answers to the same question the day one of them changed. The refusals are
+// values and not printed lines for the same reason: the command puts them on stderr, the route
+// answers 400 with them, and neither has an opinion about the wording.
+//
+// The panel directory is handed in rather than worked out here, as `retire` takes it: how a chat
+// lays its directories out is the chat's word, and a second module spelling it would be a word in
+// two places.
+//
+// The templates are read from the instance and not from wherever it was installed from, which is
+// what lets an instance open a desk on a machine the source was never on.
+export function hire(root, name, panel, { human, leader }) {
+  if (!isName(name)) {
+    throw new DeskError(describeName("a worker name", name));
+  }
+  if (fs.existsSync(deskFile(root, name))) {
+    throw new DeskError(`${name} already has a desk here`);
+  }
+
+  // A name is more than its desk. The chat keeps a panel and a thread under the same name, and a
+  // desk opened over the top of those is a new person answering out of somebody else's
+  // conversation, with somebody else's transcript on their panel — which looks like a fresh start
+  // until the first reply.
+  //
+  // Refused rather than cleared away: what is in there is a record somebody may want, and a
+  // command that deletes one to get its own job done is worse than the surprise it is fixing.
+  if (fs.existsSync(panel)) {
+    throw new DeskError(
+      `${name} has left a conversation here; move or remove ${path.relative(root, panel)} before hiring that name again`,
+    );
+  }
+
+  return [
+    ...writeDesk(root, root, name),
+    ...writePersona(root, root, name, "worker", WORKER_TEMPLATE, { NAME: name, HUMAN: human, LEADER: leader }),
+    ...allowDesk(root, name),
+  ];
 }
 
 // The right to say something to the others. Granted once, when the instance is made, rather than

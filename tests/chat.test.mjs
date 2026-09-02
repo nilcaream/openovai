@@ -2532,7 +2532,7 @@ describe("handing a session over", () => {
   // A button that is built and never attached is invisible to a check that reads the page for what
   // it says. Text is all there is here, so the text says it is put on the panel.
   it("puts that button on the panel", async () => {
-    assert.ok((await get(`${URL}/`)).body.includes("composer.append(box, send, hand)"));
+    assert.match((await get(`${URL}/`)).body, /composer\.append\(box, send, hand[,)]/);
   });
 });
 
@@ -2650,6 +2650,208 @@ describe("what a session was owed when it was handed over", () => {
 
   it("leaves the session that follows it owing nothing", () => {
     assert.ok(!theNextTurn?.includes("the roof is leaking"));
+  });
+});
+
+// Hiring from the page. The other end of the exit: a name that has left can be given to somebody
+// new without anybody going to a terminal for it.
+//
+// It writes what the command writes because it calls the same function, and the checks say so by
+// reading the files rather than the answer. What the route adds over the command is that a chat
+// already running hosts the new desk from the next load of the page, which is the last check here.
+const HIRED_FROM_THE_PAGE = "Snipe";
+
+describe("hiring from the page", () => {
+  const hiringLog = path.join(standIn, "hiring.txt");
+  let hired;
+
+  before(async () => {
+    await start(instance, standInEnvironment(standIn, hiringLog));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    hired = await post(`${URL}/sessions`, { name: HIRED_FROM_THE_PAGE });
+  });
+
+  // The one route that makes something that was not there before.
+  it("answers that somebody was made", () => {
+    assert.equal(hired.status, 201);
+  });
+
+  it("opens the desk", () => {
+    assert.ok(fs.existsSync(path.join(instance, "work", HIRED_FROM_THE_PAGE, "STATE.md")));
+  });
+
+  it("opens it on a header that says nothing about what they are on yet", () => {
+    const desk = fs.readFileSync(path.join(instance, "work", HIRED_FROM_THE_PAGE, "STATE.md"), "utf8");
+    assert.equal(desk.split("\n")[0], "<!-- DESK | title: -->");
+  });
+
+  it("writes the persona that says who they are", () => {
+    const persona = path.join(instance, "personas", `${HIRED_FROM_THE_PAGE}.md`);
+    assert.ok(fs.readFileSync(persona, "utf8").includes(HIRED_FROM_THE_PAGE));
+  });
+
+  // A session that cannot write its own desk cannot keep it, and the inspector reads these
+  // settings as one rule per desk and nothing wider.
+  it("grants them the right to write that desk", () => {
+    const settings = JSON.parse(fs.readFileSync(path.join(instance, ".claude", "settings.json"), "utf8"));
+    assert.ok(settings.permissions.allow.includes(`Edit(work/${HIRED_FROM_THE_PAGE}/STATE.md)`));
+  });
+
+  it("says what it wrote, in the instance's own terms", () => {
+    const { wrote } = JSON.parse(hired.body);
+    assert.deepEqual(wrote.slice(0, 2), [
+      path.join("work", HIRED_FROM_THE_PAGE, "STATE.md"),
+      path.join("personas", `${HIRED_FROM_THE_PAGE}.md`),
+    ]);
+  });
+
+  // Nothing is started and nothing is registered. The chat reads who works here from work/ each
+  // time it is asked, so a desk opened while it runs is somebody it can host from that moment.
+  it("is somebody the chat can be asked about, without a restart", async () => {
+    const { sessions: rows } = JSON.parse((await get(`${URL}/sessions`)).body);
+    assert.ok(rows.some((row) => row.name === HIRED_FROM_THE_PAGE && row.role === "worker"));
+  });
+
+  it("has said nothing yet", async () => {
+    assert.deepEqual(JSON.parse((await transcriptOf(HIRED_FROM_THE_PAGE)).body).messages, []);
+  });
+});
+
+// What a name is refused for has one answer, and this is the check that says so: every refusal
+// here is compared with the one `ow hire` prints for the same name. Two copies of these guards
+// would be two answers the day one of them changed, which is the bug the route was written around.
+describe("what hiring from the page refuses", () => {
+  const refusedLog = path.join(standIn, "hiring-refused.txt");
+  const CAME_BACK = "Merlin";
+
+  // Somebody at a desk who has never been spoken to, which is the only state in which the desk is
+  // the FIRST thing in the way. Asking about the lead instead looks like the same check and is not:
+  // the lead has a conversation, so the guard after this one refuses it and this one is never
+  // reached — a mutation that took the desk guard away noticed nothing until this name existed.
+  const AT_A_DESK = "Godwit";
+
+  // What the command says about the same name, with the `ow: ` it prefixes every reason with
+  // taken off, so the two can be compared as reasons rather than as output.
+  function whatTheCommandSays(name) {
+    return runTool(instance, ["hire", name], process.env).stderr.replace(/^ow: /, "").trim();
+  }
+
+  before(async () => {
+    await start(instance, standInEnvironment(standIn, refusedLog));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    // With something written on it, so that a refusal that did not refuse would be visible as
+    // work lost rather than only as a status code.
+    runTool(instance, ["hire", AT_A_DESK], process.env);
+    fs.writeFileSync(
+      path.join(instance, "work", AT_A_DESK, "STATE.md"),
+      "<!-- DESK | title: draining the second cistern -->\n# Godwit\nthe cistern is half down\n",
+    );
+
+    // The state the bug actually looked like: a desk gone and a conversation still here.
+    runTool(instance, ["hire", CAME_BACK], process.env);
+    fs.rmSync(path.join(instance, "work", CAME_BACK), { recursive: true, force: true });
+    fs.mkdirSync(path.join(instance, "chat", CAME_BACK), { recursive: true });
+    fs.writeFileSync(path.join(instance, "chat", CAME_BACK, "conversation.json"), "[]\n");
+  });
+
+  it("refuses to hire nobody", async () => {
+    const refused = await post(`${URL}/sessions`, {});
+    assert.deepEqual([refused.status, JSON.parse(refused.body).error], [400, "hiring needs a name"]);
+  });
+
+  it("refuses a name that is nothing but space", async () => {
+    assert.equal((await post(`${URL}/sessions`, { name: "   " })).status, 400);
+  });
+
+  it("refuses a name a directory could not be", async () => {
+    const refused = await post(`${URL}/sessions`, { name: "../elsewhere" });
+    assert.equal(refused.status, 400);
+    assert.equal(JSON.parse(refused.body).error, whatTheCommandSays("../elsewhere"));
+  });
+
+  it("refuses somebody who already has a desk, in the words the command uses", async () => {
+    const refused = await post(`${URL}/sessions`, { name: AT_A_DESK });
+    assert.equal(refused.status, 400);
+    assert.match(JSON.parse(refused.body).error, new RegExp(`${AT_A_DESK} already has a desk`));
+    assert.equal(JSON.parse(refused.body).error, whatTheCommandSays(AT_A_DESK));
+  });
+
+  // The half of that refusal that matters. A route that opened the desk anyway would answer
+  // cheerfully and take somebody's work with it.
+  it("leaves the desk that was in the way as it found it", () => {
+    const desk = fs.readFileSync(path.join(instance, "work", AT_A_DESK, "STATE.md"), "utf8");
+    assert.match(desk, /the cistern is half down/);
+  });
+
+  it("refuses a name whose conversation is still here, in the words the command uses", async () => {
+    const refused = await post(`${URL}/sessions`, { name: CAME_BACK });
+    assert.equal(refused.status, 400);
+    assert.match(JSON.parse(refused.body).error, new RegExp(`conversation here.*chat/${CAME_BACK}`));
+    assert.equal(JSON.parse(refused.body).error, whatTheCommandSays(CAME_BACK));
+  });
+
+  it("leaves that conversation alone rather than clearing it to get its own job done", () => {
+    assert.ok(fs.existsSync(path.join(instance, "chat", CAME_BACK, "conversation.json")));
+  });
+
+  it("puts nobody in the room by refusing", async () => {
+    const { sessions: rows } = JSON.parse((await get(`${URL}/sessions`)).body);
+    assert.deepEqual(
+      rows.map((row) => row.name).filter((name) => name === CAME_BACK || name === "../elsewhere"),
+      [],
+    );
+  });
+});
+
+// Hiring and leaving, on the page. No suite runs page.html — it is served and read as TEXT — so
+// what is checked here is that each is OFFERED and that it goes to the route behind it. What the
+// routes do is proven above, on their own data; this is the seam between them and a browser, and
+// it is not a substitute for opening one.
+describe("what the page offers", () => {
+  let page;
+
+  before(async () => {
+    page = (await get(`${URL}/`)).body;
+  });
+
+  // The form is markup and not something the script builds, so it cannot be built and never
+  // attached — the trap the room's checks exist to catch. What can go wrong instead is the wiring,
+  // and that is the check under this one.
+  it("offers to hire somebody", () => {
+    assert.match(page, /<form id="hiring">/);
+    assert.match(page, /<button id="hire" type="submit">Hire<\/button>/);
+  });
+
+  it("hires over the route rather than anywhere else", () => {
+    assert.match(page, /fetch\("\/sessions", \{\n\s+method: "POST"/);
+  });
+
+  it("shows a refusal in the words it came in", () => {
+    assert.match(page, /refusal\.textContent = \(await answered\.json\(\)\)\.error;/);
+  });
+
+  // Built per panel, so this one CAN be built and never attached. The check reads the line that
+  // puts it beside the other buttons, not the line that makes it.
+  it("offers a worker the way out, beside the handover", () => {
+    assert.match(page, /composer\.append\(box, send, hand, \.\.\.\(leave === null \? \[\] : \[leave\]\)\);/);
+  });
+
+  // An instance has a lead by definition and this page is hosted by it. The route refuses it too;
+  // this is so nobody is offered a button that cannot work.
+  it("does not offer it to the session that leads", () => {
+    assert.match(page, /const leave = session\.role === "lead" \? null : document\.createElement\("button"\);/);
+  });
+
+  it("asks the route to retire the session, and not something of its own", () => {
+    assert.match(page, /fetch\(`\/sessions\/\$\{session\.name\}\/leave`, \{ method: "POST" \}\)/);
+  });
+
+  // Who works here is a load-time fact: the panels are built once from /sessions. So both of the
+  // things that change it load the page again rather than growing a panel lifecycle.
+  it("loads again when who works here has changed", () => {
+    assert.equal((page.match(/whoWorksHereChanged\(\);/g) ?? []).length, 2);
+    assert.match(page, /function whoWorksHereChanged\(\) \{\n\s+location\.reload\(\);/);
   });
 });
 

@@ -8,11 +8,11 @@ import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { append, lastAt, panelFile, read } from "./conversation.mjs";
+import { append, lastAt, panelDirectory, panelFile, read } from "./conversation.mjs";
 import { HOST, record } from "./listening.mjs";
 import { carry, overhear } from "./overheard.mjs";
 import { allow, answer as settle, giveUp, park, parked, refuse } from "./permissions.mjs";
-import { DESK_FILE, WORK, archiveFor, deskTitle, retire } from "../desks.mjs";
+import { DESK_FILE, DeskError, WORK, archiveFor, deskTitle, hire, retire } from "../desks.mjs";
 import { ask, forget, hasThread, sessions } from "./session.mjs";
 import { inTurn, turnsGoing, waitingFor, whileWaitingFor, wouldWaitForItself } from "./turns.mjs";
 
@@ -459,6 +459,46 @@ async function postLeave(instance, name, response) {
   sendJson(response, 200, done);
 }
 
+// Opening a desk for somebody new, which is what the page's Hire button posts to.
+//
+// It writes what `ow hire` writes by calling the same function, so what a name is refused for has
+// one answer rather than two that can drift apart, and the page shows that answer in the words it
+// came in. Nothing is started: a desk is a person, and a chat already running hosts one from the
+// next load of the page.
+//
+// 201 rather than 200, because this is the one route that makes something that was not there.
+async function postSessions(instance, request, response) {
+  let name;
+  try {
+    ({ name } = JSON.parse(await readBody(request)));
+  } catch (error) {
+    sendJson(response, 400, { error: error.message });
+    return;
+  }
+
+  // The one refusal that is not about the name itself but about there being none. `ow hire` says
+  // the same thing about an empty command line.
+  if (typeof name !== "string" || name.trim() === "") {
+    sendJson(response, 400, { error: "hiring needs a name" });
+    return;
+  }
+
+  let wrote;
+  try {
+    wrote = hire(instance.root, name, panelDirectory(instance.root, name), instance.config);
+  } catch (error) {
+    if (error instanceof DeskError) {
+      sendJson(response, 400, { error: error.message });
+      return;
+    }
+    throw error;
+  }
+
+  // Said relatively, as everything else written into an instance is: an instance holds no
+  // absolute path anywhere, and the page is looking at the same directory the server is in.
+  sendJson(response, 201, { name, wrote: wrote.map((file) => path.relative(instance.root, file)) });
+}
+
 // Answering what a session asked to be allowed to do.
 //
 // The decision is put together here rather than taken from the page, because the protocol is
@@ -561,6 +601,11 @@ async function handle(instance, request, response) {
 
   if (request.method === "GET" && url.pathname === "/sessions") {
     sendJson(response, 200, { sessions: sessions(instance).map((session) => everySession(instance, session)) });
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === "/sessions") {
+    await postSessions(instance, request, response);
     return;
   }
 
