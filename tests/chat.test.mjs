@@ -1418,6 +1418,76 @@ describe("asking to be allowed", () => {
   });
 });
 
+// How much of itself a session's conversation is carrying, so a person can tell when it is worth
+// handing one over rather than finding out from the answers.
+//
+// The reading is real and comes off the result frame the chat already reads. It is the LAST request
+// the turn made — that is the whole conversation as the model last saw it, and the turn after it
+// opens there. The top level of `usage` adds the turn's requests together, so a turn that made two
+// of them reports about twice what the thread holds; measured on a real session, 67,090 for a turn
+// that ended at 41,929, with the next turn opening at 42,059. That is why the stand-in reports two
+// requests of different sizes: a check that cannot tell the sum from the last of them is a check
+// that would pass on a number growing at twice the rate of the conversation.
+describe("how much of itself a session is carrying", () => {
+  const sizeLog = path.join(standIn, "size.txt");
+  const REQUESTS = [25142, 41929];
+  const LAST = REQUESTS[REQUESTS.length - 1];
+  const NEW_HAND = "Wren";
+
+  async function stateOf(name) {
+    const { sessions: rows } = JSON.parse((await get(`${URL}/sessions`)).body);
+    return rows.find((row) => row.name === name) ?? null;
+  }
+
+  let neverAsked;
+  let answered;
+  let held;
+  let onceHandedOver;
+
+  before(async () => {
+    runTool(instance, ["hire", NEW_HAND], process.env);
+    await start(instance, standInEnvironment(standIn, sizeLog, { OW_STAND_IN_USAGE: REQUESTS.join(",") }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    neverAsked = await stateOf(NEW_HAND);
+    await say("a first message", NEW_HAND);
+    answered = await stateOf(NEW_HAND);
+    // Read before the handover, which takes the file with it — that is the next check but one.
+    held = JSON.parse(fs.readFileSync(path.join(instance, "chat", NEW_HAND, "session.json"), "utf8"));
+    await post(`${URL}/sessions/${NEW_HAND}/handover`, {});
+    onceHandedOver = await stateOf(NEW_HAND);
+  });
+
+  it("says nothing about a session that has never answered", () => {
+    assert.equal(neverAsked.context, null);
+  });
+
+  it("says where the thread stood at the end of its last turn", () => {
+    assert.equal(answered.context, LAST);
+  });
+
+  it("does not add the turn's requests together", () => {
+    assert.notEqual(answered.context, REQUESTS.reduce((all, size) => all + size, 0));
+  });
+
+  it("keeps it with the thread it is about", () => {
+    assert.equal(held.context, LAST);
+  });
+
+  it("has nothing to say once that thread has been handed over", () => {
+    assert.equal(onceHandedOver.context, null);
+  });
+
+  // Read as text, like everything on that page.
+  it("gives the page the words to put it in", async () => {
+    assert.ok((await get(`${URL}/`)).body.includes("tokens after its last turn"));
+  });
+
+  it("gives the page the reading to put in them", async () => {
+    assert.ok((await get(`${URL}/`)).body.includes("panel.carrying(row?.context)"));
+  });
+});
+
 // Handing a session over from the page.
 //
 // A session's judgment goes as its thread fills, and the answer is not to summarise it: the desk

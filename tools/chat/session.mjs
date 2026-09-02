@@ -44,10 +44,22 @@ function remembered(root, name) {
   }
 }
 
-function remember(root, name, sessionId) {
+function remember(root, name, sessionId, context) {
   const target = sessionFile(root, name);
   fs.mkdirSync(path.dirname(target), { recursive: true });
-  fs.writeFileSync(target, `${JSON.stringify({ sessionId }, null, 2)}\n`);
+  fs.writeFileSync(target, `${JSON.stringify({ sessionId, context }, null, 2)}\n`);
+}
+
+// How much of itself a thread is carrying, as of the end of its last turn. Read from the same file
+// the thread id lives in, so it is what is known about this conversation between runs and goes with
+// it when it ends — a session that has just been handed over has no reading, which is the truth.
+export function contextIn(root, name) {
+  try {
+    const held = JSON.parse(fs.readFileSync(sessionFile(root, name), "utf8")).context;
+    return typeof held === "number" ? held : null;
+  } catch {
+    return null;
+  }
 }
 
 // End a thread. The file is the whole of a session's memory between processes, so removing it is
@@ -95,6 +107,7 @@ export function sessions(instance) {
     name,
     role: name === leader ? "lead" : "worker",
     model: model(instance, name),
+    context: contextIn(instance.root, name),
   }));
 }
 
@@ -390,8 +403,36 @@ function interpret(answer, err) {
     // session does it is not known and is not guessed at here; that it did is worth saying.
     silent: !failed && text.trim() === "",
     sessionId: answer.session_id ?? null,
+    context: contextAfter(answer),
   };
 }
+
+// Where the thread stood when the run ended, in tokens.
+//
+// `usage.iterations` is one entry per request the turn made, and the LAST of them is the whole of
+// the conversation as the model last saw it: what was sent, what was read back out of the cache,
+// and what was written into it. The turn after this one opens there.
+//
+// The top level of `usage` is NOT that. It adds the turn's requests together, so a turn that made
+// two of them reports roughly twice what the thread is carrying — measured on a real session,
+// 67,090 for a turn that ended at 41,929, and the next turn opened at 42,059. A number that grows
+// at twice the rate of the conversation is worse than none, because it looks like an answer.
+//
+// Nothing here converts it to a share of anything. A percentage needs a table of what each model
+// can hold, kept true by somebody, which is a moving part in aid of a decoration; the frame does
+// carry `modelUsage[<model>].contextWindow` if that is ever wanted.
+function contextAfter(answer) {
+  const last = answer.usage?.iterations?.at(-1);
+  if (last === undefined) {
+    return null;
+  }
+
+  const used =
+    (last.input_tokens ?? 0) + (last.cache_read_input_tokens ?? 0) + (last.cache_creation_input_tokens ?? 0);
+  return used > 0 ? used : null;
+}
+
+
 
 // What a run is told when nobody has been given a way to answer it. A caller that does not care
 // about permissions still gets a session that runs; what it does not get is a session that can sit
@@ -413,7 +454,10 @@ export async function ask(instance, name, text, asked = nobodyToAsk) {
   }
 
   if (typeof answer.sessionId === "string" && answer.sessionId !== "") {
-    remember(instance.root, name, answer.sessionId);
+    // Written together, because they are one fact about one conversation. What this run reported is
+    // what is kept, `null` included: a reading that stopped arriving should show as nothing rather
+    // than as a number from some earlier turn that is no longer where the thread is.
+    remember(instance.root, name, answer.sessionId, answer.context ?? null);
   }
 
   return answer;

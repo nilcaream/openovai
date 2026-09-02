@@ -104,6 +104,11 @@ export function claudeIsInstalled() {
 //   OW_STAND_IN_CALLS         "Speaker>Addressee,…" — while answering, that speaker says
 //                             something to that addressee with the instance's own command, which
 //                             is how a check builds a session that talks back mid-turn
+//   OW_STAND_IN_USAGE         "n,n,…" — how big the thread was at each request this turn made,
+//                             reported the way the real one reports it: one `usage.iterations`
+//                             entry each, and a top level that ADDS them up. A check about the
+//                             reading has to be able to tell those two apart, so the sizes differ
+//                             and each is split across the three fields a context is made of
 //   OW_STAND_IN_SIGNED_IN     what `auth status` reports     (default: true)
 //   OW_STAND_IN_LOGIN_STATUS  what `auth login` exits with   (default: 0)
 // It is plain ESM, like everything else here. A command on the PATH is named the way it is
@@ -311,11 +316,36 @@ if (slow > 0) {
   fs.appendFileSync(log, \`answered: \${asked}\\n\`);
 }
 
+// One request's worth of usage, in the three fields a context is the sum of. Split rather than put
+// in one, so that a reader dropping any of the three is a reader that comes out short.
+const iteration = (size) => ({
+  type: "message",
+  output_tokens: 1,
+  input_tokens: 8,
+  cache_creation_input_tokens: 5,
+  cache_read_input_tokens: size - 13,
+});
+
+const sizes = (process.env.OW_STAND_IN_USAGE ?? "").split(",").filter(Boolean).map(Number);
+const usage =
+  sizes.length === 0
+    ? {}
+    : {
+        usage: {
+          output_tokens: sizes.length,
+          input_tokens: 8 * sizes.length,
+          cache_creation_input_tokens: 5 * sizes.length,
+          cache_read_input_tokens: sizes.reduce((all, size) => all + size - 13, 0),
+          iterations: sizes.map(iteration),
+        },
+      };
+
 frame({
   type: "result",
   subtype: "success",
   is_error: false,
   num_turns: 1,
+  ...usage,
   session_id: process.env.OW_STAND_IN_SESSION ?? "test-thread",
   result:
     (process.env.OW_STAND_IN_EMPTY ?? "") !== ""

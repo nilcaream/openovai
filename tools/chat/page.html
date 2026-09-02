@@ -40,7 +40,17 @@
     // else: the panel already shows what was said, and what is wanted here is only the difference
     // between a session thinking and a session with nothing to do.
     const mood = document.createElement("span");
-    heading.append(mood);
+
+    // How much of itself this session's conversation is carrying, so that whoever is reading can
+    // tell when it is worth handing over rather than finding out from the answers. It is where the
+    // thread stood at the END of its last turn, which is what the phrasing says: a turn going on
+    // right now is already past it, and there is no way to ask a run in progress.
+    //
+    // A count, not a share of anything. What a model can hold would have to be kept in a table
+    // here, and a number that is quietly wrong is worse than one that needs a moment's thought.
+    const size = document.createElement("span");
+
+    heading.append(mood, size);
 
     const transcript = document.createElement("div");
 
@@ -160,12 +170,22 @@
       mood.textContent = is ? " (answering…)" : "";
     }
 
-    return { name: session.name, section, show, waiting, busy };
+    // Nothing at all until the session has answered once: a conversation that has not started has
+    // no size, and a zero there would read as one that had.
+    function carrying(tokens) {
+      size.textContent =
+        typeof tokens === "number" ? ` — ${tokens.toLocaleString("en-US")} tokens after its last turn` : "";
+    }
+
+    return { name: session.name, section, show, waiting, busy, carrying };
   }
 
   const built = sessions.map(panel);
   panels.replaceChildren(...built.map(({ section }) => section));
   await Promise.all(built.map(({ show }) => show()));
+  for (const panel of built) {
+    panel.carrying(sessions.find((session) => session.name === panel.name)?.context);
+  }
 
   // Once a second, which is often enough that answering does not feel like waiting and seldom
   // enough to be free. A run asking for permission has stopped until it is answered, so there is
@@ -178,9 +198,13 @@
 
   async function showWhoIsBusy() {
     const { sessions } = await fetch("/sessions").then((response) => response.json());
-    const going = new Map(sessions.map((session) => [session.name, session.busy === true]));
+    const rows = new Map(sessions.map((session) => [session.name, session]));
     for (const panel of built) {
-      panel.busy(going.get(panel.name) === true);
+      const row = rows.get(panel.name);
+      panel.busy(row?.busy === true);
+      // On the same tick, because it changes for the same reason the busy sign does: a turn ended,
+      // and this page need not have been the one that started it.
+      panel.carrying(row?.context);
     }
   }
 
