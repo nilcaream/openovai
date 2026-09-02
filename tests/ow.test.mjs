@@ -17,6 +17,7 @@ import { before, describe, it } from "node:test";
 
 import {
   installed,
+  projectDirectoriesIn,
   readLog,
   remove,
   repo,
@@ -196,6 +197,37 @@ describe("what Claude Code is run as", () => {
 
   it("keeps an account credential in the environment away from it", () => {
     assert.ok(!readLog(log).includes("ANTHROPIC_API_KEY: must-not-be-inherited"));
+  });
+});
+
+// Where an instance keeps what it has learned. Claude Code files transcripts and memory under
+// <config dir>/projects/<a name>/, and left alone it makes that name out of the absolute directory
+// a session was started in — which for every session here is the instance root. An instance that
+// was moved would then be looking for both under a path it does not sit at any more.
+//
+// The two instances are at two different roots, which is the only set-up in which "the same
+// wherever it sits" is observably different from "made out of where it sits".
+describe("where an instance files what it knows", () => {
+  before(() => {
+    ow(["status"]);
+    owInherited(["status"]);
+  });
+
+  it("names the directory Claude Code files this instance's transcripts and memory under", () => {
+    assert.equal(projectDirectoriesIn(log).at(-1), "workspace");
+  });
+
+  it("gives an instance at another root the same name", () => {
+    assert.equal(projectDirectoriesIn(inheritedLog).at(-1), projectDirectoriesIn(log).at(-1));
+  });
+
+  it("does not let the environment it was started in decide", () => {
+    ow(["status"], { CLAUDE_CODE_PROJECT_DIR_NAME: "somebody-elses-workspace" });
+    assert.equal(projectDirectoriesIn(log).at(-1), "workspace");
+  });
+
+  it("keeps it to one directory name", () => {
+    assert.ok(!projectDirectoriesIn(log).at(-1).includes(path.sep));
   });
 });
 

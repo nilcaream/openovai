@@ -13,8 +13,25 @@ import path from "node:path";
 const NEVER_INHERITED = [
   "ANTHROPIC_API_KEY",
   "ANTHROPIC_AUTH_TOKEN",
-  "CLAUDE_CODE_PROJECT_DIR_NAME",
 ];
+
+// What Claude Code files this instance's transcripts and memory under, inside the instance's own
+// home: <root>/.claude-home/projects/<this>/.
+//
+// Left alone, Claude Code names that directory after the ABSOLUTE working directory a session was
+// started in — and every session here is started in the instance root. So a workspace that was
+// moved or copied would look for its threads and everything it had learned under the path it used
+// to sit at, find neither, and be unable to say why. An instance holds no absolute path anywhere
+// else, by design; this is the one place the choice was being made for us.
+//
+// So it is a fixed word, the same in every instance. Two instances never collide over it because
+// each has its own home to file it in. It is set rather than merely kept, which also takes care of
+// the reason it used to be stripped: a value from the environment an instance is started in would
+// otherwise decide where that instance keeps what it knows.
+//
+// No separator in it. It is one directory name, and a name that reached out of the projects
+// directory would put an instance's memory somewhere the instance does not own.
+export const PROJECT_DIRECTORY = "workspace";
 
 // The one credential an instance can be told to take from the machine around it. Signing in is
 // interactive, and an instance that has to be signed in by hand cannot be started by anything
@@ -91,6 +108,7 @@ export function environment(root, auth) {
     delete env[MACHINE_TOKEN];
   }
   env.CLAUDE_CONFIG_DIR = home(root);
+  env.CLAUDE_CODE_PROJECT_DIR_NAME = PROJECT_DIRECTORY;
   return env;
 }
 

@@ -133,6 +133,7 @@ fs.appendFileSync(
     \`pid: \${process.pid}\`,
     \`cwd: \${process.cwd()}\`,
     \`CLAUDE_CONFIG_DIR: \${value("CLAUDE_CONFIG_DIR")}\`,
+    \`CLAUDE_CODE_PROJECT_DIR_NAME: \${value("CLAUDE_CODE_PROJECT_DIR_NAME")}\`,
     \`ANTHROPIC_API_KEY: \${value("ANTHROPIC_API_KEY")}\`,
     \`CLAUDE_CODE_OAUTH_TOKEN: \${value("CLAUDE_CODE_OAUTH_TOKEN")}\`,
     \`OW_SESSION_NAME: \${value("OW_SESSION_NAME")}\`,
@@ -441,6 +442,16 @@ export function shellsIn(log) {
     .split("\n")
     .filter((line) => line.startsWith("shell: "))
     .map((line) => Number(line.slice("shell: ".length)));
+}
+
+// What Claude Code was told to file this instance's transcripts and memory under, newest last.
+// Read as a list rather than matched in the whole log, because the question a check asks about it
+// is what the LAST run was told — a value from an earlier run is somebody else's answer.
+export function projectDirectoriesIn(log) {
+  return readLog(log)
+    .split("\n")
+    .filter((line) => line.startsWith("CLAUDE_CODE_PROJECT_DIR_NAME: "))
+    .map((line) => line.slice("CLAUDE_CODE_PROJECT_DIR_NAME: ".length));
 }
 
 export function pidsIn(log) {
