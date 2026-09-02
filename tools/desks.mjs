@@ -186,6 +186,12 @@ export function retire(root, name, at, panel) {
 
   fs.rmSync(path.join(root, WORK, name), { recursive: true, force: true });
   fs.rmSync(path.dirname(panel), { recursive: true, force: true });
+
+  // The persona is not filed with the desk. It is the worker template with a name written into it
+  // and says nothing about what was done here, so it is reproducible and it names somebody who does
+  // not work here any more.
+  fs.rmSync(personaFile(root, name), { force: true });
+  withdrawDesk(root, name);
   return filed;
 }
 
@@ -261,6 +267,24 @@ function allow(root, rule) {
 // the chat starts it with the instance root as its working directory.
 export function allowDesk(root, name) {
   return allow(root, `Edit(${path.posix.join(WORK, name, DESK_FILE)})`);
+}
+
+// And taking that right back, when the desk it names is not there any more. A rule for a desk
+// nobody has is a grant nobody can account for — `tests/inspect.mjs` reads the settings as "one
+// rule per desk and nothing wider", so leaving one behind is not untidiness, it is the instance no
+// longer being able to say what it allows and why.
+export function withdrawDesk(root, name) {
+  const settings = readSettings(root);
+  const granted = Array.isArray(settings?.permissions?.allow) ? settings.permissions.allow : [];
+  const rule = `Edit(${path.posix.join(WORK, name, DESK_FILE)})`;
+  if (!granted.includes(rule)) {
+    return [];
+  }
+
+  return writeSettings(root, {
+    ...settings,
+    permissions: { ...settings.permissions, allow: granted.filter((entry) => entry !== rule) },
+  });
 }
 
 // The right to say something to the others. Granted once, when the instance is made, rather than

@@ -441,6 +441,34 @@ describe("what hiring refuses", () => {
   it("refuses more than one name at a time", () => {
     assert.notEqual(ow(["hire", "Ann", "Bob"]).status, 0);
   });
+
+  // A name is more than its desk. The chat keeps a panel and a thread under the same name, and a
+  // desk opened over the top of those is a new person answering out of somebody else's
+  // conversation — which reads as a fresh start right up until the first reply. The state is
+  // reached the way it happens: a desk gone and a conversation still here.
+  describe("a name whose conversation is still here", () => {
+    const CAME_BACK = "Otter";
+
+    before(() => {
+      ow(["hire", CAME_BACK]);
+      fs.rmSync(path.join(instance, "work", CAME_BACK), { recursive: true, force: true });
+      fs.mkdirSync(path.join(instance, "chat", CAME_BACK), { recursive: true });
+      fs.writeFileSync(path.join(instance, "chat", CAME_BACK, "conversation.json"), "[]\n");
+    });
+
+    it("refuses", () => {
+      assert.notEqual(ow(["hire", CAME_BACK]).status, 0);
+    });
+
+    it("says what is in the way and where it is", () => {
+      assert.match(ow(["hire", CAME_BACK]).stderr, new RegExp(`conversation here.*chat/${CAME_BACK}`));
+    });
+
+    it("leaves that conversation alone", () => {
+      ow(["hire", CAME_BACK]);
+      assert.ok(fs.existsSync(path.join(instance, "chat", CAME_BACK, "conversation.json")));
+    });
+  });
 });
 
 describe("what the command refuses", () => {

@@ -24,6 +24,13 @@ export function panelFile(root, session) {
   return file(root, session);
 }
 
+// And the directory it is kept in, which is everything the chat holds about this session: the
+// panel, and the thread it resumes by id. Whoever frees a name has to know it is gone, and whoever
+// opens a desk has to know it is not still here.
+export function panelDirectory(root, session) {
+  return path.dirname(file(root, session));
+}
+
 export function read(root, session) {
   try {
     return JSON.parse(fs.readFileSync(file(root, session), "utf8"));

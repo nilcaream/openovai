@@ -2211,6 +2211,23 @@ describe("a session leaving", () => {
     assert.equal(fs.existsSync(path.join(instance, "work", LEAVES)), false);
   });
 
+  it("takes the persona with it, because it names somebody who is not here", () => {
+    assert.equal(fs.existsSync(path.join(instance, "personas", `${LEAVES}.md`)), false);
+  });
+
+  // A rule for a desk nobody has is a grant the instance cannot account for, and the inspector
+  // reads these settings as one rule per desk and nothing wider.
+  it("takes back the right to write that desk", () => {
+    const settings = JSON.parse(fs.readFileSync(path.join(instance, ".claude", "settings.json"), "utf8"));
+    assert.ok(!settings.permissions.allow.includes(`Edit(work/${LEAVES}/STATE.md)`));
+  });
+
+  it("leaves everybody else's right where it was", () => {
+    const settings = JSON.parse(fs.readFileSync(path.join(instance, ".claude", "settings.json"), "utf8"));
+    assert.ok(settings.permissions.allow.includes(`Edit(work/${LEADER}/STATE.md)`));
+  });
+
+
   it("ends the thread", () => {
     assert.equal(thread, false);
   });
@@ -2265,6 +2282,30 @@ describe("a session leaving into a name that is already taken", () => {
   });
 });
 
+// The point of all of it: a name that has left can be hired again, and what comes back under it
+// starts on nothing. It is its own describe because hiring is a change of state, and everything
+// asserted about what leaving left behind has to be read before that happens.
+describe("hiring a name that has left", () => {
+  let hired;
+
+  before(() => {
+    hired = runTool(instance, ["hire", LEAVES], process.env);
+  });
+
+  it("opens the desk", () => {
+    assert.deepEqual([hired.status, fs.existsSync(path.join(instance, "work", LEAVES, "STATE.md"))], [0, true]);
+  });
+
+  it("starts on no conversation and no thread", () => {
+    assert.equal(fs.existsSync(path.join(instance, "chat", LEAVES)), false);
+  });
+
+  it("says nothing on the new desk about what the old one was on", () => {
+    const desk = fs.readFileSync(path.join(instance, "work", LEAVES, "STATE.md"), "utf8");
+    assert.equal(desk.split("\n")[0], "<!-- DESK | title: -->");
+  });
+});
+
 // A desk that never said what it was on is filed under the day and the name alone. Saying nothing
 // is what everything else here does with an empty title, and a guess in a directory name is a guess
 // somebody has to live with afterwards.
@@ -2308,6 +2349,59 @@ describe("asking the session that leads to leave", () => {
 
   it("leaves the desk where it is", () => {
     assert.ok(fs.existsSync(path.join(instance, "work", LEADER, "STATE.md")));
+  });
+});
+
+// A message that arrived while a session was leaving.
+//
+// The route asks whether somebody works here when the message ARRIVES, and one waiting behind a
+// leave arrived while they still did. Answered as usual it would open a thread and a panel under a
+// name that had just been freed — the bug this whole exit exists to close, coming back through the
+// queue instead of through hiring. So the question is asked again where the turn begins.
+//
+// It only comes apart while something is holding the queue, hence the slow turn in front and the
+// wait for each message to be sitting behind the one before it.
+const LEAVES_MID_QUEUE = "Vole";
+
+describe("a message queued behind a session leaving", () => {
+  const behindLog = path.join(standIn, "behind-leave.txt");
+  let refused;
+
+  async function queuedFor(name) {
+    const { sessions: rows } = JSON.parse((await get(`${URL}/sessions`)).body);
+    return rows.find((row) => row.name === name) ?? null;
+  }
+
+  before(async () => {
+    runTool(instance, ["hire", LEAVES_MID_QUEUE], process.env);
+    await start(instance, standInEnvironment(standIn, behindLog, { OW_STAND_IN_SLOW: "1500" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    const answering = say("this one takes a while", LEAVES_MID_QUEUE);
+    await waitFor(() => questionsIn(behindLog).some((question) => question.includes("takes a while")) || null);
+
+    const leaving = post(`${URL}/sessions/${LEAVES_MID_QUEUE}/leave`, {});
+    await waitFor(async () => ((await queuedFor(LEAVES_MID_QUEUE))?.queued === 1 ? true : null));
+
+    const behind = say("and one more thing", LEAVES_MID_QUEUE);
+    await waitFor(async () => ((await queuedFor(LEAVES_MID_QUEUE))?.queued === 2 ? true : null));
+
+    const [, , said] = await Promise.all([answering, leaving, behind]);
+    refused = said;
+  });
+
+  it("is refused rather than answered", () => {
+    assert.equal(refused.status, 409);
+  });
+
+  it("says the session left before it could be delivered", () => {
+    assert.match(JSON.parse(refused.body).error, /left before this could be delivered/);
+  });
+
+  // The mutation that matters: answering it would put the panel and the thread back under a name
+  // that had just been given up.
+  it("does not put the session's panel back", () => {
+    assert.equal(fs.existsSync(path.join(instance, "chat", LEAVES_MID_QUEUE)), false);
   });
 });
 

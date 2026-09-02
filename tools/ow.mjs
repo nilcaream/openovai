@@ -6,6 +6,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import { panelDirectory } from "./chat/conversation.mjs";
 import { listening } from "./chat/listening.mjs";
 import { serve } from "./chat/server.mjs";
 import { NAME_IN_ENVIRONMENT, endEveryRun, runsGoing } from "./chat/session.mjs";
@@ -121,6 +122,19 @@ function hire(root, name) {
   const config = readConfig(root);
   if (fs.existsSync(deskFile(root, name))) {
     throw new UsageError(`${name} already has a desk here`);
+  }
+
+  // A name is more than its desk. The chat keeps a panel and a thread under the same name, and a
+  // desk opened over the top of those is a new person answering out of somebody else's
+  // conversation, with somebody else's transcript on their panel — which looks like a fresh start
+  // until the first reply.
+  //
+  // Refused rather than cleared away: what is in there is a record somebody may want, and a
+  // command that deletes one to get its own job done is worse than the surprise it is fixing.
+  if (fs.existsSync(panelDirectory(root, name))) {
+    throw new UsageError(
+      `${name} has left a conversation here; move or remove ${path.join("chat", name)} before hiring that name again`,
+    );
   }
 
   const written = [

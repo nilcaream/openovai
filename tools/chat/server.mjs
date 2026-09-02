@@ -285,8 +285,16 @@ async function postMessage(instance, name, request, response) {
   // The whole exchange happens inside the session's turn, the question written down when the turn
   // begins rather than when it arrived. A transcript then reads question, answer, question, answer,
   // instead of two questions followed by two answers nobody can pair up.
-  const { question, reply } = await whileWaitingFor(sender?.name ?? null, name, () =>
+  const answered = await whileWaitingFor(sender?.name ?? null, name, () =>
     inTurn(name, async () => {
+      // Whether this session is still here, asked again where the turn begins. The route said so
+      // when the message arrived, and a message that was waiting behind a leave arrived while it
+      // still was. Answering it now would start a thread and a panel for somebody who has gone,
+      // under a name that was just freed — which is the whole of what leaving was for.
+      if (!sessions(instance).some((session) => session.name === name)) {
+        return { gone: true };
+      }
+
       const asked = append(instance.root, name, { from: sender?.name ?? "human", text: text.trim() });
 
       // The reply is waited for rather than streamed. One run of Claude Code answers one message,
@@ -321,7 +329,12 @@ async function postMessage(instance, name, request, response) {
     }),
   );
 
-  sendJson(response, 200, { message: question, reply });
+  if (answered.gone === true) {
+    sendJson(response, 409, { error: `${name} left before this could be delivered` });
+    return;
+  }
+
+  sendJson(response, 200, { message: answered.question, reply: answered.reply });
 }
 
 // Handing a session over: it writes its desk, and then the thread that has been answering is
