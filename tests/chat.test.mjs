@@ -1537,6 +1537,23 @@ describe("handing a session over", () => {
   it("refuses to hand over somebody who does not work here", async () => {
     assert.equal((await post(`${URL}/sessions/Nobody/handover`, {})).status, 404);
   });
+
+  // Read as text, the way everything on that page is: no suite runs its script, so what is proven
+  // here is that the page carries the button, and what it does when pressed is proven on the route
+  // above rather than in a browser.
+  it("gives the page something to press", async () => {
+    assert.ok((await get(`${URL}/`)).body.includes('hand.textContent = "Hand over"'));
+  });
+
+  it("gives that button the route to press it against", async () => {
+    assert.ok((await get(`${URL}/`)).body.includes("/handover`, { method: \"POST\" }"));
+  });
+
+  // A button that is built and never attached is invisible to a check that reads the page for what
+  // it says. Text is all there is here, so the text says it is put on the panel.
+  it("puts that button on the panel", async () => {
+    assert.ok((await get(`${URL}/`)).body.includes("composer.append(box, send, hand)"));
+  });
 });
 
 // The thread goes whatever happens, and that is not this route's doing: a run that cannot be

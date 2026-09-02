@@ -53,9 +53,19 @@
     send.type = "submit";
     send.textContent = "Send";
 
+    // End the thread that has been answering, so the next message starts a new one that reads
+    // this session's desk first. It is a button and not a form: a handover takes no words.
+    //
+    // Not disabled while the session is busy. A handover waits its turn like anything else, and
+    // the moment somebody wants one is usually the moment the session is in the middle of
+    // something — a button that could only be pressed on an idle panel would be no use.
+    const hand = document.createElement("button");
+    hand.type = "button";
+    hand.textContent = "Hand over";
+
     const composer = document.createElement("form");
     composer.className = "composer";
-    composer.append(box, send);
+    composer.append(box, send, hand);
 
     // Where this session says what it wants to be allowed to do. Empty almost always: only a tool
     // the instance has not already settled one way or the other ever gets this far.
@@ -130,6 +140,20 @@
         body: JSON.stringify({ text }),
       });
       await show();
+    });
+
+    // Pressed once, until it is done. A second handover queued behind the first would ask a
+    // session that has just written its desk to write it again, from a thread that remembers
+    // nothing — which is not what anybody pressing this twice meant.
+    hand.addEventListener("click", async () => {
+      hand.disabled = true;
+      transcript.append(Object.assign(document.createElement("p"), { textContent: "…" }));
+      try {
+        await fetch(`/sessions/${session.name}/handover`, { method: "POST" });
+        await show();
+      } finally {
+        hand.disabled = false;
+      }
     });
 
     function busy(is) {
