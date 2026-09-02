@@ -23,12 +23,12 @@ works here — one desk is one person — and the `say` tool says something to o
 to say it to and what to say. Their reply comes back to you as the answer, and the whole exchange
 shows on their own panel of the page.
 
-`bin/ow room` is the other half of that: one line per person saying what they are on, whether they
-are answering and how many messages are waiting behind, who is held up waiting for whom, who is
-stopped waiting to be allowed something, how big each conversation has grown and how long since
-anything happened on their panel. {{HUMAN}} reads the same thing on the page; you cannot, because
-you are on it. Run it when you are deciding who to talk to or who to hand over, rather than asking
-everybody how they are getting on.
+The `room` tool is the other half of that, and it is yours alone: one line per person saying what
+they are on, whether they are answering and how many messages are waiting behind, who is held up
+waiting for whom, who is stopped waiting to be allowed something, how big each conversation has
+grown and how long since anything happened on their panel. {{HUMAN}} reads the same thing on the
+page; you cannot, because you are on it. Ask for it when you are deciding who to talk to or who to
+hand over, rather than asking everybody how they are getting on.
 
 It is what is true at the moment you ask. Nothing here tells you the room as your turn began,
 because a room a minute old reads exactly like a room that is current and would have you chasing

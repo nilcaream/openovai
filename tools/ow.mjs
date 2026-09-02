@@ -8,6 +8,7 @@ import path from "node:path";
 
 import { panelDirectory } from "./chat/conversation.mjs";
 import { listening } from "./chat/listening.mjs";
+import { roomLines } from "./chat/room.mjs";
 import { serve } from "./chat/server.mjs";
 import { NAME_IN_ENVIRONMENT, endEveryRun, runsGoing } from "./chat/session.mjs";
 import { hasCredential, home, login, machineToken, memoryDirectory } from "./claude.mjs";
@@ -129,7 +130,8 @@ function hireHere(root, name) {
 // when no chat is running, and saying so is the honest answer.
 //
 // The same rows the page builds its own room from, on the same route. What each of them means is
-// settled in one place — the server — and this only lays them out.
+// settled in one place — the server — and what they SAY is settled in one place beside it, which is
+// where the session that leads asks the same question from.
 async function room(root) {
   const url = listening(root);
   if (url === null) {
@@ -154,55 +156,9 @@ async function room(root) {
     throw new ChatError(`the chat answered ${answered.status} with nothing that reads as a room`);
   }
 
-  const width = Math.max(...body.sessions.map((session) => session.name.length));
-  for (const session of body.sessions) {
-    console.log(`${session.name.padEnd(width)}  ${describeSession(session)}`);
+  for (const line of roomLines(body.sessions)) {
+    console.log(line);
   }
-}
-
-// What one line of the room says. The order the phrases are tried in is the whole of what makes it
-// worth reading: what a person can end comes before what they cannot.
-//
-// The page lays the same rows out for itself, in its own script, and the two say the same things
-// in the same order. They are not shared code and cannot be — one of them is a page served as
-// text — so this is a duplication somebody has to keep true, and it is written down here rather
-// than discovered.
-function describeSession(session) {
-  const doing = session.doing === "" ? "(has not said what it is on)" : session.doing;
-  const said = [
-    stateOf(session),
-    session.thread ? null : "nothing to carry on",
-    typeof session.context === "number" ? `${session.context.toLocaleString("en-US")} tokens` : null,
-    session.active === null ? "nothing said yet" : `last moved ${ago(session.active)}`,
-  ].filter((part) => part !== null);
-
-  return `${session.role} (${session.model})  ${doing}  —  ${said.join(" · ")}`;
-}
-
-function stateOf(session) {
-  if (session.asking > 0) {
-    return session.asking === 1 ? "needs you" : `needs you (${session.asking})`;
-  }
-  if (session.waitingFor !== null && session.waitingFor !== undefined) {
-    return `waiting for ${session.waitingFor}`;
-  }
-  if (session.queued > 0) {
-    return `answering, ${session.queued} waiting`;
-  }
-  return session.busy ? "answering" : "idle";
-}
-
-// How long ago, in the roughest terms that are still useful. Nothing anybody decides from a room
-// turns on the difference between four minutes and five.
-function ago(when) {
-  const seconds = Math.round((Date.now() - Date.parse(when)) / 1000);
-  if (seconds < 60) {
-    return "just now";
-  }
-  if (seconds < 3600) {
-    return `${Math.floor(seconds / 60)}m ago`;
-  }
-  return `${Math.floor(seconds / 3600)}h ago`;
 }
 
 // Say something to another session and wait for what it answers.

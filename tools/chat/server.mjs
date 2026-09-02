@@ -13,6 +13,7 @@ import { HOST, record } from "./listening.mjs";
 import { respond } from "./mcp.mjs";
 import { carry, overhear } from "./overheard.mjs";
 import { allow, answer as settle, giveUp, park, parked, refuse } from "./permissions.mjs";
+import { roomLines } from "./room.mjs";
 import { DESK_FILE, DeskError, WORK, archiveFor, deskTitle, describeName, hire, isName, retire } from "../desks.mjs";
 import { ask, forget, hasThread, sessions } from "./session.mjs";
 import { inTurn, turnsGoing, waitingFor, whileWaitingFor, wouldWaitForItself } from "./turns.mjs";
@@ -427,6 +428,8 @@ const TOOLKIT = "office";
 // cannot SEE a tool goes hunting for another way round the same thing and runs commands nobody
 // asked it to; one that can see it and reads why it would be refused does not call it at all.
 function toolsFor(instance, caller) {
+  const lead = leads(instance, caller);
+
   return [
     {
       name: "say",
@@ -450,7 +453,42 @@ function toolsFor(instance, caller) {
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
       run: () => whoWorksHere(instance),
     },
+    {
+      name: "room",
+      description:
+        "The room at this instant: one line for each person saying what they are on, whether they are answering and how many messages are waiting behind, who is held up waiting for whom, who is stopped waiting to be allowed something, how big each conversation has grown and how long since anything happened on their panel. It is the lead's, because it is what deciding who does what next takes and nobody else here decides that. It reads and changes nothing.",
+      inputSchema: { type: "object", properties: {}, additionalProperties: false },
+      // Both halves of the same answer. The list is what a session reads before it decides whether
+      // to call, and the refusal is what makes the decision hold — a tool left off the list is
+      // advice, and advice is not what a session that heard about the room somewhere else obeys.
+      offered: lead,
+      run: () =>
+        lead
+          ? theRoom(instance)
+          : { refused: `the room is the lead's to look at, so ask ${instance.config.leader} for it` },
+    },
   ];
+}
+
+// Which of the sessions working here is the one that leads, decided in one place and from one
+// thing: the name in the path against the name this instance was made with.
+//
+// Never an argument and never a header. The model writes both of those, so a session that could
+// say which of them it was would be deciding for itself what it may do — and the name in the path
+// is the chat's own word, written into the configuration it started that session with.
+//
+// It is a mistake net rather than a boundary. Nothing here asks who is knocking and the routes are
+// open on the loopback address, so anything running as this person can post to any path. What it
+// stops is our own sessions reaching for each other's business, which is the thing that happens.
+function leads(instance, caller) {
+  return caller === instance.config.leader;
+}
+
+// The room, in the same lines the command prints — the same rows off the same list, laid out by
+// the same function, so that the lead reading it here and the person reading it in a terminal are
+// never told two different things.
+function theRoom(instance) {
+  return { text: roomLines(sessions(instance).map((session) => everySession(instance, session))).join("\n") };
 }
 
 // Who works here, which is the half of `ow status` a session can act on: the names it can say

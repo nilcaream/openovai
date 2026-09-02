@@ -3354,4 +3354,114 @@ describe("a session calls the tools the chat serves it", () => {
       assert.ok((await messagesOf(WORKER)).some((message) => message.text === "still here?"));
     });
   });
+
+  // The room, which is the one thing here that is not served to everybody. Both halves of that are
+  // checked: what a session is OFFERED, and what it gets if it asks anyway. Offering alone is
+  // advice — a session that heard about the room from somewhere else asks for it regardless — and
+  // refusing alone leaves every worker reading about something it may not have.
+  describe("the session that leads looks at the room", () => {
+    const ON_IT = "counting the doors";
+    let shown;
+    let printed;
+
+    async function offeredTo(who) {
+      return JSON.parse((await call(who, "tools/list")).body).result.tools.map((tool) => tool.name);
+    }
+
+    // What is on a desk, which is the one part of a room that is not in the chat's own head. One
+    // desk says and one does not, because a check that only ever saw the empty one would pass with
+    // the column dropped altogether.
+    function writeTitle(name, title) {
+      const desk = path.join(instance, "work", name, "STATE.md");
+      const lines = fs.readFileSync(desk, "utf8").split("\n");
+      lines[0] = `<!-- DESK | title: ${title} -->`;
+      fs.writeFileSync(desk, lines.join("\n"));
+    }
+
+    before(async () => {
+      writeTitle(WORKER, ON_IT);
+      shown = answerOf(await call(LEADER, "tools/call", { name: "room", arguments: {} })).text;
+      printed = runTool(instance, ["room"], standIns);
+    });
+
+    it("offers room to the session that leads", async () => {
+      assert.ok((await offeredTo(LEADER)).includes("room"));
+    });
+
+    // The check this arrangement exists for. One that only asked whether the lead is offered it
+    // passes just as happily when everybody is, which is the way this can go wrong without anybody
+    // noticing until a worker is reading somebody else's room.
+    it("offers it to nobody else", async () => {
+      assert.ok(!(await offeredTo(WORKER)).includes("room"));
+    });
+
+    it("still offers everybody else everything else", async () => {
+      assert.deepEqual((await offeredTo(WORKER)).sort(), ["say", "status"]);
+    });
+
+    // Refused in the tool's own words rather than as a tool that does not exist, because it does
+    // exist — and a session told there is no such thing goes looking for another way to the same
+    // answer, where one told whose it is asks that person.
+    it("refuses anybody else who asks for it anyway", async () => {
+      const asked = answerOf(await call(WORKER, "tools/call", { name: "room", arguments: {} }));
+      assert.ok(asked.refused);
+      assert.match(asked.text, new RegExp(`the room is the lead's to look at, so ask ${LEADER}`));
+    });
+
+    it("has a line for everybody who works here", () => {
+      const named = shown.split("\n").map((line) => line.split(/\s+/)[0]).sort();
+      assert.deepEqual(named, fs.readdirSync(path.join(instance, "work")).sort());
+    });
+
+    it("says what each of them is on", () => {
+      assert.match(shown, new RegExp(`^${WORKER}\\b.*${ON_IT}`, "m"));
+    });
+
+    it("says so about a desk that has not said what it is on", () => {
+      assert.match(shown, new RegExp(`^${LEADER}\\b.*has not said what it is on`, "m"));
+    });
+
+    // One room, whoever is asking. The clock is taken out of both before they are compared: the
+    // two renders are milliseconds apart and would still disagree across a minute boundary, which
+    // is a flake rather than a finding.
+    it("says the same thing the command says", () => {
+      const withoutTheClock = (text) => text.split("\n").map((line) => line.replace(/last moved .*$/, "")).join("\n");
+      assert.equal(printed.status, 0, printed.stderr);
+      assert.equal(withoutTheClock(printed.stdout.trimEnd()), withoutTheClock(shown));
+    });
+  });
+
+  // What a room says that nothing on disk knows: who is answering and who is stopped waiting for
+  // whom. One state gives both — the lead is held inside its own turn waiting on the worker, and
+  // the worker is mid-turn answering it — so it is built once and read once.
+  describe("the room while somebody is answering and somebody is waiting", () => {
+    const heldLog = path.join(standIn, "room-held.txt");
+    let shown;
+
+    before(async () => {
+      await start(
+        instance,
+        standInEnvironment(standIn, heldLog, {
+          OW_STAND_IN_CALLS: `${LEADER}>${WORKER}`,
+          OW_STAND_IN_SLOW: "1500",
+        }),
+      );
+      assert.ok(await waitForHealth(URL), "the server never came back");
+
+      const asking = say("go and ask him", LEADER);
+      shown = await waitFor(async () => {
+        const room = answerOf(await call(LEADER, "tools/call", { name: "room", arguments: {} })).text;
+        return new RegExp(`^${LEADER}\\b.*waiting for ${WORKER}`, "m").test(room) ? room : null;
+      });
+      await asking;
+    });
+
+    it("names who the lead is held up waiting for", () => {
+      assert.match(shown ?? "", new RegExp(`^${LEADER}\\b.*waiting for ${WORKER}`, "m"));
+    });
+
+    it("says the one it is waiting for is answering", () => {
+      assert.match(shown ?? "", new RegExp(`^${WORKER}\\b.*answering`, "m"));
+    });
+  });
 });

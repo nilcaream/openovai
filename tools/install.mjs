@@ -15,7 +15,6 @@ import { PAYLOAD, notAWorkspace } from "./payload.mjs";
 import {
   DeskError,
   allowDesk,
-  allowRoom,
   allowTools,
   describeName,
   isName,
@@ -394,7 +393,6 @@ function main(argv) {
       }),
       ...allowDesk(plan.root, plan.leader),
       ...allowTools(plan.root),
-      ...allowRoom(plan.root),
     ]);
     return 0;
   } catch (error) {

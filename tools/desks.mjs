@@ -43,14 +43,6 @@ export const PERSONAS = "personas";
 // and a session that typed the other spelling stopped to be approved for doing as it was told.
 export const TOOL_RULES = ["mcp__office"];
 
-// And the one that shows the lead the room: who is here, what each is on, which of them is
-// answering and which is held up waiting. The lead's persona names it, and the standing rule is
-// that a command a persona tells a session to run is granted when the instance is made — or the
-// instance stops a session for doing as it was told, on a panel nobody may be looking at.
-//
-// It reads and changes nothing, which is what puts it in the same class as `status` rather than
-// with everything else a session might reach for. Both spellings, same reason as above.
-export const ROOM_RULES = ["Bash(bin/ow room:*)", "Bash(./bin/ow room:*)"];
 
 // Something is wrong with a name, a template or a file we were asked to write. The caller says
 // which command it happened under, so this carries only the reason.
@@ -336,8 +328,3 @@ export function allowTools(root) {
   return TOOL_RULES.flatMap((rule) => allow(root, rule));
 }
 
-// And the right to see what each of them is doing right now. Granted once with the rest, for the
-// same reason again: it names no desk.
-export function allowRoom(root) {
-  return ROOM_RULES.flatMap((rule) => allow(root, rule));
-}

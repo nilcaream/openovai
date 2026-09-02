@@ -264,6 +264,14 @@ describe("what the installer made", () => {
     assert.ok(!contentOf("personas", `${LEADER}.md`).includes("ow status"));
   });
 
+  // The room is the third of them, and the only one the lead alone is offered. Watched here as
+  // well as on the endpoint: what the instance grants and what the persona names have to move
+  // together, or a lead is told to ask for something nothing will serve it.
+  it("no longer grants the command that showed the room", () => {
+    const allow = JSON.parse(contentOf(".claude", "settings.json")).permissions.allow;
+    assert.ok(!allow.some((rule) => rule.includes("ow room")));
+  });
+
   it("tells the leader that a message from a session comes wrapped", () => {
     assert.match(contentOf("personas", `${LEADER}.md`), /<from-session name=/);
   });
@@ -328,7 +336,18 @@ describe("what the installer made", () => {
   // command in its persona is the whole of how it finds out; a command a persona names and an
   // instance does not grant is the failure this repo has already had twice.
   it("tells the leader how to see the room", () => {
-    assert.match(contentOf("personas", `${LEADER}.md`), /bin\/ow room/);
+    assert.match(contentOf("personas", `${LEADER}.md`), /The `room` tool is the other half of that/);
+  });
+
+  it("does not tell the leader to type the command that showed the room", () => {
+    assert.ok(!contentOf("personas", `${LEADER}.md`).includes("ow room"));
+  });
+
+  // Said in the persona because it is not said anywhere else the lead reads: a tool it is offered
+  // and the others are not is the only asymmetry in this instance, and a lead that did not know
+  // would tell a worker to go and look for itself.
+  it("tells the leader the room is its own to look at", () => {
+    assert.match(contentOf("personas", `${LEADER}.md`), /it is yours alone/);
   });
 
   it("tells the leader the room is true at the moment it asks", () => {

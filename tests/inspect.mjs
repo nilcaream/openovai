@@ -43,13 +43,15 @@ export function configProblems(file, expected) {
 }
 
 // Does the instance grant exactly what working there takes and nothing wider: one rule per person
-// for their own desk, and the one rule that lets a session say something to another?
+// for their own desk, and the one rule that lets a session call the tools the chat serves it.
+//
+// Two per person and one for everybody, and it used to be two per person and six for everybody:
+// every command a persona named needed both of its spellings granted. The list being exact in both
+// directions is what says that retiring a command retired its rule with it.
 export function settingsProblems(file, names) {
   const expected = [
     ...names.map((name) => `Edit(work/${name}/STATE.md)`),
     "mcp__office",
-    "Bash(bin/ow room:*)",
-    "Bash(./bin/ow room:*)",
   ];
 
   let settings;

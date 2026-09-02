@@ -38,7 +38,10 @@ function said(text, refused = false) {
 // One request, answered.
 //
 // `server` is { name, version, tools }, where each tool is { name, description, inputSchema, run }
-// and `run` answers { text } or { refused }.
+// and `run` answers { text } or { refused }. A tool may also say `offered: false`, which keeps it
+// out of the list without taking it away: which sessions may do what is the chat's to decide, and
+// all this knows is that somebody reaching for an unadvertised tool should hear that tool's own
+// reason rather than that there is no such thing here.
 //
 // A call is answered whether or not anything was initialised first, and that is deliberate rather
 // than lax. The chat can be stopped and started again in the middle of a session's turn — it is
@@ -67,7 +70,9 @@ export async function respond(asked, server) {
 
   if (asked.method === "tools/list") {
     return result(id, {
-      tools: server.tools.map(({ name, description, inputSchema }) => ({ name, description, inputSchema })),
+      tools: server.tools
+        .filter((tool) => tool.offered !== false)
+        .map(({ name, description, inputSchema }) => ({ name, description, inputSchema })),
     });
   }
 

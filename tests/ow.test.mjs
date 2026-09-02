@@ -397,6 +397,13 @@ describe("hiring a worker", () => {
     assert.ok(!persona.includes("bin/ow room"));
   });
 
+  // Nor to ask for it as a tool. The chat does not offer a worker that one and refuses it if asked
+  // anyway, so a persona naming it would be sending a session for a refusal.
+  it("does not tell the worker to ask for the room either", () => {
+    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    assert.ok(!/`room` tool/.test(persona));
+  });
+
   it("tells the worker which one field of its header is read by anybody else", () => {
     const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
     assert.match(persona, /the `title:` in it is the one field/);
