@@ -307,21 +307,29 @@ describe("hiring a worker", () => {
     assert.ok(persona.includes(LEADER));
   });
 
-  // The whole of the speakerphone on the worker's side: it can see that nobody wrapped the turn,
-  // it knows that means the human, and it is told to pass it on before it acts.
+  // The whole of the speakerphone on the worker's side: it can see that nobody wrapped the turn, it
+  // knows that means the human, and it knows the chat has already said so upward — so it answers
+  // the human rather than spending a turn passing it on.
   it("tells the worker that a message from a session comes wrapped", () => {
     const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
     assert.match(persona, /<from-session name=/);
   });
 
-  it("tells the worker that an unwrapped turn is the human", () => {
+  it("tells the worker that what is outside a wrapper is the human", () => {
     const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
-    assert.match(persona, new RegExp(`no wrapper is ${HUMAN}`));
+    assert.match(persona, new RegExp(`outside a wrapper is ${HUMAN}`));
   });
 
-  it("tells the worker to pass on what the human said", () => {
+  it("tells the worker that the chat passes it on, so the worker does not", () => {
     const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
-    assert.match(persona, new RegExp(`bin/ow say ${LEADER}`));
+    assert.match(persona, new RegExp(`the chat tells ${LEADER} what was said`));
+  });
+
+  // Asserted as an absence, which is the half a text check usually misses: the instruction that
+  // cost a whole nested turn has to be GONE, not merely outweighed by a newer paragraph.
+  it("no longer tells the worker to pass on what the human said itself", () => {
+    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    assert.ok(!persona.includes(`bin/ow say ${LEADER}`));
   });
 
   it("tells the worker what to do when the one it is telling is waiting on it", () => {

@@ -203,8 +203,22 @@ describe("what the installer made", () => {
     assert.match(contentOf("personas", `${LEADER}.md`), /<from-session name=/);
   });
 
-  it("tells the leader that an unwrapped turn is the human", () => {
-    assert.match(contentOf("personas", `${LEADER}.md`), new RegExp(`no wrapper is\\s+${HUMAN}`));
+  it("tells the leader that what is outside a wrapper is the human", () => {
+    assert.match(contentOf("personas", `${LEADER}.md`), new RegExp(`outside a wrapper is\\s+${HUMAN}`));
+  });
+
+  it("tells the leader that the chat says what was typed on another panel", () => {
+    assert.match(contentOf("personas", `${LEADER}.md`), /<overheard on="[^"]*" from="Mike">/);
+  });
+
+  it("tells the leader when it will hear it, since it is not at the moment it was said", () => {
+    assert.match(contentOf("personas", `${LEADER}.md`), /at the start of your\s+next turn/);
+  });
+
+  // The lead used to be told the workers would pass it on. They no longer do, and a persona still
+  // saying so would have it waiting for something that is not coming.
+  it("no longer tells the leader that workers pass it on themselves", () => {
+    assert.ok(!contentOf("personas", `${LEADER}.md`).includes("Workers are told to tell you"));
   });
 
   it("warns the leader that asking somebody waits for them", () => {
