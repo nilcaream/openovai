@@ -15,6 +15,7 @@ import { allow, answer as settle, giveUp, park, parked, refuse } from "./permiss
 import { DESK_FILE, DeskError, WORK, archiveFor, deskTitle, hire, retire } from "../desks.mjs";
 import { ask, forget, hasThread, sessions } from "./session.mjs";
 import { inTurn, turnsGoing, waitingFor, whileWaitingFor, wouldWaitForItself } from "./turns.mjs";
+import { takeWord } from "./untold.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PAGE = path.join(HERE, "page.html");
@@ -91,6 +92,35 @@ function overheardLine(human, on, text) {
 // construction. This is what a turn is handed in front of the message it is actually about.
 function overheardWrapper(human, on, text) {
   return `<overheard on="${on}" from="${human}">${text}</overheard>`;
+}
+
+// What the lead's panel says when the toolkit underneath it was replaced.
+//
+// Under `the chat` and not under anybody's name, for the reason an overheard line is: nobody said
+// it to anybody. The version it was on and the version it is on now, then what the release said
+// about itself, because a person looking at this panel wants to know what changed and there is
+// nowhere else in the instance that says.
+function updateLine(from, to, notes) {
+  return `the toolkit was updated from ${from ?? "no recorded version"} to ${to}. What the release says changed:\n\n${notes}`;
+}
+
+// The same thing said to the lead's model, and it has to explain itself.
+//
+// An update ships new templates and re-renders no persona, so the lead reading this is running the
+// one written before any of it existed: there is no paragraph in its instructions to look this up
+// in. So the wrapper says, in itself, that the chat is speaking rather than the human, what was
+// replaced, what was deliberately left alone, and that it is the only one here who knows. That
+// last part is the whole point of telling it at all — the lead is what tells everybody else.
+function updateWrapper(from, to, notes) {
+  return [
+    `<update from="${from ?? ""}" to="${to}">`,
+    "The chat is telling you this. Nobody typed it.",
+    `The toolkit this workspace runs on was replaced while nothing here was running: it was on ${from ?? "no recorded version"} and is now on ${to}. Your desks, the personas everybody here is running under, and everything this workspace has learned were left exactly as they were.`,
+    "What the release says changed:",
+    notes,
+    "Everybody here was hired under the arrangement before this one, you included, and nobody else has been told. Work out from those notes what is different now, and say it to whoever it affects.",
+    "</update>",
+  ].join("\n\n");
 }
 
 // What a session is handed: everything it overheard while it was not running, then the message
@@ -675,7 +705,37 @@ async function handle(instance, request, response) {
   sendJson(response, 404, { error: `nothing at ${request.method} ${url.pathname}` });
 }
 
+// The lead is told that the toolkit under it was replaced, if it has not been told already.
+//
+// The word was left in a file rather than handed to anybody because whatever left it was running
+// while this chat was not — an update stops the chat, which is the same thing as saying it takes
+// with it everything a running chat was holding in memory. So the chat asks, every time it starts,
+// whether anything happened while it was away.
+//
+// Both halves, for the reason the overheard pair is both halves: the panel is what a person reads
+// and the wrapper is what the lead's model hears, and neither is the other.
+function tellTheLead(instance) {
+  const said = takeWord(instance.root);
+  if (said === null) {
+    return null;
+  }
+
+  const line = append(instance.root, instance.config.leader, {
+    from: THE_CHAT,
+    text: updateLine(said.from, said.to, said.notes),
+    update: true,
+  });
+  overhear(instance.config.leader, updateWrapper(said.from, said.to, said.notes));
+  return line;
+}
+
 export function serve(instance) {
+  // Before a single request is answered, so the panel says what happened to this instance ahead of
+  // the first person who looks at it. Here rather than in whatever started the server, for the
+  // reason record() below is here: every way of serving an instance does it, and none of them has
+  // to remember to.
+  tellTheLead(instance);
+
   const server = http.createServer((request, response) => {
     handle(instance, request, response).catch((error) => {
       sendJson(response, 500, { error: error.message });

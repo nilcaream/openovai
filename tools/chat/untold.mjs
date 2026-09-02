@@ -27,3 +27,27 @@ export function leaveWord(root, note) {
   fs.writeFileSync(target, `${JSON.stringify(note, null, 2)}\n`);
   return target;
 }
+
+// What has not been told yet, and it has now been told. Read and deleted in one, because a note
+// left behind is one the lead would be handed again every time the chat started — and a session
+// told twice that the toolkit under it changed has no way of knowing it was the same change.
+//
+// Nothing here if there is nothing to say, which is the ordinary case: every chat that starts asks
+// this and almost none of them find anything.
+export function takeWord(root) {
+  const target = file(root);
+  let said;
+  try {
+    said = fs.readFileSync(target, "utf8");
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      return null;
+    }
+    throw error;
+  }
+
+  // Deleted before it is read for meaning, so a note nothing can make sense of is a chat that
+  // fails once rather than a chat that cannot be started again.
+  fs.rmSync(target, { force: true });
+  return JSON.parse(said);
+}

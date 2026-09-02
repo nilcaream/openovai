@@ -268,6 +268,16 @@ describe("what the installer made", () => {
     assert.match(contentOf("personas", `${LEADER}.md`), /<overheard on="[^"]*" from="Mike">/);
   });
 
+  // An update ships new templates and re-renders nothing, so this paragraph is for the sessions
+  // hired after one — the lead that was running through the update is told in the wrapper itself.
+  it("tells the leader that the chat says when the toolkit under it was replaced", () => {
+    assert.match(contentOf("personas", `${LEADER}.md`), /<update from="[^"]*" to="[^"]*">/);
+  });
+
+  it("tells the leader that an update leaves the desks and the personas alone", () => {
+    assert.match(contentOf("personas", `${LEADER}.md`), /desks, the personas and what this workspace has learned are\s+untouched/);
+  });
+
   it("tells the leader when it will hear it, since it is not at the moment it was said", () => {
     assert.match(contentOf("personas", `${LEADER}.md`), /at the start of your\s+next turn/);
   });

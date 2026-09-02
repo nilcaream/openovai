@@ -853,6 +853,132 @@ describe("what the lead overheard reaches it on its next turn", () => {
   });
 });
 
+// An update replaces the toolkit while nothing is running, so whatever it has to say cannot be
+// handed to anybody: what a session is owed is held in memory and dies with the chat the update
+// stopped. It is left in a file instead, and the chat is what finds it.
+//
+// The lead is the only one told, because the lead is what tells everybody else. Nothing here
+// re-renders a persona, so the wrapper has to explain itself to a session running the instructions
+// written before any of this existed.
+describe("what the chat tells the lead when the toolkit under it was replaced", () => {
+  const updateLog = path.join(standIn, "update.txt");
+  const WORD = path.join(instance, "chat", "untold.json");
+  const FROM = "0.1.0";
+  const TO = "0.2.0";
+  const NOTES = "Hiring happens on the page now, and a worker is asked for its desk on every turn.";
+
+  let beforeAnybodySaidAnything;
+  let told;
+  let leadsNextTurn;
+  let wrapper;
+  let theTurnAfter;
+  let workersOwnTurn;
+  let addedByStartingAgain;
+
+  // A panel read over the chat rather than off disk, because that is what a person looking at it
+  // sees.
+  async function panelOf(name) {
+    return JSON.parse((await transcriptOf(name)).body).messages;
+  }
+
+  before(async () => {
+    // Everything on the lead's panel before this describe touches anything. Counted rather than
+    // matched on what it says, so a mutation to the words of a line cannot also hide the line.
+    const previously = (await panelOf(LEADER)).length;
+
+    // Written the way `ow update` leaves it and then the chat is started, which is the whole
+    // arrangement: whatever wrote this is not running any more.
+    fs.writeFileSync(WORD, `${JSON.stringify({ from: FROM, to: TO, notes: NOTES }, null, 2)}\n`);
+
+    await start(instance, standInEnvironment(standIn, updateLog));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    // Read with the chat up and nobody having said anything to it. Told at the start and told on
+    // the first message are the same thing once a message has been sent, and this is the state
+    // only the first of them reaches. It holds for as long as nobody types, so nothing here is
+    // racing the thing it is measuring.
+    beforeAnybodySaidAnything = (await panelOf(LEADER)).slice(previously);
+    told = beforeAnybodySaidAnything.at(-1) ?? null;
+
+    await say("what is going on", LEADER);
+    leadsNextTurn = questionsIn(updateLog).at(-1);
+
+    // Up to the FIRST closing tag, which is the whole of what being inside the wrapper means. Read
+    // to the last one instead and a wrapper closed early still has something after the notes to
+    // match against — so the check would pass on the very mistake it exists to rule out.
+    const closes = leadsNextTurn.indexOf("</update>");
+    wrapper = closes === -1 ? "" : leadsNextTurn.slice(leadsNextTurn.indexOf("<update"), closes + "</update>".length);
+
+    await say("anything else", LEADER);
+    theTurnAfter = questionsIn(updateLog).at(-1);
+
+    await say("carry on", WORKER);
+    workersOwnTurn = questionsIn(updateLog).at(-1);
+
+    // Started again with nothing having happened in between. Whether the word was taken or only
+    // read is indistinguishable inside one run of the chat — what a session is owed drains either
+    // way — and a second start is the only place the difference shows.
+    const settled = (await panelOf(LEADER)).length;
+    await start(instance, standInEnvironment(standIn, updateLog));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    addedByStartingAgain = (await panelOf(LEADER)).length - settled;
+  });
+
+  it("says on the lead's panel that an update ran, before anybody has said anything to it", () => {
+    assert.equal(beforeAnybodySaidAnything.length, 1);
+  });
+
+  it("puts it under the chat's own name, since nobody said it to anybody", () => {
+    assert.equal(told?.from, "the chat");
+  });
+
+  it("marks the line for what it is, rather than leaving it to be read out of the words", () => {
+    assert.equal(told?.update, true);
+  });
+
+  it("says which versions the instance moved between, and what the release said changed", () => {
+    assert.ok(told?.text.includes(`from ${FROM} to ${TO}`), told?.text);
+    assert.ok(told?.text.includes(NOTES), told?.text);
+  });
+
+  it("hands the lead the notes on its next turn", () => {
+    assert.ok(leadsNextTurn.includes(NOTES), leadsNextTurn);
+  });
+
+  it("puts the notes inside the wrapper, so they are not read as the human having typed them", () => {
+    assert.match(wrapper, new RegExp(`^<update from="${FROM}" to="${TO}">[\\s\\S]*${NOTES}[\\s\\S]*</update>$`));
+  });
+
+  // An update ships new templates and re-renders no persona, so the session reading this is
+  // running the instructions written before the wrapper existed. It has to say what it is.
+  it("says in the wrapper itself what the update left alone", () => {
+    assert.match(wrapper, /desks/);
+    assert.match(wrapper, /personas/);
+    assert.match(wrapper, /learned/);
+  });
+
+  it("says that nobody else here has been told, which is what makes it the lead's to pass on", () => {
+    assert.match(wrapper, /nobody else has been told/);
+  });
+
+  it("puts it in front of the message the turn is actually about", () => {
+    assert.ok(leadsNextTurn.endsWith("what is going on"), leadsNextTurn);
+  });
+
+  it("hands it over once, not on every turn afterwards", () => {
+    assert.ok(!theTurnAfter.includes("<update"), theTurnAfter);
+  });
+
+  it("tells nobody but the lead, since the lead is what tells everybody else", () => {
+    assert.ok(!workersOwnTurn.includes("<update"), workersOwnTurn);
+  });
+
+  it("tells the lead once, and not again the next time the chat starts", () => {
+    assert.equal(addedByStartingAgain, 0);
+    assert.equal(fs.existsSync(WORD), false);
+  });
+});
+
 // Drained where the turn BEGINS, not where the message arrived. A lead that is already busy has its
 // next turn waiting in the queue, and anything said while it waits belongs to that turn rather than
 // to the one after it. With an idle lead the two moments are the same instant, which is why this
