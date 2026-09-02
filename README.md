@@ -110,6 +110,18 @@ that session keep its own desk. It starts nothing, and a chat that is already ru
 need restarting: the panels are built from the desks the server finds, so a desk opened now is a
 panel the next time the page is loaded. Everybody with a desk is somebody the chat can host.
 
+It refuses a name already at a desk, and it refuses a name whose conversation is still under
+`chat/` — which is a name that has left without being filed away, or one whose desk was removed
+by hand. A desk opened over the top of an old conversation is a new person answering out of
+somebody else's transcript, and that reads as a fresh start right up until the first reply. It is
+refused rather than cleared away: what is in there is a record somebody may want, and a command
+that deletes one to get its own job done is worse than the surprise it is fixing. It says where
+the conversation is, so moving or removing it is one line.
+
+The chat page hires too, from a name box above the panels, and refuses the same things for the
+same reasons in the same words — it calls this. What a name is refused for has one answer, not
+two that can drift apart.
+
 `ow chat` serves the instance's chat page on the port it was installed with — or, with
 `--port 0`, on one the machine picks — on `127.0.0.1` only, and runs until you stop it. It
 always prints the whole address it is listening on, so there is one line to open or copy
@@ -348,6 +360,59 @@ Which is why the desk is worth keeping current as the work moves rather than onl
 is asked for. Both personas say so, and a desk that is already true makes a handover one line's
 work instead of an hour's remembering.
 
+### Hiring somebody, and a session leaving
+
+Above the panels there is a name box and **Hire**. It writes what `ow hire` writes — the desk, the
+persona, the one permission rule — because it calls the same code, and it shows a refusal in the
+words that refusal came in.
+
+When somebody's work is finished, press **Leave** on their panel. It is the far end of a handover:
+the session is asked, in words, through the same queue, to write `work/<Name>/STATE.md` one last
+time — what was done and how it ended — and then the desk and the panel are filed away together
+under `archive/<day>-<Name>-<what the desk ended up on>/`, and the name is free again.
+
+    the chat: Mike asked Paul to leave. Paul is writing work/Paul/STATE.md one last time.
+    Paul: Desk written. The meter reads 41,208.
+    the chat: Paul has left. The desk and this conversation are filed under
+              archive/2026-05-04-Paul-reading-the-water-meter.
+
+The order inside that turn is the whole of what makes the record true. The session is asked first
+and the desk is read for its title only after the answer, or a session that says what it ended up
+on in that very turn would be filed under what it used to be on. And the line saying it has left is
+written to the panel before the panel is moved, so what is filed ends at the moment it ends at. A
+desk that never said what it was on is filed under the day and the name alone; a guess in a
+directory name is a guess somebody has to live with afterwards.
+
+What is filed is what a person would want to read: the desk as the session last wrote it, and the
+whole conversation. Not the thread id, which points at a conversation that has been ended. Not the
+persona, which is the worker template with a name written into it — reproducible, and naming
+somebody who does not work here any more. Nothing in this code ever reads an archive back; it is
+files for a person, which is why nothing here promises them a shape.
+
+The archive sits beside `work/` rather than inside it. The directories under `work/` **are** the
+roster — there is nothing else to register and nothing that can disagree with what is on disk —
+so a directory in there is somebody who works here, with a panel, a row in the room and a name
+`ow say` will accept.
+
+The name is free by construction: no desk, no conversation, no persona and no rule are left under
+it, so hiring it again starts on nothing. Two doors are shut behind that. Hiring refuses a name
+whose conversation is still there, as above. And a message that arrived while the leave turn was
+running is refused when its turn comes rather than answered — it would otherwise open a thread and
+a panel under a name that had just been given up, which is the same bug coming back through the
+queue instead of through hiring.
+
+The lead has no **Leave**. An instance has a lead by definition and this page is hosted by it, so a
+lead that left would still be here with nowhere to read what it was doing. The route refuses it as
+well, which is what makes it true rather than merely unoffered.
+
+Both buttons load the page again when they work. Who works here is settled once, at load, from the
+rows the room is built from, so loading again is the honest way to show it has changed — one rule
+and one line, against a panel lifecycle nobody has asked for.
+
+None of the page itself is covered by a browser: no suite runs `page.html`. What the routes do is
+checked on their own data, and the page is checked as text on the served body — that each thing is
+offered, and that it goes to the route behind it.
+
 ## Signing in
 
 An instance needs an Anthropic account before it can answer anything. `--auth` picks how it
@@ -395,8 +460,9 @@ accident from a shell that happened to have one exported is not a surprise worth
 - **Launchers** — start a lead or hire a worker, assign a name, create the desk.
 - **Hooks** — to keep session names, the roster and the desks consistent.
 - **Skills** — the repeatable procedures, handover first among them.
-- **Chat page** — it hosts every session now, one panel each. Still to come: the lead and a
-  worker talking to each other through it, and approving what a session asks to do.
+- **Chat page** — it hosts every session now, one panel each: sessions speak to each other
+  through it, it approves what a session asks to do, it shows the room, and it hires and retires.
+  Still to come: something worth looking at, and a way to read an archive back.
 
 ## Documentation
 
