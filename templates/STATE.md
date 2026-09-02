@@ -1,4 +1,4 @@
-<!-- DESK | name: {{NAME}} | title: | status: no assignment yet | updated: {{DATE}} -->
+<!-- DESK | title: -->
 # {{NAME}}
 
 ## Assignment

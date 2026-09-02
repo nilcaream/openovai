@@ -290,7 +290,14 @@ describe("hiring a worker", () => {
 
   it("names the worker on that desk", () => {
     const desk = fs.readFileSync(path.join(instance, "work", WORKER, "STATE.md"), "utf8");
-    assert.match(desk, new RegExp(`name: ${WORKER}`));
+    assert.match(desk, new RegExp(`^# ${WORKER}$`, "m"));
+  });
+
+  // A desk opened by hiring is the same desk the installer opens: one line of header, holding the
+  // one field anything outside the desk reads.
+  it("opens that desk with a header holding the title and nothing else", () => {
+    const desk = fs.readFileSync(path.join(instance, "work", WORKER, "STATE.md"), "utf8");
+    assert.equal(desk.split("\n")[0], "<!-- DESK | title: -->");
   });
 
   it("writes the worker a persona", () => {
@@ -327,9 +334,9 @@ describe("hiring a worker", () => {
     assert.match(persona, /Keep it saying what you are on/);
   });
 
-  it("tells the worker nothing else in that header is read", () => {
+  it("tells the worker its header holds nothing else", () => {
     const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
-    assert.match(persona, /rest of the header is yours and nothing reads it/);
+    assert.match(persona, /header holds nothing else/);
   });
 
   // The whole of the speakerphone on the worker's side: it can see that nobody wrapped the turn, it

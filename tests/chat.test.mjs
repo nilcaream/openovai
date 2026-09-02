@@ -1773,9 +1773,13 @@ describe("what the page is told about what each session is on", () => {
   const doingLog = path.join(standIn, "doing.txt");
 
   function header(name, title) {
+    writeHeader(name, `<!-- DESK | title: ${title} -->`);
+  }
+
+  function writeHeader(name, line) {
     const desk = path.join(instance, "work", name, "STATE.md");
     const lines = fs.readFileSync(desk, "utf8").split("\n");
-    lines[0] = `<!-- DESK | name: ${name} | title: ${title} | status: at it | updated: 2026-01-01 -->`;
+    lines[0] = line;
     fs.writeFileSync(desk, lines.join("\n"));
   }
 
@@ -1795,10 +1799,17 @@ describe("what the page is told about what each session is on", () => {
     assert.equal(await doingOf(AT_WORK), "counting the doors on the second floor");
   });
 
-  // The header is a row of fields divided by pipes, so a reader that does not stop at the next one
-  // hands back the status and the date as though the session had written them.
+  // A header the instance ships holds one field, but one written before that does not, and a desk
+  // is a file a person may have written anything into. So a header carrying more still reads.
+  it("says what a session put in a header that holds more than the title", async () => {
+    writeHeader(AT_WORK, `<!-- DESK | name: ${AT_WORK} | title: reading the water meter | status: at it -->`);
+    assert.equal(await doingOf(AT_WORK), "reading the water meter");
+  });
+
+  // The fields are divided by pipes, so a reader that does not stop at the next one hands back the
+  // status and the date as though the session had written them.
   it("stops at the end of that field and does not read the next one", async () => {
-    header(AT_WORK, "counting the doors");
+    writeHeader(AT_WORK, `<!-- DESK | name: ${AT_WORK} | title: counting the doors | status: at it | updated: 2026-01-01 -->`);
     assert.equal(await doingOf(AT_WORK), "counting the doors");
   });
 
@@ -1807,7 +1818,7 @@ describe("what the page is told about what each session is on", () => {
   it("does not read the end of the header line as part of it", async () => {
     const desk = path.join(instance, "work", AT_WORK, "STATE.md");
     const lines = fs.readFileSync(desk, "utf8").split("\n");
-    lines[0] = `<!-- DESK | name: ${AT_WORK} | title: last of all -->`;
+    lines[0] = `<!-- DESK | title: last of all -->`;
     fs.writeFileSync(desk, lines.join("\n"));
     assert.equal(await doingOf(AT_WORK), "last of all");
   });

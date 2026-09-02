@@ -86,10 +86,14 @@ export function deskFile(root, name) {
 
 // What the person at this desk is on, from the header their desk file opens with.
 //
-// A desk is a whole document and most of it is prose nobody else can read usefully. The header's
-// `title:` is the one field of it that anything outside the desk reads, which is why the personas
-// name that field and no other: one line, kept current as the work moves, and everything else in
-// there stays the desk's own business.
+// A desk is a whole document and most of it is prose nobody else can read usefully. The header is
+// therefore one line holding one field — the `title:` — which is the whole of what anything
+// outside the desk reads. It is the field the personas name and the field a turn asks for, so what
+// is written and what is read cannot drift apart, and there is no second field for a session to
+// keep true for nobody.
+//
+// A header holding more than that still reads, which is what lets a desk written before this go on
+// being understood: the fields are separated, and this takes the one it came for.
 //
 // Nothing is guessed when it is not there. An empty title is a session that has not said what it
 // is on, and saying nothing is the honest rendering of that — better than the first line of a
@@ -111,10 +115,6 @@ export function deskTitle(root, name) {
 
 export function personaFile(root, name) {
   return path.join(root, PERSONAS, `${name}.md`);
-}
-
-function today() {
-  return new Date().toISOString().slice(0, 10);
 }
 
 // Placeholders are {{NAME}}. Anything left unfilled is a mistake in the template rather than
@@ -150,7 +150,7 @@ export function writeDesk(root, from, name) {
   const template = readTemplate(from, "desk", DESK_TEMPLATE);
   const target = deskFile(root, name);
   fs.mkdirSync(path.dirname(target), { recursive: true });
-  fs.writeFileSync(target, render("desk", template, { NAME: name, DATE: today() }));
+  fs.writeFileSync(target, render("desk", template, { NAME: name }));
   return [target];
 }
 

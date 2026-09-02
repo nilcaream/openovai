@@ -115,7 +115,14 @@ describe("what the installer made", () => {
   });
 
   it("names the leader on that desk", () => {
-    assert.match(contentOf("work", LEADER, "STATE.md"), new RegExp(`name: ${LEADER}`));
+    assert.match(contentOf("work", LEADER, "STATE.md"), new RegExp(`^# ${LEADER}$`, "m"));
+  });
+
+  // The header is one line holding one field, and that is the whole definition of it: the title is
+  // what anything outside the desk reads, so it is what the header carries and there is nothing
+  // else in there for a session to keep true for nobody.
+  it("opens that desk with a header holding the title and nothing else", () => {
+    assert.equal(contentOf("work", LEADER, "STATE.md").split("\n")[0], "<!-- DESK | title: -->");
   });
 
   it("leaves no unfilled placeholder on the desk", () => {
@@ -260,9 +267,9 @@ describe("what the installer made", () => {
     assert.match(contentOf("personas", `${LEADER}.md`), /Keep it saying what you are on/);
   });
 
-  // And that the rest of the header is not something to keep true for anybody else's sake.
-  it("tells the leader nothing else in that header is read", () => {
-    assert.match(contentOf("personas", `${LEADER}.md`), /rest of the\s+header is yours and nothing reads it/);
+  // And that there is nothing else in that header to keep true for anybody else's sake.
+  it("tells the leader its header holds nothing else", () => {
+    assert.match(contentOf("personas", `${LEADER}.md`), /header holds nothing else/);
   });
 
   it("warns the leader that asking somebody waits for them", () => {
