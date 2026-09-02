@@ -30,7 +30,7 @@ const CONFIG_FILE = "ow.json";
 // from — which is what lets an instance open a desk on a machine the source was never on.
 const WORKER_TEMPLATE = path.join("templates", "worker.md");
 
-const COMMANDS = ["status", "chat", "hire", "say", "login"];
+const COMMANDS = ["status", "room", "chat", "hire", "say", "login"];
 
 // What a command takes after its name, for the ones that take anything. A command that is not
 // here takes nothing, which is most of them.
@@ -51,6 +51,7 @@ function usage() {
     "",
     "Usage:",
     "  ow status        show who works in this instance and on which models",
+    "  ow room          show what each of them is doing right now",
     "  ow chat          serve the chat page until you stop it",
     "  ow hire <name>   open a desk for a worker, so the chat can host one",
     "  ow say <name> <message>",
@@ -136,6 +137,91 @@ function hire(root, name) {
   for (const entry of written) {
     console.log(`  ${entry}`);
   }
+}
+
+// The room: one line per session, saying what is true of each of them right now.
+//
+// It asks the chat rather than reading the instance, because half of what a room is cannot be
+// read off disk. How many turns are going, who is held up waiting for whom and what is stopped
+// waiting to be allowed something all live in the process serving the page; only what a session
+// is called, what it is on and how big its thread is are in files. So there is no room to show
+// when no chat is running, and saying so is the honest answer.
+//
+// The same rows the page builds its own room from, on the same route. What each of them means is
+// settled in one place — the server — and this only lays them out.
+async function room(root) {
+  const url = listening(root);
+  if (url === null) {
+    throw new ChatError("no chat is running in this instance, so there is no room to show — start one with: ow chat");
+  }
+
+  let answered;
+  try {
+    answered = await fetch(`${url}/sessions`);
+  } catch (error) {
+    throw new ChatError(`the chat at ${url} did not answer (${error.cause?.code ?? error.message}) — start one with: ow chat`);
+  }
+
+  let body;
+  try {
+    body = await answered.json();
+  } catch {
+    body = null;
+  }
+
+  if (!answered.ok || !Array.isArray(body?.sessions)) {
+    throw new ChatError(`the chat answered ${answered.status} with nothing that reads as a room`);
+  }
+
+  const width = Math.max(...body.sessions.map((session) => session.name.length));
+  for (const session of body.sessions) {
+    console.log(`${session.name.padEnd(width)}  ${describeSession(session)}`);
+  }
+}
+
+// What one line of the room says. The order the phrases are tried in is the whole of what makes it
+// worth reading: what a person can end comes before what they cannot.
+//
+// The page lays the same rows out for itself, in its own script, and the two say the same things
+// in the same order. They are not shared code and cannot be — one of them is a page served as
+// text — so this is a duplication somebody has to keep true, and it is written down here rather
+// than discovered.
+function describeSession(session) {
+  const doing = session.doing === "" ? "(has not said what it is on)" : session.doing;
+  const said = [
+    stateOf(session),
+    session.thread ? null : "nothing to carry on",
+    typeof session.context === "number" ? `${session.context.toLocaleString("en-US")} tokens` : null,
+    session.active === null ? "nothing said yet" : `last moved ${ago(session.active)}`,
+  ].filter((part) => part !== null);
+
+  return `${session.role} (${session.model})  ${doing}  —  ${said.join(" · ")}`;
+}
+
+function stateOf(session) {
+  if (session.asking > 0) {
+    return session.asking === 1 ? "needs you" : `needs you (${session.asking})`;
+  }
+  if (session.waitingFor !== null && session.waitingFor !== undefined) {
+    return `waiting for ${session.waitingFor}`;
+  }
+  if (session.queued > 0) {
+    return `answering, ${session.queued} waiting`;
+  }
+  return session.busy ? "answering" : "idle";
+}
+
+// How long ago, in the roughest terms that are still useful. Nothing anybody decides from a room
+// turns on the difference between four minutes and five.
+function ago(when) {
+  const seconds = Math.round((Date.now() - Date.parse(when)) / 1000);
+  if (seconds < 60) {
+    return "just now";
+  }
+  if (seconds < 3600) {
+    return `${Math.floor(seconds / 60)}m ago`;
+  }
+  return `${Math.floor(seconds / 3600)}h ago`;
 }
 
 // Say something to another session and wait for what it answers.
@@ -359,6 +445,10 @@ async function main(argv) {
     }
     if (command === "hire") {
       hire(root, arguments_[0]);
+      return 0;
+    }
+    if (command === "room") {
+      await room(root);
       return 0;
     }
     if (command === "say") {

@@ -316,6 +316,19 @@ describe("when the chat cannot be reached", () => {
     assert.notEqual(runTool(quiet, ["say", LEADER, "hello"], standIns).status, 0);
   });
 
+  // Half of a room is only in the running process — how many turns are going, who is held up
+  // waiting for whom, what is stopped waiting to be allowed something. So there is no room to show
+  // without a chat, and an empty one printed as though it were the truth would be worse than none.
+  it("says there is no room to show when no chat is running", () => {
+    assert.match(runTool(quiet, ["room"], standIns).stderr, /no room to show/);
+  });
+
+  it("refuses rather than printing an empty room", () => {
+    const said = runTool(quiet, ["room"], standIns);
+    assert.notEqual(said.status, 0);
+    assert.equal(said.stdout.trim(), "");
+  });
+
   describe("the address belongs to a chat that has stopped", () => {
     let said;
 
@@ -1668,6 +1681,83 @@ describe("what the page does with the room", () => {
 
   it("says when a session has no thread to carry on", () => {
     assert.match(page, /"nothing to carry on"/);
+  });
+});
+
+// The room on the command line. The lead is a session on the page and so cannot look at the page,
+// which is the whole reason this exists; the person at a terminal gets it for nothing.
+//
+// It asks the chat rather than reading the instance, because half of a room is only in the running
+// process — how many turns are going, who is held up waiting for whom, what is stopped waiting to
+// be allowed something. So it is the same rows the page uses, laid out for a terminal.
+describe("showing the room on the command line", () => {
+  const roomLog = path.join(standIn, "room.txt");
+  const IN_THE_ROOM = "Lark";
+  let shown;
+  let held;
+  let here;
+
+  before(async () => {
+    runTool(instance, ["hire", IN_THE_ROOM], process.env);
+    const desk = path.join(instance, "work", IN_THE_ROOM, "STATE.md");
+    const lines = fs.readFileSync(desk, "utf8").split("\n");
+    lines[0] = `<!-- DESK | name: ${IN_THE_ROOM} | title: reading the water meter | status: at it -->`;
+    fs.writeFileSync(desk, lines.join("\n"));
+
+    await start(instance, standInEnvironment(standIn, roomLog, { OW_STAND_IN_SLOW: "1500" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    shown = runTool(instance, ["room"], standIns);
+    here = JSON.parse((await get(`${URL}/sessions`)).body).sessions.length;
+
+    // And again while somebody is actually mid-turn, because a room that only ever reports an
+    // empty office says nothing worth reading. Not awaited: the point is what it says WHILE.
+    const answering = say("take your time", WORKER);
+    held = await waitFor(() => {
+      const said = runTool(instance, ["room"], standIns);
+      return said.stdout.includes("answering") ? said : null;
+    });
+    await answering;
+  });
+
+  it("answers at all", () => {
+    assert.equal(shown.status, 0);
+  });
+
+  it("gives one line to each person who works here", () => {
+    assert.equal(shown.stdout.trim().split("\n").length, here);
+  });
+
+  it("names everybody in it", () => {
+    assert.ok(shown.stdout.includes(LEADER) && shown.stdout.includes(WORKER));
+  });
+
+  it("says what each of them is on", () => {
+    assert.match(shown.stdout, /reading the water meter/);
+  });
+
+  it("says so about somebody who has not filled it in", () => {
+    assert.match(shown.stdout, /has not said what it is on/);
+  });
+
+  it("says which of them is answering, while one is", () => {
+    assert.match(held.stdout, new RegExp(`${WORKER}[^\\n]*answering`));
+  });
+
+  it("says the others are idle at the same moment", () => {
+    assert.match(held.stdout, new RegExp(`${LEADER}[^\\n]*idle`));
+  });
+
+  it("says how long since a panel last moved", () => {
+    assert.match(shown.stdout, /last moved |nothing said yet/);
+  });
+
+  it("takes no arguments", () => {
+    assert.match(runTool(instance, ["room", "Paul"], standIns).stderr, /takes no arguments/);
+  });
+
+  it("is offered in the usage", () => {
+    assert.match(runTool(instance, ["--help"], standIns).stdout, /ow room/);
   });
 });
 

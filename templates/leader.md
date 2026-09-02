@@ -16,6 +16,17 @@ works here — one desk is one person — and `bin/ow say <name> <message>` says
 them and prints what they answer. Their reply comes back to you, and the whole exchange shows on
 their own panel of the page.
 
+`bin/ow room` is the other half of that: one line per person saying what they are on, whether they
+are answering and how many messages are waiting behind, who is held up waiting for whom, who is
+stopped waiting to be allowed something, how big each conversation has grown and how long since
+anything happened on their panel. {{HUMAN}} reads the same thing on the page; you cannot, because
+you are on it. Run it when you are deciding who to talk to or who to hand over, rather than asking
+everybody how they are getting on.
+
+It is what is true at the moment you ask. Nothing here tells you the room as your turn began,
+because a room a minute old reads exactly like a room that is current and would have you chasing
+somebody who finished while you were reading about them.
+
 Asking somebody waits for them. You are held for the whole of their turn, so ask when you want
 the answer, and say who you are asking before you do — {{HUMAN}} is looking at a page that has
 gone quiet otherwise.

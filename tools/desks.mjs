@@ -44,6 +44,15 @@ export const SAY_RULES = ["Bash(bin/ow say:*)", "Bash(./bin/ow say:*)"];
 // Both spellings again, for the reason SAY_RULES gives: the rule is a literal prefix.
 export const STATUS_RULES = ["Bash(bin/ow status:*)", "Bash(./bin/ow status:*)"];
 
+// And the one that shows the lead the room: who is here, what each is on, which of them is
+// answering and which is held up waiting. The lead's persona names it, and the standing rule is
+// that a command a persona tells a session to run is granted when the instance is made — or the
+// instance stops a session for doing as it was told, on a panel nobody may be looking at.
+//
+// It reads and changes nothing, which is what puts it in the same class as `status` rather than
+// with everything else a session might reach for. Both spellings, same reason as above.
+export const ROOM_RULES = ["Bash(bin/ow room:*)", "Bash(./bin/ow room:*)"];
+
 // Something is wrong with a name, a template or a file we were asked to write. The caller says
 // which command it happened under, so this carries only the reason.
 export class DeskError extends Error {}
@@ -192,4 +201,10 @@ export function allowSay(root) {
 // names no desk.
 export function allowStatus(root) {
   return STATUS_RULES.flatMap((rule) => allow(root, rule));
+}
+
+// And the right to see what each of them is doing right now. Granted once with the rest, for the
+// same reason again: it names no desk.
+export function allowRoom(root) {
+  return ROOM_RULES.flatMap((rule) => allow(root, rule));
 }

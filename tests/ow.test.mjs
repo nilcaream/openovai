@@ -309,6 +309,14 @@ describe("hiring a worker", () => {
 
   // A worker is asked for the same one line the lead is: the header field that says what it is on.
   // Without it the page has a column with nothing in it and no way to fill one.
+  // And the worker is not told about it. A worker has one task and the others are not its
+  // business; the room is what somebody deciding who does what needs, which is the lead and the
+  // person at the page.
+  it("does not tell the worker to look at the room", () => {
+    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    assert.ok(!persona.includes("bin/ow room"));
+  });
+
   it("tells the worker which one field of its header is read by anybody else", () => {
     const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
     assert.match(persona, /the `title:` in it is the one field/);

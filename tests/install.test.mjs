@@ -241,6 +241,17 @@ describe("what the installer made", () => {
 
   // What the lead is on has to come from somewhere, and the only thing that knows it is the lead.
   // One field of the desk header, named in the persona, is the whole of the arrangement.
+  // The lead is the one session that cannot look at the page, because it is on it. Naming the
+  // command in its persona is the whole of how it finds out; a command a persona names and an
+  // instance does not grant is the failure this repo has already had twice.
+  it("tells the leader how to see the room", () => {
+    assert.match(contentOf("personas", `${LEADER}.md`), /bin\/ow room/);
+  });
+
+  it("tells the leader the room is true at the moment it asks", () => {
+    assert.match(contentOf("personas", `${LEADER}.md`), /true at the moment you ask/);
+  });
+
   it("tells the leader which one field of its header is read by anybody else", () => {
     assert.match(contentOf("personas", `${LEADER}.md`), /the `title:` in it is the one field/);
   });

@@ -51,6 +51,8 @@ export function settingsProblems(file, names) {
     "Bash(./bin/ow say:*)",
     "Bash(bin/ow status:*)",
     "Bash(./bin/ow status:*)",
+    "Bash(bin/ow room:*)",
+    "Bash(./bin/ow room:*)",
   ];
 
   let settings;

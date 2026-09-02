@@ -13,6 +13,7 @@ import path from "node:path";
 import {
   DeskError,
   allowDesk,
+  allowRoom,
   allowSay,
   allowStatus,
   describeName,
@@ -380,6 +381,7 @@ function main(argv) {
       ...allowDesk(plan.root, plan.leader),
       ...allowSay(plan.root),
       ...allowStatus(plan.root),
+      ...allowRoom(plan.root),
     ]);
     return 0;
   } catch (error) {
