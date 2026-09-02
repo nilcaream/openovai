@@ -14,6 +14,7 @@ import { hasCredential, home, login, machineToken, memoryDirectory } from "./cla
 import { DeskError, describeName, desks, hire, isName } from "./desks.mjs";
 import { ownInstructions } from "./instructions.mjs";
 import { holderOf } from "./port.mjs";
+import { version } from "./version.mjs";
 
 const CONFIG_FILE = "ow.json";
 
@@ -303,6 +304,11 @@ function status(root) {
   const config = readConfig(root);
   const rows = [
     ["instance", root],
+    // What this instance is running, which is the first thing anybody comparing two of them
+    // wants and the first thing to know before taking a newer one. It is read from the payload
+    // rather than from ow.json, so it says what the code here IS and not what it was installed
+    // as.
+    ["version", version(root) ?? "not recorded — this instance was made before the toolkit carried one"],
     ["human", config.human],
     ["leader", `${config.leader} (${config.models.leader})`],
     ["worker model", config.models.worker],

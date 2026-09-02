@@ -36,8 +36,14 @@ const chosen = `${instance}-chosen`;
 // instance root per install that is expected to go through.
 const versions = `${instance}-versions`;
 
+// A source that is this workspace in every way except the version, so a check can ask what the
+// installer does about one. Everything else is COPIED rather than made empty: a source of empty
+// directories is refused later anyway, when a template it needs turns out not to be there, and a
+// check that cannot tell those two refusals apart is not about the version at all.
+const versionless = `${instance}-versionless`;
+
 // The instances are removed however this run ends, including one that fails half way through.
-process.on("exit", () => remove(instance, chosen, versions));
+process.on("exit", () => remove(instance, chosen, versions, versionless));
 
 // A full command line, which a check then spoils in one place to ask what is refused.
 function options(root, changes = {}) {
@@ -64,6 +70,17 @@ function pretending(version) {
 
 function rootFor(version) {
   return path.join(versions, "root", version);
+}
+
+// Built once, on first use: the checks that want it are two, and building it in each of them
+// would say the same thing twice.
+function withoutVersion() {
+  if (!fs.existsSync(versionless)) {
+    for (const entry of ["bin", "tools", "templates"]) {
+      fs.cpSync(path.join(repo, entry), path.join(versionless, entry), { recursive: true });
+    }
+  }
+  return versionless;
 }
 
 function inside(...parts) {
@@ -96,6 +113,16 @@ describe("what the installer made", () => {
 
   it("copies the instance command in", () => {
     assert.ok(fs.existsSync(inside("tools", "ow.mjs")));
+  });
+
+  it("copies the version in", () => {
+    assert.ok(fs.existsSync(inside("VERSION")));
+  });
+
+  // Read out of the source rather than compared with a literal. A version written into the check
+  // as well as into the file would agree with itself on the day it was written and never again.
+  it("carries the version the source is on", () => {
+    assert.equal(contentOf("VERSION").trim(), fs.readFileSync(path.join(repo, "VERSION"), "utf8").trim());
   });
 
   it("copies the desk template in", () => {
@@ -341,6 +368,26 @@ describe("what the installer refuses", () => {
     assert.notEqual(install(asked).status, 0);
   });
 
+  // A source with no version in it is not a version of the toolkit, whatever else is in it. The
+  // same function answers for a clone and for an unpacked release, so this is also what stops an
+  // update taking a package that is something else entirely.
+  // One check and not two. A refusal and the reason for it are separate things wherever a refusal
+  // can arrive for more than one reason, and here it cannot: with the version in the payload, a
+  // source without one cannot be installed successfully whatever this function does, so a check on
+  // the exit status alone would pass on a crash. Both in one expression, so neither half can go
+  // missing quietly.
+  //
+  // And it reads the installer's OWN sentence, not the word VERSION anywhere in the output. An
+  // installer that carried on past this would fall over copying the file that is not there, and
+  // that crash names the same path on stderr — so a looser check passes on the failure it exists
+  // to rule out. Measured: both a removed refusal and one downgraded to a warning went unnoticed
+  // until this was anchored on the line the installer writes itself.
+  it("refuses a source with no version in it, saying which entry that is", () => {
+    const refused = install(options(`${instance}-noversion`, { "--source": withoutVersion() }));
+    const said = /^install: .*does not look like an office workspace.*VERSION/m.test(refused.stderr);
+    assert.equal([refused.status === 0, said].join(" "), "false true");
+  });
+
   it("refuses a port below 1024", () => {
     assert.notEqual(install(options(`${instance}-lowport`, { "--port": 80 })).status, 0);
   });
@@ -417,5 +464,15 @@ describe("the instance runs", { skip: claudeIsInstalled() ? false : "Claude Code
 
   it("names the human in ow status", () => {
     assert.match(runOw(instance, ["status"], process.env).stdout, new RegExp(HUMAN));
+  });
+});
+
+// One version, written in two places for two readers: the file the payload carries, and the
+// package declaration for tooling that reads that instead. Nothing makes one follow the other, so
+// this is what says they have not drifted.
+describe("the version the toolkit is on", () => {
+  it("says the same thing in the payload and in the package", () => {
+    const declared = JSON.parse(fs.readFileSync(path.join(repo, "package.json"), "utf8")).version;
+    assert.equal(fs.readFileSync(path.join(repo, "VERSION"), "utf8").trim(), declared);
   });
 });

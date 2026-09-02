@@ -111,6 +111,12 @@ describe("what status reports", () => {
     said = ow(["status"]).stdout;
   });
 
+  // What this instance is running. Read from the payload, so it names the code that is actually
+  // here rather than whatever it was installed as.
+  it("says which version this instance is on", () => {
+    assert.match(said, new RegExp(`version\\s+${fs.readFileSync(path.join(repo, "VERSION"), "utf8").trim()}`));
+  });
+
   it("names the human", () => {
     assert.match(said, new RegExp(HUMAN));
   });
@@ -176,6 +182,32 @@ describe("how the instance signs in", () => {
   it("does not send an inheriting instance to a sign-in that would refuse it", () => {
     const said = owInherited(["status"], { OW_STAND_IN_SIGNED_IN: "false" }).stdout;
     assert.ok(!said.includes("run: ow login"));
+  });
+});
+
+// An instance made before the toolkit carried a version is a real thing to be standing in front
+// of, and status is the command somebody runs when they are working out what they have. So it
+// answers that question instead of dying of it.
+describe("an instance with no version in it", () => {
+  let said;
+
+  before(() => {
+    const file = path.join(instance, "VERSION");
+    const kept = fs.readFileSync(file, "utf8");
+    fs.rmSync(file);
+    try {
+      said = ow(["status"]);
+    } finally {
+      fs.writeFileSync(file, kept);
+    }
+  });
+
+  it("still answers", () => {
+    assert.equal(said.status, 0);
+  });
+
+  it("says the version is not recorded rather than inventing one", () => {
+    assert.match(said.stdout, /version\s+not recorded/);
   });
 });
 

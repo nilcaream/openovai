@@ -11,6 +11,7 @@ import os from "node:os";
 import path from "node:path";
 
 import { MEMORY_FILE, memoryDirectory } from "./claude.mjs";
+import { VERSION_FILE } from "./version.mjs";
 import {
   DeskError,
   allowDesk,
@@ -87,7 +88,13 @@ const CONFIG_SCHEMA = 1;
 // else, so an instance carries its own copy of everything it runs and never reaches back to
 // where it was installed from. A release package is the same list in a different wrapper,
 // which is why this is a list and not a walk of the source directory.
-const PAYLOAD = ["bin", "tools", "templates"];
+//
+// VERSION is in it because the version is a property of what the toolkit ships and not of what
+// the instance became: it travels with the code it names, so taking a newer version replaces it
+// along with everything else and there is no field anywhere to keep in step. It is also what
+// checkSource asks for, which makes a source without one — an older clone, an unpacked something
+// else — say so at the door rather than install as a version nobody can name.
+const PAYLOAD = ["bin", "tools", "templates", VERSION_FILE];
 
 // The lead's persona, before the names are written into it. What becomes of it — where it is
 // written and why the names are welded in rather than looked up — is in tools/desks.mjs, which
