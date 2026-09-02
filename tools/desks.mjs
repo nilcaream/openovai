@@ -113,8 +113,80 @@ export function deskTitle(root, name) {
   return said === null ? "" : said[1].replace(/-->\s*$/, "").trim();
 }
 
+// Where a desk goes when the person at it has left. Beside work/ rather than inside it: work/ is
+// a directory listing and that listing IS the roster, so a directory in there is somebody who works
+// here. work/ is who works here, archive/ is who has.
+//
+// It is made when the first person leaves. An instance nobody has left has nothing to put in one.
+export const ARCHIVE = "archive";
+
 export function personaFile(root, name) {
   return path.join(root, PERSONAS, `${name}.md`);
+}
+
+function today() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+// A title, as much of it as belongs in a directory name. Everything that is not a letter or a digit
+// becomes a separator, because a name that has to be quoted to be typed is a name that gets typed
+// wrong.
+function slug(title) {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60)
+    .replace(/-+$/, "");
+}
+
+// Where this desk would be filed, made ready to be filed into.
+//
+// The name carries the day, the person and what the desk was on, because those are the three things
+// somebody looking for it later has. A desk that never said what it was on is filed under the day
+// and the name alone — the same answer everything else here gives to an empty title, which is to
+// say nothing rather than to guess.
+//
+// A name already taken gets a number after it. Two people of one name leaving on one day with one
+// title is unlikely; two records quietly written into one directory is not a way to find that out.
+//
+// The directory is made here, before anything is moved, so that whoever is filing can say where the
+// desk is going while the panel it is going with is still being written to.
+export function archiveFor(root, name) {
+  const said = slug(deskTitle(root, name));
+  const base = `${today()}-${name}${said === "" ? "" : `-${said}`}`;
+
+  let at = path.join(root, ARCHIVE, base);
+  for (let next = 2; fs.existsSync(at); next += 1) {
+    at = path.join(root, ARCHIVE, `${base}-${next}`);
+  }
+
+  fs.mkdirSync(at, { recursive: true });
+  // Said relatively, because it is said on a panel and written into an instance that holds no
+  // absolute path anywhere.
+  return { at, where: path.posix.join(ARCHIVE, path.basename(at)) };
+}
+
+// Close a desk: the desk file and the panel are filed under `at`, and everything that made this a
+// person here is taken away.
+//
+// A desk is one file by design — the only thing an instance lets a session write is its own
+// STATE.md — so this files what a desk is rather than sweeping the directory, and takes the
+// directory itself away afterwards.
+export function retire(root, name, at, panel) {
+  const filed = [];
+  for (const source of [deskFile(root, name), panel]) {
+    if (!fs.existsSync(source)) {
+      continue;
+    }
+    const target = path.join(at, path.basename(source));
+    fs.renameSync(source, target);
+    filed.push(target);
+  }
+
+  fs.rmSync(path.join(root, WORK, name), { recursive: true, force: true });
+  fs.rmSync(path.dirname(panel), { recursive: true, force: true });
+  return filed;
 }
 
 // Placeholders are {{NAME}}. Anything left unfilled is a mistake in the template rather than

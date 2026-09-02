@@ -17,6 +17,13 @@ function file(root, session) {
   return path.join(root, "chat", session, FILE);
 }
 
+// Where this session's panel is kept. Somebody putting a desk away files the panel with it, and
+// the alternative — a second module that knows how a chat lays its directories out — is a word
+// spelled in two places that would go wrong the day one of them changed.
+export function panelFile(root, session) {
+  return file(root, session);
+}
+
 export function read(root, session) {
   try {
     return JSON.parse(fs.readFileSync(file(root, session), "utf8"));

@@ -8,11 +8,11 @@ import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { append, lastAt, read } from "./conversation.mjs";
+import { append, lastAt, panelFile, read } from "./conversation.mjs";
 import { HOST, record } from "./listening.mjs";
 import { carry, overhear } from "./overheard.mjs";
 import { allow, answer as settle, giveUp, park, parked, refuse } from "./permissions.mjs";
-import { DESK_FILE, WORK, deskTitle } from "../desks.mjs";
+import { DESK_FILE, WORK, archiveFor, deskTitle, retire } from "../desks.mjs";
 import { ask, forget, hasThread, sessions } from "./session.mjs";
 import { inTurn, turnsGoing, waitingFor, whileWaitingFor, wouldWaitForItself } from "./turns.mjs";
 
@@ -187,9 +187,45 @@ function handoverUnanswered(name) {
   return `${name} could not be asked to hand over, so ${desk(name)} may not say where the work stands. Its thread is gone all the same; the next message starts a new one.`;
 }
 
+// What a session is asked for on its way out.
+//
+// The same shape as a handover and a different question. A handover is a session being replaced at
+// a desk that stays, so what it writes is for whoever sits down next; this is the desk itself being
+// put away, so what it writes is the record of what was done. It is asked for the title in the same
+// breath, because the title is what the desk is filed under and this is the last moment anybody can
+// ask for it.
+//
+// Wrapped, like every other instruction from the chat: what is outside a wrapper is the human.
+function leaveWrapper(name) {
+  return [
+    `<leave>You are leaving this workspace, and this desk is being put away. Write ${desk(name)} as`,
+    `the record of what was done: what the task was, where it ended, what was settled, and what`,
+    `anybody picking it up later would need. Leave the header's title: saying what this desk was on`,
+    `— it is the name this desk is filed under. Then say in one line that you are ready to leave.`,
+    `Start nothing new.</leave>`,
+  ].join(" ");
+}
+
+// What the panel says while a session is leaving and once it has. Under `the chat`, because nobody
+// said it to anybody, and flagged, so what a check reads is the flag rather than the prose.
+function leavingAsked(human, name) {
+  return `${human} asked ${name} to leave. ${name} is writing ${desk(name)} before this desk is put away.`;
+}
+
+function leavingDone(name, where) {
+  return `${name} has left. The desk is filed under ${where}, the thread that answered here is gone, and the name is free again.`;
+}
+
+// The same moment, when the session could not be asked at all. The desk is put away either way —
+// somebody asked for this exit and a run that fails to resume has already lost its thread — so what
+// this says is what was actually lost, which is the record being written before it was filed.
+function leavingUnanswered(name, where) {
+  return `${name} could not be asked before leaving, so ${desk(name)} may not say where the work ended. The desk is filed under ${where} all the same.`;
+}
+
 // Everything a session is asked or answers is under its own name, so one route shape serves
 // every panel and there is no path through here that only the lead can take.
-const SESSION_ROUTE = /^\/sessions\/([^/]+)\/(messages|message|permissions|permission|handover)$/;
+const SESSION_ROUTE = /^\/sessions\/([^/]+)\/(messages|message|permissions|permission|handover|leave)$/;
 
 async function postMessage(instance, name, request, response) {
   let text;
@@ -342,6 +378,74 @@ async function postHandover(instance, name, response) {
   sendJson(response, 200, done);
 }
 
+// A session leaving: it writes its desk as the record, and then the desk is put away — filed under
+// the day, the name and what it was on, with the panel that goes with it — and the thread ends.
+//
+// A TURN, for the three reasons a handover is one: only the session may write its own desk, a turn
+// cannot land in the middle of another, and `ask()` writes the thread id down after its run
+// returns, so anything that ends a thread outside the turn is written straight back by the run it
+// was ending.
+//
+// The order inside it is the whole of what makes the record true. The session is asked FIRST and
+// the desk is read for its title only after the answer, or a session that says what it was on in
+// this very turn would be filed under what it used to be on. And the line saying it has left is
+// written to the panel BEFORE the panel is moved, so the record ends with the moment it ends at.
+async function postLeave(instance, name, response) {
+  // The lead is not a desk that can be put away. An instance has one by definition and the chat
+  // hosts it whether or not it has a desk, so a lead that left would still be here, with nowhere to
+  // read what it was doing and nothing to write it to.
+  if (name === instance.config.leader) {
+    sendJson(response, 400, { error: `${name} leads here, so this desk stays` });
+    return;
+  }
+
+  const done = await inTurn(name, async () => {
+    const asked = append(instance.root, name, {
+      from: THE_CHAT,
+      text: leavingAsked(instance.config.human, name),
+      leaving: true,
+    });
+
+    let answer;
+    try {
+      answer = await ask(
+        instance,
+        name,
+        // Drained here as on any turn, so a thread hears what it was owed before it goes.
+        withWhatWasOverheard(carry(name), leaveWrapper(name)),
+        (request) => park(name, request),
+      );
+    } finally {
+      giveUp(name);
+    }
+
+    const reply = append(instance.root, name, {
+      from: name,
+      text: answer.text,
+      ...(answer.failed ? { failed: true } : {}),
+      ...(answer.silent ? { silent: true } : {}),
+    });
+
+    // Where it is going is settled before the last line is written, so that line can say where.
+    const { at, where } = archiveFor(instance.root, name);
+    const left = append(instance.root, name, {
+      from: THE_CHAT,
+      text: answer.failed ? leavingUnanswered(name, where) : leavingDone(name, where),
+      leaving: true,
+      ...(answer.failed ? { failed: true } : {}),
+    });
+
+    // Nothing ends the thread separately. A session's memory between runs is one file inside the
+    // directory this takes away, so filing the desk away IS the thread ending — and a `forget`
+    // here would be a second way of doing something that has to happen exactly once.
+    retire(instance.root, name, at, panelFile(instance.root, name));
+
+    return { asked, reply, left, archived: where };
+  });
+
+  sendJson(response, 200, done);
+}
+
 // Answering what a session asked to be allowed to do.
 //
 // The decision is put together here rather than taken from the page, because the protocol is
@@ -481,6 +585,11 @@ async function handle(instance, request, response) {
 
     if (request.method === "POST" && what === "handover") {
       await postHandover(instance, name, response);
+      return;
+    }
+
+    if (request.method === "POST" && what === "leave") {
+      await postLeave(instance, name, response);
       return;
     }
   }

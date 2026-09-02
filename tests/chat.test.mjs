@@ -2118,6 +2118,199 @@ describe("a message queued behind a turn that fills the desk in", () => {
   });
 });
 
+// A session leaving, which is the exit a handover is not: the desk is not being taken over by
+// somebody else, it is being put away.
+//
+// The record has to be the desk as the session LAST wrote it and filed under what it ended up being
+// on, so the order is the whole feature: ask first, read the title after the answer, write the last
+// line on the panel before the panel is moved. The session here writes its title in the leave turn
+// itself — held open by a slow stand-in — because a desk that already said what it was on cannot
+// tell a reader from a guesser.
+const LEAVES = "Quill";
+const LEAVES_QUIETLY = "Marten";
+
+describe("a session leaving", () => {
+  const leaveLog = path.join(standIn, "leave.txt");
+  const TITLE = "counting the doors on the second floor";
+  let done;
+  let asked;
+  let thread;
+  let filed;
+  let panel;
+
+  before(async () => {
+    runTool(instance, ["hire", LEAVES], process.env);
+    await start(instance, standInEnvironment(standIn, leaveLog, { OW_STAND_IN_SLOW: "1500" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    // A thread to end, and a desk that says nothing yet.
+    await say("something worth remembering", LEAVES);
+
+    const leaving = post(`${URL}/sessions/${LEAVES}/leave`, {});
+    await waitFor(() => questionsIn(leaveLog).some((question) => question.includes("<leave>")) || null);
+
+    // What the session does with the turn it was given: it writes its desk, title and all. Done
+    // here rather than beforehand so that anything reading the title before asking is filing a desk
+    // under what it used to be on.
+    const desk = path.join(instance, "work", LEAVES, "STATE.md");
+    fs.writeFileSync(desk, `<!-- DESK | title: ${TITLE} -->\n# ${LEAVES}\n\nthe doors are counted\n`);
+
+    done = JSON.parse((await leaving).body);
+    asked = questionsIn(leaveLog).find((question) => question.includes("<leave>"));
+    thread = fs.existsSync(path.join(instance, "chat", LEAVES, "session.json"));
+    filed = path.join(instance, done.archived);
+    // Read so that a panel that was never filed is an empty one rather than an exception: a
+    // mutation that breaks this setUP would take every check in here down with it and prove
+    // nothing about any of them.
+    const kept = path.join(filed, "conversation.json");
+    panel = fs.existsSync(kept) ? JSON.parse(fs.readFileSync(kept, "utf8")) : [];
+  });
+
+  it("asks the session to write its desk", () => {
+    assert.ok(asked?.includes(`work/${LEAVES}/STATE.md`));
+  });
+
+  it("asks it to say what the desk was on, which is what it is filed under", () => {
+    assert.match(asked ?? "", /header's title:/);
+  });
+
+  it("wraps what it asks, so nothing reaches the session as though the human had typed it", () => {
+    assert.match(asked ?? "", /^<leave>[\s\S]*<\/leave>/);
+  });
+
+  it("files the desk beside work/ rather than in it", () => {
+    assert.match(done.archived, /^archive\//);
+  });
+
+  it("files it under the day, the name and what the desk ended up on", () => {
+    const day = new Date().toISOString().slice(0, 10);
+    assert.equal(done.archived, `archive/${day}-${LEAVES}-counting-the-doors-on-the-second-floor`);
+  });
+
+  it("keeps the desk as the session last wrote it", () => {
+    assert.match(fs.readFileSync(path.join(filed, "STATE.md"), "utf8"), /the doors are counted/);
+  });
+
+  it("keeps the panel with the desk", () => {
+    assert.ok(panel.some((message) => message.text === "something worth remembering"));
+  });
+
+  // What is filed is what a person would want to read. A thread id is a pointer to a conversation
+  // that has been ended, so filing one away is filing something that cannot be true.
+  it("does not file the thread away with it", () => {
+    assert.equal(fs.existsSync(path.join(filed, "session.json")), false);
+  });
+
+  // The record ends at the moment it ends at, which it can only do if the line is written before
+  // the panel is moved.
+  it("ends that panel with the line saying the session has left", () => {
+    assert.deepEqual([panel.at(-1)?.leaving, panel.at(-1)?.text?.includes(done.archived)], [true, true]);
+  });
+
+  it("takes the desk out of work/, so nobody works here under that name", () => {
+    assert.equal(fs.existsSync(path.join(instance, "work", LEAVES)), false);
+  });
+
+  it("ends the thread", () => {
+    assert.equal(thread, false);
+  });
+
+  it("says where the desk was filed", () => {
+    assert.ok(fs.existsSync(filed));
+  });
+
+  it("is nobody the chat can be asked about any more", async () => {
+    assert.equal((await get(`${URL}/sessions/${LEAVES}/messages`)).status, 404);
+  });
+
+  // The desks under work/ ARE the roster, so where a desk is filed to is not a matter of taste: a
+  // directory in there is somebody who works here, with a panel, a row in the room and a name that
+  // can be spoken to.
+  it("puts nobody new in the room by filing a desk away", async () => {
+    const { sessions: rows } = JSON.parse((await get(`${URL}/sessions`)).body);
+    assert.deepEqual(
+      rows.map((row) => row.name).filter((name) => name === "archive" || name === LEAVES),
+      [],
+    );
+  });
+});
+
+// Two people of one name leaving on one day with one title is unlikely. Two records written
+// quietly into one directory is not a way to find that out.
+describe("a session leaving into a name that is already taken", () => {
+  const takenLog = path.join(standIn, "leave-taken.txt");
+  const TAKEN = "Pika";
+  let done;
+  let first;
+
+  before(async () => {
+    runTool(instance, ["hire", TAKEN], process.env);
+    await start(instance, standInEnvironment(standIn, takenLog));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    // What a desk filed away earlier would have left behind, with something in it.
+    first = path.join(instance, "archive", `${new Date().toISOString().slice(0, 10)}-${TAKEN}`);
+    fs.mkdirSync(first, { recursive: true });
+    fs.writeFileSync(path.join(first, "STATE.md"), "the one that was here before\n");
+
+    done = JSON.parse((await post(`${URL}/sessions/${TAKEN}/leave`, {})).body);
+  });
+
+  it("files the new one beside it rather than into it", () => {
+    assert.equal(done.archived, `archive/${new Date().toISOString().slice(0, 10)}-${TAKEN}-2`);
+  });
+
+  it("leaves what was already filed there alone", () => {
+    assert.equal(fs.readFileSync(path.join(first, "STATE.md"), "utf8"), "the one that was here before\n");
+  });
+});
+
+// A desk that never said what it was on is filed under the day and the name alone. Saying nothing
+// is what everything else here does with an empty title, and a guess in a directory name is a guess
+// somebody has to live with afterwards.
+describe("a session leaving a desk that never said what it was on", () => {
+  const quietLog = path.join(standIn, "leave-quiet.txt");
+  let done;
+
+  before(async () => {
+    runTool(instance, ["hire", LEAVES_QUIETLY], process.env);
+    await start(instance, standInEnvironment(standIn, quietLog));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    done = JSON.parse((await post(`${URL}/sessions/${LEAVES_QUIETLY}/leave`, {})).body);
+  });
+
+  it("files it under the day and the name alone", () => {
+    const day = new Date().toISOString().slice(0, 10);
+    assert.equal(done.archived, `archive/${day}-${LEAVES_QUIETLY}`);
+  });
+});
+
+// The lead is not a desk that can be put away. An instance has one by definition and the chat hosts
+// it whether or not it has a desk, so a lead that left would still be here with nothing to read.
+describe("asking the session that leads to leave", () => {
+  const leadLog = path.join(standIn, "leave-lead.txt");
+  let refused;
+
+  before(async () => {
+    await start(instance, standInEnvironment(standIn, leadLog));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    refused = await post(`${URL}/sessions/${LEADER}/leave`, {});
+  });
+
+  it("refuses", () => {
+    assert.equal(refused.status, 400);
+  });
+
+  it("says why", () => {
+    assert.match(JSON.parse(refused.body).error, /leads here/);
+  });
+
+  it("leaves the desk where it is", () => {
+    assert.ok(fs.existsSync(path.join(instance, "work", LEADER, "STATE.md")));
+  });
+});
+
 const HANDS_OVER = "Robin";
 
 describe("handing a session over", () => {
