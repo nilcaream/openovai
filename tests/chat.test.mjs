@@ -224,8 +224,11 @@ describe("a worker answers on its own panel", () => {
     assert.ok((await transcriptOf(WORKER)).body.includes("what are you working on"));
   });
 
-  it("keeps that message out of the lead's transcript", async () => {
-    assert.ok(!(await transcriptOf(LEADER)).body.includes("what are you working on"));
+  // The lead does now hear this, as the chat's own overheard line further down. What has to stay
+  // true is that the message itself went to one session: the lead was never asked it.
+  it("does not deliver that message to the lead as well", async () => {
+    const { messages } = JSON.parse((await transcriptOf(LEADER)).body);
+    assert.ok(!messages.some((message) => message.from === "human" && message.text.includes("what are you working on")));
   });
 
   it("runs the worker on the model workers were installed for", () => {
@@ -264,8 +267,9 @@ describe("one session says something to another", () => {
     assert.ok((await transcriptOf(WORKER)).body.includes("how is it going"));
   });
 
-  it("leaves it in the transcript of the session it was said to", async () => {
-    assert.ok(!(await transcriptOf(LEADER)).body.includes("how is it going"));
+  it("delivers it to the session it was said to and to nobody else", async () => {
+    const { messages } = JSON.parse((await transcriptOf(LEADER)).body);
+    assert.ok(!messages.some((message) => message.from === "human" && message.text.includes("how is it going")));
   });
 
   it("refuses somebody who does not work here", () => {
@@ -653,6 +657,104 @@ describe("the port is already taken", () => {
 
   it("offers a port that is free", () => {
     assert.match(refused.stderr, /--port \(0 takes a free one\)/);
+  });
+});
+
+// The human types on a worker's panel and the lead is not in the exchange at all. The chat is the
+// only party that can see it happen, so the chat says so, on the lead's own panel and at the moment
+// it is said rather than whenever the worker gets round to passing it on.
+//
+// The check that matters is not that the lead is told — it is WHEN. A busy addressee is what tells
+// the two designs apart: written from inside the addressee's turn the line joins that session's
+// queue, and the lead hears it only after the thing it was about. So the worker is given something
+// slow to answer first, and what is asserted is the ORDER: the lead was told before the worker had
+// even been handed the message. A check that only waited for the line to turn up would pass either
+// way, which is the shape that has already cost this repo two real checks.
+describe("the lead hears what was said on another panel", () => {
+  const overheardLog = path.join(standIn, "overheard.txt");
+  const SLOW_ENOUGH_TO_QUEUE_BEHIND = "1500";
+  let line;
+  let theSlowOneWasStillGoing;
+  let afterSigned;
+  let afterOwnPanel;
+  let onThePanelItWasTypedOn;
+
+  // Everything on the lead's panel that nobody said to anybody: the chat's own lines.
+  async function chatLinesTo(name) {
+    const { messages } = JSON.parse((await transcriptOf(name)).body);
+    return messages.filter((message) => message.from === "the chat");
+  }
+
+  before(async () => {
+    await start(instance, standInEnvironment(standIn, overheardLog, { OW_STAND_IN_SLOW: SLOW_ENOUGH_TO_QUEUE_BEHIND }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    // Everything before this describe is on the lead's panel already — the suite has been typing on
+    // the worker's panel since it started. Only what THIS one adds is being asserted about.
+    const before = (await chatLinesTo(LEADER)).length;
+    const since = async () => (await chatLinesTo(LEADER)).slice(before);
+
+    // Neither is awaited: the worker is meant to be busy with the first when the second arrives.
+    const slow = say("something that takes a while", WORKER);
+    await waitFor(() => heardIn(overheardLog).some((heard) => heard.includes("takes a while")) || null);
+    const second = say("the boiler is making a noise", WORKER);
+
+    line = await waitFor(async () => (await since()).find((told) => told.text.includes("boiler")) ?? null);
+
+    // Read at the moment the lead was told, not afterwards: this is the whole check. The stand-in
+    // writes `answered:` when a slow run finishes, so this asks whether the worker was still busy
+    // with the FIRST message. Written from inside the addressee's turn the line could not exist
+    // yet — it would be behind that message in the queue — and the window is the whole of the
+    // stand-in's delay, so it is an order this cannot get wrong by a fraction of a second.
+    theSlowOneWasStillGoing = !readLog(overheardLog).includes("answered: something that takes a while");
+
+    await Promise.all([slow, second]);
+    onThePanelItWasTypedOn = await chatLinesTo(WORKER);
+
+    // What the lead has been told by the time both of those are done. Nothing after this should
+    // add to it.
+    const settled = (await since()).length;
+
+    // A session speaking is not something the lead overhears: it either sent this or can be told
+    // by whoever did.
+    runTool(instance, ["say", WORKER, "and", "this", "one", "is", "signed"], asLeader);
+    afterSigned = { told: (await since()).length, settled };
+
+    // Nor is the human on the lead's own panel, which the lead is not overhearing but hearing.
+    await say("this one is on your own panel", LEADER);
+    afterOwnPanel = { told: (await since()).length, settled };
+  });
+
+  it("tells the lead at all", () => {
+    assert.ok(line !== null, "the lead was never told");
+  });
+
+  it("tells the lead while the addressee is still busy with an earlier message", () => {
+    assert.equal(theSlowOneWasStillGoing, true);
+  });
+
+  it("says who it was said to, and what was typed", () => {
+    assert.equal(line?.text, `${HUMAN} said to ${WORKER}: the boiler is making a noise`);
+  });
+
+  it("puts it under the chat's own name, since nobody said it to anybody", () => {
+    assert.equal(line?.from, "the chat");
+  });
+
+  it("marks the line for what it is, rather than leaving it to be read out of the words", () => {
+    assert.equal(line?.overheard, true);
+  });
+
+  it("says nothing on the panel it was typed on", () => {
+    assert.deepEqual(onThePanelItWasTypedOn, []);
+  });
+
+  it("does not overhear one session speaking to another", () => {
+    assert.equal(afterSigned.told, afterSigned.settled);
+  });
+
+  it("does not overhear the human on the lead's own panel", () => {
+    assert.equal(afterOwnPanel.told, afterOwnPanel.settled);
   });
 });
 

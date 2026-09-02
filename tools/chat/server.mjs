@@ -69,6 +69,19 @@ function wrap(from, role, text) {
 // under work/ and cannot hold one.
 const THE_CHAT = "the chat";
 
+// What the lead is told when the human types on somebody else's panel.
+//
+// The chat is the only party that can know it happened: the human's message arrives unsigned, and
+// the lead is not in the exchange at all. Before this the worker was told to pass it on itself,
+// which cost a whole turn of the lead's nested inside the worker's — so the lead heard it late and
+// only if a model remembered to.
+//
+// It reads as what it is, in the words that were typed rather than in what the worker made of
+// them, and it is written under `the chat` because nobody said it to anybody.
+function overheardLine(human, on, text) {
+  return `${human} said to ${on}: ${text}`;
+}
+
 // Everything a session is asked or answers is under its own name, so one route shape serves
 // every panel and there is no path through here that only the lead can take.
 const SESSION_ROUTE = /^\/sessions\/([^/]+)\/(messages|message|permissions|permission)$/;
@@ -108,6 +121,23 @@ async function postMessage(instance, name, request, response) {
     append(instance.root, sender.name, { from: THE_CHAT, text: `not delivered to ${name}: ${why}`, failed: true });
     sendJson(response, 409, { error: why });
     return;
+  }
+
+  // The lead hears what was said on a panel it was not on, at the moment it is said.
+  //
+  // Deliberately OUTSIDE the turn below: a session answers one message at a time, so a line put
+  // through that queue would reach the lead only after the addressee had finished — which on a busy
+  // one is long after the thing it was about. Overhearing that waits is not overhearing.
+  //
+  // Only an unsigned message, and only on somebody else's panel. A signed one is a session
+  // speaking, and the lead either sent it or is the one being spoken to; a message on the lead's
+  // own panel is not overheard, it is heard.
+  if (sender === null && name !== instance.config.leader) {
+    append(instance.root, instance.config.leader, {
+      from: THE_CHAT,
+      text: overheardLine(instance.config.human, name, text.trim()),
+      overheard: true,
+    });
   }
 
   // The whole exchange happens inside the session's turn, the question written down when the turn
