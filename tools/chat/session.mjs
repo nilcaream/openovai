@@ -16,6 +16,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { environment } from "../claude.mjs";
+import { listening } from "./listening.mjs";
 import { desks } from "../desks.mjs";
 
 // Where a thread lives between runs, under the name of the session having it. One id, written
@@ -291,6 +292,30 @@ export function runsGoing() {
   return running.size;
 }
 
+// The instance's own tools, handed to a session as it starts.
+//
+// It is passed as the configuration itself rather than as a file to read, because there is nothing
+// here worth a file: the address is only known once the chat has bound a port, and the name in it
+// is this session and no other. A file would have to be written at every start to stay true, and a
+// stale one would quietly point a session at a chat that is not there.
+//
+// The name goes in the path, which is how the chat knows who is calling: it comes from here, where
+// the session is being started, and never from anything the session says about itself.
+//
+// Nothing when no chat has recorded an address. A session started with no chat serving the
+// instance can still answer; it simply cannot reach the others, which is the truth of its
+// situation and not a reason to refuse to start it.
+function toolsIn(root, name) {
+  const chat = listening(root);
+  if (chat === null) {
+    return null;
+  }
+
+  return JSON.stringify({
+    mcpServers: { office: { type: "http", url: `${chat}/mcp/${encodeURIComponent(name)}` } },
+  });
+}
+
 // One run, one question, one answer.
 //
 // The question goes in on stdin rather than in the arguments: with --input-format stream-json a
@@ -316,6 +341,10 @@ function run(instance, name, text, resume, asked) {
     "--model",
     model(instance, name),
   ];
+  const tools = toolsIn(instance.root, name);
+  if (tools !== null) {
+    args.push("--mcp-config", tools);
+  }
   const who = persona(instance.root, name);
   if (who !== null) {
     args.push("--append-system-prompt-file", who);

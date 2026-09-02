@@ -224,17 +224,18 @@ describe("what the installer made", () => {
     assert.equal(made.stdout.split("\n").filter((line) => line.trim() === settings).length, 1);
   });
 
+  // What a session calls to reach another. Without the rule the call is refused outright, or parks
+  // a request on a panel nobody may be watching — for every message a session sends.
   it("lets a session say something to another without being asked", () => {
     const allow = JSON.parse(contentOf(".claude", "settings.json")).permissions.allow;
-    assert.ok(allow.includes("Bash(bin/ow say:*)"));
+    assert.ok(allow.includes("mcp__office"));
   });
 
-  // The rule is a literal prefix rather than a path, so the two spellings of the one command are
-  // two rules. A session that types the other one is the only way this fails, and it fails by
-  // asking somebody to approve a command it was told to run.
-  it("lets it be typed the other way round as well", () => {
+  // It replaced two rules, one per spelling of a command. Nothing should be left granting a shell
+  // line no persona names any more: a grant nobody uses is a grant nobody is watching.
+  it("no longer grants the command it replaced", () => {
     const allow = JSON.parse(contentOf(".claude", "settings.json")).permissions.allow;
-    assert.ok(allow.includes("Bash(./bin/ow say:*)"));
+    assert.ok(!allow.some((rule) => rule.includes("ow say")));
   });
 
   // Both personas name this command, so an instance that does not grant it stops the session it
@@ -251,7 +252,13 @@ describe("what the installer made", () => {
   });
 
   it("tells the leader how to say something to somebody", () => {
-    assert.match(contentOf("personas", `${LEADER}.md`), /bin\/ow say <name> <message>/);
+    assert.match(contentOf("personas", `${LEADER}.md`), /the `say` tool says something to one of them/);
+  });
+
+  // A persona that still named the command would be telling a session to type a shell line the
+  // instance no longer grants, which is a session stopped for doing as it was told.
+  it("does not tell the leader to type the command it replaced", () => {
+    assert.ok(!contentOf("personas", `${LEADER}.md`).includes("ow say"));
   });
 
   it("tells the leader how to see who works here", () => {

@@ -19,9 +19,9 @@ this task and it goes away with it; the memory is the workspace and it stays. Pu
 once you are sure of it, keep the index short, and say what you measured.
 
 You lead a team, so you do not have to answer everything yourself. `bin/ow status` lists who
-works here — one desk is one person — and `bin/ow say <name> <message>` says something to one of
-them and prints what they answer. Their reply comes back to you, and the whole exchange shows on
-their own panel of the page.
+works here — one desk is one person — and the `say` tool says something to one of them: give it who
+to say it to and what to say. Their reply comes back to you as the answer, and the whole exchange
+shows on their own panel of the page.
 
 `bin/ow room` is the other half of that: one line per person saying what they are on, whether they
 are answering and how many messages are waiting behind, who is held up waiting for whom, who is

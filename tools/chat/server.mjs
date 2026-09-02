@@ -10,12 +10,14 @@ import { fileURLToPath } from "node:url";
 
 import { append, lastAt, panelDirectory, panelFile, read } from "./conversation.mjs";
 import { HOST, record } from "./listening.mjs";
+import { respond } from "./mcp.mjs";
 import { carry, overhear } from "./overheard.mjs";
 import { allow, answer as settle, giveUp, park, parked, refuse } from "./permissions.mjs";
-import { DESK_FILE, DeskError, WORK, archiveFor, deskTitle, hire, retire } from "../desks.mjs";
+import { DESK_FILE, DeskError, WORK, archiveFor, deskTitle, describeName, hire, isName, retire } from "../desks.mjs";
 import { ask, forget, hasThread, sessions } from "./session.mjs";
 import { inTurn, turnsGoing, waitingFor, whileWaitingFor, wouldWaitForItself } from "./turns.mjs";
 import { takeWord } from "./untold.mjs";
+import { version } from "../version.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PAGE = path.join(HERE, "page.html");
@@ -277,32 +279,27 @@ function leavingUnanswered(name, where) {
 // every panel and there is no path through here that only the lead can take.
 const SESSION_ROUTE = /^\/sessions\/([^/]+)\/(messages|message|permissions|permission|handover|leave)$/;
 
-async function postMessage(instance, name, request, response) {
-  let text;
-  let from;
-  try {
-    ({ text, from } = JSON.parse(await readBody(request)));
-  } catch (error) {
-    sendJson(response, 400, { error: error.message });
-    return;
-  }
-
+// Delivering a message to a session: everything between it arriving and the answer coming back,
+// whoever sent it and however it got in.
+//
+// One function, because there is more than one way in — the page and a terminal post it to the
+// route, a session calls it as a tool — and "the tool does exactly what the command does" is worth
+// nothing written down. Here it is the same thing because there is only one of it.
+//
+// `signed` is the name of the session sending it, or null for the human. It answers { status,
+// body }: what the route sends back, and what the tool reads its own answer out of.
+async function deliver(instance, name, text, signed) {
   if (typeof text !== "string" || text.trim() === "") {
-    sendJson(response, 400, { error: "a message needs some text" });
-    return;
+    return { status: 400, body: { error: "a message needs some text" } };
   }
 
-  // The page signs nothing, so an unsigned message is the person at the page or the person at a
-  // terminal — either way, the human. A signature naming nobody who works here is refused rather
-  // than passed on as the human's: a message arriving as somebody it is not is the one mistake
-  // this whole arrangement exists to prevent.
-  const signed = typeof from === "string" && from.trim() !== "" ? from.trim() : null;
+  // A signature naming nobody who works here is refused rather than passed on as the human's: a
+  // message arriving as somebody it is not is the one mistake this whole arrangement exists to
+  // prevent.
   const sender = signed === null ? null : (sessions(instance).find((session) => session.name === signed) ?? null);
   if (signed !== null && sender === null) {
-    sendJson(response, 400, { error: `nobody called ${signed} works here` });
-    return;
+    return { status: 400, body: { error: `nobody called ${signed} works here` } };
   }
-
   // A message that would close a circle is answered now rather than queued: the sender's own turn
   // is what the addressee is waiting for, so joining the queue would stop both of them for good.
   // The refusal is written into the sender's own transcript as well as returned, so somebody
@@ -310,8 +307,7 @@ async function postMessage(instance, name, request, response) {
   if (sender !== null && wouldWaitForItself(sender.name, name)) {
     const why = `${name} is waiting for your answer, so it cannot take a message until you have given it — say this in your reply instead`;
     append(instance.root, sender.name, { from: THE_CHAT, text: `not delivered to ${name}: ${why}`, failed: true });
-    sendJson(response, 409, { error: why });
-    return;
+    return { status: 409, body: { error: why } };
   }
 
   // The lead hears what was said on a panel it was not on, at the moment it is said.
@@ -380,11 +376,130 @@ async function postMessage(instance, name, request, response) {
   );
 
   if (answered.gone === true) {
-    sendJson(response, 409, { error: `${name} left before this could be delivered` });
+    return { status: 409, body: { error: `${name} left before this could be delivered` } };
+  }
+
+  return { status: 200, body: { message: answered.question, reply: answered.reply } };
+}
+
+async function postMessage(instance, name, request, response) {
+  let text;
+  let from;
+  try {
+    ({ text, from } = JSON.parse(await readBody(request)));
+  } catch (error) {
+    sendJson(response, 400, { error: error.message });
     return;
   }
 
-  sendJson(response, 200, { message: answered.question, reply: answered.reply });
+  // The page signs nothing, so an unsigned message is the person at the page or the person at a
+  // terminal — either way, the human.
+  const signed = typeof from === "string" && from.trim() !== "" ? from.trim() : null;
+
+  const { status, body } = await deliver(instance, name, text, signed);
+  sendJson(response, status, body);
+}
+
+// One path per session, and the name in it is who the caller IS.
+//
+// It is not a name the session can choose. The chat writes this address into the configuration it
+// starts that session with, out of the same name it puts in its environment, so what reaches here
+// is the workspace's word for who is calling and not the model's. A session cannot sign as
+// somebody else because it is never asked to sign at all.
+//
+// One path shape rather than one per kind of session, for the reason there is one spawn path
+// rather than one per kind: what a session may do is decided here, from its name, and not by
+// which door it was given.
+const TOOL_ROUTE = /^\/mcp\/([^/]+)$/;
+
+// What the server calls itself. It is the name in the configuration too, and therefore the first
+// half of every tool name a session sees — and of the one permission rule that grants them.
+const TOOLKIT = "office";
+
+// What a session may do here without composing a shell line.
+//
+// The standing limit: nothing that deletes, archives or spawns joins this list without being
+// designed in. The reason is the permission rule rather than the tools — a rule can name a server
+// but not an argument, so every tool here is granted the moment it appears, and adding a
+// destructive one is a change to what a session is allowed and not only to what it can reach.
+//
+// The description says what the tool refuses as well as what it does. Measured: a session that
+// cannot SEE a tool goes hunting for another way round the same thing and runs commands nobody
+// asked it to; one that can see it and reads why it would be refused does not call it at all.
+function toolsFor(instance, caller) {
+  return [
+    {
+      name: "say",
+      description:
+        "Say something to another session working here and wait for their answer, which comes back as the answer to this call. It arrives on their panel under your own name — taken from this workspace, never from anything you say — and it holds you for the whole of their turn. It reaches one session: there is no way to address everybody, and nothing here starts, ends or files anybody's work.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          to: { type: "string", description: "The name of the session to say it to." },
+          message: { type: "string", description: "What to say. Whatever it holds, it arrives exactly as written." },
+        },
+        required: ["to", "message"],
+        additionalProperties: false,
+      },
+      run: (args) => saidByTool(instance, caller, args),
+    },
+  ];
+}
+
+// The tool behind `say`, which is the command behind `say`: it hands what it was given to the one
+// function everything that delivers a message goes through, signed with the name from the path.
+//
+// The two refusals it makes for itself are the ones the route makes in `handle()` before a message
+// gets this far — a name nobody could have, and a name nobody here has. They are made here rather
+// than left to the delivery, because a turn started for somebody who does not work here would
+// answer "they left before this could be delivered", which is a different and untrue sentence.
+async function saidByTool(instance, caller, args) {
+  const to = args?.to;
+  if (!isName(to)) {
+    return { refused: describeName("to", to) };
+  }
+
+  const here = sessions(instance);
+  if (!here.some((session) => session.name === caller)) {
+    return { refused: `nobody called ${caller} works here` };
+  }
+  if (!here.some((session) => session.name === to)) {
+    return { refused: `nobody called ${to} works here` };
+  }
+
+  const answered = await deliver(instance, to, args?.message, caller);
+  if (answered.status !== 200) {
+    return { refused: answered.body.error };
+  }
+
+  return { text: answered.body.reply.text };
+}
+
+async function postTool(instance, caller, request, response) {
+  let asked;
+  try {
+    asked = JSON.parse(await readBody(request));
+  } catch (error) {
+    sendJson(response, 400, { error: error.message });
+    return;
+  }
+
+  const { status, body } = await respond(asked, {
+    name: TOOLKIT,
+    // What the toolkit is, said where a client asks who it is talking to. An instance from before
+    // the toolkit carried a version still answers, with the truth about itself.
+    version: version(instance.root) ?? "unknown",
+    tools: toolsFor(instance, caller),
+  });
+
+  // A notification is not answered. There is nothing to send, and sending an empty object would
+  // have a client pair it with a question it never asked.
+  if (body === null) {
+    response.writeHead(status).end();
+    return;
+  }
+
+  sendJson(response, status, body);
 }
 
 // Handing a session over: it writes its desk, and then the thread that has been answering is
@@ -656,6 +771,12 @@ async function handle(instance, request, response) {
 
   if (request.method === "POST" && url.pathname === "/sessions") {
     await postSessions(instance, request, response);
+    return;
+  }
+
+  const calling = TOOL_ROUTE.exec(url.pathname);
+  if (request.method === "POST" && calling !== null) {
+    await postTool(instance, decodeURIComponent(calling[1]), request, response);
     return;
   }
 

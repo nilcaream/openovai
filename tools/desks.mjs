@@ -30,15 +30,18 @@ export const WORKER_TEMPLATE = path.join("templates", "worker.md");
 // than looked up when it is read, so the file says "You are Superman, Mike's lead" outright.
 export const PERSONAS = "personas";
 
-// What every session in the instance may do to reach the others: run the instance's own command
-// to say something to one of them. One rule serves everybody, because these settings are the
-// instance's rather than anybody's — the same reason there is one file and not one per desk.
+// What every session in the instance may do to reach the others: call the tools the chat serves
+// it. One rule serves everybody, because these settings are the instance's rather than anybody's
+// in particular — the same reason there is one file and not one per desk.
 //
-// Both spellings of the same command, because the rule is a literal prefix rather than a path:
-// `./bin/ow say …` is the same command as `bin/ow say …` and would match neither the other's rule.
-// Telling a session which one to type works until the first time it types the other, and being
-// asked to approve a command it was told to run is a worse answer than a second narrow rule.
-export const SAY_RULES = ["Bash(bin/ow say:*)", "Bash(./bin/ow say:*)"];
+// One rule for the server and not one per tool, because that is the only shape there is: a
+// permission rule can name a server and a tool, never an argument. So a tool is granted the moment
+// the chat offers it, which is why what the chat offers is decided rather than added to.
+//
+// It replaces the pair of rules each of these commands used to need — a rule is a literal prefix
+// rather than a path, so `ow say …` and `./bin/ow say …` were two different rules for one command,
+// and a session that typed the other spelling stopped to be approved for doing as it was told.
+export const TOOL_RULES = ["mcp__office"];
 
 // And the one that tells a session who the others are. The personas name it — a lead is told
 // `bin/ow status` lists who works here — so without the rule a session stops and asks a person
@@ -46,7 +49,8 @@ export const SAY_RULES = ["Bash(bin/ow say:*)", "Bash(./bin/ow say:*)"];
 // looking at that panel. It reads and changes nothing, which is why it can be granted outright
 // where the rest of what a session might reach for cannot.
 //
-// Both spellings again, for the reason SAY_RULES gives: the rule is a literal prefix.
+// Both spellings of it, because a rule is a literal prefix rather than a path: `./bin/ow status`
+// is the same command as `bin/ow status` and would match neither the other's rule.
 export const STATUS_RULES = ["Bash(bin/ow status:*)", "Bash(./bin/ow status:*)"];
 
 // And the one that shows the lead the room: who is here, what each is on, which of them is
@@ -335,10 +339,11 @@ export function hire(root, name, panel, { human, leader }) {
   ];
 }
 
-// The right to say something to the others. Granted once, when the instance is made, rather than
-// per person: it names no desk, so a second copy of it would grant nothing a first one had not.
-export function allowSay(root) {
-  return SAY_RULES.flatMap((rule) => allow(root, rule));
+// The right to use the tools the chat serves, saying something to another session among them.
+// Granted once, when the instance is made, rather than per person: it names no desk, so a second
+// copy of it would grant nothing a first one had not.
+export function allowTools(root) {
+  return TOOL_RULES.flatMap((rule) => allow(root, rule));
 }
 
 // The right to see who else works here. Granted once with the rest, for the same reason: it

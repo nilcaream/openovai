@@ -16,8 +16,8 @@ import {
   DeskError,
   allowDesk,
   allowRoom,
-  allowSay,
   allowStatus,
+  allowTools,
   describeName,
   isName,
   readTemplate,
@@ -394,7 +394,7 @@ function main(argv) {
         HUMAN: plan.human,
       }),
       ...allowDesk(plan.root, plan.leader),
-      ...allowSay(plan.root),
+      ...allowTools(plan.root),
       ...allowStatus(plan.root),
       ...allowRoom(plan.root),
     ]);

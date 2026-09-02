@@ -419,6 +419,19 @@ describe("hiring a worker", () => {
     assert.match(persona, /the memory is the workspace/);
   });
 
+  // How a worker reaches anybody else here. It is a tool rather than a command because the message
+  // is free text: composed as a shell line, an apostrophe in it ends the quoting and a backtick is
+  // run instead of sent.
+  it("tells the worker how to say something to somebody", () => {
+    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    assert.match(persona, /The `say` tool is also how you reach anybody else here/);
+  });
+
+  it("does not tell the worker to type the command it replaced", () => {
+    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    assert.ok(!persona.includes("ow say"));
+  });
+
   it("tells the worker its header holds nothing else", () => {
     const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
     assert.match(persona, /header holds nothing else/);

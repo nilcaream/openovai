@@ -3104,3 +3104,206 @@ describe("stopping the chat", () => {
     });
   }
 });
+
+// The instance's own commands, called as tools rather than typed as shell lines.
+//
+// Everything here is posted to the endpoint a session is handed the address of when it starts. The
+// name in the path is who the caller IS — the chat puts it there — which is what lets a check post
+// as a session at all, and is the whole of how a message arrives signed.
+describe("a session calls the tools the chat serves it", () => {
+  const toolLog = path.join(standIn, "tool-calls.txt");
+
+  // Everything a shell line cannot carry, in one message: an apostrophe, which ends the quoting; a
+  // backtick, which is run and its output sent instead of what was written; a real newline; and a
+  // pipe, a hash and a bare $HOME, each of which means something to a shell and nothing here.
+  const AWKWARD = "it's `two` lines\nand a $HOME | a # of its own";
+
+  function call(as, method, params) {
+    return post(`${URL}/mcp/${as}`, {
+      jsonrpc: "2.0",
+      id: 1,
+      method,
+      ...(params === undefined ? {} : { params }),
+    });
+  }
+
+  // What a tool call answered, in the three shapes a caller has to tell apart: what it said, and
+  // whether it was a refusal — which is an answer — or a protocol error, which is not.
+  function answerOf(said) {
+    const body = JSON.parse(said.body);
+    return {
+      text: body.result?.content?.[0]?.text,
+      refused: body.result?.isError === true,
+      error: body.error ?? null,
+    };
+  }
+
+  async function messagesOf(name) {
+    return JSON.parse((await transcriptOf(name)).body).messages;
+  }
+
+  before(async () => {
+    await start(instance, standInEnvironment(standIn, toolLog));
+    assert.ok(await waitForHealth(URL), "the server never came back");
+  });
+
+  it("offers say among the tools it serves", async () => {
+    const { tools } = JSON.parse((await call(WORKER, "tools/list")).body).result;
+    assert.ok(tools.some((tool) => tool.name === "say"));
+  });
+
+  it("says what say takes", async () => {
+    const { tools } = JSON.parse((await call(WORKER, "tools/list")).body).result;
+    assert.deepEqual(tools.find((tool) => tool.name === "say").inputSchema.required, ["to", "message"]);
+  });
+
+  // The description is what a session reads before it decides whether to call. Measured: a session
+  // that cannot see a tool goes looking for another way round the same thing, where one that can
+  // see it and reads what it will not do simply does not call it.
+  it("says in the description what the tool will not do", async () => {
+    const { tools } = JSON.parse((await call(WORKER, "tools/list")).body).result;
+    assert.match(tools.find((tool) => tool.name === "say").description, /nothing here starts, ends or files/);
+  });
+
+  it("says what it is when asked", async () => {
+    const { result } = JSON.parse((await call(WORKER, "initialize", { protocolVersion: "2025-06-18" })).body);
+    assert.equal(result.serverInfo.name, "office");
+  });
+
+  it("answers in the version the caller asked for", async () => {
+    const { result } = JSON.parse((await call(WORKER, "initialize", { protocolVersion: "2024-11-05" })).body);
+    assert.equal(result.protocolVersion, "2024-11-05");
+  });
+
+  it("says so when asked for something it does not serve", async () => {
+    assert.equal(answerOf(await call(WORKER, "tools/rename")).error.code, -32601);
+  });
+
+  describe("one session says something to another", () => {
+    let answered;
+
+    before(async () => {
+      answered = answerOf(await call(LEADER, "tools/call", { name: "say", arguments: { to: WORKER, message: AWKWARD } }));
+    });
+
+    it("delivers it to the panel of whoever it was said to", async () => {
+      assert.ok((await messagesOf(WORKER)).some((message) => message.text === AWKWARD));
+    });
+
+    // The whole point of the feature, and the reason it is a tool: every character of it survives,
+    // including the three a shell would have eaten before it ever left the session.
+    it("keeps every character of what was said", async () => {
+      const said = (await messagesOf(WORKER)).find((message) => message.text.includes("two"));
+      assert.equal(said.text, AWKWARD);
+    });
+
+    it("hands the answer back to whoever called", () => {
+      assert.match(answered.text, /a reply/);
+    });
+
+    it("puts it under the name of whoever called", async () => {
+      assert.equal((await messagesOf(WORKER)).find((message) => message.text === AWKWARD).from, LEADER);
+    });
+
+    // The name comes from the path the chat gave this session and from nothing it says. A session
+    // that names somebody else is still itself: there is no argument here that could sign it.
+    it("signs it with who called and not with what they said", async () => {
+      const claimed = "signed by nobody";
+      await call(WORKER, "tools/call", {
+        name: "say",
+        arguments: { to: LEADER, message: claimed, from: LEADER, caller: LEADER },
+      });
+      assert.equal((await messagesOf(LEADER)).find((message) => message.text === claimed).from, WORKER);
+    });
+  });
+
+  describe("what it refuses", () => {
+    it("refuses to say it to somebody who does not work here", async () => {
+      const said = answerOf(await call(LEADER, "tools/call", { name: "say", arguments: { to: "Nobody", message: "hello" } }));
+      assert.ok(said.refused);
+      assert.match(said.text, /nobody called Nobody works here/);
+    });
+
+    // A refusal is a refusal all the way down: nothing was delivered anywhere, so nothing was
+    // written down anywhere either. Read on the caller's own panel, which is where a message that
+    // could not be delivered leaves its line.
+    it("writes nothing down when it refuses", async () => {
+      const before = (await messagesOf(LEADER)).length;
+      await call(LEADER, "tools/call", { name: "say", arguments: { to: "Nobody", message: "hello" } });
+      assert.equal((await messagesOf(LEADER)).length, before);
+    });
+
+    it("refuses to say nothing", async () => {
+      const said = answerOf(await call(LEADER, "tools/call", { name: "say", arguments: { to: WORKER, message: "" } }));
+      assert.ok(said.refused);
+      assert.match(said.text, /needs some text/);
+    });
+
+    it("refuses a name nobody could have", async () => {
+      const said = answerOf(
+        await call(LEADER, "tools/call", { name: "say", arguments: { to: "../elsewhere", message: "hello" } }),
+      );
+      assert.match(said.text, /must start with a letter/);
+    });
+
+    // The other half of the signature: a path naming somebody who does not work here is not a
+    // caller, whatever it asks for. Nothing in the instance writes such an address, so this is the
+    // check that says what happens when something else posts one.
+    it("refuses a caller who does not work here", async () => {
+      const said = answerOf(await call("Nobody", "tools/call", { name: "say", arguments: { to: WORKER, message: "hello" } }));
+      assert.ok(said.refused);
+      assert.match(said.text, /nobody called Nobody works here/);
+    });
+
+    it("says so when asked for a tool it does not serve", async () => {
+      const said = answerOf(await call(WORKER, "tools/call", { name: "archive", arguments: {} }));
+      assert.ok(said.refused);
+      assert.match(said.text, /no archive tool/);
+    });
+  });
+
+  describe("what a session is started with", () => {
+    before(async () => {
+      await say("something to answer", WORKER);
+    });
+
+    // The address carries this session's own name, which is what makes the signature the chat's
+    // word rather than the model's. Passed as the configuration itself and not as a file: the port
+    // is only known once the chat has bound one, and a file written before that is a lie.
+    it("hands a session the address of the tools under its own name", () => {
+      assert.match(callsIn(toolLog).at(-1), new RegExp(`--mcp-config .*/mcp/${WORKER}`));
+    });
+  });
+
+  // The chat can be stopped and started again in the middle of a session's thread — it is how the
+  // toolkit is taken to a newer version — and the tools have to be there afterwards without the
+  // session knowing anything happened. Nothing is remembered between requests, which is what makes
+  // that true; a server holding a handshake would meet the next call as a stranger.
+  //
+  // Both states are reached here on purpose: the introduction is made to one process and the call
+  // is answered by another. A check that introduced itself and called in the same breath would
+  // pass just as happily with the whole thing remembered.
+  describe("the chat is stopped and started again under a session", () => {
+    let answered;
+
+    const servingNow = () => JSON.parse(fs.readFileSync(path.join(instance, "chat", "listening.json"), "utf8")).pid;
+
+    before(async () => {
+      await call(LEADER, "initialize", { protocolVersion: "2025-06-18" });
+      const introduced = servingNow();
+      await start(instance, standInEnvironment(standIn, toolLog));
+      assert.ok(await waitForHealth(URL), "the server never came back");
+      // Said out loud, because the whole check rests on it: the process answering below is not the
+      // one that was introduced to above. Without this the two states are the same state.
+      assert.notEqual(servingNow(), introduced, "the same process answered, so nothing was proven");
+      answered = answerOf(
+        await call(LEADER, "tools/call", { name: "say", arguments: { to: WORKER, message: "still here?" } }),
+      );
+    });
+
+    it("answers a call the process it introduced itself to never saw", async () => {
+      assert.ok(!answered.refused, `the call was refused: ${answered.text}`);
+      assert.ok((await messagesOf(WORKER)).some((message) => message.text === "still here?"));
+    });
+  });
+});

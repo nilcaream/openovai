@@ -47,8 +47,7 @@ export function configProblems(file, expected) {
 export function settingsProblems(file, names) {
   const expected = [
     ...names.map((name) => `Edit(work/${name}/STATE.md)`),
-    "Bash(bin/ow say:*)",
-    "Bash(./bin/ow say:*)",
+    "mcp__office",
     "Bash(bin/ow status:*)",
     "Bash(./bin/ow status:*)",
     "Bash(bin/ow room:*)",
