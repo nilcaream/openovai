@@ -64,6 +64,12 @@ export function wouldWaitForItself(sender, addressee) {
 // Note that a session is waiting for another to answer, for as long as it is. The caller says who
 // it is; a message nobody signed is the human's, and the human is not a session that can be waited
 // for, so nothing is recorded for one.
+//
+// That last guard has no behaviour anybody can observe — measured, by taking it out: the map is
+// keyed by whoever is waiting, so an unsigned message would put a null key in and take it out
+// again, and no reader is any the wiser. It is kept because a map of session names should not
+// quietly hold something that is not one, and it is written down here so that nobody spends
+// another mutation finding out it changes nothing.
 export async function whileWaitingFor(sender, addressee, wait) {
   if (sender === null) {
     return wait();
@@ -77,11 +83,23 @@ export async function whileWaitingFor(sender, addressee, wait) {
   }
 }
 
-// Whether this session has a turn going. Counted from the moment a message is taken rather than
-// from the moment a run starts, so a page asking a fraction of a second after somebody typed is
-// told the truth.
-export function midTurn(name) {
-  return going.has(name);
+// How many turns this session has going: the one being answered, plus any waiting behind it.
+// Counted from the moment a message is taken rather than from the moment a run starts, so a page
+// asking a fraction of a second after somebody typed is told the truth.
+//
+// The COUNT is what leaves here, not a yes or no. A panel only wants to know whether it is its
+// turn yet, but somebody deciding whom to talk to wants to know how deep the pile is, and a
+// boolean cannot be turned back into that. Both readings are worked out from this one number, so
+// there is nothing that can disagree with itself.
+export function turnsGoing(name) {
+  return going.get(name) ?? 0;
+}
+
+// Who this session's turn is waiting for an answer from, or nobody. The map is written while a
+// session waits and cleared when it stops waiting, so this is the whole of it — and because a
+// session runs one turn at a time, there is at most one answer.
+export function waitingFor(name) {
+  return waitingOn.get(name) ?? null;
 }
 
 export function inTurn(name, answer) {

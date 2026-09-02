@@ -14,7 +14,7 @@ import { carry, overhear } from "./overheard.mjs";
 import { allow, answer as settle, giveUp, park, parked, refuse } from "./permissions.mjs";
 import { DESK_FILE, WORK } from "../desks.mjs";
 import { ask, forget, sessions } from "./session.mjs";
-import { inTurn, midTurn, whileWaitingFor, wouldWaitForItself } from "./turns.mjs";
+import { inTurn, turnsGoing, waitingFor, whileWaitingFor, wouldWaitForItself } from "./turns.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PAGE = path.join(HERE, "page.html");
@@ -348,6 +348,33 @@ async function postPermission(name, request, response) {
   sendJson(response, 200, { answered: id, decision });
 }
 
+// One row about one session: who they are, and everything that is true of them right now.
+//
+// It is one route rather than one per question, and the page asks for it on a tick it was already
+// running. Whoever is looking at a workspace wants the same handful of things about everybody at
+// once — who is here, what each is on, which of them is mid-turn, how big each conversation has
+// grown — and asking for those one at a time is a request per person per question.
+//
+// Two lifetimes meet on this row and it is worth knowing which is which. How many turns are going,
+// who is waiting for whom and what is waiting to be allowed live in THIS process and are gone when
+// it restarts; what a session is called and how big its thread is are on disk and are not. A chat
+// that has just been started correctly says nobody is busy.
+function everySession(session) {
+  const going = turnsGoing(session.name);
+
+  return {
+    ...session,
+    // Whether it is this panel's turn yet: waiting to be answered and being answered are the same
+    // thing to somebody typing into it.
+    busy: going > 0,
+    // And how many are behind the one being answered, which is the part a panel cannot show.
+    queued: Math.max(going - 1, 0),
+    // Who it is held waiting on, if anybody. A session whose turn is waiting for another session's
+    // answer is not slow, it is blocked, and the two look identical from outside.
+    waitingFor: waitingFor(session.name),
+  };
+}
+
 async function handle(instance, request, response) {
   const url = new URL(request.url, `http://${HOST}`);
 
@@ -366,13 +393,7 @@ async function handle(instance, request, response) {
   }
 
   if (request.method === "GET" && url.pathname === "/sessions") {
-    // Who works here, and which of them is in the middle of a turn. The second part is why the
-    // page asks again rather than only at load: a session is put to work by another session as
-    // well as by the person at the page, and a panel that says nothing while that happens reads
-    // as a panel nobody is listening on.
-    sendJson(response, 200, {
-      sessions: sessions(instance).map((session) => ({ ...session, busy: midTurn(session.name) })),
-    });
+    sendJson(response, 200, { sessions: sessions(instance).map((session) => everySession(session)) });
     return;
   }
 

@@ -972,6 +972,116 @@ describe("what the page is told about a session mid-turn", () => {
   });
 });
 
+// How deep the pile behind a session is, and who is holding it up.
+//
+// `busy` answers the panel's question — is it my turn yet — and cannot answer either of these. A
+// session answering with two more waiting looks exactly like one answering with nothing behind it,
+// and a session blocked on somebody else's answer looks exactly like one thinking hard. Both are
+// worked out from the same count the busy sign is, so there is nothing that can disagree.
+//
+// Every check here needs the wrong answer to be observably wrong, which means holding the session
+// in the state being asked about: a slow run, and a second message sent while the first is still
+// going. An idle session cannot tell any of these apart.
+describe("what the page is told about the pile behind a session", () => {
+  const pileLog = path.join(standIn, "pile.txt");
+  let alone;
+  let piled;
+  let drained;
+
+  async function stateOf(name) {
+    const { sessions: rows } = JSON.parse((await get(`${URL}/sessions`)).body);
+    return rows.find((row) => row.name === name) ?? null;
+  }
+
+  before(async () => {
+    await start(instance, standInEnvironment(standIn, pileLog, { OW_STAND_IN_SLOW: "1500" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    // Neither is awaited: the first has to still be going when the second arrives, or there is
+    // never a pile to be asked about and every check below passes on an idle session.
+    const answering = say("the one being answered", WORKER);
+    alone = await waitFor(async () => {
+      const row = await stateOf(WORKER);
+      return row?.busy === true ? row : null;
+    });
+
+    const behind = say("the one behind it", WORKER);
+    piled = await waitFor(async () => {
+      const row = await stateOf(WORKER);
+      return row?.queued === 1 ? row : null;
+    });
+
+    await Promise.all([answering, behind]);
+    drained = await stateOf(WORKER);
+  });
+
+  it("says nothing is waiting when one turn is going on its own", () => {
+    assert.deepEqual([alone?.busy, alone?.queued], [true, 0]);
+  });
+
+  it("says how many are waiting behind the one being answered", () => {
+    assert.equal(piled?.queued, 1);
+  });
+
+  it("still says the session is busy while they are waiting", () => {
+    assert.equal(piled?.busy, true);
+  });
+
+  it("says nothing is waiting once the pile has gone", () => {
+    assert.deepEqual([drained.busy, drained.queued], [false, 0]);
+  });
+});
+
+// Who is held up by whom. The lead asks a worker something from inside its own turn and is stopped
+// there for the whole of the worker's — which from outside is indistinguishable from a lead taking
+// a long time to think, and is the difference between somebody to chase and somebody to leave be.
+describe("what the page is told about who is waiting for whom", () => {
+  const heldLog = path.join(standIn, "held.txt");
+  let held;
+  let afterwards;
+
+  async function stateOf(name) {
+    const { sessions: rows } = JSON.parse((await get(`${URL}/sessions`)).body);
+    return rows.find((row) => row.name === name) ?? null;
+  }
+
+  before(async () => {
+    // The lead really runs the instance's own command from inside its turn, and the worker takes
+    // its time answering — so the lead is genuinely stopped, and stopped long enough for the row
+    // to be read while it is. Without the slow worker the wait is over before anything can look.
+    await start(
+      instance,
+      standInEnvironment(standIn, heldLog, {
+        OW_STAND_IN_CALLS: `${LEADER}>${WORKER}`,
+        OW_STAND_IN_SLOW: "1500",
+      }),
+    );
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    const asking = say("go and ask him", LEADER);
+    held = await waitFor(async () => {
+      const row = await stateOf(LEADER);
+      return row?.waitingFor === WORKER ? row : null;
+    });
+    const alongside = await stateOf(WORKER);
+    await asking;
+    afterwards = await stateOf(LEADER);
+    held = { lead: held, worker: alongside };
+  });
+
+  it("names who the lead is waiting for while it is waiting", () => {
+    assert.equal(held.lead?.waitingFor, WORKER);
+  });
+
+  it("says the worker it is waiting for is not itself waiting for anybody", () => {
+    assert.equal(held.worker?.waitingFor ?? null, null);
+  });
+
+  it("stops naming anybody once the answer has come back", () => {
+    assert.equal(afterwards.waitingFor, null);
+  });
+});
+
 describe("one session waiting does not hold up another", () => {
   const bothLog = path.join(standIn, "both.txt");
 
