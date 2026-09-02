@@ -366,6 +366,18 @@ describe("hiring a worker", () => {
     assert.match(persona, /Keep it saying what you are on/);
   });
 
+  // The desk is one task and goes away with it; the memory is the workspace. A session that does
+  // not know the difference files a durable fact where the next person will never look.
+  it("tells the worker that everybody here reads what the workspace has learned", () => {
+    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    assert.match(persona, /everybody\s+here reads the same thing/);
+  });
+
+  it("tells the worker what belongs in the memory rather than on the desk", () => {
+    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    assert.match(persona, /the memory is the workspace/);
+  });
+
   it("tells the worker its header holds nothing else", () => {
     const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
     assert.match(persona, /header holds nothing else/);

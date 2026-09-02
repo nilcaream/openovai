@@ -143,6 +143,26 @@ function desk(name) {
   return path.posix.join(WORK, name, DESK_FILE);
 }
 
+// What a session is asked for at the two moments a thread ends: anything it worked out that the
+// next one would otherwise work out again.
+//
+// It rides on the handover and the leave rather than on every turn. The title ask can sit on every
+// turn because it is self-limiting — it stops the moment the field is filled — and "have you learned
+// anything" has no such condition, so asking it always would be a sentence in every turn forever. A
+// thread ending is the only moment something is actually about to be lost.
+//
+// It names the memory rather than describing it. Claude Code puts what the workspace has learned in
+// front of every session before it is asked anything, and adding to it takes a Write and no
+// permission this instance has to grant. So a session already has both the file and the hands, and
+// what was missing was being asked.
+//
+// One sentence, inside the wrapper, after the desk. The desk is this task and the memory is the
+// workspace; a session that runs out of turn loses the desk, which is the right one to lose.
+const WHAT_WAS_LEARNED =
+  "Anything you worked out here that the next person would otherwise work out again — how something" +
+  " works, a trap, a decision and the argument that took it — put in your memory, which every session" +
+  " after you reads before it is asked anything; the desk is this task, the memory is the workspace.";
+
 // What a session is asked to do before its thread is ended.
 //
 // A wrapper, for the reason `wrap` is one: what is left OUTSIDE every wrapper is the human
@@ -159,8 +179,8 @@ function handoverWrapper(name) {
     `what you remember. Write ${desk(name)} so that session can carry on with nothing lost: what`,
     `the task is, what is true right now, what to do next, and what has already been settled so it`,
     `is not worked out twice. Leave the header's title: saying what this desk is on, so the rest of`,
-    `us can see it without opening this panel. Then say in one line that you are ready. Start`,
-    `nothing new.</handover>`,
+    `us can see it without opening this panel. ${WHAT_WAS_LEARNED} Then say in one line that you`,
+    `are ready. Start nothing new.</handover>`,
   ].join(" ");
 }
 
@@ -201,8 +221,8 @@ function leaveWrapper(name) {
     `<leave>You are leaving this workspace, and this desk is being put away. Write ${desk(name)} as`,
     `the record of what was done: what the task was, where it ended, what was settled, and what`,
     `anybody picking it up later would need. Leave the header's title: saying what this desk was on`,
-    `— it is the name this desk is filed under. Then say in one line that you are ready to leave.`,
-    `Start nothing new.</leave>`,
+    `— it is the name this desk is filed under. ${WHAT_WAS_LEARNED} Then say in one line that`,
+    `you are ready to leave. Start nothing new.</leave>`,
   ].join(" ");
 }
 

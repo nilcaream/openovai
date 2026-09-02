@@ -2174,6 +2174,14 @@ describe("a session leaving", () => {
     assert.match(asked ?? "", /header's title:/);
   });
 
+  it("asks it for what it worked out that the next person would work out again", () => {
+    assert.match(asked ?? "", /memory/);
+  });
+
+  it("asks for it inside the wrapper rather than after it", () => {
+    assert.match(asked ?? "", /<leave>[\s\S]*memory[\s\S]*<\/leave>/);
+  });
+
   it("wraps what it asks, so nothing reaches the session as though the human had typed it", () => {
     assert.match(asked ?? "", /^<leave>[\s\S]*<\/leave>/);
   });
@@ -2444,6 +2452,23 @@ describe("handing a session over", () => {
   it("asks the session to leave its header title saying what the desk is on", () => {
     const asked = questionsIn(handoverLog).find((question) => question.includes("<handover>"));
     assert.match(asked ?? "", /header's title:/);
+  });
+
+  // A thread ending is the moment anything the session worked out is about to be lost with it, so
+  // it is asked for that too — not only for the desk, which is this task, but for the memory, which
+  // is the workspace and outlives the desk.
+  it("asks the session for what it worked out that the next one would work out again", () => {
+    const asked = questionsIn(handoverLog).find((question) => question.includes("<handover>"));
+    assert.match(asked ?? "", /memory/);
+  });
+
+  // Inside the wrapper, not after it. The wrapping check below is a match rather than the whole
+  // string, so an ask appended after the closing tag passes it — and an instruction from the chat
+  // arriving outside a wrapper is the human's words, which is the one guarantee here that must not
+  // be got wrong. Written as one expression so it cannot pass with the ask missing altogether.
+  it("asks for it inside the wrapper rather than after it", () => {
+    const asked = questionsIn(handoverLog).find((question) => question.includes("<handover>"));
+    assert.match(asked ?? "", /<handover>[\s\S]*memory[\s\S]*<\/handover>/);
   });
 
   it("wraps what it asks, so nothing reaches the session as though the human had typed it", () => {

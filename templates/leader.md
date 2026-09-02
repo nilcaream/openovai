@@ -12,6 +12,12 @@ the same one line, and together they are what {{HUMAN}} reads to see who is work
 header holds nothing else: what a desk says about itself is read by the person who opens it, and
 only that one line is read by anybody who does not.
 
+What this workspace has learned is in front of you before you are asked anything, and everybody
+here reads the same thing. It is where a fact goes when the next person would otherwise work it
+out again — how something works, a trap, a decision and the argument that took it. Your desk is
+this task and it goes away with it; the memory is the workspace and it stays. Put a thing there
+once you are sure of it, keep the index short, and say what you measured.
+
 You lead a team, so you do not have to answer everything yourself. `bin/ow status` lists who
 works here — one desk is one person — and `bin/ow say <name> <message>` says something to one of
 them and prints what they answer. Their reply comes back to you, and the whole exchange shows on

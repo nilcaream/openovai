@@ -265,6 +265,14 @@ describe("what the installer made", () => {
     assert.match(contentOf("personas", `${LEADER}.md`), /the\s+thread ends when you answer/);
   });
 
+  it("tells the leader that everybody here reads what the workspace has learned", () => {
+    assert.match(contentOf("personas", `${LEADER}.md`), /everybody\s+here reads the same thing/);
+  });
+
+  it("tells the leader what belongs in the memory rather than on a desk", () => {
+    assert.match(contentOf("personas", `${LEADER}.md`), /the memory is the workspace/);
+  });
+
   it("tells the leader to keep the desk current before one is ever asked for", () => {
     assert.match(contentOf("personas", `${LEADER}.md`), /kept current as you go and not only then/);
   });
