@@ -38,3 +38,23 @@ export function append(root, session, message) {
   fs.writeFileSync(target, `${JSON.stringify(messages, null, 2)}\n`);
   return entry;
 }
+
+// When anything last happened on this panel, or nothing if nothing ever has.
+//
+// The file is rewritten whole on every message and every reply, so its modified time IS that
+// moment — one stat, and nothing to parse. The entries carry their own stamps, but reading those
+// means reading a conversation that is never trimmed, on every poll, to answer a question the
+// filesystem has already answered.
+//
+// This clock and not the thread's. `chat/<Name>/session.json` is rewritten on every answer, so
+// its time is when the session last RAN — but ending a thread deletes that file, so a session
+// handed over ten seconds ago would read as having never done anything, at exactly the moment
+// somebody is deciding what to do with it. This one survives a handover, exists for everybody who
+// has ever been spoken to, and answers the question that was actually asked.
+export function lastAt(root, session) {
+  try {
+    return new Date(fs.statSync(file(root, session)).mtimeMs).toISOString();
+  } catch {
+    return null;
+  }
+}

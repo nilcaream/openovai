@@ -8,12 +8,12 @@ import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { append, read } from "./conversation.mjs";
+import { append, lastAt, read } from "./conversation.mjs";
 import { HOST, record } from "./listening.mjs";
 import { carry, overhear } from "./overheard.mjs";
 import { allow, answer as settle, giveUp, park, parked, refuse } from "./permissions.mjs";
 import { DESK_FILE, WORK } from "../desks.mjs";
-import { ask, forget, sessions } from "./session.mjs";
+import { ask, forget, hasThread, sessions } from "./session.mjs";
 import { inTurn, turnsGoing, waitingFor, whileWaitingFor, wouldWaitForItself } from "./turns.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -359,7 +359,7 @@ async function postPermission(name, request, response) {
 // who is waiting for whom and what is waiting to be allowed live in THIS process and are gone when
 // it restarts; what a session is called and how big its thread is are on disk and are not. A chat
 // that has just been started correctly says nobody is busy.
-function everySession(session) {
+function everySession(instance, session) {
   const going = turnsGoing(session.name);
 
   return {
@@ -372,6 +372,16 @@ function everySession(session) {
     // Who it is held waiting on, if anybody. A session whose turn is waiting for another session's
     // answer is not slow, it is blocked, and the two look identical from outside.
     waitingFor: waitingFor(session.name),
+    // And what it is waiting to be ALLOWED to do, which is a session held up by a person rather
+    // than by another session. Today that is visible only on the panel it happened on, which is
+    // the one place somebody looking for who needs them is not looking.
+    asking: parked(session.name).length,
+    // Whether there is a conversation to carry on. Not `context !== null`: a run that reported no
+    // usage is remembered without a reading, so a live thread and no thread look the same there.
+    thread: hasThread(instance.root, session.name),
+    // When anything last happened on its panel. A fact and not a verdict — nothing here knows
+    // whether a quiet session is finished, stuck or merely quiet, and the person reading does.
+    active: lastAt(instance.root, session.name),
   };
 }
 
@@ -393,7 +403,7 @@ async function handle(instance, request, response) {
   }
 
   if (request.method === "GET" && url.pathname === "/sessions") {
-    sendJson(response, 200, { sessions: sessions(instance).map((session) => everySession(session)) });
+    sendJson(response, 200, { sessions: sessions(instance).map((session) => everySession(instance, session)) });
     return;
   }
 

@@ -62,6 +62,15 @@ export function contextIn(root, name) {
   }
 }
 
+// Whether this session has a conversation to carry on, which is not the same question as how big
+// it is. A run that reported no usage is remembered with `context: null`, and so is a session
+// that has never answered at all — so a reading of null cannot tell a live thread from no thread,
+// and only the id can. The id itself stays in here: what a page or a command wants to know is
+// whether there is one.
+export function hasThread(root, name) {
+  return remembered(root, name) !== null;
+}
+
 // End a thread. The file is the whole of a session's memory between processes, so removing it is
 // the whole of starting a new conversation on the same desk: the desk, the persona, the permission
 // rule and the panel are all untouched, and the next run has nothing to resume.

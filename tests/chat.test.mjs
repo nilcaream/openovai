@@ -1612,6 +1612,167 @@ describe("how much of itself a session is carrying", () => {
 // These run on a desk of their own, opened here, so that ending its thread cannot disturb what the
 // rest of the suite is in the middle of. A desk opened while the chat runs is somebody it can host
 // from that moment, which is why this needs no restart.
+const SPEAKS = "Wren";
+const SILENT = "Jay";
+const UNMEASURED = "Fern";
+
+// Whether a session has a conversation to carry on, and when anything last happened on its panel.
+//
+// The two are read from different files on purpose and neither can stand in for the other. A
+// thread is a session.json with an id in it; a panel's clock is the conversation file's modified
+// time. The interesting session is the one that has just been handed over, because that is where
+// every cheaper answer goes wrong: it has a full panel and no thread, and its session.json — the
+// obvious place to read a time from — has just been deleted.
+describe("what the page is told about a session's thread and when it last moved", () => {
+  const threadLog = path.join(standIn, "thread.txt");
+  let never;
+  let spoken;
+  let unmeasured;
+  let handed;
+  let before1;
+  let before2;
+  let panel;
+
+  async function stateOf(name) {
+    const { sessions: rows } = JSON.parse((await get(`${URL}/sessions`)).body);
+    return rows.find((row) => row.name === name) ?? null;
+  }
+
+  before(async () => {
+    runTool(instance, ["hire", SPEAKS], process.env);
+    runTool(instance, ["hire", SILENT], process.env);
+    runTool(instance, ["hire", UNMEASURED], process.env);
+
+    // First, a session whose run says nothing about how big it got. It is the state where having
+    // a thread and having a reading come apart, and without it every cheaper answer to "has a
+    // thread" agrees with the right one and nothing here would be proving anything.
+    await start(instance, standInEnvironment(standIn, threadLog));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    await say("something, and nothing about the size of it", UNMEASURED);
+    unmeasured = await stateOf(UNMEASURED);
+
+    await start(instance, standInEnvironment(standIn, threadLog, { OW_STAND_IN_USAGE: "4000" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    never = await stateOf(SILENT);
+
+    await say("the first thing anybody said here", SPEAKS);
+    before1 = (await stateOf(SPEAKS)).active;
+
+    // A second message, so the clock has somewhere to move to. Two appends within the same
+    // millisecond would make a moving clock and a stuck one look identical, and the run in
+    // between takes longer than that.
+    await say("and a second thing", SPEAKS);
+    spoken = await stateOf(SPEAKS);
+    before2 = spoken.active;
+
+    await post(`${URL}/sessions/${SPEAKS}/handover`, {});
+    handed = await stateOf(SPEAKS);
+    panel = JSON.parse((await transcriptOf(SPEAKS)).body).messages;
+  });
+
+  it("says a session that has answered has a thread", () => {
+    assert.equal(spoken.thread, true);
+  });
+
+  it("says a session nobody has spoken to has none", () => {
+    assert.equal(never.thread, false);
+  });
+
+  // Ada's trap, and the reason this is its own field. A run that reported no usage is remembered
+  // with no reading, so `context` is null here — exactly as it is for a session with no thread at
+  // all. Anything that reads the reading to answer this question gets this one wrong.
+  it("says a session has a thread even when nothing was reported about its size", () => {
+    assert.deepEqual([unmeasured.thread, unmeasured.context], [true, null]);
+  });
+
+  // The one the cheaper answer gets wrong. `context` is null for a session that has no thread AND
+  // for a run that reported no usage, so it cannot be read as this — and here the panel is full,
+  // which is what makes a session with nothing to resume look like an ordinary one.
+  it("says a session that was handed over has no thread, though its panel is not empty", () => {
+    assert.equal(handed.thread, false);
+    assert.ok(panel.length > 0);
+  });
+
+  it("says when a session's panel last moved", () => {
+    assert.ok(!Number.isNaN(Date.parse(spoken.active)));
+  });
+
+  it("moves that time on when something else is said", () => {
+    assert.ok(Date.parse(before2) > Date.parse(before1));
+  });
+
+  // The check the choice of clock rests on. The session ran a moment ago and its panel says so;
+  // reading the time off the thread's own file would say it had never done anything at all,
+  // because ending a thread deletes that file.
+  it("still says when a handed-over session's panel last moved", () => {
+    assert.ok(!Number.isNaN(Date.parse(handed.active)));
+    assert.ok(Date.parse(handed.active) >= Date.parse(before2));
+  });
+
+  it("says nothing at all about a session nobody has spoken to", () => {
+    assert.equal(never.active, null);
+  });
+});
+
+// What a session is waiting to be ALLOWED to do. It is held up by a person rather than by another
+// session, and until now that was visible only on the panel it happened on — which is the one
+// place somebody looking for who needs them is not looking.
+describe("what the page is told about a session waiting to be allowed", () => {
+  const askingLog = path.join(standIn, "asking.txt");
+  let quiet;
+  let stopped;
+  let answered;
+
+  async function stateOf(name) {
+    const { sessions: rows } = JSON.parse((await get(`${URL}/sessions`)).body);
+    return rows.find((row) => row.name === name) ?? null;
+  }
+
+  before(async () => {
+    // It parks a request and then, once it has been answered, takes its time finishing — so there
+    // is a stretch where the request is settled and the turn is still going. Without it, "stopped
+    // counting" could not be told apart from "the turn ended", which is a check that passes by
+    // waiting.
+    await start(
+      instance,
+      standInEnvironment(standIn, askingLog, { OW_STAND_IN_ASKS: "Bash", OW_STAND_IN_SLOW: "1500" }),
+    );
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    quiet = await stateOf(WORKER);
+
+    const going = say("do the thing", WORKER);
+    stopped = await waitFor(async () => {
+      const row = await stateOf(WORKER);
+      return row?.asking === 1 ? row : null;
+    });
+
+    const { permissions } = JSON.parse((await get(`${URL}/sessions/${WORKER}/permissions`)).body);
+    await post(`${URL}/sessions/${WORKER}/permission`, { id: permissions[0].id, decision: "allow" });
+
+    // Read while the run is still going, which is what makes this about the request being
+    // answered rather than about the turn being over.
+    answered = await waitFor(async () => {
+      const row = await stateOf(WORKER);
+      return row?.asking === 0 && row?.busy === true ? row : null;
+    });
+    await going;
+  });
+
+  it("counts nothing when a session is not waiting to be allowed anything", () => {
+    assert.equal(quiet.asking, 0);
+  });
+
+  it("counts what a session is waiting to be allowed to do", () => {
+    assert.equal(stopped?.asking, 1);
+  });
+
+  it("stops counting it once a person has answered, before the turn is over", () => {
+    assert.deepEqual([answered?.asking, answered?.busy], [0, true]);
+  });
+});
+
 const HANDS_OVER = "Robin";
 
 describe("handing a session over", () => {
