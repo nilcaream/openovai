@@ -50,7 +50,12 @@ function remember(root, name, sessionId) {
   fs.writeFileSync(target, `${JSON.stringify({ sessionId }, null, 2)}\n`);
 }
 
-function forget(root, name) {
+// End a thread. The file is the whole of a session's memory between processes, so removing it is
+// the whole of starting a new conversation on the same desk: the desk, the persona, the permission
+// rule and the panel are all untouched, and the next run has nothing to resume.
+//
+// There is nothing to kill. A run lives for one message and is already gone.
+export function forget(root, name) {
   fs.rmSync(sessionFile(root, name), { force: true });
 }
 

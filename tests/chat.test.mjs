@@ -1418,6 +1418,245 @@ describe("asking to be allowed", () => {
   });
 });
 
+// Handing a session over from the page.
+//
+// A session's judgment goes as its thread fills, and the answer is not to summarise it: the desk
+// carries the work, so a new conversation that reads it can carry on with nothing lost. The thread
+// is one id in a file, so ending one is deleting that file — there is no process to stop, because a
+// run lives for one message and is over long before this is asked for.
+//
+// The one thing that cannot be done from the server is writing the desk: the only permission an
+// instance grants a person is `Edit(work/<Name>/STATE.md)`, so preparing is a question, and a
+// question is a turn.
+//
+// These run on a desk of their own, opened here, so that ending its thread cannot disturb what the
+// rest of the suite is in the middle of. A desk opened while the chat runs is somebody it can host
+// from that moment, which is why this needs no restart.
+const HANDS_OVER = "Robin";
+
+describe("handing a session over", () => {
+  const handoverLog = path.join(standIn, "handover.txt");
+  let done;
+  let rows;
+  let thread;
+  let afterwards;
+
+  before(async () => {
+    runTool(instance, ["hire", HANDS_OVER], process.env);
+    await start(instance, standInEnvironment(standIn, handoverLog));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    // A thread to end. Without a message first there is nothing here that a handover changes.
+    await say("something worth remembering", HANDS_OVER);
+    done = JSON.parse((await post(`${URL}/sessions/${HANDS_OVER}/handover`, {})).body);
+    // Read before the next message, which starts a thread of its own and would put the file back.
+    thread = fs.existsSync(path.join(instance, "chat", HANDS_OVER, "session.json"));
+
+    // What a PERSON is left looking at. Read from the panel and not from what the route answered:
+    // a route that reports a row it never wrote is exactly the failure worth catching, and a
+    // mutation that stopped the appending went unnoticed by every check that read the answer.
+    const panel = JSON.parse((await transcriptOf(HANDS_OVER)).body).messages;
+    rows = panel.slice(panel.findIndex((message) => message.handover === true));
+
+    afterwards = await say("and now who are you", HANDS_OVER);
+  });
+
+  it("asks the session for its desk", () => {
+    const asked = questionsIn(handoverLog).find((question) => question.includes("<handover>"));
+    assert.ok(asked?.includes(`work/${HANDS_OVER}/STATE.md`));
+  });
+
+  it("wraps what it asks, so nothing reaches the session as though the human had typed it", () => {
+    const asked = questionsIn(handoverLog).find((question) => question.includes("STATE.md"));
+    assert.match(asked ?? "", /^<handover>[\s\S]*<\/handover>/);
+  });
+
+  it("ends the thread", () => {
+    assert.equal(thread, false);
+  });
+
+  it("starts a new conversation for the message after it", () => {
+    const since = callsIn(handoverLog).slice(-1)[0];
+    assert.ok(!since.includes("--resume"));
+  });
+
+  it("still answers that message", () => {
+    assert.equal(afterwards.status, 200);
+  });
+
+  it("leaves the desk where it was", () => {
+    assert.ok(fs.existsSync(path.join(instance, "work", HANDS_OVER, "STATE.md")));
+  });
+
+  it("leaves the transcript where it was", async () => {
+    assert.ok((await transcriptOf(HANDS_OVER)).body.includes("something worth remembering"));
+  });
+
+  it("puts two lines of its own on the panel, one at each end of it", () => {
+    assert.equal(rows.slice(0, 3).filter((message) => message.handover === true).length, 2);
+  });
+
+  it("says who asked for it, in the words a person reads", () => {
+    assert.ok(rows[0]?.text.startsWith(`${HUMAN} asked ${HANDS_OVER} to hand over`));
+  });
+
+  it("puts that line under nobody, because nobody said it", () => {
+    assert.equal(rows[0]?.from, "the chat");
+  });
+
+  it("keeps what the session answered", () => {
+    assert.equal(rows[1]?.from, HANDS_OVER);
+  });
+
+  it("says on the panel that the thread is gone", () => {
+    assert.equal(rows[2]?.handover, true);
+  });
+
+  it("says what the next message will read first", () => {
+    assert.ok(rows[2]?.text.includes(`work/${HANDS_OVER}/STATE.md`));
+  });
+
+  it("does not call it a failure", () => {
+    assert.equal(rows[2]?.failed, undefined);
+  });
+
+  it("hands the three of them back to whoever asked for the handover", () => {
+    assert.deepEqual(
+      [done.asked.handover, done.reply.from, done.ended.handover],
+      [true, HANDS_OVER, true],
+    );
+  });
+
+  it("writes the three of them to the panel in the order they happened", () => {
+    assert.deepEqual(
+      rows.slice(0, 3).map((message) => message.from),
+      ["the chat", HANDS_OVER, "the chat"],
+    );
+  });
+
+  it("refuses to hand over somebody who does not work here", async () => {
+    assert.equal((await post(`${URL}/sessions/Nobody/handover`, {})).status, 404);
+  });
+});
+
+// The thread goes whatever happens, and that is not this route's doing: a run that cannot be
+// resumed is dropped where it is asked, because losing the history beats losing the chat. What is
+// lost when a session cannot be asked at all is the desk being written, so that is what is said.
+describe("a session that cannot be asked to hand over", () => {
+  const brokenLog = path.join(standIn, "broken-handover.txt");
+  let rows;
+
+  before(async () => {
+    await start(instance, standInEnvironment(standIn, brokenLog, { OW_STAND_IN_BROKEN: "yes" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    await post(`${URL}/sessions/${HANDS_OVER}/handover`, {});
+    // The last three: this desk has been handed over before, so the panel holds earlier ones too.
+    rows = JSON.parse((await transcriptOf(HANDS_OVER)).body).messages.slice(-3);
+  });
+
+  it("marks the answer as a failure", () => {
+    assert.equal(rows[1]?.failed, true);
+  });
+
+  it("says on the panel that the handover did not go as asked", () => {
+    assert.equal(rows[2]?.failed, true);
+  });
+
+  it("says what was lost by it", () => {
+    assert.ok(rows[2]?.text.includes(`work/${HANDS_OVER}/STATE.md`));
+  });
+
+  it("still marks the line as being about a handover", () => {
+    assert.equal(rows[2]?.handover, true);
+  });
+});
+
+// WHEN, not whether. A session answers one message at a time, and a handover is one of them, so it
+// waits its turn like everything else — which is the whole reason nothing new had to be locked.
+//
+// The mutation this is written against is a forget where the handover ARRIVES rather than where its
+// turn runs. It is not a slower version of the same thing: `ask()` writes the thread id down after
+// its run returns, so the turn already going puts the file straight back, and a check that only
+// looked once both were over would find it there and pass. Both states are reached here — the file
+// present while the turn ahead runs, gone once it is done — and the stand-in is slow enough to hold
+// the wrong one open long enough to see.
+describe("a handover asked for while the session is answering", () => {
+  const queuedLog = path.join(standIn, "queued-handover.txt");
+  const thread = () => path.join(instance, "chat", HANDS_OVER, "session.json");
+  let midTurn;
+  let order;
+
+  before(async () => {
+    await start(instance, standInEnvironment(standIn, queuedLog, { OW_STAND_IN_SLOW: "1500" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    // A thread to end, and a slow one to end it behind.
+    await say("give me a thread", HANDS_OVER);
+    const answering = say("this one takes a while", HANDS_OVER);
+    await waitFor(() => questionsIn(queuedLog).some((question) => question.includes("takes a while")) || null);
+
+    const handover = post(`${URL}/sessions/${HANDS_OVER}/handover`, {});
+    // Long enough that the chat has taken the handover, and far short of the delay the turn ahead
+    // of it is still sitting in. This is where a forget at arrival shows: the file would be gone.
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    midTurn = fs.existsSync(thread());
+
+    await Promise.all([answering, handover]);
+    order = readLog(queuedLog)
+      .split("\n")
+      .filter((line) => line.includes("takes a while") || line.includes("<handover>"))
+      .map((line) => `${line.startsWith("heard") ? "began" : "ended"} ${line.includes("<handover>") ? "handover" : "turn"}`);
+  });
+
+  it("leaves the thread alone while the turn ahead of it is still running", () => {
+    assert.equal(midTurn, true);
+  });
+
+  it("does not ask for the desk until that turn is done", () => {
+    assert.deepEqual(order, ["began turn", "ended turn", "began handover", "ended handover"]);
+  });
+
+  it("ends the thread once its own turn has run", () => {
+    assert.equal(fs.existsSync(thread()), false);
+  });
+});
+
+// WHETHER. What a session was told about and has not run since is held in memory under its name,
+// and a thread ending does not clear it — so without this the session that follows is handed lines
+// the one before it was owed, about things that happened before it existed.
+//
+// A handover is a turn and drains what is pending like any other, so the thread hears its debts on
+// its way out. Both states are reachable and neither is a race: with the drain the handover turn
+// carries the line and the message after it does not, and without it the handover turn carries
+// nothing and the new thread is handed the lot.
+describe("what a session was owed when it was handed over", () => {
+  const owedLog = path.join(standIn, "owed.txt");
+  let theHandover;
+  let theNextTurn;
+
+  before(async () => {
+    await start(instance, standInEnvironment(standIn, owedLog));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    // Something the lead is told about but has not run since: the human on somebody else's panel.
+    await say("the roof is leaking", WORKER);
+    await post(`${URL}/sessions/${LEADER}/handover`, {});
+    await say("anything for me", LEADER);
+
+    const asked = questionsIn(owedLog);
+    theHandover = asked.find((question) => question.includes("<handover>"));
+    theNextTurn = asked.find((question) => question.includes("anything for me"));
+  });
+
+  it("tells the thread on its way out", () => {
+    assert.ok(theHandover?.includes("the roof is leaking"));
+  });
+
+  it("leaves the session that follows it owing nothing", () => {
+    assert.ok(!theNextTurn?.includes("the roof is leaking"));
+  });
+});
+
 // A chat is stopped by a person, in a terminal, with ctrl-c — and by whatever else stops a
 // process: a kill, or the window it was started in going away. What is checked here is the same
 // thing each time, which is that nothing it started is left behind.

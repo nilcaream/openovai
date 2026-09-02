@@ -12,7 +12,8 @@ import { append, read } from "./conversation.mjs";
 import { HOST, record } from "./listening.mjs";
 import { carry, overhear } from "./overheard.mjs";
 import { allow, answer as settle, giveUp, park, parked, refuse } from "./permissions.mjs";
-import { ask, sessions } from "./session.mjs";
+import { DESK_FILE, WORK } from "../desks.mjs";
+import { ask, forget, sessions } from "./session.mjs";
 import { inTurn, midTurn, whileWaitingFor, wouldWaitForItself } from "./turns.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -99,9 +100,58 @@ function withWhatWasOverheard(lines, message) {
   return [...lines, message].join("\n\n");
 }
 
+// The desk a session keeps, said the way the session's own persona says it: relative to the
+// directory a session is started in, which is the instance root. Never an absolute path — an
+// instance that was moved would have been telling people about somewhere it no longer is.
+function desk(name) {
+  return path.posix.join(WORK, name, DESK_FILE);
+}
+
+// What a session is asked to do before its thread is ended.
+//
+// A wrapper, for the reason `wrap` is one: what is left OUTSIDE every wrapper is the human
+// speaking on this session's own panel. An instruction from the chat handed over bare would arrive
+// as the human having typed it, and that guarantee is the one thing this arrangement must not get
+// wrong. The personas say what this one means.
+//
+// It asks for the desk and nothing else. Only the session may write it — the one permission an
+// instance grants a person is `Edit(work/<Name>/STATE.md)` — so preparing cannot be something the
+// server does to a file; it has to be a question, and a question is a turn.
+function handoverWrapper(name) {
+  return [
+    `<handover>Your thread is about to be ended, and a new session takes this desk with none of`,
+    `what you remember. Write ${desk(name)} so that session can carry on with nothing lost: what`,
+    `the task is, what is true right now, what to do next, and what has already been settled so it`,
+    `is not worked out twice. Then say in one line that you are ready. Start nothing new.</handover>`,
+  ].join(" ");
+}
+
+// What the panel says a handover is, while it happens and once it has. Written under `the chat`
+// because nobody said it to anybody, and flagged, so what is checked is the flag rather than the
+// prose.
+//
+// The transcript is not cleared with the thread. It is the record of what was said, and it is the
+// only place a person can see where the memory stops.
+function handoverAsked(human, name) {
+  return `${human} asked ${name} to hand over. ${name} is writing ${desk(name)} before its thread ends.`;
+}
+
+function handoverDone(name) {
+  return `${name} handed over. The thread that answered up to here is gone; the next message starts a new one, which reads ${desk(name)} first.`;
+}
+
+// The same moment, when the session could not be asked at all.
+//
+// The thread is gone either way, and that is not this route's doing: a run that fails to resume is
+// dropped where it is asked, because losing the history beats losing the chat. What is lost here is
+// the desk being written, so that is what the line is about.
+function handoverUnanswered(name) {
+  return `${name} could not be asked to hand over, so ${desk(name)} may not say where the work stands. Its thread is gone all the same; the next message starts a new one.`;
+}
+
 // Everything a session is asked or answers is under its own name, so one route shape serves
 // every panel and there is no path through here that only the lead can take.
-const SESSION_ROUTE = /^\/sessions\/([^/]+)\/(messages|message|permissions|permission)$/;
+const SESSION_ROUTE = /^\/sessions\/([^/]+)\/(messages|message|permissions|permission|handover)$/;
 
 async function postMessage(instance, name, request, response) {
   let text;
@@ -200,6 +250,60 @@ async function postMessage(instance, name, request, response) {
   );
 
   sendJson(response, 200, { message: question, reply });
+}
+
+// Handing a session over: it writes its desk, and then the thread that has been answering is
+// ended, so the next message starts a new conversation that reads that desk first.
+//
+// It is a TURN, through the same queue every message goes through, and that is the whole design.
+// A session answers one message at a time, so a handover cannot land in the middle of one and
+// cannot be raced by the next; and `ask()` writes the thread id down AFTER the run returns, so a
+// forget anywhere outside the turn would be written straight back by the very run it was ending.
+// Nothing new had to be locked to get either.
+//
+// There is no process to end. A run lives for one message and is over before this returns.
+async function postHandover(instance, name, response) {
+  const done = await inTurn(name, async () => {
+    const asked = append(instance.root, name, {
+      from: THE_CHAT,
+      text: handoverAsked(instance.config.human, name),
+      handover: true,
+    });
+
+    let answer;
+    try {
+      answer = await ask(
+        instance,
+        name,
+        // Drained here as on any turn, so the thread hears what it was owed before it goes and
+        // the session that follows it starts owed nothing.
+        withWhatWasOverheard(carry(name), handoverWrapper(name)),
+        (request) => park(name, request),
+      );
+    } finally {
+      giveUp(name);
+    }
+
+    const reply = append(instance.root, name, {
+      from: name,
+      text: answer.text,
+      ...(answer.failed ? { failed: true } : {}),
+      ...(answer.silent ? { silent: true } : {}),
+    });
+
+    forget(instance.root, name);
+
+    const ended = append(instance.root, name, {
+      from: THE_CHAT,
+      text: answer.failed ? handoverUnanswered(name) : handoverDone(name),
+      handover: true,
+      ...(answer.failed ? { failed: true } : {}),
+    });
+
+    return { asked, reply, ended };
+  });
+
+  sendJson(response, 200, done);
 }
 
 // Answering what a session asked to be allowed to do.
@@ -301,6 +405,11 @@ async function handle(instance, request, response) {
 
     if (request.method === "POST" && what === "permission") {
       await postPermission(name, request, response);
+      return;
+    }
+
+    if (request.method === "POST" && what === "handover") {
+      await postHandover(instance, name, response);
       return;
     }
   }
