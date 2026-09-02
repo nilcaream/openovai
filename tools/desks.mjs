@@ -43,16 +43,6 @@ export const PERSONAS = "personas";
 // and a session that typed the other spelling stopped to be approved for doing as it was told.
 export const TOOL_RULES = ["mcp__office"];
 
-// And the one that tells a session who the others are. The personas name it — a lead is told
-// `bin/ow status` lists who works here — so without the rule a session stops and asks a person
-// for a command the instance itself put in its hands, and waits there for as long as nobody is
-// looking at that panel. It reads and changes nothing, which is why it can be granted outright
-// where the rest of what a session might reach for cannot.
-//
-// Both spellings of it, because a rule is a literal prefix rather than a path: `./bin/ow status`
-// is the same command as `bin/ow status` and would match neither the other's rule.
-export const STATUS_RULES = ["Bash(bin/ow status:*)", "Bash(./bin/ow status:*)"];
-
 // And the one that shows the lead the room: who is here, what each is on, which of them is
 // answering and which is held up waiting. The lead's persona names it, and the standing rule is
 // that a command a persona tells a session to run is granted when the instance is made — or the
@@ -344,12 +334,6 @@ export function hire(root, name, panel, { human, leader }) {
 // copy of it would grant nothing a first one had not.
 export function allowTools(root) {
   return TOOL_RULES.flatMap((rule) => allow(root, rule));
-}
-
-// The right to see who else works here. Granted once with the rest, for the same reason: it
-// names no desk.
-export function allowStatus(root) {
-  return STATUS_RULES.flatMap((rule) => allow(root, rule));
 }
 
 // And the right to see what each of them is doing right now. Granted once with the rest, for the

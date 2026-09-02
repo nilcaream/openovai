@@ -238,17 +238,12 @@ describe("what the installer made", () => {
     assert.ok(!allow.some((rule) => rule.includes("ow say")));
   });
 
-  // Both personas name this command, so an instance that does not grant it stops the session it
-  // told to run it and waits on a panel nobody may be watching. Watched before the rule existed:
-  // a lead sat parked on `bin/ow status` for six and a half minutes and would not have stopped.
-  it("lets a session see who else works here without being asked", () => {
+  // Seeing who else works here is a tool now, under the one rule above. Watched before there was
+  // any rule for it: a lead sat parked on `bin/ow status` for six and a half minutes and would not
+  // have stopped, so nothing may be left telling a session to type it.
+  it("no longer grants the command that listed who works here", () => {
     const allow = JSON.parse(contentOf(".claude", "settings.json")).permissions.allow;
-    assert.ok(allow.includes("Bash(bin/ow status:*)"));
-  });
-
-  it("lets that be typed the other way round as well", () => {
-    const allow = JSON.parse(contentOf(".claude", "settings.json")).permissions.allow;
-    assert.ok(allow.includes("Bash(./bin/ow status:*)"));
+    assert.ok(!allow.some((rule) => rule.includes("ow status")));
   });
 
   it("tells the leader how to say something to somebody", () => {
@@ -262,7 +257,11 @@ describe("what the installer made", () => {
   });
 
   it("tells the leader how to see who works here", () => {
-    assert.match(contentOf("personas", `${LEADER}.md`), /bin\/ow status/);
+    assert.match(contentOf("personas", `${LEADER}.md`), /The `status` tool lists who\s+works here/);
+  });
+
+  it("does not tell the leader to type the command that listed who works here", () => {
+    assert.ok(!contentOf("personas", `${LEADER}.md`).includes("ow status"));
   });
 
   it("tells the leader that a message from a session comes wrapped", () => {

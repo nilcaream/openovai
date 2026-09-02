@@ -48,8 +48,6 @@ export function settingsProblems(file, names) {
   const expected = [
     ...names.map((name) => `Edit(work/${name}/STATE.md)`),
     "mcp__office",
-    "Bash(bin/ow status:*)",
-    "Bash(./bin/ow status:*)",
     "Bash(bin/ow room:*)",
     "Bash(./bin/ow room:*)",
   ];

@@ -443,7 +443,29 @@ function toolsFor(instance, caller) {
       },
       run: (args) => saidByTool(instance, caller, args),
     },
+    {
+      name: "status",
+      description:
+        "List who works in this workspace and what each of them runs on. One desk is one person, and the name in this list is what the say tool addresses. It reads and changes nothing, and it says nothing about who is busy.",
+      inputSchema: { type: "object", properties: {}, additionalProperties: false },
+      run: () => whoWorksHere(instance),
+    },
   ];
+}
+
+// Who works here, which is the half of `ow status` a session can act on: the names it can say
+// something to, and what each of them costs to ask. The other half of that command — where the
+// instance is, what version it is on, whether there is a credential — is a person's question about
+// the machine, and one of its rows starts Claude Code to answer it. A tool a session calls before
+// every message is the wrong place for that.
+//
+// It comes from the same `sessions()` the page is drawn from and the same `desks()` the command
+// reads, so there is one answer to who works here and no second list to keep true.
+function whoWorksHere(instance) {
+  const here = sessions(instance);
+  const width = Math.max(...here.map((session) => session.name.length));
+
+  return { text: here.map((session) => `${session.name.padEnd(width)}  ${session.role.padEnd(6)}  ${session.model}`).join("\n") };
 }
 
 // The tool behind `say`, which is the command behind `say`: it hands what it was given to the one

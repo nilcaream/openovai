@@ -3179,6 +3179,54 @@ describe("a session calls the tools the chat serves it", () => {
     assert.equal(answerOf(await call(WORKER, "tools/rename")).error.code, -32601);
   });
 
+  // Who works here, which is the half of the command a session can act on: the names it can say
+  // something to. The other half is about the machine, and one of its rows starts Claude Code to
+  // answer it — which is not a thing to do before every message.
+  describe("a session asks who works here", () => {
+    let listed;
+
+    before(async () => {
+      listed = answerOf(await call(WORKER, "tools/call", { name: "status", arguments: {} })).text;
+    });
+
+    it("offers status among the tools it serves", async () => {
+      const { tools } = JSON.parse((await call(WORKER, "tools/list")).body).result;
+      assert.ok(tools.some((tool) => tool.name === "status"));
+    });
+
+    it("names everybody who works here", () => {
+      for (const name of [LEADER, WORKER]) {
+        assert.match(listed, new RegExp(`^${name}\\b`, "m"), `${name} is not in it`);
+      }
+    });
+
+    // Read against the desks on disk rather than against a number: a desk is a person here, so
+    // the list is right when it is exactly the desks and wrong the moment it is anything else.
+    it("names nobody else", () => {
+      const named = listed.split("\n").map((line) => line.split(/\s+/)[0]).sort();
+      assert.deepEqual(named, fs.readdirSync(path.join(instance, "work")).sort());
+    });
+
+    it("says which of them leads", () => {
+      assert.match(listed, new RegExp(`^${LEADER}\\s+lead\\b`, "m"));
+    });
+
+    it("says the others are not the lead", () => {
+      assert.match(listed, new RegExp(`^${WORKER}\\s+worker\\b`, "m"));
+    });
+
+    it("says what each of them runs on", () => {
+      assert.match(listed, new RegExp(`^${LEADER}\\s+lead\\s+${LEADER_MODEL}\\s*$`, "m"));
+      assert.match(listed, new RegExp(`^${WORKER}\\s+worker\\s+${WORKER_MODEL}\\s*$`, "m"));
+    });
+
+    // What it is not: the live half of the room — who is answering, who is queued behind, who is
+    // held up waiting — is a different question and a different tool.
+    it("says nothing about who is busy", () => {
+      assert.ok(!/answering|waiting|queued/i.test(listed));
+    });
+  });
+
   describe("one session says something to another", () => {
     let answered;
 

@@ -427,9 +427,15 @@ describe("hiring a worker", () => {
     assert.match(persona, /The `say` tool is also how you reach anybody else here/);
   });
 
+  it("tells the worker how to see who works here", () => {
+    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    assert.match(persona, /the `status` tool says who that is/);
+  });
+
   it("does not tell the worker to type the command it replaced", () => {
     const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
     assert.ok(!persona.includes("ow say"));
+    assert.ok(!persona.includes("ow status"));
   });
 
   it("tells the worker its header holds nothing else", () => {
