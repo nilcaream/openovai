@@ -167,19 +167,33 @@ this machine would stop working the moment it was moved.
 A session can see who is speaking to it. The page signs nothing, so what is typed there arrives as
 it was typed; `ow say` signs with the name of the session running it — the chat puts that name in
 the environment it starts a session with — and the chat hands a signed message over wrapped, as
-`<from-session name="Superman" role="lead">…</from-session>`. A turn that arrives with no wrapper
-is therefore the human's, by construction: nothing has to remember to say so. A signature naming
-nobody who works there is refused rather than passed on as the human's.
+`<from-session name="Superman" role="lead">…</from-session>`. Anything outside a wrapper is
+therefore yours, by construction: nothing has to remember to say so. A signature naming nobody who
+works there is refused rather than passed on as the human's.
 
 The wrapper is only on the way in. What is kept is what was said, under the name of who said it,
 so a transcript reads as a conversation rather than as a protocol — and `ow say` run from a
 terminal signs nothing, because the person at the keyboard is the human.
 
-That is what makes the page a speakerphone rather than a set of separate conversations. A worker
-is told that an unwrapped turn is you speaking on its own panel, and to tell the lead what was
-said — `bin/ow say <leader> …`, in its own words — before it acts on it. So a lead leading a team
-it cannot watch still hears what happened on a panel it was not on, and hears it as the worker
-read it.
+That is what makes the page a speakerphone rather than a set of separate conversations. When you
+type on a worker's panel, the chat tells the lead itself. One line appears on the lead's panel as
+you send it —
+
+    the chat: Mike said to Paul: the kettle is broken
+
+— and the same thing goes to the lead's session in front of whatever it is asked next:
+
+    <overheard on="Paul" from="Mike">the kettle is broken</overheard>
+
+A panel is what a person reads and a thread is what a session resumes, so it takes both: a line
+written only to the panel would be visible to you and invisible to the lead.
+
+The chat does it rather than the worker for the reason a speakerphone is not a relay. Asking the
+worker to pass it on costs a whole turn of the lead's nested inside the worker's — three process
+starts where one would do, with the panel quiet through all of it — and it happens only if the
+model remembers. This way the lead hears the words you typed, at the moment you typed them, whether
+or not anybody was paying attention. It hears them late, on its next turn, and that is the trade:
+it is being told, not asked.
 
 A session answers one message at a time. Messages for it wait their turn and are answered in the
 order they arrived; each session has its own queue, so one busy session never holds up another
