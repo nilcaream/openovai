@@ -4,6 +4,9 @@
 
 <h1 id="who">Chat</h1>
 
+<h2>The room</h2>
+<div id="room"></div>
+
 <div id="panels"></div>
 
 <script type="module">
@@ -28,6 +31,73 @@
     const said = message.silent ? "(ended its turn without saying anything)" : message.text;
     line.textContent = `${who}${message.failed ? " (failed)" : ""}: ${said}`;
     return line;
+  }
+
+  // The room: one line per session, so that deciding whom to talk to and whom to hand over does
+  // not mean opening every panel and reading it. Everything in it comes off the same rows the
+  // panels are already asking for once a second, so it costs the page nothing new.
+  const room = document.getElementById("room");
+
+  // How long ago, in the roughest terms that are still useful. Nothing anybody decides from this
+  // page turns on the difference between four minutes and five.
+  function ago(when) {
+    if (typeof when !== "string") {
+      return null;
+    }
+    const seconds = Math.round((Date.now() - Date.parse(when)) / 1000);
+    if (seconds < 60) {
+      return "just now";
+    }
+    if (seconds < 3600) {
+      return `${Math.floor(seconds / 60)}m ago`;
+    }
+    return `${Math.floor(seconds / 3600)}h ago`;
+  }
+
+  // What a session is doing, as one phrase, in the order that decides what to do about it. Held up
+  // by a person comes first, because it is the only one the person reading this can end; then held
+  // up by another session, which is not the same as being slow; then busy, with the pile behind it.
+  function state(row) {
+    if (row.asking > 0) {
+      return row.asking === 1 ? "needs you" : `needs you (${row.asking})`;
+    }
+    if (row.waitingFor !== null && row.waitingFor !== undefined) {
+      return `waiting for ${row.waitingFor}`;
+    }
+    if (row.queued > 0) {
+      return `answering, ${row.queued} waiting`;
+    }
+    return row.busy ? "answering" : "idle";
+  }
+
+  // Facts, in one line, and no verdict on any of them. Whether a session that has been quiet for
+  // an hour is finished, stuck or thinking is not something this page can know, and a page that
+  // guessed would be wrong in the way that looks like an answer.
+  function inTheRoom(row) {
+    const line = document.createElement("p");
+
+    const who = document.createElement("strong");
+    who.textContent = row.name;
+
+    const rest = document.createElement("span");
+    const when = ago(row.active);
+    const how = [
+      state(row),
+      // Said only when there is none, because that is the surprising half: a full panel whose
+      // session remembers none of it reads as an ordinary one until somebody says so.
+      row.thread ? null : "nothing to carry on",
+      typeof row.context === "number" ? `${row.context.toLocaleString("en-US")} tokens` : null,
+      when === null ? "nothing said yet" : `last moved ${when}`,
+    ].filter((part) => part !== null);
+
+    rest.textContent = ` — ${row.role} (${row.model})${row.doing === "" ? "" : ` — ${row.doing}`} — ${how.join(" · ")}`;
+
+    line.append(who, rest);
+    return line;
+  }
+
+  function showTheRoom(rows) {
+    room.replaceChildren(...rows.map(inTheRoom));
   }
 
   function panel(session) {
@@ -182,6 +252,7 @@
 
   const built = sessions.map(panel);
   panels.replaceChildren(...built.map(({ section }) => section));
+  showTheRoom(sessions);
   await Promise.all(built.map(({ show }) => show()));
   for (const panel of built) {
     panel.carrying(sessions.find((session) => session.name === panel.name)?.context);
@@ -191,13 +262,19 @@
   // enough to be free. A run asking for permission has stopped until it is answered, so there is
   // nothing else for the page to be doing meanwhile.
   //
-  // Both things this asks for start on the far side: a session asks to use a tool, and a session
-  // is put to work by another session or by this page in another window. Neither is something the
-  // page can know by having caused it.
+  // Everything this asks for starts on the far side: a session asks to use a tool, a session is put
+  // to work by another session or by this page in another window, and a session writes down what it
+  // is on. None of it is something the page can know by having caused it.
+  //
+  // The room rides on this tick rather than having one of its own. It is built from the same rows
+  // the panels were already being told about, so a room on the page is not a request per second per
+  // person — it is nothing at all.
   const EVERY = 1000;
 
-  async function showWhoIsBusy() {
+  async function look() {
     const { sessions } = await fetch("/sessions").then((response) => response.json());
+    // The room first: it is the thing somebody is watching when they are not reading a panel.
+    showTheRoom(sessions);
     const rows = new Map(sessions.map((session) => [session.name, session]));
     for (const panel of built) {
       const row = rows.get(panel.name);
@@ -214,6 +291,6 @@
         // The chat is gone or restarting. The next tick will find out.
       });
     }
-    showWhoIsBusy().catch(() => {});
+    look().catch(() => {});
   }, EVERY);
 </script>

@@ -1612,6 +1612,65 @@ describe("how much of itself a session is carrying", () => {
 // These run on a desk of their own, opened here, so that ending its thread cannot disturb what the
 // rest of the suite is in the middle of. A desk opened while the chat runs is somebody it can host
 // from that moment, which is why this needs no restart.
+// The room, on the page. No suite runs page.html — it is served and read as TEXT — so what is
+// checked here is that the room is BUILT and that it is PUT somewhere, which are two different
+// things: a section built and never attached is invisible to a check that only looks for it being
+// built, and that has cost this repo a real check before.
+//
+// What the room actually says is proven on the rows behind it, in the three describes above. This
+// is the seam between them and a browser, and it is not a substitute for opening one.
+describe("what the page does with the room", () => {
+  let page;
+
+  before(async () => {
+    page = (await get(`${URL}/`)).body;
+  });
+
+  it("gives the room somewhere to go on the page", () => {
+    assert.ok(page.includes('<div id="room"></div>'));
+  });
+
+  it("puts what it builds into it, rather than only building it", () => {
+    assert.match(page, /room\.replaceChildren\(\.\.\.rows\.map\(inTheRoom\)\)/);
+  });
+
+  // At load and not only on the first tick: a room that is blank for a second every time the page
+  // opens is a room nobody trusts. The check names the line it is filled from, because the tick
+  // fills it too and a looser one would pass on that.
+  it("fills it when the page opens, not a second later", () => {
+    assert.ok(page.includes("panels.replaceChildren(...built.map(({ section }) => section));\n  showTheRoom(sessions);"));
+  });
+
+  // The reason the room is free: it reads the rows the panels were already being told about once a
+  // second. A room with a poll of its own would be a request per second whether anybody was
+  // reading it or not.
+  it("asks for nothing of its own to keep it current", () => {
+    assert.equal((page.match(/setInterval/g) ?? []).length, 1);
+    assert.equal((page.match(/fetch\("\/sessions"\)/g) ?? []).length, 2);
+  });
+
+  it("says what each session is on", () => {
+    assert.match(page, /row\.doing/);
+  });
+
+  // The order the phrases are tried in is the whole of what makes the room worth reading: the one
+  // thing the person at the page can end comes before the ones they cannot.
+  it("says a session waiting on a person before anything else about it", () => {
+    const said = page.indexOf('"needs you"');
+    const held = page.indexOf("`waiting for ${row.waitingFor}`");
+    const busy = page.indexOf('"answering"');
+    assert.ok(said > 0 && said < held && held < busy);
+  });
+
+  it("says how long since a panel last moved", () => {
+    assert.match(page, /last moved \$\{when\}/);
+  });
+
+  it("says when a session has no thread to carry on", () => {
+    assert.match(page, /"nothing to carry on"/);
+  });
+});
+
 const AT_WORK = "Rook";
 
 // What each session is on. Nothing else on the row can answer it: a name says who somebody is and
