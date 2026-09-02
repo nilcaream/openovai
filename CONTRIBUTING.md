@@ -62,18 +62,23 @@ One logical change per commit.
 
 ## Tests
 
-Three suites, all on Node's own test runner:
+Four suites, all on Node's own test runner:
 
 ```sh
 node --test tests/install.test.mjs   # install an instance, check what came out
 node --test tests/chat.test.mjs      # serve the chat, talk to it, stop it
 node --test tests/ow.test.mjs        # what status reports and what login hands over
+node --test tests/update.test.mjs    # take a newer version from a release, and refuse to
 ```
 
-Run all three with `node --test tests/*.test.mjs`.
+Run all four with `node --test tests/*.test.mjs`.
+
+The update suite serves a release to itself — a directory for one already unpacked, and a local
+HTTP server answering the shape GitHub answers in, with a real `.tar.gz` — so no check reaches the
+network and no check needs a release to exist.
 
 They need Node.js and nothing else. The install suite skips the checks that start an instance
-when Claude Code is absent, and says it skipped them rather than passing quietly. The other two
+when Claude Code is absent, and says it skipped them rather than passing quietly. The other three
 never run Claude Code at all: the stand-in in `tests/helpers.mjs` goes first on the PATH and
 answers in the shape the real one answers in, so what gets checked is our side — the arguments
 the leader is run with, the thread being resumed, and what the transcript says when Claude Code

@@ -31,6 +31,7 @@ session can be replaced at any time without losing the work.
 - Claude Code
 - Bash 4
 - Node.js 24 or newer (for the launchers and the web page)
+- `tar`, to take a newer version
 - Linux desktop
 
 Node.js 24 is the line the toolkit is written and tested against. It is the one in long-term
@@ -44,6 +45,10 @@ version managers, and the `engines` field of `package.json`. CI runs on that one
 no other, and `install.sh` checks it before anything else and refuses an older major in one
 line — better than an instance that installs and then fails at its first message on syntax its
 Node cannot read.
+
+`tar` is needed by one subcommand and nothing else: a release arrives as an archive and Node has
+no reader for one. `ow update` says so itself when it is missing, and `bin/ow` does not check for
+it at the door — one subcommand needing something is not a reason to refuse every other.
 
 Both floors are checked twice, once by `install.sh` and once by the instance's own `bin/ow`.
 An instance carries its own copy of everything it runs and can be moved to a machine its
@@ -493,6 +498,90 @@ dead credential shows up.
 `ANTHROPIC_API_KEY` and `ANTHROPIC_AUTH_TOKEN` are always removed from what an instance runs
 with, under both options. They bill differently from a subscription, and picking that up by
 accident from a shell that happened to have one exported is not a surprise worth allowing.
+
+## Taking a newer version
+
+An instance carries its own copy of everything it runs, which is what lets it be moved, copied and
+kept while the toolkit it came from moves on. The other side of that promise is that it does not
+follow along on its own. `ow update` is how it catches up.
+
+```sh
+~/my-workspace/bin/ow update
+```
+
+It asks GitHub for the latest release of the toolkit, and if that is not the version this instance
+is on, it takes it:
+
+```
+Was on 0.1.0, now on 0.2.0. Replaced:
+  bin
+  tools
+  templates
+  VERSION
+```
+
+**A release is a tag plus the source archive GitHub makes for it.** Nothing is uploaded and nothing
+is built. What an instance takes out of that archive is the payload — `bin/`, `tools/`, `templates/`
+and `VERSION` — which is exactly what the installer put there in the first place. The archive is a
+whole repository and that is fine: what makes something a valid source is the payload being in it,
+not the absence of anything else.
+
+**Everything a workspace has accumulated is left alone.** Desks under `work/`, the personas the
+sessions here are running, the panels and threads under `chat/`, `ow.json`, the Claude Code home
+with everything the workspace has learned in it — an update does not read them and does not write
+them. Nothing is re-keyed, nothing is migrated, and no name changes hands. The payload is the only
+thing that moves, and nothing inside an instance ever writes there.
+
+**The payload is replaced, not merged.** A file a newer version dropped has to go, or the instance
+stops being a copy of any version and becomes the union of two. There is no rollback and no backup:
+what is at risk is precisely the copy that was being replaced, and taking the release again is the
+fix.
+
+**It refuses to run while the chat is answering.** Stop the chat first. Replacing the code a running
+server is executing is the one way to get a mixed instance, and refusing removes that case rather
+than trying to handle it.
+
+**Versions are compared for equality, not for order.** GitHub's latest release is the authority: the
+same version means there is nothing to do, a different one means take it. So going back to an older
+release is a release like any other, and the toolkit never has to have an opinion about which of two
+versions is newer.
+
+**An update does not re-render anybody's persona.** A persona is rendered once, when a session is
+hired, and it is part of what the workspace has accumulated rather than part of what the toolkit
+ships. So new templates change nothing for the sessions already here: everybody hired after the
+update gets the new instructions, and everybody hired before goes on running the old ones. Their
+threads carry those instructions anyway, so rewriting the files would not have reached them.
+
+### The lead is told, and what "at once" honestly means
+
+An update stops the chat and puts a new toolkit under it. So the lead is told by the chat, from a
+note the update leaves behind: one line on the lead's panel,
+
+    the chat: the toolkit was updated from 0.1.0 to 0.2.0. What the release says changed: …
+
+and the same thing to the lead's session, in front of whatever it is asked next:
+
+    <update from="0.1.0" to="0.2.0">…</update>
+
+Both halves, for the same reason an overheard line takes both: a panel is what a person reads and a
+thread is what a session resumes.
+
+The wrapper explains itself rather than relying on the persona, because the persona is the one thing
+an update deliberately did not replace. It says that the chat is speaking and not the human, what
+was replaced, what was left alone, what the release said changed, and that nobody else in the
+workspace has been told. That last part is the point of telling the lead at all: the lead is what
+tells everybody else, and the sessions already at work were hired under the arrangement before this
+one.
+
+**"At once" means this, and no more:** the lead is told in front of the very next thing it is asked,
+and never later than that. It is not told while it is idle, because there is no way to hand a
+session something without asking it a question. A lead that is never spoken to again is never told —
+and it also never tells a worker anything, so nothing wrong is said on the strength of it. That is
+the limit, and this does not close it.
+
+What the release says is a file called `NOTES.md` at the root of the repository, written for the
+lead of a workspace taking the release rather than for a developer reading a changelog. It is
+rewritten each release and it is not part of the payload: it describes a release, not an instance.
 
 ## What to build first
 

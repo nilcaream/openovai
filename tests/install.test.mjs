@@ -21,6 +21,8 @@ import {
   writeNodeStandIn,
 } from "./helpers.mjs";
 import { configProblems, settingsProblems } from "./inspect.mjs";
+import { PAYLOAD } from "../tools/payload.mjs";
+import { RELEASE_NOTES } from "../tools/release.mjs";
 
 const HUMAN = "Mike";
 const LEADER = "Superman";
@@ -484,5 +486,22 @@ describe("the version the toolkit is on", () => {
   it("says the same thing in the payload and in the package", () => {
     const declared = JSON.parse(fs.readFileSync(path.join(repo, "package.json"), "utf8")).version;
     assert.equal(fs.readFileSync(path.join(repo, "VERSION"), "utf8").trim(), declared);
+  });
+});
+
+// A release is cut from the repository, and what it carries for the lead of a workspace taking it
+// is a file in that repository. A release cut without one tells the lead an update happened and
+// nothing about what it was — which is the whole of what this feature is for.
+describe("what a release says for itself", () => {
+  it("carries notes for the lead at the root of the repository", () => {
+    assert.match(fs.readFileSync(path.join(repo, RELEASE_NOTES), "utf8").trim(), /\S/);
+  });
+
+  it("says something about the version being released", () => {
+    assert.match(fs.readFileSync(path.join(repo, RELEASE_NOTES), "utf8"), new RegExp(fs.readFileSync(path.join(repo, "VERSION"), "utf8").trim()));
+  });
+
+  it("is not in the payload, since it describes a release rather than an instance", () => {
+    assert.equal(PAYLOAD.includes(RELEASE_NOTES), false);
   });
 });
