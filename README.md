@@ -12,8 +12,9 @@ session can be replaced at any time without losing the work.
 
 - **A desk is a person.** Each worker owns a directory holding one Markdown state file. That
   file, not the session's memory, is what a replacement session reads to continue.
-- **Handover replaces summarisation.** When a session's context fills up, it writes its desk
-  and exits; a fresh session starts on the same desk. Nothing is compacted away.
+- **Handover replaces summarisation.** When a session's conversation fills up, it is asked to
+  write its desk and the thread is ended; the next message on that panel starts a fresh one,
+  which reads the desk first. Nothing is compacted away.
 - **One lead, many workers.** The lead delegates, takes the workers' questions and decides what
   reaches the human. Workers do the work and leave when it ships.
 - **Every session is hosted on the page.** Nobody has a terminal of their own. The lead and
@@ -265,6 +266,38 @@ Each panel is its own conversation: a thread's id is kept in `chat/<Session>/ses
 every message after the first continues it, so the server can be stopped and started again in
 the middle of one. If a thread ever goes missing that session starts a new one rather than
 staying broken.
+
+Beside the model, each panel says how much of itself that conversation is carrying: how big it
+was at the end of its last turn, in tokens. It is a reading and not an estimate — it comes off
+the same frame the answer does, where the last request a turn made is the whole conversation as
+the model last saw it, and the turn after it opens there. It is not a share of anything, because
+a share would need a table of what each model can hold that somebody has to keep true.
+
+When a conversation gets too big to think in, press **Hand over** on that panel. The session is
+asked — in words, through the queue everything else goes through — to write `work/<Name>/STATE.md`
+so a new session can carry on: what the task is, what is true right now, what to do next, and what
+has already been settled. Then the thread that has been answering is ended, and the next message
+starts a new one, which reads that desk first.
+
+Nothing is summarised. What survives is what the session wrote down, in its own words, and the
+transcript is not cleared with the thread — two lines under `the chat` bracket the handover
+instead:
+
+    the chat: Mike asked Paul to hand over. Paul is writing work/Paul/STATE.md before its thread ends.
+    Paul: Desk written. Ready.
+    the chat: Paul handed over. The thread that answered up to here is gone; the next message
+              starts a new one, which reads work/Paul/STATE.md first.
+
+Without them a panel would go on showing a conversation the session no longer remembers, with
+nothing saying where the memory stops.
+
+It waits its turn like any other message, so pressing it on a session that is in the middle of
+something is fine: the turn ahead of it finishes first. There is nothing to kill — a run lives for
+one message and is over long before this is asked for.
+
+Which is why the desk is worth keeping current as the work moves rather than only when a handover
+is asked for. Both personas say so, and a desk that is already true makes a handover one line's
+work instead of an hour's remembering.
 
 ## Signing in
 
