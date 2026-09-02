@@ -221,6 +221,24 @@ describe("what the installer made", () => {
     assert.ok(!contentOf("personas", `${LEADER}.md`).includes("Workers are told to tell you"));
   });
 
+  // The lead keeps a desk and is handed over exactly as everybody else is, so it is told the same
+  // thing — and told to write the part of the desk only a lead has, which is the room.
+  it("tells the leader what a handover arrives as", () => {
+    assert.match(contentOf("personas", `${LEADER}.md`), /<handover>/);
+  });
+
+  it("tells the leader which file to write when one does", () => {
+    assert.match(contentOf("personas", `${LEADER}.md`), new RegExp(`<handover>[\\s\\S]*work/${LEADER}/STATE.md`));
+  });
+
+  it("tells the leader that the thread ends when it answers", () => {
+    assert.match(contentOf("personas", `${LEADER}.md`), /the\s+thread ends when you answer/);
+  });
+
+  it("tells the leader to keep the desk current before one is ever asked for", () => {
+    assert.match(contentOf("personas", `${LEADER}.md`), /kept current as you go and not only then/);
+  });
+
   it("warns the leader that asking somebody waits for them", () => {
     assert.match(contentOf("personas", `${LEADER}.md`), /waits for them/);
   });

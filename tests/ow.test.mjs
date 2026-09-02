@@ -337,6 +337,29 @@ describe("hiring a worker", () => {
     assert.match(persona, /waiting for your answer[\s\S]*say it in your reply instead/i);
   });
 
+  // A handover is asked for in words, so a session that does not know what the wrapper means reads
+  // it as prose and may do anything with it. These are the two halves it has to have: what the
+  // wrapper is, and that the desk is kept current before one ever arrives.
+  it("tells the worker what a handover arrives as", () => {
+    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    assert.match(persona, /<handover>/);
+  });
+
+  it("tells the worker which file to write when one does", () => {
+    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    assert.match(persona, new RegExp(`<handover>[\\s\\S]*work/${WORKER}/STATE.md`));
+  });
+
+  it("tells the worker that the thread ends when it answers", () => {
+    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    assert.match(persona, /the\s+thread ends when you answer/);
+  });
+
+  it("tells the worker to keep the desk current before one is ever asked for", () => {
+    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    assert.match(persona, /kept current as you go and not only then/);
+  });
+
   it("leaves no unfilled placeholder in the worker's persona", () => {
     const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
     assert.ok(!persona.includes("{{"));
