@@ -19,6 +19,10 @@ session can be replaced at any time without losing the work.
   reaches the human. Workers do the work and leave when it ships.
 - **Every session is hosted on the page.** Nobody has a terminal of their own. The lead and
   every worker get the same panel, with the same text box under it.
+- **One place says who is doing what.** A room above the panels gives each session a line: what
+  it is on, whether it is answering and how many messages are waiting behind, who is holding it
+  up, how big its conversation has grown and how long since anything happened on its panel. The
+  lead reads the same thing with `ow room`.
 - **Built from ordinary Claude Code features**: agent personas, hooks, skills, project
   settings, plus a few shell and Node launchers and a small web page to host them on.
 
@@ -96,6 +100,7 @@ Then use the instance's own command:
 ~/my-workspace/bin/ow login
 ~/my-workspace/bin/ow hire Paul
 ~/my-workspace/bin/ow chat
+~/my-workspace/bin/ow room
 ~/my-workspace/bin/ow say Paul what are you working on
 ```
 
@@ -272,6 +277,50 @@ was at the end of its last turn, in tokens. It is a reading and not an estimate 
 the same frame the answer does, where the last request a turn made is the whole conversation as
 the model last saw it, and the turn after it opens there. It is not a share of anything, because
 a share would need a table of what each model can hold that somebody has to keep true.
+
+### The room
+
+Above the panels, one line per session, saying what would otherwise mean opening every panel and
+reading it:
+
+    Paul — worker (haiku) — reading the water meter — answering, 1 waiting · 24,479 tokens · last moved just now
+    Ann  — worker (haiku) — writing the install notes — needs you · 8,102 tokens · last moved 2m ago
+    Ivy  — worker (haiku) — (has not said what it is on) — idle · nothing to carry on · nothing said yet
+
+The phrases are tried in the order that decides what to do about them. **needs you** first — that
+session is stopped waiting to be allowed something, and it is the only state the person reading
+can end. Then **waiting for `<name>`**, which is a session held up by another session and not a
+session being slow. Then **answering**, with however many messages are waiting behind it. Then
+**idle**.
+
+What each session is on comes from one field: the `title:` in the header its desk file opens with.
+That is the only part of a desk anything outside it reads, and both personas ask for that one line
+to be kept current as the work moves — a session asked to keep a whole header true keeps none of
+it. A session that has not said gets no guess.
+
+**nothing to carry on** means that session has no thread: it has just been handed over, or has
+never been spoken to. It is said only when it is true, because a full panel whose session
+remembers none of it reads as an ordinary one until something says otherwise.
+
+The last part is when anything last happened on that panel, and it is a fact rather than a
+verdict. Nothing here knows whether a session quiet for an hour is finished, stuck or thinking,
+and a page that guessed would be wrong in the way that looks like an answer.
+
+The room costs nothing: it is built from the same rows the panels were already asking for once a
+second, so it is not a request per person per second — it is no request at all.
+
+The lead cannot read any of this, because it is on the page rather than looking at it. It runs
+`ow room` instead, which prints the same rows for a terminal, and which anybody can run:
+
+```sh
+~/my-workspace/bin/ow room
+```
+
+It asks the running chat, because half of a room is only in that process — how many turns are
+going, who is held up waiting for whom, what is stopped waiting to be allowed something. With no
+chat running there is no room to show, and it says so rather than printing an empty one.
+
+### Handing a session over
 
 When a conversation gets too big to think in, press **Hand over** on that panel. The session is
 asked — in words, through the queue everything else goes through — to write `work/<Name>/STATE.md`
