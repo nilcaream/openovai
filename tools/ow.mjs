@@ -13,18 +13,21 @@ import { NAME_IN_ENVIRONMENT, endEveryRun, runsGoing } from "./chat/session.mjs"
 import { hasCredential, home, login, machineToken, memoryDirectory } from "./claude.mjs";
 import { DeskError, describeName, desks, hire, isName } from "./desks.mjs";
 import { ownInstructions } from "./instructions.mjs";
+import { leaveWord } from "./chat/untold.mjs";
 import { holderOf } from "./port.mjs";
+import { RELEASES, ReleaseError, latestRelease, notesIn, replacePayload, unpackInto } from "./release.mjs";
 import { version } from "./version.mjs";
 
 const CONFIG_FILE = "ow.json";
 
-const COMMANDS = ["status", "room", "chat", "hire", "say", "login"];
+const COMMANDS = ["status", "room", "chat", "hire", "say", "login", "update"];
 
 // What a command takes after its name, for the ones that take anything. A command that is not
 // here takes nothing, which is most of them.
 const TAKES = {
   hire: { most: 1, shape: "one name" },
   say: { most: Number.POSITIVE_INFINITY, shape: "a name and a message" },
+  update: { most: 2, shape: "at most --from <url or directory>" },
 };
 
 class UsageError extends Error {}
@@ -45,6 +48,8 @@ function usage() {
     "  ow say <name> <message>",
     "                   say something to another session in this instance and wait for its reply",
     "  ow login         sign this instance in to an Anthropic account",
+    "  ow update        take the latest release, replacing what the toolkit ships",
+    "                   [--from <url or directory>] where to look instead",
     "",
   ].join("\n");
 }
@@ -269,6 +274,104 @@ async function say(root, name, words) {
   console.log(reply);
 }
 
+// Where the package is opened before any of it is put in place. Inside the instance rather than
+// somewhere shared: an instance is self-contained, and an update that falls over half way leaves
+// what it was working on where somebody would look for it rather than in a directory nobody owns.
+const UNPACKING = ".release";
+
+// Taking a newer version of the toolkit.
+//
+// Only what the toolkit ships is replaced. Everything an instance accumulated — the desks, the
+// personas, the settings, its Claude Code home with its account and its transcripts and what the
+// workspace has learned, the panels and the threads they resume — is in different directories and
+// is not touched, and its own description of itself is not rewritten at all. So there is nothing
+// here to migrate and no key that changes: the version is a file in the payload, so replacing the
+// payload replaces it.
+async function update(root, argv) {
+  const from = whereToLook(argv);
+
+  // A running chat is serving code that is about to be replaced underneath it, and a process keeps
+  // the code it started with. Stopping first is what the person would have to do anyway for the new
+  // version to run; asking for it here also means no session is mid-turn while this happens, which
+  // is a whole class of half-finished state that never has to be reasoned about.
+  const url = listening(root);
+  if (url !== null && (await isAnswering(url))) {
+    throw new ChatError(
+      `a chat is serving this instance at ${url} — stop it with ctrl-c and run this again, or it will go on running the version it started with`,
+    );
+  }
+
+  const here = version(root);
+  const release = await latestRelease(from);
+
+  if (release.version === here) {
+    console.log(`This instance is on ${here}, which is the latest release. Nothing to do.`);
+    return;
+  }
+
+  const opened = path.join(root, UNPACKING);
+  let replaced;
+  let notes;
+  try {
+    fs.rmSync(opened, { recursive: true, force: true });
+    const tree = release.unpacked ? release.package : await unpackInto(release.package, opened);
+    // What was downloaded is asked whether it is a workspace before any of it is put in place,
+    // inside replacePayload, so an instance is never half replaced by something that turned out to
+    // be something else.
+    notes = notesIn(tree);
+    replaced = replacePayload(root, tree);
+  } finally {
+    fs.rmSync(opened, { recursive: true, force: true });
+  }
+
+  const now = version(root);
+  console.log(`Was on ${here ?? "no recorded version"}, now on ${now}. Replaced:`);
+  for (const entry of replaced) {
+    console.log(`  ${entry}`);
+  }
+
+  // Left where the chat will look. The lead running in this instance was started under the old
+  // arrangement and will go on telling everybody the old way until it is told otherwise, and it
+  // cannot be told while nothing is running it.
+  leaveWord(root, { from: here, to: now, notes });
+
+  console.log("");
+  console.log("Start the chat again to run it:");
+  console.log(`  ${path.join(root, "bin", "ow")} chat`);
+}
+
+// Where to look for a release: what was asked for, or the toolkit's own.
+//
+// Anything that is not exactly the one option is refused rather than ignored. A command that takes
+// a default quietly does the default thing when it is mistyped, and updating an instance from
+// somewhere other than the place that was meant is not a mistake to make quietly.
+function whereToLook(argv) {
+  if (argv.length === 0) {
+    if (RELEASES === null) {
+      throw new UsageError(
+        "where to look for a release is not settled in this build yet: ow update --from <url or directory>",
+      );
+    }
+    return RELEASES;
+  }
+
+  if (argv[0] !== "--from" || argv.length !== 2 || argv[1] === "") {
+    throw new UsageError(`update takes at most --from <url or directory> (got ${argv.join(" ")})`);
+  }
+
+  return argv[1];
+}
+
+// Whether anything is actually there. A recorded address outlives the process that wrote it, on
+// purpose — a stale one is found out by trying rather than by tidying up on the way out.
+async function isAnswering(url) {
+  try {
+    return (await fetch(`${url}/health`)).ok;
+  } catch {
+    return false;
+  }
+}
+
 // An instance that takes its token from the environment has no account of its own to sign in,
 // and a credential written into its home would sit there being overridden. Say so rather than
 // opening a browser for a sign-in that changes nothing.
@@ -442,6 +545,10 @@ async function main(argv) {
       await say(root, arguments_[0], arguments_.slice(1));
       return 0;
     }
+    if (command === "update") {
+      await update(root, arguments_);
+      return 0;
+    }
     if (command === "login") {
       return signIn(root);
     }
@@ -456,7 +563,7 @@ async function main(argv) {
       return 2;
     }
     // Nothing to do with the command line, so the usage under it would only be noise.
-    if (error instanceof DeskError || error instanceof ChatError) {
+    if (error instanceof DeskError || error instanceof ChatError || error instanceof ReleaseError) {
       console.error(`ow: ${error.message}`);
       return 1;
     }

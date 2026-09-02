@@ -14,6 +14,7 @@
 
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
+import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -585,4 +586,46 @@ export async function waitForHealth(url) {
 // The address a chat printed for itself.
 export async function waitForAddress(child) {
   return waitFor(() => /http:\/\/127\.0\.0\.1:\d+/.exec(child.output)?.[0] ?? null);
+}
+
+// A release, served the way GitHub serves one.
+//
+// Two routes, because that is all an instance asks for: what the latest release is, and the archive
+// for it. The archive is made with tar from a real directory, wrapped in one directory named for it
+// — which is the shape GitHub hands out and the reason the update strips one level off. A check
+// against a hand-made shape would prove the update could read something nobody serves.
+//
+// No release is ever published from here. This is what makes the whole path checkable without one.
+export function serveRelease(tree, tag) {
+  const archive = spawnSync("tar", ["-czf", "-", "-C", path.dirname(tree), path.basename(tree)], {
+    maxBuffer: 64 * 1024 * 1024,
+  }).stdout;
+
+  const server = http.createServer((request, response) => {
+    const url = new URL(request.url, "http://127.0.0.1");
+    if (url.pathname === "/releases/latest") {
+      const body = JSON.stringify({
+        tag_name: tag,
+        tarball_url: `http://127.0.0.1:${server.address().port}/tarball`,
+      });
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(body);
+      return;
+    }
+    if (url.pathname === "/tarball") {
+      response.writeHead(200, { "content-type": "application/gzip" });
+      response.end(archive);
+      return;
+    }
+    response.writeHead(404).end();
+  });
+
+  return new Promise((resolve) => {
+    server.listen(0, "127.0.0.1", () => {
+      resolve({
+        latest: `http://127.0.0.1:${server.address().port}/releases/latest`,
+        close: () => server.close(),
+      });
+    });
+  });
 }

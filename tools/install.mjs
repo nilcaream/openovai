@@ -11,7 +11,7 @@ import os from "node:os";
 import path from "node:path";
 
 import { MEMORY_FILE, memoryDirectory } from "./claude.mjs";
-import { VERSION_FILE } from "./version.mjs";
+import { PAYLOAD, notAWorkspace } from "./payload.mjs";
 import {
   DeskError,
   allowDesk,
@@ -83,18 +83,6 @@ const CONFIG_FILE = "ow.json";
 
 // Bumped when a field changes meaning, so an older instance can be recognised as one.
 const CONFIG_SCHEMA = 1;
-
-// What an instance is made of. The installer copies these across from the source and nothing
-// else, so an instance carries its own copy of everything it runs and never reaches back to
-// where it was installed from. A release package is the same list in a different wrapper,
-// which is why this is a list and not a walk of the source directory.
-//
-// VERSION is in it because the version is a property of what the toolkit ships and not of what
-// the instance became: it travels with the code it names, so taking a newer version replaces it
-// along with everything else and there is no field anywhere to keep in step. It is also what
-// checkSource asks for, which makes a source without one — an older clone, an unpacked something
-// else — say so at the door rather than install as a version nobody can name.
-const PAYLOAD = ["bin", "tools", "templates", VERSION_FILE];
 
 // The lead's persona, before the names are written into it. What becomes of it — where it is
 // written and why the names are welded in rather than looked up — is in tools/desks.mjs, which
@@ -270,13 +258,13 @@ function checkRoot(plan) {
 }
 
 // Everything the installer reads comes from the source, so that installing from a clone and
-// installing from an unpacked release are one code path rather than two.
+// installing from an unpacked release are one code path rather than two. What makes a directory
+// one is asked of tools/payload.mjs, because taking a newer version asks the same question of the
+// package it downloaded and the two must not be able to drift apart.
 function checkSource(plan) {
-  const missing = PAYLOAD.filter((entry) => !fs.existsSync(path.join(plan.source, entry)));
-  if (missing.length > 0) {
-    throw new InstallError(
-      `${plan.source} does not look like an office workspace: no ${missing.join(", ")} in it`,
-    );
+  const wrong = notAWorkspace(plan.source);
+  if (wrong !== null) {
+    throw new InstallError(wrong);
   }
 }
 
