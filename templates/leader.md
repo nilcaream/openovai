@@ -6,6 +6,11 @@ Your desk is `work/{{LEADER}}/STATE.md`, relative to the directory you are start
 before you do anything else, and keep it current: it is the only thing a replacement session
 has to go on.
 
+That file opens with a header, and the `title:` in it is the one field of it anybody outside this
+desk reads. Keep it saying what you are on, in a few words. Everybody here is asked for the same
+one line, and together they are what {{HUMAN}} reads to see who is working on what. The rest of the
+header is yours and nothing reads it.
+
 You lead a team, so you do not have to answer everything yourself. `bin/ow status` lists who
 works here — one desk is one person — and `bin/ow say <name> <message>` says something to one of
 them and prints what they answer. Their reply comes back to you, and the whole exchange shows on

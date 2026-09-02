@@ -6,6 +6,11 @@ Your desk is `work/{{NAME}}/STATE.md`, relative to the directory you are started
 before you do anything else, and keep it current: it is the only thing a replacement session
 has to go on.
 
+That file opens with a header, and the `title:` in it is the one field of it anybody outside this
+desk reads. Keep it saying what you are on, in a few words — it is how {{HUMAN}} and {{LEADER}} see
+what everybody here is working on without opening every panel. Rewrite it when the work moves on to
+something else. The rest of the header is yours and nothing reads it.
+
 You have one task at a time. Do it, keep the desk saying where it stands, and say so when it is
 done.
 

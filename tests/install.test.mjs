@@ -239,6 +239,21 @@ describe("what the installer made", () => {
     assert.match(contentOf("personas", `${LEADER}.md`), /kept current as you go and not only then/);
   });
 
+  // What the lead is on has to come from somewhere, and the only thing that knows it is the lead.
+  // One field of the desk header, named in the persona, is the whole of the arrangement.
+  it("tells the leader which one field of its header is read by anybody else", () => {
+    assert.match(contentOf("personas", `${LEADER}.md`), /the `title:` in it is the one field/);
+  });
+
+  it("tells the leader to keep that field saying what it is on", () => {
+    assert.match(contentOf("personas", `${LEADER}.md`), /Keep it saying what you are on/);
+  });
+
+  // And that the rest of the header is not something to keep true for anybody else's sake.
+  it("tells the leader nothing else in that header is read", () => {
+    assert.match(contentOf("personas", `${LEADER}.md`), /rest of the\s+header is yours and nothing reads it/);
+  });
+
   it("warns the leader that asking somebody waits for them", () => {
     assert.match(contentOf("personas", `${LEADER}.md`), /waits for them/);
   });

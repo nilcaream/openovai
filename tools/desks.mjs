@@ -75,6 +75,31 @@ export function deskFile(root, name) {
   return path.join(root, WORK, name, DESK_FILE);
 }
 
+// What the person at this desk is on, from the header their desk file opens with.
+//
+// A desk is a whole document and most of it is prose nobody else can read usefully. The header's
+// `title:` is the one field of it that anything outside the desk reads, which is why the personas
+// name that field and no other: one line, kept current as the work moves, and everything else in
+// there stays the desk's own business.
+//
+// Nothing is guessed when it is not there. An empty title is a session that has not said what it
+// is on, and saying nothing is the honest rendering of that — better than the first line of a
+// document that was written for somebody else.
+//
+// It stops at the next `|`, which is the header's own separator, and at the comment's end, so a
+// title written last does not swallow the rest of the line.
+export function deskTitle(root, name) {
+  let opening;
+  try {
+    opening = fs.readFileSync(deskFile(root, name), "utf8").split("\n")[0];
+  } catch {
+    return "";
+  }
+
+  const said = /\|\s*title:\s*([^|]*)/.exec(opening);
+  return said === null ? "" : said[1].replace(/-->\s*$/, "").trim();
+}
+
 export function personaFile(root, name) {
   return path.join(root, PERSONAS, `${name}.md`);
 }

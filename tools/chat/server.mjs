@@ -12,7 +12,7 @@ import { append, lastAt, read } from "./conversation.mjs";
 import { HOST, record } from "./listening.mjs";
 import { carry, overhear } from "./overheard.mjs";
 import { allow, answer as settle, giveUp, park, parked, refuse } from "./permissions.mjs";
-import { DESK_FILE, WORK } from "../desks.mjs";
+import { DESK_FILE, WORK, deskTitle } from "../desks.mjs";
 import { ask, forget, hasThread, sessions } from "./session.mjs";
 import { inTurn, turnsGoing, waitingFor, whileWaitingFor, wouldWaitForItself } from "./turns.mjs";
 
@@ -122,7 +122,9 @@ function handoverWrapper(name) {
     `<handover>Your thread is about to be ended, and a new session takes this desk with none of`,
     `what you remember. Write ${desk(name)} so that session can carry on with nothing lost: what`,
     `the task is, what is true right now, what to do next, and what has already been settled so it`,
-    `is not worked out twice. Then say in one line that you are ready. Start nothing new.</handover>`,
+    `is not worked out twice. Leave the header's title: saying what this desk is on, so the rest of`,
+    `us can see it without opening this panel. Then say in one line that you are ready. Start`,
+    `nothing new.</handover>`,
   ].join(" ");
 }
 
@@ -382,6 +384,10 @@ function everySession(instance, session) {
     // When anything last happened on its panel. A fact and not a verdict — nothing here knows
     // whether a quiet session is finished, stuck or merely quiet, and the person reading does.
     active: lastAt(instance.root, session.name),
+    // And what it is on, in the session's own words, from the one header field its persona asks
+    // it to keep current. Nothing else can answer this: a name says who somebody is and a
+    // transcript says what they were last asked, neither of which is what they are working on.
+    doing: deskTitle(instance.root, session.name),
   };
 }
 

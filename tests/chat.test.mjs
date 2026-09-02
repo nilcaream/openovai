@@ -1612,6 +1612,74 @@ describe("how much of itself a session is carrying", () => {
 // These run on a desk of their own, opened here, so that ending its thread cannot disturb what the
 // rest of the suite is in the middle of. A desk opened while the chat runs is somebody it can host
 // from that moment, which is why this needs no restart.
+const AT_WORK = "Rook";
+
+// What each session is on. Nothing else on the row can answer it: a name says who somebody is and
+// a transcript says what they were last asked, and neither is the work.
+//
+// It comes from the one header field the personas ask a session to keep current, so this is as
+// much about the desk file being read correctly as about the field being there — a header is one
+// line of separators and it is easy to read one field and get the next one with it.
+describe("what the page is told about what each session is on", () => {
+  const doingLog = path.join(standIn, "doing.txt");
+
+  function header(name, title) {
+    const desk = path.join(instance, "work", name, "STATE.md");
+    const lines = fs.readFileSync(desk, "utf8").split("\n");
+    lines[0] = `<!-- DESK | name: ${name} | title: ${title} | status: at it | updated: 2026-01-01 -->`;
+    fs.writeFileSync(desk, lines.join("\n"));
+  }
+
+  async function doingOf(name) {
+    const { sessions: rows } = JSON.parse((await get(`${URL}/sessions`)).body);
+    return rows.find((row) => row.name === name)?.doing;
+  }
+
+  before(async () => {
+    runTool(instance, ["hire", AT_WORK], process.env);
+    await start(instance, standInEnvironment(standIn, doingLog));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+  });
+
+  it("says what a session put in its header", async () => {
+    header(AT_WORK, "counting the doors on the second floor");
+    assert.equal(await doingOf(AT_WORK), "counting the doors on the second floor");
+  });
+
+  // The header is a row of fields divided by pipes, so a reader that does not stop at the next one
+  // hands back the status and the date as though the session had written them.
+  it("stops at the end of that field and does not read the next one", async () => {
+    header(AT_WORK, "counting the doors");
+    assert.equal(await doingOf(AT_WORK), "counting the doors");
+  });
+
+  // A title written last has the comment's own ending after it, which is not part of what anybody
+  // typed.
+  it("does not read the end of the header line as part of it", async () => {
+    const desk = path.join(instance, "work", AT_WORK, "STATE.md");
+    const lines = fs.readFileSync(desk, "utf8").split("\n");
+    lines[0] = `<!-- DESK | name: ${AT_WORK} | title: last of all -->`;
+    fs.writeFileSync(desk, lines.join("\n"));
+    assert.equal(await doingOf(AT_WORK), "last of all");
+  });
+
+  it("says nothing about a session that has not filled it in", async () => {
+    header(AT_WORK, "");
+    assert.equal(await doingOf(AT_WORK), "");
+  });
+
+  it("says nothing when the desk has no header at all", async () => {
+    const desk = path.join(instance, "work", AT_WORK, "STATE.md");
+    fs.writeFileSync(desk, "# Rook\n\nno header on this one\n");
+    assert.equal(await doingOf(AT_WORK), "");
+  });
+
+  it("says nothing when there is no desk file to read", async () => {
+    fs.rmSync(path.join(instance, "work", AT_WORK, "STATE.md"));
+    assert.equal(await doingOf(AT_WORK), "");
+  });
+});
+
 const SPEAKS = "Wren";
 const SILENT = "Jay";
 const UNMEASURED = "Fern";
@@ -1805,6 +1873,13 @@ describe("handing a session over", () => {
   it("asks the session for its desk", () => {
     const asked = questionsIn(handoverLog).find((question) => question.includes("<handover>"));
     assert.ok(asked?.includes(`work/${HANDS_OVER}/STATE.md`));
+  });
+
+  // The one moment a whole desk is rewritten is the one moment a title left as it was would
+  // survive a change of subject, so the handover asks for it by name along with everything else.
+  it("asks the session to leave its header title saying what the desk is on", () => {
+    const asked = questionsIn(handoverLog).find((question) => question.includes("<handover>"));
+    assert.match(asked ?? "", /header's title:/);
   });
 
   it("wraps what it asks, so nothing reaches the session as though the human had typed it", () => {

@@ -307,6 +307,23 @@ describe("hiring a worker", () => {
     assert.ok(persona.includes(LEADER));
   });
 
+  // A worker is asked for the same one line the lead is: the header field that says what it is on.
+  // Without it the page has a column with nothing in it and no way to fill one.
+  it("tells the worker which one field of its header is read by anybody else", () => {
+    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    assert.match(persona, /the `title:` in it is the one field/);
+  });
+
+  it("tells the worker to keep that field saying what it is on", () => {
+    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    assert.match(persona, /Keep it saying what you are on/);
+  });
+
+  it("tells the worker nothing else in that header is read", () => {
+    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    assert.match(persona, /rest of the header is yours and nothing reads it/);
+  });
+
   // The whole of the speakerphone on the worker's side: it can see that nobody wrapped the turn, it
   // knows that means the human, and it knows the chat has already said so upward — so it answers
   // the human rather than spending a turn passing it on.
