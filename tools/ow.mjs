@@ -347,11 +347,6 @@ async function update(root, argv) {
 // somewhere other than the place that was meant is not a mistake to make quietly.
 function whereToLook(argv) {
   if (argv.length === 0) {
-    if (RELEASES === null) {
-      throw new UsageError(
-        "where to look for a release is not settled in this build yet: ow update --from <url or directory>",
-      );
-    }
     return RELEASES;
   }
 

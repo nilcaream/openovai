@@ -14,6 +14,7 @@ import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
 import { installed, remove, repo, runToolLater, scratch, serveRelease, waitFor } from "./helpers.mjs";
+import { RELEASES } from "../tools/release.mjs";
 
 const HUMAN = "Mike";
 const LEADER = "Superman";
@@ -250,6 +251,15 @@ describe("what an update refuses", () => {
 
   it("refuses --from with nothing after it, as a command line", async () => {
     assert.equal((await runToolLater(root, ["update", "--from"], process.env)).status, 2);
+  });
+
+  // Read rather than fetched. Nothing here talks to the place the toolkit is published from — a
+  // check that did would be a check on somebody else's uptime — so what is asserted is the address
+  // itself. There is nothing to derive it from, which is exactly why it is written down twice: an
+  // instance that quietly began updating itself from somewhere else is the one failure here nobody
+  // would notice from the outside.
+  it("looks at the releases of the toolkit itself when it is not told where", () => {
+    assert.equal(RELEASES, "https://api.github.com/repos/nilcaream/office-workspace/releases/latest");
   });
 });
 

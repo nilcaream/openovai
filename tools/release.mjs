@@ -20,10 +20,11 @@ export const RELEASE_NOTES = "NOTES.md";
 // Where an instance looks when it is not told where to look: the toolkit's own releases, asked of
 // GitHub, which answers with the latest one.
 //
-// Not settled yet. The address names the account the toolkit is published under, and that is not a
-// line to write on a guess — so until it is decided, a release is named with --from and this is
-// what says there is no other answer. It becomes a string and nothing else here changes.
-export const RELEASES = null;
+// A tool that updates itself has to know where it lives, and this is the one place that says so. It
+// is in the payload rather than in an instance's own description of itself, for the reason the
+// version is: what an instance carries here comes from the release it is on, so a fork that changes
+// this address updates from its own home without anybody having to remember --from.
+export const RELEASES = "https://api.github.com/repos/nilcaream/office-workspace/releases/latest";
 
 // Something went wrong finding or taking a release. Nothing to do with the command line.
 export class ReleaseError extends Error {}
