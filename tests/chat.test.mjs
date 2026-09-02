@@ -112,6 +112,16 @@ function transcriptOf(name) {
   return get(`${URL}/sessions/${name}/messages`);
 }
 
+// Every question the stand-in was handed, whole. A question can now carry what a session overheard
+// in front of it, so it runs to several lines and heardIn(), which is line-based, would see only
+// the first of them. The log is split on the lines that begin an entry.
+function questionsIn(log) {
+  return readLog(log)
+    .split(/^(?=(?:call|pid|heard|told|said|shell|answered|stdin): )/m)
+    .filter((entry) => entry.startsWith("heard: "))
+    .map((entry) => entry.slice("heard: ".length).trimEnd());
+}
+
 async function start(root, environment) {
   await stopChat(server);
   server = startChat(root, environment);
@@ -758,6 +768,105 @@ describe("the lead hears what was said on another panel", () => {
   });
 });
 
+// A line on the lead's panel is what a person reads, and it is not what the lead's model hears:
+// the panel is a file, the model's context is the thread a run resumes. So what was overheard
+// waits until the lead runs for its own reasons and rides in front of whatever it is asked.
+//
+// The stand-in logs the whole question it was handed, and a question with overheard lines in front
+// of it runs to several lines — so these read the log rather than heardIn(), which is line-based
+// and would see only the first of them.
+describe("what the lead overheard reaches it on its next turn", () => {
+  const carriedLog = path.join(standIn, "carried.txt");
+  let workersOwnTurn;
+  let asked;
+  let theTurnAfter;
+
+  before(async () => {
+    await start(instance, standInEnvironment(standIn, carriedLog));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    await say("the kettle is broken", WORKER);
+    await say("and the lift is out", WORKER);
+    workersOwnTurn = questionsIn(carriedLog).at(-1);
+
+    await say("what is going on out there", LEADER);
+    asked = questionsIn(carriedLog).at(-1);
+
+    await say("anything else", LEADER);
+    theTurnAfter = questionsIn(carriedLog).at(-1);
+  });
+
+  it("hands the lead what was said on the other panel", () => {
+    assert.ok(asked.includes("the kettle is broken"));
+  });
+
+  it("says whose panel it was said on, and who said it", () => {
+    assert.ok(asked.includes(`<overheard on="${WORKER}" from="${HUMAN}">the kettle is broken</overheard>`));
+  });
+
+  it("hands over everything it overheard, in the order it was said", () => {
+    assert.deepEqual(
+      [...asked.matchAll(/<overheard[^>]*>([^<]*)<\/overheard>/g)].map((found) => found[1]),
+      ["the kettle is broken", "and the lift is out"],
+    );
+  });
+
+  it("puts them in front of the message the turn is actually about", () => {
+    assert.ok(asked.endsWith("what is going on out there"));
+  });
+
+  it("leaves the human's own message outside every wrapper, which is what makes it the human's", () => {
+    assert.ok(!asked.split("</overheard>").at(-1).includes("<"));
+  });
+
+  it("hands it over once, not on every turn afterwards", () => {
+    assert.ok(!theTurnAfter.includes("overheard"));
+  });
+
+  it("hands the addressee only the message it was sent", () => {
+    assert.ok(!workersOwnTurn.includes("overheard"));
+  });
+
+  it("still writes it on the lead's panel as well", async () => {
+    const { messages } = JSON.parse((await transcriptOf(LEADER)).body);
+    assert.ok(messages.some((message) => message.overheard === true && message.text.includes("the kettle is broken")));
+  });
+});
+
+// Drained where the turn BEGINS, not where the message arrived. A lead that is already busy has its
+// next turn waiting in the queue, and anything said while it waits belongs to that turn rather than
+// to the one after it. With an idle lead the two moments are the same instant, which is why this
+// needs a busy one: it is the only case that tells the two apart.
+describe("a line said while the lead's next turn is already waiting", () => {
+  const queuedLog = path.join(standIn, "queued.txt");
+  let theWaitingTurn;
+
+  before(async () => {
+    await start(instance, standInEnvironment(standIn, queuedLog, { OW_STAND_IN_SLOW: "1500" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    // None of these is awaited on its own: the whole point is what overlaps what.
+    const busy = say("something that takes a while", LEADER);
+    await waitFor(() => questionsIn(queuedLog).some((question) => question.includes("takes a while")) || null);
+
+    // This one queues behind it, and at the moment it arrives nothing has been overheard.
+    const waiting = say("and then this one", LEADER);
+    // Long enough that the two POSTs cannot land the other way round, and far short of the delay
+    // the slow one is still sitting in. Without the gap the check passes whichever way it is
+    // built, because a line already pending when the message arrives is carried by either.
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    // Said while that one is still waiting its turn.
+    const meanwhile = say("the roof is leaking", WORKER);
+
+    await Promise.all([busy, waiting, meanwhile]);
+    theWaitingTurn = questionsIn(queuedLog).find((question) => question.includes("and then this one"));
+  });
+
+  it("goes with the turn that was waiting, not the one after it", () => {
+    assert.ok(theWaitingTurn?.includes("the roof is leaking"));
+  });
+});
+
 // One session answers one message at a time. Without it a second message arriving mid-run starts a
 // second child for the same session, both resuming the same thread, and the transcript comes out as
 // two questions followed by two answers nobody can pair up.
@@ -872,10 +981,13 @@ describe("one session waiting does not hold up another", () => {
     await Promise.all([say("the worker's own", WORKER), say("the lead's own", LEADER)]);
   });
 
+  // Read by what the stand-in logged rather than by which message it was: a question can now carry
+  // what the lead overheard in front of it, over several lines, so a filter on the text of one
+  // message finds the other one's lines too.
   it("runs them at the same time", () => {
     const order = readLog(bothLog)
       .split("\n")
-      .filter((line) => line.includes("the worker's own") || line.includes("the lead's own"))
+      .filter((line) => /^(heard|answered): /.test(line))
       .map((line) => (line.startsWith("heard") ? "began" : "ended"));
     assert.deepEqual(order, ["began", "began", "ended", "ended"]);
   });

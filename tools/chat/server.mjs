@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 
 import { append, read } from "./conversation.mjs";
 import { HOST, record } from "./listening.mjs";
+import { carry, overhear } from "./overheard.mjs";
 import { allow, answer as settle, giveUp, park, parked, refuse } from "./permissions.mjs";
 import { ask, sessions } from "./session.mjs";
 import { inTurn, midTurn, whileWaitingFor, wouldWaitForItself } from "./turns.mjs";
@@ -82,6 +83,22 @@ function overheardLine(human, on, text) {
   return `${human} said to ${on}: ${text}`;
 }
 
+// The same thing said to the lead's model rather than to the person reading its panel.
+//
+// A wrapper, for the reason `wrap` above is one: the server is the only thing that writes one, so
+// what is left OUTSIDE every wrapper is the human speaking on this session's own panel, still by
+// construction. This is what a turn is handed in front of the message it is actually about.
+function overheardWrapper(human, on, text) {
+  return `<overheard on="${on}" from="${human}">${text}</overheard>`;
+}
+
+// What a session is handed: everything it overheard while it was not running, then the message
+// this turn is about. Blank lines between them, because they are separate things said by
+// different people and a wall of text invites a model to read them as one.
+function withWhatWasOverheard(lines, message) {
+  return [...lines, message].join("\n\n");
+}
+
 // Everything a session is asked or answers is under its own name, so one route shape serves
 // every panel and there is no path through here that only the lead can take.
 const SESSION_ROUTE = /^\/sessions\/([^/]+)\/(messages|message|permissions|permission)$/;
@@ -138,6 +155,7 @@ async function postMessage(instance, name, request, response) {
       text: overheardLine(instance.config.human, name, text.trim()),
       overheard: true,
     });
+    overhear(instance.config.leader, overheardWrapper(instance.config.human, name, text.trim()));
   }
 
   // The whole exchange happens inside the session's turn, the question written down when the turn
@@ -154,7 +172,12 @@ async function postMessage(instance, name, request, response) {
         answer = await ask(
           instance,
           name,
-          sender === null ? asked.text : wrap(sender.name, sender.role, asked.text),
+          withWhatWasOverheard(
+            // Drained here, where the turn begins, rather than where the message arrived: anything
+            // said while this turn was waiting its place in the queue belongs to this turn.
+            carry(name),
+            sender === null ? asked.text : wrap(sender.name, sender.role, asked.text),
+          ),
           (request) => park(name, request),
         );
       } finally {
