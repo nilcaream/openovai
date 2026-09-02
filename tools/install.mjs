@@ -10,6 +10,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
+import { MEMORY_FILE, memoryDirectory } from "./claude.mjs";
 import {
   DeskError,
   allowDesk,
@@ -18,6 +19,7 @@ import {
   allowStatus,
   describeName,
   isName,
+  readTemplate,
   writeDesk,
   writePersona,
 } from "./desks.mjs";
@@ -91,6 +93,13 @@ const PAYLOAD = ["bin", "tools", "templates"];
 // written and why the names are welded in rather than looked up — is in tools/desks.mjs, which
 // every session's persona goes through.
 const LEADER_TEMPLATE = path.join("templates", "leader.md");
+
+// The index of what the workspace knows, before anybody has put anything in it. An instance is
+// given one rather than left to grow one, because a session asked to remember something and
+// finding nothing there writes whatever shape occurs to it, and every session after that reads
+// that shape as the workspace's own. What the index says about what belongs in it is the only
+// steering there is.
+const MEMORY_TEMPLATE = path.join("templates", "MEMORY.md");
 
 // A bad command line: the person can fix it and try again, so we show them the usage.
 class UsageError extends Error {}
@@ -309,6 +318,16 @@ function writeConfig(plan) {
   return [target];
 }
 
+// The index goes where the sessions read it — inside the instance's own Claude Code home, under
+// the name tools/claude.mjs pins — rather than anywhere of the installer's choosing. One answer to
+// where an instance's memory is, and the installer asks for it rather than spelling it again.
+function writeMemoryIndex(plan) {
+  const target = path.join(memoryDirectory(plan.root), MEMORY_FILE);
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.writeFileSync(target, readTemplate(plan.source, "memory", MEMORY_TEMPLATE));
+  return [target];
+}
+
 function printPlan(plan) {
   const rows = [
     ["source", plan.source],
@@ -373,6 +392,7 @@ function main(argv) {
       ...createLayout(plan),
       ...copyPayload(plan),
       ...writeConfig(plan),
+      ...writeMemoryIndex(plan),
       ...writeDesk(plan.root, plan.source, plan.leader),
       ...writePersona(plan.root, plan.source, plan.leader, "leader", LEADER_TEMPLATE, {
         LEADER: plan.leader,

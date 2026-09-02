@@ -102,6 +102,29 @@ describe("what the installer made", () => {
     assert.ok(fs.existsSync(inside("templates", "STATE.md")));
   });
 
+  it("copies the memory index template in", () => {
+    assert.ok(fs.existsSync(inside("templates", "MEMORY.md")));
+  });
+
+  // Where a session reads it is not the installer's choice — it is inside the instance's own
+  // Claude Code home, under the fixed name that survives the instance being moved. The path is
+  // spelled out here rather than asked of the code, so that moving the index and moving the check
+  // cannot be one edit.
+  it("gives the instance an index of what it knows, where its sessions read it", () => {
+    assert.ok(fs.existsSync(inside(".claude-home", "projects", "workspace", "memory", "MEMORY.md")));
+  });
+
+  it("says in that index what belongs in it", () => {
+    assert.match(
+      contentOf(".claude-home", "projects", "workspace", "memory", "MEMORY.md"),
+      /work it out again/,
+    );
+  });
+
+  it("says it wrote the index", () => {
+    assert.ok(made.stdout.includes(inside(".claude-home", "projects", "workspace", "memory", "MEMORY.md")));
+  });
+
   it("makes a directory for the settings", () => {
     assert.ok(fs.statSync(inside(".claude")).isDirectory());
   });

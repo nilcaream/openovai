@@ -33,6 +33,19 @@ const NEVER_INHERITED = [
 // directory would put an instance's memory somewhere the instance does not own.
 export const PROJECT_DIRECTORY = "workspace";
 
+// What Claude Code calls the index of what it has been told to remember, and where it keeps it.
+// A session reads that directory before it is asked anything and writes into it when it is asked
+// to remember something, so it is the one thing in an instance that outlives a conversation
+// without anybody having to go and look for it.
+//
+// It is under the instance's own home, so two workspaces on one machine never read each other's;
+// and under the fixed name above, so one workspace reads its own wherever it has been moved to.
+export const MEMORY_FILE = "MEMORY.md";
+
+export function memoryDirectory(root) {
+  return path.join(home(root), "projects", PROJECT_DIRECTORY, "memory");
+}
+
 // The one credential an instance can be told to take from the machine around it. Signing in is
 // interactive, and an instance that has to be signed in by hand cannot be started by anything
 // automatic; a token minted once with `claude setup-token` and exported where the instances are
