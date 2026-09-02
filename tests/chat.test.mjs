@@ -112,14 +112,21 @@ function transcriptOf(name) {
   return get(`${URL}/sessions/${name}/messages`);
 }
 
-// Every question the stand-in was handed, whole. A question can now carry what a session overheard
-// in front of it, so it runs to several lines and heardIn(), which is line-based, would see only
-// the first of them. The log is split on the lines that begin an entry.
-function questionsIn(log) {
+// The stand-in's log, whole entries rather than lines. A question can carry what a session
+// overheard and what it is asked about its desk in front of it, so an entry runs to several lines
+// and anything line-based sees only the first of them. The log is split on the lines that begin an
+// entry, which is the only place a new one can start.
+function entriesIn(log) {
   return readLog(log)
     .split(/^(?=(?:call|pid|heard|told|said|shell|answered|stdin): )/m)
+    .map((entry) => entry.trimEnd());
+}
+
+// Every question the stand-in was handed, whole.
+function questionsIn(log) {
+  return entriesIn(log)
     .filter((entry) => entry.startsWith("heard: "))
-    .map((entry) => entry.slice("heard: ".length).trimEnd());
+    .map((entry) => entry.slice("heard: ".length));
 }
 
 async function start(root, environment) {
@@ -390,7 +397,7 @@ describe("who a message is from", () => {
   });
 
   it("hands the page's own message over unwrapped", () => {
-    assert.ok(!heardIn(log).at(-1).includes("<from-session"));
+    assert.ok(!questionsIn(log).at(-1).includes("<from-session"));
   });
 
   it("keeps the page's own message under the human's name", async () => {
@@ -404,15 +411,15 @@ describe("who a message is from", () => {
     });
 
     it("hands it over wrapped, under the name of who sent it", () => {
-      assert.ok(heardIn(log).at(-1).includes(`<from-session name="${LEADER}" role="lead">`));
+      assert.ok(questionsIn(log).at(-1).includes(`<from-session name="${LEADER}" role="lead">`));
     });
 
     it("says what the sender is, not only who", () => {
-      assert.ok(heardIn(log).at(-1).includes('role="lead"'));
+      assert.ok(questionsIn(log).at(-1).includes('role="lead"'));
     });
 
     it("hands over what was said inside the wrapper", () => {
-      assert.match(heardIn(log).at(-1), /<from-session[^>]*>this one is mine<\/from-session>/);
+      assert.match(questionsIn(log).at(-1), /<from-session[^>]*>this one is mine<\/from-session>/);
     });
 
     it("keeps it in the transcript under the name of who sent it", async () => {
@@ -829,7 +836,7 @@ describe("what the lead overheard reaches it on its next turn", () => {
   });
 
   it("leaves the human's own message outside every wrapper, which is what makes it the human's", () => {
-    assert.ok(!asked.split("</overheard>").at(-1).includes("<"));
+    assert.equal(asked.slice(asked.lastIndexOf(">") + 1).trim(), "what is going on out there");
   });
 
   it("hands it over once, not on every turn afterwards", () => {
@@ -908,10 +915,9 @@ describe("a session answers one message at a time", () => {
   });
 
   it("does not begin the second before the first is done", () => {
-    const order = readLog(slowLog)
-      .split("\n")
-      .filter((line) => line.includes("one at a time") || line.includes("and me, when"))
-      .map((line) => `${line.startsWith("heard") ? "began" : "ended"} ${line.includes("one at a time") ? "first" : "second"}`);
+    const order = entriesIn(slowLog)
+      .filter((entry) => entry.includes("one at a time") || entry.includes("and me, when"))
+      .map((entry) => `${entry.startsWith("heard") ? "began" : "ended"} ${entry.includes("one at a time") ? "first" : "second"}`);
     assert.deepEqual(order, ["began first", "ended first", "began second", "ended second"]);
   });
 
@@ -1243,7 +1249,7 @@ describe("a session is asked over the streaming protocol", () => {
   });
 
   it("hands the question over on stdin", () => {
-    assert.ok(heardIn(askedLog).at(-1).includes("a question of its own"));
+    assert.ok(questionsIn(askedLog).at(-1).includes("a question of its own"));
   });
 
   it("closes the run's stdin once the answer is in", () => {
@@ -2001,6 +2007,117 @@ describe("what the page is told about a session waiting to be allowed", () => {
   });
 });
 
+// What a session is asked about its own desk.
+//
+// The header's title: is the one field of a desk anything outside it reads, and a persona line
+// asking for it is not what gets it written: a session given work keeps the work. What fires is an
+// ask in the turn, so it goes in front of the message, wrapped, on any turn where the desk still
+// says nothing.
+//
+// Both states have to be reachable here or the check is about a session that never had a title at
+// all: one desk is left exactly as hiring wrote it, and one has a title written into its header
+// before a word is said to it.
+const SAYS_NOTHING = "Wren";
+const SAYS_SO = "Heron";
+
+describe("what a session is asked about its desk", () => {
+  const deskLog = path.join(standIn, "desk.txt");
+  let asked;
+  let notAsked;
+
+  before(async () => {
+    runTool(instance, ["hire", SAYS_NOTHING], process.env);
+    runTool(instance, ["hire", SAYS_SO], process.env);
+
+    const desk = path.join(instance, "work", SAYS_SO, "STATE.md");
+    const lines = fs.readFileSync(desk, "utf8").split("\n");
+    lines[0] = "<!-- DESK | title: reading the water meter -->";
+    fs.writeFileSync(desk, lines.join("\n"));
+
+    await start(instance, standInEnvironment(standIn, deskLog));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    await say("count the doors on the second floor", SAYS_NOTHING);
+    asked = questionsIn(deskLog).at(-1);
+    await say("carry on with the meter", SAYS_SO);
+    notAsked = questionsIn(deskLog).at(-1);
+  });
+
+  it("asks for the title on a turn where the desk does not say what it is on", () => {
+    assert.match(asked ?? "", /the one field of it anybody outside this desk reads/);
+  });
+
+  it("names the desk it is asking about", () => {
+    assert.ok((asked ?? "").includes(`work/${SAYS_NOTHING}/STATE.md`));
+  });
+
+  // The state the ask exists to end is "nobody can see what this one is on", so a desk that says
+  // hears nothing about it — and goes on hearing nothing, which is what makes the ask free.
+  it("says nothing about the desk to a session whose desk already says", () => {
+    assert.ok(!(notAsked ?? "").includes("<desk>"));
+  });
+
+  it("wraps the ask, so nothing reaches the session as though the human had typed it", () => {
+    assert.match(asked ?? "", /<desk>[\s\S]*<\/desk>/);
+  });
+
+  // Both halves, because an ask that is not there at all has no place in the turn either, and a
+  // check that only compared two positions would read the missing one as being in front.
+  it("asks in front of the message rather than after it", () => {
+    const wrapped = asked.indexOf("</desk>");
+    assert.ok(wrapped > -1 && wrapped < asked.indexOf("count the doors on the second floor"));
+  });
+
+  it("still hands the session the message it was sent", () => {
+    assert.ok((asked ?? "").includes("count the doors on the second floor"));
+  });
+});
+
+// WHEN the ask is put together, which is not the same question as whether it is asked at all. It
+// is decided where the turn begins and not where the message arrived, so a desk filled in by the
+// turn ahead of this one in the queue is not asked about again.
+//
+// The state that tells the two apart is a session with no title when the message arrives and a
+// title by the time its turn comes, and it is only reachable while something else is holding the
+// queue — hence the slow turn in front, and the wait for the message to be sitting behind it.
+const FILLED_IN = "Teal";
+
+describe("a message queued behind a turn that fills the desk in", () => {
+  const queuedDeskLog = path.join(standIn, "queued-desk.txt");
+  let asked;
+
+  async function queuedFor(name) {
+    const { sessions: rows } = JSON.parse((await get(`${URL}/sessions`)).body);
+    return rows.find((row) => row.name === name) ?? null;
+  }
+
+  before(async () => {
+    runTool(instance, ["hire", FILLED_IN], process.env);
+    await start(instance, standInEnvironment(standIn, queuedDeskLog, { OW_STAND_IN_SLOW: "1500" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    const answering = say("this one takes a while", FILLED_IN);
+    await waitFor(() => questionsIn(queuedDeskLog).some((question) => question.includes("takes a while")) || null);
+
+    const queued = say("and now this one", FILLED_IN);
+    await waitFor(async () => ((await queuedFor(FILLED_IN))?.queued === 1 ? true : null));
+
+    // What the turn ahead of it would have done: the desk says what it is on before the queued turn
+    // begins, and said nothing when its message arrived.
+    const desk = path.join(instance, "work", FILLED_IN, "STATE.md");
+    const lines = fs.readFileSync(desk, "utf8").split("\n");
+    lines[0] = "<!-- DESK | title: counting the doors -->";
+    fs.writeFileSync(desk, lines.join("\n"));
+
+    await Promise.all([answering, queued]);
+    asked = questionsIn(queuedDeskLog).find((question) => question.includes("and now this one"));
+  });
+
+  it("does not ask about a desk that was filled in while the message waited", () => {
+    assert.ok(!(asked ?? "").includes("<desk>"));
+  });
+});
+
 const HANDS_OVER = "Robin";
 
 describe("handing a session over", () => {
@@ -2043,7 +2160,7 @@ describe("handing a session over", () => {
   });
 
   it("wraps what it asks, so nothing reaches the session as though the human had typed it", () => {
-    const asked = questionsIn(handoverLog).find((question) => question.includes("STATE.md"));
+    const asked = questionsIn(handoverLog).find((question) => question.includes("<handover>"));
     assert.match(asked ?? "", /^<handover>[\s\S]*<\/handover>/);
   });
 
@@ -2195,10 +2312,9 @@ describe("a handover asked for while the session is answering", () => {
     midTurn = fs.existsSync(thread());
 
     await Promise.all([answering, handover]);
-    order = readLog(queuedLog)
-      .split("\n")
-      .filter((line) => line.includes("takes a while") || line.includes("<handover>"))
-      .map((line) => `${line.startsWith("heard") ? "began" : "ended"} ${line.includes("<handover>") ? "handover" : "turn"}`);
+    order = entriesIn(queuedLog)
+      .filter((entry) => entry.includes("takes a while") || entry.includes("<handover>"))
+      .map((entry) => `${entry.startsWith("heard") ? "began" : "ended"} ${entry.includes("<handover>") ? "handover" : "turn"}`);
   });
 
   it("leaves the thread alone while the turn ahead of it is still running", () => {

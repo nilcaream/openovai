@@ -100,6 +100,42 @@ function withWhatWasOverheard(lines, message) {
   return [...lines, message].join("\n\n");
 }
 
+// What a session is asked for when its desk does not say what it is on.
+//
+// The header's title: is the one field of a desk anything outside it reads, and a desk that has not
+// filled it in is a name in the room with nothing beside it. The personas ask for it and that is
+// not enough on its own: a session given real work and left to do it keeps the work, not the
+// header. What gets a field written is being asked for it in the turn — which is what this is.
+//
+// It rides on any turn where the title is empty rather than on the first turn of a new desk. A
+// session that let the first one go by would otherwise leave the room blank for good, and the state
+// worth acting on is not "newly hired", it is "nobody can see what this one is on". It costs a
+// sentence while that is true and nothing at all once it is not, so it stops asking by being
+// answered — including after a handover, which writes the title itself.
+//
+// A wrapper, for the reason `wrap` is one: what is left OUTSIDE every wrapper is the human speaking
+// on this session's own panel, and an instruction from the chat handed over bare would arrive as
+// something the human had typed.
+function deskWrapper(name) {
+  return [
+    `<desk>Your desk ${desk(name)} opens with a one-line header, and the title: in it is the one`,
+    `field of it anybody outside this desk reads — it is how the rest of us see what you are on`,
+    `without opening this panel. It is empty. Put what you are on into it, in a few words, and keep`,
+    `it true as the work moves.</desk>`,
+  ].join(" ");
+}
+
+// Everything a session is handed in front of the message this turn is about: what it overheard
+// while it was not running, and the standing ask above while its desk says nothing. Blank lines
+// between them, because they are separate things said by different people.
+function inFrontOf(instance, name, message) {
+  const said = [...carry(name)];
+  if (deskTitle(instance.root, name) === "") {
+    said.push(deskWrapper(name));
+  }
+  return withWhatWasOverheard(said, message);
+}
+
 // The desk a session keeps, said the way the session's own persona says it: relative to the
 // directory a session is started in, which is the instance root. Never an absolute path — an
 // instance that was moved would have been telling people about somewhere it no longer is.
@@ -224,12 +260,10 @@ async function postMessage(instance, name, request, response) {
         answer = await ask(
           instance,
           name,
-          withWhatWasOverheard(
-            // Drained here, where the turn begins, rather than where the message arrived: anything
-            // said while this turn was waiting its place in the queue belongs to this turn.
-            carry(name),
-            sender === null ? asked.text : wrap(sender.name, sender.role, asked.text),
-          ),
+          // Put together here, where the turn begins, rather than where the message arrived:
+          // anything said while this turn was waiting its place in the queue belongs to this turn,
+          // and a desk written by the turn ahead of this one is not asked about again.
+          inFrontOf(instance, name, sender === null ? asked.text : wrap(sender.name, sender.role, asked.text)),
           (request) => park(name, request),
         );
       } finally {
