@@ -179,6 +179,15 @@ describe("how the instance signs in", () => {
   });
 });
 
+describe("where a person can read what the workspace has learned", () => {
+  // Inside the Claude Code home, which is the one part of an instance nobody is expected to go
+  // looking in. Spelled out here rather than asked of the code, so that moving it and moving the
+  // check cannot be one edit.
+  it("says where this instance keeps it", () => {
+    assert.match(ow(["status"]).stdout, new RegExp(`memory\\s+${instance}/.claude-home/projects/workspace/memory`));
+  });
+});
+
 describe("the sign-in", () => {
   it("hands over to Claude Code", () => {
     assert.equal(ow(["login"]).status, 0);

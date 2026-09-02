@@ -78,9 +78,10 @@ describes a whole instance and can be read back, repeated and tested.
 
 So far the installer creates the directories an instance is made of: `work/` for the desks,
 `personas/` for the file that tells each session who it is, `.claude/` for the settings, and
-`.claude-home/` for the instance's own Claude Code home, so that two instances on one machine
-never share an account or a session history. None of them is copied from the source: what the
-toolkit ships and what an instance accumulates stay in different directories. It also writes
+`.claude-home/` for the instance's own Claude Code home — its account, its transcripts and what the
+workspace has learned — so that two instances on one machine never share an account, a session
+history or a memory. None of them is copied from the source: what the toolkit ships and what an
+instance accumulates stay in different directories. It also writes
 `ow.json`, the instance's description of itself — who works there, on which models, and on
 which port. That
 file holds no absolute path, not even the instance's own, so a workspace can be moved or
@@ -412,6 +413,45 @@ and one line, against a panel lifecycle nobody has asked for.
 None of the page itself is covered by a browser: no suite runs `page.html`. What the routes do is
 checked on their own data, and the page is checked as text on the served body — that each thing is
 offered, and that it goes to the route behind it.
+
+### What the workspace has learned
+
+A desk is one task and goes away with it. A conversation is shorter still. So an instance keeps one
+thing that outlives both: what a session worked out that the next person would otherwise work out
+again — how something here works, a trap, a decision and the argument that took it.
+
+It is Claude Code's own memory, kept inside the instance's own Claude Code home. That is a
+deliberate choice rather than a shortcut. Measured on a real run: a session reads that memory before
+it is asked anything, with nothing granted and nothing in the turn spent asking it to look; and
+writing to it takes a `Write` and no permission an instance has to grant, while an ordinary write
+in the same run is refused. A directory of our own beside `work/` would have needed a grant to be
+written and a sentence in every turn to be read — a second answer to one question, read worse than
+the answer already there.
+
+Two things make it real, because the mechanism alone had been sitting unused:
+
+- **An instance files it under one name.** Left alone, Claude Code names the directory it keeps a
+  workspace's transcripts and memory in after the absolute directory a session was started in — and
+  every session here starts in the instance root. A workspace that was moved would look for its
+  threads and everything it had learned under the path it used to sit at. So the name is fixed, and
+  an instance that is moved or copied is still itself, which is the promise it makes everywhere
+  else.
+- **A turn asks for it.** A field named in the turn gets written; the same words in a persona alone
+  do not. That is settled here on the desk header title, twice, on real runs. So the handover and
+  the leave — the two moments a thread is about to take what a session worked out with it — each
+  ask for it in as many words. Not every turn: the title ask can ride on every turn because it
+  stops the moment the field is filled, and "have you learned anything" has no such condition.
+
+An instance ships the index, `MEMORY.md`, rather than leaving one to grow. A session asked to
+remember something and finding nothing there writes whatever shape occurs to it, and every session
+after that reads that shape as the workspace's own — measured, and what came out was a bare pointer
+line with no heading. The shipped index says what belongs there, that it is an index and each fact
+belongs in a file beside it, and that what is written should say what it assumes.
+
+`bin/ow status` names the directory, because it is inside the Claude Code home and is otherwise the
+one part of an instance nobody would think to look in.
+
+Both personas say the difference in a line: the desk is this task, the memory is the workspace.
 
 ## Signing in
 

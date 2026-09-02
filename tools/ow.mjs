@@ -10,7 +10,7 @@ import { panelDirectory } from "./chat/conversation.mjs";
 import { listening } from "./chat/listening.mjs";
 import { serve } from "./chat/server.mjs";
 import { NAME_IN_ENVIRONMENT, endEveryRun, runsGoing } from "./chat/session.mjs";
-import { hasCredential, home, login, machineToken } from "./claude.mjs";
+import { hasCredential, home, login, machineToken, memoryDirectory } from "./claude.mjs";
 import { DeskError, describeName, desks, hire, isName } from "./desks.mjs";
 import { ownInstructions } from "./instructions.mjs";
 import { holderOf } from "./port.mjs";
@@ -311,6 +311,12 @@ function status(root) {
     ["credential", describeCredential(root, config.auth)],
     ["installed", config.createdAt],
     ["desks", desks(root).join(", ") || "none"],
+    // Where what this workspace has learned is kept. Every session reads it before it is asked
+    // anything and writes into it when a thread ends, and it is the one part of an instance a
+    // person would otherwise have no way of finding: it sits inside the Claude Code home, which is
+    // there to be left alone. Named here rather than shown, because it is a directory of files for
+    // whoever wants to read them.
+    ["memory", memoryDirectory(root)],
   ];
   const width = Math.max(...rows.map(([label]) => label.length));
 
