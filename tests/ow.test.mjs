@@ -498,6 +498,19 @@ describe("hiring a worker", () => {
     assert.match(persona, /the\s+thread ends when you answer/);
   });
 
+  // And the ending nobody announces. A session told only about <handover> reads a conversation that
+  // simply stopped as a fault in the workspace, and — worse — has no reason to keep its desk current
+  // for an ending it does not know can happen.
+  it("tells the worker that a conversation can also end unannounced", () => {
+    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    assert.match(persona, /<pick-up>/);
+  });
+
+  it("tells the worker which file to read when one does", () => {
+    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    assert.match(persona, new RegExp(`<pick-up>[\\s\\S]*work/${WORKER}/STATE.md`));
+  });
+
   it("tells the worker to keep the desk current before one is ever asked for", () => {
     const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
     assert.match(persona, /kept current as you go and not only then/);

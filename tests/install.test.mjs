@@ -318,6 +318,16 @@ describe("what the installer made", () => {
     assert.match(contentOf("personas", `${LEADER}.md`), /the\s+thread ends when you answer/);
   });
 
+  // The lead is not exempt from the ending nobody announces, and is the session it takes most from:
+  // what goes is who it had waiting on what, which is nowhere else unless its desk says so.
+  it("tells the leader that a conversation can also end unannounced", () => {
+    assert.match(contentOf("personas", `${LEADER}.md`), /<pick-up>/);
+  });
+
+  it("tells the leader which file to read when one does", () => {
+    assert.match(contentOf("personas", `${LEADER}.md`), new RegExp(`<pick-up>[\\s\\S]*work/${LEADER}/STATE.md`));
+  });
+
   it("tells the leader that everybody here reads what the workspace has learned", () => {
     assert.match(contentOf("personas", `${LEADER}.md`), /everybody\s+here reads the same thing/);
   });

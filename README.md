@@ -369,7 +369,8 @@ The phrases are tried in the order that decides what to do about them. **needs y
 session is stopped waiting to be allowed something, and it is the only state the person reading
 can end. Then **waiting for `<name>`**, which is a session held up by another session and not a
 session being slow. Then **answering**, with however many messages are waiting behind it. Then
-**idle**.
+**cold**, which says the next message to that session ends the conversation it is having and starts
+a new one — see below. Then **idle**.
 
 What each session is on comes from one field: the `title:` in the header its desk file opens with.
 That is the only part of a desk anything outside it reads, and both personas ask for that one line
@@ -382,7 +383,10 @@ remembers none of it reads as an ordinary one until something says otherwise.
 
 The last part is when anything last happened on that panel, and it is a fact rather than a
 verdict. Nothing here knows whether a session quiet for an hour is finished, stuck or thinking,
-and a page that guessed would be wrong in the way that looks like an answer.
+and a page that guessed would be wrong in the way that looks like an answer. **cold** is not an
+exception to that: it is not a guess about the session, it says what this toolkit will do to the
+next message sent to it. The two clocks are different, too — a panel moves when a lead overhears
+something said elsewhere, and the conversation behind it has not run since yesterday.
 
 The room costs nothing: it is built from the same rows the panels were already asking for once a
 second, so it is not a request per person per second — it is no request at all.
@@ -428,6 +432,43 @@ one message and is over long before this is asked for.
 Which is why the desk is worth keeping current as the work moves rather than only when a handover
 is asked for. Both personas say so, and a desk that is already true makes a handover one line's
 work instead of an hour's remembering.
+
+### The handover nobody asks for
+
+A conversation that nobody carries on for an hour is not carried on at all. The next message to
+that session ends the thread and is answered by a new one at the same desk, handed an instruction
+to read `work/<Name>/STATE.md` before anything else.
+
+This is not tidying up. Resuming a conversation the model service has stopped holding costs the
+whole of it again at write price — measured at about twenty times an ordinary turn on a large one,
+and rising with every turn that conversation ever had. The alternative to ending it is paying that,
+repeatedly, for a conversation nobody was using. There is no third option: what a model service is
+still holding cannot be asked, only a run that has already paid can say, so the rule is
+one-directional. Past the hour, certainly expensive, so something is done. Inside it, nothing is
+claimed and nothing is done.
+
+Nobody is exempt, and the lead least of all — it holds the largest conversation here and is
+therefore the one this saves most on.
+
+Nothing is summarised and nothing is asked for first. Asking the session to write its desk would be
+exactly the expensive turn being avoided, so what that conversation worked out and never wrote down
+is lost. That is the price of the feature and there is no version of it without one. What bounds
+the loss is how current the desk is, which is the same thing the handover asks of everybody anyway.
+
+It is never silent, and each of the three readers needs a different thing:
+
+    the chat: Paul had been quiet for longer than a conversation can be carried, so the thread
+              that answered up to here is gone. What follows was answered by a new one, which
+              reads work/Paul/STATE.md first.
+
+on the panel, before the question, for whoever opens it later and finds the memory stops there; a
+`<pick-up>` wrapper on the turn itself, telling that session to read its desk, which is the only
+reader that can act on it; and a sentence back to whoever asked, because a session that reached
+this one through the `say` tool never reads this panel and would otherwise take the answer as
+continuous with a conversation it remembers having.
+
+A session that has no thread is never cold. There is nothing to carry on, so nothing that carrying
+it on could cost, and a thread that was never there must not be ended nor a restart announced.
 
 ### Hiring somebody, and a session leaving
 

@@ -33,9 +33,33 @@ The workspace grants less than it did: one rule per person for their own desk, a
 tools, where the three commands needed six between them. The commands themselves are unchanged and
 are still there for you at a terminal.
 
+A conversation nobody carries on for an hour is not carried on at all. The next message to a
+session that has been quiet that long is answered by a new one at the same desk, which reads the
+desk before it answers. This is not a setting and there is nothing to turn on: it happens because
+resuming a conversation the model service has stopped holding costs the whole of it again, at
+roughly twenty times an ordinary turn, and nobody was choosing to pay that.
+
+What it costs is what that session had worked out and never wrote down. The desk survives, the
+panel survives, and everything else in that conversation is gone. Say so to the people here: the
+personas now do, but only for sessions hired after this version, and a desk kept current as the
+work moves is the whole of the protection. Nothing is asked of the session before its thread ends,
+because asking would be exactly the expensive turn being avoided.
+
+Nobody is exempt, including whoever leads. It holds the largest conversation in the workspace and
+is the one this saves most on — and it is the one you would otherwise be most likely to catch out,
+because a lead's panel keeps moving while it overhears what is said elsewhere, and the conversation
+behind that panel goes cold all the same.
+
+You will see it three ways: the room says `cold` where it said `idle` for a session whose next
+message starts a new conversation; the panel carries a line, before the question, saying where the
+memory stops; and a session asking another through the `say` tool is told in the answer that it
+came from a fresh head.
+
 **Two things are yours to do after taking this version, because an update leaves a workspace as it
 found it.** The permission rules are the workspace's own, so add `mcp__office` to
 `.claude/settings.json`: without it the first tool a session reaches for stops and asks you to
 allow it, on every message. And personas are not re-rendered, so everybody hired before the update
 goes on typing the old commands — which still work, and whose rules you can drop once nobody is
-running those instructions any more.
+running those instructions any more. Those same sessions have not been told that a conversation can
+end without being asked to hand over, so tell them yourself, or hand them over once and let the
+sessions that replace them read it.
