@@ -37,7 +37,9 @@ A conversation nobody carries on for an hour is not carried on at all. The next 
 session that has been quiet that long is answered by a new one at the same desk, which reads the
 desk before it answers. This is not a setting and there is nothing to turn on: it happens because
 resuming a conversation the model service has stopped holding costs the whole of it again, at
-roughly twenty times an ordinary turn, and nobody was choosing to pay that.
+fourteen to twenty times an ordinary turn depending on how big the conversation has grown, and
+nobody was choosing to pay that. The bigger the conversation, the worse it gets, which is why the
+session that leads is the one this saves most on.
 
 What it costs is what that session had worked out and never wrote down. The desk survives, the
 panel survives, and everything else in that conversation is gone. Say so to the people here: the

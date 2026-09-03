@@ -439,9 +439,11 @@ A conversation that nobody carries on for an hour is not carried on at all. The 
 that session ends the thread and is answered by a new one at the same desk, handed an instruction
 to read `work/<Name>/STATE.md` before anything else.
 
-This is not tidying up. Resuming a conversation the model service has stopped holding costs the
-whole of it again at write price — measured at about twenty times an ordinary turn on a large one,
-and rising with every turn that conversation ever had. The alternative to ending it is paying that,
+This is not tidying up. Resuming a conversation the model service has stopped holding costs most of
+it again at write price: measured here at fourteen times an ordinary turn on a conversation of
+40,000 tokens and about twenty on a large one. It gets worse as a conversation grows, because what
+does survive the hour is a shared prefix that stays the same size while the conversation does not —
+so the session with the most to remember is the one this costs the most on. The alternative to ending it is paying that,
 repeatedly, for a conversation nobody was using. There is no third option: what a model service is
 still holding cannot be asked, only a run that has already paid can say, so the rule is
 one-directional. Past the hour, certainly expensive, so something is done. Inside it, nothing is
