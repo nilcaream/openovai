@@ -455,7 +455,11 @@ function run(instance, name, text, resume, asked) {
         stdio: ["pipe", "pipe", "pipe"],
       });
     } catch (error) {
-      resolve({ failed: true, text: `Claude Code could not be started: ${error.message}` });
+      // `refused: null` and not left off. A run that never started cannot have been turned away by
+      // anybody, and every reader of this answer asks whether it was — `=== null` on a field that is
+      // not there is false, which would make a toolkit that could not be started look like a
+      // service that was busy. Nothing was refused here; there was nothing to refuse.
+      resolve({ failed: true, refused: null, text: `Claude Code could not be started: ${error.message}` });
       return;
     }
 
@@ -508,7 +512,9 @@ function run(instance, name, text, resume, asked) {
         error.code === "ENOENT"
           ? "Claude Code is not on the PATH of the process serving this page"
           : error.message;
-      resolve({ failed: true, text: why });
+      // Same reason as the spawn that threw: a run that never reached the service was not turned
+      // away by it, and the field says so rather than being absent.
+      resolve({ failed: true, refused: null, text: why });
     });
 
     child.on("close", () => {

@@ -311,6 +311,33 @@ function leavingUnanswered(name, where) {
   return `${name} could not be asked before leaving, so ${desk(name)} may not say where the work ended. The desk is filed under ${where} all the same.`;
 }
 
+// When the limit lifts, in the reading of whoever is looking at this panel. The frame gives a unix
+// second; a person wants an hour, and the hour they want is theirs. Nothing here is computed from a
+// clock of our own — the moment comes from the service and only its spelling is ours.
+function atTime(seconds) {
+  const when = new Date(seconds * 1000);
+  return `${String(when.getHours()).padStart(2, "0")}:${String(when.getMinutes()).padStart(2, "0")}`;
+}
+
+// What the panel says when the service turned the run away. Under `the chat` because nobody said it
+// to anybody, and flagged, so what a check reads is the flag rather than the prose.
+//
+// It is built from the fields the frame carried and from nothing else. The service also sends a
+// sentence of its own — "You've hit your session limit · resets 9am" — and that sentence is exactly
+// what used to land here under the session's name, which is the whole bug: a panel saying a worker
+// said something it never said. So the prose is dropped rather than quoted, and what is said here is
+// said from `resetsAt` and `rateLimitType`.
+//
+// The kind is spelled as it arrives, with its underscores opened out: `five_hour` is the service's
+// word for it and inventing a friendlier one means a table of them, kept true by somebody, for a
+// word the service can change under us. A limit that names no kind and no reset is still reported;
+// it is a refusal either way, and the sentence simply says less.
+function refusedLine(name, refused) {
+  const kind = refused.kind === null ? "a usage limit" : `a ${refused.kind.replace(/_/g, "-")} limit`;
+  const when = refused.resetsAt === null ? "" : `, which lifts at ${atTime(refused.resetsAt)}`;
+  return `Nothing reached ${name}: the service turned the run away on ${kind}${when}. Its conversation is untouched and nothing was lost — say it again once the limit has lifted.`;
+}
+
 // Everything a session is asked or answers is under its own name, so one route shape serves
 // every panel and there is no path through here that only the lead can take.
 const SESSION_ROUTE = /^\/sessions\/([^/]+)\/(messages|message|permissions|permission|handover|leave)$/;
@@ -432,6 +459,22 @@ async function deliver(instance, name, text, signed) {
         giveUp(name);
       }
 
+      // The service turned the run away, so there is no reply and nothing may be written as one.
+      // The question stays where it is — it was asked, it is part of the record, and the next
+      // attempt is a person saying it again — and what follows it is the chat saying what became
+      // of it, in its own voice and under its own name.
+      if (answer.refused !== null) {
+        return {
+          restarted,
+          question: asked,
+          refused: append(instance.root, name, {
+            from: THE_CHAT,
+            text: refusedLine(name, answer.refused),
+            refused: true,
+          }),
+        };
+      }
+
       return {
         restarted,
         question: asked,
@@ -449,6 +492,18 @@ async function deliver(instance, name, text, signed) {
 
   if (answered.gone === true) {
     return { status: 409, body: { error: `${name} left before this could be delivered` } };
+  }
+
+  // Turned away, and said as its own outcome rather than as a 200 carrying a reply that is not one.
+  // 503 because that is what happened: the service this run needed was not available, it is not
+  // this message's fault and it is not the addressee's, and the same message sent again later is
+  // the whole of the repair.
+  //
+  // This is NOT the state gate the invariant above rules out. Nothing is remembered about the
+  // limit, nothing consults it, and the next message is attempted exactly like this one — which is
+  // why the message queued behind this one is run rather than held.
+  if (answered.refused !== undefined) {
+    return { status: 503, body: { error: answered.refused.text, refused: true } };
   }
 
   // Said back to whoever asked, and not only on the addressee's panel. The caller of `say` is a

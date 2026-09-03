@@ -197,14 +197,38 @@ const frame = (fields) => process.stdout.write(JSON.stringify(fields) + "\\n");
 // meet. Said as early as the run can say anything, and before every branch below: a reading that
 // only ever reached the paths that go on to answer would leave the paths that do not unwatched,
 // and one of those is where the thread is dropped.
+// One reading, in the shape four real captures on this workstation hold — not a shape invented
+// here. The whole of it is copied because the parts left out of a fixture are exactly the parts a
+// reader can go wrong on, and this frame has a trap in it.
+//
+// THE TRAP: overageStatus sits directly beside status, it is about billing rather than about this
+// run, and it reads "rejected" on every capture — every one of which was an ALLOWED run. A reader
+// reaching for the wrong one of two field names that read equally plausibly would call every
+// ordinary run a refusal. A fixture without the field lets that reader pass everything here, which
+// is why it is in.
+//
+// utilization is a fraction and not a percentage, resetsAt is unix seconds, and unifiedWindows
+// names its own windows rather than being one — all measured, none of it read by this feature,
+// all of it here so the frame is the frame.
+const reading = (status, lifts) => ({
+  status,
+  ...(lifts === null ? {} : { resetsAt: lifts }),
+  rateLimitType: "five_hour",
+  overageStatus: "rejected",
+  overageDisabledReason: "org_level_disabled",
+  isUsingOverage: false,
+  unifiedWindows: {
+    five_hour: { utilization: 0.29, ...(lifts === null ? {} : { resetsAt: lifts }) },
+    seven_day: { utilization: 0.04, resetsAt: Math.floor(Date.now() / 1000) + 5 * 24 * 60 * 60 },
+  },
+});
+
+const lifts = () => Math.floor(Date.now() / 1000) + 3 * 60 * 60;
+
 if ((process.env.OW_STAND_IN_LIMIT ?? "") !== "") {
   frame({
     type: "rate_limit_event",
-    rate_limit_info: {
-      status: process.env.OW_STAND_IN_LIMIT,
-      rateLimitType: "five_hour",
-      resetsAt: Math.floor(Date.now() / 1000) + 3 * 60 * 60,
-    },
+    rate_limit_info: reading(process.env.OW_STAND_IN_LIMIT, lifts()),
     uuid: crypto.randomUUID(),
     session_id: process.env.OW_STAND_IN_SESSION ?? "test-thread",
   });
@@ -343,19 +367,17 @@ if ((process.env.OW_STAND_IN_SIGNED_OUT ?? "") !== "") {
 // what ends a run — and then exits 1, which is what the real one exits when its last result frame
 // carries is_error.
 if ((process.env.OW_STAND_IN_REFUSED ?? "") !== "") {
-  const info = {
-    status: "rejected",
-    rateLimitType: "five_hour",
-    resetsAt: Math.floor(Date.now() / 1000) + 3 * 60 * 60,
-  };
-  // A refusal that does not say when it lifts. The schema does not promise the field, and a chat
-  // that needs it to recognise a refusal at all would go deaf the first time it came without one.
-  if ((process.env.OW_STAND_IN_NO_RESET ?? "") !== "") {
-    delete info.resetsAt;
-  }
+  // The same reading as an ordinary run sends, in the same captured shape, saying rejected instead
+  // of allowed. Everything beside status is unchanged, overageStatus included — which is the
+  // point of it: the two states differ in the one field, and a reader of any other field cannot
+  // tell them apart at all.
+  //
+  // A refusal that does not say when it lifts is the other knob here. The schema does not promise
+  // the field, and a chat that needed it to recognise a refusal would go deaf the first time one
+  // came without it.
   frame({
     type: "rate_limit_event",
-    rate_limit_info: info,
+    rate_limit_info: reading("rejected", (process.env.OW_STAND_IN_NO_RESET ?? "") !== "" ? null : lifts()),
     uuid: crypto.randomUUID(),
     session_id: process.env.OW_STAND_IN_SESSION ?? "test-thread",
   });

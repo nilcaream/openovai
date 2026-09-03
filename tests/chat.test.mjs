@@ -3971,12 +3971,55 @@ describe("a stand-in the service refused", () => {
     assert.equal(said?.api_error_status, 429);
   });
 
+  it("carries the field that sits beside status and is not it", () => {
+    const limit = refused.frames.find((one) => one.type === "rate_limit_event");
+    assert.equal(limit?.rate_limit_info?.overageStatus, "rejected");
+  });
+
   it("does not go the moment it has been refused", () => {
     assert.equal(wentEarly, false, "it ended without being told the run was over");
   });
 
   it("exits 1 once stdin is closed", () => {
     assert.equal(refused.code, 1);
+  });
+});
+
+// The same reading, on a run that was NOT refused — and the trap that makes it worth a block of its
+// own. `overageStatus` sits directly beside `status`, reads "rejected" on every capture taken on
+// this machine, and every one of those runs was allowed: it is about whether the account may spend
+// past its plan, not about whether this run may happen.
+//
+// So the two fields are the same word on an ordinary run and mean opposite things, and a reader of
+// the wrong one calls every run in this workspace a refusal. This block is here so that reader
+// cannot pass: it pins what the fixture sends, and the checks about an allowed run are what go red.
+describe("a stand-in the service allowed", () => {
+  const allowedLog = path.join(standIn, "allowed.txt");
+  let reading;
+
+  before(async () => {
+    const run = driveStandIn(
+      standInCommand,
+      ["--print", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose"],
+      standInEnvironment(standIn, allowedLog, { OW_STAND_IN_LIMIT: "allowed" }),
+    );
+    run.ask("something ordinary");
+    await run.waitForFrame((one) => one.type === "result");
+    run.close();
+    reading = (await run.ended).frames.find((one) => one.type === "rate_limit_event")?.rate_limit_info;
+  });
+
+  it("says the run is allowed", () => {
+    assert.equal(reading?.status, "allowed");
+  });
+
+  it("says rejected in the field beside it, which is about the account and not the run", () => {
+    assert.equal(reading?.overageStatus, "rejected");
+  });
+
+  it("carries the windows the frame names, rather than one this suite made up", () => {
+    assert.equal(typeof reading?.unifiedWindows?.five_hour?.utilization, "number");
+    assert.equal(typeof reading?.unifiedWindows?.seven_day?.utilization, "number");
   });
 });
 
@@ -4012,7 +4055,9 @@ describe("a chat whose run the service refused", () => {
   });
 
   it("answers rather than sitting on a run that will not end itself", () => {
-    assert.equal(answered.status, 200);
+    // 503 since slice 3, which is what a refusal is answered with. What this check is about is
+    // that it was answered AT ALL: the run it is waiting on is one nothing else would end.
+    assert.equal(answered.status, 503);
   });
 
   it("asked on the thread it had, so what follows is about a refused resume", () => {
@@ -4238,5 +4283,214 @@ describe("a refused run that ignores its input being closed", () => {
 
   it("did not leave on its own, which is what makes the ending the thing that ended it", () => {
     assert.doesNotMatch(readLog(deafLog), /^left: /m);
+  });
+});
+
+// Slice 3: what the chat SAYS about a run the service turned away.
+//
+// Slice 2 stopped a refusal costing the conversation; none of it was visible to anybody. The panel
+// still showed the service's own sentence under the session's name, which is the original complaint
+// in full: a worker credited with saying something it never said, about a limit it has nothing to
+// do with. So the record is written by the chat, in the chat's voice, from the fields the frame
+// carried and never from the prose.
+//
+// Everything about the panel here is read out of the TRANSCRIPT rather than out of what the route
+// handed back. A check reading the route's own return value would pass with nothing written down at
+// all, which is the check this repo has already paid for twice.
+describe("a message the service turned away", () => {
+  const awayLog = path.join(standIn, "turned-away.txt");
+  let answered;
+  let panel;
+
+  before(async () => {
+    await start(
+      instance,
+      standInEnvironment(standIn, awayLog, { OW_STAND_IN_SESSION: "away-thread", OW_STAND_IN_REFUSED: "yes" }),
+    );
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    // Where this exchange starts. The panel is the whole of what this suite has said to this
+    // session, and a check reading all of it would be reading somebody else block.
+    const before = JSON.parse((await transcriptOf(WORKER)).body).messages.length;
+    answered = await say("a message that will not get through", WORKER);
+    panel = JSON.parse((await transcriptOf(WORKER)).body).messages.slice(before);
+  });
+
+  it("writes the refusal on the panel, flagged rather than left to be read out of the words", () => {
+    assert.equal(panel.at(-1)?.refused, true, `the last line was ${JSON.stringify(panel.at(-1))}`);
+  });
+
+  it("puts it under the chat, since nobody said it to anybody", () => {
+    assert.equal(panel.at(-1)?.from, "the chat");
+  });
+
+  it("writes the question down first, so the record reads in the order it happened", () => {
+    assert.equal(panel.at(-2)?.text, "a message that will not get through");
+    assert.equal(panel.at(-2)?.from, "human");
+  });
+
+  it("never puts the service's own sentence on the panel", () => {
+    const prose = panel.filter((message) => (message.text ?? "").includes("session limit"));
+    assert.deepEqual(prose, [], "the service's prose reached the panel");
+  });
+
+  it("credits the session with nothing, since it never said anything", () => {
+    assert.deepEqual(
+      panel.filter((message) => message.from === WORKER),
+      [],
+      "something was written under the session's name",
+    );
+  });
+
+  it("says when the limit lifts, in the reading of whoever is looking at the panel", () => {
+    // The stand-in refuses with a reset three hours out and puts a DIFFERENT hour in its prose, so
+    // a sentence built by reading the message rather than the field says the wrong one and is
+    // caught saying it.
+    const lifts = new Date(Date.now() + 3 * 60 * 60 * 1000);
+    const hour = `${String(lifts.getHours()).padStart(2, "0")}:`;
+    assert.ok(panel.at(-1).text.includes(hour), `the line said ${JSON.stringify(panel.at(-1).text)}`);
+    assert.ok(!panel.at(-1).text.includes("9am"), "it read the hour out of the service's prose");
+  });
+
+  it("names the kind of limit the service named, and no friendlier word of ours", () => {
+    assert.match(panel.at(-1).text, /five-hour limit/);
+  });
+
+  it("tells whoever asked, rather than handing back a reply that is not one", () => {
+    assert.equal(answered.status, 503);
+    const body = JSON.parse(answered.body);
+    assert.equal(body.refused, true);
+    assert.match(body.error, /turned the run away/);
+  });
+});
+
+// The same, with nothing said about when it lifts. A refusal that names no time is still a refusal
+// and is still written down; the sentence simply says less.
+describe("a message turned away without a time", () => {
+  const timelessLog = path.join(standIn, "away-timeless.txt");
+  let panel;
+
+  before(async () => {
+    await start(
+      instance,
+      standInEnvironment(standIn, timelessLog, {
+        OW_STAND_IN_SESSION: "timeless-away",
+        OW_STAND_IN_REFUSED: "yes",
+        OW_STAND_IN_NO_RESET: "yes",
+      }),
+    );
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    const before = JSON.parse((await transcriptOf(WORKER)).body).messages.length;
+    await say("another that will not get through", WORKER);
+    panel = JSON.parse((await transcriptOf(WORKER)).body).messages.slice(before);
+  });
+
+  it("still says it was turned away", () => {
+    assert.equal(panel.at(-1)?.refused, true);
+    assert.match(panel.at(-1).text, /turned the run away/);
+  });
+
+  it("says nothing about a time it was not given", () => {
+    assert.ok(!panel.at(-1).text.includes("lifts at"), `the line said ${JSON.stringify(panel.at(-1).text)}`);
+  });
+});
+
+// A session that said something to another session. It never reads that session's panel, so the
+// panel line is no use to it at all — and it is the reader most in need of knowing, because a lead
+// that takes a refusal for an answer acts on a sentence its worker never wrote.
+describe("a session told that what it said did not get through", () => {
+  const toldLog = path.join(standIn, "away-tool.txt");
+  let answered;
+
+  before(async () => {
+    await start(
+      instance,
+      standInEnvironment(standIn, toldLog, { OW_STAND_IN_SESSION: "tool-away", OW_STAND_IN_REFUSED: "yes" }),
+    );
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    const said = await post(`${URL}/mcp/${LEADER}`, {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/call",
+      params: { name: "say", arguments: { to: WORKER, message: "did this reach you" } },
+    });
+    answered = JSON.parse(said.body);
+  });
+
+  it("answers it as something that did not happen, and not as a reply", () => {
+    assert.equal(answered.result?.isError, true, `the tool answered ${JSON.stringify(answered.result)}`);
+  });
+
+  it("says so in words, since what reads this is a model and not a branch", () => {
+    assert.match(answered.result?.content?.[0]?.text ?? "", /turned the run away/);
+  });
+});
+
+// The other half of the pair. A row that is written whether or not anything was refused says
+// nothing, and a check that only looks for the row firing cannot tell the difference.
+describe("a message that got through", () => {
+  const throughLog = path.join(standIn, "away-not.txt");
+  let panel;
+
+  before(async () => {
+    await start(instance, standInEnvironment(standIn, throughLog, { OW_STAND_IN_SESSION: "ordinary-thread" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    const before = JSON.parse((await transcriptOf(WORKER)).body).messages.length;
+    await say("a message that gets through", WORKER);
+    panel = JSON.parse((await transcriptOf(WORKER)).body).messages.slice(before);
+  });
+
+  it("has nothing said on its panel about anything being turned away", () => {
+    assert.deepEqual(
+      panel.filter((message) => message.refused === true),
+      [],
+    );
+  });
+
+  it("still answers under the session's own name", () => {
+    assert.equal(panel.at(-1)?.from, WORKER);
+  });
+});
+
+// Two messages, the second sent while the first is still being refused. The queue drains: each is
+// attempted on its own and each sender is told about its own message. Holding the second would need
+// a clock or a gate on the delivery path, which is the parked queue this feature exists to end.
+describe("a message sent while another is being turned away", () => {
+  const bothLog = path.join(standIn, "away-both.txt");
+  let answered;
+  let panel;
+
+  before(async () => {
+    await start(
+      instance,
+      standInEnvironment(standIn, bothLog, { OW_STAND_IN_SESSION: "both-away", OW_STAND_IN_REFUSED: "yes" }),
+    );
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    const before = JSON.parse((await transcriptOf(WORKER)).body).messages.length;
+    const first = say("the first one", WORKER);
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    const second = say("and the second", WORKER);
+    answered = await Promise.all([first, second]);
+    panel = JSON.parse((await transcriptOf(WORKER)).body).messages.slice(before);
+  });
+
+  it("attempts the second rather than holding it behind the first", () => {
+    assert.ok(
+      callsIn(bothLog).length >= 2,
+      `the second message was never run: ${callsIn(bothLog).length} run(s)`,
+    );
+  });
+
+  it("tells each sender about its own message", () => {
+    assert.deepEqual(
+      answered.map((exchange) => exchange.status),
+      [503, 503],
+    );
+  });
+
+  it("writes each question down, and a refusal of its own under each", () => {
+    const asked = panel.filter((message) => message.from === "human").map((message) => message.text);
+    assert.deepEqual(asked, ["the first one", "and the second"]);
+    assert.equal(panel.filter((message) => message.refused === true).length, 2);
   });
 });
