@@ -3907,3 +3907,75 @@ describe("a chat asked to carry on a thread that is gone", () => {
     assert.equal(carried?.text, "a reply");
   });
 });
+
+// A run the service turned away. Not an answer and not a failure: it reached the service and was
+// refused. The state has to be reachable before any check about what the chat does with it can
+// mean anything, so this builds it and checks the stand-in's OWN output — going through the chat
+// would be reading the value the code was kind enough to hand back.
+//
+// The shape is the published one: a rate_limit_event whose rate_limit_info.status is "rejected",
+// and then a result frame spelled subtype "success" while carrying is_error true. A refusal
+// differs from an ordinary answer only in is_error, which is why the spelling is checked here and
+// not taken on trust further up.
+describe("a stand-in the service refused", () => {
+  const refusedLog = path.join(standIn, "refused.txt");
+  let wentEarly;
+  let refused;
+
+  before(async () => {
+    const run = driveStandIn(
+      standInCommand,
+      ["--print", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose"],
+      standInEnvironment(standIn, refusedLog, { OW_STAND_IN_REFUSED: "yes" }),
+    );
+    run.ask("something that costs a request");
+
+    const said = await run.waitForFrame((one) => one.type === "result");
+    assert.ok(said !== null, "no result frame ever came");
+
+    // Held in the refused state on purpose, with the run still going. A check that closed stdin
+    // the instant the result arrived could not tell "goes when it is told to" from "goes on its
+    // own the moment it is refused" — both would end at 1 and both would look right.
+    wentEarly = await Promise.race([
+      run.ended.then(() => true),
+      new Promise((resolve) => setTimeout(() => resolve(false), 300)),
+    ]);
+
+    run.close();
+    refused = await run.ended;
+  });
+
+  it("says it was refused before it says how the run ended", () => {
+    const limit = refused.frames.findIndex((one) => one.type === "rate_limit_event");
+    const result = refused.frames.findIndex((one) => one.type === "result");
+    assert.notEqual(limit, -1, "there was no rate-limit frame at all");
+    assert.notEqual(result, -1, "there was no result frame at all");
+    assert.ok(limit < result, `the refusal came at ${limit} and the result at ${result}`);
+  });
+
+  it("says the service rejected it in the fields, where nobody has to read prose", () => {
+    const limit = refused.frames.find((one) => one.type === "rate_limit_event");
+    assert.equal(limit?.rate_limit_info?.status, "rejected");
+    assert.equal(limit?.rate_limit_info?.rateLimitType, "five_hour");
+    assert.equal(typeof limit?.rate_limit_info?.resetsAt, "number");
+  });
+
+  it("spells the refusal a success that is an error, which is the whole trap", () => {
+    const said = refused.frames.find((one) => one.type === "result");
+    assert.equal(said?.subtype, "success", "spelled as something a refusal is not");
+    assert.equal(said?.is_error, true);
+  });
+
+  it("carries the one field that tells a refusal from a signed-out run", () => {
+    const said = refused.frames.find((one) => one.type === "result");
+    assert.equal(said?.api_error_status, 429);
+  });
+
+  it("does not go the moment it has been refused", () => {
+    assert.equal(wentEarly, false, "it ended without being told the run was over");
+  });
+
+  it("exits 1 once stdin is closed", () => {
+    assert.equal(refused.code, 1);
+  });
+});

@@ -93,6 +93,10 @@ export function claudeIsInstalled() {
 //   OW_STAND_IN_HALF          frame a few things and then stop, with no result frame and nothing
 //                             on stderr — a run killed in the middle of its turn, which is what
 //                             stopping the chat does to one on purpose
+//   OW_STAND_IN_REFUSED       be turned away by the service: a rate_limit_event saying rejected,
+//                             then a result frame spelled success while carrying is_error and
+//                             api_error_status 429 — what a run gets when the account has hit a
+//                             usage limit, which is neither an answer nor a failure
 //   OW_STAND_IN_EMPTY         answer successfully with an empty result, the way a session that
 //                             ends its turn without saying anything does
 //   OW_STAND_IN_DEAF          ignore being asked to stop, and start a shell of its own the way
@@ -253,6 +257,57 @@ process.stdin.on("data", (chunk) => {
 
 const asked = await question;
 fs.appendFileSync(log, \`heard: \${asked}\\n\`);
+
+// Turned away by the service. Not a failure and not an answer: the run reached the service, was
+// refused, and said so in the shape the published schema gives — a rate_limit_event whose
+// rate_limit_info.status is "rejected", and then a result frame spelled subtype "success" while
+// carrying is_error true and api_error_status 429.
+//
+// That spelling is the trap the whole thing turns on. A refusal differs from an ordinary answer
+// ONLY in is_error, and it is not separable from a signed-out run without api_error_status or the
+// rate_limit_event beside it. A stand-in that spelled it error_during_execution would be modelling
+// an unresumable thread instead, and everything built on it would be proven against a fiction.
+//
+// resetsAt is computed rather than fixed, so a check about the reset time cannot pass by matching
+// a literal both sides already agree on. The time in the PROSE is deliberately not that one: a
+// panel that got its sentence by reading the message rather than the field would say the wrong
+// hour, and be caught saying it.
+//
+// It waits to be told the run is over, exactly as the ordinary path below does — a refusal is not
+// what ends a run — and then exits 1, which is what the real one exits when its last result frame
+// carries is_error.
+if ((process.env.OW_STAND_IN_REFUSED ?? "") !== "") {
+  frame({
+    type: "rate_limit_event",
+    rate_limit_info: {
+      status: "rejected",
+      rateLimitType: "five_hour",
+      resetsAt: Math.floor(Date.now() / 1000) + 3 * 60 * 60,
+    },
+    uuid: crypto.randomUUID(),
+    session_id: process.env.OW_STAND_IN_SESSION ?? "test-thread",
+  });
+  frame({
+    type: "result",
+    subtype: "success",
+    is_error: true,
+    api_error_status: 429,
+    num_turns: 0,
+    result: "You've hit your session limit · resets 9am",
+    session_id: process.env.OW_STAND_IN_SESSION ?? "test-thread",
+  });
+
+  await Promise.race([
+    ended,
+    new Promise((resolve) => {
+      setTimeout(() => {
+        fs.appendFileSync(log, \`stdin was never closed: \${asked}\\n\`);
+        resolve();
+      }, 5000);
+    }),
+  ]);
+  process.exit(1);
+}
 
 // What a tool call looks like from the outside. detached puts it in a process group AND a session
 // of its own, which is what the real one was measured doing, and is the whole reason a signal sent
