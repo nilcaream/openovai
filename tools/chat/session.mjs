@@ -76,6 +76,25 @@ export function hasThread(root, name) {
   return remembered(root, name) !== null;
 }
 
+// When this conversation last ran, or nothing when it has never run or has been ended. The file
+// below is rewritten after every answer that reported a session id, so its modified time IS that
+// moment — there is nothing to record and nothing that can disagree with it.
+//
+// The thread's own clock, deliberately, and not the panel's: a panel is appended to outside any
+// run, so its time walks forward while the conversation it belongs to sits untouched. The two
+// answer different questions and only this one answers "when did this session last think".
+//
+// Nothing, rather than a guess, when the file is not there or cannot be read. A reading that
+// cannot be taken is not a reading that says "old", and every caller is written to do nothing on
+// null — the same honesty contextIn already has.
+export function ranAt(root, name) {
+  try {
+    return fs.statSync(sessionFile(root, name)).mtimeMs;
+  } catch {
+    return null;
+  }
+}
+
 // End a thread. The file is the whole of a session's memory between processes, so removing it is
 // the whole of starting a new conversation on the same desk: the desk, the persona, the permission
 // rule and the panel are all untouched, and the next run has nothing to resume.

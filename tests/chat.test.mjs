@@ -45,6 +45,10 @@ import {
   writeStandIn,
 } from "./helpers.mjs";
 
+// The reader this suite checks directly. No route says this number, and a check that read the
+// file itself would pass with nothing written at all.
+import { ranAt } from "../tools/chat/session.mjs";
+
 const HUMAN = "Mike";
 const LEADER = "Superman";
 const LEADER_MODEL = "sonnet";
@@ -2072,6 +2076,78 @@ describe("what the page is told about a session's thread and when it last moved"
 
   it("says nothing at all about a session nobody has spoken to", () => {
     assert.equal(never.active, null);
+  });
+});
+
+// When a conversation last RAN, which is a different question from when its panel last moved and
+// is answered by a different file. The panel is appended to outside any run — an overheard line
+// is — so its clock walks forward on a session that has not thought since. Anything deciding what
+// to do about a conversation itself has to ask this one.
+const RAN = "Curlew";
+const NEVER_RAN = "Dunlin";
+
+describe("when a conversation last ran", () => {
+  const ranLog = path.join(standIn, "ran.txt");
+
+  function threadFile(name) {
+    return path.join(instance, "chat", name, "session.json");
+  }
+
+  function panelFile(name) {
+    return path.join(instance, "chat", name, "conversation.json");
+  }
+
+  // Age a file by hand. The state the reader answers from is a real modified time on a real file,
+  // so the check makes a genuinely old one rather than telling the code what time it is.
+  function age(file, minutes) {
+    const when = new Date(Date.now() - minutes * 60 * 1000);
+    fs.utimesSync(file, when, when);
+  }
+
+  let afterATurn;
+
+  before(async () => {
+    runTool(instance, ["hire", RAN], process.env);
+    runTool(instance, ["hire", NEVER_RAN], process.env);
+    await start(instance, standInEnvironment(standIn, ranLog));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    await say("something, so there is a thread at all", RAN);
+    afterATurn = ranAt(instance, RAN);
+  });
+
+  // Mutation: return a fixed time.
+  it("is within seconds of now, straight after a turn", () => {
+    assert.equal(typeof afterATurn, "number");
+    assert.ok(Math.abs(Date.now() - afterATurn) < 30_000, `read ${afterATurn}, now ${Date.now()}`);
+  });
+
+  // Mutation: read a field written into session.json rather than the file's own time. A workspace
+  // installed before this reader existed has no such field, and the modified time is right on
+  // every one of them from the first day. Ageing the real file is what tells the two apart.
+  it("moves back when the thread's own file is older", () => {
+    age(threadFile(RAN), 90);
+    assert.ok(ranAt(instance, RAN) < afterATurn - 80 * 60 * 1000);
+  });
+
+  // Mutation: read conversation.json's modified time. The whole reason this reader exists.
+  it("is the thread's clock and not the panel's", () => {
+    age(threadFile(RAN), 90);
+    const now = new Date();
+    fs.utimesSync(panelFile(RAN), now, now);
+    assert.ok(Date.now() - ranAt(instance, RAN) > 80 * 60 * 1000);
+  });
+
+  // Mutation: answer Date.now() when the file is missing. A session that never ran has to read as
+  // nothing and never as "just now": whatever is built on this reads a time as a fact.
+  it("is nothing for a session that has never run", () => {
+    assert.equal(ranAt(instance, NEVER_RAN), null);
+  });
+
+  // Mutation: leave session.json behind in forget(). A session handed over has no conversation
+  // left to say anything about, and a file that survived would carry the old time forward.
+  it("is nothing again once the thread has been ended", async () => {
+    await post(`${URL}/sessions/${RAN}/handover`, {});
+    assert.equal(ranAt(instance, RAN), null);
   });
 });
 
