@@ -3321,6 +3321,15 @@ describe("a session calls the tools the chat serves it", () => {
     it("hands a session the address of the tools under its own name", () => {
       assert.match(callsIn(toolLog).at(-1), new RegExp(`--mcp-config .*/mcp/${WORKER}`));
     });
+
+    // How long it may be kept waiting is said out loud, because `say` is answered only once the
+    // session it reached has finished its turn. Left unsaid the call is given up on after a
+    // minute — measured — and the caller is told it failed while the answer it asked for is still
+    // being written, into a transcript it will never see.
+    it("gives a session long enough for another one to answer it", () => {
+      const handed = callsIn(toolLog).at(-1).match(/--mcp-config (\S+)/)[1];
+      assert.equal(JSON.parse(handed).mcpServers.office.timeout, 30 * 60 * 1000);
+    });
   });
 
   // The chat can be stopped and started again in the middle of a session's thread — it is how the

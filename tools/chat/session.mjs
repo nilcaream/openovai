@@ -33,6 +33,10 @@ const PERSONAS = "personas";
 // which is the whole of how a session tells the two apart.
 export const NAME_IN_ENVIRONMENT = "OW_SESSION_NAME";
 
+// How long a session may be kept waiting on one of the instance's own tools. Half an hour, because
+// `say` is answered only when the session it reached has finished its turn, and a turn is minutes.
+const A_WHOLE_TURN = 30 * 60 * 1000;
+
 function sessionFile(root, name) {
   return path.join(root, "chat", name, SESSION_FILE);
 }
@@ -305,6 +309,14 @@ export function runsGoing() {
 // Nothing when no chat has recorded an address. A session started with no chat serving the
 // instance can still answer; it simply cannot reach the others, which is the truth of its
 // situation and not a reason to refuse to start it.
+//
+// The wait is said out loud because the default is far too short for what `say` does. A call to it
+// is answered when the session it reached has finished its turn, and a turn is minutes; measured
+// with nothing said, a call was given up on after exactly 60 seconds while the session it asked
+// carried on working and wrote its answer where the caller could never see it. This is a
+// wall-clock limit rather than no limit at all: a session stopped waiting to be allowed something
+// would hold whoever asked it for as long as nobody answered, and half an hour of that is enough
+// for the room to have said so and somebody to have looked.
 function toolsIn(root, name) {
   const chat = listening(root);
   if (chat === null) {
@@ -312,7 +324,13 @@ function toolsIn(root, name) {
   }
 
   return JSON.stringify({
-    mcpServers: { office: { type: "http", url: `${chat}/mcp/${encodeURIComponent(name)}` } },
+    mcpServers: {
+      office: {
+        type: "http",
+        url: `${chat}/mcp/${encodeURIComponent(name)}`,
+        timeout: A_WHOLE_TURN,
+      },
+    },
   });
 }
 
