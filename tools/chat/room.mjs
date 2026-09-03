@@ -45,6 +45,11 @@ function stateOf(session) {
   if (session.queued > 0) {
     return `answering, ${session.queued} waiting`;
   }
+  // Said instead of "idle", because it is the more useful half of the same fact: a quiet session
+  // whose next message costs a fresh start is worth knowing about, and a quiet session is not.
+  if (session.cold) {
+    return "cold";
+  }
   return session.busy ? "answering" : "idle";
 }
 

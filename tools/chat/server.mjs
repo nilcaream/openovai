@@ -874,6 +874,15 @@ function everySession(instance, session) {
     // Whether there is a conversation to carry on. Not `context !== null`: a run that reported no
     // usage is remembered without a reading, so a live thread and no thread look the same there.
     thread: hasThread(instance.root, session.name),
+    // Whether the next message to this session will end its conversation and start a new one. Not
+    // a guess at the model service's cache, which cannot be read and must not be guessed at: it is
+    // the same clock and the same rule the chat itself acts on, so the room is describing what is
+    // about to happen rather than estimating what is true.
+    //
+    // Its own word, beside `active` rather than folded into it. They answer different questions —
+    // when the panel last moved, and whether the conversation behind it survives — and on the lead
+    // they routinely disagree, which is the whole reason this exists.
+    cold: hasGoneCold(instance.root, session.name),
     // When anything last happened on its panel. A fact and not a verdict — nothing here knows
     // whether a quiet session is finished, stuck or merely quiet, and the person reading does.
     active: lastAt(instance.root, session.name),

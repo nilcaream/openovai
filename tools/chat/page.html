@@ -116,6 +116,11 @@
     if (row.queued > 0) {
       return `answering, ${row.queued} waiting`;
     }
+    // The same word the room command says, from the same field. The two lay out the same rows in
+    // their own scripts and there is nothing that would notice them drifting apart.
+    if (row.cold) {
+      return "cold";
+    }
     return row.busy ? "answering" : "idle";
   }
 

@@ -2356,6 +2356,55 @@ describe("the session that leads, after hours of quiet", () => {
   });
 });
 
+const ON_THE_ROW = "Knot";
+
+describe("what the room says about a conversation that has gone cold", () => {
+  const log = path.join(standIn, "row.txt");
+  let cold;
+  let never;
+  let room;
+
+  before(async () => {
+    runTool(instance, ["hire", ON_THE_ROW], process.env);
+    await start(instance, standInEnvironment(standIn, log));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    await say("the first thing", ON_THE_ROW);
+    age(threadFile(ON_THE_ROW), 90);
+
+    const { sessions } = JSON.parse((await get(`${URL}/sessions`)).body);
+    cold = sessions.find((row) => row.name === ON_THE_ROW);
+    never = sessions.find((row) => row.name === WARM);
+
+    room = runTool(instance, ["room"], standInEnvironment(standIn, log)).stdout;
+  });
+
+  // Mutation: compute it from active. The row and the chat have to be reading the same number, or
+  // the room is a guess again rather than a description of what the next message will do.
+  it("carries the flag, true past the constant", () => {
+    assert.equal(cold?.cold, true);
+  });
+
+  // Mutation: default it to true. A session with no conversation has nothing that can be cold.
+  it("is false for a session with no thread at all", () => {
+    assert.equal(never?.cold, false);
+  });
+
+  // Mutation: say it in room.mjs only. The page lays the same rows out in its own script, and the
+  // two have to say the same word.
+  it("says cold where it would have said idle", () => {
+    assert.match(room ?? "", new RegExp(`${ON_THE_ROW}\\s.*cold`));
+  });
+
+  // No suite runs page.html — it is read as text — so the page's copy is proven by reading it,
+  // and the check is that the word is BUILT and ATTACHED, not merely present in a string.
+  it("says the same word in the page's own copy of the room", () => {
+    const page = fs.readFileSync(path.join(instance, "tools", "chat", "page.html"), "utf8");
+    assert.match(page, /row\.cold/);
+    assert.match(page, /"cold"|'cold'|`cold`/);
+  });
+});
+
+
 
 // What a session is waiting to be ALLOWED to do. It is held up by a person rather than by another
 // session, and until now that was visible only on the panel it happened on — which is the one
