@@ -95,6 +95,38 @@ export function ranAt(root, name) {
   }
 }
 
+// How long a conversation can go unanswered before carrying it on certainly costs the whole of it
+// again at write price. The cache holding a conversation between runs lives an hour.
+//
+// Not in ow.json: it describes the model service rather than this workspace, it is the same number
+// everywhere, and a wrong one silently either throws conversations away or pays for them. If it
+// ever changes it is this literal and a fresh measurement.
+//
+// Not shortened for a margin, deliberately. Going under the hour discards conversations that were
+// still warm and buys a fresh start for nothing. Being late costs money now and then; being early
+// costs a conversation every single time.
+const COLD_AFTER = 60 * 60 * 1000;
+
+// Whether carrying this conversation on would certainly cost the whole of it again — which is the
+// one question worth asking, because it is the only one that can be answered. The state of the
+// cache itself cannot be read: only a run that WROTE reports what it bought, and by then the money
+// is spent.
+//
+// So the rule is one-directional. Past the hour, certainly cold, and something is done about it.
+// Inside it, nothing is claimed and nothing is done: a conversation in there may be warm or may
+// not, and today's behaviour is already the right answer to not knowing.
+//
+// A session with no thread is never cold. There is nothing to carry on and so nothing that
+// carrying it on could cost, and whatever is built on this would otherwise end a thread that was
+// not there and announce a restart nobody made.
+export function hasGoneCold(root, name) {
+  if (!hasThread(root, name)) {
+    return false;
+  }
+  const ran = ranAt(root, name);
+  return ran !== null && Date.now() - ran > COLD_AFTER;
+}
+
 // End a thread. The file is the whole of a session's memory between processes, so removing it is
 // the whole of starting a new conversation on the same desk: the desk, the persona, the permission
 // rule and the panel are all untouched, and the next run has nothing to resume.

@@ -2083,27 +2083,27 @@ describe("what the page is told about a session's thread and when it last moved"
 // is answered by a different file. The panel is appended to outside any run — an overheard line
 // is — so its clock walks forward on a session that has not thought since. Anything deciding what
 // to do about a conversation itself has to ask this one.
+function threadFile(name) {
+  return path.join(instance, "chat", name, "session.json");
+}
+
+function panelFile(name) {
+  return path.join(instance, "chat", name, "conversation.json");
+}
+
+// Age a file by hand. The state these checks act on is a real modified time on a real file, so they
+// make a genuinely old one rather than telling the code what time it is — a knob the check and the
+// code both read would prove nothing.
+function age(file, minutes) {
+  const when = new Date(Date.now() - minutes * 60 * 1000);
+  fs.utimesSync(file, when, when);
+}
+
 const RAN = "Curlew";
 const NEVER_RAN = "Dunlin";
 
 describe("when a conversation last ran", () => {
   const ranLog = path.join(standIn, "ran.txt");
-
-  function threadFile(name) {
-    return path.join(instance, "chat", name, "session.json");
-  }
-
-  function panelFile(name) {
-    return path.join(instance, "chat", name, "conversation.json");
-  }
-
-  // Age a file by hand. The state the reader answers from is a real modified time on a real file,
-  // so the check makes a genuinely old one rather than telling the code what time it is.
-  function age(file, minutes) {
-    const when = new Date(Date.now() - minutes * 60 * 1000);
-    fs.utimesSync(file, when, when);
-  }
-
   let afterATurn;
 
   before(async () => {
@@ -2150,6 +2150,212 @@ describe("when a conversation last ran", () => {
     assert.equal(ranAt(instance, RAN), null);
   });
 });
+
+const COLD = "Plover";
+
+describe("a message to a conversation that has gone cold", () => {
+  const log = path.join(standIn, "cold.txt");
+  let answered;
+  let rows;
+
+  before(async () => {
+    runTool(instance, ["hire", COLD], process.env);
+    await start(instance, standInEnvironment(standIn, log));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    // A thread to go cold. Without a first message there is nothing here to end.
+    await say("the first thing, which starts a thread", COLD);
+    assert.ok(fs.existsSync(threadFile(COLD)), "no thread to age");
+
+    // Ninety minutes, which is past any TTL this design would name.
+    age(threadFile(COLD), 90);
+
+    answered = await say("and now, hours later, this", COLD);
+
+    const panel = JSON.parse((await transcriptOf(COLD)).body).messages;
+    rows = panel;
+  });
+
+  // THE behaviour. Mutation: deliver without testing the age at all — which is today's code, so
+  // this check must fail before the feature exists.
+  it("starts a new conversation rather than resuming the old one", () => {
+    const since = callsIn(log).slice(-1)[0];
+    assert.ok(!since.includes("--resume"), `the run still resumed: ${since}`);
+  });
+
+  // Mutation: end the thread on every message. The saving is worthless if it costs every
+  // conversation in the workspace.
+  it("still answers the message", () => {
+    assert.equal(answered.status, 200);
+  });
+
+  it("leaves the desk where it was", () => {
+    assert.ok(fs.existsSync(path.join(instance, "work", COLD, "STATE.md")));
+  });
+
+  // Mutation: append the line after the reply. A person reading this panel has to find the reason
+  // the memory stops BEFORE the answer that came from a fresh head, or the record reads backwards.
+  it("says on the panel that the conversation was ended, before the question", () => {
+    const said = rows.findIndex((row) => row.cold === true);
+    const asked = rows.findIndex((row) => row.text?.includes("hours later"));
+    assert.ok(said !== -1, "nothing on the panel says the thread was ended");
+    assert.ok(said < asked, "the panel says it after the question rather than before");
+  });
+
+  // Mutation: build the wrapper and never pass it to inFrontOf. Feature 3's measured trap — a
+  // thing built and never attached is invisible to a check that only looks for it being built.
+  it("hands the new conversation an instruction to pick up from its desk", () => {
+    const asked = questionsIn(log).find((question) => question.includes("hours later"));
+    assert.match(asked ?? "", /<pick-up>[\s\S]*<\/pick-up>/);
+  });
+
+  it("names the desk in that instruction", () => {
+    const asked = questionsIn(log).find((question) => question.includes("hours later"));
+    assert.match(asked ?? "", new RegExp(`<pick-up>[\\s\\S]*work/${COLD}/STATE.md[\\s\\S]*</pick-up>`));
+  });
+
+  // Mutation: hand it over bare rather than wrapped. Anything outside a wrapper is the human
+  // speaking on this session's own panel, so an unwrapped instruction arrives as the human's.
+  it("wraps it, so it does not arrive as though the human had typed it", () => {
+    const asked = questionsIn(log).find((question) => question.includes("hours later"));
+    assert.match(asked ?? "", /^<pick-up>/);
+  });
+
+  // Mutation: set the flag and have the result drop it. The caller of say is a different session
+  // and never reads the addressee's panel, so without this the one reader who most needs to know
+  // is the only one not told.
+  it("tells whoever asked that the answer comes from a fresh head", () => {
+    assert.equal(JSON.parse(answered.body).restarted, true);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// The clock, which is the mistake this design exists to avoid
+// ---------------------------------------------------------------------------------------------
+
+const PANEL_MOVED = "Finch";
+
+describe("a conversation whose panel moved but which has not run for hours", () => {
+  const log = path.join(standIn, "clock.txt");
+
+  before(async () => {
+    runTool(instance, ["hire", PANEL_MOVED], process.env);
+    await start(instance, standInEnvironment(standIn, log));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    await say("the first thing", PANEL_MOVED);
+
+    // The thread is old; the PANEL is fresh. This is the lead's situation exactly: an overheard
+    // line is appended to its panel outside any turn, so conversation.json's mtime walks forward
+    // while the conversation itself sits untouched.
+    age(threadFile(PANEL_MOVED), 90);
+    const now = new Date();
+    fs.utimesSync(panelFile(PANEL_MOVED), now, now);
+
+    await say("and now this", PANEL_MOVED);
+  });
+
+  // Mutation: read conversation.json's mtime instead. This check fails outright under it, which
+  // is the entire point of writing it.
+  it("is treated as cold, because the clock is the thread's and not the panel's", () => {
+    const since = callsIn(log).slice(-1)[0];
+    assert.ok(!since.includes("--resume"), `the panel clock was used: ${since}`);
+  });
+});
+
+const WARM = "Merle";
+
+describe("a message to a conversation that ran a moment ago", () => {
+  const log = path.join(standIn, "warm.txt");
+  let answered;
+  let rows;
+
+  before(async () => {
+    runTool(instance, ["hire", WARM], process.env);
+    await start(instance, standInEnvironment(standIn, log));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    await say("the first thing", WARM);
+    answered = await say("and the second, moments later", WARM);
+    rows = JSON.parse((await transcriptOf(WARM)).body).messages;
+  });
+
+  // Mutation: end the thread on every message.
+  it("carries the conversation on", () => {
+    const since = callsIn(log).slice(-1)[0];
+    assert.ok(since.includes("--resume"), `a live conversation was thrown away: ${since}`);
+  });
+
+  // Mutation: pass the pick-up wrapper on every turn. It costs a sentence in every turn forever
+  // if it is not gated, and it tells a session to re-read a desk it is already working from.
+  it("is handed no instruction to pick up from a desk", () => {
+    const asked = questionsIn(log).find((question) => question.includes("second, moments later"));
+    assert.doesNotMatch(asked ?? "", /<pick-up>/);
+  });
+
+  it("says nothing on the panel about a thread being ended", () => {
+    assert.equal(rows.some((row) => row.cold === true), false);
+  });
+
+  it("tells whoever asked nothing about a fresh head", () => {
+    assert.notEqual(JSON.parse(answered.body).restarted, true);
+  });
+});
+
+const UNREADABLE = "Avocet";
+
+describe("a session whose thread cannot be read", () => {
+  const log = path.join(standIn, "unreadable.txt");
+
+  before(async () => {
+    runTool(instance, ["hire", UNREADABLE], process.env);
+    await start(instance, standInEnvironment(standIn, log));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    await say("the first thing", UNREADABLE);
+    fs.writeFileSync(threadFile(UNREADABLE), "this is not JSON");
+
+    // Aged, or this proves nothing: the write above leaves the clock seconds old, so the gate
+    // would decline for the ordinary reason and the check would pass with the rule inverted.
+    age(threadFile(UNREADABLE), 90);
+
+    await say("and now this", UNREADABLE);
+  });
+
+  // Mutation: treat unreadable as cold. There is no thread here to end — hasThread already reads
+  // false — so the run starts fresh whatever this feature does. What must not happen is the
+  // feature ending a thread that was not there and announcing a restart nobody made.
+  it("is left exactly as it was, and nothing is ended", () => {
+    assert.ok(fs.existsSync(threadFile(UNREADABLE)));
+  });
+
+  it("is told nothing about picking up from a desk", () => {
+    const asked = questionsIn(log).find((question) => question.includes("and now this"));
+    assert.doesNotMatch(asked ?? "", /<pick-up>/);
+  });
+
+  it("has nothing said on its panel about a thread being ended", async () => {
+    const rows = JSON.parse((await transcriptOf(UNREADABLE)).body).messages;
+    assert.equal(rows.some((row) => row.cold === true), false);
+  });
+});
+
+describe("the session that leads, after hours of quiet", () => {
+  const log = path.join(standIn, "lead.txt");
+
+  before(async () => {
+    await start(instance, standInEnvironment(standIn, log));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    await say("the first thing", LEADER);
+    age(threadFile(LEADER), 90);
+    await say("and now this", LEADER);
+  });
+
+  // Mutation: exempt the lead. It is the session with the largest conversation and therefore the
+  // one this feature saves most on; a special case for it would be the wrong special case.
+  it("takes the same path as anybody else", () => {
+    const since = callsIn(log).slice(-1)[0];
+    assert.ok(!since.includes("--resume"), `the lead was exempted: ${since}`);
+  });
+});
+
 
 // What a session is waiting to be ALLOWED to do. It is held up by a person rather than by another
 // session, and until now that was visible only on the panel it happened on — which is the one

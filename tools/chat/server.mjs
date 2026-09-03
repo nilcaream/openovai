@@ -15,7 +15,7 @@ import { carry, overhear } from "./overheard.mjs";
 import { allow, answer as settle, giveUp, park, parked, refuse } from "./permissions.mjs";
 import { roomLines } from "./room.mjs";
 import { DESK_FILE, DeskError, WORK, archiveFor, deskTitle, describeName, hire, isName, retire } from "../desks.mjs";
-import { ask, forget, hasThread, sessions } from "./session.mjs";
+import { ask, forget, hasGoneCold, hasThread, sessions } from "./session.mjs";
 import { inTurn, turnsGoing, waitingFor, whileWaitingFor, wouldWaitForItself } from "./turns.mjs";
 import { takeWord } from "./untold.mjs";
 import { version } from "../version.mjs";
@@ -161,8 +161,11 @@ function deskWrapper(name) {
 // Everything a session is handed in front of the message this turn is about: what it overheard
 // while it was not running, and the standing ask above while its desk says nothing. Blank lines
 // between them, because they are separate things said by different people.
-function inFrontOf(instance, name, message) {
-  const said = [...carry(name)];
+function inFrontOf(instance, name, message, restarted = false) {
+  // Ahead of everything, when there was one. A session that does not yet know it has lost its
+  // memory would read what it overheard as things it remembers being told.
+  const said = restarted ? [pickUpWrapper(name)] : [];
+  said.push(...carry(name));
   if (deskTitle(instance.root, name) === "") {
     said.push(deskWrapper(name));
   }
@@ -215,6 +218,38 @@ function handoverWrapper(name) {
     `us can see it without opening this panel. ${WHAT_WAS_LEARNED} Then say in one line that you`,
     `are ready. Start nothing new.</handover>`,
   ].join(" ");
+}
+
+// What a session is told when its thread ended while nobody was speaking to it.
+//
+// The mirror of handoverWrapper, and a wrapper for the same reason: what is left OUTSIDE every
+// wrapper is the human speaking on this session's own panel, so an instruction from the chat handed
+// over bare would arrive as the human having typed it. Where the handover says "your thread is
+// about to end, write your desk", this says "your thread has ended, read it".
+//
+// It rides only on the turn that follows a reset. Whether there was one is known where it happened
+// and is passed in from there, so this costs a sentence exactly once and nothing on any turn after.
+//
+// It does not apologise for the loss or explain the cache. What the session can act on is where the
+// work stands, and that is on the desk.
+function pickUpWrapper(name) {
+  return [
+    `<pick-up>Nobody spoke to you for long enough that the conversation you were having ended by`,
+    `itself, and this is a new one: you remember none of it. Read ${desk(name)} before anything`,
+    `else and carry on from what it says the work is, what is true right now and what to do next.`,
+    `If what you find there is behind where the work actually got to, say so in your reply rather`,
+    `than guessing at the difference.</pick-up>`,
+  ].join(" ");
+}
+
+// The same moment on the panel, in the voice handoverDone and leavingDone already use. It is for
+// the person who opens this panel later and finds the memory stops here — without it, a transcript
+// that runs on either side of a reset reads as one continuous conversation, which is the one thing
+// it is not.
+//
+// Written before the question, so the record reads in the order it happened.
+function coldLine(name) {
+  return `${name} had been quiet for longer than a conversation can be carried, so the thread that answered up to here is gone. What follows was answered by a new one, which reads ${desk(name)} first.`;
 }
 
 // What the panel says a handover is, while it happens and once it has. Written under `the chat`
@@ -342,6 +377,24 @@ async function deliver(instance, name, text, signed) {
         return { gone: true };
       }
 
+      // A conversation nobody carried on for long enough is ended here rather than resumed. The
+      // whole of ending one is removing the file that holds it: the desk, the persona, the
+      // permission rule and the panel are all untouched, and there is no process to stop, so what
+      // this costs is the conversation and nothing else.
+      //
+      // Asked where the turn begins and not where the message arrived. A message that waited behind
+      // a long turn may have gone from warm to cold while it waited, and the reading that decides
+      // is the one taken the moment before the run.
+      //
+      // It is lossy and there is no version of this that is not: whatever the session worked out
+      // and never wrote to its desk is gone. Asking it to write the desk first is exactly the
+      // expensive turn being avoided, so it is not done, and the personas say so instead.
+      const restarted = hasGoneCold(instance.root, name);
+      if (restarted) {
+        forget(instance.root, name);
+        append(instance.root, name, { from: THE_CHAT, text: coldLine(name), cold: true });
+      }
+
       const asked = append(instance.root, name, { from: sender?.name ?? "human", text: text.trim() });
 
       // The reply is waited for rather than streamed. One run of Claude Code answers one message,
@@ -354,7 +407,12 @@ async function deliver(instance, name, text, signed) {
           // Put together here, where the turn begins, rather than where the message arrived:
           // anything said while this turn was waiting its place in the queue belongs to this turn,
           // and a desk written by the turn ahead of this one is not asked about again.
-          inFrontOf(instance, name, sender === null ? asked.text : wrap(sender.name, sender.role, asked.text)),
+          inFrontOf(
+            instance,
+            name,
+            sender === null ? asked.text : wrap(sender.name, sender.role, asked.text),
+            restarted,
+          ),
           (request) => park(name, request),
         );
       } finally {
@@ -363,6 +421,7 @@ async function deliver(instance, name, text, signed) {
       }
 
       return {
+        restarted,
         question: asked,
         reply: append(instance.root, name, {
           from: name,
@@ -380,7 +439,18 @@ async function deliver(instance, name, text, signed) {
     return { status: 409, body: { error: `${name} left before this could be delivered` } };
   }
 
-  return { status: 200, body: { message: answered.question, reply: answered.reply } };
+  // Said back to whoever asked, and not only on the addressee's panel. The caller of `say` is a
+  // different session that never reads that panel, and it is the one reader most in need of
+  // knowing: a lead about to act on an answer it would otherwise take as continuous with the
+  // conversation it remembers having.
+  return {
+    status: 200,
+    body: {
+      message: answered.question,
+      reply: answered.reply,
+      ...(answered.restarted ? { restarted: true } : {}),
+    },
+  };
 }
 
 async function postMessage(instance, name, request, response) {
@@ -530,6 +600,13 @@ async function saidByTool(instance, caller, args) {
   const answered = await deliver(instance, to, args?.message, caller);
   if (answered.status !== 200) {
     return { refused: answered.body.error };
+  }
+
+  // In the tool's own words rather than as a flag: what comes back here is read by a model, and a
+  // field beside the text is a thing it may or may not look at. Before the answer, because it
+  // changes what the answer is worth.
+  if (answered.body.restarted === true) {
+    return { text: `(${to} had gone quiet for too long, so it answered this from a new conversation, having read its desk rather than remembering what you told it before.)\n\n${answered.body.reply.text}` };
   }
 
   return { text: answered.body.reply.text };
