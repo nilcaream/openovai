@@ -43,6 +43,7 @@ import {
   waitForAddress,
   waitForHealth,
   writeStandIn,
+  driveStandIn,
 } from "./helpers.mjs";
 
 // The reader this suite checks directly. No route says this number, and a check that read the
@@ -140,7 +141,7 @@ async function start(root, environment) {
 }
 
 remove(instance, chosen, quiet, nested, standIn);
-writeStandIn(standIn);
+const standInCommand = writeStandIn(standIn);
 installed(options(instance, PORT));
 installed(options(quiet, 0));
 runTool(instance, ["hire", WORKER], process.env);
@@ -3803,5 +3804,106 @@ describe("a session calls the tools the chat serves it", () => {
     it("says the one it is waiting for is answering", () => {
       assert.match(shown ?? "", new RegExp(`^${WORKER}\\b.*answering`, "m"));
     });
+  });
+});
+
+// A thread that cannot be resumed. The chat drops the id and asks again as a new conversation, and
+// every later check about a run the service refused stands on the stand-in framing this the way
+// the real one does — so the shape is checked here, on the stand-in's own output, before anything
+// is built on it.
+//
+// Measured on Claude Code 2.1.259 by resuming an id no conversation was ever written under: the
+// message is an array of plain strings under `errors`, there is no `result` field at all, and
+// `session_id` is the id that was asked for rather than null. The same message goes to stderr.
+describe("a thread that is not there any more", () => {
+  const gone = "a-thread-nobody-ever-wrote";
+  const goneLog = path.join(standIn, "gone.txt");
+  let refused;
+
+  before(async () => {
+    refused = await driveStandIn(
+      standInCommand,
+      ["--print", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose", "--resume", gone],
+      standInEnvironment(standIn, goneLog, { OW_STAND_IN_RESUME_FAILS: "yes" }),
+    ).ended;
+  });
+
+  it("says which run it is, rather than nothing at all", () => {
+    const frame = refused.frames.find((one) => one.type === "result");
+    assert.equal(typeof frame?.session_id, "string");
+    assert.notEqual(frame?.session_id, "");
+    assert.equal(frame?.session_id, gone, "the run adopts the id it was asked to resume");
+  });
+
+  it("puts what went wrong in errors, and not in a result", () => {
+    const frame = refused.frames.find((one) => one.type === "result");
+    assert.ok(Array.isArray(frame?.errors), `errors is ${JSON.stringify(frame?.errors)}`);
+    assert.ok(frame.errors.length > 0, "nothing was said about the failure");
+    assert.ok(!("result" in frame), "a result field the real one does not send");
+  });
+
+  it("says it in prose as well, where a run that framed nothing would say it", () => {
+    assert.match(refused.err, /No conversation found with session ID/);
+  });
+});
+
+// What the chat does with that frame, which is the behaviour slice 2 is about to narrow: drop the
+// id and ask again as a new conversation. Pinned here, before it is touched.
+describe("a chat asked to carry on a thread that is gone", () => {
+  const lostLog = path.join(standIn, "lost.txt");
+  let carried;
+
+  before(async () => {
+    // A first conversation, under an id of its own, so that what is remembered afterwards cannot
+    // be the same string by coincidence.
+    await start(instance, standInEnvironment(standIn, lostLog, { OW_STAND_IN_SESSION: "old-thread" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    await say("open a thread");
+
+    await start(
+      instance,
+      standInEnvironment(standIn, lostLog, { OW_STAND_IN_SESSION: "new-thread", OW_STAND_IN_RESUME_FAILS: "yes" }),
+    );
+    assert.ok(await waitForHealth(URL), "the server never came back");
+    await say("carry it on");
+
+    // Read here, at the moment being checked, and not in the `it` below: a third message follows
+    // and its ordinary answer would sit at the end of the transcript, so a check reading the last
+    // message afterwards would be looking at somebody else's reply and passing whatever happened
+    // to this one. It was written that way first, and the mutation that keeps the thread went
+    // unnoticed by it.
+    carried = JSON.parse((await transcriptOf(LEADER)).body).messages.at(-1);
+
+    // A third message, with the stand-in resuming normally again. What the chat kept is not read
+    // out of the file here — no route and no reader says it — but out of what the next run is
+    // asked to resume, which is the code using it rather than the check reading around it.
+    await start(instance, standInEnvironment(standIn, lostLog, { OW_STAND_IN_SESSION: "new-thread" }));
+    assert.ok(await waitForHealth(URL), "the server never came back a second time");
+    await say("and once more");
+  });
+
+  it("tried the thread it had", () => {
+    assert.ok(
+      callsIn(lostLog).some((call) => call.includes("--resume old-thread")),
+      "the failed resume never happened, so nothing below is about anything",
+    );
+  });
+
+  it("asks again without the thread it could not resume", () => {
+    const calls = callsIn(lostLog);
+    const failed = calls.findIndex((call) => call.includes("--resume old-thread"));
+    const next = calls[failed + 1];
+    assert.notEqual(next, undefined, "there was no second run at all");
+    assert.ok(!next.includes("--resume"), `asked to resume anyway: ${next}`);
+  });
+
+  it("carries on the thread the second run opened, and not the one that was gone", () => {
+    const last = callsIn(lostLog).at(-1);
+    assert.ok(last.includes("--resume new-thread"), `the next run was called ${last}`);
+    assert.ok(!last.includes("old-thread"));
+  });
+
+  it("still answers the person who asked", () => {
+    assert.equal(carried?.text, "a reply");
   });
 });

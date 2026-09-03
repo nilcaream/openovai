@@ -186,13 +186,30 @@ if ((process.env.OW_STAND_IN_HALF ?? "") !== "") {
   process.exit(1);
 }
 
+// A thread that is not there any more. Measured on the real one (2.1.259) by resuming an id no
+// conversation was ever written under: the subtype is error_during_execution, the message is an
+// array of plain strings under errors and there is no result field at all, and session_id is the
+// id the run was asked to resume rather than null — the run adopts it before finding out it is
+// gone. The same message goes to stderr, and it exits 1 without ever reading stdin.
 if (called.includes("--resume") && (process.env.OW_STAND_IN_RESUME_FAILS ?? "") !== "") {
+  const wanted = argv[argv.indexOf("--resume") + 1];
+  const gone = \`No conversation found with session ID: \${wanted}\`;
+  process.stderr.write(gone + "\\n");
   frame({
     type: "result",
     subtype: "error_during_execution",
+    duration_ms: 0,
+    duration_api_ms: 0,
     is_error: true,
-    session_id: null,
-    result: "No conversation found",
+    num_turns: 0,
+    stop_reason: null,
+    session_id: wanted,
+    total_cost_usd: 0,
+    usage: { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, iterations: [] },
+    modelUsage: {},
+    permission_denials: [],
+    uuid: crypto.randomUUID(),
+    errors: [gone],
   });
   process.exit(1);
 }
@@ -414,6 +431,65 @@ export function standInEnvironment(directory, log, extra = {}) {
     OW_STAND_IN_LOG: log,
     PATH: `${directory}${path.delimiter}${process.env.PATH}`,
     ...extra,
+  };
+}
+
+// Drive the stand-in directly: spawn it, hand it a question, read its frames and wait for it to
+// go. Almost every check here reaches it through the chat, which is right when the subject is
+// what the chat does with an answer. When the subject is the stand-in's OWN output — the shape it
+// is modelling, which every later check about that shape stands on — going through the chat would
+// be reading the value the code was kind enough to hand back rather than what was on the wire.
+export function driveStandIn(command, argv, environment) {
+  const child = spawn(command, argv, { env: environment, stdio: ["pipe", "pipe", "pipe"] });
+  const frames = [];
+  const loose = [];
+  let err = "";
+  let rest = "";
+
+  child.stdout.setEncoding("utf8");
+  child.stdout.on("data", (chunk) => {
+    rest += chunk;
+    let at = rest.indexOf("\n");
+    while (at !== -1) {
+      const line = rest.slice(0, at);
+      rest = rest.slice(at + 1);
+      at = rest.indexOf("\n");
+      if (line.trim() === "") {
+        continue;
+      }
+      try {
+        frames.push(JSON.parse(line));
+      } catch {
+        loose.push(line);
+      }
+    }
+  });
+
+  child.stderr.setEncoding("utf8");
+  child.stderr.on("data", (chunk) => {
+    err += chunk;
+  });
+
+  // A run that has already gone makes writing to it an error on the pipe rather than a throw.
+  child.stdin.on("error", () => {});
+
+  const ended = new Promise((resolve) => {
+    child.on("close", (code) => resolve({ code, frames, loose, err }));
+  });
+
+  return {
+    frames,
+    ask(text) {
+      child.stdin.write(JSON.stringify({ type: "user", message: { role: "user", content: text } }) + "\n");
+    },
+    // What ends a run: the real one waits for another question until whoever asked closes stdin.
+    close() {
+      child.stdin.end();
+    },
+    waitForFrame(is) {
+      return waitFor(() => frames.find(is) ?? null);
+    },
+    ended,
   };
 }
 
