@@ -324,6 +324,18 @@ const SESSION_ROUTE = /^\/sessions\/([^/]+)\/(messages|message|permissions|permi
 //
 // `signed` is the name of the session sending it, or null for the human. It answers { status,
 // body }: what the route sends back, and what the tool reads its own answer out of.
+//
+// THE INVARIANT ON THIS PATH: a message may be delayed, and the conversation that answers it may be
+// replaced, but it is never parked on a state the addressee is stuck in. The refusals below are all
+// about the MESSAGE — empty text, a signature naming nobody, a circle that would deadlock both
+// ends, a session that has left — and not one of them is about how the addressee is doing.
+//
+// That is deliberate and it is what makes it safe to test a session's own state here at all. A
+// message refused because of the state a session is in makes that state unreachable: a session
+// nobody can reach cannot be told to stop being that way, and the only thing left is a person
+// noticing. So a state test on this path has to answer one question before it is written — what
+// happens to the message when the answer is yes? If the answer is "it waits for somebody", it does
+// not belong here. Ending a stale conversation and delivering is fine; declining to deliver is not.
 async function deliver(instance, name, text, signed) {
   if (typeof text !== "string" || text.trim() === "") {
     return { status: 400, body: { error: "a message needs some text" } };
