@@ -326,6 +326,30 @@ async function end(child, patience) {
   clearTimeout(made);
 }
 
+// How long a run the service turned away is given to leave on the close of its own input before
+// it is ended for it.
+const GRACE = 2000;
+
+// A run the service refused, seen off.
+//
+// Its input is closed exactly as it is when an answer arrives, and on everything measured that is
+// the whole of it: a refused turn still emits a result frame, so the run ends by the door it
+// already has and nothing below this line ever runs. It is here anyway, and deliberately.
+//
+// All of that rests on a read of the binary rather than on a refused process anybody has watched,
+// and the cost of being wrong is one-sided. If some refusal shape does go quiet, without this the
+// turn never ends, the queue behind that session stops, and whoever said something waits out the
+// half hour. So the close is followed by a bounded grace and then the ending that already exists.
+//
+// This is not the clock a turn is never given. A watchdog guesses whether work is still happening;
+// this starts only after the service has said the run was refused, and a refused run has nothing
+// left to lose.
+function leave(child) {
+  child.stdin.end();
+  const made = setTimeout(() => end(child, PATIENCE), GRACE);
+  child.once("close", () => clearTimeout(made));
+}
+
 // End every run this chat started, and do not return until they are gone.
 //
 // A ctrl-c in a terminal reaches them without any of this: a child is spawned into the process
@@ -438,6 +462,7 @@ function run(instance, name, text, resume, asked) {
     running.add(child);
 
     let answer = null;
+    let limit = null;
     let rest = "";
     let err = "";
 
@@ -445,6 +470,21 @@ function run(instance, name, text, resume, asked) {
       rest = frames(String(chunk), rest, (frame) => {
         if (frame.type === "control_request" && frame.request?.subtype === "can_use_tool") {
           permission(child, frame, asked);
+          return;
+        }
+        // The service naming the condition itself, rather than us inferring it. Kept the way the
+        // answer is kept and handed on, because what a run amounted to is decided in one place and
+        // this is one of the things it is decided from.
+        //
+        // Only a refusal is kept. The frame is sent whenever the reading changes, so an ordinary
+        // run sends one saying it is allowed, and both captures on this machine hold it in exactly
+        // that state. Keeping those too would mean a run that was allowed early and turned away
+        // later remembers the allowance and reads as an answer.
+        if (frame.type === "rate_limit_event") {
+          if (frame.rate_limit_info?.status === "rejected") {
+            limit = frame.rate_limit_info;
+            leave(child);
+          }
           return;
         }
         if (frame.type !== "result" || answer !== null) {
@@ -473,7 +513,7 @@ function run(instance, name, text, resume, asked) {
 
     child.on("close", () => {
       running.delete(child);
-      resolve(interpret(answer, err));
+      resolve(interpret(answer, err, limit));
     });
 
     child.stdin.write(question(text));
@@ -483,7 +523,33 @@ function run(instance, name, text, resume, asked) {
 // What the run amounted to. The result frame carries the answer as a plain string in `result`,
 // which is the same field and the same string the older whole-of-stdout JSON put it in, so what
 // the chat does with an answer did not have to change with how it arrives.
-function interpret(answer, err) {
+// Whether the service turned this run away, and what it said about it.
+//
+// Two readings, and neither is a fallback for the other. The frame is the service naming the
+// condition and it is the better one, so where it arrives it is what is reported — it says which
+// limit and when it lifts, where a status number says neither. The field answers the same question
+// on its own, and it is the only thing on a result frame that tells a refusal from a run with no
+// credential — both come back spelled `subtype: "success"` with `is_error` set, differing after
+// that only in prose.
+//
+// The two never contradict each other here, because only a refusal is ever kept: `limit` is a
+// refusal or it is nothing, so a run that was told it was allowed and then turned away is read
+// off the 429 rather than off the reading it was given first.
+//
+// Nothing here requires the reset time. A refusal that does not say when it lifts is still a
+// refusal, and is reported as one with nothing said about the time.
+function turnedAway(answer, limit) {
+  if (limit !== null) {
+    return {
+      resetsAt: typeof limit.resetsAt === "number" ? limit.resetsAt : null,
+      kind: limit.rateLimitType ?? null,
+    };
+  }
+  return answer?.api_error_status === 429 ? { resetsAt: null, kind: null } : null;
+}
+
+function interpret(answer, err, limit = null) {
+  const refused = turnedAway(answer, limit);
   // No result frame at all: the run was stopped, or it fell over before it could answer. Whatever
   // it has to say about that is on stderr, which is the only stream carrying prose — measured:
   // a model it does not know gives `[claude-code:unrecognized_model] …`, a persona file that is
@@ -495,7 +561,7 @@ function interpret(answer, err) {
   // of it, offered as what a session said. Do not put it back.
   if (answer === null) {
     const said = err.trim();
-    return { failed: true, text: said === "" ? "Claude Code ended without answering" : said };
+    return { failed: true, refused, text: said === "" ? "Claude Code ended without answering" : said };
   }
 
   const text = typeof answer.result === "string" ? answer.result : JSON.stringify(answer);
@@ -503,6 +569,10 @@ function interpret(answer, err) {
 
   return {
     failed,
+    // What the run amounted to, third state: it reached the service and was turned away. Not an
+    // answer and not a failure — the thread is perfectly good and the account is what is
+    // unavailable — so it is said here rather than worked out again by everybody who asks.
+    refused,
     text,
     // A run can end well and say nothing: the result frame arrives, is not an error, and carries
     // an empty string. Twice now that has reached a panel as a blank line, which reads as the
@@ -555,7 +625,13 @@ export async function ask(instance, name, text, asked = nobodyToAsk) {
   // A remembered thread can go away — the Claude Code home was cleared, or the conversation
   // was never written. Rather than leave the chat permanently broken, drop the id and ask
   // again as a new conversation. Losing the history beats losing the chat.
-  if (answer.failed && resume !== null) {
+  //
+  // A run the service turned away is not that, and the two used to be the same word here. Failed
+  // means the thread could not be used, and asking again without it is the repair; refused means
+  // the account is unavailable and the thread is untouched. Retrying a refusal spends a second run
+  // that cannot succeed, and forgetting throws a conversation away for a condition that clears by
+  // itself. So this fires on what its own comment describes, and on nothing else.
+  if (answer.failed && answer.refused === null && resume !== null) {
     forget(instance.root, name);
     answer = await run(instance, name, text, null, asked);
   }

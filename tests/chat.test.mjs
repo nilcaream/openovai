@@ -123,7 +123,7 @@ function transcriptOf(name) {
 // entry, which is the only place a new one can start.
 function entriesIn(log) {
   return readLog(log)
-    .split(/^(?=(?:call|pid|heard|told|said|shell|answered|stdin): )/m)
+    .split(/^(?=(?:call|pid|heard|told|said|shell|answered|stdin|left): )/m)
     .map((entry) => entry.trimEnd());
 }
 
@@ -3977,5 +3977,266 @@ describe("a stand-in the service refused", () => {
 
   it("exits 1 once stdin is closed", () => {
     assert.equal(refused.code, 1);
+  });
+});
+
+// What the chat does with a run the service turned away. Slice 1 built the state; this is the
+// behaviour it was built for, and all of it is read from what the NEXT run was asked to do rather
+// than from anything the code was kind enough to hand back.
+//
+// A refusal and a lost thread arrive at ask() looking alike — both are `failed` — and the whole of
+// this feature is that they stop being treated alike. So the pair matters more than either half:
+// every block here says what a refusal does NOT do, and the block above about a thread that is
+// gone says the same things happening to a failure that really is one. Apply either behaviour to
+// the other and one of the two goes red.
+describe("a chat whose run the service refused", () => {
+  const outLog = path.join(standIn, "refused-chat.txt");
+  let answered;
+  let calls;
+
+  before(async () => {
+    // A thread first, under an id of its own, so that what is kept afterwards cannot be that
+    // string by coincidence.
+    await start(instance, standInEnvironment(standIn, outLog, { OW_STAND_IN_SESSION: "live-thread" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    await say("open a thread");
+
+    await start(
+      instance,
+      standInEnvironment(standIn, outLog, { OW_STAND_IN_SESSION: "live-thread", OW_STAND_IN_REFUSED: "yes" }),
+    );
+    assert.ok(await waitForHealth(URL), "the server never came back");
+    answered = await say("ask while the account is out");
+
+    calls = callsIn(outLog);
+  });
+
+  it("answers rather than sitting on a run that will not end itself", () => {
+    assert.equal(answered.status, 200);
+  });
+
+  it("asked on the thread it had, so what follows is about a refused resume", () => {
+    assert.ok(
+      calls.some((call) => call.includes("--resume live-thread")),
+      "the refused run never carried the thread, so nothing below is about anything",
+    );
+  });
+
+  it("does not spend a second run on a refusal the first one already got", () => {
+    const refused = calls.findIndex((call) => call.includes("--resume live-thread"));
+    assert.equal(calls[refused + 1], undefined, `it ran again: ${calls[refused + 1]}`);
+  });
+});
+
+// There is no check here for the thread still being on disk afterwards, and that is deliberate.
+// One was written, and no mutation could make it fail: `forget` and the re-ask are the same branch
+// in `ask()`, so a run that was not asked again was not forgotten either — and the stand-in reports
+// the id it was given, so a re-ask under the same name would remember the same string anyway. The
+// check said something true that could not go wrong, which is the shape this repo has twice paid to
+// learn. What the thread being kept looks like from outside is the check above: no second run.
+
+// A refusal that says nothing about when it lifts. The schema does not promise `resetsAt`, and a
+// chat that needed it to recognise a refusal at all would go back to forgetting the thread the
+// first time one came without it.
+describe("a chat refused without being told when the limit lifts", () => {
+  const quietLog = path.join(standIn, "no-reset.txt");
+  let calls;
+
+  before(async () => {
+    await start(instance, standInEnvironment(standIn, quietLog, { OW_STAND_IN_SESSION: "timeless-thread" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    await say("open a thread");
+
+    await start(
+      instance,
+      standInEnvironment(standIn, quietLog, {
+        OW_STAND_IN_SESSION: "timeless-thread",
+        OW_STAND_IN_REFUSED: "yes",
+        OW_STAND_IN_NO_RESET: "yes",
+      }),
+    );
+    assert.ok(await waitForHealth(URL), "the server never came back");
+    await say("ask while the account is out");
+    calls = callsIn(quietLog);
+  });
+
+  it("is still a refusal: no second run", () => {
+    const refused = calls.findIndex((call) => call.includes("--resume timeless-thread"));
+    assert.notEqual(refused, -1, "the refused run never carried the thread");
+    assert.equal(calls[refused + 1], undefined, `it ran again: ${calls[refused + 1]}`);
+  });
+});
+
+// A refusal that reaches the chat as the 429 alone. The rejected reading has never been watched on
+// the wire — the design says so in those words — so the field on the result frame answers the same
+// question by itself, and this is the check that says so.
+//
+// The allowed reading is sent first on purpose. That is what an ordinary run sends, both captures
+// on this machine hold the frame in exactly that state, and a chat that remembered it would read
+// the allowance and call the refusal an answer.
+describe("a chat refused after being told it was allowed", () => {
+  const lateLog = path.join(standIn, "late-refusal.txt");
+  let calls;
+
+  before(async () => {
+    await start(instance, standInEnvironment(standIn, lateLog, { OW_STAND_IN_SESSION: "late-thread" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    await say("open a thread");
+
+    await start(
+      instance,
+      standInEnvironment(standIn, lateLog, {
+        OW_STAND_IN_SESSION: "late-thread",
+        OW_STAND_IN_LIMIT: "allowed",
+        OW_STAND_IN_REFUSED_QUIETLY: "yes",
+      }),
+    );
+    assert.ok(await waitForHealth(URL), "the server never came back");
+    await say("ask while the account is out");
+    calls = callsIn(lateLog);
+  });
+
+  it("reads the refusal off the status, and not off the reading it was given first", () => {
+    const refused = calls.findIndex((call) => call.includes("--resume late-thread"));
+    assert.notEqual(refused, -1, "the refused run never carried the thread");
+    assert.equal(calls[refused + 1], undefined, `it ran again: ${calls[refused + 1]}`);
+  });
+});
+
+// The other half of the pair, twice: a reading that is NOT a refusal changes nothing at all. The
+// thread really is gone in both, so the forget-and-retry has to happen exactly as it does without
+// any reading at all — which is what fails the moment a rate_limit_event is treated as a refusal
+// for its own sake rather than for what it says.
+for (const state of ["allowed", "allowed_warning"]) {
+  describe(`a chat told it was ${state} while its thread was gone`, () => {
+    const okLog = path.join(standIn, `limit-${state}.txt`);
+    let calls;
+
+    before(async () => {
+      await start(instance, standInEnvironment(standIn, okLog, { OW_STAND_IN_SESSION: "kept-thread" }));
+      assert.ok(await waitForHealth(URL), "the server never answered");
+      await say("open a thread");
+
+      await start(
+        instance,
+        standInEnvironment(standIn, okLog, {
+          OW_STAND_IN_SESSION: "fresh-thread",
+          OW_STAND_IN_LIMIT: state,
+          OW_STAND_IN_RESUME_FAILS: "yes",
+        }),
+      );
+      assert.ok(await waitForHealth(URL), "the server never came back");
+      await say("carry it on");
+      calls = callsIn(okLog);
+    });
+
+    it("still drops the thread it could not resume and asks again", () => {
+      const failed = calls.findIndex((call) => call.includes("--resume kept-thread"));
+      assert.notEqual(failed, -1, "the failed resume never happened");
+      const next = calls[failed + 1];
+      assert.notEqual(next, undefined, "there was no second run, so the reading was read as a refusal");
+      assert.ok(!next.includes("--resume"), `asked to resume anyway: ${next}`);
+    });
+  });
+}
+
+// A run with no usable credential. Every field a refusal has, spelled the same way, except the
+// 429 — and a chat that called this a refusal would keep a thread it can never use and stop
+// repairing itself, for a condition that does not clear on any timer.
+describe("a chat whose run had no credential", () => {
+  const outLog = path.join(standIn, "signed-out.txt");
+  let calls;
+
+  before(async () => {
+    await start(instance, standInEnvironment(standIn, outLog, { OW_STAND_IN_SESSION: "stale-thread" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    await say("open a thread");
+
+    await start(
+      instance,
+      standInEnvironment(standIn, outLog, { OW_STAND_IN_SESSION: "stale-thread", OW_STAND_IN_SIGNED_OUT: "yes" }),
+    );
+    assert.ok(await waitForHealth(URL), "the server never came back");
+    await say("ask with nothing to ask with");
+    calls = callsIn(outLog);
+  });
+
+  it("is a failure and not a refusal, so the thread is dropped and it asks again", () => {
+    const failed = calls.findIndex((call) => call.includes("--resume stale-thread"));
+    assert.notEqual(failed, -1, "the run never carried the thread");
+    const next = calls[failed + 1];
+    assert.notEqual(next, undefined, "there was no second run, so a signed-out run was read as a refusal");
+    assert.ok(!next.includes("--resume"), `asked to resume anyway: ${next}`);
+  });
+});
+
+// How a refused run ends. On everything measured it ends itself, and the first block here says so:
+// its input is closed exactly as it is when an answer arrives and it goes by the door it already
+// has, unsignalled. The second is the shape nobody has watched — refused and then deaf to its
+// input being closed — where without the grace the turn never ends, the queue behind that session
+// stops, and whoever said something waits out the limit.
+//
+// Both are bounded by the check rather than by the code. A check about something that would
+// otherwise never return has to carry its own bound, or a red suite becomes a wedged one.
+describe("a refused run that goes when it is told the turn is over", () => {
+  const goneLog = path.join(standIn, "refused-leaves.txt");
+
+  before(async () => {
+    await start(
+      instance,
+      standInEnvironment(standIn, goneLog, { OW_STAND_IN_SESSION: "leaving-thread", OW_STAND_IN_REFUSED: "yes" }),
+    );
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    await say("ask while the account is out");
+  });
+
+  it("is never signalled: it left on the close of its own input", () => {
+    assert.match(readLog(goneLog), /^left: /m);
+  });
+});
+
+describe("a refused run that ignores its input being closed", () => {
+  const deafLog = path.join(standIn, "refused-deaf.txt");
+  let ended;
+  let ran;
+
+  before(async () => {
+    await start(
+      instance,
+      standInEnvironment(standIn, deafLog, {
+        OW_STAND_IN_SESSION: "deaf-thread",
+        OW_STAND_IN_REFUSED: "yes",
+        OW_STAND_IN_REFUSED_DEAF: "yes",
+      }),
+    );
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    // The bound is here and not in the toolkit. Fifteen seconds is far longer than the grace plus
+    // the patience that follows it, and short enough that a suite says so rather than hanging.
+    ended = await Promise.race([
+      say("ask while the account is out").then(() => true),
+      new Promise((resolve) => setTimeout(() => resolve(false), 15000)),
+    ]);
+    ran = pidsIn(deafLog).at(-1);
+
+    // Whatever the check finds, nothing is left running behind it.
+    if (typeof ran === "number" && alive(ran)) {
+      try {
+        process.kill(ran, "SIGKILL");
+      } catch {}
+    }
+  });
+
+  it("ends the turn rather than waiting on a run that will not end itself", () => {
+    assert.equal(ended, true, "the turn never came back");
+  });
+
+  it("makes the run go, since closing its input did not", () => {
+    assert.equal(typeof ran, "number", "the run never said which process it was");
+    assert.equal(alive(ran), false, "it is still running");
+  });
+
+  it("did not leave on its own, which is what makes the ending the thing that ended it", () => {
+    assert.doesNotMatch(readLog(deafLog), /^left: /m);
   });
 });

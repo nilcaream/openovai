@@ -97,6 +97,16 @@ export function claudeIsInstalled() {
 //                             then a result frame spelled success while carrying is_error and
 //                             api_error_status 429 — what a run gets when the account has hit a
 //                             usage limit, which is neither an answer nor a failure
+//   OW_STAND_IN_NO_RESET      refuse without saying when the limit lifts (with REFUSED)
+//   OW_STAND_IN_REFUSED_DEAF  refuse and then ignore stdin being closed, for good (with REFUSED)
+//   OW_STAND_IN_LIMIT         a status to report in a rate_limit_event before doing anything else
+//                             — "allowed" or "allowed_warning", which is what an ordinary run
+//                             sends whenever the reading moves
+//   OW_STAND_IN_REFUSED_QUIETLY  be turned away with the 429 alone and no rate_limit_event, which
+//                             is what a refusal looks like if that frame does not reach a
+//                             headless caller
+//   OW_STAND_IN_SIGNED_OUT    fail for want of a credential: every field a refusal has, spelled
+//                             the same way, except the 429 — the one thing telling them apart
 //   OW_STAND_IN_EMPTY         answer successfully with an empty result, the way a session that
 //                             ends its turn without saying anything does
 //   OW_STAND_IN_DEAF          ignore being asked to stop, and start a shell of its own the way
@@ -181,6 +191,26 @@ if ((process.env.OW_STAND_IN_MUTE ?? "") !== "") {
 // One frame per line, the way the real one answers.
 const frame = (fields) => process.stdout.write(JSON.stringify(fields) + "\\n");
 
+// The reading the service sends when it is NOT refusing anything. It arrives on an ordinary run
+// whenever the numbers move, and both captures on this machine hold the frame in exactly this
+// state, so a check that never produced it would be checking the chat against a wire it will not
+// meet. Said as early as the run can say anything, and before every branch below: a reading that
+// only ever reached the paths that go on to answer would leave the paths that do not unwatched,
+// and one of those is where the thread is dropped.
+if ((process.env.OW_STAND_IN_LIMIT ?? "") !== "") {
+  frame({
+    type: "rate_limit_event",
+    rate_limit_info: {
+      status: process.env.OW_STAND_IN_LIMIT,
+      rateLimitType: "five_hour",
+      resetsAt: Math.floor(Date.now() / 1000) + 3 * 60 * 60,
+    },
+    uuid: crypto.randomUUID(),
+    session_id: process.env.OW_STAND_IN_SESSION ?? "test-thread",
+  });
+}
+
+
 // Stopped in the middle of the turn: the frames it had already emitted are on stdout, there is no
 // result frame, and stderr is empty. This is the shape that put 14,546 characters of protocol on a
 // panel as what a session had said.
@@ -258,6 +288,42 @@ process.stdin.on("data", (chunk) => {
 const asked = await question;
 fs.appendFileSync(log, \`heard: \${asked}\\n\`);
 
+// Turned away with nothing said about it in a frame — the refusal reaching the caller only as the
+// 429 on the result. This is the state the design's one open assumption is about: the rejected
+// reading has never been watched on the wire, and if it turns out not to travel to a headless
+// caller, this is what a refusal looks like instead. A stand-in that could only refuse the loud
+// way would leave the field that covers it unproven.
+if ((process.env.OW_STAND_IN_REFUSED_QUIETLY ?? "") !== "") {
+  frame({
+    type: "result",
+    subtype: "success",
+    is_error: true,
+    api_error_status: 429,
+    num_turns: 0,
+    result: "You've hit your session limit · resets 9am",
+    session_id: process.env.OW_STAND_IN_SESSION ?? "test-thread",
+  });
+  await ended;
+  process.exit(1);
+}
+
+// A run with no usable credential. Every field a refusal has, spelled the same way, EXCEPT the
+// 429 — which is the whole of the difference and the reason this exists. Nothing about it is a
+// rate limit, and a chat that called it one would go on calling it one for ever, since the
+// condition never clears by itself.
+if ((process.env.OW_STAND_IN_SIGNED_OUT ?? "") !== "") {
+  frame({
+    type: "result",
+    subtype: "success",
+    is_error: true,
+    num_turns: 0,
+    result: "Invalid API key · Please run /login",
+    session_id: process.env.OW_STAND_IN_SESSION ?? "test-thread",
+  });
+  await ended;
+  process.exit(1);
+}
+
 // Turned away by the service. Not a failure and not an answer: the run reached the service, was
 // refused, and said so in the shape the published schema gives — a rate_limit_event whose
 // rate_limit_info.status is "rejected", and then a result frame spelled subtype "success" while
@@ -277,13 +343,19 @@ fs.appendFileSync(log, \`heard: \${asked}\\n\`);
 // what ends a run — and then exits 1, which is what the real one exits when its last result frame
 // carries is_error.
 if ((process.env.OW_STAND_IN_REFUSED ?? "") !== "") {
+  const info = {
+    status: "rejected",
+    rateLimitType: "five_hour",
+    resetsAt: Math.floor(Date.now() / 1000) + 3 * 60 * 60,
+  };
+  // A refusal that does not say when it lifts. The schema does not promise the field, and a chat
+  // that needs it to recognise a refusal at all would go deaf the first time it came without one.
+  if ((process.env.OW_STAND_IN_NO_RESET ?? "") !== "") {
+    delete info.resetsAt;
+  }
   frame({
     type: "rate_limit_event",
-    rate_limit_info: {
-      status: "rejected",
-      rateLimitType: "five_hour",
-      resetsAt: Math.floor(Date.now() / 1000) + 3 * 60 * 60,
-    },
+    rate_limit_info: info,
     uuid: crypto.randomUUID(),
     session_id: process.env.OW_STAND_IN_SESSION ?? "test-thread",
   });
@@ -297,15 +369,30 @@ if ((process.env.OW_STAND_IN_REFUSED ?? "") !== "") {
     session_id: process.env.OW_STAND_IN_SESSION ?? "test-thread",
   });
 
-  await Promise.race([
-    ended,
+  // Refused AND deaf: the shape nobody has watched. It has been refused, it has said so, and it
+  // then ignores its input being closed for good — which is what the run would look like if some
+  // refusal did go quiet. Nothing but being ended reaches it, so it is what proves the ending.
+  if ((process.env.OW_STAND_IN_REFUSED_DEAF ?? "") !== "") {
+    setInterval(() => {}, 60000);
+    await new Promise(() => {});
+  }
+
+  const told = await Promise.race([
+    ended.then(() => true),
     new Promise((resolve) => {
       setTimeout(() => {
         fs.appendFileSync(log, \`stdin was never closed: \${asked}\\n\`);
-        resolve();
+        resolve(false);
       }, 5000);
     }),
   ]);
+
+  // Written on the way out, and only when the input really was closed. It is what lets a check
+  // tell a run that left because it was told the turn was over from one that was made to go, which
+  // are the same exit code and otherwise the same from outside.
+  if (told) {
+    fs.appendFileSync(log, \`left: \${asked}\\n\`);
+  }
   process.exit(1);
 }
 
