@@ -2,8 +2,9 @@
 //
 // An instance is normally installed with --port 0, which is a request rather than a port: the
 // address exists only once the server has bound one, and nothing outside that process can work
-// it out. So the server writes it down, and anything in the instance that needs to reach the
-// chat — `ow say`, so far — reads it here. This file is the one place a running address lives.
+// it out. So the server writes it down, and anything in the instance that needs to reach the chat
+// reads it here: the commands, and the configuration a session is started with, which carries the
+// address of that session's own tools. This file is the one place a running address lives.
 //
 // Nothing removes it. A chat that was killed leaves an address that answers nothing, and a
 // reader finds that out by trying: a refused connection is the truth, where a file that was

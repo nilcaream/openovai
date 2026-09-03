@@ -22,7 +22,7 @@ session can be replaced at any time without losing the work.
 - **One place says who is doing what.** A room above the panels gives each session a line: what
   it is on, whether it is answering and how many messages are waiting behind, who is holding it
   up, how big its conversation has grown and how long since anything happened on its panel. The
-  lead reads the same thing with `ow room`.
+  lead, who is on the page rather than looking at it, asks for the same thing with a tool.
 - **Built from ordinary Claude Code features**: agent personas, hooks, skills, project
   settings, plus a few shell and Node launchers and a small web page to host them on.
 
@@ -166,34 +166,34 @@ one file per session, under the name of the session having that conversation —
 server does not throw it away.
 
 A panel says when its session is answering. That matters most for the turns you did not start:
-a session is put to work by another session over `ow say`, and by this page open in a second
-window, and a panel that said nothing while that happened would read as one nobody is listening
-on. Waiting for a turn counts as answering — from the panel's side there is no difference
+a session is put to work by another session over its `say` tool, and by this page open in a
+second window, and a panel that said nothing while that happened would read as one nobody is
+listening on. Waiting for a turn counts as answering — from the panel's side there is no difference
 between a message being worked on and a message queued behind one, and both mean the same thing
 to whoever is looking at it.
 
-`ow say <name> <message>` says something to another session in the instance and prints what it
-answers. It goes through the chat rather than starting a session of its own, so the exchange
-lands in that session's transcript and shows up on its panel like anything else. The chat writes
-the address it is listening on to `chat/listening.json` when it starts — with `--port 0` nothing
-knows the address until then — and this reads it there. It waits for the answer, which means the
-session that asked is held for the whole of the other one's turn. Without a chat running there is
-nobody to say it to, and it says so rather than starting anybody.
+A session says something to another with its `say` tool: who to say it to, and what to say. It
+goes through the chat rather than starting a session of its own, so the exchange lands in that
+session's transcript and shows up on its panel like anything else. It waits for the answer, which
+means the session that asked is held for the whole of the other one's turn, and what comes back to
+it is that answer.
 
-Every session in the instance is allowed to run it, and the lead's persona says so, which is what
-makes the team a team: the lead can ask a worker something mid-turn and quote the answer back to
-you. The rules are `Bash(bin/ow say:*)` and `Bash(./bin/ow say:*)` — two, because a rule is a
-literal prefix rather than a path, and the two spellings of the one command would each miss the
-other's rule. Both are relative, like the rule that lets a session write its own desk: a session
-is started with the instance root as its working directory, and an instance that named a place on
-this machine would stop working the moment it was moved.
+`ow say <name> <message>` is the same thing for a person at a terminal, and prints what came back.
+The chat writes the address it is listening on to `chat/listening.json` when it starts — with
+`--port 0` nothing knows the address until then — and this reads it there. Without a chat running
+there is nobody to say it to, and it says so rather than starting anybody.
+
+Every session here has that tool and both personas name it, which is what makes the team a team:
+the lead can ask a worker something mid-turn and quote the answer back to you. What else a session
+is given, and why these are tools rather than commands it types, is *The instance's own tools*
+below.
 
 A session can see who is speaking to it. The page signs nothing, so what is typed there arrives as
-it was typed; `ow say` signs with the name of the session running it — the chat puts that name in
-the environment it starts a session with — and the chat hands a signed message over wrapped, as
-`<from-session name="Superman" role="lead">…</from-session>`. Anything outside a wrapper is
-therefore yours, by construction: nothing has to remember to say so. A signature naming nobody who
-works there is refused rather than passed on as the human's.
+it was typed; the `say` tool signs with the name the chat started that session under — the name in
+the address it calls on, and never anything it passes in — and the chat hands a signed message over
+wrapped, as `<from-session name="Superman" role="lead">…</from-session>`. Anything outside a
+wrapper is therefore yours, by construction: nothing has to remember to say so. A signature naming
+nobody who works there is refused rather than passed on as the human's.
 
 The wrapper is only on the way in. What is kept is what was said, under the name of who said it,
 so a transcript reads as a conversation rather than as a protocol — and `ow say` run from a
@@ -265,10 +265,70 @@ That is what a workspace has to be able to do before it is worth moving onto: wi
 session can only do what `settings.json` was configured to permit before it started, and anything
 else comes back reading like an ordinary answer that happens to say no.
 
+### The instance's own tools
+
+A session does not type the instance's commands. The chat serves them to it, over a route of its
+own:
+
+    POST /mcp/<name>
+
+Three of them: `say` says something to another session, `status` says who works here and what each
+one runs on, and `room` is the room above the panels, one line per session.
+
+They are tools because a shell line is a poor place to put a sentence somebody wrote. An apostrophe
+ends the quoting; a backtick is run and what it printed goes instead of what was meant; and several
+other shapes stop the session to be approved by whoever is at the page. The same words as the
+argument of a tool arrive exactly as they were written, and nothing is asked.
+
+The name in the path is the chat's word for who is calling. It is written into the configuration
+the session is started with — passed as the configuration itself rather than as a file, because
+with `--port 0` the address is not known until the chat has bound one, and a file written before
+that would be a lie the next restart makes worse:
+
+```json
+{ "mcpServers": { "office": { "type": "http", "url": "http://127.0.0.1:44855/mcp/Superman",
+                              "timeout": 1800000 } } }
+```
+
+So who is calling is never an argument and never a header, both of which a session writes for
+itself, and no session can say it is somebody else. What each one is offered is decided in that
+same place, from that name against the name the instance was made with: the room is the lead's, and
+a worker is not offered it.
+
+Asking for it anyway is refused by name — the tool says whose the room is, rather than that there
+is no such thing, because a session told something does not exist goes looking for another way to
+the same answer while one told whose it is asks that person. A worker seldom reads that sentence,
+though: Claude Code turns down a call to a tool it was not offered before it leaves the session, so
+what the model is told is that there is no such tool. The refusal is the boundary for anything that
+posts to the route; the list is what the model goes by.
+
+The half hour is how long a session may be kept waiting on one of these. `say` is answered only
+once the session it reached has finished its turn, and a turn is minutes; left unsaid, the call is
+given up on after a minute — measured — while the session that was asked carries on working and
+writes its answer into its own transcript, where whoever asked will never see it. A turn longer
+than half an hour comes back to the caller the same way, and that is the trade for not holding one
+session for good behind another that is stopped waiting to be allowed something.
+
+Nothing is held between one call and the next. The chat can be stopped and started again in the
+middle of a turn and the session never notices: it posts to whatever is listening now, and the new
+process answers a call it never saw introduced.
+
+The whole of it costs one permission rule, `mcp__office`, where the three commands needed six —
+each twice, because a rule is a literal prefix rather than a path, and `bin/ow say` and
+`./bin/ow say` are two spellings of one command that would each miss the other's rule. One rule
+rather than one per tool, because there is nothing left for a narrower one to say: a rule can name
+a server or a tool, never what the tool is given, so what a tool may be asked for has to live in
+the tool's own signature. `say` has no "which instance" and `room` has no "whose room".
+
+Which is why the limit on what is served here is a standing one: **nothing that deletes, archives
+or spawns joins this server without being decided on its own.** Every tool added inherits that one
+rule the moment it appears in the list. Hiring, leaving, handing over and archiving stay on the
+page, where a person is the one pressing the button.
+
 ### Trying it
 
-An instance allows a session to write its own desk and to run `ow say`, and nothing else, so a
-plain install is already narrow enough to watch this work. Every option is required, as always:
+An instance allows a session to write its own desk and to use the tools above, and nothing else, so
+a plain install is already narrow enough to watch this work. Every option is required, as always:
 
 ```sh
 ./install.sh --root ~/trying-it --source . --human Mike --leader Superman \
@@ -327,14 +387,17 @@ and a page that guessed would be wrong in the way that looks like an answer.
 The room costs nothing: it is built from the same rows the panels were already asking for once a
 second, so it is not a request per person per second — it is no request at all.
 
-The lead cannot read any of this, because it is on the page rather than looking at it. It runs
-`ow room` instead, which prints the same rows for a terminal, and which anybody can run:
+The lead cannot read any of this, because it is on the page rather than looking at it. It asks for
+the room with a tool of its own and gets the same rows. That tool is the one thing here served to
+the lead and to nobody else, as *The instance's own tools* above says.
+
+`ow room` prints the same rows for a person at a terminal:
 
 ```sh
 ~/my-workspace/bin/ow room
 ```
 
-It asks the running chat, because half of a room is only in that process — how many turns are
+Both ask the running chat, because half of a room is only in that process — how many turns are
 going, who is held up waiting for whom, what is stopped waiting to be allowed something. With no
 chat running there is no room to show, and it says so rather than printing an empty one.
 
@@ -398,7 +461,7 @@ files for a person, which is why nothing here promises them a shape.
 The archive sits beside `work/` rather than inside it. The directories under `work/` **are** the
 roster — there is nothing else to register and nothing that can disagree with what is on disk —
 so a directory in there is somebody who works here, with a panel, a row in the room and a name
-`ow say` will accept.
+the `say` tool will accept.
 
 The name is free by construction: no desk, no conversation, no persona and no rule are left under
 it, so hiring it again starts on nothing. Two doors are shut behind that. Hiring refuses a name
