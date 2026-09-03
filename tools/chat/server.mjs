@@ -332,10 +332,29 @@ function atTime(seconds) {
 // word for it and inventing a friendlier one means a table of them, kept true by somebody, for a
 // word the service can change under us. A limit that names no kind and no reset is still reported;
 // it is a refusal either way, and the sentence simply says less.
-function refusedLine(name, refused) {
+function limitSaid(refused) {
   const kind = refused.kind === null ? "a usage limit" : `a ${refused.kind.replace(/_/g, "-")} limit`;
-  const when = refused.resetsAt === null ? "" : `, which lifts at ${atTime(refused.resetsAt)}`;
-  return `Nothing reached ${name}: the service turned the run away on ${kind}${when}. Its conversation is untouched and nothing was lost — say it again once the limit has lifted.`;
+  return refused.resetsAt === null ? kind : `${kind}, which lifts at ${atTime(refused.resetsAt)}`;
+}
+
+function refusedLine(name, refused) {
+  return `Nothing reached ${name}: the service turned the run away on ${limitSaid(refused)}. Its conversation is untouched and nothing was lost — say it again once the limit has lifted.`;
+}
+
+// The same moment on a handover, where what is at stake is different and worse. A handover asks a
+// session to write its desk and then ends its thread; if the run is turned away, the desk was not
+// written — and until this slice the thread was ended anyway, which is the one place this toolkit
+// was worse than the office it is modelled on. So nothing is ended, and the line says that, because
+// a person who has just pressed a button needs to know whether it cost them anything.
+function handoverRefused(name, refused) {
+  return `${name} could not be asked to hand over: the service turned the run away on ${limitSaid(refused)}. Nothing was ended — its thread and ${desk(name)} are exactly as they were — so hand over again once the limit has lifted.`;
+}
+
+// And on the way out. A desk is filed under a date and a title the session is asked for on this
+// very turn, so a leave that was refused has nothing to file: the desk stays open, the name stays
+// taken, and nobody has left.
+function leavingRefused(name, refused) {
+  return `${name} could not be asked before leaving: the service turned the run away on ${limitSaid(refused)}. Nothing was filed and the desk is still open — ask again once the limit has lifted.`;
 }
 
 // Everything a session is asked or answers is under its own name, so one route shape serves
@@ -738,6 +757,25 @@ async function postHandover(instance, name, response) {
       giveUp(name);
     }
 
+    // Turned away, so nothing happens. Not the reply row — the session said nothing and the
+    // service's own sentence is not its words — and above all not the `forget` below, which would
+    // throw the conversation away for a condition that clears by itself, on the one turn where the
+    // desk that would have replaced it was never written either.
+    //
+    // This is the whole of why this slice exists. The rest of the feature stops a refusal costing a
+    // message; here it was costing the record of what a session was doing, and there is nothing to
+    // read it back from.
+    if (answer.refused !== null) {
+      const ended = append(instance.root, name, {
+        from: THE_CHAT,
+        text: handoverRefused(name, answer.refused),
+        handover: true,
+        refused: true,
+      });
+
+      return { asked, ended, refused: true };
+    }
+
     const reply = append(instance.root, name, {
       from: name,
       text: answer.text,
@@ -757,7 +795,7 @@ async function postHandover(instance, name, response) {
     return { asked, reply, ended };
   });
 
-  sendJson(response, 200, done);
+  sendJson(response, done.refused === true ? 503 : 200, done);
 }
 
 // A session leaving: it writes its desk as the record, and then the desk is put away — filed under
@@ -808,6 +846,24 @@ async function postLeave(instance, name, response) {
       ...(answer.silent ? { silent: true } : {}),
     });
 
+    // Turned away, and nothing below this line runs. The order matters and is the reason this
+    // branch is here rather than three lines down: `archiveFor` does not only work out where the
+    // desk would go, it MAKES the directory. A refused leave that got as far as asking would leave
+    // an empty archive behind for a session that is still sitting at its desk.
+    //
+    // Nothing is filed, nothing is retired, the name stays taken, and the thread — which on this
+    // route is the desk directory itself — is exactly where it was.
+    if (answer.refused !== null) {
+      const left = append(instance.root, name, {
+        from: THE_CHAT,
+        text: leavingRefused(name, answer.refused),
+        leaving: true,
+        refused: true,
+      });
+
+      return { asked, left, refused: true };
+    }
+
     // Where it is going is settled before the last line is written, so that line can say where.
     const { at, where } = archiveFor(instance.root, name);
     const left = append(instance.root, name, {
@@ -825,7 +881,7 @@ async function postLeave(instance, name, response) {
     return { asked, reply, left, archived: where };
   });
 
-  sendJson(response, 200, done);
+  sendJson(response, done.refused === true ? 503 : 200, done);
 }
 
 // Opening a desk for somebody new, which is what the page's Hire button posts to.

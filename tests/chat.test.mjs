@@ -4494,3 +4494,203 @@ describe("a message sent while another is being turned away", () => {
     assert.equal(panel.filter((message) => message.refused === true).length, 2);
   });
 });
+
+// Slice 3.5: the two routes that end something.
+//
+// A handover ends a thread and a leave files a desk away, and both do it on the strength of a run
+// that has just been asked to write down where the work stands. When the service turns that run
+// away, the writing never happened — and until this slice the ending happened anyway. That is the
+// one place this toolkit was worse than the office it is modelled on under the same trigger: there,
+// a refused handover cost a frozen button and no data; here it cost the conversation, on the very
+// turn whose replacement was never written.
+//
+// So both routes ask the same question and give the same answer: refused means nothing happened.
+const REFUSED_HAND = "Sable";
+const FAILED_HAND = "Otto";
+const REFUSED_LEAVE = "Perry";
+
+describe("a handover the service turned away", () => {
+  const handLog = path.join(standIn, "handover-refused.txt");
+  let posted;
+  let thread;
+  let rows;
+  let afterwards;
+
+  before(async () => {
+    runTool(instance, ["hire", REFUSED_HAND], process.env);
+    await start(
+      instance,
+      standInEnvironment(standIn, handLog, { OW_STAND_IN_SESSION: "hand-thread" }),
+    );
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    // A thread to lose. Without a message first there is nothing here a handover could cost.
+    await say("something worth remembering", REFUSED_HAND);
+
+    await start(
+      instance,
+      standInEnvironment(standIn, handLog, { OW_STAND_IN_SESSION: "hand-thread", OW_STAND_IN_REFUSED: "yes" }),
+    );
+    assert.ok(await waitForHealth(URL), "the server never came back");
+
+    const before = JSON.parse((await transcriptOf(REFUSED_HAND)).body).messages.length;
+    posted = await post(`${URL}/sessions/${REFUSED_HAND}/handover`, {});
+
+    // Read before anything else runs: the next message would start a thread of its own and put the
+    // file back, which would make a check that ran afterwards pass whatever had happened here.
+    thread = fs.existsSync(path.join(instance, "chat", REFUSED_HAND, "session.json"));
+    rows = JSON.parse((await transcriptOf(REFUSED_HAND)).body).messages.slice(before);
+
+    await start(
+      instance,
+      standInEnvironment(standIn, handLog, { OW_STAND_IN_SESSION: "hand-thread" }),
+    );
+    assert.ok(await waitForHealth(URL), "the server never came back a second time");
+    afterwards = await say("and are you still the same conversation", REFUSED_HAND);
+  });
+
+  it("keeps the thread it was about to end", () => {
+    assert.equal(thread, true, "the conversation was thrown away for a limit that clears by itself");
+  });
+
+  it("carries on that same thread on the next message, so it was kept usable and not merely kept", () => {
+    assert.equal(afterwards.status, 200);
+    assert.ok(
+      callsIn(handLog).at(-1).includes("--resume hand-thread"),
+      `the next run was called ${callsIn(handLog).at(-1)}`,
+    );
+  });
+
+  it("says on the panel that it was turned away, flagged", () => {
+    assert.equal(rows.at(-1)?.refused, true, `the last row was ${JSON.stringify(rows.at(-1))}`);
+    assert.equal(rows.at(-1)?.from, "the chat");
+    assert.match(rows.at(-1).text, /turned the run away/);
+  });
+
+  it("does not tell the person the thread is gone, because it is not", () => {
+    assert.ok(!rows.at(-1).text.includes("thread is gone"), `the line said ${JSON.stringify(rows.at(-1).text)}`);
+    assert.deepEqual(
+      rows.filter((row) => (row.text ?? "").includes("handed over")),
+      [],
+      "it said the handover happened",
+    );
+  });
+
+  it("says when the limit lifts, so the person knows when to press it again", () => {
+    const lifts = new Date(Date.now() + 3 * 60 * 60 * 1000);
+    assert.ok(rows.at(-1).text.includes(`${String(lifts.getHours()).padStart(2, "0")}:`));
+  });
+
+  it("credits the session with nothing, since it never answered", () => {
+    assert.deepEqual(rows.filter((row) => row.from === REFUSED_HAND), []);
+  });
+
+  it("tells whoever pressed the button, rather than reporting a handover that did not happen", () => {
+    assert.equal(posted.status, 503);
+    assert.equal(JSON.parse(posted.body).refused, true);
+  });
+});
+
+// The other half of the pair. A handover whose run failed for any ordinary reason still ends the
+// thread, exactly as it did before this slice: the thread is what could not be used, and there is
+// nothing to keep. Only a refusal is different, and a guard that fired on `failed` instead would
+// quietly stop every handover from ever ending anything.
+describe("a handover that failed for an ordinary reason", () => {
+  const failedLog = path.join(standIn, "handover-failed.txt");
+  let thread;
+  let rows;
+
+  before(async () => {
+    runTool(instance, ["hire", FAILED_HAND], process.env);
+    await start(instance, standInEnvironment(standIn, failedLog, { OW_STAND_IN_SESSION: "failing-thread" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    await say("something worth remembering", FAILED_HAND);
+
+    await start(instance, standInEnvironment(standIn, failedLog, { OW_STAND_IN_BROKEN: "yes" }));
+    assert.ok(await waitForHealth(URL), "the server never came back");
+
+    const before = JSON.parse((await transcriptOf(FAILED_HAND)).body).messages.length;
+    await post(`${URL}/sessions/${FAILED_HAND}/handover`, {});
+    thread = fs.existsSync(path.join(instance, "chat", FAILED_HAND, "session.json"));
+    rows = JSON.parse((await transcriptOf(FAILED_HAND)).body).messages.slice(before);
+  });
+
+  it("still ends the thread", () => {
+    assert.equal(thread, false, "the handover kept a thread it was asked to end");
+  });
+
+  it("still says the thread is gone, which is true here", () => {
+    assert.ok(
+      rows.some((row) => (row.text ?? "").includes("thread is gone")),
+      `the rows said ${JSON.stringify(rows.map((row) => row.text))}`,
+    );
+  });
+
+  it("is not called a refusal", () => {
+    assert.deepEqual(rows.filter((row) => row.refused === true), []);
+  });
+});
+
+// A leave, where what is at stake is the desk itself. The guard sits higher up this route than on a
+// handover and for a reason worth writing down: the function that works out where a desk would be
+// filed also MAKES the directory. A refused leave that got as far as asking would leave an empty
+// archive behind for somebody still sitting at their desk.
+describe("a leave the service turned away", () => {
+  const leaveLog = path.join(standIn, "leave-refused.txt");
+  let posted;
+  let desk;
+  let archives;
+  let rows;
+
+  before(async () => {
+    runTool(instance, ["hire", REFUSED_LEAVE], process.env);
+    await start(instance, standInEnvironment(standIn, leaveLog, { OW_STAND_IN_SESSION: "leave-thread" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    await say("something worth remembering", REFUSED_LEAVE);
+
+    const before = JSON.parse((await transcriptOf(REFUSED_LEAVE)).body).messages.length;
+    // Where a desk really is filed. Written wrong the first time — work/archive, which does not
+    // exist — so the check read an empty listing both times and could not fail. The mutation that
+    // files a desk early said nothing about it, which is how it was caught.
+    const filed = path.join(instance, "archive");
+    const had = fs.existsSync(filed) ? fs.readdirSync(filed) : [];
+
+    await start(
+      instance,
+      standInEnvironment(standIn, leaveLog, { OW_STAND_IN_SESSION: "leave-thread", OW_STAND_IN_REFUSED: "yes" }),
+    );
+    assert.ok(await waitForHealth(URL), "the server never came back");
+
+    posted = await post(`${URL}/sessions/${REFUSED_LEAVE}/leave`, {});
+    desk = fs.existsSync(path.join(instance, "work", REFUSED_LEAVE, "STATE.md"));
+    archives = (fs.existsSync(filed) ? fs.readdirSync(filed) : []).filter((one) => !had.includes(one));
+    rows = JSON.parse((await transcriptOf(REFUSED_LEAVE)).body).messages.slice(before);
+  });
+
+  it("leaves the desk where it was", () => {
+    assert.equal(desk, true, "the desk was filed away for a limit that clears by itself");
+  });
+
+  it("files nothing, not even the empty directory it would have filed it into", () => {
+    assert.deepEqual(archives, [], "an archive was made for a session that never left");
+  });
+
+  it("keeps the name taken, since nobody left", async () => {
+    assert.equal((await get(`${URL}/sessions/${REFUSED_LEAVE}/messages`)).status, 200);
+  });
+
+  it("says on the panel that it was turned away, flagged", () => {
+    assert.equal(rows.at(-1)?.refused, true, `the last row was ${JSON.stringify(rows.at(-1))}`);
+    assert.equal(rows.at(-1)?.from, "the chat");
+    assert.match(rows.at(-1).text, /turned the run away/);
+  });
+
+  it("does not say the desk was filed, because it was not", () => {
+    assert.ok(!rows.at(-1).text.includes("filed under"), `the line said ${JSON.stringify(rows.at(-1).text)}`);
+  });
+
+  it("tells whoever pressed the button", () => {
+    assert.equal(posted.status, 503);
+    assert.equal(JSON.parse(posted.body).refused, true);
+  });
+});
