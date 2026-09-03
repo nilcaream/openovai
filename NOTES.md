@@ -18,3 +18,24 @@ they were. It refuses to run while the chat is answering, so stop the chat first
 An update does not re-render anybody's persona. A session hired before it goes on running the
 instructions it was hired under; a session hired afterwards gets the new ones. That is why you are
 reading this: nobody else here has been told, and working out what it means for them is yours.
+
+The three commands a session used to be told to type are tools now. Saying something to another
+session, asking who works here, and — if you lead — asking for the room are done with a tool and
+proper arguments rather than a shell line. What that buys the people here is that a message
+survives being sent: an apostrophe, a backtick or a line break in what somebody wrote used to end
+the quoting or stop the run to be approved, and now the words arrive exactly as they were written.
+
+A session that says something to another is held while that one answers, for up to half an hour.
+Beyond that it is told the call timed out — while the session it asked carries on working, and its
+answer stays in its own transcript where nobody is waiting for it.
+
+The workspace grants less than it did: one rule per person for their own desk, and one for the
+tools, where the three commands needed six between them. The commands themselves are unchanged and
+are still there for you at a terminal.
+
+**Two things are yours to do after taking this version, because an update leaves a workspace as it
+found it.** The permission rules are the workspace's own, so add `mcp__office` to
+`.claude/settings.json`: without it the first tool a session reaches for stops and asks you to
+allow it, on every message. And personas are not re-rendered, so everybody hired before the update
+goes on typing the old commands — which still work, and whose rules you can drop once nobody is
+running those instructions any more.
