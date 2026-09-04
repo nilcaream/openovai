@@ -72,9 +72,17 @@
 
   const { sessions } = await fetch("/sessions").then((response) => response.json());
 
+  // What to call somebody on this page. The chat writes the human's rows as `human` because it
+  // cannot know what to call them until an instance is installed, so every place a name is SHOWN
+  // reads it back through here — or the same person is two people on one page, which is what a
+  // waiting line saying "human" above a transcript saying their name looked like.
+  function nameOf(from) {
+    return from === "human" ? health.human : from;
+  }
+
   function said(message) {
     const line = document.createElement("p");
-    const who = message.from === "human" ? health.human : message.from;
+    const who = nameOf(message.from);
     // A session that answered with nothing gets a sentence rather than a blank line, which
     // would read as the chat having lost the reply.
     const said = message.silent ? "(ended its turn without saying anything)" : message.text;
@@ -177,6 +185,13 @@
     heading.append(mood, size);
 
     const transcript = document.createElement("div");
+    // A height of its own, with its own scrollbar. This is for the COMPOSER below it, not for the
+    // transcript: the panels sit in one flow, so a row landing on the panel ABOVE moves the box
+    // somebody is half way through a sentence in — and holding that panel does nothing about it,
+    // because nobody is writing in the other one. A panel whose height cannot change cannot move
+    // anything below it, whatever arrives.
+    transcript.style.height = "18em";
+    transcript.style.overflowY = "auto";
 
     const box = document.createElement("textarea");
     box.rows = 3;
@@ -226,7 +241,12 @@
     const showThem = document.createElement("button");
     showThem.type = "button";
     showThem.textContent = "Show them";
-    showThem.hidden = true;
+    // Hidden by taking up its space rather than by leaving the document. "Always in the document"
+    // is not "always occupying its space": an empty span makes no line box, so with the button gone
+    // the line was zero-height and its margins collapsed, and the first held row pushed the box
+    // down under the cursor by the height of a line and two margins. A button that is invisible
+    // still holds the line open, and it cannot be clicked or tabbed to while it is.
+    showThem.style.visibility = "hidden";
 
     const waitingLine = document.createElement("p");
     waitingLine.append(whoIsWaiting, showThem);
@@ -262,16 +282,24 @@
       // Who is waiting, BEFORE anything about redrawing. While a panel is holding, its row count
       // is by definition unchanged, so a count drawn after the guard below would never be drawn at
       // all and the hold would read as a page that had stopped working.
-      whoIsWaiting.textContent = held === 0 ? "" : `${held} waiting — ${from.join(", ")} `;
-      showThem.hidden = held === 0;
+      whoIsWaiting.textContent = held === 0 ? "" : `${held} waiting — ${from.map(nameOf).join(", ")} `;
+      showThem.style.visibility = held === 0 ? "hidden" : "visible";
 
       // Nothing new, so nothing is touched. replaceChildren throws a selection away, and on the
       // tick that would be every second — a person could not copy a line out of a running chat.
       if (messages.length === shown) {
         return;
       }
+      // Now that a transcript scrolls, a redraw has to decide where to leave it. At the newest line
+      // if that is where the reader already was — and on the first draw, when a panel opened on its
+      // oldest line would be a chat nobody could read. Otherwise exactly where they left it: being
+      // dragged back down is the same interruption as the box moving.
+      const atTheNewest = shown === -1 || transcript.scrollHeight - transcript.scrollTop - transcript.clientHeight < 1;
       shown = messages.length;
       transcript.replaceChildren(...messages.map(said));
+      if (atTheNewest) {
+        transcript.scrollTop = transcript.scrollHeight;
+      }
     }
 
     // Shows what is being held without sending anything and without touching what has been

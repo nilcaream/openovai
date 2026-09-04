@@ -4975,7 +4975,7 @@ describe("what the page does while somebody is writing on it", () => {
   });
 
   it("says how many are waiting and who from", () => {
-    assert.match(page, /\$\{held\} waiting — \$\{from\.join\(", "\)\}/);
+    assert.ok(page.includes("`${held} waiting \u2014 ${from.map(nameOf).join(\", \")} `"));
   });
 
   // The order is the check. While a panel holds, its row count is unchanged by definition, so a
@@ -4991,6 +4991,42 @@ describe("what the page does while somebody is writing on it", () => {
   // check is bounded there: another fetch on the page carries the same shape.
   it("says what it had drawn when it sends, so the row can record which line it answers", () => {
     assert.ok(theSend(page).includes("JSON.stringify({ text, shown })"));
+  });
+
+  // Measured on the live page before this: with the button out of the document the line was
+  // zero-height, its margins collapsed, and the first held row pushed the composer down 37 px under
+  // a moving cursor. Always IN the document was never the requirement; always occupying its space
+  // is.
+  it("keeps the space the waiting line takes, held or not", () => {
+    assert.deepEqual(
+      [page.includes("showThem.style.visibility"), page.includes("showThem.hidden")],
+      [true, false],
+    );
+  });
+
+  // The other 34 px, and a fix for the line alone leaves it: the panels sit in one flow, so a row
+  // landing on the panel ABOVE moved the box too — and holding does nothing about that, because
+  // nobody is writing in the other panel.
+  it("gives a panel a height that does not depend on what is in it", () => {
+    assert.deepEqual(
+      [page.includes('transcript.style.height = "18em"'), page.includes('transcript.style.overflowY = "auto"')],
+      [true, true],
+    );
+  });
+
+  // Which a scrolling transcript now has to decide. Being dragged back down to the newest line is
+  // the same interruption as the box moving.
+  it("leaves a transcript where the reader left it, unless they were at the newest line", () => {
+    const decided = page.indexOf("const atTheNewest = shown === -1 ||");
+    const acted = page.indexOf("transcript.scrollTop = transcript.scrollHeight;");
+    assert.ok(decided > 0 && acted > decided, "the panel never decides where to leave the transcript");
+  });
+
+  // One page, one name for one person. The chat records the human as `human` because it cannot
+  // know what to call them until an instance is installed, and the waiting line was printing that
+  // raw two inches under a transcript saying their name.
+  it("calls the people in the waiting line what the transcript calls them", () => {
+    assert.match(page, /\$\{from\.map\(nameOf\)\.join\(", "\)\}/);
   });
 
   // Pressing it must not send, must not clear the box, and must not ask for anything of its own:
