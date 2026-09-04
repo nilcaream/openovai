@@ -86,7 +86,11 @@
     // A session that answered with nothing gets a sentence rather than a blank line, which
     // would read as the chat having lost the reply.
     const said = message.silent ? "(ended its turn without saying anything)" : message.text;
-    line.textContent = `${who}${message.failed ? " (failed)" : ""}: ${said}`;
+    // A line that broke in says why in the same row. It is the row itself that has to carry it:
+    // this one arrived while a sentence was being written, and what it makes stale is the whole
+    // reason it was worth reading now rather than in a minute.
+    const breaking = typeof message.breaking === "string" ? ` (breaking in — ${message.breaking})` : "";
+    line.textContent = `${who}${message.failed ? " (failed)" : ""}${breaking}: ${said}`;
     return line;
   }
 
@@ -358,6 +362,13 @@
       }
       box.value = "";
       // A reply takes as long as it takes, and the panel says so rather than looking broken.
+      //
+      // Drawn on the transcript as it stands, which while this page was holding is a transcript
+      // missing the rows behind it: for one tick the sentence appears above rows that happened
+      // before it, and the next draw puts it where it belongs. Kept deliberately. Sending empties
+      // the box, so the very next fetch asks with no hold and corrects it — and the alternative is
+      // a second of nothing on the one thing the person just did, which reads as a page that
+      // dropped what they wrote. A row a tick early is a smaller lie than a page that looks broken.
       transcript.append(
         said({ from: "human", text }),
         Object.assign(document.createElement("p"), { textContent: "…" }),

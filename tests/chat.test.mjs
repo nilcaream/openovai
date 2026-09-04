@@ -117,6 +117,29 @@ function transcriptOf(name) {
   return get(`${URL}/sessions/${name}/messages`);
 }
 
+// A call to the tools the chat serves, posted to the door a session is given. The name in the
+// path is who the caller IS — the chat puts it there — which is what lets a check post as a
+// session at all.
+function call(as, method, params) {
+  return post(`${URL}/mcp/${as}`, {
+    jsonrpc: "2.0",
+    id: 1,
+    method,
+    ...(params === undefined ? {} : { params }),
+  });
+}
+
+// What a tool call answered, in the three shapes a caller has to tell apart: what it said, and
+// whether it was a refusal — which is an answer — or a protocol error, which is not.
+function answerOf(said) {
+  const body = JSON.parse(said.body);
+  return {
+    text: body.result?.content?.[0]?.text,
+    refused: body.result?.isError === true,
+    error: body.error ?? null,
+  };
+}
+
 // The stand-in's log, whole entries rather than lines. A question can carry what a session
 // overheard and what it is asked about its desk in front of it, so an entry runs to several lines
 // and anything line-based sees only the first of them. The log is split on the lines that begin an
@@ -3518,26 +3541,6 @@ describe("a session calls the tools the chat serves it", () => {
   // pipe, a hash and a bare $HOME, each of which means something to a shell and nothing here.
   const AWKWARD = "it's `two` lines\nand a $HOME | a # of its own";
 
-  function call(as, method, params) {
-    return post(`${URL}/mcp/${as}`, {
-      jsonrpc: "2.0",
-      id: 1,
-      method,
-      ...(params === undefined ? {} : { params }),
-    });
-  }
-
-  // What a tool call answered, in the three shapes a caller has to tell apart: what it said, and
-  // whether it was a refusal — which is an answer — or a protocol error, which is not.
-  function answerOf(said) {
-    const body = JSON.parse(said.body);
-    return {
-      text: body.result?.content?.[0]?.text,
-      refused: body.result?.isError === true,
-      error: body.error ?? null,
-    };
-  }
-
   async function messagesOf(name) {
     return JSON.parse((await transcriptOf(name)).body).messages;
   }
@@ -5153,5 +5156,205 @@ describe("what a message says it answers", () => {
   // somebody reading a thread is what that line said.
   it("carries the first line of the row it points at", () => {
     assert.ok(askedLookingBack.includes(`<answering>${pointedAt.text.split("\n")[0]}</answering>`));
+  });
+});
+
+// The lead breaking in on somebody who is writing.
+//
+// The one line the lead has to the human without being asked, and it IS the exception: there is no
+// ordinary version of it, on purpose, because a second quiet channel for news that can wait is a
+// lead that narrates. What can wait goes in its next answer.
+//
+// It appends to the lead's own panel and returns at once. No turn is started, nothing is waited
+// for, and nothing is deleted, archived or spawned — which is what lets it join one server under
+// one permission rule.
+//
+// And it ENDS the hold rather than jumping it: everything that was waiting arrives with it, in the
+// order the panel already has, the breaking line last.
+describe("the lead breaks in on somebody who is writing", () => {
+  const brokeLog = path.join(standIn, "breaking-in.txt");
+  const ROUTINE = "a line that landed while a sentence was half written";
+  const BREAKING = "the settings file is in the instance root, so the question you are answering is answered";
+  const WHY = "it answers the very thing you are writing about";
+  const LATER = "and this one lands after the break, with nothing breaking in behind it";
+
+  let page;
+  let offeredToTheLead;
+  let offeredToAWorker;
+  let drawn;
+  let heldBeforeTheBreak;
+  let turnsBefore;
+  let turnsAfter;
+  let answered;
+  let released;
+  let onDisk;
+  let heldAfterTheBreak;
+  let refusedAWorker;
+  let noReason;
+  let spacesForAReason;
+  let noMessage;
+
+  async function offeredTo(who) {
+    return JSON.parse((await call(who, "tools/list")).body).result.tools.map((tool) => tool.name);
+  }
+
+  function breakIn(as, args) {
+    return call(as, "tools/call", { name: "interrupt", arguments: args });
+  }
+
+  before(async () => {
+    await start(instance, standInEnvironment(standIn, brokeLog));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    page = (await get(`${URL}/`)).body;
+    offeredToTheLead = await offeredTo(LEADER);
+    offeredToAWorker = await offeredTo(WORKER);
+
+    // What the page has drawn. Everything below is answered against this one number.
+    drawn = JSON.parse((await transcriptOf(LEADER)).body).messages.length;
+
+    // Two rows land on the panel somebody is writing on, and neither of them breaks in: what was
+    // said, and the answer to it.
+    await say(ROUTINE, LEADER);
+    heldBeforeTheBreak = JSON.parse((await get(`${URL}/sessions/${LEADER}/messages?shown=${drawn}&writing=1`)).body);
+
+    turnsBefore = questionsIn(brokeLog).length;
+    answered = answerOf(await breakIn(LEADER, { message: BREAKING, why: WHY }));
+
+    released = JSON.parse((await get(`${URL}/sessions/${LEADER}/messages?shown=${drawn}&writing=1`)).body);
+
+    // Read here rather than lower down: the panel is append-only, so a row landing below would be
+    // on disk and not in what was fetched above, and the two would be different moments.
+    onDisk = JSON.parse(fs.readFileSync(path.join(instance, "chat", LEADER, "conversation.json"), "utf8"));
+
+    // The hold begins again from where the break left it: the page has now drawn everything, one
+    // more ordinary row lands, and nothing behind it breaks in.
+    await say(LATER, LEADER);
+
+    // Counted AFTER a message that does start a turn and is waited for, and against a number rather
+    // than against no change at all. A turn started by the break-in is started without being waited
+    // for, so a count read the instant the call returned saw nothing either way — watched: the
+    // mutation that answered it through the delivery path noticed nothing until this moved down
+    // here, because the stand-in had not been asked yet.
+    turnsAfter = questionsIn(brokeLog).length;
+
+    heldAfterTheBreak = JSON.parse(
+      (await get(`${URL}/sessions/${LEADER}/messages?shown=${released.messages.length}&writing=1`)).body,
+    );
+
+    refusedAWorker = answerOf(await breakIn(WORKER, { message: BREAKING, why: WHY }));
+    noReason = answerOf(await breakIn(LEADER, { message: BREAKING }));
+    spacesForAReason = answerOf(await breakIn(LEADER, { message: BREAKING, why: "   " }));
+    noMessage = answerOf(await breakIn(LEADER, { why: WHY }));
+  });
+
+  // On the lead's OWN panel, which is the panel the human reads. Nothing is delivered anywhere:
+  // the human is not a session, and there is nobody to wait for.
+  it("puts the line on the lead's own panel", () => {
+    const last = onDisk[onDisk.length - 1];
+    assert.deepEqual([last.from, last.text], [LEADER, BREAKING]);
+  });
+
+  // The reason is a field on the row and not a sentence folded into the words, because what it
+  // makes stale is shown to the person being interrupted, beside the line rather than inside it.
+  it("carries the reason on the row", () => {
+    assert.equal(onDisk[onDisk.length - 1].breaking, WHY);
+  });
+
+  // Both halves required, so there is no way to break in without saying what it makes stale.
+  it("refuses a break-in with no reason, in its own words", () => {
+    assert.ok(noReason.refused);
+    assert.match(noReason.text, /needs a reason/);
+  });
+
+  // Trimmed, or the requirement is a space bar.
+  it("refuses a reason that is all spaces", () => {
+    assert.ok(spacesForAReason.refused);
+    assert.match(spacesForAReason.text, /needs a reason/);
+  });
+
+  it("refuses a break-in with nothing to say", () => {
+    assert.ok(noMessage.refused);
+    assert.match(noMessage.text, /needs something to say/);
+  });
+
+  // It appends and returns. A break-in that went through the delivery path would start the lead's
+  // own turn, nested inside whatever it was already doing, to say something to somebody who is not
+  // a session at all.
+  it("starts no turn", () => {
+    assert.ok(turnsBefore > 0, "nothing had started a turn before this, so the count proves nothing");
+    assert.equal(turnsAfter, turnsBefore + 1, "the one turn between the two counts is the message after the break");
+  });
+
+  // In the tool's own words, before the caller waits for something that is never coming: what
+  // comes back here is read by a model, and an empty result is a thing it has to guess about.
+  it("tells the caller it landed and that no answer is coming back", () => {
+    assert.deepEqual(
+      [answered.refused, new RegExp(`Broke in on ${HUMAN}`).test(answered.text ?? ""), /nothing comes back/.test(answered.text ?? "")],
+      [false, true, true],
+    );
+  });
+
+  it("offers interrupt to the session that leads", () => {
+    assert.ok(offeredToTheLead.includes("interrupt"));
+  });
+
+  // The check the split exists for. One that only asked whether the lead is offered it passes just
+  // as happily when everybody is.
+  it("offers it to nobody else", () => {
+    assert.ok(!offeredToAWorker.includes("interrupt"));
+  });
+
+  // Refused in the tool's own words rather than as a tool that does not exist, because it does
+  // exist. A session told there is no such thing goes looking for another way to the same place.
+  it("refuses a worker that posts for it anyway", () => {
+    assert.ok(refusedAWorker.refused);
+    assert.match(refusedAWorker.text, new RegExp(`breaking in on ${HUMAN} is the lead's, so ask ${LEADER}`));
+  });
+
+  // The exception itself, and the pair to the check below: this one fails if the hold is applied
+  // to a break-in, and that one fails if the release is applied to everything.
+  it("delivers the line to a page somebody is writing on", () => {
+    assert.ok(released.messages.some((message) => message.text === BREAKING));
+    assert.equal(released.held, 0);
+  });
+
+  // It ends the hold, it does not jump it. Nothing is reordered and there is no second render
+  // path: what arrives is the panel, and the breaking line is last because that is where it is.
+  it("delivers everything that was held with it, in the panel's own order, the break last", () => {
+    assert.deepEqual(
+      released.messages.map((message) => [message.from, message.text]),
+      onDisk.map((message) => [message.from, message.text]),
+    );
+    assert.equal(released.messages.at(-1).text, BREAKING);
+  });
+
+  // A thing that fires when it should not is invisible to a check that only watches it firing.
+  // Without this one, releasing every row reads exactly like releasing the right ones.
+  it("still holds a row that is not a break-in", () => {
+    assert.ok(heldBeforeTheBreak.held > 0, "nothing was behind the page, so this proved nothing");
+    assert.equal(heldBeforeTheBreak.messages.length, drawn);
+  });
+
+  // Nothing was remembered about the release, so there is nothing to reset. The next row is held
+  // like any other.
+  it("holds again from where the break released it", () => {
+    assert.ok(heldAfterTheBreak.held > 0, "nothing landed after the break, so this proved nothing");
+    assert.equal(heldAfterTheBreak.messages.length, released.messages.length);
+  });
+
+  // Read as text, for the reason every page check here is: no suite runs page.html. What a person
+  // makes of the row is the manual test.
+  it("shows the reason in the same row on the page", () => {
+    const row = page.slice(page.indexOf("function said(message)"), page.indexOf("// The room: one line per session"));
+    assert.ok(row.includes("message.breaking"), "the page draws the row without the reason on it");
+  });
+
+  // The list a session reads before it decides what it can do here, and the one place a person
+  // reading the repo is told what the fourth tool is.
+  it("says in the README what the fourth tool is", () => {
+    const readme = fs.readFileSync(path.join(repo, "README.md"), "utf8");
+    assert.match(readme, /Four of them/);
+    assert.match(readme, /`interrupt`/);
   });
 });

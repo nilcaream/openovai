@@ -674,7 +674,67 @@ function toolsFor(instance, caller) {
           ? theRoom(instance)
           : { refused: `the room is the lead's to look at, so ask ${instance.config.leader} for it` },
     },
+    {
+      name: "interrupt",
+      description:
+        `Break in on ${instance.config.human} while they are writing. It is the one line you have to them without being asked, and there is no ordinary version of it: everything else you say reaches them when they next read the panel, and while there is anything in their box it waits. This does not wait. It ends the waiting, so what was held arrives with it and your line arrives last, with the reason beside it — which is why it is for the two things worth breaking off a half-written sentence for: what makes that sentence pointless, and what somebody must act on now. Anything that can wait goes in your next answer instead. It says it and returns at once: no turn is started, nothing is waited for, and whatever they say back arrives on this panel later as an ordinary message.`,
+      inputSchema: {
+        type: "object",
+        properties: {
+          message: { type: "string", description: `What to say to ${instance.config.human}. It arrives exactly as written.` },
+          why: {
+            type: "string",
+            description:
+              "What makes it worth interrupting for. It is shown to them beside the line rather than read out of the words, so write it for them: what it is that they are in the middle of that this changes.",
+          },
+        },
+        required: ["message", "why"],
+        additionalProperties: false,
+      },
+      // The same split `room` uses, and for the same two reasons: a tool left off the list is not
+      // reached for, and a session that heard of it elsewhere is told whose it is rather than that
+      // it does not exist.
+      offered: lead,
+      run: (args) =>
+        lead
+          ? brokeIn(instance, caller, args)
+          : { refused: `breaking in on ${instance.config.human} is the lead's, so ask ${instance.config.leader}` },
+    },
   ];
+}
+
+// The lead's one unprompted line to the human, and the exception every hold on this server is
+// built around.
+//
+// It appends to the caller's OWN panel — which is the panel the human reads — and returns. Nothing
+// is delivered anywhere: the human is not a session, has no desk and no turn, so there is nobody to
+// be held waiting and no circle that could close. That is also what keeps this inside the standing
+// limit on the tools: it appends, and does nothing else.
+//
+// Both halves are required and both are read trimmed, so there is no way to break in without
+// saying what it makes stale — and what it makes stale is the first thing the person being
+// interrupted is shown.
+function brokeIn(instance, caller, args) {
+  const message = typeof args?.message === "string" ? args.message : "";
+  if (message.trim() === "") {
+    return { refused: "breaking in needs something to say" };
+  }
+
+  const why = typeof args?.why === "string" ? args.why : "";
+  if (why.trim() === "") {
+    return {
+      refused: `breaking in needs a reason: what it is that makes this worth ${instance.config.human} breaking off mid-sentence for, in the words they will read`,
+    };
+  }
+
+  append(instance.root, caller, { from: caller, text: message, breaking: why.trim() });
+
+  // In the tool's own words rather than as an empty result: what comes back here is read by a
+  // model, and one handed nothing waits for something, or says the same thing again. There is
+  // nothing to wait for.
+  return {
+    text: `Broke in on ${instance.config.human}. They have it now, and nothing comes back here — whatever they say arrives on this panel as an ordinary message.`,
+  };
 }
 
 // Which of the sessions working here is the one that leads, decided in one place and from one
@@ -1043,7 +1103,13 @@ function whatToShow(instance, name, query) {
   const asked = Number.parseInt(query.get("shown") ?? "", 10);
   const shown = Math.max(Number.isInteger(asked) ? asked : all.length, 0);
 
-  const messages = query.get("writing") === "1" ? all.slice(0, shown) : all;
+  // And the one thing that is never held: a line that breaks in ENDS the wait rather than jumping
+  // it. Everything behind is sent, in the order the panel has, with the breaking line last — so
+  // there is one render path, nothing is reordered, and the reader is never shown a line that
+  // refers to rows they have not been given.
+  const breaks = all.slice(shown).some((message) => typeof message.breaking === "string");
+
+  const messages = query.get("writing") === "1" && !breaks ? all.slice(0, shown) : all;
   const holding = all.slice(messages.length);
 
   return {

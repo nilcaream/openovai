@@ -272,8 +272,10 @@ own:
 
     POST /mcp/<name>
 
-Three of them: `say` says something to another session, `status` says who works here and what each
-one runs on, and `room` is the room above the panels, one line per session.
+Four of them: `say` says something to another session, `status` says who works here and what each
+one runs on, `room` is the room above the panels, one line per session, and `interrupt` is the
+lead's one unprompted line to whoever is at the page — it takes what to say and why it could not
+wait, and it says both on the lead's own panel.
 
 They are tools because a shell line is a poor place to put a sentence somebody wrote. An apostrophe
 ends the quoting; a backtick is run and what it printed goes instead of what was meant; and several
