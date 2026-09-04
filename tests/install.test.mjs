@@ -272,6 +272,32 @@ describe("what the installer made", () => {
     assert.ok(!allow.some((rule) => rule.includes("ow room")));
   });
 
+  // What the lead cannot see for itself: its own lines wait while the person it is talking to is
+  // writing. A lead that did not know would read a panel that had gone quiet as a person who had
+  // stopped listening, and say it all again.
+  it("tells the leader that what it says waits while the human is writing", () => {
+    assert.match(contentOf("personas", `${LEADER}.md`), /panel stops moving for them/);
+    assert.match(contentOf("personas", `${LEADER}.md`), /how many\s+are waiting and who from/);
+  });
+
+  // The exception, and the whole of it. The tool is offered to the lead whether or not the persona
+  // says a word about it, so what is checked here is that the CLASS is written down: a tool with no
+  // rule beside it is a tool used for whatever seems worth it at the time.
+  it("tells the leader the one class it may break in for", () => {
+    assert.match(contentOf("personas", `${LEADER}.md`), /`interrupt`/);
+    assert.match(
+      contentOf("personas", `${LEADER}.md`),
+      /makes the answer they are writing pointless, or\s+something needs them now/,
+    );
+  });
+
+  // The other half of the same rule, and the reason the channel is worth protecting at all. The
+  // lead is the stateful one here, so holding the rest of the questions costs it a line on its desk
+  // and costs the person nothing.
+  it("tells the leader to ask one question at a time and hold the rest on its desk", () => {
+    assert.match(contentOf("personas", `${LEADER}.md`), new RegExp(`Ask ${HUMAN} one thing at a time`));
+    assert.match(contentOf("personas", `${LEADER}.md`), /hold the rest of them on it, and ask the first/);
+  });
   it("tells the leader that a message from a session comes wrapped", () => {
     assert.match(contentOf("personas", `${LEADER}.md`), /<from-session name=/);
   });
