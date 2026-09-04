@@ -2497,6 +2497,155 @@ describe("what the room says about a conversation that has gone cold", () => {
 });
 
 
+const GAUGED = "Dipper";
+const NEVER_GAUGED = "Ouzel";
+const GAUGED_REFUSED = "Bittern";
+
+// What a session's row says about the usage window its last run was told about.
+//
+// The reading is a fact about a RUN, so it is kept where a run's facts are kept and read back the
+// way context is. Everything here is read off the row and off session.json both, because the two
+// answer different questions and only the file proves the write survived the process.
+//
+// The whole of the risk in this feature is that a reading and a verdict are different things: the
+// service says "allowed" on an ordinary run and can turn the same run away moments later, and a
+// gauge that let its reading reach the verdict would report an answer for a run that never
+// happened. Check "still reports a refusal" below is what holds them apart.
+describe("what a row says about the usage window its last run was told about", () => {
+  const gaugeLog = path.join(standIn, "gauge.txt");
+  const gauged = (extra) => standInEnvironment(standIn, gaugeLog, extra);
+  let told;
+  let neverRan;
+  let afterSilence;
+  let refusedRow;
+  let refusedOutcome;
+  let allowedOutcome;
+  let survived;
+  let ranAtMs;
+  let held;
+
+  before(async () => {
+    runTool(instance, ["hire", GAUGED], process.env);
+    runTool(instance, ["hire", NEVER_GAUGED], process.env);
+    runTool(instance, ["hire", GAUGED_REFUSED], process.env);
+
+    // A run the service allowed, carrying a fullness this suite chose rather than one the fixture
+    // had written down.
+    await start(instance, gauged({ OW_STAND_IN_LIMIT: "allowed", OW_STAND_IN_FULLNESS: "0.71" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    allowedOutcome = await say("the first thing", GAUGED);
+
+    ranAtMs = fs.statSync(threadFile(GAUGED)).mtimeMs;
+    held = JSON.parse(fs.readFileSync(threadFile(GAUGED), "utf8"));
+
+    let rows = JSON.parse((await get(`${URL}/sessions`)).body).sessions;
+    told = rows.find((row) => row.name === GAUGED);
+    neverRan = rows.find((row) => row.name === NEVER_GAUGED);
+
+    // The same instance, served by a new process. A reading held in memory would go here.
+    await start(instance, gauged({ OW_STAND_IN_LIMIT: "allowed", OW_STAND_IN_FULLNESS: "0.71" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    survived = JSON.parse((await get(`${URL}/sessions`)).body).sessions.find((row) => row.name === GAUGED);
+
+    // Told it was allowed, and turned away all the same. Both frames travel, in that order, which
+    // is the run this whole design is built not to misreport.
+    await start(instance, gauged({ OW_STAND_IN_LIMIT: "allowed", OW_STAND_IN_FULLNESS: "0.42", OW_STAND_IN_REFUSED: "1" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    refusedOutcome = await say("something while the account is out", GAUGED_REFUSED);
+    refusedRow = JSON.parse((await get(`${URL}/sessions`)).body).sessions.find((row) => row.name === GAUGED_REFUSED);
+
+    // And a later run on the gauged session carrying no reading at all: the frame simply does not
+    // arrive, which is what an ordinary run does once the reading has stopped moving.
+    await start(instance, gauged());
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    await say("the second thing", GAUGED);
+    afterSilence = JSON.parse((await get(`${URL}/sessions`)).body).sessions.find((row) => row.name === GAUGED);
+  });
+
+  // Mutation: have the reader return a fixed number. The number on the row is the number that was
+  // on the frame, or the row is decoration.
+  it("carries the fullness the frame gave, for the window the frame named", () => {
+    assert.deepEqual(
+      told?.quota?.windows?.find((window) => window.name === "five_hour"),
+      { name: "five_hour", fullness: 0.71 },
+    );
+  });
+
+  // Mutation: keep only the five-hour window. Picking one would write a window's name into this
+  // toolkit for the service to rename underneath it.
+  it("carries every window the frame named, in the frame's own order", () => {
+    assert.deepEqual(
+      told?.quota?.windows?.map((window) => window.name),
+      ["five_hour", "seven_day"],
+    );
+  });
+
+  // Mutation: take the moment from Date.now(). The reading is as old as the run that took it, and
+  // the file the run wrote IS that moment — a clock of our own would read as now and be wrong by
+  // however long the session has been quiet.
+  it("says when the reading was taken, and it is the thread file's own moment", () => {
+    assert.equal(told?.quota?.at, ranAtMs);
+  });
+
+  // Mutation: default the field to an object. A session that has never run has not been told
+  // anything, and nothing is what it should say.
+  it("says nothing at all about a session that has never run", () => {
+    assert.equal(neverRan?.quota, null);
+  });
+
+  // Mutation: keep the previous quota when a run reports none. This is the same trap as letting a
+  // reading reach a verdict, in different clothes: a number from a turn that is no longer where
+  // the thread is, presented as what is true now.
+  it("writes nothing over rather than carrying the last number forward", () => {
+    assert.equal(afterSilence?.quota, null);
+    assert.equal(JSON.parse(fs.readFileSync(threadFile(GAUGED), "utf8")).quota, null);
+  });
+
+  // Mutation: hand the reading to turnedAway(). THIS IS THE GUARD, and it is this direction of it
+  // that bites.
+  //
+  // `limit` is a refusal or it is nothing; a reading is sent on every ordinary run and says
+  // "allowed". A verdict that could see the reading would find something non-null on every single
+  // run and call all of them refusals — so it is the ALLOWED run that goes red first, not the
+  // refused one. The refused direction below stays green under that mutation (the last reading on
+  // a refused run IS the rejected one), which is exactly why it cannot be the check that holds
+  // this: it agrees with the trap.
+  it("does not report a refusal for a run the service allowed, however full the window was", () => {
+    assert.equal(allowedOutcome.status, 200);
+    assert.equal(JSON.parse(allowedOutcome.body).refused, undefined);
+  });
+
+  // And the other direction, which is feature 9's rule restated from this side: a run that was
+  // told it was allowed and then turned away is a refusal, and the allowance it was given first
+  // does not soften it into an answer.
+  it("still reports a refusal for a run that was told allowed and then turned away", () => {
+    assert.equal(refusedOutcome.status, 503);
+    assert.equal(JSON.parse(refusedOutcome.body).refused, true);
+  });
+
+  // Mutation: drop the reading on the refused path. A refused run was still told how full the
+  // window was, and that reading is the most interesting one there is.
+  it("carries the fullness of a run that was refused", () => {
+    assert.equal(
+      refusedRow?.quota?.windows?.find((window) => window.name === "five_hour")?.fullness,
+      0.42,
+    );
+  });
+
+  // Mutation: hold the reading in memory instead of writing it. The row is served by whatever
+  // process is up, and a reading that lives in one of them is a reading that is gone.
+  it("is on disk, so a row still carries it after the server has been restarted", () => {
+    // Said before the comparison, and not for tidiness: two rows that both carry nothing are equal,
+    // so a check that only compared them would pass most loudly in the one case it exists to catch
+    // — the reading never reaching the file at all. Measured: without this line the mutation that
+    // drops the reading from what is written leaves this check green.
+    assert.ok(Array.isArray(survived?.quota?.windows), "the reading did not survive the restart");
+    assert.deepEqual(survived.quota.windows, told?.quota?.windows);
+    assert.deepEqual(held.quota, told?.quota?.windows);
+  });
+});
+
+
 
 // What a session is waiting to be ALLOWED to do. It is held up by a person rather than by another
 // session, and until now that was visible only on the panel it happened on — which is the one
@@ -4091,6 +4240,34 @@ describe("a stand-in the service allowed", () => {
   it("carries the windows the frame names, rather than one this suite made up", () => {
     assert.equal(typeof reading?.unifiedWindows?.five_hour?.utilization, "number");
     assert.equal(typeof reading?.unifiedWindows?.seven_day?.utilization, "number");
+  });
+});
+
+// The fullness is the one thing on that frame this feature reads, so the fixture has to be able to
+// say a number nobody wrote down twice. Driven directly rather than through the chat: what is being
+// proven is what goes ON the wire, and reading it back off a row would be reading the value the
+// code was kind enough to hand back.
+describe("a stand-in told how full the window is", () => {
+  const toldLog = path.join(standIn, "told.txt");
+  let reading;
+
+  before(async () => {
+    const run = driveStandIn(
+      standInCommand,
+      ["--print", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose"],
+      standInEnvironment(standIn, toldLog, { OW_STAND_IN_LIMIT: "allowed", OW_STAND_IN_FULLNESS: "0.71" }),
+    );
+    run.ask("something ordinary");
+    await run.waitForFrame((one) => one.type === "result");
+    run.close();
+    reading = (await run.ended).frames.find((one) => one.type === "rate_limit_event")?.rate_limit_info;
+  });
+
+  // Mutation: hard-code the fullness in the fixture. Every check below about a number on a row
+  // stands on the fixture being able to say a number of its own, and a constant would pass them
+  // all without anything having read the frame.
+  it("reports the fullness it was told, and not one written into the fixture", () => {
+    assert.equal(reading?.unifiedWindows?.five_hour?.utilization, 0.71);
   });
 });
 

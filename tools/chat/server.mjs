@@ -15,7 +15,7 @@ import { carry, overhear } from "./overheard.mjs";
 import { allow, answer as settle, giveUp, park, parked, refuse } from "./permissions.mjs";
 import { roomLines } from "./room.mjs";
 import { DESK_FILE, DeskError, WORK, archiveFor, deskTitle, describeName, hire, isName, retire } from "../desks.mjs";
-import { ask, forget, hasGoneCold, hasThread, sessions } from "./session.mjs";
+import { ask, forget, hasGoneCold, hasThread, quotaIn, ranAt, sessions } from "./session.mjs";
 import { inTurn, turnsGoing, waitingFor, whileWaitingFor, wouldWaitForItself } from "./turns.mjs";
 import { takeWord } from "./untold.mjs";
 import { version } from "../version.mjs";
@@ -1133,6 +1133,21 @@ function whatToShow(instance, name, query) {
 // who is waiting for whom and what is waiting to be allowed live in THIS process and are gone when
 // it restarts; what a session is called and how big its thread is are on disk and are not. A chat
 // that has just been started correctly says nobody is busy.
+// The reading its last run was handed, with how old it is, or nothing.
+//
+// The age is not stored anywhere and deliberately so: the file holding the reading is rewritten on
+// every answered run, so the file's own moment IS the moment the reading was taken. Storing it
+// beside the number would be keeping two records of one fact, and the day they disagreed the row
+// would be confidently wrong about how old its number was.
+//
+// `ranAt` and not `lastAt`: a panel is appended to outside any run, so its moment walks forward
+// while the conversation sits untouched. The question here is when this session was last TOLD
+// something, which only the thread's own clock answers.
+function quotaOn(root, name) {
+  const windows = quotaIn(root, name);
+  return windows === null ? null : { at: ranAt(root, name), windows };
+}
+
 function everySession(instance, session) {
   const going = turnsGoing(session.name);
 
@@ -1165,6 +1180,13 @@ function everySession(instance, session) {
     // When anything last happened on its panel. A fact and not a verdict — nothing here knows
     // whether a quiet session is finished, stuck or merely quiet, and the person reading does.
     active: lastAt(instance.root, session.name),
+    // How full the account's usage windows were the last time this session was told, and when it
+    // was told. A fact on the row and never a gate: nothing in this toolkit reads it to decide
+    // anything, and a check about a message to a refused session holds that true rather than this
+    // comment. One account means N rows carrying N readings of different ages, each honestly
+    // describing its own session's last run, which is why the age is served beside the number and
+    // never separated from it.
+    quota: quotaOn(instance.root, session.name),
     // And what it is on, in the session's own words, from the one header field its persona asks
     // it to keep current. Nothing else can answer this: a name says who somebody is and a
     // transcript says what they were last asked, neither of which is what they are working on.

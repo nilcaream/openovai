@@ -49,10 +49,10 @@ function remembered(root, name) {
   }
 }
 
-function remember(root, name, sessionId, context) {
+function remember(root, name, sessionId, context, quota) {
   const target = sessionFile(root, name);
   fs.mkdirSync(path.dirname(target), { recursive: true });
-  fs.writeFileSync(target, `${JSON.stringify({ sessionId, context }, null, 2)}\n`);
+  fs.writeFileSync(target, `${JSON.stringify({ sessionId, context, quota }, null, 2)}\n`);
 }
 
 // How much of itself a thread is carrying, as of the end of its last turn. Read from the same file
@@ -62,6 +62,27 @@ export function contextIn(root, name) {
   try {
     const held = JSON.parse(fs.readFileSync(sessionFile(root, name), "utf8")).context;
     return typeof held === "number" ? held : null;
+  } catch {
+    return null;
+  }
+}
+
+// How full the account's usage windows were when this session last ran, as the service last told
+// that run. Read from the same file and with the same honesty as the reading above: what the run
+// was told, or nothing.
+//
+// A list rather than one number, because the frame names its own windows — a five-hour one and a
+// seven-day one today — and picking one of them would write a name into this toolkit for a service
+// that can rename its windows or add to them. Carrying them all is less code than choosing and
+// makes no judgment.
+//
+// Nothing is NOT zero. A window nobody has been told about and a window that is empty are opposite
+// facts, and a row that printed 0% for the first would be inventing the most reassuring possible
+// reading out of an absence.
+export function quotaIn(root, name) {
+  try {
+    const held = JSON.parse(fs.readFileSync(sessionFile(root, name), "utf8")).quota;
+    return Array.isArray(held) ? held : null;
   } catch {
     return null;
   }
@@ -467,6 +488,11 @@ function run(instance, name, text, resume, asked) {
 
     let answer = null;
     let limit = null;
+    // What the service last said about the account, whatever it said — kept apart from `limit`
+    // above on purpose. `limit` is a refusal or it is nothing, and it is what decides how the run
+    // ENDED; this is a reading and decides nothing. Two locals rather than one object serving both,
+    // so that no reader downstream has to work out which half of it they are allowed to look at.
+    let reading = null;
     let rest = "";
     let err = "";
 
@@ -485,6 +511,11 @@ function run(instance, name, text, resume, asked) {
         // that state. Keeping those too would mean a run that was allowed early and turned away
         // later remembers the allowance and reads as an answer.
         if (frame.type === "rate_limit_event") {
+          // Every reading, including the ones that say the run is fine. The comment above says why
+          // only a refusal may reach the verdict, and that is still true: this one goes nowhere
+          // near it. What it is for is the row, where a number that was true a moment ago is worth
+          // reading and a number that decides something is not.
+          reading = frame.rate_limit_info ?? null;
           if (frame.rate_limit_info?.status === "rejected") {
             limit = frame.rate_limit_info;
             leave(child);
@@ -519,7 +550,7 @@ function run(instance, name, text, resume, asked) {
 
     child.on("close", () => {
       running.delete(child);
-      resolve(interpret(answer, err, limit));
+      resolve(interpret(answer, err, limit, reading));
     });
 
     child.stdin.write(question(text));
@@ -554,7 +585,32 @@ function turnedAway(answer, limit) {
   return answer?.api_error_status === 429 ? { resetsAt: null, kind: null } : null;
 }
 
-function interpret(answer, err, limit = null) {
+// Every window the reading named, in the order it named them, as a name and a fullness.
+//
+// `fullness` rather than the wire's `utilization` because this is what a row says to a person, and
+// a fraction rather than a percentage because that is what arrives — measured on four real frames:
+// 0.29, 0.57, 0.04, 0.02. Turning it into a percentage is a thing to do when printing it, not a
+// thing to do to it here.
+//
+// Nothing, rather than an empty list, when there is no reading or it named no windows. An empty
+// list is a service that answered "no windows", which is not what a frame that never came means,
+// and everything downstream is written to say nothing on null.
+function windowsIn(reading) {
+  const named = reading?.unifiedWindows;
+  if (named === null || typeof named !== "object") {
+    return null;
+  }
+  const windows = Object.entries(named)
+    .filter(([, window]) => typeof window?.utilization === "number")
+    .map(([name, window]) => ({ name, fullness: window.utilization }));
+  return windows.length === 0 ? null : windows;
+}
+
+// `reading` is handed in beside `limit` and goes nowhere near `turnedAway()` below, which is the
+// whole of what keeps a gauge from becoming a verdict: an ordinary run is told "allowed" and can be
+// turned away moments later, and a function that saw both would have to choose which to believe.
+// The signature is the guard. There is a check that goes red if this is ever widened.
+function interpret(answer, err, limit = null, reading = null) {
   const refused = turnedAway(answer, limit);
   // No result frame at all: the run was stopped, or it fell over before it could answer. Whatever
   // it has to say about that is on stderr, which is the only stream carrying prose — measured:
@@ -567,7 +623,12 @@ function interpret(answer, err, limit = null) {
   // of it, offered as what a session said. Do not put it back.
   if (answer === null) {
     const said = err.trim();
-    return { failed: true, refused, text: said === "" ? "Claude Code ended without answering" : said };
+    return {
+      failed: true,
+      refused,
+      quota: windowsIn(reading),
+      text: said === "" ? "Claude Code ended without answering" : said,
+    };
   }
 
   const text = typeof answer.result === "string" ? answer.result : JSON.stringify(answer);
@@ -579,6 +640,9 @@ function interpret(answer, err, limit = null) {
     // answer and not a failure — the thread is perfectly good and the account is what is
     // unavailable — so it is said here rather than worked out again by everybody who asks.
     refused,
+    // What the account was told to be at, on this run and no other. Beside the verdict rather than
+    // inside it: it is a fact the run was handed, not a thing the run amounted to.
+    quota: windowsIn(reading),
     text,
     // A run can end well and say nothing: the result frame arrives, is not an error, and carries
     // an empty string. Twice now that has reached a panel as a blank line, which reads as the
@@ -646,7 +710,7 @@ export async function ask(instance, name, text, asked = nobodyToAsk) {
     // Written together, because they are one fact about one conversation. What this run reported is
     // what is kept, `null` included: a reading that stopped arriving should show as nothing rather
     // than as a number from some earlier turn that is no longer where the thread is.
-    remember(instance.root, name, answer.sessionId, answer.context ?? null);
+    remember(instance.root, name, answer.sessionId, answer.context ?? null, answer.quota ?? null);
   }
 
   return answer;

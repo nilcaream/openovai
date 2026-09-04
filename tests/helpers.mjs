@@ -100,6 +100,7 @@ export function claudeIsInstalled() {
 //   OW_STAND_IN_NO_RESET      refuse without saying when the limit lifts (with REFUSED)
 //   OW_STAND_IN_REFUSED_DEAF  refuse and then ignore stdin being closed, for good (with REFUSED)
 //   OW_STAND_IN_LIMIT         a status to report in a rate_limit_event before doing anything else
+//   OW_STAND_IN_FULLNESS      how full the five-hour window says it is  (default: 0.29)
 //                             — "allowed" or "allowed_warning", which is what an ordinary run
 //                             sends whenever the reading moves
 //   OW_STAND_IN_REFUSED_QUIETLY  be turned away with the 429 alone and no rate_limit_event, which
@@ -218,12 +219,17 @@ const reading = (status, lifts) => ({
   overageDisabledReason: "org_level_disabled",
   isUsingOverage: false,
   unifiedWindows: {
-    five_hour: { utilization: 0.29, ...(lifts === null ? {} : { resetsAt: lifts }) },
+    five_hour: { utilization: fullness(), ...(lifts === null ? {} : { resetsAt: lifts }) },
     seven_day: { utilization: 0.04, resetsAt: Math.floor(Date.now() / 1000) + 5 * 24 * 60 * 60 },
   },
 });
 
 const lifts = () => Math.floor(Date.now() / 1000) + 3 * 60 * 60;
+
+// How full the window says it is, and a knob rather than a literal for the same reason resetsAt is
+// computed above: a check that asserted the number this file had written down would be matching a
+// constant both sides already agree on, and would pass whether or not anything read the frame.
+const fullness = () => Number(process.env.OW_STAND_IN_FULLNESS ?? 0.29);
 
 if ((process.env.OW_STAND_IN_LIMIT ?? "") !== "") {
   frame({
