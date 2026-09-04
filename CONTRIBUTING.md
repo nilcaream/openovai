@@ -62,13 +62,14 @@ One logical change per commit.
 
 ## Tests
 
-Four suites, all on Node's own test runner:
+Five suites, all on Node's own test runner:
 
 ```sh
 node --test tests/install.test.mjs   # install an instance, check what came out
 node --test tests/chat.test.mjs      # serve the chat, talk to it, stop it
 node --test tests/ow.test.mjs        # what status reports and what login hands over
 node --test tests/update.test.mjs    # take a newer version from a release, and refuse to
+node --test tests/tag.test.mjs       # what a release of this tree would be, and what it refuses to be
 ```
 
 Run all four with `node --test tests/*.test.mjs`.
@@ -90,6 +91,38 @@ watch that check fail and the unrelated ones pass, then put the code back.
 
 They install into `.tmp/` inside the clone and clean up after themselves. Continuous
 integration runs them on every push and pull request.
+
+## Releases
+
+A release is a tag plus the source archive GitHub makes for it, and cutting one is a click:
+**Actions -> Release -> Run workflow -> main**.
+
+Everything it needs is already in the repository, so there is nothing to type into that form and
+nothing to paste afterwards:
+
+1. Put the new version in `VERSION`.
+2. Rewrite `NOTES.md` so it has a `## <version>` section saying what changed for the lead of a
+   workspace taking it.
+3. Merge both to `main`.
+4. Run the workflow.
+
+It reads `VERSION`, tags that commit with `v<version>`, and publishes a release named for the
+version whose body is that section of `NOTES.md`. It refuses, loudly and before anything is
+tagged, when the version is not three numbers, when `v<version>` is already a tag, or when
+`NOTES.md` says nothing about that version. The token is the one GitHub gives the run and
+`contents: write` is the only permission it asks for, so there is nothing to set up and no
+secret anywhere.
+
+The deciding half lives in `.github/tag.mjs` rather than in the workflow, so it can be run and
+checked without a runner:
+
+```sh
+node .github/tag.mjs            # what a release of this tree would be, or why there is not one
+```
+
+It is beside the workflow rather than in `tools/` because `tools/` is payload: it is copied into
+every instance, and cutting a release is something this repository does rather than something an
+instance does.
 
 ## Documentation
 

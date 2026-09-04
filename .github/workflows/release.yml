@@ -1,0 +1,75 @@
+name: Release
+
+# Cutting a release is one click here and nothing on anybody's laptop. What it needs is already in
+# the repository — the version in VERSION, what changed in NOTES.md — so there is nothing to type
+# in and nothing to paste, and the two ways a release goes wrong by hand (a tag that does not match
+# the version, notes that are not the ones in the file) cannot happen.
+#
+# The token is the one GitHub gives the run. Nothing is stored anywhere and nobody has to set
+# anything up: `contents: write` below is what lets it push a tag and publish a release, and it is
+# the only permission this has.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The whole history and every tag: a version that is already released is refused by
+          # looking for its tag, and a shallow clone cannot see one.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+
+      # workflow_dispatch offers every branch. A release is cut from main and the archive people
+      # download is made from the tag, so a tag on anything else is a release of something nobody
+      # reviewed.
+      - name: Refuse to release anything but main
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::a release is cut from main, and this run is on ${GITHUB_REF}"
+          exit 1
+
+      # Everything that can be refused is refused here, before a tag exists: no version, a version
+      # already released, notes that say nothing about it. See .github/tag.mjs.
+      - name: Work out the tag and the notes
+        id: release
+        run: node .github/tag.mjs --notes-file "${RUNNER_TEMP}/notes.md"
+
+      - name: Tag the commit
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          set -euo pipefail
+          # Annotated, because a release tag says who cut it and when, and that is what the page
+          # shows. The identity is the one on the commit being tagged: the history keeps one voice
+          # and a fork tags as itself with nothing here to change.
+          git -c "user.name=$(git log -1 --format=%an)" -c "user.email=$(git log -1 --format=%ae)" \
+            tag -a "${TAG}" -m "${TAG}"
+          git push origin "refs/tags/${TAG}"
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+          NAME: ${{ steps.release.outputs.name }}
+          NOTES: ${{ steps.release.outputs.notes-file }}
+        run: |
+          set -euo pipefail
+          # --verify-tag so this publishes the tag the step above pushed and never invents one of
+          # its own; --latest because an instance asking for the latest release is how updates work.
+          url="$(gh release create "${TAG}" --title "${NAME}" --notes-file "${NOTES}" --latest --verify-tag)"
+          printf 'released %s\n' "${url}"
+          {
+            printf '## %s\n\n' "${NAME}"
+            printf '%s\n\n' "${url}"
+            cat "${NOTES}"
+          } >> "${GITHUB_STEP_SUMMARY}"

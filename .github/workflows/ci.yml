@@ -72,3 +72,21 @@ jobs:
 
       - name: Check status and login
         run: node --test tests/ow.test.mjs
+
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The suite asks what a release of a tree would be, and one of its answers is "that
+          # version is already out". It makes its own repositories to ask that of, but a shallow
+          # clone would still be a poor thing to run a check about tags in.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+
+      - name: Work out what a release would be, and what it refuses to be
+        run: node --test tests/tag.test.mjs
