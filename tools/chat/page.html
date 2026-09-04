@@ -216,16 +216,55 @@
     // the instance has not already settled one way or the other ever gets this far.
     const asking = document.createElement("div");
 
-    section.append(heading, transcript, asking, composer);
+    // The buzz in the pocket. One line between the transcript and the composer, ALWAYS in the
+    // document and empty when nothing is held, so that a line appearing never moves the box out
+    // from under a moving cursor. It says how many and who from, and never a word of what: the
+    // content is the interruption this exists to prevent, and a fragment read sideways is worse
+    // than either waiting or looking.
+    const whoIsWaiting = document.createElement("span");
+
+    const showThem = document.createElement("button");
+    showThem.type = "button";
+    showThem.textContent = "Show them";
+    showThem.hidden = true;
+
+    const waitingLine = document.createElement("p");
+    waitingLine.append(whoIsWaiting, showThem);
+
+    section.append(heading, transcript, asking, waitingLine, composer);
 
     // How many rows this panel has put on the screen. The transcript is append-only, so the
     // count is the whole of what a panel needs to know to tell a redraw worth doing from one that
     // is not.
     let shown = -1;
 
+    // Whether the reader has asked to see the held rows in spite of still writing. It is one
+    // boolean and it clears itself: the next fetch asks with no writing, everything is drawn,
+    // shown catches up, and the hold begins again from there. Nothing to expire, nothing to reset.
+    let showThemAnyway = false;
+
     async function show() {
-      const answered = await fetch(`/sessions/${session.name}/messages`);
-      const { messages } = await answered.json();
+      // Writing is: there is text in the box, read at the moment the answer is needed. No listener
+      // is added and nothing is counted per keystroke — an idle timer would be wrong exactly while
+      // somebody is thinking mid-sentence, which is the moment this feature exists for. Composing
+      // ends when the box is empty, and sending empties it.
+      const writing = box.value !== "" && !showThemAnyway;
+      showThemAnyway = false;
+
+      const query = new URLSearchParams({ shown: String(Math.max(shown, 0)) });
+      if (writing) {
+        query.set("writing", "1");
+      }
+
+      const answered = await fetch(`/sessions/${session.name}/messages?${query}`);
+      const { messages, held, from } = await answered.json();
+
+      // Who is waiting, BEFORE anything about redrawing. While a panel is holding, its row count
+      // is by definition unchanged, so a count drawn after the guard below would never be drawn at
+      // all and the hold would read as a page that had stopped working.
+      whoIsWaiting.textContent = held === 0 ? "" : `${held} waiting — ${from.join(", ")} `;
+      showThem.hidden = held === 0;
+
       // Nothing new, so nothing is touched. replaceChildren throws a selection away, and on the
       // tick that would be every second — a person could not copy a line out of a running chat.
       if (messages.length === shown) {
@@ -234,6 +273,12 @@
       shown = messages.length;
       transcript.replaceChildren(...messages.map(said));
     }
+
+    // Shows what is being held without sending anything and without touching what has been
+    // written. The flag is consumed by the next fetch, which is the whole of ending a hold.
+    showThem.addEventListener("click", () => {
+      showThemAnyway = true;
+    });
 
     // A request is answered by whoever is at the page, so the page has to notice one arriving
     // without having been the one who caused it — the same reason the transcript rides the tick.

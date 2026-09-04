@@ -4762,3 +4762,236 @@ describe("a leave the service turned away", () => {
     assert.equal(JSON.parse(posted.body).refused, true);
   });
 });
+
+// Holding a panel while somebody is writing on it. The whole of it is in the READ: a page says how
+// much it has drawn and whether there is text in its box, and the answer is cut to that. Nothing is
+// queued on the way in, nothing is remembered between requests, and no clock runs anywhere — so
+// most of what these checks are about is what does NOT happen elsewhere while a panel holds.
+describe("what a panel answers while somebody is writing on it", () => {
+  const LANDED = "something that landed while a sentence was half written";
+
+  let drawn;
+  let holding;
+  let released;
+  let whole;
+  let beyond;
+  let writingFirst;
+  let backwards;
+  let spokenTo;
+  let onDisk;
+  let room;
+  let roomPlain;
+
+  before(async () => {
+    await start(instance, standIns);
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    // What the page has drawn. Everything below is answered against this one number.
+    drawn = JSON.parse((await transcriptOf(WORKER)).body).messages.length;
+
+    // Two rows land: what was said, and the answer to it. Neither was caused by the page, which is
+    // the only kind of row this feature is about.
+    await say(LANDED, WORKER);
+
+    // Both states are reachable without racing anything: the rows are already on disk, and which
+    // of them comes back is decided by what the request says, not by when it is made. The released
+    // one is fetched second on purpose — if anything were being remembered, this order would be
+    // the order that broke it.
+    holding = JSON.parse((await get(`${URL}/sessions/${WORKER}/messages?shown=${drawn}&writing=1`)).body);
+    released = JSON.parse((await get(`${URL}/sessions/${WORKER}/messages?shown=${drawn}`)).body);
+    whole = JSON.parse((await transcriptOf(WORKER)).body);
+    beyond = await get(`${URL}/sessions/${WORKER}/messages?shown=99999&writing=1`);
+    writingFirst = JSON.parse((await get(`${URL}/sessions/${WORKER}/messages?writing=1`)).body);
+    // Minus ONE and not some larger negative: slicing a short list at a big negative is the empty
+    // list either way, so a bigger number would make this check agree with the bug it is here to
+    // catch. Watched: at minus five it noticed nothing.
+    backwards = JSON.parse((await get(`${URL}/sessions/${WORKER}/messages?shown=-1&writing=1`)).body);
+
+    // Read here and not at the end of this block: the panel is append-only, so a row added by
+    // anything below would be on disk and not in what was fetched above, and the check comparing
+    // them would be reading two different moments.
+    onDisk = JSON.parse(fs.readFileSync(path.join(instance, "chat", WORKER, "conversation.json"), "utf8"));
+
+    // Said to the panel that is being held, because that is where a hold on the delivery path
+    // would bite: this call would be the one waiting on somebody's keyboard.
+    spokenTo = await say("and this is asked while that page is holding", WORKER);
+
+    // Both ways round, and compared with each other rather than with a list written here. Who works
+    // in this instance depends on what ran before this describe, and a check that named names would
+    // be about that instead of about the room.
+    room = JSON.parse((await get(`${URL}/sessions?shown=0&writing=1`)).body);
+    roomPlain = JSON.parse((await get(`${URL}/sessions`)).body);
+  });
+
+  it("does not answer with a row that landed after the page last drew, while somebody is writing", () => {
+    assert.equal(holding.messages.length, drawn);
+  });
+
+  // The pair. Each of these fails if the other's behaviour is applied to it, and one check saying
+  // "holding works" would pass with the two of them conflated.
+  it("answers with that same row as soon as there is nothing in the box", () => {
+    assert.ok(released.messages.some((message) => message.text?.includes(LANDED)));
+  });
+
+  it("says how many rows it is holding back", () => {
+    assert.equal(holding.held, released.messages.length - drawn);
+  });
+
+  // Who is calling, never what they said. The count alone cannot be judged, so it would be looked
+  // at every time, which is a hold nobody uses.
+  it("says who the held rows are from", () => {
+    assert.deepEqual(holding.from, [...new Set(released.messages.slice(drawn).map((message) => message.from))]);
+  });
+
+  it("holds nothing back when there is nothing in the box", () => {
+    assert.equal(released.held, 0);
+  });
+
+  // The feature is a view of the panel and not a queue in front of it. If the held rows were being
+  // written anywhere but into the panel, in order, at the moment they happened, this is the check
+  // that would say so.
+  it("writes every row into the panel, in order, whether or not a page was holding", () => {
+    assert.deepEqual(
+      onDisk.map((message) => [message.from, message.text]),
+      released.messages.map((message) => [message.from, message.text]),
+    );
+  });
+
+  // What `ow` at a terminal gets, and anything else that asks for a transcript without knowing
+  // this feature exists.
+  it("answers a reader that says neither with the whole panel", () => {
+    assert.deepEqual([whole.messages.length, whole.held], [released.messages.length, 0]);
+  });
+
+  // The number came off a page and names a position in a file the page cannot see. Out of range it
+  // is a reader that has fallen behind or run ahead, and neither is worth refusing a transcript
+  // over.
+  // A page that has text in its box before it has drawn anything — the first tick after a reload
+  // onto a restored draft. It has fallen behind nothing, so there is nothing to keep from it.
+  it("holds nothing from a page that is writing but has not drawn anything yet", () => {
+    assert.deepEqual([writingFirst.messages.length, writingFirst.held], [released.messages.length, 0]);
+  });
+
+  // Below zero would cut rows off the END of the panel and call them held: the reader would be
+  // shown all but the last few and told those few were waiting, which is not a hold, it is a lie
+  // about where it is.
+  it("holds nothing extra from a reader whose position is below the start of the panel", () => {
+    assert.deepEqual([backwards.messages.length, backwards.held], [0, released.messages.length]);
+  });
+
+  it("answers a reader that has run past the end of the panel, rather than refusing it", () => {
+    assert.deepEqual([beyond.status, JSON.parse(beyond.body).held], [200, 0]);
+  });
+
+  // The seam is the read and never the write, so nothing on the delivery path learned about any of
+  // this. A hold put there instead would make one person's typing a state another session is stuck
+  // behind, which is the failure the delivery path exists to forbid.
+  it("still answers somebody speaking to that session while a page is holding its panel", () => {
+    assert.equal(spokenTo.status, 200);
+  });
+
+  // Never held: a room is how somebody sees that a session needs them. Holding it would hide the
+  // one thing on the page that says a run has stopped and is waiting.
+  it("answers the room in full, whatever a panel was asked", () => {
+    assert.deepEqual(
+      room.sessions.map((session) => session.name),
+      roomPlain.sessions.map((session) => session.name),
+    );
+    assert.ok(room.sessions.length > 0, "the room was empty both ways, so this proved nothing");
+  });
+});
+
+// The other thing that is never held, and it is the one that matters most: a run asking to be
+// allowed something has STOPPED until a person answers it. Holding that would make somebody's
+// half-written sentence the reason a session cannot be reached.
+describe("what is never held back from a panel", () => {
+  const askedLog = path.join(standIn, "asking-while-writing.txt");
+
+  let parked;
+
+  before(async () => {
+    await start(instance, standInEnvironment(standIn, askedLog, { OW_STAND_IN_ASKS: "Bash" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    // Not waited for: it does not come back until the whole exchange is over, and the asking is
+    // the middle of it.
+    const asked = say("do something that needs asking", WORKER);
+
+    parked = await waitFor(async () => {
+      const { permissions } = JSON.parse(
+        (await get(`${URL}/sessions/${WORKER}/permissions?shown=0&writing=1`)).body,
+      );
+      return permissions.length > 0 ? permissions : null;
+    });
+
+    // Answered, because nothing on this path times out on either side. A request left parked is a
+    // run left stopped and a message that never comes back, which is a hang in this suite and a
+    // hang for a person.
+    await post(`${URL}/sessions/${WORKER}/permission`, { id: parked[0].id, decision: "deny" });
+    await asked;
+  });
+
+  it("shows a session waiting to be allowed something, whatever the page said it was doing", () => {
+    assert.equal(parked.length, 1);
+  });
+});
+
+// And what the page does with the same thing, read as text for the reason the room describe says:
+// a listener built and never attached is invisible to a check like this. What a held page LOOKS
+// like to the person doing the writing is a person's reading, and only the manual test gives it.
+describe("what the page does while somebody is writing on it", () => {
+  let page;
+
+  before(async () => {
+    page = (await get(`${URL}/`)).body;
+  });
+
+  // Both facts, because either alone is useless: how much has been drawn without whether the box
+  // has anything in it holds every reader, and the other way round holds nothing.
+  // Read between building the query and reading the answer, so that the fetch itself is inside
+  // what is checked. Asserting that the page BUILDS a query passes on a query it never sends —
+  // built and never attached, which is the shape this repo has paid for before. Watched: the
+  // mutation that dropped the query from the fetch noticed nothing until this was bounded.
+  it("asks with what it has drawn and with whether there is anything in the box", () => {
+    const asked = page.slice(
+      page.indexOf("const query = new URLSearchParams"),
+      page.indexOf("const { messages, held, from }"),
+    );
+    assert.deepEqual(
+      [
+        asked.includes("shown: String(Math.max(shown, 0))"),
+        asked.includes(`query.set("writing", "1")`),
+        asked.includes("messages?${query}"),
+      ],
+      [true, true, true],
+    );
+  });
+
+  // Always there, empty when nothing is held. A line that appears would move the box out from
+  // under a cursor that is half way through a sentence, which is the thing this whole feature is
+  // for.
+  it("keeps the line that says who is waiting in the document, held or not", () => {
+    assert.ok(page.includes("section.append(heading, transcript, asking, waitingLine, composer);"));
+  });
+
+  it("says how many are waiting and who from", () => {
+    assert.match(page, /\$\{held\} waiting — \$\{from\.join\(", "\)\}/);
+  });
+
+  // The order is the check. While a panel holds, its row count is unchanged by definition, so a
+  // count drawn after the redraw guard is a count that is never drawn — and the hold would read as
+  // a page that had stopped working.
+  it("says who is waiting before it decides whether the transcript needs redrawing", () => {
+    const counted = page.indexOf("whoIsWaiting.textContent =");
+    const guard = page.indexOf("if (messages.length === shown)");
+    assert.ok(counted > 0 && counted < guard, "the count is drawn after the guard, so never");
+  });
+
+  // Pressing it must not send, must not clear the box, and must not ask for anything of its own:
+  // it says "next time round, do not hold", and the tick that was already running does the rest.
+  it("shows what is held without sending anything", () => {
+    const from = page.indexOf('showThem.addEventListener("click"');
+    const body = page.slice(from, page.indexOf("});", from));
+    assert.deepEqual([body.includes("showThemAnyway = true;"), body.includes("fetch")], [true, false]);
+  });
+});

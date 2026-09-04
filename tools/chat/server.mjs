@@ -966,6 +966,45 @@ async function postPermission(name, request, response) {
   sendJson(response, 200, { answered: id, decision });
 }
 
+// What a panel answers, and the one place where a page somebody is writing on is answered
+// differently from any other reader.
+//
+// Two facts arrive with the request, each held by the only party that can know it: the page knows
+// there is text in its box and how many rows it has already drawn, and the server knows what there
+// is. Nothing is remembered between requests — no lease, no expiry, no second clock, nothing to
+// reset — so a page closed mid-sentence stops holding by not asking again, and a reader that sends
+// neither field is answered exactly as it always was.
+//
+// The cut is here, on the way OUT, and never on the way in. A hold on the delivery path would make
+// one person half-way through a sentence the state another session is stuck behind, which is the
+// failure that path exists to forbid.
+function whatToShow(instance, name, query) {
+  const all = read(instance.root, name);
+
+  // A reader that says nothing about what it has drawn has drawn everything, as far as this is
+  // concerned: it is asking for the first time, or it is not a page at all, and neither should be
+  // told that rows are being kept from it.
+  //
+  // Only the floor is applied. A number past the end needs no ceiling — slicing past the end of a
+  // list is the whole list — and a check watching the ceiling removed reported nothing, which is
+  // what a line that cannot be wrong looks like. Below zero is different: it would silently cut
+  // rows off the END of the panel and call them held.
+  const asked = Number.parseInt(query.get("shown") ?? "", 10);
+  const shown = Math.max(Number.isInteger(asked) ? asked : all.length, 0);
+
+  const messages = query.get("writing") === "1" ? all.slice(0, shown) : all;
+  const holding = all.slice(messages.length);
+
+  return {
+    messages,
+    held: holding.length,
+    // Who is calling, and never what they said. A count on its own cannot be judged, so it would
+    // be looked at every time; the words themselves are the interruption this exists to prevent,
+    // and a fragment read sideways is worse than either waiting or looking.
+    from: [...new Set(holding.map((message) => message.from))],
+  };
+}
+
 // One row about one session: who they are, and everything that is true of them right now.
 //
 // It is one route rather than one per question, and the page asks for it on a tick it was already
@@ -1062,7 +1101,7 @@ async function handle(instance, request, response) {
     }
 
     if (request.method === "GET" && what === "messages") {
-      sendJson(response, 200, { messages: read(instance.root, name) });
+      sendJson(response, 200, whatToShow(instance, name, url.searchParams));
       return;
     }
 
