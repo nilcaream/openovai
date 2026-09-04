@@ -5025,6 +5025,19 @@ describe("what the page does while somebody is writing on it", () => {
     assert.ok(decided > 0 && acted > decided, "the panel never decides where to leave the transcript");
   });
 
+  // Pete watched slice 4 in a real browser and read the breaking row back: it is drawn in the same
+  // weight and colour as the rows held behind it, and arrives in the same tick. The answer is not a
+  // style — this page has none — it is that a line that broke in is the one redraw allowed to move
+  // a reader who had scrolled up. A row drawn where nobody is looking is the one place no wording
+  // could have saved it. Bound to the `if`: a brokeIn nothing acts on would pass on the value alone.
+  it("drags a reader back down for a line that broke in, and for nothing else", () => {
+    assert.match(
+      page,
+      /const brokeIn = messages\.slice\(Math\.max\(shown, 0\)\)\.some\(\(message\) => typeof message\.breaking === "string"\)/,
+    );
+    assert.ok(page.includes("if (atTheNewest || brokeIn) {"), "nothing acts on a line that broke in");
+  });
+
   // One page, one name for one person. The chat records the human as `human` because it cannot
   // know what to call them until an instance is installed, and the waiting line was printing that
   // raw two inches under a transcript saying their name.

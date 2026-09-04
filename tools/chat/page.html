@@ -299,9 +299,14 @@
       // oldest line would be a chat nobody could read. Otherwise exactly where they left it: being
       // dragged back down is the same interruption as the box moving.
       const atTheNewest = shown === -1 || transcript.scrollHeight - transcript.scrollTop - transcript.clientHeight < 1;
+      // The one exception, and it is the whole of what marks a line that broke in: a reader who
+      // had scrolled up is dragged back down for it. Anything else arriving is worth less than
+      // where they were reading; a line that broke in is by definition worth more, and a row drawn
+      // where nobody is looking is the one place no wording could have saved it.
+      const brokeIn = messages.slice(Math.max(shown, 0)).some((message) => typeof message.breaking === "string");
       shown = messages.length;
       transcript.replaceChildren(...messages.map(said));
-      if (atTheNewest) {
+      if (atTheNewest || brokeIn) {
         transcript.scrollTop = transcript.scrollHeight;
       }
     }
