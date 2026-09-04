@@ -337,7 +337,10 @@
       await fetch(`/sessions/${session.name}/message`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ text }),
+        // What this page had drawn when the sentence was written, so the row can record which line
+        // it was answering. By the time it is delivered the panel may have moved on — that is the
+        // whole reason it is sent.
+        body: JSON.stringify({ text, shown }),
       });
       await show();
     });

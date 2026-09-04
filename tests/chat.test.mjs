@@ -4987,11 +4987,135 @@ describe("what the page does while somebody is writing on it", () => {
     assert.ok(counted > 0 && counted < guard, "the count is drawn after the guard, so never");
   });
 
+  // Read inside the submit handler and not across the file, for the reason the draw-after-send
+  // check is bounded there: another fetch on the page carries the same shape.
+  it("says what it had drawn when it sends, so the row can record which line it answers", () => {
+    assert.ok(theSend(page).includes("JSON.stringify({ text, shown })"));
+  });
+
   // Pressing it must not send, must not clear the box, and must not ask for anything of its own:
   // it says "next time round, do not hold", and the tick that was already running does the rest.
   it("shows what is held without sending anything", () => {
     const from = page.indexOf('showThem.addEventListener("click"');
     const body = page.slice(from, page.indexOf("});", from));
     assert.deepEqual([body.includes("showThemAnyway = true;"), body.includes("fetch")], [true, false]);
+  });
+});
+
+// What a message says it answers.
+//
+// A person types a reply to the last line they were shown. By the time it is delivered that panel
+// may have moved on, so the message carries the position the page had drawn and the row records
+// which line of that session's the sender was looking at. An index into an append-only file is the
+// whole of it: no id is minted, no counter has to survive a restart, and no field is added to every
+// row for the benefit of one.
+//
+// A fresh desk, so that the panel starts with nothing on it and "this session has said nothing yet"
+// is a state these checks can reach.
+const ANSWERS = "Kestrel";
+
+describe("what a message says it answers", () => {
+  const answersLog = path.join(standIn, "answers.txt");
+
+  let onAnEmptyPanel;
+  let lookingBack;
+  let lookingAtTheLast;
+  let sayingNothing;
+  let askedLookingBack;
+  let askedAtTheLast;
+  let pointedAt;
+  let expected;
+  let lastBefore;
+
+  function rowsOf(panel) {
+    return JSON.parse(fs.readFileSync(path.join(instance, "chat", panel, "conversation.json"), "utf8"));
+  }
+
+  function lastSaidBy(rows, name) {
+    return rows.map((row, at) => [row.from, at]).findLast(([from]) => from === name)?.[1] ?? null;
+  }
+
+  before(async () => {
+    runTool(instance, ["hire", ANSWERS], process.env);
+    await start(instance, standInEnvironment(standIn, answersLog));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    // Nothing has been said on this panel by anybody, so there is no line of its own to point at.
+    await say("the first thing anybody has said here", ANSWERS);
+    onAnEmptyPanel = rowsOf(ANSWERS).at(-2);
+
+    await say("a second thing", ANSWERS);
+
+    // Pointed just after a line the HUMAN said, and deliberately not at the end of an exchange. At
+    // the end of one, the last row and the last row this session said are the same row, so a check
+    // written there passes on an implementation that never looks at who said it. Watched: with the
+    // position at the end of an exchange, replacing the whole search with "the row before this one"
+    // noticed nothing.
+    const wasLookingAt = rowsOf(ANSWERS).length - 1;
+    expected = lastSaidBy(rowsOf(ANSWERS).slice(0, wasLookingAt), ANSWERS);
+
+    // And one more exchange after that, so the line being answered is demonstrably not the last one
+    // on the panel. No slow turn is needed to reach this: the position travels with the message,
+    // and the file it points into is only ever appended to, so what sits at that index cannot move.
+    await say("a third thing", ANSWERS);
+
+    await post(`${URL}/sessions/${ANSWERS}/message`, { text: "answering something older", shown: wasLookingAt });
+    lookingBack = rowsOf(ANSWERS).findLast((row) => row.text === "answering something older");
+    pointedAt = rowsOf(ANSWERS)[lookingBack.answers];
+    askedLookingBack = questionsIn(answersLog).at(-1);
+
+    // And the ordinary case, which is nearly every case: the sender is answering the last thing
+    // that session said.
+    await post(`${URL}/sessions/${ANSWERS}/message`, { text: "answering the last line", shown: rowsOf(ANSWERS).length });
+    lookingAtTheLast = rowsOf(ANSWERS).findLast((row) => row.text === "answering the last line");
+    askedAtTheLast = questionsIn(answersLog).at(-1);
+
+    // What `ow` at a terminal sends, and what a page sends before it has drawn anything.
+    lastBefore = lastSaidBy(rowsOf(ANSWERS), ANSWERS);
+    await say("said without saying what was in front of me", ANSWERS);
+    sayingNothing = rowsOf(ANSWERS).findLast((row) => row.text === "said without saying what was in front of me");
+  });
+
+  it("records the line of that session's the sender was looking at", () => {
+    assert.equal(pointedAt.from, ANSWERS);
+  });
+
+  // The point of the whole slice, and the reason the position travels with the message: two more
+  // things were said between what the sender was reading and what was delivered.
+  // Both halves, because either alone agrees with a bug: naming the right line is nothing if it
+  // happens to be the latest one anyway, and "not the latest" is satisfied by naming nothing at
+  // all. Watched: with no such field written, "not the latest" passed on its own.
+  it("names that line and not the latest, when the session has said more since", () => {
+    assert.deepEqual(
+      [lookingBack.answers, lookingBack.answers < lastSaidBy(rowsOf(ANSWERS), ANSWERS)],
+      [expected, true],
+    );
+  });
+
+  // The honest reading of "what was in front of them": everything there was. Not nothing — a
+  // terminal and a page that has just opened are both answering the last thing that was said.
+  it("takes the last line now when a message says nothing about what was in front of it", () => {
+    assert.equal(sayingNothing.answers, lastBefore);
+  });
+
+  it("records nothing on a panel where that session has not said anything yet", () => {
+    assert.equal("answers" in onAnEmptyPanel, false);
+  });
+
+  // Told only when it is not the obvious one. Nearly always a session is being answered on the last
+  // thing it said, and a sentence in every turn forever in aid of the rare case is a trade this
+  // repo has turned down before.
+  it("tells the session which line, when it is not the last one it said", () => {
+    assert.match(askedLookingBack, /<answering>/);
+  });
+
+  it("tells it nothing when the line is the last one it said", () => {
+    assert.ok(!askedAtTheLast.includes("<answering>"));
+  });
+
+  // The words and not the number. A position is what the server holds; what locates a line for
+  // somebody reading a thread is what that line said.
+  it("carries the first line of the row it points at", () => {
+    assert.ok(askedLookingBack.includes(`<answering>${pointedAt.text.split("\n")[0]}</answering>`));
   });
 });

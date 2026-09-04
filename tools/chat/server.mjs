@@ -161,7 +161,7 @@ function deskWrapper(name) {
 // Everything a session is handed in front of the message this turn is about: what it overheard
 // while it was not running, and the standing ask above while its desk says nothing. Blank lines
 // between them, because they are separate things said by different people.
-function inFrontOf(instance, name, message, restarted = false) {
+function inFrontOf(instance, name, message, restarted = false, answering = null) {
   // Ahead of everything, when there was one. A session that does not yet know it has lost its
   // memory would read what it overheard as things it remembers being told.
   const said = restarted ? [pickUpWrapper(name)] : [];
@@ -169,7 +169,47 @@ function inFrontOf(instance, name, message, restarted = false) {
   if (deskTitle(instance.root, name) === "") {
     said.push(deskWrapper(name));
   }
+  // Last, nearest the message it is about, and usually not there at all.
+  if (answering !== null) {
+    said.push(answering);
+  }
   return withWhatWasOverheard(said, message);
+}
+
+// Which line of its own a session is being answered on, as a position in its panel.
+//
+// An index into a file that is only ever appended to is the whole of the reference: no id has to be
+// minted, no counter has to survive a restart, and no field is added to every row for the benefit
+// of the one row that needs it. Nothing before the position can change, so the answer is the same
+// whenever it is asked.
+//
+// A message that says nothing about what was in front of it — a terminal, or a page that has just
+// opened — is answering the last thing that was said, which is the honest reading of it.
+function whatItAnswers(root, name, shown) {
+  const all = read(root, name);
+  const upTo = Number.isInteger(shown) ? Math.min(Math.max(shown, 0), all.length) : all.length;
+  const at = all.slice(0, upTo).findLastIndex((message) => message.from === name);
+  return at === -1 ? null : at;
+}
+
+// And what the session is told about it, which is only ever the unobvious case.
+//
+// Nearly always somebody is answering the last thing a session said, and saying so would be a
+// sentence in every turn forever in aid of the rare one. The first line of the row rather than its
+// number: a position is what the server holds, and what locates a line for whoever is reading the
+// thread is what that line said.
+//
+// Decided where the turn BEGINS and not where the message arrived: a message that waited behind a
+// long turn is being read now, against everything this session has said by now.
+function answeringWrapper(root, name, answers) {
+  if (answers === null) {
+    return null;
+  }
+  const all = read(root, name);
+  if (answers === all.findLastIndex((message) => message.from === name)) {
+    return null;
+  }
+  return `<answering>${(all[answers]?.text ?? "").split("\n")[0]}</answering>`;
 }
 
 // The desk a session keeps, said the way the session's own persona says it: relative to the
@@ -382,7 +422,7 @@ const SESSION_ROUTE = /^\/sessions\/([^/]+)\/(messages|message|permissions|permi
 // noticing. So a state test on this path has to answer one question before it is written — what
 // happens to the message when the answer is yes? If the answer is "it waits for somebody", it does
 // not belong here. Ending a stale conversation and delivering is fine; declining to deliver is not.
-async function deliver(instance, name, text, signed) {
+async function deliver(instance, name, text, signed, shown = null) {
   if (typeof text !== "string" || text.trim() === "") {
     return { status: 400, body: { error: "a message needs some text" } };
   }
@@ -453,7 +493,16 @@ async function deliver(instance, name, text, signed) {
         append(instance.root, name, { from: THE_CHAT, text: coldLine(name), cold: true });
       }
 
-      const asked = append(instance.root, name, { from: sender?.name ?? "human", text: text.trim() });
+      // Which line of this session's the sender was looking at. Worked out from the position that
+      // came WITH the message, so what it names cannot be moved by anything this session said while
+      // the message waited its place in the queue.
+      const answers = whatItAnswers(instance.root, name, shown);
+
+      const asked = append(instance.root, name, {
+        from: sender?.name ?? "human",
+        text: text.trim(),
+        ...(answers === null ? {} : { answers }),
+      });
 
       // The reply is waited for rather than streamed. One run of Claude Code answers one message,
       // so the answer is ready or it is not; a page that shows it appearing is a later question.
@@ -470,6 +519,7 @@ async function deliver(instance, name, text, signed) {
             name,
             sender === null ? asked.text : wrap(sender.name, sender.role, asked.text),
             restarted,
+            answeringWrapper(instance.root, name, answers),
           ),
           (request) => park(name, request),
         );
@@ -542,8 +592,9 @@ async function deliver(instance, name, text, signed) {
 async function postMessage(instance, name, request, response) {
   let text;
   let from;
+  let shown;
   try {
-    ({ text, from } = JSON.parse(await readBody(request)));
+    ({ text, from, shown } = JSON.parse(await readBody(request)));
   } catch (error) {
     sendJson(response, 400, { error: error.message });
     return;
@@ -553,7 +604,7 @@ async function postMessage(instance, name, request, response) {
   // terminal — either way, the human.
   const signed = typeof from === "string" && from.trim() !== "" ? from.trim() : null;
 
-  const { status, body } = await deliver(instance, name, text, signed);
+  const { status, body } = await deliver(instance, name, text, signed, Number.isInteger(shown) ? shown : null);
   sendJson(response, status, body);
 }
 
