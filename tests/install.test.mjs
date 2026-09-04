@@ -306,6 +306,27 @@ describe("what the installer made", () => {
     assert.match(contentOf("personas", `${LEADER}.md`), new RegExp(`outside a wrapper is\\s+${HUMAN}`));
   });
 
+  // The finding of the measurement: on a real lead, four worker turns out of five ended with a
+  // sentence addressed to the human that only the worker could read. The tool split is invisible
+  // from inside a turn, so the persona has to name who the answer reaches.
+  it("tells the leader that its answer reaches whoever spoke to it", () => {
+    assert.match(
+      contentOf("personas", `${LEADER}.md`),
+      /goes back to whoever spoke to you in it, and to nobody else/,
+    );
+    assert.match(contentOf("personas", `${LEADER}.md`), new RegExp(`a line you address to\\s+${HUMAN}`));
+  });
+
+  // And what to do instead, which is the whole point of saying it: the worker gets the answer, the
+  // human gets a break-in when it cannot wait. Without this line the rule reads as a prohibition.
+  it("tells the leader where each thing goes instead", () => {
+    assert.match(contentOf("personas", `${LEADER}.md`), /answer the worker in the answer/);
+    assert.match(
+      contentOf("personas", `${LEADER}.md`),
+      new RegExp(`if\\s+${HUMAN} has to know before you are next asked, \`interrupt\``),
+    );
+  });
+
   it("tells the leader that the chat says what was typed on another panel", () => {
     assert.match(contentOf("personas", `${LEADER}.md`), /<overheard on="[^"]*" from="Mike">/);
   });
