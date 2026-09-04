@@ -218,15 +218,25 @@
 
     section.append(heading, transcript, asking, composer);
 
+    // How many rows this panel has put on the screen. The transcript is append-only, so the
+    // count is the whole of what a panel needs to know to tell a redraw worth doing from one that
+    // is not.
+    let shown = -1;
+
     async function show() {
       const answered = await fetch(`/sessions/${session.name}/messages`);
       const { messages } = await answered.json();
+      // Nothing new, so nothing is touched. replaceChildren throws a selection away, and on the
+      // tick that would be every second — a person could not copy a line out of a running chat.
+      if (messages.length === shown) {
+        return;
+      }
+      shown = messages.length;
       transcript.replaceChildren(...messages.map(said));
     }
 
     // A request is answered by whoever is at the page, so the page has to notice one arriving
-    // without having been the one who caused it. Nothing else here polls; this is the one thing
-    // that starts on the far side.
+    // without having been the one who caused it — the same reason the transcript rides the tick.
     function question(request) {
       const line = document.createElement("p");
 
@@ -366,10 +376,14 @@
   }
 
   setInterval(() => {
-    for (const { waiting } of built) {
+    for (const { waiting, show } of built) {
       waiting().catch(() => {
         // The chat is gone or restarting. The next tick will find out.
       });
+      // The panel too, for the same reason: what a session says starts on the far side. Until
+      // this, a panel showed what had happened when this page last spoke, and the lead answering
+      // a worker was invisible until somebody sent something or reloaded.
+      show().catch(() => {});
     }
     look().catch(() => {});
   }, EVERY);

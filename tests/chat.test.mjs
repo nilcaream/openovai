@@ -1821,6 +1821,74 @@ describe("what the page does with the room", () => {
   });
 });
 
+// What a panel does with a transcript. No suite runs page.html — it is served and read as TEXT —
+// so these say that the lines ship and that they are in the tick rather than merely in the file.
+// The same kind, and the same weakness, as the room describe above; step 3 of the manual test is
+// what closes it, and nothing here stands in for opening a browser.
+//
+// The body of the one setInterval on the page, so that a check about what the tick does reads the
+// tick and not the file. A string that merely appears somewhere in the script would pass on a
+// function nothing calls — which is the shape this repo has already paid for once, when a button
+// was built and never attached.
+function theTick(page) {
+  const from = page.indexOf("setInterval(");
+  const to = page.indexOf("}, EVERY);", from);
+  assert.ok(from > 0 && to > from, "the page has no tick to read");
+  return page.slice(from, to);
+}
+
+// And the submit handler's body, for the same reason: the first `await show();` after the POST
+// is not necessarily inside the handler that made it — the handover button has one too, and a
+// check that searched on from there passed on that when the send's own draw was deleted. This was
+// watched happening; the mutation reported nothing until the search was bounded to the handler.
+function theSend(page) {
+  const from = page.indexOf(`composer.addEventListener("submit"`);
+  const to = page.indexOf(`hand.addEventListener("click"`, from);
+  assert.ok(from > 0 && to > from, "the page has no send to read");
+  return page.slice(from, to);
+}
+
+describe("what the page does with a transcript", () => {
+  let page;
+
+  before(async () => {
+    page = (await get(`${URL}/`)).body;
+  });
+
+  // Until this line exists, a panel shows what happened when this page last spoke, and anything
+  // caused by anybody else — the lead answering a worker, a line from the chat — is invisible
+  // until somebody sends something or reloads.
+  it("asks for a transcript on the tick, not only when this page caused something", () => {
+    assert.match(theTick(page), /show\(\)/);
+  });
+
+  // At load and not a second later, for the reason the room is filled at load: a panel that is
+  // blank for a second every time the page opens is a panel nobody trusts. The check names the
+  // line it is filled from, because the tick fills it too and a looser one would pass on that.
+  it("draws every panel when the page opens, not on the first tick", () => {
+    assert.ok(page.includes("await Promise.all(built.map(({ show }) => show()));"));
+  });
+
+  // Sending is the one moment a person is waiting on a specific answer, and a second of nothing
+  // there reads as a message that did not go.
+  it("still draws the panel as soon as this page's own message has been answered", () => {
+    const sent = theSend(page);
+    const posted = sent.indexOf("fetch(`/sessions/${session.name}/message`");
+    const redrawn = sent.indexOf("await show();", posted);
+    assert.ok(posted > 0 && redrawn > posted, "the send does not draw the panel afterwards");
+  });
+
+  // A panel redrawn every second cannot be read from: a selection does not survive
+  // replaceChildren, so copying a line out of a running chat would be a race with the clock.
+  it("does not redraw a panel that has not changed", () => {
+    assert.match(page, /if \(messages\.length === shown\) \{\s*return;\s*\}/);
+  });
+
+  it("remembers how much of a panel it has drawn", () => {
+    assert.match(page, /shown = messages\.length;/);
+  });
+});
+
 // The room on the command line. The lead is a session on the page and so cannot look at the page,
 // which is the whole reason this exists; the person at a terminal gets it for nothing.
 //
