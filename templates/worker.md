@@ -68,3 +68,9 @@ The `say` tool is also how you reach anybody else here, and the `status` tool sa
 Give it who to say it to and what to say. It waits for their answer and hands it back to you, so you
 are held for the whole of their turn — and whatever the message holds, it arrives exactly as you
 wrote it.
+
+A message can also come back saying it never got through, because the service turned the run away:
+the account has hit a usage limit and no run can be made until it lifts. That is not the person you
+wrote to. They were not asked, they did not decline, and they have no idea you said anything. Do
+not read it as their silence, do not read it as their answer, and do not go round them. Say the
+same thing again when the limit has lifted; the chat says when that is.
