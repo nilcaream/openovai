@@ -1244,6 +1244,16 @@ function whatToShow(instance, name, query) {
 // `ranAt` and not `lastAt`: a panel is appended to outside any run, so its moment walks forward
 // while the conversation sits untouched. The question here is when this session was last TOLD
 // something, which only the thread's own clock answers.
+// When this session last ran, as the row says it: the thread's own clock, or nothing at all.
+//
+// Beside `active` and never folded into it. The two answer different questions — when the panel
+// last moved, and when the session last thought — and the day they agree is not the day anybody
+// needed either of them.
+function ranOn(root, name) {
+  const ran = ranAt(root, name);
+  return ran === null ? null : new Date(ran).toISOString();
+}
+
 function quotaOn(root, name) {
   const windows = quotaIn(root, name);
   return windows === null ? null : { at: ranAt(root, name), windows };
@@ -1281,6 +1291,22 @@ function everySession(instance, session) {
     // When anything last happened on its panel. A fact and not a verdict — nothing here knows
     // whether a quiet session is finished, stuck or merely quiet, and the person reading does.
     active: lastAt(instance.root, session.name),
+    // And when this session last RAN, which is the other half of that and is not the same
+    // question. A panel is appended to outside any run — an overheard line, a notice from the
+    // chat — so `active` walks forward on a session that has not thought since, and on the lead
+    // it does so routinely. This is the clock the cold rule already acts on, so how long a
+    // session has been doing nothing and whether its conversation is about to be ended cannot
+    // disagree: they are the same reading, said at two distances.
+    //
+    // Two ages on one row was once refused as a distinction nobody had a use for. The use is now
+    // named — a session that has stopped is one somebody should check on, and the whole worth of
+    // knowing is in the stretch BEFORE the hour is up — and the row already carries this clock
+    // once, as the age of a usage reading that is only there when the service sent one.
+    //
+    // An ISO string, like `active`, rather than the raw moment: both readers already turn one of
+    // those into "34m ago" and neither has to learn a second shape. Nothing, rather than a guess,
+    // when there is no conversation to have run — which is `ranAt`'s own rule.
+    ran: ranOn(instance.root, session.name),
     // How full the account's usage windows were the last time this session was told, and when it
     // was told. A fact on the row and never a gate: nothing in this toolkit reads it to decide
     // anything, and a check about a message to a refused session holds that true rather than this

@@ -6866,3 +6866,161 @@ describe("the room says it is off", () => {
     assert.match(theRoom, /"\/offline"/);
   });
 });
+
+const QUIET_SHORT = "Siskin";
+const QUIET_LONG = "Twite";
+const HANDED_ON = "Redpoll";
+
+// How long a session has been doing nothing, said on its row.
+//
+// The clock is the thread's and not the panel's, so every fixture here ages the thread AND touches
+// the panel to now: that is the one state where the two answers come apart, and without it a row
+// built from either clock would read the same and this describe would be proving that they are
+// usually equal.
+//
+// Two sessions aged to two different ages, both asserted. One would prove the duration is present;
+// it would never prove it was read, because a hard-coded phrase satisfies a single fixture.
+describe("how long a session has been doing nothing", () => {
+  const quietLog = path.join(standIn, "quiet.txt");
+  let shortly;
+  let longer;
+  let handed;
+  let room;
+
+  async function stateOf(name) {
+    const { sessions: rows } = JSON.parse((await get(`${URL}/sessions`)).body);
+    return rows.find((row) => row.name === name) ?? null;
+  }
+
+  const lineFor = (name) => (room ?? "").split("\n").find((line) => line.startsWith(`${name} `));
+
+  before(async () => {
+    runTool(instance, ["hire", QUIET_SHORT], process.env);
+    runTool(instance, ["hire", QUIET_LONG], process.env);
+    runTool(instance, ["hire", HANDED_ON], process.env);
+    await start(instance, standInEnvironment(standIn, quietLog));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    // A turn each, so there is a thread with a clock at all.
+    await say("something, so this one has run", QUIET_SHORT);
+    await say("something, so this one has run too", QUIET_LONG);
+    await say("and this one, which is about to lose it again", HANDED_ON);
+
+    // Handed over: the panel stays and the thread is removed, which is the state where the obvious
+    // place to read a time from has just been deleted.
+    await post(`${URL}/sessions/${HANDED_ON}/handover`, {});
+
+    // Aged last and read at once, so nothing between the two can carry a reading over a minute
+    // boundary. The half-minutes are the cushion: rounded down, twenty and a half minutes reads as
+    // twenty whether the next line runs now or in twenty seconds.
+    age(threadFile(QUIET_SHORT), 20.5);
+    age(threadFile(QUIET_LONG), 40.5);
+    const now = new Date();
+    fs.utimesSync(panelFile(QUIET_SHORT), now, now);
+    fs.utimesSync(panelFile(QUIET_LONG), now, now);
+    fs.utimesSync(panelFile(HANDED_ON), now, now);
+
+    shortly = await stateOf(QUIET_SHORT);
+    longer = await stateOf(QUIET_LONG);
+    handed = await stateOf(HANDED_ON);
+    room = runTool(instance, ["room"], standInEnvironment(standIn, quietLog)).stdout;
+  });
+
+  // Mutation: build the field from `lastAt`. Every panel here was touched to now, so a row built
+  // from the panel's clock says "just now" for both of these and neither age survives.
+  it("carries when each session last ran, and not when its panel last moved", () => {
+    assert.equal(typeof shortly?.ran, "string", "no reading at all on the row");
+    assert.equal(typeof longer?.ran, "string", "no reading at all on the row");
+    assert.ok(Math.abs(Date.now() - Date.parse(shortly.ran) - 20.5 * 60_000) < 60_000, shortly.ran);
+    assert.ok(Math.abs(Date.now() - Date.parse(longer.ran) - 40.5 * 60_000) < 60_000, longer.ran);
+  });
+
+  // Mutation: say a fixed duration, or none at all. Two ages, both asserted, so no single written
+  // phrase satisfies this.
+  it("says how long each has been doing nothing, in the room a person reads at a terminal", () => {
+    assert.match(lineFor(QUIET_SHORT) ?? "", /idle, last ran 20m ago/);
+    assert.match(lineFor(QUIET_LONG) ?? "", /idle, last ran 40m ago/);
+  });
+
+  // Mutation: fall back to the panel's clock when there is no thread, or to "just now". A session
+  // that has just been handed over has a full panel and nothing to say about a conversation, and
+  // inventing an age for it is the most reassuring possible reading of not knowing.
+  it("says nothing about it for a session with no conversation to carry on", () => {
+    assert.equal(handed?.ran, null, `read ${handed?.ran}`);
+    const line = lineFor(HANDED_ON) ?? "";
+    assert.ok(line !== "", "the session was not in the room at all");
+    assert.match(line, /\bidle\b/);
+    assert.doesNotMatch(line, /last ran/);
+  });
+
+  // No suite runs page.html — it is read as text — so the page's copy is proven by reading it, and
+  // the check is bounded to the block that says what a row is doing. Unbounded, it would run on
+  // into the room command's own wording quoted nowhere and pass on a page that had lost this.
+  //
+  // The phrase is asserted to be BUILT and USED: a source-text check that matches a literal is
+  // satisfied by the literal's own declaration, which is the failure this file has already paid
+  // for twice.
+  it("says the same phrase in the page's own copy of the room", () => {
+    const page = fs.readFileSync(path.join(instance, "tools", "chat", "page.html"), "utf8");
+    const from = page.indexOf("function state(row)");
+    const to = page.indexOf("function inTheRoom(row)");
+    assert.ok(from !== -1 && to !== -1 && from < to, "the page's state block is not where this check looks for it");
+    const theState = page.slice(from, to);
+
+    assert.match(theState, /last ran/);
+    assert.match(theState, /row\.ran/);
+    assert.ok((theState.match(/\bidleSaid\b/g) ?? []).length > 1, "the phrase is built and never returned");
+  });
+});
+
+const STILL_ANSWERING = "Brambling";
+
+// The one state the ordering of the room's table has to keep this out of.
+//
+// A session's clock stands still for the whole of a turn — the file it is read from is rewritten
+// when a run ENDS — so a duration printed beside the state phrase rather than inside it would tell
+// a session answering right now that it had been doing nothing for as long as it had been working.
+describe("what the room says about a session answering with an old clock behind it", () => {
+  const answeringLog = path.join(standIn, "answering.txt");
+  let mid;
+  let room;
+
+  const lineFor = (name) => (room ?? "").split("\n").find((line) => line.startsWith(`${name} `));
+
+  before(async () => {
+    runTool(instance, ["hire", STILL_ANSWERING], process.env);
+    await start(instance, standInEnvironment(standIn, answeringLog, { OW_STAND_IN_SLOW: "1500" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    // A first turn for the clock to belong to, then an age well past anything this feature would
+    // call quiet — and short of the hour, so the row is answering and not cold.
+    await say("the first thing, so there is a thread", STILL_ANSWERING);
+    age(threadFile(STILL_ANSWERING), 40.5);
+
+    // And a second, left running. The file is not touched again until the run ends, so for the
+    // whole of this turn the clock behind the row says forty minutes.
+    const running = say("the second thing, which takes a while", STILL_ANSWERING);
+    const { sessions: rows } = await waitFor(async () => {
+      const body = JSON.parse((await get(`${URL}/sessions`)).body);
+      return body.sessions.find((row) => row.name === STILL_ANSWERING)?.busy === true ? body : null;
+    });
+    mid = rows.find((row) => row.name === STILL_ANSWERING);
+    room = runTool(instance, ["room"], standInEnvironment(standIn, answeringLog)).stdout;
+    await running;
+  });
+
+  // Mutation: say the duration as a fact of its own beside the state phrase, in the position the
+  // usage reading is said in. The row then carries forty minutes of doing nothing on a session
+  // that is working, and this is the only check that sees it.
+  it("says it is answering and nothing about how long it has been doing nothing", () => {
+    assert.equal(mid?.busy, true, "the session was never mid-turn");
+    const line = lineFor(STILL_ANSWERING) ?? "";
+    assert.ok(line !== "", "the session was not in the room at all");
+    assert.match(line, /\banswering\b/);
+    // The AGE and not the wording. A duration moved out of the state phrase would be said in
+    // whatever words its new position used, and a check anchored on this feature's own phrase
+    // would go green on every one of them. Forty minutes cannot honestly appear on this line: the
+    // panel moved when the message arrived, so the only other age here says just now.
+    assert.doesNotMatch(line, /40m/, "a session working for the whole of its turn is not doing nothing");
+  });
+});

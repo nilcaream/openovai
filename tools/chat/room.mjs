@@ -143,12 +143,33 @@ export const STATES = Object.freeze([
   // Last, and it asks nothing of the row: rest is what is left when none of the others hold. A
   // table whose final entry could fail to match would leave `stateOf` with nothing to return for a
   // row nobody thought of, which is the one way a state could still go unnamed.
+  //
+  // The wording carries how long it has been idle, from the clock the entry above acts on, so the
+  // two are one reading said at two distances rather than two answers to one question. It is said
+  // HERE, in the wording of the state, and never as a fact of its own beside the state phrase:
+  // every state above this one is a run in flight, and a running session's clock is stale for the
+  // whole of its turn — so a duration printed beside the phrase would tell a busy session it had
+  // been doing nothing for as long as it had been working. The order of this table is what makes
+  // that unreachable, and it costs nothing.
   {
     named: "idle",
     when: () => true,
-    say: () => "idle",
+    say: (session) => idleSaid(session.ran),
   },
 ]);
+
+// How long a session has been doing nothing, said with the word for doing nothing.
+//
+// One phrase and not two, for the reason the usage reading is one phrase: there is no way to print
+// half of it, and no way for the duration to end up on a row that is not idle.
+//
+// Nothing rather than a guess when there is no reading. A session with no conversation to carry on
+// has never run or has just been handed over, and the row says `nothing to carry on` beside this,
+// so the absence is not silent. Inventing "just now" out of it would be the most reassuring
+// possible reading of not knowing.
+function idleSaid(ran) {
+  return typeof ran === "string" ? `idle, last ran ${ago(ran)}` : "idle";
+}
 
 function stateOf(session) {
   return STATES.find((state) => state.when(session)).say(session);

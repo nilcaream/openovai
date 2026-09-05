@@ -168,7 +168,15 @@
     if (row.cold) {
       return "cold";
     }
-    return row.busy ? "answering" : "idle";
+    return row.busy ? "answering" : idleSaid(row.ran);
+  }
+
+  // How long a session has been doing nothing, said with the word for doing nothing, and the same
+  // phrase the room command says. It is part of the state and never a fact of its own beside it:
+  // every state above idle is a run in flight, and a running session's clock is stale for the
+  // whole of its turn.
+  function idleSaid(ran) {
+    return typeof ran === "string" ? `idle, last ran ${ago(ran)}` : "idle";
   }
 
   // Facts, in one line, and no verdict on any of them. Whether a session that has been quiet for
