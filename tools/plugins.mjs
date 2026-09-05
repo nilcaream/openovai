@@ -17,6 +17,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
+import { readTemplate, render } from "./desks.mjs";
+
 // Where an instance keeps them. At the root beside work/ and personas/, and deliberately NOT
 // under tools/: taking a newer version of the toolkit removes every payload directory before it
 // copies the new one in, so a tool kept in there would be deleted by the first update, silently,
@@ -25,6 +27,15 @@ import { pathToFileURL } from "node:url";
 // Not under work/ either, and for a sharper reason: that directory listing IS the roster, so a
 // directory in it is a person. Plugins live where they cannot be mistaken for one.
 export const PLUGINS = "plugins";
+
+// What one looks like before a name is written into it. It lives in templates/ beside the desk and
+// persona ones, so it travels with the payload and is replaced by an update — a scaffold is part of
+// the toolkit, and a tool started from it is not.
+export const PLUGIN_TEMPLATE = path.join("templates", "plugin.mjs");
+
+// A tool of the instance's own could not be started. Nothing to do with the command line that
+// asked for it, so it is answered on its own rather than with the usage under it.
+export class PluginError extends Error {}
 
 // What a file has to be called to be one. The extension is the module it is; the name is the tool.
 const SUFFIX = ".mjs";
@@ -90,7 +101,7 @@ export async function pluginsIn(root) {
 
     // The two things that can be answered without reading the file, answered without reading it.
     if (!NAME.test(name)) {
-      refused.push({ file: entry.name, reason: `${name} is not a name a tool can have — a letter, then letters, digits and hyphens, up to 32 of them` });
+      refused.push({ file: entry.name, reason: describePluginName(name) });
       continue;
     }
     if (BUILT_IN.includes(name)) {
@@ -146,6 +157,46 @@ export function describePlugins({ tools, refused }) {
     lines.push(`${path.join(PLUGINS, file)} is not served: ${reason}`);
   }
   return lines.join("\n");
+}
+
+// The name rule, for whoever is about to write one of these rather than read it. The same test the
+// loader makes, asked before the file exists, so that a name a tool cannot have is refused while
+// somebody is still typing it instead of going quiet on the next chat start.
+export function isPluginName(name) {
+  return typeof name === "string" && NAME.test(name);
+}
+
+// Why it was refused, in the words somebody can act on. The rule is short enough to say outright,
+// which is better than pointing at where it is written down.
+export function describePluginName(name) {
+  return `${name === undefined ? "nothing" : `"${name}"`} is not a name a tool can have — a letter, then letters, digits and hyphens, up to 32 of them`;
+}
+
+// Start one. It writes the file and nothing else happens — no list gains an entry, because there
+// is no list, and the chat picks it up the next time it is started.
+//
+// The template is read from the instance rather than from wherever the toolkit was installed from,
+// the same way a desk template is, which is what lets an instance start a plugin on a machine the
+// source was never on.
+//
+// A name whose file is already there is refused rather than written over. What is in that file is
+// somebody's work, and a command that quietly replaces it to get its own job done is worse than
+// the surprise it is saving them.
+//
+// Whether the name is one a tool can have is asked by whoever is taking it, and not here. There is
+// one place a plugin is ever started from, and a name it cannot have is something wrong with what
+// was typed rather than with the workspace — so it is answered where a command line is answered,
+// with the usage under it, instead of arriving here as a refusal that reads the same as the one
+// above and means something else.
+export function writePlugin(root, from, name) {
+  const target = path.join(pluginsDirectory(root), `${name}${SUFFIX}`);
+  if (fs.existsSync(target)) {
+    throw new PluginError(`${name} is already a tool here; ${path.relative(root, target)} is not this command's to write over`);
+  }
+
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.writeFileSync(target, render("plugin", readTemplate(from, "plugin", PLUGIN_TEMPLATE), { NAME: name }));
+  return [target];
 }
 
 // What a plugin answered, in the two shapes the chat knows how to pass on, or a refusal saying it

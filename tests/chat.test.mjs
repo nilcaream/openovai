@@ -8181,3 +8181,49 @@ export function run() {
     assert.doesNotMatch(started.output, /notes/);
   });
 });
+
+
+// The check the scaffold exists for. Everything above is written by hand in this file, which
+// proves what the loader accepts and says nothing about what somebody actually starts from — and a
+// scaffold that writes a file the loader then refuses is a command that lies to whoever ran it.
+//
+// So this one edits nothing: it runs the command, starts the chat again the way the command says
+// to, and calls what came out.
+describe("what the scaffold writes is a tool", () => {
+  const TOOL = "notify";
+  const MESSAGE = "the room is on fire";
+  let started;
+  let offered;
+  let answered;
+
+  before(async () => {
+    started = runTool(instance, ["plugin", TOOL], standIns);
+    await start(instance, standIns);
+    assert.ok(await waitForHealth(URL), "the chat never came back with the scaffold in place");
+
+    offered = JSON.parse((await call(LEADER, "tools/list")).body).result.tools;
+    answered = answerOf(await call(LEADER, "tools/call", { name: TOOL, arguments: { message: MESSAGE } }));
+  });
+
+  after(async () => {
+    fs.rmSync(path.join(instance, "plugins"), { recursive: true, force: true });
+    await start(instance, standIns);
+    assert.ok(await waitForHealth(URL), "the chat never came back without the scaffold");
+  });
+
+  // One check and not three, because no single edit tells them apart: whatever stops the scaffold
+  // from being a tool stops it from being offered and from answering, both. So it is asked as the
+  // whole sentence — the command worked, the tool is there with a description the template gave it,
+  // and calling it runs the template's own handler on the call's arguments and this workspace's
+  // word for who called.
+  it("serves what the scaffold wrote, and answers with it, nothing edited", () => {
+    assert.equal(started.status, 0, started.stderr);
+
+    const tool = offered.find((each) => each.name === TOOL);
+    assert.ok(tool !== undefined, `the chat served ${offered.map((each) => each.name).join(", ")}`);
+    assert.match(tool.description, new RegExp(TOOL));
+
+    assert.ok(!answered.refused, answered.text);
+    assert.match(answered.text, new RegExp(`${LEADER} said ${MESSAGE}`));
+  });
+});

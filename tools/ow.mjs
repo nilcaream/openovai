@@ -17,17 +17,18 @@ import { ownInstructions } from "./instructions.mjs";
 import { leaveWord } from "./chat/untold.mjs";
 import { holderOf } from "./port.mjs";
 import { RELEASES, ReleaseError, latestRelease, notesIn, replacePayload, unpackInto } from "./release.mjs";
-import { describePlugins, pluginsIn } from "./plugins.mjs";
+import { PluginError, describePluginName, describePlugins, isPluginName, pluginsIn, writePlugin } from "./plugins.mjs";
 import { version } from "./version.mjs";
 
 const CONFIG_FILE = "ow.json";
 
-const COMMANDS = ["status", "room", "chat", "hire", "say", "login", "update"];
+const COMMANDS = ["status", "room", "chat", "hire", "plugin", "say", "login", "update"];
 
 // What a command takes after its name, for the ones that take anything. A command that is not
 // here takes nothing, which is most of them.
 const TAKES = {
   hire: { most: 1, shape: "one name" },
+  plugin: { most: 1, shape: "one name" },
   say: { most: Number.POSITIVE_INFINITY, shape: "a name and a message" },
   update: { most: 2, shape: "at most --from <url or directory>" },
 };
@@ -47,6 +48,7 @@ function usage() {
     "  ow room          show what each of them is doing right now",
     "  ow chat          serve the chat page until you stop it",
     "  ow hire <name>   open a desk for a worker, so the chat can host one",
+    "  ow plugin <name> start a tool this instance serves itself, from the scaffold",
     "  ow say <name> <message>",
     "                   say something to another session in this instance and wait for its reply",
     "  ow login         sign this instance in to an Anthropic account",
@@ -120,6 +122,33 @@ function hireHere(root, name) {
   for (const entry of written) {
     console.log(`  ${entry}`);
   }
+}
+
+// Start a tool this instance serves itself. It writes one file and nothing else happens, which is
+// the whole of what starting one is: there is no list to join, because the directory IS the list.
+//
+// The chat has to be started again, and that is said rather than left to be discovered. A tool is
+// read when the chat starts, so a running chat goes on serving exactly what it was serving when it
+// started — and a file that is plainly there, with nothing anywhere saying otherwise, is the thing
+// somebody would sit and wonder about.
+//
+// What a name is refused for lives in plugins.mjs, beside the rule the loader reads with. All this
+// adds is the refusal that is about a command line rather than about a name: nothing typed at all.
+function pluginHere(root, name) {
+  if (name === undefined) {
+    throw new UsageError("plugin needs a name: ow plugin <name>");
+  }
+  if (!isPluginName(name)) {
+    throw new UsageError(describePluginName(name));
+  }
+
+  const written = writePlugin(root, root, name);
+
+  console.log(`${name} is a tool this instance serves now. Wrote:`);
+  for (const entry of written) {
+    console.log(`  ${entry}`);
+  }
+  console.log("Start the chat again to serve it: it reads these when it starts.");
 }
 
 // The room: one line per session, saying what is true of each of them right now.
@@ -509,6 +538,10 @@ async function main(argv) {
       hireHere(root, arguments_[0]);
       return 0;
     }
+    if (command === "plugin") {
+      pluginHere(root, arguments_[0]);
+      return 0;
+    }
     if (command === "room") {
       await room(root);
       return 0;
@@ -535,7 +568,12 @@ async function main(argv) {
       return 2;
     }
     // Nothing to do with the command line, so the usage under it would only be noise.
-    if (error instanceof DeskError || error instanceof ChatError || error instanceof ReleaseError) {
+    if (
+      error instanceof DeskError ||
+      error instanceof ChatError ||
+      error instanceof PluginError ||
+      error instanceof ReleaseError
+    ) {
       console.error(`ow: ${error.message}`);
       return 1;
     }

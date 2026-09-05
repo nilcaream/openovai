@@ -603,6 +603,58 @@ describe("what hiring refuses", () => {
   });
 });
 
+// Starting a tool this instance serves itself. One file is written and nothing else happens, and
+// the two things worth checking are where it lands and what is said about it — a scaffold that
+// writes somewhere the chat does not look is a command that appears to work and does nothing.
+describe("starting a tool the instance serves itself", () => {
+  const TOOL = "notify";
+  let said;
+
+  before(() => {
+    said = ow(["plugin", TOOL]);
+  });
+
+  // Where the chat looks, and nowhere else. The directory is the list, so the file being in the
+  // right one IS the tool being served, and there is nothing else that could be checked instead.
+  it("writes it where the chat looks for one", () => {
+    assert.ok(fs.existsSync(path.join(instance, "plugins", `${TOOL}.mjs`)));
+  });
+
+  // The file, and then the one thing somebody would otherwise sit and wonder about: a tool is read
+  // when the chat starts, so a chat that is already running goes on serving what it started with.
+  it("says what it wrote, and that the chat has to be started again", () => {
+    assert.match(said.stdout, new RegExp(path.join("plugins", `${TOOL}.mjs`)));
+    assert.match(said.stdout, /chat again/);
+  });
+
+  // Refused rather than written over, and the check reads the file rather than the status: a
+  // command that refuses after it has already overwritten somebody's work has refused nothing.
+  it("refuses a name that is already a tool here, and leaves that tool alone", () => {
+    const target = path.join(instance, "plugins", `${TOOL}.mjs`);
+    fs.writeFileSync(target, "// somebody's own work\n");
+    const again = ow(["plugin", TOOL]);
+    assert.equal(again.status, 1);
+    assert.equal(fs.readFileSync(target, "utf8"), "// somebody's own work\n");
+  });
+
+  // A name a tool cannot have is a command line that is wrong, not a workspace that is: answered
+  // with the usage under it, and exit 2 rather than 1. The exact status, never "not zero" — the
+  // two refusals in this describe are told apart by nothing else.
+  it("refuses a name a tool cannot have, as a command line", () => {
+    const refused = ow(["plugin", "not_a_tool"]);
+    assert.equal(refused.status, 2);
+    assert.match(refused.stderr, /not a name a tool can have/);
+    assert.match(refused.stderr, /ow plugin <name>/);
+    assert.ok(!fs.existsSync(path.join(instance, "plugins", "not_a_tool.mjs")));
+  });
+
+  it("refuses to start one with no name at all", () => {
+    const refused = ow(["plugin"]);
+    assert.equal(refused.status, 2);
+    assert.match(refused.stderr, /plugin needs a name/);
+  });
+});
+
 describe("what the command refuses", () => {
   it("refuses a command it does not have", () => {
     assert.notEqual(ow(["nonsense"]).status, 0);
