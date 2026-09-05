@@ -15,7 +15,7 @@ import { carry, overhear } from "./overheard.mjs";
 import { allow, answer as settle, giveUp, park, parked, refuse } from "./permissions.mjs";
 import { roomLines } from "./room.mjs";
 import { DESK_FILE, DeskError, WORK, archiveFor, deskTitle, describeName, hire, isName, retire } from "../desks.mjs";
-import { ask, forget, hasGoneCold, hasThread, quotaIn, ranAt, refusedIn, sessions } from "./session.mjs";
+import { ask, endRun, forget, hasGoneCold, hasThread, quotaIn, ranAt, refusedIn, sessions } from "./session.mjs";
 import { inTurn, turnsGoing, waitingFor, whileWaitingFor, wouldWaitForItself } from "./turns.mjs";
 import { takeWord } from "./untold.mjs";
 import { version } from "../version.mjs";
@@ -399,7 +399,7 @@ function leavingRefused(name, refused) {
 
 // Everything a session is asked or answers is under its own name, so one route shape serves
 // every panel and there is no path through here that only the lead can take.
-const SESSION_ROUTE = /^\/sessions\/([^/]+)\/(messages|message|permissions|permission|handover|leave)$/;
+const SESSION_ROUTE = /^\/sessions\/([^/]+)\/(messages|message|permissions|permission|handover|leave|end)$/;
 
 // Delivering a message to a session: everything between it arriving and the answer coming back,
 // whoever sent it and however it got in.
@@ -927,6 +927,27 @@ async function postHandover(instance, name, response) {
 // the desk is read for its title only after the answer, or a session that says what it was on in
 // this very turn would be filed under what it used to be on. And the line saying it has left is
 // written to the panel BEFORE the panel is moved, so the record ends with the moment it ends at.
+// Ending the run a session is on.
+//
+// The one thing on the page that is NOT a turn, and the comment is here because every other route
+// on this path is one. A message, a handover and a leave all go through the queue, which is right
+// for all three: they are things to be answered, and answering them in order is the point. This is
+// not a thing to be answered. It is the way out of a session whose queue is not moving, and a way
+// out that waits in that queue is not one.
+//
+// It appends nothing. The run it ends closes with nothing to show for itself, and the turn that
+// was waiting on it writes that up the way it writes up any turn that failed — so the panel
+// carries one line about this, written where every other line is written, rather than two lines
+// racing each other from opposite ends.
+async function postEnd(instance, name, response) {
+  if (!(await endRun(name))) {
+    sendJson(response, 409, { error: `${name} is not running anything to end` });
+    return;
+  }
+
+  sendJson(response, 200, { ended: name });
+}
+
 async function postLeave(instance, name, response) {
   // The lead is not a desk that can be put away. An instance has one by definition and the chat
   // hosts it whether or not it has a desk, so a lead that left would still be here, with nowhere to
@@ -1281,6 +1302,11 @@ async function handle(instance, request, response) {
 
     if (request.method === "POST" && what === "leave") {
       await postLeave(instance, name, response);
+      return;
+    }
+
+    if (request.method === "POST" && what === "end") {
+      await postEnd(instance, name, response);
       return;
     }
   }

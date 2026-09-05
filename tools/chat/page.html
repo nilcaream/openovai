@@ -265,9 +265,20 @@
       leave.textContent = "Leave";
     }
 
+    // The way out of a run that will not end itself. Everything else on this panel is a turn and
+    // waits in the same queue; this is the one press that does not, because the session it is for
+    // is the one whose queue has stopped moving.
+    //
+    // Offered whatever the session is doing, for the reason the handover is: it is wanted at the
+    // moment the panel looks stuck, and a button that only worked on an idle panel would be no
+    // use. Pressed with nothing running, the route says so and nothing happens.
+    const endRun = document.createElement("button");
+    endRun.type = "button";
+    endRun.textContent = "End this run";
+
     const composer = document.createElement("form");
     composer.className = "composer";
-    composer.append(box, send, hand, ...(leave === null ? [] : [leave]));
+    composer.append(box, send, hand, endRun, ...(leave === null ? [] : [leave]));
 
     // Where this session says what it wants to be allowed to do. Empty almost always: only a tool
     // the instance has not already settled one way or the other ever gets this far.
@@ -438,6 +449,18 @@
         await show();
       } finally {
         hand.disabled = false;
+      }
+    });
+
+    // Pressed once, and enabled again either way. The run is gone or there was none, and both are
+    // states somebody may want to press from again a moment later.
+    endRun.addEventListener("click", async () => {
+      endRun.disabled = true;
+      try {
+        await fetch(`/sessions/${session.name}/end`, { method: "POST" });
+        await show();
+      } finally {
+        endRun.disabled = false;
       }
     });
 

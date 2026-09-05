@@ -39,6 +39,7 @@ import {
   standInEnvironment,
   startChat,
   stopChat,
+  stuckRunsIn,
   waitFor,
   waitForAddress,
   waitForHealth,
@@ -1769,6 +1770,258 @@ describe("asking to be allowed", () => {
         decision: "maybe",
       });
       assert.equal(answered.status, 400);
+    });
+  });
+});
+
+// Ending a run that will not end itself.
+//
+// Every other press on a panel is a turn and waits in the same queue. This one cannot: it is for
+// the session whose queue has stopped moving, and the thing that has stopped it is a run with no
+// way out. A run answers, or falls over, or is turned away, or the whole chat is stopped — and
+// until this there was nothing between those and killing the chat, which takes every other
+// session's work with it.
+//
+// The state is reached with a stand-in that goes quiet and never comes back, which is what the
+// real one does while it waits to be allowed something nobody is going to answer. Nothing here
+// can pass by waiting: there is no ending for these runs but the one being checked.
+describe("ending a run that will not end itself", () => {
+  // Raced against a clock, and the clock is not decoration. Every check below is about a request
+  // coming back; a chat that never answers one would hang the whole suite instead of failing a
+  // check, and a mutation that cannot be watched failing is not a proof of anything.
+  async function within(ms, what, made) {
+    return Promise.race([
+      made,
+      new Promise((resolve) => setTimeout(() => resolve({ status: 0, body: `${what} never came back` }), ms)),
+    ]);
+  }
+
+  async function rowFor(name) {
+    const { sessions: rows } = JSON.parse((await get(`${URL}/sessions`)).body);
+    return rows.find((row) => row.name === name) ?? null;
+  }
+
+  function untilAnswering(name) {
+    return waitFor(async () => {
+      const row = await rowFor(name);
+      return row !== null && row.busy ? row : null;
+    });
+  }
+
+  // The fixture ends what the fixture started. A run in this state has no ending of its own — it
+  // goes because the chat ends it — and whether the chat does is the whole of what is checked
+  // below, so the suite cannot lean on it having happened. Measured: with the forcing broken, the
+  // two checks about it went red and were never printed, because the run left behind holds this
+  // process's own output open and the reporter waits on it forever. A check that cannot be watched
+  // failing proves nothing, so the clearing up happens here, by pid, after every check has read
+  // what it needed. The shell a DEAF run leaves needs no help: it is detached, it holds nothing
+  // open and it ends on its own clock.
+  after(async () => {
+    for (const entry of fs.readdirSync(standIn)) {
+      if (!entry.startsWith("stuck")) {
+        continue;
+      }
+      for (const pid of stuckRunsIn(path.join(standIn, entry))) {
+        if (alive(pid)) {
+          process.kill(pid, "SIGKILL");
+        }
+      }
+    }
+
+    await start(instance, standIns);
+    assert.ok(await waitForHealth(URL), "the server never came back");
+  });
+
+  describe("a run that has gone quiet", () => {
+    const quietLog = path.join(standIn, "stuck.txt");
+    let answering;
+    let ended;
+    let answered;
+    let refused;
+
+    before(async () => {
+      await start(instance, standInEnvironment(standIn, quietLog, { OW_STAND_IN_STUCK: "yes" }));
+      assert.ok(await waitForHealth(URL), "the server never answered");
+
+      // Not awaited: this is the message whose run never comes back on its own. Its answer is
+      // collected further down, after the thing that lets it come back at all.
+      const exchange = say("something that will never be answered");
+      answering = await untilAnswering(LEADER);
+
+      // Asked of a session nothing is running for, while another session's run IS going, so the
+      // refusal is about this name and not about the chat being quiet.
+      refused = await within(5000, "the refusal", post(`${URL}/sessions/${WORKER}/end`, {}));
+
+      ended = await within(20000, "the ending", post(`${URL}/sessions/${LEADER}/end`, {}));
+      answered = await within(5000, "the message", exchange);
+    });
+
+    it("ends a run that would not end on its own", () => {
+      // The fixture, said before the thing it makes possible. Without this line a run that ended
+      // on its own a moment after it started would satisfy the assertion below, and the ending
+      // would be proving nothing — which is the one case this check exists to catch.
+      assert.equal(answering?.busy, true, "no run was ever going, so there was nothing to end");
+      assert.equal(ended.status, 200, ended.body);
+    });
+
+    // Named for the retry, because that is what it protects. A run that fails is asked again
+    // without its thread — the repair for a conversation that cannot be resumed — and a run
+    // somebody ended looks exactly like one of those from here. Measured before this guard
+    // existed: the second run went quiet in the same way the first had, the message never came
+    // back at all, and the conversation was thrown away on the way.
+    it("does not start the run again once somebody has ended it", () => {
+      assert.equal(answered.status, 200, answered.body);
+      assert.equal(callsIn(quietLog).filter((call) => call.includes("--model")).length, 1);
+    });
+
+    // Read off the panel and not off what the route answered: a route that built the right object
+    // and never wrote a row would satisfy a check on its own reply.
+    it("says on the panel that the run was ended", async () => {
+      const { messages } = JSON.parse((await transcriptOf(LEADER)).body);
+      const last = messages.at(-1);
+      assert.equal(last?.text, "this run was ended before it answered", JSON.stringify(last));
+    });
+
+    it("marks that line as a turn that did not answer", async () => {
+      const { messages } = JSON.parse((await transcriptOf(LEADER)).body);
+      assert.equal(messages.at(-1)?.failed, true);
+    });
+
+    it("refuses when nothing is running there", () => {
+      assert.equal(refused.status, 409, refused.body);
+    });
+  });
+
+  // A second message behind the first. The press that gets out of this has to reach the session
+  // WITHOUT joining the queue it is unsticking — a way out that waits in the queue is not one.
+  describe("with something else waiting behind it", () => {
+    const behindLog = path.join(standIn, "stuck-queue.txt");
+    let queued;
+    let took;
+
+    before(async () => {
+      await start(instance, standInEnvironment(standIn, behindLog, { OW_STAND_IN_STUCK: "yes" }));
+      assert.ok(await waitForHealth(URL), "the server never answered");
+
+      const first = say("the one that gets stuck");
+      await untilAnswering(LEADER);
+      const second = say("the one waiting behind it");
+      queued = await waitFor(async () => {
+        const row = await rowFor(LEADER);
+        return row !== null && row.queued > 0 ? row : null;
+      });
+
+      const at = Date.now();
+      await within(20000, "the ending", post(`${URL}/sessions/${LEADER}/end`, {}));
+      took = Date.now() - at;
+
+      // Both are ended before this describe gives the chat back: the second message starts a run
+      // of its own, and it is stuck in exactly the way the first one was.
+      await within(20000, "the second ending", post(`${URL}/sessions/${LEADER}/end`, {}));
+      await Promise.all([within(5000, "the first message", first), within(5000, "the second", second)]);
+    });
+
+    // On the clock rather than on the answer, because a route that joined the queue would not
+    // answer WRONG — it would not answer at all, until a run that is never going to end ended.
+    it("does not wait its turn behind the run it is ending", () => {
+      assert.equal(queued?.queued, 1, "nothing was ever queued, so nothing was queued past");
+      assert.ok(took < 5000, `the ending took ${took}ms, which is long enough to have waited in the queue`);
+    });
+  });
+
+  // Two sessions in the same state, and one of them ended. The ending that already exists takes
+  // every run at once, which is right on the way out of the chat and wrong here.
+  describe("with another session in the same state", () => {
+    const bothLog = path.join(standIn, "stuck-both.txt");
+    let others;
+    let runs;
+    let theirsAfterwards;
+
+    before(async () => {
+      await start(instance, standInEnvironment(standIn, bothLog, { OW_STAND_IN_STUCK: "yes" }));
+      assert.ok(await waitForHealth(URL), "the server never answered");
+
+      const mine = say("the one that is ended");
+      await untilAnswering(LEADER);
+      const theirs = say("the one that is left alone", WORKER);
+      await untilAnswering(WORKER);
+
+      // Waited for rather than read, and the difference is not theoretical: a row says busy as soon
+      // as the turn is counted, which is before the run behind it has started and said which
+      // process it is. Measured — the log held one pid where the rows said two sessions were
+      // answering. What this check reads is the process, so the process is what is waited for.
+      // Oldest first, and the second of them is the one that is meant to be left alone.
+      runs = await waitFor(() => {
+        const said = pidsIn(bothLog);
+        return said.length === 2 ? said : null;
+      });
+
+      await within(20000, "the ending", post(`${URL}/sessions/${LEADER}/end`, {}));
+      others = await rowFor(WORKER);
+      theirsAfterwards = runs === null ? null : alive(runs[1]);
+
+      await within(20000, "the other ending", post(`${URL}/sessions/${WORKER}/end`, {}));
+      await Promise.all([within(5000, "one message", mine), within(5000, "the other", theirs)]);
+    });
+
+    // The row is the guard here rather than a check of its own, because nothing can make it fail.
+    // `busy` is how many turns a session has going, and a turn outlives the run that was serving it
+    // by however long the answer takes to come back — so a run killed a moment ago still reads as
+    // busy. Measured: an ending that took every run in the chat left that row saying exactly what
+    // it says when the ending stayed where it was aimed.
+    //
+    // Asking the chat instead does not settle it either: the ending resolves on the process being
+    // gone, and the run is taken out of the map by the close that follows, so the other session's
+    // own ending still answers 200 for a run that is already dead. Only the machine knows. The pid
+    // is what the fixture wrote down before it went quiet, and signal 0 asks about that process and
+    // nothing else.
+    it("leaves the other session's run running", () => {
+      assert.equal(runs?.length, 2, `two runs should have started; the fixture recorded ${runs?.length}`);
+      assert.equal(others?.busy, true, "the other session was not answering anything, so this proved nothing");
+      assert.equal(theirsAfterwards, true, "ending one session's run ended the other session's too");
+    });
+  });
+
+  // Asked and not going. Being asked is the whole of what a well behaved run needs, and the chat
+  // has no way of knowing it is dealing with one that is not — so the forcing is what these are
+  // about, and one of them is on the clock rather than on the outcome.
+  describe("a run that will not go when it is asked", () => {
+    const deafLog = path.join(standIn, "stuck-deaf.txt");
+    let took;
+
+    before(async () => {
+      await start(
+        instance,
+        standInEnvironment(standIn, deafLog, { OW_STAND_IN_STUCK: "yes", OW_STAND_IN_DEAF: "yes" }),
+      );
+      assert.ok(await waitForHealth(URL), "the server never answered");
+
+      const exchange = say("the one that will not go quietly");
+      await untilAnswering(LEADER);
+
+      const at = Date.now();
+      await within(30000, "the ending", post(`${URL}/sessions/${LEADER}/end`, {}));
+      took = Date.now() - at;
+      await within(5000, "the message", exchange);
+    });
+
+    // The two seconds the chat waits before forcing one, and room around it. A run that will not
+    // go has no other ending at all, so anything past this means the forcing never happened and
+    // the check would otherwise sit there proving nothing.
+    it("does not sit there waiting for a run that is never going to go", () => {
+      assert.ok(took < 8000, `ending took ${took}ms, longer than the forcing should ever need`);
+    });
+
+    // A forced run cannot take its own shells with it — it is not running any more to do it — so
+    // what it started is read out of the process table before it is forced rather than after,
+    // where everything under it has been reparented and the way back to it is gone.
+    it("leaves nothing the run had started behind either", async () => {
+      const shells = shellsIn(deafLog);
+      assert.ok(shells.length > 0, "the run started nothing, so this proved nothing");
+      for (const shell of shells) {
+        const gone = await waitFor(() => (alive(shell) ? null : true));
+        assert.ok(gone, `the shell at ${shell} outlived the run that started it`);
+      }
     });
   });
 });
@@ -3859,7 +4112,14 @@ describe("what the page offers", () => {
   // Built per panel, so this one CAN be built and never attached. The check reads the line that
   // puts it beside the other buttons, not the line that makes it.
   it("offers a worker the way out, beside the handover", () => {
-    assert.match(page, /composer\.append\(box, send, hand, \.\.\.\(leave === null \? \[\] : \[leave\]\)\);/);
+    assert.match(page, /composer\.append\(box, send, hand, endRun, \.\.\.\(leave === null \? \[\] : \[leave\]\)\);/);
+  });
+
+  // On every panel and not only a worker's: a lead's run can stop moving exactly as anybody
+  // else's can, and the lead is the session a page cannot afford to lose.
+  it("offers the way out of a run to every panel", () => {
+    assert.match(page, /const endRun = document\.createElement\("button"\);/);
+    assert.match(page, /endRun\.textContent = "End this run";/);
   });
 
   // An instance has a lead by definition and this page is hosted by it. The route refuses it too;

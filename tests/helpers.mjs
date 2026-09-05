@@ -115,6 +115,11 @@ export function claudeIsInstalled() {
 //   OW_STAND_IN_DEAF          ignore being asked to stop, and start a shell of its own the way
 //                             a tool call does — its own process group AND its own session — so a
 //                             check can watch what a forced run leaves behind
+//   OW_STAND_IN_STUCK         answer nothing, ignore its input being closed, and never exit — the
+//                             one state no fixture here could reach before, and the one the real
+//                             one is in when it is waiting to be allowed something and nobody
+//                             answers. Beside DEAF it also refuses to go when it is asked, which
+//                             is what leaves the forcing something to do
 //   OW_STAND_IN_ASKS          ask to be allowed to use this tool, wait for the answer, and make
 //                             what it was told the reply
 //   OW_STAND_IN_ASKS_INPUT    the argument that tool would be given, and a knob for the same
@@ -453,6 +458,25 @@ if ((process.env.OW_STAND_IN_DEAF ?? "") !== "") {
   fs.appendFileSync(log, \`shell: \${started.pid}\\n\`);
 }
 
+// A run that goes quiet and stays that way. No answer, no failure, no notice on either stream, and
+// its input being closed changes nothing — the state a real one is in while it waits to be allowed
+// something that nobody is going to answer. Every other knob here ends somehow; this one is the
+// absence of an ending, which is the whole point of it.
+//
+// It sits after the shell above so a run can be stuck AND have left something running underneath
+// it, and before everything below so nothing is ever framed.
+if ((process.env.OW_STAND_IN_STUCK ?? "") !== "") {
+  // Its own pid, said before it goes quiet, because after this line it says nothing ever again.
+  // This is the only thread back to it: a run in this state ends because the chat ends it, so a
+  // suite checking whether the chat DOES would have no way to clear up after itself the one time
+  // it matters — when the ending is broken and the check is about to say so. A stuck run left
+  // behind holds the test process's own output open, and a check that cannot be watched failing
+  // proves nothing.
+  fs.appendFileSync(log, \`stuck: \${process.pid}\\n\`);
+  setInterval(() => {}, 60000);
+  await new Promise(() => {});
+}
+
 // Said from inside this turn, with the instance's own command, from the directory a session is
 // started in. A timeout, because the thing being checked is sometimes whether this returns at all.
 const me = process.env.OW_SESSION_NAME ?? "";
@@ -706,6 +730,17 @@ export function shellsIn(log) {
     .split("\n")
     .filter((line) => line.startsWith("shell: "))
     .map((line) => Number(line.slice("shell: ".length)));
+}
+
+// The runs the stand-in left in the state that has no ending of its own, newest last. Read by a
+// teardown rather than by a check: what these checks are about is whether the chat ends such a
+// run, so the suite cannot lean on the chat to have done it and still be able to report that it
+// did not.
+export function stuckRunsIn(log) {
+  return readLog(log)
+    .split("\n")
+    .filter((line) => line.startsWith("stuck: "))
+    .map((line) => Number(line.slice("stuck: ".length)));
 }
 
 // What Claude Code was told to file this instance's transcripts and memory under, newest last.

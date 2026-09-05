@@ -299,10 +299,26 @@ function permission(child, frame, asked) {
   );
 }
 
-// Every run this chat has going. A run puts itself in when it starts and takes itself out when
-// it is over, so what is in here is what is alive right now, and there is one place to look when
-// the chat is asked to stop.
-const running = new Set();
+// Every run this chat has going, under the name of the session it belongs to. A run puts itself
+// in when it starts and takes itself out when it is over, so what is in here is what is alive
+// right now, and there is one place to look when the chat is asked to stop.
+//
+// Keyed by name rather than held as a bare set, because one of them can now be asked for by
+// itself. That the key is enough is not a hope: a session answers one message at a time, so at
+// most one run of a session is alive at once, and the queue is what makes that true rather than
+// anything here.
+const running = new Map();
+
+// The runs somebody ended, waiting for their own close to be read. A name goes in when the ending
+// is asked for and comes out when the run settles, so nothing is left here for a run that is over.
+const endedHere = new Set();
+
+// What such a run amounted to. Its own sentence, because the alternative is a lie: a run ended
+// before it answered has no result frame, and `interpret` calls a run with no result frame one
+// that "ended without answering" — which is true of a run that fell over and not of one somebody
+// ended on purpose. Said here so the turn appends it the way it appends any other failed turn,
+// and the panel carries ONE line about it rather than a second posted from the side.
+const ENDED_BY_HAND = "this run was ended before it answered";
 
 // How long a run is given to go quietly before it is made to.
 const PATIENCE = 2000;
@@ -412,7 +428,25 @@ function leave(child) {
 // So the chat ends what it started rather than trusting whatever stopped it to have done it. The
 // one stop this cannot cover is a SIGKILL on the chat itself, where no code of ours runs at all.
 export function endEveryRun(patience = PATIENCE) {
-  return Promise.all([...running].map((child) => end(child, patience)));
+  return Promise.all([...running.values()].map((child) => end(child, patience)));
+}
+
+// End the one run this session has going, and do not answer until it is gone. Answers whether
+// there was one, so a caller can tell "ended it" from "there was nothing to end" rather than
+// having to ask first and race its own answer.
+//
+// It is the ending that already exists, whole: the run is asked, and made to go after PATIENCE if
+// it will not, with what it started read out of the process table before the forcing rather than
+// after it. Nothing new is written for the ending itself — what is new is only that one of them
+// can be named.
+export async function endRun(name, patience = PATIENCE) {
+  const child = running.get(name);
+  if (child === undefined) {
+    return false;
+  }
+  endedHere.add(name);
+  await end(child, patience);
+  return true;
 }
 
 // How many runs are going. The chat says so on the way out: ending them takes a moment, and a
@@ -513,7 +547,7 @@ function run(instance, name, text, resume, asked) {
       return;
     }
 
-    running.add(child);
+    running.set(name, child);
 
     let answer = null;
     let limit = null;
@@ -567,7 +601,7 @@ function run(instance, name, text, resume, asked) {
     child.stdin.on("error", () => {});
 
     child.on("error", (error) => {
-      running.delete(child);
+      running.delete(name);
       const why =
         error.code === "ENOENT"
           ? "Claude Code is not on the PATH of the process serving this page"
@@ -578,7 +612,14 @@ function run(instance, name, text, resume, asked) {
     });
 
     child.on("close", () => {
-      running.delete(child);
+      running.delete(name);
+      // Ended by somebody rather than over of its own accord, and it says so in its own words. An
+      // answer that had already arrived is still the answer: what was ended then was a run with
+      // nothing left to say, and reporting it as ended would throw away what it did say.
+      if (endedHere.delete(name) && answer === null) {
+        resolve({ failed: true, refused: null, ended: true, text: ENDED_BY_HAND });
+        return;
+      }
       resolve(interpret(answer, err, limit, reading));
     });
 
@@ -730,7 +771,13 @@ export async function ask(instance, name, text, asked = nobodyToAsk) {
   // the account is unavailable and the thread is untouched. Retrying a refusal spends a second run
   // that cannot succeed, and forgetting throws a conversation away for a condition that clears by
   // itself. So this fires on what its own comment describes, and on nothing else.
-  if (answer.failed && answer.refused === null && resume !== null) {
+  //
+  // A run somebody ENDED is the third of those, and the strongest case of the three: retrying it
+  // starts another run of exactly what was just stopped — measured, and on a run that had gone
+  // quiet the second one went quiet too — and the forget throws away a conversation that nothing
+  // was ever wrong with. Somebody asked for this to stop; asking again is the one thing they did
+  // not ask for.
+  if (answer.failed && answer.refused === null && answer.ended !== true && resume !== null) {
     forget(instance.root, name);
     answer = await run(instance, name, text, null, asked);
   }
