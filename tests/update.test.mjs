@@ -20,6 +20,12 @@ const HUMAN = "Mike";
 const LEADER = "Superman";
 const NEWER = "9.9.9";
 
+// The version the instances here are installed at. Read from the repository rather than written
+// down, because these instances are installed from it: a literal would be a second place holding
+// the version this repository is on, and every check below would go red the day it is bumped
+// while nothing about an update had changed.
+const INSTALLED = fs.readFileSync(path.join(repo, "VERSION"), "utf8").trim();
+
 // Something in the newer payload that the installed one has not got. Without it the release is a
 // copy of what the instance already has, and a check asking whether an entry was replaced cannot
 // tell the two states apart — it passes with the entry skipped entirely. Measured: the check for
@@ -152,7 +158,8 @@ describe("taking a newer version from a directory", () => {
   });
 
   it("names both versions", () => {
-    assert.match(done.stdout, /Was on 0\.1\.0, now on 9\.9\.9/);
+    const said = `Was on ${INSTALLED}, now on ${NEWER}`;
+    assert.ok(done.stdout.includes(said), `nothing said ${JSON.stringify(said)}: ${done.stdout}`);
   });
 
   // Every entry, in one expression, so that skipping one of them cannot pass as replacing the
@@ -186,7 +193,7 @@ describe("taking a newer version from a directory", () => {
 
   it("leaves the word saying which versions it moved between", () => {
     const said = JSON.parse(fs.readFileSync(path.join(root, "chat", "untold.json"), "utf8"));
-    assert.deepEqual([said.from, said.to], ["0.1.0", NEWER]);
+    assert.deepEqual([said.from, said.to], [INSTALLED, NEWER]);
   });
 
   it("leaves the notes the release carried with it", () => {
@@ -235,7 +242,7 @@ describe("what an update refuses", () => {
   });
 
   it("leaves the instance on the version it was on", () => {
-    assert.equal(fs.readFileSync(path.join(root, "VERSION"), "utf8").trim(), "0.1.0");
+    assert.equal(fs.readFileSync(path.join(root, "VERSION"), "utf8").trim(), INSTALLED);
   });
 
   // A default that is taken quietly when the command line is mistyped would update an instance
@@ -300,6 +307,6 @@ describe("an update while the chat is running", () => {
   });
 
   it("leaves the instance on the version it was on", () => {
-    assert.equal(fs.readFileSync(path.join(root, "VERSION"), "utf8").trim(), "0.1.0");
+    assert.equal(fs.readFileSync(path.join(root, "VERSION"), "utf8").trim(), INSTALLED);
   });
 });
