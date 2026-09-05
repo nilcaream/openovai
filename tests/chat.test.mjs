@@ -7570,3 +7570,298 @@ describe("which reading the lead is told the account stands at", () => {
     assert.doesNotMatch(toldWhenItHasLifted, /Plan what is left wisely/);
   });
 });
+
+
+const NEARLY_GONE = "Redpoll";
+const STILL_RUNS = "Brambling";
+
+// What the lead is told to DO once the window is nearly gone, and which way to put people down.
+//
+// The reading beside this one is a number and an age; this is the office's rule on top of it, and
+// the whole of the rule is a choice between two ways of stopping. Pausing people leaves their
+// conversations where they stand and costs nothing to undo; parking them ends every one of them and
+// is paid for in everything nobody wrote down. Getting the choice the wrong way round is expensive
+// in one direction and irreversible in the other, so both states of it are staged here, either side
+// of the hour a conversation stays carriable — and never either side of an hour written down twice.
+describe("what the lead is told to do once the window is nearly gone", () => {
+  const stopLog = path.join(standIn, "stop.txt");
+  let toldWhileThereIsRoomToPlan;
+  let toldToPause;
+  let toldToPark;
+  let toldWithNoMoment;
+  let toldTheWeekIsFullToo;
+  let toldWhenTheWeekHasEnded;
+  let ranBeforeTheWorkerWasAsked;
+  let ranAfterTheWorkerWasAsked;
+  let askedTheWorker;
+
+  const lastQuestion = (log) => questionsIn(log).slice(-1)[0] ?? "";
+  const nearlyGone = (liftsIn) => [window("five_hour", 0.96, liftsIn), window("seven_day", 0.36, 5 * 24 * 60)];
+  const roomLeft = () => [window("five_hour", 0.91, 180), window("seven_day", 0.36, 5 * 24 * 60)];
+
+  // The clock this describe reads lift moments against. Written as minutes into the day so that a
+  // run started at ten to midnight compares the same way as one at noon.
+  const intoTheDay = (hours, minutes) => (Number(hours) * 60 + Number(minutes)) % (24 * 60);
+  const liftsIn = (block, minutes) => {
+    const said = block.match(/It lifts at (\d\d):(\d\d)/);
+    assert.ok(said !== null, `no lift moment in: ${block}`);
+    const expected = new Date(Date.now() + minutes * 60 * 1000);
+    const apart = Math.abs(intoTheDay(said[1], said[2]) - intoTheDay(expected.getHours(), expected.getMinutes()));
+    assert.ok(Math.min(apart, 24 * 60 - apart) <= 2, `it said ${said[0]}, and the window lifts in ${minutes}m`);
+  };
+
+  // The reading under test is staged on a worker and the lead's own is pushed behind it, because
+  // the lead's turn rewrites its own thread the moment it runs — so the freshest reading in the
+  // instance has to be one nothing here is about to touch.
+  const stage = (windows) => {
+    stageWindows(NEARLY_GONE, windows);
+    stageWindows(LEADER, roomLeft(), 6);
+  };
+
+  before(async () => {
+    runTool(instance, ["hire", NEARLY_GONE], process.env);
+    runTool(instance, ["hire", STILL_RUNS], process.env);
+    await start(instance, standInEnvironment(standIn, stopLog));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    // A turn each, so every one of them has a thread and a clock to stage against.
+    await say("something, so this one has run", NEARLY_GONE);
+    await say("something, so this one has run too", STILL_RUNS);
+    await say("and the lead, so it has one", LEADER);
+
+    // Over the plan line and under the stop line. The other state of the stop line, without which
+    // the checks below prove only that a sentence is always there.
+    stage(roomLeft());
+    await say("a first question, with room left to plan with", LEADER);
+    toldWhileThereIsRoomToPlan = lastQuestion(stopLog);
+
+    // Over the stop line, lifting well inside the hour a conversation stays carriable — and inside
+    // it by less than an hour's worth of margin, which is what lets the hour be watched.
+    stage(nearlyGone(45));
+    await say("a second question, with the window nearly gone and a short wait", LEADER);
+    toldToPause = lastQuestion(stopLog);
+
+    // Over the stop line and lifting further off than that hour.
+    stage(nearlyGone(90));
+    await say("a third question, with the window nearly gone and a long wait", LEADER);
+    toldToPark = lastQuestion(stopLog);
+
+    // Over the stop line with the frame naming no moment at all.
+    stage([window("five_hour", 0.96, null), window("seven_day", 0.36, 5 * 24 * 60)]);
+    await say("a fourth question, with nothing said about when it lifts", LEADER);
+    toldWithNoMoment = lastQuestion(stopLog);
+
+    // Both windows over the stop line, the week five days off. The one ordering in which the advice
+    // above would be wrong on its own.
+    stage([window("five_hour", 0.96, 20), window("seven_day", 0.97, 5 * 24 * 60)]);
+    await say("a fifth question, with the week over the line as well", LEADER);
+    toldTheWeekIsFullToo = lastQuestion(stopLog);
+
+    // The week over the line on a reading that describes a week already gone. Ninety-seven per cent
+    // of a week that rolled is nothing, and saying it does not lift until a moment in the past is
+    // worse than saying nothing.
+    stage([window("five_hour", 0.96, 20), window("seven_day", 0.97, -30)]);
+    await say("a sixth question, with the week over the line but already rolled", LEADER);
+    toldWhenTheWeekHasEnded = lastQuestion(stopLog);
+
+    // And a worker asked something with the account still over the stop line. The stand-in's own
+    // call log is what says the run happened, rather than anything the answer contains.
+    stage(nearlyGone(90));
+    ranBeforeTheWorkerWasAsked = callsIn(stopLog).length;
+    await say("a worker is asked something while the account is nearly out", STILL_RUNS);
+    ranAfterTheWorkerWasAsked = callsIn(stopLog).length;
+    askedTheWorker = lastQuestion(stopLog);
+  });
+
+  // Mutations, and it takes one each way:
+  //   the stop line written as 95 rather than 0.95, which is the shape of every off-by-a-hundred a
+  //     fullness between nought and one invites → nothing ever crosses it, and the window at 96% is
+  //     told to plan around what is not there;
+  //   the stop test made against the plan line → the window at 91% is told to stop everything, which
+  //     is the expensive direction and the one no check beside this one would notice.
+  it("says to stop once the window is nearly gone, and to plan while it is not", () => {
+    const nearlyOut = usageBlock(toldToPark);
+    assert.notEqual(nearlyOut, "", `no block at all in: ${toldToPark}`);
+    assert.match(nearlyOut, /five-hour usage window was 96% full/);
+    assert.match(nearlyOut, /Stop the tasks/);
+    assert.doesNotMatch(nearlyOut, /Plan what is left wisely/);
+
+    const roomToPlan = usageBlock(toldWhileThereIsRoomToPlan);
+    assert.match(roomToPlan, /five-hour usage window was 91% full/);
+    assert.match(roomToPlan, /Plan what is left wisely/);
+    assert.doesNotMatch(roomToPlan, /Stop the tasks/);
+  });
+
+  // Mutation: turn the comparison on the hour round. Every conversation in the workspace is ended
+  // and rebuilt off its desk over a wait it would have sat through, which is the cost this whole
+  // choice exists to avoid paying twice.
+  it("says to park everybody when it lifts further off than a conversation lasts", () => {
+    const block = usageBlock(toldToPark);
+    assert.match(block, /further off than the hour a conversation here stays carriable/);
+    assert.match(block, /park everybody, yourself included/);
+    assert.doesNotMatch(block, /pause everybody where they are/);
+    liftsIn(block, 90);
+  });
+
+  // Mutations, and the second is the one this check is really for:
+  //   turn the comparison round → this fixture is told to park;
+  //   MOVE COLD_AFTER, and nothing else. Half an hour instead of an hour, and this fixture at
+  //     forty-five minutes is on the other side of it → told to park. That is the whole of what
+  //     "the hour is read off COLD_AFTER" means as something watchable: an implementation with the
+  //     hour written down here instead would sail through it green. The fixture sits at 45 minutes
+  //     and not at 20 for exactly that reason — 20 is inside both hours and watches nothing.
+  it("says to pause everybody in place when it lifts inside the hour one lasts", () => {
+    const block = usageBlock(toldToPause);
+    assert.match(block, /inside the hour a conversation here stays carriable/);
+    assert.match(block, /pause everybody where they are/);
+    assert.doesNotMatch(block, /park everybody, yourself included/);
+    liftsIn(block, 45);
+  });
+
+  // Mutation: take a missing moment for an answer — either one. Nothing is known, so the third
+  // thing is said, and this asserts that third thing rather than the absence of the other two: an
+  // absence is satisfied by a block that says nothing at all.
+  it("says to find out when it lifts when the frame did not say", () => {
+    const block = usageBlock(toldWithNoMoment);
+    assert.match(block, /It did not say when it lifts\./);
+    assert.match(block, /Stop the tasks\./);
+    assert.match(block, /find that out before choosing/);
+    assert.doesNotMatch(block, /inside the hour/);
+    assert.doesNotMatch(block, /further off than the hour/);
+  });
+
+  // Mutation: let the week into the choice about when everything lifts. The five-hour window is
+  // twenty minutes off here and the week is five days off, so a choice that reads both tells the
+  // lead to end every conversation in the workspace over a wait of twenty minutes.
+  //
+  // The week's own sentence is cut out and read alone, because what is being asserted about it is
+  // that it carries NO instruction — and the block it sits in is nothing but instructions.
+  it("says the week is nearly gone too, and tells the lead nothing to do about it", () => {
+    const block = usageBlock(toldTheWeekIsFullToo);
+    assert.match(block, /five-hour usage window was 96% full/);
+    assert.match(block, /pause everybody where they are/);
+    assert.doesNotMatch(block, /park everybody, yourself included/);
+
+    const week = block.split("\n\n").find((said) => said.startsWith("The seven-day usage window was"));
+    assert.ok(week !== undefined, `nothing said about the week in: ${block}`);
+    assert.match(week, /97% full in the same reading/);
+    assert.match(week, /Nothing here tells you what to do about that/);
+    assert.doesNotMatch(week, /Stop the tasks|pause everybody|park everybody|Plan what is left|hand each one over/);
+  });
+
+  // Mutation: name the week without asking whether it is still running. MEASURED: before this check
+  // existed, removing that test from the search changed nothing anywhere in the suite — the guard was
+  // there and right and nothing watched it. The window this rule is about has the same check beside
+  // it; this is the same rule asked of the window merely mentioned, which is why both are dropped by
+  // one comparison rather than two.
+  it("says nothing about a week that has already ended", () => {
+    const block = usageBlock(toldWhenTheWeekHasEnded);
+    assert.match(block, /five-hour usage window was 96% full/, "the fixture said nothing at all");
+    assert.doesNotMatch(block, /seven-day usage window was/);
+    assert.doesNotMatch(block, /97% full/);
+  });
+
+  // Mutation: refuse in inTurn when the account is over the stop line — the one funnel the offline
+  // gate already runs through, which is exactly where somebody would put this if they read it as a
+  // rule the toolkit enforces rather than one it tells a person about.
+  //
+  // It is a reading and the software parks nobody: the lead decides, and everything goes on working
+  // meanwhile, including the turns the lead needs in order to act on it.
+  it("runs a message for a worker as usual while the account is over the stop line", () => {
+    assert.equal(ranAfterTheWorkerWasAsked, ranBeforeTheWorkerWasAsked + 1, "the worker's turn never ran");
+    assert.match(askedTheWorker, /a worker is asked something while the account is nearly out/);
+  });
+});
+
+
+const WAITS_WHILE_IT_FILLS = "Siskin";
+
+// Where the account stands is read where the turn begins, and not where the message arrived.
+//
+// The other reading pushed at the lead has the same check for the same reason, and this one matters
+// more: a message that waits behind a long turn is waiting on the very thing that is spending the
+// window. By the time it is answered the account can be somewhere else entirely, and the whole
+// worth of this reading is that it describes the account the turn is about to spend from.
+//
+// The stand-in is set to report a nearly-gone window here, so the thing that crosses the line is the
+// turn ahead — the account really is filled up by the run that is holding this message in the
+// queue, which is the case this is about rather than a stand-in for it.
+describe("where the account stands is read where the turn begins and not where the message arrived", () => {
+  const filledLog = path.join(standIn, "filled.txt");
+  let deepEnough;
+  let stillGoing;
+  let toldBeforeItFilled;
+  let toldAfterTheWait;
+
+  before(async () => {
+    runTool(instance, ["hire", WAITS_WHILE_IT_FILLS], process.env);
+    await start(instance, standInEnvironment(standIn, filledLog, { OW_STAND_IN_SLOW: "1500", OW_STAND_IN_FULLNESS: "0.96" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    // A turn each, so both have a thread and a clock.
+    await say("something, so this one has run", WAITS_WHILE_IT_FILLS);
+    await say("and the lead, so it has one too", LEADER);
+
+    // And now the account is put back under the line, on the freshest readings in the instance —
+    // so nothing is said on the turn below, and the state that makes this check mean anything is
+    // that the line is crossed AFTER its message was taken.
+    stageWindows(WAITS_WHILE_IT_FILLS, [window("five_hour", 0.31, 180), window("seven_day", 0.15, 5 * 24 * 60)], 1);
+    stageWindows(LEADER, [window("five_hour", 0.31, 180), window("seven_day", 0.15, 5 * 24 * 60)]);
+
+    // The lead's first message, left running. Not awaited: the second has to arrive while this one
+    // still holds the turn.
+    const going = say("the first thing, which takes a while and spends the window", LEADER);
+    await waitFor(async () => {
+      const row = JSON.parse((await get(`${URL}/sessions`)).body).sessions.find((session) => session.name === LEADER);
+      return row?.busy === true ? row : null;
+    });
+
+    // The second, joining the queue behind it. Waited for as a DEPTH and not as a duration: the row
+    // says how many are behind the one being answered, so this is the server saying the message is
+    // in and has not been read, rather than a sleep hoping it is.
+    const queued = say("the second thing, which waits behind the first");
+    deepEnough = await waitFor(async () => {
+      const row = JSON.parse((await get(`${URL}/sessions`)).body).sessions.find((session) => session.name === LEADER);
+      return (row?.queued ?? 0) >= 1 ? row : null;
+    });
+
+    // The first turn is still the one running, or the wait proved nothing: a session answers one
+    // message at a time, so the second cannot have been read while this is true. The line is crossed
+    // when this turn ends and writes what the service told it — after its message was taken.
+    stillGoing = JSON.parse((await get(`${URL}/sessions`)).body).sessions.find((session) => session.name === LEADER);
+
+    await going;
+    await queued;
+
+    // Both by POSITION and neither by "the last one". The second turn starts the moment the first
+    // finishes, so a reading taken when the first settles is a race with the question after it. This
+    // log belongs to this describe alone and holds these four questions in the order they were
+    // asked: the two that gave each session a clock, then the one that ran long, then the one that
+    // waited behind it.
+    const asked = questionsIn(filledLog);
+    assert.equal(asked.length, 4, `expected the four questions of this describe, got ${asked.length}`);
+    toldBeforeItFilled = asked[2];
+    toldAfterTheWait = asked[3];
+  });
+
+  // Mutation: compose what goes in front of a turn in the route handler, where the message arrives,
+  // and pass it down into the turn. The account was a third full when this message was taken, so the
+  // lead is handed nothing about a window its own last turn finished off — and every check above
+  // stays green, because each of them asks a question that was answered at once.
+  it("says where the account stands when the waiting message is finally read", () => {
+    assert.equal(stillGoing?.busy, true, "the first turn had already finished, so nothing waited");
+    assert.ok((deepEnough?.queued ?? 0) >= 1, "the second message never queued behind the first");
+    const block = usageBlock(toldAfterTheWait);
+    assert.notEqual(block, "", `no block at all in: ${toldAfterTheWait}`);
+    assert.match(block, /five-hour usage window was 96% full/);
+    assert.match(block, /Stop the tasks/);
+  });
+
+  // The other half of it, and what stops the check above passing on an account that was nearly gone
+  // all along. Read against THIS state's own words: the suite installs one instance and everything
+  // before this has been writing into it.
+  it("said nothing about it on the turn that began before the line was crossed", () => {
+    assert.doesNotMatch(toldBeforeItFilled, /96% full/);
+    assert.doesNotMatch(toldBeforeItFilled, /Stop the tasks/);
+  });
+});

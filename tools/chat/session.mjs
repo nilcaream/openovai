@@ -241,6 +241,13 @@ const RULED_WINDOW = "five_hour";
 // somebody decided to change what they do. Nothing here can check it and nothing pretends to.
 const PLAN_ABOVE = 0.9;
 
+// The line above which there is not enough left to plan around, and the work stops instead.
+//
+// The other judgment, said beside the first for the same reason. Ninety-five is not five per cent
+// of anything anybody measured; it is where somebody decided that finishing what is in flight is no
+// longer the right answer.
+const STOP_ABOVE = 0.95;
+
 // Where the account stands, as the freshest thing it has told anybody here, or nothing at all.
 //
 // THE FRESHEST AND NOT THE FULLEST. One account, N sessions, N readings taken at N different
@@ -276,18 +283,51 @@ export function accountStanding(instance) {
   }
 
   const freshest = read.reduce((one, other) => (other.at > one.at ? other : one));
-  const ruled = freshest.windows.find((window) => window.name === RULED_WINDOW);
   // A window that named no moment cannot be known to have ended, so it stays. The service did not
-  // say, so this does not decide.
-  const ended = ruled !== undefined && ruled.resetsAt !== null && ruled.resetsAt * 1000 <= Date.now();
-  if (ruled === undefined || ended || ruled.fullness < PLAN_ABOVE) {
+  // say, so this does not decide. Asked of every window here rather than of one, so the window this
+  // rule is about and the one merely mentioned beside it are dropped by the same comparison.
+  const ended = (window) => window.resetsAt !== null && window.resetsAt * 1000 <= Date.now();
+
+  const ruled = freshest.windows.find((window) => window.name === RULED_WINDOW);
+  if (ruled === undefined || ended(ruled) || ruled.fullness < PLAN_ABOVE) {
     return null;
   }
 
   // The window's name goes back with it, spelled as the service spells it, so whoever says this in
   // words says the name of the window that was actually matched. A sentence carrying its own copy
   // of it would be a second place for the two to disagree.
-  return { on: freshest.name, at: freshest.at, window: ruled.name, fullness: ruled.fullness, resetsAt: ruled.resetsAt };
+  return {
+    on: freshest.name,
+    at: freshest.at,
+    window: ruled.name,
+    fullness: ruled.fullness,
+    resetsAt: ruled.resetsAt,
+    // Whether there is still something to plan around, or nothing left to plan with.
+    stop: ruled.fullness >= STOP_ABOVE,
+    // Whether everybody could be carried on where they stand once the wait is over, which is the
+    // whole of the choice between pausing people and handing them over.
+    //
+    // READ OFF COLD_AFTER AND NEVER WRITTEN DOWN AGAIN, the way QUIET_AFTER above is. The hour here
+    // and the hour a conversation goes cold in are the same hour for the same reason — a cache
+    // lives an hour — and a second copy of it that drifted would tell somebody to pause people it
+    // can no longer carry on.
+    //
+    // Null when the frame named no moment, which is not the same answer as no: nothing is known,
+    // so nothing is decided, and whoever says this in words has a third thing to say.
+    warm: ruled.resetsAt === null ? null : ruled.resetsAt * 1000 - Date.now() <= COLD_AFTER,
+    // The other window beside it, and ONLY when it too is over the stop line.
+    //
+    // A FACT AND NOT AN INSTRUCTION. What to do about a full week is not a rule anybody here has
+    // decided, and inventing one is the misfire this whole reading is built not to make. It is
+    // carried at all because it is the one case where the advice above would otherwise be wrong:
+    // "pause everybody, it lifts in twenty minutes" is false while a week nobody mentioned is what
+    // is actually refusing. Below the stop line it is not carried, because the row already says it
+    // and a number handed over with no instruction attached is the one most likely to be acted on.
+    alsoWeek:
+      freshest.windows.find(
+        (window) => window.name !== RULED_WINDOW && !ended(window) && window.fullness >= STOP_ABOVE,
+      ) ?? null,
+  };
 }
 
 // End a thread. The file is the whole of a session's memory between processes, so removing it is

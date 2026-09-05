@@ -255,13 +255,53 @@ function usageWrapper(instance, name) {
   const window = standing.window.replace(/_/g, "-");
   const full = Math.round(standing.fullness * 100);
 
-  return [
+  const said = [
     "<usage>",
     "The chat is telling you this. Nobody typed it.",
     `The ${window} usage window was ${full}% full when ${standing.on} last ran, read ${ago(new Date(standing.at).toISOString())}, as this turn began at ${read}.`,
-    "Plan what is left wisely: finish what is in flight, start no new front and take nobody new on until that window has lifted. What is left of it is only ever less than this says — a reading is a floor, because what a window has been used for does not go back down.",
-    "</usage>",
-  ].join("\n\n");
+  ];
+
+  if (!standing.stop) {
+    said.push(
+      "Plan what is left wisely: finish what is in flight, start no new front and take nobody new on until that window has lifted. What is left of it is only ever less than this says — a reading is a floor, because what a window has been used for does not go back down.",
+    );
+  } else if (standing.warm === null) {
+    // Nothing is known about when it lifts, so nothing is decided here either. The one sentence
+    // that is certain is said, and the choice is handed over WITH the thing it turns on — which is
+    // worth more than either guess, because both guesses look exactly like an answer.
+    said.push("It did not say when it lifts.");
+    said.push(
+      "Stop the tasks. Whether to pause everybody where they are or hand them all over turns on when it lifts against the hour a conversation here stays carriable, so find that out before choosing.",
+    );
+  } else if (standing.warm) {
+    said.push(`It lifts at ${atTime(standing.resetsAt)}, which is inside the hour a conversation here stays carriable.`);
+    said.push(
+      "Stop the tasks and pause everybody where they are. Their conversations will still be there when it lifts, so nothing has to be handed over and nothing has to be read back off a desk.",
+    );
+  } else {
+    said.push(
+      `It lifts at ${atTime(standing.resetsAt)}, which is further off than the hour a conversation here stays carriable.`,
+    );
+    said.push(
+      "Stop the tasks and park everybody, yourself included: every conversation in this workspace will be past carrying on by then, so hand each one over to its desk while it can still say what it knows, and start fresh on the desks afterwards.",
+    );
+  }
+
+  // And the other window, when it too is over the line, as a fact with nothing to do about it
+  // attached. Said last, after the sentence it qualifies, and never in place of it.
+  if (standing.alsoWeek !== null) {
+    const week = standing.alsoWeek.name.replace(/_/g, "-");
+    const lifts =
+      standing.alsoWeek.resetsAt === null
+        ? "and it did not say when it lifts"
+        : `and it does not lift until ${onDay(standing.alsoWeek.resetsAt)}`;
+    said.push(
+      `The ${week} usage window was ${Math.round(standing.alsoWeek.fullness * 100)}% full in the same reading, ${lifts}. Nothing here tells you what to do about that; it is said because waiting for the ${window} window would not be enough on its own.`,
+    );
+  }
+
+  said.push("</usage>");
+  return said.join("\n\n");
 }
 
 // Everything a session is handed in front of the message this turn is about: what it overheard
@@ -477,6 +517,14 @@ function leavingUnanswered(name, where) {
 function atTime(seconds) {
   const when = new Date(seconds * 1000);
   return `${String(when.getHours()).padStart(2, "0")}:${String(when.getMinutes()).padStart(2, "0")}`;
+}
+
+// The same moment when it may not be today. A window measured in days lifts on a date, and an hour
+// on its own would read as this afternoon — which is the one misreading that matters here, since
+// the whole point of saying it is that waiting is not the answer.
+function onDay(seconds) {
+  const when = new Date(seconds * 1000);
+  return `${String(when.getMonth() + 1).padStart(2, "0")}-${String(when.getDate()).padStart(2, "0")} ${atTime(seconds)}`;
 }
 
 // What the panel says when the service turned the run away. Under `the chat` because nobody said it
