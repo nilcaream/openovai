@@ -27,12 +27,59 @@ function describeSession(session) {
   const doing = session.doing === "" ? "(has not said what it is on)" : session.doing;
   const said = [
     stateOf(session),
+    // Beside the state phrase and not inside it. What a session is doing and whether its account
+    // is available are different questions, and a session answering right now while its last run
+    // was turned away is a real state that one word could not say.
+    refusedSaid(session.refused),
+    windowsSaid(session.quota),
     session.thread ? null : "nothing to carry on",
     typeof session.context === "number" ? `${session.context.toLocaleString("en-US")} tokens` : null,
     session.active === null ? "nothing said yet" : `last moved ${ago(session.active)}`,
   ].filter((part) => part !== null);
 
   return `${session.role} (${session.model})  ${doing}  —  ${said.join(" · ")}`;
+}
+
+// When the limit lifts, in the hours of whoever is reading. The moment comes from the service and
+// only its spelling is ours — the same rule, and the same two lines, the panel says it by.
+function atTime(seconds) {
+  const when = new Date(seconds * 1000);
+  return `${String(when.getHours()).padStart(2, "0")}:${String(when.getMinutes()).padStart(2, "0")}`;
+}
+
+// The refusal still in force, if there is one. A refusal that named no moment is still said: it is
+// a refusal either way and the phrase simply says less, which is the rule the panel already
+// follows for the same field.
+function refusedSaid(refused) {
+  if (refused === null || refused === undefined) {
+    return null;
+  }
+  return typeof refused.resetsAt === "number" ? `refused until ${atTime(refused.resetsAt)}` : "refused";
+}
+
+// How full each window the frame named was, and — never separately — when it was read.
+//
+// The age is not decoration and is not optional. One account means N rows carrying N readings of
+// N different ages, each honestly describing its own session's last run, so a number printed on
+// its own invites the one misreading this feature can cause: a low number off a row that has not
+// run for hours, read as the account's current state. The number and its age are one phrase so
+// that there is no way to print half of it.
+//
+// Every window the frame named, in the frame's order. Picking one would write a window's name into
+// this toolkit for the service to rename underneath it.
+function windowsSaid(quota) {
+  if (quota === null || quota === undefined || !Array.isArray(quota.windows) || quota.windows.length === 0) {
+    return null;
+  }
+  // No moment means no age, and a fullness without its age is not said at all.
+  if (typeof quota.at !== "number") {
+    return null;
+  }
+  const full = quota.windows
+    .map((window) => `${window.name.replace(/_/g, "-")} window ${Math.round(window.fullness * 100)}% full`)
+    .join(", ");
+
+  return `${full}, read ${ago(new Date(quota.at).toISOString())}`;
 }
 
 function stateOf(session) {

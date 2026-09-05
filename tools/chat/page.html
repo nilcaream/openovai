@@ -115,6 +115,39 @@
     return `${Math.floor(seconds / 3600)}h ago`;
   }
 
+  // When the limit lifts, in the hours of whoever is reading. The moment comes from the service
+  // and only its spelling is ours.
+  function atTime(seconds) {
+    const when = new Date(seconds * 1000);
+    return `${String(when.getHours()).padStart(2, "0")}:${String(when.getMinutes()).padStart(2, "0")}`;
+  }
+
+  // The refusal still in force, if there is one. A refusal that named no moment is still said.
+  function refusedSaid(refused) {
+    if (refused === null || refused === undefined) {
+      return null;
+    }
+    return typeof refused.resetsAt === "number" ? `refused until ${atTime(refused.resetsAt)}` : "refused";
+  }
+
+  // How full each window the frame named was, and — never separately — when it was read. One
+  // account means N rows carrying N readings of N different ages, so a number printed without its
+  // age invites a low reading off a stale row being taken for the account's current state. The
+  // two are one phrase so there is no way to print half of it.
+  function windowsSaid(quota) {
+    if (quota === null || quota === undefined || !Array.isArray(quota.windows) || quota.windows.length === 0) {
+      return null;
+    }
+    if (typeof quota.at !== "number") {
+      return null;
+    }
+    const full = quota.windows
+      .map((window) => `${window.name.replace(/_/g, "-")} window ${Math.round(window.fullness * 100)}% full`)
+      .join(", ");
+
+    return `${full}, read ${ago(new Date(quota.at).toISOString())}`;
+  }
+
   // What a session is doing, as one phrase, in the order that decides what to do about it. Held up
   // by a person comes first, because it is the only one the person reading this can end; then held
   // up by another session, which is not the same as being slow; then busy, with the pile behind it.
@@ -149,6 +182,11 @@
     const when = ago(row.active);
     const how = [
       state(row),
+      // The same two phrases the room command says, from the same two fields, in the same order.
+      // Beside the state phrase and not inside it: a session answering right now while its last
+      // run was turned away is a real state, and one word could not say it.
+      refusedSaid(row.refused),
+      windowsSaid(row.quota),
       // Said only when there is none, because that is the surprising half: a full panel whose
       // session remembers none of it reads as an ordinary one until somebody says so.
       row.thread ? null : "nothing to carry on",

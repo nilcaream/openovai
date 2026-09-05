@@ -2772,6 +2772,109 @@ describe("what a row says about a refusal, and what takes it off again", () => {
   });
 });
 
+const GAUGED_IN_ROOM = "Garganey";
+const NEVER_IN_ROOM = "Smew";
+const REFUSED_IN_ROOM = "Scaup";
+
+// What the ROOM says about a usage window, which is where a person actually looks.
+//
+// Both facts are already on the row by here; this is only about the two places that lay a row out
+// in words — `ow room` and the page's own script. They are not shared code and cannot be, one of
+// them being a page served as text, so the duplication is proven rather than trusted: every check
+// that reads the command has a partner that reads `page.html` as a string.
+//
+// The age is the load-bearing part of this slice. One account means N rows carrying N readings of
+// N different ages, and the misreading this feature can cause is a low number off a row that has
+// not run for hours being taken for the account's current state. Check 5 is the whole mitigation,
+// and it is written as "never printed without" rather than "printed", because the way this fails
+// is a phrase that keeps the number and loses the age.
+describe("what the room says about a usage window and a refusal", () => {
+  const roomLog = path.join(standIn, "roomquota.txt");
+  let room;
+  let page;
+
+  // One line of the room, by name. The name is padded to the room's width, so there is always a
+  // space after it — matching on the bare name would also match a longer name starting with it.
+  const lineFor = (name) => (room ?? "").split("\n").find((line) => line.startsWith(`${name} `));
+
+  before(async () => {
+    runTool(instance, ["hire", GAUGED_IN_ROOM], process.env);
+    runTool(instance, ["hire", NEVER_IN_ROOM], process.env);
+    runTool(instance, ["hire", REFUSED_IN_ROOM], process.env);
+
+    // A run the service allowed, with a fullness this suite chose rather than one the fixture had
+    // written down.
+    await start(instance, standInEnvironment(standIn, roomLog, { OW_STAND_IN_LIMIT: "allowed", OW_STAND_IN_FULLNESS: "0.71" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    await say("the first thing", GAUGED_IN_ROOM);
+
+    // And a run the service turned away, which carries a reading of its own on the way past.
+    await start(instance, standInEnvironment(standIn, roomLog, { OW_STAND_IN_REFUSED: "yes" }));
+    assert.ok(await waitForHealth(URL), "the server never came back");
+    await say("ask while the account is out", REFUSED_IN_ROOM);
+
+    room = runTool(instance, ["room"], standInEnvironment(standIn, roomLog)).stdout;
+    page = fs.readFileSync(path.join(instance, "tools", "chat", "page.html"), "utf8");
+  });
+
+  // Mutation: say it in page.html only. The command is where somebody at a terminal reads the
+  // room, and a phrase that exists only on the page is a phrase half the readers never see.
+  it("prints the fullness the frame gave, for every window it named", () => {
+    assert.match(lineFor(GAUGED_IN_ROOM) ?? "", /five-hour window 71% full/);
+    assert.match(lineFor(GAUGED_IN_ROOM) ?? "", /seven-day window 4% full/);
+  });
+
+  // Mutation: print 0% for a null reading. A session that has never run has not been told
+  // anything, and 0% is a number — the most reassuring one there is, invented by us.
+  it("says nothing about a window on a row that has no reading", () => {
+    const line = lineFor(NEVER_IN_ROOM) ?? "";
+    assert.ok(line !== "", "the session was not in the room at all");
+    assert.doesNotMatch(line, /window/);
+    assert.doesNotMatch(line, /% full/);
+  });
+
+  // Mutation: drop the moment from the phrase. "refused" alone tells somebody they can do nothing
+  // and not when they can do it again, which is the only actionable half.
+  it("says the refusal with the moment the limit lifts", () => {
+    assert.match(lineFor(REFUSED_IN_ROOM) ?? "", /refused until \d\d:\d\d/);
+  });
+
+  // Mutation: drop the age from the phrase. THIS IS THE ONE MITIGATION THIS DESIGN HAS for the
+  // trap it knowingly leaves — the same account read at N different moments on N rows — and it is
+  // asserted as "never without", because the failure is a phrase that keeps the number and loses
+  // the age, which reads perfectly well and is wrong.
+  it("never prints a fullness without saying when it was read", () => {
+    const line = lineFor(GAUGED_IN_ROOM) ?? "";
+    assert.match(line, /% full/, "there was no fullness on the line to begin with");
+    assert.match(line, /% full[^·]*, read (just now|\d+[mh] ago)/);
+  });
+
+  // Mutation: move the refusal into stateOf(). Decision 6 as a check: a later change that folds
+  // either fact into the state word has to argue with a red test rather than with a comment. A
+  // session whose last run was refused is not DOING anything different, and both are worth saying.
+  //
+  // The state word ALONE is asserted here, deliberately. This check also asserted that the line
+  // still said "refused until" — which read as the other half of the same point and was in fact
+  // an assertion that could never fail, because the check above makes the identical match on the
+  // identical line and is strictly stronger. All it did was put this check in that one's bite
+  // list, where it failed for somebody else's reason. That the refusal is still said is that
+  // check's job; that the state word survived is this one's.
+  it("leaves the state phrase alone: a refused session that is idle still reads idle", () => {
+    assert.match(lineFor(REFUSED_IN_ROOM) ?? "", /\bidle\b/);
+  });
+
+  // No suite runs page.html — it is read as text — so the page's copy is proven by reading it, and
+  // the check is that both phrases are BUILT from the row's own fields, not merely present as
+  // words in a string.
+  it("builds the same two phrases in the page's own copy of the room", () => {
+    assert.match(page, /row\.quota/);
+    assert.match(page, /row\.refused/);
+    assert.match(page, /refused until/);
+    assert.match(page, /% full/);
+    assert.match(page, /, read /);
+  });
+});
+
 
 
 // What a session is waiting to be ALLOWED to do. It is held up by a person rather than by another
