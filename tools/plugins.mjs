@@ -105,7 +105,7 @@ export async function pluginsIn(root) {
       continue;
     }
     if (BUILT_IN.includes(name)) {
-      refused.push({ file: entry.name, reason: `${name} is already the name of a tool the chat serves everywhere, and a file cannot take it` });
+      refused.push({ file: entry.name, reason: describeBuiltIn(name) });
       continue;
     }
 
@@ -172,6 +172,14 @@ export function describePluginName(name) {
   return `${name === undefined ? "nothing" : `"${name}"`} is not a name a tool can have — a letter, then letters, digits and hyphens, up to 32 of them`;
 }
 
+// And why a name the chat serves itself is refused, said once and read from both ends: the loader
+// says it about a file it found, and the command says it about a name somebody typed. One sentence
+// rather than two, because they are one fact, and two copies of a fact drift the first time either
+// is reworded.
+function describeBuiltIn(name) {
+  return `${name} is already the name of a tool the chat serves everywhere, and a file cannot take it`;
+}
+
 // Start one. It writes the file and nothing else happens — no list gains an entry, because there
 // is no list, and the chat picks it up the next time it is started.
 //
@@ -183,13 +191,26 @@ export function describePluginName(name) {
 // somebody's work, and a command that quietly replaces it to get its own job done is worse than
 // the surprise it is saving them.
 //
-// Whether the name is one a tool can have is asked by whoever is taking it, and not here. There is
-// one place a plugin is ever started from, and a name it cannot have is something wrong with what
-// was typed rather than with the workspace — so it is answered where a command line is answered,
-// with the usage under it, instead of arriving here as a refusal that reads the same as the one
-// above and means something else.
+// A name the chat serves itself is refused too, and it is refused here rather than beside the
+// character rule, because the two are refusals about different things. A name a tool cannot have
+// is something wrong with what was typed — answered where a command line is answered, with the
+// usage under it. A name that is taken is something true of the workspace: `say` is a name a tool
+// can have, and what is in the way is that this chat already serves one. That is the refusal the
+// file-is-already-there guard below makes, and this is the same refusal about a file that does not
+// have to exist yet.
+//
+// It goes first, before that guard, because it is the one that cannot be got round. A file can be
+// moved out of the way; the four names the chat serves cannot, so being told the file is not this
+// command's to write over would send somebody to delete a file and be refused all over again.
+//
+// And it is asked while somebody is still typing the name, which is the difference that matters:
+// the loader turns such a file away too, but not until the next chat start — minutes and a written
+// handler after the moment the name could have been changed for nothing.
 export function writePlugin(root, from, name) {
   const target = path.join(pluginsDirectory(root), `${name}${SUFFIX}`);
+  if (BUILT_IN.includes(name)) {
+    throw new PluginError(describeBuiltIn(name));
+  }
   if (fs.existsSync(target)) {
     throw new PluginError(`${name} is already a tool here; ${path.relative(root, target)} is not this command's to write over`);
   }

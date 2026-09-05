@@ -132,6 +132,11 @@ function hireHere(root, name) {
 // started — and a file that is plainly there, with nothing anywhere saying otherwise, is the thing
 // somebody would sit and wonder about.
 //
+// Which is why the first line says when the tool is served rather than that it is served: it is
+// the line somebody reads and believes, and a session asking for a tool that no chat has read yet
+// is told there is no such tool. What is true at the moment it is printed is that the file exists
+// and the next chat start serves it.
+//
 // What a name is refused for lives in plugins.mjs, beside the rule the loader reads with. All this
 // adds is the refusal that is about a command line rather than about a name: nothing typed at all.
 function pluginHere(root, name) {
@@ -144,7 +149,7 @@ function pluginHere(root, name) {
 
   const written = writePlugin(root, root, name);
 
-  console.log(`${name} is a tool this instance serves now. Wrote:`);
+  console.log(`${name} is a tool this instance serves from the next chat start. Wrote:`);
   for (const entry of written) {
     console.log(`  ${entry}`);
   }
