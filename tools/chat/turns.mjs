@@ -102,6 +102,25 @@ export function waitingFor(name) {
   return waitingOn.get(name) ?? null;
 }
 
+// Every session with a turn going, and how many each has. Answered as counts rather than as names
+// because two turns on one session are two things the chat has not finished, and the second one is
+// the one that has been waiting longest.
+//
+// Nothing is filtered out. A session that has finished everything is already gone from here — the
+// count comes down on the handler below and the entry is deleted when it reaches zero, never left
+// sitting at zero — so a rule here about zeros would be a second place saying it, and the two would
+// only ever disagree by one of them being wrong.
+export function turnsUnderway() {
+  return [...going.entries()];
+}
+
+// Every session whose turn is waiting on an answer from another. Names only: who it is waiting for
+// is `waitingFor` above, and a census asking what is unfinished is asking whose turn is held, not
+// by whom.
+export function callsUnderway() {
+  return [...waitingOn.keys()];
+}
+
 export function inTurn(name, answer) {
   const waiting = queues.get(name) ?? Promise.resolve();
   const mine = waiting.then(answer, answer);

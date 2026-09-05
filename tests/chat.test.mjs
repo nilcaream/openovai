@@ -2063,6 +2063,90 @@ describe("ending a run that will not end itself", () => {
 // that ended at 41,929, with the next turn opening at 42,059. That is why the stand-in reports two
 // requests of different sizes: a check that cannot tell the sum from the last of them is a check
 // that would pass on a number growing at twice the rate of the conversation.
+// What the chat has started and not finished.
+//
+// Two checks, and between them they pin the census from both sides. A reading that answered nothing
+// whatever the chat was holding would satisfy the second on its own, and a reading that answered
+// something whatever the chat was holding would satisfy the first — so neither is worth anything
+// without the other, and both are here rather than one being called enough.
+//
+// The state is reached with a run that asks to be allowed something and waits: that is a run, the
+// turn carrying it and the request it is waiting on, three of the four kinds at once and all of
+// them ended by the same answer. The fourth is a call between sessions, and it is reached where the
+// checks about every kind live rather than here — this slice is about the reading existing and
+// being real, not about the kinds being complete.
+describe("what the chat has not finished", () => {
+  const censusLog = path.join(standIn, "census.txt");
+  let idle;
+  let holding;
+
+  before(async () => {
+    await start(instance, standInEnvironment(standIn, censusLog, { OW_STAND_IN_ASKS: "Bash" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    idle = JSON.parse((await get(`${URL}/unfinished`)).body).unfinished;
+
+    // Not awaited: it does not come back until somebody answers the request, and what the chat is
+    // holding while it waits is the whole subject here.
+    const exchange = say("something it has to ask about first");
+    const waited = await waitFor(async () => {
+      const { permissions } = JSON.parse((await get(`${URL}/sessions/${LEADER}/permissions`)).body);
+      return permissions.length > 0 ? permissions : null;
+    });
+
+    // A second message, queued behind a turn that cannot move. Two turns on one session are two
+    // things the chat has not finished, and a census that named the session rather than the things
+    // would report one — hiding the one that has been waiting longest.
+    const behind = say("and this one waits behind it");
+    await waitFor(async () => {
+      const { sessions: rows } = JSON.parse((await get(`${URL}/sessions`)).body);
+      return rows.find((row) => row.name === LEADER)?.queued === 1 ? true : null;
+    });
+
+    holding = JSON.parse((await get(`${URL}/unfinished`)).body).unfinished;
+
+    // Both are let go the same way, oldest first: the second run asks in its turn, as this stand-in
+    // always does, and neither comes back until it has been answered.
+    await post(`${URL}/sessions/${LEADER}/permission`, { id: waited[0].id, decision: "allow" });
+    await exchange;
+
+    const next = await waitFor(async () => {
+      const { permissions } = JSON.parse((await get(`${URL}/sessions/${LEADER}/permissions`)).body);
+      return permissions.length > 0 ? permissions : null;
+    });
+    await post(`${URL}/sessions/${LEADER}/permission`, { id: next[0].id, decision: "allow" });
+    await behind;
+  });
+
+  it("says nothing when the chat is holding nothing", () => {
+    assert.deepEqual(idle, [], "the chat says it has not finished something nobody started");
+  });
+
+  it("names what it is holding, whose it is, and what would end it", () => {
+    const mine = holding.filter((held) => held.name === LEADER);
+    assert.ok(mine.length > 0, "the chat was holding nothing while a run waited to be allowed something");
+
+    const kinds = [...new Set(mine.map((held) => held.kind))].sort();
+    assert.deepEqual(kinds, ["request", "run", "turn"], JSON.stringify(mine));
+
+    for (const held of mine) {
+      assert.ok(
+        typeof held.endedBy === "string" && held.endedBy !== "",
+        `nothing says what ends a ${held.kind}: ${JSON.stringify(held)}`,
+      );
+    }
+  });
+
+  // One entry per thing, and this is the difference it makes. There were two messages on this
+  // session and only one of them could move; a census keyed by session would answer that the
+  // session had a turn going, which is true and useless, because the thing worth seeing is that
+  // something has been waiting behind it the whole time.
+  it("counts each thing it is holding rather than each session", () => {
+    const turns = holding.filter((held) => held.name === LEADER && held.kind === "turn");
+    assert.equal(turns.length, 2, `two messages were in flight, the chat says ${turns.length}`);
+  });
+});
+
 describe("how much of itself a session is carrying", () => {
   const sizeLog = path.join(standIn, "size.txt");
   const REQUESTS = [25142, 41929];

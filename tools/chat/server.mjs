@@ -17,6 +17,7 @@ import { roomLines } from "./room.mjs";
 import { DESK_FILE, DeskError, WORK, archiveFor, deskTitle, describeName, hire, isName, retire } from "../desks.mjs";
 import { ask, endRun, forget, hasGoneCold, hasThread, quotaIn, ranAt, refusedIn, sessions } from "./session.mjs";
 import { inTurn, turnsGoing, waitingFor, whileWaitingFor, wouldWaitForItself } from "./turns.mjs";
+import { unfinished } from "./unfinished.mjs";
 import { takeWord } from "./untold.mjs";
 import { version } from "../version.mjs";
 
@@ -1244,6 +1245,14 @@ async function handle(instance, request, response) {
       human: instance.config.human,
       leader: instance.config.leader,
     });
+    return;
+  }
+
+  // Nothing on the page reads this and nothing in the chat decides anything by it. It is here so
+  // that what the chat is still holding can be asked for at all — by a person looking at a session
+  // that has stopped answering, and by the checks that make sure every kind of hold has a way out.
+  if (request.method === "GET" && url.pathname === "/unfinished") {
+    sendJson(response, 200, { unfinished: unfinished() });
     return;
   }
 

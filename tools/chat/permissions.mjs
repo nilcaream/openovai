@@ -39,6 +39,18 @@ export function parked(name) {
   return [...forSession(name).values()].map(({ request }) => request);
 }
 
+// Every session with something parked, and what. `parked` above answers for one session a page is
+// showing; this answers for all of them, which is what a census asking what the chat has not
+// finished needs.
+//
+// Asking about a session is enough to give it an empty entry here, and those are handed back as
+// they are rather than filtered out. What reads this counts the requests it is given, so a session
+// waiting for nothing contributes nothing either way, and a rule here would be a second place
+// deciding what an empty one means.
+export function requestsUnderway() {
+  return [...waiting.entries()].map(([name, held]) => [name, [...held.values()].map(({ request }) => request)]);
+}
+
 // Answer one. The id has to match something still waiting: a page that was showing a stale
 // request, or two people answering the same one, must not resolve a request twice — the second
 // answer would be for a tool use that has already gone ahead.

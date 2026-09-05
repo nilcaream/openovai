@@ -455,6 +455,13 @@ export function runsGoing() {
   return running.size;
 }
 
+// Which sessions have one. The count above is what a terminal needs on the way out; this is what a
+// census needs, and they are kept apart rather than one being written in terms of the other because
+// a caller that wants a number and a caller that wants names should not have to agree on a shape.
+export function runsUnderway() {
+  return [...running.keys()];
+}
+
 // The instance's own tools, handed to a session as it starts.
 //
 // It is passed as the configuration itself rather than as a file to read, because there is nothing
