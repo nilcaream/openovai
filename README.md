@@ -334,10 +334,79 @@ rather than one per tool, because there is nothing left for a narrower one to sa
 a server or a tool, never what the tool is given, so what a tool may be asked for has to live in
 the tool's own signature. `say` has no "which instance" and `room` has no "whose room".
 
-Which is why the limit on what is served here is a standing one: **nothing that deletes, archives
-or spawns joins this server without being decided on its own.** Every tool added inherits that one
-rule the moment it appears in the list. Hiring, leaving, handing over and archiving stay on the
-page, where a person is the one pressing the button.
+Which is why the limit on what this toolkit serves here is a standing one: **nothing that deletes,
+archives or spawns joins this server without being decided on its own.** Every tool added inherits
+that one rule the moment it appears in the list. Hiring, leaving, handing over and archiving stay
+on the page, where a person is the one pressing the button.
+
+That is a limit on what the toolkit ships. It is not a limit on what you serve yourself: a tool of
+your own runs inside the chat process rather than in a session, so no rule here decides what it may
+do, and writing the file is the deciding. The next section is about those.
+
+### Tools the toolkit did not ship
+
+The four above are the ones every workspace wants. The ones only yours wants cannot be in here at
+all: a workspace whose person is not at the page needs something that pops on their desktop, and
+how a desktop is made to pop is `notify-send` on one machine, `osascript` on another and a toast
+API on a third. None of that belongs in a toolkit that installs on machines it knows nothing
+about, so it is written where the machine is known — beside the instance.
+
+    ow plugin notify
+
+writes `plugins/notify.mjs` from a scaffold, and that is the whole of adding one. The file is the
+tool: its name is the tool's name, there is nothing to register and no list to keep in step,
+because the directory is the list. Renaming the tool is renaming the file, which is the honest way
+round — a name kept in a field could disagree with the file holding it, and nothing could say
+which of the two was right.
+
+A tool is three exports:
+
+```js
+export const description = "What it does, and what it refuses. A session reads this before calling.";
+export const inputSchema = { type: "object", properties: {}, additionalProperties: false };
+export function run(args, { caller, leads, root, config }) {
+  return { text: `${caller} called, and this workspace lives at ${root}` };
+}
+```
+
+`caller` is this workspace's word for who is calling, taken from the path the chat gave that
+session and never from anything it says, so a tool cannot be told it is talking to somebody else.
+`leads` is whether that session is the one leading here. `root` is where the instance is, and it
+is handed over because it is the one thing the file cannot work out for itself — an instance
+records no absolute path anywhere, which is what lets it be moved. `config` is what the instance
+says about itself, including the names of the person it works for and of whoever leads.
+
+Answer `{ text }` with what to tell the caller, or `{ refused }` with why not. A refusal is an
+answer: it reaches the calling session as words it can act on, rather than as a call that failed.
+Whatever the handler throws is caught and reaches the caller the same way, naming the file, so a
+bad afternoon in one of these does not take the chat down with it.
+
+There is no `offered` flag. A tool of yours is offered to everybody and refuses in its own words
+if it is the lead's — `return { refused: ... }` — because a session that cannot see a tool goes
+looking for another way to do the same thing, and because a tool joining the list is the one
+moment anybody would notice it had.
+
+They are read when the chat starts, so **start the chat again after writing or changing one.** Not
+per call, and deliberately: a module is imported once per process, so a directory read on every
+call would show a new file while going on serving the old code of a changed one, and nobody
+looking at it could tell which they had.
+
+A file that cannot be served is not served, the chat starts anyway with everything else, and the
+reason is printed where the chat was started, naming the file. There are four of them: it will not
+load, it is missing one of the three exports, its name is not one a tool can have — a letter, then
+letters, digits and hyphens — or its name is one the chat already serves. That printing is the only
+place it is ever said, because the directory is the list: a file sitting in it looks served, and
+nothing a session can see would say otherwise.
+
+None of this is granted anything, and that is the point of where the file comes from. The one rule
+covers it the moment it appears, the way it covers the four above — but a tool of yours runs inside
+the chat process rather than in a session, so the permission system never sees it at all. What
+stands where a rule cannot is that a session may write its own desk and nothing else, so no session
+can give itself a tool: writing that file is a person deciding, and that decision is the gate.
+
+They belong to the instance and not to the toolkit. `plugins/` sits at the root beside `work/` and
+`personas/`, outside everything an update replaces, so taking a newer version leaves your tools
+exactly where they were.
 
 ### Trying it
 
