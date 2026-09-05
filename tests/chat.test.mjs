@@ -6432,3 +6432,120 @@ describe("the lead breaks in on somebody who is writing", () => {
     assert.match(readme, /`interrupt`/);
   });
 });
+
+// Feature 13, slice 1: the room has a switch, and nothing reads it yet.
+//
+// A room that is off is one that will start nothing — and the whole reason it is a boolean set by a
+// press, rather than the end of a handshake, is that a handshake can be turned away half way and
+// leave the room neither on nor off. So the switch comes first and alone: it is proved that it can
+// be thrown, that it says which way it is thrown, and above all that throwing it back is taken in
+// every state there is. The gate that reads it is the next slice, and these checks are written so
+// that they would still be true after it.
+//
+// The mid-turn case is here rather than with the gate on purpose. "It gates NEW turns only" is a
+// claim about a turn that is already going, and the cheapest place to hold it is the switch itself:
+// if throwing it ever touched a run, this is where it would show.
+const OFF_MID_TURN = "Redshank";
+
+describe("the room can be taken off and brought back", () => {
+  const offLog = path.join(standIn, "offline-switch.txt");
+  let atFirst;
+  let tookOff;
+  let afterOff;
+  let tookOffTwice;
+  let broughtBack;
+  let afterOn;
+  let broughtBackTwice;
+  let wasAnswering;
+  let tookOffMidTurn;
+  let broughtBackMidTurn;
+  let midTurn;
+  let rows;
+
+  before(async () => {
+    runTool(instance, ["hire", OFF_MID_TURN], process.env);
+    // Slow enough that a press can land while a run is genuinely going, which is the one state
+    // worth asking about and the one a fast stand-in never stays in long enough to be asked in.
+    await start(instance, standInEnvironment(standIn, offLog, { OW_STAND_IN_SLOW: "1500" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    atFirst = JSON.parse((await get(`${URL}/sessions`)).body).offline;
+
+    tookOff = await post(`${URL}/offline`, {});
+    afterOff = JSON.parse((await get(`${URL}/sessions`)).body).offline;
+    tookOffTwice = await post(`${URL}/offline`, {});
+
+    broughtBack = await post(`${URL}/online`, {});
+    afterOn = JSON.parse((await get(`${URL}/sessions`)).body).offline;
+    broughtBackTwice = await post(`${URL}/online`, {});
+
+    // A turn that is already going, and the press thrown across it in both directions.
+    const going = say("something that takes a while", OFF_MID_TURN);
+    wasAnswering = await waitFor(async () => {
+      const row = JSON.parse((await get(`${URL}/sessions`)).body).sessions.find(
+        (session) => session.name === OFF_MID_TURN,
+      );
+      return row?.busy === true ? row : null;
+    });
+    tookOffMidTurn = await post(`${URL}/offline`, {});
+    broughtBackMidTurn = await post(`${URL}/online`, {});
+    midTurn = await going;
+    rows = JSON.parse((await get(`${URL}/sessions`)).body).sessions;
+  });
+
+  // The positive half, said first. A check that only asserted the room can be taken off would pass
+  // on a chat that reported itself off from the moment it started.
+  it("says it is on before anybody has touched it", () => {
+    assert.equal(atFirst, false);
+  });
+
+  it("says it is off once it is taken off", () => {
+    assert.equal(tookOff.status, 200);
+    assert.equal(JSON.parse(tookOff.body).offline, true);
+    assert.equal(afterOff, true);
+  });
+
+  it("says it is on again once it is brought back", () => {
+    assert.equal(broughtBack.status, 200);
+    assert.equal(JSON.parse(broughtBack.body).offline, false);
+    assert.equal(afterOn, false);
+  });
+
+  // The exit, and the reason it is asserted as a status rather than as an effect: a press that can
+  // be refused in some state is a state the room cannot come back from, and that is the whole shape
+  // of the failure this feature was paid for.
+  it("takes either press in the state it is already in", () => {
+    assert.equal(tookOffTwice.status, 200);
+    assert.equal(broughtBackTwice.status, 200);
+  });
+
+  it("takes either press while a session is mid-turn", () => {
+    assert.ok(wasAnswering !== null, "no turn was ever going, so this proved nothing");
+    assert.equal(tookOffMidTurn.status, 200);
+    assert.equal(broughtBackMidTurn.status, 200);
+  });
+
+  // It gates NEW turns only. The press landed across a run that was already going, and the run
+  // finished and ANSWERED as if nothing had happened — which it should, because nothing did.
+  //
+  // The answer's own words, not its status and not who it is from. Measured: a version of this
+  // check that read the status and the name reported NOTHING NOTICED against a press that ended
+  // every run on the way past, because a run somebody kills still writes a row under the session's
+  // name and the route still answers 200 — it just says "Claude Code ended without answering"
+  // instead of what the session said. The wrong code reached the right shape.
+  it("leaves the turn that was already going to finish", () => {
+    assert.equal(midTurn.status, 200);
+    const reply = JSON.parse(midTurn.body).reply;
+    assert.equal(reply.from, OFF_MID_TURN);
+    assert.notEqual(reply.failed, true, `the run did not answer: ${JSON.stringify(reply.text)}`);
+    assert.equal(reply.text, "a reply");
+  });
+
+  // On the room and not on anybody. Whether the room will start anything is one fact about the
+  // room; a copy of it per row is N places to disagree, and it would also read as a state a session
+  // is in, which is the one thing this feature is not.
+  it("says it on the room and never on a row", () => {
+    assert.ok(rows.length > 0, "there were no rows, so this proved nothing");
+    assert.deepEqual(rows.filter((row) => "offline" in row), []);
+  });
+});

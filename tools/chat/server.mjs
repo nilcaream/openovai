@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 import { append, lastAt, panelDirectory, panelFile, read } from "./conversation.mjs";
 import { HOST, record } from "./listening.mjs";
 import { respond } from "./mcp.mjs";
+import { goOffline, goOnline, offline } from "./offline.mjs";
 import { carry, overhear } from "./overheard.mjs";
 import { allow, answer as settle, giveUp, park, parked, refuse } from "./permissions.mjs";
 import { roomLines } from "./room.mjs";
@@ -1257,12 +1258,43 @@ async function handle(instance, request, response) {
   }
 
   if (request.method === "GET" && url.pathname === "/sessions") {
-    sendJson(response, 200, { sessions: sessions(instance).map((session) => everySession(instance, session)) });
+    sendJson(response, 200, {
+      // Beside the rows and never on them. Whether the room will start anything is one fact about
+      // the room, and a copy of it on every row is N places to disagree — the same reason the
+      // fullness of a window is said per row, where it genuinely is one reading per session, and
+      // this is not.
+      offline: offline(),
+      sessions: sessions(instance).map((session) => everySession(instance, session)),
+    });
     return;
   }
 
   if (request.method === "POST" && url.pathname === "/sessions") {
     await postSessions(instance, request, response);
+    return;
+  }
+
+  // Taking the room off, and bringing it back.
+  //
+  // Two verbs rather than one carrying a value, because they are not symmetrical in what they mean
+  // even though they are in what they do: one of them is the exit, and an exit spelled as an
+  // argument to the thing it is the exit from is an exit somebody can forget to offer.
+  //
+  // Neither runs anything, neither asks anybody, and neither has a branch that could refuse. That
+  // is what "taken in every state" means here — not a condition written wide enough to admit them
+  // all, but no condition at all. A press that cannot be turned away cannot leave the room half
+  // off, which is the failure this whole feature was paid for.
+  //
+  // Instance-level, so not on the session routes: it is the room that is off, not a person.
+  if (request.method === "POST" && url.pathname === "/offline") {
+    goOffline();
+    sendJson(response, 200, { offline: true });
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === "/online") {
+    goOnline();
+    sendJson(response, 200, { offline: false });
     return;
   }
 
