@@ -378,14 +378,28 @@ reading it:
     Paul — worker (haiku) — reading the water meter — answering, 1 waiting · 24,479 tokens · last moved just now
     Ann  — worker (haiku) — writing the install notes — needs you · 8,102 tokens · last moved 2m ago
     Ivy  — worker (haiku) — (has not said what it is on) — idle · nothing to carry on · nothing said yet
-    Leo  — worker (haiku) — checking the meter reads — idle · refused until 14:30 · five-hour window 96% full, read 2m ago · 12,004 tokens · last moved 2m ago
+    Leo  — worker (haiku) — checking the meter reads — idle, last ran 40m ago · refused until 14:30 · five-hour window 96% full, read 2m ago · 12,004 tokens · last moved 2m ago
 
 The phrases are tried in the order that decides what to do about them. **needs you** first — that
 session is stopped until somebody here answers it, and answering is a click. Then **waiting for
 `<name>`**, which is a session held up by another session and not a session being slow. Then
 **answering**, with however many messages are waiting behind it — the state a run can be ended
 from, above. Then **cold**, which says the next message to that session ends the conversation it
-is having and starts a new one — see below. Then **idle**.
+is having and starts a new one — see below. Then **idle**, which carries how long that session has
+been doing nothing: `idle, last ran 40m ago`, and a bare `idle` for one that has never run at all.
+
+That duration is part of the idle phrase and never a fact of its own beside the state, because it
+is only true there. Every state above idle is a run in flight, and the file the clock comes off is
+rewritten when a run ENDS — so a session answering right now has a clock as old as the turn it is
+in the middle of, and a duration printed beside its state would tell you it had been doing nothing
+for exactly as long as it had been working. Saying it inside the phrase makes that reading
+unreachable rather than merely unlikely.
+
+It is the conversation's clock and not the panel's, which are two different questions with two
+different answers. A panel moves when anything is written on it, and a lead's panel moves every
+time it overhears something said somewhere else — so a lead that has not thought for an hour can
+have a panel that moved a second ago. What matters when you are deciding whether to check on
+somebody is when they last ran.
 
 What each session is on comes from one field: the `title:` in the header its desk file opens with.
 That is the only part of a desk anything outside it reads, and both personas ask for that one line
@@ -552,6 +566,42 @@ and one line, against a panel lifecycle nobody has asked for.
 None of the page itself is covered by a browser: no suite runs `page.html`. What the routes do is
 checked on their own data, and the page is checked as text on the served body — that each thing is
 offered, and that it goes to the route behind it.
+
+### Who has gone quiet
+
+The room is deliberately never carried into a turn: a snapshot of it handed to a session would be
+read as now, and it is stale the moment it is composed. There is one exception, and this is it.
+
+When a turn of the lead's begins, any session that has stopped for more than half the hour after
+which a conversation is ended is named to it, unasked, in one block:
+
+    Ann last ran 35m ago, and Ivy last ran 50m ago. That is how long each has been doing
+    nothing, read at 14:07, as this turn began.
+
+It says who is speaking — the chat, and nobody at the page — because an update ships new templates
+and re-renders nobody's persona, so a session reading it may be running one written before any of
+this existed and has nothing to look it up in. It carries the moment it was read, which is what
+makes it safe to hand over unasked at all: a dated line cannot be mistaken for the room now. And it
+is absent entirely while nobody has stopped, rather than saying so — a sentence in every turn
+forever is a sentence nobody reads.
+
+It is a reading and not a gate. Nothing consults it before delivering a message, hiring, handing a
+session over or queueing anything, and a message to a session named in it is delivered exactly as
+any other. No state is added to the room for it either; the phrases above are the whole list.
+
+Only the lead is told, and it is never told about itself or about anything mid-turn. That is one
+rule and not two: the block is composed inside the reader's own turn, so a session with a turn
+going is excluded by the same test that excludes everyone else who is working.
+
+The half-hour is read from the hour rather than written down again, so the day one moves the other
+moves with it. A session that has gone cold stays in the block — it is not capped, because a
+conversation named at 55 minutes and dropped at 61 would stop being mentioned at the moment it
+became expensive. A session with no thread is not in it at all: it has nothing to be quiet with,
+and nothing that waiting could cost it.
+
+Nothing here has to be cleared and nothing remembers having said it. Acting on it is what stops
+it: saying anything to that session starts a run and moves its clock, and handing it over removes
+the conversation altogether.
 
 ### Taking the room off
 
