@@ -12,6 +12,7 @@ import path from "node:path";
 
 import { MEMORY_FILE, memoryDirectory } from "./claude.mjs";
 import { PAYLOAD, notAWorkspace } from "./payload.mjs";
+import { PLUGINS } from "./plugins.mjs";
 import {
   DeskError,
   allowDesk,
@@ -68,11 +69,13 @@ const REQUIRED = OPTIONS.map(([, key]) => key);
 //   .claude/       settings that belong to the instance and can be shared
 //   .claude-home/  the instance's own Claude Code home: its account, transcripts and memory,
 //                  kept apart so two instances on one machine never share a session history
+//   plugins/       tools this instance serves itself, one file per tool, written where the
+//                  machine they reach out to is known
 //
 // None of these is in the payload. What the toolkit ships and what an instance accumulates are
 // different things and stay in different directories, so that replacing the one never reaches
 // into the other.
-const LAYOUT = ["work", "personas", ".claude", ".claude-home"];
+const LAYOUT = ["work", "personas", ".claude", ".claude-home", PLUGINS];
 
 // The instance's own description of itself. It is deliberately free of absolute paths — not
 // where it came from, not even its own root, which anything running inside works out from

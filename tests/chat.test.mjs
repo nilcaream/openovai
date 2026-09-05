@@ -7865,3 +7865,98 @@ describe("where the account stands is read where the turn begins and not where t
     assert.doesNotMatch(toldBeforeItFilled, /Stop the tasks/);
   });
 });
+
+
+// Tools an instance serves that the toolkit did not ship: one file in plugins/, its name the
+// tool's name, read when the chat starts and served beside the four the repository decides.
+//
+// The suite installs ONE instance and one chat, so this writes its files, starts the chat again to
+// pick them up, and takes them away again afterwards — a plugin left behind would be a tool every
+// check written after this one was silently offered.
+describe("an instance serves a tool of its own", () => {
+  const directory = path.join(instance, "plugins");
+  const written = `// A tool this instance serves itself.
+export const description = "Say a word back, with the name of whoever asked.";
+export const inputSchema = {
+  type: "object",
+  properties: { word: { type: "string", description: "The word to say back." } },
+  required: ["word"],
+  additionalProperties: false,
+};
+export function run({ word }, { caller }) {
+  return { text: \`\${caller} said \${word}\` };
+}
+`;
+
+  async function offeredTo(who) {
+    return JSON.parse((await call(who, "tools/list")).body).result.tools.map((tool) => tool.name);
+  }
+
+  let offered;
+  let answered;
+
+  before(async () => {
+    fs.mkdirSync(directory, { recursive: true });
+    fs.writeFileSync(path.join(directory, "echo.mjs"), written);
+    // Beside it, what somebody leaves beside a plugin. It is not a module and must not become a
+    // tool called notes.
+    fs.writeFileSync(path.join(directory, "notes.txt"), "what this one is for\n");
+    // And a module one directory down, which is a plugin's working parts and not a plugin: a
+    // plugin is a file in this directory, never anything underneath it.
+    fs.mkdirSync(path.join(directory, "lib"), { recursive: true });
+    fs.writeFileSync(path.join(directory, "lib", "helper.mjs"), "export const description = \"not a tool\";\n");
+    await start(instance, standIns);
+    assert.ok(await waitForHealth(URL), "the server never came back with the plugin in place");
+
+    offered = JSON.parse((await call(WORKER, "tools/list")).body).result.tools;
+    answered = answerOf(await call(WORKER, "tools/call", { name: "echo", arguments: { word: "hello" } }));
+  });
+
+  // Put back what this describe put there, so that nothing after it is offered a tool it never
+  // asked for and the instance is the one every other check was written against.
+  after(async () => {
+    fs.rmSync(directory, { recursive: true, force: true });
+    await start(instance, standIns);
+    assert.ok(await waitForHealth(URL), "the server never came back without the plugin");
+  });
+
+  it("offers it with the description it was written with", () => {
+    assert.equal(offered.find((tool) => tool.name === "echo")?.description, "Say a word back, with the name of whoever asked.");
+  });
+
+  // The census, and the check the whole arrangement rests on: a plugin joins the list a session
+  // reads, and joining it is the whole of being granted, so a tool appearing there unnoticed is
+  // the way this goes wrong. Everything beside a plugin that is not one stays out — a file that is
+  // not a module is not a tool called notes.
+  it("offers a worker the tools it always did and this one, and nothing else", async () => {
+    assert.deepEqual((await offeredTo(WORKER)).sort(), ["echo", "say", "status"]);
+  });
+
+  it("serves the input schema the plugin declared", () => {
+    assert.deepEqual(offered.find((tool) => tool.name === "echo")?.inputSchema.required, ["word"]);
+  });
+
+  // Read as the whole sentence rather than as a name in it. The handler is handed the arguments of
+  // the call and the name of whoever made it, and the caller here is a worker — so a context built
+  // out of the instance's own leader name answers with somebody who never called, and a call made
+  // with nothing answers about a word nobody said. One check, because a looser one asserting only
+  // that the word came back would be reddened by no edit this one does not already catch.
+  it("answers with what the handler made of the arguments and of who called", () => {
+    assert.equal(answered.text, `${WORKER} said hello`);
+  });
+
+  // What stands where a permission rule cannot. A plugin runs in the chat rather than in a
+  // session, so nothing stops it once it is there; what a session may do is write its own desk and
+  // nothing else, which is why a session cannot give itself a tool. Read off the rules the
+  // instance actually launches its sessions with, never assumed.
+  it("grants no session the right to write a tool of the instance's own", () => {
+    const granted = JSON.parse(fs.readFileSync(path.join(instance, ".claude", "settings.json"), "utf8")).permissions.allow;
+    const writes = granted.filter((rule) => rule.startsWith("Edit("));
+    assert.ok(writes.length > 0, "the instance granted nothing at all, so this proves nothing");
+    const reaching = writes.filter((rule) => {
+      const target = path.resolve(instance, rule.slice("Edit(".length, -1));
+      return !path.relative(directory, target).startsWith("..");
+    });
+    assert.deepEqual(reaching, []);
+  });
+});

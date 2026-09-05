@@ -17,6 +17,7 @@ import { ownInstructions } from "./instructions.mjs";
 import { leaveWord } from "./chat/untold.mjs";
 import { holderOf } from "./port.mjs";
 import { RELEASES, ReleaseError, latestRelease, notesIn, replacePayload, unpackInto } from "./release.mjs";
+import { pluginsIn } from "./plugins.mjs";
 import { version } from "./version.mjs";
 
 const CONFIG_FILE = "ow.json";
@@ -421,9 +422,16 @@ async function chat(root) {
   // so an instance that was moved would otherwise carry the list for where it used to be.
   console.log(describeInstructions(ownInstructions(root).existing));
 
+  // Read here rather than inside the server, and read once. Here because every line a person
+  // sees when a chat starts is composed in this file and the server prints nothing at all; once
+  // because a module is imported once per process, so a directory read again later would show a
+  // new file while going on serving the old code of a changed one. A plugin is picked up when the
+  // chat is started, which is already the act that replaces everything else the chat is running.
+  const plugins = await pluginsIn(root);
+
   let server;
   try {
-    server = await serve({ root, config });
+    server = await serve({ root, config, plugins });
   } catch (error) {
     if (error.code === "EADDRINUSE") {
       throw new UsageError(`port ${config.port} is already taken${byWhom(config.port)}`);

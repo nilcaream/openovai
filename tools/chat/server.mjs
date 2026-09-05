@@ -912,6 +912,22 @@ function toolsFor(instance, caller) {
           ? brokeIn(instance, caller, args)
           : { refused: `breaking in on ${instance.config.human} is the lead's, so ask ${instance.config.leader}` },
     },
+
+    // And after them, the tools this instance serves itself. After rather than among: a plugin
+    // takes the name of its file, and the four above take the names they were written with, so a
+    // file called say.mjs finds the name already taken rather than quietly answering for it.
+    //
+    // The context is built here, per call, because most of it is about who is calling and that is
+    // not known until somebody does. It carries what a tool of this kind has to have: who called,
+    // whether they lead, the root — the one thing a plugin cannot work out for itself, since an
+    // instance holds no absolute path anywhere — and the instance's own description of itself,
+    // which is where the names in a sentence to a person come from.
+    ...(instance.plugins ?? []).map((plugin) => ({
+      name: plugin.name,
+      description: plugin.description,
+      inputSchema: plugin.inputSchema,
+      run: (args) => plugin.run(args, { caller, leads: lead, root: instance.root, config: instance.config }),
+    })),
   ];
 }
 
@@ -1661,6 +1677,11 @@ export function serve(instance) {
     server.listen(instance.config.port, HOST, () => {
       // Written from here rather than from whatever started the server, so that every way of
       // serving an instance leaves the address behind and none of them has to remember to.
+      //
+      // The tools this instance serves itself are the one thing NOT done that way: they are read
+      // by whoever is about to serve and handed in, because what was read is a line somebody
+      // reads when the chat starts and this file prints nothing at all. Moving it in here would
+      // move that line into a process with no terminal to say it on.
       record(instance.root, server.address().port);
       resolve(server);
     });
