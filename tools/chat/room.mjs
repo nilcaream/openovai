@@ -82,22 +82,65 @@ function windowsSaid(quota) {
   return `${full}, read ${ago(new Date(quota.at).toISOString())}`;
 }
 
-function stateOf(session) {
-  if (session.asking > 0) {
-    return session.asking === 1 ? "needs you" : `needs you (${session.asking})`;
-  }
-  if (session.waitingFor !== null && session.waitingFor !== undefined) {
-    return `waiting for ${session.waitingFor}`;
-  }
-  if (session.queued > 0) {
-    return `answering, ${session.queued} waiting`;
-  }
+// Every state a row can be said to be in, in the order they are tried: the condition that says it,
+// and the words it is said in. The order is the whole of what makes a room worth reading — what a
+// person can end comes before what they cannot.
+//
+// A table rather than a chain of returns, so that the states can be counted. A phrase written into
+// a branch is a state nobody can enumerate: there is no way to ask what a room can say, and so no
+// way to hold anybody to every state it says being one that somebody has been in. This is that
+// list, and `stateOf` can return nothing that is not in it.
+//
+// `named` is the state and `say` is the wording, and they are apart because the wording carries a
+// number or a name in three of the six. Keeping them apart is what lets a reader of this table ask
+// whether a state was ever reached without also asking whether it was worded exactly this way —
+// the wording belongs to the room and is free to change.
+//
+// The ORDER is not held by anything, and that is measured rather than assumed: swapping the first
+// two entries is noticed by nothing in the suite. It would take a session that is at once waiting
+// on somebody and stopped waiting to be allowed something, and no fixture reaches that — the run
+// that calls is blocked in the call until it comes back, so it has not asked for anything yet.
+// Written down here so nobody spends another mutation finding out.
+export const STATES = Object.freeze([
+  {
+    named: "needs you",
+    when: (session) => session.asking > 0,
+    say: (session) => (session.asking === 1 ? "needs you" : `needs you (${session.asking})`),
+  },
+  {
+    named: "waiting for <name>",
+    when: (session) => session.waitingFor !== null && session.waitingFor !== undefined,
+    say: (session) => `waiting for ${session.waitingFor}`,
+  },
+  {
+    named: "answering, N waiting",
+    when: (session) => session.queued > 0,
+    say: (session) => `answering, ${session.queued} waiting`,
+  },
   // Said instead of "idle", because it is the more useful half of the same fact: a quiet session
   // whose next message costs a fresh start is worth knowing about, and a quiet session is not.
-  if (session.cold) {
-    return "cold";
-  }
-  return session.busy ? "answering" : "idle";
+  {
+    named: "cold",
+    when: (session) => session.cold,
+    say: () => "cold",
+  },
+  {
+    named: "answering",
+    when: (session) => session.busy,
+    say: () => "answering",
+  },
+  // Last, and it asks nothing of the row: rest is what is left when none of the others hold. A
+  // table whose final entry could fail to match would leave `stateOf` with nothing to return for a
+  // row nobody thought of, which is the one way a state could still go unnamed.
+  {
+    named: "idle",
+    when: () => true,
+    say: () => "idle",
+  },
+]);
+
+function stateOf(session) {
+  return STATES.find((state) => state.when(session)).say(session);
 }
 
 // How long ago, in the roughest terms that are still useful. Nothing anybody decides from a room

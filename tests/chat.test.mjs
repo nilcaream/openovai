@@ -56,6 +56,11 @@ import { ranAt } from "../tools/chat/session.mjs";
 // copy would agree with itself for good while the chat grew a fifth kind nobody reached.
 import { KINDS } from "../tools/chat/unfinished.mjs";
 
+// The states a room can say, for the same reason: the list is the check's other source, and a copy
+// of it here would be a list that agrees with itself while the room learned a seventh state nobody
+// had ever been in.
+import { STATES } from "../tools/chat/room.mjs";
+
 const HUMAN = "Mike";
 const LEADER = "Superman";
 const LEADER_MODEL = "sonnet";
@@ -3285,6 +3290,109 @@ describe("what a row says about a refusal, and what takes it off again", () => {
   it("still attempts a message to a session whose row says refused", () => {
     assert.equal(attempted, 1, "the stand-in was not called again");
     assert.equal(attemptedStatus, 503);
+  });
+});
+
+// Every state the room can say, and somebody who has been in it.
+//
+// The states are named in one place now, which makes a question askable that was not before: is
+// every one of them a state a session actually reaches? A phrase written into a branch could be
+// dead for years and nothing would say so — and a state nobody can get into is a state nobody has
+// had to write an exit for, which is the whole of what this feature is about.
+//
+// So the table is one source and real rows off real scenarios are the other, and the check is that
+// the set of states reached is the whole table. A seventh entry added without a scenario that
+// enters it goes red here and nowhere else.
+//
+// Two starts rather than one, because the conditions are tried in order and the early ones hide the
+// late ones: a session stopped to ask permission reads `needs you` whatever else is true of it, so
+// a fixture that makes every run ask can never show one merely answering. The first start is a slow
+// turn with a second message behind it, the second is a call with a question in the middle of it.
+//
+// What is NOT here: a check that each state has an exit. Every exit was taken out in turn and every
+// one of them is already red on checks that exist — a request answered, an addressee settling, the
+// turn ahead settling, the run settling, a cold thread forgotten. The sixth state is rest, which has
+// no exit by design and needs none. A check over them would restate five things and invent a sixth.
+describe("every state the room can say, and somebody who has been in it", () => {
+  const statesLog = path.join(standIn, "states.txt");
+  let seen;
+
+  before(async () => {
+    const found = new Set();
+    const note = (row) => {
+      assert.ok(row !== null && row !== undefined, "there was no row to read a state off");
+      found.add(STATES.find((state) => state.when(row)).named);
+    };
+    const rowFor = async (name) => {
+      const { sessions: rows } = JSON.parse((await get(`${URL}/sessions`)).body);
+      return rows.find((row) => row.name === name) ?? null;
+    };
+
+    await start(instance, standInEnvironment(standIn, statesLog, { OW_STAND_IN_SLOW: "1500" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    // Nothing has been said to this one yet, and nothing ever is on this start.
+    note(await rowFor(LEADER));
+
+    // Slow enough to be read while it is going, and slow enough to put a second message behind it.
+    const answering = say("take your time", WORKER);
+    note(
+      await waitFor(async () => {
+        const row = await rowFor(WORKER);
+        return row?.busy === true ? row : null;
+      }),
+    );
+    const behind = say("and one behind it", WORKER);
+    note(
+      await waitFor(async () => {
+        const row = await rowFor(WORKER);
+        return row?.queued === 1 ? row : null;
+      }),
+    );
+    await Promise.all([answering, behind]);
+
+    // Cold is the thread file's own clock and nothing else, so the whole of reaching it is pushing
+    // that file back past the hour. It has a thread by here because it has just answered twice.
+    age(threadFile(WORKER), 90);
+    note(await rowFor(WORKER));
+
+    // The lead calls the worker with the instance's own command and waits; the worker, answering
+    // it, stops to ask to be allowed something. Nothing moves while that request sits there, so
+    // both rows are read off a stopped world rather than caught in passing.
+    await start(
+      instance,
+      standInEnvironment(standIn, statesLog, {
+        OW_STAND_IN_CALLS: `${LEADER}>${WORKER}`,
+        OW_STAND_IN_ASKS: "Bash",
+        OW_STAND_IN_WAITS: "30000",
+      }),
+    );
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    const calling = say("go and ask him", LEADER);
+    const workers = await waitFor(async () => {
+      const { permissions } = JSON.parse((await get(`${URL}/sessions/${WORKER}/permissions`)).body);
+      return permissions.length > 0 ? permissions : null;
+    });
+    note(await rowFor(WORKER));
+    note(await rowFor(LEADER));
+
+    // Answered in the order they were asked, so both turns end of their own accord and this leaves
+    // the chat with nothing going for whatever runs next.
+    await post(`${URL}/sessions/${WORKER}/permission`, { id: workers[0].id, decision: "allow" });
+    const leads = await waitFor(async () => {
+      const { permissions } = JSON.parse((await get(`${URL}/sessions/${LEADER}/permissions`)).body);
+      return permissions.length > 0 ? permissions : null;
+    });
+    await post(`${URL}/sessions/${LEADER}/permission`, { id: leads[0].id, decision: "allow" });
+    await calling;
+
+    seen = [...found].sort();
+  });
+
+  it("reaches every state the room can say", () => {
+    assert.ok(seen.length > 0, "no state was reached at all, so this compares two empty lists");
+    assert.deepEqual(seen, STATES.map((state) => state.named).sort(), JSON.stringify(seen));
   });
 });
 
