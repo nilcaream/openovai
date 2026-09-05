@@ -1671,10 +1671,19 @@ describe("asking to be allowed", () => {
       assert.ok(answered.body.includes("I was told allow"));
     });
 
-    it("leaves nothing waiting once the run is over", async () => {
-      const left = JSON.parse((await get(`${URL}/sessions/${LEADER}/permissions`)).body).permissions;
-      assert.deepEqual(left, []);
-    });
+    // A third check stood here, reading the waiting list once the turn was over and asserting it
+    // was empty. It is gone rather than renamed, because there is nothing it could be renamed to
+    // that would be true. It cannot be about a run ending with something still parked: the request
+    // in this describe was answered before the run finished. And it cannot be about the answering
+    // either, because reading the list AFTER the turn cannot see what answering did — the turn
+    // gives up everything still parked on its way out, so the list is empty whether the answer took
+    // the request away or not. Measured both ways: it survived deleting the giving-up, and it
+    // survived answering being made to leave the request where it was.
+    //
+    // Both of the things it meant to say are held elsewhere, by checks that reach them.
+    // `stops counting it once a person has answered, before the turn is over` reads the count while
+    // the run is still going, which is what makes it about the answer and not about the turn, and
+    // `takes the question down with it` reaches a run that really does end with its question up.
   });
 
   describe("refusing it", () => {
@@ -1725,6 +1734,8 @@ describe("asking to be allowed", () => {
   // gone would be a button that does nothing and says otherwise.
   describe("a run that ends while its question is still up", () => {
     let answered;
+    let asked;
+    let took;
 
     before(async () => {
       await start(
@@ -1736,8 +1747,11 @@ describe("asking to be allowed", () => {
       );
       assert.ok(await waitForHealth(URL), "the server never answered");
       const exchange = say("nobody will answer this one");
-      await waitingOn(LEADER);
+      asked = await waitingOn(LEADER);
+
+      const at = Date.now();
       answered = await exchange;
+      took = Date.now() - at;
     });
 
     after(async () => {
@@ -1749,7 +1763,20 @@ describe("asking to be allowed", () => {
       assert.equal(answered.status, 200);
     });
 
+    // This is where a run really does end with a question still up, so this is where the list is
+    // read. Three lines, and each one closes a way of passing without proving anything.
+    //
+    // That there was a question at all: an empty list means nothing on its own, because a list
+    // emptied by the ending and a list that never held anything compare equal.
+    //
+    // That it was gone by the time the turn came back: read on the turn's own clock rather than
+    // after a wait, so a chat that cleared the list on some later sweep of its own could not pass
+    // this — a page offering to answer a run that left is a page that lies for as long as it does
+    // it, and a check that waits long enough for anything to be true says nothing about when.
     it("takes the question down with it", async () => {
+      assert.equal(asked?.length, 1, "no question was ever asked, so this proved nothing");
+      assert.ok(took < 5000, `the turn took ${took}ms, long enough for something other than the ending to have cleared it`);
+
       const left = JSON.parse((await get(`${URL}/sessions/${LEADER}/permissions`)).body).permissions;
       assert.deepEqual(left, [], "the page is still offering to answer a run that has gone");
     });
