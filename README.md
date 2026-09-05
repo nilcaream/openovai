@@ -874,8 +874,8 @@ and it also never tells a worker anything, so nothing wrong is said on the stren
 the limit, and this does not close it.
 
 What the release says is a file called `NOTES.md` at the root of the repository, written for the
-lead of a workspace taking the release rather than for a developer reading a changelog. It is
-rewritten each release and it is not part of the payload: it describes a release, not an instance.
+lead of a workspace taking the release rather than for a developer reading a changelog. It keeps
+a section per release and it is not part of the payload: it describes a release, not an instance.
 
 ## What to build first
 

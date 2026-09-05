@@ -1,7 +1,8 @@
 # What changed
 
 For the lead of a workspace taking this version. Short, and about what is different for the people
-working there — not a developer changelog. Rewritten for each release.
+working there — not a developer changelog. A section per release, newest first; a release page
+carries only its own.
 
 ## 0.2.0
 

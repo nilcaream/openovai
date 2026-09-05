@@ -72,14 +72,14 @@ node --test tests/update.test.mjs    # take a newer version from a release, and 
 node --test tests/tag.test.mjs       # what a release of this tree would be, and what it refuses to be
 ```
 
-Run all four with `node --test tests/*.test.mjs`.
+Run all five with `node --test tests/*.test.mjs`.
 
 The update suite serves a release to itself — a directory for one already unpacked, and a local
 HTTP server answering the shape GitHub answers in, with a real `.tar.gz` — so no check reaches the
 network and no check needs a release to exist.
 
 They need Node.js and nothing else. The install suite skips the checks that start an instance
-when Claude Code is absent, and says it skipped them rather than passing quietly. The other three
+when Claude Code is absent, and says it skipped them rather than passing quietly. The other four
 never run Claude Code at all: the stand-in in `tests/helpers.mjs` goes first on the PATH and
 answers in the shape the real one answers in, so what gets checked is our side — the arguments
 the leader is run with, the thread being resumed, and what the transcript says when Claude Code
@@ -101,8 +101,8 @@ Everything it needs is already in the repository, so there is nothing to type in
 nothing to paste afterwards:
 
 1. Put the new version in `VERSION`.
-2. Rewrite `NOTES.md` so it has a `## <version>` section saying what changed for the lead of a
-   workspace taking it.
+2. Add a `## <version>` section to `NOTES.md` saying what changed for the lead of a workspace
+   taking it. The file keeps the older sections; the workflow publishes only the new one.
 3. Merge both to `main`.
 4. Run the workflow.
 
