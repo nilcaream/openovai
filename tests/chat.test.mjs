@@ -7960,3 +7960,76 @@ export function run({ word }, { caller }) {
     assert.deepEqual(reaching, []);
   });
 });
+
+
+// The three things a tool of an instance's own can do other than answer, and what each of them
+// reaches the model as. All three are the same kind of event to whoever wrote the plugin — it did
+// not work — and all three have to arrive as a sentence rather than as a call that failed, because
+// a JSON-RPC failure says the request was malformed, which is a thing a model cannot act on.
+describe("a tool of the instance's own that does not answer", () => {
+  const directory = path.join(instance, "plugins");
+  const REFUSAL = "not while the room is this busy";
+  const BROKEN = "the desk it writes to is not there";
+
+  const files = {
+    "refuses.mjs": `export const description = "Refuse, so the refusal can be read.";
+export const inputSchema = { type: "object", properties: {}, additionalProperties: false };
+export function run() {
+  return { refused: "${REFUSAL}" };
+}
+`,
+    "throws.mjs": `export const description = "Throw, so what a throw reaches the caller as can be read.";
+export const inputSchema = { type: "object", properties: {}, additionalProperties: false };
+export function run() {
+  throw new Error("${BROKEN}");
+}
+`,
+    "silent.mjs": `export const description = "Answer with nothing, the first mistake anybody writing one of these makes.";
+export const inputSchema = { type: "object", properties: {}, additionalProperties: false };
+export function run() {}
+`,
+  };
+
+  let refused;
+  let threw;
+  let silent;
+
+  before(async () => {
+    fs.mkdirSync(directory, { recursive: true });
+    for (const [name, written] of Object.entries(files)) {
+      fs.writeFileSync(path.join(directory, name), written);
+    }
+    await start(instance, standIns);
+    assert.ok(await waitForHealth(URL), "the server never came back with the plugins in place");
+
+    refused = answerOf(await call(WORKER, "tools/call", { name: "refuses", arguments: {} }));
+    threw = answerOf(await call(WORKER, "tools/call", { name: "throws", arguments: {} }));
+    silent = answerOf(await call(WORKER, "tools/call", { name: "silent", arguments: {} }));
+  });
+
+  after(async () => {
+    fs.rmSync(directory, { recursive: true, force: true });
+    await start(instance, standIns);
+    assert.ok(await waitForHealth(URL), "the server never came back without the plugins");
+  });
+
+  // Both halves, because they are the thing that can come apart: the words have to be the
+  // plugin's, and the call has to have succeeded in saying them.
+  it("hands on a refusal from one of them, in its own words and not as a failed call", () => {
+    assert.equal(refused.error, null, "the call itself failed");
+    assert.deepEqual([refused.refused, refused.text], [true, REFUSAL]);
+  });
+
+  it("answers in words when one of them throws, saying which one and what it said", () => {
+    assert.equal(threw.error, null, "a throw inside a tool came back as a failure of the call");
+    assert.ok(threw.refused, "a throw came back as an ordinary answer");
+    assert.match(threw.text, new RegExp(`throws.*${BROKEN}`));
+  });
+
+  // A handler that forgets to return is the first mistake there is, and left alone it reaches the
+  // model as a call that came back empty: no words, no failure, nothing to act on.
+  it("refuses in words when one of them answers with nothing, saying which one", () => {
+    assert.ok(silent.refused, "answering with nothing came back as an ordinary answer");
+    assert.match(silent.text, /^silent answered with nothing/);
+  });
+});

@@ -67,6 +67,39 @@ export async function pluginsIn(root) {
   return served;
 }
 
+// What a plugin answered, in the two shapes the chat knows how to pass on, or a refusal saying it
+// answered in neither.
+//
+// A tool answers { text } or { refused } and there is no third thing. A handler that forgets to
+// return answers with nothing at all, and nothing at all reaches the model as a tool call that
+// came back empty — no words, no failure, nothing to act on, which is the one answer a model
+// cannot do anything with. It is the first mistake anybody writing one of these makes, so it is
+// answered here rather than left to arrive as silence, and the sentence names the plugin because
+// the person who has to fix it is the person who wrote that file.
+//
+// A refusal, not a throw: the call arrived and was understood, and what is wrong is the plugin
+// rather than the request.
+export function answerFrom(name, given) {
+  if (typeof given?.refused === "string") {
+    return { refused: given.refused };
+  }
+  if (typeof given?.text === "string") {
+    return { text: given.text };
+  }
+  return {
+    refused: `${name} answered with nothing that can be passed on: a tool of this instance answers { text } or { refused }, and this one answered ${describe(given)}`,
+  };
+}
+
+// What it answered instead, short enough to read in a sentence. The shape is what the person
+// fixing it needs; the contents are theirs and could be anything at all.
+function describe(given) {
+  if (given === undefined || given === null) {
+    return String(given);
+  }
+  return typeof given === "object" ? `an object with ${Object.keys(given).join(", ") || "nothing"} in it` : typeof given;
+}
+
 // A file, named the way a tool is named. A directory in there is not a tool with parts; anything
 // that is not a module is not a module, and notes somebody left beside their plugin are notes.
 function isPlugin(entry) {

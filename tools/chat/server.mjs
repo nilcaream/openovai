@@ -14,6 +14,7 @@ import { respond } from "./mcp.mjs";
 import { OFFLINE, goOffline, goOnline, offline } from "./offline.mjs";
 import { carry, overhear } from "./overheard.mjs";
 import { allow, answer as settle, giveUp, park, parked, refuse } from "./permissions.mjs";
+import { answerFrom } from "../plugins.mjs";
 import { ago, roomLines } from "./room.mjs";
 import { DESK_FILE, DeskError, WORK, archiveFor, deskTitle, describeName, hire, isName, retire } from "../desks.mjs";
 import { accountStanding, ask, endRun, forget, hasGoneCold, hasGoneQuiet, hasThread, quotaIn, ranAt, refusedIn, sessions } from "./session.mjs";
@@ -926,7 +927,11 @@ function toolsFor(instance, caller) {
       name: plugin.name,
       description: plugin.description,
       inputSchema: plugin.inputSchema,
-      run: (args) => plugin.run(args, { caller, leads: lead, root: instance.root, config: instance.config }),
+      // Awaited here rather than handed straight on, so that a plugin that answers with nothing is
+      // told so in words instead of arriving as a tool call that came back empty. A throw is not
+      // caught: that is answered one layer up, in the same words every other tool's is.
+      run: async (args) =>
+        answerFrom(plugin.name, await plugin.run(args, { caller, leads: lead, root: instance.root, config: instance.config })),
     })),
   ];
 }
