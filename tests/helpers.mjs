@@ -101,6 +101,8 @@ export function claudeIsInstalled() {
 //   OW_STAND_IN_REFUSED_DEAF  refuse and then ignore stdin being closed, for good (with REFUSED)
 //   OW_STAND_IN_LIMIT         a status to report in a rate_limit_event before doing anything else
 //   OW_STAND_IN_FULLNESS      how full the five-hour window says it is  (default: 0.29)
+//   OW_STAND_IN_LIMIT_KIND    which window the service names as the one that refused
+//                             (default: "five_hour")
 //                             — "allowed" or "allowed_warning", which is what an ordinary run
 //                             sends whenever the reading moves
 //   OW_STAND_IN_REFUSED_QUIETLY  be turned away with the 429 alone and no rate_limit_event, which
@@ -214,7 +216,7 @@ const frame = (fields) => process.stdout.write(JSON.stringify(fields) + "\\n");
 const reading = (status, lifts) => ({
   status,
   ...(lifts === null ? {} : { resetsAt: lifts }),
-  rateLimitType: "five_hour",
+  rateLimitType: limitKind(),
   overageStatus: "rejected",
   overageDisabledReason: "org_level_disabled",
   isUsingOverage: false,
@@ -230,6 +232,14 @@ const lifts = () => Math.floor(Date.now() / 1000) + 3 * 60 * 60;
 // computed above: a check that asserted the number this file had written down would be matching a
 // constant both sides already agree on, and would pass whether or not anything read the frame.
 const fullness = () => Number(process.env.OW_STAND_IN_FULLNESS ?? 0.29);
+
+// Which window the service says refused, and a knob for exactly the reason the two above are.
+// It was a literal until it was measured: with every refusal fixture named five_hour, a reader
+// that ignored the field and hard-coded the string reached the right answer in all of them, and
+// the check whose whole job is this — "carries the kind of limit the frame named" — stayed green
+// under that mutation. The service names its own windows, so a fixture that only ever names one
+// proves nothing about whether the field is read.
+const limitKind = () => process.env.OW_STAND_IN_LIMIT_KIND ?? "five_hour";
 
 if ((process.env.OW_STAND_IN_LIMIT ?? "") !== "") {
   frame({

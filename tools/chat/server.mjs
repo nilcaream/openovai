@@ -15,7 +15,7 @@ import { carry, overhear } from "./overheard.mjs";
 import { allow, answer as settle, giveUp, park, parked, refuse } from "./permissions.mjs";
 import { roomLines } from "./room.mjs";
 import { DESK_FILE, DeskError, WORK, archiveFor, deskTitle, describeName, hire, isName, retire } from "../desks.mjs";
-import { ask, forget, hasGoneCold, hasThread, quotaIn, ranAt, sessions } from "./session.mjs";
+import { ask, forget, hasGoneCold, hasThread, quotaIn, ranAt, refusedIn, sessions } from "./session.mjs";
 import { inTurn, turnsGoing, waitingFor, whileWaitingFor, wouldWaitForItself } from "./turns.mjs";
 import { takeWord } from "./untold.mjs";
 import { version } from "../version.mjs";
@@ -568,9 +568,15 @@ async function deliver(instance, name, text, signed, shown = null) {
   // this message's fault and it is not the addressee's, and the same message sent again later is
   // the whole of the repair.
   //
-  // This is NOT the state gate the invariant above rules out. Nothing is remembered about the
-  // limit, nothing consults it, and the next message is attempted exactly like this one — which is
-  // why the message queued behind this one is run rather than held.
+  // This is NOT the state gate the invariant above rules out. The limit IS remembered now — it is
+  // on the session's row until the moment it named has passed — and what makes that a fact rather
+  // than a gate is that nothing consults it. Not here, not on the way in, not in the queue. The
+  // next message is attempted exactly like this one, which is why the message queued behind this
+  // one is run rather than held.
+  //
+  // Held true by a check and not by this paragraph: a message to a session whose row says refused
+  // is still attempted, and the check reads the stand-in's own call log rather than the status,
+  // because a gate would answer this very 503 without running anything at all.
   if (answered.refused !== undefined) {
     return { status: 503, body: { error: answered.refused.text, refused: true } };
   }
@@ -1187,6 +1193,15 @@ function everySession(instance, session) {
     // describing its own session's last run, which is why the age is served beside the number and
     // never separated from it.
     quota: quotaOn(instance.root, session.name),
+    // And whether the account is still turned away, with the moment it lifts. Feature 9 says this
+    // on the panel, once, at the moment it happens; it is gone the next time anybody looks, which
+    // is how a workspace could sit refused with a room full of rows saying idle. Here it lasts as
+    // long as the condition does and no longer.
+    //
+    // Beside the state phrase rather than inside it: what a session is doing and whether its
+    // account is available are different questions, and a session answering right now while its
+    // last run was turned away is a real state that one word could not say.
+    refused: refusedIn(instance.root, session.name),
     // And what it is on, in the session's own words, from the one header field its persona asks
     // it to keep current. Nothing else can answer this: a name says who somebody is and a
     // transcript says what they were last asked, neither of which is what they are working on.

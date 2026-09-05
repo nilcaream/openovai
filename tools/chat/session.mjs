@@ -49,10 +49,10 @@ function remembered(root, name) {
   }
 }
 
-function remember(root, name, sessionId, context, quota) {
+function remember(root, name, sessionId, context, quota, refused) {
   const target = sessionFile(root, name);
   fs.mkdirSync(path.dirname(target), { recursive: true });
-  fs.writeFileSync(target, `${JSON.stringify({ sessionId, context, quota }, null, 2)}\n`);
+  fs.writeFileSync(target, `${JSON.stringify({ sessionId, context, quota, refused }, null, 2)}\n`);
 }
 
 // How much of itself a thread is carrying, as of the end of its last turn. Read from the same file
@@ -86,6 +86,35 @@ export function quotaIn(root, name) {
   } catch {
     return null;
   }
+}
+
+// The refusal this session is still under, or nothing.
+//
+// A refusal is not a fact about a moment the way a reading is; it is a condition that lasts, and
+// the service says when it ends. So this is the one thing here that answers differently at
+// different times without anything having been written in between: the moment is stored, the
+// comparison happens on every read, and there is no timer, nothing scheduled and nothing to clean
+// up. Exactly the shape hasGoneCold() already has, for the same reason.
+//
+// A refusal that named no moment cannot expire this way and stays until a run reports otherwise.
+// That is the honest answer rather than a guessed expiry: the service did not say, so neither does
+// this, and the next run settles it. Dropping such a refusal for saying less would be the most
+// confident possible silence.
+export function refusedIn(root, name) {
+  let held;
+  try {
+    held = JSON.parse(fs.readFileSync(sessionFile(root, name), "utf8")).refused;
+  } catch {
+    return null;
+  }
+  if (held === null || typeof held !== "object") {
+    return null;
+  }
+  const lifts = typeof held.resetsAt === "number" ? held.resetsAt : null;
+  if (lifts !== null && lifts * 1000 <= Date.now()) {
+    return null;
+  }
+  return { kind: held.kind ?? null, resetsAt: lifts };
 }
 
 // Whether this session has a conversation to carry on, which is not the same question as how big
@@ -710,7 +739,14 @@ export async function ask(instance, name, text, asked = nobodyToAsk) {
     // Written together, because they are one fact about one conversation. What this run reported is
     // what is kept, `null` included: a reading that stopped arriving should show as nothing rather
     // than as a number from some earlier turn that is no longer where the thread is.
-    remember(instance.root, name, answer.sessionId, answer.context ?? null, answer.quota ?? null);
+    remember(
+      instance.root,
+      name,
+      answer.sessionId,
+      answer.context ?? null,
+      answer.quota ?? null,
+      answer.refused ?? null,
+    );
   }
 
   return answer;

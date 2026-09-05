@@ -2497,6 +2497,11 @@ describe("what the room says about a conversation that has gone cold", () => {
 });
 
 
+const REFUSED_ON_THE_ROW = "Wigeon";
+const LIFTED = "Gadwall";
+const NO_RESET_GIVEN = "Pintail";
+const NEVER_REFUSED = "Shoveler";
+
 const GAUGED = "Dipper";
 const NEVER_GAUGED = "Ouzel";
 const GAUGED_REFUSED = "Bittern";
@@ -2642,6 +2647,128 @@ describe("what a row says about the usage window its last run was told about", (
     assert.ok(Array.isArray(survived?.quota?.windows), "the reading did not survive the restart");
     assert.deepEqual(survived.quota.windows, told?.quota?.windows);
     assert.deepEqual(held.quota, told?.quota?.windows);
+  });
+});
+
+
+// A refusal on the row, and how it goes away.
+//
+// Feature 9 says a refusal on the PANEL, once, at the moment it happens. It is gone the next time
+// anybody looks, which is how a workspace could sit refused with a room full of rows saying idle.
+// This puts it where the room reads, and the whole question is then what takes it off again.
+//
+// The service says when the limit lifts, so that moment is what clears it: one stored moment, one
+// comparison, one direction, no timer and nothing scheduled — the shape hasGoneCold() already has.
+// A refusal that named no moment cannot expire that way and is cleared by the next run instead.
+describe("what a row says about a refusal, and what takes it off again", () => {
+  const refusalLog = path.join(standIn, "refusal.txt");
+  const refusing = (extra) => standInEnvironment(standIn, refusalLog, { OW_STAND_IN_REFUSED: "yes", ...extra });
+  let onTheRow;
+  let neverRefused;
+  let noReset;
+  let lifted;
+  let cleared;
+  let attempted;
+  let attemptedStatus;
+
+  before(async () => {
+    runTool(instance, ["hire", REFUSED_ON_THE_ROW], process.env);
+    runTool(instance, ["hire", LIFTED], process.env);
+    runTool(instance, ["hire", NO_RESET_GIVEN], process.env);
+    runTool(instance, ["hire", NEVER_REFUSED], process.env);
+
+    // Turned away, with a reset moment the fixture computed rather than one written down, and
+    // under a window that is deliberately NOT the common one. Every refusal fixture here named
+    // five_hour until it was measured, and a reader that hard-coded that string passed all of
+    // them; the seven-day window refuses too, and naming it is what makes the row prove it
+    // carried what the frame said rather than what the reader assumed.
+    await start(instance, refusing({ OW_STAND_IN_LIMIT_KIND: "seven_day" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    await say("ask while the account is out", REFUSED_ON_THE_ROW);
+    await say("ask while the account is out", LIFTED);
+
+    // Turned away saying nothing about when it lifts. The schema does not promise the field.
+    await start(instance, refusing({ OW_STAND_IN_NO_RESET: "yes" }));
+    assert.ok(await waitForHealth(URL), "the server never came back");
+    await say("ask while the account is out", NO_RESET_GIVEN);
+
+    // Time passing, made rather than waited for: the moment this refusal named is moved into the
+    // past on the file that holds it, which is the state a row is in an hour later. The same idea
+    // as age() above, on stored content rather than on an mtime.
+    const held = JSON.parse(fs.readFileSync(threadFile(LIFTED), "utf8"));
+    held.refused = { ...held.refused, resetsAt: Math.floor(Date.now() / 1000) - 60 };
+    fs.writeFileSync(threadFile(LIFTED), `${JSON.stringify(held, null, 2)}\n`);
+
+    let rows = JSON.parse((await get(`${URL}/sessions`)).body).sessions;
+    onTheRow = rows.find((row) => row.name === REFUSED_ON_THE_ROW);
+    neverRefused = rows.find((row) => row.name === NEVER_REFUSED);
+    noReset = rows.find((row) => row.name === NO_RESET_GIVEN);
+    lifted = rows.find((row) => row.name === LIFTED);
+
+    // A message to a session whose row says refused. Nothing may consult that row to decide
+    // whether to try, so what is read here is the stand-in's own call log and not the answer.
+    const beforeTry = callsIn(refusalLog).length;
+    const answered = await say("say it again anyway", REFUSED_ON_THE_ROW);
+    attemptedStatus = answered.status;
+    attempted = callsIn(refusalLog).length - beforeTry;
+
+    // And a run that answers, on a session whose row said refused a moment ago.
+    await start(instance, standInEnvironment(standIn, refusalLog));
+    assert.ok(await waitForHealth(URL), "the server never came back");
+    await say("and now it works", REFUSED_ON_THE_ROW);
+    cleared = JSON.parse((await get(`${URL}/sessions`)).body).sessions.find((row) => row.name === REFUSED_ON_THE_ROW);
+  });
+
+  // Mutation: read the moment out of the service's prose instead of the field. The stand-in's
+  // sentence deliberately names a different hour from its own resetsAt, so a row built from the
+  // words rather than the number is caught saying the wrong one.
+  it("carries the moment the frame said the limit lifts", () => {
+    assert.equal(typeof onTheRow?.refused?.resetsAt, "number");
+    assert.ok(onTheRow.refused.resetsAt > Math.floor(Date.now() / 1000), "the reset moment is not ahead");
+  });
+
+  // Mutation: hard-code five_hour. The service names its own windows and can rename them.
+  //
+  // The window asserted here is the seven-day one, and that is the whole of what makes this check
+  // work. It read five_hour first, against a fixture that also said five_hour, and the mutation
+  // that hard-codes the string left it GREEN — the reader and the fixture agreeing on a constant
+  // neither of them had to read. The other refusal below still names five_hour, so both windows
+  // are exercised and only a row built from the field satisfies the pair.
+  it("carries the kind of limit the frame named", () => {
+    assert.equal(onTheRow?.refused?.kind, "seven_day");
+  });
+
+  // Mutation: drop the expiry. A refusal is true until the moment it named, and a row still saying
+  // it an hour later is the room lying in the one direction nobody checks.
+  it("is off the row once the moment it named has passed", () => {
+    assert.equal(lifted?.refused, null);
+  });
+
+  // Mutation: require resetsAt to record it. A refusal that says less is still a refusal, and one
+  // the row dropped for saying less would be the most confident silence there is.
+  it("stays on the row when the frame named no moment at all", () => {
+    assert.equal(noReset?.refused?.resetsAt, null);
+    assert.equal(noReset?.refused?.kind, "five_hour");
+  });
+
+  // Mutation: keep the previous refusal when the run reported none. Same rule as the reading: what
+  // this run reported is what is kept, null included.
+  it("is off the row after a run that answered", () => {
+    assert.equal(cleared?.refused, null);
+  });
+
+  // Mutation: default the field to an object.
+  it("says nothing about a session that has never been refused", () => {
+    assert.equal(neverRefused?.refused, null);
+  });
+
+  // Mutation: answer the 503 out of the row's own refused field, before running anything. THIS IS
+  // THE NEVER-A-GATE CHECK and it is read from the call log rather than from the status, because a
+  // real refusal answers 503 too: a gate would return the same number without running anything at
+  // all, and a check that only read the response would call that a pass.
+  it("still attempts a message to a session whose row says refused", () => {
+    assert.equal(attempted, 1, "the stand-in was not called again");
+    assert.equal(attemptedStatus, 503);
   });
 });
 
