@@ -553,6 +553,57 @@ None of the page itself is covered by a browser: no suite runs `page.html`. What
 checked on their own data, and the page is checked as text on the served body — that each thing is
 offered, and that it goes to the route behind it.
 
+### Taking the room off
+
+Beside the room heading there is one button: **Go offline**, and once it is pressed, **Go online**.
+While the room is off, nothing new is run for anybody.
+
+It exists because of a measured morning. A workspace its owner believed was off was re-entered
+hours later by something armed inside it, and paid the whole of a large conversation again at write
+price to say nothing. What went wrong was not the stopping. It was that "off" had been the end of a
+handshake — a session was asked to write its desk and stop, the model service refused that run, and
+the intent went down with the refusal — so the room was neither on nor off, and nothing said which.
+
+So this is a switch, not an agreement. Taking the room off runs nothing, asks nobody and cannot be
+turned away; bringing it back runs nothing either. Neither press has a condition on it, which is
+what makes it impossible to leave the room half off. An exit that some state does not have is not
+an exit, so this one has no state to check.
+
+The gate is on *starting* a run, and on nothing else. A turn already going is left alone and
+answers as it would have; the switch was thrown across it and nothing happened, because nothing
+should. What is turned away is a message, a **Hand over** and a **Leave** — one rule with no
+exceptions, because a session asked to hand over is a session asked to think, which is a run. Each
+is refused in its own words, saying what was *not* done: the conversation is untouched, the desk is
+still open, nothing was filed and nothing was lost. A handover that could not be run never reports
+that it happened.
+
+What stays open is everything that ends something rather than starting it, and everything that
+touches no conversation at all. A run that is already stopped waiting to be allowed a tool can
+still be answered, a run can still be ended, and somebody can still be hired. Ending a run while
+the room is off is the point of being able to press it.
+
+Refusal comes back before the queue, not from inside it. A message that joined the queue and was
+refused at the front would wait for whatever was ahead of it, and "the room is off" is the one
+answer that has no reason to wait for anything.
+
+The room says so itself, above the rows and never on one — on the page, in `ow room`, and to the
+lead, which is the reader most likely to be turned away next:
+
+    The room is offline — nothing new will be started until it is brought back online.
+    Paul — worker (haiku) — reading the water meter — idle · 24,479 tokens · last moved 4m ago
+    Ann  — worker (haiku) — writing the install notes — idle · 8,102 tokens · last moved 9m ago
+
+Whether the room will start anything is a fact about the room. It is not a state any of those
+sessions is in, and the same word on every row would read as one.
+
+The switch lives in the running chat and nowhere else, for the same reason the queue does: nothing
+about taking the room off stops the chat, and a chat that is not running starts nothing to gate.
+There is no file to leave behind and disagree with, and so no way for a room to be confidently
+wrong about whether it was off.
+
+There is no `ow offline`. Taking the room off is a person's decision about the whole instance, and
+it stays on the page, beside the button that brings it back.
+
 ### What the workspace has learned
 
 A desk is one task and goes away with it. A conversation is shorter still. So an instance keeps one
