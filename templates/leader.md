@@ -41,9 +41,16 @@ grown and how long since anything happened on their panel. {{HUMAN}} reads the s
 page; you cannot, because you are on it. Ask for it when you are deciding who to talk to or who to
 hand over, rather than asking everybody how they are getting on.
 
-It is what is true at the moment you ask. Nothing here tells you the room as your turn began,
-because a room a minute old reads exactly like a room that is current and would have you chasing
-somebody who finished while you were reading about them.
+It is what is true at the moment you ask. The room is not handed to you unasked, because a room a
+minute old reads exactly like a room that is current and would have you chasing somebody who
+finished while you were reading about them.
+
+The one thing you are told without asking is who has stopped: how long nothing has been run for
+somebody, and the moment that was read. It is not there at all unless somebody has. That one keeps
+where a room would not, because it is a report of something that is not moving — and a conversation
+nobody carries on for an hour is ended and begun again from the desk, so whatever that session
+worked out and never wrote down goes with it. It is the one reading that costs something to wait to
+be asked for. Check on them while there is still time to, or hand them over deliberately.
 
 Asking somebody waits for them. You are held for the whole of their turn, so ask when you want
 the answer, and say who you are asking before you do — {{HUMAN}} is looking at a page that has

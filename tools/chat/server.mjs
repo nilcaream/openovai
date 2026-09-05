@@ -14,9 +14,9 @@ import { respond } from "./mcp.mjs";
 import { OFFLINE, goOffline, goOnline, offline } from "./offline.mjs";
 import { carry, overhear } from "./overheard.mjs";
 import { allow, answer as settle, giveUp, park, parked, refuse } from "./permissions.mjs";
-import { roomLines } from "./room.mjs";
+import { ago, roomLines } from "./room.mjs";
 import { DESK_FILE, DeskError, WORK, archiveFor, deskTitle, describeName, hire, isName, retire } from "../desks.mjs";
-import { ask, endRun, forget, hasGoneCold, hasThread, quotaIn, ranAt, refusedIn, sessions } from "./session.mjs";
+import { ask, endRun, forget, hasGoneCold, hasGoneQuiet, hasThread, quotaIn, ranAt, refusedIn, sessions } from "./session.mjs";
 import { inTurn, turnsGoing, waitingFor, whileWaitingFor, wouldWaitForItself } from "./turns.mjs";
 import { unfinished } from "./unfinished.mjs";
 import { takeWord } from "./untold.mjs";
@@ -160,6 +160,59 @@ function deskWrapper(name) {
   ].join(" ");
 }
 
+// Who has stopped, told to the session that leads and to nobody else.
+//
+// The room is the lead's and a worker has one task; the others are not its business. That is
+// already true of the room it can ask for, and this is the same fact pushed.
+//
+// WHY IT IS PUSHED AT ALL, when the room is deliberately never carried into a turn. A room a
+// minute old reads exactly like a room that is current, and would have somebody chasing a session
+// that finished while they were reading about it. This is not the room. It is one line; it is not
+// there at all while nobody has stopped; it says the moment it was read, so it cannot be taken for
+// now; and it reports the one state that is not moving by definition. A session nobody carries on
+// with for an hour has its conversation ended and begun again from its desk, and whatever it never
+// wrote down goes with it — so this is the one reading where waiting to be asked for it costs
+// something, and it is what makes the exception worth having.
+//
+// WHY NOBODY MID-TURN IS NAMED. A session's clock is rewritten when a run ENDS, so it stands still
+// for the whole of a turn and a session working reads as one that has stopped. That one predicate
+// is also what leaves the reader out: this is composed inside its own turn, so it is running, so it
+// is not in its own list. There is no second rule saying "not me" — a rule that says the same thing
+// another way is a second place for it to go wrong.
+//
+// It says who is speaking, for the reason the update note does: an update ships new templates and
+// re-renders nobody's persona, so a session reading this may be running one written before any of
+// it existed and has nothing to look it up in.
+//
+// It stops by being acted on, which is the shape the standing ask about a desk already has. Saying
+// anything to a session starts a run and moves its clock; handing it over removes the thread
+// altogether. Nothing here has to be cleared, and nothing remembers having said it.
+function quietWrapper(instance, name) {
+  if (name !== instance.config.leader) {
+    return null;
+  }
+  const stopped = sessions(instance).filter(
+    (session) => turnsGoing(session.name) === 0 && hasGoneQuiet(instance.root, session.name),
+  );
+  if (stopped.length === 0) {
+    return null;
+  }
+
+  // The same words the room says of the same reading — a person and a session reading one line
+  // each should not have to work out that two phrasings are one fact.
+  const each = stopped.map((session) => `${session.name} last ran ${ago(ranOn(instance.root, session.name))}`);
+  const when = new Date();
+  const read = `${String(when.getHours()).padStart(2, "0")}:${String(when.getMinutes()).padStart(2, "0")}`;
+
+  return [
+    "<quiet>",
+    "The chat is telling you this. Nobody typed it.",
+    `${each.join(", and ")}. That is how long each has been doing nothing, read at ${read}, as this turn began.`,
+    "A conversation nobody carries on for an hour is ended and begun again from the desk, and whatever it worked out and never wrote down goes with it. Check on them while there is still time to, or hand them over deliberately.",
+    "</quiet>",
+  ].join("\n\n");
+}
+
 // Everything a session is handed in front of the message this turn is about: what it overheard
 // while it was not running, and the standing ask above while its desk says nothing. Blank lines
 // between them, because they are separate things said by different people.
@@ -168,6 +221,13 @@ function inFrontOf(instance, name, message, restarted = false, answering = null)
   // memory would read what it overheard as things it remembers being told.
   const said = restarted ? [pickUpWrapper(name)] : [];
   said.push(...carry(name));
+  // Beside what was overheard, because both are what happened elsewhere while this session was not
+  // running, and read HERE — the turn is where every other reading on this path is taken, and a
+  // message that waited behind a long turn is answered against what is true now.
+  const stopped = quietWrapper(instance, name);
+  if (stopped !== null) {
+    said.push(stopped);
+  }
   if (deskTitle(instance.root, name) === "") {
     said.push(deskWrapper(name));
   }

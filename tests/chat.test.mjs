@@ -7024,3 +7024,122 @@ describe("what the room says about a session answering with an old clock behind 
     assert.doesNotMatch(line, /40m/, "a session working for the whole of its turn is not doing nothing");
   });
 });
+
+const STOPPED_SHORT = "Linnet";
+const STOPPED_LONG = "Serin";
+const STILL_GOING = "Crossbill";
+
+// Who has stopped, told to the session that leads without it having asked.
+//
+// The room is deliberately never carried into a turn, and this is the one exception to that: one
+// line, absent while nobody has stopped, dated so it cannot be read as now, about the one state
+// that is not moving. So the fixtures here have to reach both states — somebody stopped, and
+// nobody stopped — or the check that it is said proves only that it is always said.
+describe("what the lead is told about who has stopped", () => {
+  const stoppedLog = path.join(standIn, "stopped.txt");
+  let toldWhenStopped;
+  let toldWhenNobodyHas;
+  let toldAWorker;
+  let toldWhenTheLeadIsTheOldOne;
+
+  // The question a session was handed on its last turn, whole.
+  const lastQuestion = (log) => questionsIn(log).slice(-1)[0] ?? "";
+
+  before(async () => {
+    runTool(instance, ["hire", STOPPED_SHORT], process.env);
+    runTool(instance, ["hire", STOPPED_LONG], process.env);
+    runTool(instance, ["hire", STILL_GOING], process.env);
+    await start(instance, standInEnvironment(standIn, stoppedLog));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    // A turn each, so every one of them has a clock at all.
+    await say("something, so this one has run", STOPPED_SHORT);
+    await say("something, so this one has run too", STOPPED_LONG);
+    await say("and this one, which stays fresh", STILL_GOING);
+    await say("and the lead, so it has one as well", LEADER);
+
+    // Nobody has stopped yet. This is the state that makes the check below mean anything.
+    await say("a first question, with the room busy and nobody stopped", LEADER);
+    toldWhenNobodyHas = lastQuestion(stoppedLog);
+
+    // Two of them stopped, to two different ages, and the panels touched to now so a reading off
+    // the panel's clock could not reach either answer.
+    age(threadFile(STOPPED_SHORT), 35.5);
+    age(threadFile(STOPPED_LONG), 50.5);
+    const now = new Date();
+    fs.utimesSync(panelFile(STOPPED_SHORT), now, now);
+    fs.utimesSync(panelFile(STOPPED_LONG), now, now);
+
+    await say("a second question, with two of them stopped", LEADER);
+    toldWhenStopped = lastQuestion(stoppedLog);
+
+    // The same state, seen from a worker's turn. A worker has one task and the others are not its
+    // business.
+    await say("and a worker is asked something, with the same two stopped", STILL_GOING);
+    toldAWorker = lastQuestion(stoppedLog);
+
+    // And the lead's own clock older than anybody's. It is mid-turn whenever this is composed, so
+    // its own reading is the end of its PREVIOUS run and is always stale.
+    age(threadFile(LEADER), 55.5);
+    fs.utimesSync(panelFile(LEADER), now, now);
+    await say("a third question, with the lead the oldest clock in the room", LEADER);
+    toldWhenTheLeadIsTheOldOne = lastQuestion(stoppedLog);
+  });
+
+  // Mutation: build the wrapper and never push it into what the session is handed — the shape this
+  // repo has already paid for twice, a thing built and never attached. Two names and two different
+  // ages are asserted, so no single written sentence satisfies this.
+  it("names who has stopped, and how long each has been doing nothing", () => {
+    assert.match(toldWhenStopped, /<quiet>[\s\S]*<\/quiet>/);
+    assert.match(toldWhenStopped, new RegExp(`${STOPPED_SHORT} last ran 35m ago`));
+    assert.match(toldWhenStopped, new RegExp(`${STOPPED_LONG} last ran 50m ago`));
+  });
+
+  // Mutation: drop the test on how long it has been, and everybody with a thread is named on every
+  // turn. The other half of the WHETHER rule, and without it the check above proves only that a
+  // sentence is always there.
+  //
+  // Read against THESE two and never against the whole line. The suites install one instance and
+  // every describe before this one hires into it, so by the time this runs there are sessions with
+  // genuinely old threads that this is right to name — a check asserting the wrapper is absent
+  // altogether passes alone and fails in a full run, which is exactly what it did.
+  it("does not name a session that has not stopped", () => {
+    assert.doesNotMatch(toldWhenNobodyHas, new RegExp(`${STOPPED_SHORT} last ran`));
+    assert.doesNotMatch(toldWhenNobodyHas, new RegExp(`${STOPPED_LONG} last ran`));
+  });
+
+  // Mutation: drop the test on who is being handed this. The room is the lead's, and this is the
+  // same fact pushed.
+  it("never says it to a worker", () => {
+    assert.doesNotMatch(toldAWorker, /<quiet>/, "a worker was told who has stopped");
+    // And the state it would have been told about was really there, or this passes on a quiet
+    // moment rather than on the rule it is named for.
+    assert.match(toldWhenStopped, /<quiet>/, "nobody had stopped when the worker was asked");
+  });
+
+  // Mutation: drop `turnsGoing(...) === 0`. A session's clock stands still for the whole of a turn,
+  // and this is composed inside the reader's own turn — so without that one predicate the lead is
+  // told it has stopped, on every turn it ever runs, for as long as it is the oldest clock here.
+  it("does not name a session that is mid-turn, the one reading it, included", () => {
+    assert.match(toldWhenTheLeadIsTheOldOne, /<quiet>/, "nobody was named at all");
+    assert.doesNotMatch(toldWhenTheLeadIsTheOldOne, new RegExp(`${LEADER} last ran `));
+  });
+
+  // Mutation: drop the moment. It is the whole of why this may be handed over unasked at all: a
+  // dated line cannot be read as the room now, and an undated one is exactly the stale snapshot
+  // the room is deliberately never carried as. Asserted against the clock and never a literal.
+  it("says the moment the reading was taken", () => {
+    const said = toldWhenStopped.match(/read at (\d\d):(\d\d)/);
+    assert.ok(said !== null, `no moment in: ${toldWhenStopped}`);
+    const when = new Date();
+    when.setHours(Number(said[1]), Number(said[2]), 0, 0);
+    assert.ok(Math.abs(Date.now() - when.getTime()) < 5 * 60_000, `said ${said[0]}, now ${new Date()}`);
+  });
+
+  // Mutation: say the name of the wrapper and nothing about who is speaking. An update ships new
+  // templates and re-renders nobody's persona, so a session reading this may be running one
+  // written before any of it existed and has nothing to look it up in.
+  it("says the chat is the one speaking, and not the person at the page", () => {
+    assert.match(toldWhenStopped, /The chat is telling you this\. Nobody typed it\./);
+  });
+});

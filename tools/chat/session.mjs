@@ -177,6 +177,38 @@ export function hasGoneCold(root, name) {
   return ran !== null && Date.now() - ran > COLD_AFTER;
 }
 
+// How long a session may be doing nothing before somebody should be told, rather than left to
+// look. Half of COLD_AFTER, and read FROM it rather than written down again: the second half of
+// the hour is what is left to act in, and it is the same length as the first.
+//
+// One number and not two. A literal of its own would be a second thing that can be wrong, and it
+// would sit still on the day the hour moves on a fresh measurement — which is the one way this
+// could come to fire after the thing it exists to give warning of.
+//
+// It is a choice inside a band and not a measurement, and it is worth saying which. What is
+// measured is the hour. That acting on this takes minutes rather than tens of minutes is judgment,
+// so the design is one derived number with its arithmetic in the open, and there is one place to
+// change it.
+const QUIET_AFTER = COLD_AFTER / 2;
+
+// Whether nothing has been run for this session long enough that somebody should look, which is a
+// weaker claim than the one above and is never acted on. Nothing in this toolkit reads it to
+// decide anything: it is said, and a person judges.
+//
+// Same shape and same honesty as hasGoneCold, deliberately. A session with no thread is not quiet
+// — it has nothing to be quiet with, and nothing that waiting could cost it.
+//
+// A conversation past the hour is quiet too, and is not excepted. A session named at fifty-five
+// minutes and gone from the reading at sixty-one would be the worst of the readings this could
+// give: the moment it becomes expensive is the moment it would stop being mentioned.
+export function hasGoneQuiet(root, name) {
+  if (!hasThread(root, name)) {
+    return false;
+  }
+  const ran = ranAt(root, name);
+  return ran !== null && Date.now() - ran > QUIET_AFTER;
+}
+
 // End a thread. The file is the whole of a session's memory between processes, so removing it is
 // the whole of starting a new conversation on the same desk: the desk, the persona, the permission
 // rule and the panel are all untouched, and the next run has nothing to resume.

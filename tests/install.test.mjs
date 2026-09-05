@@ -411,6 +411,18 @@ describe("what the installer made", () => {
     assert.match(contentOf("personas", `${LEADER}.md`), /true at the moment you ask/);
   });
 
+  // The rule the lead is held to about a room it did not ask for, and the one exception to it.
+  //
+  // The rule was in this persona from the day the room was, and nothing in any suite read it — so
+  // the day something WAS handed over unasked, the sentence forbidding it could have been left
+  // standing beside the thing that made it false, and no check would have said a word. This is
+  // that sentence getting the check it was believed to have.
+  it("tells the leader a room it did not ask for is not handed to it, and names the one exception", () => {
+    const persona = contentOf("personas", `${LEADER}.md`);
+    assert.match(persona, /The room is not handed to you unasked/);
+    assert.match(persona, /The one thing you are told without asking is who has stopped/);
+  });
+
   it("tells the leader which one field of its header is read by anybody else", () => {
     assert.match(contentOf("personas", `${LEADER}.md`), /the `title:` in it is the one field/);
   });
