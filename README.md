@@ -420,8 +420,11 @@ age, because a usage window belongs to the account and not to a session: the sam
 every row as of whenever that session last ran, so a low number on a row that has not run for hours
 is not the account's current state, and saying when it was read is what keeps it from being taken
 for one. The windows are named as the service names them, all of the ones it named, and a window it
-said nothing about is left unsaid rather than shown as 0%. There is no threshold, no colour and no
-warning level — the number is a fact for a person to judge.
+said nothing about is left unsaid rather than shown as 0%. There is no threshold on the row, no
+colour and no warning level — the number there is a fact for a person to judge. The two lines this
+toolkit does hold an opinion about are in a block handed to the lead and nowhere else, which
+*Where the account stands* below is about: advice to the one reader whose next act would spend the
+last of the window, rather than a mark on a row everybody reads.
 
 The last part is when anything last happened on that panel, and it is a fact rather than a
 verdict. Nothing here knows whether a session quiet for an hour is finished, stuck or thinking,
@@ -602,6 +605,62 @@ and nothing that waiting could cost it.
 Nothing here has to be cleared and nothing remembers having said it. Acting on it is what stops
 it: saying anything to that session starts a run and moves its clock, and handing it over removes
 the conversation altogether.
+
+### Where the account stands
+
+The other thing handed to the lead unasked, and the only one this toolkit has an opinion about.
+
+Every run is told how full the account's usage windows are, and every row on the page shows it. Once
+the five-hour window is past nine tenths, the lead is also told so where its own turn begins:
+
+    The five-hour usage window was 91% full when Otto last ran, read 4m ago, as this turn
+    began at 14:07.
+
+    Plan what is left wisely: finish what is in flight, start no new front and take nobody
+    new on until that window has lifted.
+
+Past ninety-five per cent it says to stop instead, and which way to put people down. That choice is
+the whole reason this exists, because the two ways cost very different things: pausing a session
+leaves its conversation where it stands and costs nothing to undo, while parking one ends the
+conversation and is paid for in whatever it worked out and never wrote to its desk. So the block
+reads the moment the window lifts against the hour after which a conversation here is ended anyway
+— the same hour, read from the same place — and says one of three things. If it lifts inside that
+hour: pause everybody where they are, because their conversations will still be there. If it lifts
+later: park everybody, the lead included, and start fresh on the desks afterwards. If the service
+did not say when it lifts: stop, and go and find that out before choosing.
+
+**Why it is pushed at all**, when the room deliberately never is: the turn in which the lead would
+have asked is the turn that gets refused. Once nothing can run, nothing can go and look either, so a
+reading nobody is handed until they think to want it is no use for a condition whose arrival is what
+stops them thinking. Every property that earns the exception is the same as the block above it. It
+carries the reading's age *and* the moment the turn began, because "read 4m ago" has nothing to
+measure from on its own. It says who is speaking. It is absent entirely while nothing applies. And
+it goes only to the lead, because a worker has one task, while what the whole workspace does about a
+window that is filling up is the lead's.
+
+**The window is named.** The rule is about the five-hour one, and the five-hour one is matched by
+name — which is the one place in this toolkit that writes a service's name for a window into the
+code. It is deliberate, and it is because five per cent of a week is a working day: the same
+sentences said of a seven-day window would stop the workspace for something that is not an
+emergency. If the service ever renames that window, nothing matches, the block says nothing, and the
+rows go on naming every window the service names. It fails silent rather than wrong.
+
+A second window is named only when it too is past ninety-five per cent, and only as a fact with
+nothing to do about it attached. It is there for the one case where the advice above would otherwise
+be wrong — *pause everybody, it lifts in twenty minutes* is false while a week nobody mentioned is
+what is actually refusing. What to do about a full week is not a rule anybody has decided, and this
+does not invent one.
+
+The reading picked is the freshest, not the fullest. One account, many sessions, many readings of
+many ages: the most recent is the only one that describes the account now, and the largest of them
+may be off a window that ended hours ago. A window whose lift has already passed is dropped
+entirely, because ninety-six per cent of a window that has reset is nothing.
+
+And it is a reading, never a gate. Nothing consults it before delivering a message, hiring, handing
+a session over or queueing anything; a worker asked something while the account is nearly gone
+answers exactly as usual. The lead decides and the lead acts — including with the turns it needs in
+order to act. Nothing here has to be cleared: the work stops, the account fills no further, and when
+the window lifts the block is gone.
 
 ### Taking the room off
 

@@ -54,8 +54,11 @@ hand them over deliberately.
 
 The other is where the account's usage window stands once it is filling up, with what to do about
 it. That one is handed to you because the turn in which you would have asked is the turn that gets
-refused: once nothing can run, nothing can go and look either. Both carry the moment they were read,
-so neither can be taken for the room now.
+refused: once nothing can run, nothing can go and look either. Past the second line it names it will
+tell you to stop the tasks and put everybody down, and which of the two ways to do it — pause them
+where they stand, or hand them all over, yourself included. It is advice and not a rule the toolkit
+keeps: nothing stops running because of it, so acting on it is yours. Both carry the moment they
+were read, so neither can be taken for the room now.
 
 Asking somebody waits for them. You are held for the whole of their turn, so ask when you want
 the answer, and say who you are asking before you do — {{HUMAN}} is looking at a page that has

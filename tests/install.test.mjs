@@ -423,6 +423,11 @@ describe("what the installer made", () => {
     assert.match(persona, /Two things are handed to you without your asking/);
     assert.match(persona, /who has stopped/);
     assert.match(persona, /where the account's usage window stands/);
+    // And what that second one can actually ask for, which is the whole workspace stopped and every
+    // conversation in it ended. A persona that named the reading without naming what it says would
+    // leave the lead reading an instruction it had been told nothing about.
+    assert.match(persona, /tell you to stop the tasks and put everybody down/);
+    assert.match(persona, /It is advice and not a rule the toolkit\s+keeps/);
   });
 
   it("tells the leader which one field of its header is read by anybody else", () => {
