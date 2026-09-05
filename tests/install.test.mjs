@@ -417,10 +417,12 @@ describe("what the installer made", () => {
   // the day something WAS handed over unasked, the sentence forbidding it could have been left
   // standing beside the thing that made it false, and no check would have said a word. This is
   // that sentence getting the check it was believed to have.
-  it("tells the leader a room it did not ask for is not handed to it, and names the one exception", () => {
+  it("tells the leader a room it did not ask for is not handed to it, and names both exceptions", () => {
     const persona = contentOf("personas", `${LEADER}.md`);
     assert.match(persona, /The room is not handed to you unasked/);
-    assert.match(persona, /The one thing you are told without asking is who has stopped/);
+    assert.match(persona, /Two things are handed to you without your asking/);
+    assert.match(persona, /who has stopped/);
+    assert.match(persona, /where the account's usage window stands/);
   });
 
   it("tells the leader which one field of its header is read by anybody else", () => {

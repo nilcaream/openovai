@@ -16,7 +16,7 @@ import { carry, overhear } from "./overheard.mjs";
 import { allow, answer as settle, giveUp, park, parked, refuse } from "./permissions.mjs";
 import { ago, roomLines } from "./room.mjs";
 import { DESK_FILE, DeskError, WORK, archiveFor, deskTitle, describeName, hire, isName, retire } from "../desks.mjs";
-import { ask, endRun, forget, hasGoneCold, hasGoneQuiet, hasThread, quotaIn, ranAt, refusedIn, sessions } from "./session.mjs";
+import { accountStanding, ask, endRun, forget, hasGoneCold, hasGoneQuiet, hasThread, quotaIn, ranAt, refusedIn, sessions } from "./session.mjs";
 import { inTurn, turnsGoing, waitingFor, whileWaitingFor, wouldWaitForItself } from "./turns.mjs";
 import { unfinished } from "./unfinished.mjs";
 import { takeWord } from "./untold.mjs";
@@ -213,6 +213,57 @@ function quietWrapper(instance, name) {
   ].join("\n\n");
 }
 
+// Where the account stands, told to the session that leads and to nobody else.
+//
+// The second reading in this toolkit that is pushed, and it answers to the same list the first one
+// does. A worker has one task; what the whole workspace does about a window that is filling up is
+// the lead's, and it is the lead whose next act would spend the last of it.
+//
+// WHY IT IS PUSHED. The turn in which the lead would have asked is the turn that gets refused. That
+// is not a worry, it is what happened: on one measured afternoon the very turn that was to take
+// the room off was itself turned away, so the moment to act had already gone by the time anybody
+// went looking. A reading nobody is handed until they think to want it is no use for a condition
+// whose arrival is what stops them thinking.
+//
+// Every property that earns the exception is here, and each has a check:
+//
+//   Absent while nothing applies. A sentence in every turn forever is a sentence nobody reads.
+//   Dated — the reading's own age AND the moment this turn began, because "read 4m ago" has no
+//     anchor on its own, and an undated line is exactly the stale snapshot a carried room is not
+//     handed as.
+//   It names the speaker, for updateWrapper's reason: an update ships new templates and re-renders
+//     nobody's persona, so a session reading this may be running one written before any of it
+//     existed and has nothing to look it up in.
+//   The lead only.
+//   A reading and never a gate. Nothing consults it to deliver, hire, hand over, queue or refuse.
+//     No sweep, no timer, no new state, nothing to clear.
+//
+// It stops by being acted on, which is the shape deskWrapper and the one beside it already have:
+// the work stops, the account fills no further, and when the window lifts there is nothing to say
+// and nothing had to remember having said it.
+function usageWrapper(instance, name) {
+  if (name !== instance.config.leader) {
+    return null;
+  }
+  const standing = accountStanding(instance);
+  if (standing === null) {
+    return null;
+  }
+
+  const when = new Date();
+  const read = `${String(when.getHours()).padStart(2, "0")}:${String(when.getMinutes()).padStart(2, "0")}`;
+  const window = standing.window.replace(/_/g, "-");
+  const full = Math.round(standing.fullness * 100);
+
+  return [
+    "<usage>",
+    "The chat is telling you this. Nobody typed it.",
+    `The ${window} usage window was ${full}% full when ${standing.on} last ran, read ${ago(new Date(standing.at).toISOString())}, as this turn began at ${read}.`,
+    "Plan what is left wisely: finish what is in flight, start no new front and take nobody new on until that window has lifted. What is left of it is only ever less than this says — a reading is a floor, because what a window has been used for does not go back down.",
+    "</usage>",
+  ].join("\n\n");
+}
+
 // Everything a session is handed in front of the message this turn is about: what it overheard
 // while it was not running, and the standing ask above while its desk says nothing. Blank lines
 // between them, because they are separate things said by different people.
@@ -227,6 +278,13 @@ function inFrontOf(instance, name, message, restarted = false, answering = null)
   const stopped = quietWrapper(instance, name);
   if (stopped !== null) {
     said.push(stopped);
+  }
+  // Beside it, for the same reason and read at the same moment: both are things the chat knows and
+  // nobody typed, and both are worth nothing if they describe the room as it was before this turn
+  // got its place in the queue.
+  const standing = usageWrapper(instance, name);
+  if (standing !== null) {
+    said.push(standing);
   }
   if (deskTitle(instance.root, name) === "") {
     said.push(deskWrapper(name));

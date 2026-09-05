@@ -209,6 +209,87 @@ export function hasGoneQuiet(root, name) {
   return ran !== null && Date.now() - ran > QUIET_AFTER;
 }
 
+// The usage window this rule is about, NAMED — which the reading that carries it deliberately never
+// does.
+//
+// The fence at windowsIn() says picking a window writes a name into this toolkit for the service to
+// rename underneath it, and that fence is right for a reader that must say every window without
+// judging any of them. That is the row, and the row is untouched. It is crossed here for a reader
+// that judges: this is one rule somebody decided about one window, and a rule about a particular
+// window cannot be written without saying which. Five per cent of a week is a working day, so the
+// same two numbers said of a seven-day window would stop everything for something that is not an
+// emergency.
+//
+// Picking it WITHOUT the name was measured and does not work. "The window that lifts soonest" holds
+// on four of the five frames we have captured and fails on the first: the seven-day window rolled
+// at 17:00Z on 2026-09-02 while the five-hour window then running lifted at 20:20Z, so for those
+// hundred minutes the soonest-lifting window was the seven-day one. Roughly a hundred minutes every
+// seven days in which a name-free reader hands this rule to somebody about the wrong window. And
+// nothing else on the frame says how long a window IS — only the key does — so parsing the key
+// would hard-code the naming FORMAT, which is more fragile than the name and fails into the wrong
+// window silently.
+//
+// It fails silent rather than wrong. If the service renames this window nothing matches, this
+// answers nothing, and nobody is told anything — while the row goes on naming every window the
+// service names. A reading that stops arriving, never an instruction about the wrong window.
+const RULED_WINDOW = "five_hour";
+
+// The line above which the work left has to be planned rather than simply done.
+//
+// This is a judgment and not a measurement, and that is worth saying where it sits: COLD_AFTER
+// above is an hour because a cache lives an hour, and this is ninety per cent because that is where
+// somebody decided to change what they do. Nothing here can check it and nothing pretends to.
+const PLAN_ABOVE = 0.9;
+
+// Where the account stands, as the freshest thing it has told anybody here, or nothing at all.
+//
+// THE FRESHEST AND NOT THE FULLEST. One account, N sessions, N readings taken at N different
+// moments: the most recent one is the only one that describes the account now, and the largest of
+// them may be off a window that ended hours ago. In practice the freshest is usually the lead's
+// own, because it runs oftenest — and it is the reading its PREVIOUS run was handed, since this is
+// read before the current turn writes anything.
+//
+// Nobody is left out for being mid-turn, and that is the one place this differs from hasGoneQuiet()
+// above. There the reading is a fact ABOUT the session, and a session's clock stands still for the
+// whole of a turn, so a working session would read as a stopped one. Here the reading is a fact
+// about the ACCOUNT that a session happened to be handed, and a run still going was told it as
+// truly as one that has finished.
+//
+// A window whose lift has already passed is dropped: it describes a window that has ended, and
+// ninety-six per cent of a window that has reset is nothing. The same comparison-on-read refusedIn()
+// makes, for the same reason — the moment is stored, the comparison happens on every read, and
+// there is no timer, nothing scheduled and nothing to clean up.
+//
+// Reading it changes nothing and decides nothing. It is not consulted before delivering a message,
+// hiring, handing over, queueing or refusing, and there is a check that says so rather than this
+// sentence.
+export function accountStanding(instance) {
+  const read = sessions(instance)
+    .map((session) => ({
+      name: session.name,
+      at: ranAt(instance.root, session.name),
+      windows: quotaIn(instance.root, session.name),
+    }))
+    .filter((one) => one.at !== null && Array.isArray(one.windows));
+  if (read.length === 0) {
+    return null;
+  }
+
+  const freshest = read.reduce((one, other) => (other.at > one.at ? other : one));
+  const ruled = freshest.windows.find((window) => window.name === RULED_WINDOW);
+  // A window that named no moment cannot be known to have ended, so it stays. The service did not
+  // say, so this does not decide.
+  const ended = ruled !== undefined && ruled.resetsAt !== null && ruled.resetsAt * 1000 <= Date.now();
+  if (ruled === undefined || ended || ruled.fullness < PLAN_ABOVE) {
+    return null;
+  }
+
+  // The window's name goes back with it, spelled as the service spells it, so whoever says this in
+  // words says the name of the window that was actually matched. A sentence carrying its own copy
+  // of it would be a second place for the two to disagree.
+  return { on: freshest.name, at: freshest.at, window: ruled.name, fullness: ruled.fullness, resetsAt: ruled.resetsAt };
+}
+
 // End a thread. The file is the whole of a session's memory between processes, so removing it is
 // the whole of starting a new conversation on the same desk: the desk, the persona, the permission
 // rule and the panel are all untouched, and the next run has nothing to resume.
