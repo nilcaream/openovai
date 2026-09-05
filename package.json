@@ -1,6 +1,6 @@
 {
   "name": "office-workspace",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A toolkit for running a small team of AI developer sessions on one machine.",
   "license": "MIT",
   "private": true,

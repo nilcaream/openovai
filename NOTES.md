@@ -4,6 +4,90 @@ For the lead of a workspace taking this version. Short, and about what is differ
 working there — not a developer changelog. A section per release, newest first; a release page
 carries only its own.
 
+## 0.3.0
+
+Tools a workspace serves itself, for the things only that workspace wants.
+
+The chat serves a session a handful of tools, and until now what they were was decided in this
+repository. That is right for the ones every workspace wants and wrong for the ones only yours
+wants: a workspace whose person is not at the page needs something that pops on their desktop, and
+how a desktop is made to pop is one command here and another one there, none of which can ship in a
+toolkit that installs on machines it knows nothing about. So it is written where the machine is
+known. One file in `plugins/` at the root of your workspace is one tool, and the name of the file
+is the name of the tool — nothing is registered, nothing is listed and nothing has to be kept in
+step with anything, because the directory IS the list, the same way a directory under `work/` is a
+person. Renaming a tool is renaming its file, which is the honest way round: a name that lived in a
+field could disagree with the file holding it and nothing could say which of the two was right.
+
+`plugins/` is yours and not the toolkit's. It sits beside `work/` and `personas/`, and deliberately
+not under `tools/`, because taking a newer version removes every directory the toolkit ships before
+it copies the new one in — a tool kept in there would be gone the first time anybody took an
+update, and gone quietly, since an update reports what it replaced and not what it took away.
+Taking this version or any after it leaves `plugins/` exactly as it was, and there is a check that
+says so.
+
+A file exports three things — a `description`, an `inputSchema` and a `run` — and that is the whole
+of the shape. The handler is given the arguments of the call and a context: who called it, whether
+they lead, where the workspace is (the one thing the file cannot work out for itself, since a
+workspace records no absolute path anywhere) and the workspace's own description of itself. It
+answers with words or with a refusal, and the three ways it can do neither now arrive as a sentence
+rather than as silence. A refusal is passed on as a refusal, in words that can be acted on, because
+the call arrived and was understood and was answered with a no. A handler that throws is answered
+in the words of the failure, naming the tool it happened in. And a handler that answers with
+nothing usable is refused in words naming the file, saying what the two shapes are and what it
+answered instead — the first mistake anybody writing one of these makes, and left alone it comes
+back as a call that came back empty, which is the one answer nothing can be done with. There is no
+way to hide one, either: a tool that is only the lead's is offered to everybody and says so itself
+in one line, because a hidden tool costs more turns than a visible one that refuses, and a session
+never reads the refusal of a tool it was not offered anyway.
+
+They are read when the chat starts, and only then. A file written or changed while the chat is up
+is served from the next start, which is already the ordinary act here and one no session notices.
+Reading the directory on every call would be worse than either extreme, because a module is
+imported once for as long as the chat runs: a new file would appear and a changed one would go on
+serving its old code, and nobody could tell which of the two they were looking at.
+
+A file can fail to become a tool in four ways — it will not load, it is missing one of the three
+exports, it is called something a tool cannot be called, or it is called something the chat already
+serves — and all four end the same way. The file is not served, the chat starts with everything
+else, and the reason is printed where the chat was started, naming the file. Starting anyway is the
+point: a workspace where nobody can talk to anybody is a worse answer to a typo in one file than a
+workspace missing one tool, and it is the choice already made a level up, where a session that
+could not be named still runs. The printing is the other point, and it is the shape that makes it
+necessary — the directory IS the list, so a file sitting in it looks served, and nothing a session
+can ever see would say otherwise. A file that was never going to be a tool, a `notes.txt` left
+beside them, is passed over in silence.
+
+**`ow plugin <name>`** writes `plugins/<name>.mjs` from a scaffold, prints what it wrote, and then
+says the one thing you would otherwise sit and wonder about: the chat has to be started again. What
+it writes carries the whole of what a handler is given, written out rather than pointed at, because
+whoever opens that file has nowhere else to read it. It refuses three things, in two different
+ways. A name a tool cannot have is something wrong with what was typed, so it is answered with the
+usage under it, the way every other command line is — a name is a letter and then letters, digits
+and hyphens, and never an underscore, because a permission rule for a single tool of a server is
+spelled with two of them and a name carrying a pair would make a rule naming a different tool. A
+name whose file is already there is something true of the workspace, so it is answered on its own
+and the file is left exactly as it was: what is in it is somebody's work, and a command that
+quietly writes over it to get its own job done is worse than the surprise it saves you. And a name
+the chat already serves is refused there too, before anything is written. `say` is a name a tool
+could have, so what is in the way is not what was typed but that this chat serves one — asked
+before the file, because a file can be moved out of the way and one of those four names cannot.
+
+Nothing was added to what your workspace allows, and that is the answer rather than an omission.
+One rule grants every tool the chat serves, so a tool of your own is granted the moment it appears
+in the list, and the list is exactly where a check can see it. What stands where a permission rule
+cannot is that a session holds one write grant, its own desk and nothing else — so no session can
+give itself a tool, and writing that file stops to be approved by a person. It is a mistake net
+rather than a wall, and the standing limit in the README now says what it is a limit ON: what this
+toolkit ships. A tool of your own runs inside the chat rather than in a session, so no rule there
+decides what it may do, and writing the file is the deciding.
+
+Three sentences that described how things used to be are gone. This file is no longer rewritten for
+each release: it keeps a section per version and a release publishes the one it is about, so what a
+person cutting one does is add a section rather than replace the file. And there are five test
+suites now rather than four, which the line telling you to run them all had not caught up with, nor
+the sentence counting which of them never reach for Claude Code.
+
 ## 0.2.0
 
 A room that says more about itself, and a way out of every state a session can get into.
