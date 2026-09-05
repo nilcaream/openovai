@@ -366,6 +366,7 @@ reading it:
     Paul — worker (haiku) — reading the water meter — answering, 1 waiting · 24,479 tokens · last moved just now
     Ann  — worker (haiku) — writing the install notes — needs you · 8,102 tokens · last moved 2m ago
     Ivy  — worker (haiku) — (has not said what it is on) — idle · nothing to carry on · nothing said yet
+    Leo  — worker (haiku) — checking the meter reads — idle · refused until 14:30 · five-hour window 96% full, read 2m ago · 12,004 tokens · last moved 2m ago
 
 The phrases are tried in the order that decides what to do about them. **needs you** first — that
 session is stopped waiting to be allowed something, and it is the only state the person reading
@@ -382,6 +383,19 @@ it. A session that has not said gets no guess.
 **nothing to carry on** means that session has no thread: it has just been handed over, or has
 never been spoken to. It is said only when it is true, because a full panel whose session
 remembers none of it reads as an ordinary one until something says otherwise.
+
+**refused until 14:30** and **five-hour window 96% full, read 2m ago** are what the model service
+last told a run of that session about the account it runs on. They come from frames the chat
+already receives while a session is running — no poll, no extra request, nothing read that would
+not have been read anyway — and they are facts on the row rather than anything this toolkit acts
+on: nothing consults them to decide whether to deliver a message, hire, hand over or queue, and a
+message to a session whose row says refused is still attempted. The reading always carries its own
+age, because a usage window belongs to the account and not to a session: the same window appears on
+every row as of whenever that session last ran, so a low number on a row that has not run for hours
+is not the account's current state, and saying when it was read is what keeps it from being taken
+for one. The windows are named as the service names them, all of the ones it named, and a window it
+said nothing about is left unsaid rather than shown as 0%. There is no threshold, no colour and no
+warning level — the number is a fact for a person to judge.
 
 The last part is when anything last happened on that panel, and it is a fact rather than a
 verdict. Nothing here knows whether a session quiet for an hour is finished, stuck or thinking,
