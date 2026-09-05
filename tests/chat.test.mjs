@@ -7143,3 +7143,95 @@ describe("what the lead is told about who has stopped", () => {
     assert.match(toldWhenStopped, /The chat is telling you this\. Nobody typed it\./);
   });
 });
+
+const STOPS_WHILE_A_MESSAGE_WAITS = "Fieldfare";
+
+// Where the reading is taken, which is the half of this feature a wrapper check cannot see.
+//
+// Composing the list is one line either way, and both places produce a correct-looking sentence.
+// What differs is a message that waited: the lead's panel is the busiest in the room, so a question
+// typed while a long turn is going is routinely answered minutes later. A list built where the
+// message ARRIVED describes the room as it was before the wait; a list built where the TURN BEGINS
+// describes it as it is when the lead reads it. Every other reading on this path — whether the
+// conversation has gone cold, which line is being answered, whether the session is still here — is
+// taken at the turn, and this one has to be taken with them or the lead is handed one stale fact
+// in among the fresh ones and no way to tell which.
+//
+// So the fixture holds the system in the wrong state long enough for the difference to show: the
+// session goes quiet while the second message is already queued and cannot yet have been read.
+describe("who has gone quiet is read where the turn begins and not where the message arrived", () => {
+  const waitedLog = path.join(standIn, "waited.txt");
+  let deepEnough;
+  let stillGoing;
+  let toldBeforeItStopped;
+  let toldAfterTheWait;
+
+  before(async () => {
+    runTool(instance, ["hire", STOPS_WHILE_A_MESSAGE_WAITS], process.env);
+    await start(instance, standInEnvironment(standIn, waitedLog, { OW_STAND_IN_SLOW: "1500" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    // A turn each, so both have a clock at all. Fresh at this point, so nothing here is quiet yet.
+    await say("something, so this one has run", STOPS_WHILE_A_MESSAGE_WAITS);
+    await say("and the lead, so it has one too", LEADER);
+
+    // The lead's first message, left running. Not awaited: the second one has to arrive while this
+    // one still holds the turn.
+    const going = say("the first thing, which takes a while", LEADER);
+    await waitFor(async () => {
+      const row = JSON.parse((await get(`${URL}/sessions`)).body).sessions.find((session) => session.name === LEADER);
+      return row?.busy === true ? row : null;
+    });
+
+    // The second, which joins the queue behind it. Waited for as a DEPTH and not as a duration: the
+    // row says how many are behind the one being answered, so this is the server telling us the
+    // message is in and has not been read, rather than a sleep hoping it is.
+    const queued = say("the second thing, which waits behind the first");
+    deepEnough = await waitFor(async () => {
+      const row = JSON.parse((await get(`${URL}/sessions`)).body).sessions.find((session) => session.name === LEADER);
+      return (row?.queued ?? 0) >= 1 ? row : null;
+    });
+
+    // And NOW it stops — after its message was taken, before its turn begins. The panel is touched
+    // to now with it, so a reading off the panel's clock could not reach this answer either.
+    age(threadFile(STOPS_WHILE_A_MESSAGE_WAITS), 35.5);
+    const now = new Date();
+    fs.utimesSync(panelFile(STOPS_WHILE_A_MESSAGE_WAITS), now, now);
+
+    // The first turn is still the one running, or the wait proved nothing: a session answers one
+    // message at a time, so the second cannot have been read while this is true.
+    stillGoing = JSON.parse((await get(`${URL}/sessions`)).body).sessions.find((session) => session.name === LEADER);
+
+    await going;
+    await queued;
+
+    // Both by POSITION and neither by "the last one". The second turn starts the moment the first
+    // finishes, so a reading taken when the first settles is a race with the question that follows
+    // it. This log belongs to this describe alone and holds these four questions in the order they
+    // were asked: the two that gave each session a clock, then the one that ran long, then the one
+    // that waited behind it.
+    const asked = questionsIn(waitedLog);
+    assert.equal(asked.length, 4, `expected the four questions of this describe, got ${asked.length}`);
+    toldBeforeItStopped = asked[2];
+    toldAfterTheWait = asked[3];
+  });
+
+  // Mutation: compose the list in the route handler, where the message arrives, and pass it down
+  // into the turn. Nobody had stopped when this message was taken, so the lead is told nothing
+  // about a session that stopped while its question sat in the queue — and the wrapper checks above
+  // all stay green, because every one of them asks a question whose message was answered at once.
+  it("names a session that stopped while the message was waiting to be read", () => {
+    assert.equal(stillGoing?.busy, true, "the first turn had already finished, so nothing waited");
+    assert.ok((deepEnough?.queued ?? 0) >= 1, "the second message never queued behind the first");
+    assert.match(toldAfterTheWait, /<quiet>[\s\S]*<\/quiet>/);
+    assert.match(toldAfterTheWait, new RegExp(`${STOPS_WHILE_A_MESSAGE_WAITS} last ran 35m ago`));
+  });
+
+  // The other half of it, and what stops the check above passing on a session that was quiet all
+  // along. Read against THIS name and never against the whole wrapper: the suite installs one
+  // instance and everything before this hires into it, so there are genuinely old threads by now
+  // that the lead is right to be told about.
+  it("said nothing about it on the turn that began before it stopped", () => {
+    assert.doesNotMatch(toldBeforeItStopped, new RegExp(`${STOPS_WHILE_A_MESSAGE_WAITS} last ran`));
+  });
+});
