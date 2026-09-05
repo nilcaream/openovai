@@ -172,6 +172,18 @@ listening on. Waiting for a turn counts as answering — from the panel's side t
 between a message being worked on and a message queued behind one, and both mean the same thing
 to whoever is looking at it.
 
+A run that is not going to end on its own can be ended from the panel it is on. *End this run* ends
+the run and everything it started underneath, and leaves the session: the thread is intact, the
+panel is still there, and the transcript says the run was ended before it answered rather than
+going quiet. It is offered whatever the session is doing, because it is wanted at the moment a
+panel looks stuck and a button that only worked on a panel already known to be busy would be no
+use; pressed with nothing running, it says so and nothing happens. A run given the word and not
+taking it is given two seconds and then made to go.
+
+This is the one thing here that reaches a session whose queue has stopped moving. Everything else
+typed at a panel is queued behind the turn in front of it, which is exactly the turn that is not
+finishing, so an ending that queued would be an ending that never arrived.
+
 A session says something to another with its `say` tool: who to say it to, and what to say. It
 goes through the chat rather than starting a session of its own, so the exchange lands in that
 session's transcript and shows up on its panel like anything else. It waits for the answer, which
@@ -369,11 +381,11 @@ reading it:
     Leo  — worker (haiku) — checking the meter reads — idle · refused until 14:30 · five-hour window 96% full, read 2m ago · 12,004 tokens · last moved 2m ago
 
 The phrases are tried in the order that decides what to do about them. **needs you** first — that
-session is stopped waiting to be allowed something, and it is the only state the person reading
-can end. Then **waiting for `<name>`**, which is a session held up by another session and not a
-session being slow. Then **answering**, with however many messages are waiting behind it. Then
-**cold**, which says the next message to that session ends the conversation it is having and starts
-a new one — see below. Then **idle**.
+session is stopped until somebody here answers it, and answering is a click. Then **waiting for
+`<name>`**, which is a session held up by another session and not a session being slow. Then
+**answering**, with however many messages are waiting behind it — the state a run can be ended
+from, above. Then **cold**, which says the next message to that session ends the conversation it
+is having and starts a new one — see below. Then **idle**.
 
 What each session is on comes from one field: the `title:` in the header its desk file opens with.
 That is the only part of a desk anything outside it reads, and both personas ask for that one line
