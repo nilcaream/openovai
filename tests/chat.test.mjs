@@ -2324,15 +2324,23 @@ describe("what the page does with the room", () => {
     assert.ok(page.includes('<div id="room"></div>'));
   });
 
+  // Repaired for feature 13, which gave the room a line of its own above the rows: the call now
+  // spreads two lists, not one. What this check has always been about is that the rows are PUT
+  // somewhere rather than merely built, so it still names `replaceChildren` and still names the
+  // rows going into it, and only stops insisting they are the sole argument.
   it("puts what it builds into it, rather than only building it", () => {
-    assert.match(page, /room\.replaceChildren\(\.\.\.rows\.map\(inTheRoom\)\)/);
+    assert.match(page, /room\.replaceChildren\(.*sessions\.map\(inTheRoom\)\)/);
   });
 
   // At load and not only on the first tick: a room that is blank for a second every time the page
   // opens is a room nobody trusts. The check names the line it is filled from, because the tick
   // fills it too and a looser one would pass on that.
+  // Repaired for feature 13: the load hands `showTheRoom` the whole answer rather than its rows,
+  // because the room now draws one fact that is not on any row. The argument is still named, for
+  // the reason it always was — the tick fills the room too, and a check that did not name the
+  // argument would pass on a page that only ever filled it a second late.
   it("fills it when the page opens, not a second later", () => {
-    assert.ok(page.includes("panels.replaceChildren(...built.map(({ section }) => section));\n  showTheRoom(sessions);"));
+    assert.ok(page.includes("panels.replaceChildren(...built.map(({ section }) => section));\n  showTheRoom(atLoad);"));
   });
 
   // The reason the room is free: it reads the rows the panels were already being told about once a
@@ -6751,5 +6759,110 @@ describe("a message refused because the room is off does not wait behind the tur
     assert.equal(JSON.parse(refused.body).offline, true);
     assert.equal(slowTurn.status, 200);
     assert.equal(JSON.parse(slowTurn.body).reply.text, "a reply");
+  });
+});
+
+// Feature 13, slice 3: the room says it is off.
+//
+// The switch and the gate are both invisible. A room that is off looks exactly like a room where
+// nobody happens to be saying anything — right up to the moment somebody sends a message and is
+// turned away, which is the worst place to find out. This slice is what makes it readable before it
+// is discovered, in the two places a room is laid out in words: `ow room`, which is where a person
+// at a terminal reads it, and the page's own script, which is where everybody else does.
+//
+// Said ABOVE the rows and never on one. "Never a UI state" is already held from the other side —
+// feature 12's `the room says every state it knows how to say` goes red on a seventh entry in
+// `STATES`, so a state word for this could not be added quietly — but that check reads the state
+// table and not the wording, and a room whose rows had all started saying "offline" beside their
+// state would sail past it. That is what the third check below is for.
+const OFF_IN_ROOM = "Dunlin";
+
+describe("the room says it is off", () => {
+  const offRoomLog = path.join(standIn, "offline-room.txt");
+  let whileOn;
+  let whileOff;
+  let toldTheLead;
+  let page;
+
+  // One line of the room, by name. The name is padded to the room's width, so there is always a
+  // space after it — matching on the bare name would also match a longer name starting with it.
+  const lineFor = (room, name) => (room ?? "").split("\n").find((line) => line.startsWith(`${name} `));
+
+  before(async () => {
+    runTool(instance, ["hire", OFF_IN_ROOM], process.env);
+    await start(instance, standInEnvironment(standIn, offRoomLog));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    // The same room read twice, either side of one press. Both readings, never just the off one:
+    // a line printed unconditionally reads exactly like a line printed because the room is off.
+    whileOn = runTool(instance, ["room"], standInEnvironment(standIn, offRoomLog)).stdout;
+    await post(`${URL}/offline`, {});
+    whileOff = runTool(instance, ["room"], standInEnvironment(standIn, offRoomLog)).stdout;
+    toldTheLead = answerOf(await call(LEADER, "tools/call", { name: "room", arguments: {} })).text;
+    // Brought back before anything else runs. The switch is the instance's, not this describe's,
+    // and a room left off would turn away a check that has nothing to do with this one.
+    await post(`${URL}/online`, {});
+
+    page = fs.readFileSync(path.join(instance, "tools", "chat", "page.html"), "utf8");
+  });
+
+  // Mutation: say it on the page only. The terminal is where the person who took the room off is
+  // most likely to be standing, and a room that looks ordinary there is the whole failure again.
+  it("says the room is offline, in the room a person reads at a terminal", () => {
+    assert.match(whileOff, /room is offline/);
+  });
+
+  // The other half, and the one that makes the first mean anything.
+  it("says nothing about it while the room is on", () => {
+    assert.ok(lineFor(whileOn, OFF_IN_ROOM) !== undefined, "the session was not in the room at all");
+    assert.doesNotMatch(whileOn, /offline/);
+  });
+
+  // Mutation: fold `offline` into `stateOf`. A row is what a session is doing; whether the room
+  // will start anything is not something any session is doing, and a word for it on a row reads as
+  // a state that session is in. The row is asserted to be UNCHANGED — same state phrase as before
+  // the press, and nothing about the room anywhere on it.
+  it("leaves every row alone: a session idle in an offline room still reads idle", () => {
+    const line = lineFor(whileOff, OFF_IN_ROOM) ?? "";
+    assert.ok(line !== "", "the session was not in the room at all");
+    assert.match(line, /\bidle\b/);
+    assert.doesNotMatch(line, /offline/);
+  });
+
+  // The fourth surface, and it is here because an edit that dropped it was watched going
+  // unnoticed. `says the same thing the command says` already holds the tool and the command in
+  // step for everything else a room says — but it reads a room that is ON, so the one line this
+  // feature adds was outside it, and the tool could have quietly stopped saying it.
+  //
+  // The lead is the reader this matters most to: it is the session whose next message will be
+  // turned away, so a room that read as ordinary here is the one place the silence would have had
+  // no explanation.
+  it("says it to the lead too, in the same words the command uses", () => {
+    assert.match(toldTheLead ?? "", /room is offline/);
+  });
+
+  // No suite runs page.html — it is read as text — so the page's copy is proven by reading it.
+  //
+  // Bounded to the block that draws the room, deliberately. An unbounded `assert.match(page, ...)`
+  // runs on through everything else the page does and would pass on a page that had lost the room
+  // altogether, which is not a check.
+  it("builds the sentence and the label from the one field, in the page's own copy of the room", () => {
+    const from = page.indexOf("const OFF =");
+    const to = page.indexOf("function panel(session)");
+    assert.ok(from !== -1 && to !== -1 && from < to, "the page's room block is not where this check looks for it");
+    const theRoom = page.slice(from, to);
+
+    assert.match(theRoom, /room is offline/);
+    // Declared AND put on the page. Measured: dropping the line from `replaceChildren` while
+    // leaving the constant above it noticed NOTHING — which is the same failure this file already
+    // pays for elsewhere, a thing built and never attached being invisible to a check that only
+    // looks for it being built.
+    assert.ok((theRoom.match(/\bOFF\b/g) ?? []).length > 1, "the sentence is declared and never put on the page");
+    // One control, not two: the label says the state and pressing it is the way out of that state.
+    // A page that can say "off" is a page that can be pressed back, with nothing to keep in step.
+    assert.match(theRoom, /Go online/);
+    assert.match(theRoom, /Go offline/);
+    assert.match(theRoom, /"\/online"/);
+    assert.match(theRoom, /"\/offline"/);
   });
 });

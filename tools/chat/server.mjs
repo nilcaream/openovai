@@ -801,7 +801,13 @@ function leads(instance, caller) {
 // the same function, so that the lead reading it here and the person reading it in a terminal are
 // never told two different things.
 function theRoom(instance) {
-  return { text: roomLines(sessions(instance).map((session) => everySession(instance, session))).join("\n") };
+  const rows = sessions(instance).map((session) => everySession(instance, session));
+
+  // Off is said here too, and from the same call the command makes. The lead asking what the room
+  // is doing is the reader most likely to be told nothing back — it is the session whose next
+  // message will be turned away — so a tool that left this out would be the one place the silence
+  // had no explanation.
+  return { text: roomLines(rows, offline()).join("\n") };
 }
 
 // Who works here, which is the half of `ow status` a session can act on: the names it can say

@@ -4,7 +4,7 @@
 
 <h1 id="who">Chat</h1>
 
-<h2>The room</h2>
+<h2>The room <button id="switch" type="button"></button></h2>
 <div id="room"></div>
 
 <!-- Opening a desk for somebody new. Written here rather than built in the script because it is
@@ -70,7 +70,8 @@
   const health = await fetch("/health").then((response) => response.json());
   document.getElementById("who").textContent = `${health.leader} — ${health.instance}`;
 
-  const { sessions } = await fetch("/sessions").then((response) => response.json());
+  const atLoad = await fetch("/sessions").then((response) => response.json());
+  const { sessions } = atLoad;
 
   // What to call somebody on this page. The chat writes the human's rows as `human` because it
   // cannot know what to call them until an instance is installed, so every place a name is SHOWN
@@ -98,6 +99,7 @@
   // not mean opening every panel and reading it. Everything in it comes off the same rows the
   // panels are already asking for once a second, so it costs the page nothing new.
   const room = document.getElementById("room");
+  const switchRoom = document.getElementById("switch");
 
   // How long ago, in the roughest terms that are still useful. Nothing anybody decides from this
   // page turns on the difference between four minutes and five.
@@ -200,9 +202,39 @@
     return line;
   }
 
-  function showTheRoom(rows) {
-    room.replaceChildren(...rows.map(inTheRoom));
+  // What the room says about itself, drawn from the one field the chat sends beside the rows.
+  //
+  // The sentence and the button that changes it are ONE control built from ONE reading. A state
+  // drawn by one thing and undone by another is a state that can be shown with no way out of it,
+  // and that is precisely the failure this feature was paid for: a room nothing said was off, that
+  // nothing could bring back. Here the label IS the exit, so a page that can say "off" can always
+  // also be pressed back.
+  //
+  // Above the rows and never on one, for the reason the command has: it is the room that is off.
+  const OFF = "The room is offline — nothing new will be started until it is brought back online.";
+  let roomIsOff = false;
+
+  function showTheRoom({ offline, sessions }) {
+    roomIsOff = offline === true;
+    switchRoom.textContent = roomIsOff ? "Go online" : "Go offline";
+
+    const said = roomIsOff ? [Object.assign(document.createElement("p"), { textContent: OFF })] : [];
+    room.replaceChildren(...said, ...sessions.map(inTheRoom));
   }
+
+  // Neither press runs anything, neither can be refused, and so neither is pressed once and left
+  // disabled: it is enabled again either way, because both are states somebody may want to press
+  // back out of a moment later. The room is asked again straight after rather than waited for on
+  // the tick, so the label a person just pressed does not sit there saying the old thing.
+  switchRoom.addEventListener("click", async () => {
+    switchRoom.disabled = true;
+    try {
+      await fetch(roomIsOff ? "/online" : "/offline", { method: "POST" });
+      await look();
+    } finally {
+      switchRoom.disabled = false;
+    }
+  });
 
   function panel(session) {
     const section = document.createElement("section");
@@ -495,7 +527,7 @@
 
   const built = sessions.map(panel);
   panels.replaceChildren(...built.map(({ section }) => section));
-  showTheRoom(sessions);
+  showTheRoom(atLoad);
   await Promise.all(built.map(({ show }) => show()));
   for (const panel of built) {
     panel.carrying(sessions.find((session) => session.name === panel.name)?.context);
@@ -515,10 +547,10 @@
   const EVERY = 1000;
 
   async function look() {
-    const { sessions } = await fetch("/sessions").then((response) => response.json());
+    const answered = await fetch("/sessions").then((response) => response.json());
     // The room first: it is the thing somebody is watching when they are not reading a panel.
-    showTheRoom(sessions);
-    const rows = new Map(sessions.map((session) => [session.name, session]));
+    showTheRoom(answered);
+    const rows = new Map(answered.sessions.map((session) => [session.name, session]));
     for (const panel of built) {
       const row = rows.get(panel.name);
       panel.busy(row?.busy === true);

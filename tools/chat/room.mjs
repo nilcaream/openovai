@@ -13,12 +13,23 @@
 // than discovered. There are two places to keep true, not three: the command and the tool are the
 // same lines from here.
 
+// What a room that is off says, and the one place it is worded. Above the rows and never on one:
+// whether anything will be started is a fact about the ROOM, and the same sentence on every row
+// would read as a state each of those sessions is in, which is the one thing this is not.
+const OFF = "The room is offline — nothing new will be started until it is brought back online.";
+
 // One line each, names lined up. The width is the room's rather than each row's, which is the
 // whole reason this is not a map over `describeSession` at the call site.
-export function roomLines(sessions) {
+//
+// The room's own line comes first and only when there is one. It is a second argument rather than a
+// row the caller could push on, so that both callers get the wording from here — the command and
+// the tool are the same lines from this file, and a room off in one of them and on in the other
+// would be two answers to a question that has one.
+export function roomLines(sessions, offline = false) {
   const width = Math.max(...sessions.map((session) => session.name.length));
+  const lines = sessions.map((session) => `${session.name.padEnd(width)}  ${describeSession(session)}`);
 
-  return sessions.map((session) => `${session.name.padEnd(width)}  ${describeSession(session)}`);
+  return offline ? [OFF, ...lines] : lines;
 }
 
 // What one line of the room says. The order the phrases are tried in is the whole of what makes it

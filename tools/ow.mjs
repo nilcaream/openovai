@@ -156,7 +156,9 @@ async function room(root) {
     throw new ChatError(`the chat answered ${answered.status} with nothing that reads as a room`);
   }
 
-  for (const line of roomLines(body.sessions)) {
+  // The room's own fact rides with the rows it belongs to. Read as a boolean rather than trusted:
+  // a chat too old to know the field would send nothing, and a room that is on is what it was.
+  for (const line of roomLines(body.sessions, body.offline === true)) {
     console.log(line);
   }
 }
