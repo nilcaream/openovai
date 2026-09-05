@@ -51,6 +51,11 @@ import {
 // file itself would pass with nothing written at all.
 import { ranAt } from "../tools/chat/session.mjs";
 
+// The kinds themselves, read from where they are named rather than written out again here. Two
+// copies of a list are two things that drift, and a check comparing what it saw against its own
+// copy would agree with itself for good while the chat grew a fifth kind nobody reached.
+import { KINDS } from "../tools/chat/unfinished.mjs";
+
 const HUMAN = "Mike";
 const LEADER = "Superman";
 const LEADER_MODEL = "sonnet";
@@ -2144,6 +2149,81 @@ describe("what the chat has not finished", () => {
   it("counts each thing it is holding rather than each session", () => {
     const turns = holding.filter((held) => held.name === LEADER && held.kind === "turn");
     assert.equal(turns.length, 2, `two messages were in flight, the chat says ${turns.length}`);
+  });
+});
+
+// Every kind of thing the chat holds, reached at once, and every one of them let go.
+//
+// One scenario rather than a list of them. A kind's exit does not vary with how the turn went —
+// the count comes down on one handler whether a turn answered or failed, and a request is taken
+// off the same way whether it was allowed or denied — so a second scenario down the same exit
+// catches nothing the first does not. Measured, by taking each exit out in turn: the turn, the
+// request and the call are each already red on checks that exist. What nothing catches is a run
+// left in the map, and there are two ways to leave one there — after it closes, and after it
+// never started. Only the first is reachable: a spawn that fails emits `error` and then `close`
+// — measured on 24.20.0 — so both handlers run on a run that never started and either one alone
+// puts it away. A check on that state would have nothing that could break it.
+//
+// All four are held open together: the lead's run says something to the worker with the
+// instance's own command and waits for the answer, and the worker's run, answering it, stops to
+// ask to be allowed something. While that request sits there nothing moves anywhere — two runs,
+// two turns, one call, one request — so this is a state to read rather than a moment to catch.
+describe("every kind of thing the chat holds, and letting go of all of them", () => {
+  const everyLog = path.join(standIn, "every.txt");
+  let kinds;
+  let afterwards;
+
+  before(async () => {
+    await start(
+      instance,
+      standInEnvironment(standIn, everyLog, {
+        OW_STAND_IN_CALLS: `${LEADER}>${WORKER}`,
+        OW_STAND_IN_ASKS: "Bash",
+        // Longer than the stand-in's own default, because two requests are answered in turn here
+        // and the second one is not even asked until the first has been.
+        OW_STAND_IN_WAITS: "30000",
+      }),
+    );
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    // Not awaited: it does not come back until both sessions are done, and what the chat is
+    // holding while they are not is the whole subject.
+    const asking = say("go and ask him", LEADER);
+
+    // The worker's request is where everything is in flight at once. The worker only reaches it by
+    // having been called, so the lead is waiting on the worker by the time this comes back — the
+    // one wait here is the one the check needs, rather than a sleep hoping for it.
+    const workers = await waitFor(async () => {
+      const { permissions } = JSON.parse((await get(`${URL}/sessions/${WORKER}/permissions`)).body);
+      return permissions.length > 0 ? permissions : null;
+    });
+    const held = JSON.parse((await get(`${URL}/unfinished`)).body).unfinished;
+    kinds = [...new Set(held.map((one) => one.kind))].sort();
+
+    // Let go from the inside out, the way the chat itself would: the worker is answered, its
+    // answer ends the lead's call, and the lead then asks its own — this stand-in always does —
+    // and is answered too, so the last turn ends of its own accord rather than being cut off.
+    await post(`${URL}/sessions/${WORKER}/permission`, { id: workers[0].id, decision: "allow" });
+    const leads = await waitFor(async () => {
+      const { permissions } = JSON.parse((await get(`${URL}/sessions/${LEADER}/permissions`)).body);
+      return permissions.length > 0 ? permissions : null;
+    });
+    await post(`${URL}/sessions/${LEADER}/permission`, { id: leads[0].id, decision: "allow" });
+    await asking;
+
+    afterwards = JSON.parse((await get(`${URL}/unfinished`)).body).unfinished;
+  });
+
+  // The kinds are named in one place and observed in another, and this is where the two are made
+  // to agree. A fifth kind named without a scenario that reaches it goes red here and nowhere
+  // else — which is the whole point of naming them: a state nobody can get to is a state nobody
+  // has written an exit for.
+  it("reaches every kind the chat names", () => {
+    assert.deepEqual(kinds, [...KINDS].sort(), JSON.stringify(kinds));
+  });
+
+  it("has let go of every one of them once the last turn is over", () => {
+    assert.deepEqual(afterwards, [], "the chat is still holding something nobody is waiting on");
   });
 });
 
