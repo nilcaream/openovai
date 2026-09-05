@@ -29,13 +29,41 @@ export const PLUGINS = "plugins";
 // What a file has to be called to be one. The extension is the module it is; the name is the tool.
 const SUFFIX = ".mjs";
 
+// And what is left once the extension is off. A letter, then letters, digits and hyphens, and
+// short enough to read in a sentence. No underscore, and that is the whole reason the rule is
+// written out rather than left to the filesystem: a permission rule for a single tool of a server
+// is spelled mcp__<server>__<tool>, so a tool whose name held two of them would make a rule that
+// named a different tool than the one somebody meant to allow.
+const NAME = /^[A-Za-z][A-Za-z0-9-]{0,31}$/;
+
+// The names the chat serves itself, which a file cannot take. They are checked before the module
+// is read rather than after the list is built, so that a file called say.mjs is told it cannot be
+// called that, instead of being appended to a list where the first say wins and the second is a
+// tool that is there and never reached.
+//
+// It is written here and not beside those tools because the chat reads this file and not the other
+// way round. The suite holds the two in step: a check asserts that what the chat serves a lead is
+// exactly this list, so a fifth tool of the chat's own that nobody added here is a red suite.
+const BUILT_IN = ["say", "status", "room", "interrupt"];
+
+// What every one of them has to export. A file missing any of these is not a tool that half works;
+// it is a tool the chat would offer and then fail on, at whatever later moment somebody called it.
+const EXPORTS = ["description", "inputSchema", "run"];
+
 export function pluginsDirectory(root) {
   return path.join(root, PLUGINS);
 }
 
 // Every tool this instance serves itself, in the shape the chat's own tools are in — name,
 // description, inputSchema, run — so that what reaches a session is one list and nothing in it
-// says where it came from.
+// says where it came from, and beside it every file that was meant to be one and is not.
+//
+// Both halves, because a plugin that cannot be served is not an error and not nothing. It is not
+// an error: the chat starts anyway and goes on serving the rest, since a workspace where nobody
+// can talk to anybody is a worse answer to a typo in one file than a workspace missing one tool.
+// And it is not nothing: a tool that is silently absent is the failure this whole arrangement is
+// most likely to produce, because the directory IS the list and a file that is in it looks served.
+// So the reason travels back with the tools and is said out loud by whoever starts the chat.
 //
 // Read once, by whoever is about to serve. Not per request: a module is imported once per process,
 // so a directory read on every call would show a NEW file and go on serving the old code of a
@@ -51,20 +79,73 @@ export async function pluginsIn(root) {
   try {
     entries = fs.readdirSync(directory, { withFileTypes: true });
   } catch {
-    return [];
+    return { tools: [], refused: [] };
   }
 
-  const served = [];
+  const tools = [];
+  const refused = [];
+
   for (const entry of entries.filter(isPlugin).sort(byName)) {
-    const written = await import(pathToFileURL(path.join(directory, entry.name)).href);
-    served.push({
-      name: entry.name.slice(0, -SUFFIX.length),
+    const name = entry.name.slice(0, -SUFFIX.length);
+
+    // The two things that can be answered without reading the file, answered without reading it.
+    if (!NAME.test(name)) {
+      refused.push({ file: entry.name, reason: `${name} is not a name a tool can have — a letter, then letters, digits and hyphens, up to 32 of them` });
+      continue;
+    }
+    if (BUILT_IN.includes(name)) {
+      refused.push({ file: entry.name, reason: `${name} is already the name of a tool the chat serves everywhere, and a file cannot take it` });
+      continue;
+    }
+
+    // And the file itself, which is somebody else's code and can do anything at all on the way in
+    // — a syntax error, an import of something that is not installed, work at the top level that
+    // throws. Caught here rather than left to end the chat, because the chat is what everybody
+    // else in the workspace is using and one broken file is not a reason to take it away.
+    let written;
+    try {
+      written = await import(pathToFileURL(path.join(directory, entry.name)).href);
+    } catch (error) {
+      refused.push({ file: entry.name, reason: `it could not be read: ${error.message}` });
+      continue;
+    }
+
+    // A file that loads and is missing a part is worse than one that does not load, because it
+    // would be offered: a session would read a tool with no description, or call one and be
+    // answered by nothing. Refused now, whole, while the answer can still be a sentence.
+    const missing = EXPORTS.filter((named) => written[named] === undefined);
+    if (missing.length > 0) {
+      refused.push({ file: entry.name, reason: `a tool is ${EXPORTS.join(", ")}, and this one exports no ${missing.join(" and no ")}` });
+      continue;
+    }
+
+    tools.push({
+      name,
       description: written.description,
       inputSchema: written.inputSchema,
       run: written.run,
     });
   }
-  return served;
+
+  return { tools, refused };
+}
+
+// What the chat says about them where it was started. Nothing at all when the instance has none,
+// which is most of them: a line saying no every time would be read once and never again.
+//
+// Both halves are said, and the refusals are said one to a line naming the file. A count would be
+// cheaper to write and useless to read — the person who has to fix this wrote one of those files
+// and needs to know which one and what was wrong with it, and they are looking at the terminal
+// they started the chat in, which is the only place this can be said at all.
+export function describePlugins({ tools, refused }) {
+  const lines = [];
+  if (tools.length > 0) {
+    lines.push(`This instance serves ${tools.length === 1 ? "a tool" : `${tools.length} tools`} of its own: ${tools.map((tool) => tool.name).join(", ")}`);
+  }
+  for (const { file, reason } of refused) {
+    lines.push(`${path.join(PLUGINS, file)} is not served: ${reason}`);
+  }
+  return lines.join("\n");
 }
 
 // What a plugin answered, in the two shapes the chat knows how to pass on, or a refusal saying it

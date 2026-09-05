@@ -8033,3 +8033,151 @@ export function run() {}
     assert.match(silent.text, /^silent answered with nothing/);
   });
 });
+
+
+// The other half of the same feature: the files in that directory that cannot become tools, and
+// what is said about each of them. There are four ways a file can fail to be one — it will not
+// load, it is missing a part every tool has, it is called something a tool cannot be called, or it
+// is called something the chat already serves — and all four end the same way. The file is not
+// served, the chat starts anyway with everything else, and the reason is printed where the chat
+// was started.
+//
+// The chat starting anyway is the point. A workspace where nobody can talk to anybody is a worse
+// answer to a typo in one file than a workspace missing one tool, and the same choice is already
+// made a level up, where a session that could not be named still runs.
+//
+// And the printing is the other point. A tool that is silently absent is what this arrangement is
+// most likely to produce: the directory IS the list, so a file sitting in it looks served, and
+// nothing a session can see would ever say otherwise. The terminal is the only place it can be
+// said, so it is said there and it names the file.
+describe("a tool the instance cannot serve", () => {
+  const directory = path.join(instance, "plugins");
+  const TAKEN = "answered by a file instead";
+  // The names the chat serves of its own, whoever is asking. A worker is offered two of them and
+  // refused the other two by name, which is why the list a worker reads is asserted against those
+  // two: a file that took one of these would show up here as a second tool wearing that name.
+  const SERVED_EVERYWHERE = ["say", "status", "room", "interrupt"];
+  const BROKEN = "this one cannot even be read";
+
+  // What a plugin claiming a name the chat already serves would answer, if it were served. It is
+  // written to be recognisable rather than plausible: every check below reads for it and fails on
+  // seeing it, because seeing it means a file took a name the whole workspace depends on.
+  const shadow = `export const description = "Answer in place of a tool the chat serves everywhere.";
+export const inputSchema = { type: "object", additionalProperties: true };
+export function run() {
+  return { text: "${TAKEN}" };
+}
+`;
+
+  const files = {
+    // A tool that works, and the reason it is here: what is being asked below is not only that a
+    // broken file is refused but that everything beside it is still served.
+    "works.mjs": `export const description = "Work, so that the rest being served can be read.";
+export const inputSchema = { type: "object", additionalProperties: false };
+export function run() {
+  return { text: "still here" };
+}
+`,
+    // Somebody else's code, doing what somebody else's code can do on the way in.
+    "broken.mjs": `throw new Error("${BROKEN}");
+`,
+    // Loads, and is not a tool: a session would be offered it and then be answered by nothing at
+    // all when it called, at whatever later moment that was.
+    "partial.mjs": `export const description = "Half of a tool, which is not a tool.";
+export function run() {
+  return { text: "never reached" };
+}
+`,
+    // A name a tool cannot have. The underscores are the reason the rule exists at all: a
+    // permission rule for one tool of a server is spelled mcp__<server>__<tool>.
+    "not_a_tool.mjs": shadow,
+    "say.mjs": shadow,
+    "status.mjs": shadow,
+    "room.mjs": shadow,
+    "interrupt.mjs": shadow,
+  };
+
+  async function offeredTo(who) {
+    return JSON.parse((await call(who, "tools/list")).body).result.tools.map((tool) => tool.name);
+  }
+
+  let started;
+  let offered;
+  let said;
+  let listed;
+  let asked;
+  let brokenIn;
+  let delivered;
+
+  before(async () => {
+    fs.mkdirSync(directory, { recursive: true });
+    for (const [name, written] of Object.entries(files)) {
+      fs.writeFileSync(path.join(directory, name), written);
+    }
+    // Not a module, and not a plugin that failed to be one either. It is notes somebody left
+    // beside their tool, and nothing is ever going to be said about it.
+    fs.writeFileSync(path.join(directory, "notes.txt"), "what this one is for\n");
+
+    started = await start(instance, standIns);
+    assert.ok(await waitForHealth(URL), "the chat never came back with the broken files in place");
+
+    offered = await offeredTo(WORKER);
+    said = answerOf(await call(LEADER, "tools/call", { name: "say", arguments: { to: WORKER, message: TAKEN } }));
+    listed = answerOf(await call(WORKER, "tools/call", { name: "status", arguments: {} }));
+    asked = answerOf(await call(WORKER, "tools/call", { name: "room", arguments: {} }));
+    brokenIn = answerOf(await call(WORKER, "tools/call", { name: "interrupt", arguments: { message: TAKEN, why: TAKEN } }));
+    delivered = JSON.parse((await transcriptOf(WORKER)).body).messages;
+  });
+
+  after(async () => {
+    fs.rmSync(directory, { recursive: true, force: true });
+    await start(instance, standIns);
+    assert.ok(await waitForHealth(URL), "the chat never came back without the broken files");
+  });
+
+  // The whole reason a load failure is caught. Read as what is still there rather than as what is
+  // gone: a chat that died on the broken file answers nothing at all, and so does a chat that
+  // never started, and the two are told apart by somebody still being served their own tool.
+  it("goes on serving every other tool of the instance when one of them will not load", () => {
+    assert.ok(offered.includes("works"), `the chat served ${offered.join(", ")}`);
+  });
+
+  // Named, and with what went wrong beside it. A count of how many were served would be cheaper to
+  // write and useless: the person who has to fix this wrote one of those files, and what they need
+  // is which one and why, in the terminal they are looking at.
+  it("says which file it could not read, and what reading it said", () => {
+    assert.match(started.output, new RegExp(`${path.join("plugins", "broken.mjs")} is not served.*${BROKEN}`));
+  });
+
+  // The four names the chat serves everywhere, each claimed by a file, and both halves of what
+  // that has to mean. The list a session reads holds each of those names once, so no session is
+  // ever choosing between two tools called say; and every call still reaches the chat's own, read
+  // as what the tools DO rather than as which names are in the list, because a list holding both
+  // says nothing about which of the two a call arrives at.
+  it("lets no file take the name of a tool the chat serves", () => {
+    assert.deepEqual(offered.filter((name) => SERVED_EVERYWHERE.includes(name)).sort(), ["say", "status"]);
+    assert.ok(delivered.some((message) => message.text === TAKEN), "say did not deliver anything");
+    assert.match(listed.text, new RegExp(WORKER));
+    assert.match(asked.text, /the room is the lead's/);
+    assert.match(brokenIn.text, /is the lead's, so ask/);
+    assert.deepEqual([said.text, listed.text, asked.text, brokenIn.text].filter((text) => text === TAKEN), []);
+  });
+
+  it("does not serve a file whose name is not a name a tool can have", () => {
+    assert.ok(!offered.includes("not_a_tool"), `the chat served ${offered.join(", ")}`);
+  });
+
+  // A file missing a part is refused whole, while the answer can still be a sentence somebody
+  // reads. Served, it would be offered to every session and then answer one of them with nothing.
+  it("does not serve a file missing a part every tool has, and says which part", () => {
+    assert.ok(!offered.includes("partial"), `the chat served ${offered.join(", ")}`);
+    assert.match(started.output, new RegExp(`${path.join("plugins", "partial.mjs")} is not served.*inputSchema`));
+  });
+
+  // And what is not a module is not a tool that failed. A file that was never going to be one is
+  // passed over in silence, because a line about somebody's notes is a line teaching whoever reads
+  // these that most of them are noise.
+  it("says nothing at all about a file that was never meant to be a tool", () => {
+    assert.doesNotMatch(started.output, /notes/);
+  });
+});

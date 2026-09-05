@@ -17,7 +17,7 @@ import { ownInstructions } from "./instructions.mjs";
 import { leaveWord } from "./chat/untold.mjs";
 import { holderOf } from "./port.mjs";
 import { RELEASES, ReleaseError, latestRelease, notesIn, replacePayload, unpackInto } from "./release.mjs";
-import { pluginsIn } from "./plugins.mjs";
+import { describePlugins, pluginsIn } from "./plugins.mjs";
 import { version } from "./version.mjs";
 
 const CONFIG_FILE = "ow.json";
@@ -429,9 +429,20 @@ async function chat(root) {
   // chat is started, which is already the act that replaces everything else the chat is running.
   const plugins = await pluginsIn(root);
 
+  // What was found, and what was meant to be found and could not be. Only when there is something
+  // to say: an instance with no tools of its own is the ordinary case and a line saying so every
+  // time would stop being read. A file that could not be served is named here and nowhere else —
+  // it is absent from every list a session sees, which is exactly what it would look like if it
+  // had never been written, so the terminal the chat was started in is the only place anybody
+  // learns that it was.
+  const aboutPlugins = describePlugins(plugins);
+  if (aboutPlugins !== "") {
+    console.log(aboutPlugins);
+  }
+
   let server;
   try {
-    server = await serve({ root, config, plugins });
+    server = await serve({ root, config, plugins: plugins.tools });
   } catch (error) {
     if (error.code === "EADDRINUSE") {
       throw new UsageError(`port ${config.port} is already taken${byWhom(config.port)}`);
