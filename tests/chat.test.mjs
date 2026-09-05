@@ -6549,3 +6549,207 @@ describe("the room can be taken off and brought back", () => {
     assert.deepEqual(rows.filter((row) => "offline" in row), []);
   });
 });
+
+// Feature 13, slice 2: the gate, which is the whole feature.
+//
+// One describe and one offline room, with every way in tried against it. Four ways rather than four
+// describes, because they are not four properties: they are one gate, sitting where all of them pass
+// through, and a scenario per way in would be four fixtures proving the same edit. What differs
+// between them is only what each one would have COST — a message costs a run, a handover was about
+// to end a conversation, a leave was about to file a desk away — and that is what the separate
+// checks below are for.
+//
+// The lever is the stand-in's own call log. A gate that did not gate shows up as a call, and no
+// amount of the right sentence on a panel can hide one. Every count is asserted against a reading
+// taken while the room was still on, never against zero: two zeros compare equal, and a fixture that
+// never ran anything would agree with a gate that let everything through.
+const GATED = "Whimbrel";
+const GATED_LEAVE = "Turnstone";
+
+describe("nothing is run for anybody while the room is off", () => {
+  const gateLog = path.join(standIn, "offline-gate.txt");
+  let ranWhileOn;
+  let ranWhileOff;
+  let sentAMessage;
+  let calledTheTool;
+  let handedOver;
+  let letGo;
+  let threadKept;
+  let deskKept;
+  let archives;
+  let gatedRowsAtOnce;
+  let gatedRows;
+  let leaveRows;
+  let ranAfterwards;
+  let backAgain;
+
+  // Read defensively. A gate that let everything through files the desk away and takes the panel
+  // with it, and a read that threw would take the whole `before` down — leaving every check below
+  // unrun and the failure reported against the describe instead of against the one check that
+  // knows what went wrong. Measured: without this, three of the mutations here said only that the
+  // fixture had fallen over.
+  function panelRows(answered) {
+    if (answered.status !== 200) {
+      return [];
+    }
+    return JSON.parse(answered.body).messages;
+  }
+
+  before(async () => {
+    runTool(instance, ["hire", GATED], process.env);
+    runTool(instance, ["hire", GATED_LEAVE], process.env);
+    await start(instance, standInEnvironment(standIn, gateLog, { OW_STAND_IN_SESSION: "gate-thread" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    // While the room is on: a thread for the handover to have something to end, a desk for the leave
+    // to have something to file, and a call count that is not zero.
+    await say("something worth remembering", GATED);
+    await say("and something here too", GATED_LEAVE);
+    ranWhileOn = callsIn(gateLog).length;
+
+    const gatedBefore = panelRows(await transcriptOf(GATED)).length;
+    const leaveBefore = panelRows(await transcriptOf(GATED_LEAVE)).length;
+    // Where a desk really is filed. Read before and after, so an archive made for somebody who never
+    // left is the difference rather than an absence.
+    const filed = path.join(instance, "archive");
+    const had = fs.existsSync(filed) ? fs.readdirSync(filed) : [];
+
+    await post(`${URL}/offline`, {});
+
+    sentAMessage = await say("this should reach nobody", GATED);
+    // Read HERE, before anything else writes to this panel. The handover below leaves a line of its
+    // own that is flagged the same way, and a check reading "the first flagged row" after both would
+    // pass on the wrong one — measured: taking the message's line out entirely reported NOTHING
+    // NOTICED, because the handover's line stood in for it.
+    gatedRowsAtOnce = panelRows(await transcriptOf(GATED)).slice(gatedBefore);
+    calledTheTool = answerOf(
+      await call(LEADER, "tools/call", { name: "say", arguments: { to: GATED, message: "nor should this" } }),
+    );
+    handedOver = await post(`${URL}/sessions/${GATED}/handover`, {});
+    letGo = await post(`${URL}/sessions/${GATED_LEAVE}/leave`, {});
+
+    ranWhileOff = callsIn(gateLog).length;
+    threadKept = fs.existsSync(path.join(instance, "chat", GATED, "session.json"));
+    deskKept = fs.existsSync(path.join(instance, "work", GATED_LEAVE, "STATE.md"));
+    archives = (fs.existsSync(filed) ? fs.readdirSync(filed) : []).filter((one) => !had.includes(one));
+    gatedRows = panelRows(await transcriptOf(GATED)).slice(gatedBefore);
+    leaveRows = panelRows(await transcriptOf(GATED_LEAVE)).slice(leaveBefore);
+
+    await post(`${URL}/online`, {});
+    backAgain = await say("and now?", GATED);
+    ranAfterwards = callsIn(gateLog).length;
+  });
+
+  // The whole feature, in one number. Everything else here is about saying it well.
+  it("runs nothing, whichever way in was tried", () => {
+    assert.ok(ranWhileOn > 0, "nothing ran while the room was on, so this proved nothing");
+    assert.equal(ranWhileOff, ranWhileOn, "a run was started for a room that was off");
+  });
+
+  it("tells whoever sent a message, and writes it on the panel in the chat's own voice", () => {
+    assert.equal(sentAMessage.status, 503);
+    assert.equal(JSON.parse(sentAMessage.body).offline, true);
+    assert.equal(gatedRowsAtOnce.length, 1, `the panel got ${JSON.stringify(gatedRowsAtOnce)}`);
+    assert.equal(gatedRowsAtOnce.at(0)?.offline, true);
+    assert.equal(gatedRowsAtOnce.at(0)?.from, "the chat");
+    assert.match(gatedRowsAtOnce.at(0)?.text ?? "", new RegExp(`^Nothing reached ${GATED}: the room is offline`));
+  });
+
+  // Never under the session's own name. A room that is off is the chat's fact about itself, and a
+  // line credited to somebody who was never asked anything is a panel saying a session said
+  // something it did not.
+  it("credits the session with nothing, since it was never asked", () => {
+    assert.ok(gatedRows.length > 0, "nothing was written to the panel at all, so this proved nothing");
+    assert.deepEqual(gatedRows.filter((row) => row.from === GATED), []);
+  });
+
+  // A session mid-turn reaching for another one is the cross-session message this exists to stop,
+  // and it is refused in the tool's own words rather than as a tool that is not there.
+  it("refuses the say tool, in words a session can act on", () => {
+    assert.ok(calledTheTool.refused, `the tool answered ${JSON.stringify(calledTheTool)}`);
+    assert.match(calledTheTool.text, /the room is offline/);
+  });
+
+  it("keeps the thread the handover was about to end", () => {
+    assert.equal(handedOver.status, 503);
+    assert.equal(JSON.parse(handedOver.body).offline, true);
+    assert.equal(threadKept, true, "the conversation was thrown away for a room that is simply off");
+  });
+
+  // The pair to it: a refusal that reported a handover would be worse than one that did nothing,
+  // because the person believes the desk was written.
+  it("never says the handover happened", () => {
+    assert.deepEqual(gatedRows.filter((row) => (row.text ?? "").includes("handed over")), []);
+  });
+
+  it("keeps the desk the leave was about to file away", () => {
+    assert.equal(letGo.status, 503);
+    assert.equal(JSON.parse(letGo.body).offline, true);
+    assert.equal(deskKept, true, "the desk was filed away for a room that is simply off");
+    assert.deepEqual(archives, [], "an archive was made for a session that never left");
+    assert.equal(leaveRows.at(-1)?.offline, true, `the last row was ${JSON.stringify(leaveRows.at(-1))}`);
+  });
+
+  // The exit, proved by using it. Without this the whole describe would pass on a chat that had
+  // simply stopped working.
+  it("runs again the moment the room is brought back", () => {
+    assert.equal(backAgain.status, 200);
+    assert.equal(JSON.parse(backAgain.body).reply.text, "a reply");
+    assert.ok(ranAfterwards > ranWhileOff, "nothing ran once the room was back on");
+  });
+});
+
+// The other half of the gate, and the half a count cannot see: it is asked BEFORE the queue.
+//
+// A gate written inside the queue refuses the same messages and runs the same nothing, so the call
+// log says the two are identical. What differs is when the person hears about it: a refusal that
+// joined the queue waits for whatever is ahead of it, and "the room is off" is the one answer that
+// has no reason to wait for anything. So this is proved by ORDER — the refusal comes back before
+// the turn it would have queued behind — rather than by a duration, which would pass on a machine
+// having a slow afternoon.
+const OFF_BEHIND_A_TURN = "Sanderling";
+
+describe("a message refused because the room is off does not wait behind the turn ahead of it", () => {
+  const behindLog = path.join(standIn, "offline-behind.txt");
+  const settled = [];
+  let slowTurn;
+  let refused;
+
+  before(async () => {
+    runTool(instance, ["hire", OFF_BEHIND_A_TURN], process.env);
+    await start(instance, standInEnvironment(standIn, behindLog, { OW_STAND_IN_SLOW: "1500" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    const going = say("something that takes a while", OFF_BEHIND_A_TURN).then((answered) => {
+      settled.push("the turn");
+      return answered;
+    });
+    // Only once the run is really going, or there is nothing for the second message to be ahead of.
+    const answering = await waitFor(async () => {
+      const row = JSON.parse((await get(`${URL}/sessions`)).body).sessions.find(
+        (session) => session.name === OFF_BEHIND_A_TURN,
+      );
+      return row?.busy === true ? row : null;
+    });
+    assert.ok(answering !== null, "the first turn never started, so this would prove nothing");
+
+    await post(`${URL}/offline`, {});
+    refused = await say("and this one arrives while the room is off", OFF_BEHIND_A_TURN).then((answered) => {
+      settled.push("the refusal");
+      return answered;
+    });
+    slowTurn = await going;
+    await post(`${URL}/online`, {});
+  });
+
+  it("answers the second one first, without waiting for the first", () => {
+    assert.deepEqual(settled, ["the refusal", "the turn"]);
+  });
+
+  it("refuses it for the room being off, and lets the turn ahead finish in its own words", () => {
+    assert.equal(refused.status, 503);
+    assert.equal(JSON.parse(refused.body).offline, true);
+    assert.equal(slowTurn.status, 200);
+    assert.equal(JSON.parse(slowTurn.body).reply.text, "a reply");
+  });
+});

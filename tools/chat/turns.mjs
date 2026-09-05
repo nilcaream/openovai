@@ -14,6 +14,8 @@
 // today. When a session becomes one long-lived child fed on its stdin, this is still the thing
 // that decides what reaches it and when.
 
+import { OFFLINE, offline } from "./offline.mjs";
+
 // Keyed by name alone, because one of these serves one instance: the process running it is that
 // instance's chat. One entry per session that has ever spoken, so it is bounded by the desks.
 const queues = new Map();
@@ -121,7 +123,39 @@ export function callsUnderway() {
   return [...waitingOn.keys()];
 }
 
+// THE ONE PLACE ANYTHING IS STARTED, and therefore the one place anything is stopped from starting.
+//
+// A room that is off starts nothing. That is asked HERE and nowhere else, because everything that
+// runs Claude Code runs it inside one of these — a message, a handover and a leave are all turns —
+// and a question asked at three call sites is a question a fourth call site can be written without.
+// The comment at the top of this file already claimed this role for the queue; this is it being
+// taken.
+//
+// It is asked BEFORE the queue, not inside it. A turn that joined the queue and then declined would
+// leave the room filling up with things nobody is going to answer, and a panel would say it was
+// answering while nothing was: the count is not raised, nothing is chained, and what the chat is
+// holding stays exactly what it would be with nobody talking.
+//
+// `answer` is never called. That is the whole promise — not that the run is short, not that it is
+// cheap, but that it does not happen — and it is what makes taking the room off worth the press: the
+// run this saves is a cold one, and a cold one costs the whole of a conversation again at write
+// price.
+//
+// Nothing already going is touched. A turn that was underway when the room went off runs to its end
+// and answers in its own words; only the NEXT one is refused. Stopping work in flight would be a
+// second thing this press does, and a press that does two things is a press that can half happen.
+//
+// WHY THIS IS ALLOWED TO DECLINE, when the delivery path is written never to. That rule exists so
+// that a session cannot be made unreachable by the state it is in: a message refused for the
+// addressee's own state leaves nobody able to tell it to stop being that way. This state is not the
+// addressee's. It belongs to the room, it was set by the person reading it, and the press that
+// clears it runs nothing and reaches nobody — so there is no session that has to be reachable for
+// the room to come back.
 export function inTurn(name, answer) {
+  if (offline()) {
+    return Promise.resolve(OFFLINE);
+  }
+
   const waiting = queues.get(name) ?? Promise.resolve();
   const mine = waiting.then(answer, answer);
 

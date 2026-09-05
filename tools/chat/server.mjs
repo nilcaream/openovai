@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 import { append, lastAt, panelDirectory, panelFile, read } from "./conversation.mjs";
 import { HOST, record } from "./listening.mjs";
 import { respond } from "./mcp.mjs";
-import { goOffline, goOnline, offline } from "./offline.mjs";
+import { OFFLINE, goOffline, goOnline, offline } from "./offline.mjs";
 import { carry, overhear } from "./overheard.mjs";
 import { allow, answer as settle, giveUp, park, parked, refuse } from "./permissions.mjs";
 import { roomLines } from "./room.mjs";
@@ -399,6 +399,28 @@ function leavingRefused(name, refused) {
   return `${name} could not be asked before leaving: the service turned the run away on ${limitSaid(refused)}. Nothing was filed and the desk is still open — ask again once the limit has lifted.`;
 }
 
+// The same three moments again, for a room that is off rather than for an account that is out.
+//
+// They are written beside their refusal twins on purpose. A person pressing a button wants the same
+// three facts either way — nothing ran, nothing was lost, and what to do about it — and the only
+// difference here is the last one: a limit lifts by itself and this does not. It lifts when somebody
+// presses the switch, so that is what the sentence says instead of a time.
+//
+// Said in full rather than as a shared phrase with a word swapped. Two sentences that differ in what
+// is at stake should differ in their words: a message costs nothing and can simply be said again, a
+// handover was about to end a conversation, and a leave was about to file a desk away.
+function offlineLine(name) {
+  return `Nothing reached ${name}: the room is offline, so nothing is being run. Its conversation is untouched and nothing was lost — bring the room back online and say it again.`;
+}
+
+function handoverOffline(name) {
+  return `${name} could not be asked to hand over: the room is offline, so nothing is being run. Nothing was ended — its thread and ${desk(name)} are exactly as they were — so bring the room back online and hand over again.`;
+}
+
+function leavingOffline(name) {
+  return `${name} could not be asked before leaving: the room is offline, so nothing is being run. Nothing was filed and the desk is still open — bring the room back online and ask again.`;
+}
+
 // Everything a session is asked or answers is under its own name, so one route shape serves
 // every panel and there is no path through here that only the lead can take.
 const SESSION_ROUTE = /^\/sessions\/([^/]+)\/(messages|message|permissions|permission|handover|leave|end)$/;
@@ -560,6 +582,22 @@ async function deliver(instance, name, text, signed, shown = null) {
       };
     }),
   );
+
+  // The room is off, so no turn was taken and nothing was run. The question is not written down —
+  // it was never asked of anybody — and what goes on the panel is the chat saying so in its own
+  // voice, flagged, so that a check reads the flag rather than the prose.
+  //
+  // What was overheard above is left where it is. That line is the record of the human having spoken
+  // on a panel, which is true whether or not anything was delivered, and it reaches the lead on
+  // whatever turn the lead next takes — which, while the room is off, is none.
+  if (answered === OFFLINE) {
+    const said = append(instance.root, name, {
+      from: THE_CHAT,
+      text: offlineLine(name),
+      offline: true,
+    });
+    return { status: 503, body: { error: said.text, offline: true } };
+  }
 
   if (answered.gone === true) {
     return { status: 409, body: { error: `${name} left before this could be delivered` } };
@@ -914,6 +952,20 @@ async function postHandover(instance, name, response) {
     return { asked, reply, ended };
   });
 
+  // Nothing was asked, so there is no question on the panel either — only the line saying why. The
+  // thread is where it was, the desk is where it was, and pressing this again once the room is back
+  // costs exactly what it would have cost now.
+  if (done === OFFLINE) {
+    const ended = append(instance.root, name, {
+      from: THE_CHAT,
+      text: handoverOffline(name),
+      handover: true,
+      offline: true,
+    });
+    sendJson(response, 503, { ended, offline: true });
+    return;
+  }
+
   sendJson(response, done.refused === true ? 503 : 200, done);
 }
 
@@ -1020,6 +1072,20 @@ async function postLeave(instance, name, response) {
 
     return { asked, reply, left, archived: where };
   });
+
+  // And on the way out, where the order inside the turn already says why nothing may run early:
+  // `archiveFor` MAKES the directory it names. Nothing here reaches it, so there is no empty archive
+  // left behind for somebody who is still at their desk.
+  if (done === OFFLINE) {
+    const left = append(instance.root, name, {
+      from: THE_CHAT,
+      text: leavingOffline(name),
+      leaving: true,
+      offline: true,
+    });
+    sendJson(response, 503, { left, offline: true });
+    return;
+  }
 
   sendJson(response, done.refused === true ? 503 : 200, done);
 }

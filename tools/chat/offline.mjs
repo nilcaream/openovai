@@ -45,3 +45,14 @@ export function goOffline() {
 export function goOnline() {
   off = false;
 }
+
+// What the queue answers instead of a turn, while the room is off.
+//
+// A frozen constant compared by IDENTITY, never by shape. Every caller of the queue already returns
+// an object of its own, and one of them could grow a field called `offline` on any day for a reason
+// of its own — so a check on the shape would be a check that quietly stops holding. There is one of
+// these and it is this one.
+//
+// It carries the same word the routes answer with, so the value a caller passes on is the value it
+// was handed rather than one it wrote out again.
+export const OFFLINE = Object.freeze({ offline: true });
