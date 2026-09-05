@@ -711,7 +711,21 @@ function windowsIn(reading) {
   }
   const windows = Object.entries(named)
     .filter(([, window]) => typeof window?.utilization === "number")
-    .map(([name, window]) => ({ name, fullness: window.utilization }));
+    .map(([name, window]) => ({
+      name,
+      fullness: window.utilization,
+      // When the service says this window ends. Every window on the frame carries its own, and it
+      // arrives on ordinary ALLOWED runs — so when a window lifts is known long before anything is
+      // refused, which is the half a refusal cannot answer because there has not been one yet.
+      //
+      // Its own and never the one beside `status`. Those two agree for the window the frame names
+      // as the one it is talking about, and for no other, so a reader taking the outer one gives
+      // every window the same ending.
+      //
+      // Nothing rather than a guess when the frame did not say, which is the rule the refusal
+      // beside this already follows: the service did not say, so neither do we.
+      resetsAt: typeof window.resetsAt === "number" ? window.resetsAt : null,
+    }));
   return windows.length === 0 ? null : windows;
 }
 

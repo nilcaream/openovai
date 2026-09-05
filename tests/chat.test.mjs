@@ -3098,11 +3098,16 @@ describe("what a row says about the usage window its last run was told about", (
 
   // Mutation: have the reader return a fixed number. The number on the row is the number that was
   // on the frame, or the row is decoration.
+  //
+  // The whole shape and not just the number, which is why this had to be repaired when the reading
+  // learned to carry the moment its window ends: a check written against the exact object is the
+  // one that notices a field arriving, and that is the check working rather than a check in the
+  // way. The moment itself is asserted next door, where two windows can be put in front of it.
   it("carries the fullness the frame gave, for the window the frame named", () => {
-    assert.deepEqual(
-      told?.quota?.windows?.find((window) => window.name === "five_hour"),
-      { name: "five_hour", fullness: 0.71 },
-    );
+    const five = told?.quota?.windows?.find((window) => window.name === "five_hour");
+    assert.equal(five?.name, "five_hour");
+    assert.equal(five?.fullness, 0.71);
+    assert.deepEqual(Object.keys(five ?? {}).sort(), ["fullness", "name", "resetsAt"]);
   });
 
   // Mutation: keep only the five-hour window. Picking one would write a window's name into this
@@ -3179,6 +3184,84 @@ describe("what a row says about the usage window its last run was told about", (
   });
 });
 
+
+const LIFT_ON_THE_ROW = "Godwit";
+const LIFT_NOT_GIVEN = "Ruff";
+
+// When each window the frame named comes to an end.
+//
+// The moment is on every window of every frame, on ordinary allowed runs — which is what makes it
+// worth keeping: whether a limit has been hit is answerable only after one has, and when a window
+// ends is answerable before.
+//
+// TWO windows throughout, never one. The frame carries a moment beside `status` as well as one
+// inside each window, and for the window it names as the one it is talking about the two are the
+// same number — measured on every capture we have. So a reader that took the outer moment and gave
+// it to every window would be right about the first window in every single-window fixture, and
+// wrong about the second. The second window is the check.
+describe("what a row says about when each usage window ends", () => {
+  const liftLog = path.join(standIn, "lift.txt");
+  let both;
+  let unsaid;
+  let takenAt;
+
+  before(async () => {
+    runTool(instance, ["hire", LIFT_ON_THE_ROW], process.env);
+    runTool(instance, ["hire", LIFT_NOT_GIVEN], process.env);
+
+    await start(instance, standInEnvironment(standIn, liftLog, { OW_STAND_IN_LIMIT: "allowed" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    takenAt = Math.floor(Date.now() / 1000);
+    await say("something, so the window is read", LIFT_ON_THE_ROW);
+    both = JSON.parse((await get(`${URL}/sessions`)).body).sessions.find((row) => row.name === LIFT_ON_THE_ROW);
+
+    // A frame that says nothing about when it lifts. The stand-in drops the moment from the
+    // five-hour window and from beside `status`, and leaves the seven-day one saying when it ends
+    // — so one row carries both answers and nothing can satisfy the check by writing one of them.
+    await start(instance, standInEnvironment(standIn, liftLog, { OW_STAND_IN_REFUSED: "yes", OW_STAND_IN_NO_RESET: "yes" }));
+    assert.ok(await waitForHealth(URL), "the server never came back");
+    await say("something while the account is out", LIFT_NOT_GIVEN);
+    unsaid = JSON.parse((await get(`${URL}/sessions`)).body).sessions.find((row) => row.name === LIFT_NOT_GIVEN);
+  });
+
+  // Mutation: give every window the moment beside `status` instead of its own. The five-hour window
+  // stays right — those two are the same number — and the seven-day one is handed the five-hour
+  // ending, so it is the SECOND window that goes red. A one-window fixture would have missed it.
+  //
+  // Asserted against this suite's own clock and against the two windows' distance from each other,
+  // never against a number written down here: the stand-in computes both from the moment it runs.
+  it("carries when each window the frame named comes to an end", () => {
+    const five = both?.quota?.windows?.find((window) => window.name === "five_hour");
+    const week = both?.quota?.windows?.find((window) => window.name === "seven_day");
+    assert.ok(typeof five?.resetsAt === "number", `no five-hour moment in: ${JSON.stringify(both?.quota)}`);
+    assert.ok(typeof week?.resetsAt === "number", `no seven-day moment in: ${JSON.stringify(both?.quota)}`);
+
+    // Three hours off and five days off, as the stand-in built them, read against the moment this
+    // fixture started the run rather than against either number.
+    assert.ok(Math.abs(five.resetsAt - (takenAt + 3 * 60 * 60)) < 120, `five-hour lifts at ${five.resetsAt}`);
+    assert.ok(Math.abs(week.resetsAt - (takenAt + 5 * 24 * 60 * 60)) < 120, `seven-day lifts at ${week.resetsAt}`);
+    assert.notEqual(five.resetsAt, week.resetsAt);
+  });
+
+  // Mutation: invent a moment when a window did not say — an hour from now. The service did not
+  // say when this one ends, so neither do we; and the window beside it DID say, so this cannot
+  // pass by dropping every moment either.
+  //
+  // MEASURED, so that nobody spends another mutation on it: this does NOT hold the other wrong
+  // answer, falling back to the moment beside `status`. That mutation reports nothing noticed,
+  // because the frame drops both moments together — every capture we have carries a moment on the
+  // outside and one inside each window, and the only shape that separates them is one nobody has
+  // seen. The state where a reader taking the outer one is wrong is not reachable from any frame
+  // this suite can build, so what is held here is "not a moment of our own" and not "not that one".
+  // The neighbouring check holds the same field being read off the window in every state that IS
+  // reachable.
+  it("says nothing about when a window ends if the frame did not say", () => {
+    const five = unsaid?.quota?.windows?.find((window) => window.name === "five_hour");
+    const week = unsaid?.quota?.windows?.find((window) => window.name === "seven_day");
+    assert.equal(five?.resetsAt, null);
+    assert.ok(typeof week?.resetsAt === "number", `no seven-day moment in: ${JSON.stringify(unsaid?.quota)}`);
+  });
+});
 
 // A refusal on the row, and how it goes away.
 //
