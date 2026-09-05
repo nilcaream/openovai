@@ -174,6 +174,7 @@ const standIns = standInEnvironment(standIn, log);
 // What the chat puts in a session's environment, so a check can run the command the way a session
 // runs it: signed with the name of whoever is speaking.
 const asLeader = standInEnvironment(standIn, log, { OW_SESSION_NAME: LEADER });
+const asWorker = standInEnvironment(standIn, log, { OW_SESSION_NAME: WORKER });
 await start(instance, standIns);
 assert.ok(await waitForHealth(URL), "the server never answered");
 
@@ -457,6 +458,20 @@ describe("who a message is from", () => {
 
     it("keeps the wrapper out of the transcript", async () => {
       assert.ok(!(await transcriptOf(WORKER)).body.includes("from-session"));
+    });
+  });
+
+  // And the other way about. Every wrapper this suite read was written for the lead until it was
+  // measured: one that named a sender of its own satisfied both checks above, because the only
+  // sender any fixture had was the one they asserted. Two senders is what makes them prove the
+  // wrapper was built from who spoke.
+  describe("a worker speaking to the lead", () => {
+    before(() => {
+      runTool(instance, ["say", LEADER, "and", "this", "one", "is", "mine"], asWorker);
+    });
+
+    it("hands it over under that sender's name and what that sender is", () => {
+      assert.ok(questionsIn(log).at(-1).includes(`<from-session name="${WORKER}" role="worker">`));
     });
   });
 
@@ -1599,6 +1614,44 @@ describe("asking to be allowed", () => {
     });
   });
 
+  // The same request, for another tool and another argument. Every fixture here asked for Bash and
+  // the same command until it was measured: a page that named a tool and an argument of its own
+  // satisfied the two checks above, because the page and the fixture had been given the same two
+  // constants and neither had to read anything. Two requests is what makes the pair prove it.
+  describe("what the page is shown about a different request", () => {
+    const otherLog = path.join(standIn, "asking-otherwise.txt");
+    let asking;
+    let exchange;
+
+    before(async () => {
+      await start(
+        instance,
+        standInEnvironment(standIn, otherLog, {
+          OW_STAND_IN_ASKS: "Read",
+          OW_STAND_IN_ASKS_INPUT: "the other one it wanted",
+        }),
+      );
+      assert.ok(await waitForHealth(URL), "the server never answered");
+      exchange = say("go and read");
+      asking = await waitingOn(LEADER);
+    });
+
+    after(async () => {
+      await post(`${URL}/sessions/${LEADER}/permission`, { id: asking[0].id, decision: "deny" });
+      await exchange;
+      await start(instance, standInEnvironment(standIn, askedLog, { OW_STAND_IN_ASKS: "Bash" }));
+      assert.ok(await waitForHealth(URL), "the server never came back");
+    });
+
+    it("says which tool that one wants", () => {
+      assert.equal(asking[0].tool, "Read");
+    });
+
+    it("says what that tool was going to be given", () => {
+      assert.deepEqual(asking[0].input, { command: "the other one it wanted" });
+    });
+  });
+
   describe("allowing it", () => {
     let answered;
 
@@ -1644,6 +1697,25 @@ describe("asking to be allowed", () => {
     it("tells the run it was refused, and why", () => {
       assert.ok(answered.body.includes("I was told deny"), answered.body);
       assert.ok(answered.body.includes("not from here"), answered.body);
+    });
+  });
+
+  // Refused with nothing said about why. The chat has a sentence of its own for that, and it is
+  // the second value the field takes: without it, the check above is a page and a run agreeing on
+  // one string, and a chat that answered every refusal with that string passed it.
+  describe("refusing it without saying why", () => {
+    let answered;
+
+    before(async () => {
+      const exchange = say("this one is refused without a word");
+      const asking = await waitingOn(LEADER);
+      await post(`${URL}/sessions/${LEADER}/permission`, { id: asking[0].id, decision: "deny" });
+      answered = await exchange;
+    });
+
+    it("tells the run it was refused, in the chat's own words", () => {
+      assert.ok(answered.body.includes("I was told deny"), answered.body);
+      assert.ok(answered.body.includes("not allowed from the chat"), answered.body);
     });
   });
 
@@ -2821,7 +2893,7 @@ describe("what the room says about a usage window and a refusal", () => {
   // room, and a phrase that exists only on the page is a phrase half the readers never see.
   it("prints the fullness the frame gave, for every window it named", () => {
     assert.match(lineFor(GAUGED_IN_ROOM) ?? "", /five-hour window 71% full/);
-    assert.match(lineFor(GAUGED_IN_ROOM) ?? "", /seven-day window 4% full/);
+    assert.match(lineFor(GAUGED_IN_ROOM) ?? "", /seven-day window 36% full/);
   });
 
   // Mutation: print 0% for a null reading. A session that has never run has not been told
@@ -3952,9 +4024,13 @@ describe("a session calls the tools the chat serves it", () => {
     assert.equal(result.serverInfo.name, "office");
   });
 
+  // Asked both ways. One version asked for and asserted is a caller and a server agreeing on a
+  // string the server never had to read — a server answering in a version of its own passed it —
+  // and one of the two here is the server's own, so answering in that instead is caught as well.
   it("answers in the version the caller asked for", async () => {
-    const { result } = JSON.parse((await call(WORKER, "initialize", { protocolVersion: "2024-11-05" })).body);
-    assert.equal(result.protocolVersion, "2024-11-05");
+    const older = JSON.parse((await call(WORKER, "initialize", { protocolVersion: "2024-11-05" })).body).result;
+    const newer = JSON.parse((await call(WORKER, "initialize", { protocolVersion: "2025-06-18" })).body).result;
+    assert.deepEqual([older.protocolVersion, newer.protocolVersion], ["2024-11-05", "2025-06-18"]);
   });
 
   it("says so when asked for something it does not serve", async () => {
@@ -4854,6 +4930,10 @@ describe("a message turned away without a time", () => {
         OW_STAND_IN_SESSION: "timeless-away",
         OW_STAND_IN_REFUSED: "yes",
         OW_STAND_IN_NO_RESET: "yes",
+        // Under the other window, because the panel check below is the only reader of the kind in
+        // prose and every fixture reaching it named the five-hour one: a sentence with that window
+        // written into it passed, whatever the frame said.
+        OW_STAND_IN_LIMIT_KIND: "seven_day",
       }),
     );
     assert.ok(await waitForHealth(URL), "the server never answered");
@@ -4869,6 +4949,10 @@ describe("a message turned away without a time", () => {
 
   it("says nothing about a time it was not given", () => {
     assert.ok(!panel.at(-1).text.includes("lifts at"), `the line said ${JSON.stringify(panel.at(-1).text)}`);
+  });
+
+  it("names the window this one was refused under, which is not the other one's", () => {
+    assert.match(panel.at(-1).text, /seven-day limit/);
   });
 });
 
@@ -5596,6 +5680,7 @@ describe("the lead breaks in on somebody who is writing", () => {
   const ROUTINE = "a line that landed while a sentence was half written";
   const BREAKING = "the settings file is in the instance root, so the question you are answering is answered";
   const WHY = "it answers the very thing you are writing about";
+  const ANOTHER_WHY = "and this one is stale for a reason of its own";
   const LATER = "and this one lands after the break, with nothing breaking in behind it";
 
   let page;
@@ -5613,6 +5698,7 @@ describe("the lead breaks in on somebody who is writing", () => {
   let noReason;
   let spacesForAReason;
   let noMessage;
+  let reasons;
 
   async function offeredTo(who) {
     return JSON.parse((await call(who, "tools/list")).body).result.tools.map((tool) => tool.name);
@@ -5666,6 +5752,15 @@ describe("the lead breaks in on somebody who is writing", () => {
     noReason = answerOf(await breakIn(LEADER, { message: BREAKING }));
     spacesForAReason = answerOf(await breakIn(LEADER, { message: BREAKING, why: "   " }));
     noMessage = answerOf(await breakIn(LEADER, { why: WHY }));
+
+    // A second break-in, with a reason of its own, read after everything above has been sampled.
+    // One stored reason cannot tell a row that carried what was said from a row carrying a word
+    // this toolkit wrote down — the mutation that hard-coded the first one left the check green.
+    // A break-in starts no turn, so nothing is left running by this.
+    await breakIn(LEADER, { message: BREAKING, why: ANOTHER_WHY });
+    reasons = JSON.parse(fs.readFileSync(path.join(instance, "chat", LEADER, "conversation.json"), "utf8"))
+      .filter((row) => typeof row.breaking === "string")
+      .map((row) => row.breaking);
   });
 
   // On the lead's OWN panel, which is the panel the human reads. Nothing is delivered anywhere:
@@ -5677,8 +5772,8 @@ describe("the lead breaks in on somebody who is writing", () => {
 
   // The reason is a field on the row and not a sentence folded into the words, because what it
   // makes stale is shown to the person being interrupted, beside the line rather than inside it.
-  it("carries the reason on the row", () => {
-    assert.equal(onDisk[onDisk.length - 1].breaking, WHY);
+  it("carries the reason on the row, each break-in its own", () => {
+    assert.deepEqual(reasons.slice(-2), [WHY, ANOTHER_WHY]);
   });
 
   // Both halves required, so there is no way to break in without saying what it makes stale.

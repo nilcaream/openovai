@@ -166,6 +166,15 @@ describe("what a release of a tree would be", () => {
     assert.match(release.notes, /The one this release is about\./);
   });
 
+  // A second tree, on a version of its own. Every repository here was on 1.2.0 until it was
+  // measured, so a release that answered with that version — never reading the file — was right
+  // about all of them, and the check above stayed green under exactly that.
+  it("is the version the tree's own VERSION names, and not one written down here", () => {
+    const notes = ["## 2.3.4", "", "The other one this release is about.", ""].join("\n");
+    const release = releaseOf(aRepository("another-version", { version: "2.3.4", notes }));
+    assert.deepEqual([release.version, release.tag, release.name], ["2.3.4", "v2.3.4", "2.3.4"]);
+  });
+
   it("refuses a tree with no version in it", () => {
     const tree = aRepository("no-version", { version: null });
     assert.throws(() => releaseOf(tree), /no VERSION in it/);

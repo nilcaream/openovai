@@ -117,6 +117,10 @@ export function claudeIsInstalled() {
 //                             check can watch what a forced run leaves behind
 //   OW_STAND_IN_ASKS          ask to be allowed to use this tool, wait for the answer, and make
 //                             what it was told the reply
+//   OW_STAND_IN_ASKS_INPUT    the argument that tool would be given, and a knob for the same
+//                             reason the fullness is one: with every fixture naming one tool and
+//                             one argument, a page that named a tool of its own satisfied the
+//                             checks about both  (default: "the one it wanted to run")
 //   OW_STAND_IN_WAITS         milliseconds to wait for that answer before giving up on it
 //                             (default: 5000) — the real one waits for good, and a suite cannot
 //   OW_STAND_IN_CALLS         "Speaker>Addressee,…" — while answering, that speaker says
@@ -222,7 +226,10 @@ const reading = (status, lifts) => ({
   isUsingOverage: false,
   unifiedWindows: {
     five_hour: { utilization: fullness(), ...(lifts === null ? {} : { resetsAt: lifts }) },
-    seven_day: { utilization: 0.04, resetsAt: Math.floor(Date.now() / 1000) + 5 * 24 * 60 * 60 },
+    // Derived from the knob rather than written down, and deliberately not the same number as
+    // the window above: with a literal here, a reader that answered with a constant for this
+    // window — or read the wrong window entirely — reached the right answer in every fixture.
+    seven_day: { utilization: fullness() / 2, resetsAt: Math.floor(Date.now() / 1000) + 5 * 24 * 60 * 60 },
   },
 });
 
@@ -483,7 +490,7 @@ if ((process.env.OW_STAND_IN_ASKS ?? "") !== "") {
     request: {
       subtype: "can_use_tool",
       tool_name: process.env.OW_STAND_IN_ASKS,
-      input: { command: "the one it wanted to run" },
+      input: { command: process.env.OW_STAND_IN_ASKS_INPUT ?? "the one it wanted to run" },
       tool_use_id: "use-1",
     },
   });

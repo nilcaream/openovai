@@ -30,7 +30,11 @@ import { settingsProblems, trustProblems } from "./inspect.mjs";
 
 const HUMAN = "Mike";
 const LEADER = "Superman";
-const MODEL = "haiku";
+// Two models and not one. They sit side by side in the same file and are printed on two lines of
+// the same report, so with one word in both fields a report that read the wrong one — or wrote a
+// model of its own — said the right thing anyway.
+const LEADER_MODEL = "sonnet";
+const WORKER_MODEL = "haiku";
 const PORT = 7900;
 const TOKEN = "a-machine-token";
 const WORKER = "Paul";
@@ -55,8 +59,8 @@ function install(root, auth) {
     "--source": repo,
     "--human": HUMAN,
     "--leader": LEADER,
-    "--leader-model": MODEL,
-    "--worker-model": MODEL,
+    "--leader-model": LEADER_MODEL,
+    "--worker-model": WORKER_MODEL,
     "--port": PORT,
     "--auth": auth,
   });
@@ -122,7 +126,11 @@ describe("what status reports", () => {
   });
 
   it("names the leader and the model it runs on", () => {
-    assert.match(said, new RegExp(`${LEADER} \\(${MODEL}\\)`));
+    assert.match(said, new RegExp(`${LEADER} \\(${LEADER_MODEL}\\)`));
+  });
+
+  it("names the model a hired worker runs on, which is the other one", () => {
+    assert.match(said, new RegExp(`worker model\\s+${WORKER_MODEL}`));
   });
 
   it("shows the port", () => {
