@@ -145,6 +145,15 @@ describe("taking a newer version from a directory", () => {
     // A file this version has and the next one has not, so a check can ask whether an update
     // replaces the payload or merely writes over it.
     fs.writeFileSync(path.join(root, "tools", "left-behind.mjs"), "// dropped by the newer version\n");
+    // And a tool this instance serves itself, which is the opposite case and the reason the
+    // directory it lives in is not part of the payload. An update replaces every payload entry
+    // whole, so a tool kept under one of them would be taken away by the first update anybody ran
+    // — silently, since an update reports what it replaced and not what it removed.
+    //
+    // No check of its own. The check that everything outside the payload survives is already here
+    // and already asks of every file at once, and a second one reading this file back would be
+    // reddened by the same single edit and by nothing else.
+    fs.writeFileSync(path.join(root, "plugins", "notify.mjs"), "// a tool this instance serves itself\n");
     accumulated = whatTheInstanceAccumulated(root);
     done = await update(root, tree);
   });
