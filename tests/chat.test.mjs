@@ -49,6 +49,8 @@ import {
 
 // The reader this suite checks directly. No route says this number, and a check that read the
 // file itself would pass with nothing written at all.
+import { LEDGER } from "../tools/desks.mjs";
+import { shapeOf } from "../tools/chat/permissions.mjs";
 import { settingsProblems } from "./inspect.mjs";
 import { ranAt } from "../tools/chat/session.mjs";
 
@@ -1584,6 +1586,44 @@ describe("a run that answers with nothing", () => {
 //
 // The message is posted without being waited for: it does not come back until the whole exchange
 // is over, and the answering is the middle of it.
+// What rule, if any, would let a call like this one through next time.
+//
+// A table rather than a check each, because the interesting half of this is everywhere it answers
+// NOTHING: a composer that guessed would write a permanent, workspace-wide rule out of one press,
+// and the rows below are the ones where guessing looks reasonable and is not.
+describe("the rule a call could be allowed by", () => {
+  const composed = [
+    ["a command", "Bash", { command: "node --test tests" }, "Bash(node:*)"],
+    ["a command with nothing after it", "Bash", { command: "ls" }, "Bash(ls:*)"],
+    ["the same command, spaced oddly", "Bash", { command: "  node   --test tests " }, "Bash(node:*)"],
+    // A rule is a literal prefix rather than a path or a command line, so a first word carrying a
+    // slash, a tilde, a dollar or a quote makes a rule that matches something other than what the
+    // person read on the button.
+    ["a script somewhere", "Bash", { command: "~/bin/deploy --now" }, null],
+    ["a script here", "Bash", { command: "./release.sh" }, null],
+    ["a command out of a variable", "Bash", { command: "$TOOL --go" }, null],
+    ["a quoted first word", "Bash", { command: '"a b" c' }, null],
+    ["nothing at all", "Bash", { command: "   " }, null],
+    ["a command that is not one", "Bash", { file_path: "notes.txt" }, null],
+    // Reading is never stopped, so a rule for it is a grant nobody was ever asked for; Glob and
+    // Grep do not exist in the harness at all, and a session asking for either is told so. All
+    // three were in the design and all three came out when that was measured.
+    ["reading a file", "Read", { file_path: "notes.txt" }, null],
+    ["a search", "Grep", { pattern: "needle" }, null],
+    // A path is a different decision from a call, and it is the one opening a desk already makes.
+    ["writing a file", "Edit", { file_path: "notes.txt" }, null],
+    // Granted the moment the chat offers it, and a rule can name a server and a tool, never an
+    // argument — so there is nothing narrower here to offer.
+    ["one of the chat's own tools", "mcp__openovai__say", { to: "Superman" }, null],
+  ];
+
+  for (const [what, tool, input, rule] of composed) {
+    it(rule === null ? `offers nothing for ${what}` : `offers ${rule} for ${what}`, () => {
+      assert.equal(shapeOf({ id: "request-1", tool, input }), rule);
+    });
+  }
+});
+
 describe("asking to be allowed", () => {
   const askedLog = path.join(standIn, "asking.txt");
 
@@ -1782,6 +1822,29 @@ describe("asking to be allowed", () => {
       assert.ok(returns > empty && returns < sends, "the guard does not stop the refusal going");
     });
 
+    // The third button, drawn from what the server composed. Absent where there is no rule, rather
+    // than there and dead: an offer that cannot be taken reads as the thing being refused.
+    it("offers the third answer only where there is a rule to offer", () => {
+      assert.match(asked, /request\.shape === undefined \? null : document\.createElement\("button"\)/);
+      assert.match(asked, /always !== null/);
+      assert.doesNotMatch(asked, /always\.disabled = false/);
+    });
+
+    // The rule itself on the button, in full. A person allows a rule they have read, and a button
+    // saying "Always allow" and nothing else is a press into the dark.
+    it("puts the rule on the button", () => {
+      assert.match(asked, /always\.textContent = `Always allow \$\{request\.shape\}`/);
+    });
+
+    // And the press says only which answer it is. The rule is composed again at the server from the
+    // request as it was parked, so a rule granted is a rule somebody was shown, never a string a
+    // caller made up.
+    it("sends the answer and not a rule of its own", () => {
+      const pressing = asked.slice(asked.indexOf("always.addEventListener"), asked.indexOf('no.addEventListener("click"'));
+      assert.match(pressing, /decision: "always"/);
+      assert.ok(!pressing.includes("shape"), pressing);
+    });
+
     it("says nothing of the kind when it allows", () => {
       const allowing = asked.slice(
         asked.indexOf('yes.addEventListener("click"'),
@@ -1836,6 +1899,165 @@ describe("asking to be allowed", () => {
       const removes = ticking.indexOf("line.remove()");
       assert.ok(gone > 0, "the tick does not ask what left the queue");
       assert.ok(removes > gone, "the tick removes a line without asking whether it left");
+    });
+  });
+
+  // Allowing the shape rather than the call.
+  //
+  // The two answers above settle one call and are forgotten. This one settles the call AND leaves
+  // the workspace allowing that shape, so the next session reaching for the same thing is not
+  // stopped and nobody answers the same question twice — which is the whole feature. What can be
+  // proven here is the half that lives on disk: the rule is granted, exactly one line accounts for
+  // it, and the workspace still adds up. That the next run then goes through is the harness's
+  // half, and it is proven by a person at a real session, not here.
+  describe("allowing the shape and not only the call", () => {
+    const alwaysLog = path.join(standIn, "asking-always.txt");
+    const RULE = "Bash(node:*)";
+    const settings = path.join(instance, ".claude", "settings.json");
+    const ledger = path.join(instance, LEDGER);
+    let shown;
+    let answered;
+    let said;
+
+    function allowed() {
+      return JSON.parse(fs.readFileSync(settings, "utf8")).permissions.allow;
+    }
+
+    function lines() {
+      return fs.readFileSync(ledger, "utf8").split("\n").filter((line) => line.startsWith("- `"));
+    }
+
+    before(async () => {
+      await start(
+        instance,
+        standInEnvironment(standIn, alwaysLog, {
+          OPENOVAI_STAND_IN_ASKS: "Bash",
+          OPENOVAI_STAND_IN_ASKS_INPUT: "node --test tests",
+        }),
+      );
+      assert.ok(await waitForHealth(URL), "the server never answered");
+
+      const exchange = say("this one is worth allowing for good");
+      shown = (await waitingOn(LEADER))[0];
+      said = await post(`${URL}/sessions/${LEADER}/permission`, { id: shown.id, decision: "always" });
+      answered = await exchange;
+    });
+
+    after(async () => {
+      await start(instance, standInEnvironment(standIn, path.join(standIn, "asking.txt"), { OPENOVAI_STAND_IN_ASKS: "Bash" }));
+      assert.ok(await waitForHealth(URL), "the server never came back");
+    });
+
+    // What the page is given to draw the button from. It is composed by the server and sent with
+    // the request, so the rule on the button and the rule that is granted are one thing.
+    it("tells the page which rule would allow it", () => {
+      assert.equal(shown.shape, RULE);
+    });
+
+    it("lets the run finish, allowed", () => {
+      assert.equal(answered.status, 200);
+      assert.ok(answered.body.includes("I was told allow"), answered.body);
+    });
+
+    it("says which rule it granted", () => {
+      assert.deepEqual(JSON.parse(said.body), { answered: shown.id, decision: "always", granted: RULE });
+    });
+
+    it("grants exactly that rule and nothing else", () => {
+      assert.ok(allowed().includes(RULE), allowed().join(", "));
+      assert.deepEqual(allowed().filter((rule) => rule.startsWith("Bash(")), [RULE]);
+    });
+
+    // The line is the half that makes the rule answerable a month later: who wanted it, when, and
+    // what they were doing at the time. Without it this feature is the twenty-six-rule workspace
+    // it was written against, reached one press at a time.
+    it("writes down who asked for it, when, and what for", () => {
+      const written = lines();
+      assert.equal(written.length, 1, written.join(" / "));
+      assert.ok(written[0].startsWith(`- \`${RULE}\` `), written[0]);
+      assert.match(written[0], new RegExp(LEADER));
+      assert.match(written[0], /node --test tests/);
+      assert.match(written[0], new RegExp(new Date().toISOString().slice(0, 10)));
+    });
+
+    // The file is a person's as much as the workspace's. Somebody reads it, and what they read has
+    // to be there next time something is granted.
+    it("leaves the file saying what it is for", () => {
+      assert.match(fs.readFileSync(ledger, "utf8"), /^# What this workspace allows beyond a desk/);
+    });
+
+    it("still adds up", () => {
+      const here = fs.readdirSync(path.join(instance, "work"));
+      assert.ok(!settingsProblems(settings, here).join(" ").includes("Bash("), "the rule it granted is not accounted for");
+    });
+
+    // Pressed again for the same shape, which is what happens the moment two sessions are stopped
+    // by the same command before either answer lands.
+    describe("pressed again for the same shape", () => {
+      before(async () => {
+        const exchange = say("and again");
+        const again = (await waitingOn(LEADER))[0];
+        await post(`${URL}/sessions/${LEADER}/permission`, { id: again.id, decision: "always" });
+        await exchange;
+      });
+
+      it("leaves one rule and one line", () => {
+        assert.deepEqual(allowed().filter((rule) => rule === RULE), [RULE]);
+        assert.equal(lines().length, 1, lines().join(" / "));
+      });
+    });
+
+    // The workspace's rule, not this session's. Nothing about the rule names who was asked — which
+    // is what makes the next session's identical call go through — while the line that accounts for
+    // it names them, because that is the question a person asks about a rule afterwards.
+    it("grants it to the workspace and remembers who asked", () => {
+      assert.ok(!RULE.includes(LEADER));
+      assert.ok(!allowed().some((rule) => rule.startsWith("Bash(") && rule.includes(LEADER)));
+      assert.match(lines()[0], new RegExp(LEADER));
+    });
+  });
+
+  // A caller that is not the page, asking for a shape where there is none. The page never offers
+  // the button in that case, so this is the guard for everything else that can post here.
+  describe("asking to allow a shape that cannot be composed", () => {
+    const otherLog = path.join(standIn, "asking-no-shape.txt");
+    let refused;
+    let answered;
+
+    before(async () => {
+      await start(
+        instance,
+        standInEnvironment(standIn, otherLog, {
+          OPENOVAI_STAND_IN_ASKS: "Edit",
+          OPENOVAI_STAND_IN_ASKS_INPUT: "work/Superman/STATE.md",
+        }),
+      );
+      assert.ok(await waitForHealth(URL), "the server never answered");
+
+      const exchange = say("this one has no shape to it");
+      const asking = await waitingOn(LEADER);
+      refused = await post(`${URL}/sessions/${LEADER}/permission`, { id: asking[0].id, decision: "always" });
+      await post(`${URL}/sessions/${LEADER}/permission`, { id: asking[0].id, decision: "deny", why: "no shape" });
+      answered = await exchange;
+    });
+
+    after(async () => {
+      await start(instance, standInEnvironment(standIn, path.join(standIn, "asking.txt"), { OPENOVAI_STAND_IN_ASKS: "Bash" }));
+      assert.ok(await waitForHealth(URL), "the server never came back");
+    });
+
+    it("sends the page no rule to put on a button", async () => {
+      assert.equal(JSON.parse((await get(`${URL}/sessions/${LEADER}/permissions`)).body).permissions.length, 0);
+    });
+
+    it("refuses to grant one", () => {
+      assert.equal(refused.status, 400);
+      assert.match(JSON.parse(refused.body).error, /no rule that would allow that/);
+    });
+
+    // And leaves the request where it was, so the run is still answerable by a person.
+    it("leaves the call unanswered", () => {
+      assert.ok(answered.body.includes("I was told deny"), answered.body);
     });
   });
 

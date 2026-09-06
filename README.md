@@ -265,8 +265,28 @@ A session asks before it uses a tool the instance has not already settled. What 
 allows outright it simply does; what it forbids it never gets to try; and anything left undecided
 stops the run and appears on that session's panel, saying which tool it wants and what it was
 going to be given, with **Allow** and **Deny**. What you answer there is what the run is told, and
-it carries on from where it stopped. Denying carries a reason, and the session is told to take it
-as an instruction rather than to look for another way round.
+it carries on from where it stopped. Denying takes the sentence you type beside it, and the
+session is told to take that as an instruction rather than to look for another way round.
+
+Allowing settles one call and is forgotten, which is fine once and tiresome by the fourth time the
+same command stops somebody. So where the request says plainly what the whole class of calls is,
+a third button appears with the rule written on it — **Always allow `Bash(node:*)`** — and
+pressing it lets that call through and leaves the workspace allowing that shape, so the next
+session reaching for the same thing does not stop at all. The rule is the workspace's rather than
+that session's, and it is always the one on the button: a first word, never a path, never a
+command line.
+
+It is offered narrowly and refuses to guess. A command whose first word is a path or comes out of
+a variable gets no button, and neither does writing a file, which names a path rather than a class
+of calls, nor a tool the chat serves, which is granted already. Where no rule can be composed
+there is no button, rather than one that cannot be pressed.
+
+Every rule granted that way is written down in `.claude/allowed.md` beside the settings: one line
+per rule, saying who was asked, when, and what they were doing at the time. It is there because a
+permission granted by a press is otherwise unanswerable a month later — a workspace run for a few
+months this way collects a couple of dozen of them, including a rule naming a process that died
+the week before, and nobody dares remove any of it. A rule in the settings with no line in that file is a grant
+nobody can account for, and the toolkit's own checks say so.
 
 Nothing on that path times out. The run waits for as long as you take, because the answer is
 yours to give and you may not be at the page. The other end of that is that a run which ends

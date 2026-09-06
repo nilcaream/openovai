@@ -42,6 +42,31 @@ lead's own panel, in a line saying which it was and for whom. What the lead stil
 anything else about who works here — handing a session over is yours, so is a conversation somebody
 left behind, and so is everything in `archive/`.
 
+Answering a session that has stopped is worth more than it was. Refusing one takes the sentence you
+type beside **Deny**, and that sentence is what the session is told — it has always been what the
+run hears, and until now the page had no way to send you one, so every refusal from the panel
+arrived in the chat's own words. A session refused with a reason takes it as an instruction; one
+refused by a word it has never seen goes looking for another way round.
+
+And allowing one no longer has to be done again tomorrow. Where the request says plainly what the
+whole class of calls is, a third button appears with the rule written on it — **Always allow
+`Bash(node:*)`** — and pressing it lets that call through and leaves the workspace allowing that
+shape, so the next session reaching for the same thing is not stopped at all. It is offered
+narrowly: a command's first word and only when it is a bare name, never a path, never a variable,
+and never for writing a file or for a tool the chat already serves. Where no rule can be composed
+there is no button, rather than one that cannot be pressed.
+
+Every rule granted that way is written down in `.claude/allowed.md` beside the settings, one line
+saying who was asked, when, and what they were doing at the time. A permission granted by a press
+is otherwise unanswerable a month later, and a workspace run for a few months this way collects a
+couple of dozen of them that nobody dares remove. A rule in the settings with no line in that file
+is a grant nobody can account for, and the toolkit says so.
+
+Your workers are told where the boundary runs, too. The persona now says that the desk is theirs
+and that who works here is the lead's, and that the files under a stop are never the way round — a
+session refused something used to have your desk files sitting right there, and writing one by hand
+is easier than asking and looks, from the outside, exactly like the tool having worked.
+
 ## 0.3.0
 
 Tools a workspace serves itself, for the things only that workspace wants.

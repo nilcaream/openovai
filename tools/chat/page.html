@@ -430,9 +430,25 @@
       no.type = "button";
       no.textContent = "Deny";
 
+      // The third answer, and the only one that is still true tomorrow: it allows the shape rather
+      // than this one call, so the next session that reaches for the same thing does not stop and
+      // nobody is asked the same question twice. The rule is written on the button in full — a
+      // person allows a rule they have read, never one inferred from a press.
+      //
+      // Absent, rather than there and dead, where the server could compose no rule. An offer that
+      // cannot be taken is worse than no offer: it is read as the thing being refused.
+      const always = request.shape === undefined ? null : document.createElement("button");
+      if (always !== null) {
+        always.type = "button";
+        always.textContent = `Always allow ${request.shape}`;
+      }
+
       async function answer(body) {
         yes.disabled = true;
         no.disabled = true;
+        if (always !== null) {
+          always.disabled = true;
+        }
         await fetch(`/sessions/${session.name}/permission`, {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -447,6 +463,12 @@
         await answer({ id: request.id, decision: "allow" });
       });
 
+      if (always !== null) {
+        always.addEventListener("click", async () => {
+          await answer({ id: request.id, decision: "always" });
+        });
+      }
+
       no.addEventListener("click", async () => {
         // Nothing happens while the box is empty, and the button is not disabled either: a dead
         // button explains nothing, and a cursor landing in the box says what is missing.
@@ -458,6 +480,9 @@
       });
 
       line.append(what, reason, yes, no);
+      if (always !== null) {
+        line.append(always);
+      }
       return line;
     }
 

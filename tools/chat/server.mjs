@@ -13,10 +13,10 @@ import { HOST, record } from "./listening.mjs";
 import { respond } from "./mcp.mjs";
 import { OFFLINE, goOffline, goOnline, offline } from "./offline.mjs";
 import { carry, overhear } from "./overheard.mjs";
-import { allow, answer as settle, giveUp, park, parked, refuse } from "./permissions.mjs";
+import { allow, askedFor, answer as settle, giveUp, park, parked, refuse, shapeOf } from "./permissions.mjs";
 import { answerFrom } from "../plugins.mjs";
 import { ago, roomLines } from "./room.mjs";
-import { DESK_FILE, DeskError, WORK, archiveFor, deskTitle, describeName, hire, isName, retire } from "../desks.mjs";
+import { DESK_FILE, DeskError, WORK, allowAsked, archiveFor, deskTitle, describeName, hire, isName, retire } from "../desks.mjs";
 import { accountStanding, ask, endRun, forget, hasGoneCold, hasGoneQuiet, hasThread, quotaIn, ranAt, refusedIn, sessions } from "./session.mjs";
 import { inTurn, turnsGoing, waitingFor, whileWaitingFor, wouldWaitForItself } from "./turns.mjs";
 import { unfinished } from "./unfinished.mjs";
@@ -1506,7 +1506,7 @@ async function postSessions(instance, request, response) {
 //
 // An id that is not waiting any more is a 409 and not a 404: the request was real, it is simply
 // answered or abandoned, and a page showing a stale one should say so rather than look broken.
-async function postPermission(name, request, response) {
+async function postPermission(instance, name, request, response) {
   let id;
   let decision;
   let why;
@@ -1522,22 +1522,50 @@ async function postPermission(name, request, response) {
     return;
   }
 
-  if (decision !== "allow" && decision !== "deny") {
-    sendJson(response, 400, { error: "a decision is allow or deny" });
+  if (decision !== "allow" && decision !== "deny" && decision !== "always") {
+    sendJson(response, 400, { error: "a decision is allow, deny or always" });
     return;
   }
 
+  // The third answer, and the only one that outlives the call it was given about. The rule is
+  // composed here from the request as it was parked, never from anything the caller sent: the page
+  // is a caller like any other, and a rule granted from a posted string is a rule nobody read.
+  let granted;
+  if (decision === "always") {
+    const asked = askedFor(name, id);
+    if (asked === undefined) {
+      sendJson(response, 409, { error: "nothing is waiting on that any more" });
+      return;
+    }
+
+    granted = shapeOf(asked);
+    if (granted === null) {
+      sendJson(response, 400, { error: "there is no rule that would allow that call" });
+      return;
+    }
+
+    // Written before the call is let through, because the two are one decision and the file is
+    // what says so afterwards. A run allowed by a grant that never landed would go on to be
+    // stopped by the same question next turn, and nothing would say why.
+    allowAsked(instance.root, {
+      rule: granted,
+      session: name,
+      call: asked.input?.command,
+      day: new Date().toISOString().slice(0, 10),
+    });
+  }
+
   const said =
-    decision === "allow"
-      ? allow()
-      : refuse(typeof why === "string" && why.trim() !== "" ? why.trim() : "not allowed from the chat");
+    decision === "deny"
+      ? refuse(typeof why === "string" && why.trim() !== "" ? why.trim() : "not allowed from the chat")
+      : allow();
 
   if (!settle(name, id, said)) {
     sendJson(response, 409, { error: "nothing is waiting on that any more" });
     return;
   }
 
-  sendJson(response, 200, { answered: id, decision });
+  sendJson(response, 200, { answered: id, decision, ...(granted === undefined ? {} : { granted }) });
 }
 
 // What a panel answers, and the one place where a page somebody is writing on is answered
@@ -1792,7 +1820,7 @@ async function handle(instance, request, response) {
     }
 
     if (request.method === "POST" && what === "permission") {
-      await postPermission(name, request, response);
+      await postPermission(instance, name, request, response);
       return;
     }
 

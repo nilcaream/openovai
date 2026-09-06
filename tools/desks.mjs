@@ -43,6 +43,20 @@ export const PERSONAS = "personas";
 // and a session that typed the other spelling stopped to be approved for doing as it was told.
 export const TOOL_RULES = ["mcp__openovai"];
 
+// Everything else this workspace allows, and who asked for it. It sits beside the settings and is
+// written whenever a rule is granted that is nobody's desk and not the rule above.
+export const LEDGER = path.join(".claude", "allowed.md");
+
+const LEDGER_OPENING = [
+  "# What this workspace allows beyond a desk",
+  "",
+  "One line per rule. Every one of them is something a person was asked about and said yes to,",
+  "and it says who, when, and what they were doing at the time. A rule in the settings with no",
+  "line here is a grant nobody can account for.",
+  "",
+  "",
+].join("\n");
+
 
 // Something is wrong with a name, a template or a file we were asked to write. The caller says
 // which command it happened under, so this carries only the reason.
@@ -319,6 +333,59 @@ export function hire(root, name, panel, { human, leader }) {
     ...writePersona(root, root, name, "worker", WORKER_TEMPLATE, { NAME: name, HUMAN: human, LEADER: leader }),
     ...allowDesk(root, name),
   ];
+}
+
+// Granting something wider than the two kinds this workspace hands out by itself, and writing
+// down who asked for it in the same act.
+//
+// The line first and the rule second. If only one of the two can happen, the workspace is better
+// off accounting for a rule it does not hold than holding one nothing accounts for: the first is
+// noticed by anything that reads the pair, and the second is what twenty-six rules in a workspace
+// nobody can explain look like.
+//
+// Nothing happens twice. The same shape allowed again is one rule and one line, because the second
+// press is a person answering the same question rather than a second decision.
+export function allowAsked(root, { rule, session, call, day }) {
+  return [...account(root, { rule, session, call, day }), ...allow(root, rule)];
+}
+
+// The file a person reads to find out what this workspace allows beyond a desk. One line per rule:
+// the rule in backticks first, so it can be read off the line, and then who asked for it, when, and
+// what they were doing at the time.
+//
+// Beside the settings rather than inside them: `.claude/settings.json` has a shape Claude Code
+// owns, and a key of ours in it is a key we would be guessing about.
+export function account(root, { rule, session, call, day }) {
+  const file = path.join(root, LEDGER);
+  const held = readLedger(root);
+  if (held !== null && held.includes(`- \`${rule}\` `)) {
+    return [];
+  }
+
+  // Appended to whatever is there, byte for byte. Somebody reading this file writes in it — a
+  // sentence about why a rule is there, a heading of their own — and a writer that rebuilt the
+  // file from the lines it recognised would quietly throw all of that away.
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const text = held === null ? LEDGER_OPENING : held.endsWith("\n") ? held : `${held}\n`;
+  fs.writeFileSync(file, `${text}- \`${rule}\` — ${session}, ${day}, for ${asked(call)}\n`);
+  return [file];
+}
+
+function readLedger(root) {
+  try {
+    return fs.readFileSync(path.join(root, LEDGER), "utf8");
+  } catch {
+    return null;
+  }
+}
+
+// What the call was, in one line of a file somebody reads. A command is free text and can hold a
+// newline or a backtick, either of which would end the line early and leave the rest of it being
+// read as a rule of its own.
+function asked(call) {
+  const said = String(call ?? "").replaceAll(/[`\s]+/g, " ").trim();
+  const short = said.length > 80 ? `${said.slice(0, 79)}…` : said;
+  return short === "" ? "a call it did not describe" : `\`${short}\``;
 }
 
 // The right to use the tools the chat serves, saying something to another session among them.

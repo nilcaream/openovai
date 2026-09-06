@@ -36,7 +36,44 @@ export function park(name, request) {
 // What this session is waiting on, oldest first, so a page can show them in the order they were
 // asked rather than in whatever order a map happens to keep.
 export function parked(name) {
-  return [...forSession(name).values()].map(({ request }) => request);
+  return [...forSession(name).values()].map(({ request }) => {
+    const shape = shapeOf(request);
+    return shape === null ? request : { ...request, shape };
+  });
+}
+
+// One of them, as it was parked. What answers a request has to be composed from what was asked
+// rather than from what the page says it was asked: the page is a caller like any other, and a
+// rule granted from a string somebody posted is a rule nobody read.
+export function askedFor(name, id) {
+  return forSession(name).get(id)?.request;
+}
+
+// The shape of a rule that would let a call like this one through next time, or nothing.
+//
+// Deliberately dull, and it refuses far more often than it guesses. A rule is permanent and it is
+// the whole instance's, so one is only ever offered where the request says plainly what the class
+// of calls is — and where it does not, the page shows no button rather than a dead one.
+//
+// Bash, and nothing else, which is what the measurement leaves standing. A session is stopped per
+// COMMAND rather than per tool, so Bash is where the same question is asked over and over: `ls`,
+// `find` and `cat` went through, `rm -f` stopped. The tools a name-only rule would have been for
+// are not there to grant — `Glob` and `Grep` do not exist in the harness at all, and a session
+// asking for either is told so; `Read` is never stopped, so a rule for it would be a grant nobody
+// was ever asked for. `Edit` and `Write` name a path, which is a different decision from allowing
+// a call and the one opening a desk already makes. An MCP tool is granted the moment the chat
+// offers it, and a rule can name a server and a tool, never an argument.
+//
+// The first word of the command only, and only when it is a bare name. A rule is a literal prefix
+// rather than a path or a command line, so a word with a slash, a tilde, a dollar or a quote in it
+// would make a rule that matches something other than what the person read on the button.
+export function shapeOf(request) {
+  if (request.tool !== "Bash" || typeof request.input?.command !== "string") {
+    return null;
+  }
+
+  const [word] = request.input.command.trim().split(/\s+/);
+  return /^[A-Za-z0-9_.-]+$/.test(word ?? "") ? `Bash(${word}:*)` : null;
 }
 
 // Every session with something parked, and what. `parked` above answers for one session a page is
