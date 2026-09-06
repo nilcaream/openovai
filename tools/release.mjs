@@ -24,7 +24,7 @@ export const RELEASE_NOTES = "NOTES.md";
 // is in the payload rather than in an instance's own description of itself, for the reason the
 // version is: what an instance carries here comes from the release it is on, so a fork that changes
 // this address updates from its own home without anybody having to remember --from.
-export const RELEASES = "https://api.github.com/repos/nilcaream/office-workspace/releases/latest";
+export const RELEASES = "https://api.github.com/repos/nilcaream/openovai/releases/latest";
 
 // Something went wrong finding or taking a release. Nothing to do with the command line.
 export class ReleaseError extends Error {}
@@ -65,7 +65,7 @@ export async function latestRelease(from) {
   let answered;
   try {
     answered = await fetch(from, {
-      headers: { accept: "application/vnd.github+json", "user-agent": "office-workspace" },
+      headers: { accept: "application/vnd.github+json", "user-agent": "openovai" },
       signal: AbortSignal.timeout(GIVE_UP_AFTER),
     });
   } catch (error) {
@@ -103,7 +103,7 @@ export async function unpackInto(url, directory) {
   let answered;
   try {
     answered = await fetch(url, {
-      headers: { "user-agent": "office-workspace" },
+      headers: { "user-agent": "openovai" },
       signal: AbortSignal.timeout(GIVE_UP_AFTER),
     });
   } catch (error) {

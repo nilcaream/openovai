@@ -6,8 +6,8 @@ issue: what you tried, what happened, and what you expected.
 ## Getting a clone
 
 ```sh
-git clone https://github.com/nilcaream/office-workspace.git
-cd office-workspace
+git clone https://github.com/nilcaream/openovai.git
+cd openovai
 ```
 
 There is no build and no package yet.

@@ -275,7 +275,7 @@ describe("what an update refuses", () => {
   // instance that quietly began updating itself from somewhere else is the one failure here nobody
   // would notice from the outside.
   it("looks at the releases of the toolkit itself when it is not told where", () => {
-    assert.equal(RELEASES, "https://api.github.com/repos/nilcaream/office-workspace/releases/latest");
+    assert.equal(RELEASES, "https://api.github.com/repos/nilcaream/openovai/releases/latest");
   });
 });
 
