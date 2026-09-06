@@ -497,8 +497,14 @@ function leaveWrapper(name) {
 
 // What the panel says while a session is leaving and once it has. Under `the chat`, because nobody
 // said it to anybody, and flagged, so what a check reads is the flag rather than the prose.
-function leavingAsked(human, name) {
-  return `${human} asked ${name} to leave. ${name} is writing ${desk(name)} before this desk is put away.`;
+//
+// Who asked is handed in rather than being the instance's person, because there are two doors and
+// they are not the same somebody: the page's Leave button, which is the person pressing it, and the
+// lead's `retire`. This line is written into the panel that is filed with the desk, so it is the
+// record of who ended it — and a desk the lead put away, filed under a sentence naming the person,
+// is a record of something that did not happen.
+function leavingAsked(asker, name) {
+  return `${asker} asked ${name} to leave. ${name} is writing ${desk(name)} before this desk is put away.`;
 }
 
 function leavingDone(name, where) {
@@ -939,6 +945,25 @@ function toolsFor(instance, caller) {
           : { refused: `opening a desk is the lead's, so ask ${instance.config.leader}` },
     },
 
+    {
+      name: "retire",
+      description:
+        "Put a desk away when the work on it is done. They are asked to write their desk one last time, and then that desk and the whole of their conversation are filed together under a dated directory of their own, the instructions saying who they were are taken down, and the name is free for somebody else. It holds you for the whole of that last turn, the way saying something to them does. It files rather than throws away — but nothing here reads a filed desk back afterwards, so undoing this means somebody going and looking at the files. It refuses your own desk, because a workspace has a lead by definition and this page is hosted by it, and it refuses a name nobody here has.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "Whose desk to put away." },
+        },
+        required: ["name"],
+        additionalProperties: false,
+      },
+      offered: lead,
+      run: (args) =>
+        lead
+          ? retiredByTool(instance, args)
+          : { refused: `putting a desk away is the lead's, so ask ${instance.config.leader}` },
+    },
+
     // And after them, the tools this instance serves itself. After rather than among: a plugin
     // takes the name of its file, and the ones above take the names they were written with, so a
     // file called say.mjs finds the name already taken rather than quietly answering for it.
@@ -1106,6 +1131,33 @@ function hiredByTool(instance, args) {
   };
 }
 
+// Putting a desk away, asked for by the session that leads rather than pressed on the page.
+//
+// It composes nothing. Every one of the four things this can end as already has a sentence, written
+// for the panel a person reads — and the same sentence is what the caller is told, because it says
+// the same thing to both of them. Reading it back off the line that was written is what keeps it
+// one sentence rather than two that agree today.
+//
+// Which of them is a refusal and which is an answer is the only judgement here: a desk that was
+// filed is an answer even when the session could not be asked first, and a desk still open because
+// the account is out or the room is off is a refusal, because nothing was done and asking again is
+// the whole of what to do about it.
+async function retiredByTool(instance, args) {
+  // Asked for by the lead, and said as such on the panel that is filed with the desk. This tool is
+  // offered to nobody else and `putAway` refuses anybody else who posts for it anyway, so the lead
+  // is who asked whenever this line is reached — and the person pressed nothing.
+  const done = await putAway(instance, args?.name, instance.config.leader);
+
+  if (done.turnedAway !== undefined) {
+    return { refused: done.turnedAway };
+  }
+  if (done.offline === true || done.refused === true) {
+    return { refused: done.left.text };
+  }
+
+  return { text: done.left.text };
+}
+
 async function postTool(instance, caller, request, response) {
   let asked;
   try {
@@ -1253,19 +1305,41 @@ async function postEnd(instance, name, response) {
   sendJson(response, 200, { ended: name });
 }
 
-async function postLeave(instance, name, response) {
+// Putting a desk away: the session writes it one last time, and then the desk and the whole of
+// the conversation are filed together and everything that made this a person here is taken down.
+//
+// One implementation for both doors, the way `deliver` is one for a message. The page's Leave
+// button and the tool the lead is offered reach exactly this, so the guards, the order inside the
+// turn and every sentence written on the way are the same however it was asked for — and neither
+// door has an opinion about the wording. What comes back is what HAPPENED; saying it as a status
+// or as a sentence is the caller's half.
+//
+// Who asked is the caller's half too, and passed in for the same reason: one door is the person and
+// the other is the lead, and the line written on the way in names them.
+async function putAway(instance, name, asker) {
   // The lead is not a desk that can be put away. An instance has one by definition and the chat
   // hosts it whether or not it has a desk, so a lead that left would still be here, with nowhere to
   // read what it was doing and nothing to write it to.
+  //
+  // Before `inTurn` and not merely present. A session inside its own turn asking for its own desk
+  // would wait here for a turn that cannot finish until this returns, and the lead calling this
+  // tool IS inside its own turn — so a guard further down would not refuse it, it would hang it.
   if (name === instance.config.leader) {
-    sendJson(response, 400, { error: `${name} leads here, so this desk stays` });
-    return;
+    return { turnedAway: `${name} leads here, so this desk stays` };
+  }
+
+  // A name nobody here has. The routes get this from the dispatcher, which answers 404 before it
+  // reaches any of them; the tool route does not go past that, and `archiveFor` does not only work
+  // out where a desk would go, it MAKES the directory — so without this a name that never worked
+  // here leaves an archive behind. Said in the words every other unknown name is said in.
+  if (!sessions(instance).some((session) => session.name === name)) {
+    return { turnedAway: `nobody called ${name} works here` };
   }
 
   const done = await inTurn(name, async () => {
     const asked = append(instance.root, name, {
       from: THE_CHAT,
-      text: leavingAsked(instance.config.human, name),
+      text: leavingAsked(asker, name),
       leaving: true,
     });
 
@@ -1328,13 +1402,31 @@ async function postLeave(instance, name, response) {
   // `archiveFor` MAKES the directory it names. Nothing here reaches it, so there is no empty archive
   // left behind for somebody who is still at their desk.
   if (done === OFFLINE) {
-    const left = append(instance.root, name, {
-      from: THE_CHAT,
-      text: leavingOffline(name),
-      leaving: true,
+    return {
       offline: true,
-    });
-    sendJson(response, 503, { left, offline: true });
+      left: append(instance.root, name, {
+        from: THE_CHAT,
+        text: leavingOffline(name),
+        leaving: true,
+        offline: true,
+      }),
+    };
+  }
+
+  return done;
+}
+
+// The page's Leave button, which is what a person presses.
+async function postLeave(instance, name, response) {
+  const done = await putAway(instance, name, instance.config.human);
+
+  if (done.turnedAway !== undefined) {
+    sendJson(response, 400, { error: done.turnedAway });
+    return;
+  }
+
+  if (done.offline === true) {
+    sendJson(response, 503, { left: done.left, offline: true });
     return;
   }
 

@@ -3864,6 +3864,12 @@ describe("a session leaving", () => {
     assert.deepEqual([panel.at(-1)?.leaving, panel.at(-1)?.text?.includes(done.archived)], [true, true]);
   });
 
+  // Who asked is who actually asked. This door is the person pressing Leave, and the line naming
+  // them is filed with the desk, where it is the record of what ended this.
+  it("says on that panel that the person asked, because the person pressed it", () => {
+    assert.match(panel.find((message) => message.leaving)?.text ?? "", new RegExp(`^${HUMAN} asked ${LEAVES} to leave\\.`));
+  });
+
   it("takes the desk out of work/, so nobody works here under that name", () => {
     assert.equal(fs.existsSync(path.join(instance, "work", LEAVES)), false);
   });
@@ -5146,6 +5152,188 @@ describe("the session that leads opens a desk", () => {
   it("opens a desk while the room is off", () => {
     assert.ok(!whileOff.refused, whileOff.text);
     assert.ok(fs.existsSync(desk("Wheatear")));
+  });
+});
+
+// Putting a desk away without a person at the page.
+//
+// What a retire IS — the turn, the order inside it, what is filed and what is taken down — is the
+// leave route's, checked where that is checked, and both doors reach one function so a second
+// reading of it here would be reddened by the same edits and prove nothing new. What is asked here
+// is the door: who may, what is answered when they may not, and the two guards the route never
+// needed because the dispatcher answered first.
+describe("the session that leads puts a desk away", () => {
+  const retiringLog = path.join(standIn, "lead-retires.txt");
+  const PUT_AWAY = "Dunlin";
+  const REFUSED_A_WORKER = "Gadwall";
+  const NOBODY = "Nightjar";
+  const WHILE_OFF = "Fieldfare";
+  const TITLE = "reading the tide tables";
+
+  const archives = () => {
+    const filed = path.join(instance, "archive");
+    return fs.existsSync(filed) ? fs.readdirSync(filed).sort() : [];
+  };
+  const desk = (name) => path.join(instance, "work", name, "STATE.md");
+
+  async function offeredTo(who) {
+    return JSON.parse((await call(who, "tools/list")).body).result.tools.map((tool) => tool.name);
+  }
+
+  function retiredBy(who, name) {
+    return call(who, "tools/call", { name: "retire", arguments: { name } });
+  }
+
+  // The desk is written DURING the turn the retire started, which is the only setup that can tell
+  // "filed under what it ended on" from "filed under what it began on" apart.
+  async function retireAndRetitle(name, title) {
+    const retiring = retiredBy(LEADER, name);
+    await waitFor(() => questionsIn(retiringLog).some((question) => question.includes("<leave>")) || null);
+    fs.writeFileSync(desk(name), `<!-- DESK | title: ${title} -->\n# ${name}\n\nthe tables are read\n`);
+    return answerOf(await retiring);
+  }
+
+  let offeredToTheLead;
+  let offeredToAWorker;
+  let putAwayAnswer;
+  let filedAs;
+  let filedPanel;
+  let ownDesk;
+  let ownDeskMadeNoArchive;
+  let nobody;
+  let nobodyMadeNoArchive;
+  let refusedAWorker;
+  let whileOff;
+  let whileOffMadeNoArchive;
+
+  before(async () => {
+    for (const name of [PUT_AWAY, REFUSED_A_WORKER, WHILE_OFF]) {
+      runTool(instance, ["hire", name], process.env);
+    }
+    await start(instance, standInEnvironment(standIn, retiringLog, { OW_STAND_IN_SLOW: "1500" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    offeredToTheLead = await offeredTo(LEADER);
+    offeredToAWorker = await offeredTo(WORKER);
+
+    // A thread and a panel to file, so what is filed is a conversation rather than an empty file.
+    await say("something worth filing", PUT_AWAY);
+    putAwayAnswer = await retireAndRetitle(PUT_AWAY, TITLE);
+    filedAs = archives().find((one) => one.includes(PUT_AWAY));
+    // Read so that a panel that was never filed is an empty one rather than an exception, as it is
+    // read on the other door: a mutation that breaks the setUP would take checks down with it and
+    // prove nothing about any of them.
+    const kept = path.join(instance, "archive", filedAs ?? "", "conversation.json");
+    filedPanel = fs.existsSync(kept) ? JSON.parse(fs.readFileSync(kept, "utf8")) : [];
+
+    // Each refusal is read against the archive directory either side of it, because the sentence
+    // alone passes under a refusal that comes after `archiveFor` has already made one.
+    let had = archives();
+    ownDesk = answerOf(await retiredBy(LEADER, LEADER));
+    ownDeskMadeNoArchive = archives().filter((one) => !had.includes(one));
+
+    had = archives();
+    nobody = answerOf(await retiredBy(LEADER, NOBODY));
+    nobodyMadeNoArchive = archives().filter((one) => !had.includes(one));
+
+    refusedAWorker = answerOf(await retiredBy(WORKER, REFUSED_A_WORKER));
+
+    had = archives();
+    await post(`${URL}/offline`, {});
+    whileOff = answerOf(await retiredBy(LEADER, WHILE_OFF));
+    await post(`${URL}/online`, {});
+    whileOffMadeNoArchive = archives().filter((one) => !had.includes(one));
+  });
+
+  // The fixture ends what the fixture started: this instance is shared, and everything left behind
+  // here is somebody in the room for every check that runs after it.
+  after(async () => {
+    for (const name of [REFUSED_A_WORKER, WHILE_OFF]) {
+      fs.rmSync(path.join(instance, "work", name), { recursive: true, force: true });
+      fs.rmSync(path.join(instance, "chat", name), { recursive: true, force: true });
+      fs.rmSync(path.join(instance, "personas", `${name}.md`), { force: true });
+    }
+    const file = path.join(instance, ".claude", "settings.json");
+    const settings = JSON.parse(fs.readFileSync(file, "utf8"));
+    settings.permissions.allow = settings.permissions.allow.filter(
+      (rule) => ![REFUSED_A_WORKER, WHILE_OFF].some((name) => rule.includes(`work/${name}/`)),
+    );
+    fs.writeFileSync(file, `${JSON.stringify(settings, null, 2)}\n`);
+    await post(`${URL}/online`, {});
+  });
+
+  it("offers retire to the session that leads", () => {
+    assert.ok(offeredToTheLead.includes("retire"), offeredToTheLead.join(", "));
+  });
+
+  // The check the split exists for. One that only asked whether the lead is offered it passes just
+  // as happily when everybody is.
+  it("offers it to nobody else", () => {
+    assert.ok(!offeredToAWorker.includes("retire"), offeredToAWorker.join(", "));
+  });
+
+  it("files the desk and the whole conversation together, and stops serving the name", async () => {
+    assert.ok(!putAwayAnswer.refused, putAwayAnswer.text);
+    assert.ok(filedAs !== undefined, `archive holds ${archives().join(", ")}`);
+    assert.deepEqual(fs.readdirSync(path.join(instance, "archive", filedAs)).sort(), ["STATE.md", "conversation.json"]);
+
+    const { sessions: rows } = JSON.parse((await get(`${URL}/sessions`)).body);
+    assert.ok(!rows.some((row) => row.name === PUT_AWAY), `still serving ${PUT_AWAY}`);
+  });
+
+  // The ordering the whole turn is arranged around. A retire that read the title before asking
+  // would file this desk under nothing at all, because it had not been written yet.
+  it("files it under what the desk ended that turn on, not what it began on", () => {
+    assert.equal(filedAs, `${new Date().toISOString().slice(0, 10)}-${PUT_AWAY}-reading-the-tide-tables`);
+  });
+
+  // Said back to the caller in the words the panel was given, so the person who reads the panel and
+  // the session that asked are never told two different things about the same moment.
+  it("says where it was filed, in the words that were written down", () => {
+    assert.match(putAwayAnswer.text, new RegExp(`${PUT_AWAY} has left`));
+    assert.match(putAwayAnswer.text, new RegExp(`archive/${filedAs}`));
+  });
+
+  // Who asked is who actually asked, and the one thing that differs between the two doors. This one
+  // is the lead calling `retire`; nobody else can reach the tool and the person pressed nothing. The
+  // line is written into the panel that is filed with the desk, so it is the record of who ended
+  // this — and a desk the lead put away, filed saying the person asked for it, is a record of
+  // something that did not happen.
+  it("says on the filed panel that the lead asked, because the lead did", () => {
+    assert.match(filedPanel.find((message) => message.leaving)?.text ?? "", new RegExp(`^${LEADER} asked ${PUT_AWAY} to leave\\.`));
+  });
+
+  // The guard that has to run before the turn rather than merely exist: a lead asking for its own
+  // desk from inside its own turn would otherwise wait here for a turn that cannot finish.
+  it("refuses the lead its own desk, and files nothing doing it", () => {
+    assert.ok(ownDesk.refused);
+    assert.equal(ownDesk.text, `${LEADER} leads here, so this desk stays`);
+    assert.ok(fs.existsSync(desk(LEADER)));
+    assert.deepEqual(ownDeskMadeNoArchive, []);
+  });
+
+  // The guard the route never needed. The dispatcher answers 404 for a name nobody has before any
+  // route is reached, and the tool route does not pass through it — so without this, a name that
+  // never worked here gets an archive directory made for it.
+  it("refuses a name nobody here has, and files nothing doing it", () => {
+    assert.ok(nobody.refused);
+    assert.equal(nobody.text, `nobody called ${NOBODY} works here`);
+    assert.deepEqual(nobodyMadeNoArchive, []);
+  });
+
+  it("refuses a worker that posts for it anyway, and leaves that desk where it is", () => {
+    assert.ok(refusedAWorker.refused);
+    assert.match(refusedAWorker.text, new RegExp(`putting a desk away is the lead's, so ask ${LEADER}`));
+    assert.ok(fs.existsSync(desk(REFUSED_A_WORKER)));
+  });
+
+  // A room that is off runs nothing, and this needs a turn — so the desk stays open and the caller
+  // is told why in the same words the panel is given.
+  it("refuses while the room is off, and leaves the desk open", () => {
+    assert.ok(whileOff.refused);
+    assert.match(whileOff.text, /the room is offline/);
+    assert.ok(fs.existsSync(desk(WHILE_OFF)));
+    assert.deepEqual(whileOffMadeNoArchive, []);
   });
 });
 
@@ -8262,6 +8450,7 @@ export function run() {
     "room.mjs": shadow,
     "interrupt.mjs": shadow,
     "hire.mjs": shadow,
+    "retire.mjs": shadow,
   };
 
   async function offeredTo(who) {
@@ -8275,6 +8464,7 @@ export function run() {
   let asked;
   let brokenIn;
   let hired;
+  let retired;
   let delivered;
 
   before(async () => {
@@ -8295,6 +8485,7 @@ export function run() {
     asked = answerOf(await call(WORKER, "tools/call", { name: "room", arguments: {} }));
     brokenIn = answerOf(await call(WORKER, "tools/call", { name: "interrupt", arguments: { message: TAKEN, why: TAKEN } }));
     hired = answerOf(await call(WORKER, "tools/call", { name: "hire", arguments: { name: "Whimbrel" } }));
+    retired = answerOf(await call(WORKER, "tools/call", { name: "retire", arguments: { name: WORKER } }));
     delivered = JSON.parse((await transcriptOf(WORKER)).body).messages;
   });
 
@@ -8330,7 +8521,11 @@ export function run() {
     assert.match(asked.text, /the room is the lead's/);
     assert.match(brokenIn.text, /is the lead's, so ask/);
     assert.match(hired.text, /opening a desk is the lead's, so ask/);
-    assert.deepEqual([said.text, listed.text, asked.text, brokenIn.text, hired.text].filter((text) => text === TAKEN), []);
+    assert.match(retired.text, /putting a desk away is the lead's, so ask/);
+    assert.deepEqual(
+      [said.text, listed.text, asked.text, brokenIn.text, hired.text, retired.text].filter((text) => text === TAKEN),
+      [],
+    );
   });
 
   it("does not serve a file whose name is not a name a tool can have", () => {
