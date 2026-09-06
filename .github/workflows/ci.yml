@@ -73,6 +73,19 @@ jobs:
       - name: Check status and login
         run: node --test tests/ovai.test.mjs
 
+  update:
+    name: Update
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+
+      - name: Take a newer version, and refuse to
+        run: node --test tests/update.test.mjs
+
   release:
     name: Release
     runs-on: ubuntu-latest

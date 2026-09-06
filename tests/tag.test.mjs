@@ -269,3 +269,25 @@ describe("the workflow that runs it", () => {
     assert.match(workflow, /--verify-tag/);
   });
 });
+
+// CI is the other thing in .github/ that runs this repository's own checks, and it is a written
+// list of jobs beside a directory of suites — two places holding one fact, which is a thing that
+// stays true only while somebody remembers it. It did not: tests/update.test.mjs was written, was
+// green on every desk it was ever run on, and no job ever ran it. So the list is read off the
+// directory here rather than written down, and a suite added without a job for it goes red in the
+// suite that would have been the last to notice.
+describe("the checks CI runs", () => {
+  const ci = fs.readFileSync(path.join(repo, ".github", "workflows", "ci.yml"), "utf8");
+  const suites = fs.readdirSync(path.join(repo, "tests")).filter((name) => name.endsWith(".test.mjs"));
+
+  // Without this the check below passes over an empty list and says nothing at all.
+  it("found the suites to ask about", () => {
+    assert.ok(suites.length > 0, "no suite files were found, so the check below proved nothing");
+  });
+
+  it("runs every suite this repository has", () => {
+    for (const suite of suites) {
+      assert.ok(ci.includes(`node --test tests/${suite}`), `no CI job runs tests/${suite}`);
+    }
+  });
+});
