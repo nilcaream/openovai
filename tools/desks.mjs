@@ -41,7 +41,7 @@ export const PERSONAS = "personas";
 // It replaces the pair of rules each of these commands used to need — a rule is a literal prefix
 // rather than a path, so `ovai say …` and `./bin/ovai say …` were two different rules for one command,
 // and a session that typed the other spelling stopped to be approved for doing as it was told.
-export const TOOL_RULES = ["mcp__office"];
+export const TOOL_RULES = ["mcp__openovai"];
 
 
 // Something is wrong with a name, a template or a file we were asked to write. The caller says

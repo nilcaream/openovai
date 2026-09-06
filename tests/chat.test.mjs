@@ -4683,7 +4683,7 @@ describe("a session calls the tools the chat serves it", () => {
 
   it("says what it is when asked", async () => {
     const { result } = JSON.parse((await call(WORKER, "initialize", { protocolVersion: "2025-06-18" })).body);
-    assert.equal(result.serverInfo.name, "office");
+    assert.equal(result.serverInfo.name, "openovai");
   });
 
   // Asked both ways. One version asked for and asserted is a caller and a server agreeing on a
@@ -4848,7 +4848,7 @@ describe("a session calls the tools the chat serves it", () => {
     // being written, into a transcript it will never see.
     it("gives a session long enough for another one to answer it", () => {
       const handed = callsIn(toolLog).at(-1).match(/--mcp-config (\S+)/)[1];
-      assert.equal(JSON.parse(handed).mcpServers.office.timeout, 30 * 60 * 1000);
+      assert.equal(JSON.parse(handed).mcpServers.openovai.timeout, 30 * 60 * 1000);
     });
   });
 

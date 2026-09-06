@@ -841,7 +841,7 @@ const TOOL_ROUTE = /^\/mcp\/([^/]+)$/;
 
 // What the server calls itself. It is the name in the configuration too, and therefore the first
 // half of every tool name a session sees — and of the one permission rule that grants them.
-const TOOLKIT = "office";
+const TOOLKIT = "openovai";
 
 // What a session may do here without composing a shell line.
 //

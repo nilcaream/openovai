@@ -300,7 +300,7 @@ with `--port 0` the address is not known until the chat has bound one, and a fil
 that would be a lie the next restart makes worse:
 
 ```json
-{ "mcpServers": { "office": { "type": "http", "url": "http://127.0.0.1:44855/mcp/Superman",
+{ "mcpServers": { "openovai": { "type": "http", "url": "http://127.0.0.1:44855/mcp/Superman",
                               "timeout": 1800000 } } }
 ```
 
@@ -327,7 +327,7 @@ Nothing is held between one call and the next. The chat can be stopped and start
 middle of a turn and the session never notices: it posts to whatever is listening now, and the new
 process answers a call it never saw introduced.
 
-The whole of it costs one permission rule, `mcp__office`, where the three commands needed six —
+The whole of it costs one permission rule, `mcp__openovai`, where the three commands needed six —
 each twice, because a rule is a literal prefix rather than a path, and `bin/ovai say` and
 `./bin/ovai say` are two spellings of one command that would each miss the other's rule. One rule
 rather than one per tool, because there is nothing left for a narrower one to say: a rule can name

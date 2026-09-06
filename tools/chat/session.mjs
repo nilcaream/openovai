@@ -644,7 +644,7 @@ function toolsIn(root, name) {
 
   return JSON.stringify({
     mcpServers: {
-      office: {
+      openovai: {
         type: "http",
         url: `${chat}/mcp/${encodeURIComponent(name)}`,
         timeout: A_WHOLE_TURN,

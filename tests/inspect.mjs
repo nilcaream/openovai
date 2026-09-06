@@ -51,7 +51,7 @@ export function configProblems(file, expected) {
 export function settingsProblems(file, names) {
   const expected = [
     ...names.map((name) => `Edit(work/${name}/STATE.md)`),
-    "mcp__office",
+    "mcp__openovai",
   ];
 
   let settings;

@@ -246,7 +246,7 @@ describe("what the installer made", () => {
   // a request on a panel nobody may be watching — for every message a session sends.
   it("lets a session say something to another without being asked", () => {
     const allow = JSON.parse(contentOf(".claude", "settings.json")).permissions.allow;
-    assert.ok(allow.includes("mcp__office"));
+    assert.ok(allow.includes("mcp__openovai"));
   });
 
   // It replaced two rules, one per spelling of a command. Nothing should be left granting a shell
