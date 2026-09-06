@@ -284,10 +284,16 @@ own:
 
     POST /mcp/<name>
 
-Four of them: `say` says something to another session, `status` says who works here and what each
+Six of them. `say` says something to another session, `status` says who works here and what each
 one runs on, `room` is the room above the panels, one line per session, and `interrupt` is the
 lead's one unprompted line to whoever is at the page — it takes what to say and why it could not
 wait, and it says both on the lead's own panel.
+
+The last two are the lead's alone and they change who works here. `hire` opens a desk for somebody
+new; `retire` asks them to write it one last time and then files that desk and their whole
+conversation away together. A session that is not the lead is not offered either, and is told whose
+they are rather than that they do not exist — a session that hears of a tool and is answered
+"no such tool" goes looking for another way to do the same thing.
 
 They are tools because a shell line is a poor place to put a sentence somebody wrote. An apostrophe
 ends the quoting; a backtick is run and what it printed goes instead of what was meant; and several
@@ -336,8 +342,15 @@ the tool's own signature. `say` has no "which instance" and `room` has no "whose
 
 Which is why the limit on what this toolkit serves here is a standing one: **nothing that deletes,
 archives or spawns joins this server without being decided on its own.** Every tool added inherits
-that one rule the moment it appears in the list. Hiring, leaving, handing over and archiving stay
-on the page, where a person is the one pressing the button.
+that one rule the moment it appears in the list.
+
+It has been spent twice, both times on the same question: who is here. A lead that cannot open a
+desk cannot act on what it decided, and a lead that cannot put one away leaves the person it works
+for doing its clearing up. `hire` writes a desk and does none of the three things the limit names.
+`retire` does one of them, and is here because of what it does first: the desk and the whole
+conversation are filed away together before anything is taken down, so what is lost is a record
+nothing here reads back rather than a record. Handing over stays on the page, and so does everything
+about the workspace itself — who leads, what runs, and whether the room is on.
 
 That is a limit on what the toolkit ships. It is not a limit on what you serve yourself: a tool of
 your own runs inside the chat process rather than in a session, so no rule here decides what it may
@@ -345,7 +358,7 @@ do, and writing the file is the deciding. The next section is about those.
 
 ### Tools the toolkit did not ship
 
-The four above are the ones every workspace wants. The ones only yours wants cannot be in here at
+The six above are the ones every workspace wants. The ones only yours wants cannot be in here at
 all: a workspace whose person is not at the page needs something that pops on their desktop, and
 how a desktop is made to pop is `notify-send` on one machine, `osascript` on another and a toast
 API on a third. None of that belongs in a toolkit that installs on machines it knows nothing
@@ -399,7 +412,7 @@ place it is ever said, because the directory is the list: a file sitting in it l
 nothing a session can see would say otherwise.
 
 None of this is granted anything, and that is the point of where the file comes from. The one rule
-covers it the moment it appears, the way it covers the four above — but a tool of yours runs inside
+covers it the moment it appears, the way it covers the six above — but a tool of yours runs inside
 the chat process rather than in a session, so the permission system never sees it at all. What
 stands where a rule cannot is that a session may write its own desk and nothing else, so no session
 can give itself a tool: writing that file is a person deciding, and that decision is the gate.

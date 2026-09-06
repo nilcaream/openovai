@@ -850,6 +850,12 @@ const TOOLKIT = "openovai";
 // but not an argument, so every tool here is granted the moment it appears, and adding a
 // destructive one is a change to what a session is allowed and not only to what it can reach.
 //
+// It has been spent twice, both times on who is here. `hire` writes a desk and does none of the
+// three things the limit names. `retire` does one of them, and is here because of the order it
+// does it in: the desk and the whole conversation are filed away together before anything is taken
+// down, so what is lost is a record nothing here reads back rather than a record. Both are the
+// lead's alone, and both stayed inside the limit rather than lifting it.
+//
 // The description says what the tool refuses as well as what it does. Measured: a session that
 // cannot SEE a tool goes hunting for another way round the same thing and runs commands nobody
 // asked it to; one that can see it and reads why it would be refused does not call it at all.

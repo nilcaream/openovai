@@ -29,6 +29,19 @@ ever there. This one also stops being read two releases from now.
 Nothing about how the workspace runs is different. The desks, the personas, the settings, the
 transcripts and the account are where they were, under the names they had.
 
+Your lead can also open a desk and put one away now. It has two tools it did not have before:
+`hire`, which opens a desk for somebody new the way the **Hire** box does, and `retire`, which asks
+somebody to write their desk one last time and then files that desk and their whole conversation
+away together, exactly as **Leave** does. Both are the lead's alone; nobody else here is offered
+either.
+
+Nothing about the buttons changes and neither does anything you have to do. What changes is that a
+lead which has just decided somebody is needed can act on it in the same turn instead of asking you
+to press something, and you will see it happen: every desk it opens or puts away is written on the
+lead's own panel, in a line saying which it was and for whom. What the lead still cannot do is
+anything else about who works here — handing a session over is yours, so is a conversation somebody
+left behind, and so is everything in `archive/`.
+
 ## 0.3.0
 
 Tools a workspace serves itself, for the things only that workspace wants.

@@ -7072,11 +7072,15 @@ describe("the lead breaks in on somebody who is writing", () => {
   });
 
   // The list a session reads before it decides what it can do here, and the one place a person
-  // reading the repo is told what the fourth tool is.
-  it("says in the README what the fourth tool is", () => {
+  // reading the repo is told what they all are. The count is read with them, off the list the chat
+  // actually serves: a tool added without the number in front of it moving is a README that is
+  // wrong in the one line somebody would have counted on.
+  it("says in the README how many tools there are, and names every one of them", () => {
     const readme = fs.readFileSync(path.join(repo, "README.md"), "utf8");
-    assert.match(readme, /Four of them/);
-    assert.match(readme, /`interrupt`/);
+    assert.match(readme, /Six of them/);
+    for (const tool of BUILT_IN) {
+      assert.ok(readme.includes(`\`${tool}\``), `the README never names ${tool}`);
+    }
   });
 });
 
