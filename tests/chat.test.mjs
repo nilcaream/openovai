@@ -190,8 +190,8 @@ const standIns = standInEnvironment(standIn, log);
 
 // What the chat puts in a session's environment, so a check can run the command the way a session
 // runs it: signed with the name of whoever is speaking.
-const asLeader = standInEnvironment(standIn, log, { OW_SESSION_NAME: LEADER });
-const asWorker = standInEnvironment(standIn, log, { OW_SESSION_NAME: WORKER });
+const asLeader = standInEnvironment(standIn, log, { OPENOVAI_SESSION_NAME: LEADER });
+const asWorker = standInEnvironment(standIn, log, { OPENOVAI_SESSION_NAME: WORKER });
 await start(instance, standIns);
 assert.ok(await waitForHealth(URL), "the server never answered");
 
@@ -439,7 +439,7 @@ describe("who a message is from", () => {
   });
 
   it("tells a session its own name when it starts it", () => {
-    assert.match(readLog(log), new RegExp(`OW_SESSION_NAME: ${WORKER}`));
+    assert.match(readLog(log), new RegExp(`OPENOVAI_SESSION_NAME: ${WORKER}`));
   });
 
   it("hands the page's own message over unwrapped", () => {
@@ -776,7 +776,7 @@ describe("the lead hears what was said on another panel", () => {
   }
 
   before(async () => {
-    await start(instance, standInEnvironment(standIn, overheardLog, { OW_STAND_IN_SLOW: SLOW_ENOUGH_TO_QUEUE_BEHIND }));
+    await start(instance, standInEnvironment(standIn, overheardLog, { OPENOVAI_STAND_IN_SLOW: SLOW_ENOUGH_TO_QUEUE_BEHIND }));
     assert.ok(await waitForHealth(URL), "the server never answered");
 
     // Everything before this describe is on the lead's panel already — the suite has been typing on
@@ -1048,7 +1048,7 @@ describe("a line said while the lead's next turn is already waiting", () => {
   let theWaitingTurn;
 
   before(async () => {
-    await start(instance, standInEnvironment(standIn, queuedLog, { OW_STAND_IN_SLOW: "1500" }));
+    await start(instance, standInEnvironment(standIn, queuedLog, { OPENOVAI_STAND_IN_SLOW: "1500" }));
     assert.ok(await waitForHealth(URL), "the server never answered");
 
     // None of these is awaited on its own: the whole point is what overlaps what.
@@ -1084,7 +1084,7 @@ describe("a session answers one message at a time", () => {
   let answered;
 
   before(async () => {
-    await start(instance, standInEnvironment(standIn, slowLog, { OW_STAND_IN_SLOW: "700" }));
+    await start(instance, standInEnvironment(standIn, slowLog, { OPENOVAI_STAND_IN_SLOW: "700" }));
     assert.ok(await waitForHealth(URL), "the server never answered");
 
     const first = say("one at a time, please", WORKER);
@@ -1133,7 +1133,7 @@ describe("what the page is told about a session mid-turn", () => {
   }
 
   before(async () => {
-    await start(instance, standInEnvironment(standIn, busyLog, { OW_STAND_IN_SLOW: "1500" }));
+    await start(instance, standInEnvironment(standIn, busyLog, { OPENOVAI_STAND_IN_SLOW: "1500" }));
     assert.ok(await waitForHealth(URL), "the server never answered");
 
     idle = await stateOf(WORKER);
@@ -1199,7 +1199,7 @@ describe("what the page is told about the pile behind a session", () => {
   }
 
   before(async () => {
-    await start(instance, standInEnvironment(standIn, pileLog, { OW_STAND_IN_SLOW: "1500" }));
+    await start(instance, standInEnvironment(standIn, pileLog, { OPENOVAI_STAND_IN_SLOW: "1500" }));
     assert.ok(await waitForHealth(URL), "the server never answered");
 
     // Neither is awaited: the first has to still be going when the second arrives, or there is
@@ -1257,8 +1257,8 @@ describe("what the page is told about who is waiting for whom", () => {
     await start(
       instance,
       standInEnvironment(standIn, heldLog, {
-        OW_STAND_IN_CALLS: `${LEADER}>${WORKER}`,
-        OW_STAND_IN_SLOW: "1500",
+        OPENOVAI_STAND_IN_CALLS: `${LEADER}>${WORKER}`,
+        OPENOVAI_STAND_IN_SLOW: "1500",
       }),
     );
     assert.ok(await waitForHealth(URL), "the server never answered");
@@ -1291,7 +1291,7 @@ describe("one session waiting does not hold up another", () => {
   const bothLog = path.join(standIn, "both.txt");
 
   before(async () => {
-    await start(instance, standInEnvironment(standIn, bothLog, { OW_STAND_IN_SLOW: "700" }));
+    await start(instance, standInEnvironment(standIn, bothLog, { OPENOVAI_STAND_IN_SLOW: "700" }));
     assert.ok(await waitForHealth(URL), "the server never answered");
     await Promise.all([say("the worker's own", WORKER), say("the lead's own", LEADER)]);
   });
@@ -1327,7 +1327,7 @@ describe("a message that would wait for the sender's own turn", () => {
   before(async () => {
     await start(
       instance,
-      standInEnvironment(standIn, circleLog, { OW_STAND_IN_CALLS: `${LEADER}>${WORKER},${WORKER}>${LEADER}` }),
+      standInEnvironment(standIn, circleLog, { OPENOVAI_STAND_IN_CALLS: `${LEADER}>${WORKER},${WORKER}>${LEADER}` }),
     );
     assert.ok(await waitForHealth(URL), "the server never answered");
     const started = Date.now();
@@ -1374,7 +1374,7 @@ describe("a message that would wait for the sender further up the chain", () => 
     await start(
       instance,
       standInEnvironment(standIn, chainLog, {
-        OW_STAND_IN_CALLS: `${LEADER}>${WORKER},${WORKER}>${SECOND},${SECOND}>${LEADER}`,
+        OPENOVAI_STAND_IN_CALLS: `${LEADER}>${WORKER},${WORKER}>${SECOND},${SECOND}>${LEADER}`,
       }),
     );
     assert.ok(await waitForHealth(URL), "the server never answered");
@@ -1455,7 +1455,7 @@ describe("an answer among the noise", () => {
   let answered;
 
   before(async () => {
-    await start(instance, standInEnvironment(standIn, noisyLog, { OW_STAND_IN_NOISE: "yes" }));
+    await start(instance, standInEnvironment(standIn, noisyLog, { OPENOVAI_STAND_IN_NOISE: "yes" }));
     assert.ok(await waitForHealth(URL), "the server never answered");
     answered = await say("through the noise");
   });
@@ -1478,7 +1478,7 @@ describe("a run that frames nothing at all", () => {
   let answered;
 
   before(async () => {
-    await start(instance, standInEnvironment(standIn, brokenLog, { OW_STAND_IN_BROKEN: "yes" }));
+    await start(instance, standInEnvironment(standIn, brokenLog, { OPENOVAI_STAND_IN_BROKEN: "yes" }));
     assert.ok(await waitForHealth(URL), "the server never answered");
     answered = await say("is anybody home");
   });
@@ -1497,7 +1497,7 @@ describe("a run stopped in the middle of its turn", () => {
   let answered;
 
   before(async () => {
-    await start(instance, standInEnvironment(standIn, halfLog, { OW_STAND_IN_HALF: "yes" }));
+    await start(instance, standInEnvironment(standIn, halfLog, { OPENOVAI_STAND_IN_HALF: "yes" }));
     assert.ok(await waitForHealth(URL), "the server never answered");
     answered = await say("this one gets cut off");
   });
@@ -1523,7 +1523,7 @@ describe("a run that falls over saying nothing at all", () => {
   let answered;
 
   before(async () => {
-    await start(instance, standInEnvironment(standIn, muteLog, { OW_STAND_IN_MUTE: "yes" }));
+    await start(instance, standInEnvironment(standIn, muteLog, { OPENOVAI_STAND_IN_MUTE: "yes" }));
     assert.ok(await waitForHealth(URL), "the server never answered");
     answered = await say("is anybody home");
   });
@@ -1549,7 +1549,7 @@ describe("a run that answers with nothing", () => {
   let answered;
 
   before(async () => {
-    await start(instance, standInEnvironment(standIn, emptyLog, { OW_STAND_IN_EMPTY: "yes" }));
+    await start(instance, standInEnvironment(standIn, emptyLog, { OPENOVAI_STAND_IN_EMPTY: "yes" }));
     assert.ok(await waitForHealth(URL), "the server never answered");
     answered = await say("say nothing at all");
   });
@@ -1594,7 +1594,7 @@ describe("asking to be allowed", () => {
   }
 
   before(async () => {
-    await start(instance, standInEnvironment(standIn, askedLog, { OW_STAND_IN_ASKS: "Bash" }));
+    await start(instance, standInEnvironment(standIn, askedLog, { OPENOVAI_STAND_IN_ASKS: "Bash" }));
     assert.ok(await waitForHealth(URL), "the server never answered");
   });
 
@@ -1644,8 +1644,8 @@ describe("asking to be allowed", () => {
       await start(
         instance,
         standInEnvironment(standIn, otherLog, {
-          OW_STAND_IN_ASKS: "Read",
-          OW_STAND_IN_ASKS_INPUT: "the other one it wanted",
+          OPENOVAI_STAND_IN_ASKS: "Read",
+          OPENOVAI_STAND_IN_ASKS_INPUT: "the other one it wanted",
         }),
       );
       assert.ok(await waitForHealth(URL), "the server never answered");
@@ -1656,7 +1656,7 @@ describe("asking to be allowed", () => {
     after(async () => {
       await post(`${URL}/sessions/${LEADER}/permission`, { id: asking[0].id, decision: "deny" });
       await exchange;
-      await start(instance, standInEnvironment(standIn, askedLog, { OW_STAND_IN_ASKS: "Bash" }));
+      await start(instance, standInEnvironment(standIn, askedLog, { OPENOVAI_STAND_IN_ASKS: "Bash" }));
       assert.ok(await waitForHealth(URL), "the server never came back");
     });
 
@@ -1757,8 +1757,8 @@ describe("asking to be allowed", () => {
       await start(
         instance,
         standInEnvironment(standIn, path.join(standIn, "unanswered.txt"), {
-          OW_STAND_IN_ASKS: "Bash",
-          OW_STAND_IN_WAITS: "300",
+          OPENOVAI_STAND_IN_ASKS: "Bash",
+          OPENOVAI_STAND_IN_WAITS: "300",
         }),
       );
       assert.ok(await waitForHealth(URL), "the server never answered");
@@ -1771,7 +1771,7 @@ describe("asking to be allowed", () => {
     });
 
     after(async () => {
-      await start(instance, standInEnvironment(standIn, askedLog, { OW_STAND_IN_ASKS: "Bash" }));
+      await start(instance, standInEnvironment(standIn, askedLog, { OPENOVAI_STAND_IN_ASKS: "Bash" }));
       assert.ok(await waitForHealth(URL), "the server never answered");
     });
 
@@ -1883,7 +1883,7 @@ describe("ending a run that will not end itself", () => {
     let refused;
 
     before(async () => {
-      await start(instance, standInEnvironment(standIn, quietLog, { OW_STAND_IN_STUCK: "yes" }));
+      await start(instance, standInEnvironment(standIn, quietLog, { OPENOVAI_STAND_IN_STUCK: "yes" }));
       assert.ok(await waitForHealth(URL), "the server never answered");
 
       // Not awaited: this is the message whose run never comes back on its own. Its answer is
@@ -1943,7 +1943,7 @@ describe("ending a run that will not end itself", () => {
     let took;
 
     before(async () => {
-      await start(instance, standInEnvironment(standIn, behindLog, { OW_STAND_IN_STUCK: "yes" }));
+      await start(instance, standInEnvironment(standIn, behindLog, { OPENOVAI_STAND_IN_STUCK: "yes" }));
       assert.ok(await waitForHealth(URL), "the server never answered");
 
       const first = say("the one that gets stuck");
@@ -1981,7 +1981,7 @@ describe("ending a run that will not end itself", () => {
     let theirsAfterwards;
 
     before(async () => {
-      await start(instance, standInEnvironment(standIn, bothLog, { OW_STAND_IN_STUCK: "yes" }));
+      await start(instance, standInEnvironment(standIn, bothLog, { OPENOVAI_STAND_IN_STUCK: "yes" }));
       assert.ok(await waitForHealth(URL), "the server never answered");
 
       const mine = say("the one that is ended");
@@ -2035,7 +2035,7 @@ describe("ending a run that will not end itself", () => {
     before(async () => {
       await start(
         instance,
-        standInEnvironment(standIn, deafLog, { OW_STAND_IN_STUCK: "yes", OW_STAND_IN_DEAF: "yes" }),
+        standInEnvironment(standIn, deafLog, { OPENOVAI_STAND_IN_STUCK: "yes", OPENOVAI_STAND_IN_DEAF: "yes" }),
       );
       assert.ok(await waitForHealth(URL), "the server never answered");
 
@@ -2097,7 +2097,7 @@ describe("what the chat has not finished", () => {
   let holding;
 
   before(async () => {
-    await start(instance, standInEnvironment(standIn, censusLog, { OW_STAND_IN_ASKS: "Bash" }));
+    await start(instance, standInEnvironment(standIn, censusLog, { OPENOVAI_STAND_IN_ASKS: "Bash" }));
     assert.ok(await waitForHealth(URL), "the server never answered");
 
     idle = JSON.parse((await get(`${URL}/unfinished`)).body).unfinished;
@@ -2188,11 +2188,11 @@ describe("every kind of thing the chat holds, and letting go of all of them", ()
     await start(
       instance,
       standInEnvironment(standIn, everyLog, {
-        OW_STAND_IN_CALLS: `${LEADER}>${WORKER}`,
-        OW_STAND_IN_ASKS: "Bash",
+        OPENOVAI_STAND_IN_CALLS: `${LEADER}>${WORKER}`,
+        OPENOVAI_STAND_IN_ASKS: "Bash",
         // Longer than the stand-in's own default, because two requests are answered in turn here
         // and the second one is not even asked until the first has been.
-        OW_STAND_IN_WAITS: "30000",
+        OPENOVAI_STAND_IN_WAITS: "30000",
       }),
     );
     assert.ok(await waitForHealth(URL), "the server never answered");
@@ -2256,7 +2256,7 @@ describe("how much of itself a session is carrying", () => {
 
   before(async () => {
     runTool(instance, ["hire", NEW_HAND], process.env);
-    await start(instance, standInEnvironment(standIn, sizeLog, { OW_STAND_IN_USAGE: REQUESTS.join(",") }));
+    await start(instance, standInEnvironment(standIn, sizeLog, { OPENOVAI_STAND_IN_USAGE: REQUESTS.join(",") }));
     assert.ok(await waitForHealth(URL), "the server never answered");
 
     neverAsked = await stateOf(NEW_HAND);
@@ -2467,7 +2467,7 @@ describe("showing the room on the command line", () => {
     lines[0] = `<!-- DESK | name: ${IN_THE_ROOM} | title: reading the water meter | status: at it -->`;
     fs.writeFileSync(desk, lines.join("\n"));
 
-    await start(instance, standInEnvironment(standIn, roomLog, { OW_STAND_IN_SLOW: "1500" }));
+    await start(instance, standInEnvironment(standIn, roomLog, { OPENOVAI_STAND_IN_SLOW: "1500" }));
     assert.ok(await waitForHealth(URL), "the server never answered");
 
     shown = runTool(instance, ["room"], standIns);
@@ -2642,7 +2642,7 @@ describe("what the page is told about a session's thread and when it last moved"
     await say("something, and nothing about the size of it", UNMEASURED);
     unmeasured = await stateOf(UNMEASURED);
 
-    await start(instance, standInEnvironment(standIn, threadLog, { OW_STAND_IN_USAGE: "4000" }));
+    await start(instance, standInEnvironment(standIn, threadLog, { OPENOVAI_STAND_IN_USAGE: "4000" }));
     assert.ok(await waitForHealth(URL), "the server never answered");
 
     never = await stateOf(SILENT);
@@ -3071,7 +3071,7 @@ describe("what a row says about the usage window its last run was told about", (
 
     // A run the service allowed, carrying a fullness this suite chose rather than one the fixture
     // had written down.
-    await start(instance, gauged({ OW_STAND_IN_LIMIT: "allowed", OW_STAND_IN_FULLNESS: "0.71" }));
+    await start(instance, gauged({ OPENOVAI_STAND_IN_LIMIT: "allowed", OPENOVAI_STAND_IN_FULLNESS: "0.71" }));
     assert.ok(await waitForHealth(URL), "the server never answered");
     allowedOutcome = await say("the first thing", GAUGED);
 
@@ -3083,13 +3083,13 @@ describe("what a row says about the usage window its last run was told about", (
     neverRan = rows.find((row) => row.name === NEVER_GAUGED);
 
     // The same instance, served by a new process. A reading held in memory would go here.
-    await start(instance, gauged({ OW_STAND_IN_LIMIT: "allowed", OW_STAND_IN_FULLNESS: "0.71" }));
+    await start(instance, gauged({ OPENOVAI_STAND_IN_LIMIT: "allowed", OPENOVAI_STAND_IN_FULLNESS: "0.71" }));
     assert.ok(await waitForHealth(URL), "the server never answered");
     survived = JSON.parse((await get(`${URL}/sessions`)).body).sessions.find((row) => row.name === GAUGED);
 
     // Told it was allowed, and turned away all the same. Both frames travel, in that order, which
     // is the run this whole design is built not to misreport.
-    await start(instance, gauged({ OW_STAND_IN_LIMIT: "allowed", OW_STAND_IN_FULLNESS: "0.42", OW_STAND_IN_REFUSED: "1" }));
+    await start(instance, gauged({ OPENOVAI_STAND_IN_LIMIT: "allowed", OPENOVAI_STAND_IN_FULLNESS: "0.42", OPENOVAI_STAND_IN_REFUSED: "1" }));
     assert.ok(await waitForHealth(URL), "the server never answered");
     refusedOutcome = await say("something while the account is out", GAUGED_REFUSED);
     refusedRow = JSON.parse((await get(`${URL}/sessions`)).body).sessions.find((row) => row.name === GAUGED_REFUSED);
@@ -3215,7 +3215,7 @@ describe("what a row says about when each usage window ends", () => {
     runTool(instance, ["hire", LIFT_ON_THE_ROW], process.env);
     runTool(instance, ["hire", LIFT_NOT_GIVEN], process.env);
 
-    await start(instance, standInEnvironment(standIn, liftLog, { OW_STAND_IN_LIMIT: "allowed" }));
+    await start(instance, standInEnvironment(standIn, liftLog, { OPENOVAI_STAND_IN_LIMIT: "allowed" }));
     assert.ok(await waitForHealth(URL), "the server never answered");
     takenAt = Math.floor(Date.now() / 1000);
     await say("something, so the window is read", LIFT_ON_THE_ROW);
@@ -3224,7 +3224,7 @@ describe("what a row says about when each usage window ends", () => {
     // A frame that says nothing about when it lifts. The stand-in drops the moment from the
     // five-hour window and from beside `status`, and leaves the seven-day one saying when it ends
     // — so one row carries both answers and nothing can satisfy the check by writing one of them.
-    await start(instance, standInEnvironment(standIn, liftLog, { OW_STAND_IN_REFUSED: "yes", OW_STAND_IN_NO_RESET: "yes" }));
+    await start(instance, standInEnvironment(standIn, liftLog, { OPENOVAI_STAND_IN_REFUSED: "yes", OPENOVAI_STAND_IN_NO_RESET: "yes" }));
     assert.ok(await waitForHealth(URL), "the server never came back");
     await say("something while the account is out", LIFT_NOT_GIVEN);
     unsaid = JSON.parse((await get(`${URL}/sessions`)).body).sessions.find((row) => row.name === LIFT_NOT_GIVEN);
@@ -3280,7 +3280,7 @@ describe("what a row says about when each usage window ends", () => {
 // A refusal that named no moment cannot expire that way and is cleared by the next run instead.
 describe("what a row says about a refusal, and what takes it off again", () => {
   const refusalLog = path.join(standIn, "refusal.txt");
-  const refusing = (extra) => standInEnvironment(standIn, refusalLog, { OW_STAND_IN_REFUSED: "yes", ...extra });
+  const refusing = (extra) => standInEnvironment(standIn, refusalLog, { OPENOVAI_STAND_IN_REFUSED: "yes", ...extra });
   let onTheRow;
   let neverRefused;
   let noReset;
@@ -3300,13 +3300,13 @@ describe("what a row says about a refusal, and what takes it off again", () => {
     // five_hour until it was measured, and a reader that hard-coded that string passed all of
     // them; the seven-day window refuses too, and naming it is what makes the row prove it
     // carried what the frame said rather than what the reader assumed.
-    await start(instance, refusing({ OW_STAND_IN_LIMIT_KIND: "seven_day" }));
+    await start(instance, refusing({ OPENOVAI_STAND_IN_LIMIT_KIND: "seven_day" }));
     assert.ok(await waitForHealth(URL), "the server never answered");
     await say("ask while the account is out", REFUSED_ON_THE_ROW);
     await say("ask while the account is out", LIFTED);
 
     // Turned away saying nothing about when it lifts. The schema does not promise the field.
-    await start(instance, refusing({ OW_STAND_IN_NO_RESET: "yes" }));
+    await start(instance, refusing({ OPENOVAI_STAND_IN_NO_RESET: "yes" }));
     assert.ok(await waitForHealth(URL), "the server never came back");
     await say("ask while the account is out", NO_RESET_GIVEN);
 
@@ -3425,7 +3425,7 @@ describe("every state the room can say, and somebody who has been in it", () => 
       return rows.find((row) => row.name === name) ?? null;
     };
 
-    await start(instance, standInEnvironment(standIn, statesLog, { OW_STAND_IN_SLOW: "1500" }));
+    await start(instance, standInEnvironment(standIn, statesLog, { OPENOVAI_STAND_IN_SLOW: "1500" }));
     assert.ok(await waitForHealth(URL), "the server never answered");
 
     // Nothing has been said to this one yet, and nothing ever is on this start.
@@ -3459,9 +3459,9 @@ describe("every state the room can say, and somebody who has been in it", () => 
     await start(
       instance,
       standInEnvironment(standIn, statesLog, {
-        OW_STAND_IN_CALLS: `${LEADER}>${WORKER}`,
-        OW_STAND_IN_ASKS: "Bash",
-        OW_STAND_IN_WAITS: "30000",
+        OPENOVAI_STAND_IN_CALLS: `${LEADER}>${WORKER}`,
+        OPENOVAI_STAND_IN_ASKS: "Bash",
+        OPENOVAI_STAND_IN_WAITS: "30000",
       }),
     );
     assert.ok(await waitForHealth(URL), "the server never answered");
@@ -3525,12 +3525,12 @@ describe("what the room says about a usage window and a refusal", () => {
 
     // A run the service allowed, with a fullness this suite chose rather than one the fixture had
     // written down.
-    await start(instance, standInEnvironment(standIn, roomLog, { OW_STAND_IN_LIMIT: "allowed", OW_STAND_IN_FULLNESS: "0.71" }));
+    await start(instance, standInEnvironment(standIn, roomLog, { OPENOVAI_STAND_IN_LIMIT: "allowed", OPENOVAI_STAND_IN_FULLNESS: "0.71" }));
     assert.ok(await waitForHealth(URL), "the server never answered");
     await say("the first thing", GAUGED_IN_ROOM);
 
     // And a run the service turned away, which carries a reading of its own on the way past.
-    await start(instance, standInEnvironment(standIn, roomLog, { OW_STAND_IN_REFUSED: "yes" }));
+    await start(instance, standInEnvironment(standIn, roomLog, { OPENOVAI_STAND_IN_REFUSED: "yes" }));
     assert.ok(await waitForHealth(URL), "the server never came back");
     await say("ask while the account is out", REFUSED_IN_ROOM);
 
@@ -3619,7 +3619,7 @@ describe("what the page is told about a session waiting to be allowed", () => {
     // waiting.
     await start(
       instance,
-      standInEnvironment(standIn, askingLog, { OW_STAND_IN_ASKS: "Bash", OW_STAND_IN_SLOW: "1500" }),
+      standInEnvironment(standIn, askingLog, { OPENOVAI_STAND_IN_ASKS: "Bash", OPENOVAI_STAND_IN_SLOW: "1500" }),
     );
     assert.ok(await waitForHealth(URL), "the server never answered");
 
@@ -3742,7 +3742,7 @@ describe("a message queued behind a turn that fills the desk in", () => {
 
   before(async () => {
     runTool(instance, ["hire", FILLED_IN], process.env);
-    await start(instance, standInEnvironment(standIn, queuedDeskLog, { OW_STAND_IN_SLOW: "1500" }));
+    await start(instance, standInEnvironment(standIn, queuedDeskLog, { OPENOVAI_STAND_IN_SLOW: "1500" }));
     assert.ok(await waitForHealth(URL), "the server never answered");
 
     const answering = say("this one takes a while", FILLED_IN);
@@ -3789,7 +3789,7 @@ describe("a session leaving", () => {
 
   before(async () => {
     runTool(instance, ["hire", LEAVES], process.env);
-    await start(instance, standInEnvironment(standIn, leaveLog, { OW_STAND_IN_SLOW: "1500" }));
+    await start(instance, standInEnvironment(standIn, leaveLog, { OPENOVAI_STAND_IN_SLOW: "1500" }));
     assert.ok(await waitForHealth(URL), "the server never answered");
 
     // A thread to end, and a desk that says nothing yet.
@@ -4037,7 +4037,7 @@ describe("a message queued behind a session leaving", () => {
 
   before(async () => {
     runTool(instance, ["hire", LEAVES_MID_QUEUE], process.env);
-    await start(instance, standInEnvironment(standIn, behindLog, { OW_STAND_IN_SLOW: "1500" }));
+    await start(instance, standInEnvironment(standIn, behindLog, { OPENOVAI_STAND_IN_SLOW: "1500" }));
     assert.ok(await waitForHealth(URL), "the server never answered");
 
     const answering = say("this one takes a while", LEAVES_MID_QUEUE);
@@ -4224,7 +4224,7 @@ describe("a session that cannot be asked to hand over", () => {
   let rows;
 
   before(async () => {
-    await start(instance, standInEnvironment(standIn, brokenLog, { OW_STAND_IN_BROKEN: "yes" }));
+    await start(instance, standInEnvironment(standIn, brokenLog, { OPENOVAI_STAND_IN_BROKEN: "yes" }));
     assert.ok(await waitForHealth(URL), "the server never answered");
     await post(`${URL}/sessions/${HANDS_OVER}/handover`, {});
     // The last three: this desk has been handed over before, so the panel holds earlier ones too.
@@ -4264,7 +4264,7 @@ describe("a handover asked for while the session is answering", () => {
   let order;
 
   before(async () => {
-    await start(instance, standInEnvironment(standIn, queuedLog, { OW_STAND_IN_SLOW: "1500" }));
+    await start(instance, standInEnvironment(standIn, queuedLog, { OPENOVAI_STAND_IN_SLOW: "1500" }));
     assert.ok(await waitForHealth(URL), "the server never answered");
 
     // A thread to end, and a slow one to end it behind.
@@ -4557,7 +4557,7 @@ describe("what the page offers", () => {
 describe("stopping the chat", () => {
   // Long enough that a run giving up on its own cannot be mistaken for the chat having ended it.
   const GIVES_UP = 60000;
-  const parked = { OW_STAND_IN_ASKS: "Bash", OW_STAND_IN_WAITS: String(GIVES_UP) };
+  const parked = { OPENOVAI_STAND_IN_ASKS: "Bash", OPENOVAI_STAND_IN_WAITS: String(GIVES_UP) };
 
   // The two signals a person and a system send, and — on the last of them — a run that has been
   // asked to stop and is not going to. Being asked is the whole of what a well behaved run needs;
@@ -4570,7 +4570,7 @@ describe("stopping the chat", () => {
     ["SIGINT", "SIGINT", parked, 1000],
     ["SIGTERM", "SIGTERM", parked, 1000],
     ["SIGHUP, as when the window it was started in goes away", "SIGHUP", parked, 1000],
-    ["SIGINT and a run that will not go quietly", "SIGINT", { ...parked, OW_STAND_IN_DEAF: "yes" }, GIVES_UP / 4],
+    ["SIGINT and a run that will not go quietly", "SIGINT", { ...parked, OPENOVAI_STAND_IN_DEAF: "yes" }, GIVES_UP / 4],
   ];
 
   for (const [way, signal, how, within] of ways) {
@@ -4971,8 +4971,8 @@ describe("a session calls the tools the chat serves it", () => {
       await start(
         instance,
         standInEnvironment(standIn, heldLog, {
-          OW_STAND_IN_CALLS: `${LEADER}>${WORKER}`,
-          OW_STAND_IN_SLOW: "1500",
+          OPENOVAI_STAND_IN_CALLS: `${LEADER}>${WORKER}`,
+          OPENOVAI_STAND_IN_SLOW: "1500",
         }),
       );
       assert.ok(await waitForHealth(URL), "the server never came back");
@@ -5210,7 +5210,7 @@ describe("the session that leads puts a desk away", () => {
     for (const name of [PUT_AWAY, REFUSED_A_WORKER, WHILE_OFF]) {
       runTool(instance, ["hire", name], process.env);
     }
-    await start(instance, standInEnvironment(standIn, retiringLog, { OW_STAND_IN_SLOW: "1500" }));
+    await start(instance, standInEnvironment(standIn, retiringLog, { OPENOVAI_STAND_IN_SLOW: "1500" }));
     assert.ok(await waitForHealth(URL), "the server never answered");
 
     offeredToTheLead = await offeredTo(LEADER);
@@ -5354,7 +5354,7 @@ describe("a thread that is not there any more", () => {
     refused = await driveStandIn(
       standInCommand,
       ["--print", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose", "--resume", gone],
-      standInEnvironment(standIn, goneLog, { OW_STAND_IN_RESUME_FAILS: "yes" }),
+      standInEnvironment(standIn, goneLog, { OPENOVAI_STAND_IN_RESUME_FAILS: "yes" }),
     ).ended;
   });
 
@@ -5386,13 +5386,13 @@ describe("a chat asked to carry on a thread that is gone", () => {
   before(async () => {
     // A first conversation, under an id of its own, so that what is remembered afterwards cannot
     // be the same string by coincidence.
-    await start(instance, standInEnvironment(standIn, lostLog, { OW_STAND_IN_SESSION: "old-thread" }));
+    await start(instance, standInEnvironment(standIn, lostLog, { OPENOVAI_STAND_IN_SESSION: "old-thread" }));
     assert.ok(await waitForHealth(URL), "the server never answered");
     await say("open a thread");
 
     await start(
       instance,
-      standInEnvironment(standIn, lostLog, { OW_STAND_IN_SESSION: "new-thread", OW_STAND_IN_RESUME_FAILS: "yes" }),
+      standInEnvironment(standIn, lostLog, { OPENOVAI_STAND_IN_SESSION: "new-thread", OPENOVAI_STAND_IN_RESUME_FAILS: "yes" }),
     );
     assert.ok(await waitForHealth(URL), "the server never came back");
     await say("carry it on");
@@ -5407,7 +5407,7 @@ describe("a chat asked to carry on a thread that is gone", () => {
     // A third message, with the stand-in resuming normally again. What the chat kept is not read
     // out of the file here — no route and no reader says it — but out of what the next run is
     // asked to resume, which is the code using it rather than the check reading around it.
-    await start(instance, standInEnvironment(standIn, lostLog, { OW_STAND_IN_SESSION: "new-thread" }));
+    await start(instance, standInEnvironment(standIn, lostLog, { OPENOVAI_STAND_IN_SESSION: "new-thread" }));
     assert.ok(await waitForHealth(URL), "the server never came back a second time");
     await say("and once more");
   });
@@ -5456,7 +5456,7 @@ describe("a stand-in the service refused", () => {
     const run = driveStandIn(
       standInCommand,
       ["--print", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose"],
-      standInEnvironment(standIn, refusedLog, { OW_STAND_IN_REFUSED: "yes" }),
+      standInEnvironment(standIn, refusedLog, { OPENOVAI_STAND_IN_REFUSED: "yes" }),
     );
     run.ask("something that costs a request");
 
@@ -5531,7 +5531,7 @@ describe("a stand-in the service allowed", () => {
     const run = driveStandIn(
       standInCommand,
       ["--print", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose"],
-      standInEnvironment(standIn, allowedLog, { OW_STAND_IN_LIMIT: "allowed" }),
+      standInEnvironment(standIn, allowedLog, { OPENOVAI_STAND_IN_LIMIT: "allowed" }),
     );
     run.ask("something ordinary");
     await run.waitForFrame((one) => one.type === "result");
@@ -5565,7 +5565,7 @@ describe("a stand-in told how full the window is", () => {
     const run = driveStandIn(
       standInCommand,
       ["--print", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose"],
-      standInEnvironment(standIn, toldLog, { OW_STAND_IN_LIMIT: "allowed", OW_STAND_IN_FULLNESS: "0.71" }),
+      standInEnvironment(standIn, toldLog, { OPENOVAI_STAND_IN_LIMIT: "allowed", OPENOVAI_STAND_IN_FULLNESS: "0.71" }),
     );
     run.ask("something ordinary");
     await run.waitForFrame((one) => one.type === "result");
@@ -5598,13 +5598,13 @@ describe("a chat whose run the service refused", () => {
   before(async () => {
     // A thread first, under an id of its own, so that what is kept afterwards cannot be that
     // string by coincidence.
-    await start(instance, standInEnvironment(standIn, outLog, { OW_STAND_IN_SESSION: "live-thread" }));
+    await start(instance, standInEnvironment(standIn, outLog, { OPENOVAI_STAND_IN_SESSION: "live-thread" }));
     assert.ok(await waitForHealth(URL), "the server never answered");
     await say("open a thread");
 
     await start(
       instance,
-      standInEnvironment(standIn, outLog, { OW_STAND_IN_SESSION: "live-thread", OW_STAND_IN_REFUSED: "yes" }),
+      standInEnvironment(standIn, outLog, { OPENOVAI_STAND_IN_SESSION: "live-thread", OPENOVAI_STAND_IN_REFUSED: "yes" }),
     );
     assert.ok(await waitForHealth(URL), "the server never came back");
     answered = await say("ask while the account is out");
@@ -5646,16 +5646,16 @@ describe("a chat refused without being told when the limit lifts", () => {
   let calls;
 
   before(async () => {
-    await start(instance, standInEnvironment(standIn, quietLog, { OW_STAND_IN_SESSION: "timeless-thread" }));
+    await start(instance, standInEnvironment(standIn, quietLog, { OPENOVAI_STAND_IN_SESSION: "timeless-thread" }));
     assert.ok(await waitForHealth(URL), "the server never answered");
     await say("open a thread");
 
     await start(
       instance,
       standInEnvironment(standIn, quietLog, {
-        OW_STAND_IN_SESSION: "timeless-thread",
-        OW_STAND_IN_REFUSED: "yes",
-        OW_STAND_IN_NO_RESET: "yes",
+        OPENOVAI_STAND_IN_SESSION: "timeless-thread",
+        OPENOVAI_STAND_IN_REFUSED: "yes",
+        OPENOVAI_STAND_IN_NO_RESET: "yes",
       }),
     );
     assert.ok(await waitForHealth(URL), "the server never came back");
@@ -5682,16 +5682,16 @@ describe("a chat refused after being told it was allowed", () => {
   let calls;
 
   before(async () => {
-    await start(instance, standInEnvironment(standIn, lateLog, { OW_STAND_IN_SESSION: "late-thread" }));
+    await start(instance, standInEnvironment(standIn, lateLog, { OPENOVAI_STAND_IN_SESSION: "late-thread" }));
     assert.ok(await waitForHealth(URL), "the server never answered");
     await say("open a thread");
 
     await start(
       instance,
       standInEnvironment(standIn, lateLog, {
-        OW_STAND_IN_SESSION: "late-thread",
-        OW_STAND_IN_LIMIT: "allowed",
-        OW_STAND_IN_REFUSED_QUIETLY: "yes",
+        OPENOVAI_STAND_IN_SESSION: "late-thread",
+        OPENOVAI_STAND_IN_LIMIT: "allowed",
+        OPENOVAI_STAND_IN_REFUSED_QUIETLY: "yes",
       }),
     );
     assert.ok(await waitForHealth(URL), "the server never came back");
@@ -5716,16 +5716,16 @@ for (const state of ["allowed", "allowed_warning"]) {
     let calls;
 
     before(async () => {
-      await start(instance, standInEnvironment(standIn, okLog, { OW_STAND_IN_SESSION: "kept-thread" }));
+      await start(instance, standInEnvironment(standIn, okLog, { OPENOVAI_STAND_IN_SESSION: "kept-thread" }));
       assert.ok(await waitForHealth(URL), "the server never answered");
       await say("open a thread");
 
       await start(
         instance,
         standInEnvironment(standIn, okLog, {
-          OW_STAND_IN_SESSION: "fresh-thread",
-          OW_STAND_IN_LIMIT: state,
-          OW_STAND_IN_RESUME_FAILS: "yes",
+          OPENOVAI_STAND_IN_SESSION: "fresh-thread",
+          OPENOVAI_STAND_IN_LIMIT: state,
+          OPENOVAI_STAND_IN_RESUME_FAILS: "yes",
         }),
       );
       assert.ok(await waitForHealth(URL), "the server never came back");
@@ -5751,13 +5751,13 @@ describe("a chat whose run had no credential", () => {
   let calls;
 
   before(async () => {
-    await start(instance, standInEnvironment(standIn, outLog, { OW_STAND_IN_SESSION: "stale-thread" }));
+    await start(instance, standInEnvironment(standIn, outLog, { OPENOVAI_STAND_IN_SESSION: "stale-thread" }));
     assert.ok(await waitForHealth(URL), "the server never answered");
     await say("open a thread");
 
     await start(
       instance,
-      standInEnvironment(standIn, outLog, { OW_STAND_IN_SESSION: "stale-thread", OW_STAND_IN_SIGNED_OUT: "yes" }),
+      standInEnvironment(standIn, outLog, { OPENOVAI_STAND_IN_SESSION: "stale-thread", OPENOVAI_STAND_IN_SIGNED_OUT: "yes" }),
     );
     assert.ok(await waitForHealth(URL), "the server never came back");
     await say("ask with nothing to ask with");
@@ -5787,7 +5787,7 @@ describe("a refused run that goes when it is told the turn is over", () => {
   before(async () => {
     await start(
       instance,
-      standInEnvironment(standIn, goneLog, { OW_STAND_IN_SESSION: "leaving-thread", OW_STAND_IN_REFUSED: "yes" }),
+      standInEnvironment(standIn, goneLog, { OPENOVAI_STAND_IN_SESSION: "leaving-thread", OPENOVAI_STAND_IN_REFUSED: "yes" }),
     );
     assert.ok(await waitForHealth(URL), "the server never answered");
     await say("ask while the account is out");
@@ -5807,9 +5807,9 @@ describe("a refused run that ignores its input being closed", () => {
     await start(
       instance,
       standInEnvironment(standIn, deafLog, {
-        OW_STAND_IN_SESSION: "deaf-thread",
-        OW_STAND_IN_REFUSED: "yes",
-        OW_STAND_IN_REFUSED_DEAF: "yes",
+        OPENOVAI_STAND_IN_SESSION: "deaf-thread",
+        OPENOVAI_STAND_IN_REFUSED: "yes",
+        OPENOVAI_STAND_IN_REFUSED_DEAF: "yes",
       }),
     );
     assert.ok(await waitForHealth(URL), "the server never answered");
@@ -5863,7 +5863,7 @@ describe("a message the service turned away", () => {
   before(async () => {
     await start(
       instance,
-      standInEnvironment(standIn, awayLog, { OW_STAND_IN_SESSION: "away-thread", OW_STAND_IN_REFUSED: "yes" }),
+      standInEnvironment(standIn, awayLog, { OPENOVAI_STAND_IN_SESSION: "away-thread", OPENOVAI_STAND_IN_REFUSED: "yes" }),
     );
     assert.ok(await waitForHealth(URL), "the server never answered");
     // Where this exchange starts. The panel is the whole of what this suite has said to this
@@ -5931,13 +5931,13 @@ describe("a message turned away without a time", () => {
     await start(
       instance,
       standInEnvironment(standIn, timelessLog, {
-        OW_STAND_IN_SESSION: "timeless-away",
-        OW_STAND_IN_REFUSED: "yes",
-        OW_STAND_IN_NO_RESET: "yes",
+        OPENOVAI_STAND_IN_SESSION: "timeless-away",
+        OPENOVAI_STAND_IN_REFUSED: "yes",
+        OPENOVAI_STAND_IN_NO_RESET: "yes",
         // Under the other window, because the panel check below is the only reader of the kind in
         // prose and every fixture reaching it named the five-hour one: a sentence with that window
         // written into it passed, whatever the frame said.
-        OW_STAND_IN_LIMIT_KIND: "seven_day",
+        OPENOVAI_STAND_IN_LIMIT_KIND: "seven_day",
       }),
     );
     assert.ok(await waitForHealth(URL), "the server never answered");
@@ -5970,7 +5970,7 @@ describe("a session told that what it said did not get through", () => {
   before(async () => {
     await start(
       instance,
-      standInEnvironment(standIn, toldLog, { OW_STAND_IN_SESSION: "tool-away", OW_STAND_IN_REFUSED: "yes" }),
+      standInEnvironment(standIn, toldLog, { OPENOVAI_STAND_IN_SESSION: "tool-away", OPENOVAI_STAND_IN_REFUSED: "yes" }),
     );
     assert.ok(await waitForHealth(URL), "the server never answered");
     const said = await post(`${URL}/mcp/${LEADER}`, {
@@ -5998,7 +5998,7 @@ describe("a message that got through", () => {
   let panel;
 
   before(async () => {
-    await start(instance, standInEnvironment(standIn, throughLog, { OW_STAND_IN_SESSION: "ordinary-thread" }));
+    await start(instance, standInEnvironment(standIn, throughLog, { OPENOVAI_STAND_IN_SESSION: "ordinary-thread" }));
     assert.ok(await waitForHealth(URL), "the server never answered");
     const before = JSON.parse((await transcriptOf(WORKER)).body).messages.length;
     await say("a message that gets through", WORKER);
@@ -6028,7 +6028,7 @@ describe("a message sent while another is being turned away", () => {
   before(async () => {
     await start(
       instance,
-      standInEnvironment(standIn, bothLog, { OW_STAND_IN_SESSION: "both-away", OW_STAND_IN_REFUSED: "yes" }),
+      standInEnvironment(standIn, bothLog, { OPENOVAI_STAND_IN_SESSION: "both-away", OPENOVAI_STAND_IN_REFUSED: "yes" }),
     );
     assert.ok(await waitForHealth(URL), "the server never answered");
 
@@ -6086,7 +6086,7 @@ describe("a handover the service turned away", () => {
     runTool(instance, ["hire", REFUSED_HAND], process.env);
     await start(
       instance,
-      standInEnvironment(standIn, handLog, { OW_STAND_IN_SESSION: "hand-thread" }),
+      standInEnvironment(standIn, handLog, { OPENOVAI_STAND_IN_SESSION: "hand-thread" }),
     );
     assert.ok(await waitForHealth(URL), "the server never answered");
 
@@ -6095,7 +6095,7 @@ describe("a handover the service turned away", () => {
 
     await start(
       instance,
-      standInEnvironment(standIn, handLog, { OW_STAND_IN_SESSION: "hand-thread", OW_STAND_IN_REFUSED: "yes" }),
+      standInEnvironment(standIn, handLog, { OPENOVAI_STAND_IN_SESSION: "hand-thread", OPENOVAI_STAND_IN_REFUSED: "yes" }),
     );
     assert.ok(await waitForHealth(URL), "the server never came back");
 
@@ -6109,7 +6109,7 @@ describe("a handover the service turned away", () => {
 
     await start(
       instance,
-      standInEnvironment(standIn, handLog, { OW_STAND_IN_SESSION: "hand-thread" }),
+      standInEnvironment(standIn, handLog, { OPENOVAI_STAND_IN_SESSION: "hand-thread" }),
     );
     assert.ok(await waitForHealth(URL), "the server never came back a second time");
     afterwards = await say("and are you still the same conversation", REFUSED_HAND);
@@ -6168,11 +6168,11 @@ describe("a handover that failed for an ordinary reason", () => {
 
   before(async () => {
     runTool(instance, ["hire", FAILED_HAND], process.env);
-    await start(instance, standInEnvironment(standIn, failedLog, { OW_STAND_IN_SESSION: "failing-thread" }));
+    await start(instance, standInEnvironment(standIn, failedLog, { OPENOVAI_STAND_IN_SESSION: "failing-thread" }));
     assert.ok(await waitForHealth(URL), "the server never answered");
     await say("something worth remembering", FAILED_HAND);
 
-    await start(instance, standInEnvironment(standIn, failedLog, { OW_STAND_IN_BROKEN: "yes" }));
+    await start(instance, standInEnvironment(standIn, failedLog, { OPENOVAI_STAND_IN_BROKEN: "yes" }));
     assert.ok(await waitForHealth(URL), "the server never came back");
 
     const before = JSON.parse((await transcriptOf(FAILED_HAND)).body).messages.length;
@@ -6210,7 +6210,7 @@ describe("a leave the service turned away", () => {
 
   before(async () => {
     runTool(instance, ["hire", REFUSED_LEAVE], process.env);
-    await start(instance, standInEnvironment(standIn, leaveLog, { OW_STAND_IN_SESSION: "leave-thread" }));
+    await start(instance, standInEnvironment(standIn, leaveLog, { OPENOVAI_STAND_IN_SESSION: "leave-thread" }));
     assert.ok(await waitForHealth(URL), "the server never answered");
     await say("something worth remembering", REFUSED_LEAVE);
 
@@ -6223,7 +6223,7 @@ describe("a leave the service turned away", () => {
 
     await start(
       instance,
-      standInEnvironment(standIn, leaveLog, { OW_STAND_IN_SESSION: "leave-thread", OW_STAND_IN_REFUSED: "yes" }),
+      standInEnvironment(standIn, leaveLog, { OPENOVAI_STAND_IN_SESSION: "leave-thread", OPENOVAI_STAND_IN_REFUSED: "yes" }),
     );
     assert.ok(await waitForHealth(URL), "the server never came back");
 
@@ -6408,7 +6408,7 @@ describe("what is never held back from a panel", () => {
   let parked;
 
   before(async () => {
-    await start(instance, standInEnvironment(standIn, askedLog, { OW_STAND_IN_ASKS: "Bash" }));
+    await start(instance, standInEnvironment(standIn, askedLog, { OPENOVAI_STAND_IN_ASKS: "Bash" }));
     assert.ok(await waitForHealth(URL), "the server never answered");
 
     // Not waited for: it does not come back until the whole exchange is over, and the asking is
@@ -6911,7 +6911,7 @@ describe("the room can be taken off and brought back", () => {
     runTool(instance, ["hire", OFF_MID_TURN], process.env);
     // Slow enough that a press can land while a run is genuinely going, which is the one state
     // worth asking about and the one a fast stand-in never stays in long enough to be asked in.
-    await start(instance, standInEnvironment(standIn, offLog, { OW_STAND_IN_SLOW: "1500" }));
+    await start(instance, standInEnvironment(standIn, offLog, { OPENOVAI_STAND_IN_SLOW: "1500" }));
     assert.ok(await waitForHealth(URL), "the server never answered");
 
     atFirst = JSON.parse((await get(`${URL}/sessions`)).body).offline;
@@ -7043,7 +7043,7 @@ describe("nothing is run for anybody while the room is off", () => {
   before(async () => {
     runTool(instance, ["hire", GATED], process.env);
     runTool(instance, ["hire", GATED_LEAVE], process.env);
-    await start(instance, standInEnvironment(standIn, gateLog, { OW_STAND_IN_SESSION: "gate-thread" }));
+    await start(instance, standInEnvironment(standIn, gateLog, { OPENOVAI_STAND_IN_SESSION: "gate-thread" }));
     assert.ok(await waitForHealth(URL), "the server never answered");
 
     // While the room is on: a thread for the handover to have something to end, a desk for the leave
@@ -7162,7 +7162,7 @@ describe("a message refused because the room is off does not wait behind the tur
 
   before(async () => {
     runTool(instance, ["hire", OFF_BEHIND_A_TURN], process.env);
-    await start(instance, standInEnvironment(standIn, behindLog, { OW_STAND_IN_SLOW: "1500" }));
+    await start(instance, standInEnvironment(standIn, behindLog, { OPENOVAI_STAND_IN_SLOW: "1500" }));
     assert.ok(await waitForHealth(URL), "the server never answered");
 
     const going = say("something that takes a while", OFF_BEHIND_A_TURN).then((answered) => {
@@ -7426,7 +7426,7 @@ describe("what the room says about a session answering with an old clock behind 
 
   before(async () => {
     runTool(instance, ["hire", STILL_ANSWERING], process.env);
-    await start(instance, standInEnvironment(standIn, answeringLog, { OW_STAND_IN_SLOW: "1500" }));
+    await start(instance, standInEnvironment(standIn, answeringLog, { OPENOVAI_STAND_IN_SLOW: "1500" }));
     assert.ok(await waitForHealth(URL), "the server never answered");
 
     // A first turn for the clock to belong to, then an age well past anything this feature would
@@ -7605,7 +7605,7 @@ describe("who has gone quiet is read where the turn begins and not where the mes
 
   before(async () => {
     runTool(instance, ["hire", STOPS_WHILE_A_MESSAGE_WAITS], process.env);
-    await start(instance, standInEnvironment(standIn, waitedLog, { OW_STAND_IN_SLOW: "1500" }));
+    await start(instance, standInEnvironment(standIn, waitedLog, { OPENOVAI_STAND_IN_SLOW: "1500" }));
     assert.ok(await waitForHealth(URL), "the server never answered");
 
     // A turn each, so both have a clock at all. Fresh at this point, so nothing here is quiet yet.
@@ -8149,7 +8149,7 @@ describe("where the account stands is read where the turn begins and not where t
 
   before(async () => {
     runTool(instance, ["hire", WAITS_WHILE_IT_FILLS], process.env);
-    await start(instance, standInEnvironment(standIn, filledLog, { OW_STAND_IN_SLOW: "1500", OW_STAND_IN_FULLNESS: "0.96" }));
+    await start(instance, standInEnvironment(standIn, filledLog, { OPENOVAI_STAND_IN_SLOW: "1500", OPENOVAI_STAND_IN_FULLNESS: "0.96" }));
     assert.ok(await waitForHealth(URL), "the server never answered");
 
     // A turn each, so both have a thread and a clock.

@@ -73,7 +73,7 @@ function install(root, auth) {
 function run(root, recordIn, argv, changes = {}) {
   return runOvai(root, argv, {
     ...process.env,
-    OW_STAND_IN_LOG: recordIn,
+    OPENOVAI_STAND_IN_LOG: recordIn,
     ANTHROPIC_API_KEY: "must-not-be-inherited",
     CLAUDE_CODE_OAUTH_TOKEN: TOKEN,
     PATH: `${standIn}${path.delimiter}${process.env.PATH}`,
@@ -154,7 +154,7 @@ describe("an instance with no credential", () => {
   let said;
 
   before(() => {
-    said = ovai(["status"], { OW_STAND_IN_SIGNED_IN: "false" }).stdout;
+    said = ovai(["status"], { OPENOVAI_STAND_IN_SIGNED_IN: "false" }).stdout;
   });
 
   it("reports that it has none", () => {
@@ -188,7 +188,7 @@ describe("how the instance signs in", () => {
   });
 
   it("does not send an inheriting instance to a sign-in that would refuse it", () => {
-    const said = ovaiInherited(["status"], { OW_STAND_IN_SIGNED_IN: "false" }).stdout;
+    const said = ovaiInherited(["status"], { OPENOVAI_STAND_IN_SIGNED_IN: "false" }).stdout;
     assert.ok(!said.includes("run: ovai login"));
   });
 });
@@ -235,7 +235,7 @@ describe("the sign-in", () => {
   });
 
   it("does not let a failed sign-in look like a success", () => {
-    assert.notEqual(ovai(["login"], { OW_STAND_IN_LOGIN_STATUS: "3" }).status, 0);
+    assert.notEqual(ovai(["login"], { OPENOVAI_STAND_IN_LOGIN_STATUS: "3" }).status, 0);
   });
 });
 
