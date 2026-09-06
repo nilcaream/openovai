@@ -5337,6 +5337,79 @@ describe("the session that leads puts a desk away", () => {
   });
 });
 
+// The fourth way a retire can end, and the one the block above cannot reach: the desk is still open
+// because the SERVICE turned the run away, not because the room was switched off. It gets a describe
+// and a room of its own because a refused run is an environment a room is STARTED in, and the block
+// above starts one room, under ordinary environment, for every call it makes.
+//
+// What is at stake is one word in the answer. Drop the `refused === true` half of the test in
+// `retiredByTool` and every sentence here still reads correctly — `leavingRefused` is what comes
+// back either way — but it comes back as the tool's ANSWER rather than as its refusal, and the
+// session that asked reads "done" over a desk that was never filed and a name still taken.
+describe("a desk that was never filed is not an answer", () => {
+  const turnedAwayLog = path.join(standIn, "lead-retire-refused.txt");
+  const TURNED_AWAY = "Redshank";
+
+  const archives = () => {
+    const filed = path.join(instance, "archive");
+    return fs.existsSync(filed) ? fs.readdirSync(filed).sort() : [];
+  };
+
+  let answer;
+  let madeNoArchive;
+  let deskStillOpen;
+  let stillServed;
+
+  before(async () => {
+    runTool(instance, ["hire", TURNED_AWAY], process.env);
+    await start(instance, standInEnvironment(standIn, turnedAwayLog, { OPENOVAI_STAND_IN_REFUSED: "yes" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    // Read either side of the call, like every other refusal here, because `archiveFor` MAKES the
+    // directory it names and a sentence alone passes over one that was already made.
+    const had = archives();
+    answer = answerOf(await call(LEADER, "tools/call", { name: "retire", arguments: { name: TURNED_AWAY } }));
+    madeNoArchive = archives().filter((one) => !had.includes(one));
+    deskStillOpen = fs.existsSync(path.join(instance, "work", TURNED_AWAY, "STATE.md"));
+
+    const { sessions: rows } = JSON.parse((await get(`${URL}/sessions`)).body);
+    stillServed = rows.some((row) => row.name === TURNED_AWAY);
+  });
+
+  // The fixture ends what the fixture started: this instance is shared, and anything left behind
+  // here is somebody in the room for every check that runs after it.
+  after(() => {
+    fs.rmSync(path.join(instance, "work", TURNED_AWAY), { recursive: true, force: true });
+    fs.rmSync(path.join(instance, "chat", TURNED_AWAY), { recursive: true, force: true });
+    fs.rmSync(path.join(instance, "personas", `${TURNED_AWAY}.md`), { force: true });
+    const file = path.join(instance, ".claude", "settings.json");
+    const settings = JSON.parse(fs.readFileSync(file, "utf8"));
+    settings.permissions.allow = settings.permissions.allow.filter((rule) => !rule.includes(`work/${TURNED_AWAY}/`));
+    fs.writeFileSync(file, `${JSON.stringify(settings, null, 2)}\n`);
+  });
+
+  // The check this describe exists for. Everything under it is the desk being where the sentence
+  // says it is; this is the caller being told which of the two things happened.
+  it("hands the lead a refusal rather than an answer", () => {
+    assert.ok(answer.refused, `the tool offered ${JSON.stringify(answer.text)} as a success`);
+  });
+
+  it("says the run was turned away and the desk is still open", () => {
+    assert.match(answer.text, /turned the run away/);
+    assert.match(answer.text, /the desk is still open/);
+    assert.ok(!answer.text.includes("filed under"), answer.text);
+  });
+
+  it("files nothing, not even the empty directory it would have filed it into", () => {
+    assert.deepEqual(madeNoArchive, []);
+    assert.equal(deskStillOpen, true, "the desk was filed away for a limit that clears by itself");
+  });
+
+  it("keeps the name taken, since nobody left", () => {
+    assert.equal(stillServed, true);
+  });
+});
+
 // A thread that cannot be resumed. The chat drops the id and asks again as a new conversation, and
 // every later check about a run the service refused stands on the stand-in framing this the way
 // the real one does — so the shape is checked here, on the stand-in's own output, before anything
