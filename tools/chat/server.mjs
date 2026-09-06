@@ -590,6 +590,29 @@ function leavingOffline(name) {
   return `${name} could not be asked before leaving: the room is offline, so nothing is being run. Nothing was filed and the desk is still open — bring the room back online and ask again.`;
 }
 
+// How a run asks to be allowed something, on every turn that runs one.
+//
+// The request is parked — that is the whole of what happens to it, and `permissions.mjs` stays the
+// store it is, holding what was asked until a person answers — and then the desktop is told, because
+// a parked request is the second of the two things in this workspace that only a person can end. It
+// was measured sitting for six and a half minutes on a panel nobody had open, and nothing on that
+// path times out.
+//
+// One helper rather than the same two lines on each of the three turns that ask — an ordinary
+// message, a handover and a leaving all park identically — so a fourth kind of turn cannot be
+// written that parks without ringing.
+//
+// On the park and never on what is parked: this runs once per request, while the page asks what is
+// waiting once a second. The sentence is composed here because there is nobody to compose it — a run
+// stops without saying why in words, and the tool it stopped on is what the person needs to read.
+function asking(instance, name) {
+  return (request) => {
+    const waiting = park(name, request);
+    popped(instance, { on: name, why: `${name} is stopped, waiting to be allowed to use ${request.tool}` });
+    return waiting;
+  };
+}
+
 // Everything a session is asked or answers is under its own name, so one route shape serves
 // every panel and there is no path through here that only the lead can take.
 const SESSION_ROUTE = /^\/sessions\/([^/]+)\/(messages|message|permissions|permission|handover|leave|end)$/;
@@ -714,7 +737,7 @@ async function deliver(instance, name, text, signed, shown = null) {
             restarted,
             answeringWrapper(instance.root, name, answers),
           ),
-          (request) => park(name, request),
+          asking(instance, name),
         );
       } finally {
         // Whatever it was still asking about, it is not there to hear the answer now.
@@ -1237,7 +1260,7 @@ async function postHandover(instance, name, response) {
         // Drained here as on any turn, so the thread hears what it was owed before it goes and
         // the session that follows it starts owed nothing.
         withWhatWasOverheard(carry(name), handoverWrapper(name)),
-        (request) => park(name, request),
+        asking(instance, name),
       );
     } finally {
       giveUp(name);
@@ -1376,7 +1399,7 @@ async function putAway(instance, name, asker) {
         name,
         // Drained here as on any turn, so a thread hears what it was owed before it goes.
         withWhatWasOverheard(carry(name), leaveWrapper(name)),
-        (request) => park(name, request),
+        asking(instance, name),
       );
     } finally {
       giveUp(name);

@@ -8,11 +8,22 @@ carries only its own.
 
 The chat can reach you when you are not looking at the page.
 
-Your lead has always had one line it can send you without being asked: it breaks in, and what you
-were half way through writing arrives with it. That worked as long as you had the page open, and
-did nothing at all when you did not — the line went onto the panel and waited there, and the lead
-had no way of knowing you had never seen it. From this version the chat also pops on your desktop
-when it breaks in.
+Two things that happen here can only be ended by you, and until now both of them said so on a
+panel you may not have had open. From this version the chat also pops on your desktop when either
+of them happens.
+
+**Your lead breaking in.** It has always had one line it can send you without being asked: it
+breaks in, and what you were half way through writing arrives with it. That worked as long as you
+were looking, and did nothing at all when you were not — the line went onto the panel and waited
+there, and the lead had no way of knowing you had never seen it.
+
+**A session stopping to ask you something.** A run that reaches for a tool your workspace has not
+already allowed stops where it stands and waits for your answer, for as long as that takes: nothing
+on that path times out, because the answer is yours and you are not a deadline. One was measured
+sitting parked for six and a half minutes, and it would have sat there for good, because the
+request was drawn on a page nobody had open. Your desktop now says which session has stopped and
+which tool it is waiting on, whether it stopped on something you said to it, on a handover or on
+its way out.
 
 **How your desktop is made to pop is yours to write, because it is your machine.** It is
 `notify-send` on one desktop, `osascript` on another and something else again on a third, so it
@@ -33,7 +44,8 @@ that has not got one, which costs nothing and says nothing — and a file that w
 in the terminal you started the chat in, rather than being passed over in silence.
 
 **Nothing else pops.** Not an ordinary answer, not a turn ending, not a desk being opened or put
-away, not somebody speaking to somebody else. All of those are a record, and a record is read when
+away, not somebody speaking to somebody else, and not a request the run that asked it is no longer
+waiting for. All of those are a record, and a record is read when
 you read it. A workspace that popped for every one of them would be a workspace whose popups you
 learned to ignore, which is the same as having none.
 

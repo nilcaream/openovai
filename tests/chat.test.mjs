@@ -7826,6 +7826,153 @@ describe("a desktop that cannot be reached", () => {
   });
 });
 
+// A session stopped waiting to be allowed something.
+//
+// The other of the two states in this workspace that only a person can end, and the one the whole
+// feature was paid for: a run was measured sitting parked for six and a half minutes on a panel
+// nobody had open, and it would have sat there for good, because nothing on that path times out.
+//
+// Three turns park identically — an ordinary message, a handover and a leaving — so the popup is
+// raised in one place all three go through rather than beside each of them, and the check below
+// puts a handover through it for exactly that reason. A popup wired into the ordinary turn alone
+// would pass every check that only ever sent a message.
+//
+// And it goes up when the request is PARKED, never when it is read. The page asks what is waiting
+// once a second; a popup driven off that answer would go up sixty times a minute for one stopped
+// session, which is why sixty readings are taken here and one popup is expected.
+describe("a session stopped for a person is the other thing worth a desktop", () => {
+  const popLog = path.join(standIn, "parked.txt");
+  const popped = path.join(instance, "popped.txt");
+  const popper = path.join(instance, "pop.mjs");
+
+  // Handed over rather than messaged, because a handover is a turn the ordinary path never
+  // touches.
+  const HANDED_OVER = "Wren";
+  const READINGS = 60;
+
+  const RECORDER = [
+    'import fs from "node:fs";',
+    'import path from "node:path";',
+    "",
+    "export function pop(said, where) {",
+    '  fs.appendFileSync(path.join(where.root, "popped.txt"), `${JSON.stringify(said)}\\n`);',
+    "}",
+    "",
+  ].join("\n");
+
+  function poppedSoFar() {
+    try {
+      return fs
+        .readFileSync(popped, "utf8")
+        .split("\n")
+        .filter((line) => line !== "")
+        .map((line) => JSON.parse(line));
+    } catch {
+      return [];
+    }
+  }
+
+  async function waitingOn(name) {
+    return waitFor(async () => {
+      const { permissions } = JSON.parse((await get(`${URL}/sessions/${name}/permissions`)).body);
+      return permissions.length > 0 ? permissions : null;
+    });
+  }
+
+  async function decide(name, id) {
+    return post(`${URL}/sessions/${name}/permission`, { id, decision: "deny" });
+  }
+
+  let onAnOrdinaryTurn;
+  let afterSixtyReadings;
+  let onAHandover;
+  let onceBothRunsHadGone;
+
+  before(async () => {
+    runTool(instance, ["hire", HANDED_OVER], process.env);
+    fs.writeFileSync(popper, RECORDER);
+    remove(popped);
+    await start(instance, standInEnvironment(standIn, popLog, { OPENOVAI_STAND_IN_ASKS: "Bash" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    // Not awaited: a message that stops to ask does not answer until somebody decides it, which is
+    // the state being checked.
+    const ordinary = say("go and look");
+    const askingOnAMessage = await waitingOn(LEADER);
+    assert.ok(askingOnAMessage !== null, "the ordinary turn never parked anything");
+    onAnOrdinaryTurn = await waitFor(() => {
+      const so = poppedSoFar();
+      return so.length >= 1 ? so : null;
+    });
+
+    // The same request, read the way the page reads it. Nothing new is parked by any of these.
+    for (let reading = 0; reading < READINGS; reading += 1) {
+      await get(`${URL}/sessions/${LEADER}/permissions`);
+    }
+    afterSixtyReadings = poppedSoFar();
+
+    await decide(LEADER, askingOnAMessage[0].id);
+    await ordinary;
+
+    // And a handover, which parks through a different turn and must ring the same bell.
+    const handingOver = post(`${URL}/sessions/${HANDED_OVER}/handover`, {});
+    const askingOnAHandover = await waitingOn(HANDED_OVER);
+    assert.ok(askingOnAHandover !== null, "the handover turn never parked anything");
+    onAHandover = await waitFor(() => {
+      const so = poppedSoFar();
+      return so.length >= 2 ? so : null;
+    });
+
+    await decide(HANDED_OVER, askingOnAHandover[0].id);
+    await handingOver;
+
+    // Both turns are over, so whatever either was still asking about has been given up. Waited out
+    // rather than read on the next line: a popup raised by giving up would arrive after this point
+    // and not before it, and a check that read straight through would agree with itself.
+    await waitFor(() => (poppedSoFar().length > 2 ? true : null));
+    onceBothRunsHadGone = poppedSoFar();
+  });
+
+  // Whose panel to open, and what the person is being asked to decide. Composed by the chat,
+  // because a run stops without saying anything in words — the tool it stopped on is the whole of
+  // what there is to read.
+  it("pops when a run is parked, saying which session and which tool", () => {
+    assert.deepEqual(onAnOrdinaryTurn, [
+      { on: LEADER, why: `${LEADER} is stopped, waiting to be allowed to use Bash` },
+    ]);
+  });
+
+  // The check that says it is one helper and not one line copied onto the turn somebody happened
+  // to test.
+  it("pops on a handover turn as well, and not only on an ordinary message", () => {
+    assert.deepEqual(onAHandover?.[1], {
+      on: HANDED_OVER,
+      why: `${HANDED_OVER} is stopped, waiting to be allowed to use Bash`,
+    });
+  });
+
+  // On the transition and never on the condition. This is the loudest way the feature could have
+  // gone wrong, and it costs nothing to hold: the popup is raised where the request is parked.
+  it("pops once however often the page reads what is waiting", () => {
+    assert.equal(afterSixtyReadings.length, 1, `${READINGS} readings of one parked request popped more than once`);
+  });
+
+  // A request the run is no longer waiting on is not somebody being needed — the run has gone, and
+  // there is nothing left for a person to decide.
+  it("pops nothing more when a run ends and its request is given up", () => {
+    assert.equal(onceBothRunsHadGone.length, 2, "giving a parked request up reached the desktop");
+  });
+
+  // Handed back the way it was found: no file of the instance's own, the ordinary stand-in, and
+  // one fewer desk than this block opened.
+  after(async () => {
+    remove(popper, popped);
+    await start(instance, standIns);
+    assert.ok(await waitForHealth(URL), "the server never came back");
+    await call(LEADER, "tools/call", { name: "retire", arguments: { name: HANDED_OVER } });
+  });
+});
+
 describe("the room can be taken off and brought back", () => {
   const offLog = path.join(standIn, "offline-switch.txt");
   let atFirst;
