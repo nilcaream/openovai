@@ -20,6 +20,15 @@ function file(root, session) {
 // Where this session's panel is kept. Somebody putting a desk away files the panel with it, and
 // the alternative — a second module that knows how a chat lays its directories out — is a word
 // spelled in two places that would go wrong the day one of them changed.
+// Who a line in a transcript is from when it is not from anybody: the chat saying what became of
+// a message. It has a space in it, so no session can ever be called this — a name is a directory
+// under work/ and cannot hold one.
+//
+// Here rather than beside the first thing that writes one, because it is a property of a
+// conversation and there is now more than one module that has something to say in it. Two copies
+// of a name are two things to keep in step.
+export const THE_CHAT = "the chat";
+
 export function panelFile(root, session) {
   return file(root, session);
 }

@@ -4,6 +4,51 @@ For the lead of a workspace taking this version. Short, and about what is differ
 working there — not a developer changelog. A section per release, newest first; a release page
 carries only its own.
 
+## 0.5.0
+
+The chat can reach you when you are not looking at the page.
+
+Your lead has always had one line it can send you without being asked: it breaks in, and what you
+were half way through writing arrives with it. That worked as long as you had the page open, and
+did nothing at all when you did not — the line went onto the panel and waited there, and the lead
+had no way of knowing you had never seen it. From this version the chat also pops on your desktop
+when it breaks in.
+
+**How your desktop is made to pop is yours to write, because it is your machine.** It is
+`notify-send` on one desktop, `osascript` on another and something else again on a third, so it
+cannot ship in a toolkit that installs on machines it knows nothing about. Put a file called
+`pop.mjs` at the root of your workspace, beside `openovai.json`, exporting one function:
+
+```js
+import { execFile } from "node:child_process";
+
+export function pop({ on, why }, { config }) {
+  execFile("notify-send", ["--", config.human, `${on}: ${why}`]);
+}
+```
+
+`on` is whose panel it is about, so you know where to look, and `why` is the sentence to read. The
+file is read when the chat starts, so start it again after writing one. Nothing pops in a workspace
+that has not got one, which costs nothing and says nothing — and a file that will not load is named
+in the terminal you started the chat in, rather than being passed over in silence.
+
+**Nothing else pops.** Not an ordinary answer, not a turn ending, not a desk being opened or put
+away, not somebody speaking to somebody else. All of those are a record, and a record is read when
+you read it. A workspace that popped for every one of them would be a workspace whose popups you
+learned to ignore, which is the same as having none.
+
+**When you are not to be woken**, say so in `openovai.json`:
+
+```json
+"quietHours": "22:00-08:00"
+```
+
+Nothing pops inside that window and nothing is saved up to arrive when it ends — a popup at eight
+about something that happened at three is a lie about now, and the panel is still the record. It is
+your machine's own clock, it may wrap midnight or not, and leaving it out means nothing is quiet.
+A window the chat cannot read stops it starting, with a line saying which field to look at: being
+told at the start beats finding out at three in the morning.
+
 ## 0.4.0
 
 The toolkit has a name of its own: OpenOv AI. It was called after the directory it lived in, and

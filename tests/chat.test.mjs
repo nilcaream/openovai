@@ -51,6 +51,11 @@ import {
 // file itself would pass with nothing written at all.
 import { LEDGER } from "../tools/desks.mjs";
 import { shapeOf } from "../tools/chat/permissions.mjs";
+
+// The window rule itself, asked directly. Every other check here goes through a chat, which is
+// right when the subject is what the chat does about a window — and useless for the two ends of a
+// day, which cannot be reached by starting a chat and waiting until midnight.
+import { quietHoursProblem, withinQuietHours } from "../tools/chat/pop.mjs";
 import { settingsProblems } from "./inspect.mjs";
 import { ranAt } from "../tools/chat/session.mjs";
 
@@ -7436,6 +7441,390 @@ describe("the lead breaks in on somebody who is writing", () => {
 // claim about a turn that is already going, and the cheapest place to hold it is the switch itself:
 // if throwing it ever touched a run, this is where it would show.
 const OFF_MID_TURN = "Redshank";
+
+// Reaching the person when they are not at the page.
+//
+// The panel says who is needed and says it well, which is worth nothing while nobody has it open.
+// So two moments — the lead breaking in, and a session stopped waiting to be allowed something —
+// are carried off the page and onto the desktop, and nothing else is.
+//
+// How a desktop is made to pop is notify-send here, osascript there and a toast API somewhere else,
+// so the toolkit decides WHEN and the instance decides HOW, in one file of its own. These checks
+// stand a recorder in that file's place: it is a real pop.mjs, read and called the way a real one
+// is, and what it does with the news is append it where a check can read it.
+//
+// It is not a tool and it is never offered to anybody. A second way for a session to reach the
+// person is the thing this whole shape exists without, and the last check in this block is what
+// says so.
+describe("the desktop this workspace is not at", () => {
+  const popLog = path.join(standIn, "popping.txt");
+  const popped = path.join(instance, "popped.txt");
+  const popper = path.join(instance, "pop.mjs");
+
+  const BREAKING = "the port is taken, so the address in front of you is not the one that answered";
+  const WHY = "it makes the address you are reading wrong";
+  const ANOTHER_WHY = "and this one is worth breaking off for a reason of its own";
+  const ROUTINE = "an ordinary line, which is a record and not a summons";
+  const HIRED = "Nadia";
+
+  // A pop.mjs that records instead of popping.
+  //
+  // It writes at the root the contract hands it rather than at a path this check spells out, so the
+  // file being there at all is what says `root` is the instance and not somewhere else. The human's
+  // name rides along for the same reason: it can only have come from the config it was given.
+  const RECORDER = [
+    'import fs from "node:fs";',
+    'import path from "node:path";',
+    "",
+    "export function pop(said, where) {",
+    '  fs.appendFileSync(path.join(where.root, "popped.txt"), `${JSON.stringify({ ...said, human: where.config.human })}\\n`);',
+    "}",
+    "",
+  ].join("\n");
+
+  function poppedSoFar() {
+    try {
+      return fs
+        .readFileSync(popped, "utf8")
+        .split("\n")
+        .filter((line) => line !== "")
+        .map((line) => JSON.parse(line));
+    } catch {
+      return [];
+    }
+  }
+
+  let servedToTheLead;
+  let afterTheOrdinary;
+  let afterTheBreak;
+  let answered;
+
+  before(async () => {
+    fs.writeFileSync(popper, RECORDER);
+    remove(popped);
+    await start(instance, standInEnvironment(standIn, popLog));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    servedToTheLead = JSON.parse((await call(LEADER, "tools/list")).body).result.tools.map((tool) => tool.name);
+
+    // Everything that is a record rather than a summons, done first and sampled before anything
+    // breaks in: a person typing on a panel, a session speaking to another session, a turn ending,
+    // and a desk opened and put away. A check that only watched the popup fire would pass just as
+    // happily with one going up for every one of these.
+    await say(ROUTINE, LEADER);
+    await call(LEADER, "tools/call", { name: "say", arguments: { to: WORKER, message: ROUTINE } });
+    await call(LEADER, "tools/call", { name: "hire", arguments: { name: HIRED } });
+    await call(LEADER, "tools/call", { name: "retire", arguments: { name: HIRED } });
+    afterTheOrdinary = poppedSoFar();
+
+    answered = answerOf(
+      await call(LEADER, "tools/call", { name: "interrupt", arguments: { message: BREAKING, why: WHY } }),
+    );
+    await call(LEADER, "tools/call", { name: "interrupt", arguments: { message: BREAKING, why: ANOTHER_WHY } });
+
+    // The call returns before the popup does — it is never awaited — so the file is waited for
+    // rather than read on the next line.
+    afterTheBreak = await waitFor(() => {
+      const so = poppedSoFar();
+      return so.length >= 2 ? so : null;
+    });
+  });
+
+  it("pops when the lead breaks in, saying whose panel it is and why", () => {
+    assert.deepEqual(afterTheBreak?.slice(0, 2), [
+      { on: LEADER, why: WHY, human: HUMAN },
+      { on: LEADER, why: ANOTHER_WHY, human: HUMAN },
+    ]);
+  });
+
+  // The half that matters most. Everything above is a record, and a record is read when somebody
+  // reads it; a workspace that pops for all of them is a workspace whose popups stop meaning
+  // anything.
+  it("pops for none of the things that are only a record", () => {
+    assert.deepEqual(afterTheOrdinary, [], "something that was not somebody being needed popped");
+  });
+
+  // It is told, not asked. A break-in promises in its own words that it returns at once, and the
+  // popup is inside that promise.
+  it("answers the break-in the same as it always did", () => {
+    assert.equal(answered.refused, false);
+    assert.match(answered.text, new RegExp(`Broke in on ${HUMAN}`));
+  });
+
+  // The check the whole shape rests on. The lead has ONE unprompted line to the person, and a
+  // second one it could call would be the thing "one at a time" is there to stop — so the popup is
+  // bound to what happened and is not something anybody asks for.
+  it("is no tool any session can see", () => {
+    assert.deepEqual(servedToTheLead, BUILT_IN);
+  });
+
+  after(() => {
+    remove(popper, popped);
+  });
+});
+
+// When this workspace is not to be woken.
+//
+// One window in the instance's own description of itself, one rule and no exceptions. A session
+// parked at three in the morning is waiting until somebody wakes up either way, and an exception
+// is a second rule to get wrong in the dark.
+describe("a workspace that says when it is not to be woken", () => {
+  const popLog = path.join(standIn, "quiet-hours.txt");
+  const popped = path.join(instance, "popped.txt");
+  const popper = path.join(instance, "pop.mjs");
+
+  const BREAKING = "something worth breaking off for";
+  const WHY = "and here is what makes it worth it";
+
+  const RECORDER = [
+    'import fs from "node:fs";',
+    'import path from "node:path";',
+    "",
+    "export function pop(said, where) {",
+    '  fs.appendFileSync(path.join(where.root, "popped.txt"), "popped\\n");',
+    "}",
+    "",
+  ].join("\n");
+
+  // The config an instance keeps, under whichever of the two names it has. An instance made before
+  // the rename still answers to the old one, and a check that knew only the new one would be
+  // reading a file that is not there.
+  function configFile(root) {
+    const now = path.join(root, "openovai.json");
+    return fs.existsSync(now) ? now : path.join(root, "ow.json");
+  }
+
+  function withQuietHours(root, window) {
+    const file = configFile(root);
+    const config = JSON.parse(fs.readFileSync(file, "utf8"));
+    if (window === null) {
+      delete config.quietHours;
+    } else {
+      config.quietHours = window;
+    }
+    fs.writeFileSync(file, `${JSON.stringify(config, null, 2)}\n`);
+  }
+
+  // A window an hour either side of now, and one that starts an hour from now. Written off the
+  // clock rather than spelled out, because a check that named 22:00 would be a check that only
+  // proved anything in the evening.
+  function around(at, fromMinutes, toMinutes) {
+    const said = (minutes) => {
+      const wrapped = ((minutes % (24 * 60)) + 24 * 60) % (24 * 60);
+      return `${String(Math.floor(wrapped / 60)).padStart(2, "0")}:${String(wrapped % 60).padStart(2, "0")}`;
+    };
+    const now = at.getHours() * 60 + at.getMinutes();
+    return `${said(now + fromMinutes)}-${said(now + toMinutes)}`;
+  }
+
+  let loadedIt;
+  let inTheWindow;
+  let outOfIt;
+  let refusedAWindow;
+
+  before(async () => {
+    fs.writeFileSync(popper, RECORDER);
+
+    remove(popped);
+    withQuietHours(instance, around(new Date(), -60, 60));
+    await start(instance, standInEnvironment(standIn, popLog));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    await call(LEADER, "tools/call", { name: "interrupt", arguments: { message: BREAKING, why: WHY } });
+    // Nothing is expected here, so what is waited for is the popup having had every chance to
+    // arrive rather than its arrival.
+    await waitFor(() => (fs.existsSync(popped) ? true : null));
+    inTheWindow = fs.existsSync(popped);
+
+    // What the chat said about the file it read. Without this, a recorder that would not load reads
+    // exactly like a night nobody was woken in, and the check below would pass for the wrong reason.
+    loadedIt = server.output;
+
+    remove(popped);
+    withQuietHours(instance, around(new Date(), 60, 180));
+    await start(instance, standInEnvironment(standIn, popLog));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    await call(LEADER, "tools/call", { name: "interrupt", arguments: { message: BREAKING, why: WHY } });
+    outOfIt = (await waitFor(() => (fs.existsSync(popped) ? true : null))) === true;
+
+    // Asked of the instance nothing is serving, so a chat that refuses to start cannot be the one
+    // the rest of the suite is talking to.
+    withQuietHours(instance, null);
+    withQuietHours(quiet, "half past ten");
+    refusedAWindow = runTool(quiet, ["chat"], standInEnvironment(standIn, popLog));
+    withQuietHours(quiet, null);
+  });
+
+  it("pops nothing inside the window", () => {
+    assert.match(loadedIt, /pops on the desktop/, "the recorder never loaded, so nothing here proves anything");
+    assert.equal(inTheWindow, false, "the desktop was reached in the middle of the night");
+  });
+
+  // The pair to it. A window that suppressed everything would read exactly like one that suppressed
+  // the right thing.
+  it("pops outside it", () => {
+    assert.equal(outOfIt, true);
+  });
+
+  // Half-open at both ends, so the two halves of a day laid end to end leave no minute in both and
+  // none in neither.
+  it("is quiet from the first minute and awake on the last", () => {
+    assert.deepEqual(
+      [
+        withinQuietHours("22:00-08:00", new Date(2026, 8, 6, 22, 0)),
+        withinQuietHours("22:00-08:00", new Date(2026, 8, 6, 7, 59)),
+        withinQuietHours("22:00-08:00", new Date(2026, 8, 6, 8, 0)),
+      ],
+      [true, true, false],
+    );
+  });
+
+  // A window whose end is before its start is a night. One whose end is after its start is an
+  // afternoon, and both are things somebody may legitimately want.
+  it("wraps midnight when the end is before the start, and does not when it is after", () => {
+    assert.deepEqual(
+      [
+        withinQuietHours("22:00-08:00", new Date(2026, 8, 6, 23, 30)),
+        withinQuietHours("22:00-08:00", new Date(2026, 8, 6, 3, 0)),
+        withinQuietHours("22:00-08:00", new Date(2026, 8, 6, 12, 0)),
+        withinQuietHours("09:00-17:00", new Date(2026, 8, 6, 12, 0)),
+        withinQuietHours("09:00-17:00", new Date(2026, 8, 6, 3, 0)),
+      ],
+      [true, true, false, true, false],
+    );
+  });
+
+  // Absent from most workspaces, and absent means nothing is quiet rather than everything is.
+  it("has nothing to say about a workspace that left it out", () => {
+    assert.equal(quietHoursProblem(undefined), null);
+    assert.equal(withinQuietHours(undefined, new Date(2026, 8, 6, 3, 0)), false);
+  });
+
+  // Loud at the start beats silent forever. A window nothing can read would otherwise quietly
+  // become "nothing is quiet", and the only place anybody would find that out is at three in the
+  // morning.
+  it("refuses to start a chat over a window nothing can read, naming the field", () => {
+    assert.equal(refusedAWindow.status, 2);
+    assert.match(refusedAWindow.stderr, /quietHours/);
+    assert.match(refusedAWindow.stderr, /22:00-08:00/);
+  });
+
+  // A window that begins and ends at the same minute says nothing at all, which is a typo rather
+  // than a request.
+  it("refuses a window with no width", () => {
+    assert.match(quietHoursProblem("22:00-22:00"), /no time at all/);
+    assert.equal(quietHoursProblem("22:00-08:00"), null);
+  });
+
+  after(() => {
+    remove(popper, popped);
+  });
+});
+
+// A desktop that cannot be reached.
+//
+// Somebody else's file, running inside the chat everybody in the workspace is using. Every way it
+// can fail ends with the chat still serving, because a workspace where nobody can talk to anybody
+// is a far worse answer to a typo in one file than a workspace that does not pop.
+describe("a desktop that cannot be reached", () => {
+  const popLog = path.join(standIn, "unreachable.txt");
+  const popper = path.join(instance, "pop.mjs");
+  const panel = path.join(instance, "chat", LEADER, "conversation.json");
+
+  const BREAKING = "a line worth breaking off for";
+  const WHY = "and the reason it is worth it";
+
+  function breakIn() {
+    return call(LEADER, "tools/call", { name: "interrupt", arguments: { message: BREAKING, why: WHY } });
+  }
+
+  async function chatWith(written) {
+    if (written === null) {
+      remove(popper);
+    } else {
+      fs.writeFileSync(popper, written);
+    }
+    await start(instance, standInEnvironment(standIn, popLog));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    return server;
+  }
+
+  let saidAboutNothing;
+  let saidAboutABrokenOne;
+  let saidAboutOneWithNoPop;
+  let servedAnyway;
+  let answeredOverAThrow;
+  let toldOnThePanel;
+  let answeredOverAHang;
+
+  before(async () => {
+    // No such file, which is most workspaces. Nothing is said about it, because a line saying no
+    // every time would be read once and never again.
+    saidAboutNothing = (await chatWith(null)).output;
+
+    // One that will not load at all.
+    saidAboutABrokenOne = (await chatWith("export function pop( {\n")).output;
+    servedAnyway = answerOf(await breakIn());
+
+    // One that loads and has nothing to call. It would be read as a working desktop and pop
+    // nothing, forever, which is the quietest of the failures and the worst.
+    saidAboutOneWithNoPop = (await chatWith("export const nearly = () => {};\n")).output;
+
+    // One that throws. The break-in still answers, and the panel it was about carries the news that
+    // the desktop did not light up — otherwise the lead goes on believing the person has it.
+    const drawn = JSON.parse(fs.readFileSync(panel, "utf8")).length;
+    await chatWith('export function pop() {\n  throw new Error("no notifier on this machine");\n}\n');
+    answeredOverAThrow = answerOf(await breakIn());
+    toldOnThePanel = await waitFor(
+      () => JSON.parse(fs.readFileSync(panel, "utf8")).slice(drawn).find((row) => row.notReached === true) ?? null,
+    );
+
+    // And one that never comes back. It is not awaited, so it costs the caller nothing.
+    await chatWith("export function pop() {\n  return new Promise(() => {});\n}\n");
+    answeredOverAHang = answerOf(await breakIn());
+  });
+
+  it("says nothing at all about a workspace that has no such file", () => {
+    assert.ok(!saidAboutNothing.includes("pop.mjs"), saidAboutNothing);
+  });
+
+  it("names the file that will not load, where the chat was started", () => {
+    assert.match(saidAboutABrokenOne, /pop\.mjs is not used: it could not be read/);
+  });
+
+  it("names one that loads and has nothing to call", () => {
+    assert.match(saidAboutOneWithNoPop, /pop\.mjs is not used: .*exports no pop/);
+  });
+
+  it("goes on serving everything else", () => {
+    assert.equal(servedAnyway.refused, false);
+    assert.match(servedAnyway.text, new RegExp(`Broke in on ${HUMAN}`));
+  });
+
+  it("answers the break-in over a file that throws", () => {
+    assert.equal(answeredOverAThrow.refused, false);
+    assert.match(answeredOverAThrow.text, new RegExp(`Broke in on ${HUMAN}`));
+  });
+
+  // Said where the chat speaks, which is the panel, and on the panel the popup was about — so the
+  // record of somebody being needed and the record of them not being reached sit together.
+  it("says on the panel that the desktop was not reached", () => {
+    assert.equal(toldOnThePanel?.from, "the chat");
+    assert.match(toldOnThePanel?.text ?? "", /pop\.mjs did not reach the desktop: no notifier on this machine/);
+  });
+
+  it("answers the break-in over a file that never comes back", () => {
+    assert.equal(answeredOverAHang.refused, false);
+    assert.match(answeredOverAHang.text, new RegExp(`Broke in on ${HUMAN}`));
+  });
+
+  // Everything after this block talks to the chat this suite started, so it is handed back the way
+  // it was found: no file of the instance's own, and a chat serving under the ordinary stand-in.
+  after(async () => {
+    remove(popper);
+    await start(instance, standIns);
+    assert.ok(await waitForHealth(URL), "the server never came back");
+  });
+});
 
 describe("the room can be taken off and brought back", () => {
   const offLog = path.join(standIn, "offline-switch.txt");

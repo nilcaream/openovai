@@ -8,6 +8,7 @@ import path from "node:path";
 
 import { panelDirectory } from "./chat/conversation.mjs";
 import { listening } from "./chat/listening.mjs";
+import { QUIET_HOURS, describePop, popIn, quietHoursProblem } from "./chat/pop.mjs";
 import { roomLines } from "./chat/room.mjs";
 import { serve } from "./chat/server.mjs";
 import { NAME_IN_ENVIRONMENT, endEveryRun, runsGoing } from "./chat/session.mjs";
@@ -479,6 +480,16 @@ async function chat(root) {
   // because a module is imported once per process, so a directory read again later would show a
   // new file while going on serving the old code of a changed one. A plugin is picked up when the
   // chat is started, which is already the act that replaces everything else the chat is running.
+  // Before anything is served, because this is the field that decides whether somebody's night is
+  // interrupted and there is no safe way to be half sure of it. A window nothing can read would
+  // otherwise become "nothing is quiet" — silently, and only findable at three in the morning. It
+  // is read once, like everything else here, so the fix costs the restart a person was going to
+  // make anyway.
+  const wrongWindow = quietHoursProblem(config[QUIET_HOURS]);
+  if (wrongWindow !== null) {
+    throw new UsageError(`${configIn(root)}: ${wrongWindow}`);
+  }
+
   const plugins = await pluginsIn(root);
 
   // What was found, and what was meant to be found and could not be. Only when there is something
@@ -492,9 +503,19 @@ async function chat(root) {
     console.log(aboutPlugins);
   }
 
+  // How this instance makes a desktop pop, which is the instance's own file for the same reason a
+  // plugin is: notify-send here, osascript there, a toast API somewhere else. Read once and beside
+  // the plugins, and said in the same place and on the same terms — nothing at all when there is no
+  // such file, which is most of them, and the reason named when there is one that cannot be used.
+  const pop = await popIn(root);
+  const aboutPop = describePop(pop);
+  if (aboutPop !== "") {
+    console.log(aboutPop);
+  }
+
   let server;
   try {
-    server = await serve({ root, config, plugins: plugins.tools });
+    server = await serve({ root, config, plugins: plugins.tools, pop: pop.pop });
   } catch (error) {
     if (error.code === "EADDRINUSE") {
       throw new UsageError(`port ${config.port} is already taken${byWhom(config.port)}`);

@@ -8,12 +8,13 @@ import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { append, lastAt, panelDirectory, panelFile, read } from "./conversation.mjs";
+import { THE_CHAT, append, lastAt, panelDirectory, panelFile, read } from "./conversation.mjs";
 import { HOST, record } from "./listening.mjs";
 import { respond } from "./mcp.mjs";
 import { OFFLINE, goOffline, goOnline, offline } from "./offline.mjs";
 import { carry, overhear } from "./overheard.mjs";
 import { allow, askedFor, answer as settle, giveUp, park, parked, refuse, shapeOf } from "./permissions.mjs";
+import { popped } from "./pop.mjs";
 import { answerFrom } from "../plugins.mjs";
 import { ago, roomLines } from "./room.mjs";
 import { DESK_FILE, DeskError, WORK, allowAsked, archiveFor, deskTitle, describeName, hire, isName, retire } from "../desks.mjs";
@@ -72,11 +73,6 @@ function readBody(request) {
 function wrap(from, role, text) {
   return `<from-session name="${from}" role="${role}">${text}</from-session>`;
 }
-
-// Who a line in a transcript is from when it is not from anybody: the chat saying what became of
-// a message. It has a space in it, so no session can ever be called this — a name is a directory
-// under work/ and cannot hold one.
-const THE_CHAT = "the chat";
 
 // What the lead is told when the human types on somebody else's panel.
 //
@@ -1017,6 +1013,11 @@ function brokeIn(instance, caller, args) {
   }
 
   append(instance.root, caller, { from: caller, text: message, breaking: why.trim() });
+
+  // And the desktop, if this instance has one and this is not the middle of somebody's night. The
+  // line above reaches whoever is reading the page; this is the half of breaking in that reaches
+  // somebody who is not. It is not awaited — the sentence below promises this returns at once.
+  popped(instance, { on: caller, why: why.trim() });
 
   // In the tool's own words rather than as an empty result: what comes back here is read by a
   // model, and one handed nothing waits for something, or says the same thing again. There is
