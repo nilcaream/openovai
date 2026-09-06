@@ -5410,6 +5410,135 @@ describe("a desk that was never filed is not an answer", () => {
   });
 });
 
+// What the room was changed to, where the person reads it.
+//
+// The two tools change who works here, and the page a person is looking at while that happens is
+// the lead's panel. Without a line on it the room is simply different from one poll to the next,
+// with nothing anywhere saying so — which is the one silence a conversation between a person and a
+// lead cannot have.
+//
+// The asymmetry is deliberate and is checked here too: the Hire and Leave BUTTONS write no such
+// line, because the person who pressed one already knows. The line exists for what was done out of
+// their sight.
+describe("what the room was changed to, where the person reads", () => {
+  const changedLog = path.join(standIn, "room-changed.txt");
+  const OPENED = "Wheatear";
+  const WHILE_OFF = "Whimbrel";
+  const BY_BUTTON = "Turnstone";
+  const NOBODY = "Sanderling";
+
+  const filed = path.join(instance, "archive");
+  const archives = () => (fs.existsSync(filed) ? fs.readdirSync(filed) : []);
+  const madeHere = [];
+
+  async function leadPanel() {
+    return JSON.parse((await transcriptOf(LEADER)).body).messages;
+  }
+
+  function ask(tool, name) {
+    return call(LEADER, "tools/call", { name: tool, arguments: { name } });
+  }
+
+  let opened;
+  let afterHire;
+  let afterRefusedHire;
+  let afterRetire;
+  let afterRefusedRetire;
+  let afterRetireWhileOff;
+  let afterTheButtons;
+
+  before(async () => {
+    // Opened where the panel cannot see it, on purpose: this one is here to be retired while the
+    // room is off, and a hire of its own would put a line on the panel every length below is read
+    // against.
+    runTool(instance, ["hire", WHILE_OFF], process.env);
+    await start(instance, standInEnvironment(standIn, changedLog));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    const had = archives();
+    opened = (await leadPanel()).length;
+
+    await ask("hire", OPENED);
+    afterHire = await leadPanel();
+
+    // The same name again, which `hire` refuses. Read straight after the line it must not have
+    // written, so a length that grew here is the mutation and nothing else.
+    await ask("hire", OPENED);
+    afterRefusedHire = (await leadPanel()).length;
+
+    await ask("retire", OPENED);
+    afterRetire = await leadPanel();
+
+    await ask("retire", NOBODY);
+    afterRefusedRetire = (await leadPanel()).length;
+
+    await post(`${URL}/offline`, {});
+    await ask("retire", WHILE_OFF);
+    await post(`${URL}/online`, {});
+    afterRetireWhileOff = (await leadPanel()).length;
+
+    // Both buttons, one after the other, on a name of their own: the page opens a desk and the page
+    // puts it away, and the lead's panel is read once at the end of it.
+    await post(`${URL}/sessions`, { name: BY_BUTTON });
+    await post(`${URL}/sessions/${BY_BUTTON}/leave`, {});
+    afterTheButtons = (await leadPanel()).length;
+
+    madeHere.push(...archives().filter((one) => !had.includes(one)));
+  });
+
+  // The fixture ends what the fixture started: this instance is shared, and anything left behind
+  // here is somebody in the room — or a directory in `archive/` — for every check that runs after.
+  after(async () => {
+    for (const one of madeHere) {
+      fs.rmSync(path.join(filed, one), { recursive: true, force: true });
+    }
+    for (const name of [OPENED, WHILE_OFF, BY_BUTTON]) {
+      fs.rmSync(path.join(instance, "work", name), { recursive: true, force: true });
+      fs.rmSync(path.join(instance, "chat", name), { recursive: true, force: true });
+      fs.rmSync(path.join(instance, "personas", `${name}.md`), { force: true });
+    }
+    const file = path.join(instance, ".claude", "settings.json");
+    const settings = JSON.parse(fs.readFileSync(file, "utf8"));
+    settings.permissions.allow = settings.permissions.allow.filter(
+      (rule) => ![OPENED, WHILE_OFF, BY_BUTTON].some((name) => rule.includes(`work/${name}/`)),
+    );
+    fs.writeFileSync(file, `${JSON.stringify(settings, null, 2)}\n`);
+    await post(`${URL}/online`, {});
+  });
+
+  it("says on the lead's own panel that a desk was opened, and for whom", () => {
+    assert.equal(afterHire.length, opened + 1);
+    assert.equal(afterHire.at(-1).from, "the chat");
+    assert.match(afterHire.at(-1).text, new RegExp(`${LEADER} opened a desk for ${OPENED}`));
+  });
+
+  // The check that makes the one above mean anything. A line written before the work, or written
+  // whatever the work answered, is a panel saying a desk was opened when no desk was.
+  it("says nothing when the name was refused", () => {
+    assert.equal(afterRefusedHire, afterHire.length, "a refused hire wrote on the panel");
+  });
+
+  it("says on the lead's own panel where a desk was filed", () => {
+    assert.equal(afterRetire.length, afterHire.length + 1);
+    assert.equal(afterRetire.at(-1).from, "the chat");
+    assert.match(afterRetire.at(-1).text, new RegExp(`${OPENED} has left`));
+    assert.match(afterRetire.at(-1).text, /filed under archive\//);
+  });
+
+  // Both ways a retire can end with the desk still open — the name was never here, and the room was
+  // off — read against the same length. A line for either of them says somebody left who did not.
+  it("says nothing when nobody left", () => {
+    assert.equal(afterRefusedRetire, afterRetire.length, "a refused retire wrote on the panel");
+    assert.equal(afterRetireWhileOff, afterRetire.length, "a retire into an offline room wrote on the panel");
+  });
+
+  // The asymmetry, held as a promise rather than left to luck: this is the check that notices if
+  // somebody later tidies the line down into the function both doors share.
+  it("writes nothing for the buttons, which the person pressed themselves", () => {
+    assert.equal(afterTheButtons, afterRetire.length, "a button wrote on the panel");
+  });
+});
+
 // A thread that cannot be resumed. The chat drops the id and asks again as a new conversation, and
 // every later check about a run the service refused stands on the stand-in framing this the way
 // the real one does — so the shape is checked here, on the stand-in's own output, before anything

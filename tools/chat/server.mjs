@@ -941,7 +941,7 @@ function toolsFor(instance, caller) {
       offered: lead,
       run: (args) =>
         lead
-          ? hiredByTool(instance, args)
+          ? hiredByTool(instance, caller, args)
           : { refused: `opening a desk is the lead's, so ask ${instance.config.leader}` },
     },
 
@@ -960,7 +960,7 @@ function toolsFor(instance, caller) {
       offered: lead,
       run: (args) =>
         lead
-          ? retiredByTool(instance, args)
+          ? retiredByTool(instance, caller, args)
           : { refused: `putting a desk away is the lead's, so ask ${instance.config.leader}` },
     },
 
@@ -1109,7 +1109,7 @@ async function saidByTool(instance, caller, args) {
 // string — so a name of the wrong type would break here rather than be refused. Handing an empty
 // one over instead keeps the refusal where every other one is: `hire` looks at the name first and
 // never reaches the panel.
-function hiredByTool(instance, args) {
+function hiredByTool(instance, caller, args) {
   const name = args?.name;
   const panel = isName(name) ? panelDirectory(instance.root, name) : "";
 
@@ -1121,6 +1121,15 @@ function hiredByTool(instance, args) {
     }
     throw error;
   }
+
+  // And a line on the panel a person reads, because the room is not what it was a moment ago and
+  // nothing else here would say so. After the work rather than before it: a panel saying a desk was
+  // opened for a name that was refused is worse than a panel saying nothing at all.
+  //
+  // On the CALLER's panel, which is the lead's, which is the one being read. The new desk has a
+  // panel of its own and this line is not for it — nobody has been started, and the first thing on
+  // that panel should be the first thing somebody says to them.
+  append(instance.root, caller, { from: THE_CHAT, text: `${caller} opened a desk for ${name}.` });
 
   // What is NOT said is the point of the sentence. A caller told only that a desk was opened goes
   // looking for the session it opened, and there is none: the chat reads who works here from
@@ -1142,7 +1151,7 @@ function hiredByTool(instance, args) {
 // filed is an answer even when the session could not be asked first, and a desk still open because
 // the account is out or the room is off is a refusal, because nothing was done and asking again is
 // the whole of what to do about it.
-async function retiredByTool(instance, args) {
+async function retiredByTool(instance, caller, args) {
   // Asked for by the lead, and said as such on the panel that is filed with the desk. This tool is
   // offered to nobody else and `putAway` refuses anybody else who posts for it anyway, so the lead
   // is who asked whenever this line is reached — and the person pressed nothing.
@@ -1154,6 +1163,16 @@ async function retiredByTool(instance, args) {
   if (done.offline === true || done.refused === true) {
     return { refused: done.left.text };
   }
+
+  // The line the leaving panel was given, said again on the panel that is still here to read it.
+  // Read back rather than composed, like the answer below it, and only on this branch: the three
+  // above left the desk exactly where it was, and a line saying where it was filed would be saying
+  // something that did not happen.
+  //
+  // It is worth saying twice precisely because the panel it was first written on is filed away with
+  // the desk a moment later — so without this, the one panel a person goes on reading never learns
+  // that somebody left.
+  append(instance.root, caller, { from: THE_CHAT, text: done.left.text });
 
   return { text: done.left.text };
 }
