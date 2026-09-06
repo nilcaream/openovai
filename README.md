@@ -971,7 +971,11 @@ a section per release and it is not part of the payload: it describes a release,
 
 ## Documentation
 
-Being written. It will live in `docs/`.
+This file is it, and it is written as one read rather than as a reference: the idea, what
+installing takes, every command and what it answers, and the places where what is claimed here
+is narrower than it looks. `NOTES.md` says what each release changed and what taking it asks of
+the workspace that takes it. `CONTRIBUTING.md` is about working on the toolkit rather than with
+it.
 
 ## Contributing
 
