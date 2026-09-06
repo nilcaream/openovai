@@ -315,6 +315,16 @@ describe("what the installer made", () => {
     assert.ok(!worker.includes("`retire`"), "the worker template names retire");
   });
 
+  // And the other direction: the sentence that tells a worker whose these are is the WORKER's. A
+  // lead reading it would be told the thing it does is somebody else's, which is the one reading
+  // of it that is wrong.
+  it("does not tell the leader the workspace is somebody else's", () => {
+    assert.doesNotMatch(
+      contentOf("templates", "leader.md"),
+      /who is asked to join and who leaves/,
+    );
+  });
+
   // The room is the third of them, and the only one the lead alone is offered. Watched here as
   // well as on the endpoint: what the instance grants and what the persona names have to move
   // together, or a lead is told to ask for something nothing will serve it.

@@ -412,6 +412,36 @@ describe("hiring a worker", () => {
     assert.ok(!/`room` tool/.test(persona));
   });
 
+  // What it IS told, in place of the tools it has not got: where the boundary runs. A worker that
+  // knows only that something stopped has the files right there, and rewriting a desk by hand is
+  // both easier than asking and indistinguishable from the tool having worked.
+  it("tells the worker whose the workspace itself is", () => {
+    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    assert.match(persona, new RegExp(`who is asked to join and who leaves,\\s+is ${LEADER}'s`));
+    assert.match(persona, /the files underneath it are never\s+the way round/);
+  });
+
+  // The other half of the same paragraph, and the half a person actually sees. A panel is handed
+  // one thing per turn — what the run amounted to — so a refusal reported and then followed by a
+  // desk edit and a closing line is a refusal that reaches nobody, and the turn reads as done.
+  // Measured on a real session: it reported the refusal exactly as told, wrote its desk exactly as
+  // told, and the panel showed the desk sentence. Hence the ordering, said in the persona rather
+  // than built into the page: it costs a clause, and the alternative is a mechanism.
+  it("tells the worker to report a refusal last of all", () => {
+    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    assert.match(persona, /saying so is the last thing you do that turn/);
+    assert.match(persona, /Finish the rest first/);
+    assert.match(persona, /a panel that shows only the last thing you said/);
+  });
+
+  // The same rule as the two above, widened to every tool the worker is not offered and asserted
+  // once. Naming one is what sends a session hunting for it; the paragraph above is written to say
+  // where the boundary is without naming a single thing on the other side of it.
+  it("names the worker no tool it cannot call", () => {
+    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    assert.doesNotMatch(persona, /\b(hire|retire|room|interrupt)\b/i);
+  });
+
   it("tells the worker which one field of its header is read by anybody else", () => {
     const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
     assert.match(persona, /the `title:` in it is the one field/);
