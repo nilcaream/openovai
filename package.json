@@ -1,5 +1,5 @@
 {
-  "name": "openovai",
+  "name": "@openovai/ovai",
   "version": "0.3.0",
   "description": "A toolkit for running a small team of AI developer sessions on one machine.",
   "license": "MIT",
