@@ -38,7 +38,7 @@ const MODEL_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 
 // How an instance gets an account.
 //
-//   login    it signs itself in, once, with `ow login`, and keeps the credential in its own
+//   login    it signs itself in, once, with `ovai login`, and keeps the credential in its own
 //            Claude Code home. Two instances can be signed in as two different people.
 //   inherit  it takes CLAUDE_CODE_OAUTH_TOKEN from the environment it is started in, so one
 //            token minted on the machine signs every instance in and starting one needs no
@@ -358,13 +358,13 @@ function report(plan, written) {
       console.log(`  ${entry}`);
     }
   }
-  const ow = path.join(plan.root, "bin", "ow");
+  const ovai = path.join(plan.root, "bin", "ovai");
   console.log("");
   console.log("Start it with:");
   if (plan.auth === "login") {
-    console.log(`  ${ow} login`);
+    console.log(`  ${ovai} login`);
   }
-  console.log(`  ${ow} chat`);
+  console.log(`  ${ovai} chat`);
   if (plan.auth === "inherit") {
     console.log("");
     console.log("It signs in with CLAUDE_CODE_OAUTH_TOKEN from the environment you start it in.");

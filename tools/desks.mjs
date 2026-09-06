@@ -2,7 +2,7 @@
 //
 // A person in an instance is three things on disk: a desk to keep their state on, a persona
 // saying who they are, and the one permission rule that lets them write that desk. The installer
-// opens the lead's when it creates the instance; `ow hire` opens a worker's afterwards. Both come
+// opens the lead's when it creates the instance; `ovai hire` opens a worker's afterwards. Both come
 // through here, so there is one answer to what a person is made of rather than two that can
 // drift apart.
 
@@ -39,7 +39,7 @@ export const PERSONAS = "personas";
 // the chat offers it, which is why what the chat offers is decided rather than added to.
 //
 // It replaces the pair of rules each of these commands used to need — a rule is a literal prefix
-// rather than a path, so `ow say …` and `./bin/ow say …` were two different rules for one command,
+// rather than a path, so `ovai say …` and `./bin/ovai say …` were two different rules for one command,
 // and a session that typed the other spelling stopped to be approved for doing as it was told.
 export const TOOL_RULES = ["mcp__office"];
 
@@ -281,7 +281,7 @@ export function withdrawDesk(root, name) {
 // Opening a worker's desk: everything a person is made of, written at once, or nothing written
 // at all because one of the reasons not to came first.
 //
-// It is here rather than in either caller because there are two of them — `ow hire` and the
+// It is here rather than in either caller because there are two of them — `ovai hire` and the
 // chat's route, which the page's Hire button posts to — and two copies of what a name is refused
 // for would be two answers to the same question the day one of them changed. The refusals are
 // values and not printed lines for the same reason: the command puts them on stderr, the route

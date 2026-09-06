@@ -67,7 +67,7 @@ Five suites, all on Node's own test runner:
 ```sh
 node --test tests/install.test.mjs   # install an instance, check what came out
 node --test tests/chat.test.mjs      # serve the chat, talk to it, stop it
-node --test tests/ow.test.mjs        # what status reports and what login hands over
+node --test tests/ovai.test.mjs        # what status reports and what login hands over
 node --test tests/update.test.mjs    # take a newer version from a release, and refuse to
 node --test tests/tag.test.mjs       # what a release of this tree would be, and what it refuses to be
 ```

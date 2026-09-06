@@ -71,7 +71,7 @@ jobs:
           node-version-file: .node-version
 
       - name: Check status and login
-        run: node --test tests/ow.test.mjs
+        run: node --test tests/ovai.test.mjs
 
   release:
     name: Release

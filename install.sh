@@ -8,7 +8,7 @@ set -euo pipefail
 # Keeping the shell layer this thin means the only thing that can go wrong here is a missing
 # prerequisite, and it says so in plain words.
 
-# Neither this script nor bin/ow uses anything newer than bash 3: the most modern things in
+# Neither this script nor bin/ovai uses anything newer than bash 3: the most modern things in
 # them are [[ =~ ]] and BASH_SOURCE. 4 is a deliberate floor rather than a measured one — it
 # has been on every Linux desktop since 2009, and there is nothing to gain from claiming to
 # support less than that.

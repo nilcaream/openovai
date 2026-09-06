@@ -28,7 +28,7 @@ const SESSION_FILE = "session.json";
 // the instructions that make its tools work.
 const PERSONAS = "personas";
 
-// What a session is told its own name in. `ow say` reads it, so a message one session sends
+// What a session is told its own name in. `ovai say` reads it, so a message one session sends
 // another arrives under the name of whoever sent it — and a message nobody signed is the human's,
 // which is the whole of how a session tells the two apart.
 export const NAME_IN_ENVIRONMENT = "OW_SESSION_NAME";

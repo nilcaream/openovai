@@ -18,7 +18,7 @@ export const VERSION_FILE = "VERSION";
 // because it is read from a shell as often as from here, and there is nothing else it has to say.
 //
 // Nothing when there is no such file. An instance made before the toolkit carried a version is a
-// real thing to be standing in front of, and `ow status` is the command somebody runs when they
+// real thing to be standing in front of, and `ovai status` is the command somebody runs when they
 // are trying to work out what they have — it should answer that question rather than die of it.
 export function version(root) {
   try {

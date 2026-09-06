@@ -1,4 +1,4 @@
-// tests/ow.test.mjs — check the instance command: what status reports, and what login hands over.
+// tests/ovai.test.mjs — check the instance command: what status reports, and what login hands over.
 //
 // Claude Code is never really run. The stand-in from helpers.mjs answers `auth status` and
 // `auth login`, so this checks our side of both: that status asks rather than guesses, that an
@@ -8,7 +8,7 @@
 // Two instances are installed, one for each way of signing in, because the difference between
 // them is exactly what an instance is allowed to take from the environment it is started in.
 //
-// Run it with: node --test tests/ow.test.mjs
+// Run it with: node --test tests/ovai.test.mjs
 
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -21,7 +21,7 @@ import {
   readLog,
   remove,
   repo,
-  runOw,
+  runOvai,
   scratch,
   writeNodeStandIn,
   writeStandIn,
@@ -39,7 +39,7 @@ const PORT = 7900;
 const TOKEN = "a-machine-token";
 const WORKER = "Paul";
 
-const instance = scratch("ow-test");
+const instance = scratch("ovai-test");
 const inherited = `${instance}-inherited`;
 const standIn = `${instance}-stand-in`;
 
@@ -71,7 +71,7 @@ function install(root, auth) {
 // instance was installed. `changes` is how a check asks what happens when the machine has no
 // token, or when Claude Code answers differently.
 function run(root, recordIn, argv, changes = {}) {
-  return runOw(root, argv, {
+  return runOvai(root, argv, {
     ...process.env,
     OW_STAND_IN_LOG: recordIn,
     ANTHROPIC_API_KEY: "must-not-be-inherited",
@@ -89,8 +89,8 @@ function onNode(version) {
   return { PATH: [directory, standIn, process.env.PATH].join(path.delimiter) };
 }
 
-const ow = (argv, changes) => run(instance, log, argv, changes);
-const owInherited = (argv, changes) => run(inherited, inheritedLog, argv, changes);
+const ovai = (argv, changes) => run(instance, log, argv, changes);
+const ovaiInherited = (argv, changes) => run(inherited, inheritedLog, argv, changes);
 
 remove(instance, inherited, standIn);
 writeStandIn(standIn);
@@ -112,7 +112,7 @@ describe("what status reports", () => {
   let said;
 
   before(() => {
-    said = ow(["status"]).stdout;
+    said = ovai(["status"]).stdout;
   });
 
   // What this instance is running. Read from the payload, so it names the code that is actually
@@ -154,7 +154,7 @@ describe("an instance with no credential", () => {
   let said;
 
   before(() => {
-    said = ow(["status"], { OW_STAND_IN_SIGNED_IN: "false" }).stdout;
+    said = ovai(["status"], { OW_STAND_IN_SIGNED_IN: "false" }).stdout;
   });
 
   it("reports that it has none", () => {
@@ -162,34 +162,34 @@ describe("an instance with no credential", () => {
   });
 
   it("says how to fix itself", () => {
-    assert.match(said, /ow login/);
+    assert.match(said, /ovai login/);
   });
 });
 
 describe("how the instance signs in", () => {
   it("says an instance with an account of its own signs itself in", () => {
-    assert.match(ow(["status"]).stdout, /signs in by\s+an account of its own/);
+    assert.match(ovai(["status"]).stdout, /signs in by\s+an account of its own/);
   });
 
   it("names the variable an inheriting instance signs in with", () => {
-    assert.match(owInherited(["status"]).stdout, /signs in by\s+CLAUDE_CODE_OAUTH_TOKEN/);
+    assert.match(ovaiInherited(["status"]).stdout, /signs in by\s+CLAUDE_CODE_OAUTH_TOKEN/);
   });
 
   it("says the machine's token is there", () => {
-    assert.match(owInherited(["status"]).stdout, /which is set here/);
+    assert.match(ovaiInherited(["status"]).stdout, /which is set here/);
   });
 
   it("notices a missing machine token", () => {
-    assert.match(owInherited(["status"], { CLAUDE_CODE_OAUTH_TOKEN: "" }).stdout, /not set here/);
+    assert.match(ovaiInherited(["status"], { CLAUDE_CODE_OAUTH_TOKEN: "" }).stdout, /not set here/);
   });
 
   it("never prints the value of the machine's token", () => {
-    assert.ok(!owInherited(["status"]).stdout.includes(TOKEN));
+    assert.ok(!ovaiInherited(["status"]).stdout.includes(TOKEN));
   });
 
   it("does not send an inheriting instance to a sign-in that would refuse it", () => {
-    const said = owInherited(["status"], { OW_STAND_IN_SIGNED_IN: "false" }).stdout;
-    assert.ok(!said.includes("run: ow login"));
+    const said = ovaiInherited(["status"], { OW_STAND_IN_SIGNED_IN: "false" }).stdout;
+    assert.ok(!said.includes("run: ovai login"));
   });
 });
 
@@ -204,7 +204,7 @@ describe("an instance with no version in it", () => {
     const kept = fs.readFileSync(file, "utf8");
     fs.rmSync(file);
     try {
-      said = ow(["status"]);
+      said = ovai(["status"]);
     } finally {
       fs.writeFileSync(file, kept);
     }
@@ -224,18 +224,18 @@ describe("where a person can read what the workspace has learned", () => {
   // looking in. Spelled out here rather than asked of the code, so that moving it and moving the
   // check cannot be one edit.
   it("says where this instance keeps it", () => {
-    assert.match(ow(["status"]).stdout, new RegExp(`memory\\s+${instance}/.claude-home/projects/workspace/memory`));
+    assert.match(ovai(["status"]).stdout, new RegExp(`memory\\s+${instance}/.claude-home/projects/workspace/memory`));
   });
 });
 
 describe("the sign-in", () => {
   it("hands over to Claude Code", () => {
-    assert.equal(ow(["login"]).status, 0);
+    assert.equal(ovai(["login"]).status, 0);
     assert.match(readLog(log), /argv: auth login/);
   });
 
   it("does not let a failed sign-in look like a success", () => {
-    assert.notEqual(ow(["login"], { OW_STAND_IN_LOGIN_STATUS: "3" }).status, 0);
+    assert.notEqual(ovai(["login"], { OW_STAND_IN_LOGIN_STATUS: "3" }).status, 0);
   });
 });
 
@@ -258,8 +258,8 @@ describe("what Claude Code is run as", () => {
 // wherever it sits" is observably different from "made out of where it sits".
 describe("where an instance files what it knows", () => {
   before(() => {
-    ow(["status"]);
-    owInherited(["status"]);
+    ovai(["status"]);
+    ovaiInherited(["status"]);
   });
 
   it("names the directory Claude Code files this instance's transcripts and memory under", () => {
@@ -271,7 +271,7 @@ describe("where an instance files what it knows", () => {
   });
 
   it("does not let the environment it was started in decide", () => {
-    ow(["status"], { CLAUDE_CODE_PROJECT_DIR_NAME: "somebody-elses-workspace" });
+    ovai(["status"], { CLAUDE_CODE_PROJECT_DIR_NAME: "somebody-elses-workspace" });
     assert.equal(projectDirectoriesIn(log).at(-1), "workspace");
   });
 
@@ -305,7 +305,7 @@ describe("an instance that signs itself in", () => {
 
 describe("an instance that inherits", () => {
   before(() => {
-    owInherited(["status"]);
+    ovaiInherited(["status"]);
   });
 
   it("takes the machine's token", () => {
@@ -321,11 +321,11 @@ describe("an instance that inherits", () => {
   });
 
   it("is refused a sign-in of its own", () => {
-    assert.notEqual(owInherited(["login"]).status, 0);
+    assert.notEqual(ovaiInherited(["login"]).status, 0);
   });
 
   it("is told where a token comes from instead", () => {
-    assert.match(owInherited(["login"]).stderr, /setup-token/);
+    assert.match(ovaiInherited(["login"]).stderr, /setup-token/);
   });
 });
 
@@ -333,7 +333,7 @@ describe("an instance that inherits", () => {
 // machine from the one it was installed on, so the launcher applies the same floor the
 // installer does rather than trusting that it was checked once.
 describe("the Node the command needs", () => {
-  const refused = ow(["status"], onNode("v20.18.1"));
+  const refused = ovai(["status"], onNode("v20.18.1"));
 
   it("refuses a Node older than the one it needs", () => {
     assert.notEqual(refused.status, 0);
@@ -348,11 +348,11 @@ describe("the Node the command needs", () => {
   });
 
   it("runs on the Node it needs", () => {
-    assert.equal(ow(["status"], onNode("v24.0.0")).status, 0);
+    assert.equal(ovai(["status"], onNode("v24.0.0")).status, 0);
   });
 
   it("runs on a Node newer than the one it needs", () => {
-    assert.equal(ow(["status"], onNode("v99.0.0")).status, 0);
+    assert.equal(ovai(["status"], onNode("v99.0.0")).status, 0);
   });
 });
 
@@ -362,7 +362,7 @@ describe("hiring a worker", () => {
   let said;
 
   before(() => {
-    said = ow(["hire", WORKER]);
+    said = ovai(["hire", WORKER]);
   });
 
   it("opens the worker a desk", () => {
@@ -402,7 +402,7 @@ describe("hiring a worker", () => {
   // person at the page.
   it("does not tell the worker to look at the room", () => {
     const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
-    assert.ok(!persona.includes("bin/ow room"));
+    assert.ok(!persona.includes("bin/ovai room"));
   });
 
   // Nor to ask for it as a tool. The chat does not offer a worker that one and refuses it if asked
@@ -449,8 +449,8 @@ describe("hiring a worker", () => {
 
   it("does not tell the worker to type the command it replaced", () => {
     const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
-    assert.ok(!persona.includes("ow say"));
-    assert.ok(!persona.includes("ow status"));
+    assert.ok(!persona.includes("ovai say"));
+    assert.ok(!persona.includes("ovai status"));
   });
 
   it("tells the worker its header holds nothing else", () => {
@@ -480,7 +480,7 @@ describe("hiring a worker", () => {
   // cost a whole nested turn has to be GONE, not merely outweighed by a newer paragraph.
   it("no longer tells the worker to pass on what the human said itself", () => {
     const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
-    assert.ok(!persona.includes(`bin/ow say ${LEADER}`));
+    assert.ok(!persona.includes(`bin/ovai say ${LEADER}`));
   });
 
   it("tells the worker what to do when the one it is telling is waiting on it", () => {
@@ -541,7 +541,7 @@ describe("hiring a worker", () => {
   });
 
   it("lists the new desk in status", () => {
-    assert.match(ow(["status"]).stdout, new RegExp(`desks.*${WORKER}`));
+    assert.match(ovai(["status"]).stdout, new RegExp(`desks.*${WORKER}`));
   });
 
   it("starts no session doing it", () => {
@@ -551,27 +551,27 @@ describe("hiring a worker", () => {
 
 describe("what hiring refuses", () => {
   it("refuses to hire nobody", () => {
-    assert.notEqual(ow(["hire"]).status, 0);
+    assert.notEqual(ovai(["hire"]).status, 0);
   });
 
   it("says a name is the thing that is missing", () => {
-    assert.match(ow(["hire"]).stderr, /hire needs a name/);
+    assert.match(ovai(["hire"]).stderr, /hire needs a name/);
   });
 
   it("refuses a name a directory could not be", () => {
-    assert.notEqual(ow(["hire", "../elsewhere"]).status, 0);
+    assert.notEqual(ovai(["hire", "../elsewhere"]).status, 0);
   });
 
   it("refuses somebody who already has a desk", () => {
-    assert.notEqual(ow(["hire", LEADER]).status, 0);
+    assert.notEqual(ovai(["hire", LEADER]).status, 0);
   });
 
   it("says who already has a desk", () => {
-    assert.match(ow(["hire", LEADER]).stderr, new RegExp(`${LEADER} already has a desk`));
+    assert.match(ovai(["hire", LEADER]).stderr, new RegExp(`${LEADER} already has a desk`));
   });
 
   it("refuses more than one name at a time", () => {
-    assert.notEqual(ow(["hire", "Ann", "Bob"]).status, 0);
+    assert.notEqual(ovai(["hire", "Ann", "Bob"]).status, 0);
   });
 
   // A name is more than its desk. The chat keeps a panel and a thread under the same name, and a
@@ -582,22 +582,22 @@ describe("what hiring refuses", () => {
     const CAME_BACK = "Otter";
 
     before(() => {
-      ow(["hire", CAME_BACK]);
+      ovai(["hire", CAME_BACK]);
       fs.rmSync(path.join(instance, "work", CAME_BACK), { recursive: true, force: true });
       fs.mkdirSync(path.join(instance, "chat", CAME_BACK), { recursive: true });
       fs.writeFileSync(path.join(instance, "chat", CAME_BACK, "conversation.json"), "[]\n");
     });
 
     it("refuses", () => {
-      assert.notEqual(ow(["hire", CAME_BACK]).status, 0);
+      assert.notEqual(ovai(["hire", CAME_BACK]).status, 0);
     });
 
     it("says what is in the way and where it is", () => {
-      assert.match(ow(["hire", CAME_BACK]).stderr, new RegExp(`conversation here.*chat/${CAME_BACK}`));
+      assert.match(ovai(["hire", CAME_BACK]).stderr, new RegExp(`conversation here.*chat/${CAME_BACK}`));
     });
 
     it("leaves that conversation alone", () => {
-      ow(["hire", CAME_BACK]);
+      ovai(["hire", CAME_BACK]);
       assert.ok(fs.existsSync(path.join(instance, "chat", CAME_BACK, "conversation.json")));
     });
   });
@@ -611,7 +611,7 @@ describe("starting a tool the instance serves itself", () => {
   let said;
 
   before(() => {
-    said = ow(["plugin", TOOL]);
+    said = ovai(["plugin", TOOL]);
   });
 
   // Where the chat looks, and nowhere else. The directory is the list, so the file being in the
@@ -640,7 +640,7 @@ describe("starting a tool the instance serves itself", () => {
   it("refuses a name that is already a tool here, and leaves that tool alone", () => {
     const target = path.join(instance, "plugins", `${TOOL}.mjs`);
     fs.writeFileSync(target, "// somebody's own work\n");
-    const again = ow(["plugin", TOOL]);
+    const again = ovai(["plugin", TOOL]);
     assert.equal(again.status, 1);
     assert.equal(fs.readFileSync(target, "utf8"), "// somebody's own work\n");
   });
@@ -650,7 +650,7 @@ describe("starting a tool the instance serves itself", () => {
   // refused here or it is refused on the next chat start, by which time somebody has written a
   // handler into a file that was never going to be served.
   it("refuses a name the chat already serves, and writes nothing", () => {
-    const refused = ow(["plugin", "say"]);
+    const refused = ovai(["plugin", "say"]);
     assert.equal(refused.status, 1);
     assert.match(refused.stderr, /say is already the name of a tool the chat serves everywhere/);
     assert.ok(!fs.existsSync(path.join(instance, "plugins", "say.mjs")));
@@ -660,15 +660,15 @@ describe("starting a tool the instance serves itself", () => {
   // with the usage under it, and exit 2 rather than 1. The exact status, never "not zero" — the
   // refusals in this describe are told apart by nothing else.
   it("refuses a name a tool cannot have, as a command line", () => {
-    const refused = ow(["plugin", "not_a_tool"]);
+    const refused = ovai(["plugin", "not_a_tool"]);
     assert.equal(refused.status, 2);
     assert.match(refused.stderr, /not a name a tool can have/);
-    assert.match(refused.stderr, /ow plugin <name>/);
+    assert.match(refused.stderr, /ovai plugin <name>/);
     assert.ok(!fs.existsSync(path.join(instance, "plugins", "not_a_tool.mjs")));
   });
 
   it("refuses to start one with no name at all", () => {
-    const refused = ow(["plugin"]);
+    const refused = ovai(["plugin"]);
     assert.equal(refused.status, 2);
     assert.match(refused.stderr, /plugin needs a name/);
   });
@@ -676,10 +676,10 @@ describe("starting a tool the instance serves itself", () => {
 
 describe("what the command refuses", () => {
   it("refuses a command it does not have", () => {
-    assert.notEqual(ow(["nonsense"]).status, 0);
+    assert.notEqual(ovai(["nonsense"]).status, 0);
   });
 
   it("refuses an argument to a command that takes none", () => {
-    assert.notEqual(ow(["status", WORKER]).status, 0);
+    assert.notEqual(ovai(["status", WORKER]).status, 0);
   });
 });

@@ -47,10 +47,10 @@ line — better than an instance that installs and then fails at its first messa
 Node cannot read.
 
 `tar` is needed by one subcommand and nothing else: a release arrives as an archive and Node has
-no reader for one. `ow update` says so itself when it is missing, and `bin/ow` does not check for
+no reader for one. `ovai update` says so itself when it is missing, and `bin/ovai` does not check for
 it at the door — one subcommand needing something is not a reason to refuse every other.
 
-Both floors are checked twice, once by `install.sh` and once by the instance's own `bin/ow`.
+Both floors are checked twice, once by `install.sh` and once by the instance's own `bin/ovai`.
 An instance carries its own copy of everything it runs and can be moved to a machine its
 installer was never on, so it has to say what it needs for itself. Bash 4 is a deliberate line
 rather than a measured one: neither script uses anything newer than bash 3 today, and 4 has been
@@ -73,7 +73,7 @@ An instance is a directory of its own. From a clone:
 - `--leader-model`, `--worker-model` — the models those sessions run on.
 - `--port` — the port the instance's chat page will listen on, on `127.0.0.1`. Two instances
   on one machine need two different ones, so `0` is worth knowing about: it means "whatever is
-  free", and `ow chat` prints the address it actually got. Pick a number when you want the same
+  free", and `ovai chat` prints the address it actually got. Pick a number when you want the same
   one every time — a bookmark, or something else pointed at it.
 - `--auth` — how the instance gets an account: `inherit` or `login`. See
   [Signing in](#signing-in).
@@ -102,15 +102,15 @@ Finally it opens the leader's desk at `work/<Leader>/STATE.md`, from the templat
 Then use the instance's own command:
 
 ```sh
-~/my-workspace/bin/ow status
-~/my-workspace/bin/ow login
-~/my-workspace/bin/ow hire Paul
-~/my-workspace/bin/ow chat
-~/my-workspace/bin/ow room
-~/my-workspace/bin/ow say Paul what are you working on
+~/my-workspace/bin/ovai status
+~/my-workspace/bin/ovai login
+~/my-workspace/bin/ovai hire Paul
+~/my-workspace/bin/ovai chat
+~/my-workspace/bin/ovai room
+~/my-workspace/bin/ovai say Paul what are you working on
 ```
 
-`ow hire <name>` opens a desk for a worker: the desk itself at `work/<Name>/STATE.md`, a persona
+`ovai hire <name>` opens a desk for a worker: the desk itself at `work/<Name>/STATE.md`, a persona
 at `personas/<Name>.md` with the names written into it, and the one permission rule that lets
 that session keep its own desk. It starts nothing, and a chat that is already running does not
 need restarting: the panels are built from the desks the server finds, so a desk opened now is a
@@ -128,7 +128,7 @@ The chat page hires too, from a name box above the panels, and refuses the same 
 same reasons in the same words — it calls this. What a name is refused for has one answer, not
 two that can drift apart.
 
-`ow chat` serves the instance's chat page on the port it was installed with — or, with
+`ovai chat` serves the instance's chat page on the port it was installed with — or, with
 `--port 0`, on one the machine picks — on `127.0.0.1` only, and runs until you stop it. It
 always prints the whole address it is listening on, so there is one line to open or copy
 whichever way the port was chosen. If the port is already taken it says which process is
@@ -146,7 +146,7 @@ it the ordinary way.
 It also takes the instructions above the instance out of play. Claude Code reads `CLAUDE.md` from
 the directory a session starts in and from every directory above it, so an instance installed
 under your home, or inside a project, would otherwise start every session with rules nobody here
-wrote and nobody here can see on the page. Every time `ow chat` starts it writes into the
+wrote and nobody here can see on the page. Every time `ovai chat` starts it writes into the
 instance's own `.claude/settings.json` the list of what is not to be read: `CLAUDE.md`,
 `CLAUDE.local.md`, `.claude/CLAUDE.md` and `.claude/rules/**` in every directory from the
 instance's parent up to the filesystem root, whether or not anything is there today, so a file
@@ -190,7 +190,7 @@ session's transcript and shows up on its panel like anything else. It waits for 
 means the session that asked is held for the whole of the other one's turn, and what comes back to
 it is that answer.
 
-`ow say <name> <message>` is the same thing for a person at a terminal, and prints what came back.
+`ovai say <name> <message>` is the same thing for a person at a terminal, and prints what came back.
 The chat writes the address it is listening on to `chat/listening.json` when it starts — with
 `--port 0` nothing knows the address until then — and this reads it there. Without a chat running
 there is nobody to say it to, and it says so rather than starting anybody.
@@ -208,7 +208,7 @@ wrapper is therefore yours, by construction: nothing has to remember to say so. 
 nobody who works there is refused rather than passed on as the human's.
 
 The wrapper is only on the way in. What is kept is what was said, under the name of who said it,
-so a transcript reads as a conversation rather than as a protocol — and `ow say` run from a
+so a transcript reads as a conversation rather than as a protocol — and `ovai say` run from a
 terminal signs nothing, because the person at the keyboard is the human.
 
 That is what makes the page a speakerphone rather than a set of separate conversations. When you
@@ -247,7 +247,7 @@ into the transcript of whoever tried, so the panel says why nothing was delivere
 followed, not only the direct edge: the lead waiting on one worker who is waiting on another is a
 circle when that second one speaks to the lead.
 
-`ow` works out which instance it belongs to from where it sits, so an instance can be moved
+`ovai` works out which instance it belongs to from where it sits, so an instance can be moved
 and it keeps working. It refuses to run if Node.js or Claude Code is not on the PATH, and it
 applies the same Node version floor the installer does — an instance carries its own copy of
 everything it runs and may well be started on a different machine from the one it was
@@ -328,8 +328,8 @@ middle of a turn and the session never notices: it posts to whatever is listenin
 process answers a call it never saw introduced.
 
 The whole of it costs one permission rule, `mcp__office`, where the three commands needed six —
-each twice, because a rule is a literal prefix rather than a path, and `bin/ow say` and
-`./bin/ow say` are two spellings of one command that would each miss the other's rule. One rule
+each twice, because a rule is a literal prefix rather than a path, and `bin/ovai say` and
+`./bin/ovai say` are two spellings of one command that would each miss the other's rule. One rule
 rather than one per tool, because there is nothing left for a narrower one to say: a rule can name
 a server or a tool, never what the tool is given, so what a tool may be asked for has to live in
 the tool's own signature. `say` has no "which instance" and `room` has no "whose room".
@@ -351,7 +351,7 @@ how a desktop is made to pop is `notify-send` on one machine, `osascript` on ano
 API on a third. None of that belongs in a toolkit that installs on machines it knows nothing
 about, so it is written where the machine is known — beside the instance.
 
-    ow plugin notify
+    ovai plugin notify
 
 writes `plugins/notify.mjs` from a scaffold, and that is the whole of adding one. The file is the
 tool: its name is the tool's name, there is nothing to register and no list to keep in step,
@@ -416,11 +416,11 @@ a plain install is already narrow enough to watch this work. Every option is req
 ```sh
 ./install.sh --root ~/trying-it --source . --human Mike --leader Superman \
              --leader-model sonnet --worker-model haiku --port 0 --auth inherit
-~/trying-it/bin/ow hire Paul
-~/trying-it/bin/ow chat
+~/trying-it/bin/ovai hire Paul
+~/trying-it/bin/ovai chat
 ```
 
-`ow chat` prints the address it is listening on. Open it, and on Paul's panel ask for something
+`ovai chat` prints the address it is listening on. Open it, and on Paul's panel ask for something
 the instance has not been told to allow. Ask him to **write** a file — *"create a file called
 hello.txt in your workspace containing the word hi"* will do it. Reading is a poor test: Claude
 Code settles read-only work such as listing a directory by itself, and that never reaches the
@@ -509,10 +509,10 @@ The lead cannot read any of this, because it is on the page rather than looking 
 the room with a tool of its own and gets the same rows. That tool is the one thing here served to
 the lead and to nobody else, as *The instance's own tools* above says.
 
-`ow room` prints the same rows for a person at a terminal:
+`ovai room` prints the same rows for a person at a terminal:
 
 ```sh
-~/my-workspace/bin/ow room
+~/my-workspace/bin/ovai room
 ```
 
 Both ask the running chat, because half of a room is only in that process — how many turns are
@@ -588,7 +588,7 @@ it on could cost, and a thread that was never there must not be ended nor a rest
 
 ### Hiring somebody, and a session leaving
 
-Above the panels there is a name box and **Hire**. It writes what `ow hire` writes — the desk, the
+Above the panels there is a name box and **Hire**. It writes what `ovai hire` writes — the desk, the
 persona, the one permission rule — because it calls the same code, and it shows a refusal in the
 words that refusal came in.
 
@@ -764,7 +764,7 @@ Refusal comes back before the queue, not from inside it. A message that joined t
 refused at the front would wait for whatever was ahead of it, and "the room is off" is the one
 answer that has no reason to wait for anything.
 
-The room says so itself, above the rows and never on one — on the page, in `ow room`, and to the
+The room says so itself, above the rows and never on one — on the page, in `ovai room`, and to the
 lead, which is the reader most likely to be turned away next:
 
     The room is offline — nothing new will be started until it is brought back online.
@@ -779,7 +779,7 @@ about taking the room off stops the chat, and a chat that is not running starts 
 There is no file to leave behind and disagree with, and so no way for a room to be confidently
 wrong about whether it was off.
 
-There is no `ow offline`. Taking the room off is a person's decision about the whole instance, and
+There is no `ovai offline`. Taking the room off is a person's decision about the whole instance, and
 it stays on the page, beside the button that brings it back.
 
 ### What the workspace has learned
@@ -816,7 +816,7 @@ after that reads that shape as the workspace's own — measured, and what came o
 line with no heading. The shipped index says what belongs there, that it is an index and each fact
 belongs in a file beside it, and that what is written should say what it assumes.
 
-`bin/ow status` names the directory, because it is inside the Claude Code home and is otherwise the
+`bin/ovai status` names the directory, because it is inside the Claude Code home and is otherwise the
 one part of an instance nobody would think to look in.
 
 Both personas say the difference in a line: the desk is this task, the memory is the workspace.
@@ -827,7 +827,7 @@ An instance needs an Anthropic account before it can answer anything. `--auth` p
 gets one, and the two answers exist for two different situations.
 
 **`--auth login`** — the instance signs itself in. A freshly installed one has an empty Claude
-Code home and is therefore signed in to nothing, so `ow login` opens a browser once and the
+Code home and is therefore signed in to nothing, so `ovai login` opens a browser once and the
 credential is kept inside that instance. Use this when two instances on one machine should be
 two different accounts.
 
@@ -852,7 +852,7 @@ they were installed.
 Either way `CLAUDE_CONFIG_DIR` is the instance's own directory, so transcripts, memory and
 settings stay separate. Only the account is shared, and only when you ask for it.
 
-`ow status` reports whether the instance has a credential, and says plainly that it has not
+`ovai status` reports whether the instance has a credential, and says plainly that it has not
 checked it. Nothing cheap can: asking Claude Code answers from disk and from the environment,
 so a token that expired last week still reads as present. Finding out for certain costs a
 request, which is more than a status command should spend, so the first message is where a
@@ -866,10 +866,10 @@ accident from a shell that happened to have one exported is not a surprise worth
 
 An instance carries its own copy of everything it runs, which is what lets it be moved, copied and
 kept while the toolkit it came from moves on. The other side of that promise is that it does not
-follow along on its own. `ow update` is how it catches up.
+follow along on its own. `ovai update` is how it catches up.
 
 ```sh
-~/my-workspace/bin/ow update
+~/my-workspace/bin/ovai update
 ```
 
 It asks GitHub for the latest release of the toolkit, and if that is not the version this instance

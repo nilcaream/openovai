@@ -1047,7 +1047,7 @@ function theRoom(instance) {
   return { text: roomLines(rows, offline()).join("\n") };
 }
 
-// Who works here, which is the half of `ow status` a session can act on: the names it can say
+// Who works here, which is the half of `ovai status` a session can act on: the names it can say
 // something to, and what each of them costs to ask. The other half of that command — where the
 // instance is, what version it is on, whether there is a credential — is a person's question about
 // the machine, and one of its rows starts Claude Code to answer it. A tool a session calls before
@@ -1435,7 +1435,7 @@ async function postLeave(instance, name, response) {
 
 // Opening a desk for somebody new, which is what the page's Hire button posts to.
 //
-// It writes what `ow hire` writes by calling the same function, so what a name is refused for has
+// It writes what `ovai hire` writes by calling the same function, so what a name is refused for has
 // one answer rather than two that can drift apart, and the page shows that answer in the words it
 // came in. Nothing is started: a desk is a person, and a chat already running hosts one from the
 // next load of the page.
@@ -1450,7 +1450,7 @@ async function postSessions(instance, request, response) {
     return;
   }
 
-  // The one refusal that is not about the name itself but about there being none. `ow hire` says
+  // The one refusal that is not about the name itself but about there being none. `ovai hire` says
   // the same thing about an empty command line.
   if (typeof name !== "string" || name.trim() === "") {
     sendJson(response, 400, { error: "hiring needs a name" });

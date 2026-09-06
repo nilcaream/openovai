@@ -9,7 +9,7 @@
 // A worker is hired into the instance before anything else runs, because the interesting
 // question about a chat that hosts more than one session is whether two of them stay apart.
 //
-// It reaches the server through tools/ow.mjs rather than bin/ow, because bin/ow refuses to run
+// It reaches the server through tools/ovai.mjs rather than bin/ovai, because bin/ovai refuses to run
 // without Claude Code installed, which is the right behaviour for a person and the wrong one
 // for this suite.
 //
@@ -742,7 +742,7 @@ describe("the port is already taken", () => {
   });
 
   it("says what that process is", () => {
-    assert.match(refused.stderr, /ow\.mjs/);
+    assert.match(refused.stderr, /ovai\.mjs/);
   });
 
   it("offers a port that is free", () => {
@@ -946,7 +946,7 @@ describe("what the chat tells the lead when the toolkit under it was replaced", 
     // matched on what it says, so a mutation to the words of a line cannot also hide the line.
     const previously = (await panelOf(LEADER)).length;
 
-    // Written the way `ow update` leaves it and then the chat is started, which is the whole
+    // Written the way `ovai update` leaves it and then the chat is started, which is the whole
     // arrangement: whatever wrote this is not running any more.
     fs.writeFileSync(WORD, `${JSON.stringify({ from: FROM, to: TO, notes: NOTES }, null, 2)}\n`);
 
@@ -2520,7 +2520,7 @@ describe("showing the room on the command line", () => {
   });
 
   it("is offered in the usage", () => {
-    assert.match(runTool(instance, ["--help"], standIns).stdout, /ow room/);
+    assert.match(runTool(instance, ["--help"], standIns).stdout, /ovai room/);
   });
 });
 
@@ -3500,7 +3500,7 @@ const REFUSED_IN_ROOM = "Scaup";
 // What the ROOM says about a usage window, which is where a person actually looks.
 //
 // Both facts are already on the row by here; this is only about the two places that lay a row out
-// in words — `ow room` and the page's own script. They are not shared code and cannot be, one of
+// in words — `ovai room` and the page's own script. They are not shared code and cannot be, one of
 // them being a page served as text, so the duplication is proven rather than trusted: every check
 // that reads the command has a partner that reads `page.html` as a string.
 //
@@ -4398,7 +4398,7 @@ describe("hiring from the page", () => {
 });
 
 // What a name is refused for has one answer, and this is the check that says so: every refusal
-// here is compared with the one `ow hire` prints for the same name. Two copies of these guards
+// here is compared with the one `ovai hire` prints for the same name. Two copies of these guards
 // would be two answers the day one of them changed, which is the bug the route was written around.
 describe("what hiring from the page refuses", () => {
   const refusedLog = path.join(standIn, "hiring-refused.txt");
@@ -4410,10 +4410,10 @@ describe("what hiring from the page refuses", () => {
   // reached — a mutation that took the desk guard away noticed nothing until this name existed.
   const AT_A_DESK = "Godwit";
 
-  // What the command says about the same name, with the `ow: ` it prefixes every reason with
+  // What the command says about the same name, with the `ovai: ` it prefixes every reason with
   // taken off, so the two can be compared as reasons rather than as output.
   function whatTheCommandSays(name) {
-    return runTool(instance, ["hire", name], process.env).stderr.replace(/^ow: /, "").trim();
+    return runTool(instance, ["hire", name], process.env).stderr.replace(/^ovai: /, "").trim();
   }
 
   before(async () => {
@@ -6355,7 +6355,7 @@ describe("what a panel answers while somebody is writing on it", () => {
     );
   });
 
-  // What `ow` at a terminal gets, and anything else that asks for a transcript without knowing
+  // What `ovai` at a terminal gets, and anything else that asks for a transcript without knowing
   // this feature exists.
   it("answers a reader that says neither with the whole panel", () => {
     assert.deepEqual([whole.messages.length, whole.held], [released.messages.length, 0]);
@@ -6617,7 +6617,7 @@ describe("what a message says it answers", () => {
     lookingAtTheLast = rowsOf(ANSWERS).findLast((row) => row.text === "answering the last line");
     askedAtTheLast = questionsIn(answersLog).at(-1);
 
-    // What `ow` at a terminal sends, and what a page sends before it has drawn anything.
+    // What `ovai` at a terminal sends, and what a page sends before it has drawn anything.
     lastBefore = lastSaidBy(rowsOf(ANSWERS), ANSWERS);
     await say("said without saying what was in front of me", ANSWERS);
     sayingNothing = rowsOf(ANSWERS).findLast((row) => row.text === "said without saying what was in front of me");
@@ -7204,7 +7204,7 @@ describe("a message refused because the room is off does not wait behind the tur
 // The switch and the gate are both invisible. A room that is off looks exactly like a room where
 // nobody happens to be saying anything — right up to the moment somebody sends a message and is
 // turned away, which is the worst place to find out. This slice is what makes it readable before it
-// is discovered, in the two places a room is laid out in words: `ow room`, which is where a person
+// is discovered, in the two places a room is laid out in words: `ovai room`, which is where a person
 // at a terminal reads it, and the page's own script, which is where everybody else does.
 //
 // Said ABOVE the rows and never on one. "Never a UI state" is already held from the other side —

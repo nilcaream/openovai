@@ -34,8 +34,8 @@ const MARKER = "OpenOv AI release marker";
 
 // One file in each of them, so a check can ask about every entry rather than about one of them.
 const MARKED = [
-  ["bin", "ow"],
-  ["tools", "ow.mjs"],
+  ["bin", "ovai"],
+  ["tools", "ovai.mjs"],
   ["templates", "leader.md"],
 ];
 
@@ -246,7 +246,7 @@ describe("what an update refuses", () => {
 
   it("refuses a package that is not an OpenOv AI instance, saying what it is missing", async () => {
     const refused = await update(root, makeRelease("not-a-workspace", { without: "templates" }));
-    const said = /^ow: .*does not look like an OpenOv AI instance.*templates/m.test(refused.stderr);
+    const said = /^ovai: .*does not look like an OpenOv AI instance.*templates/m.test(refused.stderr);
     assert.equal([refused.status === 0, said].join(" "), "false true");
   });
 

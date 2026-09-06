@@ -485,7 +485,7 @@ for (const pair of (process.env.OW_STAND_IN_CALLS ?? "").split(",").filter(Boole
   if (speaker !== me) {
     continue;
   }
-  const said = spawnSync("./bin/ow", ["say", addressee, \`a word from \${me}\`], { encoding: "utf8", timeout: 5000 });
+  const said = spawnSync("./bin/ovai", ["say", addressee, \`a word from \${me}\`], { encoding: "utf8", timeout: 5000 });
   fs.appendFileSync(
     log,
     \`said by \${me} to \${addressee}: status=\${said.status} out=\${JSON.stringify((said.stdout ?? "").trim())} err=\${JSON.stringify((said.stderr ?? "").trim())}\\n\`,
@@ -779,7 +779,7 @@ export function heardIn(log) {
 // Start a chat server as a child, keeping whatever it prints. The output is where the address
 // comes from when the instance was installed with --port 0, which is the only way to learn it.
 export function startChat(root, environment) {
-  const child = spawn("node", [path.join(root, "tools", "ow.mjs"), "--root", root, "chat"], {
+  const child = spawn("node", [path.join(root, "tools", "ovai.mjs"), "--root", root, "chat"], {
     env: environment,
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -804,14 +804,21 @@ export async function stopChat(child) {
 }
 
 // Run an instance's command and wait for it, whatever it exits with.
-export function runOw(root, argv, environment) {
+export function runOvai(root, argv, environment) {
+  return spawnSync(path.join(root, "bin", "ovai"), argv, { env: environment, encoding: "utf8" });
+}
+
+// The name the command used to be typed under, which ships beside the new one for two releases.
+// It is run through rather than around: what is being checked is that somebody who learned the
+// old name still gets the command, so the check has to go the way that person goes.
+export function runOldName(root, argv, environment) {
   return spawnSync(path.join(root, "bin", "ow"), argv, { env: environment, encoding: "utf8" });
 }
 
-// Run the tool directly rather than through bin/ow, for the cases where the launcher's own
+// Run the tool directly rather than through bin/ovai, for the cases where the launcher's own
 // refusal — no Claude Code on the PATH — would stop a test that is about something else.
 export function runTool(root, argv, environment) {
-  return spawnSync("node", [path.join(root, "tools", "ow.mjs"), "--root", root, ...argv], {
+  return spawnSync("node", [path.join(root, "tools", "ovai.mjs"), "--root", root, ...argv], {
     env: environment,
     encoding: "utf8",
   });
@@ -821,7 +828,7 @@ export function runTool(root, argv, environment) {
 // something served from here has to use this one: spawnSync blocks the event loop, so the server
 // cannot answer the child, the child cannot exit, and the two wait for each other forever.
 export function runToolLater(root, argv, environment) {
-  const child = spawn("node", [path.join(root, "tools", "ow.mjs"), "--root", root, ...argv], {
+  const child = spawn("node", [path.join(root, "tools", "ovai.mjs"), "--root", root, ...argv], {
     env: environment,
     stdio: ["ignore", "pipe", "pipe"],
   });

@@ -1,56 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ow — the one command of an OpenOv AI instance.
+# ow — the name this instance's command used to be typed under. It is `ovai` now.
 #
-# It works out which instance it belongs to from where it sits, checks that the machine can
-# actually run a session, and hands the rest over to Node. Nothing here is written at install
-# time and no path is baked in, so an instance can be moved and this still works.
-
-# The floors the installer applies, repeated rather than looked up. An instance carries its own
-# copy of everything it runs, so it has to say this for itself: it may well be started on a
-# different machine from the one it was installed on, by somebody who never ran install.sh.
+# It is here because of what an update does: it replaces the whole of bin/, so an instance that
+# took a version shipping only the new name would lose the old one the moment it caught up — and
+# the line the update prints on its way out is printed by the process it started as, which knows
+# no name but the one it was launched under. Whoever types the old name is told the new one and
+# gets what they asked for anyway, which is the difference between a rename and a break.
 #
-# Nothing in this file needs bash 4 — the newest things in it are [[ =~ ]] and BASH_SOURCE, both
-# bash 3. The floor is install.sh's, unchanged, so that one workspace does not run under a shell
-# its own installer would have refused.
-readonly MIN_BASH_MAJOR=4
-readonly MIN_NODE_MAJOR=24
+# Nothing is checked here. Every floor an instance has to clear is checked by the command this
+# hands over to, and checking them twice would be two answers to keep in step for no gain.
+#
+# It goes away two releases after the one that renamed the command.
 
-die() { echo "ow: ${*}" >&2; exit 1; }
+bin_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 
-main() {
-    local bin_dir root node_version node_major
-
-    if (( BASH_VERSINFO[0] < MIN_BASH_MAJOR )); then
-        die "bash ${MIN_BASH_MAJOR} or newer is required, this shell is ${BASH_VERSION}"
-    fi
-
-    bin_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
-    root="$(dirname -- "${bin_dir}")"
-
-    [[ -f "${root}/ow.json" ]] ||
-        die "${root} is not an OpenOv AI instance: no ow.json in it"
-
-    # Both are prerequisites of running an instance, not of installing one, which is why they
-    # are checked here and not only by the installer.
-    command -v node >/dev/null 2>&1 ||
-        die "Node.js is required and is not on your PATH — install it, or load your version manager, then run this again"
-
-    # An older Node reads a different language and stops on syntax the toolkit uses freely.
-    # Saying so here costs one line; finding out at the first message costs an unplaceable
-    # parse error in the middle of a conversation.
-    node_version="$(node --version 2>/dev/null || true)"
-    node_major="${node_version#v}"
-    node_major="${node_major%%.*}"
-    if [[ ! "${node_major}" =~ ^[0-9]+$ ]] || (( node_major < MIN_NODE_MAJOR )); then
-        die "Node.js ${MIN_NODE_MAJOR} or newer is required, this one is ${node_version:-unreadable}"
-    fi
-
-    command -v claude >/dev/null 2>&1 ||
-        die "Claude Code is required and is not on your PATH — install it, then run this again"
-
-    exec node "${root}/tools/ow.mjs" --root "${root}" "$@"
-}
-
-main "$@"
+echo "ow is now ovai — running ${bin_dir}/ovai" >&2
+exec "${bin_dir}/ovai" "$@"

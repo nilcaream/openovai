@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-// The instance's own command. bin/ow works out which instance it belongs to and passes it in
+// The instance's own command. bin/ovai works out which instance it belongs to and passes it in
 // with --root, so nothing here has to guess where it is running.
 
 import fs from "node:fs";
@@ -44,15 +44,15 @@ function usage() {
     "The command of an OpenOv AI instance.",
     "",
     "Usage:",
-    "  ow status        show who works in this instance and on which models",
-    "  ow room          show what each of them is doing right now",
-    "  ow chat          serve the chat page until you stop it",
-    "  ow hire <name>   open a desk for a worker, so the chat can host one",
-    "  ow plugin <name> start a tool this instance serves itself, from the scaffold",
-    "  ow say <name> <message>",
+    "  ovai status        show who works in this instance and on which models",
+    "  ovai room          show what each of them is doing right now",
+    "  ovai chat          serve the chat page until you stop it",
+    "  ovai hire <name>   open a desk for a worker, so the chat can host one",
+    "  ovai plugin <name> start a tool this instance serves itself, from the scaffold",
+    "  ovai say <name> <message>",
     "                   say something to another session in this instance and wait for its reply",
-    "  ow login         sign this instance in to an Anthropic account",
-    "  ow update        take the latest release, replacing what the toolkit ships",
+    "  ovai login         sign this instance in to an Anthropic account",
+    "  ovai update        take the latest release, replacing what the toolkit ships",
     "                   [--from <url or directory>] where to look instead",
     "",
   ].join("\n");
@@ -61,7 +61,7 @@ function usage() {
 function readRoot(argv) {
   const at = argv.indexOf("--root");
   if (at === -1 || argv[at + 1] === undefined) {
-    throw new UsageError("--root is missing; run this instance's bin/ow rather than the tool directly");
+    throw new UsageError("--root is missing; run this instance's bin/ovai rather than the tool directly");
   }
   return { root: argv[at + 1], rest: [...argv.slice(0, at), ...argv.slice(at + 2)] };
 }
@@ -98,10 +98,10 @@ function describeCredential(root, auth) {
     return "there is one — not checked against Anthropic";
   }
   // What to do about it depends on where the account was supposed to come from. Telling an
-  // instance that inherits to run `ow login` would send it to a command that refuses.
+  // instance that inherits to run `ovai login` would send it to a command that refuses.
   return auth === "inherit"
     ? "none — CLAUDE_CODE_OAUTH_TOKEN is not set in the environment this ran in"
-    : "none — run: ow login";
+    : "none — run: ovai login";
 }
 
 // Open a desk for a worker. Everything a person is made of is written here and nothing else
@@ -113,7 +113,7 @@ function describeCredential(root, auth) {
 // a command line rather than about a name: nothing typed at all.
 function hireHere(root, name) {
   if (name === undefined) {
-    throw new UsageError("hire needs a name: ow hire <name>");
+    throw new UsageError("hire needs a name: ovai hire <name>");
   }
 
   const written = hire(root, name, panelDirectory(root, name), readConfig(root));
@@ -141,7 +141,7 @@ function hireHere(root, name) {
 // adds is the refusal that is about a command line rather than about a name: nothing typed at all.
 function pluginHere(root, name) {
   if (name === undefined) {
-    throw new UsageError("plugin needs a name: ow plugin <name>");
+    throw new UsageError("plugin needs a name: ovai plugin <name>");
   }
   if (!isPluginName(name)) {
     throw new UsageError(describePluginName(name));
@@ -170,14 +170,14 @@ function pluginHere(root, name) {
 async function room(root) {
   const url = listening(root);
   if (url === null) {
-    throw new ChatError("no chat is running in this instance, so there is no room to show — start one with: ow chat");
+    throw new ChatError("no chat is running in this instance, so there is no room to show — start one with: ovai chat");
   }
 
   let answered;
   try {
     answered = await fetch(`${url}/sessions`);
   } catch (error) {
-    throw new ChatError(`the chat at ${url} did not answer (${error.cause?.code ?? error.message}) — start one with: ow chat`);
+    throw new ChatError(`the chat at ${url} did not answer (${error.cause?.code ?? error.message}) — start one with: ovai chat`);
   }
 
   let body;
@@ -214,7 +214,7 @@ async function room(root) {
 // which is correct: the person at the keyboard is the human, and that is who it arrives as.
 async function say(root, name, words) {
   if (name === undefined) {
-    throw new UsageError("say needs somebody to say it to: ow say <name> <message>");
+    throw new UsageError("say needs somebody to say it to: ovai say <name> <message>");
   }
   if (!isName(name)) {
     throw new UsageError(describeName("a name", name));
@@ -222,12 +222,12 @@ async function say(root, name, words) {
 
   const text = words.join(" ").trim();
   if (text === "") {
-    throw new UsageError(`say needs something to say: ow say ${name} <message>`);
+    throw new UsageError(`say needs something to say: ovai say ${name} <message>`);
   }
 
   const url = listening(root);
   if (url === null) {
-    throw new ChatError("no chat is running in this instance — start one with: ow chat");
+    throw new ChatError("no chat is running in this instance — start one with: ovai chat");
   }
 
   const from = process.env[NAME_IN_ENVIRONMENT];
@@ -242,7 +242,7 @@ async function say(root, name, words) {
   } catch (error) {
     // The address was written down by a chat that has since been stopped, or one that is no
     // longer answering. Say where we tried, so the next question is about that process.
-    throw new ChatError(`the chat at ${url} did not answer (${error.cause?.code ?? error.message}) — start one with: ow chat`);
+    throw new ChatError(`the chat at ${url} did not answer (${error.cause?.code ?? error.message}) — start one with: ovai chat`);
   }
 
   let body;
@@ -330,7 +330,7 @@ async function update(root, argv) {
 
   console.log("");
   console.log("Start the chat again to run it:");
-  console.log(`  ${path.join(root, "bin", "ow")} chat`);
+  console.log(`  ${path.join(root, "bin", "ovai")} chat`);
 }
 
 // Where to look for a release: what was asked for, or the toolkit's own.
@@ -567,7 +567,7 @@ async function main(argv) {
     return 0;
   } catch (error) {
     if (error instanceof UsageError) {
-      console.error(`ow: ${error.message}`);
+      console.error(`ovai: ${error.message}`);
       console.error("");
       console.error(usage());
       return 2;
@@ -579,7 +579,7 @@ async function main(argv) {
       error instanceof PluginError ||
       error instanceof ReleaseError
     ) {
-      console.error(`ow: ${error.message}`);
+      console.error(`ovai: ${error.message}`);
       return 1;
     }
     throw error;

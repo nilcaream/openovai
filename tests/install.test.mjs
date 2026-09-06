@@ -16,7 +16,8 @@ import {
   installed,
   remove,
   repo,
-  runOw,
+  runOldName,
+  runOvai,
   scratch,
   writeNodeStandIn,
 } from "./helpers.mjs";
@@ -102,10 +103,20 @@ describe("what the installer made", () => {
   });
 
   it("copies the launcher in", () => {
-    assert.ok(fs.existsSync(inside("bin", "ow")));
+    assert.ok(fs.existsSync(inside("bin", "ovai")));
   });
 
   it("leaves the launcher executable", () => {
+    assert.doesNotThrow(() => fs.accessSync(inside("bin", "ovai"), fs.constants.X_OK));
+  });
+
+  // An update replaces the whole of bin/, so a name left out of the payload is a name an instance
+  // loses the moment it catches up. The old one ships until two releases from now.
+  it("copies the old name of the launcher in too", () => {
+    assert.ok(fs.existsSync(inside("bin", "ow")));
+  });
+
+  it("leaves the old name executable", () => {
     assert.doesNotThrow(() => fs.accessSync(inside("bin", "ow"), fs.constants.X_OK));
   });
 
@@ -114,7 +125,7 @@ describe("what the installer made", () => {
   });
 
   it("copies the instance command in", () => {
-    assert.ok(fs.existsSync(inside("tools", "ow.mjs")));
+    assert.ok(fs.existsSync(inside("tools", "ovai.mjs")));
   });
 
   it("copies the version in", () => {
@@ -235,15 +246,15 @@ describe("what the installer made", () => {
   // line no persona names any more: a grant nobody uses is a grant nobody is watching.
   it("no longer grants the command it replaced", () => {
     const allow = JSON.parse(contentOf(".claude", "settings.json")).permissions.allow;
-    assert.ok(!allow.some((rule) => rule.includes("ow say")));
+    assert.ok(!allow.some((rule) => rule.includes("ovai say")));
   });
 
   // Seeing who else works here is a tool now, under the one rule above. Watched before there was
-  // any rule for it: a lead sat parked on `bin/ow status` for six and a half minutes and would not
+  // any rule for it: a lead sat parked on `bin/ovai status` for six and a half minutes and would not
   // have stopped, so nothing may be left telling a session to type it.
   it("no longer grants the command that listed who works here", () => {
     const allow = JSON.parse(contentOf(".claude", "settings.json")).permissions.allow;
-    assert.ok(!allow.some((rule) => rule.includes("ow status")));
+    assert.ok(!allow.some((rule) => rule.includes("ovai status")));
   });
 
   it("tells the leader how to say something to somebody", () => {
@@ -253,7 +264,7 @@ describe("what the installer made", () => {
   // A persona that still named the command would be telling a session to type a shell line the
   // instance no longer grants, which is a session stopped for doing as it was told.
   it("does not tell the leader to type the command it replaced", () => {
-    assert.ok(!contentOf("personas", `${LEADER}.md`).includes("ow say"));
+    assert.ok(!contentOf("personas", `${LEADER}.md`).includes("ovai say"));
   });
 
   it("tells the leader how to see who works here", () => {
@@ -261,7 +272,7 @@ describe("what the installer made", () => {
   });
 
   it("does not tell the leader to type the command that listed who works here", () => {
-    assert.ok(!contentOf("personas", `${LEADER}.md`).includes("ow status"));
+    assert.ok(!contentOf("personas", `${LEADER}.md`).includes("ovai status"));
   });
 
   // The room is the third of them, and the only one the lead alone is offered. Watched here as
@@ -269,7 +280,7 @@ describe("what the installer made", () => {
   // together, or a lead is told to ask for something nothing will serve it.
   it("no longer grants the command that showed the room", () => {
     const allow = JSON.parse(contentOf(".claude", "settings.json")).permissions.allow;
-    assert.ok(!allow.some((rule) => rule.includes("ow room")));
+    assert.ok(!allow.some((rule) => rule.includes("ovai room")));
   });
 
   // What the lead cannot see for itself: its own lines wait while the person it is talking to is
@@ -397,7 +408,7 @@ describe("what the installer made", () => {
   });
 
   it("does not tell the leader to type the command that showed the room", () => {
-    assert.ok(!contentOf("personas", `${LEADER}.md`).includes("ow room"));
+    assert.ok(!contentOf("personas", `${LEADER}.md`).includes("ovai room"));
   });
 
   // Said in the persona because it is not said anywhere else the lead reads: a tool it is offered
@@ -571,12 +582,25 @@ describe("a port the machine picks", () => {
 
 // Claude Code is a prerequisite of running an instance, not of making one.
 describe("the instance runs", { skip: claudeIsInstalled() ? false : "Claude Code is not on the PATH" }, () => {
-  it("answers ow status", () => {
-    assert.equal(runOw(instance, ["status"], process.env).status, 0);
+  it("answers ovai status", () => {
+    assert.equal(runOvai(instance, ["status"], process.env).status, 0);
   });
 
-  it("names the human in ow status", () => {
-    assert.match(runOw(instance, ["status"], process.env).stdout, new RegExp(HUMAN));
+  it("names the human in ovai status", () => {
+    assert.match(runOvai(instance, ["status"], process.env).stdout, new RegExp(HUMAN));
+  });
+
+  // The point of the old name is that it is not a message telling somebody to try again. It says
+  // what the command is called now, on the error stream so that whatever was reading the answer
+  // still reads the answer, and then it IS the command.
+  it("answers the same under the old name", () => {
+    const said = runOldName(instance, ["status"], process.env);
+    assert.equal(said.status, 0);
+    assert.match(said.stdout, new RegExp(HUMAN));
+  });
+
+  it("says the new name on the way through", () => {
+    assert.match(runOldName(instance, ["status"], process.env).stderr, /ow is now ovai/);
   });
 });
 
