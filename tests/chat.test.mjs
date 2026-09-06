@@ -1745,6 +1745,99 @@ describe("asking to be allowed", () => {
     });
   });
 
+  // And the page, which is the only caller either of the two above ever has. The route was right
+  // and checked in both directions for four releases while the page posted { id, decision } and
+  // could not reach the good half of it — so a run refused from the one place anybody refuses
+  // things was always told the chat's own sentence and never a person's. Reverting the page alone
+  // leaves every check above green; only these three go red.
+  //
+  // No suite runs page.html — it is served and read as TEXT — so the reading is bounded to the one
+  // function, and what is asserted is that the box is built AND read. A source-text check that
+  // matches a literal is otherwise satisfied by the literal's own declaration.
+  describe("what the page posts when it refuses", () => {
+    let asked;
+
+    before(() => {
+      const page = fs.readFileSync(path.join(instance, "tools", "chat", "page.html"), "utf8");
+      const from = page.indexOf("function question(request)");
+      const to = page.indexOf("async function waiting()", from);
+      assert.ok(from > 0 && to > from, "the page has no question to read");
+      asked = page.slice(from, to);
+    });
+
+    it("gives the person somewhere to write why, and sends what they wrote", () => {
+      assert.match(asked, /createElement\("input"\)/);
+      assert.match(asked, /why:\s*reason\.value\.trim\(\)/);
+    });
+
+    // Not disabled, and not sent empty either: the fallback sentence stays what a caller that is
+    // not this page gets, rather than what a person at the page gets for pressing quickly.
+    it("does not let a refusal go without one", () => {
+      const refusing = asked.slice(asked.indexOf('no.addEventListener("click"'));
+      const empty = refusing.indexOf('reason.value.trim() === ""');
+      const returns = refusing.indexOf("return;", empty);
+      const sends = refusing.indexOf("answer({", empty);
+      assert.ok(empty > 0, "the refusal is not guarded on the box being empty");
+      assert.ok(returns > empty && returns < sends, "the guard does not stop the refusal going");
+    });
+
+    it("says nothing of the kind when it allows", () => {
+      const allowing = asked.slice(
+        asked.indexOf('yes.addEventListener("click"'),
+        asked.indexOf('no.addEventListener("click"'),
+      );
+      assert.ok(allowing.length > 0, "the page has no allow to read");
+      assert.ok(!allowing.includes("why"), "the page sends a reason with an allow");
+      assert.ok(!allowing.includes("reason"), "the page reads the box on an allow");
+    });
+  });
+
+  // And the tick that keeps that box on the page long enough to be typed into.
+  //
+  // The line is redrawn once a second, and while it was rebuilt from the queue every time it also
+  // built a new box every time: a second of typing came back empty with the cursor gone. Measured
+  // on a real page at 25 ms a key — a driver types a sentence inside one tick and never saw it,
+  // which is the only reason the checks above passed. A parked request does not change while it
+  // waits, so the tick has nothing to say about a line it has already drawn.
+  //
+  // Read as TEXT for the reason the refusing describe gives, and bounded to the tick alone.
+  describe("what the tick does to a question already on the page", () => {
+    let ticking;
+
+    before(() => {
+      const page = fs.readFileSync(path.join(instance, "tools", "chat", "page.html"), "utf8");
+      const from = page.indexOf("const drawn = new Map()");
+      const to = page.indexOf('composer.addEventListener("submit"', from);
+      assert.ok(from > 0 && to > from, "the page has no tick to read");
+      ticking = page.slice(from, to);
+    });
+
+    // The one line that did the damage. Replacing the children detaches every line, so even the
+    // node that survives comes back without the cursor that was in it.
+    it("does not throw the drawn lines away", () => {
+      assert.doesNotMatch(ticking, /replaceChildren/);
+    });
+
+    // Built once, and only where nothing is holding that id already. The order matters as much as
+    // the guard: a build above the check is a build that happens anyway.
+    it("builds a question only for a request it has not drawn", () => {
+      const guard = ticking.indexOf("!drawn.has(request.id)");
+      const builds = ticking.indexOf("question(request)");
+      assert.ok(guard > 0, "the tick does not ask whether the request is already drawn");
+      assert.ok(builds > guard, "the tick builds the question before it asks");
+      assert.equal(ticking.split("question(request)").length - 1, 1);
+    });
+
+    // The other half, and the reason a map can be kept at all: what leaves the queue leaves the
+    // page. Without it an answered request stays on screen with its buttons.
+    it("takes away the ones the queue no longer holds", () => {
+      const gone = ticking.indexOf("!permissions.some((request) => request.id === id)");
+      const removes = ticking.indexOf("line.remove()");
+      assert.ok(gone > 0, "the tick does not ask what left the queue");
+      assert.ok(removes > gone, "the tick removes a line without asking whether it left");
+    });
+  });
+
   // A run can end with its question still on the page: it gave up waiting, or it fell over. What
   // must not survive it is the offer to answer — allowing something after the run that asked has
   // gone would be a button that does nothing and says otherwise.

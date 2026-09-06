@@ -414,6 +414,14 @@
       const what = document.createElement("span");
       what.textContent = `${session.name} wants to use ${request.tool}: ${JSON.stringify(request.input)} `;
 
+      // A refusal is the whole of what the session is told about it, so it is somebody's sentence
+      // rather than a button press. The box is on the line from the start and not revealed by a
+      // first press: a person deciding to refuse should be typing the reason, not discovering they
+      // now have to.
+      const reason = document.createElement("input");
+      reason.type = "text";
+      reason.placeholder = "why not";
+
       const yes = document.createElement("button");
       yes.type = "button";
       yes.textContent = "Allow";
@@ -422,30 +430,62 @@
       no.type = "button";
       no.textContent = "Deny";
 
-      for (const [button, decision] of [
-        [yes, "allow"],
-        [no, "deny"],
-      ]) {
-        button.addEventListener("click", async () => {
-          yes.disabled = true;
-          no.disabled = true;
-          await fetch(`/sessions/${session.name}/permission`, {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ id: request.id, decision }),
-          });
-          await waiting();
+      async function answer(body) {
+        yes.disabled = true;
+        no.disabled = true;
+        await fetch(`/sessions/${session.name}/permission`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(body),
         });
+        await waiting();
       }
 
-      line.append(what, yes, no);
+      // Allowing says nothing. A reason attached to an allow is a note nobody reads, and a field
+      // the route would have to start ignoring.
+      yes.addEventListener("click", async () => {
+        await answer({ id: request.id, decision: "allow" });
+      });
+
+      no.addEventListener("click", async () => {
+        // Nothing happens while the box is empty, and the button is not disabled either: a dead
+        // button explains nothing, and a cursor landing in the box says what is missing.
+        if (reason.value.trim() === "") {
+          reason.focus();
+          return;
+        }
+        await answer({ id: request.id, decision: "deny", why: reason.value.trim() });
+      });
+
+      line.append(what, reason, yes, no);
       return line;
     }
+
+    // What is drawn, by the id of the request it is drawing. A parked request never changes while
+    // it waits — same id, same call, same shape — so a tick has nothing to redraw about one it has
+    // already drawn, and redrawing it anyway threw away the box somebody was typing in once a
+    // second. A refusal is a sentence, and a sentence takes longer than a tick to write: the line
+    // is built once and then left alone, and only arrivals are added and departures removed.
+    const drawn = new Map();
 
     async function waiting() {
       const answered = await fetch(`/sessions/${session.name}/permissions`);
       const { permissions } = await answered.json();
-      asking.replaceChildren(...permissions.map(question));
+      for (const [id, line] of drawn) {
+        if (!permissions.some((request) => request.id === id)) {
+          line.remove();
+          drawn.delete(id);
+        }
+      }
+      // Appended in the order they arrive, which is the order the queue holds them in: it is a
+      // queue and nothing is ever inserted into the middle of it.
+      for (const request of permissions) {
+        if (!drawn.has(request.id)) {
+          const line = question(request);
+          drawn.set(request.id, line);
+          asking.append(line);
+        }
+      }
     }
 
     composer.addEventListener("submit", async (event) => {
