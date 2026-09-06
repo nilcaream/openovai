@@ -2,10 +2,15 @@
 //
 // The chat already serves a session a handful of tools of its own, and what they are is decided
 // in the repository. That is right for the ones every instance wants and wrong for the ones only
-// one instance wants: a workspace whose person is not at the page needs something that pops on
-// their desktop, and how a desktop is made to pop is `notify-send` here, `osascript` there and a
-// toast API somewhere else. None of that can ship in a toolkit that installs on machines it knows
-// nothing about, so it has to be written where the machine is known — beside the instance.
+// one instance wants: what such a tool has to reach — the tracker one team files its work in, the
+// machine another one builds on, wherever a third keeps its notes — is different in every
+// workspace. None of that can ship in a toolkit that installs on machines it knows nothing about,
+// so it has to be written where the machine is known — beside the instance.
+//
+// Not the desktop popup, which is written beside the instance for the same reason and is NOT one of
+// these. `pop.mjs` is called by the chat because something happened; a file in here is a tool a
+// session chooses to call, and the popup being one would hand a lead a second way to reach the
+// person. See tools/chat/pop.mjs.
 //
 // A file is the whole of it. One file is one tool and its name is the tool's name, so two files
 // cannot claim one name and nothing has to be registered, listed or kept in step with anything:

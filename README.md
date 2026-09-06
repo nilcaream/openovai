@@ -379,14 +379,14 @@ do, and writing the file is the deciding. The next section is about those.
 ### Tools the toolkit did not ship
 
 The six above are the ones every workspace wants. The ones only yours wants cannot be in here at
-all: a workspace whose person is not at the page needs something that pops on their desktop, and
-how a desktop is made to pop is `notify-send` on one machine, `osascript` on another and a toast
-API on a third. None of that belongs in a toolkit that installs on machines it knows nothing
-about, so it is written where the machine is known — beside the instance.
+all: what such a tool has to reach — the tracker your team files work in, the machine your builds
+run on, whatever your notes live in — is different in every workspace, and none of it belongs in a
+toolkit that installs on machines it knows nothing about. So it is written where the machine is
+known, beside the instance.
 
-    ovai plugin notify
+    ovai plugin tracker
 
-writes `plugins/notify.mjs` from a scaffold, and that is the whole of adding one. The file is the
+writes `plugins/tracker.mjs` from a scaffold, and that is the whole of adding one. The file is the
 tool: its name is the tool's name, there is nothing to register and no list to keep in step,
 because the directory is the list. Renaming the tool is renaming the file, which is the honest way
 round — a name kept in a field could disagree with the file holding it, and nothing could say
@@ -440,6 +440,62 @@ can give itself a tool: writing that file is a person deciding, and that decisio
 They belong to the instance and not to the toolkit. `plugins/` sits at the root beside `work/` and
 `personas/`, outside everything an update replaces, so taking a newer version leaves your tools
 exactly where they were.
+
+### Reaching you when you are not at the page
+
+Two things in a workspace stop until you act. Your lead breaks in, which is the one line it has to
+you without being asked; and a session stops to ask whether it may do something, and waits, because
+nothing on that path times out — the answer is yours and a person is not a deadline. Both are drawn
+on the page the moment they happen, and both are worth nothing while nobody has the page open. A
+session was measured sitting stopped for six and a half minutes on a panel nobody was looking at,
+and it would have sat there for good.
+
+So the chat also pops on your desktop, for those two things and for nothing else.
+
+How your desktop is made to pop is yours to write, for the same reason a tool of your own is: it is
+`notify-send` here, `osascript` there and a toast API somewhere else. One file at the root of your
+workspace, beside `openovai.json`, exporting one function:
+
+```js
+import { execFile } from "node:child_process";
+
+export function pop({ on, why }, { root, config }) {
+  execFile("notify-send", ["--", config.human, `${on}: ${why}`]);
+}
+```
+
+`on` is whose panel it is about, so you know where to look, and `why` is the sentence to read,
+composed already. `root` and `config` are the two the tools of your own are handed, and for the
+same reasons. Whatever it answers is ignored and it is never waited for, so a file that hangs costs
+the workspace nothing; whatever it throws is caught, and the panel it was about carries a line
+saying the desktop was not reached — otherwise a lead that has just broken in goes on believing you
+have it.
+
+It is read when the chat starts, so **start the chat again after writing it**. A workspace without
+one pops nothing and is told nothing, which is most of them; one whose file will not load, or has
+no `pop` in it, is named where the chat was started, and the chat serves everything else as usual.
+
+It is not a tool and no session is offered it. Your lead has exactly one line to you that it can
+choose to send, and it already has it; a second one would be a lead with two ways to interrupt you,
+which is the thing "one at a time" exists to stop. The popup is bound to what happened, not to what
+anybody decided to call.
+
+**Nothing else pops.** Not an answer, not a turn ending, not a desk opened or put away, not one
+session speaking to another, not the room going off. All of those are a record, and a record is
+read when you read it.
+
+**When you are not to be woken**, say so in `openovai.json`:
+
+```json
+"quietHours": "22:00-08:00"
+```
+
+Your machine's own clock, from the first minute and up to but not including the last. It may wrap
+midnight, as that one does, or not — `"09:00-17:00"` is a working day and is just as legitimate.
+Leave it out and nothing is quiet. Nothing pops inside the window and nothing is held back to
+arrive when it ends: a popup at eight about something that happened at three is a lie about now,
+and the page is still the record. A window the chat cannot read stops it starting, naming the
+field — being told at the start beats finding out at three in the morning.
 
 ### Trying it
 
