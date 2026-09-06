@@ -282,6 +282,39 @@ describe("what the installer made", () => {
     assert.ok(!contentOf("personas", `${LEADER}.md`).includes("ovai status"));
   });
 
+  // The two tools that change who works here. A tool is offered whether or not the persona says a
+  // word about it, so what is checked here is that the lead is TOLD — a lead reaching for something
+  // it has only inferred from a tool list reaches for it the way it guessed.
+  it("tells the leader it can open a desk, and what that opens", () => {
+    assert.match(contentOf("personas", `${LEADER}.md`), /`hire` opens a desk for somebody new/);
+    assert.match(contentOf("personas", `${LEADER}.md`), /Nothing is started by\s+it/);
+  });
+
+  // The half that has to survive an edit: filed, not thrown away. Without it the paragraph reads as
+  // deletion, and a lead that reads it as deletion will not use it when it should.
+  it("tells the leader that putting a desk away files it rather than throws it away", () => {
+    assert.match(contentOf("personas", `${LEADER}.md`), /`retire` is the other end of it/);
+    assert.match(contentOf("personas", `${LEADER}.md`), /files rather than throws away/);
+  });
+
+  // What the tool refuses, said as whose it is rather than as a rule. A lead told only that the
+  // name was refused goes looking for a way round it, and there is one — moving the conversation —
+  // which is exactly the thing that is not the lead's to do.
+  it("tells the leader that a conversation somebody left behind is not its to move", () => {
+    assert.match(
+      contentOf("personas", `${LEADER}.md`),
+      /A conversation somebody left behind is\s+a person's to move out of the way/,
+    );
+  });
+
+  // The one that bites the copy-paste. A worker told about a tool it cannot call goes hunting for
+  // it, and what it finds is the refusal naming the lead — a whole turn spent on a sentence.
+  it("tells a worker about neither of them", () => {
+    const worker = contentOf("templates", "worker.md");
+    assert.ok(!worker.includes("`hire`"), "the worker template names hire");
+    assert.ok(!worker.includes("`retire`"), "the worker template names retire");
+  });
+
   // The room is the third of them, and the only one the lead alone is offered. Watched here as
   // well as on the endpoint: what the instance grants and what the persona names have to move
   // together, or a lead is told to ask for something nothing will serve it.
