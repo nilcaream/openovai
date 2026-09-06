@@ -107,7 +107,7 @@ function trustOwnRoot(root) {
 // has to be true on disk before it will read the instance's own settings. Everything that
 // starts Claude Code goes through here, so this is the one place it cannot be forgotten.
 //
-// `auth` is what the instance was installed with, from ow.json. Anything other than "inherit"
+// `auth` is what the instance was installed with, from openovai.json. Anything other than "inherit"
 // is treated as "sign in on your own", so an instance from before the option existed keeps the
 // stricter behaviour rather than quietly picking up whatever token is lying around.
 export function environment(root, auth) {

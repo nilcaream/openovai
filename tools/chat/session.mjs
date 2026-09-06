@@ -148,7 +148,7 @@ export function ranAt(root, name) {
 // How long a conversation can go unanswered before carrying it on certainly costs the whole of it
 // again at write price. The cache holding a conversation between runs lives an hour.
 //
-// Not in ow.json: it describes the model service rather than this workspace, it is the same number
+// Not in openovai.json: it describes the model service rather than this workspace, it is the same number
 // everywhere, and a wrong one silently either throws conversations away or pays for them. If it
 // ever changes it is this literal and a fresh measurement.
 //
@@ -341,7 +341,7 @@ export function forget(root, name) {
 
 // Which model a session runs on. The instance was installed with one model for the session that
 // leads and one for everybody else, and a session's own name is enough to say which it is, so
-// there is nothing to record and nothing that can disagree with ow.json.
+// there is nothing to record and nothing that can disagree with openovai.json.
 function model(instance, name) {
   const models = instance.config.models;
   return name === instance.config.leader ? models.leader : models.worker;

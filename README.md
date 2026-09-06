@@ -87,7 +87,7 @@ So far the installer creates the directories an instance is made of: `work/` for
 workspace has learned — so that two instances on one machine never share an account, a session
 history or a memory. None of them is copied from the source: what the toolkit ships and what an
 instance accumulates stay in different directories. It also writes
-`ow.json`, the instance's description of itself — who works there, on which models, and on
+`openovai.json`, the instance's description of itself — who works there, on which models, and on
 which port. That
 file holds no absolute path, not even the instance's own, so a workspace can be moved or
 copied and still be itself.
@@ -259,7 +259,7 @@ Each message runs one session once — one Claude Code run per message, on the i
 Claude Code home — and the answer lands in that session's transcript. A reply arrives whole
 rather than a word at a time. Which model a session runs on comes from its name: the lead runs
 on `--leader-model`, everybody else on `--worker-model`, so there is nothing recorded that can
-disagree with `ow.json`.
+disagree with `openovai.json`.
 
 A session asks before it uses a tool the instance has not already settled. What the instance
 allows outright it simply does; what it forbids it never gets to try; and anything left undecided
@@ -890,7 +890,7 @@ whole repository and that is fine: what makes something a valid source is the pa
 not the absence of anything else.
 
 **Everything a workspace has accumulated is left alone.** Desks under `work/`, the personas the
-sessions here are running, the panels and threads under `chat/`, `ow.json`, the Claude Code home
+sessions here are running, the panels and threads under `chat/`, `openovai.json`, the Claude Code home
 with everything the workspace has learned in it — an update does not read them and does not write
 them. Nothing is re-keyed, nothing is migrated, and no name changes hands. The payload is the only
 thing that moves, and nothing inside an instance ever writes there.

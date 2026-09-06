@@ -80,7 +80,7 @@ const LAYOUT = ["work", "personas", ".claude", ".claude-home", PLUGINS];
 // The instance's own description of itself. It is deliberately free of absolute paths — not
 // where it came from, not even its own root, which anything running inside works out from
 // where it sits — so that an instance can be moved or copied and still be itself.
-const CONFIG_FILE = "ow.json";
+const CONFIG_FILE = "openovai.json";
 
 // Bumped when a field changes meaning, so an older instance can be recognised as one.
 const CONFIG_SCHEMA = 1;

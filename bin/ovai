@@ -29,8 +29,11 @@ main() {
     bin_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
     root="$(dirname -- "${bin_dir}")"
 
-    [[ -f "${root}/ow.json" ]] ||
-        die "${root} is not an OpenOv AI instance: no ow.json in it"
+    # An instance made before the toolkit was renamed still keeps its description under the old
+    # name, and taking a version never renames it, so that name is accepted here too — for the
+    # same two releases the old name of this command is. What a refusal names is the new one.
+    [[ -f "${root}/openovai.json" || -f "${root}/ow.json" ]] ||
+        die "${root} is not an OpenOv AI instance: no openovai.json in it"
 
     # Both are prerequisites of running an instance, not of installing one, which is why they
     # are checked here and not only by the installer.

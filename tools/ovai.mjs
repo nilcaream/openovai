@@ -20,7 +20,13 @@ import { RELEASES, ReleaseError, latestRelease, notesIn, replacePayload, unpackI
 import { PluginError, describePluginName, describePlugins, isPluginName, pluginsIn, writePlugin } from "./plugins.mjs";
 import { version } from "./version.mjs";
 
-const CONFIG_FILE = "ow.json";
+// The instance's own description of itself. An instance made before the toolkit was renamed
+// still has the old name on it, and an update replaces only what the toolkit ships — so that
+// file is never renamed by taking a version, and refusing to read it would turn a rename into a
+// directory that has stopped being an instance. The old name is read where it is the only one
+// there, and stops being read two releases from now.
+const CONFIG_FILE = "openovai.json";
+const CONFIG_FILE_BEFORE = "ow.json";
 
 const COMMANDS = ["status", "room", "chat", "hire", "plugin", "say", "login", "update"];
 
@@ -66,8 +72,20 @@ function readRoot(argv) {
   return { root: argv[at + 1], rest: [...argv.slice(0, at), ...argv.slice(at + 2)] };
 }
 
+// Which of the two names this instance keeps its description under. The new one wins where both
+// are there, so an instance that has been renamed by hand is not read out of the file it left
+// behind; the new one is also what is named in the refusal when there is neither.
+function configIn(root) {
+  const now = path.join(root, CONFIG_FILE);
+  if (fs.existsSync(now)) {
+    return now;
+  }
+  const before = path.join(root, CONFIG_FILE_BEFORE);
+  return fs.existsSync(before) ? before : now;
+}
+
 function readConfig(root) {
-  const file = path.join(root, CONFIG_FILE);
+  const file = configIn(root);
   let text;
   try {
     text = fs.readFileSync(file, "utf8");
@@ -397,7 +415,7 @@ function status(root) {
     ["instance", root],
     // What this instance is running, which is the first thing anybody comparing two of them
     // wants and the first thing to know before taking a newer one. It is read from the payload
-    // rather than from ow.json, so it says what the code here IS and not what it was installed
+    // rather than from openovai.json, so it says what the code here IS and not what it was installed
     // as.
     ["version", version(root) ?? "not recorded — this instance was made before the toolkit carried one"],
     ["human", config.human],

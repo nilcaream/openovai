@@ -7,7 +7,7 @@
 
 import fs from "node:fs";
 
-// Does ow.json describe the instance that was asked for?
+// Does openovai.json describe the instance that was asked for?
 export function configProblems(file, expected) {
   const text = fs.readFileSync(file, "utf8");
   const config = JSON.parse(text);

@@ -99,7 +99,14 @@ const made = installed(options(instance));
 
 describe("what the installer made", () => {
   it("writes the instance its own description", () => {
-    assert.ok(fs.existsSync(inside("ow.json")));
+    assert.ok(fs.existsSync(inside("openovai.json")));
+  });
+
+  // The old name is read where it is the only one there, so that taking a version does not turn an
+  // instance into a directory that has stopped being one. Nothing is made under it: a fallback
+  // that also wrote would never end, because every new instance would need it too.
+  it("does not write the name that description used to have", () => {
+    assert.ok(!fs.existsSync(inside("ow.json")));
   });
 
   it("copies the launcher in", () => {
@@ -460,7 +467,7 @@ describe("what the installer made", () => {
 
   it("describes the instance that was asked for", () => {
     assert.deepEqual(
-      configProblems(inside("ow.json"), {
+      configProblems(inside("openovai.json"), {
         human: HUMAN,
         leader: LEADER,
         leaderModel: LEADER_MODEL,
@@ -567,7 +574,7 @@ describe("a port the machine picks", () => {
 
   it("records the port as 0 rather than one it chose", () => {
     assert.deepEqual(
-      configProblems(path.join(chosen, "ow.json"), {
+      configProblems(path.join(chosen, "openovai.json"), {
         human: HUMAN,
         leader: LEADER,
         leaderModel: LEADER_MODEL,
@@ -601,6 +608,21 @@ describe("the instance runs", { skip: claudeIsInstalled() ? false : "Claude Code
 
   it("says the new name on the way through", () => {
     assert.match(runOldName(instance, ["status"], process.env).stderr, /ow is now ovai/);
+  });
+
+  // The other half of the same promise, and the one that is easy to leave out: an instance made
+  // before the rename keeps its description under the old name, and taking a version does not
+  // reach outside the payload to rename it. Both the launcher's check and the reader behind it
+  // have to find it there. Put back afterwards, because everything below still runs here.
+  it("answers for an instance whose description still has the old name", () => {
+    const now = inside("openovai.json");
+    const before = inside("ow.json");
+    fs.renameSync(now, before);
+    try {
+      assert.equal(runOvai(instance, ["status"], process.env).status, 0);
+    } finally {
+      fs.renameSync(before, now);
+    }
   });
 });
 
