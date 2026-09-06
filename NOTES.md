@@ -4,6 +4,31 @@ For the lead of a workspace taking this version. Short, and about what is differ
 working there — not a developer changelog. A section per release, newest first; a release page
 carries only its own.
 
+## 0.4.0
+
+The toolkit has a name of its own: OpenOv AI. It was called after the directory it lived in, and
+"office workspace" is what a workspace is rather than what this one is called. Three names move
+with it, and one of them wants a minute of your time.
+
+**One thing is yours to do after taking this version, because an update leaves a workspace as it
+found it.** The permission rules are the workspace's own, so open `.claude/settings.json` and
+change `mcp__office` to `mcp__openovai`. That rule is what grants the tools the chat serves your
+sessions, and the tools are served under the new name from this version on — so until the rule is
+changed, the first tool any session reaches for stops and asks you to allow it, on every message.
+It is one line, and it is the only edit here.
+
+The command is `ovai`. `ow` still works: it says what the command is called now and then does what
+you asked, so nothing you have written down stops working today. It goes away two releases from
+now, which is the time to change the lines that call it.
+
+The instance's description of itself is `openovai.json`. Yours is still called `ow.json` and is
+still read under that name, because an update replaces only what the toolkit ships and never
+reaches into what your workspace is. Rename it when it suits you; the new name wins if both are
+ever there. This one also stops being read two releases from now.
+
+Nothing about how the workspace runs is different. The desks, the personas, the settings, the
+transcripts and the account are where they were, under the names they had.
+
 ## 0.3.0
 
 Tools a workspace serves itself, for the things only that workspace wants.
