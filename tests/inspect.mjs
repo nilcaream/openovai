@@ -6,6 +6,10 @@
 // one answers with a list of problems, empty when there are none.
 
 import fs from "node:fs";
+import path from "node:path";
+
+// The workspace's own account of every rule it holds beyond a desk and the tools the chat serves.
+export const LEDGER = "allowed.md";
 
 // Does openovai.json describe the instance that was asked for?
 export function configProblems(file, expected) {
@@ -78,14 +82,48 @@ export function settingsProblems(file, names) {
     wrong.push(`rules anchored outside the instance: ${JSON.stringify(absolute)}`);
   }
 
-  // One rule per desk, the one that lets a session speak to another, and nothing else. Anything
-  // wider is a grant nobody asked for.
-  const wider = allow.filter((rule) => !expected.includes(rule));
+  // One rule per desk, the one that lets a session speak to another, and anything a person asked
+  // for in writing. A rule is granted for a reason, and the reason outlives the moment somebody
+  // pressed a button: a workspace that cannot say who asked for a rule ends up holding a pid that
+  // died a week ago, a delete for a directory that is gone, and two rules that were the first
+  // words of a sentence somebody was typing. Measured, in the workspace this toolkit came out of:
+  // twenty-six rules, every one a press, not one of them accounted for.
+  const accounted = ledger(file);
+  const wider = allow.filter((rule) => !expected.includes(rule) && !accounted.includes(rule));
   if (wider.length > 0) {
-    wrong.push(`rules beyond the desks of ${names.join(", ")} and saying something: ${JSON.stringify(wider)}`);
+    wrong.push(`rules nothing accounts for, beyond the desks of ${names.join(", ")} and saying something: ${JSON.stringify(wider)}`);
+  }
+
+  // And the other direction, which is the half a ledger is usually missing. A line for a rule that
+  // is not granted is not harmless bookkeeping: it is the file saying this workspace allows
+  // something it does not, which is worse than saying nothing, because it is read as an answer.
+  const claimed = accounted.filter((rule) => !allow.includes(rule));
+  if (claimed.length > 0) {
+    wrong.push(`accounted for but not granted: ${JSON.stringify(claimed)}`);
   }
 
   return wrong;
+}
+
+// What the workspace has written down about the rules it holds beyond the two it hands out by
+// itself. One file beside the settings, one line per rule, the rule in backticks first on the
+// line — a person reads it top to bottom and can see who asked for what and when.
+//
+// It lives beside the settings rather than inside them, because `.claude/settings.json` has a
+// shape Claude Code owns and a key of ours in it is a key we would be guessing about. A workspace
+// that has never granted anything wider has no file, which is not a problem: nothing to account
+// for is the state a fresh instance is in.
+function ledger(settings) {
+  let lines;
+  try {
+    lines = fs.readFileSync(path.join(path.dirname(settings), LEDGER), "utf8").split("\n");
+  } catch {
+    return [];
+  }
+
+  return lines
+    .filter((line) => line.startsWith("- `") && line.indexOf("`", 3) > 3)
+    .map((line) => line.slice(3, line.indexOf("`", 3)));
 }
 
 // Is the instance's own directory recorded as trusted in the Claude Code state file inside its

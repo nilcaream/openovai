@@ -13,7 +13,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { before, describe, it } from "node:test";
+import { after, before, describe, it } from "node:test";
 
 import {
   installed,
@@ -26,7 +26,7 @@ import {
   writeNodeStandIn,
   writeStandIn,
 } from "./helpers.mjs";
-import { settingsProblems, trustProblems } from "./inspect.mjs";
+import { LEDGER, settingsProblems, trustProblems } from "./inspect.mjs";
 
 const HUMAN = "Mike";
 const LEADER = "Superman";
@@ -576,6 +576,96 @@ describe("hiring a worker", () => {
 
   it("starts no session doing it", () => {
     assert.ok(!readLog(log).includes("argv: -p"));
+  });
+});
+
+// What a workspace can say about the rules it holds.
+//
+// Two kinds of rule are handed out here without anybody being asked: a desk for each person, and
+// the one that lets a session call the tools the chat serves it. Everything else is somebody
+// answering a question at the page, and a press is a bad record of a decision — it says what was
+// allowed and nothing about who wanted it or why, and it is permanent. The workspace this toolkit
+// came out of holds twenty-six of them: a kill for a pid that died a week ago, a delete for a
+// directory that is gone, and two that are not commands at all but the first two words of a line
+// somebody was typing when they pressed.
+//
+// So a rule beyond those two kinds has to be written down beside the settings, in a file a person
+// reads, and an instance that holds one nothing accounts for is an instance that cannot say what
+// it allows. Nothing writes a wide rule yet — this is the invariant, landed before the thing that
+// needs it, and it is read here off files written by hand for the purpose.
+describe("what a workspace can account for", () => {
+  const accounting = scratch("ovai-test-accounting");
+  const settings = path.join(accounting, ".claude", "settings.json");
+  const WIDE = "Bash(node:*)";
+
+  function holding(allow, lines) {
+    fs.mkdirSync(path.dirname(settings), { recursive: true });
+    fs.writeFileSync(settings, `${JSON.stringify({ permissions: { allow } }, null, 2)}\n`);
+    const written = path.join(path.dirname(settings), LEDGER);
+    if (lines === undefined) {
+      fs.rmSync(written, { force: true });
+    } else {
+      fs.writeFileSync(written, lines.join("\n"));
+    }
+    return settingsProblems(settings, [LEADER]);
+  }
+
+  const standing = [`Edit(work/${LEADER}/STATE.md)`, "mcp__openovai"];
+
+  after(() => remove(accounting));
+
+  // The state every instance starts in, and the one the check has always held: the two kinds it
+  // hands out itself, nothing wider, and nothing to account for.
+  it("says nothing about an instance that has only ever granted a desk", () => {
+    assert.deepEqual(holding(standing, undefined), []);
+  });
+
+  // The whole slice. This is the check that would have caught `Bash(kill 1807950)` the day it was
+  // pressed — a rule in the file with nothing anywhere saying who wanted it.
+  it("names a rule nothing accounts for", () => {
+    const problems = holding([...standing, WIDE], undefined);
+    assert.equal(problems.length, 1, JSON.stringify(problems));
+    assert.match(problems[0], /nothing accounts for/);
+    assert.match(problems[0], /Bash\(node:\*\)/);
+  });
+
+  // And says nothing about the same rule once somebody has. The line is the account: the rule
+  // first, in backticks, and then whatever a person needs to know about it.
+  it("says nothing about the same rule once it is written down", () => {
+    assert.deepEqual(
+      holding([...standing, WIDE], [
+        "# What this workspace allows beyond a desk",
+        "",
+        `- \`${WIDE}\` — ${LEADER}, for \`node --test tests\``,
+        "",
+      ]),
+      [],
+    );
+  });
+
+  // Both directions, which is the half a ledger is usually missing. A line for a rule that is not
+  // granted reads as an answer and is not one, and a file allowed to over-claim is a file that
+  // stops being evidence — a rule could be removed by hand and its line would keep vouching for it.
+  it("names a rule the file claims and the settings do not hold", () => {
+    const problems = holding(standing, [`- \`${WIDE}\` — ${LEADER}, for something that is not granted`]);
+    assert.equal(problems.length, 1, JSON.stringify(problems));
+    assert.match(problems[0], /accounted for but not granted/);
+    assert.match(problems[0], /Bash\(node:\*\)/);
+  });
+
+  // Prose in the file is prose. A person opening this writes a heading and a sentence about what it
+  // is for, and a reader that took every backticked word for a rule would turn its own explanation
+  // into a claim.
+  it("reads the lines that are rules and leaves the rest of the file alone", () => {
+    assert.deepEqual(
+      holding(standing, [
+        "# What this workspace allows beyond a desk",
+        "",
+        `Every line below was asked for by somebody. \`${WIDE}\` is the shape of one.`,
+        "",
+      ]),
+      [],
+    );
   });
 });
 

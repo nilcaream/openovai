@@ -49,6 +49,7 @@ import {
 
 // The reader this suite checks directly. No route says this number, and a check that read the
 // file itself would pass with nothing written at all.
+import { settingsProblems } from "./inspect.mjs";
 import { ranAt } from "../tools/chat/session.mjs";
 
 // The kinds themselves, read from where they are named rather than written out again here. Two
@@ -5372,6 +5373,29 @@ describe("the session that leads puts a desk away", () => {
 
     const { sessions: rows } = JSON.parse((await get(`${URL}/sessions`)).body);
     assert.ok(!rows.some((row) => row.name === PUT_AWAY), `still serving ${PUT_AWAY}`);
+  });
+
+  // And the rule that let that desk be written goes with the desk. A rule naming a desk nobody has
+  // is the exact thing this workspace is not allowed to hold: nothing accounts for it, nobody
+  // asked for it, and it outlives the person it was for.
+  //
+  // Said twice, and the second half is the one that matters. The first reads the rule out of the
+  // file, which a filter written the wrong way round would also satisfy; the second asks the
+  // instance what it cannot account for and requires this name not to be in the answer, which is
+  // the sentence the invariant is written in. Scoped to this name rather than asserted empty,
+  // because the instance is shared and a fixture two describes up leaves a desk of its own behind
+  // on purpose — a check that read the whole answer would be about that fixture instead.
+  it("takes the rule that wrote that desk away with it", () => {
+    const file = path.join(instance, ".claude", "settings.json");
+    const { permissions } = JSON.parse(fs.readFileSync(file, "utf8"));
+    assert.ok(
+      !permissions.allow.includes(`Edit(work/${PUT_AWAY}/STATE.md)`),
+      permissions.allow.join(", "),
+    );
+
+    const here = fs.readdirSync(path.join(instance, "work"));
+    const unaccounted = settingsProblems(file, here).join(" ");
+    assert.ok(!unaccounted.includes(PUT_AWAY), unaccounted);
   });
 
   // The ordering the whole turn is arranged around. A retire that read the title before asking
