@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# install.sh — bootstrap for installing an office workspace instance.
+# install.sh — bootstrap for installing an OpenOv AI instance.
 #
 # This script only checks that the machine is ready and then hands over to the installer,
 # which is written in Node so that one implementation covers every platform we care about.

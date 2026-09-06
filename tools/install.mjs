@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-// The office workspace installer.
+// The OpenOv AI installer.
 //
 // It turns a command line into one resolved description of an instance — where it lives, who
 // works there and on which models — and then creates it. So far it creates the directories an
@@ -106,7 +106,7 @@ class InstallError extends Error {}
 
 function usage() {
   return [
-    "Install an office workspace instance.",
+    "Install an OpenOv AI instance.",
     "",
     "Usage:",
     "  ./install.sh --root <dir> --source <dir> --human <name> --leader <name>",

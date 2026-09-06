@@ -41,7 +41,7 @@ class ChatError extends Error {}
 
 function usage() {
   return [
-    "The command of an office workspace instance.",
+    "The command of an OpenOv AI instance.",
     "",
     "Usage:",
     "  ow status        show who works in this instance and on which models",

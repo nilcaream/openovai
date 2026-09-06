@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ow — the one command of an office workspace instance.
+# ow — the one command of an OpenOv AI instance.
 #
 # It works out which instance it belongs to from where it sits, checks that the machine can
 # actually run a session, and hands the rest over to Node. Nothing here is written at install
@@ -30,7 +30,7 @@ main() {
     root="$(dirname -- "${bin_dir}")"
 
     [[ -f "${root}/ow.json" ]] ||
-        die "${root} is not an office workspace instance: no ow.json in it"
+        die "${root} is not an OpenOv AI instance: no ow.json in it"
 
     # Both are prerequisites of running an instance, not of installing one, which is why they
     # are checked here and not only by the installer.

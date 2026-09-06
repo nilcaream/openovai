@@ -1,4 +1,4 @@
-# office-workspace
+# OpenOv AI
 
 A toolkit for running a small team of AI developer sessions on one machine, built on top of
 [Claude Code](https://code.claude.com). One session is the lead; the others are named workers

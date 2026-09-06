@@ -30,7 +30,7 @@ const INSTALLED = fs.readFileSync(path.join(repo, "VERSION"), "utf8").trim();
 // copy of what the instance already has, and a check asking whether an entry was replaced cannot
 // tell the two states apart — it passes with the entry skipped entirely. Measured: the check for
 // exactly that reported NOTHING NOTICED until each entry carried this.
-const MARKER = "office-workspace release marker";
+const MARKER = "OpenOv AI release marker";
 
 // One file in each of them, so a check can ask about every entry rather than about one of them.
 const MARKED = [
@@ -244,9 +244,9 @@ describe("taking a newer version from a release", () => {
 describe("what an update refuses", () => {
   const root = makeInstance("refusals");
 
-  it("refuses a package that is not an office workspace, saying what it is missing", async () => {
+  it("refuses a package that is not an OpenOv AI instance, saying what it is missing", async () => {
     const refused = await update(root, makeRelease("not-a-workspace", { without: "templates" }));
-    const said = /^ow: .*does not look like an office workspace.*templates/m.test(refused.stderr);
+    const said = /^ow: .*does not look like an OpenOv AI instance.*templates/m.test(refused.stderr);
     assert.equal([refused.status === 0, said].join(" "), "false true");
   });
 

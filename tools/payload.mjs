@@ -32,5 +32,5 @@ export function notAWorkspace(source) {
   const missing = missingFrom(source);
   return missing.length === 0
     ? null
-    : `${source} does not look like an office workspace: no ${missing.join(", ")} in it`;
+    : `${source} does not look like an OpenOv AI instance: no ${missing.join(", ")} in it`;
 }
