@@ -914,8 +914,33 @@ function toolsFor(instance, caller) {
           : { refused: `breaking in on ${instance.config.human} is the lead's, so ask ${instance.config.leader}` },
     },
 
+    {
+      name: "hire",
+      description:
+        "Open a desk for somebody new, so there is one more person here to give work to. It writes their desk, the instructions saying who they are, and the one file they are allowed to write. Nothing is started: a desk is what makes somebody a person here, so they are in the room from now on and they run for the first time when you say something to them. The name is yours to choose and it is theirs — it is what say addresses and what the room calls them. It refuses a name somebody here already has, and a name whose conversation from last time is still sitting here, which is a person's to move out of the way rather than yours.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          name: {
+            type: "string",
+            description: "What to call them. A letter, then letters, digits, hyphens or underscores.",
+          },
+        },
+        required: ["name"],
+        additionalProperties: false,
+      },
+      // The same split `room` and `interrupt` use, and for the same two reasons: a tool left off
+      // the list is not reached for, and a session that heard of it elsewhere is told whose it is
+      // rather than that it does not exist.
+      offered: lead,
+      run: (args) =>
+        lead
+          ? hiredByTool(instance, args)
+          : { refused: `opening a desk is the lead's, so ask ${instance.config.leader}` },
+    },
+
     // And after them, the tools this instance serves itself. After rather than among: a plugin
-    // takes the name of its file, and the four above take the names they were written with, so a
+    // takes the name of its file, and the ones above take the names they were written with, so a
     // file called say.mjs finds the name already taken rather than quietly answering for it.
     //
     // The context is built here, per call, because most of it is about who is calling and that is
@@ -1046,6 +1071,39 @@ async function saidByTool(instance, caller, args) {
   }
 
   return { text: answered.body.reply.text };
+}
+
+// Opening a desk for somebody new, asked for by the session that leads rather than pressed on the
+// page.
+//
+// It calls what the command and the route call, so what a name is refused for still has one answer
+// and it is `desks.mjs`'s. What is added here is only the shape of it: a sentence, because what
+// reads this is a model, where the route answers a status the page renders.
+//
+// The panel directory is worked out before `hire` is asked, and `path.join` takes nothing but a
+// string — so a name of the wrong type would break here rather than be refused. Handing an empty
+// one over instead keeps the refusal where every other one is: `hire` looks at the name first and
+// never reaches the panel.
+function hiredByTool(instance, args) {
+  const name = args?.name;
+  const panel = isName(name) ? panelDirectory(instance.root, name) : "";
+
+  try {
+    hire(instance.root, name, panel, instance.config);
+  } catch (error) {
+    if (error instanceof DeskError) {
+      return { refused: error.message };
+    }
+    throw error;
+  }
+
+  // What is NOT said is the point of the sentence. A caller told only that a desk was opened goes
+  // looking for the session it opened, and there is none: the chat reads who works here from
+  // `work/` every time it is asked, so the desk IS the hire and the first run is the first thing
+  // said to them.
+  return {
+    text: `${name} works here now, with a desk of their own and nothing on it. Nobody has been started — they run for the first time when you say something to them.`,
+  };
 }
 
 async function postTool(instance, caller, request, response) {

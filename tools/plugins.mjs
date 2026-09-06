@@ -53,9 +53,9 @@ const NAME = /^[A-Za-z][A-Za-z0-9-]{0,31}$/;
 // tool that is there and never reached.
 //
 // It is written here and not beside those tools because the chat reads this file and not the other
-// way round. The suite holds the two in step: a check asserts that what the chat serves a lead is
-// exactly this list, so a fifth tool of the chat's own that nobody added here is a red suite.
-const BUILT_IN = ["say", "status", "room", "interrupt"];
+// way round. The suite holds the two in step: it reads this list and asserts that what the chat
+// serves a lead is exactly it, so a tool of the chat's own that nobody added here is a red suite.
+export const BUILT_IN = ["say", "status", "room", "interrupt", "hire"];
 
 // What every one of them has to export. A file missing any of these is not a tool that half works;
 // it is a tool the chat would offer and then fail on, at whatever later moment somebody called it.

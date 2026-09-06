@@ -61,6 +61,12 @@ import { KINDS } from "../tools/chat/unfinished.mjs";
 // had ever been in.
 import { STATES } from "../tools/chat/room.mjs";
 
+// The names the chat serves of its own, read from the one place they are written down. The check
+// below compares it with what a lead is actually offered, which is the only thing that says the
+// two have not drifted — the guard that stops a file taking one of these names reads this list and
+// not the tool table.
+import { BUILT_IN } from "../tools/plugins.mjs";
+
 const HUMAN = "Mike";
 const LEADER = "Superman";
 const LEADER_MODEL = "sonnet";
@@ -4983,6 +4989,166 @@ describe("a session calls the tools the chat serves it", () => {
   });
 });
 
+// Opening a desk without a person at the page.
+//
+// Everything a hire IS was already written and is already checked, in `desks.mjs` and on the route
+// the Hire button posts to. What is new is the door: the session that leads can open one itself, so
+// what is asked here is who may, what is answered when they may not, and that nothing is started by
+// it — never a second reading of what `hire` writes, which one edit would redden in both places.
+describe("the session that leads opens a desk", () => {
+  const hiringLog = path.join(standIn, "lead-hires.txt");
+  const OPENED = "Kestrel";
+  const AT_A_DESK = "Bittern";
+  const CAME_BACK = "Redshank";
+  const REFUSED_A_WORKER = "Wryneck";
+
+  const desk = (name) => path.join(instance, "work", name, "STATE.md");
+  const chatOf = (name) => path.join(instance, "chat", name);
+
+  async function offeredTo(who) {
+    return JSON.parse((await call(who, "tools/list")).body).result.tools.map((tool) => tool.name);
+  }
+
+  function hiredBy(who, name) {
+    return call(who, "tools/call", { name: "hire", arguments: { name } });
+  }
+
+  let offeredToTheLead;
+  let offeredToAWorker;
+  let opened;
+  let saidOnTheNewPanel;
+  let ranWhileHiring;
+  let alreadyHere;
+  let cameBack;
+  let refusedAWorker;
+  let whileOff;
+
+  before(async () => {
+    await start(instance, standInEnvironment(standIn, hiringLog));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    // With something written on it, so a refusal that did not refuse shows up as work lost rather
+    // than only as a sentence that did not match.
+    runTool(instance, ["hire", AT_A_DESK], process.env);
+    fs.writeFileSync(desk(AT_A_DESK), "<!-- DESK | title: counting the reeds -->\n# Bittern\nhalf the reeds counted\n");
+
+    // A desk gone and a conversation still here, which is the state the panel guard is for. The
+    // tool works the panel path out for itself, so a route check cannot see it getting that wrong.
+    runTool(instance, ["hire", CAME_BACK], process.env);
+    fs.rmSync(path.join(instance, "work", CAME_BACK), { recursive: true, force: true });
+    fs.mkdirSync(chatOf(CAME_BACK), { recursive: true });
+    fs.writeFileSync(path.join(chatOf(CAME_BACK), "conversation.json"), "[]\n");
+
+    offeredToTheLead = await offeredTo(LEADER);
+    offeredToAWorker = await offeredTo(WORKER);
+
+    const before = callsIn(hiringLog).length;
+    opened = answerOf(await hiredBy(LEADER, OPENED));
+    saidOnTheNewPanel = JSON.parse((await transcriptOf(OPENED)).body).messages;
+
+    // A whole turn, started and finished, after the hire. Anything the hire set going has been
+    // recorded by the time this returns, so the count below is a reading and not a race.
+    await call(LEADER, "tools/call", { name: "say", arguments: { to: WORKER, message: "anything at all" } });
+    ranWhileHiring = callsIn(hiringLog).length - before - 1;
+
+    alreadyHere = answerOf(await hiredBy(LEADER, AT_A_DESK));
+    cameBack = answerOf(await hiredBy(LEADER, CAME_BACK));
+    refusedAWorker = answerOf(await hiredBy(WORKER, REFUSED_A_WORKER));
+
+    // Nothing is run to open a desk, so a room that is off has nothing to be off about. Read here
+    // rather than left to a later check, so the room is back on however this block ends.
+    await post(`${URL}/offline`, {});
+    whileOff = answerOf(await hiredBy(LEADER, "Wheatear"));
+    await post(`${URL}/online`, {});
+  });
+
+  // The fixture ends what the fixture started: this instance is shared, and a check further down
+  // reads the room off the same directory listing this block writes into.
+  after(async () => {
+    for (const name of [OPENED, AT_A_DESK, CAME_BACK, REFUSED_A_WORKER, "Wheatear"]) {
+      fs.rmSync(path.join(instance, "work", name), { recursive: true, force: true });
+      fs.rmSync(chatOf(name), { recursive: true, force: true });
+      fs.rmSync(path.join(instance, "personas", `${name}.md`), { force: true });
+    }
+    const file = path.join(instance, ".claude", "settings.json");
+    const settings = JSON.parse(fs.readFileSync(file, "utf8"));
+    settings.permissions.allow = settings.permissions.allow.filter(
+      (rule) => ![OPENED, AT_A_DESK, CAME_BACK, REFUSED_A_WORKER, "Wheatear"].some((name) => rule.includes(`work/${name}/`)),
+    );
+    fs.writeFileSync(file, `${JSON.stringify(settings, null, 2)}\n`);
+    await post(`${URL}/online`, {});
+  });
+
+  it("offers hire to the session that leads", () => {
+    assert.ok(offeredToTheLead.includes("hire"), offeredToTheLead.join(", "));
+  });
+
+  // The check the split exists for. One that only asked whether the lead is offered it passes just
+  // as happily when everybody is.
+  it("offers it to nobody else", () => {
+    assert.ok(!offeredToAWorker.includes("hire"), offeredToAWorker.join(", "));
+  });
+
+  // And the one that says nothing else joined while nobody was looking. Read against the list the
+  // name guard uses, so a tool served without going in there — where a file could then take its
+  // name — is this check going red rather than somebody noticing a year later.
+  it("serves a lead exactly the tools it says it serves", () => {
+    assert.deepEqual(offeredToTheLead, BUILT_IN);
+  });
+
+  it("opens a desk the chat serves from that moment, without a restart", async () => {
+    const { sessions: rows } = JSON.parse((await get(`${URL}/sessions`)).body);
+    assert.ok(rows.some((row) => row.name === OPENED && row.role === "worker"), opened.text);
+  });
+
+  // The half of the answer that is easiest to get wrong, because it reads like an omission. A
+  // caller told only that a desk was opened goes looking for the session it opened.
+  it("says that nobody was started", () => {
+    assert.ok(!opened.refused, opened.text);
+    assert.match(opened.text, new RegExp(`${OPENED} works here now`));
+    assert.match(opened.text, /Nobody has been started/);
+  });
+
+  it("starts nothing doing it, and says nothing to them", () => {
+    assert.deepEqual(saidOnTheNewPanel, []);
+    assert.equal(ranWhileHiring, 0);
+  });
+
+  // In the words `desks.mjs` wrote, not in a wrapper of our own: both shapes come back as errors,
+  // so only the sentence tells them apart.
+  it("refuses a name somebody already has, in the words the refusal is written in", () => {
+    assert.ok(alreadyHere.refused);
+    assert.equal(alreadyHere.text, `${AT_A_DESK} already has a desk here`);
+  });
+
+  it("leaves the desk that was in the way as it found it", () => {
+    assert.match(fs.readFileSync(desk(AT_A_DESK), "utf8"), /half the reeds counted/);
+  });
+
+  // The panel path is the tool's own to work out, so this is the one refusal a route check cannot
+  // stand in for: handed the wrong directory the guard looks at nothing and the desk is opened.
+  it("refuses a name whose conversation from last time is still here", () => {
+    assert.ok(cameBack.refused);
+    assert.match(cameBack.text, new RegExp(`conversation here.*chat/${CAME_BACK}`));
+    assert.ok(!fs.existsSync(desk(CAME_BACK)));
+  });
+
+  // Refused in the tool's own words rather than as a tool that does not exist, and the desk is the
+  // half that matters: a name check alone passes under a refusal that also writes.
+  it("refuses a worker that posts for it anyway, and opens nothing", () => {
+    assert.ok(refusedAWorker.refused);
+    assert.match(refusedAWorker.text, new RegExp(`opening a desk is the lead's, so ask ${LEADER}`));
+    assert.ok(!fs.existsSync(desk(REFUSED_A_WORKER)));
+  });
+
+  // A room that is off is a room that starts nothing, and this starts nothing. Turning it away
+  // would make the exit from a stopped room a thing you cannot staff your way out of.
+  it("opens a desk while the room is off", () => {
+    assert.ok(!whileOff.refused, whileOff.text);
+    assert.ok(fs.existsSync(desk("Wheatear")));
+  });
+});
+
 // A thread that cannot be resumed. The chat drops the id and asks again as a new conversation, and
 // every later check about a run the service refused stands on the stand-in framing this the way
 // the real one does — so the shape is checked here, on the stand-in's own output, before anything
@@ -8054,9 +8220,9 @@ describe("a tool the instance cannot serve", () => {
   const directory = path.join(instance, "plugins");
   const TAKEN = "answered by a file instead";
   // The names the chat serves of its own, whoever is asking. A worker is offered two of them and
-  // refused the other two by name, which is why the list a worker reads is asserted against those
-  // two: a file that took one of these would show up here as a second tool wearing that name.
-  const SERVED_EVERYWHERE = ["say", "status", "room", "interrupt"];
+  // refused the rest by name, which is why the list a worker reads is asserted against those two:
+  // a file that took one of these would show up here as a second tool wearing that name.
+  const SERVED_EVERYWHERE = ["say", "status", "room", "interrupt", "hire"];
   const BROKEN = "this one cannot even be read";
 
   // What a plugin claiming a name the chat already serves would answer, if it were served. It is
@@ -8095,6 +8261,7 @@ export function run() {
     "status.mjs": shadow,
     "room.mjs": shadow,
     "interrupt.mjs": shadow,
+    "hire.mjs": shadow,
   };
 
   async function offeredTo(who) {
@@ -8107,6 +8274,7 @@ export function run() {
   let listed;
   let asked;
   let brokenIn;
+  let hired;
   let delivered;
 
   before(async () => {
@@ -8126,6 +8294,7 @@ export function run() {
     listed = answerOf(await call(WORKER, "tools/call", { name: "status", arguments: {} }));
     asked = answerOf(await call(WORKER, "tools/call", { name: "room", arguments: {} }));
     brokenIn = answerOf(await call(WORKER, "tools/call", { name: "interrupt", arguments: { message: TAKEN, why: TAKEN } }));
+    hired = answerOf(await call(WORKER, "tools/call", { name: "hire", arguments: { name: "Whimbrel" } }));
     delivered = JSON.parse((await transcriptOf(WORKER)).body).messages;
   });
 
@@ -8149,8 +8318,8 @@ export function run() {
     assert.match(started.output, new RegExp(`${path.join("plugins", "broken.mjs")} is not served.*${BROKEN}`));
   });
 
-  // The four names the chat serves everywhere, each claimed by a file, and both halves of what
-  // that has to mean. The list a session reads holds each of those names once, so no session is
+  // Every name the chat serves of its own, each claimed by a file, and both halves of what that
+  // has to mean. The list a session reads holds each of those names once, so no session is
   // ever choosing between two tools called say; and every call still reaches the chat's own, read
   // as what the tools DO rather than as which names are in the list, because a list holding both
   // says nothing about which of the two a call arrives at.
@@ -8160,7 +8329,8 @@ export function run() {
     assert.match(listed.text, new RegExp(WORKER));
     assert.match(asked.text, /the room is the lead's/);
     assert.match(brokenIn.text, /is the lead's, so ask/);
-    assert.deepEqual([said.text, listed.text, asked.text, brokenIn.text].filter((text) => text === TAKEN), []);
+    assert.match(hired.text, /opening a desk is the lead's, so ask/);
+    assert.deepEqual([said.text, listed.text, asked.text, brokenIn.text, hired.text].filter((text) => text === TAKEN), []);
   });
 
   it("does not serve a file whose name is not a name a tool can have", () => {
