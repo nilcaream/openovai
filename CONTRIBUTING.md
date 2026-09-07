@@ -86,11 +86,70 @@ the leader is run with, the thread being resumed, and what the transcript says w
 is missing. Anything else that needs Claude Code in a suite uses that same stand-in; it takes
 its behaviour from environment variables rather than being copied.
 
-A new check has to be shown failing before it is worth having. Break the thing it is about,
-watch that check fail and the unrelated ones pass, then put the code back.
-
 They install into `.tmp/` inside the clone and clean up after themselves. Continuous
 integration runs them on every push and pull request.
+
+### Proving a check
+
+A new check has to be shown failing before it is worth having: break the thing it is about, watch
+that check go red and the unrelated ones stay green, then put the code back. A **mutation** is that
+deliberate break, and `tests/mutate.mjs` runs a list of them for you — a sweep done by hand gets
+the baseline, the bounds or the restore wrong in a different place every time, and each of those
+mistakes reads like a finding about the suite.
+
+```sh
+node tests/mutate.mjs tests/mutations.json --suite tests/chat.test.mjs
+```
+
+You write the list. It is JSON, and it lives beside the suite it is about:
+
+```json
+[
+  {
+    "name": "the popup is awaited",
+    "catches": "says nothing on the panel when the desktop is not reached",
+    "edits": [
+      { "file": "tools/chat/pop.mjs", "from": "  pop(instance, note);", "to": "  await pop(instance, note);" }
+    ]
+  }
+]
+```
+
+- **`name`** — what the mutation does, in the words you would say out loud.
+- **`catches`** — the one check it was written to redden. A mutation that cannot name its check is
+  a guess, and the sweep refuses a list without it.
+- **`edits`** — applied in order to one copy of each file, so two edits to the same file cannot
+  clobber each other. Every `from` has to match **exactly once**: none means the anchor is stale
+  and the mutation never applied, more than one means it applied somewhere nobody meant.
+
+Write the mutation before the check. A check written first and mutated afterwards is a check you
+have already talked yourself into.
+
+The sweep never writes to your clone. It lays down pinned copies of the tree — the committed tree
+with your uncommitted work over it — runs the suite green on each copy first, then sweeps the
+mutations across them in parallel. The suites wait far more than they compute, so the copies are
+nearly free: two side by side finish in 113.2s against 111.4s for one alone. `--copies` sets how
+many, four by default, bounded by memory rather than by cores.
+
+What comes back, per mutation:
+
+| verdict | what it means |
+|---|---|
+| `BIT` | the check named in `catches` went red. It is proven |
+| `NOTHING NOTICED` | nothing went red — never "the code is fine". Dead code, a vacuous check, or a check nobody wrote, and which one has to be answered before moving on |
+| `WRONG CHECK` | something went red, but not the one named. Another check already covers this |
+| `HARNESS` | the mutation could not be applied. The list is wrong, not the suite |
+| `TIMED OUT` | the run did not finish inside its bound, so nothing about it can be read |
+| `UNREPORTABLE` | fewer checks ran than the baseline, so the suite died early. A short run with no failures looks exactly like a clean pass |
+
+The last line of a finished run is `=== SWEEP COMPLETE ===`, and the exit code is 0 only when every
+mutation bit its check and every copy was green again afterwards.
+
+The sweep refuses to report at all on a baseline that is not green, a run that timed out, a run
+that counted fewer checks than the baseline, or a clone that changed while the copies were being
+made. Each of those is a sweep to throw away rather than a finding about the suite.
+
+Run `node tests/mutate.mjs` with no arguments for the rest of the options.
 
 ## Releases
 
