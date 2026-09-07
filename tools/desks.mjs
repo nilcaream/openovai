@@ -5,6 +5,12 @@
 // opens the lead's when it creates the instance; `ovai hire` opens a worker's afterwards. Both come
 // through here, so there is one answer to what a person is made of rather than two that can
 // drift apart.
+//
+// A fourth is written only when it was asked for: `work/<Name>/MODEL`, one word, when somebody was
+// hired onto a model that is not the one this workspace runs its workers on. Absent is the whole of
+// "the usual one", which is what keeps the installed model a setting rather than a seed — so there
+// is nothing to migrate, and everybody who was never named one moves when it is changed. It sits
+// beside the desk rather than inside it because the desk is the one file its session may write.
 
 import fs from "node:fs";
 import path from "node:path";

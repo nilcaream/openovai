@@ -69,6 +69,30 @@ your machine's own clock, it may wrap midnight or not, and leaving it out means 
 A window the chat cannot read stops it starting, with a line saying which field to look at: being
 told at the start beats finding out at three in the morning.
 
+**Somebody can be hired onto a model that is not the usual one.** Until now everybody you hired ran
+on the one model your workspace was installed with for its workers, and the only way to move one of
+them was to move all of them. `ovai hire <name> [model]` takes a model beside the name, the Hire
+box on the page does not, and your lead can name one when it opens a desk itself.
+
+Leaving it out is still the answer nearly every time, and it is the answer that keeps moving with
+you: nothing is written down for somebody hired the usual way, so the model in `openovai.json` stays
+a setting rather than a seed — change it, and everybody who was never named one is on the new one
+from their next message. Somebody who was named one stays where they are, through a handover as
+well, and what they were hired onto goes away with their desk when they leave.
+
+**`ovai status` says what each desk runs on.** The row that read `worker model` now reads `default
+worker model`, because that is what it is, and the row listing the desks names each of them with
+the model it resolves to. That is the reading to reach for when the chat is not running; the room
+on the page already says it for everybody in it.
+
+**Your lead is told the shape of the choice and no model names.** The instructions it is given say
+that leaving the model out is right nearly every time, that a stronger one is drawn from the same
+account window everybody there shares, and that when it chooses one it should say on its own panel
+why — the room already shows what each session is on, and the reason is the part missing from it.
+Which models your workspace actually uses stays in `openovai.json` and in whatever you tell your
+lead yourself. An update leaves the personas it finds where they are, so this is what a workspace
+installed from this version tells its lead.
+
 ## 0.4.0
 
 The toolkit has a name of its own: OpenOv AI. It was called after the directory it lived in, and

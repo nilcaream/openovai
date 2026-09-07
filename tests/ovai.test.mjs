@@ -768,6 +768,32 @@ describe("what a desk is read as running on", () => {
   });
 });
 
+// The one place somebody reading the repo is told that a hire can name a model at all. Read as
+// text, because a README is not run: what is asserted is that the section says the two halves of
+// it — the argument, and where a named model is written down.
+describe("what the README says about hiring onto a model", () => {
+  const readme = fs.readFileSync(path.join(repo, "README.md"), "utf8");
+  const section = readme.slice(
+    readme.indexOf("`ovai hire <name>` opens a desk"),
+    readme.indexOf("The chat page hires too"),
+  );
+
+  it("names the model as the argument beside the name", () => {
+    assert.match(section, /`ovai hire <name> \[model\]`/);
+  });
+
+  it("says where a model that was named is written down", () => {
+    assert.match(section, /work\/<Name>\/MODEL/);
+  });
+
+  // And names none. The models a workspace uses are chosen at install and live in
+  // `openovai.json`; a README that named one would be this workspace's answer written into the
+  // documentation of everybody's, and it would go stale the week the service renames something.
+  it("names no model of its own", () => {
+    assert.doesNotMatch(section, /\b(opus|sonnet|haiku)\b/i);
+  });
+});
+
 // And what status says about all of them at once. Once one desk can differ from another, the row
 // listing the desks is the only place the answer for each of them is written down — and on an
 // instance whose chat is not running it is the only place it can be read at all.

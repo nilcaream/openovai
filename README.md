@@ -116,6 +116,16 @@ that session keep its own desk. It starts nothing, and a chat that is already ru
 need restarting: the panels are built from the desks the server finds, so a desk opened now is a
 panel the next time the page is loaded. Everybody with a desk is somebody the chat can host.
 
+`ovai hire <name> [model]` takes a model beside the name, for somebody who should not run on what
+this workspace runs its workers on. Leaving it out is the usual answer and writes nothing down:
+that is what keeps the installed model a setting rather than a seed, so changing it moves everybody
+who was never named one, from their next message. A model that was named is one word in
+`work/<Name>/MODEL`, beside the desk rather than inside it — the desk is the one file its session
+may write, and a model kept in there would be a model that session could raise for itself. It
+survives a handover, which ends a conversation and touches nothing else, and it goes away with the
+desk, so a name hired again starts from the workspace's own answer. `ovai status` lists every desk
+with what it resolves to.
+
 It refuses a name already at a desk, and it refuses a name whose conversation is still under
 `chat/` — which is a name that has left without being filed away, or one whose desk was removed
 by hand. A desk opened over the top of an old conversation is a new person answering out of
