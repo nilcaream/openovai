@@ -592,10 +592,11 @@ every row as of whenever that session last ran, so a low number on a row that ha
 is not the account's current state, and saying when it was read is what keeps it from being taken
 for one. The windows are named as the service names them, all of the ones it named, and a window it
 said nothing about is left unsaid rather than shown as 0%. There is no threshold on the row, no
-colour and no warning level — the number there is a fact for a person to judge. The two lines this
-toolkit does hold an opinion about are in a block handed to the lead and nowhere else, which
-*Where the account stands* below is about: advice to the one reader whose next act would spend the
-last of the window, rather than a mark on a row everybody reads.
+colour and no warning level — the number there is a fact for a person to judge. That is as true of
+how much a conversation is carrying as it is of the windows. The three lines this toolkit does
+hold an opinion about are in blocks handed to the lead and nowhere else, which *Where the account
+stands* and *When a conversation has grown big* below are about: advice to the one reader who can
+act on it, rather than a mark on a row everybody reads.
 
 The last part is when anything last happened on that panel, and it is a fact rather than a
 verdict. Nothing here knows whether a session quiet for an hour is finished, stuck or thinking,
@@ -832,6 +833,79 @@ a session over or queueing anything; a worker asked something while the account 
 answers exactly as usual. The lead decides and the lead acts — including with the turns it needs in
 order to act. Nothing here has to be cleared: the work stops, the account fills no further, and when
 the window lifts the block is gone.
+
+### When a conversation has grown big
+
+The third thing handed to the lead unasked, and the only one of the three that is about a
+conversation rather than an account.
+
+How much of itself every conversation here is carrying is already on every row and on every panel,
+with no opinion attached. Once one of them is past 300,000 tokens, the lead is also told so where
+its own turn begins:
+
+    you were carrying 318,207 tokens at the end of yours, and Ann was carrying 412,934 tokens at
+    the end of its last turn, read as this turn began at 14:07.
+
+    A conversation that big is one where what is left has to be planned rather than simply
+    carried on, and what survives it is what its desk says. Handing one over is Mike's to
+    press, on that panel, and pressing it is what asks that session to write its desk before
+    its thread ends — so say which panel and why, your own included. Nothing here does it for
+    you: nothing stops running because of this and no conversation is ended by it.
+
+The size is the one the conversation ended its last turn at, and not what that turn added up to. A
+turn that makes two requests is told about both, and the top of the frame adds them together — a
+number growing at twice the rate of the conversation, which is worse than none because it looks like
+an answer. Nothing new is read for this: the number was already being kept beside the thread id, for
+the row and the panel.
+
+**The line is a judgment and not a measurement**, and the code says so where it sits, beside the two
+about the usage window. It is a judgment about a *long* context window — the size at which answers
+measurably degrade on the windows the workspaces this was written for run on. A conversation cannot
+grow past the window it is sent in, so on a workspace whose model sends a shorter one — one has been
+measured at 200,000 — the block never appears at all. That is the right behaviour rather than a gap:
+there the window itself is the line, the conversation runs out of room before it runs out of
+judgment, and there is nothing this could usefully say first. A number picked low enough to fire
+there would be advice that is always early on the workspaces this exists for, and advice that is
+always early is what teaches a reader to stop reading the block.
+
+**Why it is not on the row.** For the reason nothing else on the row carries a threshold: the number
+there is a fact for a person to judge, and a mark beside it would be this toolkit judging on a row
+everybody reads. It would also cost the two things the row is built to avoid. The room command and
+the page lay the same rows out in their own code — a duplication of *format* that somebody keeps
+true, and a duplicated *judgment* would drift silently and read as a disagreement about a fact. And
+being big is not a state a session is in: it is not exclusive with answering, waiting or cold, so it
+cannot be an entry in the table the room's states are counted from.
+
+**The lead is in its own list**, first and in the second person, deliberately. It is usually the
+largest conversation in the workspace, it is the only one that cannot press its own button, and it
+is the reader — a block naming everybody except the session that most needs handing over would be
+the worst reading this could give. First because the workspace is listed lead first everywhere else
+too, which is why the sentence opens in the lower case whenever the lead is one of the large ones:
+the row of the reader reads *you*, and every other row reads a name.
+
+**Nobody is left out for being mid-turn**, which is the one place this differs from the block about
+who has stopped. There the reading is a clock, and a clock stands still for the whole of a turn, so
+a session working reads as one that has stopped. A size does not go stale that way; it is simply
+behind. A session in the middle of a turn is at least as large as this says, so naming it is true —
+and leaving it out would hide the biggest conversation here at the moment it is biggest.
+
+**What the lead can do about it is the honest limit of this.** It cannot press the button, and
+saying something to that session is not the fix — a message starts a run and makes the conversation
+bigger, not smaller. What it can do is tell you, on its own panel, which panel to press and why, and
+stop opening new fronts on that conversation meanwhile. Whether a lead should be able to end
+somebody else's conversation is a real question and a bigger one than a reading, so it is not
+answered here: the tools it is served are the same ones it was served before this.
+
+**And it is a reading, never a gate.** Nothing consults it before delivering a message, hiring,
+handing a session over, queueing or refusing; a message to a session named in the block is delivered
+exactly as any other. The one thing that ends a conversation by itself is still time — the hour
+after which carrying one on would cost the whole of it again — and that is untouched, whatever a
+conversation is carrying.
+
+**Nothing is filed and nothing remembers having said it.** The reading lives in the same file the
+thread id does, so handing a session over takes it with the conversation, and the block is gone on
+the next turn with nothing cleared. A session with no thread is not in it at all, and neither is one
+whose last run reported no size: nothing is not a small conversation, it is no reading at all.
 
 ### Taking the room off
 
