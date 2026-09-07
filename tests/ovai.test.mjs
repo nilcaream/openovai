@@ -137,8 +137,10 @@ describe("what status reports", () => {
     assert.match(said, new RegExp(`${LEADER} \\(${LEADER_MODEL}\\)`));
   });
 
-  it("names the model a hired worker runs on, which is the other one", () => {
-    assert.match(said, new RegExp(`worker model\\s+${WORKER_MODEL}`));
+  // As the default, in the label. Somebody can be hired onto a model of their own, so a row that
+  // said "worker model" would name what some of the workers here run on and read as all of them.
+  it("names the model a hired worker runs on by default, and says that is the default", () => {
+    assert.match(said, new RegExp(`default worker model\\s+${WORKER_MODEL}`));
   });
 
   it("shows the port", () => {
@@ -754,6 +756,50 @@ describe("what a desk is read as running on", () => {
 
   it("reads the lead as the model this workspace leads on", () => {
     assert.equal(modelFor(instance, LEADER, config), LEADER_MODEL);
+  });
+});
+
+// And what status says about all of them at once. Once one desk can differ from another, the row
+// listing the desks is the only place the answer for each of them is written down — and on an
+// instance whose chat is not running it is the only place it can be read at all.
+describe("what status says each desk runs on", () => {
+  const OF_THEIR_OWN = "Faye";
+  const THE_USUAL_WAY = "Gil";
+  const CHOSEN = "opus";
+  let said;
+
+  const desksRow = () => said.split("\n").find((line) => line.trim().startsWith("desks"));
+
+  before(() => {
+    ovai(["hire", OF_THEIR_OWN, CHOSEN]);
+    ovai(["hire", THE_USUAL_WAY]);
+    said = ovai(["status"]).stdout;
+  });
+
+  it("names somebody hired onto a model of their own with that model", () => {
+    assert.match(said, new RegExp(`${OF_THEIR_OWN} \\(${CHOSEN}\\)`));
+  });
+
+  // The half a row printing the file would get wrong: there is no file to print for somebody
+  // hired the usual way, and a blank where a model should be reads as a desk that runs on nothing.
+  it("names somebody hired the usual way with the workspace's own model", () => {
+    assert.match(said, new RegExp(`${THE_USUAL_WAY} \\(${WORKER_MODEL}\\)`));
+  });
+
+  // The lead is on the row too, and on the model this workspace leads on rather than on the one
+  // its workers get — the resolver is asked about every desk and it knows which one is the lead's.
+  //
+  // Read off the desks row rather than out of the report. The leader row prints the lead and its
+  // model two lines above, so a check that looked anywhere would pass on that line however the
+  // desks row was written.
+  it("names the lead with the model this workspace leads on", () => {
+    assert.ok(desksRow()?.includes(`${LEADER} (${LEADER_MODEL})`), desksRow());
+  });
+
+  // Named, not merely mentioned somewhere in the report, for the same reason.
+  it("puts them on the desks row and not only in the report", () => {
+    assert.ok(desksRow()?.includes(`${OF_THEIR_OWN} (${CHOSEN})`), desksRow());
+    assert.ok(desksRow()?.includes(`${THE_USUAL_WAY} (${WORKER_MODEL})`), desksRow());
   });
 });
 

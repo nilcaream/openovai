@@ -13,7 +13,7 @@ import { roomLines } from "./chat/room.mjs";
 import { serve } from "./chat/server.mjs";
 import { NAME_IN_ENVIRONMENT, endEveryRun, runsGoing } from "./chat/session.mjs";
 import { hasCredential, home, login, machineToken, memoryDirectory } from "./claude.mjs";
-import { DeskError, describeName, desks, hire, isName } from "./desks.mjs";
+import { DeskError, describeName, desks, hire, isName, modelFor } from "./desks.mjs";
 import { ownInstructions } from "./instructions.mjs";
 import { leaveWord } from "./chat/untold.mjs";
 import { holderOf } from "./port.mjs";
@@ -427,12 +427,18 @@ function status(root) {
     ["version", version(root) ?? "not recorded — this instance was made before the toolkit carried one"],
     ["human", config.human],
     ["leader", `${config.leader} (${config.models.leader})`],
-    ["worker model", config.models.worker],
+    // The default, said so. Somebody can be hired onto a model of their own, so a row headed
+    // "worker model" names what some of the workers here run on while reading as though it named
+    // all of them.
+    ["default worker model", config.models.worker],
     ["chat port", config.port === 0 ? "0 — chosen when the chat starts" : config.port],
     describeAuth(config),
     ["credential", describeCredential(root, config.auth)],
     ["installed", config.createdAt],
-    ["desks", desks(root).join(", ") || "none"],
+    // Each desk with what it resolves to, which is where the truth about models is once any of
+    // them can differ — and on an instance whose chat is not running it is the only place it can
+    // be read at all, because the room and the status tool both need one.
+    ["desks", desks(root).map((name) => `${name} (${modelFor(root, name, config)})`).join(", ") || "none"],
     // Where what this workspace has learned is kept. Every session reads it before it is asked
     // anything and writes into it when a thread ends, and it is the one part of an instance a
     // person would otherwise have no way of finding: it sits inside the Claude Code home, which is
