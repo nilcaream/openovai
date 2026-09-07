@@ -452,6 +452,9 @@ and it would have sat there for good.
 
 So the chat also pops on your desktop, for those two things and for nothing else.
 
+What is counted is the request and not the turn it came out of, so a session that stops twice over
+in one turn pops twice: each stop is its own thing waiting on you, and would wait on its own.
+
 How your desktop is made to pop is yours to write, for the same reason a tool of your own is: it is
 `notify-send` here, `osascript` there and a toast API somewhere else. One file at the root of your
 workspace, beside `openovai.json`, exporting one function:

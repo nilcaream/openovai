@@ -24,6 +24,8 @@ sitting parked for six and a half minutes, and it would have sat there for good,
 request was drawn on a page nobody had open. Your desktop now says which session has stopped and
 which tool it is waiting on, whether it stopped on something you said to it, on a handover or on
 its way out.
+What is counted is the request and not the turn it came out of, so a session that stops twice over
+in one turn reaches you twice: each of those would have waited on its own.
 
 **How your desktop is made to pop is yours to write, because it is your machine.** It is
 `notify-send` on one desktop, `osascript` on another and something else again on a third, so it
@@ -48,6 +50,12 @@ away, not somebody speaking to somebody else, and not a request the run that ask
 waiting for. All of those are a record, and a record is read when
 you read it. A workspace that popped for every one of them would be a workspace whose popups you
 learned to ignore, which is the same as having none.
+
+**And your lead does not pop you itself.** It still has the one line it can send you without being
+asked, and it is now told plainly that this is the whole of what it has: no notification tool of
+its own, no command that raises one on your desktop. A second way in is what teaches somebody to
+stop trusting the first. An update leaves the personas it finds where they are, as it always does,
+so this is what a workspace installed from this version tells its lead.
 
 **When you are not to be woken**, say so in `openovai.json`:
 

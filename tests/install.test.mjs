@@ -352,6 +352,20 @@ describe("what the installer made", () => {
     );
   });
 
+  // The rest of that rule, and the half the popup made necessary. The chat pops the person's
+  // desktop itself on the two transitions, so a lead that also raises one has taken a channel
+  // nobody granted it — and a second way in is what teaches somebody to stop trusting the first.
+  // Whatever notification tool the harness hands the lead is in its hands whether or not this
+  // file says a word, which is exactly why this file has to say one.
+  it("tells the leader it has no channel to the human but the one", () => {
+    assert.match(contentOf("personas", `${LEADER}.md`), /There is no other channel either/);
+    assert.match(contentOf("personas", `${LEADER}.md`), /`PushNotification`, `notify-send`/);
+    assert.match(
+      contentOf("personas", `${LEADER}.md`),
+      /is not a second way to reach them, and you do not use it/,
+    );
+  });
+
   // The other half of the same rule, and the reason the channel is worth protecting at all. The
   // lead is the stateful one here, so holding the rest of the questions costs it a line on its desk
   // and costs the person nothing.
