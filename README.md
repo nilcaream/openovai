@@ -1056,8 +1056,8 @@ follow along on its own. `ovai update` is how it catches up.
 ~/my-workspace/bin/ovai update
 ```
 
-It asks GitHub for the latest release of the toolkit, and if that is not the version this instance
-is on, it takes it:
+It asks GitHub for the latest release of the toolkit, and if that is newer than the version this
+instance is on, it takes it:
 
 ```
 Was on 0.1.0, now on 0.2.0. Replaced:
@@ -1088,10 +1088,28 @@ fix.
 server is executing is the one way to get a mixed instance, and refusing removes that case rather
 than trying to handle it.
 
-**Versions are compared for equality, not for order.** GitHub's latest release is the authority: the
-same version means there is nothing to do, a different one means take it. So going back to an older
-release is a release like any other, and the toolkit never has to have an opinion about which of two
-versions is newer.
+**It refuses to go backwards.** The same version means there is nothing to do, a newer one is taken,
+and one older than the version this instance is on is refused by name:
+
+```
+ovai: this instance is on 0.5.0 and https://api.github.com/repos/nilcaream/openovai/releases/latest is
+0.4.0, which is older — run it again with --downgrade to take it anyway
+```
+
+An instance can be ahead of what is published — somebody took a release from a directory, or built
+one where they were working — and an update asking only whether the two versions differ replaces the
+payload with the older one and reports the fall in the same words as the rise. Going back is a thing
+somebody does on purpose, though: a release that turned out to be wrong is walked away from by taking
+the one before it, so it is refused and not forbidden.
+
+```sh
+~/my-workspace/bin/ovai update --from ~/releases/0.4.0 --downgrade
+```
+
+The numbers are compared as numbers, because compared as words 0.10.0 comes before 0.5.0. Nothing
+that is not a row of numbers is placed at all, and neither is an instance made before the toolkit
+carried a version: a refusal has to be certain of what it is refusing, so where the two cannot be
+ordered the update goes on as it always did.
 
 **An update does not re-render anybody's persona.** A persona is rendered once, when a session is
 hired, and it is part of what the workspace has accumulated rather than part of what the toolkit

@@ -19,7 +19,7 @@ import { leaveWord } from "./chat/untold.mjs";
 import { holderOf } from "./port.mjs";
 import { RELEASES, ReleaseError, latestRelease, notesIn, replacePayload, unpackInto } from "./release.mjs";
 import { PluginError, describePluginName, describePlugins, isPluginName, pluginsIn, writePlugin } from "./plugins.mjs";
-import { version } from "./version.mjs";
+import { isOlderThan, version } from "./version.mjs";
 
 // The instance's own description of itself. An instance made before the toolkit was renamed
 // still has the old name on it, and an update replaces only what the toolkit ships — so that
@@ -37,8 +37,11 @@ const TAKES = {
   hire: { most: 2, shape: "a name, and a model if not the usual one" },
   plugin: { most: 1, shape: "one name" },
   say: { most: Number.POSITIVE_INFINITY, shape: "a name and a message" },
-  update: { most: 2, shape: "at most --from <url or directory>" },
+  update: { most: 3, shape: "at most --from <url or directory> and --downgrade" },
 };
+
+// Saying an update may take a version older than the one the instance is on.
+const DOWNGRADE = "--downgrade";
 
 class UsageError extends Error {}
 
@@ -63,6 +66,7 @@ function usage() {
     "  ovai login         sign this instance in to an Anthropic account",
     "  ovai update        take the latest release, replacing what the toolkit ships",
     "                   [--from <url or directory>] where to look instead",
+    "                   [--downgrade] take it even when it is older than this instance",
     "",
   ].join("\n");
 }
@@ -306,7 +310,7 @@ const UNPACKING = ".release";
 // here to migrate and no key that changes: the version is a file in the payload, so replacing the
 // payload replaces it.
 async function update(root, argv) {
-  const from = whereToLook(argv);
+  const { from, downgrade } = whereToLook(argv);
 
   // A running chat is serving code that is about to be replaced underneath it, and a process keeps
   // the code it started with. Stopping first is what the person would have to do anyway for the new
@@ -325,6 +329,16 @@ async function update(root, argv) {
   if (release.version === here) {
     console.log(`This instance is on ${here}, which is the latest release. Nothing to do.`);
     return;
+  }
+
+  // An instance can be ahead of what is published, and an update that only asked whether the two
+  // versions differ would replace the payload with the older one and report the fall in the same
+  // words as the rise. Refused rather than forbidden: walking away from a release that turned out
+  // to be wrong is done by taking the one before it, and that is a thing somebody does on purpose.
+  if (!downgrade && isOlderThan(release.version, here)) {
+    throw new ReleaseError(
+      `this instance is on ${here} and ${from} is ${release.version}, which is older — run it again with --downgrade to take it anyway`,
+    );
   }
 
   const opened = path.join(root, UNPACKING);
@@ -358,21 +372,26 @@ async function update(root, argv) {
   console.log(`  ${path.join(root, "bin", "ovai")} chat`);
 }
 
-// Where to look for a release: what was asked for, or the toolkit's own.
+// What was asked of an update: where to look for a release, and whether it may go backwards.
 //
 // Anything that is not exactly the one option is refused rather than ignored. A command that takes
 // a default quietly does the default thing when it is mistyped, and updating an instance from
 // somewhere other than the place that was meant is not a mistake to make quietly.
 function whereToLook(argv) {
-  if (argv.length === 0) {
-    return RELEASES;
+  const downgrade = argv.includes(DOWNGRADE);
+  const rest = argv.filter((word) => word !== DOWNGRADE);
+
+  if (rest.length === 0) {
+    return { from: RELEASES, downgrade };
   }
 
-  if (argv[0] !== "--from" || argv.length !== 2 || argv[1] === "") {
-    throw new UsageError(`update takes at most --from <url or directory> (got ${argv.join(" ")})`);
+  if (rest[0] !== "--from" || rest.length !== 2 || rest[1] === "") {
+    throw new UsageError(
+      `update takes at most --from <url or directory> and ${DOWNGRADE} (got ${argv.join(" ")})`,
+    );
   }
 
-  return argv[1];
+  return { from: rest[1], downgrade };
 }
 
 // Whether anything is actually there. A recorded address outlives the process that wrote it, on

@@ -20,6 +20,7 @@ import { isOlderThan } from "../tools/version.mjs";
 const HUMAN = "Mike";
 const LEADER = "Superman";
 const NEWER = "9.9.9";
+const OLDER = "0.0.1";
 
 // The version the instances here are installed at. Read from the repository rather than written
 // down, because these instances are installed from it: a literal would be a second place holding
@@ -277,6 +278,48 @@ describe("what an update refuses", () => {
   // would notice from the outside.
   it("looks at the releases of the toolkit itself when it is not told where", () => {
     assert.equal(RELEASES, "https://api.github.com/repos/nilcaream/openovai/releases/latest");
+  });
+});
+
+// An instance can be ahead of what is published — somebody who took a release from a directory,
+// or built one where they were working — and an update that only asked whether the two versions
+// differ replaces the payload in either direction and reports the fall as if it were a rise.
+describe("taking an older version", () => {
+  const root = makeInstance("older");
+  const tree = makeRelease("older-release", { version: OLDER });
+  let refused;
+
+  before(async () => {
+    refused = await update(root, tree);
+  });
+
+  // Both of them, because the whole content of the refusal is the comparison it made: a message
+  // naming one version leaves the person to work out for themselves what it was being compared
+  // with, which is the question they are standing in front of.
+  it("refuses, saying both versions", () => {
+    const said = refused.stderr.includes(INSTALLED) && refused.stderr.includes(OLDER);
+    assert.equal([refused.status === 0, said].join(" "), "false true");
+  });
+
+  // Nothing was mistyped. The command line was read and understood, and what it asks for is
+  // refused on what was found at the other end of it — so the usage under it would only be noise.
+  it("refuses it as a release and not as a command line", () => {
+    assert.equal(refused.status, 1);
+  });
+
+  // Named for this describe alone. Two others here already assert "leaves the instance on the
+  // version it was on", and a proof that a check went red reads the name of the check.
+  it("does not take the instance back to the older one", () => {
+    assert.equal(fs.readFileSync(path.join(root, "VERSION"), "utf8").trim(), INSTALLED);
+  });
+
+  // The way back. Going backwards is a thing somebody does on purpose — a release that turned out
+  // to be wrong is walked away from by taking the one before it — so it is refused by default and
+  // not forbidden.
+  it("takes it when told to go backwards on purpose", async () => {
+    const done = await runToolLater(root, ["update", "--from", tree, "--downgrade"], process.env);
+    const now = fs.readFileSync(path.join(root, "VERSION"), "utf8").trim();
+    assert.deepEqual([done.status, now], [0, OLDER]);
   });
 });
 

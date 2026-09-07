@@ -64,5 +64,104 @@
         "to": "  if (one === null) {"
       }
     ]
+  },
+  {
+    "name": "an older release is not noticed as older",
+    "catches": "refuses, saying both versions",
+    "edits": [
+      {
+        "file": "tools/ovai.mjs",
+        "from": "  if (!downgrade && isOlderThan(release.version, here)) {",
+        "to": "  if (!downgrade && false) {"
+      }
+    ]
+  },
+  {
+    "name": "the refusal says what was found and not what the instance is on",
+    "catches": "refuses, saying both versions",
+    "edits": [
+      {
+        "file": "tools/ovai.mjs",
+        "from": "`this instance is on ${here} and ${from} is ${release.version}",
+        "to": "`this instance and ${from} is ${release.version}"
+      }
+    ]
+  },
+  {
+    "name": "the refusal says what the instance is on and not what was found",
+    "catches": "refuses, saying both versions",
+    "edits": [
+      {
+        "file": "tools/ovai.mjs",
+        "from": "${from} is ${release.version}, which is older",
+        "to": "${from} is one, which is older"
+      }
+    ]
+  },
+  {
+    "name": "going backwards is refused as a command line, under a usage nobody mistyped",
+    "catches": "refuses it as a release and not as a command line",
+    "edits": [
+      {
+        "file": "tools/ovai.mjs",
+        "from": "    throw new ReleaseError(\n      `this instance is on ${here}",
+        "to": "    throw new UsageError(\n      `this instance is on ${here}"
+      }
+    ]
+  },
+  {
+    "name": "going backwards is said out loud and then done anyway",
+    "catches": "does not take the instance back to the older one",
+    "edits": [
+      {
+        "file": "tools/ovai.mjs",
+        "from": "    throw new ReleaseError(\n      `this instance is on ${here}",
+        "to": "    console.error(\n      `this instance is on ${here}"
+      }
+    ]
+  },
+  {
+    "name": "the flag is not read, so nothing can be taken on purpose",
+    "catches": "takes it when told to go backwards on purpose",
+    "edits": [
+      {
+        "file": "tools/ovai.mjs",
+        "from": "  const downgrade = argv.includes(DOWNGRADE);",
+        "to": "  const downgrade = false;"
+      }
+    ]
+  },
+  {
+    "name": "the guard does not ask whether it was told to go backwards",
+    "catches": "takes it when told to go backwards on purpose",
+    "edits": [
+      {
+        "file": "tools/ovai.mjs",
+        "from": "  if (!downgrade && isOlderThan(release.version, here)) {",
+        "to": "  if (isOlderThan(release.version, here)) {"
+      }
+    ]
+  },
+  {
+    "name": "the flag is left in what is read as the place to look",
+    "catches": "takes it when told to go backwards on purpose",
+    "edits": [
+      {
+        "file": "tools/ovai.mjs",
+        "from": "  const rest = argv.filter((word) => word !== DOWNGRADE);",
+        "to": "  const rest = argv;"
+      }
+    ]
+  },
+  {
+    "name": "update takes no more words than it did before the flag",
+    "catches": "takes it when told to go backwards on purpose",
+    "edits": [
+      {
+        "file": "tools/ovai.mjs",
+        "from": "  update: { most: 3, shape:",
+        "to": "  update: { most: 2, shape:"
+      }
+    ]
   }
 ]
