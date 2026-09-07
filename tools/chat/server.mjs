@@ -193,6 +193,15 @@ function deskWrapper(name) {
 // three is a defect in the code: the code never saw a request in the first two, and it records
 // nothing in the third. They are three sentences the block did not say, so it says them.
 //
+// AND WHAT IT CANNOT SEE, read on the same instances one turn later: both calls parked and were
+// pressed — `Bash(git:*)` and `Edit(work/**)` in the settings, a line each in the ledger — and the
+// lead told the person nothing had been granted because nothing had stopped, with a mechanism it
+// had invented for why. Neither half of that reaches it: a call settled by a rule never gets as far
+// as the permission tool, and an allow carries nothing back, because the protocol's allow is
+// `{behavior: "allow", updatedInput?: object}` and has no message in it where a deny has one. So a
+// lead told to watch the panel fills the gap by guessing. It is not asked to any more — it is
+// pointed at `.claude/allowed.md`, written in the same act as the rule, and a read like any other.
+//
 function permissionsWrapper(instance, name) {
   if (name !== instance.config.leader) {
     return null;
@@ -212,7 +221,9 @@ function permissionsWrapper(instance, name) {
     `Nothing has run in this workspace yet and it has granted nothing beyond one desk each, so everything else a session reaches for will stop it mid-turn and wait on a panel. That is the right default, and it means ${instance.config.human} would otherwise find out what they are willing to allow one interruption at a time, over days, each one arriving in the middle of somebody else's work.`,
     `Ask them the one question that settles most of it, now, while they are thinking about this workspace rather than about whatever a session was doing when it stopped: what may be done at this root. Ask it open and offer no menu — an answer sounds like "never push anything", "never write outside work/", "no restrictions", "ask me every time" — and take it as they say it. Nothing here reads it, records it or turns it into a setting.`,
     "Then, if what they said allows anything at all, make the calls it permits, one at a time, so that each one stops and they can press Always allow on it while the question is still in their head. There are two shapes to trip and no others: a COMMAND they named, never one you chose, and a WRITE at the path their answer names — where they named a place, at the root itself where they said no restrictions, and under `.tmp/` at the root where they named nowhere in particular. Tripping somewhere narrower than they allowed asks them to grant less than they said yes to, which is the one thing this exists to prevent.",
-    "A TRIP ONLY COUNTS WHEN IT STOPS. The frame settles a great deal on its own — `git status` and `ls` read and return, and nothing parks — so a call that came back settled nothing, and the next one they meant to cover will stop exactly as it would have before. Reach for the form of their command that parks, watch for it on the panel, and when a call goes straight through say that it went through. Reporting a call that never parked as done tells them the question is answered while nothing has been granted, which is worse than not having asked.",
+    "A TRIP ONLY COUNTS WHEN IT STOPS, and you cannot see whether it did. The frame settles a great deal on its own — `git status` and `ls` read and return, and nothing parks — so reach for the form of their command that parks rather than the form that reads. But a call coming back tells you nothing about which of the two happened: it returns the same whether the frame let it through, whether they pressed Allow for that one call, or whether they pressed the rule. You are not shown their panel and no press is reported back to you.",
+
+    "WHAT WAS GRANTED IS A FILE, and reading it stops nobody. Every rule this workspace holds beyond a desk is one line in `.claude/allowed.md`, written in the same act as the rule itself and saying who asked, when, and what for. So when the calls are made, read it and report what is on its lines: that, and what you did, is the whole of what you know. Never tell them what did or did not stop — a lead reporting a press it cannot see is how a person is told that nothing was granted while the widest rule there is sits in their settings.",
 
     "If their answer allows commands but names none — `no restrictions` is such an answer — ask which command they want tripped, or trip only the write. Improvising one is how a rule gets granted for a command nobody asked for, and that is the first line in a ledger nobody can account for.",
 

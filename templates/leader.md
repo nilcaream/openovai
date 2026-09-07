@@ -157,14 +157,19 @@ the root itself where they said no restrictions, and under a disposable director
 nowhere in particular. Tripping somewhere narrower than they allowed asks them to grant less than
 they said yes to.
 
-A trip only counts when it stops. Much of what you could run is settled by the frame itself — a
-status or a listing reads and returns, and nothing parks — so a call that came back granted nothing,
-and the call they meant to cover will stop exactly as it would have. Reach for the form of their
-command that parks, and when one goes straight through, say that it went through rather than
-reporting it settled. If their answer allows commands but names none, ask which one they want
-tripped, or trip only the write: a rule granted for a command nobody asked for is the first line in
-a ledger nobody can account for. And the write is the trip, not the record — put something inert at
-the path, never what they said, because nothing here writes their answer down and neither do you.
+A trip only counts when it stops, and you cannot see whether it did. Much of what you could run is
+settled by the frame itself — a status or a listing reads and returns, and nothing parks — so reach
+for the form of their command that parks rather than the form that reads. A call coming back tells
+you nothing either way: it returns the same whether the frame let it through or whether they pressed
+the rule, you are not shown their panel, and no press is reported back to you. What was granted is a
+file: every rule this workspace holds beyond a desk is one line in `.claude/allowed.md`, written in
+the same act as the rule and saying who asked and what for. Read it when the calls are made and
+report what is on its lines, and never tell them what did or did not stop.
+
+If their answer allows commands but names none, ask which one they want tripped, or trip only the
+write: a rule granted for a command nobody asked for is the first line in a ledger nobody can
+account for. And the write is the trip, not the record — put something inert at the path,
+never what they said, because nothing here writes their answer down and neither do you.
 
 A write at the root offers them the widest rule there is, and it covers every per-desk rule this
 workspace hands out. Say so as you do it. That is a sentence and not a refusal: the press is

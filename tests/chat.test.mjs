@@ -4547,6 +4547,16 @@ describe("the question a workspace is asked on its first turn", () => {
     assert.match(asked ?? "", /git status/);
   });
 
+  // The re-test found the mirror of it: both calls parked and were pressed, and the lead reported
+  // that nothing had stopped and that the frame already allowed all of it — while two rules sat in
+  // the settings and two lines in the ledger. It is not shown the panel and no press is reported
+  // back to it, so the block stops asking it to watch one and points it at the file that is the
+  // record.
+  it("says the panel is not shown to it and that the ledger is what says what was granted", () => {
+    assert.match(asked ?? "", /not shown their panel/i);
+    assert.match(asked ?? "", /`\.claude\/allowed\.md`/);
+  });
+
   // The same run: asked with no command named, the lead improvised one. The sentence forbidding
   // that was already there and did not hold, because nothing told it what to do instead.
   it("says what to do when the answer allows commands but names none", () => {

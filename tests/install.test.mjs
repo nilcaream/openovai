@@ -364,6 +364,15 @@ describe("what the installer made", () => {
     assert.match(leader, /never what they said/);
   });
 
+  // And the fourth, found by the re-test: a lead told to watch the panel guesses, because it is
+  // never shown one. Here too the template has to say it, or a lead hired today is the one still
+  // reporting a press it cannot see.
+  it("tells the leader the panel is not shown to it and the ledger is the record", () => {
+    const leader = contentOf("templates", "leader.md");
+    assert.match(leader, /not shown their panel/);
+    assert.match(leader, /allowed\.md/);
+  });
+
   // The room is the third of them, and the only one the lead alone is offered. Watched here as
   // well as on the endpoint: what the instance grants and what the persona names have to move
   // together, or a lead is told to ask for something nothing will serve it.
