@@ -35,6 +35,37 @@ things buy a turn: 90 or 95 per cent newly reached, and a conversation newly gon
 nobody over, refuses nothing and ends no conversation of its own; a lead already answering is left
 alone. `watchEverySeconds` in `openovai.json` sets the cadence, and `0` turns it off entirely.
 
+You are asked once what may be done here, instead of one interruption at a time.
+
+**The question, on the first turn.** A workspace where nothing has run and nothing has been granted
+now opens by having your lead ask you one thing: what may be done at this root. It is open, there is
+no menu, and nothing reads your answer or turns it into a setting — say *never push anything*, or
+*never write outside `work/`*, or *no restrictions*, or *ask me every time*, however you would say
+it. Then, if what you said allows anything, your lead goes and makes the calls it permits, one at a
+time, so that each one stops on a panel and you settle it there while you are still thinking about
+the workspace. **Not now is a whole answer**: nothing is tripped, nothing is granted, and the
+workspace is exactly as capable as it was.
+
+It is asked once and then it is gone, because it stops the moment either half of what it fires on
+stops being true — the first turn, or the first thing granted. One consequence is worth knowing
+rather than being surprised by: a lead handed over in a workspace where you have still granted
+nothing is asked again, because a new conversation has no way of knowing the question was put once.
+Answering anything at all, or answering *not now* and granting one thing, ends it.
+
+**A write can now be settled for good.** A session stopped to write a file used to get **Allow** and
+**Deny** and never a third button — the very first thing this README asks you to try, and it asked
+you again every time. It now offers a rule for the directory the write was in, with the rule on the
+button: **Always allow `Edit(work/Wren/**)`**. That is the width the harness honours — a directory
+rule covers the whole subtree, and matches by path segment, so a rule for one desk cannot reach a
+desk whose name it begins. A write that lands outside the workspace still offers nothing, because
+there is no rule the workspace could hold for it.
+
+A write at the root of the workspace offers the widest rule there is, and you are shown it rather
+than protected from it: it is reachable only because a session asked to write there, the button
+carries the rule word for word, and the press leaves the usual line in `.claude/allowed.md` saying
+who asked and what for. That line now says which write it was for, where it used to say the grant
+was for a call it could not describe.
+
 ## 0.5.0
 
 The chat can reach you when you are not looking at the page.

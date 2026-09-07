@@ -283,13 +283,26 @@ same command stops somebody. So where the request says plainly what the whole cl
 a third button appears with the rule written on it — **Always allow `Bash(node:*)`** — and
 pressing it lets that call through and leaves the workspace allowing that shape, so the next
 session reaching for the same thing does not stop at all. The rule is the workspace's rather than
-that session's, and it is always the one on the button: a first word, never a path, never a
-command line.
+that session's, and it is always the one on the button, word for word.
+
+There are two shapes it can offer, because there are two things this workspace can grant. A
+**command**, by its first word. And a **write**, by the directory it was in — **Always allow
+`Edit(work/Wren/**)`** — which is the width the harness actually honours: a rule naming a directory
+covers the whole subtree under it, matching by path segment rather than by the letters of the name,
+so a rule for one desk cannot leak into a desk whose name it begins. A rule for a single file would
+settle the call it was pressed for and nothing near it, which is a button that looks like care and
+changes nothing. The rule says `Edit` whichever tool asked, because that is the one that governs
+writing a file; a rule naming the tool that asked would match nothing at all.
 
 It is offered narrowly and refuses to guess. A command whose first word is a path or comes out of
-a variable gets no button, and neither does writing a file, which names a path rather than a class
-of calls, nor a tool the chat serves, which is granted already. Where no rule can be composed
-there is no button, rather than one that cannot be pressed.
+a variable gets no button, and neither does a write that lands outside the workspace, which has no
+rule the workspace could hold, nor a tool the chat serves, which is granted already. Where no rule
+can be composed there is no button, rather than one that cannot be pressed.
+
+A write at the root of the workspace itself offers the widest rule there is, and it is not hidden
+from you. It is reachable only because somebody asked to write there, the button carries the rule
+in full, and the press leaves a line saying who asked and what for. A rule that wide is the one
+most worth reading, and putting it behind a floor would make it the one you never see.
 
 Every rule granted that way is written down in `.claude/allowed.md` beside the settings: one line
 per rule, saying who was asked, when, and what they were doing at the time. It is there because a
@@ -522,13 +535,24 @@ a plain install is already narrow enough to watch this work. Every option is req
 ~/trying-it/bin/ovai chat
 ```
 
-`ovai chat` prints the address it is listening on. Open it, and on Paul's panel ask for something
-the instance has not been told to allow. Ask him to **write** a file — *"create a file called
-hello.txt in your workspace containing the word hi"* will do it. Reading is a poor test: Claude
-Code settles read-only work such as listing a directory by itself, and that never reaches the
-page. The panel stops and shows the request: the tool, and what it was going to be given. Choose
-**Deny**, and Paul's reply opens by saying he was refused and what he had wanted to run. Ask again
-and choose **Allow**, and he goes ahead and tells you what he did.
+`ovai chat` prints the address it is listening on. Open it, and the first thing your lead does is
+put one question to you: what may be done at this root. It is asked once, on the first turn of a
+workspace that has granted nothing, and it is asked open — say *never push anything*, or *never
+write outside `work/`*, or *no restrictions*, or *ask me every time*, in your own words. Nothing
+reads your answer or turns it into a setting. What happens next is that your lead makes the calls
+your answer permits, one at a time, so that each one stops on a panel and you can settle it with a
+button while you are still thinking about it rather than in the middle of something else next week.
+*Not now* is a whole answer, and then nothing is tripped and nothing is granted.
+
+Either way, the stops themselves are worth watching once. On Paul's panel ask for something the
+instance has not been told to allow — ask him to **write** a file, *"create a file called hello.txt
+in your workspace containing the word hi"* will do it. Reading is a poor test: Claude Code settles
+read-only work such as listing a directory by itself, and that never reaches the page. The panel
+stops and shows the request: the tool, and what it was going to be given. Choose **Deny**, and
+Paul's reply opens by saying he was refused and what he had wanted to run. Ask again and choose
+**Allow**, and he goes ahead and tells you what he did. Ask a third time and the third button
+carries a rule for the directory he was writing in — **Always allow `Edit(work/Paul/**)`** if he
+wrote in his own place. Press it, and no write anywhere under there stops again.
 
 Each panel is its own conversation: a thread's id is kept in `chat/<Session>/session.json` and
 every message after the first continues it, so the server can be stopped and started again in
