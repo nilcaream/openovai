@@ -4423,6 +4423,139 @@ describe("what a session is asked about its desk", () => {
   });
 });
 
+// The one question a workspace is asked before anything has happened in it.
+//
+// The state it fires on is a workspace where nothing has ever run and nothing has ever been
+// granted, which this shared instance left behind a long way up this file. It is reached back the
+// way it was left: the conversation that leads and the file accounting for what has been granted
+// are taken away, kept, and put back in `after` — the settings are not touched, so nothing this
+// instance holds is un-granted, only the record of having settled anything is out of the way for
+// as long as these checks need it.
+// Somebody hired for this and never spoken to before it, so that the workspace has never run a
+// conversation of theirs either. A worker who had one would be left out by the guard on the
+// conversation before the guard on who leads was ever reached, and the check about who this is for
+// would pass on a block that had been handed to everybody.
+const NEVER_RUN_HERE = "Stonechat";
+
+describe("the question a workspace is asked on its first turn", () => {
+  const settlingLog = path.join(standIn, "settling.txt");
+  const ledger = path.join(instance, LEDGER);
+  const thread = path.join(instance, "chat", LEADER, "session.json");
+  const settings = path.join(instance, ".claude", "settings.json");
+  let heldLedger;
+  let heldThread;
+  let allowedBefore;
+  let settledByAsking;
+  let allowedAfterAsking;
+  let asked;
+  let afterwards;
+  let aWorker;
+  let settled;
+
+  // One line in the shape the workspace writes them, so this describe reaches the state itself
+  // instead of relying on what an earlier one left in the file.
+  const HAS_SETTLED_SOMETHING = "# What this workspace allows beyond a desk\n\n- `Bash(node:*)` — somebody, 2026-01-01, for `a call`\n";
+
+  // A file put back the way it was found, which includes not having been there.
+  function put(file, held) {
+    if (held === null) {
+      fs.rmSync(file, { force: true });
+      return;
+    }
+    fs.writeFileSync(file, held);
+  }
+
+  function nothingHasRun() {
+    fs.rmSync(thread, { force: true });
+  }
+
+  before(async () => {
+    // Before the settings are read, because hiring grants that desk its own rule and this describe
+    // is about to assert that nothing was granted while it ran.
+    runTool(instance, ["hire", NEVER_RUN_HERE], process.env);
+
+    heldLedger = fs.existsSync(ledger) ? fs.readFileSync(ledger, "utf8") : null;
+    heldThread = fs.existsSync(thread) ? fs.readFileSync(thread, "utf8") : null;
+    allowedBefore = JSON.parse(fs.readFileSync(settings, "utf8")).permissions.allow;
+    fs.rmSync(ledger, { force: true });
+    nothingHasRun();
+
+    await start(instance, standInEnvironment(standIn, settlingLog));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    // The first turn of a workspace that has settled nothing, and then the turn after it, which is
+    // the same workspace with one conversation behind it.
+    await say("what needs doing here");
+    asked = questionsIn(settlingLog).at(-1);
+    // Read here and not at the end: what asking did is a property of THAT turn, and the turns after
+    // it put the state back on purpose.
+    settledByAsking = fs.existsSync(ledger);
+    allowedAfterAsking = JSON.parse(fs.readFileSync(settings, "utf8")).permissions.allow;
+    await say("carry on");
+    afterwards = questionsIn(settlingLog).at(-1);
+
+    // Somebody who is not the lead, in that same workspace, back in the state that fires it — and
+    // who has never run, so that the guard on who leads is the first one it could be left out by.
+    nothingHasRun();
+    await say("and you", NEVER_RUN_HERE);
+    aWorker = questionsIn(settlingLog).at(-1);
+
+    // And the same first turn again in a workspace that HAS settled something, which is the other
+    // half of the transition. Written here rather than taken from what this instance happened to
+    // have, so that the state is the describe's own and not the leftovers of whatever ran above it.
+    nothingHasRun();
+    fs.writeFileSync(ledger, HAS_SETTLED_SOMETHING);
+    await say("once more");
+    settled = questionsIn(settlingLog).at(-1);
+  });
+
+  after(async () => {
+    put(ledger, heldLedger);
+    put(thread, heldThread);
+    await start(instance, standIns);
+    assert.ok(await waitForHealth(URL), "the server never came back");
+  });
+
+  it("asks what may be done at this root on the first turn of a workspace that has settled nothing", () => {
+    assert.match(asked ?? "", /what may be done at this root/);
+  });
+
+  it("wraps the question, so nothing reaches the session as though the human had typed it", () => {
+    assert.match(asked ?? "", /<permissions>[\s\S]*<\/permissions>/);
+  });
+
+  it("puts the question in front of the message rather than after it", () => {
+    const wrapped = asked.indexOf("</permissions>");
+    assert.ok(wrapped > -1 && wrapped < asked.indexOf("what needs doing here"));
+  });
+
+  // The widest rule there is, reachable from one press, and the block says so where the press is
+  // decided rather than leaving it to be discovered on the button.
+  it("says what a write at the root would grant, in the rule the person would press", () => {
+    assert.ok((asked ?? "").includes("Edit(**)"), asked);
+  });
+
+  it("says nothing to a session that is not the one that leads", () => {
+    assert.ok(!(aWorker ?? "").includes("<permissions>"), aWorker);
+  });
+
+  it("says nothing once the conversation that leads has one turn behind it", () => {
+    assert.ok(!(afterwards ?? "").includes("<permissions>"), afterwards);
+  });
+
+  it("says nothing once the workspace has settled something", () => {
+    assert.ok(!(settled ?? "").includes("<permissions>"), settled);
+  });
+
+  // Asking is the whole of what it does. A workspace that granted itself something for having asked
+  // would be the twenty-six-rule workspace this feature was written against, reached in one turn
+  // instead of one press at a time.
+  it("grants nothing by asking", () => {
+    assert.equal(settledByAsking, false, "asking wrote a line accounting for something");
+    assert.deepEqual(allowedAfterAsking, allowedBefore);
+  });
+});
+
 // WHEN the ask is put together, which is not the same question as whether it is asked at all. It
 // is decided where the turn begins and not where the message arrived, so a desk filled in by the
 // turn ahead of this one in the queue is not asked about again.

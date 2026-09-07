@@ -606,5 +606,71 @@
         "to": "      call: asked.input?.command ?? asked.input?.file_path,"
       }
     ]
+  },
+  {
+    "name": "the question is handed to everybody rather than to the session that leads",
+    "catches": "says nothing to a session that is not the one that leads",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "function permissionsWrapper(instance, name) {\n  if (name !== instance.config.leader) {\n    return null;\n  }",
+        "to": "function permissionsWrapper(instance, name) {"
+      }
+    ]
+  },
+  {
+    "name": "the question ignores the conversation and is asked on every turn",
+    "catches": "says nothing once the conversation that leads has one turn behind it",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  if (hasThread(instance.root, name)) {\n    return null;\n  }",
+        "to": "  if (false) {\n    return null;\n  }"
+      }
+    ]
+  },
+  {
+    "name": "the question ignores what the workspace has already settled",
+    "catches": "says nothing once the workspace has settled something",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  if (hasSettledAnything(instance.root)) {\n    return null;\n  }",
+        "to": "  if (false) {\n    return null;\n  }"
+      }
+    ]
+  },
+  {
+    "name": "asking is made to grant something as well",
+    "catches": "grants nothing by asking",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  return [\n    \"<permissions>\",",
+        "to": "  allowAsked(instance.root, { rule: \"Edit(**)\", session: name, call: \"asking\", day: \"2026-01-01\" });\n  return [\n    \"<permissions>\","
+      }
+    ]
+  },
+  {
+    "name": "the question steps around what a write at the root would grant",
+    "catches": "says what a write at the root would grant, in the rule the person would press",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    \"A write at the root offers them the widest rule there is, `Edit(**)`. Say so in the same breath rather than stepping around it: a rule at the root covers every per-desk rule this workspace hands out, so from that press onward the one-rule-per-desk narrowness is decorative. Not a refusal — a sentence, so that the press is an informed one.\",",
+        "to": "    \"\","
+      }
+    ]
+  },
+  {
+    "name": "the question is put behind the message rather than in front of it",
+    "catches": "puts the question in front of the message rather than after it",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  return withWhatWasOverheard(said, message);",
+        "to": "  const behind = said.filter((line) => line.startsWith(\"<permissions>\"));\n  return [withWhatWasOverheard(said.filter((line) => !line.startsWith(\"<permissions>\")), message), ...behind].join(\"\\n\\n\");"
+      }
+    ]
   }
 ]

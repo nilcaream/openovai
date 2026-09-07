@@ -18,7 +18,7 @@ import { popped } from "./pop.mjs";
 import { answerFrom } from "../plugins.mjs";
 import { ago, roomLines, shareSaid } from "./room.mjs";
 import { forgetTheRoom, howOften, watchWrapper, whatChanged } from "./watch.mjs";
-import { DESK_FILE, DeskError, WORK, allowAsked, archiveFor, deskTitle, describeName, hire, isName, retire } from "../desks.mjs";
+import { DESK_FILE, DeskError, WORK, allowAsked, archiveFor, deskTitle, describeName, hasSettledAnything, hire, isName, retire } from "../desks.mjs";
 import { accountStanding, ask, bandIn, endRun, forget, hasGoneCold, hasGoneQuiet, hasThread, quotaIn, ranAt, refusedIn, sessions } from "./session.mjs";
 import { inTurn, turnsGoing, waitingFor, whileWaitingFor, wouldWaitForItself } from "./turns.mjs";
 import { unfinished } from "./unfinished.mjs";
@@ -156,6 +156,57 @@ function deskWrapper(name) {
     `without opening this panel. It is empty. Put what you are on into it, in a few words, and keep`,
     `it true as the work moves.</desk>`,
   ].join(" ");
+}
+
+// The one question a workspace is worth asking before anything else happens in it, asked once.
+//
+// A fresh workspace grants two things: one desk each, and the tools the chat serves. Everything
+// else stops a run mid-turn and waits on a panel, which is the right default and is not what this
+// is about. What this is about is that the person then finds out what they are willing to allow one
+// interruption at a time, over days, each one arriving in the middle of somebody else's work and on
+// a panel they may not have open. Nobody ever asks them the question that would settle most of them
+// at once, while they are thinking about the workspace rather than about whatever a session was
+// doing when it stopped.
+//
+// FIRED ON A TRANSITION AND NEVER ON A CONDITION, which is what keeps it from being a sentence in
+// every turn forever. The transition is the workspace's first turn, and it is read from two things
+// that are already there and are already read elsewhere: nothing has ever run here, and nothing has
+// ever been granted here. Nothing new is stored, and there is nothing to clear — the block stops by
+// either becoming false, which the first turn and the first press respectively do.
+//
+// THE TRADE, SAID RATHER THAN HIDDEN. A lead handed over in a workspace that has still granted
+// nothing is asked again, because a new conversation does not know the question was put once. That
+// is one repeated question in a workspace where nothing has been settled, and it is the cheapest
+// honest answer: a marker file of its own, or a key in the config, would be a second record of one
+// fact, and the day the two disagree the workspace is confidently wrong about whether it ever asked.
+//
+// IT GRANTS NOTHING. No rule is composed here, none is written, and what the person says is not
+// parsed, recorded or turned into a setting: every rule this workspace holds is still a press on a
+// panel and the line beside it saying who asked. The lead's part is to ask, and then to make the
+// calls the answer permits so that each one stops where a person can answer it.
+function permissionsWrapper(instance, name) {
+  if (name !== instance.config.leader) {
+    return null;
+  }
+  // Nothing has ever run here...
+  if (hasThread(instance.root, name)) {
+    return null;
+  }
+  // ...and nothing has ever been granted here.
+  if (hasSettledAnything(instance.root)) {
+    return null;
+  }
+
+  return [
+    "<permissions>",
+    "The chat is telling you this. Nobody typed it.",
+    `Nothing has run in this workspace yet and it has granted nothing beyond one desk each, so everything else a session reaches for will stop it mid-turn and wait on a panel. That is the right default, and it means ${instance.config.human} would otherwise find out what they are willing to allow one interruption at a time, over days, each one arriving in the middle of somebody else's work.`,
+    `Ask them the one question that settles most of it, now, while they are thinking about this workspace rather than about whatever a session was doing when it stopped: what may be done at this root. Ask it open and offer no menu — an answer sounds like "never push anything", "never write outside work/", "no restrictions", "ask me every time" — and take it as they say it. Nothing here reads it, records it or turns it into a setting.`,
+    "Then, if what they said allows anything at all, make the calls it permits, one at a time, so that each one stops and they can press Always allow on it while the question is still in their head. There are two shapes to trip and no others: a COMMAND they named, never one you chose, and a WRITE at the path their answer names — where they named a place, at the root itself where they said no restrictions, and under `.tmp/` at the root where they named nowhere in particular. Tripping somewhere narrower than they allowed asks them to grant less than they said yes to, which is the one thing this exists to prevent.",
+    "A write at the root offers them the widest rule there is, `Edit(**)`. Say so in the same breath rather than stepping around it: a rule at the root covers every per-desk rule this workspace hands out, so from that press onward the one-rule-per-desk narrowness is decorative. Not a refusal — a sentence, so that the press is an informed one.",
+    "Not now is a whole answer. Then nothing is tripped and nothing is granted, and this workspace stays exactly as capable as it is today, which is the point of asking rather than presetting. Either way, grant nothing yourself: what a rule is worth here is that somebody read it and pressed it.",
+    "</permissions>",
+  ].join("\n\n");
 }
 
 // Who has stopped, told to the session that leads and to nobody else.
@@ -408,6 +459,13 @@ function inFrontOf(instance, name, message, restarted = false, answering = null)
   }
   if (deskTitle(instance.root, name) === "") {
     said.push(deskWrapper(name));
+  }
+  // After the desk, and for once that order is about who answers rather than about what is said.
+  // The ask above is answered by the reader itself, in this turn, by writing one line; this one is
+  // answered by a person, over as many turns as it takes them, so it reads nearest the message.
+  const settling = permissionsWrapper(instance, name);
+  if (settling !== null) {
+    said.push(settling);
   }
   // Last, nearest the message it is about, and usually not there at all.
   if (answering !== null) {

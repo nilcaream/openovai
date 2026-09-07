@@ -475,6 +475,16 @@ export function account(root, { rule, session, call, day }) {
   return [file];
 }
 
+// Whether this workspace has ever settled anything beyond what it hands out by itself.
+//
+// The ledger is the whole of the answer and deliberately the only one. A rule and the line that
+// accounts for it are written in one act, so a workspace with no file here has granted nothing
+// wider than a desk, and one with a file has. Nothing else has to be stored and nothing has to be
+// cleared — a second record of one fact is a thing to disagree with this on the day it matters.
+export function hasSettledAnything(root) {
+  return readLedger(root) !== null;
+}
+
 function readLedger(root) {
   try {
     return fs.readFileSync(path.join(root, LEDGER), "utf8");
