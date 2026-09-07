@@ -4,6 +4,14 @@ on:
   push:
     branches: [main]
   pull_request:
+  # A release calls this file rather than keeping a copy of the list: what a release is checked
+  # against and what a push is checked against are then the same checks, and cannot drift apart.
+  workflow_call:
+
+# Nothing here writes anything. Said out loud because the release workflow calls this one, and a
+# called workflow is handed the caller permissions unless it asks for less.
+permissions:
+  contents: read
 
 jobs:
   shellcheck:

@@ -291,3 +291,38 @@ describe("the checks CI runs", () => {
     }
   });
 });
+
+// A release used to be able to go out on a commit whose checks were failing, or still running, or
+// had never been asked for. Nothing was wrong with either workflow on its own: CI starts on a push
+// and the release starts on a button, so the two ran side by side and neither waited for the
+// other. The tag went on first and the red tick arrived after it. What follows is the thing that
+// stops that, in the only two lines of YAML that say it.
+describe("a release and the checks", () => {
+  const release = fs.readFileSync(path.join(repo, ".github", "workflows", "release.yml"), "utf8");
+  const ci = fs.readFileSync(path.join(repo, ".github", "workflows", "ci.yml"), "utf8");
+
+  it("runs the checks before anything is tagged", () => {
+    assert.match(
+      release,
+      /^  release:\n    name: Release\n    needs: tests$/m,
+      "the release job does not wait for the tests job, so a tag can be pushed on a red commit",
+    );
+  });
+
+  it("waits for CI itself rather than for a copy of its list", () => {
+    assert.match(
+      release,
+      /^  tests:\n    name: Tests\n    uses: \.\/\.github\/workflows\/ci\.yml$/m,
+      "the job the release waits for is not CI, so the two can check different things",
+    );
+  });
+
+  it("leaves CI something a release can call", () => {
+    const triggers = ci.match(/^on:\n((?:[ \t]+.*\n)+)/m)?.[1] ?? "";
+    assert.match(
+      triggers,
+      /^  workflow_call:$/m,
+      "CI cannot be called by another workflow, so the release has nothing to wait for",
+    );
+  });
+});

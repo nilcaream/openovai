@@ -69,6 +69,14 @@ carries the rule word for word, and the press leaves the usual line in `.claude/
 who asked and what for. That line now says which write it was for, where it used to say the grant
 was for a call it could not describe.
 
+**A version you take has been checked.** Cutting a release here was a button, and the checks were
+started by the push before it — two things running side by side, neither waiting for the other. A
+release took eleven seconds and the checks took two and a half minutes, so the tag and the page
+people download from existed before anything had said the tree was good, and a failing check would
+simply have turned up after them. From this version the release runs the checks first and tags
+nothing until they are green. Nothing changes on your side: the version you take has just been
+through them.
+
 ## 0.5.0
 
 The chat can reach you when you are not looking at the page.

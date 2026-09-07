@@ -15,8 +15,18 @@ permissions:
   contents: write
 
 jobs:
+  # A tag is forever, and the archive people download is made from it — so the one thing a release
+  # must not be is cut from a tree the checks were never run on. Nothing about a click says the
+  # tests passed: CI starts on a push and this starts on a button, and the two ran side by side
+  # with neither waiting for the other. So the release runs them itself. This is CI, the same file,
+  # called rather than copied, and the job below waits on it.
+  tests:
+    name: Tests
+    uses: ./.github/workflows/ci.yml
+
   release:
     name: Release
+    needs: tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
