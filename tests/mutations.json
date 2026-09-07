@@ -1,12 +1,27 @@
 [
   {
-    "name": "the lowest band is raised past anything a fixture reports",
+    "name": "every band is raised past anything a fixture reports",
     "catches": "names a conversation that has entered a band",
     "edits": [
       {
         "file": "tools/chat/session.mjs",
+        "from": "  Object.freeze({ named: \"0.95\", above: 0.95, strong: true }),",
+        "to": "  Object.freeze({ named: \"0.95\", above: 0.99, strong: true }),"
+      },
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "  Object.freeze({ named: \"0.90\", above: 0.9, strong: true }),",
+        "to": "  Object.freeze({ named: \"0.90\", above: 0.97, strong: true }),"
+      },
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "  Object.freeze({ named: \"0.85\", above: 0.85, strong: false }),",
+        "to": "  Object.freeze({ named: \"0.85\", above: 0.95, strong: false }),"
+      },
+      {
+        "file": "tools/chat/session.mjs",
         "from": "  Object.freeze({ named: \"0.80\", above: 0.8, strong: false }),",
-        "to": "  Object.freeze({ named: \"0.80\", above: 8, strong: false }),"
+        "to": "  Object.freeze({ named: \"0.80\", above: 0.93, strong: false }),"
       }
     ]
   },
@@ -38,8 +53,8 @@
     "edits": [
       {
         "file": "tools/chat/server.mjs",
-        "from": "  if (name !== instance.config.leader) {\n    return null;\n  }\n  const large = sessions(instance).filter((session) => hasGrownLarge(instance.root, session.name));",
-        "to": "  if (name !== instance.config.leader && false) {\n    return null;\n  }\n  const large = sessions(instance).filter((session) => hasGrownLarge(instance.root, session.name));"
+        "from": "  if (name !== instance.config.leader) {\n    return null;\n  }\n  const large = sessions(instance).filter((session) => bandIn(instance.root, session.name) !== null);",
+        "to": "  if (name !== instance.config.leader && false) {\n    return null;\n  }\n  const large = sessions(instance).filter((session) => bandIn(instance.root, session.name) !== null);"
       }
     ]
   },
@@ -49,8 +64,8 @@
     "edits": [
       {
         "file": "tools/chat/server.mjs",
-        "from": "  const large = sessions(instance).filter((session) => hasGrownLarge(instance.root, session.name));",
-        "to": "  const large = sessions(instance).filter((session) => session.name !== name && hasGrownLarge(instance.root, session.name));"
+        "from": "  const large = sessions(instance).filter((session) => bandIn(instance.root, session.name) !== null);",
+        "to": "  const large = sessions(instance).filter((session) => session.name !== name && bandIn(instance.root, session.name) !== null);"
       }
     ]
   },
@@ -60,8 +75,8 @@
     "edits": [
       {
         "file": "tools/chat/server.mjs",
-        "from": "  const large = sessions(instance).filter((session) => hasGrownLarge(instance.root, session.name));",
-        "to": "  const large = sessions(instance).filter((session) => turnsGoing(session.name) === 0 && hasGrownLarge(instance.root, session.name));"
+        "from": "  const large = sessions(instance).filter((session) => bandIn(instance.root, session.name) !== null);",
+        "to": "  const large = sessions(instance).filter((session) => turnsGoing(session.name) === 0 && bandIn(instance.root, session.name) !== null);"
       }
     ]
   },
@@ -71,8 +86,8 @@
     "edits": [
       {
         "file": "tools/chat/session.mjs",
-        "from": ".context;\n    return typeof held === \"number\" ? held : null;\n  } catch {\n    return null;\n  }",
-        "to": ".context;\n    return typeof held === \"number\" ? held : null;\n  } catch {\n    return Number.MAX_SAFE_INTEGER;\n  }"
+        "from": "  return shareOf(contextIn(root, name), windowIn(root, name));",
+        "to": "  return shareOf(contextIn(root, name), windowIn(root, name)) ?? BANDS[0];"
       }
     ]
   },
@@ -259,7 +274,7 @@
   },
   {
     "name": "the window falls back to the one number anybody measured",
-    "catches": "says nothing about the share when the frame named no window",
+    "catches": "says nothing about the share when the window is not a number",
     "edits": [
       {
         "file": "tools/chat/session.mjs",

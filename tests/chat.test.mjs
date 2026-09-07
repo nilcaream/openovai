@@ -9986,7 +9986,7 @@ const NEVER_A_TURN = "Rosefinch";
 const STOPPED_AND_BIG = "Waxwing";
 const HIRED_WHILE_BIG = "Bullfinch";
 
-// Three conversations as big as the one above, whose runs were told a different thing about the
+// Four conversations as big as the one above, whose runs were told a different thing about the
 // window. Each is a way the denominator can be missing, and every one of them has to come back to
 // what shipped: the tokens on the row, nothing beside them, and no name in the block.
 //
@@ -9996,6 +9996,7 @@ const HIRED_WHILE_BIG = "Bullfinch";
 const NO_WINDOW_AT_ALL = "Redstart";
 const NO_MODEL_NAMED = "Wheatear";
 const TWO_MODELS = "Whinchat";
+const NOT_A_NUMBER = "Fieldfare";
 const A_RESOLVED_ID = "Stonechat";
 
 // The sizes a turn reports, and they differ so that where the thread ENDED and what the turn ADDED
@@ -10063,6 +10064,7 @@ describe("what the lead is told about a conversation that has grown big", () => 
     runTool(instance, ["hire", NO_WINDOW_AT_ALL], process.env);
     runTool(instance, ["hire", NO_MODEL_NAMED], process.env);
     runTool(instance, ["hire", TWO_MODELS], process.env);
+    runTool(instance, ["hire", NOT_A_NUMBER], process.env);
     runTool(instance, ["hire", A_RESOLVED_ID], process.env);
 
     // Nobody over the line. The state that makes the check below mean anything, and it has to come
@@ -10142,6 +10144,21 @@ describe("what the lead is told about a conversation that has grown big", () => 
     );
     assert.ok(await waitForHealth(URL), "the server never came back with two models");
     await say("a turn as big as the others, on a frame naming two models", TWO_MODELS);
+
+    // And a frame naming exactly one model whose window is not a number. The last way the reading
+    // can fail, and the only one that reaches the end of the rule rather than bailing before it:
+    // there IS one entry, it IS the entry the run answered on, and what it says it holds is not a
+    // size. A number is what the whole reading is for, so a value that is not one is not a small
+    // window or a big one — it is the same nothing as never having been told.
+    await start(
+      instance,
+      standInEnvironment(standIn, sizeLog, {
+        OPENOVAI_STAND_IN_USAGE: GREW.join(","),
+        OPENOVAI_STAND_IN_WINDOW: "notanumber",
+      }),
+    );
+    assert.ok(await waitForHealth(URL), "the server never came back with a window that is not a number");
+    await say("a turn as big as the others, on a frame holding no size at all", NOT_A_NUMBER);
 
     // The one that proves the lookup is not by name: the frame answers under an id that is NOT what
     // the workspace passed to --model, which is what a service resolving an alias does. The window
@@ -10223,6 +10240,14 @@ describe("what the lead is told about a conversation that has grown big", () => 
   it("says nothing about the share when the frame named no model", () => {
     assert.match(toldWithEveryWindowShape, /<size>/, "there was no block to look in");
     assert.doesNotMatch(sizeBlock(toldWithEveryWindowShape), new RegExp(NO_MODEL_NAMED));
+  });
+
+  // Mutation: fall back to the one window anybody has measured when the entry holds no size. This
+  // is the fixture that reaches the last line of the rule — the other three bail before it — so
+  // without it a default written there would be read by nothing.
+  it("says nothing about the share when the window is not a number", () => {
+    assert.match(toldWithEveryWindowShape, /<size>/, "there was no block to look in");
+    assert.doesNotMatch(sizeBlock(toldWithEveryWindowShape), new RegExp(NOT_A_NUMBER));
   });
 
   // Mutation: take the first entry when the frame named more than one model. A run answers on ONE
