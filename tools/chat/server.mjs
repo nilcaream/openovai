@@ -18,7 +18,7 @@ import { popped } from "./pop.mjs";
 import { answerFrom } from "../plugins.mjs";
 import { ago, roomLines } from "./room.mjs";
 import { DESK_FILE, DeskError, WORK, allowAsked, archiveFor, deskTitle, describeName, hire, isName, retire } from "../desks.mjs";
-import { accountStanding, ask, endRun, forget, hasGoneCold, hasGoneQuiet, hasThread, quotaIn, ranAt, refusedIn, sessions } from "./session.mjs";
+import { accountStanding, ask, endRun, forget, hasGoneCold, hasGoneQuiet, hasGrownLarge, hasThread, quotaIn, ranAt, refusedIn, sessions } from "./session.mjs";
 import { inTurn, turnsGoing, waitingFor, whileWaitingFor, wouldWaitForItself } from "./turns.mjs";
 import { unfinished } from "./unfinished.mjs";
 import { takeWord } from "./untold.mjs";
@@ -210,6 +210,75 @@ function quietWrapper(instance, name) {
   ].join("\n\n");
 }
 
+// Which conversations here have grown big enough to plan around, told to the session that leads and
+// to nobody else.
+//
+// The third reading in this toolkit that is pushed, and it answers to the same list the one below
+// does. A worker has one task and no say in when its conversation is handed over; which of them is
+// worth handing over is the lead's, and it is the lead who would otherwise keep loading one.
+//
+// WHY IT IS PUSHED. The number is already on every row and on every panel, with no opinion attached
+// — that is right for a person reading a room, and no use at all to a reader who never asks. A size
+// nobody is handed until they think to want it is no use for a condition whose whole cost is that
+// it goes unnoticed: the conversation that most needs handing over is the one whose reader has the
+// least room left to notice it in.
+//
+// Every property that earns the exception is here, and each has a check:
+//
+//   Absent while nothing applies. A sentence in every turn forever is a sentence nobody reads.
+//   Dated — the moment this turn began, said once for the whole block. It needs no second age the
+//     way the reading beside it does: one account's standing reaches N rows at N ages, while a size
+//     belongs to the conversation it is about and is exactly as old as that conversation's last
+//     turn, which "at the end of its last turn" already says.
+//   It names the speaker, for updateWrapper's reason: an update ships new templates and re-renders
+//     nobody's persona, so a session reading this may be running one written before any of it
+//     existed and has nothing to look it up in.
+//   The lead only.
+//   A reading and never a gate. Nothing consults hasGrownLarge to deliver, hire, hand over, queue,
+//     refuse or end. No sweep, no timer, no new state, nothing to clear.
+//
+// TWO THINGS IT DOES THAT THE QUIET BLOCK DOES NOT, both deliberate.
+//
+// Nobody is left out for being mid-turn. There the reading is a clock that stands still for the
+// whole of a turn, so a session working reads as one that has stopped. A size does not go stale
+// that way — it is simply behind, and a session in the middle of a turn is at least as large as
+// this says. Leaving it out would hide the biggest conversation here at the moment it is biggest.
+//
+// And the reader is in its own list, in the second person. It is the largest conversation in the
+// workspace, it is the one that cannot press its own button, and it is the reader — a block naming
+// everybody except the session that most needs handing over would be the worst reading this could
+// give.
+function sizeWrapper(instance, name) {
+  if (name !== instance.config.leader) {
+    return null;
+  }
+  const large = sessions(instance).filter((session) => hasGrownLarge(instance.root, session.name));
+  if (large.length === 0) {
+    return null;
+  }
+
+  // The same words the row and the panel say of the same reading, down to the separators — a person
+  // and a session reading one number each should not have to work out that two phrasings are one
+  // fact. The number is the row's own, off the list this just filtered: reading the file again here
+  // would be a second answer to one question, and a filter that could disagree with its own sentence.
+  const each = large.map((session) => {
+    const held = session.context.toLocaleString("en-US");
+    return session.name === name
+      ? `you were carrying ${held} tokens at the end of yours`
+      : `${session.name} was carrying ${held} tokens at the end of its last turn`;
+  });
+  const when = new Date();
+  const read = `${String(when.getHours()).padStart(2, "0")}:${String(when.getMinutes()).padStart(2, "0")}`;
+
+  return [
+    "<size>",
+    "The chat is telling you this. Nobody typed it.",
+    `${each.join(", and ")}, read as this turn began at ${read}.`,
+    `A conversation that big is one where what is left has to be planned rather than simply carried on, and what survives it is what its desk says. Handing one over is ${instance.config.human}'s to press, on that panel, and pressing it is what asks that session to write its desk before its thread ends — so say which panel and why, your own included. Nothing here does it for you: nothing stops running because of this and no conversation is ended by it.`,
+    "</size>",
+  ].join("\n\n");
+}
+
 // Where the account stands, told to the session that leads and to nobody else.
 //
 // The second reading in this toolkit that is pushed, and it answers to the same list the first one
@@ -315,6 +384,13 @@ function inFrontOf(instance, name, message, restarted = false, answering = null)
   const stopped = quietWrapper(instance, name);
   if (stopped !== null) {
     said.push(stopped);
+  }
+  // Beside it, about the same conversations and read at the same moment: both are about what one
+  // conversation is about to lose, and the one below is about the whole workspace and is the one
+  // that says stop, so it reads last.
+  const large = sizeWrapper(instance, name);
+  if (large !== null) {
+    said.push(large);
   }
   // Beside it, for the same reason and read at the same moment: both are things the chat knows and
   // nobody typed, and both are worth nothing if they describe the room as it was before this turn

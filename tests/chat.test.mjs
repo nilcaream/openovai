@@ -9892,3 +9892,335 @@ describe("what the scaffold writes is a tool", () => {
     assert.match(answered.text, new RegExp(`${LEADER} said ${MESSAGE}`));
   });
 });
+
+const GROWN_BIG = "Fulmar";
+const STILL_SMALL = "Firecrest";
+const SAID_NOTHING = "Woodlark";
+const NEVER_A_TURN = "Rosefinch";
+const STOPPED_AND_BIG = "Waxwing";
+const HIRED_WHILE_BIG = "Bullfinch";
+
+// The sizes a turn reports, and they differ so that where the thread ENDED and what the turn ADDED
+// UP TO cannot be the same number. Both are past the line, so a reader that took the wrong one
+// would still say something — which is the only way the check about it means anything.
+const GREW = [325142, 412934];
+const CARRYING = GREW[GREW.length - 1];
+const ADDED_UP = GREW.reduce((all, size) => all + size - 13, 0) + 8 * GREW.length + 5 * GREW.length;
+const UNDER_THE_LINE = 4000;
+
+// The <size> block alone, cut out by hand — for usageBlock()'s reason, word for word. Two other
+// blocks open with the same sentence about who is speaking, and by the time this runs both are
+// really there, so a match against the whole question is satisfied by a neighbour.
+function sizeBlock(question) {
+  const from = question.indexOf("<size>");
+  if (from === -1) {
+    return "";
+  }
+  const to = question.indexOf("</size>", from);
+  return to === -1 ? "" : question.slice(from, to + "</size>".length);
+}
+
+// What the lead is told about a conversation that has grown big enough to plan around.
+//
+// The number is already on every row and every panel with no opinion attached. This is the one
+// reader who can act on it being handed it unasked — so the fixtures have to reach both states,
+// somebody over the line and nobody over it, or the check that it is said proves only that it is
+// always said.
+//
+// Every size here is past 300,000, which no real run in this suite would reach: the stand-in
+// reports whatever the check asks for, and that it carries a number that big without quietly
+// rounding it off is the first thing this rests on.
+describe("what the lead is told about a conversation that has grown big", () => {
+  const sizeLog = path.join(standIn, "size-glance.txt");
+  let toldWhenNobodyIsBig;
+  let toldWhenBig;
+  let toldAWorker;
+  let toldWithAllThree;
+  let toldOnceHandedOver;
+  let deliveredToTheBigOne;
+  let handedOver;
+  let hiredWhileBig;
+  let roomLine;
+
+  const lastQuestion = (log) => questionsIn(log).slice(-1)[0] ?? "";
+
+  before(async () => {
+    runTool(instance, ["hire", GROWN_BIG], process.env);
+    runTool(instance, ["hire", STILL_SMALL], process.env);
+    runTool(instance, ["hire", SAID_NOTHING], process.env);
+    runTool(instance, ["hire", NEVER_A_TURN], process.env);
+    runTool(instance, ["hire", STOPPED_AND_BIG], process.env);
+
+    // Nobody over the line. The state that makes the check below mean anything, and it has to come
+    // first: everything after this leaves conversations in this instance that are genuinely big.
+    await start(instance, standInEnvironment(standIn, sizeLog, { OPENOVAI_STAND_IN_USAGE: String(UNDER_THE_LINE) }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    await say("a turn, so this one is under the line", STILL_SMALL);
+    await say("and this one, which will be the quiet one later", STOPPED_AND_BIG);
+    await say("and the lead, so its own reading is under it too", LEADER);
+    await say("a first question, with every conversation under the line", LEADER);
+    toldWhenNobodyIsBig = lastQuestion(sizeLog);
+
+    // A turn that is told nothing about its own size. Remembered as nothing, which is not a small
+    // conversation — it is no reading at all.
+    await start(instance, standInEnvironment(standIn, sizeLog));
+    assert.ok(await waitForHealth(URL), "the server never came back");
+    await say("a turn that reports no reading at all", SAID_NOTHING);
+
+    // And past the line. The lead's own conversation among them, deliberately.
+    await start(instance, standInEnvironment(standIn, sizeLog, { OPENOVAI_STAND_IN_USAGE: GREW.join(",") }));
+    assert.ok(await waitForHealth(URL), "the server never came back with the big fixture");
+    await say("a turn that grows this one past the line", GROWN_BIG);
+    await say("and the lead's own, past it as well", LEADER);
+    await say("a second question, with two conversations over the line", LEADER);
+    toldWhenBig = lastQuestion(sizeLog);
+
+    // The same state, seen from a worker's turn. A worker has one task and no say in when its
+    // conversation is handed over.
+    await say("and a worker is asked something, with the same two over the line", STILL_SMALL);
+    toldAWorker = lastQuestion(sizeLog);
+
+    // All three readings at once, which is the only way to see what order they are said in. One
+    // stopped for the first, an account filling up for the third.
+    const now = new Date();
+    age(threadFile(STOPPED_AND_BIG), 50.5);
+    fs.utimesSync(panelFile(STOPPED_AND_BIG), now, now);
+    stageWindows(LEADER, [window("five_hour", 0.91, 180), window("seven_day", 0.36, 5 * 24 * 60)]);
+    await say("a third question, with all three of them true at once", LEADER);
+    toldWithAllThree = lastQuestion(sizeLog);
+
+    // A message to it is delivered exactly as any other, and it answers. Read off the answer and
+    // not the row: a gate would refuse this without ever running anything.
+    deliveredToTheBigOne = await say("a message to a conversation over the line", GROWN_BIG);
+
+    // And the room goes on doing everything else while it is true.
+    hiredWhileBig = runTool(instance, ["hire", HIRED_WHILE_BIG], process.env);
+    roomLine = (runTool(instance, ["room"], standInEnvironment(standIn, sizeLog)).stdout ?? "")
+      .split("\n")
+      .find((line) => line.startsWith(`${GROWN_BIG} `)) ?? "";
+
+    // Handing it over is neither refused nor required, and it takes the reading with the thread.
+    handedOver = await post(`${URL}/sessions/${GROWN_BIG}/handover`, {});
+    await say("a fourth question, with that conversation handed over", LEADER);
+    toldOnceHandedOver = lastQuestion(sizeLog);
+  });
+
+  // Mutation: raise the line past anything a fixture reports. A threshold is proven by moving the
+  // threshold and never by inverting the comparison — an inverted one reddens the check below as
+  // well, and the sweep would say something else is already covering this.
+  it("names a conversation that has grown past the line", () => {
+    assert.match(toldWhenBig, /<size>[\s\S]*<\/size>/);
+    assert.match(
+      toldWhenBig,
+      new RegExp(`${GROWN_BIG} was carrying ${CARRYING.toLocaleString("en-US")} tokens at the end of its last turn`),
+    );
+  });
+
+  // Mutation: build the block whatever the list came to. The other half of the WHETHER rule —
+  // without it the check above proves only that a sentence is always there.
+  it("says nothing while every conversation is under it", () => {
+    assert.doesNotMatch(toldWhenNobodyIsBig, /<size>/);
+  });
+
+  // Mutation: read the top level of the frame rather than the last iteration. A turn that made two
+  // requests reports a top level that ADDS them up, which is a number growing at twice the rate of
+  // the conversation — and past the line it looks exactly like an answer.
+  it("says the size at the end of the last turn and not what the turn added up to", () => {
+    assert.match(sizeBlock(toldWhenBig), new RegExp(CARRYING.toLocaleString("en-US")));
+    assert.doesNotMatch(sizeBlock(toldWhenBig), new RegExp(ADDED_UP.toLocaleString("en-US")));
+  });
+
+  // Mutation: drop the test on who is being handed this.
+  it("is handed to the session that leads and to nobody else", () => {
+    assert.doesNotMatch(toldAWorker, /<size>/, "a worker was told which conversations are big");
+    assert.match(toldWhenBig, /<size>/, "nobody was over the line when the worker was asked");
+  });
+
+  // Mutation: filter the reader out of its own list, the way the block about who has stopped
+  // rightly does. It is the largest conversation here and the one that cannot press its own
+  // button, so a block naming everybody except it would be the worst reading this could give.
+  it("names the session that leads about its own conversation", () => {
+    assert.match(
+      toldWhenBig,
+      new RegExp(`you were carrying ${CARRYING.toLocaleString("en-US")} tokens at the end of yours`),
+    );
+  });
+
+  // Mutation: read the file where the reading lives without going through the reader that answers
+  // nothing when it is not there. A session hired and never run has no conversation to carry on,
+  // and telling anybody to hand it over is telling them to end something that was never begun.
+  it("says nothing about a session with no conversation to carry on", () => {
+    assert.match(toldWhenBig, /<size>/, "there was no block to look in");
+    assert.doesNotMatch(sizeBlock(toldWhenBig), new RegExp(NEVER_A_TURN));
+  });
+
+  // Mutation: read a reading nobody has taken as the largest there is. Nothing is NOT zero and it
+  // is not the top of the scale either — a run that reported no size is one nothing is known
+  // about, and this is the same honesty quotaIn() already keeps.
+  it("says nothing about a session that has never reported a reading", () => {
+    assert.match(toldWhenBig, /<size>/, "there was no block to look in");
+    assert.doesNotMatch(sizeBlock(toldWhenBig), new RegExp(SAID_NOTHING));
+  });
+
+  // Mutation: drop the moment. It is the whole of why this may be handed over unasked: a dated
+  // line cannot be read as now. Asserted against the clock and never a literal.
+  it("carries the moment the turn began", () => {
+    const said = sizeBlock(toldWhenBig).match(/read as this turn began at (\d\d):(\d\d)/);
+    assert.ok(said !== null, `no moment in: ${sizeBlock(toldWhenBig)}`);
+    const when = new Date();
+    when.setHours(Number(said[1]), Number(said[2]), 0, 0);
+    assert.ok(Math.abs(Date.now() - when.getTime()) < 10 * 60 * 1000, `the moment was ${said[0]}`);
+  });
+
+  // Mutation: drop the line. A session reading this may be running a persona written before any of
+  // it existed, and an unattributed instruction in front of a message reads as one the person
+  // typed. Asserted on the block alone, because two of its neighbours say the same sentence.
+  it("says who is speaking", () => {
+    assert.match(sizeBlock(toldWhenBig), /The chat is telling you this\. Nobody typed it\./);
+  });
+
+  // Mutation: keep the reading when the thread is ended. This is what makes "nothing to clear"
+  // true rather than claimed — the reading lives in the file the thread id lives in, so handing a
+  // session over takes it, and the block is gone the next turn with nothing remembering it.
+  it("is gone the turn after that session has been handed over", () => {
+    assert.match(toldOnceHandedOver, /<size>/, "the block was gone altogether, so this proves nothing");
+    assert.doesNotMatch(sizeBlock(toldOnceHandedOver), new RegExp(GROWN_BIG));
+  });
+
+  // Mutation: consult the reading in deliver. It is advice and never a gate: nothing stops running
+  // because of it. Read off what the message answered with, because a gate would return without
+  // running anything at all.
+  it("a message to a session over the line is delivered exactly as any other", () => {
+    assert.equal(deliveredToTheBigOne.status, 200, deliveredToTheBigOne.body);
+    assert.ok(JSON.parse(deliveredToTheBigOne.body).reply !== undefined, deliveredToTheBigOne.body);
+  });
+
+  // Mutation: gate handing over on it. Nothing is refused, queued, hired or ended because a
+  // conversation is big — the whole feature is one block of text on one session's turn.
+  it("nothing is refused, queued, hired or ended because a conversation is big", () => {
+    assert.equal(handedOver.status, 200, handedOver.body);
+    assert.equal(hiredWhileBig.status, 0, hiredWhileBig.stderr);
+  });
+
+  // Mutation: put the phrase on the row. There is no threshold on the row, no colour and no
+  // warning level — the number there is a fact for a person to judge, and the one line this holds
+  // an opinion about is handed to the lead and nowhere else.
+  it("the room says the tokens it always said, with no line on the row", () => {
+    assert.notEqual(roomLine, "", "the big one was not in the room at all");
+    assert.match(roomLine, new RegExp(`${CARRYING.toLocaleString("en-US")} tokens`));
+    assert.doesNotMatch(roomLine, /\blarge\b/, roomLine);
+    assert.doesNotMatch(roomLine, /hand over/i, roomLine);
+  });
+
+  // The same, in the page's own copy of the room. No suite runs page.html — it is read as TEXT —
+  // and the check is bounded to the block that lays a row out, or it would run on into whatever
+  // else the page says and pass on a page that had grown a threshold here.
+  it("the page says the tokens it always said, with no line on the row", async () => {
+    const page = (await get(`${URL}/`)).body;
+    const from = page.indexOf("function inTheRoom(row)");
+    const to = page.indexOf("function showTheRoom(");
+    assert.ok(from !== -1 && to !== -1 && from < to, "the page's row block is not where this check looks for it");
+    const theRow = page.slice(from, to);
+
+    assert.match(theRow, /row\.context\.toLocaleString\("en-US"\)/);
+    assert.doesNotMatch(theRow, /\blarge\b/, theRow);
+  });
+
+  // Mutation: move the push in inFrontOf. Quiet and size are both about what one conversation is
+  // about to lose; the account is about the whole workspace and is the one that says stop, so it
+  // reads last. Staged so that all three are true at once, which is the only turn the order can be
+  // read off at all.
+  it("it is the block after the quiet one and before the usage one", () => {
+    const quietAt = toldWithAllThree.indexOf("<quiet>");
+    const sizeAt = toldWithAllThree.indexOf("<size>");
+    const usageAt = toldWithAllThree.indexOf("<usage>");
+    assert.ok(quietAt !== -1 && sizeAt !== -1 && usageAt !== -1, `not all three were said: ${toldWithAllThree}`);
+    assert.ok(quietAt < sizeAt, "the size was said before the one about who has stopped");
+    assert.ok(sizeAt < usageAt, "the size was said after the one about the account");
+  });
+});
+
+const BIG_MID_TURN = "Greenshank";
+
+// A conversation over the line that is in the middle of a turn.
+//
+// The one place this differs from the block about who has stopped, and the difference is not an
+// oversight. There, a session's clock stands still for the whole of a turn, so a session working
+// reads as one that has stopped and is rightly left out. A size does not go stale that way — it is
+// simply behind, and a session mid-turn is at least as large as this says. Leaving it out would
+// hide the biggest conversation here at the moment it is biggest.
+describe("what the lead is told about a big conversation that is mid-turn", () => {
+  const midLog = path.join(standIn, "mid-turn.txt");
+  let toldWhileItRuns;
+
+  const lastQuestion = (log) => questionsIn(log).slice(-1)[0] ?? "";
+
+  before(async () => {
+    runTool(instance, ["hire", BIG_MID_TURN], process.env);
+    await start(
+      instance,
+      standInEnvironment(standIn, midLog, { OPENOVAI_STAND_IN_USAGE: GREW.join(","), OPENOVAI_STAND_IN_SLOW: "4000" }),
+    );
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    // A first turn, so it has a conversation and that conversation is past the line.
+    await say("the first thing, so it has a big conversation", BIG_MID_TURN);
+
+    // And a second, left running. The file the reading lives in is not touched again until the run
+    // ends, so for the whole of this turn the size behind the row is the one above.
+    const running = say("the second thing, which takes a while", BIG_MID_TURN);
+    await waitFor(async () => {
+      const body = JSON.parse((await get(`${URL}/sessions`)).body);
+      return body.sessions.find((row) => row.name === BIG_MID_TURN)?.busy === true ? body : null;
+    });
+
+    await say("a question asked while that one is working", LEADER);
+    toldWhileItRuns = lastQuestion(midLog);
+    await running;
+  });
+
+  // Mutation: copy the mid-turn test out of the block about who has stopped into this filter.
+  it("names a session that is in the middle of a turn", () => {
+    assert.match(toldWhileItRuns, /<size>/, "nothing was said at all");
+    assert.match(toldWhileItRuns, new RegExp(`${BIG_MID_TURN} was carrying `));
+  });
+});
+
+const BIG_AND_WARM = "Yellowhammer";
+const BIG_AND_COLD = "Redwing";
+
+// What size does NOT do, which is end anything.
+//
+// The one thing in this toolkit that ends a conversation by itself is time, and it is keyed to an
+// hour because a cache lives an hour. Size is advice: it is said, and a person presses the button.
+// So a conversation past the line and inside the hour is carried on exactly as it always was.
+describe("what a big conversation does not change about the hour", () => {
+  const hourLog = path.join(standIn, "big-and-cold.txt");
+  let warmSaid;
+  let coldSaid;
+
+  before(async () => {
+    runTool(instance, ["hire", BIG_AND_WARM], process.env);
+    runTool(instance, ["hire", BIG_AND_COLD], process.env);
+    await start(instance, standInEnvironment(standIn, hourLog, { OPENOVAI_STAND_IN_USAGE: GREW.join(",") }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    // A turn each, so both conversations are past the line.
+    await say("a turn, so this one is big", BIG_AND_WARM);
+    await say("a turn, so this one is big too", BIG_AND_COLD);
+
+    // One well inside the hour, one past it. The only difference between them is the clock.
+    age(threadFile(BIG_AND_WARM), 40.5);
+    age(threadFile(BIG_AND_COLD), 61);
+
+    warmSaid = JSON.parse((await say("carry this one on", BIG_AND_WARM)).body);
+    coldSaid = JSON.parse((await say("and this one", BIG_AND_COLD)).body);
+  });
+
+  // Mutation: make the hour fire on the size as well. Both of these are past the line and only one
+  // of them is past the hour, so nothing but the clock can tell them apart.
+  it("a conversation is still ended after an hour and not before, whatever it is carrying", () => {
+    assert.equal(warmSaid.restarted, undefined, "a big conversation inside the hour was thrown away");
+    assert.equal(coldSaid.restarted, true, "the hour stopped ending conversations, so this proves nothing");
+  });
+});

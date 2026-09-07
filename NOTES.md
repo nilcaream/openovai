@@ -93,6 +93,31 @@ Which models your workspace actually uses stays in `openovai.json` and in whatev
 lead yourself. An update leaves the personas it finds where they are, so this is what a workspace
 installed from this version tells its lead.
 
+**Your lead is told which conversations here have grown big.** The room already says how much of
+itself every session is carrying, and the panel says it again beside the name — a number with no
+opinion attached, for a person to judge. From this version the one reader who would otherwise go on
+loading a conversation is handed a block of its own, unasked, naming every session here whose
+conversation has grown past the size where what is left in it has to be planned rather than simply
+carried on, and what each was carrying at the end of its last turn. Its own conversation is in that
+list like anybody else's: it is usually the largest one in the workspace, and it is the only one
+that cannot press its own button.
+
+**Pressing it is still yours.** Nothing is ended, refused, queued or delayed because a conversation
+is big — the whole of this is one block of text on one session's turn, and **Hand over** is where it
+always was, beside the composer. So the lead is told to say which panel and why, its own included.
+The block says nothing at all while every conversation here is under the line, and it stops by being
+acted on: handing a session over takes the reading with the thread, so there is nothing to clear and
+nothing here remembers having said it.
+
+**The line is 300,000 tokens, and it is a judgment about a long context window.** It is the size at
+which answers measurably degrade on the windows the workspaces this was built for run on. On a
+workspace whose model sends a shorter one — one has been measured at 200,000 — a conversation runs
+out of room before it ever reaches the line, so the block never appears. That is the right answer
+and not a gap: there the window itself is the line, the row and the panel go on printing the size as
+they always did, and advice that is always early is worse than advice that stays quiet where it has
+nothing to add.
+
+
 ## 0.4.0
 
 The toolkit has a name of its own: OpenOv AI. It was called after the directory it lived in, and

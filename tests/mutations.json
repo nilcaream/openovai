@@ -1,0 +1,216 @@
+[
+  {
+    "name": "the line is raised past anything a fixture reports",
+    "catches": "names a conversation that has grown past the line",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "const LARGE_ABOVE = 300_000;",
+        "to": "const LARGE_ABOVE = 30_000_000;"
+      }
+    ]
+  },
+  {
+    "name": "the block is built whatever the list came to",
+    "catches": "says nothing while every conversation is under it",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  if (large.length === 0) {\n    return null;\n  }",
+        "to": "  if (large.length === -1) {\n    return null;\n  }"
+      }
+    ]
+  },
+  {
+    "name": "the reading is the top of the frame, which adds a whole turn together",
+    "catches": "says the size at the end of the last turn and not what the turn added up to",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "  const last = answer.usage?.iterations?.at(-1);",
+        "to": "  const last = answer.usage;"
+      }
+    ]
+  },
+  {
+    "name": "the block is handed to everybody",
+    "catches": "is handed to the session that leads and to nobody else",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  if (name !== instance.config.leader) {\n    return null;\n  }\n  const large = sessions(instance).filter((session) => hasGrownLarge(instance.root, session.name));",
+        "to": "  if (name !== instance.config.leader && false) {\n    return null;\n  }\n  const large = sessions(instance).filter((session) => hasGrownLarge(instance.root, session.name));"
+      }
+    ]
+  },
+  {
+    "name": "the reader is left out of its own list",
+    "catches": "names the session that leads about its own conversation",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  const large = sessions(instance).filter((session) => hasGrownLarge(instance.root, session.name));",
+        "to": "  const large = sessions(instance).filter((session) => session.name !== name && hasGrownLarge(instance.root, session.name));"
+      }
+    ]
+  },
+  {
+    "name": "a session in the middle of a turn is left out, the way the block about who has stopped rightly leaves it",
+    "catches": "names a session that is in the middle of a turn",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  const large = sessions(instance).filter((session) => hasGrownLarge(instance.root, session.name));",
+        "to": "  const large = sessions(instance).filter((session) => turnsGoing(session.name) === 0 && hasGrownLarge(instance.root, session.name));"
+      }
+    ]
+  },
+  {
+    "name": "a session with no conversation at all is read as the largest there is",
+    "catches": "says nothing about a session with no conversation to carry on",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": ".context;\n    return typeof held === \"number\" ? held : null;\n  } catch {\n    return null;\n  }",
+        "to": ".context;\n    return typeof held === \"number\" ? held : null;\n  } catch {\n    return Number.MAX_SAFE_INTEGER;\n  }"
+      }
+    ]
+  },
+  {
+    "name": "a reading nobody has taken is read as the largest there is",
+    "catches": "says nothing about a session that has never reported a reading",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": ".context;\n    return typeof held === \"number\" ? held : null;\n  } catch {\n    return null;\n  }",
+        "to": ".context;\n    return typeof held === \"number\" ? held : Number.MAX_SAFE_INTEGER;\n  } catch {\n    return null;\n  }"
+      }
+    ]
+  },
+  {
+    "name": "the block says no moment",
+    "catches": "carries the moment the turn began",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "`${each.join(\", and \")}, read as this turn began at ${read}.`",
+        "to": "`${each.join(\", and \")}.`"
+      }
+    ]
+  },
+  {
+    "name": "the block does not say who is speaking",
+    "catches": "says who is speaking",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    \"<size>\",\n    \"The chat is telling you this. Nobody typed it.\",\n",
+        "to": "    \"<size>\",\n"
+      }
+    ]
+  },
+  {
+    "name": "a thread that has been handed over keeps its reading",
+    "catches": "is gone the turn after that session has been handed over",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "export function forget(root, name) {\n  fs.rmSync(sessionFile(root, name), { force: true });\n}",
+        "to": "export function forget(root, name) {\n  try {\n    const held = JSON.parse(fs.readFileSync(sessionFile(root, name), \"utf8\"));\n    fs.writeFileSync(sessionFile(root, name), `${JSON.stringify({ ...held, sessionId: null }, null, 2)}\\n`);\n  } catch {\n    fs.rmSync(sessionFile(root, name), { force: true });\n  }\n}"
+      }
+    ]
+  },
+  {
+    "name": "a message to a conversation over the line is held back",
+    "catches": "a message to a session over the line is delivered exactly as any other",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "async function deliver(instance, name, text, signed, shown = null) {\n  if (typeof text !== \"string\" || text.trim() === \"\") {\n    return { status: 400, body: { error: \"a message needs some text\" } };\n  }",
+        "to": "async function deliver(instance, name, text, signed, shown = null) {\n  if (typeof text !== \"string\" || text.trim() === \"\") {\n    return { status: 400, body: { error: \"a message needs some text\" } };\n  }\n  if (hasGrownLarge(instance.root, name)) {\n    return { status: 409, body: { error: \"that conversation is too big to take a message\" } };\n  }"
+      }
+    ]
+  },
+  {
+    "name": "handing over is refused because the conversation is big",
+    "catches": "nothing is refused, queued, hired or ended because a conversation is big",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "async function postHandover(instance, name, response) {\n  const done = await inTurn(name, async () => {",
+        "to": "async function postHandover(instance, name, response) {\n  if (hasGrownLarge(instance.root, name)) {\n    sendJson(response, 409, { error: \"that conversation is too big to hand over\" });\n    return;\n  }\n  const done = await inTurn(name, async () => {"
+      }
+    ]
+  },
+  {
+    "name": "the line is put on the room command's row",
+    "catches": "the room says the tokens it always said, with no line on the row",
+    "edits": [
+      {
+        "file": "tools/chat/room.mjs",
+        "from": "    typeof session.context === \"number\" ? `${session.context.toLocaleString(\"en-US\")} tokens` : null,",
+        "to": "    typeof session.context === \"number\" ? `${session.context.toLocaleString(\"en-US\")} tokens` : null,\n    typeof session.context === \"number\" && session.context > 300000 ? \"large\" : null,"
+      }
+    ]
+  },
+  {
+    "name": "the line is put on the page's own copy of the row",
+    "catches": "the page says the tokens it always said, with no line on the row",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "      typeof row.context === \"number\" ? `${row.context.toLocaleString(\"en-US\")} tokens` : null,",
+        "to": "      typeof row.context === \"number\" ? `${row.context.toLocaleString(\"en-US\")} tokens` : null,\n      typeof row.context === \"number\" && row.context > 300000 ? \"large\" : null,"
+      }
+    ]
+  },
+  {
+    "name": "the block is said before the one about who has stopped",
+    "catches": "it is the block after the quiet one and before the usage one",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  const stopped = quietWrapper(instance, name);\n  if (stopped !== null) {\n    said.push(stopped);\n  }\n",
+        "to": ""
+      },
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  const large = sizeWrapper(instance, name);\n  if (large !== null) {\n    said.push(large);\n  }\n",
+        "to": "  const large = sizeWrapper(instance, name);\n  if (large !== null) {\n    said.push(large);\n  }\n  const stopped = quietWrapper(instance, name);\n  if (stopped !== null) {\n    said.push(stopped);\n  }\n"
+      }
+    ]
+  },
+  {
+    "name": "the hour fires on the size as well as on the clock",
+    "catches": "a conversation is still ended after an hour and not before, whatever it is carrying",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "  return ran !== null && Date.now() - ran > COLD_AFTER;",
+        "to": "  return hasGrownLarge(root, name) || (ran !== null && Date.now() - ran > COLD_AFTER);"
+      }
+    ]
+  },
+  {
+    "name": "a session is offered a tool that hands somebody over",
+    "catches": "serves a lead exactly the tools it says it serves",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    ...(instance.plugins ?? []).map((plugin) => ({",
+        "to": "    {\n      name: \"handover\",\n      description: \"Hand another session over.\",\n      inputSchema: { type: \"object\", properties: { who: { type: \"string\" } }, required: [\"who\"] },\n      run: async () => answerFrom(\"handover\", \"done\"),\n    },\n    ...(instance.plugins ?? []).map((plugin) => ({"
+      }
+    ]
+  },
+  {
+    "name": "being big is made a state the room can be in",
+    "catches": "reaches every state the room can say",
+    "edits": [
+      {
+        "file": "tools/chat/room.mjs",
+        "from": "  {\n    named: \"idle\",\n    when: () => true,\n    say: (session) => idleSaid(session.ran),\n  },\n]);",
+        "to": "  {\n    named: \"large\",\n    when: (session) => typeof session.context === \"number\" && session.context > 300000,\n    say: () => \"large\",\n  },\n  {\n    named: \"idle\",\n    when: () => true,\n    say: (session) => idleSaid(session.ran),\n  },\n]);"
+      }
+    ]
+  }
+]

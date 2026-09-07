@@ -209,6 +209,45 @@ export function hasGoneQuiet(root, name) {
   return ran !== null && Date.now() - ran > QUIET_AFTER;
 }
 
+// The size above which what is left of a conversation has to be planned rather than simply carried
+// on. Past it, the work that conversation still has in it is worth handing to a desk while it can
+// still be written down.
+//
+// This is a judgment and not a measurement, and that is worth saying where it sits: COLD_AFTER
+// above is an hour because a cache lives an hour, and this is where somebody decided that thinking
+// had got worse. It is a judgment about a LONG context window — the workspaces this was written for
+// run on one, and this is the size at which their answers measurably degrade.
+//
+// On a short window it never fires, and that is the right behaviour rather than a gap. A
+// conversation cannot grow past the window it is sent in — one measured at 200,000 tokens — so on
+// such a workspace the window IS the line: the conversation runs out of room before it runs out of
+// judgment, and there is nothing this could usefully say first. A number picked to fire there
+// instead would be advice that is always early on the workspaces this is for, which is the worse
+// of the two ways to be wrong.
+const LARGE_ABOVE = 300_000;
+
+// Whether this conversation has grown past the line, which is a thing to plan around and never a
+// thing that is done about it. Nothing in this toolkit reads it to decide anything: it is said to
+// the one reader who can act on it, and a person presses the button.
+//
+// Same shape and same honesty as the two readings above, deliberately.
+//
+// A session with no thread is not large. That exception is not written again here — it is reached
+// THROUGH the reading, because contextIn() answers nothing for a session whose file is gone, and
+// one call cannot disagree with itself the way two tests of the same fact can.
+//
+// Nothing is NOT zero, for quotaIn()'s reason. A run that reported no usage is remembered as
+// nothing, and nothing is not a small conversation — it is no reading at all, and a session nobody
+// has a size for is not one anybody should be told to hand over.
+//
+// One-directional, like the hour. Past the line, certainly worth planning around; under it nothing
+// is claimed. The comparison happens on read, so there is no timer, nothing scheduled and nothing
+// to clean up.
+export function hasGrownLarge(root, name) {
+  const held = contextIn(root, name);
+  return held !== null && held > LARGE_ABOVE;
+}
+
 // The usage window this rule is about, NAMED — which the reading that carries it deliberately never
 // does.
 //
