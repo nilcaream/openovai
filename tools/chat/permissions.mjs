@@ -121,11 +121,18 @@ function subtreeOf(where, root) {
   }
 
   const held = path.posix.dirname(named);
-  // `path.dirname` of a path at the root is `"."`, and `Edit(./**)` is not a spelling of `Edit(**)`
-  // — it is dead text. And `/**` rather than the bare directory or `/*`, which are honoured
-  // identically: a bare trailing `*` crosses `/`, so `Edit(work/Wren/*)` invites the person reading
-  // the button to see one level where it is a subtree. What is written on the button is what is
-  // judged, so it is spelled the way that cannot be misread.
+  // Both of these are spelling, and spelling is the whole of what a person judges: the rule on the
+  // button is what they read, and every alternative here was measured to grant exactly the same
+  // thing.
+  //
+  // `path.dirname` of a path at the root is `"."`. `Edit(./**)` is honoured — measured, twice, in
+  // separate runs, against a no-rule baseline that was refused — so this is not a correctness
+  // guard and must not be described as one. It is that a leading `./` says nothing to a reader and
+  // makes the widest rule in the system look like a rule about somewhere in particular.
+  //
+  // And `/**` rather than the bare directory or `/*`, also honoured identically: a bare trailing
+  // `*` crosses `/`, so `Edit(work/Wren/*)` invites the person reading the button to see one level
+  // where it is a subtree.
   const subtree = held === "." ? "**" : `${held}/**`;
   return `Edit(${subtree})`;
 }

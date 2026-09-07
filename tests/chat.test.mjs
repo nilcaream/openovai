@@ -1869,10 +1869,12 @@ describe("the rule a write could be allowed by", () => {
     assert.ok(rule.endsWith("/**)"), rule);
   });
 
-  // `path.dirname` of a path at the root is ".", and `Edit(./**)` is not a spelling of `Edit(**)`.
-  // The widest rule there is, reachable, and deliberately so: nothing composes it except a write
-  // somebody asked for at that path, and the button carries it verbatim.
-  it("composes a rule at the root that the frame honours", () => {
+  // `path.dirname` of a path at the root is ".". `Edit(./**)` is honoured just as `Edit(**)` is —
+  // measured, so this is spelling and not correctness — but a leading `./` says nothing to a reader
+  // and makes the widest rule in the system look like a rule about somewhere in particular. The
+  // widest rule is reachable and deliberately so: nothing composes it except a write somebody asked
+  // for at that path, and the button carries it verbatim.
+  it("composes a rule at the root with no ./ in front of it", () => {
     assert.equal(forWriting("Write", `${AT}/notes.md`), "Edit(**)");
   });
 
