@@ -59,6 +59,10 @@ import { quietHoursProblem, withinQuietHours } from "../tools/chat/pop.mjs";
 import { settingsProblems } from "./inspect.mjs";
 import { ranAt } from "../tools/chat/session.mjs";
 
+// The shortening asked directly. Through a chat it can only ever be seen at the one depth this
+// checkout happens to sit at, and the whole question is what happens at another one.
+import { readable } from "../tools/port.mjs";
+
 // The kinds themselves, read from where they are named rather than written out again here. Two
 // copies of a list are two things that drift, and a check comparing what it saw against its own
 // copy would agree with itself for good while the chat grew a fifth kind nobody reached.
@@ -902,6 +906,38 @@ describe("the port is already taken", () => {
 
   it("offers a port that is free", () => {
     assert.match(refused.stderr, /--port \(0 takes a free one\)/);
+  });
+});
+
+// A command line is shortened before it is printed, and what it is shortened to has to keep saying
+// which process this is. Cutting the head off a long line does not: the name of the script sits
+// after the directory it lives in, so the deeper the instance is on disk the sooner the cut lands
+// in front of it. That is not a hypothetical — the same check passed in this checkout and failed
+// in a copy of it two directories further down. So the property is asked at a depth no checkout
+// will ever reach, which is the only way to ask it once and have the answer hold everywhere.
+describe("a command line too long to print", () => {
+  const commandAt = (depth) => {
+    const root = `/${"deeper/".repeat(depth)}instance`;
+    return `node ${root}/tools/ovai.mjs --root ${root} chat`;
+  };
+
+  it("leaves a line a person can already read exactly as it was", () => {
+    assert.equal(readable("node tools/ovai.mjs --root . chat"), "node tools/ovai.mjs --root . chat");
+  });
+
+  it("keeps the name of the script however deep the instance sits", () => {
+    for (const depth of [1, 5, 20, 100]) {
+      assert.match(readable(commandAt(depth)), /ovai\.mjs/, `at depth ${depth}`);
+    }
+  });
+
+  it("keeps the arguments that say what the process was asked to do", () => {
+    assert.match(readable(commandAt(20)), /chat$/);
+  });
+
+  it("is far shorter than the line it came from", () => {
+    const command = commandAt(100);
+    assert.ok(readable(command).length < command.length / 4, readable(command));
   });
 });
 

@@ -245,5 +245,16 @@
         "to": "entry.isDirectory()"
       }
     ]
+  },
+  {
+    "name": "the end of the line is cut off instead of the directories in it",
+    "catches": "keeps the name of the script however deep the instance sits",
+    "edits": [
+      {
+        "file": "tools/port.mjs",
+        "from": "  const shortened = command\n    .split(\" \")\n    .map((word) => word.slice(word.lastIndexOf(\"/\") + 1) || word)\n    .join(\" \");",
+        "to": "  const shortened = command;"
+      }
+    ]
   }
 ]

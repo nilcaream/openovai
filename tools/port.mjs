@@ -81,6 +81,28 @@ function processHolding(inodes) {
   return null;
 }
 
+// A command line cut down to something a person can take in, without losing the part that says
+// which process this is. What grows with where the instance sits on disk is the directories, and
+// they are the part nobody reads — so when a line is too long they are what goes, and every
+// argument that looks like a path keeps only its last segment. Cutting the end off instead would
+// be the wrong way round: the name of the script comes after the directory holding it, so the
+// deeper the instance, the sooner the cut lands in front of the only word worth printing. A line
+// that already fits is left exactly as it was.
+export function readable(command) {
+  if (command.length <= LONGEST_COMMAND) {
+    return command;
+  }
+
+  const shortened = command
+    .split(" ")
+    .map((word) => word.slice(word.lastIndexOf("/") + 1) || word)
+    .join(" ");
+
+  return shortened.length > LONGEST_COMMAND
+    ? `${shortened.slice(0, LONGEST_COMMAND)}…`
+    : shortened;
+}
+
 function commandOf(pid) {
   let raw;
   try {
@@ -93,7 +115,7 @@ function commandOf(pid) {
   if (command === "") {
     return null;
   }
-  return command.length > LONGEST_COMMAND ? `${command.slice(0, LONGEST_COMMAND)}…` : command;
+  return readable(command);
 }
 
 // `{ pid, command }` for whatever is listening on this port, or null when the machine cannot
