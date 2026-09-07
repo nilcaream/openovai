@@ -1792,6 +1792,11 @@ describe("a run that answers with nothing", () => {
 //
 // The message is posted without being waited for: it does not come back until the whole exchange
 // is over, and the answering is the middle of it.
+// The root a composed rule is read against in the two describes below. Not the installed instance:
+// what these are about is the arithmetic between a root and a path, and a fixture that shared a
+// root with everything else in this file would let a composer that ignored the root pass.
+const AT = "/somewhere/an-instance";
+
 // What rule, if any, would let a call like this one through next time.
 //
 // A table rather than a check each, because the interesting half of this is everywhere it answers
@@ -1799,6 +1804,8 @@ describe("a run that answers with nothing", () => {
 // and the rows below are the ones where guessing looks reasonable and is not.
 describe("the rule a call could be allowed by", () => {
   const composed = [
+    // Every row here is answered without the root being read, and the one below it is answered from
+    // nothing else.
     ["a command", "Bash", { command: "node --test tests" }, "Bash(node:*)"],
     ["a command with nothing after it", "Bash", { command: "ls" }, "Bash(ls:*)"],
     ["the same command, spaced oddly", "Bash", { command: "  node   --test tests " }, "Bash(node:*)"],
@@ -1816,8 +1823,6 @@ describe("the rule a call could be allowed by", () => {
     // three were in the design and all three came out when that was measured.
     ["reading a file", "Read", { file_path: "notes.txt" }, null],
     ["a search", "Grep", { pattern: "needle" }, null],
-    // A path is a different decision from a call, and it is the one opening a desk already makes.
-    ["writing a file", "Edit", { file_path: "notes.txt" }, null],
     // Granted the moment the chat offers it, and a rule can name a server and a tool, never an
     // argument — so there is nothing narrower here to offer.
     ["one of the chat's own tools", "mcp__openovai__say", { to: "Superman" }, null],
@@ -1825,9 +1830,81 @@ describe("the rule a call could be allowed by", () => {
 
   for (const [what, tool, input, rule] of composed) {
     it(rule === null ? `offers nothing for ${what}` : `offers ${rule} for ${what}`, () => {
-      assert.equal(shapeOf({ id: "request-1", tool, input }), rule);
+      assert.equal(shapeOf({ id: "request-1", tool, input }, AT), rule);
     });
   }
+});
+
+// And the other shape, which names a path rather than a call.
+//
+// The width is measured rather than reasoned: a rule naming a DIRECTORY is honoured as the whole
+// subtree under it, a rule naming one FILE is that file alone, and `Edit(...)` is what governs a
+// write whatever tool made it — a `Write(...)` rule matches nothing. So what is composed is the
+// directory the write was in, spelled `/**`, and every check below is about one of the three ways
+// composing something else would look like care and grant something other than what was read.
+describe("the rule a write could be allowed by", () => {
+  function forWriting(tool, file_path) {
+    return shapeOf({ id: "request-1", tool, input: { file_path } }, AT);
+  }
+
+  // A `Write(...)` rule is never matched by anything, so a rule naming the tool that asked would
+  // be a button that grants nothing and says it granted something.
+  it("composes the rule that governs writing, and never one that matches nothing", () => {
+    assert.match(forWriting("Write", `${AT}/work/Wren/notes.md`), /^Edit\(/);
+  });
+
+  // The file alone settles the call it was pressed for and nothing near it, which is the same
+  // trap in another costume: the point of the button is that the next call like this one does not
+  // stop.
+  it("composes a rule for the directory the write was in", () => {
+    assert.equal(forWriting("Edit", `${AT}/work/Wren/notes.md`), "Edit(work/Wren/**)");
+  });
+
+  // All three spellings are honoured identically and only one of them says so. A bare trailing `*`
+  // crosses `/`, so `Edit(work/Wren/*)` invites the person reading the button to see one level
+  // where it is a subtree.
+  it("composes the spelling that says a subtree out loud", () => {
+    const rule = forWriting("Write", `${AT}/work/Wren/sub/deep.md`);
+    assert.equal(rule, "Edit(work/Wren/sub/**)");
+    assert.ok(rule.endsWith("/**)"), rule);
+  });
+
+  // `path.dirname` of a path at the root is ".", and `Edit(./**)` is not a spelling of `Edit(**)`.
+  // The widest rule there is, reachable, and deliberately so: nothing composes it except a write
+  // somebody asked for at that path, and the button carries it verbatim.
+  it("composes a rule at the root that the frame honours", () => {
+    assert.equal(forWriting("Write", `${AT}/notes.md`), "Edit(**)");
+  });
+
+  // A write that lands outside the root has no relative form, so there is nothing to offer. No
+  // button, the way a command whose first word is not a bare name gets none.
+  it("composes no rule for a write outside the instance", () => {
+    assert.equal(forWriting("Write", "/etc/hosts"), null);
+    assert.equal(forWriting("Edit", `${AT}/../elsewhere/notes.md`), null);
+    assert.equal(forWriting("Write", AT), null);
+  });
+
+  // The instance is meant to be movable, so nothing it holds may name a place on this machine —
+  // which is what the toolkit's own check on the settings reads for.
+  it("names no place on this machine in the rule it composes", () => {
+    const rule = forWriting("Edit", `${AT}/work/Wren/notes.md`);
+    assert.ok(!rule.includes(AT), rule);
+    assert.ok(!/\((\/|~|\/\/)/.test(rule), rule);
+  });
+
+  // Two tools, named one at a time rather than "anything with a path in it". A tool this does not
+  // know is one whose input it has not read, and a rule composed from an input nobody measured is
+  // a press into the dark.
+  it("offers a button only where the request says what the class of calls is", () => {
+    assert.equal(forWriting("NotebookEdit", `${AT}/work/Wren/notes.ipynb`), null);
+    assert.equal(forWriting("MultiEdit", `${AT}/work/Wren/notes.md`), null);
+    assert.equal(forWriting("Read", `${AT}/work/Wren/notes.md`), null);
+  });
+
+  it("composes nothing for a write that names no path", () => {
+    assert.equal(shapeOf({ id: "request-1", tool: "Write", input: { command: "ls" } }, AT), null);
+    assert.equal(forWriting("Write", "   "), null);
+  });
 });
 
 describe("asking to be allowed", () => {
@@ -2223,6 +2300,105 @@ describe("asking to be allowed", () => {
     });
   });
 
+  // The same press, for the other shape a request takes.
+  //
+  // A session stopped to WRITE A FILE is the first thing anybody meets, and until there was a rule
+  // to compose for it that press had two buttons and never a third — the same question, every time,
+  // forever. What is proven here is that the whole path carries a PATH rule end to end: the request
+  // is parked with a `file_path` and no command, the page is handed the rule it will write on the
+  // button, the press grants that rule and no other, and the line that accounts for it says which
+  // write it was for. The width itself is the describe above this file's stand-in, in the unit
+  // checks; this is the wiring.
+  describe("allowing a write, and not only the file it named", () => {
+    const writeLog = path.join(standIn, "asking-write.txt");
+    // Under a name ending in `.tmp`, which is what this workspace calls disposable — the path a
+    // lead trips a dialog at when nobody named a place, and a directory, so the rule is a subtree.
+    const WROTE = path.join(instance, ".tmp", "onboarding", "first.tmp");
+    const RULE = "Edit(.tmp/onboarding/**)";
+    const settings = path.join(instance, ".claude", "settings.json");
+    const ledger = path.join(instance, LEDGER);
+    let shown;
+    let said;
+    let answered;
+
+    function allowed() {
+      return JSON.parse(fs.readFileSync(settings, "utf8")).permissions.allow;
+    }
+
+    // Scoped to this rule and never to the whole file: the ledger is the shared instance's and the
+    // describe above wrote in it before this one ran.
+    function lines() {
+      return fs
+        .readFileSync(ledger, "utf8")
+        .split("\n")
+        .filter((line) => line.startsWith(`- \`${RULE}\` `));
+    }
+
+    before(async () => {
+      await start(
+        instance,
+        standInEnvironment(standIn, writeLog, {
+          OPENOVAI_STAND_IN_ASKS: "Write",
+          OPENOVAI_STAND_IN_ASKS_FILE: WROTE,
+        }),
+      );
+      assert.ok(await waitForHealth(URL), "the server never answered");
+
+      const exchange = say("this write is worth allowing for good");
+      shown = (await waitingOn(LEADER))[0];
+      said = await post(`${URL}/sessions/${LEADER}/permission`, { id: shown.id, decision: "always" });
+      answered = await exchange;
+    });
+
+    after(async () => {
+      await start(instance, standInEnvironment(standIn, path.join(standIn, "asking.txt"), { OPENOVAI_STAND_IN_ASKS: "Bash" }));
+      assert.ok(await waitForHealth(URL), "the server never came back");
+    });
+
+    it("parks the write with the path it was going to be given", () => {
+      assert.equal(shown.tool, "Write");
+      assert.deepEqual(shown.input, { file_path: WROTE });
+    });
+
+    // The rule on the button and the rule that is granted are one thing, composed once, on the
+    // server, from the request as it was parked. A page that showed anything else — a tidier
+    // sentence, a shorter path — would be asking a person to allow a rule they never read.
+    it("shows the rule it is about to grant, word for word", () => {
+      assert.equal(shown.shape, RULE);
+      assert.equal(JSON.parse(said.body).granted, shown.shape);
+    });
+
+    it("lets the run finish, allowed", () => {
+      assert.equal(answered.status, 200);
+      assert.ok(answered.body.includes("I was told allow"), answered.body);
+    });
+
+    it("grants that rule and no other rule about writing", () => {
+      assert.ok(allowed().includes(RULE), allowed().join(", "));
+      assert.deepEqual(allowed().filter((rule) => rule.startsWith("Edit(.tmp")), [RULE]);
+    });
+
+    // Which write it was for, and not "a call it did not describe". A rule granted for a path is
+    // answerable a month later only if the line says what was being written at the time — and it
+    // says it in the instance's own terms, like the rule beside it: an absolute path is mostly this
+    // machine's name for the root, and the part anybody wanted is the end, which is what a line
+    // kept short enough to read cuts off first.
+    it("writes down who asked for it, when, and which write it was for", () => {
+      const written = lines();
+      assert.equal(written.length, 1, written.join(" / "));
+      assert.match(written[0], new RegExp(LEADER));
+      assert.ok(written[0].includes(".tmp/onboarding/first.tmp"), written[0]);
+      assert.ok(!written[0].includes(instance), written[0]);
+      assert.match(written[0], new RegExp(new Date().toISOString().slice(0, 10)));
+    });
+
+    // The workspace can still say what it allows and why, with a subtree rule in it.
+    it("still adds up", () => {
+      const here = fs.readdirSync(path.join(instance, "work"));
+      assert.ok(!settingsProblems(settings, here).join(" ").includes(".tmp"), "the rule it granted is not accounted for");
+    });
+  });
+
   // A caller that is not the page, asking for a shape where there is none. The page never offers
   // the button in that case, so this is the guard for everything else that can post here.
   describe("asking to allow a shape that cannot be composed", () => {
@@ -2234,8 +2410,11 @@ describe("asking to be allowed", () => {
       await start(
         instance,
         standInEnvironment(standIn, otherLog, {
-          OPENOVAI_STAND_IN_ASKS: "Edit",
-          OPENOVAI_STAND_IN_ASKS_INPUT: "work/Superman/STATE.md",
+          // A first word that is a path rather than a bare name, which is where the composer
+          // refuses. Not a write: a write names a path and a path is a shape, so a fixture using
+          // one would be relying on the input being malformed rather than on there being no rule.
+          OPENOVAI_STAND_IN_ASKS: "Bash",
+          OPENOVAI_STAND_IN_ASKS_INPUT: "~/bin/deploy --now",
         }),
       );
       assert.ok(await waitForHealth(URL), "the server never answered");

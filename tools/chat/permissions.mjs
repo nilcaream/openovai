@@ -12,6 +12,8 @@
 // One session can have more than one waiting at a time: a turn is free to reach for two tools at
 // once, and a store that held only the newest would leave the first one waiting for good.
 
+import path from "node:path";
+
 // name -> id -> { request, answer }
 const waiting = new Map();
 
@@ -35,9 +37,9 @@ export function park(name, request) {
 
 // What this session is waiting on, oldest first, so a page can show them in the order they were
 // asked rather than in whatever order a map happens to keep.
-export function parked(name) {
+export function parked(name, root) {
   return [...forSession(name).values()].map(({ request }) => {
-    const shape = shapeOf(request);
+    const shape = shapeOf(request, root);
     return shape === null ? request : { ...request, shape };
   });
 }
@@ -55,25 +57,92 @@ export function askedFor(name, id) {
 // the whole instance's, so one is only ever offered where the request says plainly what the class
 // of calls is — and where it does not, the page shows no button rather than a dead one.
 //
-// Bash, and nothing else, which is what the measurement leaves standing. A session is stopped per
-// COMMAND rather than per tool, so Bash is where the same question is asked over and over: `ls`,
-// `find` and `cat` went through, `rm -f` stopped. The tools a name-only rule would have been for
-// are not there to grant — `Glob` and `Grep` do not exist in the harness at all, and a session
-// asking for either is told so; `Read` is never stopped, so a rule for it would be a grant nobody
-// was ever asked for. `Edit` and `Write` name a path, which is a different decision from allowing
-// a call and the one opening a desk already makes. An MCP tool is granted the moment the chat
-// offers it, and a rule can name a server and a tool, never an argument.
+// Two shapes, because there are exactly two things this workspace can grant: a COMMAND and a PATH.
+// A session is stopped per command rather than per tool, so Bash is where the same question is
+// asked over and over — `ls`, `find` and `cat` went through, `rm -f` stopped — and it is stopped
+// per path for the two tools that write one. The tools a name-only rule would have been for are
+// not there to grant: `Glob` and `Grep` do not exist in the harness at all, and a session asking
+// for either is told so; `Read` is never stopped, so a rule for it would be a grant nobody was
+// ever asked for. An MCP tool is granted the moment the chat offers it, and a rule can name a
+// server and a tool, never an argument.
 //
 // The first word of the command only, and only when it is a bare name. A rule is a literal prefix
 // rather than a path or a command line, so a word with a slash, a tilde, a dollar or a quote in it
 // would make a rule that matches something other than what the person read on the button.
-export function shapeOf(request) {
-  if (request.tool !== "Bash" || typeof request.input?.command !== "string") {
+export function shapeOf(request, root) {
+  if (request.tool === "Bash") {
+    if (typeof request.input?.command !== "string") {
+      return null;
+    }
+    const [word] = request.input.command.trim().split(/\s+/);
+    return /^[A-Za-z0-9_.-]+$/.test(word ?? "") ? `Bash(${word}:*)` : null;
+  }
+
+  // The two that write a file, named one at a time rather than as "anything carrying a path". A
+  // tool this does not know is one whose input nobody here has read, and a rule composed out of an
+  // unread input is a press into the dark.
+  if (request.tool === "Write" || request.tool === "Edit") {
+    return subtreeOf(request.input?.file_path, root);
+  }
+
+  return null;
+}
+
+// What a write may be allowed by: the directory it was in, and never the file itself.
+//
+// Every part of this is measured against the Claude Code a chat starts, and none of it is reasoned
+// from the shape of the string.
+//
+// `Edit(...)` governs every built-in tool that writes a file, the Write tool included, and a
+// `Write(...)` rule matches nothing at all — so a `Write` request composes an `Edit` rule, and a
+// rule naming the tool that asked would look like care and grant nothing.
+//
+// A rule naming a DIRECTORY is honoured as the whole subtree under it, and matching is by path
+// segment rather than by string prefix, so `Edit(work/Wren/**)` never leaks into `work/Wrenna/` or
+// onto `work/Wren.md`. A rule naming one FILE is that file and nothing beside it, which is why the
+// file is not what is composed: a button settling the call it was pressed for and nothing near it
+// would be the `Write(...)` trap in another costume, and the point of the button is that the next
+// call like this one does not stop.
+//
+// Relative to the instance root, always. The instance is meant to be movable, so nothing it holds
+// may name a place on this machine, and a write landing outside the root has no relative form at
+// all: that composes nothing and shows no button, the way a command whose first word is not a bare
+// name composes nothing.
+//
+// It follows that a write at the root itself composes `Edit(**)`, the widest rule there is, and
+// that is deliberate rather than an oversight. Nothing composes it except a write somebody asked
+// for at that path; the button carries it verbatim; and the press writes a line naming who asked
+// and what for. A floor here would hide the one grant most worth reading behind a rule nobody can
+// see, which is less honest rather than safer.
+function subtreeOf(where, root) {
+  const named = inside(where, root);
+  if (named === null) {
     return null;
   }
 
-  const [word] = request.input.command.trim().split(/\s+/);
-  return /^[A-Za-z0-9_.-]+$/.test(word ?? "") ? `Bash(${word}:*)` : null;
+  const held = path.posix.dirname(named);
+  // `path.dirname` of a path at the root is `"."`, and `Edit(./**)` is not a spelling of `Edit(**)`
+  // — it is dead text. And `/**` rather than the bare directory or `/*`, which are honoured
+  // identically: a bare trailing `*` crosses `/`, so `Edit(work/Wren/*)` invites the person reading
+  // the button to see one level where it is a subtree. What is written on the button is what is
+  // judged, so it is spelled the way that cannot be misread.
+  const subtree = held === "." ? "**" : `${held}/**`;
+  return `Edit(${subtree})`;
+}
+
+// Where a path a request named lands inside the instance, in the instance's own terms, or nothing
+// at all when it lands outside it.
+//
+// One place, because two things need the same answer and a workspace where they disagreed would be
+// granting a rule in one vocabulary and accounting for it in another: the rule composed for a
+// write, and the line written down beside it saying what that rule was granted for.
+export function inside(where, root) {
+  if (typeof where !== "string" || where.trim() === "" || typeof root !== "string") {
+    return null;
+  }
+
+  const named = path.relative(root, path.resolve(root, where)).split(path.sep).join("/");
+  return named === "" || named === ".." || named.startsWith("../") || path.isAbsolute(named) ? null : named;
 }
 
 // Every session with something parked, and what. `parked` above answers for one session a page is

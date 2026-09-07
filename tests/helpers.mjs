@@ -126,6 +126,10 @@ export function claudeIsInstalled() {
 //                             reason the fullness is one: with every fixture naming one tool and
 //                             one argument, a page that named a tool of its own satisfied the
 //                             checks about both  (default: "the one it wanted to run")
+//   OPENOVAI_STAND_IN_ASKS_FILE     the same, for the other shape a request takes: a tool that
+//                             writes names a `file_path` and never a command, and a fixture that
+//                             could only ask about a command could not reach the half of the
+//                             composer that reads a path. Set, it replaces the input entirely
 //   OPENOVAI_STAND_IN_WAITS         milliseconds to wait for that answer before giving up on it
 //                             (default: 5000) — the real one waits for good, and a suite cannot
 //   OPENOVAI_STAND_IN_CALLS         "Speaker>Addressee,…" — while answering, that speaker says
@@ -546,7 +550,10 @@ if ((process.env.OPENOVAI_STAND_IN_ASKS ?? "") !== "") {
     request: {
       subtype: "can_use_tool",
       tool_name: process.env.OPENOVAI_STAND_IN_ASKS,
-      input: { command: process.env.OPENOVAI_STAND_IN_ASKS_INPUT ?? "the one it wanted to run" },
+      input:
+        (process.env.OPENOVAI_STAND_IN_ASKS_FILE ?? "") === ""
+          ? { command: process.env.OPENOVAI_STAND_IN_ASKS_INPUT ?? "the one it wanted to run" }
+          : { file_path: process.env.OPENOVAI_STAND_IN_ASKS_FILE },
       tool_use_id: "use-1",
     },
   });

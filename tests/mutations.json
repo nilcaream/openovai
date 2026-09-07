@@ -480,5 +480,131 @@
         "to": "  const shortened = command;"
       }
     ]
+  },
+  {
+    "name": "the rule composed for a write names the tool that asked rather than the one that governs writing",
+    "catches": "composes the rule that governs writing, and never one that matches nothing",
+    "edits": [
+      {
+        "file": "tools/chat/permissions.mjs",
+        "from": "  return `Edit(${subtree})`;",
+        "to": "  return `Write(${subtree})`;"
+      }
+    ]
+  },
+  {
+    "name": "the rule composed for a write is the path it was handed rather than the directory that path is in",
+    "catches": "composes a rule for the directory the write was in",
+    "edits": [
+      {
+        "file": "tools/chat/permissions.mjs",
+        "from": "  const held = path.posix.dirname(named);",
+        "to": "  const held = named;"
+      }
+    ]
+  },
+  {
+    "name": "the rule is spelled as the bare directory, which reads like one level and is a subtree",
+    "catches": "composes the spelling that says a subtree out loud",
+    "edits": [
+      {
+        "file": "tools/chat/permissions.mjs",
+        "from": "  const subtree = held === \".\" ? \"**\" : `${held}/**`;",
+        "to": "  const subtree = held === \".\" ? \"**\" : held;"
+      }
+    ]
+  },
+  {
+    "name": "a write at the root composes the dirname it was given, which is the dead text ./**",
+    "catches": "composes a rule at the root that the frame honours",
+    "edits": [
+      {
+        "file": "tools/chat/permissions.mjs",
+        "from": "  const subtree = held === \".\" ? \"**\" : `${held}/**`;",
+        "to": "  const subtree = `${held}/**`;"
+      }
+    ]
+  },
+  {
+    "name": "a write that lands outside the instance composes a rule all the same",
+    "catches": "composes no rule for a write outside the instance",
+    "edits": [
+      {
+        "file": "tools/chat/permissions.mjs",
+        "from": "  return named === \"\" || named === \"..\" || named.startsWith(\"../\") || path.isAbsolute(named) ? null : named;",
+        "to": "  return named;"
+      }
+    ]
+  },
+  {
+    "name": "the composed path is the one the request named, which is a place on this machine",
+    "catches": "names no place on this machine in the rule it composes",
+    "edits": [
+      {
+        "file": "tools/chat/permissions.mjs",
+        "from": "  const named = path.relative(root, path.resolve(root, where)).split(path.sep).join(\"/\");",
+        "to": "  const named = path.resolve(root, where);"
+      },
+      {
+        "file": "tools/chat/permissions.mjs",
+        "from": "  return named === \"\" || named === \"..\" || named.startsWith(\"../\") || path.isAbsolute(named) ? null : named;",
+        "to": "  return named === \"\" || named === \"..\" || named.startsWith(\"../\") ? null : named;"
+      }
+    ]
+  },
+  {
+    "name": "a path rule is composed for anything whose input carries a path",
+    "catches": "offers a button only where the request says what the class of calls is",
+    "edits": [
+      {
+        "file": "tools/chat/permissions.mjs",
+        "from": "  if (request.tool === \"Write\" || request.tool === \"Edit\") {",
+        "to": "  if (typeof request.input?.file_path === \"string\") {"
+      }
+    ]
+  },
+  {
+    "name": "the tool that writes a file it has not read is left out of the pair",
+    "catches": "composes the rule that governs writing, and never one that matches nothing",
+    "edits": [
+      {
+        "file": "tools/chat/permissions.mjs",
+        "from": "  if (request.tool === \"Write\" || request.tool === \"Edit\") {",
+        "to": "  if (request.tool === \"Edit\") {"
+      }
+    ]
+  },
+  {
+    "name": "the tool that edits a file it has read is left out of the pair",
+    "catches": "composes a rule for the directory the write was in",
+    "edits": [
+      {
+        "file": "tools/chat/permissions.mjs",
+        "from": "  if (request.tool === \"Write\" || request.tool === \"Edit\") {",
+        "to": "  if (request.tool === \"Write\") {"
+      }
+    ]
+  },
+  {
+    "name": "the rule handed to the page is prettified on its way out",
+    "catches": "shows the rule it is about to grant, word for word",
+    "edits": [
+      {
+        "file": "tools/chat/permissions.mjs",
+        "from": "    const shape = shapeOf(request, root);",
+        "to": "    const shape = shapeOf(request, root)?.replace(\"/**\", \" and everything under it\") ?? null;"
+      }
+    ]
+  },
+  {
+    "name": "the line accounting for a write says nothing about which write it was",
+    "catches": "writes down who asked for it, when, and which write it was for",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "      call: asked.input?.command ?? inside(asked.input?.file_path, instance.root),",
+        "to": "      call: asked.input?.command ?? asked.input?.file_path,"
+      }
+    ]
   }
 ]

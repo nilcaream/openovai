@@ -13,7 +13,7 @@ import { HOST, record } from "./listening.mjs";
 import { respond } from "./mcp.mjs";
 import { OFFLINE, goOffline, goOnline, offline } from "./offline.mjs";
 import { carry, overhear } from "./overheard.mjs";
-import { allow, askedFor, answer as settle, giveUp, park, parked, refuse, shapeOf } from "./permissions.mjs";
+import { allow, askedFor, answer as settle, giveUp, inside, park, parked, refuse, shapeOf } from "./permissions.mjs";
 import { popped } from "./pop.mjs";
 import { answerFrom } from "../plugins.mjs";
 import { ago, roomLines, shareSaid } from "./room.mjs";
@@ -1686,7 +1686,7 @@ async function postPermission(instance, name, request, response) {
       return;
     }
 
-    granted = shapeOf(asked);
+    granted = shapeOf(asked, instance.root);
     if (granted === null) {
       sendJson(response, 400, { error: "there is no rule that would allow that call" });
       return;
@@ -1698,7 +1698,14 @@ async function postPermission(instance, name, request, response) {
     allowAsked(instance.root, {
       rule: granted,
       session: name,
-      call: asked.input?.command,
+      // Whichever of the two a request names, because a line saying the rule was granted for "a
+      // call it did not describe" accounts for nothing: the question a person asks a month later
+      // is what was being done at the time, and for a write that is the path.
+      //
+      // In the instance's own terms, as the rule beside it on the line is. An absolute path here
+      // is mostly this machine's name for the root — the part anybody wanted is at the end of it,
+      // and the end is what a line kept to a readable length cuts off.
+      call: asked.input?.command ?? inside(asked.input?.file_path, instance.root),
       day: new Date().toISOString().slice(0, 10),
     });
   }
@@ -1813,7 +1820,7 @@ function everySession(instance, session) {
     // And what it is waiting to be ALLOWED to do, which is a session held up by a person rather
     // than by another session. Today that is visible only on the panel it happened on, which is
     // the one place somebody looking for who needs them is not looking.
-    asking: parked(session.name).length,
+    asking: parked(session.name, instance.root).length,
     // Whether there is a conversation to carry on. Not `context !== null`: a run that reported no
     // usage is remembered without a reading, so a live thread and no thread look the same there.
     thread: hasThread(instance.root, session.name),
@@ -1963,7 +1970,7 @@ async function handle(instance, request, response) {
     }
 
     if (request.method === "GET" && what === "permissions") {
-      sendJson(response, 200, { permissions: parked(name) });
+      sendJson(response, 200, { permissions: parked(name, instance.root) });
       return;
     }
 
