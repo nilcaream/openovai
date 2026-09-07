@@ -68,6 +68,12 @@ import { readable } from "../tools/port.mjs";
 // chat cannot be made to answer: whether every band in the table is one something can be in, and
 // what a cadence nothing can read is refused with, which has to be settled before a chat starts.
 import { BANDS, shareOf } from "../tools/chat/session.mjs";
+import { WATCH_EVERY, howOften, watchEveryProblem } from "../tools/chat/watch.mjs";
+
+// And the chat itself, served in this process. One check needs a server that is closed while the
+// process it was in lives on, which is the one arrangement a chat started as a child cannot be put
+// into: stopping one from outside ends it outright.
+import { serve } from "../tools/chat/server.mjs";
 
 // The kinds themselves, read from where they are named rather than written out again here. Two
 // copies of a list are two things that drift, and a check comparing what it saw against its own
@@ -111,6 +117,12 @@ const nested = `${instance}-owned`;
 // this workspace runs its workers on, and a workspace whose models moved under it is no place for
 // the rest of the suite to be talking to.
 const onModels = `${instance}-models`;
+
+// An instance of its own for the room watch, because it is the one thing here that starts a turn
+// nobody asked for: a workspace reading its room every second is no place for the rest of the suite
+// to be having conversations in, and every other instance leaves the field out and so reads its room
+// every five minutes, which is never inside a run of this suite.
+const watched = `${instance}-watched`;
 const owned = path.join(nested, "deep", "instance");
 const overhead = path.dirname(owned);
 const standIn = `${instance}-stand-in`;
@@ -120,7 +132,7 @@ let server;
 
 process.on("exit", () => {
   server?.kill();
-  remove(instance, chosen, quiet, nested, onModels, standIn);
+  remove(instance, chosen, quiet, nested, onModels, watched, standIn);
 });
 
 after(async () => {
@@ -203,7 +215,7 @@ async function start(root, environment) {
   return server;
 }
 
-remove(instance, chosen, quiet, nested, onModels, standIn);
+remove(instance, chosen, quiet, nested, onModels, watched, standIn);
 const standInCommand = writeStandIn(standIn);
 installed(options(instance, PORT));
 installed(options(quiet, 0));
@@ -10552,3 +10564,355 @@ describe("every band the reading can be in, and a size that is in it", () => {
   });
 });
 
+// How often this workspace has asked for its room to be read.
+//
+// quietHours' own shape, for quietHours' own reason: it is a field a person hand-writes into
+// openovai.json, absent from most workspaces, and one nothing can read has to stop a chat starting
+// rather than quietly become the default. Being told at the start beats finding it on a bill.
+describe("how often a workspace has asked for its room to be read", () => {
+  // Absent from most workspaces, and absent is five minutes rather than never. A feature switched
+  // off in every workspace is one nobody meets, and the person who would have to know to switch it
+  // on is exactly the person the whole argument for it is about.
+  it("reads the room every five minutes in a workspace that left it out", () => {
+    assert.equal(watchEveryProblem(undefined), null);
+    assert.equal(howOften({}), 5 * 60 * 1000);
+    assert.equal(howOften(undefined), 5 * 60 * 1000);
+  });
+
+  // Mutation: treat 0 as absent and use the default. They are opposite facts — one workspace has
+  // said it does not want its room read and the other has said nothing — and folding them together
+  // would give the tick back to the only person who took the trouble to turn it off.
+  it("reads the room not at all when the instance says never", () => {
+    assert.equal(watchEveryProblem(0), null);
+    assert.equal(howOften({ [WATCH_EVERY]: 0 }), null);
+  });
+
+  // Mutation: read the cadence off the constant and ignore what the instance said. The field is
+  // there so a workspace can spend less on this, and one that is read past is a field that does
+  // nothing while looking as though it does.
+  it("reads the room as often as the instance says to", () => {
+    assert.equal(howOften({ [WATCH_EVERY]: 1 }), 1000);
+    assert.equal(howOften({ [WATCH_EVERY]: 900 }), 900 * 1000);
+    assert.notEqual(howOften({ [WATCH_EVERY]: 900 }), howOften({}));
+  });
+
+  // Seconds, whole, and never negative. The unit is in the name because a bare number is ambiguous
+  // between seconds and milliseconds in a file somebody hand-writes, and the failure is silent in
+  // both directions; whole seconds give the floor for nothing, because a millisecond field would
+  // admit 1 and that is a spin.
+  it("refuses a cadence that is not a whole number of seconds, naming the field", () => {
+    for (const wrong of ["300", 0.5, -1, true, Number.NaN]) {
+      const said = watchEveryProblem(wrong);
+      assert.ok(said !== null, `${JSON.stringify(wrong)} was accepted as a cadence`);
+      assert.match(said, new RegExp(WATCH_EVERY));
+    }
+    assert.equal(watchEveryProblem(300), null);
+  });
+});
+
+const WATCHED_BIG = "Brambling";
+const WATCHED_SMALL = "Linnet";
+const WATCHED_COLD = "Twite";
+const WATCHED_FYI = "Serin";
+
+// A size inside the lowest band and nowhere near a strong one. The check about the split is only
+// worth anything against a conversation that IS in a band: one under every band would be left out
+// whatever the split said.
+const FYI_SIZE = Math.round(0.84 * WINDOW_HELD);
+
+// The room watch: the one thing in this toolkit that starts a turn nobody asked for.
+//
+// Its own instance, reading its room every second, because a workspace that does that is no place
+// for the rest of the suite to be having conversations in. Every other instance here leaves the
+// field out, so every other instance reads its room every five minutes — which is never, inside a
+// run of this suite, and that absence is itself what the checks about the other describes rest on.
+//
+// WHAT A GREEN SUITE CANNOT SEE, and the tester is told so: whether a real <watch> block would make
+// a person press a button. A block nobody acts on is a turn spent for nothing and no check can tell.
+describe("the room watch, and the turn it gives the lead", () => {
+  const watchLog = path.join(standIn, "room-watch.txt");
+  let address;
+  let saidUnasked;
+  let saidAgain;
+  let panel;
+  let midTurnQuestions;
+  let saidNothingYet;
+  let everyWatch;
+
+  const sayTo = (name, text) => post(`${address}/sessions/${name}/message`, { text });
+
+  // The <watch> block alone, cut out by hand — for sizeBlock()'s reason, and MEASURED here twice
+  // over. Two other things in the same entry name the same sessions: the <size> block, which is
+  // really there by the time any of this runs and names every conversation in a band, and the
+  // `argv:` line the stand-in logs next, which carries the persona path and so carries a name.
+  // A check matching a name against the whole entry is satisfied by either of them, and both of
+  // those false matches were seen before this existed.
+  function watchBlock(question) {
+    const from = question.indexOf("<watch>");
+    if (from === -1) {
+      return "";
+    }
+    const to = question.indexOf("</watch>", from);
+    return to === -1 ? "" : question.slice(from, to + "</watch>".length);
+  }
+
+  // Every turn the chat started, as its block and not as the whole question. Told apart by the
+  // block rather than by counting: the suite says things to the lead as well, and a check that took
+  // "the last question" would be reading whichever of the two happened last.
+  const watches = () => questionsIn(watchLog).map(watchBlock).filter((said) => said !== "");
+
+  // And the ones about ONE conversation, which is what "said once" is a claim about.
+  //
+  // MEASURED, not guessed: counting every block instead reads two crossings as a repeat. The turn
+  // the watch gives the lead is answered by a run reporting the same big size every other run in
+  // that process reports, so the lead's OWN conversation crosses into a strong band a second later
+  // — a real crossing, correctly said once, and it is exactly the reading the design keeps the lead
+  // in its own list for. The rule is one turn per session per crossing, so the count is per session.
+  const watchesNaming = (name) => watches().filter((said) => said.includes(name));
+
+  before(async () => {
+    installed(options(watched, 0));
+    // One second, which is the shortest a whole number of seconds can say. The floor is the unit's
+    // and not a rule of its own: a millisecond field would admit 1, and that is a spin.
+    const config = path.join(watched, "openovai.json");
+    fs.writeFileSync(
+      config,
+      `${JSON.stringify({ ...JSON.parse(fs.readFileSync(config, "utf8")), watchEverySeconds: 1 }, null, 2)}\n`,
+    );
+
+    runTool(watched, ["hire", WATCHED_BIG], process.env);
+    runTool(watched, ["hire", WATCHED_SMALL], process.env);
+    runTool(watched, ["hire", WATCHED_COLD], process.env);
+    runTool(watched, ["hire", WATCHED_FYI], process.env);
+
+    // Nothing has crossed anything yet, and the watch is already running. A tick that spoke here
+    // would be one firing on the condition rather than on the crossing, and every check below would
+    // then be reading a block it did not cause.
+    await start(
+      watched,
+      standInEnvironment(standIn, watchLog, {
+        OPENOVAI_STAND_IN_USAGE: String(UNDER_THE_LINE),
+        OPENOVAI_STAND_IN_WINDOW: String(WINDOW_HELD),
+      }),
+    );
+    address = await waitForAddress(server);
+    assert.ok(address, "the server never said where it was listening");
+
+    await sayTo(WATCHED_SMALL, "a turn, so this one has a conversation with room in it");
+    await sayTo(WATCHED_COLD, "a turn, so this one has a conversation to go cold");
+    await sayTo(LEADER, "a turn, so the lead has one too");
+
+    // Long enough for several ticks to have found nothing. Read off the log rather than waited on,
+    // because there is nothing to wait FOR: the whole assertion is that nothing happened.
+    await waitFor(async () => new Promise((resolve) => setTimeout(() => resolve(true), 3000)));
+    saidNothingYet = watches().length;
+
+    // And now a crossing, on a chat that reports a size deep inside a strong band. The size is what
+    // moved; nothing else about the workspace changed.
+    await start(
+      watched,
+      standInEnvironment(standIn, watchLog, {
+        OPENOVAI_STAND_IN_USAGE: GREW.join(","),
+        OPENOVAI_STAND_IN_WINDOW: String(WINDOW_HELD),
+      }),
+    );
+    address = await waitForAddress(server);
+    await sayTo(WATCHED_BIG, "a turn that takes this one deep into its window");
+
+    saidUnasked = await waitFor(async () => watchesNaming(WATCHED_BIG).at(-1) ?? null);
+
+    // Left alone for several more ticks, with that conversation sitting exactly where it was. A
+    // watch driven off the condition would say it again every second.
+    const soFar = watchesNaming(WATCHED_BIG).length;
+    await waitFor(async () => new Promise((resolve) => setTimeout(() => resolve(true), 3000)));
+    saidAgain = watchesNaming(WATCHED_BIG).length - soFar;
+
+    // And now a crossing into a band that buys no turn, staged last so that nothing above it could
+    // have been caused by this one. Under the split it is silent; without it, it speaks.
+    await start(
+      watched,
+      standInEnvironment(standIn, watchLog, {
+        OPENOVAI_STAND_IN_USAGE: String(FYI_SIZE),
+        OPENOVAI_STAND_IN_WINDOW: String(WINDOW_HELD),
+      }),
+    );
+    address = await waitForAddress(server);
+    await sayTo(WATCHED_FYI, "a turn that takes this one into the lowest band and no further");
+    await waitFor(async () => new Promise((resolve) => setTimeout(() => resolve(true), 3000)));
+    everyWatch = watches();
+
+    panel = JSON.parse((await get(`${address}/sessions/${LEADER}/messages`)).body).messages;
+
+    // A lead in the middle of a long turn, with a fresh crossing behind it. The turn outlives
+    // several ticks, and none of them may start a second one.
+    await start(
+      watched,
+      standInEnvironment(standIn, watchLog, {
+        OPENOVAI_STAND_IN_USAGE: GREW.join(","),
+        OPENOVAI_STAND_IN_WINDOW: String(WINDOW_HELD),
+        OPENOVAI_STAND_IN_SLOW: "6000",
+      }),
+    );
+    address = await waitForAddress(server);
+
+    const before = watches().length;
+    const answering = sayTo(LEADER, "something that takes a while to answer");
+    await waitFor(async () => {
+      const { sessions: rows } = JSON.parse((await get(`${address}/sessions`)).body);
+      return rows.find((row) => row.name === LEADER)?.busy === true ? true : null;
+    });
+    // A crossing while it is busy: this one has never been read, so its first strong band is new.
+    await sayTo(WATCHED_COLD, "a turn that takes this one deep into its window too");
+    midTurnQuestions = watches().length - before;
+    await answering;
+  });
+
+  // Mutation: fire on the band rather than on having entered it. pop.mjs names the failure exactly
+  // — a doorbell driven off what is parked would go up sixty times a minute for one stopped session
+  // — and this is the same doorbell on a slower bell.
+  it("gives the lead one turn for one crossing and not one every tick", () => {
+    assert.equal(saidNothingYet, 0, "the watch spoke before anything had crossed anything");
+    assert.ok(saidUnasked !== null, "the watch never spoke at all");
+    assert.equal(saidAgain, 0, "the watch said the same crossing again");
+  });
+
+  // Mutation: drop the mid-turn gate. A watch that queued would deliver an old room to a lead that
+  // is already looking at it, so it is skipped entirely rather than held.
+  it("never starts a second turn on a lead that is already answering", () => {
+    assert.equal(midTurnQuestions, 0);
+  });
+
+  // Mutation: send the turn unsigned. A message nobody signed is the person's, and a turn the chat
+  // started must not be readable as one they typed — the whole worth of a signature here is that a
+  // session can tell what it is being asked BY. Read off the flag and the sender, never the prose.
+  it("a turn the chat started is not read as the person speaking", () => {
+    const asked = panel.filter((line) => typeof line.text === "string" && line.text.includes("<watch>"));
+    assert.ok(asked.length > 0, JSON.stringify(panel.map((line) => line.from)));
+    for (const line of asked) {
+      assert.equal(line.from, "the chat", JSON.stringify(line));
+      assert.equal(line.watch, true, JSON.stringify(line));
+    }
+    // And nothing the person said is flagged as the chat's, which is the other half: a flag every
+    // line carried would say nothing at all.
+    for (const line of panel.filter((one) => one.from === "human")) {
+      assert.equal(line.watch, undefined, JSON.stringify(line));
+    }
+  });
+
+  // Mutation: fire on an FYI band. 0.80 and 0.85 buy no turn — they ride on the block the lead is
+  // handed the next time it is spoken to, exactly as they do today. Held by the one that was under
+  // the lowest band throughout and by the wording of the block, which names only what crossed.
+  it("spends no turn on a band that is only worth reading", () => {
+    assert.ok(everyWatch.length > 0, "the watch never spoke at all, so this compares nothing");
+    for (const said of everyWatch) {
+      assert.doesNotMatch(said, new RegExp(WATCHED_FYI), `a band worth only reading bought a turn: ${said}`);
+    }
+    // And the one that was never in a band at all, which is the weaker half of the same rule.
+    for (const said of everyWatch) {
+      assert.doesNotMatch(said, new RegExp(WATCHED_SMALL), said);
+    }
+  });
+
+  // Mutation: drop the line about who is speaking. A session reading this may be running a persona
+  // written before any of it existed, and an unattributed instruction in front of a message reads
+  // as one the person typed.
+  it("says who is speaking, and that nobody typed it", () => {
+    assert.match(saidUnasked, /The chat is telling you this\. Nobody typed it\./);
+  });
+
+  // Mutation: drop the moment. It is the whole of why this may be handed over unasked: a dated line
+  // cannot be read as now. Asserted against the clock and never a literal.
+  it("carries the moment the room was read", () => {
+    const said = saidUnasked.match(/Read at (\d\d):(\d\d)/);
+    assert.ok(said !== null, `no moment in: ${saidUnasked}`);
+    const when = new Date();
+    when.setHours(Number(said[1]), Number(said[2]), 0, 0);
+    assert.ok(Math.abs(Date.now() - when.getTime()) < 10 * 60 * 1000, `the moment was ${said[0]}`);
+  });
+
+  // Mutation: make the block say what it did about it. It does nothing about it: handing a session
+  // over is a press on that session's panel and there is no tool for it. Saying otherwise would be
+  // the one reading in this toolkit that is not true.
+  it("says that nothing was stopped and no conversation was ended", () => {
+    assert.match(saidUnasked, new RegExp(`${HUMAN}'s to press`));
+    assert.match(saidUnasked, /nothing has stopped running and no conversation has been ended by this/);
+    assert.match(saidUnasked, new RegExp(`${WATCHED_BIG} has reached `));
+    assert.match(saidUnasked, new RegExp(SHARE_HELD));
+  });
+
+  after(async () => {
+    await stopChat(server);
+  });
+});
+
+const WATCH_OUTLIVES = "Crossbill";
+
+// A chat that has been stopped has stopped reading its room.
+//
+// IN THIS PROCESS, and it is the one check here that serves an instance itself rather than talking
+// to one over a socket. Everything else about the watch can be seen from outside; this cannot, and
+// the reason is that the way a chat is stopped from a terminal ends the process outright — so a
+// timer left running would be swept away by the exit and the bug would be invisible in exactly the
+// arrangement it is dangerous in. What is dangerous is a server closed while the process lives on:
+// the room goes on being read, turns go on being given to a lead nobody is serving, and there is
+// nothing left to stop it with.
+//
+// The crossing is staged by hand, in the file the reading lives in, because no run is wanted here:
+// the assertion is that nothing happened, and a fixture that had to answer first would be a fixture
+// that could pass by being slow.
+describe("a chat that has been stopped has stopped reading its room", () => {
+  const stopped = `${instance}-stopped`;
+  let panelAfterClosing;
+
+  before(async () => {
+    installed(options(stopped, 0));
+    runTool(stopped, ["hire", WATCH_OUTLIVES], process.env);
+
+    const config = path.join(stopped, "openovai.json");
+    // Read back off the file rather than composed here, so what this chat is served is what an
+    // instance saying this would be served. A config built in the check and a config on disk are
+    // two records of one fact, and the one on disk is the one a workspace has.
+    fs.writeFileSync(
+      config,
+      `${JSON.stringify({ ...JSON.parse(fs.readFileSync(config, "utf8")), watchEverySeconds: 1 }, null, 2)}\n`,
+    );
+    const held = JSON.parse(fs.readFileSync(config, "utf8"));
+
+    // A conversation sitting deep inside a strong band, written where a run would have written it.
+    // Nothing has read the room yet, so this is a crossing waiting to be found.
+    const thread = path.join(stopped, "chat", WATCH_OUTLIVES, "session.json");
+    fs.mkdirSync(path.dirname(thread), { recursive: true });
+    fs.writeFileSync(
+      thread,
+      `${JSON.stringify(
+        { sessionId: "a-thread", context: CARRYING, quota: null, refused: null, window: WINDOW_HELD },
+        null,
+        2,
+      )}\n`,
+    );
+
+    const server = await serve({ root: stopped, config: held, plugins: [], pop: null });
+    // Closed before the first tick could come round, so every tick that could still fire is one
+    // that fired after the close.
+    await new Promise((resolve) => server.close(resolve));
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+
+    const panel = path.join(stopped, "chat", held.leader, "conversation.json");
+    panelAfterClosing = fs.existsSync(panel) ? JSON.parse(fs.readFileSync(panel, "utf8")) : [];
+  });
+
+  // Mutation: leave the interval where the server closes. The question is written to the panel
+  // before anything is run, so a tick that fired here leaves its mark whether or not there is
+  // anything on the PATH to answer it — which is what makes this readable without a stand-in.
+  it("the chat can be stopped", () => {
+    assert.deepEqual(
+      panelAfterClosing.filter((line) => typeof line.text === "string" && line.text.includes("<watch>")),
+      [],
+      JSON.stringify(panelAfterClosing),
+    );
+  });
+
+  after(() => {
+    remove(stopped);
+  });
+});

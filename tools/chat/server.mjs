@@ -17,6 +17,7 @@ import { allow, askedFor, answer as settle, giveUp, park, parked, refuse, shapeO
 import { popped } from "./pop.mjs";
 import { answerFrom } from "../plugins.mjs";
 import { ago, roomLines, shareSaid } from "./room.mjs";
+import { forgetTheRoom, howOften, watchWrapper, whatChanged } from "./watch.mjs";
 import { DESK_FILE, DeskError, WORK, allowAsked, archiveFor, deskTitle, describeName, hire, isName, retire } from "../desks.mjs";
 import { accountStanding, ask, bandIn, endRun, forget, hasGoneCold, hasGoneQuiet, hasThread, quotaIn, ranAt, refusedIn, sessions } from "./session.mjs";
 import { inTurn, turnsGoing, waitingFor, whileWaitingFor, wouldWaitForItself } from "./turns.mjs";
@@ -706,8 +707,21 @@ const SESSION_ROUTE = /^\/sessions\/([^/]+)\/(messages|message|permissions|permi
 // route, a session calls it as a tool — and "the tool does exactly what the command does" is worth
 // nothing written down. Here it is the same thing because there is only one of it.
 //
-// `signed` is the name of the session sending it, or null for the human. It answers { status,
-// body }: what the route sends back, and what the tool reads its own answer out of.
+// `signed` is the name of the session sending it, or null for the human, or THE_CHAT for the room
+// watch. It answers { status, body }: what the route sends back, and what the tool reads its own
+// answer out of.
+//
+// THE THIRD SENDER, and it is safe by construction rather than by a check: THE_CHAT has a space in
+// it, so no session can ever be called that — a name is a directory under work/ and cannot hold one
+// — and the human is null. It does three things and no more. The sender lookup does not refuse it,
+// the overheard copy is not made (nobody spoke on anybody's panel), and its line is written
+// `from: THE_CHAT` with a `watch: true` flag, the shape `handover: true` and `cold: true` already
+// have, so the page and the checks rest on a flag rather than on prose.
+//
+// Everything else on this path is untouched by it. Once a turn is sent it is an ordinary turn: it
+// queues, it waits, it is refused while the room is off, it ends a cold thread and begins a new one
+// — every one of those because it comes through here unchanged and not because anything was written
+// twice.
 //
 // THE INVARIANT ON THIS PATH: a message may be delayed, and the conversation that answers it may be
 // replaced, but it is never parked on a state the addressee is stuck in. The refusals below are all
@@ -725,11 +739,16 @@ async function deliver(instance, name, text, signed, shown = null) {
     return { status: 400, body: { error: "a message needs some text" } };
   }
 
+  // The room watch, which is neither a session nor the person. Asked first and by identity against
+  // the one constant there is, so nothing below has to work out which of the three this is twice.
+  const watching = signed === THE_CHAT;
+
   // A signature naming nobody who works here is refused rather than passed on as the human's: a
   // message arriving as somebody it is not is the one mistake this whole arrangement exists to
   // prevent.
-  const sender = signed === null ? null : (sessions(instance).find((session) => session.name === signed) ?? null);
-  if (signed !== null && sender === null) {
+  const sender =
+    signed === null || watching ? null : (sessions(instance).find((session) => session.name === signed) ?? null);
+  if (signed !== null && !watching && sender === null) {
     return { status: 400, body: { error: `nobody called ${signed} works here` } };
   }
   // A message that would close a circle is answered now rather than queued: the sender's own turn
@@ -751,7 +770,11 @@ async function deliver(instance, name, text, signed, shown = null) {
   // Only an unsigned message, and only on somebody else's panel. A signed one is a session
   // speaking, and the lead either sent it or is the one being spoken to; a message on the lead's
   // own panel is not overheard, it is heard.
-  if (sender === null && name !== instance.config.leader) {
+  //
+  // And not for the watch, which is why this asks for the watch as well as for a sender. Overhearing
+  // is the lead being told what the PERSON said on a panel it was not on; the chat speaking is not
+  // somebody speaking, and a copy of it on the lead's own panel would be the lead overhearing itself.
+  if (sender === null && !watching && name !== instance.config.leader) {
     append(instance.root, instance.config.leader, {
       from: THE_CHAT,
       text: overheardLine(instance.config.human, name, text.trim()),
@@ -797,7 +820,12 @@ async function deliver(instance, name, text, signed, shown = null) {
       const answers = whatItAnswers(instance.root, name, shown);
 
       const asked = append(instance.root, name, {
-        from: sender?.name ?? "human",
+        from: watching ? THE_CHAT : (sender?.name ?? "human"),
+        // Flagged, so that a page and a check read a field rather than the prose. A turn the chat
+        // started must not be readable as the person having typed one: the whole worth of a signed
+        // message here is that a session can tell what it is being asked BY, and a line the room
+        // watch wrote is neither the person nor a colleague.
+        ...(watching ? { watch: true } : {}),
         text: text.trim(),
         ...(answers === null ? {} : { answers }),
       });
@@ -1987,6 +2015,39 @@ function tellTheLead(instance) {
   return line;
 }
 
+// One read of the room, and a turn given to the lead only if something crossed into a strong band.
+//
+// NOTHING WHILE THE LEAD IS MID-TURN, and skipped entirely rather than queued: a watch that queued
+// would deliver an hour-old room to a lead that is already looking at it. Skipped means nothing is
+// read and nothing is remembered either, so a crossing that happens during a long turn is still
+// there to be found on the next tick rather than quietly recorded as already said.
+//
+// NO GATE OF ITS OWN FOR A ROOM THAT IS OFF. `inTurn` refuses, and this reads the same answer every
+// other caller reads. A second test here would be a second place saying one thing.
+//
+// It is not awaited by the interval below and it cannot be. The turn it starts is a run, and a run
+// is minutes; holding the timer open for it would be a timer that fires late by however long the
+// lead took. Nothing here needs the answer — this is the chat speaking, not asking.
+async function readTheRoom(instance) {
+  if (turnsGoing(instance.config.leader) > 0) {
+    return;
+  }
+
+  const changed = whatChanged(instance, sessions(instance));
+  if (changed.length === 0) {
+    return;
+  }
+
+  const when = new Date();
+  const read = `${String(when.getHours()).padStart(2, "0")}:${String(when.getMinutes()).padStart(2, "0")}`;
+  await deliver(
+    instance,
+    instance.config.leader,
+    watchWrapper(instance, instance.config.leader, changed, read),
+    THE_CHAT,
+  );
+}
+
 export function serve(instance) {
   // Before a single request is answered, so the panel says what happened to this instance ahead of
   // the first person who looks at it. Here rather than in whatever started the server, for the
@@ -1998,6 +2059,39 @@ export function serve(instance) {
     handle(instance, request, response).catch((error) => {
       sendJson(response, 500, { error: error.message });
     });
+  });
+
+  // The one timer in this toolkit, and it is tied to the server rather than to the process.
+  //
+  // UNREF'D, so it is not a reason for node to stay up: a timer that holds the event loop open is a
+  // process that will not end when everything else has, and the only way out of that is a kill.
+  // CLEARED WHERE THE SERVER CLOSES, so a chat that has been stopped has stopped reading the room —
+  // a timer that outlived its server would go on giving turns to a lead nobody is serving, and
+  // there would be nothing left to stop it with. The room it remembers goes with it, because a
+  // restarted chat has told nobody anything.
+  //
+  // Both, and not one of them. Unref alone leaves it running for as long as the process happens to
+  // live; clearing alone leaves the process unable to end by itself.
+  //
+  // NOT ARMED AT ALL when the instance has asked for no watch. There is nothing to unref, nothing
+  // to clear and nothing to skip on every tick — a workspace that said never is one where this
+  // feature does not exist, which is stronger than one where it fires and decides not to speak.
+  const every = howOften(instance.config);
+  const watch =
+    every === null
+      ? null
+      : setInterval(() => {
+          readTheRoom(instance).catch(() => {
+            // A tick that fell over is one tick. There is another along, the room is read fresh, and
+            // nothing here is worth taking a chat down for.
+          });
+        }, every);
+  watch?.unref();
+  server.once("close", () => {
+    if (watch !== null) {
+      clearInterval(watch);
+    }
+    forgetTheRoom();
   });
 
   return new Promise((resolve, reject) => {

@@ -335,6 +335,83 @@
     ]
   },
   {
+    "name": "the tick fires on the band rather than on having entered it",
+    "catches": "gives the lead one turn for one crossing and not one every tick",
+    "edits": [
+      {
+        "file": "tools/chat/watch.mjs",
+        "from": "    if (band !== null && band.strong && band.named !== was.band) {",
+        "to": "    if (band !== null && band.strong) {"
+      }
+    ]
+  },
+  {
+    "name": "the tick fires while the lead is mid-turn",
+    "catches": "never starts a second turn on a lead that is already answering",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  if (turnsGoing(instance.config.leader) > 0) {\n    return;\n  }",
+        "to": "  if (turnsGoing(instance.config.leader) > 1000) {\n    return;\n  }"
+      }
+    ]
+  },
+  {
+    "name": "the tick's message is sent unsigned",
+    "catches": "a turn the chat started is not read as the person speaking",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    watchWrapper(instance, instance.config.leader, changed, read),\n    THE_CHAT,",
+        "to": "    watchWrapper(instance, instance.config.leader, changed, read),\n    null,"
+      }
+    ]
+  },
+  {
+    "name": "the tick fires on an FYI band",
+    "catches": "spends no turn on a band that is only worth reading",
+    "edits": [
+      {
+        "file": "tools/chat/watch.mjs",
+        "from": "    if (band !== null && band.strong && band.named !== was.band) {",
+        "to": "    if (band !== null && band.named !== was.band) {"
+      }
+    ]
+  },
+  {
+    "name": "the cadence is read from the constant and the instance's field ignored",
+    "catches": "reads the room as often as the instance says to",
+    "edits": [
+      {
+        "file": "tools/chat/watch.mjs",
+        "from": "  return typeof said === \"number\" ? said * 1000 : EVERY;",
+        "to": "  return EVERY;"
+      }
+    ]
+  },
+  {
+    "name": "a cadence of zero is treated as absent and the default used",
+    "catches": "reads the room not at all when the instance says never",
+    "edits": [
+      {
+        "file": "tools/chat/watch.mjs",
+        "from": "  if (said === 0) {\n    return null;\n  }",
+        "to": "  if (said === -1) {\n    return null;\n  }"
+      }
+    ]
+  },
+  {
+    "name": "a cadence in milliseconds is accepted",
+    "catches": "refuses a cadence that is not a whole number of seconds, naming the field",
+    "edits": [
+      {
+        "file": "tools/chat/watch.mjs",
+        "from": "  if (typeof seconds !== \"number\" || !Number.isInteger(seconds) || seconds < 0) {",
+        "to": "  if (false) {"
+      }
+    ]
+  },
+  {
     "name": "a band that another band shadows",
     "catches": "reaches every band the reading can say",
     "edits": [
@@ -342,6 +419,17 @@
         "file": "tools/chat/session.mjs",
         "from": "  Object.freeze({ named: \"0.85\", above: 0.85, strong: false }),",
         "to": "  Object.freeze({ named: \"0.85\", above: 0.9, strong: false }),"
+      }
+    ]
+  },
+  {
+    "name": "the interval is not cleared where the server closes",
+    "catches": "the chat can be stopped",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    if (watch !== null) {\n      clearInterval(watch);\n    }\n    forgetTheRoom();",
+        "to": "    forgetTheRoom();"
       }
     ]
   },

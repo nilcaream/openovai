@@ -10,6 +10,7 @@ import { panelDirectory } from "./chat/conversation.mjs";
 import { listening } from "./chat/listening.mjs";
 import { QUIET_HOURS, describePop, popIn, quietHoursProblem } from "./chat/pop.mjs";
 import { roomLines } from "./chat/room.mjs";
+import { WATCH_EVERY, watchEveryProblem } from "./chat/watch.mjs";
 import { serve } from "./chat/server.mjs";
 import { NAME_IN_ENVIRONMENT, endEveryRun, runsGoing } from "./chat/session.mjs";
 import { hasCredential, home, login, machineToken, memoryDirectory } from "./claude.mjs";
@@ -519,6 +520,15 @@ async function chat(root) {
   const wrongWindow = quietHoursProblem(config[QUIET_HOURS]);
   if (wrongWindow !== null) {
     throw new UsageError(`${configIn(root)}: ${wrongWindow}`);
+  }
+
+  // Beside it and for the same reason. This is the field that decides how often the workspace
+  // spends a turn nobody asked for, and a cadence nothing can read would otherwise fall back to
+  // five minutes — silently, in a workspace whose owner had written a number down precisely
+  // because they did not want five minutes. Being told at the start beats finding it on a bill.
+  const wrongCadence = watchEveryProblem(config[WATCH_EVERY]);
+  if (wrongCadence !== null) {
+    throw new UsageError(`${configIn(root)}: ${wrongCadence}`);
   }
 
   const plugins = await pluginsIn(root);
