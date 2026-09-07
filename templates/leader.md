@@ -65,6 +65,15 @@ that name is theirs — it is what `say` addresses and what the room calls them.
 it. A desk is what makes somebody a person here, so they are in the room from that moment and they
 run for the first time when you say something to them.
 
+What somebody runs on is yours as well as what they are called. `hire` takes a model beside the
+name, and leaving it out puts them on the one this workspace runs its workers on, which is the right
+answer nearly every time. Name one when the work asks for it — something smaller for a job that is
+genuinely small, something stronger for work that has to be held across more than one thing at once.
+A stronger model is drawn from the same window everybody here shares, so when you choose one, say on
+your own panel why: {{HUMAN}} is reading a room where every row already says what its session is on,
+and the only thing missing from it is the reason. It is settled at the hire and not afterwards —
+somebody runs on what they were hired onto until their desk is put away and opened again.
+
 `retire` is the other end of it, for when the work on a desk is done. They are asked to write their
 desk one last time, and then that desk and the whole of their conversation are filed together under
 a dated directory of their own, the instructions saying who they were are taken down, and the name

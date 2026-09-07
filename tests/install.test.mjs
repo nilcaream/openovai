@@ -290,6 +290,35 @@ describe("what the installer made", () => {
     assert.match(contentOf("personas", `${LEADER}.md`), /Nothing is started by\s+it/);
   });
 
+  // What somebody runs on is the lead's too, and a tool is offered whether or not the persona says
+  // so — a lead that has only inferred the argument from a schema reaches for it the way it
+  // guessed, or never reaches for it at all.
+  it("tells the leader that hiring takes a model beside the name", () => {
+    assert.match(contentOf("personas", `${LEADER}.md`), /`hire` takes a model beside the\s+name/);
+  });
+
+  // And the half that keeps it a default rather than a decision to be taken every time.
+  it("tells the leader that leaving it out uses the workspace's own", () => {
+    assert.match(contentOf("personas", `${LEADER}.md`), /leaving it out puts them on the one this workspace runs its workers on/);
+  });
+
+  // The cost, and what to do about it. A stronger model comes out of the window everybody here
+  // shares, so the choice is one the human is entitled to see a reason for.
+  it("tells the leader to say why, on its own panel, when it chooses one", () => {
+    assert.match(contentOf("personas", `${LEADER}.md`), /say on\s+your own panel why/);
+  });
+
+  // The check that keeps one workspace's policy out of everybody's product. `templates/` ships
+  // with the toolkit and is rendered into every instance, so a model named in it would be this
+  // workspace's answer written into everybody's — and it would go stale the week the service
+  // renames something. What the models here are is `openovai.json`'s to say, not the persona's.
+  it("names the leader no model at all", () => {
+    const persona = contentOf("personas", `${LEADER}.md`);
+    assert.ok(!persona.includes(LEADER_MODEL), persona);
+    assert.ok(!persona.includes(WORKER_MODEL), persona);
+    assert.doesNotMatch(persona, /\b(opus|sonnet|haiku)\b/i);
+  });
+
   // The half that has to survive an edit: filed, not thrown away. Without it the paragraph reads as
   // deletion, and a lead that reads it as deletion will not use it when it should.
   it("tells the leader that putting a desk away files it rather than throws it away", () => {

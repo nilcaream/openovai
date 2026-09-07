@@ -452,6 +452,15 @@ describe("hiring a worker", () => {
     assert.doesNotMatch(persona, /\b(hire|retire|room|interrupt)\b/i);
   });
 
+  // And says nothing to it about models either. What a worker runs on was settled when its desk
+  // was opened and there is nothing it can do about it, so a paragraph on the subject is a
+  // decision offered to somebody who cannot take it — which is the copy-paste this bites.
+  it("says nothing to the worker about what anybody runs on", () => {
+    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    assert.doesNotMatch(persona, /\bmodels?\b/i);
+    assert.doesNotMatch(persona, /\b(opus|sonnet|haiku)\b/i);
+  });
+
   it("tells the worker which one field of its header is read by anybody else", () => {
     const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
     assert.match(persona, /the `title:` in it is the one field/);
