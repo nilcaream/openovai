@@ -96,6 +96,11 @@ const quiet = `${instance}-quiet`;
 // this suite owns. The directory the other instances are installed in is shared with whatever
 // else is running, and is nowhere to be dropping a CLAUDE.md.
 const nested = `${instance}-owned`;
+
+// An instance of its own for the checks about what a session runs on. One of them edits the model
+// this workspace runs its workers on, and a workspace whose models moved under it is no place for
+// the rest of the suite to be talking to.
+const onModels = `${instance}-models`;
 const owned = path.join(nested, "deep", "instance");
 const overhead = path.dirname(owned);
 const standIn = `${instance}-stand-in`;
@@ -105,7 +110,7 @@ let server;
 
 process.on("exit", () => {
   server?.kill();
-  remove(instance, chosen, quiet, nested, standIn);
+  remove(instance, chosen, quiet, nested, onModels, standIn);
 });
 
 after(async () => {
@@ -188,7 +193,7 @@ async function start(root, environment) {
   return server;
 }
 
-remove(instance, chosen, quiet, nested, standIn);
+remove(instance, chosen, quiet, nested, onModels, standIn);
 const standInCommand = writeStandIn(standIn);
 installed(options(instance, PORT));
 installed(options(quiet, 0));
@@ -729,6 +734,116 @@ describe("the instructions an instance runs under", () => {
 
   it("claims nothing about the ones that are not there", () => {
     assert.ok(!said.includes(path.join(overhead, "CLAUDE.local.md")), said);
+  });
+});
+
+// What somebody was hired onto is what they are run on, and what nobody was hired onto is what the
+// workspace runs its workers on. The second half is the one worth watching: it is a setting rather
+// than a seed, so changing it moves everybody who was never named a model of their own, and moves
+// nobody who was.
+describe("what somebody hired onto a model runs on", () => {
+  const ON_A_MODEL = "Zoe";
+  const ON_THE_DEFAULT = "Rex";
+  const STAYS_ON = "Ivan";
+  const HIRED_ONTO = "opus";
+  const MOVED_TO = "opus-4-1";
+  const modelLog = path.join(standIn, "models.txt");
+  let address;
+
+  // Which runs were this session's. The persona is named on the command line and it is named after
+  // the session, so the log says whose every call was without anything having to be recorded.
+  const callsFor = (name) =>
+    callsIn(modelLog).filter((call) => call.includes(path.join("personas", `${name}.md`)));
+
+  // What this session was last run on, as the word itself rather than as a substring of the command
+  // line. One model identifier can begin with another — a run on `opus-4-1` holds `--model opus` —
+  // so a check written the substring way passes on the wrong model and says nothing.
+  const runsOn = (name) => {
+    const words = callsFor(name).at(-1).split(/\s+/);
+    return words[words.indexOf("--model") + 1];
+  };
+
+  const sayTo = (name, text) => post(`${address}/sessions/${name}/message`, { text });
+
+  before(async () => {
+    installed(options(onModels, 0));
+    runTool(onModels, ["hire", ON_A_MODEL, HIRED_ONTO], process.env);
+    runTool(onModels, ["hire", ON_THE_DEFAULT], process.env);
+    runTool(onModels, ["hire", STAYS_ON, HIRED_ONTO], process.env);
+    await start(onModels, standInEnvironment(standIn, modelLog));
+    address = await waitForAddress(server);
+    assert.ok(address, "the server never said where it was listening");
+
+    await sayTo(ON_A_MODEL, "what are you working on");
+    await sayTo(ON_THE_DEFAULT, "what are you working on");
+  });
+
+  it("runs them on the model they were hired onto", () => {
+    assert.equal(runsOn(ON_A_MODEL), HIRED_ONTO);
+  });
+
+  it("runs somebody hired the usual way on the workspace's own", () => {
+    assert.equal(runsOn(ON_THE_DEFAULT), WORKER_MODEL);
+  });
+
+  // A handover ends the conversation and nothing else. What somebody was hired onto is not part of
+  // a conversation, and coming back on a different model would be the toolkit changing a decision
+  // at the one moment nobody is watching it.
+  describe("handed over and asked again", () => {
+    before(async () => {
+      await post(`${address}/sessions/${ON_A_MODEL}/handover`, {});
+      await sayTo(ON_A_MODEL, "and now who are you");
+    });
+
+    it("comes back on the model they were hired onto", () => {
+      assert.equal(runsOn(ON_A_MODEL), HIRED_ONTO);
+    });
+  });
+
+  // And a desk being put away takes it with the desk, so a name hired again starts from the
+  // workspace's own answer rather than from what somebody else was put on months ago.
+  describe("after their desk is put away", () => {
+    let left;
+
+    before(async () => {
+      await post(`${address}/sessions/${ON_A_MODEL}/leave`, {});
+      left = fs.existsSync(path.join(onModels, "work", ON_A_MODEL));
+      runTool(onModels, ["hire", ON_A_MODEL], process.env);
+      await sayTo(ON_A_MODEL, "what are you working on");
+    });
+
+    it("takes what they were hired onto away with the desk", () => {
+      assert.equal(left, false);
+    });
+
+    it("puts the name hired again with no model on the workspace's own", () => {
+      assert.equal(runsOn(ON_A_MODEL), WORKER_MODEL);
+    });
+  });
+
+  // The setting is live. A workspace that changes what its workers run on has changed it for
+  // everybody it is the answer for, from their next message — and for nobody it is not.
+  describe("when the workspace changes what its workers run on", () => {
+    before(async () => {
+      const file = path.join(onModels, "openovai.json");
+      const held = JSON.parse(fs.readFileSync(file, "utf8"));
+      fs.writeFileSync(file, `${JSON.stringify({ ...held, models: { ...held.models, worker: MOVED_TO } }, null, 2)}\n`);
+
+      await start(onModels, standInEnvironment(standIn, modelLog));
+      address = await waitForAddress(server);
+      assert.ok(address, "the server never said where it was listening");
+
+      await sayTo(ON_THE_DEFAULT, "what are you working on now");
+      await sayTo(STAYS_ON, "what are you working on now");
+    });
+
+    it("moves everybody who was never named one", () => {
+      assert.equal(runsOn(ON_THE_DEFAULT), MOVED_TO);
+    });
+
+    it("leaves somebody who was named one where they are", () => {
+      assert.equal(runsOn(STAYS_ON), HIRED_ONTO);
+    });
   });
 });
 

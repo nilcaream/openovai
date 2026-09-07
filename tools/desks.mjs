@@ -15,11 +15,26 @@ import { readSettings, writeSettings } from "./settings.mjs";
 // short, starts with a letter and holds nothing a shell or a path would read as syntax.
 const NAME_PATTERN = /^[A-Za-z][A-Za-z0-9_-]{0,31}$/;
 
+// Model identifiers are aliases or full names, never paths. It is written down here rather than
+// beside the installer because two things name a model now — installing a workspace, and hiring
+// somebody onto one that is not the usual one — and two patterns would be two answers to what a
+// model identifier is, the day one of them was widened.
+export const MODEL_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
+
 // A desk is a person: one directory, holding the one file a replacement session reads before
 // it does anything else.
 export const WORK = "work";
 export const DESK_FILE = "STATE.md";
 export const DESK_TEMPLATE = path.join("templates", "STATE.md");
+
+// What somebody runs on, when it is not what this workspace runs its workers on. One word, in one
+// file beside the desk, written only when a model was named: absent is the whole of "the usual
+// one", so a workspace that has never named one has nothing on disk and nothing to migrate.
+//
+// Beside the desk rather than inside it. The one thing a session is allowed to write is its own
+// STATE.md, so a model kept in that file would be a model the session could raise for itself — and
+// a header field nobody told it to keep is a field it drops the first time it rewrites one.
+export const MODEL_FILE = "MODEL";
 
 // A worker's persona, before the name is written into it. It lives beside the desk template
 // rather than with either caller, because hiring now happens from two places — the command and
@@ -70,6 +85,21 @@ export function describeName(flag, value) {
   return `${flag} must start with a letter and hold only letters, digits, '-' or '_' (got ${JSON.stringify(value)})`;
 }
 
+export function isModel(value) {
+  return typeof value === "string" && MODEL_PATTERN.test(value);
+}
+
+// Said the same way wherever a model is refused, and never with a list of the models there are.
+// A list is a table somebody has to keep true as the service renames things, and a workspace that
+// may be installed on a model has to be able to hire onto it.
+//
+// It states the rule rather than the verdict, the way the name sentence next to it does. "Is not a
+// model identifier" tells somebody their value is wrong and leaves them to guess what a right one
+// looks like — and the one thing this sentence must not do is send them looking for a list.
+export function describeModel(flag, value) {
+  return `${flag} must start with a letter or digit and hold only letters, digits, '.', '-' or '_' (got ${JSON.stringify(value)})`;
+}
+
 // Everybody who works in the instance, in the order a directory listing gives them. A desk is a
 // person, so this is the roster: there is nothing else to register and nothing that can disagree
 // with what is on disk.
@@ -87,6 +117,40 @@ export function desks(root) {
 
 export function deskFile(root, name) {
   return path.join(root, WORK, name, DESK_FILE);
+}
+
+export function modelFile(root, name) {
+  return path.join(root, WORK, name, MODEL_FILE);
+}
+
+// What this desk was hired onto, or nothing at all.
+//
+// Read rather than checked. The only thing that writes it refuses anything that is not a model
+// identifier before a byte of the desk exists, and a file somebody edited by hand afterwards is
+// that person's own choice — one Claude Code answers in a line on stderr, which is the stream a
+// panel already shows.
+//
+// Empty is absent. A file holding nothing but whitespace is a desk that has said nothing, and the
+// honest reading of saying nothing is the reading of a file that was never written.
+function recordedModel(root, name) {
+  let said;
+  try {
+    said = fs.readFileSync(modelFile(root, name), "utf8").trim();
+  } catch {
+    return null;
+  }
+  return said === "" ? null : said;
+}
+
+// Which model a session runs on. A workspace is installed with one for the session that leads and
+// one for everybody else, and hiring may name another for one person — so the desk is asked first
+// and the workspace's own answer is what everybody who was never named one gets.
+//
+// That second half is what keeps the installed model a default rather than a seed. Nothing is
+// written down for somebody hired the usual way, so a workspace that changes what its workers run
+// on changes what every one of them runs on, from their next message.
+export function modelFor(root, name, config) {
+  return recordedModel(root, name) ?? (name === config.leader ? config.models.leader : config.models.worker);
 }
 
 // What the person at this desk is on, from the header their desk file opens with.
@@ -237,6 +301,15 @@ export function writeDesk(root, from, name) {
   return [target];
 }
 
+// One word and a newline. There is no shape to get wrong, nothing to half-parse, and a file that
+// reads the same whether or not an editor put a newline on the end of it.
+export function writeModel(root, name, model) {
+  const target = modelFile(root, name);
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.writeFileSync(target, `${model}\n`);
+  return [target];
+}
+
 export function writePersona(root, from, name, what, relative, values) {
   const template = readTemplate(from, what, relative);
   const target = personaFile(root, name);
@@ -307,9 +380,20 @@ export function withdrawDesk(root, name) {
 //
 // The templates are read from the instance and not from wherever it was installed from, which is
 // what lets an instance open a desk on a machine the source was never on.
-export function hire(root, name, panel, { human, leader }) {
+//
+// The model is the last argument and it is optional, because leaving it out is the answer nearly
+// every time: somebody hired without a word about it runs on what this workspace runs its workers
+// on, and goes on doing so if that is ever changed.
+//
+// It is refused before the desk is looked at and long before anything is written, so a model that
+// is not one leaves nothing behind — no desk, no persona, no rule, and no name taken by a person
+// who was never opened one.
+export function hire(root, name, panel, { human, leader }, model = null) {
   if (!isName(name)) {
     throw new DeskError(describeName("a worker name", name));
+  }
+  if (model !== null && !isModel(model)) {
+    throw new DeskError(describeModel("a model", model));
   }
   if (fs.existsSync(deskFile(root, name))) {
     throw new DeskError(`${name} already has a desk here`);
@@ -331,6 +415,10 @@ export function hire(root, name, panel, { human, leader }) {
   return [
     ...writeDesk(root, root, name),
     ...writePersona(root, root, name, "worker", WORKER_TEMPLATE, { NAME: name, HUMAN: human, LEADER: leader }),
+    // Only when one was named. Writing the workspace's own model into every desk would freeze
+    // today's answer onto each person and turn a live setting into a seed nothing reads afterwards
+    // — a workspace that changed it and saw nobody move would have a setting that lies.
+    ...(model === null ? [] : writeModel(root, name, model)),
     ...allowDesk(root, name),
   ];
 }

@@ -16,6 +16,9 @@ import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
 import {
+  // The local install() below is the one this suite makes instances with. This is the raw one,
+  // for the checks that are about an install being refused rather than about what it wrote.
+  install as installing,
   installed,
   projectDirectoriesIn,
   readLog,
@@ -27,6 +30,11 @@ import {
   writeStandIn,
 } from "./helpers.mjs";
 import { LEDGER, settingsProblems, trustProblems } from "./inspect.mjs";
+
+// The reader this suite asks directly. Everywhere else what a session runs on is seen by starting
+// one, which is right when the subject is a run — and no help at all with what a file holding
+// nothing means, which is a question about the reading rather than about the running.
+import { modelFor } from "../tools/desks.mjs";
 
 const HUMAN = "Mike";
 const LEADER = "Superman";
@@ -669,6 +677,86 @@ describe("what a workspace can account for", () => {
   });
 });
 
+// Somebody can be hired onto a model that is not the one this workspace runs its workers on. It is
+// one word in one file beside their desk, and it is written only because it was named.
+describe("hiring somebody onto a model of their own", () => {
+  const ON_A_MODEL = "Zoe";
+  const CHOSEN = "opus";
+  let said;
+
+  before(() => {
+    said = ovai(["hire", ON_A_MODEL, CHOSEN]);
+  });
+
+  it("opens the desk", () => {
+    assert.deepEqual([said.status, fs.existsSync(path.join(instance, "work", ON_A_MODEL, "STATE.md"))], [0, true]);
+  });
+
+  it("writes down the model they were hired onto and nothing else", () => {
+    assert.equal(fs.readFileSync(path.join(instance, "work", ON_A_MODEL, "MODEL"), "utf8").trim(), CHOSEN);
+  });
+
+  it("names that file among what it wrote", () => {
+    assert.match(said.stdout, new RegExp(`work.${ON_A_MODEL}.MODEL`));
+  });
+});
+
+// And somebody hired the usual way has nothing written down at all. Absent is what "the one
+// everybody else here runs on" is made of: a workspace that changes that setting moves everybody
+// who was never named one, and a desk holding today's answer would be a person who stopped moving
+// with it. So the check reads the directory rather than the resolver — a file holding the default
+// and no file at all resolve to the same word, and only one of them is this.
+describe("hiring somebody the usual way", () => {
+  it("writes nothing down about a model", () => {
+    assert.equal(fs.existsSync(path.join(instance, "work", WORKER, "MODEL")), false);
+  });
+
+  it("leaves the desk directory holding the desk and nothing else", () => {
+    assert.deepEqual(fs.readdirSync(path.join(instance, "work", WORKER)).sort(), ["STATE.md"]);
+  });
+});
+
+// What a desk is read as running on, asked of the reader itself. A file holding nothing is a desk
+// that has said nothing, and saying nothing is the workspace's own answer rather than an empty
+// model nothing would start on.
+describe("what a desk is read as running on", () => {
+  const config = { leader: LEADER, models: { leader: LEADER_MODEL, worker: WORKER_MODEL } };
+  const READ_BACK = "Bo";
+  const file = path.join(instance, "work", READ_BACK, "MODEL");
+
+  before(() => {
+    ovai(["hire", READ_BACK, "opus"]);
+  });
+
+  it("reads the word the desk was hired onto", () => {
+    fs.writeFileSync(file, "opus\n");
+    assert.equal(modelFor(instance, READ_BACK, config), "opus");
+  });
+
+  it("reads a word with space around it as that word", () => {
+    fs.writeFileSync(file, "  opus  \n");
+    assert.equal(modelFor(instance, READ_BACK, config), "opus");
+  });
+
+  it("reads a file holding nothing as the workspace's own", () => {
+    fs.writeFileSync(file, "");
+    assert.equal(modelFor(instance, READ_BACK, config), WORKER_MODEL);
+  });
+
+  it("reads a file holding whitespace as the workspace's own", () => {
+    fs.writeFileSync(file, "   \n");
+    assert.equal(modelFor(instance, READ_BACK, config), WORKER_MODEL);
+  });
+
+  it("reads somebody with no such file as the workspace's own", () => {
+    assert.equal(modelFor(instance, WORKER, config), WORKER_MODEL);
+  });
+
+  it("reads the lead as the model this workspace leads on", () => {
+    assert.equal(modelFor(instance, LEADER, config), LEADER_MODEL);
+  });
+});
+
 describe("what hiring refuses", () => {
   it("refuses to hire nobody", () => {
     assert.notEqual(ovai(["hire"]).status, 0);
@@ -690,8 +778,88 @@ describe("what hiring refuses", () => {
     assert.match(ovai(["hire", LEADER]).stderr, new RegExp(`${LEADER} already has a desk`));
   });
 
-  it("refuses more than one name at a time", () => {
-    assert.notEqual(ovai(["hire", "Ann", "Bob"]).status, 0);
+  // Two words are a name and a model. A third is somebody typing a second name, and a name and a
+  // model are shaped alike, so the count is the only thing that can tell them apart.
+  it("refuses more than a name and a model at a time", () => {
+    assert.notEqual(ovai(["hire", "Ann", "opus", "Bob"]).status, 0);
+  });
+
+  // The model is refused before a byte of the desk exists, so a name typed with a model that is not
+  // one is a name nobody was opened a desk for — rather than a person half made, holding a name
+  // somebody would have to take back by hand.
+  describe("a model that is not one", () => {
+    const NOT_HIRED = "Rex";
+    let said;
+
+    before(() => {
+      said = ovai(["hire", NOT_HIRED, "not a model"]);
+    });
+
+    it("refuses it", () => {
+      assert.notEqual(said.status, 0);
+    });
+
+    // The rule, not the verdict. "Is not a model identifier" says the value is wrong and leaves
+    // somebody to guess what a right one looks like — which is the moment they go looking for a
+    // list of models, and a list is the one thing this sentence must never send them to.
+    it("says what a model identifier is rather than listing the models there are", () => {
+      assert.match(
+        said.stderr,
+        /a model must start with a letter or digit and hold only letters, digits, '\.', '-' or '_' \(got "not a model"\)/,
+      );
+      assert.doesNotMatch(said.stderr, /\b(opus|sonnet|haiku)\b/i);
+    });
+
+    it("leaves no desk behind", () => {
+      assert.equal(fs.existsSync(path.join(instance, "work", NOT_HIRED)), false);
+    });
+
+    it("leaves no persona behind either", () => {
+      assert.equal(fs.existsSync(path.join(instance, "personas", `${NOT_HIRED}.md`)), false);
+    });
+  });
+
+  // One pattern, asked by both the things that name a model. A workspace that may be installed on
+  // a model has to be able to hire onto it, and two patterns would be two answers to what a model
+  // identifier is the day one of them was widened.
+  describe("what the installer will not take either", () => {
+    for (const value of ["a model", "-leading", "with/a/path"]) {
+      it(`refuses ${JSON.stringify(value)} where installing refuses it`, () => {
+        const putting = installing({
+          "--root": `${instance}-never-made`,
+          "--source": repo,
+          "--human": HUMAN,
+          "--leader": LEADER,
+          "--leader-model": LEADER_MODEL,
+          "--worker-model": value,
+          "--port": PORT,
+          "--auth": "login",
+        });
+        assert.deepEqual(
+          [ovai(["hire", "Ann", value]).status, putting.status, fs.existsSync(`${instance}-never-made`)],
+          [1, 2, false],
+        );
+      });
+    }
+  });
+
+  // The lead is not hired: the installer opened that desk when the workspace was made. So there is
+  // no door here that can put the lead on another model, and it is refused by the desk it has
+  // rather than by a guard written for the occasion.
+  describe("the lead, named with a model", () => {
+    let said;
+
+    before(() => {
+      said = ovai(["hire", LEADER, "opus"]);
+    });
+
+    it("refuses the name for the desk it already has", () => {
+      assert.match(said.stderr, new RegExp(`${LEADER} already has a desk here`));
+    });
+
+    it("writes nothing down about what the lead runs on", () => {
+      assert.equal(fs.existsSync(path.join(instance, "work", LEADER, "MODEL")), false);
+    });
   });
 
   // A name is more than its desk. The chat keeps a panel and a thread under the same name, and a

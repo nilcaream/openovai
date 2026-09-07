@@ -17,7 +17,7 @@ import path from "node:path";
 
 import { environment } from "../claude.mjs";
 import { listening } from "./listening.mjs";
-import { desks } from "../desks.mjs";
+import { desks, modelFor } from "../desks.mjs";
 
 // Where a thread lives between runs, under the name of the session having it. One id, written
 // after every answer: it is the whole reason a per-message run can still be a conversation.
@@ -340,11 +340,11 @@ export function forget(root, name) {
 }
 
 // Which model a session runs on. The instance was installed with one model for the session that
-// leads and one for everybody else, and a session's own name is enough to say which it is, so
-// there is nothing to record and nothing that can disagree with openovai.json.
+// leads and one for everybody else, and hiring may name another for one person — so the answer is
+// the desk's first and the instance's second, and it is `desks.mjs` that gives it: what a person is
+// made of is that module's word, and the command asks the same question of it with no chat running.
 function model(instance, name) {
-  const models = instance.config.models;
-  return name === instance.config.leader ? models.leader : models.worker;
+  return modelFor(instance.root, name, instance.config);
 }
 
 // The persona is passed on every run, resumed ones included. Claude Code does keep it with the

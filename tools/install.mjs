@@ -17,7 +17,9 @@ import {
   DeskError,
   allowDesk,
   allowTools,
+  describeModel,
   describeName,
+  isModel,
   isName,
   readTemplate,
   writeDesk,
@@ -32,9 +34,6 @@ const HIGHEST_PORT = 65535;
 // hand means remembering which ones are taken, and being wrong about it only shows up as a
 // refusal to start. It has to be typed like any other value — there is still no default.
 const PORT_CHOSEN_AT_START = 0;
-
-// Model identifiers are aliases or full names, never paths.
-const MODEL_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 
 // How an instance gets an account.
 //
@@ -186,10 +185,13 @@ function resolvePlan(parsed) {
     }
   }
 
+  // What a model identifier is comes from desks.mjs, which is also what hiring somebody onto one
+  // asks. A workspace that may be installed on a model can hire onto it, and there is one sentence
+  // to read when neither will have it.
   for (const key of ["leaderModel", "workerModel"]) {
-    if (!MODEL_PATTERN.test(parsed[key])) {
+    if (!isModel(parsed[key])) {
       const flag = OPTIONS.find(([, name]) => name === key)[0];
-      throw new UsageError(`${flag} is not a model identifier (got ${JSON.stringify(parsed[key])})`);
+      throw new UsageError(describeModel(flag, parsed[key]));
     }
   }
 

@@ -34,7 +34,7 @@ const COMMANDS = ["status", "room", "chat", "hire", "plugin", "say", "login", "u
 // What a command takes after its name, for the ones that take anything. A command that is not
 // here takes nothing, which is most of them.
 const TAKES = {
-  hire: { most: 1, shape: "one name" },
+  hire: { most: 2, shape: "a name, and a model if not the usual one" },
   plugin: { most: 1, shape: "one name" },
   say: { most: Number.POSITIVE_INFINITY, shape: "a name and a message" },
   update: { most: 2, shape: "at most --from <url or directory>" },
@@ -54,7 +54,9 @@ function usage() {
     "  ovai status        show who works in this instance and on which models",
     "  ovai room          show what each of them is doing right now",
     "  ovai chat          serve the chat page until you stop it",
-    "  ovai hire <name>   open a desk for a worker, so the chat can host one",
+    "  ovai hire <name> [model]",
+    "                   open a desk for a worker, so the chat can host one; on the",
+    "                   model this workspace runs its workers on unless another is named",
     "  ovai plugin <name> start a tool this instance serves itself, from the scaffold",
     "  ovai say <name> <message>",
     "                   say something to another session in this instance and wait for its reply",
@@ -130,12 +132,16 @@ function describeCredential(root, auth) {
 // What a name is refused for lives in desks.mjs, because the page's Hire button reaches the same
 // answer through a route rather than through this. All this adds is the one refusal that is about
 // a command line rather than about a name: nothing typed at all.
-function hireHere(root, name) {
+//
+// The model is optional and it is the second word, because leaving it out is the answer nearly
+// every time: somebody hired without one runs on what this workspace runs its workers on. What a
+// model is refused for lives in desks.mjs too, for the same reason a name's refusals do.
+function hireHere(root, name, model) {
   if (name === undefined) {
-    throw new UsageError("hire needs a name: ovai hire <name>");
+    throw new UsageError("hire needs a name: ovai hire <name> [model]");
   }
 
-  const written = hire(root, name, panelDirectory(root, name), readConfig(root));
+  const written = hire(root, name, panelDirectory(root, name), readConfig(root), model ?? null);
 
   console.log(`${name} works here now. Wrote:`);
   for (const entry of written) {
@@ -579,7 +585,7 @@ async function main(argv) {
       return 0;
     }
     if (command === "hire") {
-      hireHere(root, arguments_[0]);
+      hireHere(root, arguments_[0], arguments_[1]);
       return 0;
     }
     if (command === "plugin") {
