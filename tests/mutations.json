@@ -262,13 +262,13 @@
     ]
   },
   {
-    "name": "the window is the first entry when the frame named more than one model",
-    "catches": "says nothing about the window when the frame named more than one model",
+    "name": "the window is taken off the first model the frame named",
+    "catches": "reads the window off the model the run answered on, whatever answered beside it",
     "edits": [
       {
         "file": "tools/chat/session.mjs",
-        "from": "  if (held.length !== 1) {\n    return null;\n  }",
-        "to": "  if (held.length === 0) {\n    return null;\n  }"
+        "from": "  const size = named[ranOn]?.contextWindow;",
+        "to": "  const size = Object.values(named)[0]?.contextWindow;"
       }
     ]
   },
@@ -289,8 +289,8 @@
     "edits": [
       {
         "file": "tools/chat/session.mjs",
-        "from": "  const held = Object.values(named);\n  if (held.length !== 1) {",
-        "to": "  const held = Object.values(named);\n  if (held.length === 0) {\n    return 200_000;\n  }\n  if (held.length !== 1) {"
+        "from": "  const size = named[ranOn]?.contextWindow;",
+        "to": "  if (Object.keys(named).length === 0) {\n    return 200_000;\n  }\n  const size = named[ranOn]?.contextWindow;"
       }
     ]
   },
@@ -445,6 +445,28 @@
         "file": "tools/chat/server.mjs",
         "from": "    if (watch !== null) {\n      clearInterval(watch);\n    }\n    forgetTheRoom();",
         "to": "    forgetTheRoom();"
+      }
+    ]
+  },
+  {
+    "name": "the window is taken off whatever single model the frame named",
+    "catches": "says nothing about the share when the frame named no model the run was on",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "  const size = named[ranOn]?.contextWindow;",
+        "to": "  const size = Object.values(named).at(-1)?.contextWindow;"
+      }
+    ]
+  },
+  {
+    "name": "the window is looked up by the model the workspace asked for",
+    "catches": "reads the window off the model the run said it was on, whatever it is called",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "      resolve(interpret(answer, err, limit, reading, ranOn));",
+        "to": "      resolve(interpret(answer, err, limit, reading, model(instance, name)));"
       }
     ]
   },

@@ -543,9 +543,14 @@ the model last saw it, and the turn after it opens there.
 The room below says that reading again as a share of the window it is sent in, which is the unit
 that means the same thing on every model. It needs no table of what each model can hold, because
 nobody here keeps one: the frame says what the model it answered on holds, on the run that was
-already being read. A run answers on one model, so when the frame names exactly one that is the
-one it ran on — whatever the service calls it and whatever the workspace asked for. No name of
-ours is ever compared against a name of theirs.
+already being read. A run says which model it is having its turn on as it opens, and the frame
+keys that model's own entry under those same words, so the share is read off the run's model
+whatever the service calls it and whatever the workspace asked for. No name of ours is ever
+compared against a name of theirs.
+
+It matters that it is the run's own and not the only one: a turn can be answered beside by a model
+nobody here asked for — Claude Code calls a helper of its own on the first turn of a thread — and
+the window of that helper is a number about somebody else's work.
 
 ### The room
 
@@ -880,7 +885,9 @@ the service hands it over on the run that was already being read.
 A share and not a size, because a size cannot be judged without knowing what it is a size of. The
 same reading in tokens has to pick one window to be a judgment about, and it is then wrong on every
 other: a line drawn for a long window can never be crossed inside a short one, so on a workspace
-sending 200,000 the block would never appear anywhere and nothing would say so. A reading that is
+sending 200,000 the block would never appear anywhere and nothing would say so, and on the
+1,000,000 the same service reports for its larger models a line drawn at 300,000 calls a
+conversation big with seven tenths of its room still free. A reading that is
 dead everywhere it is installed is not a conservative reading, it is an absent one. A share is true
 on both.
 
@@ -894,11 +901,11 @@ disagreement about a fact. And being big is not a state a session is in: it is n
 answering, waiting or cold, so it cannot be an entry in the table the room's states are counted
 from.
 
-**Where there is no window there is no share.** A frame that named no model, or named two, is one
-this cannot read: a run answers on one model, so two names say it answered on one of them without
-saying which, and picking one would be a guess dressed as a measurement. Nothing is not a default
-either — the row then says the tokens alone, exactly as it did before any of this, and the block
-does not name that session at all.
+**Where there is no window there is no share.** A frame that named no model, or named none that
+this run said it was on, is one this cannot read: the window of a model the turn was not had on is
+a reading about another conversation, and taking it would be a guess dressed as a measurement.
+Nothing is not a default either — the row then says the tokens alone, exactly as it did before any
+of this, and the block does not name that session at all.
 
 **The lead is in its own list**, first and in the second person, deliberately. It is usually the
 largest conversation in the workspace, it is the only one that cannot press its own button, and it

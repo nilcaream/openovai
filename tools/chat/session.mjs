@@ -233,10 +233,12 @@ export function hasGoneQuiet(root, name) {
 //
 // A SHARE AND NOT A SIZE, and that is the whole of what this replaces. There was one line here and
 // it was 300,000 tokens — a judgment about a LONG context window, written for workspaces that run
-// on one. The only window anybody has ever measured on a real run is 200,000, and a conversation
-// cannot grow past the window it is sent in, so on every configuration that has been observed that
-// line could never be crossed: the reading was not conservative, it was absent, and nothing said
-// so. A share is true on both windows and needs no paragraph explaining when it is inert.
+// on one. Two windows have now been measured on real runs, 200,000 and 1,000,000, and a
+// conversation cannot grow past the window it is sent in: on the first that line could never be
+// crossed at all, so the reading was not conservative but absent and nothing said so, and on the
+// second it fires with seven tenths of the room still free. One number is wrong in both directions
+// depending on where it is installed. A share is true on either and needs no paragraph explaining
+// when it is inert.
 //
 // FOUR NUMBERS SOMEBODY DECIDED. Every one of these is a JUDGMENT — unlike COLD_AFTER above, which
 // is an hour because a cache lives an hour. Nothing here measured where eighty per cent is; what
@@ -807,6 +809,10 @@ function run(instance, name, text, resume, asked) {
 
     let answer = null;
     let limit = null;
+    // Which model this run is having its turn on, in the service's own words. The run says it as it
+    // opens and the same words key its own entry in the usage the result frame reports, so the two
+    // sides of that lookup are both theirs — see windowAfter below, which is the only reader of it.
+    let ranOn = null;
     // What the service last said about the account, whatever it said — kept apart from `limit`
     // above on purpose. `limit` is a refusal or it is nothing, and it is what decides how the run
     // ENDED; this is a reading and decides nothing. Two locals rather than one object serving both,
@@ -839,6 +845,13 @@ function run(instance, name, text, resume, asked) {
             limit = frame.rate_limit_info;
             leave(child);
           }
+          return;
+        }
+        // Which model this run is on, said on the frame it opens with. Only a frame that NAMES one
+        // counts, so the notices a run sends afterwards — which carry no model — cannot unsay it,
+        // and if a run ever named a second the later word is the one it went on answering under.
+        if (frame.type === "system" && typeof frame.model === "string") {
+          ranOn = frame.model;
           return;
         }
         if (frame.type !== "result" || answer !== null) {
@@ -876,7 +889,7 @@ function run(instance, name, text, resume, asked) {
         resolve({ failed: true, refused: null, ended: true, text: ENDED_BY_HAND });
         return;
       }
-      resolve(interpret(answer, err, limit, reading));
+      resolve(interpret(answer, err, limit, reading, ranOn));
     });
 
     child.stdin.write(question(text));
@@ -950,7 +963,7 @@ function windowsIn(reading) {
 // whole of what keeps a gauge from becoming a verdict: an ordinary run is told "allowed" and can be
 // turned away moments later, and a function that saw both would have to choose which to believe.
 // The signature is the guard. There is a check that goes red if this is ever widened.
-function interpret(answer, err, limit = null, reading = null) {
+function interpret(answer, err, limit = null, reading = null, ranOn = null) {
   const refused = turnedAway(answer, limit);
   // No result frame at all: the run was stopped, or it fell over before it could answer. Whatever
   // it has to say about that is on stderr, which is the only stream carrying prose — measured:
@@ -995,7 +1008,7 @@ function interpret(answer, err, limit = null, reading = null) {
     // are two facts off one frame, and either can arrive without the other — a frame that named no
     // model still says a size, and a run that reported no usage at all still says what the model
     // holds. One field carrying both would have to decide what to do when half of it is missing.
-    window: windowAfter(answer),
+    window: windowAfter(answer, ranOn),
   };
 }
 
@@ -1025,33 +1038,35 @@ function contextAfter(answer) {
 
 // How much the model this run answered on can hold, off the same frame, in the same tokens.
 //
-// NOT LOOKED UP BY NAME, and that is the whole of the design. A run answers on ONE model, so if the
-// frame names exactly one, that is the one it ran on — whatever the service calls it and whatever
-// the workspace passed to --model. Comparing a key of ours against a key of theirs is what makes a
-// lookup that can fail silent: the workspace passes an alias, the frame answers under a resolved
-// id, nothing matches, and the share is never seen anywhere with nothing saying so. Here there is
-// no key of ours to compare, so that failure is unreachable rather than guarded against.
+// LOOKED UP BY THE MODEL THE RUN SAID IT WAS ON, and never by a name of ours. A run says which
+// model it is having its turn on as it opens, and the usage on the result frame keys that model's
+// entry under those same words, so both sides of this lookup come from the run: the workspace can
+// pass an alias, the service can answer under a resolved id, and they still meet. Comparing a key
+// of ours against a key of theirs is the lookup that fails silent — nothing matches, and the share
+// is never seen anywhere with nothing saying so — and there is no key of ours here to compare.
 //
-// It is why more than one entry is nothing rather than the first. A frame naming two models is a
-// frame this rule cannot read: it says a run answered on one of them and does not say which, and
-// picking one would be a guess dressed as a measurement. Nothing at all is the honest answer, and
-// it costs exactly what §the row already pays when the service says nothing — today's behaviour.
+// It used to be "exactly one entry, take it", on the reasoning that a run answers on one model.
+// A run does; the frame does not only report the run. Measured on 2.1.263: the first turn of a
+// thread names a background helper Claude Code called on its own account BESIDE the model the run
+// was given, two entries, so nothing was read — and the first turn of every session, which is
+// every cold start and every handover, showed no share while saying nothing about why. The entry
+// beside it belongs to somebody else's work and is not what this conversation is being held in.
+//
+// So a frame naming several is read, and a frame naming none of them the run's is not: models
+// answered, and the window of a model this turn was not had on is a number about another
+// conversation. Nothing at all is the honest answer there, and it costs exactly what the row
+// already pays when the service says nothing — today's behaviour.
 //
 // And why nothing is not a default. A window nobody was told about is not the last one anybody
-// measured. The one real number recorded anywhere here is 200,000, off one run on one model, and
-// writing it in as a fallback would make every workspace on every other model read its share off
-// that measurement — a share that is confidently wrong everywhere it fires, which is worse than a
-// row that says nothing.
-function windowAfter(answer) {
+// measured. Writing a measured number in as a fallback would make every workspace on every other
+// model read its share off that one run — a share that is confidently wrong everywhere it fires,
+// which is worse than a row that says nothing.
+function windowAfter(answer, ranOn) {
   const named = answer.modelUsage;
   if (named === null || typeof named !== "object") {
     return null;
   }
-  const held = Object.values(named);
-  if (held.length !== 1) {
-    return null;
-  }
-  const size = held[0]?.contextWindow;
+  const size = named[ranOn]?.contextWindow;
   return typeof size === "number" && size > 0 ? size : null;
 }
 

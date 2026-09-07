@@ -9998,6 +9998,7 @@ const NO_MODEL_NAMED = "Wheatear";
 const TWO_MODELS = "Whinchat";
 const NOT_A_NUMBER = "Fieldfare";
 const A_RESOLVED_ID = "Stonechat";
+const NOT_THE_RUNS_MODEL = "Firecrest";
 
 // The sizes a turn reports, and they differ so that where the thread ENDED and what the turn ADDED
 // UP TO cannot be the same number. Both are past the line, so a reader that took the wrong one
@@ -10016,6 +10017,15 @@ const UNDER_THE_LINE = 4000;
 // a real measurement is one a fallback could be written to and nothing would notice.
 const WINDOW_HELD = 450_000;
 const SHARE_HELD = `${Math.round((CARRYING / WINDOW_HELD) * 100)}% of its window`;
+
+// What a model that answered BESIDE this run holds, for the frame a real first turn sends: Claude
+// Code calls a helper of its own on a new thread and accounts for it in the same map, first. It is
+// deliberately nothing like the window above, so a reader that took the wrong entry says a share
+// nobody could mistake for the right one — and deliberately not 200,000 either, which is what that
+// helper really holds: a fixture sharing a number with a real measurement is a fixture a fallback
+// could be written to.
+const WINDOW_BESIDE_IT = 120_000;
+const SHARE_BESIDE_IT = `${Math.round((CARRYING / WINDOW_BESIDE_IT) * 100)}% of its window`;
 
 // The <size> block alone, cut out by hand — for usageBlock()'s reason, word for word. Two other
 // blocks open with the same sentence about who is speaking, and by the time this runs both are
@@ -10066,6 +10076,7 @@ describe("what the lead is told about a conversation that has grown big", () => 
     runTool(instance, ["hire", TWO_MODELS], process.env);
     runTool(instance, ["hire", NOT_A_NUMBER], process.env);
     runTool(instance, ["hire", A_RESOLVED_ID], process.env);
+    runTool(instance, ["hire", NOT_THE_RUNS_MODEL], process.env);
 
     // Nobody over the line. The state that makes the check below mean anything, and it has to come
     // first: everything after this leaves conversations in this instance that are genuinely big.
@@ -10132,18 +10143,35 @@ describe("what the lead is told about a conversation that has grown big", () => 
     assert.ok(await waitForHealth(URL), "the server never came back with an empty modelUsage");
     await say("a turn as big as the others, on a frame that named no model", NO_MODEL_NAMED);
 
-    // And a frame naming two. A run answers on ONE model, so a frame naming two says a run answered
-    // on one of them and does not say which — and taking the first is a guess dressed as a
-    // measurement.
+    // And the frame a real first turn sends: TWO models, the run's own and a helper Claude Code
+    // called on its own account, that one first. Measured on 2.1.263 and reproduced on both models
+    // a workspace here would use, so it is the commonest frame there is — every thread's first
+    // turn, which is every cold start and every handover. The run said which of the two it was on
+    // when it opened, so this is read, and read off the run's own and not off the first.
     await start(
       instance,
       standInEnvironment(standIn, sizeLog, {
         OPENOVAI_STAND_IN_USAGE: GREW.join(","),
-        OPENOVAI_STAND_IN_WINDOW: `${WINDOW_HELD},${WINDOW_HELD * 2}`,
+        OPENOVAI_STAND_IN_WINDOW: `${WINDOW_BESIDE_IT},${WINDOW_HELD}`,
       }),
     );
     assert.ok(await waitForHealth(URL), "the server never came back with two models");
     await say("a turn as big as the others, on a frame naming two models", TWO_MODELS);
+
+    // And a frame naming a model the run never said it was on. Models answered and the map is
+    // perfectly good; none of it is about the conversation this turn belongs to. Nothing may be
+    // read off it, and this is the fixture that says so — without it, a reader that took whatever
+    // single entry it found would pass everything above.
+    await start(
+      instance,
+      standInEnvironment(standIn, sizeLog, {
+        OPENOVAI_STAND_IN_USAGE: GREW.join(","),
+        OPENOVAI_STAND_IN_WINDOW: String(WINDOW_HELD),
+        OPENOVAI_STAND_IN_WINDOW_KEY: "a-model-this-run-never-said-it-was-on",
+      }),
+    );
+    assert.ok(await waitForHealth(URL), "the server never came back with a model nobody ran on");
+    await say("a turn as big as the others, on a frame naming somebody else's model", NOT_THE_RUNS_MODEL);
 
     // And a frame naming exactly one model whose window is not a number. The last way the reading
     // can fail, and the only one that reaches the end of the rule rather than bailing before it:
@@ -10160,16 +10188,17 @@ describe("what the lead is told about a conversation that has grown big", () => 
     assert.ok(await waitForHealth(URL), "the server never came back with a window that is not a number");
     await say("a turn as big as the others, on a frame holding no size at all", NOT_A_NUMBER);
 
-    // The one that proves the lookup is not by name: the frame answers under an id that is NOT what
-    // the workspace passed to --model, which is what a service resolving an alias does. The window
-    // is read all the same, because the rule is "exactly one entry, take its window" and no key of
-    // ours is ever compared against a key of theirs.
+    // The one that proves the lookup is not by the name the workspace passed: the run opens under
+    // an id that is NOT what went to --model, which is what a service resolving an alias does, and
+    // its usage map is keyed under that same id. The window is read all the same, because the two
+    // sides of the lookup are both the run's own words and no key of ours is compared against a key
+    // of theirs.
     await start(
       instance,
       standInEnvironment(standIn, sizeLog, {
         OPENOVAI_STAND_IN_USAGE: GREW.join(","),
         OPENOVAI_STAND_IN_WINDOW: String(WINDOW_HELD),
-        OPENOVAI_STAND_IN_WINDOW_KEY: "some-resolved-id-nobody-here-passed",
+        OPENOVAI_STAND_IN_MODEL_ID: "some-resolved-id-nobody-here-passed",
       }),
     );
     assert.ok(await waitForHealth(URL), "the server never came back with a resolved id");
@@ -10250,22 +10279,40 @@ describe("what the lead is told about a conversation that has grown big", () => 
     assert.doesNotMatch(sizeBlock(toldWithEveryWindowShape), new RegExp(NOT_A_NUMBER));
   });
 
-  // Mutation: take the first entry when the frame named more than one model. A run answers on ONE
-  // model, so a frame naming two says a run answered on one of them and does not say which —
-  // picking one is a guess dressed as a measurement.
-  it("says nothing about the window when the frame named more than one model", () => {
+  // Mutation: take the first entry the frame named, rather than the one the run said it was on.
+  //
+  // This is the check the feature was wrong on. The rule used to be "exactly one entry or nothing",
+  // on the reasoning that a run answers on one model — and a run does, but the frame does not only
+  // report the run. Measured on 2.1.263: the first turn of every thread names a background helper
+  // Claude Code called on its own account as well, so the frame carried two, nothing was read, and
+  // the first turn of every session — every cold start, every handover — showed no share at all
+  // while saying nothing about why. The run says which model it is on when it opens, in the
+  // service's own words, and that is the entry this reads.
+  it("reads the window off the model the run answered on, whatever answered beside it", () => {
     assert.match(toldWithEveryWindowShape, /<size>/, "there was no block to look in");
-    assert.doesNotMatch(sizeBlock(toldWithEveryWindowShape), new RegExp(TWO_MODELS));
+    assert.match(
+      sizeBlock(toldWithEveryWindowShape),
+      new RegExp(`${TWO_MODELS} was carrying ${CARRYING.toLocaleString("en-US")} tokens, ${SHARE_HELD}`),
+    );
+    assert.doesNotMatch(sizeBlock(toldWithEveryWindowShape), new RegExp(SHARE_BESIDE_IT));
+  });
+
+  // Mutation: take the last entry, or any single entry, rather than the run's own. The other half
+  // of the rule above: models answered, none of them is the one this turn is being had on, and a
+  // window read off one of them would be a number about somebody else's conversation.
+  it("says nothing about the share when the frame named no model the run was on", () => {
+    assert.match(toldWithEveryWindowShape, /<size>/, "there was no block to look in");
+    assert.doesNotMatch(sizeBlock(toldWithEveryWindowShape), new RegExp(NOT_THE_RUNS_MODEL));
   });
 
   // Mutation: look the window up by the model the workspace passed to --model.
   //
-  // The failure that would cause is the one this whole rule is shaped to make unreachable: the
+  // The failure that would cause is the one the shape of this rule is chosen to avoid: the
   // workspace asks for an alias, the service answers under a resolved id, nothing matches, and the
-  // share is never seen anywhere with nothing saying so. Here the frame answers under an id nobody
-  // here passed and the window is read all the same, because the rule is "exactly one entry, take
-  // its window" and no key of ours is compared against a key of theirs.
-  it("reads the window off the one model the frame named, whatever it is called", () => {
+  // share is never seen anywhere with nothing saying so. Here the run opens under an id nobody here
+  // passed and answers under that same id, and the window is read all the same: both sides of the
+  // lookup are the run's own words, and no key of ours is ever compared against a key of theirs.
+  it("reads the window off the model the run said it was on, whatever it is called", () => {
     assert.match(toldWithEveryWindowShape, /<size>/, "there was no block to look in");
     assert.match(
       sizeBlock(toldWithEveryWindowShape),

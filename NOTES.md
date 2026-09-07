@@ -115,15 +115,17 @@ are, so this is what a workspace installed from this version tells its lead.
 cent.** They are four numbers somebody decided. What is measured is the denominator, and the frame
 that carries the answer already says what the model it answered on can hold — so there is no table
 of models for anybody to keep true, and no name of ours is compared against a name of theirs. A run
-answers on one model, so a frame naming exactly one names the model it ran on.
+says which model it is having its turn on as it opens, and the frame keys that model's own entry
+under those same words.
 
 A size in tokens could not do this. It has to be a judgment about one window and is then wrong on
 every other, and the way it is wrong is silent: a line drawn for a long window cannot be crossed
 inside a short one, so on a workspace sending 200,000 the block would never appear anywhere and
-nothing would say so. A reading that is dead everywhere it is installed is not conservative, it is
-absent. Where the frame names no window — or names two, which says a run answered on one of them
-without saying which — there is no share, the row says the tokens alone as it always did, and the
-block does not name that session.
+nothing would say so — and on the 1,000,000 the same service reports for its larger models, a line
+drawn at 300,000 calls a conversation big with seven tenths of its room still free. A reading that is dead everywhere it is installed is not conservative, it is
+absent. Where the frame names no window — or names no model this run said it was on, which happens
+when a turn is answered only beside, by a helper the service called on its own account — there is
+no share, the row says the tokens alone as it always did, and the block does not name that session.
 
 **Every five minutes the chat reads its own room, and on a crossing worth a turn it gives the lead
 one.** It is the first timer in the toolkit and there is one case that earns it: the lead nobody has

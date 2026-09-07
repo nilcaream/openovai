@@ -137,14 +137,22 @@ export function claudeIsInstalled() {
 //                             reading has to be able to tell those two apart, so the sizes differ
 //                             and each is split across the three fields a context is made of
 //   OPENOVAI_STAND_IN_WINDOW        "n,n,…" — how much each model the frame names can hold, reported
-//                             the way the real one reports it: a `modelUsage` map whose FIRST key is
-//                             the model this run was actually given on its command line, so a check
-//                             sees a real key and not a fixture's. Unset means no `modelUsage` at
-//                             all, which is what the frame carries today; set and empty means a
-//                             `modelUsage` that named nothing, which is a different fact; a second
-//                             number means a frame naming two models, which is the case nothing may
-//                             be read off. An entry that is not a number arrives as JSON null, which
-//                             is how a check reaches a window the service named without a size
+//                             the way the real one reports it: a `modelUsage` map whose LAST key is
+//                             the model this run answered on, and every key before it a model that
+//                             answered beside it, so a check sees a real key and not a fixture's.
+//                             That order is measured rather than invented: on 2.1.263 the first
+//                             turn of a thread names a background helper of Claude Code's own
+//                             FIRST and the model the run was given after it. Unset means no
+//                             `modelUsage` at all, which is what the frame carried before any of
+//                             this; set and empty means a `modelUsage` that named nothing, which is
+//                             a different fact. An entry that is not a number arrives as JSON null,
+//                             which is how a check reaches a window the service named without a size
+//   OPENOVAI_STAND_IN_MODEL_ID      what the run says it is on when it opens, in the service's own
+//                             words rather than the workspace's — what a service that resolves an
+//                             alias answers under  (default: whatever was passed to --model)
+//   OPENOVAI_STAND_IN_WINDOW_KEY    what the usage map keys the run's own entry under, for a check
+//                             that needs it to differ from what the run said it was on
+//                             (default: what the run said it was on)
 //   OPENOVAI_STAND_IN_SIGNED_IN     what `auth status` reports     (default: true)
 //   OPENOVAI_STAND_IN_LOGIN_STATUS  what `auth login` exits with   (default: 0)
 // It is plain ESM, like everything else here. A command on the PATH is named the way it is
@@ -486,6 +494,21 @@ if ((process.env.OPENOVAI_STAND_IN_STUCK ?? "") !== "") {
   await new Promise(() => {});
 }
 
+// What this run is on, said as the run opens, in the service's own words. Measured on 2.1.263: a
+// run given \`sonnet\` opens under \`claude-sonnet-5\`, and that is the key its usage map uses for
+// the run's own entry — so the model a run answered on is a thing the run itself says twice, and
+// never a thing the caller has to recognise from the outside.
+//
+// After the branches that end without answering and before every frame that says anything about
+// this turn, which is where the real one puts it.
+const ranOn = process.env.OPENOVAI_STAND_IN_MODEL_ID || argv[argv.indexOf("--model") + 1] || "a-model";
+frame({
+  type: "system",
+  subtype: "init",
+  session_id: process.env.OPENOVAI_STAND_IN_SESSION ?? "test-thread",
+  model: ranOn,
+});
+
 // Said from inside this turn, with the instance's own command, from the directory a session is
 // started in. A timeout, because the thing being checked is sometimes whether this returns at all.
 const me = process.env.OPENOVAI_SESSION_NAME ?? "";
@@ -580,24 +603,37 @@ const usage =
       };
 
 // What each model the frame names can hold, keyed the way the real one keys it — by the model, not
-// by anything the workspace passed. The first key is the model THIS run was given on its command
-// line, read back off argv rather than written down here, so a check about reading the window off
-// the one model a frame named is looking at a real key.
+// by anything the workspace passed. The LAST key is the model this run said it was on when it
+// opened, so a check about reading the window off the model a run answered on is looking at a real
+// key; every key before it is a model that answered beside it on the same turn.
+//
+// That order is the measured one and it matters. On 2.1.263 the first turn of a thread is answered
+// by two models — a background helper Claude Code calls on its own account, named FIRST, and the
+// model the run was given after it — so a fixture that put the run's own model first would let a
+// reader that takes the first entry pass everything here and be wrong on every real first turn.
+//
+// The key can be made to differ from what the run said it was on, which is the frame no window may
+// be read off: models answered, and none of them is the one this run is having its turn on.
 //
 // The absence of the variable and an empty value are different frames on purpose. Unset is the
 // frame as it has always been, carrying no \`modelUsage\` at all; set and empty is a frame that
 // named no model, which is a service that answered "nothing" rather than one that never spoke.
 // \`in\` and not \`??\`, because an empty string is exactly the case the two would collapse.
-const ranOn = process.env.OPENOVAI_STAND_IN_WINDOW_KEY || argv[argv.indexOf("--model") + 1] || "a-model";
-const held = "OPENOVAI_STAND_IN_WINDOW" in process.env
-  ? {
-      modelUsage: Object.fromEntries(
-        process.env.OPENOVAI_STAND_IN_WINDOW.split(",")
-          .filter(Boolean)
-          .map((size, at) => [at === 0 ? ranOn : \`another-model-\${at}\`, { contextWindow: Number(size) }]),
-      ),
-    }
-  : {};
+const keyedUnder = process.env.OPENOVAI_STAND_IN_WINDOW_KEY || ranOn;
+const windows = "OPENOVAI_STAND_IN_WINDOW" in process.env
+  ? process.env.OPENOVAI_STAND_IN_WINDOW.split(",").filter(Boolean)
+  : null;
+const held =
+  windows === null
+    ? {}
+    : {
+        modelUsage: Object.fromEntries(
+          windows.map((size, at) => [
+            at === windows.length - 1 ? keyedUnder : \`a-model-answering-beside-it-\${at + 1}\`,
+            { contextWindow: Number(size) },
+          ]),
+        ),
+      };
 
 frame({
   type: "result",
