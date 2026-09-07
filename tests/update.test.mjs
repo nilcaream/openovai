@@ -15,6 +15,7 @@ import { after, before, describe, it } from "node:test";
 
 import { installed, remove, repo, runToolLater, scratch, serveRelease, waitFor } from "./helpers.mjs";
 import { RELEASES } from "../tools/release.mjs";
+import { isOlderThan } from "../tools/version.mjs";
 
 const HUMAN = "Mike";
 const LEADER = "Superman";
@@ -276,6 +277,43 @@ describe("what an update refuses", () => {
   // would notice from the outside.
   it("looks at the releases of the toolkit itself when it is not told where", () => {
     assert.equal(RELEASES, "https://api.github.com/repos/nilcaream/openovai/releases/latest");
+  });
+});
+
+// Which of two versions is the earlier one, asked of the versions themselves rather than through
+// an instance. It is about digits and there is nothing to install to say so: 0.10.0 comes after
+// 0.5.0 and reads as coming before it the moment the two are compared as words, and an instance
+// installed to prove that would have to be installed at a version this repository is not on.
+describe("which version is older", () => {
+  it("compares the numbers rather than the words", () => {
+    const answered = [
+      ["0.4.9", "0.5.0"],
+      ["0.5.0", "0.5.0"],
+      ["0.5.1", "0.5.0"],
+      ["0.10.0", "0.5.0"],
+      ["0.5.0", "0.10.0"],
+      ["1.0", "0.99.99"],
+      ["0.5", "0.5.0"],
+      ["0.5.0", "0.5"],
+    ].map(([candidate, installed_]) => isOlderThan(candidate, installed_));
+
+    assert.deepEqual(answered, [true, false, false, false, true, false, false, false]);
+  });
+
+  // A refusal has to be certain of what it is refusing. Nothing that is not a row of numbers can
+  // be placed before or after anything, and an instance made before the toolkit carried a version
+  // has nothing to be placed after at all — so neither is called older, and an update carrying
+  // one of them goes on as it always did rather than being stopped by a comparison nobody made.
+  it("calls nothing older that it cannot place", () => {
+    const answered = [
+      ["0.5.0", null],
+      [null, "0.5.0"],
+      ["0.5.0", "dev"],
+      ["dev", "0.5.0"],
+      ["0.5.0-rc1", "0.5.0"],
+    ].map(([candidate, installed_]) => isOlderThan(candidate, installed_));
+
+    assert.deepEqual(answered, [false, false, false, false, false]);
   });
 });
 

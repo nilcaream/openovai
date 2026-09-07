@@ -1,0 +1,68 @@
+[
+  {
+    "name": "the numbers of a version are compared as words",
+    "catches": "compares the numbers rather than the words",
+    "edits": [
+      {
+        "file": "tools/version.mjs",
+        "from": ".split(\".\").map(Number);",
+        "to": ".split(\".\").map(String);"
+      }
+    ]
+  },
+  {
+    "name": "the earlier version is the larger number",
+    "catches": "compares the numbers rather than the words",
+    "edits": [
+      {
+        "file": "tools/version.mjs",
+        "from": "      return mine < theirs;",
+        "to": "      return mine > theirs;"
+      }
+    ]
+  },
+  {
+    "name": "a version written with fewer numbers is earlier than the same version written with more",
+    "catches": "compares the numbers rather than the words",
+    "edits": [
+      {
+        "file": "tools/version.mjs",
+        "from": "    const mine = one[at] ?? 0;",
+        "to": "    const mine = one[at] ?? -1;"
+      }
+    ]
+  },
+  {
+    "name": "a version written with more numbers is later than the same version written with fewer",
+    "catches": "compares the numbers rather than the words",
+    "edits": [
+      {
+        "file": "tools/version.mjs",
+        "from": "    const theirs = other[at] ?? 0;",
+        "to": "    const theirs = other[at] ?? 99;"
+      }
+    ]
+  },
+  {
+    "name": "a candidate that is not a row of numbers is placed anyway",
+    "catches": "calls nothing older that it cannot place",
+    "edits": [
+      {
+        "file": "tools/version.mjs",
+        "from": "  if (one === null || other === null) {",
+        "to": "  if (other === null) {"
+      }
+    ]
+  },
+  {
+    "name": "an instance with no version to compare with is placed anyway",
+    "catches": "calls nothing older that it cannot place",
+    "edits": [
+      {
+        "file": "tools/version.mjs",
+        "from": "  if (one === null || other === null) {",
+        "to": "  if (one === null) {"
+      }
+    ]
+  }
+]
