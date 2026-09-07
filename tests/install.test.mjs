@@ -521,17 +521,21 @@ describe("what the installer made", () => {
   // the day something WAS handed over unasked, the sentence forbidding it could have been left
   // standing beside the thing that made it false, and no check would have said a word. This is
   // that sentence getting the check it was believed to have.
-  it("tells the leader a room it did not ask for is not handed to it, and names both exceptions", () => {
+  it("tells the leader a room it did not ask for is not handed to it, and names every exception", () => {
     const persona = contentOf("personas", `${LEADER}.md`);
     assert.match(persona, /The room is not handed to you unasked/);
-    assert.match(persona, /Two things are handed to you without your asking/);
+    assert.match(persona, /Three things are handed to you without your asking/);
     assert.match(persona, /who has stopped/);
+    assert.match(persona, /how big the conversations here have grown/);
     assert.match(persona, /where the account's usage window stands/);
-    // And what that second one can actually ask for, which is the whole workspace stopped and every
+    // And what the last of them can actually ask for, which is the whole workspace stopped and every
     // conversation in it ended. A persona that named the reading without naming what it says would
     // leave the lead reading an instruction it had been told nothing about.
     assert.match(persona, /tell you to stop the tasks and put everybody down/);
-    assert.match(persona, /It is advice and not a rule the toolkit\s+keeps/);
+    assert.match(persona, /Each of the three is advice and not a\s+rule the toolkit keeps/);
+    // And what the middle one can ask for, which is a person being sent to a panel — so the persona
+    // has to say that pressing it is not the lead's, or it would read as something it could do.
+    assert.match(persona, /You cannot hand a session over/);
   });
 
   it("tells the leader which one field of its header is read by anybody else", () => {

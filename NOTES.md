@@ -107,7 +107,9 @@ is big — the whole of this is one block of text on one session's turn, and **H
 always was, beside the composer. So the lead is told to say which panel and why, its own included.
 The block says nothing at all while every conversation here is under the line, and it stops by being
 acted on: handing a session over takes the reading with the thread, so there is nothing to clear and
-nothing here remembers having said it.
+nothing here remembers having said it. Your lead is told that much in its own instructions, and told
+plainly that it cannot press the button itself. An update leaves the personas it finds where they
+are, so this is what a workspace installed from this version tells its lead.
 
 **The line is 300,000 tokens, and it is a judgment about a long context window.** It is the size at
 which answers measurably degrade on the windows the workspaces this was built for run on. On a
