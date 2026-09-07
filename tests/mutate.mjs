@@ -39,7 +39,14 @@ const CHECK_TIMEOUT = 30_000;
 // measured baseline (below), never a constant: a number chosen when the suite took two minutes is
 // meaningless once it takes five.
 const BOUND_MULTIPLE = 3;
-const BOUND_FLOOR = 120_000;
+
+// The floor under it, which is also the only bound the first baseline can have — nothing has been
+// measured yet when it starts. It is a net and not a stopwatch, so it is set far above anything a
+// suite here plausibly takes: a floor sitting near the suite's own running time turns every minute
+// the suite grows by into "the baseline did not finish", which is a refusal to report that reads
+// like a broken tree. Measured 2026-09-07: the chat suite ran green in 121s against a 120s floor,
+// and the sweep refused rather than saying so.
+const BOUND_FLOOR = 600_000;
 
 function usage() {
   return `node tests/mutate.mjs <mutations.json> [options]
