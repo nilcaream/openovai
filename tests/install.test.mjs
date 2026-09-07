@@ -354,6 +354,16 @@ describe("what the installer made", () => {
     );
   });
 
+  // The block is pushed into a turn; the template is what a lead is running when it reads it. An
+  // update ships new templates and re-renders nobody's persona, so the three things a lead got
+  // wrong on a real instance have to be in both or a lead hired today reads only half of them.
+  it("tells the leader that a trip only counts when the call stops", () => {
+    const leader = contentOf("templates", "leader.md");
+    assert.match(leader, /only counts when it stops/);
+    assert.match(leader, /allows commands but names none/);
+    assert.match(leader, /never what they said/);
+  });
+
   // The room is the third of them, and the only one the lead alone is offered. Watched here as
   // well as on the endpoint: what the instance grants and what the persona names have to move
   // together, or a lead is told to ask for something nothing will serve it.

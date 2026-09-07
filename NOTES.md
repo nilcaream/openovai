@@ -43,8 +43,10 @@ no menu, and nothing reads your answer or turns it into a setting — say *never
 *never write outside `work/`*, or *no restrictions*, or *ask me every time*, however you would say
 it. Then, if what you said allows anything, your lead goes and makes the calls it permits, one at a
 time, so that each one stops on a panel and you settle it there while you are still thinking about
-the workspace. **Not now is a whole answer**: nothing is tripped, nothing is granted, and the
-workspace is exactly as capable as it was.
+the workspace. Not everything it reaches for stops — read-only work is settled by the frame itself
+— and when a call goes straight through your lead says so rather than counting it settled. **Not
+now is a whole answer**: nothing is tripped, nothing is granted, and the workspace is exactly as
+capable as it was.
 
 It is asked once and then it is gone, because it stops the moment either half of what it fires on
 stops being true — the first turn, or the first thing granted. One consequence is worth knowing

@@ -672,5 +672,49 @@
         "to": "  const behind = said.filter((line) => line.startsWith(\"<permissions>\"));\n  return [withWhatWasOverheard(said.filter((line) => !line.startsWith(\"<permissions>\")), message), ...behind].join(\"\\n\\n\");"
       }
     ]
+  },
+  {
+    "name": "the question leaves out that a call which never parked settled nothing",
+    "catches": "says a trip only counts when the call actually stops",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    \"A TRIP ONLY COUNTS WHEN IT STOPS. The frame settles a great deal on its own — `git status` and `ls` read and return, and nothing parks — so a call that came back settled nothing, and the next one they meant to cover will stop exactly as it would have before. Reach for the form of their command that parks, watch for it on the panel, and when a call goes straight through say that it went through. Reporting a call that never parked as done tells them the question is answered while nothing has been granted, which is worse than not having asked.\",",
+        "to": "    \"\","
+      }
+    ]
+  },
+  {
+    "name": "the question says nothing about an answer that allows commands but names none",
+    "catches": "says what to do when the answer allows commands but names none",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    \"If their answer allows commands but names none — `no restrictions` is such an answer — ask which command they want tripped, or trip only the write. Improvising one is how a rule gets granted for a command nobody asked for, and that is the first line in a ledger nobody can account for.\",",
+        "to": "    \"\","
+      }
+    ]
+  },
+  {
+    "name": "the question leaves the lead to find something of its own to write",
+    "catches": "says the write it trips is inert and never the answer itself",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    \"The write is the trip and not the record. Put something inert at the path — a placeholder saying what the file is for — and never what they said: nothing here writes their answer down, and neither do you.\",",
+        "to": "    \"\","
+      }
+    ]
+  },
+  {
+    "name": "only the block is told what a trip has to do, and not the persona a lead runs",
+    "catches": "tells the leader that a trip only counts when the call stops",
+    "edits": [
+      {
+        "file": "templates/leader.md",
+        "from": "A trip only counts when it stops. Much of what you could run is settled by the frame itself — a\nstatus or a listing reads and returns, and nothing parks — so a call that came back granted nothing,\nand the call they meant to cover will stop exactly as it would have. Reach for the form of their\ncommand that parks, and when one goes straight through, say that it went through rather than\nreporting it settled. If their answer allows commands but names none, ask which one they want\ntripped, or trip only the write: a rule granted for a command nobody asked for is the first line in\na ledger nobody can account for. And the write is the trip, not the record — put something inert at\nthe path, never what they said, because nothing here writes their answer down and neither do you.",
+        "to": "A trip is a trip."
+      }
+    ]
   }
 ]

@@ -184,6 +184,15 @@ function deskWrapper(name) {
 // parsed, recorded or turned into a setting: every rule this workspace holds is still a press on a
 // panel and the line beside it saying who asked. The lead's part is to ask, and then to make the
 // calls the answer permits so that each one stops where a person can answer it.
+// WHAT A TRIP HAS TO DO, and not only what to trip. Read on two real instances before this was
+// written: told "you may run git", the lead ran `git status`, which the frame reads and lets
+// through — nothing parked, nothing was granted — and it reported the command settled. Told "no
+// restrictions" with no command named, it improvised `ls`, and the sentence forbidding exactly that
+// held only because `ls` never parks either. And needing something to write, it wrote the person's
+// own answer into a file, which is the one thing this feature says is recorded nowhere. None of the
+// three is a defect in the code: the code never saw a request in the first two, and it records
+// nothing in the third. They are three sentences the block did not say, so it says them.
+//
 function permissionsWrapper(instance, name) {
   if (name !== instance.config.leader) {
     return null;
@@ -203,6 +212,12 @@ function permissionsWrapper(instance, name) {
     `Nothing has run in this workspace yet and it has granted nothing beyond one desk each, so everything else a session reaches for will stop it mid-turn and wait on a panel. That is the right default, and it means ${instance.config.human} would otherwise find out what they are willing to allow one interruption at a time, over days, each one arriving in the middle of somebody else's work.`,
     `Ask them the one question that settles most of it, now, while they are thinking about this workspace rather than about whatever a session was doing when it stopped: what may be done at this root. Ask it open and offer no menu — an answer sounds like "never push anything", "never write outside work/", "no restrictions", "ask me every time" — and take it as they say it. Nothing here reads it, records it or turns it into a setting.`,
     "Then, if what they said allows anything at all, make the calls it permits, one at a time, so that each one stops and they can press Always allow on it while the question is still in their head. There are two shapes to trip and no others: a COMMAND they named, never one you chose, and a WRITE at the path their answer names — where they named a place, at the root itself where they said no restrictions, and under `.tmp/` at the root where they named nowhere in particular. Tripping somewhere narrower than they allowed asks them to grant less than they said yes to, which is the one thing this exists to prevent.",
+    "A TRIP ONLY COUNTS WHEN IT STOPS. The frame settles a great deal on its own — `git status` and `ls` read and return, and nothing parks — so a call that came back settled nothing, and the next one they meant to cover will stop exactly as it would have before. Reach for the form of their command that parks, watch for it on the panel, and when a call goes straight through say that it went through. Reporting a call that never parked as done tells them the question is answered while nothing has been granted, which is worse than not having asked.",
+
+    "If their answer allows commands but names none — `no restrictions` is such an answer — ask which command they want tripped, or trip only the write. Improvising one is how a rule gets granted for a command nobody asked for, and that is the first line in a ledger nobody can account for.",
+
+    "The write is the trip and not the record. Put something inert at the path — a placeholder saying what the file is for — and never what they said: nothing here writes their answer down, and neither do you.",
+
     "A write at the root offers them the widest rule there is, `Edit(**)`. Say so in the same breath rather than stepping around it: a rule at the root covers every per-desk rule this workspace hands out, so from that press onward the one-rule-per-desk narrowness is decorative. Not a refusal — a sentence, so that the press is an informed one.",
     "Not now is a whole answer. Then nothing is tripped and nothing is granted, and this workspace stays exactly as capable as it is today, which is the point of asking rather than presetting. Either way, grant nothing yourself: what a rule is worth here is that somebody read it and pressed it.",
     "</permissions>",

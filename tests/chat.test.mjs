@@ -4537,6 +4537,29 @@ describe("the question a workspace is asked on its first turn", () => {
     assert.ok((asked ?? "").includes("Edit(**)"), asked);
   });
 
+  // Measured on a real instance before this was written: told "you may run git", a lead tripped
+  // `git status`, which the frame reads and lets through, then reported the command settled. The
+  // person is left believing a question was answered while nothing was granted, and the next call
+  // they meant to cover stops exactly as it would have. So the block says what a trip has to do
+  // rather than only what to trip.
+  it("says a trip only counts when the call actually stops", () => {
+    assert.match(asked ?? "", /only counts when it stops/i);
+    assert.match(asked ?? "", /git status/);
+  });
+
+  // The same run: asked with no command named, the lead improvised one. The sentence forbidding
+  // that was already there and did not hold, because nothing told it what to do instead.
+  it("says what to do when the answer allows commands but names none", () => {
+    assert.match(asked ?? "", /allows commands but names none/);
+  });
+
+  // And the write it trips is a trip, not a record. A lead needing something to write reached for
+  // the person's own answer and put it in a file — the one thing this feature promises is written
+  // down nowhere.
+  it("says the write it trips is inert and never the answer itself", () => {
+    assert.match(asked ?? "", /never what they said/);
+  });
+
   it("says nothing to a session that is not the one that leads", () => {
     assert.ok(!(aWorker ?? "").includes("<permissions>"), aWorker);
   });
