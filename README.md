@@ -538,16 +538,22 @@ staying broken.
 Beside the model, each panel says how much of itself that conversation is carrying: how big it
 was at the end of its last turn, in tokens. It is a reading and not an estimate — it comes off
 the same frame the answer does, where the last request a turn made is the whole conversation as
-the model last saw it, and the turn after it opens there. It is not a share of anything, because
-a share would need a table of what each model can hold that somebody has to keep true.
+the model last saw it, and the turn after it opens there.
+
+The room below says that reading again as a share of the window it is sent in, which is the unit
+that means the same thing on every model. It needs no table of what each model can hold, because
+nobody here keeps one: the frame says what the model it answered on holds, on the run that was
+already being read. A run answers on one model, so when the frame names exactly one that is the
+one it ran on — whatever the service calls it and whatever the workspace asked for. No name of
+ours is ever compared against a name of theirs.
 
 ### The room
 
 Above the panels, one line per session, saying what would otherwise mean opening every panel and
 reading it:
 
-    Paul — worker (haiku) — reading the water meter — answering, 1 waiting · 24,479 tokens · last moved just now
-    Ann  — worker (haiku) — writing the install notes — needs you · 8,102 tokens · last moved 2m ago
+    Paul — worker (haiku) — reading the water meter — answering, 1 waiting · 24,479 tokens · 12% of its window · last moved just now
+    Ann  — worker (haiku) — writing the install notes — needs you · 8,102 tokens · 4% of its window · last moved 2m ago
     Ivy  — worker (haiku) — (has not said what it is on) — idle · nothing to carry on · nothing said yet
     Leo  — worker (haiku) — checking the meter reads — idle, last ran 40m ago · refused until 14:30 · five-hour window 96% full, read 2m ago · 12,004 tokens · last moved 2m ago
 
@@ -848,11 +854,11 @@ The third thing handed to the lead unasked, and the only one of the three that i
 conversation rather than an account.
 
 How much of itself every conversation here is carrying is already on every row and on every panel,
-with no opinion attached. Once one of them is past 300,000 tokens, the lead is also told so where
-its own turn begins:
+with no opinion attached. Once one of them has taken four fifths of the window it is sent in, the
+lead is also told so where its own turn begins:
 
-    you were carrying 318,207 tokens at the end of yours, and Ann was carrying 412,934 tokens at
-    the end of its last turn, read as this turn began at 14:07.
+    you were carrying 318,207 tokens, 84% of its window at the end of yours, and Ann was carrying
+    412,934 tokens, 92% of its window at the end of its last turn, read as this turn began at 14:07.
 
     A conversation that big is one where what is left has to be planned rather than simply
     carried on, and what survives it is what its desk says. Handing one over is Mike's to
@@ -866,23 +872,33 @@ number growing at twice the rate of the conversation, which is worse than none b
 an answer. Nothing new is read for this: the number was already being kept beside the thread id, for
 the row and the panel.
 
-**The line is a judgment and not a measurement**, and the code says so where it sits, beside the two
-about the usage window. It is a judgment about a *long* context window — the size at which answers
-measurably degrade on the windows the workspaces this was written for run on. A conversation cannot
-grow past the window it is sent in, so on a workspace whose model sends a shorter one — one has been
-measured at 200,000 — the block never appears at all. That is the right behaviour rather than a gap:
-there the window itself is the line, the conversation runs out of room before it runs out of
-judgment, and there is nothing this could usefully say first. A number picked low enough to fire
-there would be advice that is always early on the workspaces this exists for, and advice that is
-always early is what teaches a reader to stop reading the block.
+**The lines are judgments and not measurements**, and the code says so where they sit, beside the
+two about the usage window. There are four of them — four fifths of the window, and then 85, 90 and
+95 per cent — and they are four numbers somebody decided. What is *measured* is the denominator, and
+the service hands it over on the run that was already being read.
 
-**Why it is not on the row.** For the reason nothing else on the row carries a threshold: the number
-there is a fact for a person to judge, and a mark beside it would be this toolkit judging on a row
-everybody reads. It would also cost the two things the row is built to avoid. The room command and
-the page lay the same rows out in their own code — a duplication of *format* that somebody keeps
-true, and a duplicated *judgment* would drift silently and read as a disagreement about a fact. And
-being big is not a state a session is in: it is not exclusive with answering, waiting or cold, so it
-cannot be an entry in the table the room's states are counted from.
+A share and not a size, because a size cannot be judged without knowing what it is a size of. The
+same reading in tokens has to pick one window to be a judgment about, and it is then wrong on every
+other: a line drawn for a long window can never be crossed inside a short one, so on a workspace
+sending 200,000 the block would never appear anywhere and nothing would say so. A reading that is
+dead everywhere it is installed is not a conservative reading, it is an absent one. A share is true
+on both.
+
+**The share is on the row; the judgment is not.** The row says two readings — the tokens, and what
+share of the window they are — and nothing about what to do with either. No threshold, no colour and
+no word for too full. The number there is a fact for a person to judge, and a mark beside it would
+be this toolkit judging on a row everybody reads. It would also cost the two things the row is built
+to avoid. The room command and the page lay the same rows out in their own code — a duplication of
+*format* that somebody keeps true, and a duplicated *judgment* would drift silently and read as a
+disagreement about a fact. And being big is not a state a session is in: it is not exclusive with
+answering, waiting or cold, so it cannot be an entry in the table the room's states are counted
+from.
+
+**Where there is no window there is no share.** A frame that named no model, or named two, is one
+this cannot read: a run answers on one model, so two names say it answered on one of them without
+saying which, and picking one would be a guess dressed as a measurement. Nothing is not a default
+either — the row then says the tokens alone, exactly as it did before any of this, and the block
+does not name that session at all.
 
 **The lead is in its own list**, first and in the second person, deliberately. It is usually the
 largest conversation in the workspace, it is the only one that cannot press its own button, and it
@@ -914,6 +930,69 @@ conversation is carrying.
 thread id does, so handing a session over takes it with the conversation, and the block is gone on
 the next turn with nothing cleared. A session with no thread is not in it at all, and neither is one
 whose last run reported no size: nothing is not a small conversation, it is no reading at all.
+
+### The room watch
+
+Every five minutes the chat reads its own room, and on a crossing worth a turn it gives the lead
+one — the only thing here that starts a run nobody asked for.
+
+    The chat is telling you this. Nobody typed it.
+
+    Ann has reached 412,934 tokens, 92% of its window, and Leo has gone cold, so the next thing
+    said to it ends that conversation and begins a new one from its desk. Read at 14:07, and
+    nobody asked for this turn — the room changed while you were not being spoken to.
+
+    Handing a session over is Mike's to press, on that session's panel. Yours included. Say which
+    panels and why. Nothing here does it for you: nothing has stopped running and no conversation
+    has been ended by this.
+
+**Why there is a timer at all**, when every other reading here rides on a turn the lead was having
+anyway and costs nothing. Because there is exactly one case where that arrangement fails, and it is
+the case that matters: the lead nobody has typed to for an hour is the lead that most needs to act,
+and it is precisely the lead with no turn to ride on. The readings are free when they are not needed
+and unavailable when they are.
+
+**It speaks on a crossing and never on a condition.** It holds, in memory, the band each session was
+last seen in, and it says a session only when that band has *changed into* one worth a turn. A
+conversation sitting at ninety per cent for two hours is said once. Nothing is filed, so a chat
+stopped and started again says it again — which is right, because a chat that was not running told
+nobody anything.
+
+**Only two things are worth a turn**: 90 or 95 per cent of the window, newly reached, and a
+conversation newly gone cold. Four fifths and 85 per cent are not; nor is a session merely gone
+quiet. Those ride on the blocks the lead is handed the next time it is spoken to, exactly as they
+always have. The rule is one sentence long — a turn is spent only where the thing about to be lost
+is larger than the turn.
+
+**It says the room and does nothing about it.** There is no handover tool and this does not add one:
+it hands nobody over, refuses no message, hires and retires nobody, and ends no conversation of its
+own. What it gives the lead is an ordinary turn — it queues, it waits, it is refused while the room
+is off — because it goes through the same one door every message goes through, not because anything
+was written twice for it. And it never starts a second turn on a lead that is already answering: it
+skips that read entirely rather than queueing, because a watch that queued would deliver an old room
+to somebody already looking at it.
+
+**It costs a run, and that is worth saying plainly.** A turn nobody asked for is a turn the account
+pays for, and on a lead whose conversation has gone cold it is also the moment that conversation
+ends — which is what the next message would do whoever sent it, but this makes the chat one of the
+senders. It is bounded by the crossing rule: one turn per session per crossing, and a workspace
+where nothing crosses spends nothing at all.
+
+**How often is yours**, in `openovai.json`:
+
+```json
+"watchEverySeconds": 300
+```
+
+Whole seconds. Leave it out and the room is read every five minutes. Write `0` and it is not read at
+all — no timer is started and the feature is not there, which is the answer for a workspace that
+does not want to spend on it. A value that is not a whole number of seconds stops the chat starting
+and names the field: being told at the start beats finding it on a bill.
+
+The timer belongs to the chat and not to the process. It is cleared when the server closes and it
+never holds the process open, so a chat that has been stopped has stopped reading its room — a timer
+outliving its server would go on giving turns to a lead nobody is serving, with nothing left to stop
+it with.
 
 ### Taking the room off
 
@@ -952,8 +1031,8 @@ The room says so itself, above the rows and never on one — on the page, in `ov
 lead, which is the reader most likely to be turned away next:
 
     The room is offline — nothing new will be started until it is brought back online.
-    Paul — worker (haiku) — reading the water meter — idle · 24,479 tokens · last moved 4m ago
-    Ann  — worker (haiku) — writing the install notes — idle · 8,102 tokens · last moved 9m ago
+    Paul — worker (haiku) — reading the water meter — idle · 24,479 tokens · 12% of its window · last moved 4m ago
+    Ann  — worker (haiku) — writing the install notes — idle · 8,102 tokens · 4% of its window · last moved 9m ago
 
 Whether the room will start anything is a fact about the room. It is not a state any of those
 sessions is in, and the same word on every row would read as one.

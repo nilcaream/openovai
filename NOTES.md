@@ -111,13 +111,28 @@ nothing here remembers having said it. Your lead is told that much in its own in
 plainly that it cannot press the button itself. An update leaves the personas it finds where they
 are, so this is what a workspace installed from this version tells its lead.
 
-**The line is 300,000 tokens, and it is a judgment about a long context window.** It is the size at
-which answers measurably degrade on the windows the workspaces this was built for run on. On a
-workspace whose model sends a shorter one — one has been measured at 200,000 — a conversation runs
-out of room before it ever reaches the line, so the block never appears. That is the right answer
-and not a gap: there the window itself is the line, the row and the panel go on printing the size as
-they always did, and advice that is always early is worse than advice that stays quiet where it has
-nothing to add.
+**The lines are shares of the window and not sizes in tokens: four fifths, then 85, 90 and 95 per
+cent.** They are four numbers somebody decided. What is measured is the denominator, and the frame
+that carries the answer already says what the model it answered on can hold — so there is no table
+of models for anybody to keep true, and no name of ours is compared against a name of theirs. A run
+answers on one model, so a frame naming exactly one names the model it ran on.
+
+A size in tokens could not do this. It has to be a judgment about one window and is then wrong on
+every other, and the way it is wrong is silent: a line drawn for a long window cannot be crossed
+inside a short one, so on a workspace sending 200,000 the block would never appear anywhere and
+nothing would say so. A reading that is dead everywhere it is installed is not conservative, it is
+absent. Where the frame names no window — or names two, which says a run answered on one of them
+without saying which — there is no share, the row says the tokens alone as it always did, and the
+block does not name that session.
+
+**Every five minutes the chat reads its own room, and on a crossing worth a turn it gives the lead
+one.** It is the first timer in the toolkit and there is one case that earns it: the lead nobody has
+typed to for an hour is the one that most needs to act, and it is precisely the one with no turn to
+ride on. It speaks on a crossing and never on a condition — the band each session was last in is
+held in memory, and a conversation sitting at ninety per cent for two hours is said once. Only two
+things buy a turn: 90 or 95 per cent newly reached, and a conversation newly gone cold. It hands
+nobody over, refuses nothing and ends no conversation of its own; a lead already answering is left
+alone. `watchEverySeconds` in `openovai.json` sets the cadence, and `0` turns it off entirely.
 
 **A directory in `work/` that nobody could have been hired under is not somebody who works here.**
 The desks under `work/` are the roster: hiring opens one, leaving takes it away, and there is no

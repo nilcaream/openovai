@@ -524,7 +524,7 @@ describe("what the installer made", () => {
   it("tells the leader a room it did not ask for is not handed to it, and names every exception", () => {
     const persona = contentOf("personas", `${LEADER}.md`);
     assert.match(persona, /The room is not handed to you unasked/);
-    assert.match(persona, /Three things are handed to you without your asking/);
+    assert.match(persona, /Four things are handed to you without your asking/);
     assert.match(persona, /who has stopped/);
     assert.match(persona, /how big the conversations here have grown/);
     assert.match(persona, /where the account's usage window stands/);
@@ -532,7 +532,11 @@ describe("what the installer made", () => {
     // conversation in it ended. A persona that named the reading without naming what it says would
     // leave the lead reading an instruction it had been told nothing about.
     assert.match(persona, /tell you to stop the tasks and put everybody down/);
-    assert.match(persona, /Each of the three is advice and not a\s+rule the toolkit keeps/);
+    assert.match(persona, /Each of the four is advice and not a\s+rule the toolkit keeps/);
+    // And the fourth, which is the one that is not riding on a turn the lead was having anyway. A
+    // persona that named three while the chat handed over four would leave the lead reading a block
+    // its own instructions say it does not get.
+    assert.match(persona, /The fourth is the room watch/);
     // And what the middle one can ask for, which is a person being sent to a panel — so the persona
     // has to say that pressing it is not the lead's, or it would read as something it could do.
     assert.match(persona, /You cannot hand a session over/);
