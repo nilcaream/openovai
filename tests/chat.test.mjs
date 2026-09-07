@@ -63,6 +63,12 @@ import { ranAt } from "../tools/chat/session.mjs";
 // checkout happens to sit at, and the whole question is what happens at another one.
 import { readable } from "../tools/port.mjs";
 
+// The bands and the cadence, asked directly. Every other check here goes through a chat, which is
+// right when the subject is what a chat does about a band — and useless for the two questions a
+// chat cannot be made to answer: whether every band in the table is one something can be in, and
+// what a cadence nothing can read is refused with, which has to be settled before a chat starts.
+import { BANDS, shareOf } from "../tools/chat/session.mjs";
+
 // The kinds themselves, read from where they are named rather than written out again here. Two
 // copies of a list are two things that drift, and a check comparing what it saw against its own
 // copy would agree with itself for good while the chat grew a fifth kind nobody reached.
@@ -9968,6 +9974,18 @@ const NEVER_A_TURN = "Rosefinch";
 const STOPPED_AND_BIG = "Waxwing";
 const HIRED_WHILE_BIG = "Bullfinch";
 
+// Three conversations as big as the one above, whose runs were told a different thing about the
+// window. Each is a way the denominator can be missing, and every one of them has to come back to
+// what shipped: the tokens on the row, nothing beside them, and no name in the block.
+//
+// They are big deliberately. A session with no size proves nothing about a missing window — it
+// would be left out for having no size — so the only way to see the window rule at all is a
+// conversation that would be named if the window were read.
+const NO_WINDOW_AT_ALL = "Redstart";
+const NO_MODEL_NAMED = "Wheatear";
+const TWO_MODELS = "Whinchat";
+const A_RESOLVED_ID = "Stonechat";
+
 // The sizes a turn reports, and they differ so that where the thread ENDED and what the turn ADDED
 // UP TO cannot be the same number. Both are past the line, so a reader that took the wrong one
 // would still say something — which is the only way the check about it means anything.
@@ -9975,6 +9993,16 @@ const GREW = [325142, 412934];
 const CARRYING = GREW[GREW.length - 1];
 const ADDED_UP = GREW.reduce((all, size) => all + size - 13, 0) + 8 * GREW.length + 5 * GREW.length;
 const UNDER_THE_LINE = 4000;
+
+// What the model these runs answer on can hold, as the frame says it. One number for the whole
+// describe, and every size above is read against it: the last of GREW is past the lowest band and
+// UNDER_THE_LINE is nowhere near it, so the two states this rests on are reached by the sizes alone
+// and the denominator never moves.
+//
+// Deliberately not 200,000, the one window anybody has measured. A denominator a fixture shares with
+// a real measurement is one a fallback could be written to and nothing would notice.
+const WINDOW_HELD = 450_000;
+const SHARE_HELD = `${Math.round((CARRYING / WINDOW_HELD) * 100)}% of its window`;
 
 // The <size> block alone, cut out by hand — for usageBlock()'s reason, word for word. Two other
 // blocks open with the same sentence about who is speaking, and by the time this runs both are
@@ -10009,6 +10037,8 @@ describe("what the lead is told about a conversation that has grown big", () => 
   let handedOver;
   let hiredWhileBig;
   let roomLine;
+  let noWindowLine;
+  let toldWithEveryWindowShape;
 
   const lastQuestion = (log) => questionsIn(log).slice(-1)[0] ?? "";
 
@@ -10018,10 +10048,17 @@ describe("what the lead is told about a conversation that has grown big", () => 
     runTool(instance, ["hire", SAID_NOTHING], process.env);
     runTool(instance, ["hire", NEVER_A_TURN], process.env);
     runTool(instance, ["hire", STOPPED_AND_BIG], process.env);
+    runTool(instance, ["hire", NO_WINDOW_AT_ALL], process.env);
+    runTool(instance, ["hire", NO_MODEL_NAMED], process.env);
+    runTool(instance, ["hire", TWO_MODELS], process.env);
+    runTool(instance, ["hire", A_RESOLVED_ID], process.env);
 
     // Nobody over the line. The state that makes the check below mean anything, and it has to come
     // first: everything after this leaves conversations in this instance that are genuinely big.
-    await start(instance, standInEnvironment(standIn, sizeLog, { OPENOVAI_STAND_IN_USAGE: String(UNDER_THE_LINE) }));
+    await start(instance, standInEnvironment(standIn, sizeLog, {
+        OPENOVAI_STAND_IN_USAGE: String(UNDER_THE_LINE),
+        OPENOVAI_STAND_IN_WINDOW: String(WINDOW_HELD),
+      }));
     assert.ok(await waitForHealth(URL), "the server never answered");
     await say("a turn, so this one is under the line", STILL_SMALL);
     await say("and this one, which will be the quiet one later", STOPPED_AND_BIG);
@@ -10031,12 +10068,18 @@ describe("what the lead is told about a conversation that has grown big", () => 
 
     // A turn that is told nothing about its own size. Remembered as nothing, which is not a small
     // conversation — it is no reading at all.
-    await start(instance, standInEnvironment(standIn, sizeLog));
+    await start(instance, standInEnvironment(standIn, sizeLog, { OPENOVAI_STAND_IN_WINDOW: String(WINDOW_HELD) }));
     assert.ok(await waitForHealth(URL), "the server never came back");
     await say("a turn that reports no reading at all", SAID_NOTHING);
 
     // And past the line. The lead's own conversation among them, deliberately.
-    await start(instance, standInEnvironment(standIn, sizeLog, { OPENOVAI_STAND_IN_USAGE: GREW.join(",") }));
+    await start(
+      instance,
+      standInEnvironment(standIn, sizeLog, {
+        OPENOVAI_STAND_IN_USAGE: GREW.join(","),
+        OPENOVAI_STAND_IN_WINDOW: String(WINDOW_HELD),
+      }),
+    );
     assert.ok(await waitForHealth(URL), "the server never came back with the big fixture");
     await say("a turn that grows this one past the line", GROWN_BIG);
     await say("and the lead's own, past it as well", LEADER);
@@ -10057,15 +10100,74 @@ describe("what the lead is told about a conversation that has grown big", () => 
     await say("a third question, with all three of them true at once", LEADER);
     toldWithAllThree = lastQuestion(sizeLog);
 
+    // The three ways a window can be missing, each on its own chat because the frame a run is
+    // answered with is one environment per process. All three carry the same big size, so the only
+    // thing that can tell them from GROWN_BIG is what their run was told about the window.
+
+    // A frame with no modelUsage at all — the frame as it was before any of this existed.
+    await start(instance, standInEnvironment(standIn, sizeLog, { OPENOVAI_STAND_IN_USAGE: GREW.join(",") }));
+    assert.ok(await waitForHealth(URL), "the server never came back with no window at all");
+    await say("a turn as big as the others, told nothing about the window", NO_WINDOW_AT_ALL);
+
+    // A modelUsage that named nothing, which is a service that answered "no models" rather than one
+    // that never spoke. A different fact and the same answer.
+    await start(
+      instance,
+      standInEnvironment(standIn, sizeLog, { OPENOVAI_STAND_IN_USAGE: GREW.join(","), OPENOVAI_STAND_IN_WINDOW: "" }),
+    );
+    assert.ok(await waitForHealth(URL), "the server never came back with an empty modelUsage");
+    await say("a turn as big as the others, on a frame that named no model", NO_MODEL_NAMED);
+
+    // And a frame naming two. A run answers on ONE model, so a frame naming two says a run answered
+    // on one of them and does not say which — and taking the first is a guess dressed as a
+    // measurement.
+    await start(
+      instance,
+      standInEnvironment(standIn, sizeLog, {
+        OPENOVAI_STAND_IN_USAGE: GREW.join(","),
+        OPENOVAI_STAND_IN_WINDOW: `${WINDOW_HELD},${WINDOW_HELD * 2}`,
+      }),
+    );
+    assert.ok(await waitForHealth(URL), "the server never came back with two models");
+    await say("a turn as big as the others, on a frame naming two models", TWO_MODELS);
+
+    // The one that proves the lookup is not by name: the frame answers under an id that is NOT what
+    // the workspace passed to --model, which is what a service resolving an alias does. The window
+    // is read all the same, because the rule is "exactly one entry, take its window" and no key of
+    // ours is ever compared against a key of theirs.
+    await start(
+      instance,
+      standInEnvironment(standIn, sizeLog, {
+        OPENOVAI_STAND_IN_USAGE: GREW.join(","),
+        OPENOVAI_STAND_IN_WINDOW: String(WINDOW_HELD),
+        OPENOVAI_STAND_IN_WINDOW_KEY: "some-resolved-id-nobody-here-passed",
+      }),
+    );
+    assert.ok(await waitForHealth(URL), "the server never came back with a resolved id");
+    await say("a turn as big as the others, answered under an id nobody passed", A_RESOLVED_ID);
+
+    // Back to the fixture the rest of this reads, so the block below is composed off it.
+    await start(
+      instance,
+      standInEnvironment(standIn, sizeLog, {
+        OPENOVAI_STAND_IN_USAGE: GREW.join(","),
+        OPENOVAI_STAND_IN_WINDOW: String(WINDOW_HELD),
+      }),
+    );
+    assert.ok(await waitForHealth(URL), "the server never came back for the last of this");
+    await say("a fifth question, with the three window shapes staged", LEADER);
+    toldWithEveryWindowShape = lastQuestion(sizeLog);
+
     // A message to it is delivered exactly as any other, and it answers. Read off the answer and
     // not the row: a gate would refuse this without ever running anything.
     deliveredToTheBigOne = await say("a message to a conversation over the line", GROWN_BIG);
 
     // And the room goes on doing everything else while it is true.
     hiredWhileBig = runTool(instance, ["hire", HIRED_WHILE_BIG], process.env);
-    roomLine = (runTool(instance, ["room"], standInEnvironment(standIn, sizeLog)).stdout ?? "")
-      .split("\n")
-      .find((line) => line.startsWith(`${GROWN_BIG} `)) ?? "";
+    const room = (runTool(instance, ["room"], standInEnvironment(standIn, sizeLog)).stdout ?? "").split("\n");
+    const rowFor = (name) => room.find((line) => line.startsWith(`${name} `)) ?? "";
+    roomLine = rowFor(GROWN_BIG);
+    noWindowLine = rowFor(NO_WINDOW_AT_ALL);
 
     // Handing it over is neither refused nor required, and it takes the reading with the thread.
     handedOver = await post(`${URL}/sessions/${GROWN_BIG}/handover`, {});
@@ -10073,14 +10175,64 @@ describe("what the lead is told about a conversation that has grown big", () => 
     toldOnceHandedOver = lastQuestion(sizeLog);
   });
 
-  // Mutation: raise the line past anything a fixture reports. A threshold is proven by moving the
-  // threshold and never by inverting the comparison — an inverted one reddens the check below as
-  // well, and the sweep would say something else is already covering this.
-  it("names a conversation that has grown past the line", () => {
+  // Mutation: raise the lowest band past anything a fixture reports. A threshold is proven by
+  // moving the threshold and never by inverting the comparison — an inverted one reddens the check
+  // below as well, and the sweep would say something else is already covering this.
+  it("names a conversation that has entered a band", () => {
     assert.match(toldWhenBig, /<size>[\s\S]*<\/size>/);
     assert.match(
       toldWhenBig,
-      new RegExp(`${GROWN_BIG} was carrying ${CARRYING.toLocaleString("en-US")} tokens at the end of its last turn`),
+      new RegExp(
+        `${GROWN_BIG} was carrying ${CARRYING.toLocaleString("en-US")} tokens, ${SHARE_HELD} at the end of its last turn`,
+      ),
+    );
+  });
+
+  // Mutation: say the size and not the share. The share is the half that means anything on a model
+  // nobody here has measured, and it is the whole reason the old line was replaced: 300,000 tokens
+  // could never be reached inside a 200,000 window, so the reading was absent rather than
+  // conservative and nothing said so.
+  it("says the share of the window and not only the tokens", () => {
+    assert.match(sizeBlock(toldWhenBig), new RegExp(SHARE_HELD));
+  });
+
+  // Mutation: fall back to a window when the frame named none. A session that was told no window
+  // has no share, and no share is not a full one — it is today's behaviour, which is what falling
+  // silent into what shipped means. Asserted against a conversation as big as the one named above,
+  // so the only thing keeping it out of the block is the window.
+  it("says nothing about the share when the frame named no window", () => {
+    assert.match(toldWithEveryWindowShape, /<size>/, "there was no block to look in");
+    assert.doesNotMatch(sizeBlock(toldWithEveryWindowShape), new RegExp(NO_WINDOW_AT_ALL));
+  });
+
+  // Mutation: read an empty modelUsage as no modelUsage and carry on to the entry that is not
+  // there. A service that answered "no models" and one that never spoke are different facts and
+  // this is the same answer to both, which is the point: nothing is not a window.
+  it("says nothing about the share when the frame named no model", () => {
+    assert.match(toldWithEveryWindowShape, /<size>/, "there was no block to look in");
+    assert.doesNotMatch(sizeBlock(toldWithEveryWindowShape), new RegExp(NO_MODEL_NAMED));
+  });
+
+  // Mutation: take the first entry when the frame named more than one model. A run answers on ONE
+  // model, so a frame naming two says a run answered on one of them and does not say which —
+  // picking one is a guess dressed as a measurement.
+  it("says nothing about the window when the frame named more than one model", () => {
+    assert.match(toldWithEveryWindowShape, /<size>/, "there was no block to look in");
+    assert.doesNotMatch(sizeBlock(toldWithEveryWindowShape), new RegExp(TWO_MODELS));
+  });
+
+  // Mutation: look the window up by the model the workspace passed to --model.
+  //
+  // The failure that would cause is the one this whole rule is shaped to make unreachable: the
+  // workspace asks for an alias, the service answers under a resolved id, nothing matches, and the
+  // share is never seen anywhere with nothing saying so. Here the frame answers under an id nobody
+  // here passed and the window is read all the same, because the rule is "exactly one entry, take
+  // its window" and no key of ours is compared against a key of theirs.
+  it("reads the window off the one model the frame named, whatever it is called", () => {
+    assert.match(toldWithEveryWindowShape, /<size>/, "there was no block to look in");
+    assert.match(
+      sizeBlock(toldWithEveryWindowShape),
+      new RegExp(`${A_RESOLVED_ID} was carrying ${CARRYING.toLocaleString("en-US")} tokens, ${SHARE_HELD}`),
     );
   });
 
@@ -10110,7 +10262,7 @@ describe("what the lead is told about a conversation that has grown big", () => 
   it("names the session that leads about its own conversation", () => {
     assert.match(
       toldWhenBig,
-      new RegExp(`you were carrying ${CARRYING.toLocaleString("en-US")} tokens at the end of yours`),
+      new RegExp(`you were carrying ${CARRYING.toLocaleString("en-US")} tokens, ${SHARE_HELD} at the end of yours`),
     );
   });
 
@@ -10170,20 +10322,44 @@ describe("what the lead is told about a conversation that has grown big", () => 
     assert.equal(hiredWhileBig.status, 0, hiredWhileBig.stderr);
   });
 
-  // Mutation: put the phrase on the row. There is no threshold on the row, no colour and no
-  // warning level — the number there is a fact for a person to judge, and the one line this holds
-  // an opinion about is handed to the lead and nowhere else.
-  it("the room says the tokens it always said, with no line on the row", () => {
+  // Mutation: put the word "large" on the row beside the share.
+  //
+  // This replaces the check that said the row carried no second number at all, which this feature
+  // makes false by design. What that check was protecting was never "no second number" — it was NO
+  // VERDICT ON A ROW — so the fence goes up here at the same height: the row says two readings, the
+  // tokens and the share, and nothing about what to do with either. There is no threshold on it, no
+  // colour and no word for too full, and the one line in this toolkit that holds an opinion about a
+  // size is handed to the lead and nowhere else.
+  it("the room says the share and the tokens, and never a verdict", () => {
     assert.notEqual(roomLine, "", "the big one was not in the room at all");
     assert.match(roomLine, new RegExp(`${CARRYING.toLocaleString("en-US")} tokens`));
+    assert.match(roomLine, new RegExp(SHARE_HELD));
     assert.doesNotMatch(roomLine, /\blarge\b/, roomLine);
     assert.doesNotMatch(roomLine, /hand over/i, roomLine);
+  });
+
+  // Mutation: say the share instead of the tokens. Beside them and never instead of them — the
+  // block is read by somebody deciding which panel to press, and the tokens are what they see on it.
+  it("the room says the share beside the tokens and not instead of them", () => {
+    const said = roomLine.indexOf(`${CARRYING.toLocaleString("en-US")} tokens`);
+    const share = roomLine.indexOf(SHARE_HELD);
+    assert.ok(said !== -1 && share !== -1, roomLine);
+    assert.ok(said < share, `the share came before the tokens: ${roomLine}`);
+  });
+
+  // Mutation: say the share on a row whose session was told no window. The row is then byte for
+  // byte what it said before any of this existed, which is what "falls silent into what shipped"
+  // means and is the whole answer to a lookup that could fail silent.
+  it("the room says the tokens alone when the frame named no window", () => {
+    assert.notEqual(noWindowLine, "", "the one with no window was not in the room at all");
+    assert.match(noWindowLine, /tokens/);
+    assert.doesNotMatch(noWindowLine, /of its window/, noWindowLine);
   });
 
   // The same, in the page's own copy of the room. No suite runs page.html — it is read as TEXT —
   // and the check is bounded to the block that lays a row out, or it would run on into whatever
   // else the page says and pass on a page that had grown a threshold here.
-  it("the page says the tokens it always said, with no line on the row", async () => {
+  it("the page says the share and the tokens, and never a verdict", async () => {
     const page = (await get(`${URL}/`)).body;
     const from = page.indexOf("function inTheRoom(row)");
     const to = page.indexOf("function showTheRoom(");
@@ -10191,6 +10367,7 @@ describe("what the lead is told about a conversation that has grown big", () => 
     const theRow = page.slice(from, to);
 
     assert.match(theRow, /row\.context\.toLocaleString\("en-US"\)/);
+    assert.match(theRow, /shareSaid\(row\.context, row\.window\)/);
     assert.doesNotMatch(theRow, /\blarge\b/, theRow);
   });
 
@@ -10227,7 +10404,11 @@ describe("what the lead is told about a big conversation that is mid-turn", () =
     runTool(instance, ["hire", BIG_MID_TURN], process.env);
     await start(
       instance,
-      standInEnvironment(standIn, midLog, { OPENOVAI_STAND_IN_USAGE: GREW.join(","), OPENOVAI_STAND_IN_SLOW: "4000" }),
+      standInEnvironment(standIn, midLog, {
+        OPENOVAI_STAND_IN_USAGE: GREW.join(","),
+        OPENOVAI_STAND_IN_WINDOW: String(WINDOW_HELD),
+        OPENOVAI_STAND_IN_SLOW: "4000",
+      }),
     );
     assert.ok(await waitForHealth(URL), "the server never answered");
 
@@ -10251,6 +10432,7 @@ describe("what the lead is told about a big conversation that is mid-turn", () =
   it("names a session that is in the middle of a turn", () => {
     assert.match(toldWhileItRuns, /<size>/, "nothing was said at all");
     assert.match(toldWhileItRuns, new RegExp(`${BIG_MID_TURN} was carrying `));
+    assert.match(toldWhileItRuns, new RegExp(SHARE_HELD));
   });
 });
 
@@ -10270,7 +10452,13 @@ describe("what a big conversation does not change about the hour", () => {
   before(async () => {
     runTool(instance, ["hire", BIG_AND_WARM], process.env);
     runTool(instance, ["hire", BIG_AND_COLD], process.env);
-    await start(instance, standInEnvironment(standIn, hourLog, { OPENOVAI_STAND_IN_USAGE: GREW.join(",") }));
+    await start(
+      instance,
+      standInEnvironment(standIn, hourLog, {
+        OPENOVAI_STAND_IN_USAGE: GREW.join(","),
+        OPENOVAI_STAND_IN_WINDOW: String(WINDOW_HELD),
+      }),
+    );
     assert.ok(await waitForHealth(URL), "the server never answered");
 
     // A turn each, so both conversations are past the line.
@@ -10292,3 +10480,75 @@ describe("what a big conversation does not change about the hour", () => {
     assert.equal(coldSaid.restarted, true, "the hour stopped ending conversations, so this proves nothing");
   });
 });
+
+// Every band the reading can be in, and a size that is in it.
+//
+// STATES' own check shape, and for STATES' own reason: the bands are named in one place, which
+// makes a question askable that a chain of comparisons could not be asked — is every one of them a
+// band something can be in? A fifth entry added with nothing that reaches it goes red here and
+// nowhere else, and so does a table whose numbers have been ordered so that one of them is shadowed
+// by the one above it.
+//
+// Asked of the reader directly rather than through a chat. A band is a pure reading off two
+// numbers, and staging four conversations through four runs to prove four comparisons would be four
+// chats in aid of arithmetic.
+describe("every band the reading can be in, and a size that is in it", () => {
+  // One window, and a size just inside each band read off the table rather than written out again.
+  // A literal here would be a second copy of the numbers and would go on passing on the day the
+  // table moved, which is the one day this check exists for.
+  const HOLDS = 200_000;
+
+  it("reaches every band the reading can say", () => {
+    const found = new Set();
+    for (const band of BANDS) {
+      const said = shareOf(Math.ceil(band.above * HOLDS), HOLDS);
+      assert.ok(said !== null, `nothing was in the band at ${band.above}`);
+      found.add(said.named);
+    }
+    assert.deepEqual(
+      [...found].sort(),
+      BANDS.map((band) => band.named).sort(),
+      `one band shadowed another: ${JSON.stringify([...found])}`,
+    );
+  });
+
+  // Mutation: compare a missing reading as zero. Nothing is not an empty conversation and it is not
+  // a full one either — it is no reading, and both halves have to be there before there is a share
+  // at all. The same honesty quotaIn() already keeps.
+  it("says nothing about a session with no reading", () => {
+    assert.equal(shareOf(null, HOLDS), null, "a session with no size was given a share");
+    assert.equal(shareOf(190_000, null), null, "a session with no window was given a share");
+    assert.equal(shareOf(null, null), null);
+    assert.notEqual(shareOf(190_000, HOLDS), null, "nothing was in a band at all, so this proves nothing");
+  });
+
+  // A window of zero is a frame that said something impossible, and the answer to that is the
+  // answer to not having been told. Never a division.
+  it("says nothing when the window is not a window", () => {
+    assert.equal(shareOf(190_000, 0), null);
+    assert.equal(shareOf(190_000, -1), null);
+  });
+
+  // Under the lowest band is nothing at all, which is what keeps the block absent while every
+  // conversation has room. A reading that was always in some band would be a sentence in every turn
+  // forever, and a sentence in every turn is one nobody reads.
+  it("says nothing about a conversation under the lowest band", () => {
+    const lowest = BANDS[BANDS.length - 1];
+    assert.equal(shareOf(Math.floor(lowest.above * HOLDS) - 1, HOLDS), null);
+  });
+
+  // Which bands are worth a turn nobody asked for, and which only a reading. The split is the one
+  // judgment in this feature, so it is asserted rather than left to be read off the table: a turn is
+  // spent only where the thing about to be lost is larger than the turn.
+  it("spends a turn on the two highest bands and on no others", () => {
+    assert.deepEqual(
+      BANDS.filter((band) => band.strong).map((band) => band.named),
+      ["0.95", "0.90"],
+    );
+    assert.deepEqual(
+      BANDS.filter((band) => !band.strong).map((band) => band.named),
+      ["0.85", "0.80"],
+    );
+  });
+});
+

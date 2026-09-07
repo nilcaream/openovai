@@ -150,6 +150,16 @@
     return `${full}, read ${ago(new Date(quota.at).toISOString())}`;
   }
 
+  // How much of the window this conversation has taken, the same phrase the command's copy of this
+  // row says, from the same two fields. Nothing whenever either half is missing: on a service that
+  // named no window this row is byte for byte what it said before any of this existed.
+  function shareSaid(context, window) {
+    if (typeof context !== "number" || typeof window !== "number" || window <= 0) {
+      return null;
+    }
+    return `${Math.round((context / window) * 100)}% of its window`;
+  }
+
   // What a session is doing, as one phrase, in the order that decides what to do about it. Held up
   // by a person comes first, because it is the only one the person reading this can end; then held
   // up by another session, which is not the same as being slow; then busy, with the pile behind it.
@@ -201,6 +211,11 @@
       // session remembers none of it reads as an ordinary one until somebody says so.
       row.thread ? null : "nothing to carry on",
       typeof row.context === "number" ? `${row.context.toLocaleString("en-US")} tokens` : null,
+      // The same reading in the unit that means something on every model, and the same rule the
+      // command's copy of this row keeps: beside the tokens, never instead of them, and nothing at
+      // all when the service named no window. No threshold, no colour and no word for too full —
+      // the row carries readings and never an instruction.
+      shareSaid(row.context, row.window),
       when === null ? "nothing said yet" : `last moved ${when}`,
     ].filter((part) => part !== null);
 

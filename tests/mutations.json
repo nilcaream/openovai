@@ -1,12 +1,12 @@
 [
   {
-    "name": "the line is raised past anything a fixture reports",
-    "catches": "names a conversation that has grown past the line",
+    "name": "the lowest band is raised past anything a fixture reports",
+    "catches": "names a conversation that has entered a band",
     "edits": [
       {
         "file": "tools/chat/session.mjs",
-        "from": "const LARGE_ABOVE = 300_000;",
-        "to": "const LARGE_ABOVE = 30_000_000;"
+        "from": "  Object.freeze({ named: \"0.80\", above: 0.8, strong: false }),",
+        "to": "  Object.freeze({ named: \"0.80\", above: 8, strong: false }),"
       }
     ]
   },
@@ -127,7 +127,7 @@
       {
         "file": "tools/chat/server.mjs",
         "from": "async function deliver(instance, name, text, signed, shown = null) {\n  if (typeof text !== \"string\" || text.trim() === \"\") {\n    return { status: 400, body: { error: \"a message needs some text\" } };\n  }",
-        "to": "async function deliver(instance, name, text, signed, shown = null) {\n  if (typeof text !== \"string\" || text.trim() === \"\") {\n    return { status: 400, body: { error: \"a message needs some text\" } };\n  }\n  if (hasGrownLarge(instance.root, name)) {\n    return { status: 409, body: { error: \"that conversation is too big to take a message\" } };\n  }"
+        "to": "async function deliver(instance, name, text, signed, shown = null) {\n  if (typeof text !== \"string\" || text.trim() === \"\") {\n    return { status: 400, body: { error: \"a message needs some text\" } };\n  }\n  if (bandIn(instance.root, name) !== null) {\n    return { status: 409, body: { error: \"that conversation is too big to take a message\" } };\n  }"
       }
     ]
   },
@@ -138,29 +138,29 @@
       {
         "file": "tools/chat/server.mjs",
         "from": "async function postHandover(instance, name, response) {\n  const done = await inTurn(name, async () => {",
-        "to": "async function postHandover(instance, name, response) {\n  if (hasGrownLarge(instance.root, name)) {\n    sendJson(response, 409, { error: \"that conversation is too big to hand over\" });\n    return;\n  }\n  const done = await inTurn(name, async () => {"
+        "to": "async function postHandover(instance, name, response) {\n  if (bandIn(instance.root, name) !== null) {\n    sendJson(response, 409, { error: \"that conversation is too big to hand over\" });\n    return;\n  }\n  const done = await inTurn(name, async () => {"
       }
     ]
   },
   {
-    "name": "the line is put on the room command's row",
-    "catches": "the room says the tokens it always said, with no line on the row",
+    "name": "the row says what to do about the share as well as saying it",
+    "catches": "the room says the share and the tokens, and never a verdict",
     "edits": [
       {
         "file": "tools/chat/room.mjs",
-        "from": "    typeof session.context === \"number\" ? `${session.context.toLocaleString(\"en-US\")} tokens` : null,",
-        "to": "    typeof session.context === \"number\" ? `${session.context.toLocaleString(\"en-US\")} tokens` : null,\n    typeof session.context === \"number\" && session.context > 300000 ? \"large\" : null,"
+        "from": "    shareSaid(session.context, session.window),",
+        "to": "    shareSaid(session.context, session.window),\n    shareSaid(session.context, session.window) === null ? null : \"large\","
       }
     ]
   },
   {
-    "name": "the line is put on the page's own copy of the row",
-    "catches": "the page says the tokens it always said, with no line on the row",
+    "name": "the page's own copy of the row says what to do about the share",
+    "catches": "the page says the share and the tokens, and never a verdict",
     "edits": [
       {
         "file": "tools/chat/page.html",
-        "from": "      typeof row.context === \"number\" ? `${row.context.toLocaleString(\"en-US\")} tokens` : null,",
-        "to": "      typeof row.context === \"number\" ? `${row.context.toLocaleString(\"en-US\")} tokens` : null,\n      typeof row.context === \"number\" && row.context > 300000 ? \"large\" : null,"
+        "from": "      shareSaid(row.context, row.window),",
+        "to": "      shareSaid(row.context, row.window),\n      shareSaid(row.context, row.window) === null ? null : \"large\","
       }
     ]
   },
@@ -187,7 +187,7 @@
       {
         "file": "tools/chat/session.mjs",
         "from": "  return ran !== null && Date.now() - ran > COLD_AFTER;",
-        "to": "  return hasGrownLarge(root, name) || (ran !== null && Date.now() - ran > COLD_AFTER);"
+        "to": "  return bandIn(root, name) !== null || (ran !== null && Date.now() - ran > COLD_AFTER);"
       }
     ]
   },
@@ -243,6 +243,105 @@
         "file": "tools/desks.mjs",
         "from": "entry.isDirectory() && isName(entry.name)",
         "to": "entry.isDirectory()"
+      }
+    ]
+  },
+  {
+    "name": "the window is the first entry when the frame named more than one model",
+    "catches": "says nothing about the window when the frame named more than one model",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "  if (held.length !== 1) {\n    return null;\n  }",
+        "to": "  if (held.length === 0) {\n    return null;\n  }"
+      }
+    ]
+  },
+  {
+    "name": "the window falls back to the one number anybody measured",
+    "catches": "says nothing about the share when the frame named no window",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "  return typeof size === \"number\" && size > 0 ? size : null;",
+        "to": "  return typeof size === \"number\" && size > 0 ? size : 200_000;"
+      }
+    ]
+  },
+  {
+    "name": "an empty modelUsage is read as no modelUsage",
+    "catches": "says nothing about the share when the frame named no model",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "  const held = Object.values(named);\n  if (held.length !== 1) {",
+        "to": "  const held = Object.values(named);\n  if (held.length === 0) {\n    return 200_000;\n  }\n  if (held.length !== 1) {"
+      }
+    ]
+  },
+  {
+    "name": "a missing window is divided by all the same",
+    "catches": "says nothing about a session with no reading",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "  if (typeof context !== \"number\" || typeof window !== \"number\" || window <= 0) {\n    return null;\n  }\n  const share = context / window;",
+        "to": "  if (typeof context !== \"number\") {\n    return null;\n  }\n  const share = context / window;"
+      }
+    ]
+  },
+  {
+    "name": "the share is said instead of the tokens",
+    "catches": "the room says the share beside the tokens and not instead of them",
+    "edits": [
+      {
+        "file": "tools/chat/room.mjs",
+        "from": "    typeof session.context === \"number\" ? `${session.context.toLocaleString(\"en-US\")} tokens` : null,\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the share is said on a row whose session was told no window",
+    "catches": "the room says the tokens alone when the frame named no window",
+    "edits": [
+      {
+        "file": "tools/chat/room.mjs",
+        "from": "  if (typeof context !== \"number\" || typeof window !== \"number\" || window <= 0) {\n    return null;\n  }\n  return `${Math.round((context / window) * 100)}% of its window`;",
+        "to": "  if (typeof context !== \"number\") {\n    return null;\n  }\n  return `${Math.round((context / (window ?? 200_000)) * 100)}% of its window`;"
+      }
+    ]
+  },
+  {
+    "name": "the block says the size and not the share",
+    "catches": "says the share of the window and not only the tokens",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    const held = `${session.context.toLocaleString(\"en-US\")} tokens, ${shareSaid(session.context, session.window)}`;",
+        "to": "    const held = `${session.context.toLocaleString(\"en-US\")} tokens`;"
+      }
+    ]
+  },
+  {
+    "name": "a band is made a state the room can be in",
+    "catches": "reaches every state the room can say",
+    "edits": [
+      {
+        "file": "tools/chat/room.mjs",
+        "from": "  {\n    named: \"cold\",\n    when: (session) => session.cold,\n    say: () => \"cold\",\n  },",
+        "to": "  {\n    named: \"cold\",\n    when: (session) => session.cold,\n    say: () => \"cold\",\n  },\n  {\n    named: \"big\",\n    when: (session) => shareSaid(session.context, session.window) !== null,\n    say: () => \"big\",\n  },"
+      }
+    ]
+  },
+  {
+    "name": "a band that another band shadows",
+    "catches": "reaches every band the reading can say",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "  Object.freeze({ named: \"0.85\", above: 0.85, strong: false }),",
+        "to": "  Object.freeze({ named: \"0.85\", above: 0.9, strong: false }),"
       }
     ]
   },

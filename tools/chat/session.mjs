@@ -49,10 +49,10 @@ function remembered(root, name) {
   }
 }
 
-function remember(root, name, sessionId, context, quota, refused) {
+function remember(root, name, sessionId, context, quota, refused, window) {
   const target = sessionFile(root, name);
   fs.mkdirSync(path.dirname(target), { recursive: true });
-  fs.writeFileSync(target, `${JSON.stringify({ sessionId, context, quota, refused }, null, 2)}\n`);
+  fs.writeFileSync(target, `${JSON.stringify({ sessionId, context, quota, refused, window }, null, 2)}\n`);
 }
 
 // How much of itself a thread is carrying, as of the end of its last turn. Read from the same file
@@ -61,6 +61,26 @@ function remember(root, name, sessionId, context, quota, refused) {
 export function contextIn(root, name) {
   try {
     const held = JSON.parse(fs.readFileSync(sessionFile(root, name), "utf8")).context;
+    return typeof held === "number" ? held : null;
+  } catch {
+    return null;
+  }
+}
+
+// How much this conversation's model can hold, as the run that last answered was told. Beside the
+// reading above and read the same way, because the two are one fact said in one unit and neither is
+// worth anything to the other's reader on its own: a size is a number, and a size against a window
+// is a share.
+//
+// It dies with the thread, for contextIn's reason: it is in the file `forget` removes, so a session
+// that has just been handed over has no window and no share, which is the truth.
+//
+// Nothing is NOT a default. A window nobody was told about is not two hundred thousand tokens; it
+// is no reading, and everything downstream is written to say nothing on null rather than to guess
+// the most reassuring possible denominator.
+export function windowIn(root, name) {
+  try {
+    const held = JSON.parse(fs.readFileSync(sessionFile(root, name), "utf8")).window;
     return typeof held === "number" ? held : null;
   } catch {
     return null;
@@ -209,43 +229,75 @@ export function hasGoneQuiet(root, name) {
   return ran !== null && Date.now() - ran > QUIET_AFTER;
 }
 
-// The size above which what is left of a conversation has to be planned rather than simply carried
-// on. Past it, the work that conversation still has in it is worth handing to a desk while it can
-// still be written down.
+// How full a conversation is, in bands, and where the words for it are decided.
 //
-// This is a judgment and not a measurement, and that is worth saying where it sits: COLD_AFTER
-// above is an hour because a cache lives an hour, and this is where somebody decided that thinking
-// had got worse. It is a judgment about a LONG context window — the workspaces this was written for
-// run on one, and this is the size at which their answers measurably degrade.
+// A SHARE AND NOT A SIZE, and that is the whole of what this replaces. There was one line here and
+// it was 300,000 tokens — a judgment about a LONG context window, written for workspaces that run
+// on one. The only window anybody has ever measured on a real run is 200,000, and a conversation
+// cannot grow past the window it is sent in, so on every configuration that has been observed that
+// line could never be crossed: the reading was not conservative, it was absent, and nothing said
+// so. A share is true on both windows and needs no paragraph explaining when it is inert.
 //
-// On a short window it never fires, and that is the right behaviour rather than a gap. A
-// conversation cannot grow past the window it is sent in — one measured at 200,000 tokens — so on
-// such a workspace the window IS the line: the conversation runs out of room before it runs out of
-// judgment, and there is nothing this could usefully say first. A number picked to fire there
-// instead would be advice that is always early on the workspaces this is for, which is the worse
-// of the two ways to be wrong.
-const LARGE_ABOVE = 300_000;
+// FOUR NUMBERS SOMEBODY DECIDED. Every one of these is a JUDGMENT — unlike COLD_AFTER above, which
+// is an hour because a cache lives an hour. Nothing here measured where eighty per cent is; what
+// was measured is the denominator, and the service hands it to us on the run we already read.
+//
+// A frozen table rather than a chain of comparisons, in the shape STATES already has, so that the
+// bands can be COUNTED: a band written into a branch is one nobody can enumerate, and there is then
+// no way to hold this to every band it can say being one something can reach.
+//
+// `named` is the band and `strong` is what it is worth, and they are apart for the reason STATES
+// keeps its wording apart from its name: what a band is called belongs here and is free to change,
+// while whether crossing it is worth a turn nobody asked for is a judgment, and it is the one
+// judgment in this whole feature. It is one sentence long — a turn is spent only where the thing
+// about to be lost is larger than the turn. A conversation at ninety per cent of its window is two
+// turns from losing whatever its desk does not say; one at eighty is not.
+//
+// Highest first, because shareOf takes the first that holds.
+export const BANDS = Object.freeze([
+  Object.freeze({ named: "0.95", above: 0.95, strong: true }),
+  Object.freeze({ named: "0.90", above: 0.9, strong: true }),
+  Object.freeze({ named: "0.85", above: 0.85, strong: false }),
+  Object.freeze({ named: "0.80", above: 0.8, strong: false }),
+]);
 
-// Whether this conversation has grown past the line, which is a thing to plan around and never a
-// thing that is done about it. Nothing in this toolkit reads it to decide anything: it is said to
-// the one reader who can act on it, and a person presses the button.
+// Which band a conversation is in, or nothing at all.
+//
+// Nothing whenever either half is missing, and nothing under the lowest band. Two readings and one
+// answer: a size with no window and a window with no size are both no share, and neither of them is
+// zero. A null compared as a number would make a session nobody has a reading for the emptiest
+// conversation in the workspace, which is the most reassuring possible reading of an absence and
+// the one this is written not to give.
+//
+// A window of zero or less is nothing rather than a division. It is not a window; it is a frame
+// that said something impossible, and the answer to that is the answer to not having been told.
+export function shareOf(context, window) {
+  if (typeof context !== "number" || typeof window !== "number" || window <= 0) {
+    return null;
+  }
+  const share = context / window;
+  return BANDS.find((band) => share >= band.above) ?? null;
+}
+
+// Whether this conversation has grown far enough into its window to plan around, which is a thing
+// to plan around and never a thing that is done about it. Nothing in this toolkit reads it to
+// decide anything: it is said to the one reader who can act on it, and a person presses the button.
 //
 // Same shape and same honesty as the two readings above, deliberately.
 //
 // A session with no thread is not large. That exception is not written again here — it is reached
-// THROUGH the reading, because contextIn() answers nothing for a session whose file is gone, and
-// one call cannot disagree with itself the way two tests of the same fact can.
+// THROUGH the readings, because contextIn() and windowIn() both answer nothing for a session whose
+// file is gone, and one call cannot disagree with itself the way two tests of the same fact can.
 //
 // Nothing is NOT zero, for quotaIn()'s reason. A run that reported no usage is remembered as
 // nothing, and nothing is not a small conversation — it is no reading at all, and a session nobody
 // has a size for is not one anybody should be told to hand over.
 //
-// One-directional, like the hour. Past the line, certainly worth planning around; under it nothing
-// is claimed. The comparison happens on read, so there is no timer, nothing scheduled and nothing
-// to clean up.
-export function hasGrownLarge(root, name) {
-  const held = contextIn(root, name);
-  return held !== null && held > LARGE_ABOVE;
+// One-directional, like the hour. Inside a band, certainly worth planning around; under the lowest
+// one nothing is claimed. The comparison happens on read, so there is no timer, nothing scheduled
+// and nothing to clean up.
+export function bandIn(root, name) {
+  return shareOf(contextIn(root, name), windowIn(root, name));
 }
 
 // The usage window this rule is about, NAMED — which the reading that carries it deliberately never
@@ -415,6 +467,11 @@ export function sessions(instance) {
     role: name === leader ? "lead" : "worker",
     model: model(instance, name),
     context: contextIn(instance.root, name),
+    // And what that size is a share OF, beside it and read at the same moment. Carried here rather
+    // than worked out again by every reader, so that the row, the block handed to the lead and the
+    // watch are all saying one reading and cannot disagree about it — a filter that could not agree
+    // with its own sentence is the failure the size block already names.
+    window: windowIn(instance.root, name),
   }));
 }
 
@@ -934,6 +991,11 @@ function interpret(answer, err, limit = null, reading = null) {
     silent: !failed && text.trim() === "",
     sessionId: answer.session_id ?? null,
     context: contextAfter(answer),
+    // Beside the reading and never inside it. What a conversation is carrying and what it may carry
+    // are two facts off one frame, and either can arrive without the other — a frame that named no
+    // model still says a size, and a run that reported no usage at all still says what the model
+    // holds. One field carrying both would have to decide what to do when half of it is missing.
+    window: windowAfter(answer),
   };
 }
 
@@ -948,9 +1010,8 @@ function interpret(answer, err, limit = null, reading = null) {
 // 67,090 for a turn that ended at 41,929, and the next turn opened at 42,059. A number that grows
 // at twice the rate of the conversation is worse than none, because it looks like an answer.
 //
-// Nothing here converts it to a share of anything. A percentage needs a table of what each model
-// can hold, kept true by somebody, which is a moving part in aid of a decoration; the frame does
-// carry `modelUsage[<model>].contextWindow` if that is ever wanted.
+// Nothing here converts it to a share of anything. That is windowAfter's below, off the same frame,
+// and the two are kept apart because one of them can be there when the other is not.
 function contextAfter(answer) {
   const last = answer.usage?.iterations?.at(-1);
   if (last === undefined) {
@@ -960,6 +1021,38 @@ function contextAfter(answer) {
   const used =
     (last.input_tokens ?? 0) + (last.cache_read_input_tokens ?? 0) + (last.cache_creation_input_tokens ?? 0);
   return used > 0 ? used : null;
+}
+
+// How much the model this run answered on can hold, off the same frame, in the same tokens.
+//
+// NOT LOOKED UP BY NAME, and that is the whole of the design. A run answers on ONE model, so if the
+// frame names exactly one, that is the one it ran on — whatever the service calls it and whatever
+// the workspace passed to --model. Comparing a key of ours against a key of theirs is what makes a
+// lookup that can fail silent: the workspace passes an alias, the frame answers under a resolved
+// id, nothing matches, and the share is never seen anywhere with nothing saying so. Here there is
+// no key of ours to compare, so that failure is unreachable rather than guarded against.
+//
+// It is why more than one entry is nothing rather than the first. A frame naming two models is a
+// frame this rule cannot read: it says a run answered on one of them and does not say which, and
+// picking one would be a guess dressed as a measurement. Nothing at all is the honest answer, and
+// it costs exactly what §the row already pays when the service says nothing — today's behaviour.
+//
+// And why nothing is not a default. A window nobody was told about is not the last one anybody
+// measured. The one real number recorded anywhere here is 200,000, off one run on one model, and
+// writing it in as a fallback would make every workspace on every other model read its share off
+// that measurement — a share that is confidently wrong everywhere it fires, which is worse than a
+// row that says nothing.
+function windowAfter(answer) {
+  const named = answer.modelUsage;
+  if (named === null || typeof named !== "object") {
+    return null;
+  }
+  const held = Object.values(named);
+  if (held.length !== 1) {
+    return null;
+  }
+  const size = held[0]?.contextWindow;
+  return typeof size === "number" && size > 0 ? size : null;
 }
 
 
@@ -1006,6 +1099,7 @@ export async function ask(instance, name, text, asked = nobodyToAsk) {
       answer.context ?? null,
       answer.quota ?? null,
       answer.refused ?? null,
+      answer.window ?? null,
     );
   }
 

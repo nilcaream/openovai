@@ -16,9 +16,9 @@ import { carry, overhear } from "./overheard.mjs";
 import { allow, askedFor, answer as settle, giveUp, park, parked, refuse, shapeOf } from "./permissions.mjs";
 import { popped } from "./pop.mjs";
 import { answerFrom } from "../plugins.mjs";
-import { ago, roomLines } from "./room.mjs";
+import { ago, roomLines, shareSaid } from "./room.mjs";
 import { DESK_FILE, DeskError, WORK, allowAsked, archiveFor, deskTitle, describeName, hire, isName, retire } from "../desks.mjs";
-import { accountStanding, ask, endRun, forget, hasGoneCold, hasGoneQuiet, hasGrownLarge, hasThread, quotaIn, ranAt, refusedIn, sessions } from "./session.mjs";
+import { accountStanding, ask, bandIn, endRun, forget, hasGoneCold, hasGoneQuiet, hasThread, quotaIn, ranAt, refusedIn, sessions } from "./session.mjs";
 import { inTurn, turnsGoing, waitingFor, whileWaitingFor, wouldWaitForItself } from "./turns.mjs";
 import { unfinished } from "./unfinished.mjs";
 import { takeWord } from "./untold.mjs";
@@ -234,8 +234,8 @@ function quietWrapper(instance, name) {
 //     nobody's persona, so a session reading this may be running one written before any of it
 //     existed and has nothing to look it up in.
 //   The lead only.
-//   A reading and never a gate. Nothing consults hasGrownLarge to deliver, hire, hand over, queue,
-//     refuse or end. No sweep, no timer, no new state, nothing to clear.
+//   A reading and never a gate. Nothing consults bandIn to deliver, hire, hand over, queue, refuse
+//     or end.
 //
 // TWO THINGS IT DOES THAT THE QUIET BLOCK DOES NOT, both deliberate.
 //
@@ -252,7 +252,7 @@ function sizeWrapper(instance, name) {
   if (name !== instance.config.leader) {
     return null;
   }
-  const large = sessions(instance).filter((session) => hasGrownLarge(instance.root, session.name));
+  const large = sessions(instance).filter((session) => bandIn(instance.root, session.name) !== null);
   if (large.length === 0) {
     return null;
   }
@@ -262,10 +262,16 @@ function sizeWrapper(instance, name) {
   // fact. The number is the row's own, off the list this just filtered: reading the file again here
   // would be a second answer to one question, and a filter that could disagree with its own sentence.
   const each = large.map((session) => {
-    const held = session.context.toLocaleString("en-US");
+    // The share beside the size, from the same wording the row says it in. It is the half that
+    // means anything on a model nobody here has measured: 178,400 is a number, and 89% of its
+    // window is how much room is left to plan in. Said with the size and never instead of it — the
+    // block is read by somebody deciding which panel to press, and the size is what they will see
+    // on it. It cannot come back nothing here: a session is in this list because it is in a band,
+    // and a band needs both readings, so the filter above is what makes this phrase always sayable.
+    const held = `${session.context.toLocaleString("en-US")} tokens, ${shareSaid(session.context, session.window)}`;
     return session.name === name
-      ? `you were carrying ${held} tokens at the end of yours`
-      : `${session.name} was carrying ${held} tokens at the end of its last turn`;
+      ? `you were carrying ${held} at the end of yours`
+      : `${session.name} was carrying ${held} at the end of its last turn`;
   });
   const when = new Date();
   const read = `${String(when.getHours()).padStart(2, "0")}:${String(when.getMinutes()).padStart(2, "0")}`;

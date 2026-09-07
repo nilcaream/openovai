@@ -45,6 +45,12 @@ function describeSession(session) {
     windowsSaid(session.quota),
     session.thread ? null : "nothing to carry on",
     typeof session.context === "number" ? `${session.context.toLocaleString("en-US")} tokens` : null,
+    // The same reading in the unit that means something on every model. BESIDE the tokens and never
+    // instead of them, and never as a state: a share is a second reading, and what a person does
+    // about it is theirs. There is no threshold here, no colour and no word for how full is too
+    // full — the row carries readings, and the one line in this toolkit that holds an opinion about
+    // a size is handed to the lead and nowhere else.
+    shareSaid(session.context, session.window),
     session.active === null ? "nothing said yet" : `last moved ${ago(session.active)}`,
   ].filter((part) => part !== null);
 
@@ -91,6 +97,27 @@ function windowsSaid(quota) {
     .join(", ");
 
   return `${full}, read ${ago(new Date(quota.at).toISOString())}`;
+}
+
+// How much of the window this conversation has taken, as a share of what the model it ran on can
+// hold, or nothing at all.
+//
+// Nothing whenever either half is missing, which is the same rule the two readings above keep and
+// is the whole of what makes this safe to add. When the service names no window the row is byte for
+// byte what it said before this existed — the tokens, and nothing beside them.
+//
+// A percentage here and a fraction everywhere else, for windowsIn()'s reason: the fraction is what
+// arrives, turning it into a percentage is a thing to do when printing it, and this is the printing.
+//
+// Exported for `ago`'s reason. The block the lead is handed says this reading too, and a second copy
+// of the wording is a second place for one fact to be said two ways. There are two places to keep
+// true, not three: the page keeps its own copy because a page served as text cannot import
+// anything, and that duplication is the one this file names at the top.
+export function shareSaid(context, window) {
+  if (typeof context !== "number" || typeof window !== "number" || window <= 0) {
+    return null;
+  }
+  return `${Math.round((context / window) * 100)}% of its window`;
 }
 
 // Every state a row can be said to be in, in the order they are tried: the condition that says it,
