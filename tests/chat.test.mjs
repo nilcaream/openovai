@@ -5443,9 +5443,38 @@ describe("the session that leads opens a desk", () => {
   const AT_A_DESK = "Bittern";
   const CAME_BACK = "Redshank";
   const REFUSED_A_WORKER = "Wryneck";
+  const ON_A_MODEL = "Pochard";
+  const NOT_A_MODEL = "Goldeneye";
+  const HIRED_ONTO = "opus";
+  const NOT_ONE = "not a model at all";
+
+  // Every name this block opens a desk for, named once: the fixture that clears them and the
+  // rules that are cleared with them are the same list, and a name in one of them only is a desk
+  // left standing for whatever runs next.
+  const HIRED_HERE = [OPENED, AT_A_DESK, CAME_BACK, REFUSED_A_WORKER, ON_A_MODEL, NOT_A_MODEL, "Wheatear"];
 
   const desk = (name) => path.join(instance, "work", name, "STATE.md");
   const chatOf = (name) => path.join(instance, "chat", name);
+  const modelFile = (name) => path.join(instance, "work", name, "MODEL");
+
+  // What a session was last run on, as the word after the flag rather than as a substring of the
+  // command line: one model identifier can begin with another, so a substring match passes on the
+  // wrong model and says nothing.
+  const runsOn = (name) => {
+    const line = callsIn(hiringLog)
+      .filter((entry) => entry.includes(path.join("personas", `${name}.md`)))
+      .at(-1)
+      .split(/\s+/);
+    return line[line.indexOf("--model") + 1];
+  };
+
+  // The sentence the command prints for the same refusal, which is what this door's is compared
+  // against. Two doors onto one function, so there is one sentence and neither of them writes it.
+  const whatTheCommandSays = (name, model) =>
+    runTool(instance, ["hire", name, model], process.env).stderr.replace(/^ovai: /, "").trim();
+
+  const panelOfTheLead = async () =>
+    JSON.parse((await transcriptOf(LEADER)).body).messages.map((message) => message.text);
 
   async function offeredTo(who) {
     return JSON.parse((await call(who, "tools/list")).body).result.tools.map((tool) => tool.name);
@@ -5453,6 +5482,12 @@ describe("the session that leads opens a desk", () => {
 
   function hiredBy(who, name) {
     return call(who, "tools/call", { name: "hire", arguments: { name } });
+  }
+
+  // A model is sent only when there is one, because "no key at all" is what nearly every hire
+  // sends and it is the half of this that has to go on working untouched.
+  function hiredOnto(who, name, model) {
+    return call(who, "tools/call", { name: "hire", arguments: { name, model } });
   }
 
   let offeredToTheLead;
@@ -5464,6 +5499,10 @@ describe("the session that leads opens a desk", () => {
   let cameBack;
   let refusedAWorker;
   let whileOff;
+  let hireTool;
+  let onAModel;
+  let badModel;
+  let panelLines;
 
   before(async () => {
     await start(instance, standInEnvironment(standIn, hiringLog));
@@ -5493,6 +5532,24 @@ describe("the session that leads opens a desk", () => {
     await call(LEADER, "tools/call", { name: "say", arguments: { to: WORKER, message: "anything at all" } });
     ranWhileHiring = callsIn(hiringLog).length - before - 1;
 
+    // The tool as it is served, not only its name: what may be sent to it is half of what this
+    // door is, and a list of names cannot tell a required property from an optional one.
+    hireTool = JSON.parse((await call(LEADER, "tools/list")).body).result.tools.find(
+      (tool) => tool.name === "hire",
+    );
+
+    onAModel = answerOf(await hiredOnto(LEADER, ON_A_MODEL, HIRED_ONTO));
+    badModel = answerOf(await hiredOnto(LEADER, NOT_A_MODEL, NOT_ONE));
+
+    // Both of them run, because what a hire wrote down is only worth checking through the thing
+    // that reads it: the first run is where a model that was named either arrives or does not.
+    await call(LEADER, "tools/call", { name: "say", arguments: { to: ON_A_MODEL, message: "settle in" } });
+    await call(LEADER, "tools/call", { name: "say", arguments: { to: OPENED, message: "settle in" } });
+
+    // Read once, after every hire this block makes, so the two panel checks are two readings of
+    // one panel rather than two panels that happen to agree.
+    panelLines = await panelOfTheLead();
+
     alreadyHere = answerOf(await hiredBy(LEADER, AT_A_DESK));
     cameBack = answerOf(await hiredBy(LEADER, CAME_BACK));
     refusedAWorker = answerOf(await hiredBy(WORKER, REFUSED_A_WORKER));
@@ -5507,7 +5564,7 @@ describe("the session that leads opens a desk", () => {
   // The fixture ends what the fixture started: this instance is shared, and a check further down
   // reads the room off the same directory listing this block writes into.
   after(async () => {
-    for (const name of [OPENED, AT_A_DESK, CAME_BACK, REFUSED_A_WORKER, "Wheatear"]) {
+    for (const name of HIRED_HERE) {
       fs.rmSync(path.join(instance, "work", name), { recursive: true, force: true });
       fs.rmSync(chatOf(name), { recursive: true, force: true });
       fs.rmSync(path.join(instance, "personas", `${name}.md`), { force: true });
@@ -5515,7 +5572,7 @@ describe("the session that leads opens a desk", () => {
     const file = path.join(instance, ".claude", "settings.json");
     const settings = JSON.parse(fs.readFileSync(file, "utf8"));
     settings.permissions.allow = settings.permissions.allow.filter(
-      (rule) => ![OPENED, AT_A_DESK, CAME_BACK, REFUSED_A_WORKER, "Wheatear"].some((name) => rule.includes(`work/${name}/`)),
+      (rule) => !HIRED_HERE.some((name) => rule.includes(`work/${name}/`)),
     );
     fs.writeFileSync(file, `${JSON.stringify(settings, null, 2)}\n`);
     await post(`${URL}/online`, {});
@@ -5588,6 +5645,53 @@ describe("the session that leads opens a desk", () => {
   it("opens a desk while the room is off", () => {
     assert.ok(!whileOff.refused, whileOff.text);
     assert.ok(fs.existsSync(desk("Wheatear")));
+  });
+
+  // What may be sent, which is the door itself. A model that were required would make every hire
+  // a decision about models, and a schema left open would take a misspelt property silently and
+  // hire on the default while the caller believes it named one.
+  it("offers a model beside the name, and asks for the name alone", () => {
+    assert.deepEqual(hireTool.inputSchema.required, ["name"]);
+    assert.equal(hireTool.inputSchema.properties.model.type, "string");
+    assert.equal(hireTool.inputSchema.additionalProperties, false);
+  });
+
+  // Written down at the hire, read at the first run: the two halves are checked through the run
+  // rather than off the file, because a file nothing reads is not what was asked for.
+  it("runs somebody hired onto a model on that model", () => {
+    assert.ok(!onAModel.refused, onAModel.text);
+    assert.equal(runsOn(ON_A_MODEL), HIRED_ONTO);
+  });
+
+  // And the far commoner half. Nothing is written for somebody hired without a word about it, so
+  // the workspace's own answer stays a setting rather than being frozen onto each desk at hire.
+  it("writes nothing down for a hire that named none, and runs them on the workspace's own", () => {
+    assert.equal(fs.existsSync(modelFile(OPENED)), false);
+    assert.equal(runsOn(OPENED), WORKER_MODEL);
+  });
+
+  // In the words the refusal is written in, which are `desks.mjs`'s and the command's alike. A
+  // door that composed its own sentence would be a second answer to keep true.
+  it("refuses a model that is not one, in the words the command uses, and opens nothing", () => {
+    assert.ok(badModel.refused);
+    assert.equal(badModel.text, whatTheCommandSays(NOT_A_MODEL, NOT_ONE));
+    assert.equal(fs.existsSync(desk(NOT_A_MODEL)), false);
+  });
+
+  // The line a person reads. The room is not what it was a moment ago, and when the hire was a
+  // decision about a model the panel is where that decision is on the record.
+  it("says on the caller's panel what somebody was hired onto", () => {
+    assert.ok(
+      panelLines.includes(`${LEADER} opened a desk for ${ON_A_MODEL}, on ${HIRED_ONTO}.`),
+      panelLines.join("\n"),
+    );
+  });
+
+  // And says nothing about a model when none was chosen, in the sentence it has always been: a
+  // panel that names one every time reports a decision that was never taken.
+  it("says no model when none was chosen", () => {
+    assert.ok(panelLines.includes(`${LEADER} opened a desk for ${OPENED}.`), panelLines.join("\n"));
+    assert.equal(panelLines.some((line) => line.startsWith(`${LEADER} opened a desk for ${OPENED},`)), false);
   });
 });
 

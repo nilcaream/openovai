@@ -948,13 +948,18 @@ function toolsFor(instance, caller) {
     {
       name: "hire",
       description:
-        "Open a desk for somebody new, so there is one more person here to give work to. It writes their desk, the instructions saying who they are, and the one file they are allowed to write. Nothing is started: a desk is what makes somebody a person here, so they are in the room from now on and they run for the first time when you say something to them. The name is yours to choose and it is theirs — it is what say addresses and what the room calls them. It refuses a name somebody here already has, and a name whose conversation from last time is still sitting here, which is a person's to move out of the way rather than yours.",
+        "Open a desk for somebody new, so there is one more person here to give work to. It writes their desk, the instructions saying who they are, and the one file they are allowed to write. Nothing is started: a desk is what makes somebody a person here, so they are in the room from now on and they run for the first time when you say something to them. The name is yours to choose and it is theirs — it is what say addresses and what the room calls them. It refuses a name somebody here already has, and a name whose conversation from last time is still sitting here, which is a person's to move out of the way rather than yours. A model can be named beside it when this one should not run on what everybody here runs on; leaving it out is the usual answer, and it is the one that keeps moving with the workspace.",
       inputSchema: {
         type: "object",
         properties: {
           name: {
             type: "string",
             description: "What to call them. A letter, then letters, digits, hyphens or underscores.",
+          },
+          model: {
+            type: "string",
+            description:
+              "What to run them on, when it should not be what this workspace runs its workers on. Left out, they run on that, and go on doing so if it is ever changed.",
           },
         },
         required: ["name"],
@@ -1143,8 +1148,13 @@ function hiredByTool(instance, caller, args) {
   const name = args?.name;
   const panel = isName(name) ? panelDirectory(instance.root, name) : "";
 
+  // An absent model is `null` rather than `undefined`, which is what `hire` reads as "the usual
+  // one". Nothing is validated here: what a model identifier is has one answer and it is
+  // `desks.mjs`'s, so a model that is not one is refused in the sentence the command prints.
+  const model = args?.model ?? null;
+
   try {
-    hire(instance.root, name, panel, instance.config);
+    hire(instance.root, name, panel, instance.config, model);
   } catch (error) {
     if (error instanceof DeskError) {
       return { refused: error.message };
@@ -1159,7 +1169,11 @@ function hiredByTool(instance, caller, args) {
   // On the CALLER's panel, which is the lead's, which is the one being read. The new desk has a
   // panel of its own and this line is not for it — nobody has been started, and the first thing on
   // that panel should be the first thing somebody says to them.
-  append(instance.root, caller, { from: THE_CHAT, text: `${caller} opened a desk for ${name}.` });
+  //
+  // The model is on the line only when one was chosen. A line that named one every time would
+  // report a decision that was not taken — and the room row already says what everybody is on.
+  const onto = model === null ? "" : `, on ${model}`;
+  append(instance.root, caller, { from: THE_CHAT, text: `${caller} opened a desk for ${name}${onto}.` });
 
   // What is NOT said is the point of the sentence. A caller told only that a desk was opened goes
   // looking for the session it opened, and there is none: the chat reads who works here from
