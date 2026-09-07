@@ -212,5 +212,38 @@
         "to": "  {\n    named: \"large\",\n    when: (session) => typeof session.context === \"number\" && session.context > 300000,\n    say: () => \"large\",\n  },\n  {\n    named: \"idle\",\n    when: () => true,\n    say: (session) => idleSaid(session.ran),\n  },\n]);"
       }
     ]
+  },
+  {
+    "name": "the roster takes any directory under work/, whatever it is called",
+    "catches": "a directory whose name nobody could have is not on the roster",
+    "edits": [
+      {
+        "file": "tools/desks.mjs",
+        "from": "entry.isDirectory() && isName(entry.name)",
+        "to": "entry.isDirectory()"
+      }
+    ]
+  },
+  {
+    "name": "the roster keeps the directories nobody could be called and drops the people",
+    "catches": "a directory whose name is fine is still on the roster",
+    "edits": [
+      {
+        "file": "tools/desks.mjs",
+        "from": "entry.isDirectory() && isName(entry.name)",
+        "to": "entry.isDirectory() && !isName(entry.name)"
+      }
+    ]
+  },
+  {
+    "name": "the roster takes any directory, and the route asks the roster",
+    "catches": "the chat will not open a conversation for a directory that is not a person",
+    "edits": [
+      {
+        "file": "tools/desks.mjs",
+        "from": "entry.isDirectory() && isName(entry.name)",
+        "to": "entry.isDirectory()"
+      }
+    ]
   }
 ]

@@ -109,11 +109,21 @@ export function describeModel(flag, value) {
 // Everybody who works in the instance, in the order a directory listing gives them. A desk is a
 // person, so this is the roster: there is nothing else to register and nothing that can disagree
 // with what is on disk.
+//
+// A directory nobody could be called is not somebody who works here. Hiring is not the only thing
+// that writes in work/: it is a directory on somebody's machine, and an editor opening the
+// workspace, a copy made beside a desk or a tool of their own can all leave something in there.
+// Whatever lands would otherwise be a person — a panel with a Leave button on it, a row in the
+// room, a name the say tool accepts — and pressing that button on one of them puts away whatever
+// the directory was holding.
+//
+// It is filtered here rather than at each of those, because this is the one read they all go
+// through, and a roster that can disagree with itself is what a second answer would buy.
 export function desks(root) {
   try {
     return fs
       .readdirSync(path.join(root, WORK), { withFileTypes: true })
-      .filter((entry) => entry.isDirectory())
+      .filter((entry) => entry.isDirectory() && isName(entry.name))
       .map((entry) => entry.name)
       .sort();
   } catch {

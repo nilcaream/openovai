@@ -119,6 +119,17 @@ and not a gap: there the window itself is the line, the row and the panel go on 
 they always did, and advice that is always early is worse than advice that stays quiet where it has
 nothing to add.
 
+**A directory in `work/` that nobody could have been hired under is not somebody who works here.**
+The desks under `work/` are the roster: hiring opens one, leaving takes it away, and there is no
+second list anybody has to keep true. But `work/` is a directory on your machine as well: an
+editor opening the workspace leaves its own in there, a copy of a desk gets made beside the desks,
+something of your own writes where it seemed sensible. Until now every one of those arrived as a
+person — a panel, a row in the room, a name your lead could say something to — and **Leave** on such
+a panel would have put away whatever that directory was holding. From this version the roster is the
+directories somebody could have been hired under, and nothing else in `work/` is a person anywhere:
+not on the page, not in the room, not in `ovai status`, and not on a route. Everybody you did hire
+is untouched, and there is nothing to do after taking this version.
+
 
 ## 0.4.0
 

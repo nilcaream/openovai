@@ -291,6 +291,38 @@ describe("who the chat can host", () => {
   });
 });
 
+// work/ is a directory on somebody's machine, and things other than hiring write in it: an editor
+// opens the workspace and leaves its own directory beside the desks, a person copies one, a tool
+// drops something in. None of them is a person, and every one of them would otherwise arrive with
+// a panel, a row in the room and a Leave button on it.
+describe("a directory under work/ that is not a person", () => {
+  const notAPerson = path.join(instance, "work", ".idea");
+  let listed;
+
+  before(async () => {
+    fs.mkdirSync(notAPerson, { recursive: true });
+    listed = JSON.parse((await get(`${URL}/sessions`)).body).sessions;
+  });
+
+  after(() => {
+    fs.rmSync(notAPerson, { recursive: true, force: true });
+  });
+
+  it("a directory whose name nobody could have is not on the roster", () => {
+    assert.ok(!listed.some((session) => session.name === ".idea"));
+  });
+
+  // The other half of the same read, because a filter is two answers and not one: a roster that
+  // dropped the people would pass the check above for the worst possible reason.
+  it("a directory whose name is fine is still on the roster", () => {
+    assert.ok(listed.some((session) => session.name === WORKER));
+  });
+
+  it("the chat will not open a conversation for a directory that is not a person", async () => {
+    assert.equal((await say("hello", ".idea")).status, 404);
+  });
+});
+
 describe("a worker answers on its own panel", () => {
   before(async () => {
     await say("what are you working on", WORKER);

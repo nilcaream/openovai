@@ -720,8 +720,16 @@ files for a person, which is why nothing here promises them a shape.
 
 The archive sits beside `work/` rather than inside it. The directories under `work/` **are** the
 roster — there is nothing else to register and nothing that can disagree with what is on disk —
-so a directory in there is somebody who works here, with a panel, a row in the room and a name
-the `say` tool will accept.
+so a directory in there whose name somebody could have is somebody who works here, with a panel, a
+row in the room and a name the `say` tool will accept.
+
+One whose name nobody could have is not, and that is the whole of the rule. `work/` is a directory
+on a real machine: an editor opening the workspace leaves its own directory beside the desks, and a
+copy or a tool of somebody's own can leave one too. Without the rule each of those arrives as a
+person — and **Leave** on that panel would put away whatever the directory was holding. It is
+filtered where the roster is read, which is the single read the panels, the room, `ovai status` and
+the routes all go through, so such a directory is nobody everywhere at once rather than nobody in
+the places somebody remembered.
 
 The name is free by construction: no desk, no conversation, no persona and no rule are left under
 it, so hiring it again starts on nothing. Two doors are shut behind that. Hiring refuses a name
