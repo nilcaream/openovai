@@ -136,6 +136,15 @@ export function claudeIsInstalled() {
 //                             entry each, and a top level that ADDS them up. A check about the
 //                             reading has to be able to tell those two apart, so the sizes differ
 //                             and each is split across the three fields a context is made of
+//   OPENOVAI_STAND_IN_WINDOW        "n,n,…" — how much each model the frame names can hold, reported
+//                             the way the real one reports it: a `modelUsage` map whose FIRST key is
+//                             the model this run was actually given on its command line, so a check
+//                             sees a real key and not a fixture's. Unset means no `modelUsage` at
+//                             all, which is what the frame carries today; set and empty means a
+//                             `modelUsage` that named nothing, which is a different fact; a second
+//                             number means a frame naming two models, which is the case nothing may
+//                             be read off. An entry that is not a number arrives as JSON null, which
+//                             is how a check reaches a window the service named without a size
 //   OPENOVAI_STAND_IN_SIGNED_IN     what `auth status` reports     (default: true)
 //   OPENOVAI_STAND_IN_LOGIN_STATUS  what `auth login` exits with   (default: 0)
 // It is plain ESM, like everything else here. A command on the PATH is named the way it is
@@ -570,12 +579,33 @@ const usage =
         },
       };
 
+// What each model the frame names can hold, keyed the way the real one keys it — by the model, not
+// by anything the workspace passed. The first key is the model THIS run was given on its command
+// line, read back off argv rather than written down here, so a check about reading the window off
+// the one model a frame named is looking at a real key.
+//
+// The absence of the variable and an empty value are different frames on purpose. Unset is the
+// frame as it has always been, carrying no \`modelUsage\` at all; set and empty is a frame that
+// named no model, which is a service that answered "nothing" rather than one that never spoke.
+// \`in\` and not \`??\`, because an empty string is exactly the case the two would collapse.
+const ranOn = process.env.OPENOVAI_STAND_IN_WINDOW_KEY || argv[argv.indexOf("--model") + 1] || "a-model";
+const held = "OPENOVAI_STAND_IN_WINDOW" in process.env
+  ? {
+      modelUsage: Object.fromEntries(
+        process.env.OPENOVAI_STAND_IN_WINDOW.split(",")
+          .filter(Boolean)
+          .map((size, at) => [at === 0 ? ranOn : \`another-model-\${at}\`, { contextWindow: Number(size) }]),
+      ),
+    }
+  : {};
+
 frame({
   type: "result",
   subtype: "success",
   is_error: false,
   num_turns: 1,
   ...usage,
+  ...held,
   session_id: process.env.OPENOVAI_STAND_IN_SESSION ?? "test-thread",
   result:
     (process.env.OPENOVAI_STAND_IN_EMPTY ?? "") !== ""
