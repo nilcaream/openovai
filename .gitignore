@@ -8,9 +8,6 @@
 # Desks. A machine's live work is never part of the toolkit.
 work/
 
-# Machine-specific literals. Ship office.env.example instead.
-office.env
-
 # Editors and operating systems.
 .idea/
 .vscode/
