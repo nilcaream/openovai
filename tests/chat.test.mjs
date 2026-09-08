@@ -3177,7 +3177,7 @@ describe("showing the room on the command line", () => {
     here = JSON.parse((await get(`${URL}/sessions`)).body).sessions.length;
 
     // And again while somebody is actually mid-turn, because a room that only ever reports an
-    // empty office says nothing worth reading. Not awaited: the point is what it says WHILE.
+    // empty instance says nothing worth reading. Not awaited: the point is what it says WHILE.
     const answering = say("take your time", WORKER);
     held = await waitFor(() => {
       const said = runTool(instance, ["room"], standIns);
@@ -7263,10 +7263,9 @@ describe("a message sent while another is being turned away", () => {
 //
 // A handover ends a thread and a leave files a desk away, and both do it on the strength of a run
 // that has just been asked to write down where the work stands. When the service turns that run
-// away, the writing never happened — and until this slice the ending happened anyway. That is the
-// one place this toolkit was worse than the office it is modelled on under the same trigger: there,
-// a refused handover cost a frozen button and no data; here it cost the conversation, on the very
-// turn whose replacement was never written.
+// away, the writing never happened — and until this slice the ending happened anyway. A refusal
+// under any other trigger costs a frozen button and no data; this one cost the conversation, on
+// the very turn whose replacement was never written.
 //
 // So both routes ask the same question and give the same answer: refused means nothing happened.
 const REFUSED_HAND = "Sable";
@@ -9661,8 +9660,8 @@ const STILL_RUNS = "Brambling";
 
 // What the lead is told to DO once the window is nearly gone, and which way to put people down.
 //
-// The reading beside this one is a number and an age; this is the office's rule on top of it, and
-// the whole of the rule is a choice between two ways of stopping. Pausing people leaves their
+// The reading beside this one is a number and an age; this is the rule on top of it, and the
+// whole of the rule is a choice between two ways of stopping. Pausing people leaves their
 // conversations where they stand and costs nothing to undo; parking them ends every one of them and
 // is paid for in everything nobody wrote down. Getting the choice the wrong way round is expensive
 // in one direction and irreversible in the other, so both states of it are staged here, either side

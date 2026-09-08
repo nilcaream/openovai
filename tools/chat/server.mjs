@@ -721,9 +721,9 @@ function refusedLine(name, refused) {
 
 // The same moment on a handover, where what is at stake is different and worse. A handover asks a
 // session to write its desk and then ends its thread; if the run is turned away, the desk was not
-// written — and until this slice the thread was ended anyway, which is the one place this toolkit
-// was worse than the office it is modelled on. So nothing is ended, and the line says that, because
-// a person who has just pressed a button needs to know whether it cost them anything.
+// written — and until this slice the thread was ended anyway, so a refusal cost the conversation on
+// the very turn whose replacement was never written. So nothing is ended, and the line says that,
+// because a person who has just pressed a button needs to know whether it cost them anything.
 function handoverRefused(name, refused) {
   return `${name} could not be asked to hand over: the service turned the run away on ${limitSaid(refused)}. Nothing was ended — its thread and ${desk(name)} are exactly as they were — so hand over again once the limit has lifted.`;
 }

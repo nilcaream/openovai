@@ -13,7 +13,7 @@ import { PAYLOAD, notAWorkspace } from "./payload.mjs";
 import { version } from "./version.mjs";
 
 // The notes a release carries, written for the lead of a workspace rather than for whoever works
-// on the toolkit: what changed in how the office works. Read from the package rather than from the
+// on the toolkit: what changed in how the workspace runs. Read from the package rather than from the
 // release description, so that what an instance was told and what it installed are the same thing.
 export const RELEASE_NOTES = "NOTES.md";
 
