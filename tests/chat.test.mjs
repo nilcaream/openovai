@@ -8238,12 +8238,9 @@ describe("a workspace that says when it is not to be woken", () => {
     "",
   ].join("\n");
 
-  // The config an instance keeps, under whichever of the two names it has. An instance made before
-  // the rename still answers to the old one, and a check that knew only the new one would be
-  // reading a file that is not there.
+  // The config an instance keeps.
   function configFile(root) {
-    const now = path.join(root, "openovai.json");
-    return fs.existsSync(now) ? now : path.join(root, "ow.json");
+    return path.join(root, "openovai.json");
   }
 
   function withQuietHours(root, window) {

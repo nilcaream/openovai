@@ -22,13 +22,10 @@ import { RELEASES, ReleaseError, latestRelease, notesIn, replacePayload, unpackI
 import { PluginError, describePluginName, describePlugins, isPluginName, pluginsIn, writePlugin } from "./plugins.mjs";
 import { isOlderThan, version } from "./version.mjs";
 
-// The instance's own description of itself. An instance made before the toolkit was renamed
-// still has the old name on it, and an update replaces only what the toolkit ships — so that
-// file is never renamed by taking a version, and refusing to read it would turn a rename into a
-// directory that has stopped being an instance. The old name is read where it is the only one
-// there, and stops being read two releases from now.
+// The instance's own description of itself, and the file whose absence says a directory is not
+// one. It sits at the root beside the payload rather than inside it, because it describes what
+// the instance became and an update replaces only what the toolkit ships.
 const CONFIG_FILE = "openovai.json";
-const CONFIG_FILE_BEFORE = "ow.json";
 
 const COMMANDS = ["status", "room", "chat", "hire", "plugin", "say", "login", "update"];
 
@@ -80,16 +77,9 @@ function readRoot(argv) {
   return { root: argv[at + 1], rest: [...argv.slice(0, at), ...argv.slice(at + 2)] };
 }
 
-// Which of the two names this instance keeps its description under. The new one wins where both
-// are there, so an instance that has been renamed by hand is not read out of the file it left
-// behind; the new one is also what is named in the refusal when there is neither.
+// Where this instance keeps its description.
 function configIn(root) {
-  const now = path.join(root, CONFIG_FILE);
-  if (fs.existsSync(now)) {
-    return now;
-  }
-  const before = path.join(root, CONFIG_FILE_BEFORE);
-  return fs.existsSync(before) ? before : now;
+  return path.join(root, CONFIG_FILE);
 }
 
 function readConfig(root) {
