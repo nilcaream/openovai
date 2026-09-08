@@ -6,6 +6,37 @@ carries only its own.
 
 ## 0.6.0
 
+Two refusals: one that was not there, and one that was not saying enough.
+
+**`ovai update` no longer takes you backwards without being asked.** It used to ask what the latest
+release was, compare that with the version you are on for sameness alone, and replace the payload
+whichever way the difference ran — so an instance ahead of what is published was quietly put back
+onto the older one, and told about the fall in the same words as a rise: `Was on 0.5.0, now on
+0.4.0`. Being ahead is ordinary rather than exotic — an instance installed from a local head, or
+from a directory release — so this was live on the plainest command there is, a bare `ovai update`
+with nothing after it. It now stops, names both versions and says what to do about it. Going back
+is a thing somebody does on purpose, so it is refused rather than forbidden: `--downgrade` says so
+and the update goes ahead as it always did. The same version is still nothing to do, and a newer
+one is still taken without being asked twice.
+
+The two are placed by comparing the numbers as numbers, because compared as words `0.10.0` comes
+before `0.5.0` — and the release where that starts being true is the release where a wrong answer
+here is a downgrade. Where a version cannot be placed at all — a prerelease, a `dev`, a workspace
+from before the toolkit carried a version — nothing is refused and the update goes on as it did
+before there was anything here to ask. A refusal has to be certain of what it is refusing.
+
+**A port that is taken names the process, wherever your workspace sits on disk.** When the chat
+cannot have its port it tells you what is holding it, with the pid and that process's command
+line, because the usual culprit is a chat somebody forgot to stop and its command line says which
+workspace it belongs to: one `kill` rather than a search. That line was cut to a readable length
+from the front, and the part of it that grows is the directories — so the deeper your workspace
+sat, the sooner the cut landed in front of the only word worth reading, and far enough down you
+were handed a hundred and twenty characters of path that named nothing at all. A line too long to
+print now loses its directories instead: every word keeps what follows its last `/`, so the holder
+reads `node ovai.mjs --root my-workspace chat`. A line that already fits is printed exactly as it
+is, paths and all. And where the machine will not say — a process belonging to somebody else is the
+usual reason — you get the pid on its own, or the advice on its own, as you did before.
+
 How full each conversation here is, said where you already look — and your lead told when one of
 them fills up, whether or not anybody is talking to it.
 
