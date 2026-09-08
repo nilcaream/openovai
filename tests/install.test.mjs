@@ -16,7 +16,6 @@ import {
   installed,
   remove,
   repo,
-  runOldName,
   runOvai,
   scratch,
   writeNodeStandIn,
@@ -115,16 +114,6 @@ describe("what the installer made", () => {
 
   it("leaves the launcher executable", () => {
     assert.doesNotThrow(() => fs.accessSync(inside("bin", "ovai"), fs.constants.X_OK));
-  });
-
-  // An update replaces the whole of bin/, so a name left out of the payload is a name an instance
-  // loses the moment it catches up. The old one ships until two releases from now.
-  it("copies the old name of the launcher in too", () => {
-    assert.ok(fs.existsSync(inside("bin", "ow")));
-  });
-
-  it("leaves the old name executable", () => {
-    assert.doesNotThrow(() => fs.accessSync(inside("bin", "ow"), fs.constants.X_OK));
   });
 
   it("copies the installer in", () => {
@@ -708,19 +697,6 @@ describe("the instance runs", { skip: claudeIsInstalled() ? false : "Claude Code
 
   it("names the human in ovai status", () => {
     assert.match(runOvai(instance, ["status"], process.env).stdout, new RegExp(HUMAN));
-  });
-
-  // The point of the old name is that it is not a message telling somebody to try again. It says
-  // what the command is called now, on the error stream so that whatever was reading the answer
-  // still reads the answer, and then it IS the command.
-  it("answers the same under the old name", () => {
-    const said = runOldName(instance, ["status"], process.env);
-    assert.equal(said.status, 0);
-    assert.match(said.stdout, new RegExp(HUMAN));
-  });
-
-  it("says the new name on the way through", () => {
-    assert.match(runOldName(instance, ["status"], process.env).stderr, /ow is now ovai/);
   });
 
   // The other half of the same promise, and the one that is easy to leave out: an instance made

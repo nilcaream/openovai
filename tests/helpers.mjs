@@ -881,13 +881,6 @@ export function runOvai(root, argv, environment) {
   return spawnSync(path.join(root, "bin", "ovai"), argv, { env: environment, encoding: "utf8" });
 }
 
-// The name the command used to be typed under, which ships beside the new one for two releases.
-// It is run through rather than around: what is being checked is that somebody who learned the
-// old name still gets the command, so the check has to go the way that person goes.
-export function runOldName(root, argv, environment) {
-  return spawnSync(path.join(root, "bin", "ow"), argv, { env: environment, encoding: "utf8" });
-}
-
 // Run the tool directly rather than through bin/ovai, for the cases where the launcher's own
 // refusal — no Claude Code on the PATH — would stop a test that is about something else.
 export function runTool(root, argv, environment) {
