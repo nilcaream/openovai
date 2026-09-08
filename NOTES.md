@@ -237,30 +237,7 @@ is untouched, and there is nothing to do after taking this version.
 
 ## 0.4.0
 
-The toolkit has a name of its own: OpenOv AI. It was called after the directory it lived in, and
-"office workspace" is what a workspace is rather than what this one is called. Three names move
-with it, and one of them wants a minute of your time.
-
-**One thing is yours to do after taking this version, because an update leaves a workspace as it
-found it.** The permission rules are the workspace's own, so open `.claude/settings.json` and
-change `mcp__office` to `mcp__openovai`. That rule is what grants the tools the chat serves your
-sessions, and the tools are served under the new name from this version on — so until the rule is
-changed, the first tool any session reaches for stops and asks you to allow it, on every message.
-It is one line, and it is the only edit here.
-
-The command is `ovai`. `ow` still works: it says what the command is called now and then does what
-you asked, so nothing you have written down stops working today. It goes away two releases from
-now, which is the time to change the lines that call it.
-
-The instance's description of itself is `openovai.json`. Yours is still called `ow.json` and is
-still read under that name, because an update replaces only what the toolkit ships and never
-reaches into what your workspace is. Rename it when it suits you; the new name wins if both are
-ever there. This one also stops being read two releases from now.
-
-Nothing about how the workspace runs is different. The desks, the personas, the settings, the
-transcripts and the account are where they were, under the names they had.
-
-Your lead can also open a desk and put one away now. It has two tools it did not have before:
+Your lead can open a desk and put one away now. It has two tools it did not have before:
 `hire`, which opens a desk for somebody new the way the **Hire** box does, and `retire`, which asks
 somebody to write their desk one last time and then files that desk and their whole conversation
 away together, exactly as **Leave** does. Both are the lead's alone; nobody else here is offered
@@ -352,7 +329,7 @@ necessary — the directory IS the list, so a file sitting in it looks served, a
 can ever see would say otherwise. A file that was never going to be a tool, a `notes.txt` left
 beside them, is passed over in silence.
 
-**`ow plugin <name>`** writes `plugins/<name>.mjs` from a scaffold, prints what it wrote, and then
+**`ovai plugin <name>`** writes `plugins/<name>.mjs` from a scaffold, prints what it wrote, and then
 says the one thing you would otherwise sit and wonder about: the chat has to be started again. What
 it writes carries the whole of what a handler is given, written out rather than pointed at, because
 whoever opens that file has nowhere else to read it. It refuses three things, in two different
@@ -414,7 +391,7 @@ saying what was not done — the conversation untouched, the desk still open, no
 nothing lost. What stays open is everything that ends something rather than starting it: a run can
 still be ended, a session stopped waiting to be allowed a tool can still be answered, and somebody
 can still be hired. A turn already going runs to its end. The room says it is off above the rows
-and never on one — on the page, in `ow room`, and to the lead. There is no `ow offline`: taking the
+and never on one — on the page, in `ovai room`, and to the lead. There is no `ovai offline`: taking the
 room off is a person's decision about the whole instance, and it stays on the page beside the
 button that brings it back.
 
@@ -485,10 +462,10 @@ instructions.
 
 The first release. Nothing changed, because there is nothing before it.
 
-An instance now knows which version it is on: `bin/ow status` says so, and the version travels in
+An instance now knows which version it is on: `bin/ovai status` says so, and the version travels in
 the payload with the code it names.
 
-`bin/ow update` takes a newer version from a release: it replaces what the toolkit ships — `bin/`,
+`bin/ovai update` takes a newer version from a release: it replaces what the toolkit ships — `bin/`,
 `tools/`, `templates/` and `VERSION` — and touches nothing a workspace has accumulated. Desks,
 personas, threads, panels, settings and everything the workspace has learned are left exactly as
 they were. It refuses to run while the chat is answering, so stop the chat first.
@@ -536,7 +513,7 @@ memory stops; and a session asking another through the `say` tool is told in the
 came from a fresh head.
 
 **Two things are yours to do after taking this version, because an update leaves a workspace as it
-found it.** The permission rules are the workspace's own, so add `mcp__office` to
+found it.** The permission rules are the workspace's own, so add `mcp__openovai` to
 `.claude/settings.json`: without it the first tool a session reaches for stops and asks you to
 allow it, on every message. And personas are not re-rendered, so everybody hired before the update
 goes on typing the old commands — which still work, and whose rules you can drop once nobody is
