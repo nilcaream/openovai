@@ -57,6 +57,14 @@ export function home(root) {
   return path.join(root, ".claude-home");
 }
 
+// Claude Code's own settings for this instance, inside the instance's home. This is the file it
+// reads as the account's settings; the instance's `.claude/settings.json` is a different one,
+// read as the working directory's, and a key that is only honoured in the account's is a no-op
+// there. Named here, where the home is, so that the two are never confused for each other.
+export function homeSettingsFile(root) {
+  return path.join(home(root), "settings.json");
+}
+
 // Claude Code's own file inside the instance's home, where it records what it knows about the
 // directories it has been run in.
 const STATE_FILE = ".claude.json";

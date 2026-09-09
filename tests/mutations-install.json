@@ -1,0 +1,24 @@
+[
+  {
+    "name": "a fresh instance leaves a refused session waiting on the limit dialog",
+    "catches": "brings a refused session back by itself rather than leaving it on a dialog",
+    "edits": [
+      {
+        "file": "tools/install.mjs",
+        "from": "  autoContinueAtUsageLimit: true,",
+        "to": "  autoContinueAtUsageLimit: false,"
+      }
+    ]
+  },
+  {
+    "name": "the settings are written but left out of what the installer says it wrote",
+    "catches": "says it wrote those settings",
+    "edits": [
+      {
+        "file": "tools/install.mjs",
+        "from": "  fs.writeFileSync(target, `${JSON.stringify(HOME_SETTINGS, null, 2)}\\n`);\n  return [target];",
+        "to": "  fs.writeFileSync(target, `${JSON.stringify(HOME_SETTINGS, null, 2)}\\n`);\n  return [];"
+      }
+    ]
+  }
+]

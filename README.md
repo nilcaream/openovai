@@ -877,6 +877,18 @@ answers exactly as usual. The lead decides and the lead acts — including with 
 order to act. Nothing here has to be cleared: the work stops, the account fills no further, and when
 the window lifts the block is gone.
 
+**A session that was refused comes back by itself.** Turn that off and the limit arrives as a dialog
+on the session's own terminal, offering the wait as a choice, and the session sits on it until
+somebody answers at that keyboard. A workspace is run by messages, so a session waiting on a dialog
+has left the room: it cannot be asked anything, told anything, or parked. So a new instance is
+installed with it on, and written out rather than left to the default — one key,
+`autoContinueAtUsageLimit`, in the instance's own Claude Code home, which is the only file it is
+read from, and spelled out there because the default belongs to the harness and is its to change.
+What keeps a reopened window from being spent by a whole room coming back at once is not this key
+but the hold above: the lead parks the room well before the account runs out, so that nothing is
+refused in the first place. An instance installed before this keeps what it was given: how a running
+workspace behaves is not something an installer reaches back and changes.
+
 ### When a conversation has grown big
 
 The third thing handed to the lead unasked, and the only one of the three that is about a

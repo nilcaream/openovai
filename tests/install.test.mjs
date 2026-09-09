@@ -154,6 +154,18 @@ describe("what the installer made", () => {
     assert.ok(made.stdout.includes(inside(".claude-home", "projects", "workspace", "memory", "MEMORY.md")));
   });
 
+  // The path is spelled out rather than asked of the code. The key is only honoured in the home's
+  // settings, so a check that followed the code would go on passing if the file moved to the
+  // instance's own settings and stopped meaning anything.
+  it("brings a refused session back by itself rather than leaving it on a dialog", () => {
+    const settings = JSON.parse(contentOf(".claude-home", "settings.json"));
+    assert.equal(settings.autoContinueAtUsageLimit, true);
+  });
+
+  it("says it wrote those settings", () => {
+    assert.ok(made.stdout.includes(inside(".claude-home", "settings.json")));
+  });
+
   it("makes a directory for the settings", () => {
     assert.ok(fs.statSync(inside(".claude")).isDirectory());
   });

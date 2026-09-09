@@ -10,7 +10,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { MEMORY_FILE, memoryDirectory } from "./claude.mjs";
+import { MEMORY_FILE, homeSettingsFile, memoryDirectory } from "./claude.mjs";
 import { PAYLOAD, notAWorkspace } from "./payload.mjs";
 import { PLUGINS } from "./plugins.mjs";
 import {
@@ -326,6 +326,34 @@ function writeMemoryIndex(plan) {
   return [target];
 }
 
+// What a session does when it is refused for the rest of a usage window. Left to itself Claude Code
+// waits the window out and takes the session up again when it reopens. Turned off, the limit
+// arrives instead as a dialog on that session's own terminal offering the wait as a choice, and the
+// session sits on it until somebody answers at that keyboard. A workspace is run by messages, so a
+// session waiting on a dialog has left the room: it cannot be asked anything, told anything, or
+// parked. Waiting the window out is much the lesser of the two.
+//
+// What keeps a reopened window from being spent by a whole room coming back at once is not this
+// key. It is the hold the lead puts on the room well before the account runs out, so that nothing
+// is refused in the first place.
+//
+// The key is written out rather than left to the default, because the default belongs to the
+// harness and is its to change. It goes into the instance's Claude Code home rather than its own
+// settings because that is the only one of the two files the key is read from.
+//
+// New instances only. An instance already installed keeps whatever it was given, since changing
+// how somebody's running workspace behaves is not an installer's to do.
+const HOME_SETTINGS = {
+  autoContinueAtUsageLimit: true,
+};
+
+function writeHomeSettings(plan) {
+  const target = homeSettingsFile(plan.root);
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.writeFileSync(target, `${JSON.stringify(HOME_SETTINGS, null, 2)}\n`);
+  return [target];
+}
+
 function printPlan(plan) {
   const rows = [
     ["source", plan.source],
@@ -391,6 +419,7 @@ function main(argv) {
       ...copyPayload(plan),
       ...writeConfig(plan),
       ...writeMemoryIndex(plan),
+      ...writeHomeSettings(plan),
       ...writeDesk(plan.root, plan.source, plan.leader),
       ...writePersona(plan.root, plan.source, plan.leader, "leader", LEADER_TEMPLATE, {
         LEADER: plan.leader,
