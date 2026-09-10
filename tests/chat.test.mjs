@@ -70,10 +70,11 @@ import { readable } from "../tools/port.mjs";
 import { BANDS, shareOf } from "../tools/chat/session.mjs";
 import { WATCH_EVERY, howOften, watchEveryProblem } from "../tools/chat/watch.mjs";
 
-// And the chat itself, served in this process. One check needs a server that is closed while the
-// process it was in lives on, which is the one arrangement a chat started as a child cannot be put
-// into: stopping one from outside ends it outright.
-import { serve } from "../tools/chat/server.mjs";
+// And the chat itself, in this process. One check needs a server that is closed while the process
+// it was in lives on, which is the one arrangement a chat started as a child cannot be put into:
+// stopping one from outside ends it outright. And the handover turn is asked for directly, because
+// over a socket the only thing that can ask for one is the button.
+import { handOver, serve } from "../tools/chat/server.mjs";
 
 // The kinds themselves, read from where they are named rather than written out again here. Two
 // copies of a list are two things that drift, and a check comparing what it saw against its own
@@ -5195,6 +5196,78 @@ describe("handing a session over", () => {
   // it says. Text is all there is here, so the text says it is put on the panel.
   it("puts that button on the panel", async () => {
     assert.match((await get(`${URL}/`)).body, /composer\.append\(box, send, hand[,)]/);
+  });
+});
+
+const ASKED_IN_OTHER_WORDS = "Wren";
+
+// The words on the panel belong to whoever asked for the handover, and the button is not the only
+// thing that can ask. What the button writes names the person who pressed it, so a caller that is
+// not a person would be putting a sentence on somebody's panel about somebody who did nothing —
+// which is why the line is handed to the turn rather than written inside it.
+//
+// Asked IN THIS PROCESS, because a socket can only reach the route, and the route is the caller
+// whose words are already checked above. The instance is its own so that nothing here is said on a
+// panel the rest of the suite is reading, and the stand-in is put on the path for the length of the
+// call so the run is answered by the same thing that answers every other run here.
+describe("a handover asked for in words of its own", () => {
+  const own = `${instance}-asked`;
+  const ownLog = path.join(standIn, "asked-handover.txt");
+  const words = `${ASKED_IN_OTHER_WORDS} was asked to hand over because its conversation had sat still, and nobody pressed anything.`;
+  let rows;
+
+  before(async () => {
+    installed(options(own, 0));
+    runTool(own, ["hire", ASKED_IN_OTHER_WORDS], process.env);
+
+    // Read back off the file rather than composed here, so what this turn is given is what an
+    // instance saying this would be given.
+    const config = JSON.parse(fs.readFileSync(path.join(own, "openovai.json"), "utf8"));
+    const wasOnThePath = process.env.PATH;
+    const wasLogged = process.env.OPENOVAI_STAND_IN_LOG;
+    process.env.PATH = `${standIn}${path.delimiter}${wasOnThePath}`;
+    process.env.OPENOVAI_STAND_IN_LOG = ownLog;
+    try {
+      await handOver({ root: own, config, plugins: [], pop: null }, ASKED_IN_OTHER_WORDS, words);
+    } finally {
+      process.env.PATH = wasOnThePath;
+      if (wasLogged === undefined) {
+        delete process.env.OPENOVAI_STAND_IN_LOG;
+      } else {
+        process.env.OPENOVAI_STAND_IN_LOG = wasLogged;
+      }
+    }
+
+    rows = JSON.parse(fs.readFileSync(path.join(own, "chat", ASKED_IN_OTHER_WORDS, "conversation.json"), "utf8"));
+  });
+
+  it("opens the panel with the words it was given", () => {
+    assert.equal(rows[0]?.text, words);
+  });
+
+  // The other half of the same fact, and the one that would go unnoticed: a turn that wrote its own
+  // line as well would leave the given one there for the check above to find, and a person reading
+  // that panel would be told they had asked for something they had never heard of.
+  it("says nothing about anybody having pressed anything", () => {
+    assert.equal(
+      rows.filter((message) => typeof message.text === "string" && message.text.startsWith(`${HUMAN} asked`)).length,
+      0,
+    );
+  });
+
+  // The session answered, which is the difference between a turn that ran and one that never got
+  // off the ground: a run that could not be started would leave the given line on the panel too, and
+  // every check above it would pass with nothing having happened.
+  it("keeps what the session answered", () => {
+    assert.equal(rows[1]?.from, ASKED_IN_OTHER_WORDS);
+  });
+
+  it("ends the thread all the same", () => {
+    assert.equal(fs.existsSync(path.join(own, "chat", ASKED_IN_OTHER_WORDS, "session.json")), false);
+  });
+
+  after(() => {
+    remove(own);
   });
 });
 

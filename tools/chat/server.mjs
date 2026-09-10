@@ -1452,11 +1452,15 @@ async function postTool(instance, caller, request, response) {
 // Nothing new had to be locked to get either.
 //
 // There is no process to end. A run lives for one message and is over before this returns.
-async function postHandover(instance, name, response) {
-  const done = await inTurn(name, async () => {
+//
+// The line it opens with is handed in rather than written here, because the panel says who asked
+// and not every caller is a person. The words the button writes name whoever pressed it, and a turn
+// that wrote them itself would put a sentence on somebody's panel about somebody who did nothing.
+export async function handOver(instance, name, askedLine) {
+  return inTurn(name, async () => {
     const asked = append(instance.root, name, {
       from: THE_CHAT,
-      text: handoverAsked(instance.config.human, name),
+      text: askedLine,
       handover: true,
     });
 
@@ -1511,6 +1515,14 @@ async function postHandover(instance, name, response) {
 
     return { asked, reply, ended };
   });
+}
+
+// The press, which is the caller that IS a person: it says so in the line the turn opens with, and
+// it is the one that owes somebody an answer. What came back is written to that answer here rather
+// than inside the turn, which is the split `deliver` is written in and for the same reason — a turn
+// is one thing, and what an HTTP request is told about it is another.
+async function postHandover(instance, name, response) {
+  const done = await handOver(instance, name, handoverAsked(instance.config.human, name));
 
   // Nothing was asked, so there is no question on the panel either — only the line saying why. The
   // thread is where it was, the desk is where it was, and pressing this again once the room is back

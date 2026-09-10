@@ -152,8 +152,19 @@
     "edits": [
       {
         "file": "tools/chat/server.mjs",
-        "from": "async function postHandover(instance, name, response) {\n  const done = await inTurn(name, async () => {",
-        "to": "async function postHandover(instance, name, response) {\n  if (bandIn(instance.root, name) !== null) {\n    sendJson(response, 409, { error: \"that conversation is too big to hand over\" });\n    return;\n  }\n  const done = await inTurn(name, async () => {"
+        "from": "async function postHandover(instance, name, response) {\n  const done = await handOver(",
+        "to": "async function postHandover(instance, name, response) {\n  if (bandIn(instance.root, name) !== null) {\n    sendJson(response, 409, { error: \"that conversation is too big to hand over\" });\n    return;\n  }\n  const done = await handOver("
+      }
+    ]
+  },
+  {
+    "name": "the line the turn opens with is written inside it rather than handed in",
+    "catches": "opens the panel with the words it was given",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "      text: askedLine,",
+        "to": "      text: handoverAsked(instance.config.human, name),"
       }
     ]
   },
