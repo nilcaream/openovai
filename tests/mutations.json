@@ -416,46 +416,24 @@
     ]
   },
   {
-    "name": "the tick fires on the band rather than on having entered it",
-    "catches": "gives the lead one turn for one crossing and not one every tick",
+    "name": "the pass says a band rather than having entered it",
+    "catches": "says one thing for one crossing and not one every pass",
     "edits": [
       {
         "file": "tools/chat/watch.mjs",
-        "from": "    if (band !== null && band.strong && band.named !== was.band) {",
+        "from": "    if (band !== null && band.strong && named !== (seen.get(session.name) ?? null)) {",
         "to": "    if (band !== null && band.strong) {"
       }
     ]
   },
   {
-    "name": "the tick fires while the lead is mid-turn",
-    "catches": "never starts a second turn on a lead that is already answering",
-    "edits": [
-      {
-        "file": "tools/chat/server.mjs",
-        "from": "  if (turnsGoing(instance.config.leader) > 0) {\n    return;\n  }",
-        "to": "  if (turnsGoing(instance.config.leader) > 1000) {\n    return;\n  }"
-      }
-    ]
-  },
-  {
-    "name": "the tick's message is sent unsigned",
-    "catches": "a turn the chat started is not read as the person speaking",
-    "edits": [
-      {
-        "file": "tools/chat/server.mjs",
-        "from": "    watchWrapper(instance, instance.config.leader, changed, read),\n    THE_CHAT,",
-        "to": "    watchWrapper(instance, instance.config.leader, changed, read),\n    null,"
-      }
-    ]
-  },
-  {
-    "name": "the tick fires on an FYI band",
-    "catches": "spends no turn on a band that is only worth reading",
+    "name": "the pass says a band that is only worth reading",
+    "catches": "says nothing about a band that is only worth reading",
     "edits": [
       {
         "file": "tools/chat/watch.mjs",
-        "from": "    if (band !== null && band.strong && band.named !== was.band) {",
-        "to": "    if (band !== null && band.named !== was.band) {"
+        "from": "    if (band !== null && band.strong && named !== (seen.get(session.name) ?? null)) {",
+        "to": "    if (band !== null && named !== (seen.get(session.name) ?? null)) {"
       }
     ]
   },
@@ -1253,6 +1231,231 @@
         "file": "tools/chat/server.mjs",
         "from": "    refused: refusedIn(instance.root, session.name),",
         "to": "    refused: refusedIn(instance.root, session.name) ?? (accountStanding(instance)?.stop ? { resetsAt: null } : null),"
+      }
+    ]
+  },
+  {
+    "name": "a crossing is never recorded as having been said",
+    "catches": "says one thing for one crossing and not one every pass",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    nowSeen(one.name, one.band);\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the pass tells the lead's panel and not the lead's model",
+    "catches": "tells the lead both ways, and buys no turn to do it",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  overhear(instance.config.leader, watchedWrapper(said, at));\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the pass tells the lead's model and leaves no record on the panel",
+    "catches": "tells the lead both ways, and buys no turn to do it",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  append(instance.root, instance.config.leader, { from: THE_CHAT, text: said, watch: true });\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "what the pass wrote is left unflagged",
+    "catches": "tells the lead both ways, and buys no turn to do it",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  append(instance.root, instance.config.leader, { from: THE_CHAT, text: said, watch: true });",
+        "to": "  append(instance.root, instance.config.leader, { from: THE_CHAT, text: said });"
+      }
+    ]
+  },
+  {
+    "name": "the pass buys a turn on the lead to say what it found",
+    "catches": "buys no turn to say it",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "function announce(instance, said, at) {\n  append(",
+        "to": "function announce(instance, said, at) {\n  void deliver(instance, instance.config.leader, said, THE_CHAT);\n  append("
+      }
+    ]
+  },
+  {
+    "name": "the whole pass is skipped while the lead is answering",
+    "catches": "says what changed while the lead is answering something else",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "async function readTheRoom(instance) {\n  const room = sessions(instance);",
+        "to": "async function readTheRoom(instance) {\n  if (turnsGoing(instance.config.leader) > 0) {\n    return;\n  }\n  const room = sessions(instance);"
+      }
+    ]
+  },
+  {
+    "name": "the block handed to the lead does not say who is speaking",
+    "catches": "says who is speaking, and that nobody typed it",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    \"The chat is telling you this. Nobody typed it, and no turn was bought to say it: it waited here until you were asked something else.\",\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the block handed to the lead does not carry the moment",
+    "catches": "carries the moment the room was read",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    `<watch read=\"${at}\">`,",
+        "to": "    \"<watch>\","
+      }
+    ]
+  },
+  {
+    "name": "the line about a band claims something was done about it",
+    "catches": "says that nothing was stopped and no conversation was ended",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "Nothing has been stopped and no conversation has been ended by this: handing ${name} over is ${human}'s to press, on that session's panel.",
+        "to": "${name} has been handed over."
+      }
+    ]
+  },
+  {
+    "name": "a conversation nobody carried on is left for the next message",
+    "catches": "ends a conversation that could no longer be carried on",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    (session) => turnsGoing(session.name) === 0 && hasGoneCold(instance.root, session.name),",
+        "to": "    (session) => false && turnsGoing(session.name) === 0 && hasGoneCold(instance.root, session.name),"
+      }
+    ]
+  },
+  {
+    "name": "a conversation that can still be carried on is ended too",
+    "catches": "leaves a conversation that can still be carried on",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    (session) => turnsGoing(session.name) === 0 && hasGoneCold(instance.root, session.name),",
+        "to": "    (session) => turnsGoing(session.name) === 0 && hasThread(instance.root, session.name),"
+      },
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "      if (!hasGoneCold(instance.root, session.name)) {",
+        "to": "      if (!hasThread(instance.root, session.name)) {"
+      }
+    ]
+  },
+  {
+    "name": "a cold conversation is ended with a run going on it",
+    "catches": "leaves a cold conversation alone while something is running on it",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    (session) => turnsGoing(session.name) === 0 && hasGoneCold(instance.root, session.name),",
+        "to": "    (session) => hasGoneCold(instance.root, session.name),"
+      }
+    ]
+  },
+  {
+    "name": "a conversation is ended without saying so on its own panel",
+    "catches": "says on that conversation's own panel where the memory stops",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "      append(instance.root, session.name, { from: THE_CHAT, text: coldLine(session.name), cold: true });\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the line about an ended conversation says what was saved rather than what was lost",
+    "catches": "says what was lost and that nothing was asked of it",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "Nothing was stopped and nothing was asked of ${name}: whatever it had not written to ${desk(name)} is gone, and the next message to it starts a new conversation that reads that desk first.",
+        "to": "The next message to it starts a new conversation."
+      }
+    ]
+  },
+  {
+    "name": "the record of the pass is never armed",
+    "catches": "keeps one record of the pass, in counts and not in names",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    armTheWatch();\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the record counts the crossings rather than the room",
+    "catches": "keeps one record of the pass, in counts and not in names",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  tickRead({ sessions: room.length, decided, acted });",
+        "to": "  tickRead({ sessions: crossed.length, decided, acted });"
+      }
+    ]
+  },
+  {
+    "name": "the record is left behind when the chat closes",
+    "catches": "forgets the record with the chat",
+    "edits": [
+      {
+        "file": "tools/chat/watch.mjs",
+        "from": "  seen.clear();\n  record = null;",
+        "to": "  seen.clear();"
+      }
+    ]
+  },
+  {
+    "name": "a message signed by the chat is read as the person's",
+    "catches": "flags a message signed by the chat rather than reading it as the person's",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "        ...(watching ? { watch: true } : {}),\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the record of a pass is added to the last rather than replacing it",
+    "catches": "replaces the record each pass rather than adding to it",
+    "edits": [
+      {
+        "file": "tools/chat/watch.mjs",
+        "from": "  record = { ...record, at: Date.now(), sessions, decided, acted };",
+        "to": "  record = { ...record, at: Date.now(), sessions, decided: record.decided + decided, acted: record.acted + acted };"
+      }
+    ]
+  },
+  {
+    "name": "a pass counts an act it did not make",
+    "catches": "counted only what it actually did",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "      forget(instance.root, session.name);\n",
+        "to": ""
       }
     ]
   }

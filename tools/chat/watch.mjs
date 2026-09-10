@@ -1,46 +1,58 @@
-// The room watch: the one thing in this toolkit that starts a turn nobody asked for.
+// The room watch: the one thing in this toolkit whose input is the clock.
 //
 // THE ARGUMENT FOR IT, AND IT IS THE ONLY ONE. Every other reading in this toolkit rides on a turn
 // the lead was having anyway and costs nothing — the size of a conversation, how long somebody has
 // been quiet, where the account stands. That is why "no sweep, no timer, nothing to clear" is the
 // right rule for all of them, and it stays the right rule for all of them. It is wrong for exactly
-// one case: the lead nobody has typed to for an hour is the lead that most needs to act, and it is
-// precisely the lead that will have no turn to ride on. The readings are free when they are not
-// needed and unavailable when they are. If that does not hold, none of this should exist.
+// one case: the room nobody has typed into for an hour is the room that most needs something done
+// about it, and that is precisely when there is no turn to ride on. The readings are free when they
+// are not needed and unavailable when they are. If that does not hold, none of this should exist.
 //
-// WHAT IT IS NOT. It hands nobody over, it hands the lead over least of all, it refuses no message,
-// it hires and retires nobody, and it ends no conversation of its own. Handing a session over is a
-// press on that session's panel and there is no tool for it — deliberately, because two mechanisms
-// for one concern is the thing this whole area is built to avoid. All this does is spend one turn
-// telling the lead what a room it cannot see has just become.
+// AND IT NO LONGER BUYS A TURN TO SAY SO. What this used to do was hand the lead a block and leave
+// the acting to it. That spent a run nobody asked for, at the one moment the account is most likely
+// to be spent — and it reached nobody at all whenever the room was off, which is exactly when a
+// strong band gets crossed. What happens now is that the pass acts on the session concerned and
+// leaves a line: the panel for the person, and the debt in overheard.mjs for the lead's model, on
+// the next turn the lead takes for its own reasons. Both are a map write or a file append. Neither
+// starts a run.
 //
-// ON THE TRANSITION, NEVER ON THE CONDITION. The failure that rule exists for is written down in
-// pop.mjs: a page asks what is parked once a second, and a doorbell driven off that answer would go
-// up sixty times a minute for one stopped session. So this holds a map of the band each name was
-// last seen in, and it names a session only when its band CHANGED into a strong one since the last
-// read. A session sitting at ninety per cent for two hours is said once.
+// WHAT IT IS NOT. It hires and retires nobody, it refuses no message, and it takes no room off.
+// Handing a session over is still a press on that session's panel. The one conversation the pass
+// ends is one that could not have been carried on anyway, and server.mjs says why where it does it.
+//
+// ON THE TRANSITION, NEVER ON THE CONDITION — for what is only ANNOUNCED. The failure that rule
+// exists for is written down in pop.mjs: a page asks what is parked once a second, and a doorbell
+// driven off that answer would go up sixty times a minute for one stopped session. So this holds a
+// map of the band each name was last seen in, and it names a session only when its band CHANGED
+// into a strong one since the last read. A session sitting at ninety per cent for two hours is
+// said once.
+//
+// ON THE CONDITION, NEVER ON THE TRANSITION — for what is ACTED ON, and it needs no map at all. A
+// condition that is acted on is cleared BY the act: the pass reads a cold conversation, ends it,
+// and there is no longer a cold conversation to read. Remembering that one had been seen would be
+// a second record of a fact the tree already holds, and it would be the record that goes wrong —
+// held across an act that never happened, it is the "handled" that handled nothing.
 //
 // IN MEMORY AND NOT IN A FILE, for offline.mjs's reason. What a session has not been told yet is
 // held in the process, because a chat stopped and started again has told nobody anything — so
 // saying it once more after a restart is correct rather than a duplicate. Nothing here survives the
 // chat, and there is nothing to clean up when it goes.
 
-import { shareSaid } from "./room.mjs";
-import { bandIn, hasGoneCold } from "./session.mjs";
+import { bandIn } from "./session.mjs";
 
 // How often the room is read when the instance does not say. Five minutes, and it is a JUDGMENT
 // rather than a measurement — the same honesty the bands are written with. It is short enough that
 // a crossing is said while something can still be done about it and long enough that a room where
-// nothing is happening costs nothing at all, which it does: a tick that finds no crossing starts no
-// run and writes nothing.
+// nothing is happening costs nothing at all, which it does: a tick that finds nothing starts no run
+// and writes nothing.
 const EVERY = 5 * 60 * 1000;
 
 // How often this workspace wants its room read, as it writes it in its own description of itself.
 // Absent from most of them, which means five minutes.
 //
-// AN INSTANCE'S FIELD, and not a constant, because this is the one reading in the toolkit that
-// SPENDS. Every other one rides on a turn the lead was having anyway; this one starts a turn nobody
-// asked for, and a run costs money. A workspace that does not buy the argument for that has to be
+// AN INSTANCE'S FIELD, and not a constant, because a tick is a thing a workspace is entitled to
+// have an opinion about: it decides how soon a conversation nobody is carrying on is ended, and how
+// soon a room that has changed is said to have changed. A workspace that wants neither has to be
 // able to say so without declining the version it came in, and `0` is how it says so.
 //
 // ABSENT IS FIVE MINUTES AND NOT NEVER, deliberately. A feature switched off in every workspace is
@@ -83,55 +95,50 @@ export function howOften(config) {
   return typeof said === "number" ? said * 1000 : EVERY;
 }
 
-// What each name was last seen to be, and the whole of what makes this fire on a transition. One
-// entry per session that has been read, holding the band it was in and whether its conversation had
-// gone cold — the two things a crossing can be into.
+// What band each name was last seen in — the whole of what makes an announcement fire on a
+// transition — and nothing else. One entry per session that has been read, holding the band's name
+// or nothing at all for a session that is in none.
 //
-// Keyed by name alone, for turns.mjs's reason: one of these serves one instance, because the process
-// running it IS that instance's chat.
+// Keyed by name alone, for turns.mjs's reason: one of these serves one instance, because the
+// process running it IS that instance's chat.
 const seen = new Map();
 
-// Everything the room has just BECOME, as a list of things worth a turn, or nothing.
+// Every band the room has just ENTERED that is worth a line, or nothing.
 //
-// STRONG, and only these, because a turn nobody asked for is a run the account pays for:
+// STRONG, and only these: a band of 0.90 or 0.95, newly entered. Everything weaker — 0.80, 0.85 —
+// says nothing here. It rides on the blocks the lead is handed the next time it is spoken to,
+// exactly as it does today. The line is free now, which weakens the old argument for the cut but
+// does not remove it: a line that arrives for every band is a line nobody reads by the third one,
+// and what is being protected is the lead's attention rather than the lead's account.
 //
-//   a band of 0.90 or 0.95, newly entered
-//   a conversation newly gone cold
+// NOTHING IS RECORDED HERE FOR A SESSION THAT CROSSED, and that is the invariant rather than an
+// implementation detail: a crossing is entered against a name only once the line saying it has
+// actually been written. A pass that read a crossing and then could not say it — because it fell
+// over, because the process went down between the read and the write — must find that crossing
+// still there next pass, not a map claiming it was said. Recording it here would be the same
+// mistake as a state that says "handled" when nothing handled it, and the caller closes it by
+// calling nowSeen() once the line is on the panel.
 //
-// Everything weaker — 0.80, 0.85, and a session merely gone quiet — buys no turn. It rides on the
-// blocks the lead is handed the next time it is spoken to, exactly as it does today.
-//
-// The judgment is one sentence long: a turn is spent only where the thing about to be lost is
-// larger than the turn. A conversation at ninety per cent of its window is two turns from losing
-// whatever its desk does not say; one at eighty is not.
-//
-// The map is written whether or not anything is returned, and that is what bounds the cost: a
-// crossing is entered once, so at most one turn is spent per session per crossing, and a workspace
-// where nothing crosses spends nothing at all.
+// A session with nothing to say IS recorded here, immediately, because nothing is owed on it: it
+// crossed nothing, no line is going to be written about it, and there is no act whose return could
+// be waited for. Holding that back would be a debt against no creditor.
 //
 // A name that has gone from the roster is dropped, so a desk that is opened again under a recycled
 // name is read fresh rather than against whatever the last person there was carrying.
 export function whatChanged(instance, room) {
-  const strong = [];
+  const crossed = [];
 
   for (const session of room) {
     const band = bandIn(instance.root, session.name);
-    const cold = hasGoneCold(instance.root, session.name);
-    const was = seen.get(session.name) ?? { band: null, cold: false };
+    const named = band === null ? null : band.named;
 
     // Into a strong band, and not merely still in one. A session that was already at 0.95 and is
     // read at 0.95 again has crossed nothing.
-    if (band !== null && band.strong && band.named !== was.band) {
-      strong.push({ name: session.name, band, context: session.context, window: session.window });
+    if (band !== null && band.strong && named !== (seen.get(session.name) ?? null)) {
+      crossed.push({ name: session.name, band, context: session.context, window: session.window });
+      continue;
     }
-    // And newly cold, which is the other half. It is worth a turn for the reason the hour exists at
-    // all: the next message to it ends that conversation and begins a new one from the desk, and
-    // whatever it never wrote down goes with it.
-    if (cold && !was.cold) {
-      strong.push({ name: session.name, cold: true });
-    }
-
-    seen.set(session.name, { band: band === null ? null : band.named, cold });
+    seen.set(session.name, named);
   }
 
   const here = new Set(room.map((session) => session.name));
@@ -141,49 +148,74 @@ export function whatChanged(instance, room) {
     }
   }
 
-  return strong;
+  return crossed;
+}
+
+// This crossing has been said, so the name has been seen in that band.
+//
+// EXACTLY THE BAND THAT WAS SAID, handed back rather than read again. Reading `bandIn` a second
+// time here would record whatever the session happens to be in at this instant, which is not what
+// the line on the panel claims — and on a session that grew between the two reads it would enter a
+// band nobody was ever told about and swallow the next crossing. This is overheard.mjs's rule on a
+// different channel: what is cleared is what was carried.
+export function nowSeen(name, band) {
+  seen.set(name, band === null ? null : band.named);
+}
+
+// That the pass happened, and almost nothing about what it found.
+//
+// ONE OBJECT, REPLACED EACH PASS, IN MEMORY. Never appended to and never written to disk, for the
+// reason `seen` is not either: this is a reading about a running process and a chat that has been
+// started again has had no passes. A file would also be the one thing this feature is not allowed
+// to grow — something to clean up.
+//
+// COUNTS AND NOT NAMES. Names would be a log, and a log is a thing to grow, to rotate and to argue
+// about the retention of. What a reader needs from here is whether the pass is alive at all; what
+// it decided is on the panels, which is where the durable record belongs.
+//
+// `armedAt` IS NOT DECORATION, and it is the state a reading built on `at` alone gets wrong. A
+// timer that has been armed and has not yet fired has no `at` for up to a whole cadence — five
+// minutes by default, longer where the instance says so — and that is every restart of the chat,
+// which is the documented repair for a stale server. Without `armedAt` a healthy boot is
+// indistinguishable from a watch that was armed and died on arrival, and a liveness reading that
+// cries fault every time somebody restarts the chat is worse than none at all.
+//
+// It is a TIMESTAMP AND NOT A HEALTH INDICATOR. There is no threshold here and no colour: "older
+// than about two cadences" is a judgment, the cadence belongs to the instance, and both belong to
+// whoever is reading rather than to this.
+let record = null;
+
+// The timer has been armed. Called where it is armed and nowhere else, so that "no record at all"
+// keeps its own meaning: a chat that armed nothing, which is a workspace that asked for no watch
+// and a `serve()` that never got as far as arming, and those are told apart by the config rather
+// than by guessing here.
+export function armTheWatch() {
+  record = { armedAt: Date.now(), at: null, sessions: 0, decided: 0, acted: 0 };
+}
+
+// A pass finished. `sessions` is how many it read, `decided` how many of them it found something
+// to do about, and `acted` how many of those the act actually returned on — which are three
+// different numbers on the pass where the room was off, and the gap between the last two is the
+// only thing that says so.
+export function tickRead({ sessions, decided, acted }) {
+  if (record === null) {
+    return;
+  }
+  record = { ...record, at: Date.now(), sessions, decided, acted };
+}
+
+// What is known about the watch of this chat, or nothing at all when none was armed.
+//
+// A copy, so that a reader is holding what it read and not something a pass can move underneath it.
+export function theWatchRecord() {
+  return record === null ? null : { ...record };
 }
 
 // Forget the whole room. Called where the chat closes, so that nothing here outlives the process
 // that owns it, and so that a suite starting a second chat in one process is not answered out of
-// the first one's memory.
+// the first one's memory. The record goes with it for the same reason and one more: a record left
+// behind would say a watch was armed for a server that has been closed.
 export function forgetTheRoom() {
   seen.clear();
-}
-
-// What the lead is told, in the shape every pushed block in this toolkit has.
-//
-// It says who is speaking, for the reason all of them do: an update ships new templates and
-// re-renders nobody's persona, so a session reading this may be running one written before any of
-// it existed and has nothing to look it up in. It carries the moment it was read, because an undated
-// line handed to somebody unasked reads as now. And it says what can be done about it, which is
-// nothing this can do alone — that is not a hedge, it is the state of the toolkit.
-//
-// The lead is in its own list and in the second person, for sizeWrapper's reason: it is the reader,
-// it is the one that cannot press its own button, and a block naming everybody except the session
-// that most needs handing over would be the worst reading this could give.
-export function watchWrapper(instance, leader, changed, said) {
-  const each = changed.map((one) => {
-    const yours = one.name === leader;
-    if (one.cold === true) {
-      return yours
-        ? "your own conversation has gone cold, so the next thing said to you ends it and begins a new one from your desk"
-        : `${one.name} has gone cold, so the next thing said to it ends that conversation and begins a new one from its desk`;
-    }
-    // The share said off the reading the room was read with, in the wording the row and the size
-    // block already say it in: a sentence carrying its own copy of a number, or its own copy of a
-    // phrasing, is a second place for one fact to be said two ways.
-    const held = `${one.context.toLocaleString("en-US")} tokens, ${shareSaid(one.context, one.window)}`;
-    return yours
-      ? `you have reached ${held}`
-      : `${one.name} has reached ${held}`;
-  });
-
-  return [
-    "<watch>",
-    "The chat is telling you this. Nobody typed it.",
-    `${each.join(", and ")}. Read at ${said}, and nobody asked for this turn — the room changed while you were not being spoken to.`,
-    `Handing a session over is ${instance.config.human}'s to press, on that session's panel. Yours included. Say which panels and why. Nothing here does it for you: nothing has stopped running and no conversation has been ended by this.`,
-    "</watch>",
-  ].join("\n\n");
+  record = null;
 }

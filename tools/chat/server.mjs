@@ -18,7 +18,7 @@ import { popped } from "./pop.mjs";
 import { answerFrom } from "../plugins.mjs";
 import { SKILL as ALLOWED } from "../skills.mjs";
 import { ago, roomLines, shareSaid } from "./room.mjs";
-import { forgetTheRoom, howOften, watchWrapper, whatChanged } from "./watch.mjs";
+import { armTheWatch, forgetTheRoom, howOften, nowSeen, tickRead, whatChanged } from "./watch.mjs";
 import { DESK_FILE, DeskError, WORK, allowAsked, archiveFor, deskTitle, describeName, hasSettledAnything, hire, isName, retire } from "../desks.mjs";
 import { accountStanding, ask, bandIn, endRun, forget, hasGoneCold, hasGoneQuiet, hasThread, quotaIn, ranAt, refusedIn, sessions, standingsUnderway } from "./session.mjs";
 import { inTurn, turnsGoing, waitingFor, whileWaitingFor, wouldWaitForItself } from "./turns.mjs";
@@ -2218,37 +2218,164 @@ function tellTheLead(instance) {
   return line;
 }
 
-// One read of the room, and a turn given to the lead only if something crossed into a strong band.
+// What the lead is told a pass did, and it is BOTH HALVES OR NEITHER.
 //
-// NOTHING WHILE THE LEAD IS MID-TURN, and skipped entirely rather than queued: a watch that queued
-// would deliver an hour-old room to a lead that is already looking at it. Skipped means nothing is
-// read and nothing is remembered either, so a crossing that happens during a long turn is still
-// there to be found on the next tick rather than quietly recorded as already said.
+// One function rather than two calls at each site, because either half alone is the bug and the
+// half that goes missing is always the same one. The panel is what a PERSON reads; it is not what
+// the lead's model hears, and nothing writes into that thread except a run. Append alone leaves a
+// record nobody acts on — the lead goes on addressing a session that has been acted on, which is
+// the failure this whole feature exists to prevent. Overhear alone leaves a debt that dies with
+// the process and a panel with no record it ever happened.
 //
-// NO GATE OF ITS OWN FOR A ROOM THAT IS OFF. `inTurn` refuses, and this reads the same answer every
-// other caller reads. A second test here would be a second place saying one thing.
+// Free, both of them: a file append and a map write. That is the whole reason the pass is allowed
+// to say anything at all.
 //
-// It is not awaited by the interval below and it cannot be. The turn it starts is a run, and a run
-// is minutes; holding the timer open for it would be a timer that fires late by however long the
-// lead took. Nothing here needs the answer — this is the chat speaking, not asking.
+// FLAGGED, not read off the prose. `watch: true` is the shape `handover: true`, `cold: true` and
+// `overheard: true` already have, so a page and a check rest on a field.
+function announce(instance, said, at) {
+  append(instance.root, instance.config.leader, { from: THE_CHAT, text: said, watch: true });
+  overhear(instance.config.leader, watchedWrapper(said, at));
+}
+
+// The same thing said to the lead's model rather than to the person reading its panel.
+//
+// A wrapper, for the reason `wrap` and `overheardWrapper` are ones: the server is the only thing
+// that writes one, so what is left OUTSIDE every wrapper is the human speaking on this session's
+// own panel, still by construction.
+//
+// IT SAYS WHO IS SPEAKING IN WORDS AS WELL AS IN THE TAG. A session reading this may be running a
+// persona written before any of this existed and has nothing to look the tag up in, and an
+// unattributed instruction in front of a message reads as one the person typed.
+//
+// AND IT CARRIES THE MOMENT THE ROOM WAS READ, which matters more here than it did when this
+// bought its own turn. It is handed to the lead in front of whatever the lead is asked next, so it
+// may have been waiting since long before that question — an undated line handed to somebody
+// unasked reads as now, and this one frequently is not.
+function watchedWrapper(said, at) {
+  return [
+    `<watch read="${at}">`,
+    "The chat is telling you this. Nobody typed it, and no turn was bought to say it: it waited here until you were asked something else.",
+    said,
+    "</watch>",
+  ].join("\n\n");
+}
+
+// What the lead is told when a pass ended a conversation nobody had carried on.
+//
+// It says what was lost rather than what was saved, because that is the half a reader cannot work
+// out: the thread is gone and whatever that session had worked out and not written to its desk went
+// with it. And it says what was NOT done, because nothing was — no process was stopped, nothing was
+// asked of the session, and a lead reading "ended" could otherwise take it for a handover.
+function endedColdLine(name) {
+  return `${name}'s conversation had been quiet for longer than one can be carried on, so the chat ended it rather than paying for the whole of it again at the next message. Nothing was stopped and nothing was asked of ${name}: whatever it had not written to ${desk(name)} is gone, and the next message to it starts a new conversation that reads that desk first.`;
+}
+
+// What the lead is told when a conversation has newly grown into a band worth knowing about.
+//
+// Said and not acted on, and it says so: handing a session over is a press on that session's panel
+// and there is no tool for it. That is not a hedge, it is the state of the toolkit, and a line that
+// implied otherwise would be the one reading here that is not true.
+//
+// BY NAME AND NOT IN THE SECOND PERSON, including where the name is the lead's own. One sentence
+// said one way — the block this replaced named several sessions at once and had to choose between
+// "you" and a name, and there is nothing left here to choose between.
+function crossedLine(human, name, held) {
+  return `${name} has reached ${held}. Nothing has been stopped and no conversation has been ended by this: handing ${name} over is ${human}'s to press, on that session's panel.`;
+}
+
+// One pass over the room, and everything it decides costs nothing.
+//
+// WHAT CHANGED HERE, because the shape of this function is the whole feature. It used to read the
+// room and hand the lead a block, which bought a run nobody asked for so that a model could decide
+// whether to press a button. It now decides itself, acts on the session concerned, and leaves a
+// line. Three things follow from that and each of them is the point rather than a consequence:
+//
+//   The lead's account is not spent to be told something. A file append and a map write are what
+//   this costs, and a pass that finds nothing costs neither.
+//
+//   The room being off no longer silences it. `deliver` had three ways of returning with no turn
+//   having been taken — the room off, the addressee gone, the run refused — and on every one of
+//   them the crossing had already been written down as said and was reported to nobody, ever. The
+//   room goes off around quota events, which is exactly when a strong band is crossed.
+//
+//   Nothing waits on the lead. The old whole-tick gate on `turnsGoing(leader)` is gone with the
+//   turn it protected: there is nothing here now that a busy lead could be a bad moment for, and a
+//   crossing during a long lead turn used to be dropped for the length of that turn.
+//
+// NOTHING IS RECORDED AS DONE UNTIL THE ACT RETURNED. A session is entered against `seen` only
+// after the line about it is on the panel, and a conversation is ended only inside the turn that
+// re-read it as cold. A pass that cannot act on something records nothing about it and reads it
+// fresh next time, which is what makes this safe to kill: there is no queue here and no half-kept
+// promise, so a chat that goes down mid-pass loses nothing but the pass.
+//
+// THE GATE IS PER CONDITION AND NOT PER SESSION. Ending a cold conversation needs no turn in
+// flight on that session — it is the one thing that must not happen under a live run — while what
+// is only said needs nothing at all.
 async function readTheRoom(instance) {
-  if (turnsGoing(instance.config.leader) > 0) {
-    return;
-  }
-
-  const changed = whatChanged(instance, sessions(instance));
-  if (changed.length === 0) {
-    return;
-  }
-
+  const room = sessions(instance);
   const when = new Date();
-  const read = `${String(when.getHours()).padStart(2, "0")}:${String(when.getMinutes()).padStart(2, "0")}`;
-  await deliver(
-    instance,
-    instance.config.leader,
-    watchWrapper(instance, instance.config.leader, changed, read),
-    THE_CHAT,
+  const at = `${String(when.getHours()).padStart(2, "0")}:${String(when.getMinutes()).padStart(2, "0")}`;
+
+  let decided = 0;
+  let acted = 0;
+
+  // A conversation nobody carried on for long enough, ended here rather than on the next message
+  // that happens to arrive. The same act, at the moment it becomes true instead of whenever
+  // somebody next types: `deliver` already does exactly this at the top of a turn, and past the
+  // hour the thread is unresumable either way, so what this moves is when the panel says so and
+  // not what is lost.
+  //
+  // ONLY WHERE NOTHING IS RUNNING ON IT, read here and then held by the turn below. `forget` is a
+  // bare `rmSync` with no lock and every other caller of it sits inside a turn already; a pass that
+  // read the gate and then deleted the file would be the first caller outside one, and a message
+  // arriving in between would have its session removed under a live run — the thread id gone, the
+  // run finishing into nothing, and the next turn starting fresh from the desk with no cold reading
+  // having said so.
+  //
+  // AND ASKED AGAIN INSIDE THE TURN, which is what actually closes that race rather than the gate
+  // above. A message that arrived while this was queuing runs first, the conversation is warm
+  // again, and the second reading is the one that decides.
+  const cold = room.filter(
+    (session) => turnsGoing(session.name) === 0 && hasGoneCold(instance.root, session.name),
   );
+  decided += cold.length;
+  for (const session of cold) {
+    // OFFLINE comes back here whenever the room is off, and nothing is done and nothing recorded.
+    // That is accepted rather than worked around: `inTurn` is the one place the question "may
+    // anything happen right now" is asked, and a free condition that acted anyway would be a second
+    // answer to it. The conversation is still cold next pass.
+    const ended = await inTurn(session.name, () => {
+      if (!hasGoneCold(instance.root, session.name)) {
+        return false;
+      }
+      forget(instance.root, session.name);
+      append(instance.root, session.name, { from: THE_CHAT, text: coldLine(session.name), cold: true });
+      return true;
+    });
+    if (ended !== true) {
+      continue;
+    }
+    acted += 1;
+    announce(instance, endedColdLine(session.name), at);
+  }
+
+  // And the bands, which are said and not acted on. Read after the cold conversations were ended,
+  // so that a session this pass has just ended is not also announced as having grown: `bandIn`
+  // reads the file that was removed and answers nothing, which is one decision per session without
+  // a rule saying so.
+  const crossed = whatChanged(instance, room);
+  decided += crossed.length;
+  for (const one of crossed) {
+    // The share said off the reading the room was read with, in the wording the row and the size
+    // block already say it in: a sentence carrying its own copy of a number, or its own copy of a
+    // phrasing, is a second place for one fact to be said two ways.
+    const held = `${one.context.toLocaleString("en-US")} tokens, ${shareSaid(one.context, one.window)}`;
+    announce(instance, crossedLine(instance.config.human, one.name, held), at);
+    nowSeen(one.name, one.band);
+    acted += 1;
+  }
+
+  tickRead({ sessions: room.length, decided, acted });
 }
 
 export function serve(instance) {
@@ -2269,9 +2396,9 @@ export function serve(instance) {
   // UNREF'D, so it is not a reason for node to stay up: a timer that holds the event loop open is a
   // process that will not end when everything else has, and the only way out of that is a kill.
   // CLEARED WHERE THE SERVER CLOSES, so a chat that has been stopped has stopped reading the room —
-  // a timer that outlived its server would go on giving turns to a lead nobody is serving, and
-  // there would be nothing left to stop it with. The room it remembers goes with it, because a
-  // restarted chat has told nobody anything.
+  // a timer that outlived its server would go on ending conversations and writing on the panels of
+  // a workspace nobody is serving, and there would be nothing left to stop it with. The room it
+  // remembers goes with it, because a restarted chat has told nobody anything.
   //
   // Both, and not one of them. Unref alone leaves it running for as long as the process happens to
   // live; clearing alone leaves the process unable to end by itself.
@@ -2280,13 +2407,21 @@ export function serve(instance) {
   // to clear and nothing to skip on every tick — a workspace that said never is one where this
   // feature does not exist, which is stronger than one where it fires and decides not to speak.
   const every = howOften(instance.config);
+  if (every !== null) {
+    // Said at the moment of arming and nowhere else, so that "no record at all" keeps a meaning of
+    // its own. A watch that has been armed and has not yet fired is every restart of the chat, for
+    // as long as a whole cadence — and a reading that could not tell that apart from a watch that
+    // died on arrival would cry fault every time somebody restarts a chat, which is the documented
+    // repair for a stale server.
+    armTheWatch();
+  }
   const watch =
     every === null
       ? null
       : setInterval(() => {
           readTheRoom(instance).catch(() => {
-            // A tick that fell over is one tick. There is another along, the room is read fresh, and
-            // nothing here is worth taking a chat down for.
+            // A tick that fell over is one tick. There is another along, the room is read fresh,
+            // and nothing here is worth taking a chat down for.
           });
         }, every);
   watch?.unref();
