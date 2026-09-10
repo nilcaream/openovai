@@ -1134,5 +1134,126 @@
         "to": "    void 0;"
       }
     ]
+  },
+  {
+    "name": "the account is judged by the newest reading rather than the fullest",
+    "catches": "reads the fullest reading of the window and not the freshest",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "    other.ruled.fullness > one.ruled.fullness ||\n    (other.ruled.fullness === one.ruled.fullness && other.at > one.at)\n      ? other\n      : one,",
+        "to": "    other.at > one.at ? other : one,"
+      }
+    ]
+  },
+  {
+    "name": "the number comes from one reading and the name from another",
+    "catches": "speaks for the reading it took the number from",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "    on: winner.name,",
+        "to": "    on: ofTheWindow.reduce((one, other) => (other.at > one.at ? other : one)).name,"
+      }
+    ]
+  },
+  {
+    "name": "a reading the service named no moment for is dropped",
+    "catches": "counts a reading the service named no moment for",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "  const ended = (window) => window.resetsAt !== null && window.resetsAt * 1000 <= Date.now();",
+        "to": "  const ended = (window) => window.resetsAt === null || window.resetsAt * 1000 <= Date.now();"
+      }
+    ]
+  },
+  {
+    "name": "a tie between two readings goes to the older one",
+    "catches": "speaks for the fresher of two readings that cannot be told apart",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "(other.ruled.fullness === one.ruled.fullness && other.at > one.at)",
+        "to": "(other.ruled.fullness === one.ruled.fullness && other.at < one.at)"
+      }
+    ]
+  },
+  {
+    "name": "only the runs that have finished are folded in",
+    "catches": "reads the window a run in flight is filling",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "    ...standingsUnderway().map((one) => ({ name: one.name, at: one.at, windows: one.windows, live: true })),",
+        "to": "    ...[],"
+      }
+    ]
+  },
+  {
+    "name": "a run still going is said to have last run",
+    "catches": "says the run is going on rather than that it has finished",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "${standing.live ? `while ${standing.on} was running` : `when ${standing.on} last ran`}",
+        "to": "when ${standing.on} last ran"
+      }
+    ]
+  },
+  {
+    "name": "a message is held back when the account is past the stop line",
+    "catches": "delivers a message",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "async function postMessage(instance, name, request, response) {\n  let text;",
+        "to": "async function postMessage(instance, name, request, response) {\n  if (turnsGoing(name) === 0 && accountStanding(instance)?.stop) {\n    sendJson(response, 503, { error: \"the account is nearly gone\" });\n    return;\n  }\n  let text;"
+      }
+    ]
+  },
+  {
+    "name": "a turn is refused a place in the queue when the account is past the stop line",
+    "catches": "queues a turn behind another",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "async function postMessage(instance, name, request, response) {\n  let text;",
+        "to": "async function postMessage(instance, name, request, response) {\n  if (turnsGoing(name) > 0 && accountStanding(instance)?.stop) {\n    sendJson(response, 503, { error: \"the account is nearly gone\" });\n    return;\n  }\n  let text;"
+      }
+    ]
+  },
+  {
+    "name": "hiring is refused when the account is past the stop line",
+    "catches": "hires",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "async function postSessions(instance, request, response) {\n  let name;",
+        "to": "async function postSessions(instance, request, response) {\n  if (accountStanding(instance)?.stop) {\n    sendJson(response, 503, { error: \"the account is nearly gone\" });\n    return;\n  }\n  let name;"
+      }
+    ]
+  },
+  {
+    "name": "a handover is refused when the account is past the stop line",
+    "catches": "hands a session over",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "async function postHandover(instance, name, response) {\n  const done = await handOver(",
+        "to": "async function postHandover(instance, name, response) {\n  if (accountStanding(instance)?.stop) {\n    sendJson(response, 503, { error: \"the account is nearly gone\" });\n    return;\n  }\n  const done = await handOver("
+      }
+    ]
+  },
+  {
+    "name": "a session is called refused because the account is nearly gone",
+    "catches": "says a session is refused only when the service refused it",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    refused: refusedIn(instance.root, session.name),",
+        "to": "    refused: refusedIn(instance.root, session.name) ?? (accountStanding(instance)?.stop ? { resetsAt: null } : null),"
+      }
+    ]
   }
 ]

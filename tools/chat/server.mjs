@@ -440,7 +440,11 @@ function usageWrapper(instance, name) {
   const said = [
     "<usage>",
     "The chat is telling you this. Nobody typed it.",
-    `The ${window} usage window was ${full}% full when ${standing.on} last ran, read ${ago(new Date(standing.at).toISOString())}, as this turn began at ${read}.`,
+    // WHO WAS TOLD IT, and whether they have finished. A reading taken from a run still going is
+    // attributed to the run HAVING it; only a reading from a run that ended is a reading somebody
+    // last ran on. The distinction comes down on the reading itself rather than being guessed at
+    // here, because by the time this reads it the two kinds are one shape.
+    `The ${window} usage window was ${full}% full ${standing.live ? `while ${standing.on} was running` : `when ${standing.on} last ran`}, read ${ago(new Date(standing.at).toISOString())}, as this turn began at ${read}.`,
   ];
 
   if (!standing.stop) {

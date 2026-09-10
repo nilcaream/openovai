@@ -373,13 +373,13 @@ const PLAN_ABOVE = 0.9;
 // longer the right answer.
 const STOP_ABOVE = 0.95;
 
-// Where the account stands, as the freshest thing it has told anybody here, or nothing at all.
+// Where the account stands, as the fullest thing it has told anybody here about the window that is
+// still running, or nothing at all.
 //
-// THE FRESHEST AND NOT THE FULLEST. One account, N sessions, N readings taken at N different
-// moments: the most recent one is the only one that describes the account now, and the largest of
-// them may be off a window that ended hours ago. In practice the freshest is usually the lead's
-// own, because it runs oftenest — and it is the reading its PREVIOUS run was handed, since this is
-// read before the current turn writes anything.
+// THE FULLEST OF ONE WINDOW, and the argument for it is in the body where the comparison is. The
+// readings folded here come from runs that have finished and from runs still going, and a run still
+// going was told where the account stands as truly as one that has ended — the one it was handed is
+// often the only one there is at the moment a window is being crossed.
 //
 // Nobody is left out for being mid-turn, and that is the one place this differs from hasGoneQuiet()
 // above. There the reading is a fact ABOUT the session, and a session's clock stands still for the
@@ -392,29 +392,91 @@ const STOP_ABOVE = 0.95;
 // makes, for the same reason — the moment is stored, the comparison happens on every read, and
 // there is no timer, nothing scheduled and nothing to clean up.
 //
-// Reading it changes nothing and decides nothing. It is not consulted before delivering a message,
-// hiring, handing over, queueing or refusing, and there is a check that says so rather than this
-// sentence.
+// Reading it changes nothing. It is not consulted before DELIVERING a message, HIRING, HANDING
+// OVER, QUEUEING or REFUSING — the five paths by which anything here happens to somebody — and
+// there is a check that says so rather than this sentence: the account is staged past every line in
+// it and all five are shown to behave exactly as they do when it is empty.
+//
+// Named as five paths rather than as "decides nothing", which is what this said before. That was a
+// claim no check stood behind, and it is also one this cannot go on making: what is read here is
+// the input to a decision about whether to hold the instance still. Naming the paths says the part
+// that is enforceable, and it stays true when something does decide on it.
 export function accountStanding(instance) {
-  const read = sessions(instance)
-    .map((session) => ({
+  const read = [
+    ...sessions(instance).map((session) => ({
       name: session.name,
       at: ranAt(instance.root, session.name),
       windows: quotaIn(instance.root, session.name),
-    }))
-    .filter((one) => one.at !== null && Array.isArray(one.windows));
+      // Whether the run this reading was handed is still going. It is carried from here rather than
+      // worked out again later, because by the time anything says this in words the two kinds have
+      // been folded into one list and there is nothing left to tell them apart by.
+      live: false,
+    })),
+    // The runs in flight, told as truly as the ones that finished. Folded in BEFORE the filter
+    // below: a frame that named no windows publishes `windows: null`, and the filter already says
+    // the right thing about that — one that skipped it would carry the null into the comparison and
+    // throw on the first read.
+    ...standingsUnderway().map((one) => ({ name: one.name, at: one.at, windows: one.windows, live: true })),
+  ].filter((one) => one.at !== null && Array.isArray(one.windows));
   if (read.length === 0) {
     return null;
   }
 
-  const freshest = read.reduce((one, other) => (other.at > one.at ? other : one));
   // A window that named no moment cannot be known to have ended, so it stays. The service did not
   // say, so this does not decide. Asked of every window here rather than of one, so the window this
   // rule is about and the one merely mentioned beside it are dropped by the same comparison.
   const ended = (window) => window.resetsAt !== null && window.resetsAt * 1000 <= Date.now();
 
-  const ruled = freshest.windows.find((window) => window.name === RULED_WINDOW);
-  if (ruled === undefined || ended(ruled) || ruled.fullness < PLAN_ABOVE) {
+  // Every reading that says anything about the ruled window, with the window it says it beside it.
+  const ofTheWindow = read
+    .map((one) => ({ ...one, ruled: one.windows.find((window) => window.name === RULED_WINDOW) }))
+    .filter((one) => one.ruled !== undefined && !ended(one.ruled));
+  if (ofTheWindow.length === 0) {
+    return null;
+  }
+
+
+  // THE FULLEST AND NOT THE FRESHEST, which is the whole of the rule.
+  //
+  // Usage inside a window accumulates — this file's own reader says so in the sentence it hands the
+  // lead, that a reading is a floor because what a window has been used for does not go back down.
+  // So of two readings of one window the higher is the true one and the lower is older news, however
+  // the two are stamped. And they are stamped by two clocks, not one: a finished reading carries the
+  // moment its run ENDED and a live one the moment its frame ARRIVED, so ordering by stamp lets an
+  // honest number taken now lose to a thinner one written a second later off a run that started long
+  // before it.
+  //
+  // Said honestly: this file asserts the monotonicity and nothing in it enforces it — the service is
+  // the authority. If a window were ever reported going down without rolling over, the fullest would
+  // latch high and this would read the account as more spent than it is, which is the same direction
+  // the sentence it feeds already tells the lead to reason in.
+  //
+  // AND IT IS TAKEN ACROSS EVERY READING HERE, not within one window at a time. Grouping the
+  // readings by the moment they say their window lifts was considered and refused, and the reason is
+  // worth keeping so it is not put back. What it would be for — that ninety-six per cent of a window
+  // which has rolled over must not beat two per cent of the one running now — is already done one
+  // step above: a rolled-over window has a moment in the PAST, and `ended` drops it before anything
+  // is compared. What grouping would add is a way to throw the FULLEST reading away whenever two
+  // readings of one window name moments that differ at all, and the one it throws away is the
+  // reading of the window that lifts SOONER, which is the urgent one.
+  //
+  // WHAT THAT GIVES UP, deliberately: a window that has rolled over while still reporting a moment
+  // in the future would keep its old high reading, and the account would read as more spent than it
+  // is. That is the same direction this whole comparison is already wrong in, and it is the
+  // direction a floor is allowed to be wrong in.
+  //
+  // A tie goes to the fresher reading. There is nothing to choose between the numbers, so the only
+  // thing left is which run to speak for — and everything said afterwards comes from that ONE
+  // reading, or the sentence describes a state nobody was ever in.
+  const winner = ofTheWindow.reduce((one, other) =>
+    other.ruled.fullness > one.ruled.fullness ||
+    (other.ruled.fullness === one.ruled.fullness && other.at > one.at)
+      ? other
+      : one,
+  );
+  const ruled = winner.ruled;
+
+  if (ruled.fullness < PLAN_ABOVE) {
     return null;
   }
 
@@ -422,8 +484,13 @@ export function accountStanding(instance) {
   // words says the name of the window that was actually matched. A sentence carrying its own copy
   // of it would be a second place for the two to disagree.
   return {
-    on: freshest.name,
-    at: freshest.at,
+    on: winner.name,
+    at: winner.at,
+    // Whether the run that was told this is still going, which is the one thing whoever says it in
+    // words cannot work out for itself once the two kinds are one list. A run still going has not
+    // LAST RUN, and a sentence that said so about the most decision-relevant number here would be
+    // telling the lead something false at exactly the moment it matters most.
+    live: winner.live,
     window: ruled.name,
     fullness: ruled.fullness,
     resetsAt: ruled.resetsAt,
@@ -449,7 +516,7 @@ export function accountStanding(instance) {
     // is actually refusing. Below the stop line it is not carried, because the row already says it
     // and a number handed over with no instruction attached is the one most likely to be acted on.
     alsoWeek:
-      freshest.windows.find(
+      winner.windows.find(
         (window) => window.name !== RULED_WINDOW && !ended(window) && window.fullness >= STOP_ABOVE,
       ) ?? null,
   };

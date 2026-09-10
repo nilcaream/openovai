@@ -45,6 +45,7 @@ import {
   waitForHealth,
   writeStandIn,
   driveStandIn,
+  LIFTS_AT,
 } from "./helpers.mjs";
 
 // The reader this suite checks directly. No route says this number, and a check that read the
@@ -135,6 +136,8 @@ const watched = `${instance}-watched`;
 // away with everything else this suite made.
 const live = `${instance}-standing`;
 const nowLive = `${instance}-now`;
+const filling = `${instance}-filling`;
+const unruled = `${instance}-unruled`;
 const owned = path.join(nested, "deep", "instance");
 const overhead = path.dirname(owned);
 const standIn = `${instance}-stand-in`;
@@ -144,7 +147,7 @@ let server;
 
 process.on("exit", () => {
   server?.kill();
-  remove(instance, chosen, quiet, nested, onModels, watched, live, nowLive, standIn);
+  remove(instance, chosen, quiet, nested, onModels, watched, live, nowLive, filling, unruled, standIn);
 });
 
 after(async () => {
@@ -227,7 +230,7 @@ async function start(root, environment) {
   return server;
 }
 
-remove(instance, chosen, quiet, nested, onModels, watched, live, nowLive, standIn);
+remove(instance, chosen, quiet, nested, onModels, watched, live, nowLive, filling, unruled, standIn);
 const standInCommand = writeStandIn(standIn);
 installed(options(instance, PORT));
 installed(options(quiet, 0));
@@ -9954,8 +9957,8 @@ const NOT_THE_LEAD = "Chiffchaff";
 // It reaches three states no run can be made to produce: a seven-day window over the stop line (the
 // stand-in derives its fullness by halving, so it would need a utilization above one), a seven-day
 // window that lifts sooner than the five-hour one, and a five-hour window lifting inside the hour.
-function stageWindows(name, windows, minutesAgo = 0) {
-  const file = threadFile(name);
+function stageWindows(name, windows, minutesAgo = 0, root = instance) {
+  const file = path.join(root, "chat", name, "session.json");
   const held = JSON.parse(fs.readFileSync(file, "utf8"));
   fs.writeFileSync(file, `${JSON.stringify({ ...held, quota: windows }, null, 2)}\n`);
   age(file, minutesAgo);
@@ -9982,6 +9985,13 @@ function usageBlock(question) {
 
 // A window, as the reading carries one. In seconds from now, because that is the shape the service
 // sends and the shape the file keeps.
+// FROM NOW AND NOT FROM A MOMENT FIXED WHEN THIS FILE LOADED, which was tried here and is wrong. A
+// staged lift moment is read against the clock in the check that reads it, and the checks about
+// which way to put people down turn on whether it is inside the hour a conversation stays
+// carriable. Anchored on a fixed moment, the gap shrinks by however long the suite has been running
+// before the staging happens, so a window staged as lifting in ninety minutes is read as lifting in
+// rather less — and the pace of the suite becomes part of the answer. MEASURED: green in one tree
+// and red in a slower copy of the same tree.
 const window = (name, fullness, liftsInMinutes) => ({
   name,
   fullness,
@@ -10036,8 +10046,15 @@ describe("what the lead is told when the usage window is filling up", () => {
 
     // And the week both fuller AND sooner than the five-hour window, which is the ordering the
     // service really produces for about a hundred minutes once a week.
-    stageWindows(FILLING_UP, [window("five_hour", 0.40, 6 * 24 * 60), window("seven_day", 0.96, 60)]);
-    stageWindows(LEADER, [window("five_hour", 0.40, 6 * 24 * 60), window("seven_day", 0.96, 60)], 6);
+    //
+    // The five-hour window here lifts when every other five-hour window in this suite lifts, and
+    // that matters rather than being tidiness: readings of two different windows are not compared,
+    // so a five-hour window staged as lifting in six days would be a window of its own — the newest
+    // one anybody had heard of — and every reading staged after it would be a reading of an older
+    // window that nothing would look at. MEASURED: it silenced ten checks in describes below this
+    // one, because a staged reading outlives the describe that staged it.
+    stageWindows(FILLING_UP, [window("five_hour", 0.40, 180), window("seven_day", 0.96, 60)]);
+    stageWindows(LEADER, [window("five_hour", 0.40, 180), window("seven_day", 0.96, 60)], 6);
     await say("a third question, with the week the full one", LEADER);
     toldWhenTheWeekIsTheFullOne = lastQuestion(fillingLog);
   });
@@ -10114,12 +10131,27 @@ const LIFTED_AND_FULL = "Wagtail";
 // Which of the readings on the rows is the one the account is judged by.
 //
 // One account, N sessions, N readings taken at N different moments — feature 11's stated trap, and
-// the reason every row prints its number's age. A glance has to pick ONE, and the only honest pick
-// is the most recent: the largest of them may be off a window that ended hours ago.
+// the reason every row prints its number's age. A glance has to pick ONE, and the honest pick is
+// THE FULLEST READING OF THE WINDOW THAT IS STILL RUNNING, not the most recent one.
+//
+// WHY NOT THE MOST RECENT, which is what this said before and what it was built on. Usage inside a
+// window accumulates, and this toolkit says so itself in the sentence it hands the lead: a reading
+// is a floor, because what a window has been used for does not go back down. Two readings of one
+// window are then not two opinions to choose between — the higher one is the truer one, and the
+// lower one is merely older news about the same window. Ordering by stamp instead loses the true
+// number to whichever run happened to write last, and the stamps are not even one clock: a finished
+// reading is stamped when its run ENDED and a live one when its frame ARRIVED, so a reading taken
+// minutes ago can carry a newer stamp than one taken now.
+//
+// A WINDOW THAT HAS ROLLED OVER IS NOT IN THE COMPARISON AT ALL, which is what stops ninety-six per
+// cent of the window before this one beating two per cent of the one running now. It is dropped for
+// having ended, one step before any of this — not by sorting the readings into windows, which was
+// refused for throwing away the fullest reading whenever two readings of ONE window name moments
+// that differ at all.
 //
 // Both directions are staged on ONE session, which is what stops the repair being "always take the
 // first row" or "always take the lead's own": the same name carries the full reading in one half
-// and the fine one in the other, and only the age tells them apart.
+// and the fine one in the other.
 //
 // AND THE AGE IS AGAINST THE WHOLE INSTANCE, not against this describe. The suites install one
 // instance and every describe before this one has hired into it and run, so those sessions carry
@@ -10128,13 +10160,31 @@ const LIFTED_AND_FULL = "Wagtail";
 // under test is staged at NOW and every other named here is pushed behind it.
 describe("which reading the lead is told the account stands at", () => {
   const pickLog = path.join(standIn, "pick.txt");
-  let toldWhenTheFullOneIsStale;
+  let toldWhenTheFullOneIsOlder;
   let toldWhenTheFullOneIsFresh;
   let toldWhenItHasLifted;
 
+  let toldWhenNoMomentWasNamed;
+  let toldWhenTwoAreEqual;
+
   const lastQuestion = (log) => questionsIn(log).slice(-1)[0] ?? "";
-  const fine = () => [window("five_hour", 0.71, 180), window("seven_day", 0.36, 5 * 24 * 60)];
-  const full = (liftsIn = 180) => [window("five_hour", 0.93, liftsIn), window("seven_day", 0.36, 5 * 24 * 60)];
+
+  // ONE WINDOW, NAMED ONCE, and every reading staged here is a reading of it — the same one every
+  // run in this suite is told about, rather than one named again for each staging.
+  //
+  // Nothing in the rule this describes turns on the moment any more, so this buys plainness rather
+  // than correctness: these readings differ in their FULLNESS and in whose they are, and naming one
+  // moment for all of them says so. It is only ever read for whether the window has ended, and it is
+  // hours away from that.
+  const THIS_WINDOW = LIFTS_AT;
+
+  // And a window that has already ended, which is a third thing again: not another window still to
+  // come, but this one after it has gone.
+  const ENDED_WINDOW = Math.floor(Date.now() / 1000) - 40 * 60;
+  const named = (name, fullness, resetsAt) => ({ name, fullness, resetsAt });
+  const week = () => window("seven_day", 0.36, 5 * 24 * 60);
+  const fine = (resetsAt = THIS_WINDOW) => [named("five_hour", 0.71, resetsAt), week()];
+  const full = (resetsAt = THIS_WINDOW) => [named("five_hour", 0.93, resetsAt), week()];
 
   before(async () => {
     runTool(instance, ["hire", FRESHEST_ONE], process.env);
@@ -10148,14 +10198,15 @@ describe("which reading the lead is told the account stands at", () => {
     await say("and this one as well", LIFTED_AND_FULL);
     await say("and the lead, so it has one", LEADER);
 
-    // The full reading is the OLDER one and the newest says there is room, so the account is not
-    // where the biggest number on any row says it is.
+    // The full reading is the OLDER one and the newest says there is room. Both are readings of the
+    // same window, so they are not two opinions: the account has been taken to 93% of it and the
+    // newer reading is older news.
     stageWindows(OLDER_ONE, full(), 14);
     stageWindows(LIFTED_AND_FULL, fine(), 20);
     stageWindows(LEADER, fine(), 7);
     stageWindows(FRESHEST_ONE, fine());
     await say("a first question, with the full reading the older one", LEADER);
-    toldWhenTheFullOneIsStale = lastQuestion(pickLog);
+    toldWhenTheFullOneIsOlder = lastQuestion(pickLog);
 
     // The same two readings the other way round, on the same two names.
     stageWindows(OLDER_ONE, fine(), 14);
@@ -10169,18 +10220,76 @@ describe("which reading the lead is told the account stands at", () => {
     stageWindows(OLDER_ONE, fine(), 14);
     stageWindows(FRESHEST_ONE, fine(), 9);
     stageWindows(LEADER, fine(), 7);
-    stageWindows(LIFTED_AND_FULL, full(-40));
+    stageWindows(LIFTED_AND_FULL, full(ENDED_WINDOW));
     await say("a third question, with the newest reading off a window that has ended", LEADER);
     toldWhenItHasLifted = lastQuestion(pickLog);
+
+
+    // A full reading the service named no moment for. It cannot be shown to be about another
+    // window, so it is not treated as though it were: it counts, and the worst it can do is raise
+    // the number, which is the direction a floor is allowed to be wrong in.
+    stageWindows(OLDER_ONE, full(null), 14);
+    stageWindows(LIFTED_AND_FULL, fine(), 20);
+    stageWindows(LEADER, fine(), 7);
+    stageWindows(FRESHEST_ONE, fine());
+    await say("a fifth question, with the full reading naming no moment", LEADER);
+    toldWhenNoMomentWasNamed = lastQuestion(pickLog);
+
+    // Two readings of the same window at the same fullness, on two names of different ages. There
+    // is nothing to choose between the numbers, so the fresher one is the one spoken for.
+    stageWindows(OLDER_ONE, full(), 14);
+    stageWindows(LIFTED_AND_FULL, fine(), 20);
+    stageWindows(LEADER, fine(), 7);
+    stageWindows(FRESHEST_ONE, full());
+    await say("a sixth question, with two readings that cannot be told apart by their number", LEADER);
+    toldWhenTwoAreEqual = lastQuestion(pickLog);
+
+    // And every reading staged here put back under the line, said here rather than in an `after` so
+    // that it happens at a moment this file can point at.
+    //
+    // A READING STAGED HERE OUTLIVES THIS DESCRIBE. The instance is shared, the file is the
+    // session's own, and nothing rewrites it until that session runs again — so a full reading left
+    // behind is a full reading every describe below this one is read against. That was harmless
+    // while the freshest reading won, because each of those stages its own and its own is the
+    // newest. It is not harmless now the fullest wins: MEASURED, this describe's 93% was what a
+    // describe below staging 91% was told.
+    for (const name of [FRESHEST_ONE, OLDER_ONE, LIFTED_AND_FULL, LEADER]) {
+      stageWindows(name, fine());
+    }
   });
 
-  // Mutation: take the highest fullness across the rows rather than the most recent reading. The
-  // first half goes red; the second half is what stops the repair being "always take the first row"
-  // or "always take the lead's own", since the same name carries both readings.
-  it("reads the freshest reading and not the fullest", () => {
-    assert.doesNotMatch(toldWhenTheFullOneIsStale, /93% full/);
+
+
+  // Mutation: order by the stamp and take the most recent reading, which is what this did before.
+  // A window is a floor, so the higher of two readings of it is the true one however old its stamp
+  // is — and the stamps are two clocks, not one. Both halves are staged on the same two names, which
+  // is what stops the repair being "always take the first row" or "always take the lead's own".
+  it("reads the fullest reading of the window and not the freshest", () => {
+    assert.match(usageBlock(toldWhenTheFullOneIsOlder), /93% full/);
     assert.match(usageBlock(toldWhenTheFullOneIsFresh), /93% full/);
-    assert.match(usageBlock(toldWhenTheFullOneIsFresh), new RegExp(`when ${FRESHEST_ONE} last ran`));
+  });
+
+  // Mutation: keep the number from the winning reading and the name from the newest one. Everything
+  // said about the account has to come from ONE reading or the sentence describes a state nobody was
+  // ever in.
+  it("speaks for the reading it took the number from", () => {
+    assert.match(usageBlock(toldWhenTheFullOneIsOlder), new RegExp(`${OLDER_ONE} last ran`));
+    assert.doesNotMatch(usageBlock(toldWhenTheFullOneIsOlder), new RegExp(`${FRESHEST_ONE} last ran`));
+    assert.match(usageBlock(toldWhenTheFullOneIsFresh), new RegExp(`${FRESHEST_ONE} last ran`));
+  });
+
+
+  // Mutation: drop a reading that named no moment. The service did not say which window it is of,
+  // so nothing here knows it is another one; leaving it out would quietly lower a floor.
+  it("counts a reading the service named no moment for", () => {
+    assert.match(usageBlock(toldWhenNoMomentWasNamed), /93% full/);
+  });
+
+  // Mutation: break a tie by anything else. Two readings of one window at one fullness are the same
+  // fact twice, and the fresher of them is the one worth speaking for.
+  it("speaks for the fresher of two readings that cannot be told apart", () => {
+    assert.match(usageBlock(toldWhenTwoAreEqual), new RegExp(`${FRESHEST_ONE} last ran`));
+    assert.doesNotMatch(usageBlock(toldWhenTwoAreEqual), new RegExp(`${OLDER_ONE} last ran`));
   });
 
   // Mutation: drop the test on whether the window has already ended. Ninety-three per cent of a
@@ -10291,7 +10400,17 @@ describe("what the lead is told to do once the window is nearly gone", () => {
     await say("a worker is asked something while the account is nearly out", STILL_RUNS);
     ranAfterTheWorkerWasAsked = callsIn(stopLog).length;
     askedTheWorker = lastQuestion(stopLog);
+
+    // And the readings this describe staged put back under both lines, for the reason the describe
+    // above it says at length: a staged reading outlives the describe that staged it, and the
+    // fullest of them is the one the account is judged by. A 96% left here is a 96% every describe
+    // below is read against. MEASURED: it cost the check about a turn that began before a crossing.
+    for (const name of [NEARLY_GONE, STILL_RUNS, LEADER]) {
+      stageWindows(name, [window("five_hour", 0.71, 180), window("seven_day", 0.36, 5 * 24 * 60)]);
+    }
   });
+
+
 
   // Mutations, and it takes one each way:
   //   the stop line written as 95 rather than 0.95, which is the shape of every off-by-a-hundred a
@@ -10415,7 +10534,19 @@ describe("where the account stands is read where the turn begins and not where t
 
   before(async () => {
     runTool(instance, ["hire", WAITS_WHILE_IT_FILLS], process.env);
-    await start(instance, standInEnvironment(standIn, filledLog, { OPENOVAI_STAND_IN_SLOW: "1500", OPENOVAI_STAND_IN_FULLNESS: "0.96" }));
+    // The runs here really report where the account stands, which this describe needs and did not
+    // ask for. Without a status the stand-in sends no reading at all, so the turn that was supposed
+    // to fill the window stored nothing and the line below was never crossed by anything this
+    // describe did — the reading it was read against came from a describe above it, and the check
+    // passed on somebody else's staging. MEASURED at the tip before this: it fails on its own.
+    await start(
+      instance,
+      standInEnvironment(standIn, filledLog, {
+        OPENOVAI_STAND_IN_LIMIT: "allowed",
+        OPENOVAI_STAND_IN_SLOW: "1500",
+        OPENOVAI_STAND_IN_FULLNESS: "0.96",
+      }),
+    );
     assert.ok(await waitForHealth(URL), "the server never answered");
 
     // A turn each, so both have a thread and a clock.
@@ -11708,6 +11839,216 @@ describe("what the row says the account is doing now", () => {
     for (const part of ["standing.windows", "standing.at", "standing.ranModel", "standing.since"]) {
       assert.ok(said.includes(part), `the phrase never reads ${part}`);
     }
+  });
+});
+
+// The reading a run still going was handed, folded into where the account stands — and said as
+// what it is.
+//
+// THIS IS THE CASE THE FOLD WAS WIDENED FOR. Until a run ends, everything it was told about the
+// account lived in one variable inside one promise; on a run turned away with no result frame it
+// was read correctly and then dropped, so the moment the account was most spent was the one moment
+// nothing could say anything about it. A window can fill from one side of a line to the other
+// inside a single long turn, and the reading that says so is the live one or there is none.
+//
+// AND THE SENTENCE HAD TO CHANGE WITH IT. A run still going has not LAST RUN. Once a live reading
+// can win, the sentence the lead is handed says something false about the most decision-relevant
+// number here, at exactly the moment it matters most.
+//
+// Its own instance, for the reason every describe here that needs a run in flight has one.
+describe("what the lead is told about a window a run is filling right now", () => {
+  const fillingNowLog = path.join(standIn, "filling-now.txt");
+  const SPENDING = "Twite";
+  const NEARLY_ALL = 0.96;
+  let address;
+  let told;
+  let rowWhileItRan;
+
+  before(async () => {
+    installed(options(filling, 0));
+    runTool(filling, ["hire", SPENDING], process.env);
+
+    await start(
+      filling,
+      standInEnvironment(standIn, fillingNowLog, {
+        OPENOVAI_STAND_IN_LIMIT: "allowed",
+        // Low first, so that nothing here can be satisfied by a reading that was already over the
+        // line when the run began.
+        OPENOVAI_STAND_IN_FULLNESS: String(0.2),
+        OPENOVAI_STAND_IN_FULLNESS_AGAIN: String(NEARLY_ALL),
+        OPENOVAI_STAND_IN_FULLNESS_AGAIN_IN: String(500),
+        OPENOVAI_STAND_IN_SLOW: "8000",
+      }),
+    );
+    address = await waitForAddress(server);
+    assert.ok(address, "the server never said where it was listening");
+
+    // A run that will still be going when the lead is asked something. Not awaited here: the whole
+    // question is what the lead is told WHILE it goes on.
+    const spending = post(`${address}/sessions/${SPENDING}/message`, {
+      text: "a turn that takes the account most of the way through its window",
+    });
+    rowWhileItRan = await waitFor(async () => {
+      const { sessions: rows } = JSON.parse((await get(`${address}/sessions`)).body);
+      const row = rows.find((one) => one.name === SPENDING);
+      return row?.standing?.windows?.find((one) => one.name === "five_hour")?.fullness === NEARLY_ALL
+        ? row
+        : null;
+    });
+
+    await post(`${address}/sessions/${LEADER}/message`, { text: "something, while that one is going" });
+    told = usageBlock(questionsIn(fillingNowLog).slice(-1)[0] ?? "");
+    await spending;
+  });
+
+  // The state every check below is about has to have been reached, or they are all reading the
+  // account before anything filled it.
+  it("has a run in flight that has been told the window is nearly gone", () => {
+    assert.ok(rowWhileItRan !== null, "no run ever carried a reading that far along");
+  });
+
+  // Mutation: fold only the readings of runs that have finished, which is what this did before. The
+  // run in flight is the only thing that has been told about this window at all, so the account
+  // reads as a fifth full while it is nearly gone.
+  it("reads the window a run in flight is filling", () => {
+    assert.match(told, /96% full/);
+    assert.doesNotMatch(told, /20% full/);
+  });
+
+  // Mutation: say `last ran` whatever kind of reading won. It is one word about the number the lead
+  // acts on soonest, and it is false: the run is going on as the sentence is read.
+  it("says the run is going on rather than that it has finished", () => {
+    assert.match(told, new RegExp(`while ${SPENDING} was running`));
+    assert.doesNotMatch(told, new RegExp(`when ${SPENDING} last ran`));
+  });
+});
+
+// The check that says the reading decides nothing — the one the comment above it claimed and
+// nothing had ever written.
+//
+// WHY IT IS WORTH A DESCRIBE OF ITS OWN. The reading is the most decision-shaped thing the chat
+// produces: a percentage, two lines drawn across it and a sentence about what to do. Everything
+// that keeps it a FACT is a thing that is not there — no consultation on the paths by which
+// anything happens to anybody — and absences do not fail loudly. A comment saying so is worth
+// exactly nothing the first time somebody reads the number one line before an `if`.
+//
+// FIVE PATHS, and they are the five ways this chat does something to somebody: it DELIVERS a
+// message, HIRES, HANDS a session OVER, QUEUES a turn behind another, and says a session was
+// REFUSED. The account is staged past every line in the reading — past the plan line and past the
+// stop line — and each of the five is shown to do exactly what it does when there is no reading at
+// all.
+//
+// Its own instance, because the staging has to survive being read: in the shared one every run
+// writes its own reading over the staged one, and the sessions being driven here run constantly.
+describe("what the account being nearly gone does not change", () => {
+  const unruledLog = path.join(standIn, "unruled.txt");
+  const SITS_STILL = "Siskin";
+  const IS_ASKED = "Crossbill";
+  const HIRED_WHILE_FULL = "Grosbeak";
+  const NEARLY_ALL = 0.99;
+  let address;
+  let toldTheAccountIsGone;
+  let answered;
+  let queuedThrough;
+  let queuedBehind;
+  let hired;
+  let handedOver;
+  let rowWhileFull;
+
+  const sayTo = (name, text) => post(`${address}/sessions/${name}/message`, { text });
+  const rows = async () => JSON.parse((await get(`${address}/sessions`)).body).sessions;
+
+  before(async () => {
+    installed(options(unruled, 0));
+    runTool(unruled, ["hire", SITS_STILL], process.env);
+    runTool(unruled, ["hire", IS_ASKED], process.env);
+
+    // Slow enough that a turn can be seen to be going while another arrives behind it. Without it
+    // the first is answered before the second is posted, and the check about queueing is a check
+    // about two turns that never met. MEASURED: the mutation that refuses to queue did not redden
+    // it until this was here.
+    await start(unruled, standInEnvironment(standIn, unruledLog, { OPENOVAI_STAND_IN_SLOW: "1500" }));
+    address = await waitForAddress(server);
+    assert.ok(address, "the server never said where it was listening");
+
+    // One session runs once and then sits still, so that the reading staged on it is the one still
+    // there when everything below is read.
+    await sayTo(SITS_STILL, "a turn, so there is a thread to stage a reading on");
+    stageWindows(
+      SITS_STILL,
+      [
+        { name: "five_hour", fullness: NEARLY_ALL, resetsAt: Math.floor(Date.now() / 1000) + 4 * 60 * 60 },
+        { name: "seven_day", fullness: 0.4, resetsAt: Math.floor(Date.now() / 1000) + 5 * 24 * 60 * 60 },
+      ],
+      0,
+      unruled,
+    );
+
+    // The account really is past every line, which every check below is a claim about. Read off the
+    // lead's own block, which is the one place the reading is said in words.
+    await sayTo(LEADER, "something, so the lead is handed the reading");
+    toldTheAccountIsGone = usageBlock(questionsIn(unruledLog).slice(-1)[0] ?? "");
+
+    // DELIVERING, and QUEUEING behind it.
+    //
+    // The second is posted only once the first is SEEN to be running, and it is then waited for as
+    // a DEPTH rather than as a duration: the row says how many are behind the one being answered,
+    // so what is waited on is the server saying the message is in and has not been read.
+    const first = sayTo(IS_ASKED, "a first message, with the account nearly gone");
+    await waitFor(async () => ((await rows()).find((one) => one.name === IS_ASKED)?.busy === true ? true : null));
+    const second = sayTo(IS_ASKED, "a second message, behind the first");
+    queuedBehind = await waitFor(async () =>
+      ((await rows()).find((one) => one.name === IS_ASKED)?.queued ?? 0) >= 1 ? true : null,
+    );
+    answered = (await first).status;
+    queuedThrough = (await second).status;
+
+    // HIRING.
+    hired = (await post(`${address}/sessions`, { name: HIRED_WHILE_FULL })).status;
+
+    // HANDING OVER.
+    handedOver = (await post(`${address}/sessions/${IS_ASKED}/handover`, {})).status;
+
+    rowWhileFull = (await rows()).find((one) => one.name === IS_ASKED);
+  });
+
+  // Everything below is a claim about an account past both lines, so the staging has to have taken.
+  it("has an account past every line in the reading", () => {
+    assert.match(toldTheAccountIsGone, /99% full/);
+    assert.match(toldTheAccountIsGone, new RegExp(`${SITS_STILL} last ran`));
+  });
+
+  // Mutation: hold a message back when the account is past the stop line. That is the whole shape
+  // of the mistake this exists to catch — the number is a reading and never a gate, and a chat that
+  // stopped answering on its own reading would look exactly like one whose service refused it.
+  it("delivers a message", () => {
+    assert.equal(answered, 200);
+  });
+
+  // Mutation: refuse to queue behind a running turn while the account is nearly gone. A turn held
+  // back here is not a turn saved; it is a person waiting on a queue that never drains.
+  it("queues a turn behind another", () => {
+    assert.equal(queuedBehind, true, "the second message never queued behind the first");
+    assert.equal(queuedThrough, 200);
+  });
+
+  // Mutation: refuse to hire while the account is nearly gone. Whether to take somebody new on with
+  // little of a window left is a judgment, and it is a judgment the person reading the number makes.
+  it("hires", () => {
+    assert.equal(hired, 201);
+  });
+
+  // Mutation: refuse a handover while the account is nearly gone. It is the cheapest thing anybody
+  // does here and the one most worth doing when a window is nearly gone.
+  it("hands a session over", () => {
+    assert.equal(handedOver, 200);
+  });
+
+  // Mutation: mark a session refused off the reading. What the account has been USED for and what
+  // the service has TURNED AWAY are two facts, and manufacturing the second from the first would
+  // put a refusal on a row nothing had refused.
+  it("says a session is refused only when the service refused it", () => {
+    assert.equal(rowWhileFull.refused, null, JSON.stringify(rowWhileFull.refused));
   });
 });
 

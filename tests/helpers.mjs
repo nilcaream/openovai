@@ -271,7 +271,23 @@ const reading = (status, lifts, full = fullness()) => ({
   },
 });
 
-const lifts = () => Math.floor(Date.now() / 1000) + 3 * 60 * 60;
+// WHEN THE WINDOW LIFTS — ONE MOMENT, NOT ONE PER RUN.
+//
+// A window has a boundary. Everything told about it between now and that boundary is told about
+// the SAME window, and every reading of it names the same moment; that is what makes two readings
+// comparable at all. Derived per run instead, this said "three hours from whenever this run
+// happened", which models a window that restarts every time anybody speaks — and two readings of
+// one window then differ by the seconds between the runs that carried them.
+//
+// MEASURED, and it cost a green check: with the moment derived per run, a reading staged by hand
+// and a reading from a run a second later name two different windows, and a reader that compares
+// only within one window rightly refuses to put them together.
+//
+// The moment is handed in by whoever set this stand-in up, so one suite run means one window. On
+// its own — driven directly, with nothing passing the knob — it falls back to the derived moment,
+// which is what a single run in isolation has always meant.
+const lifts = () =>
+  Number(process.env.OPENOVAI_STAND_IN_LIFTS_AT ?? Math.floor(Date.now() / 1000) + 3 * 60 * 60);
 
 // How full the window says it is, and a knob rather than a literal for the same reason resetsAt is
 // computed above: a check that asserted the number this file had written down would be matching a
@@ -744,9 +760,14 @@ export function writeStandIn(directory) {
 
 // The environment an instance's command or chat runs in for a test: the stand-in first on the
 // PATH, and the log it records its calls in.
+// The moment the window every stand-in run reports lifts at, fixed once for the whole of a suite
+// run. See `lifts()` in the stand-in itself for why it cannot be worked out per run.
+export const LIFTS_AT = Math.floor(Date.now() / 1000) + 3 * 60 * 60;
+
 export function standInEnvironment(directory, log, extra = {}) {
   return {
     ...process.env,
+    OPENOVAI_STAND_IN_LIFTS_AT: String(LIFTS_AT),
     OPENOVAI_STAND_IN_LOG: log,
     PATH: `${directory}${path.delimiter}${process.env.PATH}`,
     ...extra,
