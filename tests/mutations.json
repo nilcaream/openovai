@@ -848,5 +848,93 @@
         "to": "  const left = [];"
       }
     ]
+  },
+  {
+    "name": "the skill is written once and never corrected after that",
+    "catches": "writes it again at every start, over whatever was there",
+    "edits": [
+      {
+        "file": "tools/skills.mjs",
+        "from": "  fs.writeFileSync(target, readTemplate(root, `${SKILL} skill`, SKILL_SOURCE));",
+        "to": "  if (!fs.existsSync(target)) {\n    fs.writeFileSync(target, readTemplate(root, `${SKILL} skill`, SKILL_SOURCE));\n  }"
+      }
+    ]
+  },
+  {
+    "name": "the skill is written where nothing looks for a skill",
+    "catches": "writes it where a session reads a skill from",
+    "edits": [
+      {
+        "file": "tools/skills.mjs",
+        "from": "export const SKILL_TARGET = path.join(\".claude\", \"skills\", SKILL, SKILL_FILE);",
+        "to": "export const SKILL_TARGET = path.join(\".claude\", \"skill\", SKILL, SKILL_FILE);"
+      }
+    ]
+  },
+  {
+    "name": "the chat writes something of its own into the skill it was shipped",
+    "catches": "writes what the payload ships and nothing of its own",
+    "edits": [
+      {
+        "file": "tools/skills.mjs",
+        "from": "  fs.writeFileSync(target, readTemplate(root, `${SKILL} skill`, SKILL_SOURCE));",
+        "to": "  fs.writeFileSync(target, `<!-- written by the chat -->\\n${readTemplate(root, `${SKILL} skill`, SKILL_SOURCE)}`);"
+      }
+    ]
+  },
+  {
+    "name": "a chat starts with no skill for its lead to read rather than refusing",
+    "catches": "refuses to start at all where the payload has no such skill",
+    "edits": [
+      {
+        "file": "tools/ovai.mjs",
+        "from": "  ownSkills(root);",
+        "to": "  void root;"
+      }
+    ]
+  },
+  {
+    "name": "the skill goes by a name nothing sends a session to",
+    "catches": "carries the name the rest of the workspace sends a session to",
+    "edits": [
+      {
+        "file": "templates/skills/allowed/SKILL.md",
+        "from": "name: allowed",
+        "to": "name: permissions"
+      }
+    ]
+  },
+  {
+    "name": "the skill stops saying that the copy is rewritten at every start",
+    "catches": "says in the file itself that an edit to the copy lasts until the next start",
+    "edits": [
+      {
+        "file": "templates/skills/allowed/SKILL.md",
+        "from": "This file is written by `ovai` and is replaced every time the chat starts.",
+        "to": "This file is written by `ovai`."
+      }
+    ]
+  },
+  {
+    "name": "the first turn describes the workspace instead of reading it",
+    "catches": "sends the lead to the skill that reads the files rather than describing the workspace",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "`Run the \\`${ALLOWED}\\` skill first and read ${instance.config.human} what it answers:",
+        "to": "`Tell ${instance.config.human} what this workspace allows:"
+      }
+    ]
+  },
+  {
+    "name": "the first turn goes back to claiming that nothing has been granted here",
+    "catches": "asserts nothing itself about what has been granted here",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "`Whatever it comes to, everything not settled by a rule stops a session mid-turn",
+        "to": "`It has granted nothing beyond one desk each, so everything not settled by a rule stops a session mid-turn"
+      }
+    ]
   }
 ]

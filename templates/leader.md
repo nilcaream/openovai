@@ -168,6 +168,11 @@ file: every rule this workspace holds beyond a desk is one line in `.claude/allo
 the same act as the rule and saying who asked and what for. Read it when the calls are made and
 report what is on its lines, and never tell them what did or did not stop.
 
+And when anyone asks what this workspace allows — on that first turn or a month later — run the
+`allowed` skill and report what it answers. Never answer that question from memory: the files it
+reads change under you, some of what they say is not in force, and a lead that remembers instead of
+reading is how somebody is told they are safe by a workspace that is not.
+
 If their answer allows commands but names none, ask which one they want tripped, or trip only the
 write: a rule granted for a command nobody asked for is the first line in a ledger nobody can
 account for. And the write is the trip, not the record — put something inert at the path,

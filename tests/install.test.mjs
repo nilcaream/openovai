@@ -201,6 +201,28 @@ describe("what the installer made", () => {
     assert.ok(fs.existsSync(inside("templates", "worker.md")));
   });
 
+  // The skill a lead answers "what may be done here" from travels with the payload, so an update
+  // replaces it. Nothing is copied into .claude/skills by the installer: that copy is written when
+  // the chat starts, which is what keeps an instance from carrying a year-old account of a runtime
+  // that has been measured to do something else since.
+  it("copies the skill an instance explains itself with in", () => {
+    assert.ok(fs.existsSync(inside("templates", "skills", "allowed", "SKILL.md")));
+  });
+
+  it("leaves the writing of it to the chat rather than doing it here", () => {
+    assert.ok(!fs.existsSync(inside(".claude", "skills")));
+  });
+
+  // The one sentence in the persona for it. A persona is rendered when somebody is hired and an
+  // update re-renders nobody's, so this is the half that has to be right in the template as well:
+  // a lead hired today reading only the block pushed into its first turn would answer the question
+  // from memory on every turn after it.
+  it("tells the leader to answer what the workspace allows from the skill, never from memory", () => {
+    const persona = contentOf("personas", `${LEADER}.md`);
+    assert.match(persona, /run the\s+`allowed` skill and report what it answers/);
+    assert.match(persona, /Never answer that question from memory/);
+  });
+
   it("writes the leader a persona", () => {
     assert.ok(fs.existsSync(inside("personas", `${LEADER}.md`)));
   });
@@ -592,6 +614,134 @@ describe("what the installer made", () => {
       }),
       [],
     );
+  });
+});
+
+// What the skill makes a lead do, read from the copy the instance was shipped. It is a procedure
+// rather than an answer, and the parts of the procedure that keep the answer honest are the parts
+// worth watching: the blocks it must not skip, and the three sentences that stop each of the three
+// ways this report can be confidently wrong.
+describe("what the skill tells a lead to report", () => {
+  const skill = () => contentOf("templates", "skills", "allowed", "SKILL.md");
+
+  it("is found under the name the workspace sends a session to", () => {
+    assert.match(skill(), /^name: allowed$/m);
+  });
+
+  it("says the copy a session reads is rewritten every time the chat starts", () => {
+    assert.match(skill(), /replaced every time the chat starts/);
+  });
+
+  it("has the lead read the files in the turn it is asked, never remember", () => {
+    assert.match(skill(), /\*\*Read now, in this turn\.\*\*/);
+    assert.match(skill(), /Never answer from the conversation/);
+  });
+
+  it("carries on past a file it cannot read rather than dying on the first one", () => {
+    assert.match(skill(), /a line in the report, never the end of it/);
+  });
+
+  it("makes every claim carry its line", () => {
+    assert.match(skill(), /Every claim carries `path:line`/);
+  });
+
+  // The whole point of the feature, in the file that has to say it.
+  it("keeps what is written apart from what is honoured", () => {
+    assert.match(skill(), /Never merge what is written with what is honoured/);
+  });
+
+  // The order is the shape: a report that leaves one out is wrong about a mechanism rather than
+  // short of a paragraph, and the two most likely to be dropped are the ones with no rule in them.
+  it("lays down seven blocks and their order", () => {
+    const blocks = [...skill().matchAll(/^### ([A-G])\. /gm)].map(([, letter]) => letter);
+    assert.deepEqual(blocks, ["A", "B", "C", "D", "E", "F", "G"]);
+  });
+
+  // A hook runs shell on a tool event with no permission decision at all, so nothing in the other
+  // blocks would ever mention it. A report on what an instance may do that omits the one mechanism
+  // able to run a command without being asked is not the report this feature promises.
+  it("has the mode block name what the hooks are", () => {
+    assert.match(skill(), /one line for \*\*hooks\*\*/);
+    assert.match(skill(), /run a command without being asked/);
+  });
+
+  // The correction a reviewer forced: a deny rule binds the tools its matcher names. An Edit rule
+  // closes those paths to the file-writing tools and a granted shell rule walks straight past it,
+  // so the report crosses the two lists rather than saying the instance cannot widen itself.
+  it("has the denied block cross its paths against the shell rules that reach them", () => {
+    assert.match(skill(), /a rule binds the tools its matcher names, and\s+no others/);
+    assert.match(skill(), /does not stop a shell command from\s+reaching it/);
+    assert.match(skill(), /`Bash\(sed:\*\)` reaches the paths\s+`Edit\(\.claude\/\*\*\)` protects/);
+  });
+
+  it("has the allowed block say when nothing accounts for a rule", () => {
+    assert.match(skill(), /nothing accounts for this rule/);
+  });
+
+  // What a person is never asked about is not what they cannot forbid, and reading the first as
+  // the second is how somebody concludes a whole class of calls is out of their hands.
+  it("says the calls that never stop are out of reach of allow and not of deny", () => {
+    assert.match(skill(), /out of reach of\s+`allow`; it is \*\*not\*\* out of reach of `deny`/);
+  });
+
+  // The second mechanism. A report built only on the rules would be confidently wrong about the
+  // thing people ask about most, which is whether a write will go through.
+  it("names the working directory as a refusal with no rule in it", () => {
+    assert.match(skill(), /no permission rule involved and no permission decision to point at/);
+    assert.match(skill(), /may not claim a write will be allowed on rule evidence alone/);
+  });
+
+  // The trust check is an inference from two measured facts, and the runtime's own statement of it
+  // is a stderr line nothing here reads. A block that quietly read as measured would be this
+  // feature's own failure, one level up.
+  it("makes the trust check admit it is a reconstruction", () => {
+    assert.match(skill(), /our reconstruction and not the runtime speaking/);
+    assert.match(skill(), /mark it Assumes/);
+  });
+
+  it("says an untrusted workspace loses its allow entries and keeps the rest", () => {
+    assert.match(skill(), /and only the allow\s+entries/);
+    assert.match(skill(), /can still forbid and can no longer permit/);
+  });
+
+  // Silence is not proof: the line counts only the ignored allows, so a file with none produces no
+  // line either way and a report reading that as confirmation would invent what it is here to stop.
+  it("says the runtime's one statement of it proves nothing by its absence", () => {
+    assert.match(skill(), /counts only the \*ignored allows\*/);
+  });
+
+  it("says a settings file that fails to parse grants nothing and says nothing", () => {
+    assert.match(skill(), /silently ignored in that mode/);
+  });
+
+  // Version-sensitive and measured on one bundle. A check that asserted it on every version would
+  // be the file claiming something about a runtime nobody had measured.
+  it("skips the auto-mode stripping outside auto mode, and dates what it knows", () => {
+    assert.match(skill(), /\*Only when block A says the mode is `auto`\.\*/);
+    assert.match(skill(), /unverified on this version/);
+  });
+
+  // The exception a competent person gets caught by: a tightened persona is additive in effect
+  // until the conversation is replaced, because the session read the old one and resumes from it.
+  it("says a resumed conversation keeps what it has already read", () => {
+    assert.match(skill(), /tightening a persona is additive in effect until a handover replaces the/);
+    assert.match(skill(), /What clears it is replacing the conversation/);
+  });
+
+  it("says a change to the settings is honoured from each session's next turn", () => {
+    assert.match(skill(), /honoured from each session's next turn/);
+  });
+
+  // It is a report and not advice. The moment it names rules worth pressing it is a lead
+  // improvising grants, which is the one thing the first turn forbids.
+  it("names no rule the person could press next", () => {
+    assert.match(skill(), /It is a report, not advice/);
+  });
+
+  // A workspace's own policy is not the product's. The skill describes mechanism and names no
+  // model, no cadence and nobody's habits.
+  it("names no model", () => {
+    assert.doesNotMatch(skill(), /\b(opus|sonnet|haiku)\b/i);
   });
 });
 

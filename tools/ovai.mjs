@@ -16,6 +16,7 @@ import { NAME_IN_ENVIRONMENT, endEveryRun, runsGoing } from "./chat/session.mjs"
 import { hasCredential, home, login, machineToken, memoryDirectory } from "./claude.mjs";
 import { DeskError, describeName, desks, hire, isName, modelFor } from "./desks.mjs";
 import { ownInstructions } from "./instructions.mjs";
+import { ownSkills } from "./skills.mjs";
 import { leaveWord } from "./chat/untold.mjs";
 import { holderOf } from "./port.mjs";
 import { RELEASES, ReleaseError, latestRelease, notesIn, replacePayload, unpackInto } from "./release.mjs";
@@ -496,6 +497,11 @@ async function chat(root) {
   // instance was made: the list is absolute paths worked out from where the instance sits now,
   // so an instance that was moved would otherwise carry the list for where it used to be.
   console.log(describeInstructions(ownInstructions(root).existing));
+
+  // Beside it and for its reason: the skill the lead answers "what may this workspace do" from is
+  // written out of the payload every time the chat starts, so what it says about the runtime is
+  // what the toolkit under it knows now rather than what it knew when the instance was made.
+  ownSkills(root);
 
   // Read here rather than inside the server, and read once. Here because every line a person
   // sees when a chat starts is composed in this file and the server prints nothing at all; once

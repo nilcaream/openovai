@@ -792,6 +792,80 @@ describe("the instructions an instance runs under", () => {
   });
 });
 
+// The one question a person inside a chat cannot answer for themselves — what may be done here —
+// is answered by a lead reading a skill, and the skill is written out of the payload every time
+// the chat starts. A copy installed once would be the one file in an instance that asserts how the
+// runtime behaves and that no update ever corrects, which is the worst possible place for it.
+describe("the skill an instance explains itself with", () => {
+  const target = path.join(instance, ".claude", "skills", "allowed", "SKILL.md");
+  const shipped = path.join(instance, "templates", "skills", "allowed", "SKILL.md");
+  const HAND_EDITED = "# somebody rewrote this by hand\n";
+  let written;
+  let afterAnEdit;
+  let withoutIt;
+
+  // Read so that a file that is not there is a check going red rather than this hook throwing:
+  // where the skill is written is one of the things being checked, and a hook that fell over would
+  // take every check here with it and say which one was wrong to nobody.
+  const held = (from) => (fs.existsSync(from) ? fs.readFileSync(from, "utf8") : null);
+
+  before(async () => {
+    // What the start at the top of this file left, before anything here touches it.
+    written = held(target);
+
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, HAND_EDITED);
+    await start(instance, standIns);
+    assert.ok(await waitForHealth(URL), "the server never came back");
+    afterAnEdit = held(target);
+
+    // And a chat asked to start where the payload has no such skill, in the instance no chat is
+    // ever served for. The file is put back immediately afterwards, so nothing else here sees an
+    // instance with a template missing.
+    const missing = path.join(quiet, "templates", "skills", "allowed", "SKILL.md");
+    const kept = fs.readFileSync(missing, "utf8");
+    fs.rmSync(missing);
+    withoutIt = runTool(quiet, ["chat"], standIns);
+    fs.writeFileSync(missing, kept);
+  });
+
+  after(async () => {
+    await start(instance, standIns);
+    assert.ok(await waitForHealth(URL), "the server never came back");
+  });
+
+  it("writes it where a session reads a skill from", () => {
+    assert.ok(fs.existsSync(target), `nothing at ${target}`);
+  });
+
+  it("writes what the payload ships and nothing of its own", () => {
+    assert.equal(written, held(shipped));
+  });
+
+  it("writes it again at every start, over whatever was there", () => {
+    assert.notEqual(afterAnEdit, HAND_EDITED);
+    assert.equal(afterAnEdit, held(shipped));
+  });
+
+  it("says in the file itself that an edit to the copy lasts until the next start", () => {
+    assert.match(written ?? "", /replaced every time the chat starts/);
+  });
+
+  // A chat that started without it would leave a lead answering the one question this feature
+  // exists for from memory, and nothing would say so. It is refused instead, naming the file.
+  it("refuses to start at all where the payload has no such skill", () => {
+    assert.notEqual(withoutIt.status, 0, withoutIt.stdout);
+    assert.match(withoutIt.stderr, /allowed skill template is missing/);
+  });
+
+  // A skill is found by the name in its front matter, and the name the first-turn block and the
+  // lead's persona both send a session to is `allowed`. A file whose front matter said anything
+  // else would be a skill nobody could run, sitting in exactly the right place.
+  it("carries the name the rest of the workspace sends a session to", () => {
+    assert.match(written ?? "", /^name: allowed$/m);
+  });
+});
+
 // What somebody was hired onto is what they are run on, and what nobody was hired onto is what the
 // workspace runs its workers on. The second half is the one worth watching: it is a setting rather
 // than a seed, so changing it moves everybody who was never named a model of their own, and moves
@@ -4730,6 +4804,17 @@ describe("the question a workspace is asked on its first turn", () => {
 
   it("asks what may be done at this root on the first turn of a workspace that has settled nothing", () => {
     assert.match(asked ?? "", /what may be done at this root/);
+  });
+
+  // What the block used to do instead: say in prose that nothing had been granted here. True of a
+  // fresh instance, unreadable by the code saying it, and silent about what is denied, what never
+  // stops at all and which of what is written the runtime honours. The state is read now.
+  it("sends the lead to the skill that reads the files rather than describing the workspace", () => {
+    assert.match(asked ?? "", /Run the `allowed` skill first/);
+  });
+
+  it("asserts nothing itself about what has been granted here", () => {
+    assert.ok(!(asked ?? "").includes("granted nothing beyond one desk each"), asked);
   });
 
   it("wraps the question, so nothing reaches the session as though the human had typed it", () => {

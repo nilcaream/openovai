@@ -4,6 +4,44 @@ For the lead of a workspace taking this version. Short, and about what is differ
 working there — not a developer changelog. A section per release, newest first; a release page
 carries only its own.
 
+## 0.7.0
+
+**Ask your lead what this workspace allows, and it reads the files rather than remembering.** The
+answer used to be whatever the lead had picked up: a first-turn paragraph written months before your
+instance existed said that nothing had been granted here, and every answer after that came out of a
+conversation. Inside a chat you have no permission dialog in front of you and no command line to
+point at the session, so a lead that remembers instead of reading is the whole of what you have to
+go on — and it is wrong the moment anything changes.
+
+There is now a skill for it, `allowed`, and the lead is told to run it whenever the question comes
+up. It opens the files in that turn — a managed policy if the machine has one, the settings beside
+yours, the instance's own, the ones its Claude Code home keeps, and the ledger that says who asked
+for each rule — and reports what it read with the path and line of every claim. Seven blocks, in
+one order: how this instance decides, what is denied, what is allowed and who accounted for it,
+what stops and waits on your panel, what the working directory refuses whatever the rules say,
+**what is written and is not in force**, and when a change takes effect.
+
+The sixth is the one you cannot get anywhere else. A settings file can hold rules the runtime is
+ignoring — a workspace installed inside somebody's checkout that nobody has trusted has its
+`allow` list dropped and keeps its `deny` and `ask`; a settings file that fails to parse grants
+nothing and says so to nobody, because every session here runs with `--print`; and in auto mode the
+frame quietly drops allow rules it considers dangerous. The report separates what is written from
+what is honoured and never merges the two, and where it is inferring rather than reading it says so
+in those words.
+
+And it says when a change lands, which is better news than you would expect: every turn is a fresh
+process, so an edit to `.claude/settings.json` is in force from each session's next turn, with
+nothing to restart and nobody to hire again. The exception is a persona — a resumed conversation
+still carries what it has already read, so tightening a persona is additive in effect until a
+handover replaces the conversation. A lead now tells you that rather than leaving you to work it
+out from a session that seems to be ignoring you.
+
+The skill file is written into `.claude/skills/allowed/SKILL.md` every time the chat starts, out of
+`templates/skills/allowed/SKILL.md`. That is deliberate: what it says about the runtime is measured,
+and a copy installed once would be the one file in your instance asserting how Claude Code behaves
+that no update ever corrects. Edit the copy if you like — it lasts until the next start. Edit the
+template and it is yours until you take a newer toolkit.
+
 ## 0.6.0
 
 Two refusals: one that was not there, and one that was not saying enough.
