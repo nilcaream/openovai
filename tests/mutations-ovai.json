@@ -53,5 +53,76 @@
         "to": ""
       }
     ]
+  },
+  {
+    "name": "print mode leaves the run that serves a seat",
+    "catches": "never starts Claude Code in a shape its background reaper is armed for",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "    \"--print\",\n    \"--input-format\",",
+        "to": "    \"--input-format\","
+      }
+    ]
+  },
+  {
+    "name": "a fourth way to start Claude Code appears, and it is a session with a terminal",
+    "catches": "never starts Claude Code in a shape its background reaper is armed for",
+    "edits": [
+      {
+        "file": "tools/claude.mjs",
+        "from": "// Hand the terminal to Claude Code so a person can sign this instance in.",
+        "to": "export function pickUpWhereItLeftOff(root, auth) {\n  return spawnSync(\"claude\", [\"--resume\"], { cwd: root, env: environment(root, auth), stdio: \"inherit\" });\n}\n\n// Hand the terminal to Claude Code so a person can sign this instance in."
+      }
+    ]
+  },
+  {
+    "name": "the arguments stop being readable where the run is started",
+    "catches": "says what command and what arguments every process it starts is given",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "      child = spawn(\"claude\", args, {",
+        "to": "      child = spawn(\"claude\", args.slice(), {"
+      }
+    ]
+  },
+  {
+    "name": "the run is started through a name of its own rather than by the command",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "function run(instance, name, text, resume, asked) {",
+        "to": "const CLAUDE_BIN = \"claude\";\n\nfunction run(instance, name, text, resume, asked) {"
+      },
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "      child = spawn(\"claude\", args, {",
+        "to": "      child = spawn(CLAUDE_BIN, args, {"
+      }
+    ],
+    "catches": "says what command and what arguments every process it starts is given"
+  },
+  {
+    "name": "the walk is pointed somewhere no process is started",
+    "catches": "starts Claude Code somewhere, so that what follows is about something",
+    "edits": [
+      {
+        "file": "tests/ovai.test.mjs",
+        "from": "const starts = processStarts(repo);",
+        "to": "const starts = processStarts(path.join(repo, \"templates\"));"
+      }
+    ]
+  },
+  {
+    "name": "a shell script learns a shortcut that starts a session itself",
+    "catches": "never reaches Claude Code from a shell script, where the shape it runs in cannot be read",
+    "edits": [
+      {
+        "file": "bin/ovai",
+        "from": "    exec node \"${root}/tools/ovai.mjs\" --root \"${root}\" \"$@\"",
+        "to": "    if [[ \"${1:-}\" == \"resume\" ]]; then\n        exec claude --resume\n    fi\n\n    exec node \"${root}/tools/ovai.mjs\" --root \"${root}\" \"$@\""
+      }
+    ]
   }
 ]

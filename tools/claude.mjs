@@ -154,6 +154,9 @@ export function machineToken() {
 // The honest check costs a request, which is too much for a status command to spend every time
 // it is run. So this answers the cheap question and the caller says which question it was.
 // Returns null when even that cannot be asked.
+//
+// An `auth` subcommand and not a session: it runs no turn, which is what exempts it from the
+// print-mode rule the check in tests/ovai.test.mjs holds every other start of Claude Code to.
 export function hasCredential(root, auth) {
   const asked = spawnSync("claude", ["auth", "status"], {
     cwd: root,
@@ -173,6 +176,14 @@ export function hasCredential(root, auth) {
 }
 
 // Hand the terminal to Claude Code so a person can sign this instance in.
+//
+// The one place the toolkit hands a child a real terminal, and the one start of Claude Code here
+// that is not in print mode. With stdio "inherit" this child's stdout IS a terminal when a person
+// runs the command from a shell, which is exactly the shape Claude Code judges interactive and
+// arms its background-shell pressure reaper for. It is safe for one reason and only that reason:
+// an `auth` subcommand runs no turn, so there is no background work for a reaper to take. A
+// session must never be started this way. The check in tests/ovai.test.mjs holds every start of
+// Claude Code to --print or to `auth`, and this is the `auth` half of it.
 export function login(root, auth) {
   const signed = spawnSync("claude", ["auth", "login"], {
     cwd: root,

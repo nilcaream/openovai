@@ -792,6 +792,13 @@ function toolsIn(root, name) {
 // once the answer is in is what ends the run: the child would otherwise sit
 // there waiting for another question, which is a conversation the chat keeps in a session id
 // instead, so that stopping the server never costs one.
+//
+// --print is load-bearing twice over, and the second reason is easy to lose. It makes this a run
+// rather than a conversation held on a terminal; it also keeps Claude Code from arming its
+// background-shell pressure reaper, which is armed only for a session it judged interactive,
+// judged once as the session opens, and a run given --print is never one. A seat whose background
+// work is being reaped loses it silently, so every way this toolkit starts Claude Code is held to
+// that shape by a check in tests/ovai.test.mjs.
 function run(instance, name, text, resume, asked) {
   const args = [
     "--print",

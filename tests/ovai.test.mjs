@@ -5,6 +5,9 @@
 // instance without a credential says how to fix itself, and that a failed sign-in cannot look
 // like a success.
 //
+// It also reads the toolkit's own source, for the one thing about starting Claude Code that
+// cannot be seen by starting it: that no way of doing so gives the session a terminal.
+//
 // Two instances are installed, one for each way of signing in, because the difference between
 // them is exactly what an instance is allowed to take from the environment it is started in.
 //
@@ -256,6 +259,248 @@ describe("what Claude Code is run as", () => {
 
   it("keeps an account credential in the environment away from it", () => {
     assert.ok(!readLog(log).includes("ANTHROPIC_API_KEY: must-not-be-inherited"));
+  });
+});
+
+// What the toolkit starts, and the shape it starts Claude Code in.
+//
+// Claude Code arms its own background-shell pressure reaper only for a session it judged
+// interactive, and it judges once, as the session opens: a run given --print is never one,
+// whatever sits underneath it. Nothing here gives a session a terminal today, and this is where
+// that stays true — not by listing the places Claude Code is started, because a list goes stale
+// the day somebody adds the next one, but by reading every process this tree starts and refusing
+// the ones whose shape cannot be decided.
+//
+// The rule is about the arguments and not about the stdio, on purpose. Piped stdout would make a
+// run non-interactive too, and it does at two of the three places Claude Code is started here,
+// but it is the half a refactor from "pipe" to "inherit" invalidates without touching anything
+// that looks related. --print sits in the argument list, where a reader is already looking.
+//
+// Assumed rather than smoothed over: `claude auth …` runs no turn, so it owns no background work
+// there is anything to lose. That is the whole reason the sign-in may hand over a real terminal —
+// tools/claude.mjs starts it with stdio "inherit", and on a terminal that child's stdout IS one —
+// and still be safe.
+//
+// The shell is the one way past all of that: this reads the child_process family, so a line in
+// install.sh or bin/ovai that ran Claude Code would pass unseen. Teaching the walk to read shell
+// buys guesswork rather than an answer — there is no tree to read there and every heuristic has a
+// false positive waiting — so the rule over there is the blunt one instead: nothing in this repo
+// reaches Claude Code from a shell script at all, and the last check below is the tripwire on it.
+const CLAUDE = "claude";
+
+// Where the walk does not go. Scratch holds installed instances, which are copies of tools/, so
+// reading those would report every finding twice; the suites themselves start a Node stand-in,
+// git and `claude --version`, none of which is a session being given a shape.
+const NOT_THE_TOOLKIT = new Set([".git", ".tmp", ".claude-home", "node_modules", "work", "tests"]);
+
+// The child_process family, and nothing that merely ends in one of those names: `.exec(` belongs
+// to RegExp and there are a dozen of those in here.
+const STARTS_A_PROCESS = /(?<![.\w$])(spawn|spawnSync|execFile|execFileSync|exec|execSync|fork)\s*\(/g;
+
+// The first line of a file, without reading the rest of it: a walk that slurped every file whole
+// to look at its opening would read the images too.
+function opening(at) {
+  const fd = fs.openSync(at, "r");
+  try {
+    const head = Buffer.alloc(64);
+    return head.toString("utf8", 0, fs.readSync(fd, head, 0, head.length, 0)).split("\n")[0];
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+
+// Written in JavaScript, and written in shell. A shell script here is either named .sh or named
+// nothing at all and opened with a shell shebang, which is what bin/ovai is.
+const IS_JAVASCRIPT = (at) => /\.m?js$/.test(at);
+const IS_SHELL = (at) => /\.sh$/.test(at) || /^#!.*sh\b/.test(opening(at));
+
+function sourceFiles(from, written, into = []) {
+  for (const entry of fs.readdirSync(from, { withFileTypes: true })) {
+    if (NOT_THE_TOOLKIT.has(entry.name)) continue;
+    const at = path.join(from, entry.name);
+    if (entry.isDirectory()) sourceFiles(at, written, into);
+    else if (written(at)) into.push(at);
+  }
+  return into;
+}
+
+// Comments go before anything is read. A quotation mark or a bracket in a comment beside a call
+// is neither an argument nor a nesting, and the argument list of the run that serves a seat has
+// three lines of prose in the middle of it.
+function withoutComments(source) {
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .split("\n")
+    .map((line) => line.replace(/(^|[^:"'`\\])\/\/.*$/, "$1"))
+    .join("\n");
+}
+
+// The arguments a call was written with, as source text, one entry each: everything between its
+// parentheses, split at the commas that are not inside a nesting or a string of their own. Null
+// when the parentheses do not close, which is a call this cannot read rather than a call with no
+// arguments.
+function argumentsOf(source, from) {
+  const out = [];
+  let start = from;
+  let depth = 0;
+  let quote = null;
+  for (let i = from; i < source.length; i += 1) {
+    const c = source[i];
+    if (quote !== null) {
+      if (c === "\\") i += 1;
+      else if (c === quote) quote = null;
+      continue;
+    }
+    if (c === '"' || c === "'" || c === "`") quote = c;
+    else if (c === "(" || c === "[" || c === "{") depth += 1;
+    else if (c === ")" || c === "]" || c === "}") {
+      if (depth === 0) {
+        out.push(source.slice(start, i));
+        return out;
+      }
+      depth -= 1;
+    } else if (c === "," && depth === 0) {
+      out.push(source.slice(start, i));
+      start = i + 1;
+    }
+  }
+  return null;
+}
+
+// The string a piece of argument source says on its own, or null when it does not say one: a
+// variable, a call, a template with something interpolated into it. Null is the finding.
+function saidLiterally(text) {
+  const said = /^\s*(["'])([^"'`\\$]*)\1\s*$/.exec(text ?? "");
+  return said === null ? null : said[2];
+}
+
+// The arguments handed to a run, read either from the array written at the call or from the one
+// declared under that name in the same file — the run that serves a seat builds its list a
+// couple of dozen lines above the spawn. An entry that is not a literal comes back as null,
+// which is honest: `--model` is followed by a value worked out at the time. A later push can add
+// arguments and never take one away, so what is declared is enough to decide on.
+function argumentsHandedOver(text, source) {
+  let body = text ?? "";
+  if (!/^\s*\[/.test(body)) {
+    const named = /^\s*([A-Za-z_$][\w$]*)\s*$/.exec(body);
+    if (named === null) return null;
+    const declared = new RegExp(String.raw`(?:const|let|var)\s+${named[1]}\s*=\s*\[`).exec(source);
+    if (declared === null) return null;
+    body = source.slice(declared.index + declared[0].length - 1);
+  }
+  const held = argumentsOf(body, body.indexOf("[") + 1);
+  return held === null ? null : held.map((one) => saidLiterally(one));
+}
+
+// Every process-starting call in the toolkit: where it is, the command it names, and — only when
+// that command is Claude Code — the arguments it hands over. A null command or a null argument
+// list is a call this could not read, and that is reported rather than passed over.
+function processStarts(root) {
+  const found = [];
+  for (const file of sourceFiles(root, IS_JAVASCRIPT)) {
+    const source = withoutComments(fs.readFileSync(file, "utf8"));
+    for (const call of source.matchAll(STARTS_A_PROCESS)) {
+      const args = argumentsOf(source, call.index + call[0].length);
+      const command = args === null ? null : saidLiterally(args[0]);
+      found.push({
+        where: `${path.relative(root, file)}:${source.slice(0, call.index).split("\n").length}`,
+        command,
+        argv: command === CLAUDE ? argumentsHandedOver(args[1], source) : undefined,
+      });
+    }
+  }
+  return found;
+}
+
+// What a shell script says, with what it merely mentions taken out: a comment runs from the first
+// # that is not inside quoting to the end of its line, and the inside of a string is prose rather
+// than a command — install.sh names Claude Code in a warning it prints when the PATH has none.
+function shellCode(source) {
+  let out = "";
+  for (const line of source.split("\n")) {
+    let quote = null;
+    for (let i = 0; i < line.length; i += 1) {
+      const c = line[i];
+      if (quote !== null) {
+        if (c === "\\" && quote === '"') i += 1;
+        else if (c === quote) quote = null;
+      } else if (c === "'" || c === '"') quote = c;
+      else if (c === "#" && (i === 0 || /\s/.test(line[i - 1]))) break;
+      else out += c;
+    }
+    out += "\n";
+  }
+  return out;
+}
+
+// Asking whether it is installed is not running it. Both shell scripts here look for Claude Code
+// on the PATH before they promise anything, and what they do about a missing one is stop.
+const ASKS_WHETHER_IT_IS_THERE = /(?:command\s+-v|which|type|hash)\s+$/;
+
+// The name on its own, so that claude.mjs, .claude-home and claude-code-anything are not it.
+const NAMES_IT = /(?<![\w./-])claude(?![\w.-])/g;
+
+// Every place a shell script in the toolkit says the name for any reason other than probing the
+// PATH for it. Shell is not read here, so everything else is a finding by default rather than a
+// shape someone judged: this is a tripwire, and being made to think is the whole of what it buys.
+function shellSaysClaudeCode(root) {
+  const found = [];
+  for (const file of sourceFiles(root, IS_SHELL)) {
+    const code = shellCode(fs.readFileSync(file, "utf8"));
+    for (const named of code.matchAll(NAMES_IT)) {
+      const before = code.slice(0, named.index);
+      if (ASKS_WHETHER_IT_IS_THERE.test(before.slice(before.lastIndexOf("\n") + 1))) continue;
+      found.push(`${path.relative(root, file)}:${before.split("\n").length}`);
+    }
+  }
+  return found;
+}
+
+describe("what the toolkit starts", () => {
+  const starts = processStarts(repo);
+  const claudes = starts.filter((one) => one.command === CLAUDE);
+
+  // Without this the two checks below both pass on a walk that read nothing at all — a skip list
+  // that swallowed tools/, a pattern that stopped matching — and a vacuous check is worse than
+  // no check, because it reports that the question was asked.
+  it("starts Claude Code somewhere, so that what follows is about something", () => {
+    assert.ok(claudes.length > 0, `no run of Claude Code found under ${repo}: the walk is reading the wrong tree`);
+  });
+
+  it("says what command and what arguments every process it starts is given", () => {
+    const unreadable = starts
+      .filter((one) => one.command === null || (one.command === CLAUDE && one.argv === null))
+      .map((one) => one.where);
+    assert.deepEqual(
+      unreadable,
+      [],
+      "a process is started through something this cannot read: name the command and write its arguments where it is started, so the shape it runs in is legible there",
+    );
+  });
+
+  it("never starts Claude Code in a shape its background reaper is armed for", () => {
+    const armed = claudes
+      .filter((one) => one.argv !== null)
+      .filter((one) => !one.argv.includes("--print") && one.argv[0] !== "auth")
+      .map((one) => one.where);
+    assert.deepEqual(
+      armed,
+      [],
+      "Claude Code is started neither in print mode nor as an auth subcommand, so a terminal underneath it would arm the background reaper and background work would start disappearing: pass --print",
+    );
+  });
+
+  // The tripwire on the shell, which none of the above can see into. No shell script here reaches
+  // Claude Code today, so this costs nothing until the day the first one does, and then it goes
+  // red on exactly that event and on nothing else. When it does, the answer is not to delete it
+  // and not to teach this to read shell: decide whether that new run is non-interactive, and take
+  // the rule to whoever owns this.
+  it("never reaches Claude Code from a shell script, where the shape it runs in cannot be read", () => {
+    assert.deepEqual(
+      shellSaysClaudeCode(repo),
+      [],
+      "a shell script does something with Claude Code other than ask the PATH whether it is installed, and shell is not read here, so nothing is checking the shape that session would run in: start it from JavaScript, where the checks above can see it",
+    );
   });
 });
 
