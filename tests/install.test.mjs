@@ -213,6 +213,14 @@ describe("what the installer made", () => {
     assert.ok(contentOf("personas", `${LEADER}.md`).includes(`work/${LEADER}/STATE.md`));
   });
 
+  // The same budget the workspace writes into every other persona. It is one block from one place,
+  // so the lead and the workers cannot end up telling agents two different things — and the lead is
+  // the one here who hands out the most work, so a lead without it is the expensive half.
+  it("tells the lead how much a brief it writes may spend", () => {
+    const persona = contentOf("personas", `${LEADER}.md`);
+    assert.match(persona, /at most 15 tool calls/);
+    assert.match(persona, /report what you have and say what is missing/);
+  });
   it("leaves no unfilled placeholder in the persona", () => {
     assert.ok(!contentOf("personas", `${LEADER}.md`).includes("{{"));
   });

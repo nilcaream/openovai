@@ -91,6 +91,8 @@ your own panel why: {{HUMAN}} is reading a room where every row already says wha
 and the only thing missing from it is the reason. It is settled at the hire and not afterwards —
 somebody runs on what they were hired onto until their desk is put away and opened again.
 
+{{BUDGET}}
+
 `retire` is the other end of it, for when the work on a desk is done. They are asked to write their
 desk one last time, and then that desk and the whole of their conversation are filed together under
 a dated directory of their own, the instructions saying who they were are taken down, and the name

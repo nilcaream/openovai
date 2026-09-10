@@ -280,6 +280,41 @@ export function retire(root, name, at, panel) {
   return filed;
 }
 
+// What every persona here says about handing work to another agent, written into each one as it is
+// rendered rather than repeated in the templates. It is one paragraph in two personas today and it
+// has to be the same paragraph: a lead and a worker briefing agents to two different budgets is
+// worse than either budget.
+//
+// Why it goes in the text a session hands over and nowhere else: an agent is given the question and
+// whatever its own kind is given, and the cheapest kinds are given very little. A rule written in
+// the workspace's instructions or its memory reaches the expensive kinds and misses exactly the
+// ones a wide search reaches for. The brief is the only surface every agent reads.
+//
+// Deliberately not built: anything that counts an agent's calls and stops it. Nothing here can see
+// inside a run it did not make, and a sentence followed most of the time is worth more than a
+// mechanism that does not exist.
+export const BUDGET = `When you hand work to another agent, what it costs is not how much it reads — it is how many times
+it goes round. Every turn re-reads the whole conversation so far, so the same answer found in five
+turns costs a fraction of what it costs found in fifty, whatever either of them read. The agent
+cannot see this. It was handed a question, not a budget, and it will keep going until it is
+satisfied.
+
+So copy the four sentences below into every brief you write, word for word, before you send it —
+not a summary of them, not the gist of them, and never left for the agent to work out. What is not
+in the brief did not reach anybody: the cheapest kinds of agent arrive with none of what you are
+reading now, no workspace memory and no instructions, so a rule that lives anywhere but the text
+you hand them is one they never see.
+
+The four sentences, to be copied into every brief:
+
+- Answer in at most 15 tool calls; if you cannot, report what you have and say what is missing.
+- When several are working at once, split the files between them; never let two read the same one.
+- Search first, then read the part that matched, rather than reading a whole file to find it.
+- What has been filed away is history, not a place to look things up. Read what is there now.
+
+The first is the budget and the other three are how it is kept. A brief without them is one you are
+paying for blind.`;
+
 // Placeholders are {{NAME}}. Anything left unfilled is a mistake in the template rather than
 // something to paper over, so say so instead of shipping the braces to an instance.
 export function render(what, template, values) {
@@ -326,11 +361,14 @@ export function writeModel(root, name, model) {
   return [target];
 }
 
+// Every persona this workspace writes goes through here, which is why the budget is added here and
+// not passed in: a caller cannot forget it, and a caller cannot give one persona a budget of its
+// own. It goes on last so that nothing a caller passes can quietly replace it.
 export function writePersona(root, from, name, what, relative, values) {
   const template = readTemplate(from, what, relative);
   const target = personaFile(root, name);
   fs.mkdirSync(path.dirname(target), { recursive: true });
-  fs.writeFileSync(target, render(what, template, values));
+  fs.writeFileSync(target, render(what, template, { ...values, BUDGET }));
   return [target];
 }
 

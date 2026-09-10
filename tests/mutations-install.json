@@ -20,5 +20,16 @@
         "to": "  fs.writeFileSync(target, `${JSON.stringify(HOME_SETTINGS, null, 2)}\\n`);\n  return [];"
       }
     ]
+  },
+  {
+    "name": "the lead's persona is written without the delegation budget",
+    "catches": "tells the lead how much a brief it writes may spend",
+    "edits": [
+      {
+        "file": "templates/leader.md",
+        "from": "{{BUDGET}}\n\n",
+        "to": ""
+      }
+    ]
   }
 ]

@@ -573,6 +573,34 @@ describe("hiring a worker", () => {
     assert.match(persona, /kept current as you go and not only then/);
   });
 
+  // What a brief costs is how many times the agent it went to goes round, and that agent cannot
+  // see it: it was handed a question, not a budget. The persona is where the one writing the brief
+  // is told to put the budget in it — and told that nothing else will carry it, because the
+  // cheapest kinds of agent are given none of this workspace's own instructions.
+  it("tells the worker how much a brief it writes may spend", () => {
+    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    assert.match(persona, /at most 15 tool calls/);
+    assert.match(persona, /report what you have and say what is missing/);
+  });
+
+  // The half that makes the rest of it worth anything. This workspace writes no briefs — the session
+  // reading this does — so the persona has to say that the sentences go into the brief itself, copied,
+  // rather than merely be true of the one reading them. An agent sees its brief and nothing else.
+  it("tells the worker to copy the budget into every brief it writes", () => {
+    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    assert.match(persona, /copy the four sentences below into every brief you write, word for word/);
+  });
+  it("tells the worker the three rules that keep that budget", () => {
+    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    assert.match(persona, /split the files between them/);
+    assert.match(persona, /Search first, then read the part that matched/);
+    assert.match(persona, /history, not a place to look things up/);
+  });
+
+  it("tells the worker that only the brief carries it", () => {
+    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    assert.match(persona, /none of what you are\s+reading now/);
+  });
   it("leaves no unfilled placeholder in the worker's persona", () => {
     const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
     assert.ok(!persona.includes("{{"));

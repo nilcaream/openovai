@@ -1,0 +1,57 @@
+[
+  {
+    "name": "the budget in every brief is raised past anything worth calling a budget",
+    "catches": "tells the worker how much a brief it writes may spend",
+    "edits": [
+      {
+        "file": "tools/desks.mjs",
+        "from": "- Answer in at most 15 tool calls; if you cannot, report what you have and say what is missing.",
+        "to": "- Answer in at most 500 tool calls; if you cannot, report what you have and say what is missing."
+      }
+    ]
+  },
+  {
+    "name": "the budget is given without the three rules that keep it",
+    "catches": "tells the worker the three rules that keep that budget",
+    "edits": [
+      {
+        "file": "tools/desks.mjs",
+        "from": "\n- When several are working at once, split the files between them; never let two read the same one.\n- Search first, then read the part that matched, rather than reading a whole file to find it.\n- What has been filed away is history, not a place to look things up. Read what is there now.",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the brief is left to inherit the rule rather than carry it",
+    "catches": "tells the worker that only the brief carries it",
+    "edits": [
+      {
+        "file": "tools/desks.mjs",
+        "from": "What is not\nin the brief did not reach anybody: the cheapest kinds of agent arrive with none of what you are\nreading now, no workspace memory and no instructions, so a rule that lives anywhere but the text\nyou hand them is one they never see.",
+        "to": "The workspace's instructions and its memory reach every agent it\nstarts, so a rule written in either of them is one they have all been given already."
+      }
+    ]
+  },
+  {
+    "name": "the budget is described to the reader rather than put in the brief",
+    "catches": "tells the worker to copy the budget into every brief it writes",
+    "edits": [
+      {
+        "file": "tools/desks.mjs",
+        "from": "So copy the four sentences below into every brief you write, word for word, before you send it —\nnot a summary of them, not the gist of them, and never left for the agent to work out.",
+        "to": "So keep them in mind whenever you hand work on, and brief accordingly."
+      }
+    ]
+  },
+  {
+    "name": "the worker persona is written without the delegation budget",
+    "catches": "tells the worker how much a brief it writes may spend",
+    "edits": [
+      {
+        "file": "templates/worker.md",
+        "from": "{{BUDGET}}\n\n",
+        "to": ""
+      }
+    ]
+  }
+]
