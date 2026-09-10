@@ -932,6 +932,12 @@ async function deliver(instance, name, text, signed, shown = null) {
       // It is lossy and there is no version of this that is not: whatever the session worked out
       // and never wrote to its desk is gone. Asking it to write the desk first is exactly the
       // expensive turn being avoided, so it is not done, and the personas say so instead.
+      // AND IT STAYS NOW THAT THE TICK ENDS THEM TOO, which is a decision rather than an accident.
+      // The pass in `readTheRoom` reaches a cold conversation on its own cadence; this reaches one
+      // the moment somebody types, which is sooner whenever a person got there first, and it is the
+      // whole of the cold handling in a chat whose timer has been taken out. The two cannot fight:
+      // ending one is removing `session.json`, after which `hasThread` fails and `hasGoneCold`
+      // answers false, so whichever of them arrives second finds nothing left to do.
       const restarted = hasGoneCold(instance.root, name);
       if (restarted) {
         forget(instance.root, name);
@@ -2325,6 +2331,12 @@ async function readTheRoom(instance) {
   // hour the thread is unresumable either way, so what this moves is when the panel says so and
   // not what is lost.
   //
+  // THE ONE IN `deliver` IS THE FALLBACK AND IT IS NOT GOING ANYWHERE. It ends a cold conversation
+  // sooner than this whenever a person types before the next tick, and it is the whole of the cold
+  // handling in a chat that is not being ticked at all. This costs nothing to run and neither does
+  // that one, so there is no saving in choosing between them and no state they can disagree about:
+  // ending a conversation is removing its file, and the second one to arrive finds it gone.
+  //
   // ONLY WHERE NOTHING IS RUNNING ON IT, read here and then held by the turn below. `forget` is a
   // bare `rmSync` with no lock and every other caller of it sits inside a turn already; a pass that
   // read the gate and then deleted the file would be the first caller outside one, and a message
@@ -2403,32 +2415,37 @@ export function serve(instance) {
   // Both, and not one of them. Unref alone leaves it running for as long as the process happens to
   // live; clearing alone leaves the process unable to end by itself.
   //
-  // NOT ARMED AT ALL when the instance has asked for no watch. There is nothing to unref, nothing
-  // to clear and nothing to skip on every tick — a workspace that said never is one where this
-  // feature does not exist, which is stronger than one where it fires and decides not to speak.
+  // ARMED ALWAYS, including in a workspace that has asked for no turn to be spent on it. This is a
+  // reversal of what stood here, and the reason it is written out rather than quietly edited: the
+  // old shape read `watchEverySeconds: 0` as "this feature does not exist here" and skipped the
+  // timer entirely, which is stronger than a tick that fires and decides not to speak — and being
+  // stronger was the argument for it.
+  //
+  // It is the wrong strength now. `0` says "do not spend a turn on me", and everything the tick
+  // does today spends nothing: it reads the room, ends a conversation that could no longer be
+  // carried on, and appends a line. A workspace that declined a run would have been quietly
+  // declining those too, and the ones that come later are the ones it would least have chosen to
+  // decline. A field must not grow into a larger promise than the one it was written with.
+  //
+  // So the cadence is asked for every workspace, and what may be SPENT is asked separately, by
+  // whatever is about to spend it. There is nothing here that does.
   const every = howOften(instance.config);
-  if (every !== null) {
-    // Said at the moment of arming and nowhere else, so that "no record at all" keeps a meaning of
-    // its own. A watch that has been armed and has not yet fired is every restart of the chat, for
-    // as long as a whole cadence — and a reading that could not tell that apart from a watch that
-    // died on arrival would cry fault every time somebody restarts a chat, which is the documented
-    // repair for a stale server.
-    armTheWatch();
-  }
-  const watch =
-    every === null
-      ? null
-      : setInterval(() => {
-          readTheRoom(instance).catch(() => {
-            // A tick that fell over is one tick. There is another along, the room is read fresh,
-            // and nothing here is worth taking a chat down for.
-          });
-        }, every);
-  watch?.unref();
+  // Said at the moment of arming and nowhere else, so that "no record at all" keeps a meaning of
+  // its own. A watch that has been armed and has not yet fired is every restart of the chat, for as
+  // long as a whole cadence — and a reading that could not tell that apart from a watch that died
+  // on arrival would cry fault every time somebody restarts a chat, which is the documented repair
+  // for a stale server. Every served instance has one now, `0` included: a record is a record of a
+  // watch, and every instance has a watch.
+  armTheWatch();
+  const watch = setInterval(() => {
+    readTheRoom(instance).catch(() => {
+      // A tick that fell over is one tick. There is another along, the room is read fresh, and
+      // nothing here is worth taking a chat down for.
+    });
+  }, every);
+  watch.unref();
   server.once("close", () => {
-    if (watch !== null) {
-      clearInterval(watch);
-    }
+    clearInterval(watch);
     forgetTheRoom();
   });
 

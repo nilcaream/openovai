@@ -443,19 +443,19 @@
     "edits": [
       {
         "file": "tools/chat/watch.mjs",
-        "from": "  return typeof said === \"number\" ? said * 1000 : EVERY;",
+        "from": "  return said * 1000;",
         "to": "  return EVERY;"
       }
     ]
   },
   {
-    "name": "a cadence of zero is treated as absent and the default used",
-    "catches": "reads the room not at all when the instance says never",
+    "name": "a cadence of zero is read as never rather than as no turn",
+    "catches": "reads the room at the usual pace when the instance buys no turn",
     "edits": [
       {
         "file": "tools/chat/watch.mjs",
-        "from": "  if (said === 0) {\n    return null;\n  }",
-        "to": "  if (said === -1) {\n    return null;\n  }"
+        "from": "  if (typeof said !== \"number\" || said === 0) {\n    return EVERY;\n  }",
+        "to": "  if (typeof said !== \"number\") {\n    return EVERY;\n  }\n  if (said === 0) {\n    return null;\n  }"
       }
     ]
   },
@@ -487,7 +487,7 @@
     "edits": [
       {
         "file": "tools/chat/server.mjs",
-        "from": "    if (watch !== null) {\n      clearInterval(watch);\n    }\n    forgetTheRoom();",
+        "from": "    clearInterval(watch);\n    forgetTheRoom();",
         "to": "    forgetTheRoom();"
       }
     ]
@@ -1399,8 +1399,8 @@
     "edits": [
       {
         "file": "tools/chat/server.mjs",
-        "from": "    armTheWatch();\n",
-        "to": ""
+        "from": "  armTheWatch();\n  const watch = setInterval(() => {",
+        "to": "  const watch = setInterval(() => {"
       }
     ]
   },
@@ -1456,6 +1456,17 @@
         "file": "tools/chat/server.mjs",
         "from": "      forget(instance.root, session.name);\n",
         "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a workspace that buys no turn has nothing armed for it",
+    "catches": "arms a watch on an instance that asked for no turn",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  armTheWatch();\n  const watch = setInterval(() => {",
+        "to": "  if (instance.config.watchEverySeconds !== 0) {\n    armTheWatch();\n  }\n  const watch = setInterval(() => {"
       }
     ]
   }

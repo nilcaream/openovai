@@ -82,17 +82,23 @@ export function watchEveryProblem(seconds) {
   return null;
 }
 
-// How long to wait between reads, or nothing at all when this workspace has asked for none.
+// How long to wait between reads. ALWAYS A NUMBER, because the room is always read.
 //
-// `0` IS NOT ABSENT. They are opposite facts — one is a workspace that has said it does not want
-// its room read and the other is one that has not said anything — and a reader that folded them
-// together would give the tick back to the only person who took the trouble to turn it off.
+// `0` IS NOT ABSENT, AND IT IS NOT SILENCE EITHER. It is a workspace saying "do not spend a turn on
+// me", which is the whole of what the field was ever documented to mean — and the reading, the
+// ending of a conversation nobody can carry on, and the line on a panel all spend nothing. A `0`
+// that switched those off would be a field that said one thing and did a larger one, and the larger
+// one arrives silently: nobody who wrote `0` to decline a run asked to have their conversations
+// stopped being managed.
+//
+// So the cadence a `0` workspace is read at is the default, exactly as an absent field is. What `0`
+// buys is asked separately, by whatever is about to spend, and never here.
 export function howOften(config) {
   const said = config?.[WATCH_EVERY];
-  if (said === 0) {
-    return null;
+  if (typeof said !== "number" || said === 0) {
+    return EVERY;
   }
-  return typeof said === "number" ? said * 1000 : EVERY;
+  return said * 1000;
 }
 
 // What band each name was last seen in — the whole of what makes an announcement fire on a

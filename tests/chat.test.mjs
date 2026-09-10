@@ -11675,12 +11675,18 @@ describe("how often a workspace has asked for its room to be read", () => {
     assert.equal(howOften(undefined), 5 * 60 * 1000);
   });
 
-  // Mutation: treat 0 as absent and use the default. They are opposite facts — one workspace has
-  // said it does not want its room read and the other has said nothing — and folding them together
-  // would give the tick back to the only person who took the trouble to turn it off.
-  it("reads the room not at all when the instance says never", () => {
+  // Mutation: read `0` as "do not read this room at all". That is a larger meaning than the field
+  // was written with — `0` declines a TURN, and reading the room, ending a conversation nobody can
+  // carry on any longer and writing a line on a panel all spend nothing — and the larger meaning
+  // arrives silently: nobody who wrote `0` to decline a run asked to have their conversations stop
+  // being managed. Still a valid thing to write, which is the other half of it: `0` is not a
+  // mistake, it is an answer to a different question.
+  it("reads the room at the usual pace when the instance buys no turn", () => {
     assert.equal(watchEveryProblem(0), null);
-    assert.equal(howOften({ [WATCH_EVERY]: 0 }), null);
+    assert.equal(howOften({ [WATCH_EVERY]: 0 }), 5 * 60 * 1000);
+    // Tied to the absent case rather than only to the number, because what is being claimed is that
+    // `0` is read as saying nothing about the CADENCE at all.
+    assert.equal(howOften({ [WATCH_EVERY]: 0 }), howOften({}));
   });
 
   // Mutation: read the cadence off the constant and ignore what the instance said. The field is
@@ -12652,6 +12658,68 @@ describe("what a pass does about a conversation nobody carried on", () => {
 
   after(() => {
     remove(ending);
+  });
+});
+
+const BUYS_NO_TURN = "Twite";
+
+// A workspace that has asked for no turn to be spent on it still has its room watched.
+//
+// `watchEverySeconds: 0` says one thing — do not spend a run on me — and everything the pass does
+// today spends nothing: it reads the room, it ends a conversation that could no longer be carried
+// on, and it writes a line on a panel. A `0` that armed nothing would be a field quietly making a
+// larger promise than the one somebody wrote it for, and the part it switched off is the part that
+// matters most to the workspace nobody has typed into.
+//
+// WHAT THIS CHECK CAN SEE, said plainly, because the default cadence is five minutes and no check
+// waits that long: it sees that a watch was ARMED for such a workspace. That the armed timer then
+// reads the room, and what it does when it has, is what the cadence-of-one describe above proves;
+// what is left over is only whether `serve` treats a `0` workspace differently from any other, and
+// that is exactly what this asks.
+describe("a workspace that buys no turn still has its room watched", () => {
+  const declining = `${instance}-declining`;
+  let armed;
+  let afterClosing;
+
+  before(async () => {
+    installed(options(declining, 0));
+    runTool(declining, ["hire", BUYS_NO_TURN], process.env);
+
+    const config = path.join(declining, "openovai.json");
+    // Read back off the file rather than composed here, so what this chat is served is what an
+    // instance saying this would be served.
+    fs.writeFileSync(
+      config,
+      `${JSON.stringify({ ...JSON.parse(fs.readFileSync(config, "utf8")), watchEverySeconds: 0 }, null, 2)}\n`,
+    );
+    const held = JSON.parse(fs.readFileSync(config, "utf8"));
+
+    // Nothing is asserted in this hook, for the reason the describe above gives at length: it holds
+    // a live server, and a throw here would leak it and hang the runner rather than report.
+    const server = await serve({ root: declining, config: held, plugins: [], pop: null });
+    armed = theWatchRecord();
+    await new Promise((resolve) => server.close(resolve));
+    afterClosing = theWatchRecord();
+  });
+
+  // Mutation: arm nothing for a workspace that buys no turn. It is the shape that stood here before
+  // — the cadence answered nothing for `0` and the timer was never armed — and the argument for it
+  // was that a workspace which said never should be one where the feature does not exist. That is
+  // the right strength for a feature that spends and the wrong one for a feature that does not.
+  it("arms a watch on an instance that asked for no turn", () => {
+    assert.ok(armed !== null, "nothing was armed for a workspace that buys no turn");
+    assert.ok(armed.armedAt > 0, JSON.stringify(armed));
+  });
+
+  // Mutation: leave the record behind. Said here as well as of a chat with a cadence, because a
+  // workspace whose record was never cleaned up would be read as having a watch armed for a server
+  // nobody is serving — and this is the workspace where nobody would notice.
+  it("forgets that watch with the chat, like any other", () => {
+    assert.equal(afterClosing, null);
+  });
+
+  after(() => {
+    remove(declining);
   });
 });
 
