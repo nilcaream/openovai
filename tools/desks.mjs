@@ -547,3 +547,59 @@ export function allowTools(root) {
   return TOOL_RULES.flatMap((rule) => allow(root, rule));
 }
 
+
+// What no file-writing tool may reach: this workspace's own account of what it allows.
+//
+// A moderately safe default here is a few deny rules and not many, because a deny rule is
+// absolute — no allow overrides it, the call never reaches the panel, and somebody who works
+// differently is BLOCKED rather than defaulted away. So the set is narrow on purpose: the settings
+// that decide what is allowed, the ledger that says who asked for each rule, and the record of
+// whether this workspace has been trusted. Nothing about anybody's work is in here.
+//
+// WHAT THEY ARE WORTH, exactly, and it is narrower than it looks. `Edit(...)` governs every
+// built-in tool that writes a file, the Write tool included, and nothing else — the same fact
+// `allowDesk` above rests on. A shell command is not one of those tools, and these paths sit inside
+// the working directory, so nothing else refuses them either. A granted `Bash(sed:*)` reaches every
+// one of them. So the honest sentence is that these paths are closed to the file tools, never that
+// a session here cannot widen its own permissions — and the skill that reports on all this crosses
+// the deny paths against the granted shell rules and says which of the two is true in the instance
+// it is asked about.
+//
+// They hold whether or not the workspace has been trusted, which is the case they matter most in:
+// an instance installed inside somebody's checkout has its `permissions.allow` entries ignored, and
+// `deny` and `ask` in the same file go on applying.
+//
+// `.claude-home/projects/**` is deliberately not among them. The memory index and the transcripts
+// live there, and denying that subtree would break memory to protect nothing.
+export const OWN_ACCOUNT_RULES = [
+  "Edit(.claude/**)",
+  "Edit(.claude-home/settings.json)",
+  "Edit(.claude-home/.claude.json)",
+];
+
+// Refuse one thing, leaving everything else in the file alone — the desk rules above all, which
+// are written into the same object by the same installer run.
+function deny(root, rule) {
+  const settings = readSettings(root);
+  const refused = Array.isArray(settings?.permissions?.deny) ? settings.permissions.deny : [];
+  if (refused.includes(rule)) {
+    return [];
+  }
+
+  return writeSettings(root, {
+    ...settings,
+    permissions: { ...settings.permissions, deny: [...refused, rule] },
+  });
+}
+
+// Written when the instance is made and never afterwards, for the reason the installer's other
+// settings are: changing how somebody's running workspace behaves is not an installer's to do, and
+// an instance that has been worked in for a month may have reasons for what it holds. A workspace
+// that wants these later adds them with an editor and a restart — they are three lines in a file
+// its owner has, and the first turn of a new workspace names them out loud.
+//
+// Nothing the chat itself does goes through them: the settings and the ledger are written from node
+// rather than through a session's tools.
+export function denyOwnAccount(root) {
+  return OWN_ACCOUNT_RULES.flatMap((rule) => deny(root, rule));
+}

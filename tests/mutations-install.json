@@ -141,5 +141,60 @@
         "to": "It names the rules the person could usefully press next."
       }
     ]
+  },
+  {
+    "name": "the refusals are written over the rules the same run granted",
+    "catches": "keeps what it grants while writing what it refuses",
+    "edits": [
+      {
+        "file": "tools/desks.mjs",
+        "from": "    permissions: { ...settings.permissions, deny: [...refused, rule] },",
+        "to": "    permissions: { deny: [...refused, rule] },"
+      }
+    ]
+  },
+  {
+    "name": "the trust record is left reachable by the tools that write files",
+    "catches": "closes its own account of what it allows to the tools that write files",
+    "edits": [
+      {
+        "file": "tools/desks.mjs",
+        "from": "  \"Edit(.claude-home/settings.json)\",\n  \"Edit(.claude-home/.claude.json)\",",
+        "to": "  \"Edit(.claude-home/settings.json)\","
+      }
+    ]
+  },
+  {
+    "name": "what the instance remembers is refused along with what it allows",
+    "catches": "leaves what the instance remembers alone",
+    "edits": [
+      {
+        "file": "tools/desks.mjs",
+        "from": "  \"Edit(.claude-home/.claude.json)\",\n];",
+        "to": "  \"Edit(.claude-home/.claude.json)\",\n  \"Edit(.claude-home/projects/**)\",\n];"
+      }
+    ]
+  },
+  {
+    "name": "a fresh instance refuses writes to everybody's work as well",
+    "catches": "refuses nothing about anybody's work",
+    "edits": [
+      {
+        "file": "tools/desks.mjs",
+        "from": "export const OWN_ACCOUNT_RULES = [\n  \"Edit(.claude/**)\",",
+        "to": "export const OWN_ACCOUNT_RULES = [\n  \"Edit(work/**)\",\n  \"Edit(.claude/**)\","
+      }
+    ]
+  },
+  {
+    "name": "the refusals are written into the ledger as though somebody had asked for them",
+    "catches": "accounts for none of them, since a refusal is not something somebody asked for",
+    "edits": [
+      {
+        "file": "tools/desks.mjs",
+        "from": "  return OWN_ACCOUNT_RULES.flatMap((rule) => deny(root, rule));",
+        "to": "  return OWN_ACCOUNT_RULES.flatMap((rule) => [\n    ...account(root, { rule, session: \"the installer\", call: rule, day: today() }),\n    ...deny(root, rule),\n  ]);"
+      }
+    ]
   }
 ]

@@ -273,6 +273,52 @@ describe("what the installer made", () => {
     assert.ok(allow.includes("mcp__openovai"));
   });
 
+  // The other half of the file, and the only refusals a fresh instance holds. The rules are spelled
+  // out here rather than asked of the code: a check that read the list it is checking would agree
+  // with itself the day somebody widened it.
+  //
+  // What they are worth is narrower than it looks and the workspace says so where it says anything
+  // about them: `Edit(...)` binds the tools that write a file, so a granted shell rule reaches
+  // these paths whatever the refusal says.
+  it("closes its own account of what it allows to the tools that write files", () => {
+    const deny = JSON.parse(contentOf(".claude", "settings.json")).permissions.deny;
+    assert.deepEqual(deny, [
+      "Edit(.claude/**)",
+      "Edit(.claude-home/settings.json)",
+      "Edit(.claude-home/.claude.json)",
+    ]);
+  });
+
+  // The trap in writing a second key into that file: the desk rules and the refusals are written
+  // into it by the same run, one after the other, and a writer that replaced the object rather than
+  // merging into it would take whichever went first away again.
+  it("keeps what it grants while writing what it refuses", () => {
+    const permissions = JSON.parse(contentOf(".claude", "settings.json")).permissions;
+    assert.deepEqual(permissions.allow, [`Edit(work/${LEADER}/STATE.md)`, "mcp__openovai"]);
+  });
+
+  // A refusal is absolute: no rule overrides it, the call never reaches a panel, and somebody who
+  // works differently is blocked rather than defaulted away. So these name the workspace's account
+  // of itself and nothing anybody works on.
+  it("refuses nothing about anybody's work", () => {
+    const deny = JSON.parse(contentOf(".claude", "settings.json")).permissions.deny;
+    assert.deepEqual(deny.filter((rule) => !rule.startsWith("Edit(.claude")), []);
+  });
+
+  // And the subtree deliberately left open, because the memory index and the transcripts live in
+  // it: refusing that one would break memory to protect nothing.
+  it("leaves what the instance remembers alone", () => {
+    const deny = JSON.parse(contentOf(".claude", "settings.json")).permissions.deny;
+    assert.deepEqual(deny.filter((rule) => rule.includes("projects")), []);
+  });
+
+  // The ledger is what this workspace allows beyond a desk, and a refusal is not a grant. A fresh
+  // instance has nothing to account for, which is also what the first turn of one reads to decide
+  // whether it has ever settled anything.
+  it("accounts for none of them, since a refusal is not something somebody asked for", () => {
+    assert.ok(!fs.existsSync(inside(".claude", "allowed.md")));
+  });
+
   // It replaced two rules, one per spelling of a command. Nothing should be left granting a shell
   // line no persona names any more: a grant nobody uses is a grant nobody is watching.
   it("no longer grants the command it replaced", () => {

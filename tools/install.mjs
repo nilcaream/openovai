@@ -17,6 +17,7 @@ import {
   DeskError,
   allowDesk,
   allowTools,
+  denyOwnAccount,
   describeModel,
   describeName,
   isModel,
@@ -427,6 +428,7 @@ function main(argv) {
       }),
       ...allowDesk(plan.root, plan.leader),
       ...allowTools(plan.root),
+      ...denyOwnAccount(plan.root),
     ]);
     return 0;
   } catch (error) {

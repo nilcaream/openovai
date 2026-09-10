@@ -36,6 +36,24 @@ still carries what it has already read, so tightening a persona is additive in e
 handover replaces the conversation. A lead now tells you that rather than leaving you to work it
 out from a session that seems to be ignoring you.
 
+**A new instance now refuses three paths outright, and they are the ones it keeps its own account
+in.** No tool that writes a file may reach `.claude/**` — the settings that say what is allowed and
+the ledger that says who asked for each rule — or the two files its Claude Code home keeps, its
+settings and the record of whether this workspace has been trusted. They hold whether or not the
+workspace has been trusted, which is the case they matter most in.
+
+What they are worth is narrower than it looks, and your lead will tell you so rather than
+reassuring you: a rule binds the tools its matcher names, and `Edit(...)` names the tools that
+write files. A shell command is not one of them, so if you grant something like `Bash(sed:*)` a
+session can edit those files anyway — and the `allowed` report crosses the two lists and says so in
+one line when it applies. What the refusals buy you is that no file-writing tool reaches them by
+accident, in every instance, trusted or not.
+
+They are three lines in a file you own: delete them with an editor and restart the chat, and the
+workspace goes back to what it was. And they are written for new instances only — an instance
+already installed keeps whatever it holds, because changing how a workspace somebody is working in
+behaves is not an installer's to do. Add them by hand if you want them.
+
 The skill file is written into `.claude/skills/allowed/SKILL.md` every time the chat starts, out of
 `templates/skills/allowed/SKILL.md`. That is deliberate: what it says about the runtime is measured,
 and a copy installed once would be the one file in your instance asserting how Claude Code behaves
