@@ -66,8 +66,8 @@ reads and is not a permission.
 
 And one line for **hooks**: whether any `hooks` entry exists in the files just read, and if so,
 which events it fires on and what it runs, each with its `path:line`. A hook is shell that runs on
-a tool event **with no permission decision at all** — neither a rule nor the sandbox — and nothing
-in blocks B through F would ever mention it. A report on what an instance may do that leaves out
+a tool event **with no permission decision at all** — neither a rule nor the working directory of
+block E — and nothing in blocks B through F would ever mention it. A report on what an instance may do that leaves out
 the one mechanism able to run a command without being asked is not a report. Name what is
 configured; do not read the script and say what it would do.
 
