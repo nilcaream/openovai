@@ -822,10 +822,17 @@ describe("the skill an instance explains itself with", () => {
     // And a chat asked to start where the payload has no such skill, in the instance no chat is
     // ever served for. The file is put back immediately afterwards, so nothing else here sees an
     // instance with a template missing.
+    //
+    // Started rather than run to completion, and given up on after a few seconds: a chat that does
+    // NOT refuse serves until it is killed, so a check that waited for this one to exit would hang
+    // the suite for ever on the mutation it is written to catch. What is waited for is the refusal
+    // itself, and not finding it is the answer.
     const missing = path.join(quiet, "templates", "skills", "allowed", "SKILL.md");
     const kept = fs.readFileSync(missing, "utf8");
     fs.rmSync(missing);
-    withoutIt = runTool(quiet, ["chat"], standIns);
+    const refusing = startChat(quiet, standIns);
+    withoutIt = await waitFor(() => (refusing.output.includes("allowed skill template is missing") ? refusing.output : null));
+    await stopChat(refusing);
     fs.writeFileSync(missing, kept);
   });
 
@@ -835,7 +842,7 @@ describe("the skill an instance explains itself with", () => {
   });
 
   it("writes it where a session reads a skill from", () => {
-    assert.ok(fs.existsSync(target), `nothing at ${target}`);
+    assert.notEqual(written, null, `the chat started and left nothing at ${target}`);
   });
 
   it("writes what the payload ships and nothing of its own", () => {
@@ -854,8 +861,7 @@ describe("the skill an instance explains itself with", () => {
   // A chat that started without it would leave a lead answering the one question this feature
   // exists for from memory, and nothing would say so. It is refused instead, naming the file.
   it("refuses to start at all where the payload has no such skill", () => {
-    assert.notEqual(withoutIt.status, 0, withoutIt.stdout);
-    assert.match(withoutIt.stderr, /allowed skill template is missing/);
+    assert.match(withoutIt ?? "", /allowed skill template is missing/);
   });
 
   // A skill is found by the name in its front matter, and the name the first-turn block and the
