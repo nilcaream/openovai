@@ -5478,6 +5478,7 @@ describe("where the account stands while a run is going", () => {
   const FIRST = 0.31;
   const THEN = 0.94;
   const ON_MODEL = "claude-opus-5-fixture";
+  const APART = 1500;
   let anyReading;
   let duringTheRun;
   let afterTheRun;
@@ -5494,6 +5495,10 @@ describe("where the account stands while a run is going", () => {
     process.env.OPENOVAI_STAND_IN_LIMIT = "allowed";
     process.env.OPENOVAI_STAND_IN_FULLNESS = String(FIRST);
     process.env.OPENOVAI_STAND_IN_FULLNESS_AGAIN = String(THEN);
+    // Daylight between when the run began and when it was last told something. Without it the two
+    // moments land in the same millisecond and a reading stamped with the wrong one of them looks
+    // exactly like a reading stamped with the right one.
+    process.env.OPENOVAI_STAND_IN_FULLNESS_AGAIN_IN = String(APART);
     process.env.OPENOVAI_STAND_IN_MODEL_ID = ON_MODEL;
     // Long enough that the run is still going after both readings have been sent, which is the
     // whole state this describe is about. Nothing here waits it out: the reading is looked for
@@ -5525,6 +5530,7 @@ describe("where the account stands while a run is going", () => {
         "OPENOVAI_STAND_IN_LIMIT",
         "OPENOVAI_STAND_IN_FULLNESS",
         "OPENOVAI_STAND_IN_FULLNESS_AGAIN",
+        "OPENOVAI_STAND_IN_FULLNESS_AGAIN_IN",
         "OPENOVAI_STAND_IN_MODEL_ID",
         "OPENOVAI_STAND_IN_SLOW",
       ]) {
@@ -5579,6 +5585,24 @@ describe("where the account stands while a run is going", () => {
   it("says which model the run itself said it was on", () => {
     assert.equal(duringTheRun.ranModel, ON_MODEL);
     assert.notEqual(duringTheRun.ranModel, LEADER_MODEL);
+  });
+
+  // Mutation: leave the moment off. Nothing else in the toolkit stamps when a run began — the map
+  // of running children stores no moment and the turn count is raised with no clock at all — so
+  // there is nowhere else for a reader to get this from.
+  it("says when the run began", () => {
+    assert.ok(typeof duringTheRun.since === "number", JSON.stringify(duringTheRun));
+    assert.ok(Math.abs(Date.now() - duringTheRun.since) < 60 * 1000);
+  });
+
+  // Mutation: stamp it again on every reading. A moment that walks forward says how long ago the
+  // last frame was, which is what `at` beside it already says — so the pair would say one thing
+  // twice and the thing a person is actually asking not at all.
+  it("says when the run began and not when its last reading arrived", () => {
+    assert.ok(
+      duringTheRun.at - duringTheRun.since > APART / 2,
+      `began and last heard ${duringTheRun.at - duringTheRun.since}ms apart, and the fixture put ${APART}ms between them`,
+    );
   });
 
   // Mutation: never clear it. A reading whose run is gone is not a stale reading, it is not a

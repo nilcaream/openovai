@@ -906,7 +906,17 @@ function run(instance, name, text, resume, asked) {
     // And an entry beside it, on the same line, so that a run in flight is a run something can be
     // read about. Nothing is known yet and nothing is guessed: the frames that say what this run is
     // on and where the account stands have not arrived, and null is what that is.
-    standings.set(name, { name, ranModel: null, windows: null, at: null });
+    //
+    // `since` IS THE ONE GENUINELY NEW FACT here, and it has to be made on this line because
+    // nothing else in this toolkit stamps when a run began. The map above stores the child and no
+    // moment, and the count of turns going is raised from the moment a message was TAKEN, with no
+    // clock in it at all. How long a run has been going is half of what somebody deciding whether
+    // it is worth finishing is asking, and until this line there was no way to answer it.
+    //
+    // Set once, where the run starts, and never touched again. A moment that walked forward with
+    // every reading would be saying how long ago the last frame was — which is what `at` beside it
+    // already says — so the two would say one thing twice and the useful thing not at all.
+    standings.set(name, { name, ranModel: null, windows: null, at: null, since: Date.now() });
 
     let answer = null;
     let limit = null;

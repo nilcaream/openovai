@@ -108,6 +108,11 @@ export function claudeIsInstalled() {
 //                             has moved to this. The real one emits the frame whenever the reading
 //                             changes rather than once at the start, and a fixture that only ever
 //                             sent one lets a reader that keeps the first for ever pass
+//   OPENOVAI_STAND_IN_FULLNESS_AGAIN_IN  milliseconds to wait before sending that second reading
+//                             (default: none). Its own knob rather than a delay folded into the one
+//                             above, because it is what puts daylight between when a run BEGAN and
+//                             when it was last told something — two moments a fixture that sent
+//                             both in the same millisecond could not tell apart
 //   OPENOVAI_STAND_IN_LIMIT_KIND    which window the service names as the one that refused
 //                             (default: "five_hour")
 //                             — "allowed" or "allowed_warning", which is what an ordinary run
@@ -593,6 +598,10 @@ if ((process.env.OPENOVAI_STAND_IN_ASKS ?? "") !== "") {
 // this run is on and before whatever it takes to answer, so a reader looking mid-run has two
 // different readings to have kept the wrong one of.
 if ((process.env.OPENOVAI_STAND_IN_FULLNESS_AGAIN ?? "") !== "") {
+  const after = Number(process.env.OPENOVAI_STAND_IN_FULLNESS_AGAIN_IN ?? 0);
+  if (after > 0) {
+    await new Promise((resolve) => setTimeout(resolve, after));
+  }
   frame({
     type: "rate_limit_event",
     rate_limit_info: reading(

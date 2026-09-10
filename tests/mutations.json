@@ -993,6 +993,28 @@
     ]
   },
   {
+    "name": "a run in flight does not say when it began",
+    "catches": "says when the run began",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "    standings.set(name, { name, ranModel: null, windows: null, at: null, since: Date.now() });",
+        "to": "    standings.set(name, { name, ranModel: null, windows: null, at: null, since: null });"
+      }
+    ]
+  },
+  {
+    "name": "when the run began walks forward with every reading",
+    "catches": "says when the run began and not when its last reading arrived",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "          wasTold(name, { windows: windowsIn(reading), at: Date.now() });",
+        "to": "          wasTold(name, { windows: windowsIn(reading), at: Date.now(), since: Date.now() });"
+      }
+    ]
+  },
+  {
     "name": "a reading outlives the run that was told it",
     "catches": "holds nothing once the run is over",
     "edits": [
