@@ -104,6 +104,10 @@ export function claudeIsInstalled() {
 //                             something surviving a refusal needs and no env-only knob can give it
 //   OPENOVAI_STAND_IN_LIMIT         a status to report in a rate_limit_event before doing anything else
 //   OPENOVAI_STAND_IN_FULLNESS      how full the five-hour window says it is  (default: 0.29)
+//   OPENOVAI_STAND_IN_FULLNESS_AGAIN  a second reading, sent LATER in the same run, saying the window
+//                             has moved to this. The real one emits the frame whenever the reading
+//                             changes rather than once at the start, and a fixture that only ever
+//                             sent one lets a reader that keeps the first for ever pass
 //   OPENOVAI_STAND_IN_LIMIT_KIND    which window the service names as the one that refused
 //                             (default: "five_hour")
 //                             — "allowed" or "allowed_warning", which is what an ordinary run
@@ -246,7 +250,7 @@ const frame = (fields) => process.stdout.write(JSON.stringify(fields) + "\\n");
 // utilization is a fraction and not a percentage, resetsAt is unix seconds, and unifiedWindows
 // names its own windows rather than being one — all measured, none of it read by this feature,
 // all of it here so the frame is the frame.
-const reading = (status, lifts) => ({
+const reading = (status, lifts, full = fullness()) => ({
   status,
   ...(lifts === null ? {} : { resetsAt: lifts }),
   rateLimitType: limitKind(),
@@ -254,11 +258,11 @@ const reading = (status, lifts) => ({
   overageDisabledReason: "org_level_disabled",
   isUsingOverage: false,
   unifiedWindows: {
-    five_hour: { utilization: fullness(), ...(lifts === null ? {} : { resetsAt: lifts }) },
+    five_hour: { utilization: full, ...(lifts === null ? {} : { resetsAt: lifts }) },
     // Derived from the knob rather than written down, and deliberately not the same number as
     // the window above: with a literal here, a reader that answered with a constant for this
     // window — or read the wrong window entirely — reached the right answer in every fixture.
-    seven_day: { utilization: fullness() / 2, resetsAt: Math.floor(Date.now() / 1000) + 5 * 24 * 60 * 60 },
+    seven_day: { utilization: full / 2, resetsAt: Math.floor(Date.now() / 1000) + 5 * 24 * 60 * 60 },
   },
 });
 
@@ -581,6 +585,24 @@ if ((process.env.OPENOVAI_STAND_IN_ASKS ?? "") !== "") {
     }),
   ]);
   fs.appendFileSync(log, \`told: \${JSON.stringify(decided)}\\n\`);
+}
+
+// The reading moving WHILE the run is going, which is what the real one does: the frame's own
+// schema calls it "emitted when rate limit info changes", so a run that spends a window sends
+// several and a run that spends nothing sends one. Sent from here, after the frame that says what
+// this run is on and before whatever it takes to answer, so a reader looking mid-run has two
+// different readings to have kept the wrong one of.
+if ((process.env.OPENOVAI_STAND_IN_FULLNESS_AGAIN ?? "") !== "") {
+  frame({
+    type: "rate_limit_event",
+    rate_limit_info: reading(
+      process.env.OPENOVAI_STAND_IN_LIMIT || "allowed",
+      lifts(),
+      Number(process.env.OPENOVAI_STAND_IN_FULLNESS_AGAIN),
+    ),
+    uuid: crypto.randomUUID(),
+    session_id: process.env.OPENOVAI_STAND_IN_SESSION ?? "test-thread",
+  });
 }
 
 const slow = Number(process.env.OPENOVAI_STAND_IN_SLOW ?? 0);

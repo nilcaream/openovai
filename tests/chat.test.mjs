@@ -76,6 +76,10 @@ import { WATCH_EVERY, howOften, watchEveryProblem } from "../tools/chat/watch.mj
 // over a socket the only thing that can ask for one is the button.
 import { handOver, serve } from "../tools/chat/server.mjs";
 
+// And a turn asked for directly, for the same reason again: where the account stands while a run is
+// going is held in memory by the module that owns the run, and there is no route that says it.
+import { ask, standingsUnderway } from "../tools/chat/session.mjs";
+
 // The kinds themselves, read from where they are named rather than written out again here. Two
 // copies of a list are two things that drift, and a check comparing what it saw against its own
 // copy would agree with itself for good while the chat grew a fifth kind nobody reached.
@@ -5455,6 +5459,136 @@ describe("a handover asked for in words of its own", () => {
 
   after(() => {
     remove(own);
+  });
+});
+
+// Where the account stands while a run is going, which is a reading the chat has always been handed
+// and has never said out loud. The frame carrying it arrives whenever the service's reading changes
+// — its own schema says so in those words — so a run that is spending a window sends several, and
+// what a reader keeps has to be the last of them and not the first.
+//
+// Asked IN THIS PROCESS, for the reason the handover in words of its own is: the store is memory
+// inside the module that owns the run, a socket can only reach a route, and there is no route for
+// this yet. Its own instance so that nothing here is written on a panel the rest of the suite
+// reads, and the stand-in on the path for the length of the call so the run is answered by the same
+// thing that answers every other run here.
+describe("where the account stands while a run is going", () => {
+  const live = `${instance}-standing`;
+  const liveLog = path.join(standIn, "live-standing.txt");
+  const FIRST = 0.31;
+  const THEN = 0.94;
+  const ON_MODEL = "claude-opus-5-fixture";
+  let anyReading;
+  let duringTheRun;
+  let afterTheRun;
+  let answered;
+
+  before(async () => {
+    installed(options(live, 0));
+    const config = JSON.parse(fs.readFileSync(path.join(live, "openovai.json"), "utf8"));
+
+    const wasOnThePath = process.env.PATH;
+    const wasLogged = process.env.OPENOVAI_STAND_IN_LOG;
+    process.env.PATH = `${standIn}${path.delimiter}${wasOnThePath}`;
+    process.env.OPENOVAI_STAND_IN_LOG = liveLog;
+    process.env.OPENOVAI_STAND_IN_LIMIT = "allowed";
+    process.env.OPENOVAI_STAND_IN_FULLNESS = String(FIRST);
+    process.env.OPENOVAI_STAND_IN_FULLNESS_AGAIN = String(THEN);
+    process.env.OPENOVAI_STAND_IN_MODEL_ID = ON_MODEL;
+    // Long enough that the run is still going after both readings have been sent, which is the
+    // whole state this describe is about. Nothing here waits it out: the reading is looked for
+    // while the answer is still on its way.
+    process.env.OPENOVAI_STAND_IN_SLOW = "4000";
+    try {
+      const going = ask({ root: live, config, plugins: [], pop: null }, config.leader, "a turn to look at");
+      // Any reading at all, which is the weaker of the two questions and the one that says whether
+      // anything is published while a run is going.
+      anyReading = await waitFor(() => standingsUnderway().find((one) => one.windows !== null) ?? null);
+      // And then the SECOND reading, by value rather than by there being one: an attempt satisfied
+      // by any reading would be satisfied by a chat that kept the first for ever, which is the
+      // mistake the two are kept apart to catch.
+      duringTheRun = await waitFor(
+        () =>
+          standingsUnderway().find(
+            (one) => one.windows?.find((window) => window.name === "five_hour")?.fullness === THEN,
+          ) ?? null,
+      );
+      answered = await going;
+    } finally {
+      process.env.PATH = wasOnThePath;
+      if (wasLogged === undefined) {
+        delete process.env.OPENOVAI_STAND_IN_LOG;
+      } else {
+        process.env.OPENOVAI_STAND_IN_LOG = wasLogged;
+      }
+      for (const knob of [
+        "OPENOVAI_STAND_IN_LIMIT",
+        "OPENOVAI_STAND_IN_FULLNESS",
+        "OPENOVAI_STAND_IN_FULLNESS_AGAIN",
+        "OPENOVAI_STAND_IN_MODEL_ID",
+        "OPENOVAI_STAND_IN_SLOW",
+      ]) {
+        delete process.env[knob];
+      }
+    }
+
+    afterTheRun = standingsUnderway();
+  });
+
+  // The run itself has to have worked, or every check below is comparing nothing against nothing.
+  it("answers the turn", () => {
+    assert.equal(answered?.failed, false, JSON.stringify(answered));
+  });
+
+  // Mutation: publish nothing at all. This is the reading that has been arriving and being thrown
+  // away since the frame was first understood.
+  it("says where the account stands before the run has finished", () => {
+    assert.ok(anyReading !== null, "nothing was published while the run was going");
+    assert.equal(anyReading.name, LEADER);
+  });
+
+  // Mutation: keep the first reading and ignore every one after it. A run that spends a window
+  // sends the frame again, and the first reading is the one that says the least about now.
+  it("keeps the newest reading and not the first", () => {
+    assert.ok(duringTheRun !== null, `the reading never moved off ${JSON.stringify(anyReading?.windows)}`);
+    assert.equal(duringTheRun.windows.find((window) => window.name === "five_hour")?.fullness, THEN);
+  });
+
+  // Every window the frame named, in the shape the row already reads a stored reading in, so that a
+  // live reading and a finished one are one shape and nothing downstream has to know which it has.
+  it("names every window the reading named, as a fraction", () => {
+    assert.deepEqual(
+      duringTheRun.windows.map((window) => window.name),
+      ["five_hour", "seven_day"],
+    );
+    assert.equal(duringTheRun.windows.find((window) => window.name === "seven_day")?.fullness, THEN / 2);
+  });
+
+  // Mutation: stamp it with when the run started instead of when the frame came. The age of this
+  // reading is the whole of what makes it honest, and a stamp taken at the wrong end of a long run
+  // is wrong by the length of the run.
+  it("carries the moment the reading arrived", () => {
+    assert.ok(typeof duringTheRun.at === "number", JSON.stringify(duringTheRun));
+    assert.ok(Math.abs(Date.now() - duringTheRun.at) < 60 * 1000);
+  });
+
+  // Mutation: take the model off the seat rather than off the frame. What a session is configured
+  // to run on and what the run said it opened on are two facts, and the fixture makes them differ
+  // on purpose — a reader taking the wrong one is right in every instance where nobody set the
+  // other.
+  it("says which model the run itself said it was on", () => {
+    assert.equal(duringTheRun.ranModel, ON_MODEL);
+    assert.notEqual(duringTheRun.ranModel, LEADER_MODEL);
+  });
+
+  // Mutation: never clear it. A reading whose run is gone is not a stale reading, it is not a
+  // reading — and one left behind here reads exactly like a run still going.
+  it("holds nothing once the run is over", () => {
+    assert.deepEqual(afterTheRun, [], JSON.stringify(afterTheRun));
+  });
+
+  after(() => {
+    remove(live);
   });
 });
 

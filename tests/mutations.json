@@ -936,5 +936,71 @@
         "to": "`It has granted nothing beyond one desk each, so everything not settled by a rule stops a session mid-turn"
       }
     ]
+  },
+  {
+    "name": "where the account stands while a run is going is never said",
+    "catches": "says where the account stands before the run has finished",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "          wasTold(name, { windows: windowsIn(reading), at: Date.now() });",
+        "to": "          void windowsIn;"
+      }
+    ]
+  },
+  {
+    "name": "the first reading of a run is kept and every one after it ignored",
+    "catches": "keeps the newest reading and not the first",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "          wasTold(name, { windows: windowsIn(reading), at: Date.now() });",
+        "to": "          if (standings.get(name)?.windows === null) {\n            wasTold(name, { windows: windowsIn(reading), at: Date.now() });\n          }"
+      }
+    ]
+  },
+  {
+    "name": "only the first window the reading named is published",
+    "catches": "names every window the reading named, as a fraction",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "          wasTold(name, { windows: windowsIn(reading), at: Date.now() });",
+        "to": "          wasTold(name, { windows: windowsIn(reading)?.slice(0, 1) ?? null, at: Date.now() });"
+      }
+    ]
+  },
+  {
+    "name": "the reading is stamped with when the run started rather than when it arrived",
+    "catches": "carries the moment the reading arrived",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "          wasTold(name, { windows: windowsIn(reading), at: Date.now() });",
+        "to": "          wasTold(name, { windows: windowsIn(reading) });"
+      }
+    ]
+  },
+  {
+    "name": "the model on the live reading is the seat's rather than the run's own word",
+    "catches": "says which model the run itself said it was on",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "          wasTold(name, { ranModel: frame.model });",
+        "to": "          wasTold(name, { ranModel: model(instance, name) });"
+      }
+    ]
+  },
+  {
+    "name": "a reading outlives the run that was told it",
+    "catches": "holds nothing once the run is over",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "function forgetTheStanding(name) {\n  standings.delete(name);\n}",
+        "to": "function forgetTheStanding(name) {\n  void name;\n}"
+      }
+    ]
   }
 ]

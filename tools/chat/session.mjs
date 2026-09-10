@@ -592,6 +592,64 @@ function permission(child, frame, asked) {
 // anything here.
 const running = new Map();
 
+// Where the account stood, as the service told a run that is still going, under the name of the
+// session having it.
+//
+// THE READING ALREADY ARRIVED; ONLY THE SAYING OF IT WAS MISSING. Every rate_limit_event frame
+// carries the account's standing, the run below has been reading all of them into a local since
+// the day that frame was understood, and that local is handed on exactly once — at close. So a
+// window can fill from one side of a line to the other while the only thing that knows is a
+// variable inside a promise, and on the one run that matters most it is worse than that: a run
+// turned away with no result frame has its reading read correctly and then dropped, because what
+// carries it out is written only for a run that reported a thread.
+//
+// BESIDE `running` AND NOT INSIDE IT. What that map holds is the child, and `endRun` and the close
+// handler both read it as one; a second meaning on that value would give two readers a shape to
+// disagree about to save one map. This is written and cleared on the same lines the run itself is,
+// which is what keeps the two from coming apart.
+//
+// IN MEMORY, because a reading whose process is gone is not a stale reading — it is not a reading
+// at all. What the account was doing while a run went on is true for as long as that run is, and a
+// file holding it would outlive the only thing that made it so. It is also the second writer
+// argument: `remember` owns what a FINISHED run was told, and one fact with two writers on disk is
+// two records that can disagree.
+//
+// REPLACED AND NEVER EDITED, for `owed`'s reason: what a reader is holding is what it read, and
+// nothing moves underneath it while it looks.
+const standings = new Map();
+
+// Where the account stands as every run in flight has been told it, newest word per run.
+//
+// A LIST AND NOT A MAP. Every reader of this asks what anybody is being told right now rather than
+// what one named session is, so handing back a lookup would make each of them turn it into this
+// first — and the one thing a map would buy, asking by name, is a question nobody here has.
+export function standingsUnderway() {
+  return [...standings.values()];
+}
+
+// What a run has just been told, folded into what it had been told before.
+//
+// Nothing at all once that run is gone. A frame read after the close handler has run belongs to a
+// run nobody is waiting on, and putting it back would leave a reading in here that no process can
+// ever take out again.
+function wasTold(name, said) {
+  const held = standings.get(name);
+  if (held === undefined) {
+    return;
+  }
+  standings.set(name, { ...held, ...said });
+}
+
+// The run is over, so there is nothing being told any more.
+//
+// Its own name rather than the bare delete written twice, because it is said on both the ways a run
+// can end and the two have to stay together: a reading left behind by either of them is a number
+// with nothing producing it that nothing will ever take out, and it would read exactly like a run
+// still going.
+function forgetTheStanding(name) {
+  standings.delete(name);
+}
+
 // The runs somebody ended, waiting for their own close to be read. A name goes in when the ending
 // is asked for and comes out when the run settles, so nothing is left here for a run that is over.
 const endedHere = new Set();
@@ -845,6 +903,10 @@ function run(instance, name, text, resume, asked) {
     }
 
     running.set(name, child);
+    // And an entry beside it, on the same line, so that a run in flight is a run something can be
+    // read about. Nothing is known yet and nothing is guessed: the frames that say what this run is
+    // on and where the account stands have not arrived, and null is what that is.
+    standings.set(name, { name, ranModel: null, windows: null, at: null });
 
     let answer = null;
     let limit = null;
@@ -880,6 +942,14 @@ function run(instance, name, text, resume, asked) {
           // near it. What it is for is the row, where a number that was true a moment ago is worth
           // reading and a number that decides something is not.
           reading = frame.rate_limit_info ?? null;
+          // And said where somebody can read it, which is the whole of what was missing. The
+          // comment above is right that this must go nowhere near the verdict; where it goes
+          // instead is to whoever is looking at the room, and until now that was nowhere at all.
+          //
+          // In the shape the row already reads a stored reading in, so that a reading taken while a
+          // run is going and one taken when it finished are one shape and nothing downstream has to
+          // know which of the two it was handed.
+          wasTold(name, { windows: windowsIn(reading), at: Date.now() });
           if (frame.rate_limit_info?.status === "rejected") {
             limit = frame.rate_limit_info;
             leave(child);
@@ -891,6 +961,10 @@ function run(instance, name, text, resume, asked) {
         // and if a run ever named a second the later word is the one it went on answering under.
         if (frame.type === "system" && typeof frame.model === "string") {
           ranOn = frame.model;
+          // The service's word for it and never the seat's. What a session is configured to run on
+          // is a different fact, it is already on the row, and the two disagree exactly where it
+          // matters — a reading is worth a different amount depending on what is spending it.
+          wasTold(name, { ranModel: frame.model });
           return;
         }
         if (frame.type !== "result" || answer !== null) {
@@ -910,6 +984,7 @@ function run(instance, name, text, resume, asked) {
 
     child.on("error", (error) => {
       running.delete(name);
+      forgetTheStanding(name);
       const why =
         error.code === "ENOENT"
           ? "Claude Code is not on the PATH of the process serving this page"
@@ -921,6 +996,7 @@ function run(instance, name, text, resume, asked) {
 
     child.on("close", () => {
       running.delete(name);
+      forgetTheStanding(name);
       // Ended by somebody rather than over of its own accord, and it says so in its own words. An
       // answer that had already arrived is still the answer: what was ended then was a run with
       // nothing left to say, and reporting it as ended would throw away what it did say.
