@@ -150,6 +150,47 @@
     return `${full}, read ${ago(new Date(quota.at).toISOString())}`;
   }
 
+  // And where the account stands as the run this session has going right now has been told it.
+  //
+  // ITS OWN PHRASE AND NOT THE ONE ABOVE WIDENED. The two readings answer different questions —
+  // where the account stands while a run is going, and where it stood when one last ended — and a
+  // builder that could print either would be one edit away from printing them as one.
+  //
+  // Every part of it earns its place. The windows, because this row does not pick one. The AGE,
+  // for the reason the phrase above exists at all: a number with no age invites exactly the
+  // judgment it cannot support, and a live reading that quietly went stale would read as a stale
+  // stamp rather than as a wrong number. The MODEL, because the same number means very different
+  // things depending on what is spending it. And how long the run has been going, because a run
+  // three minutes in and a run forty minutes in are different decisions at the same reading.
+  //
+  // Said in the parts that are there rather than all or nothing: a run that has begun and not yet
+  // been told anything is a real state, and the model and the age of it are worth saying on their
+  // own. It says `now` first so that nothing can read it as the stored one.
+  function standingSaid(standing) {
+    if (standing === null || standing === undefined) {
+      return null;
+    }
+    const said = [];
+    if (Array.isArray(standing.windows) && standing.windows.length > 0 && typeof standing.at === "number") {
+      said.push(
+        standing.windows
+          .map((window) => `${window.name.replace(/_/g, "-")} window ${Math.round(window.fullness * 100)}% full`)
+          .join(", "),
+      );
+      said.push(`read ${ago(new Date(standing.at).toISOString())}`);
+    }
+    if (typeof standing.ranModel === "string" && standing.ranModel !== "") {
+      said.push(`on ${standing.ranModel}`);
+    }
+    // The same words the ages beside it are said in, rather than a second ladder of its own: how
+    // long a run has been going and how long ago it began are one reading, and two spellings of it
+    // on one row is a difference a reader would look for a meaning in.
+    if (typeof standing.since === "number") {
+      said.push(`began ${ago(new Date(standing.since).toISOString())}`);
+    }
+    return said.length === 0 ? null : `now ${said.join(", ")}`;
+  }
+
   // How much of the window this conversation has taken, the same phrase the command's copy of this
   // row says, from the same two fields. Nothing whenever either half is missing: on a service that
   // named no window this row is byte for byte what it said before any of this existed.
@@ -206,6 +247,9 @@
       // Beside the state phrase and not inside it: a session answering right now while its last
       // run was turned away is a real state, and one word could not say it.
       refusedSaid(row.refused),
+      // Where the account stands NOW first, and what this session was last told after it. The live
+      // one is the one somebody is acting on; the stored one is how it got there.
+      standingSaid(row.standing),
       windowsSaid(row.quota),
       // Said only when there is none, because that is the surprising half: a full panel whose
       // session remembers none of it reads as an ordinary one until somebody says so.

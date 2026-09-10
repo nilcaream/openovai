@@ -20,7 +20,7 @@ import { SKILL as ALLOWED } from "../skills.mjs";
 import { ago, roomLines, shareSaid } from "./room.mjs";
 import { forgetTheRoom, howOften, watchWrapper, whatChanged } from "./watch.mjs";
 import { DESK_FILE, DeskError, WORK, allowAsked, archiveFor, deskTitle, describeName, hasSettledAnything, hire, isName, retire } from "../desks.mjs";
-import { accountStanding, ask, bandIn, endRun, forget, hasGoneCold, hasGoneQuiet, hasThread, quotaIn, ranAt, refusedIn, sessions } from "./session.mjs";
+import { accountStanding, ask, bandIn, endRun, forget, hasGoneCold, hasGoneQuiet, hasThread, quotaIn, ranAt, refusedIn, sessions, standingsUnderway } from "./session.mjs";
 import { inTurn, turnsGoing, waitingFor, whileWaitingFor, wouldWaitForItself } from "./turns.mjs";
 import { unfinished } from "./unfinished.mjs";
 import { takeWord } from "./untold.mjs";
@@ -1956,6 +1956,25 @@ function quotaOn(root, name) {
   return windows === null ? null : { at: ranAt(root, name), windows };
 }
 
+// Where the account stands as the run this session has going right now has been told it, or
+// nothing at all when it has none going.
+//
+// FROM MEMORY AND NOT FROM THE ROOT, which is the whole of why it is a second reader rather than a
+// second argument to the one above: a reading whose process is gone is not a stale reading, it is
+// not a reading, and nothing on disk could say which of those it was holding.
+//
+// Found by name out of a list, because what is published is what anybody is being told right now
+// and the row is the only reader that narrows it to one session. Its own name is dropped on the
+// way past: the row it lands on already carries that, and a name said twice is a name two readers
+// can come to disagree about.
+function standingNow(name) {
+  const said = standingsUnderway().find((one) => one.name === name);
+  if (said === undefined) {
+    return null;
+  }
+  return { at: said.at, windows: said.windows, ranModel: said.ranModel, since: said.since };
+}
+
 function everySession(instance, session) {
   const going = turnsGoing(session.name);
 
@@ -2011,6 +2030,27 @@ function everySession(instance, session) {
     // describing its own session's last run, which is why the age is served beside the number and
     // never separated from it.
     quota: quotaOn(instance.root, session.name),
+    // And where it stands NOW, if this session has a run going — which is a different question and
+    // not a fresher answer to that one. `quota` is what a finished run reported; a window can fill
+    // from one side of a line to the other inside a single long turn, and until this the only thing
+    // that knew was a variable inside a promise. On the run that matters most it was worse than
+    // that: a run turned away with no result frame has its reading read correctly and then dropped,
+    // so the overshoot was not invisible until the run ended, it was invisible for ever.
+    //
+    // Beside `quota` and never instead of it, which is this row's own habit and is argued three
+    // times above already — `active` beside `ran`, `cold` beside `active`, `queued` beside `busy`.
+    // The day the two agree is not the day anybody needed either of them.
+    //
+    // The same shape as the stored reading in its `at` and `windows`, deliberately, so that a
+    // reader of either does not have to know which it has; the two fields it carries beyond that
+    // are the ones only a run in flight can answer. Which MODEL, because the same number means very
+    // different things depending on what is spending it. And WHEN IT BEGAN, because a run three
+    // minutes in and a run forty minutes in are different decisions at the same reading.
+    //
+    // A fact on the row and never a gate: nothing here reads it to decide anything. The one act a
+    // full account and a long run together argue for — ending a run that is spending the window —
+    // is a button the page already has, and a person presses it.
+    standing: standingNow(session.name),
     // And whether the account is still turned away, with the moment it lifts. Feature 9 says this
     // on the panel, once, at the moment it happens; it is gone the next time anybody looks, which
     // is how a workspace could sit refused with a room full of rows saying idle. Here it lasts as

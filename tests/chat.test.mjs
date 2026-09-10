@@ -128,6 +128,13 @@ const onModels = `${instance}-models`;
 // to be having conversations in, and every other instance leaves the field out and so reads its room
 // every five minutes, which is never inside a run of this suite.
 const watched = `${instance}-watched`;
+
+// Two more of their own, for the checks about a run that is STILL GOING while something reads it.
+// Both need a stand-in that holds its answer back, which is no arrangement for an instance the
+// rest of the suite is talking to; they are named here so that what a run leaves behind is taken
+// away with everything else this suite made.
+const live = `${instance}-standing`;
+const nowLive = `${instance}-now`;
 const owned = path.join(nested, "deep", "instance");
 const overhead = path.dirname(owned);
 const standIn = `${instance}-stand-in`;
@@ -137,7 +144,7 @@ let server;
 
 process.on("exit", () => {
   server?.kill();
-  remove(instance, chosen, quiet, nested, onModels, watched, standIn);
+  remove(instance, chosen, quiet, nested, onModels, watched, live, nowLive, standIn);
 });
 
 after(async () => {
@@ -220,7 +227,7 @@ async function start(root, environment) {
   return server;
 }
 
-remove(instance, chosen, quiet, nested, onModels, watched, standIn);
+remove(instance, chosen, quiet, nested, onModels, watched, live, nowLive, standIn);
 const standInCommand = writeStandIn(standIn);
 installed(options(instance, PORT));
 installed(options(quiet, 0));
@@ -5473,7 +5480,6 @@ describe("a handover asked for in words of its own", () => {
 // reads, and the stand-in on the path for the length of the call so the run is answered by the same
 // thing that answers every other run here.
 describe("where the account stands while a run is going", () => {
-  const live = `${instance}-standing`;
   const liveLog = path.join(standIn, "live-standing.txt");
   const FIRST = 0.31;
   const THEN = 0.94;
@@ -11553,6 +11559,155 @@ describe("how often a workspace has asked for its room to be read", () => {
       assert.match(said, new RegExp(WATCH_EVERY));
     }
     assert.equal(watchEveryProblem(300), null);
+  });
+});
+
+// What the account is doing NOW, said on the row, beside what the session was told when a run last
+// ended. The reading has been arriving all along; until this it left the process only at close, so
+// a window could fill from one side of a line to the other with nothing anybody could look at.
+//
+// ITS OWN INSTANCE AND ITS OWN CHAT. The whole state this describes is a run that is STILL GOING
+// while the row is read, which needs a stand-in that holds the answer back; the shared server is
+// started once with one stand-in environment, and restarting that one mid-suite would disturb
+// every describe after it.
+//
+// WHAT A GREEN SUITE CANNOT SEE, and the tester is told so: nothing here runs page.html. The page
+// half is asserted against the served text — that the row asks for the phrase and that the phrase
+// names every part of the reading — which is weaker than running it, and is what there is.
+describe("what the row says the account is doing now", () => {
+  const nowLog = path.join(standIn, "row-standing.txt");
+  const NOW_WORKER = "Bunting";
+  const NOW_FIRST = 0.28;
+  const NOW_THEN = 0.91;
+  const NOW_MODEL = "claude-opus-5-row-fixture";
+  const NOW_APART = 1500;
+  let address;
+  let mid;
+  let others;
+  let after;
+  let page;
+
+  before(async () => {
+    installed(options(nowLive, 0));
+    runTool(nowLive, ["hire", NOW_WORKER], process.env);
+
+    await start(
+      nowLive,
+      standInEnvironment(standIn, nowLog, {
+        OPENOVAI_STAND_IN_LIMIT: "allowed",
+        OPENOVAI_STAND_IN_FULLNESS: String(NOW_FIRST),
+        // A second reading, so a row satisfied by any reading at all is told apart from a row
+        // carrying the newest one. Held back, so that when the run began and when it was last told
+        // something are not the same millisecond.
+        OPENOVAI_STAND_IN_FULLNESS_AGAIN: String(NOW_THEN),
+        OPENOVAI_STAND_IN_FULLNESS_AGAIN_IN: String(NOW_APART),
+        OPENOVAI_STAND_IN_MODEL_ID: NOW_MODEL,
+        // Long enough that the run is still going once both readings have been sent.
+        OPENOVAI_STAND_IN_SLOW: "6000",
+      }),
+    );
+    address = await waitForAddress(server);
+    assert.ok(address, "the server never said where it was listening");
+
+    const rows = async () => JSON.parse((await get(`${address}/sessions`)).body).sessions;
+
+    const answering = post(`${address}/sessions/${LEADER}/message`, {
+      text: "a turn to read the account during",
+    });
+    mid = await waitFor(async () => {
+      const row = (await rows()).find((one) => one.name === LEADER);
+      return row?.standing?.windows?.find((window) => window.name === "five_hour")?.fullness === NOW_THEN
+        ? row
+        : null;
+    });
+    // Every other row, read at the same moment, so "only the session mid-run" is a claim about
+    // this instance rather than about an instance with one session in it.
+    others = (await rows()).filter((one) => one.name !== LEADER);
+    await answering;
+    after = (await rows()).find((one) => one.name === LEADER);
+    page = (await get(`${address}/`)).body;
+  });
+
+  // Mutation: leave the field off the row. The reading is published inside the process either way,
+  // and until it is on the row there is nothing a person can look at.
+  it("says where the account stands while the run is still going", () => {
+    assert.ok(mid !== null, "no row ever carried a live reading");
+    assert.equal(mid.standing.windows.find((window) => window.name === "five_hour").fullness, NOW_THEN);
+  });
+
+  // The same shape a stored reading is served in, deliberately: a live reading and a finished one
+  // are one shape, so nothing reading either has to know which it has.
+  it("names every window the reading named", () => {
+    assert.deepEqual(
+      mid.standing.windows.map((window) => window.name),
+      ["five_hour", "seven_day"],
+    );
+  });
+
+  // Mutation: serve the number without its age. A quota number with no age invites exactly the
+  // judgment it cannot support, and a live path that quietly went stale would read as a stale
+  // stamp rather than as a wrong number.
+  it("carries the age of that reading and not the number alone", () => {
+    assert.ok(typeof mid.standing.at === "number", JSON.stringify(mid.standing));
+    assert.ok(Math.abs(Date.now() - mid.standing.at) < 60 * 1000);
+  });
+
+  // Mutation: take the model off the seat rather than off the run. A fable seat weighs several
+  // times an opus one on the same meter, so the same number means different things depending on
+  // the answer — and the fixture makes the two differ on purpose.
+  it("says which model is spending it", () => {
+    assert.equal(mid.standing.ranModel, NOW_MODEL);
+    assert.notEqual(mid.standing.ranModel, LEADER_MODEL);
+  });
+
+  // Mutation: drop the moment the run began. A run three minutes in and a run forty minutes in are
+  // different decisions at the same reading, and nothing else on the row answers it.
+  it("says how long the run has been going, and not when its last reading came", () => {
+    assert.ok(typeof mid.standing.since === "number", JSON.stringify(mid.standing));
+    assert.ok(
+      mid.standing.at - mid.standing.since > NOW_APART / 2,
+      `began and last heard ${mid.standing.at - mid.standing.since}ms apart, and the fixture put ${NOW_APART}ms between them`,
+    );
+  });
+
+  // Mutation: put the live reading in `quota`. They answer different questions — where the account
+  // stands now, and where it stood when this session last finished — and the day they agree is not
+  // the day anybody needed either.
+  it("carries it beside what the session was last told and never instead of it", () => {
+    assert.equal(after.standing, null, JSON.stringify(after.standing));
+    assert.equal(after.quota.windows.find((window) => window.name === "five_hour").fullness, NOW_THEN);
+    assert.ok(typeof after.quota.at === "number");
+  });
+
+  // Mutation: put the same reading on every row. One account means one reading, but the question
+  // the row answers is which SESSION is spending it, and a reading on a session that is not
+  // running is a run in flight that is not there.
+  it("says nothing on a session with no run in flight", () => {
+    assert.ok(others.length > 0, "there was no other session to read");
+    for (const row of others) {
+      assert.equal(row.standing, null, `${row.name} carried ${JSON.stringify(row.standing)}`);
+    }
+  });
+
+  // Mutation: build the phrase and never put it on the row. Nothing here runs the page, so this is
+  // the served text saying the row asks for it — beside the stored reading and not instead of it.
+  it("prints the live reading on the row, beside the stored one", () => {
+    assert.match(page, /standingSaid\(row\.standing\)/);
+    assert.match(page, /windowsSaid\(row\.quota\)/);
+  });
+
+  // Mutation: print half the reading. Each part is load-bearing on its own — the windows, the age
+  // that keeps the number honest, the model that says what the number means, and how long the run
+  // has been going — and a phrase missing one of them reads exactly like a whole one.
+  it("prints every part of the live reading a person has to act on", () => {
+    const from = page.indexOf("function standingSaid");
+    const to = page.indexOf("function shareSaid");
+    assert.ok(from !== -1, "the page has no phrase for the live reading");
+    assert.ok(to > from, "the phrase for the live reading is not where this expects it");
+    const said = page.slice(from, to);
+    for (const part of ["standing.windows", "standing.at", "standing.ranModel", "standing.since"]) {
+      assert.ok(said.includes(part), `the phrase never reads ${part}`);
+    }
   });
 });
 

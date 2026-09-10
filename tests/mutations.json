@@ -1024,5 +1024,115 @@
         "to": "function forgetTheStanding(name) {\n  void name;\n}"
       }
     ]
+  },
+  {
+    "name": "the row says nothing about the run it has going",
+    "catches": "says where the account stands while the run is still going",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    standing: standingNow(session.name),",
+        "to": "    standing: null,"
+      }
+    ]
+  },
+  {
+    "name": "the live reading names one window and stops",
+    "catches": "names every window the reading named",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  return { at: said.at, windows: said.windows, ranModel: said.ranModel, since: said.since };",
+        "to": "  return { at: said.at, windows: (said.windows ?? []).slice(0, 1), ranModel: said.ranModel, since: said.since };"
+      }
+    ]
+  },
+  {
+    "name": "the live reading is served without its age",
+    "catches": "carries the age of that reading and not the number alone",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  return { at: said.at, windows: said.windows, ranModel: said.ranModel, since: said.since };",
+        "to": "  return { at: null, windows: said.windows, ranModel: said.ranModel, since: said.since };"
+      }
+    ]
+  },
+  {
+    "name": "the live reading cannot say what is spending it",
+    "catches": "says which model is spending it",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  return { at: said.at, windows: said.windows, ranModel: said.ranModel, since: said.since };",
+        "to": "  return { at: said.at, windows: said.windows, ranModel: null, since: said.since };"
+      }
+    ]
+  },
+  {
+    "name": "the live reading cannot say how long the run has been going",
+    "catches": "says how long the run has been going, and not when its last reading came",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  return { at: said.at, windows: said.windows, ranModel: said.ranModel, since: said.since };",
+        "to": "  return { at: said.at, windows: said.windows, ranModel: said.ranModel, since: null };"
+      }
+    ]
+  },
+  {
+    "name": "the live field falls back to the finished reading once the run is over",
+    "catches": "carries it beside what the session was last told and never instead of it",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    standing: standingNow(session.name),",
+        "to": "    standing: standingNow(session.name) ?? quotaOn(instance.root, session.name),"
+      }
+    ]
+  },
+  {
+    "name": "one run in flight puts its reading on every row",
+    "catches": "says nothing on a session with no run in flight",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  const said = standingsUnderway().find((one) => one.name === name);",
+        "to": "  const said = standingsUnderway()[0];"
+      }
+    ]
+  },
+  {
+    "name": "the page builds the live phrase and never puts it on the row",
+    "catches": "prints the live reading on the row, beside the stored one",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "      standingSaid(row.standing),",
+        "to": "      null,"
+      }
+    ]
+  },
+  {
+    "name": "the page prints the live number without saying what is spending it",
+    "catches": "prints every part of the live reading a person has to act on",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "    if (typeof standing.ranModel === \"string\" && standing.ranModel !== \"\") {\n      said.push(`on ${standing.ranModel}`);\n    }",
+        "to": "    void 0;"
+      }
+    ]
+  },
+  {
+    "name": "the page prints the live number without how long the run has been going",
+    "catches": "prints every part of the live reading a person has to act on",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "    if (typeof standing.since === \"number\") {\n      said.push(`began ${ago(new Date(standing.since).toISOString())}`);\n    }",
+        "to": "    void 0;"
+      }
+    ]
   }
 ]
