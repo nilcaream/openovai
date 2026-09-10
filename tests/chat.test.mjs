@@ -57,7 +57,7 @@ import { shapeOf } from "../tools/chat/permissions.mjs";
 // day, which cannot be reached by starting a chat and waiting until midnight.
 import { quietHoursProblem, withinQuietHours } from "../tools/chat/pop.mjs";
 import { settingsProblems } from "./inspect.mjs";
-import { ranAt } from "../tools/chat/session.mjs";
+import { hasGoneCold, hasNearlyGoneCold, ranAt } from "../tools/chat/session.mjs";
 
 // The shortening asked directly. Through a chat it can only ever be seen at the one depth this
 // checkout happens to sit at, and the whole question is what happens at another one.
@@ -3478,6 +3478,119 @@ describe("when a conversation last ran", () => {
   it("is nothing again once the thread has been ended", async () => {
     await post(`${URL}/sessions/${RAN}/handover`, {});
     assert.equal(ranAt(instance, RAN), null);
+  });
+});
+
+const PAST_PARK = "Kittiwake";
+const SHORT_OF_PARK = "Guillemot";
+const A_MINUTE_SHORT = "Skylark";
+const PAST_THE_HOUR = "Razorbill";
+const NEVER_ANSWERED = "Dotterel";
+const HANDED_ON_AGAIN = "Corncrake";
+const UNREADABLE_THREAD = "Osprey";
+
+// The reading a park would be decided on, asked directly. Every other check around it goes through
+// a chat, which is right when the subject is what a chat does — and useless here, because what has
+// to be pinned is a band with two edges. The reading must be true at one age and false at two
+// others, and no sequence of messages can put one conversation at three ages at once.
+//
+// Nothing acts on this yet and that is deliberate: the reading and the number it rests on are one
+// change, and what reads them is the next.
+describe("whether a conversation is close enough to losing its cache to be worth parking", () => {
+  const log = path.join(standIn, "park.txt");
+
+  before(async () => {
+    runTool(instance, ["hire", PAST_PARK], process.env);
+    runTool(instance, ["hire", SHORT_OF_PARK], process.env);
+    runTool(instance, ["hire", A_MINUTE_SHORT], process.env);
+    runTool(instance, ["hire", PAST_THE_HOUR], process.env);
+    runTool(instance, ["hire", NEVER_ANSWERED], process.env);
+    runTool(instance, ["hire", HANDED_ON_AGAIN], process.env);
+    runTool(instance, ["hire", UNREADABLE_THREAD], process.env);
+    await start(instance, standInEnvironment(standIn, log));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    // A turn each, so there is a thread with a clock at all. NEVER_ANSWERED is given none, which is
+    // the whole of what it is here for.
+    await say("something, so this one has a thread", PAST_PARK);
+    await say("something, so this one has a thread too", SHORT_OF_PARK);
+    await say("and this one, which stops a minute short of it", A_MINUTE_SHORT);
+    await say("and this one, which is about to be left much longer", PAST_THE_HOUR);
+    await say("and this one, which is about to lose its thread", HANDED_ON_AGAIN);
+    await say("and this one, whose thread is about to stop parsing", UNREADABLE_THREAD);
+
+    // Handed over: the panel stays and the thread is removed. A time that cannot be read is not a
+    // time that says "old", and this is the session that proves it on a conversation that HAD one.
+    await post(`${URL}/sessions/${HANDED_ON_AGAIN}/handover`, {});
+
+    fs.writeFileSync(threadFile(UNREADABLE_THREAD), "this is not JSON");
+
+    // Aged last and read in the checks below, so nothing between the two carries a reading over a
+    // minute boundary. The half-minutes are the cushion, and the pair in the middle is deliberately
+    // tight: fifty and a half is half a minute past the fifty this reading is drawn at, forty-nine
+    // and a half is half a minute short of it, and between them they leave the number nowhere to
+    // move to. A reading drawn anywhere else fails one of the two.
+    //
+    // The wider two are about the neighbouring readings rather than this one: forty-five is past the
+    // half-hour something is already said at, and ninety is past everything.
+    //
+    // The unreadable one is aged into the band on purpose. Left seconds old it would read false for
+    // the ordinary reason and the check would pass with the rule inverted.
+    age(threadFile(PAST_PARK), 50.5);
+    age(threadFile(SHORT_OF_PARK), 45.5);
+    age(threadFile(A_MINUTE_SHORT), 49.5);
+    age(threadFile(PAST_THE_HOUR), 90);
+    age(threadFile(UNREADABLE_THREAD), 55.5);
+  });
+
+  // THE reading. Mutation: draw it at the hour, or anywhere past it, and nothing is ever parked
+  // before the conversation it would have saved is gone.
+  it("is said of a conversation left long enough that its cache is nearly certainly gone", () => {
+    assert.equal(hasNearlyGoneCold(instance, PAST_PARK), true);
+    assert.equal(hasGoneCold(instance, PAST_PARK), false);
+  });
+
+  // Mutation: draw it at QUIET_AFTER, the reading beside it. Half an hour is when somebody is told
+  // to look; spending a turn there parks conversations that had twenty-five minutes left to be
+  // answered in, and it is the cheapest way for this number to go quietly wrong.
+  it("is not yet said of a conversation that has only just gone quiet", () => {
+    assert.equal(hasNearlyGoneCold(instance, SHORT_OF_PARK), false);
+    assert.equal(hasGoneCold(instance, SHORT_OF_PARK), false);
+  });
+
+  // Mutation: drop the upper edge and let it stay true past the hour. Then the two readings are
+  // both true of the same conversation, and whatever acts on them spends a whole turn writing a
+  // desk for a thread that is already gone — the one turn this reading exists to buy cheaply.
+  it("stops being said once the conversation is certainly cold", () => {
+    assert.equal(hasNearlyGoneCold(instance, PAST_THE_HOUR), false);
+    assert.equal(hasGoneCold(instance, PAST_THE_HOUR), true);
+  });
+
+  // The other side of the same number, and the pair is what pins it. Mutation: draw the reading a
+  // few minutes later — four, say, which is a plausible-looking fraction of the hour and reddens
+  // nothing at all unless something sits between it and fifty. A number this slice exists to decide
+  // has to be wrong by a minute before a check notices, or it is not really decided.
+  it("is not yet said with a minute still to go before the number it is drawn at", () => {
+    assert.equal(hasNearlyGoneCold(instance, A_MINUTE_SHORT), false);
+  });
+
+  // Mutation: treat a reading of nothing as old. A session that has never answered has no
+  // conversation to park and nothing that parking it could save.
+  it("is never said of a session that has never answered", () => {
+    assert.equal(hasNearlyGoneCold(instance, NEVER_ANSWERED), false);
+    assert.equal(ranAt(instance, NEVER_ANSWERED), null);
+  });
+
+  // Mutation: read the panel's clock instead of the thread's. The panel is still here and was
+  // written moments ago; the thread it belongs to is gone, and only one of the two knows that.
+  it("is not said again of a conversation that has already been handed over", () => {
+    assert.equal(hasNearlyGoneCold(instance, HANDED_ON_AGAIN), false);
+  });
+
+  // Mutation: ask the file's time before asking whether there is a thread at all. The time is
+  // readable here and old; the conversation is not there.
+  it("is not said of a session whose thread cannot be read", () => {
+    assert.equal(hasNearlyGoneCold(instance, UNREADABLE_THREAD), false);
   });
 });
 

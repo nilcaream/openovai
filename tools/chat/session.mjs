@@ -229,6 +229,38 @@ export function hasGoneQuiet(root, name) {
   return ran !== null && Date.now() - ran > QUIET_AFTER;
 }
 
+// Chosen, not derived, and the measurement only sizes the bet. A session already idle this long
+// goes on to lose its cache seven times in ten (n=33, this workspace, one human's habits), so
+// seven times in ten a park here is the difference between a desk written and a desk not. It
+// saves no tokens: nothing is ever resumed, so doing nothing is free and this turn is not. What
+// it buys is unwritten work, and what that is worth is a judgement nobody has measured.
+const PARK_AFTER = (COLD_AFTER / 6) * 5;
+
+// Whether a conversation is close enough to losing its cache that spending a turn on it is worth
+// doing, and still close enough to be worth spending on. Both edges, because this reading is acted
+// on rather than said: past the hour there is nothing left to save and the cheaper answer above is
+// the right one, so a reading that stayed true there would spend a whole turn writing a desk for a
+// thread that is already gone.
+//
+// Which is why it is not shaped like hasGoneQuiet beside it. That one is deliberately open at the
+// top — a session named at fifty-five minutes and gone from the reading at sixty-one would be the
+// worst reading it could give a person. Nobody reads this one; something acts on it, and the
+// action past the hour is a different and cheaper action.
+//
+// Same honesty as both of them at the bottom. A session with no thread is never nearly cold, and a
+// time that cannot be read is not a time that says "old".
+export function hasNearlyGoneCold(root, name) {
+  if (!hasThread(root, name)) {
+    return false;
+  }
+  const ran = ranAt(root, name);
+  if (ran === null) {
+    return false;
+  }
+  const idle = Date.now() - ran;
+  return idle > PARK_AFTER && idle <= COLD_AFTER;
+}
+
 // How full a conversation is, in bands, and where the words for it are decided.
 //
 // A SHARE AND NOT A SIZE, and that is the whole of what this replaces. There was one line here and

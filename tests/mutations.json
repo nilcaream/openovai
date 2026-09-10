@@ -207,6 +207,61 @@
     ]
   },
   {
+    "name": "the park is drawn at the reading somebody is only told about",
+    "catches": "is not yet said of a conversation that has only just gone quiet",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "const PARK_AFTER = (COLD_AFTER / 6) * 5;",
+        "to": "const PARK_AFTER = QUIET_AFTER;"
+      }
+    ]
+  },
+  {
+    "name": "the park is drawn past the hour it exists to get ahead of",
+    "catches": "is said of a conversation left long enough that its cache is nearly certainly gone",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "const PARK_AFTER = (COLD_AFTER / 6) * 5;",
+        "to": "const PARK_AFTER = (COLD_AFTER / 6) * 7;"
+      }
+    ]
+  },
+  {
+    "name": "the reading is left open at the top, like the one beside it",
+    "catches": "stops being said once the conversation is certainly cold",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "  return idle > PARK_AFTER && idle <= COLD_AFTER;",
+        "to": "  return idle > PARK_AFTER;"
+      }
+    ]
+  },
+  {
+    "name": "a session with no conversation is read as one that has been left a long time",
+    "catches": "is never said of a session that has never answered",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "  if (!hasThread(root, name)) {\n    return false;\n  }\n  const ran = ranAt(root, name);\n  if (ran === null) {\n    return false;\n  }\n  const idle = Date.now() - ran;",
+        "to": "  const ran = ranAt(root, name);\n  const idle = ran === null ? COLD_AFTER : Date.now() - ran;"
+      }
+    ]
+  },
+  {
+    "name": "the park is drawn a few minutes late, at a fraction that looks as plausible as the one chosen",
+    "catches": "is said of a conversation left long enough that its cache is nearly certainly gone",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "const PARK_AFTER = (COLD_AFTER / 6) * 5;",
+        "to": "const PARK_AFTER = (COLD_AFTER / 10) * 9;"
+      }
+    ]
+  },
+  {
     "name": "a session is offered a tool that hands somebody over",
     "catches": "serves a lead exactly the tools it says it serves",
     "edits": [
