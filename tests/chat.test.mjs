@@ -1123,6 +1123,102 @@ describe("what the lead overheard reaches it on its next turn", () => {
   });
 });
 
+// A turn is not a delivery. A run can be handed what its session was owed and then be turned away
+// by the service before it has heard a word of it — and what is left on the lead's panel is what a
+// PERSON reads, not what the model hears. So a debt is cleared only once the run that carried it
+// answered, and what this asks is the pair: the refused turn WAS handed the line, and the line was
+// still there to be handed over again afterwards.
+//
+// The other half is which lines are cleared. A line said while a run is going was heard by nobody,
+// so a turn that answers may only settle what it actually carried — a queue emptied wholesale
+// would take the newer line with it and nothing anywhere would say so.
+//
+// One chat throughout, because the debt is held in memory and a restart is not a refusal, it is a
+// chat with nobody waiting to be told. The stand-in is refused for as long as a file is there,
+// which is what lets one chat be turned away and then answer.
+describe("what was overheard outlives a turn that could not hear it", () => {
+  const debtLog = path.join(standIn, "debt.txt");
+  const REFUSING = path.join(standIn, "refusing.now");
+  const SLOW_ENOUGH_TO_SAY_SOMETHING_DURING = "1500";
+
+  let refusal;
+  let refusedTurn;
+  let theTurnAfterThat;
+  let theLeadWasStillGoing;
+  let theTurnAfterThatAgain;
+
+  // Whether the stand-in has finished answering a question carrying this text. Read as whole
+  // entries rather than lines: a question with overheard lines in front of it runs to several, and
+  // `answered:` is followed by the whole of it.
+  const answeredYet = (text) =>
+    entriesIn(debtLog).some((entry) => entry.startsWith("answered: ") && entry.includes(text));
+
+  before(async () => {
+    await start(
+      instance,
+      standInEnvironment(standIn, debtLog, {
+        OPENOVAI_STAND_IN_REFUSED_WHILE: REFUSING,
+        OPENOVAI_STAND_IN_SLOW: SLOW_ENOUGH_TO_SAY_SOMETHING_DURING,
+      }),
+    );
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    // Said before the refusing starts, so the only run turned away here is the lead's own: a
+    // refusal writes a line on the panel it happened to, and a worker's panel is read elsewhere
+    // for the FIRST thing the chat ever said on it.
+    await say("the printer is jammed", WORKER);
+
+    fs.writeFileSync(REFUSING, "");
+    refusal = await say("what is going on out there", LEADER);
+    refusedTurn = questionsIn(debtLog).at(-1);
+
+    fs.rmSync(REFUSING);
+
+    // Not awaited: something has to be said while this one is still going, and what it carries is
+    // read after it is over.
+    const slow = say("anything else", LEADER);
+    await waitFor(() => questionsIn(debtLog).some((asked) => asked.includes("anything else")) || null);
+
+    const during = say("and the roof is leaking", WORKER);
+    await waitFor(() => questionsIn(debtLog).some((asked) => asked.includes("the roof is leaking")) || null);
+
+    // Read at the moment the second line was queued, which is the whole of what makes it a line
+    // that arrived DURING a run: the lead's turn had not answered yet, so nothing it was handed
+    // could have carried this one.
+    theLeadWasStillGoing = !answeredYet("anything else");
+
+    await Promise.all([slow, during]);
+    theTurnAfterThat = questionsIn(debtLog).find((asked) => asked.includes("anything else"));
+
+    await say("and now", LEADER);
+    theTurnAfterThatAgain = questionsIn(debtLog).at(-1);
+  });
+
+  it("turns the refused turn away, so what follows is about a run that heard nothing", () => {
+    assert.equal(refusal.status, 503);
+  });
+
+  it("hands a refused turn what was overheard, since nothing knows yet that it will be refused", () => {
+    assert.ok(refusedTurn.includes(`<overheard on="${WORKER}" from="${HUMAN}">the printer is jammed</overheard>`));
+  });
+
+  it("hands the lead what it overheard again after a turn that was turned away", () => {
+    assert.ok(theTurnAfterThat.includes("the printer is jammed"));
+  });
+
+  it("says something while the lead is still on the turn before it", () => {
+    assert.equal(theLeadWasStillGoing, true);
+  });
+
+  it("keeps a line that arrived while the turn was going", () => {
+    assert.ok(theTurnAfterThatAgain.includes("the roof is leaking"));
+  });
+
+  it("hands over nothing a turn that answered has already heard", () => {
+    assert.ok(!theTurnAfterThatAgain.includes("the printer is jammed"));
+  });
+});
+
 // An update replaces the toolkit while nothing is running, so whatever it has to say cannot be
 // handed to anybody: what a session is owed is held in memory and dies with the chat the update
 // stopped. It is left in a file instead, and the chat is what finds it.

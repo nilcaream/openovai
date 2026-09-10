@@ -12,7 +12,7 @@ import { THE_CHAT, append, lastAt, panelDirectory, panelFile, read } from "./con
 import { HOST, record } from "./listening.mjs";
 import { respond } from "./mcp.mjs";
 import { OFFLINE, goOffline, goOnline, offline } from "./offline.mjs";
-import { carry, overhear } from "./overheard.mjs";
+import { heard, overhear, owed } from "./overheard.mjs";
 import { allow, askedFor, answer as settle, giveUp, inside, park, parked, refuse, shapeOf } from "./permissions.mjs";
 import { popped } from "./pop.mjs";
 import { answerFrom } from "../plugins.mjs";
@@ -131,6 +131,28 @@ function updateWrapper(from, to, notes) {
 // different people and a wall of text invites a model to read them as one.
 function withWhatWasOverheard(lines, message) {
   return [...lines, message].join("\n\n");
+}
+
+// And the other end of it: what a turn carried is settled here, on what the run amounted to.
+//
+// THE PROPERTY, and the reason this is a function rather than three lines written out three times:
+// a debt is cleared only once the run that carried it answered. A run the service turned away
+// never got a turn, and a run that fell over never finished one — in both, the lines were handed
+// to nobody, and a queue emptied at the top of the turn would have no way back. What is left of
+// them then is the panel row, which is what a PERSON reads and not what the model hears.
+//
+// It is the same reading the rest of a turn already takes on this path. A refusal leaves the
+// question on the panel to be asked again, leaves the thread unforgotten, hands no desk over and
+// files none away; this is that list with the one thing on it that used to be lost.
+//
+// Flagged rather than smoothed over: a run that took a turn and THEN failed would be handed its
+// lines a second time. Every failure watched here is a run that never got that far — no result
+// frame at all, or one carrying no turn — so the shape that would double a line is not one
+// anybody has seen, and it is named rather than guarded against.
+function settleWhatWasOverheard(name, carried, answer) {
+  if (answer.refused === null && answer.failed !== true) {
+    heard(name, carried);
+  }
 }
 
 // What a session is asked for when its desk does not say what it is on.
@@ -457,11 +479,15 @@ function usageWrapper(instance, name) {
 // Everything a session is handed in front of the message this turn is about: what it overheard
 // while it was not running, and the standing ask above while its desk says nothing. Blank lines
 // between them, because they are separate things said by different people.
-function inFrontOf(instance, name, message, restarted = false, answering = null) {
+//
+// What it overheard is handed IN rather than taken from the queue here, because whoever calls this
+// is also the one who gets to see how the run went, and the two have to be the same reader: what a
+// turn was given is settled against what that turn amounted to.
+function inFrontOf(instance, name, message, carried, restarted = false, answering = null) {
   // Ahead of everything, when there was one. A session that does not yet know it has lost its
   // memory would read what it overheard as things it remembers being told.
   const said = restarted ? [pickUpWrapper(name)] : [];
-  said.push(...carry(name));
+  said.push(...carried);
   // Beside what was overheard, because both are what happened elsewhere while this session was not
   // running, and read HERE — the turn is where every other reading on this path is taken, and a
   // message that waited behind a long turn is answered against what is true now.
@@ -914,6 +940,11 @@ async function deliver(instance, name, text, signed, shown = null) {
         ...(answers === null ? {} : { answers }),
       });
 
+      // What this session is owed, read where the turn begins and cleared where it ends. Read
+      // here for the reason everything else on this path is: a line that arrived while this turn
+      // waited its place in the queue belongs to this turn.
+      const carried = owed(name);
+
       // The reply is waited for rather than streamed. One run of Claude Code answers one message,
       // so the answer is ready or it is not; a page that shows it appearing is a later question.
       let answer;
@@ -928,6 +959,7 @@ async function deliver(instance, name, text, signed, shown = null) {
             instance,
             name,
             sender === null ? asked.text : wrap(sender.name, sender.role, asked.text),
+            carried,
             restarted,
             answeringWrapper(instance.root, name, answers),
           ),
@@ -937,6 +969,8 @@ async function deliver(instance, name, text, signed, shown = null) {
         // Whatever it was still asking about, it is not there to hear the answer now.
         giveUp(name);
       }
+
+      settleWhatWasOverheard(name, carried, answer);
 
       // The service turned the run away, so there is no reply and nothing may be written as one.
       // The question stays where it is — it was asked, it is part of the record, and the next
@@ -1464,19 +1498,25 @@ export async function handOver(instance, name, askedLine) {
       handover: true,
     });
 
+    // Carried here as on any turn, so the thread hears what it was owed before it goes and the
+    // session that follows it starts owed nothing — and, as on any turn, only settled below once
+    // this run has answered. A handover that was turned away goes nowhere, and a thread that is
+    // still there is still owed what it never heard.
+    const carried = owed(name);
+
     let answer;
     try {
       answer = await ask(
         instance,
         name,
-        // Drained here as on any turn, so the thread hears what it was owed before it goes and
-        // the session that follows it starts owed nothing.
-        withWhatWasOverheard(carry(name), handoverWrapper(name)),
+        withWhatWasOverheard(carried, handoverWrapper(name)),
         asking(instance, name),
       );
     } finally {
       giveUp(name);
     }
+
+    settleWhatWasOverheard(name, carried, answer);
 
     // Turned away, so nothing happens. Not the reply row — the session said nothing and the
     // service's own sentence is not its words — and above all not the `forget` below, which would
@@ -1612,18 +1652,24 @@ async function putAway(instance, name, asker) {
       leaving: true,
     });
 
+    // Carried here as on any turn, so a thread hears what it was owed before it goes, and settled
+    // below only once this run has answered: a leave that was turned away leaves the session at
+    // its desk, still owed what it never heard.
+    const carried = owed(name);
+
     let answer;
     try {
       answer = await ask(
         instance,
         name,
-        // Drained here as on any turn, so a thread hears what it was owed before it goes.
-        withWhatWasOverheard(carry(name), leaveWrapper(name)),
+        withWhatWasOverheard(carried, leaveWrapper(name)),
         asking(instance, name),
       );
     } finally {
       giveUp(name);
     }
+
+    settleWhatWasOverheard(name, carried, answer);
 
     const reply = append(instance.root, name, {
       from: name,

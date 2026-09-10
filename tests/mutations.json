@@ -826,5 +826,27 @@
         "to": ""
       }
     ]
+  },
+  {
+    "name": "what a turn carried is cleared whatever the run amounted to",
+    "catches": "hands the lead what it overheard again after a turn that was turned away",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  if (answer.refused === null && answer.failed !== true) {\n    heard(name, carried);\n  }",
+        "to": "  heard(name, carried);"
+      }
+    ]
+  },
+  {
+    "name": "everything waiting is cleared, not only what the turn carried",
+    "catches": "keeps a line that arrived while the turn was going",
+    "edits": [
+      {
+        "file": "tools/chat/overheard.mjs",
+        "from": "  const left = (pending.get(name) ?? []).slice(lines.length);",
+        "to": "  const left = [];"
+      }
+    ]
   }
 ]

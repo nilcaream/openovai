@@ -99,6 +99,9 @@ export function claudeIsInstalled() {
 //                             usage limit, which is neither an answer nor a failure
 //   OPENOVAI_STAND_IN_NO_RESET      refuse without saying when the limit lifts (with REFUSED)
 //   OPENOVAI_STAND_IN_REFUSED_DEAF  refuse and then ignore stdin being closed, for good (with REFUSED)
+//   OPENOVAI_STAND_IN_REFUSED_WHILE a path: be turned away for as long as something is at it, so that
+//                             ONE chat can be refused and then answer — which is what a check about
+//                             something surviving a refusal needs and no env-only knob can give it
 //   OPENOVAI_STAND_IN_LIMIT         a status to report in a rate_limit_event before doing anything else
 //   OPENOVAI_STAND_IN_FULLNESS      how full the five-hour window says it is  (default: 0.29)
 //   OPENOVAI_STAND_IN_LIMIT_KIND    which window the service names as the one that refused
@@ -415,7 +418,8 @@ if ((process.env.OPENOVAI_STAND_IN_SIGNED_OUT ?? "") !== "") {
 // It waits to be told the run is over, exactly as the ordinary path below does — a refusal is not
 // what ends a run — and then exits 1, which is what the real one exits when its last result frame
 // carries is_error.
-if ((process.env.OPENOVAI_STAND_IN_REFUSED ?? "") !== "") {
+const refusedWhile = process.env.OPENOVAI_STAND_IN_REFUSED_WHILE ?? "";
+if ((process.env.OPENOVAI_STAND_IN_REFUSED ?? "") !== "" || (refusedWhile !== "" && fs.existsSync(refusedWhile))) {
   // The same reading as an ordinary run sends, in the same captured shape, saying rejected instead
   // of allowed. Everything beside status is unchanged, overageStatus included — which is the
   // point of it: the two states differ in the one field, and a reader of any other field cannot
