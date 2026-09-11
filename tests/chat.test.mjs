@@ -12815,6 +12815,10 @@ const HOLD_READ = "Whimbrel";
 const HOLD_REFUSED = "Shearwater";
 const HOLD_COLD = "Petrel";
 const LIFTED_UNDER = "Chough";
+const LIFTED_COLD_AND_REFUSED = "Kittiwake";
+const LIFTED_PARKED = "Razorbill";
+const REFUSED_TILL_COLD = "Fulmar";
+const HOLD_IN_THE_ROOM = "Guillemot";
 const HELD_PAST_THE_LIFT = "Turnstone";
 const UNSAID = "Sanderling";
 
@@ -12833,13 +12837,16 @@ function stageThread(root, name, held) {
   );
 }
 
-// A hold, written where the pass would have written it: entered a while ago, nobody parked yet.
-function stageHold(root, { resetsAt, parking }) {
+// A hold, written where the pass would have written it: entered a while ago, and unless said
+// otherwise nobody parked under it yet and nobody turned away. `warm` is what the reading answered
+// at entry: a hold with no moment has no answer, and one with a moment was, unless said otherwise,
+// entered on a window lifting later than the hour.
+function stageHold(root, { resetsAt, parking, warm = resetsAt === null ? null : false, parked = [], refused = {} }) {
   const file = path.join(root, "chat", "hold.json");
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(
     file,
-    `${JSON.stringify({ since: new Date(Date.now() - 10 * 60 * 1000).toISOString(), resetsAt, fullness: OVER_THE_STOP_LINE, parking, parked: [] }, null, 2)}\n`,
+    `${JSON.stringify({ since: new Date(Date.now() - 10 * 60 * 1000).toISOString(), resetsAt, fullness: OVER_THE_STOP_LINE, warm, parking, parked, refused }, null, 2)}\n`,
   );
 }
 
@@ -12855,6 +12862,22 @@ const parkAskedOn = (panel) =>
 // What the lead was told about a park, on its panel.
 const parkedLinesOn = (panel) =>
   panel.filter((line) => line.from === "the chat" && typeof line.text === "string" && line.text.includes("was handed over by the chat"));
+
+// What the lead was told about the hold itself, on its panel: that it was entered, that it is over,
+// and about the seat it never got to. Each is a phrase from the one line that says it, and the
+// entered line is known by its opening, because the park asked of the lead itself says the same
+// thing about the account in its second sentence.
+const ENTERED = "The account has reached";
+const OVER = "so the hold is over";
+const EASED = "no longer reads as stopping";
+const NEVER_PARKED = "was never handed over";
+const holdLinesOn = (panel, said) =>
+  panel.filter(
+    (line) =>
+      line.from === "the chat" &&
+      typeof line.text === "string" &&
+      (said === ENTERED ? line.text.startsWith(said) : line.text.includes(said)),
+  );
 
 // The runs the stand-in was asked for, in the order it was asked for them, each with the name it
 // ran as and the question it heard. Walked in order rather than filtered by kind, because the ORDER
@@ -13109,6 +13132,20 @@ describe("what a pass does about where the account stands", () => {
       assert.match(owedToTheLead[0], new RegExp(`^<watch read="\\d\\d:\\d\\d">[^]*${leader} was handed over by the chat`));
     });
 
+    // Mutation: enter the hold and say nothing. The account stopping is said ONCE, on the pass that
+    // enters the hold, both ways — and this is the branch that parks, so what it says is that each
+    // conversation is being handed over, and the lead's own handover turn heard it said.
+    it("says once, both ways, that the account is stopping and everybody is being handed over", () => {
+      const said = holdLinesOn(panels[leader], ENTERED);
+      assert.equal(said.length, 1, JSON.stringify(said));
+      assert.equal(said[0].watch, true, JSON.stringify(said[0]));
+      assert.match(said[0].text, /^The account has reached 96% of the usage window/);
+      assert.match(said[0].text, /lifts at \d\d:\d\d, later than a conversation can be carried across, so each conversation is being handed over to its desk, fullest first/);
+      const leadsOwn = runs.find((run) => run.name === leader);
+      assert.ok(leadsOwn !== undefined, "the lead was never parked");
+      assert.match(leadsOwn.heard, /<watch read="\d\d:\d\d">[^]*The account has reached 96% of the usage window/);
+    });
+
     // Mutations: a park not counted as decided; an abandoned park counted as done. Seven seats were
     // worth parking when the room was read, and one of them was no longer worth it when its turn
     // ran.
@@ -13194,6 +13231,23 @@ describe("what a pass does about where the account stands", () => {
         assert.equal(hold.parking, false, JSON.stringify(hold));
         assert.equal(hold.resetsAt === null, liftsInMinutes === null, JSON.stringify(hold));
         assert.equal(hold.fullness, OVER_THE_STOP_LINE, JSON.stringify(hold));
+        // And what it was decided on: the hold keeps the answer, because the room says it back.
+        assert.equal(hold.warm, liftsInMinutes === null ? null : true, JSON.stringify(hold));
+      });
+
+      // Mutation: word the carried branches like the parking one. Two passes and more ran here,
+      // and the account stopping was said once — and said as what THIS hold does, which is nothing.
+      it("says once that the account is stopping and nobody is being handed over", () => {
+        const said = holdLinesOn(panels[leader], ENTERED);
+        assert.equal(said.length, 1, JSON.stringify(said));
+        assert.equal(said[0].watch, true, JSON.stringify(said[0]));
+        if (liftsInMinutes === null) {
+          assert.match(said[0].text, /did not say when that window lifts, so nobody is being handed over/);
+          assert.match(said[0].text, /The next completed turn settles it/);
+        } else {
+          assert.match(said[0].text, /lifts at \d\d:\d\d, inside the hour a conversation can be carried across, so nothing is being ended and nobody is handed over/);
+        }
+        assert.doesNotMatch(said[0].text, /no new work/);
       });
 
       after(() => {
@@ -13260,6 +13314,16 @@ describe("what a pass does about where the account stands", () => {
       // The hold is still recorded — recording it spends nothing — and says that nobody is parked.
       assert.ok(hold !== null, "no hold was recorded");
       assert.equal(hold.parking, false, JSON.stringify(hold));
+      assert.equal(hold.warm, false, JSON.stringify(hold));
+    });
+
+    // Mutation: say "handed over" wherever the window lifts later than the hour. This workspace
+    // declined the turn a park is, and the line says so rather than describing a park that is not
+    // happening.
+    it("says that nobody is handed over because this workspace buys no turn", () => {
+      const said = holdLinesOn(panels[leader], ENTERED);
+      assert.equal(said.length, 1, JSON.stringify(said));
+      assert.match(said[0].text, /later than a conversation can be carried across, and this workspace buys no turn, so nobody is handed over/);
     });
 
     after(() => {
@@ -13421,6 +13485,7 @@ describe("what a pass does about where the account stands", () => {
 
       installed(options(lifted, 0));
       runTool(lifted, ["hire", LIFTED_UNDER], process.env);
+      runTool(lifted, ["hire", LIFTED_COLD_AND_REFUSED], process.env);
       const config = path.join(lifted, "openovai.json");
       fs.writeFileSync(
         config,
@@ -13430,16 +13495,28 @@ describe("what a pass does about where the account stands", () => {
       leader = held.leader;
 
       stageThread(lifted, LIFTED_UNDER, { context: 0.5 * WINDOW_HELD, window: WINDOW_HELD });
-      // A hold that parks, entered a while ago, whose window lifted a minute ago.
-      stageHold(lifted, { resetsAt: Math.floor(Date.now() / 1000) - 60, parking: true });
+      stageThread(lifted, LIFTED_COLD_AND_REFUSED, { context: 0.5 * WINDOW_HELD, window: WINDOW_HELD });
+      age(path.join(lifted, "chat", LIFTED_COLD_AND_REFUSED, "session.json"), 90);
+      // A hold that parks, entered a while ago, whose window lifted a minute ago. One seat was parked
+      // under it; the account turned the other two away — one of them, since, has gone cold.
+      stageHold(lifted, {
+        resetsAt: Math.floor(Date.now() / 1000) - 60,
+        parking: true,
+        parked: [LIFTED_PARKED],
+        refused: { [LIFTED_UNDER]: 1, [LIFTED_COLD_AND_REFUSED]: 3 },
+      });
 
       const server = await serve({ root: lifted, config: held, plugins: [], pop: null });
       await new Promise((resolve) => setTimeout(resolve, 2500));
 
       holdAfter = holdIn(lifted);
       runs = runsIn(liftedLog);
-      panels = { [LIFTED_UNDER]: panelIn(lifted, LIFTED_UNDER), [leader]: panelIn(lifted, leader) };
-      threadsLeft = [LIFTED_UNDER].filter((name) => fs.existsSync(path.join(lifted, "chat", name, "session.json")));
+      panels = {
+        [LIFTED_UNDER]: panelIn(lifted, LIFTED_UNDER),
+        [LIFTED_COLD_AND_REFUSED]: panelIn(lifted, LIFTED_COLD_AND_REFUSED),
+        [leader]: panelIn(lifted, leader),
+      };
+      threadsLeft = [LIFTED_UNDER, LIFTED_COLD_AND_REFUSED].filter((name) => fs.existsSync(path.join(lifted, "chat", name, "session.json")));
       await new Promise((resolve) => server.close(resolve));
     });
 
@@ -13450,6 +13527,32 @@ describe("what a pass does about where the account stands", () => {
       assert.deepEqual(threadsLeft, [LIFTED_UNDER]);
       assert.deepEqual(parkAskedOn(panels[LIFTED_UNDER]), []);
       assert.deepEqual(runs, []);
+    });
+
+    // Mutation: end the hold and say nothing. Nothing wakes a turned-away session by itself, so
+    // the window reopening is a non-event unless it is said — once, on the pass that removes the
+    // record, naming who is on a desk and who was never handed over and still carries what it had.
+    it("says once that the window reopened, and who stands where", () => {
+      const said = holdLinesOn(panels[leader], OVER);
+      assert.equal(said.length, 1, JSON.stringify(panels[leader]));
+      assert.equal(said[0].watch, true, JSON.stringify(said[0]));
+      assert.match(said[0].text, /lifted at \d\d:\d\d, so the hold is over/);
+      assert.match(said[0].text, new RegExp(`${LIFTED_PARKED} was handed over under it: each is on its desk`));
+      assert.match(said[0].text, new RegExp(`${LIFTED_UNDER} was never handed over — the account turned the park away every time it was asked — and still carries the conversation it had`));
+      assert.doesNotMatch(said[0].text, new RegExp(`${LIFTED_COLD_AND_REFUSED} was never handed over —`));
+    });
+
+    // Mutation: let the count go with the record. The seat that was turned away and then went cold
+    // is the one loss here, and it is said before the record it was counted on is removed — once,
+    // with the count — and then ended as any cold conversation is.
+    it("says once what was lost on the seat it kept being turned away on, before the record goes", () => {
+      const said = holdLinesOn(panels[leader], NEVER_PARKED).filter((line) => line.text.startsWith(LIFTED_COLD_AND_REFUSED));
+      assert.equal(said.length, 1, JSON.stringify(panels[leader]));
+      assert.match(said[0].text, /turned its handover away 3 times, and its conversation has gone cold/);
+      assert.match(said[0].text, new RegExp(`with work/${LIFTED_COLD_AND_REFUSED}/STATE.md unwritten`));
+      assert.equal(panels[LIFTED_COLD_AND_REFUSED].filter((line) => line.cold === true).length, 1, JSON.stringify(panels[LIFTED_COLD_AND_REFUSED]));
+      const all = panels[leader].filter((line) => line.watch === true).map((line) => line.text);
+      assert.ok(all.findIndex((text) => text.startsWith(LIFTED_COLD_AND_REFUSED)) < all.findIndex((text) => text.includes(OVER)), JSON.stringify(all));
     });
 
     after(() => {
@@ -13535,6 +13638,7 @@ describe("what a pass does about where the account stands", () => {
     let holdEnteredAgain;
     let holdAfterAMomentWasNamed;
     let threadsLeft;
+    let panel;
 
     const thread = (name) => path.join(unsaid, "chat", name, "session.json");
 
@@ -13561,6 +13665,10 @@ describe("what a pass does about where the account stands", () => {
 
       const server = await serve({ root: unsaid, config: held, plugins: [], pop: null });
       holdEntered = await until(() => holdIn(unsaid));
+      // And a pass or two over the STANDING hold before anything changes, here and again below —
+      // measured: staged without this, no pass ever re-read a standing hold with no moment, and a
+      // pass that entered it again on every read went unnoticed by the check at the end.
+      await new Promise((resolve) => setTimeout(resolve, 1500));
 
       // A later reading, under the line: the account stopped saying it was stopping.
       stageThread(unsaid, UNSAID, reading(0.4, null));
@@ -13573,6 +13681,7 @@ describe("what a pass does about where the account stands", () => {
       // on a standing hold was never noticed.
       stageThread(unsaid, UNSAID, reading(OVER_THE_STOP_LINE, null));
       holdEnteredAgain = await until(() => holdIn(unsaid));
+      await new Promise((resolve) => setTimeout(resolve, 1500));
 
       // And later again, over the line with a moment this time, later than the hour.
       stageThread(unsaid, UNSAID, reading(OVER_THE_STOP_LINE, LIFTS_LATER_THAN_THE_HOUR));
@@ -13582,7 +13691,27 @@ describe("what a pass does about where the account stands", () => {
       });
       await until(() => !fs.existsSync(thread(UNSAID)));
       threadsLeft = [UNSAID, leader].filter((name) => fs.existsSync(thread(name)));
+      panel = panelIn(unsaid, leader);
       await new Promise((resolve) => server.close(resolve));
+    });
+
+    // Mutation: say nothing when a hold with no moment ends, or say the entered line on every pass
+    // that re-reads it. Four things happened to the hold here and each was said once, in order: it
+    // was entered on a reading with no moment, it ended when the readings eased, it was entered
+    // again on a reading with no moment, and it was re-decided by the reading that named one —
+    // which is news, because that is the hold that parks. Passes ran between each of those and
+    // re-read the standing hold, and none of them said it again.
+    it("says each turn the hold took, once, in order", () => {
+      const said = panel.filter((line) => line.watch === true && typeof line.text === "string").map((line) => line.text);
+      const entered = said.map((text, at) => [text, at]).filter(([text]) => text.startsWith(ENTERED));
+      const eased = said.map((text, at) => [text, at]).filter(([text]) => text.includes(EASED));
+      assert.equal(entered.length, 3, JSON.stringify(said));
+      assert.equal(eased.length, 1, JSON.stringify(said));
+      assert.match(entered[0][0], /did not say when that window lifts, so nobody is being handed over/);
+      assert.match(entered[1][0], /did not say when that window lifts, so nobody is being handed over/);
+      assert.match(entered[2][0], /so each conversation is being handed over to its desk/);
+      assert.ok(entered[0][1] < eased[0][1] && eased[0][1] < entered[1][1] && entered[1][1] < entered[2][1], JSON.stringify(said));
+      assert.match(eased[0][0], /Nobody had been handed over under it/);
     });
 
     // Mutation: a hold with no moment is never released. It has nothing to wait for, so it stands
@@ -13607,6 +13736,225 @@ describe("what a pass does about where the account stands", () => {
 
     after(() => {
       remove(unsaid);
+    });
+  });
+
+  // A park the account keeps turning away, on a seat that goes cold before one goes through. The
+  // retry is what 6b ships; what this reads is the count it leaves on the hold, and what is said
+  // when the seat reaches cold with its park still refused — once.
+  describe("a park turned away until the seat goes cold", () => {
+    const refusing = `${instance}-refusing-till-cold`;
+    const refusingLog = path.join(refusing, "parks.txt");
+    const turnedAway = path.join(refusing, "turned-away");
+    let leader;
+    let countedBefore;
+    let refusalsBefore;
+    let holdAfter;
+    let panels;
+    let threadsLeft;
+
+    const thread = (name) => path.join(refusing, "chat", name, "session.json");
+
+    before(async () => {
+      process.env.OPENOVAI_STAND_IN_LOG = refusingLog;
+      // Turned away for the whole of this describe: nothing ever takes the file away.
+      process.env.OPENOVAI_STAND_IN_REFUSED_WHILE = turnedAway;
+
+      installed(options(refusing, 0));
+      fs.writeFileSync(turnedAway, "");
+      runTool(refusing, ["hire", REFUSED_TILL_COLD], process.env);
+      const config = path.join(refusing, "openovai.json");
+      fs.writeFileSync(
+        config,
+        `${JSON.stringify({ ...JSON.parse(fs.readFileSync(config, "utf8")), watchEverySeconds: 1 }, null, 2)}\n`,
+      );
+      const held = JSON.parse(fs.readFileSync(config, "utf8"));
+      leader = held.leader;
+
+      // The one reading is on the seat whose park is refused, and a refusal leaves the thread as it
+      // was, so the reading stays. The lead has no thread and is never parked.
+      stageThread(refusing, REFUSED_TILL_COLD, {
+        context: 0.5 * WINDOW_HELD,
+        window: WINDOW_HELD,
+        quota: [window("five_hour", OVER_THE_STOP_LINE, LIFTS_LATER_THAN_THE_HOUR), window("seven_day", 0.36, 5 * 24 * 60)],
+      });
+
+      const server = await serve({ root: refusing, config: held, plugins: [], pop: null });
+
+      // NOTHING IS ASSERTED IN THIS HOOK: it holds a live server. Two refusals counted, then the
+      // seat is aged past the hour — again and again until the pass says so, because a refused run
+      // that was already in flight when the file was aged writes the thread back warm. Both waits
+      // are bounded well under the suite's bound, so that a pass which never does either reads as
+      // a red check and not as a hook that timed out.
+      countedBefore = await until(() => {
+        const now = holdIn(refusing);
+        return now !== null && (now.refused[REFUSED_TILL_COLD] ?? 0) >= 2 ? now : null;
+      }, 8000);
+      refusalsBefore = panelIn(refusing, REFUSED_TILL_COLD).filter((line) => line.refused === true).length;
+      await until(() => {
+        if (fs.existsSync(thread(REFUSED_TILL_COLD))) {
+          age(thread(REFUSED_TILL_COLD), 90);
+        }
+        return holdLinesOn(panelIn(refusing, leader), NEVER_PARKED).length > 0;
+      }, 8000);
+      // And passes after that, to read that it is said once.
+      await new Promise((resolve) => setTimeout(resolve, 2500));
+
+      holdAfter = holdIn(refusing);
+      panels = { [REFUSED_TILL_COLD]: panelIn(refusing, REFUSED_TILL_COLD), [leader]: panelIn(refusing, leader) };
+      threadsLeft = [REFUSED_TILL_COLD].filter((name) => fs.existsSync(thread(name)));
+      await new Promise((resolve) => server.close(resolve));
+    });
+
+    // Mutation: never count a refusal on the hold. The count is what the failure below is said
+    // with, and it is the hold's because the hold is what a refusal is retried against.
+    it("counts on the hold each time the account turns a park away", () => {
+      assert.ok(countedBefore !== null, "the hold never counted two refusals");
+      // The refusal line lands on the seat's panel before the count is taken, so the count never
+      // runs ahead of the lines — and it is not behind them either, beyond the one that may have
+      // landed between the two readings.
+      const counted = countedBefore.refused[REFUSED_TILL_COLD];
+      assert.ok(counted >= 2 && counted <= refusalsBefore && counted >= refusalsBefore - 1, JSON.stringify({ counted, refusalsBefore }));
+      assert.deepEqual(countedBefore.parked, []);
+    });
+
+    // Mutation: say it on every pass the seat stays cold in, or say nothing. It is said once, with
+    // the count, and the count goes with the saying; the seat is ended as a cold conversation in
+    // the same pass, and the hold itself stands — its window has not lifted.
+    it("says once what was lost when the seat goes cold with its park still refused", () => {
+      const said = holdLinesOn(panels[leader], NEVER_PARKED);
+      assert.equal(said.length, 1, JSON.stringify(panels[leader]));
+      assert.equal(said[0].watch, true, JSON.stringify(said[0]));
+      const refusals = panels[REFUSED_TILL_COLD].filter((line) => line.refused === true).length;
+      assert.ok(refusals >= 2, JSON.stringify(panels[REFUSED_TILL_COLD]));
+      assert.match(said[0].text, new RegExp(`^${REFUSED_TILL_COLD} was never handed over: the account turned its handover away ${refusals === 2 ? "twice" : `${refusals} times`}, and its conversation has gone cold with work/${REFUSED_TILL_COLD}/STATE.md unwritten`));
+      assert.equal(panels[REFUSED_TILL_COLD].filter((line) => line.cold === true).length, 1, JSON.stringify(panels[REFUSED_TILL_COLD]));
+      assert.deepEqual(threadsLeft, []);
+      assert.ok(holdAfter !== null, "the hold ended with its window still ahead");
+      assert.equal(holdAfter.refused[REFUSED_TILL_COLD], undefined, JSON.stringify(holdAfter));
+    });
+
+    after(() => {
+      delete process.env.OPENOVAI_STAND_IN_REFUSED_WHILE;
+      remove(refusing);
+    });
+  });
+
+  // What the room says while the account is at its stop line — in the three places a room is laid
+  // out in words: `ovai room`, the lead's `room` tool, and the page's own script — and what the chat
+  // serves beside the rows for them to say it from.
+  //
+  // Worded ONLY from what the hold does. Nothing gates a message a person types, so a line saying
+  // no new work was being started would be believed and false; the fourth check holds that.
+  describe("the room says the account is stopping", () => {
+    const stopping = `${instance}-hold-in-the-room`;
+    let leader;
+    let url;
+    let servedNothing;
+    let servedParking;
+    let whileParking;
+    let toldTheLead;
+    let whileNothing;
+    let whileCarried;
+    let whileUnsaid;
+    let whileNoTurn;
+    let page;
+
+    const lineFor = (room, name) => (room ?? "").split("\n").find((line) => line.startsWith(`${name} `));
+    const roomSays = async () => (await runToolLater(stopping, ["room"], process.env)).stdout;
+    const inAnHour = Math.floor(Date.now() / 1000) + 3 * 60 * 60;
+
+    before(async () => {
+      installed(options(stopping, 0));
+      runTool(stopping, ["hire", HOLD_IN_THE_ROOM], process.env);
+      const held = JSON.parse(fs.readFileSync(path.join(stopping, "openovai.json"), "utf8"));
+      leader = held.leader;
+
+      // Read at the default cadence, so no pass comes round while this reads the room.
+      const server = await serve({ root: stopping, config: held, plugins: [], pop: null });
+      url = JSON.parse(fs.readFileSync(path.join(stopping, "chat", "listening.json"), "utf8")).url;
+
+      servedNothing = JSON.parse((await get(`${url}/sessions`)).body);
+      whileNothing = await roomSays();
+
+      stageHold(stopping, { resetsAt: inAnHour, parking: true });
+      servedParking = JSON.parse((await get(`${url}/sessions`)).body);
+      whileParking = await roomSays();
+      toldTheLead = answerOf(
+        await post(`${url}/mcp/${leader}`, { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "room", arguments: {} } }),
+      ).text;
+
+      stageHold(stopping, { resetsAt: inAnHour, parking: false, warm: true });
+      whileCarried = await roomSays();
+      stageHold(stopping, { resetsAt: null, parking: false });
+      whileUnsaid = await roomSays();
+      stageHold(stopping, { resetsAt: inAnHour, parking: false, warm: false });
+      whileNoTurn = await roomSays();
+
+      page = fs.readFileSync(path.join(stopping, "tools", "chat", "page.html"), "utf8");
+      await new Promise((resolve) => server.close(resolve));
+    });
+
+    // Mutation: serve the rows and not the hold. The facts and not a sentence — the moment is worded
+    // in the reader's own hours — and nothing at all when there is no hold, so that a room with no
+    // hold and a chat too old to know the field read the same.
+    it("serves the hold beside the rows, as the facts it was decided on", () => {
+      assert.equal(servedNothing.hold, null, JSON.stringify(servedNothing));
+      assert.deepEqual(servedParking.hold, { resetsAt: inAnHour, warm: false, parking: true });
+    });
+
+    // Mutation: say it on the page only. The terminal is where a person is most likely standing.
+    it("says the account is stopping, and what is being done, in the room a person reads at a terminal", () => {
+      assert.match(whileParking, /The account is nearly spent — its window lifts at \d\d:\d\d, later than a conversation can be carried across, so each conversation is being handed over to its desk\./);
+    });
+
+    // Mutation: print the line unconditionally. And the row is left alone: it is the account that is
+    // stopping, not a state that session is in.
+    it("says nothing about it while there is no hold, and leaves every row alone", () => {
+      assert.ok(lineFor(whileNothing, HOLD_IN_THE_ROOM) !== undefined, "the session was not in the room at all");
+      assert.doesNotMatch(whileNothing, /nearly spent/);
+      assert.equal(lineFor(whileParking, HOLD_IN_THE_ROOM), lineFor(whileNothing, HOLD_IN_THE_ROOM));
+    });
+
+    // Mutation: word every hold as the parking one. Each of the other three says what THAT hold
+    // does, and none of the four claims a gate that does not exist.
+    it("says only what the hold does, one sentence for each thing it can be doing", () => {
+      assert.match(whileCarried, /The account is nearly spent — its window lifts at \d\d:\d\d, inside the hour a conversation can be carried across, so nothing is being ended or handed over\./);
+      assert.match(whileUnsaid, /The account is nearly spent and did not say when it lifts — nobody is being handed over; the next completed turn settles it\./);
+      assert.match(whileNoTurn, /The account is nearly spent — its window lifts at \d\d:\d\d, later than a conversation can be carried across, and this workspace buys no turn, so nobody is handed over\./);
+      for (const room of [whileParking, whileCarried, whileUnsaid, whileNoTurn]) {
+        assert.doesNotMatch(room, /no new work/);
+        assert.doesNotMatch(room, /%/);
+      }
+    });
+
+    // Mutation: leave the lead's tool reading the rows alone. The lead is the reader this matters
+    // most to, and it is told in the same words the command prints.
+    it("says it to the lead too, in the words the command prints", () => {
+      assert.match(toldTheLead ?? "", /The account is nearly spent — its window lifts at \d\d:\d\d, later than a conversation can be carried across, so each conversation is being handed over to its desk\./);
+    });
+
+    // No suite runs page.html — it is read as text — so the page's copy is proven by reading it,
+    // bounded to the block that draws the room, as the room-off check is.
+    it("builds the sentence from the served facts, in the page's own copy of the room", () => {
+      const from = page.indexOf("const OFF =");
+      const to = page.indexOf("function panel(session)");
+      assert.ok(from !== -1 && to !== -1 && from < to, "the page's room block is not where this check looks for it");
+      const theRoom = page.slice(from, to);
+
+      assert.match(theRoom, /showTheRoom\(\{ offline, hold, sessions \}\)/);
+      // Declared AND put on the page, for the reason the room-off check gives.
+      assert.ok((theRoom.match(/\bholdSaid\b/g) ?? []).length > 1, "the sentence is built and never put on the page");
+      assert.match(theRoom, /so each conversation is being handed over to its desk\./);
+      assert.match(theRoom, /so nothing is being ended or handed over\./);
+      assert.match(theRoom, /nobody is being handed over; the next completed turn settles it\./);
+      assert.match(theRoom, /this workspace buys no turn, so nobody is handed over\./);
+      assert.match(theRoom, /atTime\(hold\.resetsAt\)/);
+      assert.doesNotMatch(theRoom, /no new work/);
+    });
+
+    after(() => {
+      remove(stopping);
     });
   });
 });

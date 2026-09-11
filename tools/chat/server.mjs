@@ -21,7 +21,7 @@ import { ago, roomLines, shareSaid } from "./room.mjs";
 import { armTheWatch, buysATurn, forgetTheRoom, howOften, nowSeen, tickRead, whatChanged } from "./watch.mjs";
 import { DESK_FILE, DeskError, WORK, allowAsked, archiveFor, deskTitle, describeName, hasSettledAnything, hire, isName, retire } from "../desks.mjs";
 import { accountStanding, ask, bandIn, endRun, forget, fullnessIn, hasGoneCold, hasGoneQuiet, hasThread, quotaIn, ranAt, refusedIn, sessions, standingsUnderway } from "./session.mjs";
-import { endHold, enterHold, holdIn, holdLifted, holdStands, markParked } from "./hold.mjs";
+import { endHold, enterHold, forgetRefused, holdIn, holdLifted, holdSaid, holdStands, markParked, markRefused } from "./hold.mjs";
 import { inTurn, turnsGoing, waitingFor, whileWaitingFor, wouldWaitForItself } from "./turns.mjs";
 import { unfinished } from "./unfinished.mjs";
 import { takeWord } from "./untold.mjs";
@@ -1328,7 +1328,7 @@ function theRoom(instance) {
   // is doing is the reader most likely to be told nothing back — it is the session whose next
   // message will be turned away — so a tool that left this out would be the one place the silence
   // had no explanation.
-  return { text: roomLines(rows, offline()).join("\n") };
+  return { text: roomLines(rows, offline(), holdSaid(holdIn(instance.root))).join("\n") };
 }
 
 // Who works here, which is the half of `ovai status` a session can act on: the names it can say
@@ -2130,6 +2130,10 @@ async function handle(instance, request, response) {
       // fullness of a window is said per row, where it genuinely is one reading per session, and
       // this is not.
       offline: offline(),
+      // And whether the account is stopping, for the same reason and in the same place: the facts
+      // the hold was decided on, worded by whoever lays the room out, so that the page and the
+      // terminal say it in their own copy of one sentence the way they already do for `offline`.
+      hold: holdSaid(holdIn(instance.root)),
       sessions: sessions(instance).map((session) => everySession(instance, session)),
     });
     return;
@@ -2325,6 +2329,82 @@ function parkedLine(name, full) {
   return `${name} was handed over by the chat rather than by anybody pressing for it: the account had reached ${full} of the window it is in, and that window does not lift within the hour a conversation can be carried across. ${name} wrote ${desk(name)} first, so what it was doing is on that desk rather than gone, and the next message to it starts a new conversation that reads it.`;
 }
 
+// Names, said in a sentence.
+function named(names) {
+  if (names.length <= 1) {
+    return names.join("");
+  }
+  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
+function times(count) {
+  return count === 1 ? "once" : count === 2 ? "twice" : `${count} times`;
+}
+
+// What the lead is told when the account is found at its stop line — ONCE, on the pass that enters
+// the hold, which is what makes the hold a record and not only a latch.
+//
+// FROM THE SAME ANSWERS THE ROOM IS WORDED FROM. The room says what the hold does above its rows,
+// and this says it on the lead's panel; both read `warm`, `parking` and the moment off the one
+// record, so that the page and the panel cannot disagree about what is being done. And it says
+// ONLY what the hold does: nothing here stops a message a person types or a seat somebody hires —
+// a typed message still starts a run, and it is the service that turns it away — so a line saying
+// no new work was being started would be believed and would be false.
+function holdEnteredLine(hold) {
+  const opening = `The account has reached ${Math.round(hold.fullness * 100)}% of the usage window it is running in`;
+  if (hold.resetsAt === null) {
+    return `${opening} and did not say when that window lifts, so nobody is being handed over: a park is not something to do on an unknown. The next completed turn settles it — this is re-read from every reading until one names the moment or no longer says the account is stopping.`;
+  }
+  const lifts = `That window lifts at ${atTime(hold.resetsAt)}`;
+  if (hold.warm) {
+    return `${opening}. ${lifts}, inside the hour a conversation can be carried across, so nothing is being ended and nobody is handed over: everybody is still here when it does.`;
+  }
+  if (hold.parking) {
+    return `${opening}. ${lifts}, later than a conversation can be carried across, so each conversation is being handed over to its desk, fullest first, while there is still an account to write it with. Each park is said here as it lands.`;
+  }
+  return `${opening}. ${lifts}, later than a conversation can be carried across, and this workspace buys no turn, so nobody is handed over: whatever a conversation has not written to its desk by then goes with it.`;
+}
+
+// What the lead is told when the window has reopened — ONCE, on the pass that finds the hold
+// lifted and removes it. With the auto-continue off nothing wakes a rejected session by itself, so
+// without this line the room would come back to nobody: a person would have to notice a non-event.
+//
+// It names who was handed over, because those are the seats whose next message starts a new
+// conversation from a desk rather than carrying one on, and who was still being turned away,
+// because those were never handed over at all and are carrying whatever they had.
+function holdLiftedLine(hold) {
+  const said = [`The usage window the account was held on lifted at ${atTime(hold.resetsAt)}, so the hold is over and the room is being read as usual again.`];
+  if (hold.parked.length === 0) {
+    said.push("Nobody was handed over under it, so every conversation that was here is still here.");
+  } else {
+    said.push(
+      `${named(hold.parked)} ${hold.parked.length === 1 ? "was" : "were"} handed over under it: each is on its desk, and the next message to each starts a new conversation that reads that desk first.`,
+    );
+  }
+  const refused = Object.keys(hold.refused);
+  if (refused.length > 0) {
+    said.push(
+      `${named(refused)} ${refused.length === 1 ? "was" : "were"} never handed over — the account turned the park away every time it was asked — and still ${refused.length === 1 ? "carries" : "carry"} the conversation ${refused.length === 1 ? "it" : "each"} had.`,
+    );
+  }
+  return said.join(" ");
+}
+
+// The other exit, for the hold that had no moment: a later reading no longer says the account is
+// stopping. Said once too, on the pass that removes the record.
+function holdEndedLine() {
+  return "The account no longer reads as stopping: the reading that put it at the stop line has been overtaken by one that does not, so the hold entered on it is over. Nobody had been handed over under it.";
+}
+
+// What the lead is told when a seat whose park the account kept turning away has gone cold. Said
+// ONCE, and it says what was lost: this is the seat that was never handed over, so its desk holds
+// whatever it held before the hold and nothing of what the conversation worked out since. The cold
+// ending in the same pass says on its own panel where the memory stops; this is the lead's copy of
+// why it stopped there.
+function neverParkedLine(name, count) {
+  return `${name} was never handed over: the account turned its handover away ${times(count)}, and its conversation has gone cold with ${desk(name)} unwritten, so whatever it had worked out since that desk was last written is gone. It is ended as a cold conversation, and the next message to it starts a new one from that desk.`;
+}
+
 // Whether there is a conversation here worth parking. Asked the same way in both places it is
 // asked, which is what makes the second reading worth taking at all.
 //
@@ -2496,9 +2576,26 @@ async function walkTheRoom(instance) {
   // parked, which is the first thing in a pass that spends anything; a workspace that wrote `0`
   // declined exactly this. The hold is still recorded there, because recording it spends nothing
   // and the room should be able to say the account is stopping.
+  //
+  // AND WHAT THE HOLD DOES IS SAID TWICE, ONCE EACH WAY. The pass that enters it says so, and the
+  // pass that finds it over says so — because with nothing waking a turned-away session by itself,
+  // the window reopening is a non-event, and a person would otherwise have to notice one. Both are
+  // said inside the pass that writes or removes the record, so the record is the latch: a hold that
+  // is on disk has been announced, and one that is gone has been announced as gone.
   let hold = holdIn(instance.root);
   if (hold !== null && holdLifted(hold)) {
+    // The seats the account kept turning away are looked at before the record goes, because the
+    // count of how often each was turned away goes with it: one that has gone cold under the hold
+    // is the failure this exists to make visible, and it is said now or never.
+    for (const name of Object.keys(hold.refused)) {
+      if (hasGoneCold(instance.root, name)) {
+        announce(instance, neverParkedLine(name, hold.refused[name]), at);
+        forgetRefused(instance.root, name);
+      }
+    }
+    hold = holdIn(instance.root);
     endHold(instance.root);
+    announce(instance, holdLiftedLine(hold), at);
     hold = null;
   }
   if (hold === null || hold.resetsAt === null) {
@@ -2506,14 +2603,17 @@ async function walkTheRoom(instance) {
     if (standing === null || !standing.stop) {
       if (hold !== null) {
         endHold(instance.root);
+        announce(instance, holdEndedLine(), at);
         hold = null;
       }
     } else if (hold === null || standing.resetsAt !== null) {
       hold = enterHold(instance.root, {
         resetsAt: standing.resetsAt,
         fullness: standing.fullness,
+        warm: standing.warm,
         parking: standing.warm === false && buysATurn(instance.config),
       });
+      announce(instance, holdEnteredLine(hold), at);
     }
   }
 
@@ -2523,7 +2623,21 @@ async function walkTheRoom(instance) {
       // ONCE PER SEAT PER HOLD, and the hold keeps the list. A seat that was parked and then spoken
       // to again inside the same window has a thread again and is still not parked again; a seat
       // whose park was turned away is not in the list, and is tried again while it is warm.
-      if (hold.parked.includes(session.name) || !worthParking(instance, session.name)) {
+      if (hold.parked.includes(session.name)) {
+        continue;
+      }
+
+      // A SEAT THE ACCOUNT KEPT TURNING AWAY, NOW COLD, IS THE ONE FAILURE HERE, and it is said
+      // once. Past the hour there is nothing left to park — the cold ending below removes the
+      // conversation in this same pass — so the retry stops here, and what is said is what was lost:
+      // this seat was never handed over, and its desk was never written. The count is removed with
+      // the saying, which is what makes it once and not every pass the seat stays cold in.
+      if (hold.refused[session.name] !== undefined && hasGoneCold(instance.root, session.name)) {
+        announce(instance, neverParkedLine(session.name, hold.refused[session.name]), at);
+        forgetRefused(instance.root, session.name);
+        continue;
+      }
+      if (!worthParking(instance, session.name)) {
         continue;
       }
       decided += 1;
@@ -2546,8 +2660,14 @@ async function walkTheRoom(instance) {
       // Nothing happened, and each of the three ways that can be true is a reason to leave the seat
       // exactly as it is: the room was off, the turn found the seat no longer worth parking, or the
       // account turned the run away. The last one is the one that comes back — the thread is still
-      // there and the seat is not in the hold's list, so the next pass tries again.
-      if (done === OFFLINE || done.abandoned === true || done.refused === true) {
+      // there and the seat is not in the hold's list, so the next pass tries again — and it is the
+      // one that is counted, against the seat, on the hold: the count is what the failure above is
+      // said with if the seat goes cold first.
+      if (done === OFFLINE || done.abandoned === true) {
+        continue;
+      }
+      if (done.refused === true) {
+        markRefused(instance.root, session.name);
         continue;
       }
       markParked(instance.root, session.name);

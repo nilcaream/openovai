@@ -25,11 +25,52 @@ const OFF = "The room is offline — nothing new will be started until it is bro
 // row the caller could push on, so that both callers get the wording from here — the command and
 // the tool are the same lines from this file, and a room off in one of them and on in the other
 // would be two answers to a question that has one.
-export function roomLines(sessions, offline = false) {
+//
+// And the account's line after it, for the same reason and with the same argument shape: whether
+// the account is stopping is a fact about the workspace, and the two callers get its wording from
+// here. It is the facts the hold was decided on and not a sentence — the moment, whether that
+// moment is inside the hour a conversation can be carried across, and whether anybody is being
+// handed over — because the moment is worded in the hours of whoever is reading, and that is a
+// clock only the reader's side has.
+export function roomLines(sessions, offline = false, hold = null) {
   const width = Math.max(...sessions.map((session) => session.name.length));
   const lines = sessions.map((session) => `${session.name.padEnd(width)}  ${describeSession(session)}`);
 
-  return offline ? [OFF, ...lines] : lines;
+  const above = [];
+  if (offline) {
+    above.push(OFF);
+  }
+  if (hold !== null && typeof hold === "object") {
+    above.push(holdSaid(hold));
+  }
+  return [...above, ...lines];
+}
+
+// What a room says while the account is at its stop line — worded ONLY from what the hold does.
+//
+// Nothing here gates a message a person types or a seat somebody hires: a typed message still
+// starts a run, and it is the service that turns it away, not the chat. So a line saying no new
+// work was being started would be believed, and would be false. What the hold does was decided at
+// entry and is kept on it: it hands everybody over, or carries everybody because the window lifts
+// in time, or carries everybody because nobody said when it lifts, or hands nobody over because
+// this workspace buys no turn. Four sentences, one each, and a person takes each in at a glance.
+//
+// `warm` IS READ OFF THE HOLD AND NEVER OFF THE CLOCK. Whether the window lifts inside the hour was
+// answered once, when the hold was entered, and that answer is what was acted on: a hold that has
+// been handing the room over for two hours is by now "inside the hour", and a line that derived it
+// again would say so about a room that was parked on the opposite answer.
+function holdSaid(hold) {
+  if (typeof hold.resetsAt !== "number") {
+    return "The account is nearly spent and did not say when it lifts — nobody is being handed over; the next completed turn settles it.";
+  }
+  const lifts = `its window lifts at ${atTime(hold.resetsAt)}`;
+  if (hold.warm === true) {
+    return `The account is nearly spent — ${lifts}, inside the hour a conversation can be carried across, so nothing is being ended or handed over.`;
+  }
+  if (hold.parking === true) {
+    return `The account is nearly spent — ${lifts}, later than a conversation can be carried across, so each conversation is being handed over to its desk.`;
+  }
+  return `The account is nearly spent — ${lifts}, later than a conversation can be carried across, and this workspace buys no turn, so nobody is handed over.`;
 }
 
 // What one line of the room says. The order the phrases are tried in is the whole of what makes it

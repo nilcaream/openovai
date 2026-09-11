@@ -1652,8 +1652,8 @@
     "edits": [
       {
         "file": "tools/chat/server.mjs",
-        "from": "      if (done === OFFLINE || done.abandoned === true || done.refused === true) {\n        continue;\n      }\n      markParked(instance.root, session.name);\n      acted += 1;\n",
-        "to": "      acted += 1;\n      if (done === OFFLINE || done.abandoned === true || done.refused === true) {\n        continue;\n      }\n      markParked(instance.root, session.name);\n"
+        "from": "      if (done === OFFLINE || done.abandoned === true) {\n        continue;\n      }\n      if (done.refused === true) {\n        markRefused(instance.root, session.name);\n        continue;\n      }\n      markParked(instance.root, session.name);\n      acted += 1;\n",
+        "to": "      acted += 1;\n      if (done === OFFLINE || done.abandoned === true) {\n        continue;\n      }\n      if (done.refused === true) {\n        markRefused(instance.root, session.name);\n        continue;\n      }\n      markParked(instance.root, session.name);\n"
       }
     ]
   },
@@ -1718,8 +1718,8 @@
     "edits": [
       {
         "file": "tools/chat/server.mjs",
-        "from": "      if (hold.parked.includes(session.name) || !worthParking(instance, session.name)) {",
-        "to": "      if (!worthParking(instance, session.name)) {"
+        "from": "      if (hold.parked.includes(session.name)) {\n        continue;\n      }\n",
+        "to": ""
       }
     ]
   },
@@ -1729,7 +1729,7 @@
     "edits": [
       {
         "file": "tools/chat/hold.mjs",
-        "from": "  fs.writeFileSync(file(root), `${JSON.stringify({ ...held, parked: [...held.parked, name] }, null, 2)}\\n`);",
+        "from": "  writeHold(root, { ...held, parked: [...held.parked, name], refused });",
         "to": ""
       }
     ]
@@ -1740,7 +1740,7 @@
     "edits": [
       {
         "file": "tools/chat/hold.mjs",
-        "from": "  fs.writeFileSync(target, `${JSON.stringify(held, null, 2)}\\n`);\n  return held;",
+        "from": "  writeHold(root, held);\n  return held;",
         "to": "  return held;"
       }
     ]
@@ -1751,8 +1751,8 @@
     "edits": [
       {
         "file": "tools/chat/server.mjs",
-        "from": "  if (hold !== null && holdLifted(hold)) {\n    endHold(instance.root);\n    hold = null;\n  }\n",
-        "to": ""
+        "from": "  if (hold !== null && holdLifted(hold)) {\n    // The seats",
+        "to": "  if (false) {\n    // The seats"
       }
     ]
   },
@@ -1773,7 +1773,7 @@
     "edits": [
       {
         "file": "tools/chat/server.mjs",
-        "from": "    if (standing === null || !standing.stop) {\n      if (hold !== null) {\n        endHold(instance.root);\n        hold = null;\n      }\n    } else if",
+        "from": "    if (standing === null || !standing.stop) {\n      if (hold !== null) {\n        endHold(instance.root);\n        announce(instance, holdEndedLine(), at);\n        hold = null;\n      }\n    } else if",
         "to": "    if (standing === null || !standing.stop) {\n      // held\n    } else if"
       }
     ]
@@ -1808,6 +1808,292 @@
         "file": "tools/chat/server.mjs",
         "from": "  if (!hasThread(instance.root, name) || hasGoneCold(instance.root, name)) {",
         "to": "  if (!hasThread(instance.root, name)) {"
+      }
+    ]
+  },
+  {
+    "name": "the hold is entered and nothing is said",
+    "catches": "says once, both ways, that the account is stopping and everybody is being handed over",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "      announce(instance, holdEnteredLine(hold), at);\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the carried branch is worded like the parking one",
+    "catches": "says once that the account is stopping and nobody is being handed over",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  const lifts = `That window lifts at ${atTime(hold.resetsAt)}`;\n  if (hold.warm) {",
+        "to": "  const lifts = `That window lifts at ${atTime(hold.resetsAt)}`;\n  if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "a hold with no moment is worded as if it had one",
+    "catches": "says once that the account is stopping and nobody is being handed over",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  const opening = `The account has reached ${Math.round(hold.fullness * 100)}% of the usage window it is running in`;\n  if (hold.resetsAt === null) {",
+        "to": "  const opening = `The account has reached ${Math.round(hold.fullness * 100)}% of the usage window it is running in`;\n  if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "a workspace that buys no turn is told everybody is being handed over",
+    "catches": "says that nobody is handed over because this workspace buys no turn",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  if (hold.parking) {\n    return `${opening}. ${lifts}, later than",
+        "to": "  if (true) {\n    return `${opening}. ${lifts}, later than"
+      }
+    ]
+  },
+  {
+    "name": "a standing hold with no moment is entered again on every pass",
+    "catches": "says each turn the hold took, once, in order",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    } else if (hold === null || standing.resetsAt !== null) {",
+        "to": "    } else {"
+      }
+    ]
+  },
+  {
+    "name": "the hold lifts and nothing is said",
+    "catches": "says once that the window reopened, and who stands where",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    announce(instance, holdLiftedLine(hold), at);\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the lifted line names nobody as handed over",
+    "catches": "says once that the window reopened, and who stands where",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  if (hold.parked.length === 0) {\n    said.push(\"Nobody was handed over under it",
+        "to": "  if (true) {\n    said.push(\"Nobody was handed over under it"
+      }
+    ]
+  },
+  {
+    "name": "the lifted line forgets the seats still being turned away",
+    "catches": "says once that the window reopened, and who stands where",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  const refused = Object.keys(hold.refused);\n  if (refused.length > 0) {",
+        "to": "  const refused = Object.keys(hold.refused);\n  if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "the lifted line is said before the seat that went cold under it",
+    "catches": "says once what was lost on the seat it kept being turned away on, before the record goes",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    for (const name of Object.keys(hold.refused)) {\n      if (hasGoneCold(instance.root, name)) {\n        announce(instance, neverParkedLine(name, hold.refused[name]), at);\n        forgetRefused(instance.root, name);\n      }\n    }\n    hold = holdIn(instance.root);\n    endHold(instance.root);\n    announce(instance, holdLiftedLine(hold), at);\n",
+        "to": "    announce(instance, holdLiftedLine(hold), at);\n    for (const name of Object.keys(hold.refused)) {\n      if (hasGoneCold(instance.root, name)) {\n        announce(instance, neverParkedLine(name, hold.refused[name]), at);\n        forgetRefused(instance.root, name);\n      }\n    }\n    hold = holdIn(instance.root);\n    endHold(instance.root);\n"
+      }
+    ]
+  },
+  {
+    "name": "the seats turned away are not looked at before the record goes",
+    "catches": "says once what was lost on the seat it kept being turned away on, before the record goes",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    for (const name of Object.keys(hold.refused)) {\n      if (hasGoneCold(instance.root, name)) {\n        announce(instance, neverParkedLine(name, hold.refused[name]), at);\n        forgetRefused(instance.root, name);\n      }\n    }\n    hold = holdIn(instance.root);\n    endHold(instance.root);\n",
+        "to": "    endHold(instance.root);\n"
+      }
+    ]
+  },
+  {
+    "name": "a seat still warm at the lift is said to have gone cold",
+    "catches": "says once that the window reopened, and who stands where",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    for (const name of Object.keys(hold.refused)) {\n      if (hasGoneCold(instance.root, name)) {",
+        "to": "    for (const name of Object.keys(hold.refused)) {\n      if (true) {"
+      }
+    ]
+  },
+  {
+    "name": "a hold with no moment ends and nothing is said",
+    "catches": "says each turn the hold took, once, in order",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "        announce(instance, holdEndedLine(), at);\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a refusal is never counted on the hold",
+    "catches": "counts on the hold each time the account turns a park away",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "      if (done.refused === true) {\n        markRefused(instance.root, session.name);\n        continue;\n      }",
+        "to": "      if (done.refused === true) {\n        continue;\n      }"
+      }
+    ]
+  },
+  {
+    "name": "the seat that went cold with its park refused is not said",
+    "catches": "says once what was lost when the seat goes cold with its park still refused",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "      if (hold.refused[session.name] !== undefined && hasGoneCold(instance.root, session.name)) {\n        announce(instance, neverParkedLine(session.name, hold.refused[session.name]), at);\n        forgetRefused(instance.root, session.name);\n        continue;\n      }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the count stays on the hold after it was said",
+    "catches": "says once what was lost when the seat goes cold with its park still refused",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "        announce(instance, neverParkedLine(session.name, hold.refused[session.name]), at);\n        forgetRefused(instance.root, session.name);\n        continue;",
+        "to": "        announce(instance, neverParkedLine(session.name, hold.refused[session.name]), at);\n        continue;"
+      }
+    ]
+  },
+  {
+    "name": "the hold is not served beside the rows",
+    "catches": "serves the hold beside the rows, as the facts it was decided on",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "      hold: holdSaid(holdIn(instance.root)),\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the served hold leaves out what it was decided on",
+    "catches": "serves the hold beside the rows, as the facts it was decided on",
+    "edits": [
+      {
+        "file": "tools/chat/hold.mjs",
+        "from": "  return { resetsAt: hold.resetsAt, warm: hold.warm, parking: hold.parking };",
+        "to": "  return { resetsAt: hold.resetsAt, parking: hold.parking };"
+      }
+    ]
+  },
+  {
+    "name": "the hold forgets what the reading answered about the hour",
+    "catches": "records the hold when everybody is carried",
+    "edits": [
+      {
+        "file": "tools/chat/hold.mjs",
+        "from": "    warm: typeof warm === \"boolean\" ? warm : null,\n    parking: parking === true,\n    parked: [],",
+        "to": "    warm: null,\n    parking: parking === true,\n    parked: [],"
+      }
+    ]
+  },
+  {
+    "name": "the terminal room leaves the hold out",
+    "catches": "says the account is stopping, and what is being done, in the room a person reads at a terminal",
+    "edits": [
+      {
+        "file": "tools/ovai.mjs",
+        "from": "  for (const line of roomLines(body.sessions, body.offline === true, body.hold ?? null)) {",
+        "to": "  for (const line of roomLines(body.sessions, body.offline === true)) {"
+      }
+    ]
+  },
+  {
+    "name": "the lead's room tool leaves the hold out",
+    "catches": "says it to the lead too, in the words the command prints",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  return { text: roomLines(rows, offline(), holdSaid(holdIn(instance.root))).join(\"\\n\") };",
+        "to": "  return { text: roomLines(rows, offline()).join(\"\\n\") };"
+      }
+    ]
+  },
+  {
+    "name": "the account line is printed whether or not there is a hold",
+    "catches": "says nothing about it while there is no hold, and leaves every row alone",
+    "edits": [
+      {
+        "file": "tools/chat/room.mjs",
+        "from": "  if (hold !== null && typeof hold === \"object\") {\n    above.push(holdSaid(hold));\n  }",
+        "to": "  above.push(holdSaid(hold ?? {}));"
+      }
+    ]
+  },
+  {
+    "name": "the room words a carried hold as the parking one",
+    "catches": "says only what the hold does, one sentence for each thing it can be doing",
+    "edits": [
+      {
+        "file": "tools/chat/room.mjs",
+        "from": "  if (hold.warm === true) {\n    return `The account is nearly spent — ${lifts}, inside the hour",
+        "to": "  if (false) {\n    return `The account is nearly spent — ${lifts}, inside the hour"
+      }
+    ]
+  },
+  {
+    "name": "the room words a hold with no moment as if it had one",
+    "catches": "says only what the hold does, one sentence for each thing it can be doing",
+    "edits": [
+      {
+        "file": "tools/chat/room.mjs",
+        "from": "  if (typeof hold.resetsAt !== \"number\") {\n    return \"The account is nearly spent and did not say when it lifts",
+        "to": "  if (false) {\n    return \"The account is nearly spent and did not say when it lifts"
+      }
+    ]
+  },
+  {
+    "name": "the room tells a workspace that buys no turn that everybody is being handed over",
+    "catches": "says only what the hold does, one sentence for each thing it can be doing",
+    "edits": [
+      {
+        "file": "tools/chat/room.mjs",
+        "from": "  if (hold.parking === true) {\n    return `The account is nearly spent — ${lifts}, later than",
+        "to": "  if (true) {\n    return `The account is nearly spent — ${lifts}, later than"
+      }
+    ]
+  },
+  {
+    "name": "the page builds the account line and never puts it on the room",
+    "catches": "builds the sentence from the served facts, in the page's own copy of the room",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "    if (hold !== null && typeof hold === \"object\") {\n      said.push(Object.assign(document.createElement(\"p\"), { textContent: holdSaid(hold) }));\n    }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the page reads no hold off what the chat serves",
+    "catches": "builds the sentence from the served facts, in the page's own copy of the room",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "  function showTheRoom({ offline, hold, sessions }) {",
+        "to": "  function showTheRoom({ offline, sessions }) {\n    const hold = null;"
       }
     ]
   }
