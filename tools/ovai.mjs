@@ -20,13 +20,10 @@ import { ownSkills } from "./skills.mjs";
 import { leaveWord } from "./chat/untold.mjs";
 import { holderOf } from "./port.mjs";
 import { RELEASES, ReleaseError, latestRelease, notesIn, replacePayload, unpackInto } from "./release.mjs";
+import { CONFIG_FILE, seedUserContent } from "./seed.mjs";
 import { PluginError, describePluginName, describePlugins, isPluginName, pluginsIn, writePlugin } from "./plugins.mjs";
 import { isOlderThan, version } from "./version.mjs";
 
-// The instance's own description of itself, and the file whose absence says a directory is not
-// one. It sits at the root beside the payload rather than inside it, because it describes what
-// the instance became and an update replaces only what the toolkit ships.
-const CONFIG_FILE = "openovai.json";
 
 const COMMANDS = ["status", "room", "chat", "hire", "plugin", "say", "login", "update"];
 
@@ -295,12 +292,14 @@ const UNPACKING = ".release";
 
 // Taking a newer version of the toolkit.
 //
-// Only what the toolkit ships is replaced. Everything an instance accumulated — the desks, the
-// personas, the settings, its Claude Code home with its account and its transcripts and what the
-// workspace has learned, the panels and the threads they resume — is in different directories and
-// is not touched, and its own description of itself is not rewritten at all. So there is nothing
-// here to migrate and no key that changes: the version is a file in the payload, so replacing the
-// payload replaces it.
+// What the toolkit ships is replaced, whole. Everything an instance accumulated — the desks, the
+// settings, its Claude Code home with its account and its transcripts and what the workspace has
+// learned, the panels and the threads they resume, its own description of itself — is the person's
+// and is left as it is; a file of theirs that a fresh install would have given them and they have
+// not got is seeded, once, the way the installer seeds it (tools/seed.mjs). So an updated instance
+// is a clean install of the new version with the person's material in it, there is nothing here to
+// migrate and no key that changes: the version is a file in the payload, so replacing the payload
+// replaces it.
 async function update(root, argv) {
   const { from, downgrade } = whereToLook(argv);
 
@@ -352,6 +351,15 @@ async function update(root, argv) {
   console.log(`Was on ${here ?? "no recorded version"}, now on ${now}. Replaced:`);
   for (const entry of replaced) {
     console.log(`  ${entry}`);
+  }
+
+  // From the templates just put in place, and only where the person has nothing yet.
+  const seeded = seedUserContent(root, readConfig(root).leader);
+  if (seeded.length > 0) {
+    console.log("Seeded, since this instance had none:");
+    for (const entry of seeded) {
+      console.log(`  ${entry}`);
+    }
   }
 
   // Left where the chat will look. The lead running in this instance was started under the old

@@ -4,7 +4,7 @@
     "catches": "brings a refused session back by itself rather than leaving it on a dialog",
     "edits": [
       {
-        "file": "tools/install.mjs",
+        "file": "tools/seed.mjs",
         "from": "  autoContinueAtUsageLimit: true,",
         "to": "  autoContinueAtUsageLimit: false,"
       }
@@ -15,9 +15,9 @@
     "catches": "says it wrote those settings",
     "edits": [
       {
-        "file": "tools/install.mjs",
-        "from": "  fs.writeFileSync(target, `${JSON.stringify(HOME_SETTINGS, null, 2)}\\n`);\n  return [target];",
-        "to": "  fs.writeFileSync(target, `${JSON.stringify(HOME_SETTINGS, null, 2)}\\n`);\n  return [];"
+        "file": "tools/seed.mjs",
+        "from": "    ...seed(homeSettingsFile(root), () => asJson(HOME_SETTINGS)),",
+        "to": "    ...seed(homeSettingsFile(root), () => asJson(HOME_SETTINGS)).slice(1),"
       }
     ]
   },
@@ -37,9 +37,9 @@
     "catches": "copies the skill an instance explains itself with in",
     "edits": [
       {
-        "file": "tools/install.mjs",
-        "from": "    fs.cpSync(path.join(plan.source, entry), target, { recursive: true });",
-        "to": "    fs.cpSync(path.join(plan.source, entry), target, { recursive: true, filter: (from) => !from.includes(\"skills\") });"
+        "file": "tools/release.mjs",
+        "from": "    fs.cpSync(path.join(tree, entry), beside, { recursive: true });",
+        "to": "    fs.cpSync(path.join(tree, entry), beside, { recursive: true, filter: (from) => !from.includes(\"skills\") });"
       }
     ]
   },
@@ -49,8 +49,8 @@
     "edits": [
       {
         "file": "tools/install.mjs",
-        "from": "      ...allowTools(plan.root),",
-        "to": "      ...allowTools(plan.root),\n      ...[fs.mkdirSync(path.join(plan.root, \".claude\", \"skills\"), { recursive: true })].slice(1),"
+        "from": "      ...seedUserContent(plan.root, plan.leader),",
+        "to": "      ...seedUserContent(plan.root, plan.leader),\n      ...[fs.mkdirSync(path.join(plan.root, \".claude\", \"skills\"), { recursive: true })].slice(1),"
       }
     ]
   },
@@ -143,13 +143,13 @@
     ]
   },
   {
-    "name": "the refusals are written over the rules the same run granted",
+    "name": "the refusals are written without the rules a fresh instance grants",
     "catches": "keeps what it grants while writing what it refuses",
     "edits": [
       {
-        "file": "tools/desks.mjs",
-        "from": "    permissions: { ...settings.permissions, deny: [...refused, rule] },",
-        "to": "    permissions: { deny: [...refused, rule] },"
+        "file": "tools/seed.mjs",
+        "from": "      allow: [deskRule(leader), ...TOOL_RULES],\n      deny: OWN_ACCOUNT_RULES,",
+        "to": "      deny: OWN_ACCOUNT_RULES,"
       }
     ]
   },
@@ -191,9 +191,107 @@
     "catches": "accounts for none of them, since a refusal is not something somebody asked for",
     "edits": [
       {
-        "file": "tools/desks.mjs",
-        "from": "  return OWN_ACCOUNT_RULES.flatMap((rule) => deny(root, rule));",
-        "to": "  return OWN_ACCOUNT_RULES.flatMap((rule) => [\n    ...account(root, { rule, session: \"the installer\", call: rule, day: today() }),\n    ...deny(root, rule),\n  ]);"
+        "file": "tools/seed.mjs",
+        "from": "import { DESK_TEMPLATE, OWN_ACCOUNT_RULES, TOOL_RULES, deskFile, deskRule, readTemplate, render } from \"./desks.mjs\";",
+        "to": "import { DESK_TEMPLATE, OWN_ACCOUNT_RULES, TOOL_RULES, account, deskFile, deskRule, readTemplate, render } from \"./desks.mjs\";"
+      },
+      {
+        "file": "tools/seed.mjs",
+        "from": "    ...seed(settingsFile(root), () => asJson(settingsToStartWith(leader))),",
+        "to": "    ...seed(settingsFile(root), () => asJson(settingsToStartWith(leader))),\n    ...OWN_ACCOUNT_RULES.flatMap((rule) => account(root, { rule, session: \"the installer\", call: rule, day: \"2026-01-01\" })),"
+      }
+    ]
+  },
+  {
+    "name": "a file the person has is written over as though it were missing",
+    "catches": "keeps .claude/settings.json as the person left it",
+    "edits": [
+      {
+        "file": "tools/seed.mjs",
+        "from": "  if (fs.existsSync(target)) {\n    return [];\n  }\n  fs.mkdirSync(path.dirname(target), { recursive: true });",
+        "to": "  fs.mkdirSync(path.dirname(target), { recursive: true });"
+      }
+    ]
+  },
+  {
+    "name": "the payload is written over what is there rather than replacing it",
+    "catches": "replaces the payload whole, taking away what the source has not got",
+    "edits": [
+      {
+        "file": "tools/release.mjs",
+        "from": "    fs.rmSync(target, { recursive: true, force: true });\n    fs.renameSync(beside, target);",
+        "to": "    fs.cpSync(beside, target, { recursive: true });\n    fs.rmSync(beside, { recursive: true, force: true });"
+      }
+    ]
+  },
+  {
+    "name": "a file the person has is named as written",
+    "catches": "names what it seeded and what it replaced, and nothing it kept",
+    "edits": [
+      {
+        "file": "tools/seed.mjs",
+        "from": "  if (fs.existsSync(target)) {\n    return [];\n  }",
+        "to": "  if (fs.existsSync(target)) {\n    return [target];\n  }"
+      }
+    ]
+  },
+  {
+    "name": "the lead's persona is rendered from wherever the payload came from",
+    "catches": "renders the lead's persona again, from the payload it just put in place",
+    "edits": [
+      {
+        "file": "tools/install.mjs",
+        "from": "      ...writePersona(plan.root, plan.root, plan.leader, \"leader\", LEADER_TEMPLATE, {",
+        "to": "      ...(fs.existsSync(path.join(plan.root, \"personas\", `${plan.leader}.md`)) ? [] : writePersona(plan.root, plan.root, plan.leader, \"leader\", LEADER_TEMPLATE, {"
+      },
+      {
+        "file": "tools/install.mjs",
+        "from": "        LEADER: plan.leader,\n        HUMAN: plan.human,\n      }),\n    ]);",
+        "to": "        LEADER: plan.leader,\n        HUMAN: plan.human,\n      })),\n    ]);"
+      }
+    ]
+  },
+  {
+    "name": "an answer given over an instance is dropped because the description already had one",
+    "catches": "writes the answers given into the description the instance has, and keeps the rest of it",
+    "edits": [
+      {
+        "file": "tools/install.mjs",
+        "from": "    for (const key of plan.given) {",
+        "to": "    for (const key of []) {"
+      }
+    ]
+  },
+  {
+    "name": "the person's own additions to the description go when an answer is written in",
+    "catches": "writes the answers given into the description the instance has, and keeps the rest of it",
+    "edits": [
+      {
+        "file": "tools/install.mjs",
+        "from": "    config = { ...plan.existing, models: { ...plan.existing.models } };",
+        "to": "    config = { schema: plan.existing.schema, createdAt: plan.existing.createdAt, models: { ...plan.existing.models } };"
+      }
+    ]
+  },
+  {
+    "name": "an answer left off the command line is required even over an instance that has it",
+    "catches": "takes an answer left off the command line from the description the instance has",
+    "edits": [
+      {
+        "file": "tools/install.mjs",
+        "from": "    if (parsed[key] === undefined && existing !== null && IN_CONFIG[key] !== undefined) {",
+        "to": "    if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "the description is named as written when nothing in it changed",
+    "catches": "takes an answer left off the command line from the description the instance has",
+    "edits": [
+      {
+        "file": "tools/install.mjs",
+        "from": "    if (JSON.stringify(config) === JSON.stringify(plan.existing)) {\n      return [];\n    }",
+        "to": "    if (JSON.stringify(config) === JSON.stringify(plan.existing)) {\n      return [target];\n    }"
       }
     ]
   },

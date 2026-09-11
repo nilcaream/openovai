@@ -217,6 +217,45 @@ describe("taking a newer version from a directory", () => {
   });
 });
 
+// An instance made before the toolkit wrote one of the person's files has not got it, and a clean
+// install of the new version has. An update seeds what is missing the way the installer does, once,
+// and touches nothing the person has — whatever is in it.
+describe("taking a newer version into an instance that lacks a file of the person's", () => {
+  const root = makeInstance("lacking");
+  const tree = makeRelease("release-for-lacking");
+  const MARK = "kept by the person\n";
+  let done;
+
+  before(async () => {
+    fs.rmSync(path.join(root, ".claude-home", "settings.json"));
+    fs.rmSync(path.join(root, "work", LEADER, "STATE.md"));
+    fs.appendFileSync(path.join(root, ".claude", "settings.json"), MARK);
+    done = await update(root, tree);
+  });
+
+  it("goes through", () => {
+    assert.equal(done.status, 0, done.stderr);
+  });
+
+  it("seeds the missing file as a fresh install would", () => {
+    const settings = JSON.parse(fs.readFileSync(path.join(root, ".claude-home", "settings.json"), "utf8"));
+    assert.equal(settings.autoContinueAtUsageLimit, true);
+  });
+
+  it("seeds the lead's desk from the templates it just put in place", () => {
+    assert.ok(fs.readFileSync(path.join(root, "work", LEADER, "STATE.md"), "utf8").includes(LEADER));
+  });
+
+  it("says what it seeded, and why", () => {
+    assert.match(done.stdout, /Seeded, since this instance had none:/);
+    assert.ok(done.stdout.includes(path.join(root, ".claude-home", "settings.json")));
+  });
+
+  it("leaves a file the person has exactly as it is", () => {
+    assert.ok(fs.readFileSync(path.join(root, ".claude", "settings.json"), "utf8").endsWith(MARK));
+  });
+});
+
 describe("taking a newer version from a release", () => {
   const root = makeInstance("from-release");
   let served;

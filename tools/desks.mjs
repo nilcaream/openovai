@@ -372,9 +372,9 @@ export function writePersona(root, from, name, what, relative, values) {
   return [target];
 }
 
-// Grant one thing, leaving whatever is already granted alone. The installer writes the first rule
-// into a file that is not there yet; hiring adds one to a file that is, and must not take
-// anybody else's away doing it.
+// Grant one thing, leaving whatever is already granted alone. The file is the person's by the time
+// this runs — the installer wrote it whole, once, and whatever they have made of it since is theirs
+// — so hiring adds one rule to it and must not take anything else away doing it.
 function allow(root, rule) {
   const settings = readSettings(root);
 
@@ -397,8 +397,12 @@ function allow(root, rule) {
 // file, the Write tool included; a `Write(...)` rule is never matched, so adding one would look
 // like care and do nothing. The path in it is relative, which is what it means to Claude Code:
 // the chat starts it with the instance root as its working directory.
+export function deskRule(name) {
+  return `Edit(${path.posix.join(WORK, name, DESK_FILE)})`;
+}
+
 export function allowDesk(root, name) {
-  return allow(root, `Edit(${path.posix.join(WORK, name, DESK_FILE)})`);
+  return allow(root, deskRule(name));
 }
 
 // And taking that right back, when the desk it names is not there any more. A rule for a desk
@@ -408,7 +412,7 @@ export function allowDesk(root, name) {
 export function withdrawDesk(root, name) {
   const settings = readSettings(root);
   const granted = Array.isArray(settings?.permissions?.allow) ? settings.permissions.allow : [];
-  const rule = `Edit(${path.posix.join(WORK, name, DESK_FILE)})`;
+  const rule = deskRule(name);
   if (!granted.includes(rule)) {
     return [];
   }
@@ -540,13 +544,6 @@ function asked(call) {
   return short === "" ? "a call it did not describe" : `\`${short}\``;
 }
 
-// The right to use the tools the chat serves, saying something to another session among them.
-// Granted once, when the instance is made, rather than per person: it names no desk, so a second
-// copy of it would grant nothing a first one had not.
-export function allowTools(root) {
-  return TOOL_RULES.flatMap((rule) => allow(root, rule));
-}
-
 
 // What no file-writing tool may reach: this workspace's own account of what it allows.
 //
@@ -571,35 +568,18 @@ export function allowTools(root) {
 //
 // `.claude-home/projects/**` is deliberately not among them. The memory index and the transcripts
 // live there, and denying that subtree would break memory to protect nothing.
+//
+// Written when the instance is made and never afterwards (tools/seed.mjs), for the reason the
+// rest of a fresh instance's settings are: changing how somebody's running workspace behaves is not
+// an installer's to do, and an instance that has been worked in for a month may have reasons for
+// what it holds. A workspace that wants these later adds them with an editor and a restart — they
+// are three lines in a file its owner has, and the first turn of a new workspace names them out loud.
+//
+// Nothing the chat itself does goes through them: the settings and the ledger are written from node
+// rather than through a session's tools.
 export const OWN_ACCOUNT_RULES = [
   "Edit(.claude/**)",
   "Edit(.claude-home/settings.json)",
   "Edit(.claude-home/.claude.json)",
 ];
 
-// Refuse one thing, leaving everything else in the file alone — the desk rules above all, which
-// are written into the same object by the same installer run.
-function deny(root, rule) {
-  const settings = readSettings(root);
-  const refused = Array.isArray(settings?.permissions?.deny) ? settings.permissions.deny : [];
-  if (refused.includes(rule)) {
-    return [];
-  }
-
-  return writeSettings(root, {
-    ...settings,
-    permissions: { ...settings.permissions, deny: [...refused, rule] },
-  });
-}
-
-// Written when the instance is made and never afterwards, for the reason the installer's other
-// settings are: changing how somebody's running workspace behaves is not an installer's to do, and
-// an instance that has been worked in for a month may have reasons for what it holds. A workspace
-// that wants these later adds them with an editor and a restart — they are three lines in a file
-// its owner has, and the first turn of a new workspace names them out loud.
-//
-// Nothing the chat itself does goes through them: the settings and the ledger are written from node
-// rather than through a session's tools.
-export function denyOwnAccount(root) {
-  return OWN_ACCOUNT_RULES.flatMap((rule) => deny(root, rule));
-}

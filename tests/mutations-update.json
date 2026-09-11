@@ -163,5 +163,38 @@
         "to": "  update: { most: 2, shape:"
       }
     ]
+  },
+  {
+    "name": "an update seeds nothing the person lacks",
+    "catches": "seeds the missing file as a fresh install would",
+    "edits": [
+      {
+        "file": "tools/ovai.mjs",
+        "from": "  const seeded = seedUserContent(root, readConfig(root).leader);",
+        "to": "  const seeded = [];"
+      }
+    ]
+  },
+  {
+    "name": "an update writes the person's files over as though they were missing",
+    "catches": "leaves a file the person has exactly as it is",
+    "edits": [
+      {
+        "file": "tools/seed.mjs",
+        "from": "  if (fs.existsSync(target)) {\n    return [];\n  }\n  fs.mkdirSync(path.dirname(target), { recursive: true });",
+        "to": "  fs.mkdirSync(path.dirname(target), { recursive: true });"
+      }
+    ]
+  },
+  {
+    "name": "an update seeds and says nothing about it",
+    "catches": "says what it seeded, and why",
+    "edits": [
+      {
+        "file": "tools/ovai.mjs",
+        "from": "  if (seeded.length > 0) {",
+        "to": "  if (seeded.length < 0) {"
+      }
+    ]
   }
 ]

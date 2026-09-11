@@ -66,7 +66,10 @@ An instance is a directory of its own. From a clone:
 ```
 
 - `--root` — where the instance lives. It has to be empty or new; `--force` accepts a
-  directory that is not, and never deletes anything.
+  directory that is not. Over an existing instance that is an update of it: the payload is
+  replaced whole, every file of yours is kept as it is, and one you have not got is seeded as a
+  fresh install would seed it. Its `openovai.json` answers for any option you leave off, and any
+  option you do give is written into it — `--port 8000` over an instance means the port.
 - `--source` — where to install from: a clone, or an unpacked release once there is one.
 - `--human` — the person the team works for.
 - `--leader` — the session that leads the team.
@@ -1249,10 +1252,13 @@ whole repository and that is fine: what makes something a valid source is the pa
 not the absence of anything else.
 
 **Everything a workspace has accumulated is left alone.** Desks under `work/`, the personas the
-sessions here are running, the panels and threads under `chat/`, `openovai.json`, the Claude Code home
-with everything the workspace has learned in it — an update does not read them and does not write
-them. Nothing is re-keyed, nothing is migrated, and no name changes hands. The payload is the only
-thing that moves, and nothing inside an instance ever writes there.
+sessions here are running, the panels and threads under `chat/`, `openovai.json`, the settings, the
+Claude Code home with everything the workspace has learned in it — an update does not write them.
+Nothing is re-keyed, nothing is migrated, and no name changes hands. The one thing it adds is a file
+of yours that a fresh install of this version would have given you and this instance has not got —
+the memory index, either settings file, the lead's desk — seeded once, the way the installer seeds
+it, and named as such. An updated instance is a clean install of the new version with your material
+in it: the payload is the only thing that moves, and nothing inside an instance ever writes there.
 
 **The payload is replaced, not merged.** A file a newer version dropped has to go, or the instance
 stops being a copy of any version and becomes the union of two. There is no rollback and no backup:

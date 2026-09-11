@@ -3,29 +3,21 @@
 // The OpenOv AI installer.
 //
 // It turns a command line into one resolved description of an instance — where it lives, who
-// works there and on which models — and then creates it. So far it creates the directories an
-// instance is made of; the configuration, the desks and the launcher follow.
+// works there and on which models — and then creates it, in the two acts an instance is made by:
+// the payload is put in place (tools/release.mjs, the same act an update does) and the person's
+// own files are seeded where they are absent (tools/seed.mjs, the same act an update does). An
+// install over an existing instance is therefore an update of it, and neither ever writes over
+// anything the person has.
 
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { MEMORY_FILE, homeSettingsFile, memoryDirectory } from "./claude.mjs";
-import { PAYLOAD, notAWorkspace } from "./payload.mjs";
+import { DeskError, describeModel, describeName, isModel, isName, writePersona } from "./desks.mjs";
+import { notAWorkspace } from "./payload.mjs";
 import { PLUGINS } from "./plugins.mjs";
-import {
-  DeskError,
-  allowDesk,
-  allowTools,
-  denyOwnAccount,
-  describeModel,
-  describeName,
-  isModel,
-  isName,
-  readTemplate,
-  writeDesk,
-  writePersona,
-} from "./desks.mjs";
+import { ReleaseError, replacePayload } from "./release.mjs";
+import { CONFIG_FILE, seedUserContent } from "./seed.mjs";
 
 // Ports below 1024 need privileges nobody should be granting a workspace.
 const LOWEST_PORT = 1024;
@@ -56,11 +48,30 @@ const OPTIONS = [
   ["--auth", "auth", `how the instance signs in: ${AUTH_MODES.join(" or ")}`],
 ];
 
-const SWITCHES = [["--force", "force", "install into a directory that is not empty"]];
+// Installing over what is there is the same act as taking a newer version: the payload is replaced
+// whole and nothing of the person's is written over — a file they have is kept as it is, a file
+// they have not got is placed as a fresh install would place it.
+const SWITCHES = [["--force", "force", "install into a directory that is not empty, keeping what is there"]];
 
 // Every option is required. The installer never prompts and never guesses: a command line
 // that describes the whole instance is one that can be read back, repeated and tested.
+//
+// Over an existing instance the description is already there, in its openovai.json, and that is
+// where an answer left off the command line comes from — not a guess, the instance's own word.
+// An answer that IS given is applied to it: a person typing `--port 8000` over their instance
+// means the port, and dropping it because the file already had one would be the installer
+// quietly deciding otherwise.
 const REQUIRED = OPTIONS.map(([, key]) => key);
+
+// Where each answer sits in openovai.json, for reading one out and for writing one in.
+const IN_CONFIG = {
+  human: (config) => config.human,
+  leader: (config) => config.leader,
+  leaderModel: (config) => config.models?.leader,
+  workerModel: (config) => config.models?.worker,
+  port: (config) => (config.port === undefined ? undefined : String(config.port)),
+  auth: (config) => config.auth,
+};
 
 // The directories an instance is made of, relative to its root.
 //
@@ -77,11 +88,6 @@ const REQUIRED = OPTIONS.map(([, key]) => key);
 // into the other.
 const LAYOUT = ["work", "personas", ".claude", ".claude-home", PLUGINS];
 
-// The instance's own description of itself. It is deliberately free of absolute paths — not
-// where it came from, not even its own root, which anything running inside works out from
-// where it sits — so that an instance can be moved or copied and still be itself.
-const CONFIG_FILE = "openovai.json";
-
 // Bumped when a field changes meaning, so an older instance can be recognised as one.
 const CONFIG_SCHEMA = 1;
 
@@ -89,13 +95,6 @@ const CONFIG_SCHEMA = 1;
 // written and why the names are welded in rather than looked up — is in tools/desks.mjs, which
 // every session's persona goes through.
 const LEADER_TEMPLATE = path.join("templates", "leader.md");
-
-// The index of what the workspace knows, before anybody has put anything in it. An instance is
-// given one rather than left to grow one, because a session asked to remember something and
-// finding nothing there writes whatever shape occurs to it, and every session after that reads
-// that shape as the workspace's own. What the index says about what belongs in it is the only
-// steering there is.
-const MEMORY_TEMPLATE = path.join("templates", "MEMORY.md");
 
 // A bad command line: the person can fix it and try again, so we show them the usage.
 class UsageError extends Error {}
@@ -113,7 +112,9 @@ function usage() {
     "               --leader-model <model> --worker-model <model> --port <number|0>",
     `               --auth <${AUTH_MODES.join("|")}>`,
     "",
-    "Every option is required. Nothing is prompted for and nothing is guessed.",
+    "Every option is required. Nothing is prompted for and nothing is guessed — except over an",
+    "instance that is already there, whose openovai.json answers for whatever is left off, and",
+    "into which whatever is given is written.",
     "",
     "Options:",
     ...[...OPTIONS, ...SWITCHES].map(([flag, , help]) => `  ${flag.padEnd(16)}${help}`),
@@ -171,8 +172,37 @@ function expandHome(value) {
   return value;
 }
 
+// What the root already says about itself, or null where there is nothing there yet. Read before
+// the answers are checked, because it is where a missing one is looked up.
+function existingConfig(root) {
+  let text;
+  try {
+    text = fs.readFileSync(path.join(root, CONFIG_FILE), "utf8");
+  } catch (error) {
+    if (error.code === "ENOENT" || error.code === "ENOTDIR") {
+      return null;
+    }
+    throw error;
+  }
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    throw new InstallError(`${path.join(root, CONFIG_FILE)} is not readable as JSON: ${error.message}`);
+  }
+}
+
 function resolvePlan(parsed) {
+  if (parsed.root === undefined) {
+    throw new UsageError("--root is required");
+  }
+  const root = path.resolve(expandHome(parsed.root));
+  const existing = existingConfig(root);
+
+  const given = new Set(REQUIRED.filter((key) => parsed[key] !== undefined));
   for (const key of REQUIRED) {
+    if (parsed[key] === undefined && existing !== null && IN_CONFIG[key] !== undefined) {
+      parsed[key] = IN_CONFIG[key](existing);
+    }
     if (parsed[key] === undefined) {
       const flag = OPTIONS.find(([, name]) => name === key)[0];
       throw new UsageError(`${flag} is required`);
@@ -215,7 +245,6 @@ function resolvePlan(parsed) {
   }
 
   const source = path.resolve(expandHome(parsed.source));
-  const root = path.resolve(expandHome(parsed.root));
   if (root === path.parse(root).root || root === os.homedir()) {
     throw new UsageError(`--root ${root} is too broad; give the instance its own directory`);
   }
@@ -234,6 +263,8 @@ function resolvePlan(parsed) {
     port,
     auth: parsed.auth,
     force: parsed.force === true,
+    existing,
+    given,
   };
 }
 
@@ -272,18 +303,6 @@ function checkSource(plan) {
   }
 }
 
-function copyPayload(plan) {
-  const copied = [];
-
-  for (const entry of PAYLOAD) {
-    const target = path.join(plan.root, entry);
-    fs.cpSync(path.join(plan.source, entry), target, { recursive: true });
-    copied.push(target);
-  }
-
-  return copied;
-}
-
 function createLayout(plan) {
   const created = [];
 
@@ -298,10 +317,14 @@ function createLayout(plan) {
   return created;
 }
 
+// The instance's own description of itself, from the answers. Where there is none it is written
+// whole; where there is one, the answers actually given on the command line are written into it
+// and the rest of it — what was not given, and anything the person has added since — is left as
+// it is. Nothing to write when what was given is what is there already, and then the file is not
+// named among what was written either.
 function writeConfig(plan) {
-  const config = {
-    schema: CONFIG_SCHEMA,
-    createdAt: new Date().toISOString(),
+  const target = path.join(plan.root, CONFIG_FILE);
+  const answers = {
     human: plan.human,
     leader: plan.leader,
     models: {
@@ -312,46 +335,22 @@ function writeConfig(plan) {
     auth: plan.auth,
   };
 
-  const target = path.join(plan.root, CONFIG_FILE);
+  let config;
+  if (plan.existing === null) {
+    config = { schema: CONFIG_SCHEMA, createdAt: new Date().toISOString(), ...answers };
+  } else {
+    config = { ...plan.existing, models: { ...plan.existing.models } };
+    for (const key of plan.given) {
+      if (key === "leaderModel") config.models.leader = answers.models.leader;
+      else if (key === "workerModel") config.models.worker = answers.models.worker;
+      else if (key in answers) config[key] = answers[key];
+    }
+    if (JSON.stringify(config) === JSON.stringify(plan.existing)) {
+      return [];
+    }
+  }
+
   fs.writeFileSync(target, `${JSON.stringify(config, null, 2)}\n`);
-  return [target];
-}
-
-// The index goes where the sessions read it — inside the instance's own Claude Code home, under
-// the name tools/claude.mjs pins — rather than anywhere of the installer's choosing. One answer to
-// where an instance's memory is, and the installer asks for it rather than spelling it again.
-function writeMemoryIndex(plan) {
-  const target = path.join(memoryDirectory(plan.root), MEMORY_FILE);
-  fs.mkdirSync(path.dirname(target), { recursive: true });
-  fs.writeFileSync(target, readTemplate(plan.source, "memory", MEMORY_TEMPLATE));
-  return [target];
-}
-
-// What a session does when it is refused for the rest of a usage window. Left to itself Claude Code
-// waits the window out and takes the session up again when it reopens. Turned off, the limit
-// arrives instead as a dialog on that session's own terminal offering the wait as a choice, and the
-// session sits on it until somebody answers at that keyboard. A workspace is run by messages, so a
-// session waiting on a dialog has left the room: it cannot be asked anything, told anything, or
-// parked. Waiting the window out is much the lesser of the two.
-//
-// What keeps a reopened window from being spent by a whole room coming back at once is not this
-// key. It is the hold the lead puts on the room well before the account runs out, so that nothing
-// is refused in the first place.
-//
-// The key is written out rather than left to the default, because the default belongs to the
-// harness and is its to change. It goes into the instance's Claude Code home rather than its own
-// settings because that is the only one of the two files the key is read from.
-//
-// New instances only. An instance already installed keeps whatever it was given, since changing
-// how somebody's running workspace behaves is not an installer's to do.
-const HOME_SETTINGS = {
-  autoContinueAtUsageLimit: true,
-};
-
-function writeHomeSettings(plan) {
-  const target = homeSettingsFile(plan.root);
-  fs.mkdirSync(path.dirname(target), { recursive: true });
-  fs.writeFileSync(target, `${JSON.stringify(HOME_SETTINGS, null, 2)}\n`);
   return [target];
 }
 
@@ -376,18 +375,9 @@ function printPlan(plan) {
 }
 
 function report(plan, written) {
-  // Named once each. Two things an instance needs can land in the same file — the lead's desk
-  // rule and the rule that lets a session speak to another both go into the settings — and a
-  // list that says so twice reads as though something had been written over.
-  const created = [...new Set(written)];
-
-  if (created.length === 0) {
-    console.log("Everything was already in place; nothing to write.");
-  } else {
-    console.log("Wrote:");
-    for (const entry of created) {
-      console.log(`  ${entry}`);
-    }
+  console.log("Wrote:");
+  for (const entry of written) {
+    console.log(`  ${entry}`);
   }
   const ovai = path.join(plan.root, "bin", "ovai");
   console.log("");
@@ -415,20 +405,18 @@ function main(argv) {
     printPlan(plan);
     checkSource(plan);
     checkRoot(plan);
+    // The payload first and whole, then the person's files where they are missing, then the lead's
+    // persona — which is rendered from the payload just put in place, so an install over an
+    // instance leaves the lead on the templates of the version that was installed.
     report(plan, [
       ...createLayout(plan),
-      ...copyPayload(plan),
+      ...replacePayload(plan.root, plan.source),
       ...writeConfig(plan),
-      ...writeMemoryIndex(plan),
-      ...writeHomeSettings(plan),
-      ...writeDesk(plan.root, plan.source, plan.leader),
-      ...writePersona(plan.root, plan.source, plan.leader, "leader", LEADER_TEMPLATE, {
+      ...seedUserContent(plan.root, plan.leader),
+      ...writePersona(plan.root, plan.root, plan.leader, "leader", LEADER_TEMPLATE, {
         LEADER: plan.leader,
         HUMAN: plan.human,
       }),
-      ...allowDesk(plan.root, plan.leader),
-      ...allowTools(plan.root),
-      ...denyOwnAccount(plan.root),
     ]);
     return 0;
   } catch (error) {
@@ -438,7 +426,7 @@ function main(argv) {
       console.error(usage());
       return 2;
     }
-    if (error instanceof InstallError || error instanceof DeskError) {
+    if (error instanceof InstallError || error instanceof DeskError || error instanceof ReleaseError) {
       console.error(`install: ${error.message}`);
       return 1;
     }

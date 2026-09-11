@@ -6,6 +6,17 @@ carries only its own.
 
 ## 0.7.0
 
+**An update is now a clean install with your material in it, and so is installing over an
+instance.** Both put the payload in place whole and then seed, once, whatever file of yours a fresh
+install would have given you and this instance has not got — the memory index, either settings file,
+the lead's desk — and name what they seeded. A file you have is yours whatever is in it and is never
+written over; `install --force` over an instance used to rewrite `openovai.json`, the memory index,
+the home settings and the lead's desk, and merged the payload instead of replacing it. Over an
+instance the installer's options are no longer all required: `openovai.json` answers for whatever
+is left off, and whatever is given is written into it, the rest of the file untouched. The
+instance's own settings are written once, whole, when there is none; the rule a hire adds still goes
+into whatever you have made of the file by then.
+
 **The chat now keeps its own room, and it spends none of your account doing it.** The room watch
 used to read the room every five minutes and, when something had crossed into a band, buy the lead a
 turn to hear about it. It reads the same room at the same cadence, and acts instead: a conversation

@@ -8,7 +8,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { describe, it } from "node:test";
+import { before, describe, it } from "node:test";
 
 import {
   claudeIsInstalled,
@@ -45,7 +45,7 @@ const versions = `${instance}-versions`;
 const versionless = `${instance}-versionless`;
 
 // The instances are removed however this run ends, including one that fails half way through.
-process.on("exit", () => remove(instance, chosen, versions, versionless));
+process.on("exit", () => remove(instance, chosen, versions, versionless, `${instance}-over`));
 
 // A full command line, which a check then spoils in one place to ask what is refused.
 function options(root, changes = {}) {
@@ -808,6 +808,115 @@ describe("what the skill tells a lead to report", () => {
   // model, no cadence and nobody's habits.
   it("names no model", () => {
     assert.doesNotMatch(skill(), /\b(opus|sonnet|haiku)\b/i);
+  });
+});
+
+// Installing over an instance is the same act as taking a newer version of it: the payload is
+// replaced whole, the person's files are kept whatever is in them, and a file of theirs that a
+// fresh install would have given them is seeded if it is missing. Each file is marked with a line
+// no template holds, so the check reads content rather than counting files. The one file that is
+// read rather than kept is the instance's own description: what the command line says is written
+// into it, what it leaves off is taken from it.
+describe("installing over an instance", () => {
+  const root = `${instance}-over`;
+  const MARK = "kept by the person\n";
+  const USER_FILES = [
+    [".claude", "settings.json"],
+    [".claude-home", "settings.json"],
+    [".claude-home", "projects", "workspace", "memory", "MEMORY.md"],
+    ["work", LEADER, "STATE.md"],
+  ];
+  let again;
+  let before_;
+
+  remove(root);
+  installed(options(root));
+  for (const parts of USER_FILES) {
+    fs.appendFileSync(path.join(root, ...parts), MARK);
+  }
+  // Something the person added to their description, which no answer names and which has to
+  // survive the answers being written in.
+  before_ = JSON.parse(fs.readFileSync(path.join(root, "openovai.json"), "utf8"));
+  fs.writeFileSync(path.join(root, "openovai.json"), `${JSON.stringify({ ...before_, quietHours: "22-07" }, null, 2)}\n`);
+  fs.appendFileSync(path.join(root, "personas", `${LEADER}.md`), MARK);
+  fs.writeFileSync(path.join(root, "tools", "left-behind.mjs"), "// not in the source\n");
+  fs.rmSync(path.join(root, ".claude", "allowed.md"), { force: true });
+  again = install(options(root, { "--force": true, "--port": 4242, "--leader-model": "haiku" }));
+
+  it("goes through", () => {
+    assert.equal(again.status, 0, again.stderr);
+  });
+
+  for (const parts of USER_FILES) {
+    it(`keeps ${parts.join("/")} as the person left it`, () => {
+      assert.ok(fs.readFileSync(path.join(root, ...parts), "utf8").endsWith(MARK));
+    });
+  }
+
+  // An answer given over an instance is written into its description — a person typing a port
+  // means the port — and everything the answer does not name is left as it was, the person's own
+  // additions included.
+  it("writes the answers given into the description the instance has, and keeps the rest of it", () => {
+    const config = JSON.parse(fs.readFileSync(path.join(root, "openovai.json"), "utf8"));
+    assert.deepEqual(
+      [config.port, config.models.leader, config.models.worker, config.createdAt, config.quietHours],
+      [4242, "haiku", WORKER_MODEL, before_.createdAt, "22-07"],
+    );
+  });
+
+  it("names the description among what it wrote, since it changed it", () => {
+    assert.ok(again.stdout.includes(path.join(root, "openovai.json")));
+  });
+
+  // What is not given is not missing: the instance's own description answers for it.
+  it("takes an answer left off the command line from the description the instance has", () => {
+    const fewer = install({ "--root": root, "--source": repo, "--force": true });
+    const config = JSON.parse(fs.readFileSync(path.join(root, "openovai.json"), "utf8"));
+    assert.equal(fewer.status, 0, fewer.stderr);
+    assert.deepEqual([config.port, config.models.leader, config.human], [4242, "haiku", HUMAN]);
+    assert.ok(!fewer.stdout.includes(path.join(root, "openovai.json")));
+  });
+
+  it("replaces the payload whole, taking away what the source has not got", () => {
+    assert.ok(!fs.existsSync(path.join(root, "tools", "left-behind.mjs")));
+  });
+
+  it("renders the lead's persona again, from the payload it just put in place", () => {
+    assert.ok(!fs.readFileSync(path.join(root, "personas", `${LEADER}.md`), "utf8").includes(MARK));
+  });
+
+  it("names what it seeded and what it replaced, and nothing it kept", () => {
+    assert.ok(again.stdout.includes(path.join(root, "tools")));
+    assert.ok(again.stdout.includes(path.join(root, "personas", `${LEADER}.md`)));
+    assert.ok(!again.stdout.includes(path.join(root, ".claude", "settings.json")));
+    assert.ok(!again.stdout.includes(path.join(root, ".claude-home", "settings.json")));
+  });
+
+  // A file the person has not got is placed as a fresh install places it — the case of an
+  // instance made before the toolkit wrote that file at all.
+  describe("a file of the person's that is missing", () => {
+    let seeded;
+
+    before(() => {
+      fs.rmSync(path.join(root, ".claude-home", "settings.json"));
+      fs.rmSync(path.join(root, "work", LEADER, "STATE.md"));
+      seeded = install(options(root, { "--force": true }));
+    });
+
+    it("is seeded as a fresh install would seed it", () => {
+      const settings = JSON.parse(fs.readFileSync(path.join(root, ".claude-home", "settings.json"), "utf8"));
+      assert.equal(settings.autoContinueAtUsageLimit, true);
+      assert.ok(fs.readFileSync(path.join(root, "work", LEADER, "STATE.md"), "utf8").includes(LEADER));
+    });
+
+    it("is named among what was written", () => {
+      assert.ok(seeded.stdout.includes(path.join(root, ".claude-home", "settings.json")));
+      assert.ok(seeded.stdout.includes(path.join(root, "work", LEADER, "STATE.md")));
+    });
+
+    it("leaves the rest of the person's files as they were", () => {
+      assert.ok(fs.readFileSync(path.join(root, ".claude", "settings.json"), "utf8").endsWith(MARK));
+    });
   });
 });
 
