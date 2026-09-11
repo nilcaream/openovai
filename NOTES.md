@@ -29,6 +29,14 @@ cold, at which point it is ended as a cold conversation with the refusals counte
 says so. When the window lifts, the hold is over and the line says who was handed over under it and
 who never was.
 
+**A conversation about to go cold is handed over before it does.** A conversation's cache lives an
+hour past its last turn, and a seat idle for fifty minutes of it usually goes on to lose it. So in
+those last minutes the pass asks the seat itself to hand over — one turn on that session, to write
+its desk while it can still be asked to — and tells the lead as it lands. Only a seat with nothing
+running on it and not sitting on a permission prompt, the lead last when it is among them, and never
+in a workspace that wrote `watchEverySeconds: 0`. It saves no tokens; what it saves is whatever
+that session had not yet written down.
+
 A crossing is still said — a conversation reaching nine tenths of its window, or ninety-five per
 cent — once, on the crossing, and nothing is done about it: handing a conversation over for its size
 is still yours to press, on its panel, and the line says so.

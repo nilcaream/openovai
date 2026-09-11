@@ -994,7 +994,7 @@ the lead's next turn, whenever somebody gives it one.
     and nothing was asked of Leo: whatever it had not written to work/Leo/STATE.md is gone, and
     the next message to it starts a new conversation that reads that desk first.
 
-A pass does three things, in this order.
+A pass does four things, in this order.
 
 **Under a hold, the chat hands the room over itself.** When the five-hour window is past the stop
 line — the same reading and the same line as the block above — the pass reads when it lifts against
@@ -1015,6 +1015,16 @@ would cost the whole of it again is the same hour the next message would have fo
 it first, while nothing is running for that session, and ends it. Nothing is stopped and nothing is
 asked of the session, and the next message to it begins a new conversation from its desk. The same
 act as before, at an earlier moment, and said to the lead rather than found by whoever wrote next.
+
+**A conversation about to go cold is handed over before it does.** The cache behind a conversation
+lives an hour past its last turn, and a seat that has been idle for fifty minutes of it goes on to
+lose it seven times in ten. So in those last minutes the pass asks the seat to hand over itself — a
+turn on that session, to write its desk while it can still be asked to — and says so to the lead as
+it lands. It saves no tokens: nothing is ever resumed, so leaving the seat alone is free and this turn
+is not; what it buys is a desk written by the session that knows what is on it. Only a seat with
+nothing running on it, never one sitting on a permission prompt, and the seat's own clock is read
+again inside the turn: if it was spoken to while the park waited its turn, nothing happens. A
+workspace with `watchEverySeconds: 0` is not asked for this turn either.
 
 **A crossing is said, once, and nothing is done about it.** The chat holds in memory the band each
 conversation was last seen in, and says a session only when that band has changed into nine tenths

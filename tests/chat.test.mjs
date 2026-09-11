@@ -8678,6 +8678,20 @@ describe("what the README says about the room watch", () => {
     assert.match(section, /A crossing is said, once/);
   });
 
+  // And the fourth, the park ahead of the hour, in its place between the ending and the crossing:
+  // a section that still counted three would be describing a pass that spends a turn it does not
+  // mention. Every inter-word gap is \s+, because the file is hard-wrapped.
+  it("says a conversation about to go cold is handed over, between the ending and the crossing", () => {
+    assert.match(section, /A pass does four things/);
+    const ended = section.search(/gone cold is ended there and then/);
+    const parked = section.search(/about to go cold is handed over before it does/);
+    const crossed = section.search(/A crossing is said, once/);
+    assert.ok(parked !== -1, "the section never says a conversation is handed over before it goes cold");
+    assert.ok(ended < parked && parked < crossed, `ended ${ended}, parked ${parked}, crossed ${crossed}`);
+    assert.match(section, /saves no\s+tokens/);
+    assert.match(section, /`watchEverySeconds: 0` is not asked for this turn/);
+  });
+
   it("no longer says the watch buys the lead a turn, ends nothing, or is absent at 0", () => {
     assert.doesNotMatch(section, /gives the lead\s+one/);
     assert.doesNotMatch(section, /no conversation\s+has been ended by this/);
@@ -8694,6 +8708,15 @@ describe("what the README says about the room watch", () => {
     assert.match(notes, /hands each conversation over to its desk itself/);
     assert.match(notes, new RegExp(`\`${WATCH_EVERY}: 0\` means something different now`));
     assert.match(notes, new RegExp(`\`${PARK_ATTEMPTS}\``));
+  });
+
+  // And about the park ahead of the hour, which is the one thing in the release that spends a turn
+  // on a seat nobody touched: a lead taking the version has to hear that from the notes and not
+  // from a park it did not expect.
+  it("tells the lead taking the version that a conversation is handed over before it goes cold", () => {
+    const notes = fs.readFileSync(path.join(repo, "NOTES.md"), "utf8");
+    assert.match(notes, /about to go cold is handed over before it does/);
+    assert.match(notes, /asks the seat itself to hand over/);
   });
 });
 
@@ -14568,6 +14591,273 @@ describe("what a pass does about where the account stands", () => {
 
     after(() => {
       remove(stopping);
+    });
+  });
+});
+
+const PARKED_BEFORE_THE_HOUR = "Cormorant";
+const SHORT_OF_THE_PARK = "Shag";
+const PAST_THE_HOUR_AS_WELL = "Skua";
+const NEARLY_COLD_MID_TURN = "Eider";
+const NEARLY_COLD_ON_A_PROMPT = "Scoter";
+const NEARLY_COLD_BUYS_NO_TURN = "Merganser";
+
+// What a pass does about a conversation about to lose its cache.
+//
+// The second condition in the pass that SPENDS. A conversation's cache lives an hour past its last
+// turn, and a seat idle past that hour restores cold on its next message at many times the warm
+// price — so in its last ten warm minutes the pass hands it over itself, which is one turn spent
+// on writing a desk while the conversation can still be asked to. Same arrangement as the parks on
+// the account's standing above: the chat runs in this process, the stand-in is on this process's
+// PATH for the length of the describe, and the pass is called directly rather than waited on from
+// a timer — the cadence is a long one here on purpose, so that what happened is what ONE pass did.
+describe("what a pass does about a conversation about to lose its cache", () => {
+  const pathBefore = process.env.PATH;
+
+  before(() => {
+    process.env.PATH = `${standIn}${path.delimiter}${pathBefore}`;
+  });
+
+  after(() => {
+    process.env.PATH = pathBefore;
+    delete process.env.OPENOVAI_STAND_IN_LOG;
+  });
+
+  describe("in a workspace that buys a turn", () => {
+    const expiring = `${instance}-expiring`;
+    const expiringLog = path.join(expiring, "parks.txt");
+    let leader;
+    let record;
+    let runs;
+    let panels;
+    let threadsLeft;
+    let promptStillParked;
+
+    const thread = (name) => path.join(expiring, "chat", name, "session.json");
+    const everybody = () => [PARKED_BEFORE_THE_HOUR, SHORT_OF_THE_PARK, PAST_THE_HOUR_AS_WELL, NEARLY_COLD_MID_TURN, NEARLY_COLD_ON_A_PROMPT, leader];
+
+    before(async () => {
+      process.env.OPENOVAI_STAND_IN_LOG = expiringLog;
+
+      installed(options(expiring, 0));
+      for (const name of [PARKED_BEFORE_THE_HOUR, SHORT_OF_THE_PARK, PAST_THE_HOUR_AS_WELL, NEARLY_COLD_MID_TURN, NEARLY_COLD_ON_A_PROMPT]) {
+        runTool(expiring, ["hire", name], process.env);
+      }
+      const config = path.join(expiring, "openovai.json");
+      // A cadence long enough that no tick of its own lands inside this describe, and not 0: this
+      // workspace buys a turn, and what is read below is what one pass, called from here, did.
+      fs.writeFileSync(
+        config,
+        `${JSON.stringify({ ...JSON.parse(fs.readFileSync(config, "utf8")), watchEverySeconds: 3600 }, null, 2)}\n`,
+      );
+      const held = JSON.parse(fs.readFileSync(config, "utf8"));
+      leader = held.leader;
+
+      // Every thread carries nothing but a thread: no size, no window, so that nothing here can be
+      // decided on a band, and the modified times are the whole of what the pass reads.
+      for (const name of everybody()) {
+        stageThread(expiring, name, {});
+      }
+      // The lead fifty-one minutes idle as well, so that this pass parks two seats and the order it
+      // takes them in — the lead last — can be read off the runs.
+      age(thread(PARKED_BEFORE_THE_HOUR), 51);
+      age(thread(leader), 51);
+      age(thread(SHORT_OF_THE_PARK), 45);
+      age(thread(PAST_THE_HOUR_AS_WELL), 90);
+      age(thread(NEARLY_COLD_MID_TURN), 51);
+      age(thread(NEARLY_COLD_ON_A_PROMPT), 51);
+      // Sitting on a permission prompt, staged the way `asking` stages one.
+      park(NEARLY_COLD_ON_A_PROMPT, { id: "asked-2", tool: "Bash", input: { command: "ls" } });
+
+      // And one with a turn going on it, held from here. A pass that asked for a turn on it would
+      // QUEUE behind this one and park it the moment it is let go — so the pass is given every
+      // chance to have done that: the turn is let go only after the pass has reported, and the seat
+      // is read afterwards.
+      let letGo;
+      const holding = inTurn(NEARLY_COLD_MID_TURN, () => new Promise((resolve) => {
+        letGo = resolve;
+      }));
+
+      const served = { root: expiring, config: held, plugins: [], pop: null };
+      const server = await serve(served);
+
+      // NOTHING IS ASSERTED IN THIS HOOK: it holds a live server and a turn only it can let go.
+      //
+      // The pass is not awaited, because a pass that wrongly queued on the held seat never returns
+      // until that seat is let go. Its record lands at its end, after the last park returned — a
+      // pass that finished is one that asked for no turn it could not have.
+      const pass = readTheRoom(served);
+      record = await until(() => {
+        const said = theWatchRecord();
+        return said !== null && said.at !== null ? said : null;
+      }, 8000);
+
+      // The chat is stopped first, so no pass of its own can run once the turn is let go; then the
+      // turn ends, the pass — wherever it was — is let finish, and the seats are read.
+      await new Promise((resolve) => server.close(resolve));
+      letGo();
+      await holding;
+      await pass;
+
+      runs = runsIn(expiringLog);
+      panels = Object.fromEntries(everybody().map((name) => [name, panelIn(expiring, name)]));
+      threadsLeft = everybody().filter((name) => fs.existsSync(thread(name)));
+      promptStillParked = parked(NEARLY_COLD_ON_A_PROMPT, expiring).length;
+    });
+
+    // Mutation: leave the block out. The reading shipped before the actor did, and without the
+    // actor a seat in its last warm minutes is left to go cold — the one moment a desk could still
+    // have been asked for, spent on nothing.
+    it("hands over a conversation in its last warm minutes", () => {
+      assert.ok(record !== null, "the pass never finished");
+      assert.ok(!threadsLeft.includes(PARKED_BEFORE_THE_HOUR), JSON.stringify(threadsLeft));
+      const asked = parkAskedOn(panels[PARKED_BEFORE_THE_HOUR]);
+      assert.equal(asked.length, 1, JSON.stringify(panels[PARKED_BEFORE_THE_HOUR]));
+      assert.match(asked[0].text, /about to lose its cache/);
+      assert.match(asked[0].text, /51m/);
+      assert.ok(runs.some((run) => run.name === PARKED_BEFORE_THE_HOUR), JSON.stringify(runs.map((run) => run.name)));
+    });
+
+    // Mutation: lower the line to where a conversation is merely quiet. Fifty minutes is a chosen
+    // default and the whole of the bet — a park at forty-five spends a turn on a seat far likelier
+    // to be spoken to again.
+    it("leaves a conversation short of the line alone", () => {
+      assert.ok(threadsLeft.includes(SHORT_OF_THE_PARK), JSON.stringify(threadsLeft));
+      assert.deepEqual(parkAskedOn(panels[SHORT_OF_THE_PARK]), []);
+      assert.ok(!runs.some((run) => run.name === SHORT_OF_THE_PARK), JSON.stringify(runs.map((run) => run.name)));
+    });
+
+    // Mutation: open the top edge, so a seat past the hour is nearly cold as well — AND put the
+    // park ahead of the ending, AND let `worthParking` take a cold seat, because each of the three
+    // alone keeps this green: the readings are disjoint, the ending runs first and removes the
+    // thread, and a park re-checks for cold inside its turn. The check is the claim all three
+    // guard, one decision per seat: past the hour there is nothing a handover turn could write that
+    // the desk does not already hold, and the turn would be a whole cold restore spent on saying so.
+    it("ends a conversation past the hour and does not ask it to hand over", () => {
+      assert.ok(!threadsLeft.includes(PAST_THE_HOUR_AS_WELL), JSON.stringify(threadsLeft));
+      assert.deepEqual(parkAskedOn(panels[PAST_THE_HOUR_AS_WELL]), []);
+      assert.equal(panels[PAST_THE_HOUR_AS_WELL].filter((line) => line.cold === true).length, 1, JSON.stringify(panels[PAST_THE_HOUR_AS_WELL]));
+      assert.ok(!runs.some((run) => run.name === PAST_THE_HOUR_AS_WELL), JSON.stringify(runs.map((run) => run.name)));
+    });
+
+    // Mutation: drop the gate on a turn in flight. A seat's clock stands still for the whole of a
+    // turn, so a seat working through a long turn reads as fifty minutes idle — and a park queued
+    // behind that turn runs the moment it ends, on a conversation that was never idle at all.
+    it("does not park a conversation with a turn going on it", () => {
+      assert.ok(threadsLeft.includes(NEARLY_COLD_MID_TURN), JSON.stringify(threadsLeft));
+      assert.deepEqual(parkAskedOn(panels[NEARLY_COLD_MID_TURN]), []);
+      assert.ok(!runs.some((run) => run.name === NEARLY_COLD_MID_TURN), JSON.stringify(runs.map((run) => run.name)));
+    });
+
+    // Mutation: drop `worthParking` from the filter. Nothing is running on a seat sitting on a
+    // permission prompt and a person is mid-decision; parking it saves nothing and takes that
+    // decision away.
+    it("leaves a conversation sitting on a permission prompt alone", () => {
+      assert.ok(threadsLeft.includes(NEARLY_COLD_ON_A_PROMPT), JSON.stringify(threadsLeft));
+      assert.equal(promptStillParked, 1);
+      assert.deepEqual(parkAskedOn(panels[NEARLY_COLD_ON_A_PROMPT]), []);
+      assert.ok(!runs.some((run) => run.name === NEARLY_COLD_ON_A_PROMPT), JSON.stringify(runs.map((run) => run.name)));
+    });
+
+    // Mutation: walk the candidates in the room's own order. The lead is parked last, so that every
+    // other park's line reaches a lead that still has a conversation to carry it onto its desk.
+    it("parks the lead last", () => {
+      assert.deepEqual(
+        runs.map((run) => run.name),
+        [PARKED_BEFORE_THE_HOUR, leader],
+      );
+      assert.ok(!threadsLeft.includes(leader), JSON.stringify(threadsLeft));
+    });
+
+    // Mutation: park it and say nothing to the lead. The line says the chat did it and why, so that
+    // a person reading the lead's panel is not left with a handover nobody pressed for.
+    it("tells the lead which conversation it handed over, and why", () => {
+      const said = parkedLinesOn(panels[leader]).filter((line) => line.text.startsWith(PARKED_BEFORE_THE_HOUR));
+      assert.equal(said.length, 1, JSON.stringify(panels[leader]));
+      assert.match(said[0].text, /rather than by anybody pressing/);
+      assert.match(said[0].text, /about to lose its cache/);
+      assert.match(said[0].text, /51m/);
+      // And the lead's own handover turn, last, heard it — which is what parking the lead last is
+      // for: the line reached a conversation that could still carry it onto the desk.
+      const leadRun = runs.find((run) => run.name === leader);
+      assert.ok(leadRun !== undefined, JSON.stringify(runs.map((run) => run.name)));
+      assert.match(leadRun.heard, new RegExp(`${PARKED_BEFORE_THE_HOUR} was handed over by the chat`));
+    });
+
+    // Mutation: count the parks as decided and never as acted. The record is how a person tells a
+    // pass that did something from one that found nothing to do.
+    it("counted what it did", () => {
+      assert.ok(record !== null, "the pass never finished");
+      assert.equal(record.sessions, everybody().length, JSON.stringify(record));
+      // Three decided: two parked before the hour, one ended past it. Three acted.
+      assert.equal(record.decided, 3, JSON.stringify(record));
+      assert.equal(record.acted, 3, JSON.stringify(record));
+    });
+
+    after(() => {
+      remove(expiring);
+    });
+  });
+
+  // `watchEverySeconds: 0` says one thing — do not spend a run on me — and a park is a run. The
+  // cold ending, which spends nothing, still happens.
+  describe("in a workspace that buys no turn", () => {
+    const declining = `${instance}-declining-expiry`;
+    const decliningLog = path.join(declining, "parks.txt");
+    let leader;
+    let record;
+    let runs;
+    let panels;
+    let threadsLeft;
+
+    const thread = (name) => path.join(declining, "chat", name, "session.json");
+
+    before(async () => {
+      process.env.OPENOVAI_STAND_IN_LOG = decliningLog;
+
+      installed(options(declining, 0));
+      runTool(declining, ["hire", NEARLY_COLD_BUYS_NO_TURN], process.env);
+      runTool(declining, ["hire", PAST_THE_HOUR_AS_WELL], process.env);
+      const config = path.join(declining, "openovai.json");
+      fs.writeFileSync(
+        config,
+        `${JSON.stringify({ ...JSON.parse(fs.readFileSync(config, "utf8")), watchEverySeconds: 0 }, null, 2)}\n`,
+      );
+      const held = JSON.parse(fs.readFileSync(config, "utf8"));
+      leader = held.leader;
+
+      stageThread(declining, NEARLY_COLD_BUYS_NO_TURN, {});
+      stageThread(declining, PAST_THE_HOUR_AS_WELL, {});
+      stageThread(declining, leader, {});
+      age(thread(NEARLY_COLD_BUYS_NO_TURN), 51);
+      age(thread(PAST_THE_HOUR_AS_WELL), 90);
+
+      const served = { root: declining, config: held, plugins: [], pop: null };
+      const server = await serve(served);
+      await readTheRoom(served);
+
+      record = theWatchRecord();
+      runs = runsIn(decliningLog);
+      panels = Object.fromEntries([NEARLY_COLD_BUYS_NO_TURN, PAST_THE_HOUR_AS_WELL, leader].map((name) => [name, panelIn(declining, name)]));
+      threadsLeft = [NEARLY_COLD_BUYS_NO_TURN, PAST_THE_HOUR_AS_WELL, leader].filter((name) => fs.existsSync(thread(name)));
+      await new Promise((resolve) => server.close(resolve));
+    });
+
+    // Mutation: drop `buysATurn`. The pass ran and read the room; what it did not do is the one
+    // thing that spends — and the ending, which spends nothing, still happened beside it.
+    it("parks nobody, and still ends the conversation past the hour", () => {
+      assert.ok(record !== null && record.at !== null, "the pass never ran");
+      assert.deepEqual(threadsLeft, [NEARLY_COLD_BUYS_NO_TURN, leader]);
+      assert.deepEqual(parkAskedOn(panels[NEARLY_COLD_BUYS_NO_TURN]), []);
+      assert.deepEqual(parkedLinesOn(panels[leader]), []);
+      assert.deepEqual(runs, []);
+      assert.equal(panels[PAST_THE_HOUR_AS_WELL].filter((line) => line.cold === true).length, 1, JSON.stringify(panels[PAST_THE_HOUR_AS_WELL]));
+      assert.equal(record.decided, 1, JSON.stringify(record));
+      assert.equal(record.acted, 1, JSON.stringify(record));
+    });
+
+    after(() => {
+      remove(declining);
     });
   });
 });

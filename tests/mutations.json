@@ -2426,5 +2426,162 @@
         "to": "    \"</size>\",\n"
       }
     ]
+  },
+  {
+    "name": "a conversation about to lose its cache is left to lose it",
+    "catches": "hands over a conversation in its last warm minutes",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  if (buysATurn(instance.config)) {\n    const expiring = inParkOrder(\n      instance,\n      room.filter(\n        (session) =>\n          turnsGoing(session.name) === 0 &&\n          hasNearlyGoneCold(instance.root, session.name) &&\n          worthParking(instance, session.name),\n      ),\n    );\n    decided += expiring.length;\n    for (const session of expiring) {\n      const idle = ago(ranOn(instance.root, session.name));\n      const done = await handOver(instance, session.name, expiringAsked(session.name, idle), () =>\n        worthParking(instance, session.name) && hasNearlyGoneCold(instance.root, session.name),\n      );\n      if (done === OFFLINE || done.abandoned === true || done.refused === true) {\n        continue;\n      }\n      acted += 1;\n      announce(instance, expiredLine(session.name, idle), at);\n    }\n  }\n\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a seat with a turn going on it is parked as if idle",
+    "catches": "does not park a conversation with a turn going on it",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "          turnsGoing(session.name) === 0 &&\n          hasNearlyGoneCold(instance.root, session.name) &&\n          worthParking(instance, session.name),\n",
+        "to": "          hasNearlyGoneCold(instance.root, session.name) &&\n          worthParking(instance, session.name),\n"
+      }
+    ]
+  },
+  {
+    "name": "a seat sitting on a permission prompt is parked ahead of the hour",
+    "catches": "leaves a conversation sitting on a permission prompt alone",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "          turnsGoing(session.name) === 0 &&\n          hasNearlyGoneCold(instance.root, session.name) &&\n          worthParking(instance, session.name),\n",
+        "to": "          turnsGoing(session.name) === 0 &&\n          hasNearlyGoneCold(instance.root, session.name),\n"
+      },
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "        worthParking(instance, session.name) && hasNearlyGoneCold(instance.root, session.name),\n",
+        "to": "        hasNearlyGoneCold(instance.root, session.name),\n"
+      }
+    ]
+  },
+  {
+    "name": "a seat on a permission prompt is decided on and then abandoned inside the turn",
+    "catches": "counted what it did",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "          turnsGoing(session.name) === 0 &&\n          hasNearlyGoneCold(instance.root, session.name) &&\n          worthParking(instance, session.name),\n",
+        "to": "          turnsGoing(session.name) === 0 &&\n          hasNearlyGoneCold(instance.root, session.name),\n"
+      }
+    ]
+  },
+  {
+    "name": "a workspace that buys no turn is parked ahead of the hour anyway",
+    "catches": "parks nobody, and still ends the conversation past the hour",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  if (buysATurn(instance.config)) {\n    const expiring",
+        "to": "  if (true) {\n    const expiring"
+      }
+    ]
+  },
+  {
+    "name": "the park line is drawn at forty minutes",
+    "catches": "leaves a conversation short of the line alone",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "const PARK_AFTER = (COLD_AFTER / 6) * 5;",
+        "to": "const PARK_AFTER = (COLD_AFTER / 6) * 4;"
+      }
+    ]
+  },
+  {
+    "name": "a seat past the hour is nearly cold, worth parking, and asked before it is ended",
+    "catches": "ends a conversation past the hour and does not ask it to hand over",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  if (buysATurn(instance.config)) {\n    const expiring = inParkOrder(\n      instance,\n      room.filter(\n        (session) =>\n          turnsGoing(session.name) === 0 &&\n          hasNearlyGoneCold(instance.root, session.name) &&\n          worthParking(instance, session.name),\n      ),\n    );\n    decided += expiring.length;\n    for (const session of expiring) {\n      const idle = ago(ranOn(instance.root, session.name));\n      const done = await handOver(instance, session.name, expiringAsked(session.name, idle), () =>\n        worthParking(instance, session.name) && hasNearlyGoneCold(instance.root, session.name),\n      );\n      if (done === OFFLINE || done.abandoned === true || done.refused === true) {\n        continue;\n      }\n      acted += 1;\n      announce(instance, expiredLine(session.name, idle), at);\n    }\n  }\n\n",
+        "to": ""
+      },
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  // A conversation nobody carried on for long enough, ended here rather than on the next message\n",
+        "to": "  if (buysATurn(instance.config)) {\n    const expiring = inParkOrder(\n      instance,\n      room.filter(\n        (session) =>\n          turnsGoing(session.name) === 0 &&\n          hasNearlyGoneCold(instance.root, session.name) &&\n          worthParking(instance, session.name),\n      ),\n    );\n    decided += expiring.length;\n    for (const session of expiring) {\n      const idle = ago(ranOn(instance.root, session.name));\n      const done = await handOver(instance, session.name, expiringAsked(session.name, idle), () =>\n        worthParking(instance, session.name) && hasNearlyGoneCold(instance.root, session.name),\n      );\n      if (done === OFFLINE || done.abandoned === true || done.refused === true) {\n        continue;\n      }\n      acted += 1;\n      announce(instance, expiredLine(session.name, idle), at);\n    }\n  }\n\n  // A conversation nobody carried on for long enough, ended here rather than on the next message\n"
+      },
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "  return idle > PARK_AFTER && idle <= COLD_AFTER;",
+        "to": "  return idle > PARK_AFTER;"
+      },
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  if (!hasThread(instance.root, name) || hasGoneCold(instance.root, name)) {\n    return false;\n  }\n  return parked(name, instance.root).length === 0;",
+        "to": "  if (!hasThread(instance.root, name)) {\n    return false;\n  }\n  return parked(name, instance.root).length === 0;"
+      }
+    ]
+  },
+  {
+    "name": "the seats about to lose their cache are parked in the room's own order, the lead first",
+    "catches": "parks the lead last",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    const expiring = inParkOrder(\n      instance,\n      room.filter(",
+        "to": "    const expiring = (\n      room.filter("
+      },
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "          worthParking(instance, session.name),\n      ),\n    );\n    decided += expiring.length;",
+        "to": "          worthParking(instance, session.name),\n      )\n    );\n    decided += expiring.length;"
+      }
+    ]
+  },
+  {
+    "name": "a park ahead of the hour is not said to the lead",
+    "catches": "tells the lead which conversation it handed over, and why",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "      acted += 1;\n      announce(instance, expiredLine(session.name, idle), at);\n",
+        "to": "      acted += 1;\n"
+      }
+    ]
+  },
+  {
+    "name": "a park ahead of the hour is not counted as acted",
+    "catches": "counted what it did",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "      acted += 1;\n      announce(instance, expiredLine(session.name, idle), at);\n",
+        "to": "      announce(instance, expiredLine(session.name, idle), at);\n"
+      }
+    ]
+  },
+  {
+    "name": "the README counts three things again",
+    "catches": "says a conversation about to go cold is handed over, between the ending and the crossing",
+    "edits": [
+      {
+        "file": "README.md",
+        "from": "A pass does four things, in this order.\n",
+        "to": "A pass does three things, in this order.\n"
+      }
+    ]
+  },
+  {
+    "name": "the notes say nothing about the park ahead of the hour",
+    "catches": "tells the lead taking the version that a conversation is handed over before it goes cold",
+    "edits": [
+      {
+        "file": "NOTES.md",
+        "from": "**A conversation about to go cold is handed over before it does.** A conversation's cache lives an\nhour past its last turn,",
+        "to": "A conversation's cache lives an\nhour past its last turn,"
+      }
+    ]
   }
 ]

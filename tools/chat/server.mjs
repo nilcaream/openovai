@@ -20,7 +20,7 @@ import { SKILL as ALLOWED } from "../skills.mjs";
 import { ago, roomLines, shareSaid } from "./room.mjs";
 import { WATCH_EVERY, armTheWatch, buysATurn, forgetTheRoom, howOften, nowSeen, parkAttemptsAllowed, theWatchRecord, tickRead, whatChanged } from "./watch.mjs";
 import { DESK_FILE, DeskError, WORK, allowAsked, archiveFor, deskTitle, describeName, hasSettledAnything, hire, isName, personaFile, retire } from "../desks.mjs";
-import { accountStanding, ask, bandIn, endRun, forget, fullnessIn, hasGoneCold, hasGoneQuiet, hasThread, quotaIn, ranAt, refusedIn, sessions, standingsUnderway } from "./session.mjs";
+import { accountStanding, ask, bandIn, endRun, forget, fullnessIn, hasGoneCold, hasGoneQuiet, hasNearlyGoneCold, hasThread, quotaIn, ranAt, refusedIn, sessions, standingsUnderway } from "./session.mjs";
 import { NO_NEW_WORK, spawnHeld } from "./gate.mjs";
 import { endHold, enterHold, forgetRefused, holdIn, holdLifted, holdSaid, holdStands, markParked, markRefused } from "./hold.mjs";
 import { inTurn, turnsGoing, waitingFor, whileWaitingFor, wouldWaitForItself } from "./turns.mjs";
@@ -2456,6 +2456,18 @@ function parkedLine(name, full) {
   return `${name} was handed over by the chat rather than by anybody pressing for it: the account had reached ${full} of the window it is in, and that window does not lift within the hour a conversation can be carried across. ${name} wrote ${desk(name)} first, so what it was doing is on that desk rather than gone, and the next message to it starts a new conversation that reads it.`;
 }
 
+// What a session is asked when the pass hands it over ahead of its cache going cold. The same
+// register as `parkAsked`, for the same reason: nobody pressed anything, so the line says what
+// decided it — and says how long the seat has been idle, which is the whole of the reason.
+function expiringAsked(name, idle) {
+  return `The chat is asking ${name} to hand over. Its conversation is about to lose its cache: its last turn ended ${idle}, and an hour after it the whole conversation would have to be paid for again, so what is in flight is being written down while it can still be asked for. ${name} is writing ${desk(name)} before its thread ends.`;
+}
+
+// What the lead is told once a session has been parked ahead of its cache going cold.
+function expiredLine(name, idle) {
+  return `${name} was handed over by the chat rather than by anybody pressing for it: its conversation was about to lose its cache, its last turn having ended ${idle}. ${name} wrote ${desk(name)} first, so what it was doing is on that desk rather than gone, and the next message to it starts a new conversation that reads it.`;
+}
+
 // Names, said in a sentence.
 function named(names) {
   if (names.length <= 1) {
@@ -2857,6 +2869,57 @@ async function walkTheRoom(instance) {
     }
     acted += 1;
     announce(instance, endedColdLine(session.name), at);
+  }
+
+  // A conversation in its last warm minutes, handed over before the hour rather than ended after
+  // it. The cache behind a conversation lives an hour past its last turn; past that the ending
+  // above is the right and cheaper act, and before it there is a window — the last ten minutes — in
+  // which a turn spent asking the seat to write its desk is spent while the conversation can still
+  // be asked. It saves no tokens: nothing is ever resumed, so doing nothing is free and this turn is
+  // not. What it buys is a desk written by the session that knows what is on it.
+  //
+  // THE SECOND THING HERE THAT SPENDS, so it asks the question the hold's parks ask, at the moment
+  // it is about to: a workspace that wrote `watchEverySeconds: 0` declined the turn and is told
+  // nothing here.
+  //
+  // ONE DECISION PER SEAT WITHOUT A RULE SAYING SO. It cannot meet the ending above: that reads
+  // `idle > COLD_AFTER` and this reads `PARK_AFTER < idle <= COLD_AFTER`. It cannot meet the hold's
+  // parks: a seat parked under the hold this pass has no thread, and `worthParking` says so. And a
+  // seat parked here has no thread when the bands below read it, so `bandIn` answers nothing.
+  //
+  // ONLY WHERE NOTHING IS RUNNING ON IT, for the reason the ending gives — a seat's clock stands
+  // still for the whole of a turn, so a session working through a long one reads as idle — and
+  // ASKED AGAIN INSIDE THE TURN, because the park is queued behind whatever is on that seat and may
+  // run minutes later: if the seat spoke meanwhile its clock moved and it is no longer nearly cold,
+  // and if it went cold while queued the cheaper ending is the right act. What is asked again is
+  // the reading and not the turn count: inside its own turn a seat always has one going.
+  //
+  // In the order the hold parks in, the lead last, so that every other park's line reaches a lead
+  // that still has a conversation to carry it onto its desk. A park the account turns away is left
+  // as it is: the seat is still warm and still nearly cold on the next pass, and is asked again
+  // there; if it goes cold first, the ending above is what it gets.
+  if (buysATurn(instance.config)) {
+    const expiring = inParkOrder(
+      instance,
+      room.filter(
+        (session) =>
+          turnsGoing(session.name) === 0 &&
+          hasNearlyGoneCold(instance.root, session.name) &&
+          worthParking(instance, session.name),
+      ),
+    );
+    decided += expiring.length;
+    for (const session of expiring) {
+      const idle = ago(ranOn(instance.root, session.name));
+      const done = await handOver(instance, session.name, expiringAsked(session.name, idle), () =>
+        worthParking(instance, session.name) && hasNearlyGoneCold(instance.root, session.name),
+      );
+      if (done === OFFLINE || done.abandoned === true || done.refused === true) {
+        continue;
+      }
+      acted += 1;
+      announce(instance, expiredLine(session.name, idle), at);
+    }
   }
 
   // And the bands, which are said and not acted on. Read after the cold conversations were ended,
