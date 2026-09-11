@@ -8660,6 +8660,17 @@ describe("what the README says about the room watch", () => {
     assert.doesNotMatch(section, /the feature is not there/);
     assert.match(section, /`0`\s+does not switch the watch off/);
   });
+
+  // And the notes a lead reads when taking the version: a release that changes what `0` means and
+  // adds a field has to say so there, or the one workspace that wrote `0` finds out from a park it
+  // did not expect. The release page is cut from these notes by section, so the whole file is read
+  // — a note, once written, stays.
+  it("tells the lead taking the version about the hold, and about both fields", () => {
+    const notes = fs.readFileSync(path.join(repo, "NOTES.md"), "utf8");
+    assert.match(notes, /hands each conversation over to its desk itself/);
+    assert.match(notes, new RegExp(`\`${WATCH_EVERY}: 0\` means something different now`));
+    assert.match(notes, new RegExp(`\`${PARK_ATTEMPTS}\``));
+  });
 });
 
 // Feature 13, slice 1: the room has a switch, and nothing reads it yet.

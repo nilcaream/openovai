@@ -6,6 +6,74 @@ carries only its own.
 
 ## 0.7.0
 
+**The chat now keeps its own room, and it spends none of your account doing it.** The room watch
+used to read the room every five minutes and, when something had crossed into a band, buy the lead a
+turn to hear about it. It reads the same room at the same cadence, and acts instead: a conversation
+nobody has carried on for an hour is ended by the pass, there and then, rather than by the next
+message that happens to reach it; and when the account has reached the stop line of its five-hour
+window and that window lifts later than a conversation can be carried across, the chat holds — it
+hands each conversation over to its desk itself, fullest first and the lead last, and says each park
+as it lands. Nothing in this buys a turn. What the pass did is one line on the lead's panel, and the
+same line waits in a block at the top of the lead's next turn, whenever you give it one; the lead is
+no longer woken to be told what the chat has already done.
+
+The hold does one of three things, and says which above the room — on the page, in `ovai room`, and
+to the lead. If the window lifts inside the hour, nobody is handed over: everybody is still here
+when it does. If the service did not say when it lifts, nobody is handed over either, because a park
+is not something to do on an unknown; the next completed turn is read again. Only when it lifts later
+than the hour does the chat park, and then a seat sitting on a permission prompt is left alone, no
+seat is parked twice under one hold, and a seat whose park the account turns away is asked again
+while it is still warm — as often as you allow. `parkAttemptsPerSeat` in `openovai.json` bounds
+that, a whole number of one or more; left out, a refused seat is asked on every pass until it goes
+cold, at which point it is ended as a cold conversation with the refusals counted in the line that
+says so. When the window lifts, the hold is over and the line says who was handed over under it and
+who never was.
+
+A crossing is still said — a conversation reaching nine tenths of its window, or ninety-five per
+cent — once, on the crossing, and nothing is done about it: handing a conversation over for its size
+is still yours to press, on its panel, and the line says so.
+
+**`watchEverySeconds: 0` means something different now, and if your instance wrote it, read this.**
+It used to switch the watch off: no timer, no reading, nothing. It now means *spend nothing on me*.
+The room is read at the default cadence regardless; a cold conversation is still ended and a crossing
+is still said, because neither costs a turn; and nobody is handed over by the chat — under a hold the
+line above the room says so, and whatever a conversation has not written to its desk by the lift goes
+with it. A workspace that wants a room nothing acts on takes it offline, which is a button.
+
+**Every row says where the account stands while a run is still going.** A row used to carry the
+reading its last finished turn came back with. A session mid-turn now says what the account read
+*now*, on which model, and since when the run began, so on a room where one long turn is what is
+spending, the number is not as old as the last turn that ended. Whether the room is being read at all
+shows on `/health` as `watch`: how often, when it was armed, when the last pass was, and how many
+sessions it read, decided on and acted on — a watch that died and one that was never armed look the
+same from a quiet room, and this is how they are told apart.
+
+**Your lead was told about the old watch, and an update does not tell it otherwise.** The persona a
+lead runs is rendered once, when its desk is opened, and taking a newer toolkit re-renders nobody's.
+A lead hired before this version has a paragraph in `personas/<Lead>.md` saying the watch gives it a
+turn and that nothing stops running because of it; both are now false, and the lead will act on them
+until the paragraph is replaced. The current text is in `templates/leader.md`, the paragraph
+beginning *The fourth is the room watch* and the one after it — copy them over the old ones by hand.
+A lead hired on this version has them already.
+
+**Every persona now carries a budget for the work it hands to others.** When a session delegates —
+an agent sent to search or to read — what that costs is not how much the agent reads but how many
+times it goes round, because every turn re-reads the whole conversation so far. The agent cannot see
+this. So every persona this workspace writes ends with four sentences to copy into every brief, word
+for word: answer in at most 15 tool calls or report what is missing; split the files between agents
+and never let two read the same one; search first, then read the part that matched; and treat what
+has been filed away as history, not a place to look things up. Here too a persona rendered before
+this version does not have it; the text is `BUDGET` in `tools/desks.mjs`, and `templates/leader.md`
+and `templates/worker.md` show where in a persona it sits.
+
+**A session the service refused comes back by itself, and a new instance says so in writing.** Left
+to the default, the limit can arrive as a dialog on the session's own terminal offering the wait as
+a choice, and the session sits on it until somebody answers at a keyboard nobody is at — it has left
+the room, and it cannot be asked, told or parked. A new instance is installed with
+`autoContinueAtUsageLimit` set to true in its own Claude Code home, spelled out rather than left to
+the harness. What keeps a reopened window from being spent by a whole room coming back at once is
+the hold above, not this key. An instance installed before this keeps what it was given.
+
 **Ask your lead what this workspace allows, and it reads the files rather than remembering.** The
 answer used to be whatever the lead had picked up: a first-turn paragraph written months before your
 instance existed said that nothing had been granted here, and every answer after that came out of a
