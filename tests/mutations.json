@@ -2219,6 +2219,28 @@
     ]
   },
   {
+    "name": "the update word says nothing about which conversations run the new instructions",
+    "catches": "says in the wrapper itself which conversations run the new instructions",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": " This conversation runs on the instructions it started with; every conversation started from now on — a hire, a handover, your own — runs on the ones this version ships.`,",
+        "to": "`,"
+      }
+    ]
+  },
+  {
+    "name": "the update word lists what was left alone again",
+    "catches": "does not list what the update left alone",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": " This conversation runs on the instructions it started with; every conversation started from now on — a hire, a handover, your own — runs on the ones this version ships.`,",
+        "to": " This conversation runs on the instructions it started with; every conversation started from now on — a hire, a handover, your own — runs on the ones this version ships. Your desks, the personas everybody here is running under, and everything this workspace has learned were left exactly as they were.`,"
+      }
+    ]
+  },
+  {
     "name": "the run is handed the person's settings as the list, an older toolkit's key and all",
     "catches": "hands the list for where the instance is now, not what an older toolkit wrote into the settings",
     "edits": [

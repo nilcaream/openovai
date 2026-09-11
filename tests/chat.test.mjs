@@ -1420,12 +1420,19 @@ describe("what the chat tells the lead when the toolkit under it was replaced", 
     assert.match(wrapper, new RegExp(`^<update from="${FROM}" to="${TO}">[\\s\\S]*${NOTES}[\\s\\S]*</update>$`));
   });
 
-  // An update ships new templates and re-renders no persona, so the session reading this is
-  // running the instructions written before the wrapper existed. It has to say what it is.
-  it("says in the wrapper itself what the update left alone", () => {
-    assert.match(wrapper, /desks/);
-    assert.match(wrapper, /personas/);
-    assert.match(wrapper, /learned/);
+  // A conversation keeps the persona it started with, so the session reading this is running the
+  // instructions written before the wrapper existed. It has to say what it is — and the one thing
+  // the lead cannot act without: which conversations run the new instructions.
+  it("says in the wrapper itself which conversations run the new instructions", () => {
+    assert.match(wrapper, /This conversation runs on the instructions it started with/);
+    assert.match(wrapper, /every conversation started from now on — a hire, a handover, your own — runs on the ones this version ships/);
+  });
+
+  // Not what was left alone. An update leaves everything of the workspace's alone, and a sentence
+  // saying so on every update is one nobody reads the one time it matters.
+  it("does not list what the update left alone", () => {
+    assert.doesNotMatch(wrapper, /left exactly as they were/);
+    assert.doesNotMatch(wrapper, /hired under the arrangement/);
   });
 
   it("says that nobody else here has been told, which is what makes it the lead's to pass on", () => {

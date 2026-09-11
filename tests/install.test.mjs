@@ -593,8 +593,8 @@ describe("what the installer made", () => {
     assert.match(leadPersona(), /<update from="[^"]*" to="[^"]*">/);
   });
 
-  it("tells the leader that an update leaves the desks and the personas alone", () => {
-    assert.match(leadPersona(), /desks, the personas and what this workspace has learned are\s+untouched/);
+  it("tells the leader that a conversation started after an update runs the new instructions", () => {
+    assert.match(leadPersona(), /every conversation started after the update — a hire, a handover, your own — runs on what the new\s+version ships/);
   });
 
   it("tells the leader when it will hear it, since it is not at the moment it was said", () => {

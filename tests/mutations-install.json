@@ -291,6 +291,17 @@
     ]
   },
   {
+    "name": "the lead's instructions say an update leaves everybody on the old arrangement",
+    "catches": "tells the leader that a conversation started after an update runs the new instructions",
+    "edits": [
+      {
+        "file": "templates/leader.md",
+        "from": "It says what the release changed. This conversation runs on the instructions it started with, and\nevery conversation started after the update — a hire, a handover, your own — runs on what the new\nversion ships; nobody else here has been told.",
+        "to": "It says what the release changed. Your desks, the personas and what this workspace has learned are\nuntouched by it, and nobody else here has been told — everybody, you included, was hired under the\narrangement before it."
+      }
+    ]
+  },
+  {
     "name": "an answer given over an instance is dropped because the description already had one",
     "catches": "writes the answers given into the description the instance has, and keeps the rest of it",
     "edits": [

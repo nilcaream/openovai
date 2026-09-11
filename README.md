@@ -1255,8 +1255,9 @@ whole repository and that is fine: what makes something a valid source is the pa
 not the absence of anything else.
 
 **Everything a workspace has accumulated is left alone.** Desks under `work/`, the panels, threads
-and personas under `chat/`, `openovai.json`, the settings, the
-Claude Code home with everything the workspace has learned in it — an update does not write them.
+and personas under `chat/`, what you added to the personas under `customization/`, your own tools
+under `plugins/`, `openovai.json`, the settings, the Claude Code home with everything the workspace
+has learned in it — an update does not write them.
 Nothing is re-keyed, nothing is migrated, and no name changes hands. The one thing it adds is a file
 of yours that a fresh install of this version would have given you and this instance has not got —
 the memory index, either settings file, the lead's desk — seeded once, the way the installer seeds
@@ -1338,12 +1339,14 @@ and the same thing to the lead's session, in front of whatever it is asked next:
 Both halves, for the same reason an overheard line takes both: a panel is what a person reads and a
 thread is what a session resumes.
 
-The wrapper explains itself rather than relying on the persona, because the persona is the one thing
-an update deliberately did not replace. It says that the chat is speaking and not the human, what
-was replaced, what was left alone, what the release said changed, and that nobody else in the
-workspace has been told. That last part is the point of telling the lead at all: the lead is what
-tells everybody else, and the sessions already at work were hired under the arrangement before this
-one.
+The wrapper explains itself rather than relying on the persona, because a conversation keeps the
+persona it started with and the lead's started before the update. It says that the chat is speaking
+and not the human, what was replaced, what the release said changed, and that nobody else in the
+workspace has been told — that last part is the point of telling the lead at all, the lead is what
+tells everybody else. And one sentence the lead cannot act without: this conversation runs on the
+instructions it started with, and every conversation started from now on, its own next one
+included, runs on the ones the new version ships. It does not list what was left alone: an update
+leaves everything of the workspace's alone, every time, and the place that says so is here.
 
 **"At once" means this, and no more:** the lead is told in front of the very next thing it is asked,
 and never later than that. It is not told while it is idle, because there is no way to hand a

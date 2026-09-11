@@ -112,19 +112,22 @@ function updateLine(from, to, notes) {
 
 // The same thing said to the lead's model, and it has to explain itself.
 //
-// An update ships new templates and re-renders no persona, so the lead reading this is running the
-// one written before any of it existed: there is no paragraph in its instructions to look this up
-// in. So the wrapper says, in itself, that the chat is speaking rather than the human, what was
-// replaced, what was deliberately left alone, and that it is the only one here who knows. That
-// last part is the whole point of telling it at all — the lead is what tells everybody else.
+// A conversation keeps the persona it started with, so the lead reading this is running one
+// written before any of it existed: there is no paragraph in its instructions to look this up in.
+// So the wrapper says, in itself, that the chat is speaking rather than the human, what was
+// replaced, and that it is the only one here who knows — that last part is the whole point of
+// telling it at all, the lead is what tells everybody else. And one sentence the lead cannot act
+// without: which conversations run the new instructions. Nothing about what was left alone; an
+// update leaves everything of the workspace's alone, and a sentence saying so on every update is
+// a sentence nobody reads the one time it matters.
 function updateWrapper(from, to, notes) {
   return [
     `<update from="${from ?? ""}" to="${to}">`,
     "The chat is telling you this. Nobody typed it.",
-    `The toolkit this workspace runs on was replaced while nothing here was running: it was on ${from ?? "no recorded version"} and is now on ${to}. Your desks, the personas everybody here is running under, and everything this workspace has learned were left exactly as they were.`,
+    `The toolkit this workspace runs on was replaced while nothing here was running: it was on ${from ?? "no recorded version"} and is now on ${to}. This conversation runs on the instructions it started with; every conversation started from now on — a hire, a handover, your own — runs on the ones this version ships.`,
     "What the release says changed:",
     notes,
-    "Everybody here was hired under the arrangement before this one, you included, and nobody else has been told. Work out from those notes what is different now, and say it to whoever it affects.",
+    "This is yours to pass on: nobody else has been told. Work out from those notes what is different now, and say it to whoever it affects.",
     "</update>",
   ].join("\n\n");
 }
