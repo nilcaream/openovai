@@ -1370,9 +1370,9 @@ function watchSaid(record) {
 function watchArmedLine(config, every) {
   const cadence = `The room is read every ${every / 1000} seconds`;
   if (!buysATurn(config)) {
-    return `${cadence}, and nothing is spent on it: this workspace wrote ${WATCH_EVERY}: 0, so nobody is handed over by the chat. Whether it is being read shows on /health as watch.`;
+    return `${cadence}, and nothing is spent on it: this workspace wrote ${WATCH_EVERY}: 0, so nobody is handed over by the chat. Whether it is being read shows on the page, above the room, and on /health as watch.`;
   }
-  return `${cadence}. Whether it is being read shows on /health as watch.`;
+  return `${cadence}. Whether it is being read shows on the page, above the room, and on /health as watch.`;
 }
 
 // The room, in the same lines the command prints — the same rows off the same list, laid out by
@@ -1385,7 +1385,7 @@ function theRoom(instance) {
   // is doing is the reader most likely to be told nothing back — it is the session whose next
   // message will be turned away — so a tool that left this out would be the one place the silence
   // had no explanation.
-  return { text: roomLines(rows, offline(instance.root), holdSaid(holdIn(instance.root))).join("\n") };
+  return { text: roomLines(rows, offline(instance.root), holdSaid(holdIn(instance.root)), watchSaid(theWatchRecord())).join("\n") };
 }
 
 // Who works here, which is the half of `ovai status` a session can act on: the names it can say
@@ -2211,6 +2211,11 @@ async function handle(instance, request, response) {
       // the hold was decided on, worded by whoever lays the room out, so that the page and the
       // terminal say it in their own copy of one sentence the way they already do for `offline`.
       hold: holdSaid(holdIn(instance.root)),
+      // And whether the room is being read: the same record /health serves, beside the rows for
+      // the reason the hold rides here. A pass that finds nothing writes nothing, so from the rows
+      // a watch that died and one with nothing to do look the same; the person is on the page and
+      // the lead is in `room`, and neither is standing at a terminal with curl.
+      watch: watchSaid(theWatchRecord()),
       sessions: sessions(instance).map((session) => everySession(instance, session)),
     });
     return;

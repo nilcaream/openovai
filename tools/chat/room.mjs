@@ -34,7 +34,15 @@ const OFF = "The room is offline — nothing new will be started until it is bro
 // moment is inside the hour a conversation can be carried across, and whether anybody is being
 // handed over — because the moment is worded in the hours of whoever is reading, and that is a
 // clock only the reader's side has.
-export function roomLines(sessions, offline = false, hold = null) {
+//
+// And whether the room is being read at all, after those two. A pass that finds nothing writes
+// nothing, so a watch that has died and one that has nothing to do look the same from the rows —
+// and since the watch is the thing that parks, its death is the one blocker nothing else would
+// name. What is said is the record the watch keeps of itself: when the room was last read and how
+// often it is read, and nothing more. A timestamp and not a health indicator: there is no threshold
+// here and no colour, "older than about two cadences" is a judgment, and it belongs to whoever is
+// reading. `null` says nothing, for a chat too old to send it.
+export function roomLines(sessions, offline = false, hold = null, watch = null) {
   const width = Math.max(...sessions.map((session) => session.name.length));
   const lines = sessions.map((session) => `${session.name.padEnd(width)}  ${describeSession(session)}`);
 
@@ -45,7 +53,21 @@ export function roomLines(sessions, offline = false, hold = null) {
   if (hold !== null && typeof hold === "object") {
     above.push(holdSaid(hold));
   }
+  if (watch !== null && typeof watch === "object") {
+    above.push(watchSaid(watch));
+  }
   return [...above, ...lines];
+}
+
+// What a room says about being read: an age and a cadence, and no verdict. Two shapes, one for a
+// watch that has finished a pass and one for a watch armed and not yet round — the arming is said
+// in that second one so that a room read every five minutes and armed twenty minutes ago reads
+// exactly as what it is. The moments come as moments, and are worded in the reader's own terms.
+function watchSaid(watch) {
+  if (typeof watch.at === "string") {
+    return `The room was last read ${ago(watch.at)}; it is read every ${watch.everySeconds} seconds.`;
+  }
+  return `The room has not been read yet; the watch was armed ${ago(watch.armedAt)} and reads every ${watch.everySeconds} seconds.`;
 }
 
 // What a room says while the account is at its stop line — what the hold does, and what the gate

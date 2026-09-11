@@ -306,13 +306,27 @@
     return `The account is nearly spent — ${lifts}, later than a conversation can be carried across, and this workspace buys no turn, so nobody is handed over. ${NO_NEW_WORK}`;
   }
 
-  function showTheRoom({ offline, hold, sessions }) {
+  // Whether the room is being read, from the record the chat sends beside the rows: when it was
+  // last read and how often it is read. An age and a cadence and no verdict — no threshold here and
+  // no colour; whether "12m ago" against "every 300 seconds" is a dead watch is the reader's call.
+  // The same two sentences as the command prints, kept true by hand, as the hold's four are.
+  function watchSaid(watch) {
+    if (typeof watch.at === "string") {
+      return `The room was last read ${ago(watch.at)}; it is read every ${watch.everySeconds} seconds.`;
+    }
+    return `The room has not been read yet; the watch was armed ${ago(watch.armedAt)} and reads every ${watch.everySeconds} seconds.`;
+  }
+
+  function showTheRoom({ offline, hold, watch, sessions }) {
     roomIsOff = offline === true;
     switchRoom.textContent = roomIsOff ? "Go online" : "Go offline";
 
     const said = roomIsOff ? [Object.assign(document.createElement("p"), { textContent: OFF })] : [];
     if (hold !== null && typeof hold === "object") {
       said.push(Object.assign(document.createElement("p"), { textContent: holdSaid(hold) }));
+    }
+    if (watch !== null && typeof watch === "object") {
+      said.push(Object.assign(document.createElement("p"), { textContent: watchSaid(watch) }));
     }
     room.replaceChildren(...said, ...sessions.map(inTheRoom));
   }

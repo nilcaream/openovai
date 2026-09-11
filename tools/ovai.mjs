@@ -211,7 +211,7 @@ async function room(root) {
 
   // The room's own fact rides with the rows it belongs to. Read as a boolean rather than trusted:
   // a chat too old to know the field would send nothing, and a room that is on is what it was.
-  for (const line of roomLines(body.sessions, body.offline === true, body.hold ?? null)) {
+  for (const line of roomLines(body.sessions, body.offline === true, body.hold ?? null, body.watch ?? null)) {
     console.log(line);
   }
 }

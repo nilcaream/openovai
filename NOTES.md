@@ -4,6 +4,15 @@ For the lead of a workspace taking this version. Short, and about what is differ
 working there — not a developer changelog. A section per release, newest first; a release page
 carries only its own.
 
+## 0.8.0
+
+**The room says when it was last read.** A pass that finds nothing writes nothing, so a room watch
+that had died looked exactly like one with nothing to do — and the watch is what parks a conversation
+now, so its death was the one thing nobody would notice. One line above the room says it, on the
+page, in `ovai room` and to your lead: when the room was last read and how often it is read, or
+that it has not been read yet and when the watch was armed. Two numbers and no verdict; whether
+twelve minutes against every five means the watch is gone is yours to read off them.
+
 ## 0.7.0
 
 The chat keeps its own room now, and a persona is rendered when a conversation starts rather than

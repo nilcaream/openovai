@@ -1069,6 +1069,13 @@ carries the watch: how often, when it was armed, when the last pass was, and how
 read, decided on and acted on. A watch that died and one that was never armed look the same from a
 quiet room; this is how they are told apart.
 
+**And it is said above the room** — on the page, in `ovai room`, and to the lead — in one line with
+two shapes: *The room was last read 2m ago; it is read every 300 seconds.* once a pass has finished,
+and *The room has not been read yet; the watch was armed 1m ago and reads every 300 seconds.* until
+one has. An age and a cadence, and no verdict: there is no threshold and no colour, and whether
+twelve minutes against every five is a watch that has died is yours to say, from the two numbers
+that are there to say it with. A room that is off, or under a hold, says those first.
+
 The timer belongs to the chat and not to the process. It is cleared when the server closes and it
 never holds the process open, so a chat that has been stopped has stopped reading its room.
 

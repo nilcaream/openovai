@@ -93,7 +93,7 @@ import { KINDS } from "../tools/chat/unfinished.mjs";
 // The states a room can say, for the same reason: the list is the check's other source, and a copy
 // of it here would be a list that agrees with itself while the room learned a seventh state nobody
 // had ever been in.
-import { STATES } from "../tools/chat/room.mjs";
+import { STATES, roomLines } from "../tools/chat/room.mjs";
 
 // The names the chat serves of its own, read from the one place they are written down. The check
 // below compares it with what a lead is actually offered, which is the only thing that says the
@@ -3399,8 +3399,11 @@ describe("showing the room on the command line", () => {
     assert.equal(shown.status, 0);
   });
 
+  // The room's own lines — off, the hold, whether it is being read — are said above the rows and
+  // begin with the room or the account; a row begins with a name.
   it("gives one line to each person who works here", () => {
-    assert.equal(shown.stdout.trim().split("\n").length, here);
+    const rows = shown.stdout.trim().split("\n").filter((line) => !/^The (room|account) /.test(line));
+    assert.equal(rows.length, here, shown.stdout);
   });
 
   it("names everybody in it", () => {
@@ -6513,8 +6516,11 @@ describe("a session calls the tools the chat serves it", () => {
       assert.match(asked.text, new RegExp(`the room is the lead's to look at, so ask ${LEADER}`));
     });
 
+    // The room's own lines — off, the hold, whether it is being read — are said above the rows and
+    // begin with the room or the account; a row begins with a name.
     it("has a line for everybody who works here", () => {
-      const named = shown.split("\n").map((line) => line.split(/\s+/)[0]).sort();
+      const rows = shown.split("\n").filter((line) => !/^The (room|account) /.test(line));
+      const named = rows.map((line) => line.split(/\s+/)[0]).sort();
       assert.deepEqual(named, fs.readdirSync(path.join(instance, "work")).sort());
     });
 
@@ -13331,6 +13337,10 @@ describe("the room says whether it is being read at all", () => {
   let healthAtBoot;
   let healthAfterAPass;
   let healthForNothing;
+  let sessionsAtBoot;
+  let sessionsAfterAPass;
+  let roomAfterAPass;
+  let leader;
 
   // What `serve()` says on the terminal while it runs, captured for the length of the call.
   async function servingSaid(served) {
@@ -13352,14 +13362,18 @@ describe("the room says whether it is being read at all", () => {
       `${JSON.stringify({ ...JSON.parse(fs.readFileSync(config, "utf8")), watchEverySeconds: 1 }, null, 2)}\n`,
     );
     const held = JSON.parse(fs.readFileSync(config, "utf8"));
+    leader = held.leader;
 
     // Nothing is asserted in this hook: it holds live servers.
     const { server, lines } = await servingSaid({ root: reading, config: held, plugins: [], pop: null });
     saidAtBoot = lines;
     const url = JSON.parse(fs.readFileSync(path.join(reading, "chat", "listening.json"), "utf8")).url;
     healthAtBoot = JSON.parse((await get(`${url}/health`)).body);
+    sessionsAtBoot = JSON.parse((await get(`${url}/sessions`)).body);
     await waitFor(async () => (theWatchRecord()?.at ?? null) !== null ? true : null);
     healthAfterAPass = JSON.parse((await get(`${url}/health`)).body);
+    sessionsAfterAPass = JSON.parse((await get(`${url}/sessions`)).body);
+    roomAfterAPass = (await runToolLater(reading, ["room"], process.env)).stdout;
     await new Promise((resolve) => server.close(resolve));
 
     installed(options(unread, 0));
@@ -13419,8 +13433,129 @@ describe("the room says whether it is being read at all", () => {
     assert.ok(healthAfterAPass.watch.sessions >= 1, JSON.stringify(healthAfterAPass.watch));
   });
 
+  // Mutation: leave the watch off /sessions. The same record through a second door, beside the
+  // rows and never on one, for the reader who is on the page and not at a terminal with curl: at
+  // boot armed and not yet fired, and after a pass a moment — one that is not before the one
+  // /health served a breath earlier, because the room is read every second here and a pass may
+  // have finished between the two reads. The arming does not move, and is one arming on both.
+  it("serves the same record beside the rows, on /sessions", () => {
+    assert.ok(sessionsAtBoot.watch !== null && typeof sessionsAtBoot.watch === "object", JSON.stringify(sessionsAtBoot));
+    assert.equal(sessionsAtBoot.watch.at, null, JSON.stringify(sessionsAtBoot.watch));
+    assert.equal(sessionsAtBoot.watch.everySeconds, 1, JSON.stringify(sessionsAtBoot.watch));
+    assert.equal(sessionsAtBoot.watch.armedAt, healthAtBoot.watch.armedAt);
+    assert.match(sessionsAfterAPass.watch.at, /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/, JSON.stringify(sessionsAfterAPass.watch));
+    assert.ok(Date.parse(sessionsAfterAPass.watch.at) >= Date.parse(healthAfterAPass.watch.at), JSON.stringify([sessionsAfterAPass.watch, healthAfterAPass.watch]));
+    assert.equal(sessionsAfterAPass.watch.armedAt, healthAtBoot.watch.armedAt);
+  });
+
+  // Mutation: leave the record out of what the command hands the room's lines. The terminal is
+  // where the person who started the chat is standing; the line is above the rows, and it is the
+  // read-line and not the armed-line, because a pass had finished before the room was asked.
+  it("says it in the room a person reads at a terminal, above the rows", () => {
+    const lines = roomAfterAPass.split("\n");
+    const said = lines.findIndex((line) => /^The room was last read just now; it is read every 1 seconds\.$/.test(line));
+    const row = lines.findIndex((line) => line.startsWith(`${leader} `));
+    assert.ok(said !== -1, roomAfterAPass);
+    assert.ok(row !== -1, roomAfterAPass);
+    assert.ok(said < row, roomAfterAPass);
+  });
+
   after(() => {
     remove(reading, unread);
+  });
+});
+
+// What the room says about being read, in the words themselves.
+//
+// The lines are asked directly, with a record built by hand, because the two shapes are told apart
+// by the age of a moment and a served chat cannot be made twenty minutes old. What is said is an
+// age and a cadence and no verdict: no threshold and no colour, "older than about two cadences" is
+// the reader's judgment, and a check that asserted a dead line at some age would be asserting the
+// threshold the record was built to refuse. And the page's own copy, read as text, as the hold's is.
+describe("the room says when it was last read", () => {
+  const row = {
+    name: "Wren",
+    role: "worker",
+    model: "opus",
+    doing: "",
+    asking: 0,
+    waitingFor: null,
+    queued: 0,
+    cold: false,
+    busy: false,
+    thread: null,
+    context: null,
+    window: null,
+    active: null,
+    refused: null,
+    quota: null,
+  };
+  // Minted when the check runs and never when the file loads: in a full run the two are minutes
+  // apart, and an age worded in minutes would have moved.
+  const minutesAgo = (minutes) => new Date(Date.now() - minutes * 60 * 1000).toISOString();
+  const hold = { resetsAt: Math.floor(Date.now() / 1000) + 3 * 60 * 60, warm: false, parking: true };
+  const isTheRow = (line) => line.startsWith("Wren ");
+  let page;
+
+  before(() => {
+    page = fs.readFileSync(path.join(instance, "tools", "chat", "page.html"), "utf8");
+  });
+
+  // Mutation: lay the room out from the first three arguments and ignore the fourth. Armed and
+  // not yet round is its own sentence, with the arming in it, so that a room read every five
+  // minutes and armed twenty minutes ago reads as exactly what it is.
+  it("says the room has not been read yet, and how often it is read, while no pass has finished", () => {
+    const lines = roomLines([row], false, null, { at: null, armedAt: minutesAgo(20), everySeconds: 300 });
+    assert.equal(lines.length, 2, JSON.stringify(lines));
+    assert.match(lines[0], /^The room has not been read yet; the watch was armed 20m ago and reads every 300 seconds\.$/);
+    assert.ok(isTheRow(lines[1]), JSON.stringify(lines));
+  });
+
+  // Mutation: word the age off the arming where a pass has finished. The two moments are twenty
+  // and two minutes old here, so a line that read the wrong one cannot pass by coincidence.
+  it("says how long ago the room was last read, once a pass has finished", () => {
+    const lines = roomLines([row], false, null, { at: minutesAgo(2), armedAt: minutesAgo(20), everySeconds: 300 });
+    assert.equal(lines.length, 2, JSON.stringify(lines));
+    assert.match(lines[0], /^The room was last read 2m ago; it is read every 300 seconds\.$/);
+    assert.ok(isTheRow(lines[1]), JSON.stringify(lines));
+  });
+
+  // A chat too old to send the field says nothing, so that its room reads as it did.
+  it("says nothing about it when the chat sent no record", () => {
+    const lines = roomLines([row], false, null, null);
+    assert.equal(lines.length, 1, JSON.stringify(lines));
+    assert.ok(isTheRow(lines[0]), JSON.stringify(lines));
+    assert.doesNotMatch(lines.join("\n"), /read every|last read|not been read/);
+  });
+
+  // The room's line, the account's, then the watch's: the order the lines are pushed in, and the
+  // order they matter in to somebody reading a room that is off and stopping and unread at once.
+  it("comes after the room's line and the account's, and before the rows", () => {
+    const lines = roomLines([row], true, hold, { at: minutesAgo(2), armedAt: minutesAgo(20), everySeconds: 300 });
+    assert.equal(lines.length, 4, JSON.stringify(lines));
+    assert.match(lines[0], /^The room is offline/);
+    assert.match(lines[1], /^The account is nearly spent/);
+    assert.match(lines[2], /^The room was last read 2m ago; it is read every 300 seconds\.$/);
+    assert.ok(isTheRow(lines[3]), JSON.stringify(lines));
+  });
+
+  // No suite runs page.html — it is served and read as text — so the page's copy is proven by
+  // reading it, bounded to the block that draws the room, as the hold's is: the record is taken
+  // off what the chat serves, both moments and the cadence are read, and the sentence is built AND
+  // put on the page.
+  it("says it on the page too, from the served record, in the page's own copy of the room", () => {
+    const from = page.indexOf("const OFF =");
+    const to = page.indexOf("function panel(session)");
+    assert.ok(from !== -1 && to !== -1 && from < to, "the page's room block is not where this check looks for it");
+    const theRoom = page.slice(from, to);
+
+    assert.match(theRoom, /showTheRoom\(\{ offline, hold, watch, sessions \}\)/);
+    assert.ok((theRoom.match(/\bwatchSaid\b/g) ?? []).length > 1, "the sentence is built and never put on the page");
+    assert.match(theRoom, /ago\(watch\.at\)/);
+    assert.match(theRoom, /ago\(watch\.armedAt\)/);
+    assert.ok((theRoom.match(/watch\.everySeconds/g) ?? []).length === 2, "both sentences carry the cadence");
+    assert.match(theRoom, /The room was last read \$\{ago\(watch\.at\)\}; it is read every \$\{watch\.everySeconds\} seconds\./);
+    assert.match(theRoom, /The room has not been read yet; the watch was armed \$\{ago\(watch\.armedAt\)\} and reads every \$\{watch\.everySeconds\} seconds\./);
   });
 });
 
@@ -14778,7 +14913,7 @@ describe("what a pass does about where the account stands", () => {
       assert.ok(from !== -1 && to !== -1 && from < to, "the page's room block is not where this check looks for it");
       const theRoom = page.slice(from, to);
 
-      assert.match(theRoom, /showTheRoom\(\{ offline, hold, sessions \}\)/);
+      assert.match(theRoom, /showTheRoom\(\{ offline, hold, watch, sessions \}\)/);
       // Declared AND put on the page, for the reason the room-off check gives.
       assert.ok((theRoom.match(/\bholdSaid\b/g) ?? []).length > 1, "the sentence is built and never put on the page");
       assert.match(theRoom, /so each conversation is being handed over to its desk\./);

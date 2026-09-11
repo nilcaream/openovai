@@ -1927,8 +1927,8 @@
     "edits": [
       {
         "file": "tools/ovai.mjs",
-        "from": "  for (const line of roomLines(body.sessions, body.offline === true, body.hold ?? null)) {",
-        "to": "  for (const line of roomLines(body.sessions, body.offline === true)) {"
+        "from": "  for (const line of roomLines(body.sessions, body.offline === true, body.hold ?? null, body.watch ?? null)) {",
+        "to": "  for (const line of roomLines(body.sessions, body.offline === true, null, body.watch ?? null)) {"
       }
     ]
   },
@@ -1938,8 +1938,8 @@
     "edits": [
       {
         "file": "tools/chat/server.mjs",
-        "from": "  return { text: roomLines(rows, offline(instance.root), holdSaid(holdIn(instance.root))).join(\"\\n\") };",
-        "to": "  return { text: roomLines(rows, offline(instance.root)).join(\"\\n\") };"
+        "from": "  return { text: roomLines(rows, offline(instance.root), holdSaid(holdIn(instance.root)), watchSaid(theWatchRecord())).join(\"\\n\") };",
+        "to": "  return { text: roomLines(rows, offline(instance.root), null, watchSaid(theWatchRecord())).join(\"\\n\") };"
       }
     ]
   },
@@ -2004,8 +2004,8 @@
     "edits": [
       {
         "file": "tools/chat/page.html",
-        "from": "  function showTheRoom({ offline, hold, sessions }) {",
-        "to": "  function showTheRoom({ offline, sessions }) {\n    const hold = null;"
+        "from": "  function showTheRoom({ offline, hold, watch, sessions }) {",
+        "to": "  function showTheRoom({ offline, watch, sessions }) {\n    const hold = null;"
       }
     ]
   },
@@ -2103,8 +2103,63 @@
     "edits": [
       {
         "file": "tools/chat/server.mjs",
-        "from": "      watch: watchSaid(theWatchRecord()),\n",
+        "from": "      // there when none was armed.\n      watch: watchSaid(theWatchRecord()),\n",
+        "to": "      // there when none was armed.\n"
+      }
+    ]
+  },
+  {
+    "name": "the watch is left off /sessions",
+    "catches": "serves the same record beside the rows, on /sessions",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "      // the lead is in `room`, and neither is standing at a terminal with curl.\n      watch: watchSaid(theWatchRecord()),\n",
+        "to": "      // the lead is in `room`, and neither is standing at a terminal with curl.\n"
+      }
+    ]
+  },
+  {
+    "name": "the room's lines ignore the watch they are handed",
+    "catches": "says the room has not been read yet, and how often it is read, while no pass has finished",
+    "edits": [
+      {
+        "file": "tools/chat/room.mjs",
+        "from": "  if (watch !== null && typeof watch === \"object\") {\n    above.push(watchSaid(watch));\n  }",
         "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the line says when the watch was armed where it should say when the room was read",
+    "catches": "says how long ago the room was last read, once a pass has finished",
+    "edits": [
+      {
+        "file": "tools/chat/room.mjs",
+        "from": "    return `The room was last read ${ago(watch.at)}; it is read every ${watch.everySeconds} seconds.`;",
+        "to": "    return `The room was last read ${ago(watch.armedAt)}; it is read every ${watch.everySeconds} seconds.`;"
+      }
+    ]
+  },
+  {
+    "name": "the page reads no watch off what the chat serves",
+    "catches": "says it on the page too, from the served record, in the page's own copy of the room",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "  function showTheRoom({ offline, hold, watch, sessions }) {",
+        "to": "  function showTheRoom({ offline, hold, sessions }) {\n    const watch = null;"
+      }
+    ]
+  },
+  {
+    "name": "the terminal room leaves the watch out",
+    "catches": "says it in the room a person reads at a terminal, above the rows",
+    "edits": [
+      {
+        "file": "tools/ovai.mjs",
+        "from": "  for (const line of roomLines(body.sessions, body.offline === true, body.hold ?? null, body.watch ?? null)) {",
+        "to": "  for (const line of roomLines(body.sessions, body.offline === true, body.hold ?? null, null)) {"
       }
     ]
   },
