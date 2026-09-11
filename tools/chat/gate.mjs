@@ -52,6 +52,16 @@ import { RULED_WINDOW, accountStanding } from "./session.mjs";
 // The reading is null below the plan line, so "there is a reading at all" is the whole of the
 // second test: `accountStanding` is written to answer nothing until there is something to plan
 // around, and this asks it nothing more.
+// What a room under a hold says about this, and the one place the words are. The room's line used
+// to say only what the hold DOES — hands everybody over, carries everybody — because a line saying
+// no new work was being started would have been believed and, before this file, false. Now it is
+// true, and it is true only because this file is consulted: so the sentence lives here, beside the
+// mechanism, the two wordings that can import it do, the page copies it by hand and is held to
+// the copy, and the check that reads the words is the check that watches the refusals. Words and
+// mechanism ship together or not at all.
+export const NO_NEW_WORK =
+  "No new work is being started: for as long as this stands, the session that leads is refused a new desk and any conversation it would have to start from nothing, and only what a person starts goes through.";
+
 export function spawnHeld(instance) {
   const hold = holdIn(instance.root);
   if (hold !== null && !holdLifted(hold)) {

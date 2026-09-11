@@ -2000,7 +2000,7 @@
   },
   {
     "name": "the room words a carried hold as the parking one",
-    "catches": "says only what the hold does, one sentence for each thing it can be doing",
+    "catches": "says what the hold does, one sentence for each thing it can be doing",
     "edits": [
       {
         "file": "tools/chat/room.mjs",
@@ -2011,18 +2011,18 @@
   },
   {
     "name": "the room words a hold with no moment as if it had one",
-    "catches": "says only what the hold does, one sentence for each thing it can be doing",
+    "catches": "says what the hold does, one sentence for each thing it can be doing",
     "edits": [
       {
         "file": "tools/chat/room.mjs",
-        "from": "  if (typeof hold.resetsAt !== \"number\") {\n    return \"The account is nearly spent and did not say when it lifts",
-        "to": "  if (false) {\n    return \"The account is nearly spent and did not say when it lifts"
+        "from": "  if (typeof hold.resetsAt !== \"number\") {\n    return `The account is nearly spent and did not say when it lifts",
+        "to": "  if (false) {\n    return `The account is nearly spent and did not say when it lifts"
       }
     ]
   },
   {
     "name": "the room tells a workspace that buys no turn that everybody is being handed over",
-    "catches": "says only what the hold does, one sentence for each thing it can be doing",
+    "catches": "says what the hold does, one sentence for each thing it can be doing",
     "edits": [
       {
         "file": "tools/chat/room.mjs",
@@ -2314,6 +2314,61 @@
         "file": "tools/chat/server.mjs",
         "from": "      return { status: 409, body: { error: spawnRefused(`nothing is said to ${name}, whose conversation would have to be started from nothing`, held) } };",
         "to": "      append(instance.root, name, { from: THE_CHAT, text: `nothing is said to ${name}: the account is nearly spent` });\n      return { status: 409, body: { error: spawnRefused(`nothing is said to ${name}, whose conversation would have to be started from nothing`, held) } };"
+      }
+    ]
+  },
+  {
+    "name": "the room says nothing is started while the hire tool does not ask the gate",
+    "catches": "says no new work is being started, and none is",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  const held = spawnHeld(instance);\n  if (held !== null) {\n    return { refused: spawnRefused(\"no desk is opened\", held) };\n  }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the room says nothing is started while a colleague's message does not ask the gate",
+    "catches": "says no new work is being started, and none is",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  if (sender !== null && (!hasThread(instance.root, name) || hasGoneCold(instance.root, name))) {\n    const held = spawnHeld(instance);\n    if (held !== null) {\n      return { status: 409, body: { error: spawnRefused(`nothing is said to ${name}, whose conversation would have to be started from nothing`, held) } };\n    }\n  }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the room says what the hold does and not that nothing is started",
+    "catches": "says no new work is being started, and none is",
+    "edits": [
+      {
+        "file": "tools/chat/room.mjs",
+        "from": "    return `The account is nearly spent — ${lifts}, later than a conversation can be carried across, so each conversation is being handed over to its desk. ${NO_NEW_WORK}`;",
+        "to": "    return `The account is nearly spent — ${lifts}, later than a conversation can be carried across, so each conversation is being handed over to its desk.`;"
+      }
+    ]
+  },
+  {
+    "name": "the page's copy of the sentence drifts from the gate's",
+    "catches": "says no new work is being started, and none is",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "  const NO_NEW_WORK = \"No new work is being started: for as long as this stands, the session that leads is refused a new desk and any conversation it would have to start from nothing, and only what a person starts goes through.\";",
+        "to": "  const NO_NEW_WORK = \"No new work is being started until the account lifts.\";"
+      }
+    ]
+  },
+  {
+    "name": "the lead is told what the hold does and not that nothing is started",
+    "catches": "says once, both ways, that the account is stopping and everybody is being handed over",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    return `${opening}. ${lifts}, later than a conversation can be carried across, so each conversation is being handed over to its desk, fullest first, while there is still an account to write it with. Each park is said here as it lands. ${NO_NEW_WORK}`;",
+        "to": "    return `${opening}. ${lifts}, later than a conversation can be carried across, so each conversation is being handed over to its desk, fullest first, while there is still an account to write it with. Each park is said here as it lands.`;"
       }
     ]
   }

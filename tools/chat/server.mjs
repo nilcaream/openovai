@@ -21,7 +21,7 @@ import { ago, roomLines, shareSaid } from "./room.mjs";
 import { WATCH_EVERY, armTheWatch, buysATurn, forgetTheRoom, howOften, nowSeen, parkAttemptsAllowed, theWatchRecord, tickRead, whatChanged } from "./watch.mjs";
 import { DESK_FILE, DeskError, WORK, allowAsked, archiveFor, deskTitle, describeName, hasSettledAnything, hire, isName, retire } from "../desks.mjs";
 import { accountStanding, ask, bandIn, endRun, forget, fullnessIn, hasGoneCold, hasGoneQuiet, hasThread, quotaIn, ranAt, refusedIn, sessions, standingsUnderway } from "./session.mjs";
-import { spawnHeld } from "./gate.mjs";
+import { NO_NEW_WORK, spawnHeld } from "./gate.mjs";
 import { endHold, enterHold, forgetRefused, holdIn, holdLifted, holdSaid, holdStands, markParked, markRefused } from "./hold.mjs";
 import { inTurn, turnsGoing, waitingFor, whileWaitingFor, wouldWaitForItself } from "./turns.mjs";
 import { unfinished } from "./unfinished.mjs";
@@ -2441,23 +2441,24 @@ function times(count) {
 //
 // FROM THE SAME ANSWERS THE ROOM IS WORDED FROM. The room says what the hold does above its rows,
 // and this says it on the lead's panel; both read `warm`, `parking` and the moment off the one
-// record, so that the page and the panel cannot disagree about what is being done. And it says
-// ONLY what the hold does: nothing here stops a message a person types or a seat somebody hires —
-// a typed message still starts a run, and it is the service that turns it away — so a line saying
-// no new work was being started would be believed and would be false.
+// record, so that the page and the panel cannot disagree about what is being done. And after what
+// the hold does, what the gate refuses while it stands — the clause from gate.mjs, which is the
+// lead being told before it tries that a desk and a conversation from nothing will be refused.
+// The clause was absent until the gate existed, because the lead would have believed it and it
+// would have been false; it is worded beside the mechanism and nowhere here.
 function holdEnteredLine(hold) {
   const opening = `The account has reached ${Math.round(hold.fullness * 100)}% of the usage window it is running in`;
   if (hold.resetsAt === null) {
-    return `${opening} and did not say when that window lifts, so nobody is being handed over: a park is not something to do on an unknown. The next completed turn settles it — this is re-read from every reading until one names the moment or no longer says the account is stopping.`;
+    return `${opening} and did not say when that window lifts, so nobody is being handed over: a park is not something to do on an unknown. The next completed turn settles it — this is re-read from every reading until one names the moment or no longer says the account is stopping. ${NO_NEW_WORK}`;
   }
   const lifts = `That window lifts at ${atTime(hold.resetsAt)}`;
   if (hold.warm) {
-    return `${opening}. ${lifts}, inside the hour a conversation can be carried across, so nothing is being ended and nobody is handed over: everybody is still here when it does.`;
+    return `${opening}. ${lifts}, inside the hour a conversation can be carried across, so nothing is being ended and nobody is handed over: everybody is still here when it does. ${NO_NEW_WORK}`;
   }
   if (hold.parking) {
-    return `${opening}. ${lifts}, later than a conversation can be carried across, so each conversation is being handed over to its desk, fullest first, while there is still an account to write it with. Each park is said here as it lands.`;
+    return `${opening}. ${lifts}, later than a conversation can be carried across, so each conversation is being handed over to its desk, fullest first, while there is still an account to write it with. Each park is said here as it lands. ${NO_NEW_WORK}`;
   }
-  return `${opening}. ${lifts}, later than a conversation can be carried across, and this workspace buys no turn, so nobody is handed over: whatever a conversation has not written to its desk by then goes with it.`;
+  return `${opening}. ${lifts}, later than a conversation can be carried across, and this workspace buys no turn, so nobody is handed over: whatever a conversation has not written to its desk by then goes with it. ${NO_NEW_WORK}`;
 }
 
 // What the lead is told when the window has reopened — ONCE, on the pass that finds the hold

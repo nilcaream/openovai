@@ -60,6 +60,7 @@ import { park, parked, shapeOf } from "../tools/chat/permissions.mjs";
 // day, which cannot be reached by starting a chat and waiting until midnight.
 import { quietHoursProblem, withinQuietHours } from "../tools/chat/pop.mjs";
 import { settingsProblems } from "./inspect.mjs";
+import { NO_NEW_WORK } from "../tools/chat/gate.mjs";
 import { hasGoneCold, hasNearlyGoneCold, ranAt } from "../tools/chat/session.mjs";
 
 // The shortening asked directly. Through a chat it can only ever be seen at the one depth this
@@ -13540,6 +13541,9 @@ describe("what a pass does about where the account stands", () => {
       assert.equal(said[0].watch, true, JSON.stringify(said[0]));
       assert.match(said[0].text, /^The account has reached 96% of the usage window/);
       assert.match(said[0].text, /lifts at \d\d:\d\d, later than a conversation can be carried across, so each conversation is being handed over to its desk, fullest first/);
+      // And that nothing new is started, in the gate's own words: the lead is the one that will be
+      // refused, and it is told before it tries.
+      assert.ok(said[0].text.endsWith(NO_NEW_WORK), said[0].text);
       const leadsOwn = runs.find((run) => run.name === leader);
       assert.ok(leadsOwn !== undefined, "the lead was never parked");
       assert.match(leadsOwn.heard, /<watch read="\d\d:\d\d">[^]*The account has reached 96% of the usage window/);
@@ -14329,8 +14333,11 @@ describe("what a pass does about where the account stands", () => {
   // out in words: `ovai room`, the lead's `room` tool, and the page's own script — and what the chat
   // serves beside the rows for them to say it from.
   //
-  // Worded ONLY from what the hold does. Nothing gates a message a person types, so a line saying
-  // no new work was being started would be believed and false; the fourth check holds that.
+  // What the hold does, and what the gate refuses. The clause that no new work is being started was
+  // deliberately absent while there was no gate — a person would have believed it and it would
+  // have been false — and it comes back ONLY with the gate: the check that reads the words is the
+  // check that watches a hire and a message be refused under the same hold, so that the words can
+  // never again ship without the mechanism, nor the mechanism lose its words.
   describe("the room says the account is stopping", () => {
     const stopping = `${instance}-hold-in-the-room`;
     let leader;
@@ -14344,8 +14351,13 @@ describe("what a pass does about where the account stands", () => {
     let whileUnsaid;
     let whileNoTurn;
     let page;
+    let deskRefused;
+    let frontRefused;
+    let personWentThrough;
 
     const lineFor = (room, name) => (room ?? "").split("\n").find((line) => line.startsWith(`${name} `));
+    const leadCalls = (name, args) =>
+      post(`${url}/mcp/${leader}`, { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } });
     const roomSays = async () => (await runToolLater(stopping, ["room"], process.env)).stdout;
     const inAnHour = Math.floor(Date.now() / 1000) + 3 * 60 * 60;
 
@@ -14365,9 +14377,14 @@ describe("what a pass does about where the account stands", () => {
       stageHold(stopping, { resetsAt: inAnHour, parking: true });
       servedParking = JSON.parse((await get(`${url}/sessions`)).body);
       whileParking = await roomSays();
-      toldTheLead = answerOf(
-        await post(`${url}/mcp/${leader}`, { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "room", arguments: {} } }),
-      ).text;
+      toldTheLead = answerOf(await leadCalls("room", {})).text;
+
+      // Under the same hold the room is worded from: what the lead may start, and what the person
+      // may. Both refusals happen before anything would run; the person's message is the one thing
+      // here that runs, and the stand-in the enclosing describe put on the PATH answers it.
+      deskRefused = answerOf(await leadCalls("hire", { name: "Chiffchaff" }));
+      frontRefused = answerOf(await leadCalls("say", { to: HOLD_IN_THE_ROOM, message: "a conversation started from nothing" }));
+      personWentThrough = (await post(`${url}/sessions/${HOLD_IN_THE_ROOM}/message`, { text: "the person starting one" })).status;
 
       stageHold(stopping, { resetsAt: inAnHour, parking: false, warm: true });
       whileCarried = await roomSays();
@@ -14402,15 +14419,44 @@ describe("what a pass does about where the account stands", () => {
     });
 
     // Mutation: word every hold as the parking one. Each of the other three says what THAT hold
-    // does, and none of the four claims a gate that does not exist.
-    it("says only what the hold does, one sentence for each thing it can be doing", () => {
+    // does, and every one of the four says the same clause after it.
+    it("says what the hold does, one sentence for each thing it can be doing", () => {
       assert.match(whileCarried, /The account is nearly spent — its window lifts at \d\d:\d\d, inside the hour a conversation can be carried across, so nothing is being ended or handed over\./);
       assert.match(whileUnsaid, /The account is nearly spent and did not say when it lifts — nobody is being handed over; the next completed turn settles it\./);
       assert.match(whileNoTurn, /The account is nearly spent — its window lifts at \d\d:\d\d, later than a conversation can be carried across, and this workspace buys no turn, so nobody is handed over\./);
       for (const room of [whileParking, whileCarried, whileUnsaid, whileNoTurn]) {
-        assert.doesNotMatch(room, /no new work/);
+        assert.ok(room.includes(NO_NEW_WORK), room);
         assert.doesNotMatch(room, /%/);
       }
+    });
+
+    // THE CHECK THIS SLICE EXISTS FOR, and it is one check on purpose. The words — in the room a
+    // person reads, in the lead's tool, in the page's own copy — and the mechanism — a desk refused,
+    // a conversation from nothing refused, the person's message through — are asserted together,
+    // under one staged hold, so that neither half can be green without the other. Mutations: open
+    // the desk without the gate; deliver the colleague's message without the gate; word the room
+    // from the hold alone; let the page's copy drift from gate.mjs. Each reddens this and this
+    // alone among the room checks.
+    it("says no new work is being started, and none is", () => {
+      // The words, from the one constant the gate exports.
+      assert.match(NO_NEW_WORK, /^No new work is being started/);
+      assert.ok(whileParking.includes(NO_NEW_WORK), whileParking);
+      assert.ok((toldTheLead ?? "").includes(NO_NEW_WORK), toldTheLead);
+      assert.ok(page.includes(`const NO_NEW_WORK = ${JSON.stringify(NO_NEW_WORK)};`), "the page's copy of the clause is not the gate's");
+      const from = page.indexOf("function holdSaid(hold)");
+      const to = page.indexOf("function showTheRoom(");
+      assert.ok(from !== -1 && to !== -1 && from < to, "the page's hold block is not where this check looks for it");
+      assert.equal((page.slice(from, to).match(/\$\{NO_NEW_WORK\}/g) ?? []).length, 4, "the page does not say the clause after each of the four sentences");
+
+      // And none is.
+      assert.equal(deskRefused.refused, true, deskRefused.text);
+      assert.match(deskRefused.text, /no desk is opened/);
+      assert.equal(fs.existsSync(path.join(stopping, "work", "Chiffchaff")), false, "the desk was opened under the hold");
+      assert.equal(frontRefused.refused, true, frontRefused.text);
+      assert.match(frontRefused.text, new RegExp(`nothing is said to ${HOLD_IN_THE_ROOM}`));
+      // The person's message is the exception the clause states: it went through, to be refused by
+      // the service or not, and the hold changed nothing about it.
+      assert.equal(personWentThrough, 200);
     });
 
     // Mutation: leave the lead's tool reading the rows alone. The lead is the reader this matters
@@ -14435,7 +14481,6 @@ describe("what a pass does about where the account stands", () => {
       assert.match(theRoom, /nobody is being handed over; the next completed turn settles it\./);
       assert.match(theRoom, /this workspace buys no turn, so nobody is handed over\./);
       assert.match(theRoom, /atTime\(hold\.resetsAt\)/);
-      assert.doesNotMatch(theRoom, /no new work/);
     });
 
     after(() => {

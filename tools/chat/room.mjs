@@ -13,6 +13,8 @@
 // than discovered. There are two places to keep true, not three: the command and the tool are the
 // same lines from here.
 
+import { NO_NEW_WORK } from "./gate.mjs";
+
 // What a room that is off says, and the one place it is worded. Above the rows and never on one:
 // whether anything will be started is a fact about the ROOM, and the same sentence on every row
 // would read as a state each of those sessions is in, which is the one thing this is not.
@@ -46,14 +48,19 @@ export function roomLines(sessions, offline = false, hold = null) {
   return [...above, ...lines];
 }
 
-// What a room says while the account is at its stop line — worded ONLY from what the hold does.
+// What a room says while the account is at its stop line — what the hold does, and what the gate
+// refuses for as long as it stands.
 //
-// Nothing here gates a message a person types or a seat somebody hires: a typed message still
-// starts a run, and it is the service that turns it away, not the chat. So a line saying no new
-// work was being started would be believed, and would be false. What the hold does was decided at
-// entry and is kept on it: it hands everybody over, or carries everybody because the window lifts
-// in time, or carries everybody because nobody said when it lifts, or hands nobody over because
-// this workspace buys no turn. Four sentences, one each, and a person takes each in at a glance.
+// What the hold does was decided at entry and is kept on it: it hands everybody over, or carries
+// everybody because the window lifts in time, or carries everybody because nobody said when it
+// lifts, or hands nobody over because this workspace buys no turn. Four sentences, one each, and a
+// person takes each in at a glance.
+//
+// AND THE SAME CLAUSE AFTER EACH, from gate.mjs and never worded here: that no new work is being
+// started. That clause was deliberately absent until the gate existed, because a person would have
+// believed it and it would have been false — a typed message still starts a run, a hire still went
+// through. It is worded beside the mechanism that makes it true, and the check that reads it here
+// is the check that watches a hire and a message be refused.
 //
 // `warm` IS READ OFF THE HOLD AND NEVER OFF THE CLOCK. Whether the window lifts inside the hour was
 // answered once, when the hold was entered, and that answer is what was acted on: a hold that has
@@ -61,16 +68,16 @@ export function roomLines(sessions, offline = false, hold = null) {
 // again would say so about a room that was parked on the opposite answer.
 function holdSaid(hold) {
   if (typeof hold.resetsAt !== "number") {
-    return "The account is nearly spent and did not say when it lifts — nobody is being handed over; the next completed turn settles it.";
+    return `The account is nearly spent and did not say when it lifts — nobody is being handed over; the next completed turn settles it. ${NO_NEW_WORK}`;
   }
   const lifts = `its window lifts at ${atTime(hold.resetsAt)}`;
   if (hold.warm === true) {
-    return `The account is nearly spent — ${lifts}, inside the hour a conversation can be carried across, so nothing is being ended or handed over.`;
+    return `The account is nearly spent — ${lifts}, inside the hour a conversation can be carried across, so nothing is being ended or handed over. ${NO_NEW_WORK}`;
   }
   if (hold.parking === true) {
-    return `The account is nearly spent — ${lifts}, later than a conversation can be carried across, so each conversation is being handed over to its desk.`;
+    return `The account is nearly spent — ${lifts}, later than a conversation can be carried across, so each conversation is being handed over to its desk. ${NO_NEW_WORK}`;
   }
-  return `The account is nearly spent — ${lifts}, later than a conversation can be carried across, and this workspace buys no turn, so nobody is handed over.`;
+  return `The account is nearly spent — ${lifts}, later than a conversation can be carried across, and this workspace buys no turn, so nobody is handed over. ${NO_NEW_WORK}`;
 }
 
 // What one line of the room says. The order the phrases are tried in is the whole of what makes it

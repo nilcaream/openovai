@@ -282,25 +282,28 @@
   let roomIsOff = false;
 
   // What the room says while the account is at its stop line, from the facts the chat sends beside
-  // the rows, worded ONLY from what the hold does: nothing here stops a message a person types, and
-  // a line claiming a gate that does not exist would be believed and would be false. The moment
-  // is said in this reader's hours, which is why the chat sends the facts and not a sentence. And
-  // `warm` is read off the hold and never off the clock: it was answered once, when the hold was
-  // entered, and a room handed over on that answer must not be described by a later one.
+  // the rows: what the hold does, and what the gate refuses while it stands. The moment is said in
+  // this reader's hours, which is why the chat sends the facts and not a sentence. And `warm` is
+  // read off the hold and never off the clock: it was answered once, when the hold was entered, and
+  // a room handed over on that answer must not be described by a later one.
   //
-  // The same four sentences as the command prints, kept true by hand, as the row phrases are.
+  // The same four sentences as the command prints, kept true by hand, as the row phrases are — and
+  // the clause after each is a COPY of gate.mjs's, held to it word for word by a check, because it
+  // claims a gate and a page saying that about a gate that did not exist would be believed.
+  const NO_NEW_WORK = "No new work is being started: for as long as this stands, the session that leads is refused a new desk and any conversation it would have to start from nothing, and only what a person starts goes through.";
+
   function holdSaid(hold) {
     if (typeof hold.resetsAt !== "number") {
-      return "The account is nearly spent and did not say when it lifts — nobody is being handed over; the next completed turn settles it.";
+      return `The account is nearly spent and did not say when it lifts — nobody is being handed over; the next completed turn settles it. ${NO_NEW_WORK}`;
     }
     const lifts = `its window lifts at ${atTime(hold.resetsAt)}`;
     if (hold.warm === true) {
-      return `The account is nearly spent — ${lifts}, inside the hour a conversation can be carried across, so nothing is being ended or handed over.`;
+      return `The account is nearly spent — ${lifts}, inside the hour a conversation can be carried across, so nothing is being ended or handed over. ${NO_NEW_WORK}`;
     }
     if (hold.parking === true) {
-      return `The account is nearly spent — ${lifts}, later than a conversation can be carried across, so each conversation is being handed over to its desk.`;
+      return `The account is nearly spent — ${lifts}, later than a conversation can be carried across, so each conversation is being handed over to its desk. ${NO_NEW_WORK}`;
     }
-    return `The account is nearly spent — ${lifts}, later than a conversation can be carried across, and this workspace buys no turn, so nobody is handed over.`;
+    return `The account is nearly spent — ${lifts}, later than a conversation can be carried across, and this workspace buys no turn, so nobody is handed over. ${NO_NEW_WORK}`;
   }
 
   function showTheRoom({ offline, hold, sessions }) {
