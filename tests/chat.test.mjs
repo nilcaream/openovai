@@ -13875,7 +13875,10 @@ describe("what a pass does about where the account stands", () => {
         const now = holdIn(unsaid);
         return now !== null && now.resetsAt !== null ? now : null;
       });
-      await until(() => !fs.existsSync(thread(UNSAID)));
+      // BOTH, not the first: the parks of one pass go one seat at a time, the lead last, so the
+      // moment the first thread is gone is the moment the lead is being handed over — measured:
+      // read then, the lead was the one thread left, on a tree where nothing about the park was wrong.
+      await until(() => [UNSAID, leader].every((name) => !fs.existsSync(thread(name))), 8000);
       threadsLeft = [UNSAID, leader].filter((name) => fs.existsSync(thread(name)));
       panel = panelIn(unsaid, leader);
       await new Promise((resolve) => server.close(resolve));
