@@ -134,7 +134,7 @@ function hireHere(root, name, model) {
     throw new UsageError("hire needs a name: ovai hire <name> [model]");
   }
 
-  const written = hire(root, name, panelDirectory(root, name), readConfig(root), model ?? null);
+  const written = hire(root, name, panelDirectory(root, name), model ?? null);
 
   console.log(`${name} works here now. Wrote:`);
   for (const entry of written) {

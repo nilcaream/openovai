@@ -19,8 +19,8 @@ import { answerFrom } from "../plugins.mjs";
 import { SKILL_NAME } from "../payload.mjs";
 import { ago, roomLines, shareSaid } from "./room.mjs";
 import { WATCH_EVERY, armTheWatch, buysATurn, forgetTheRoom, howOften, nowSeen, parkAttemptsAllowed, theWatchRecord, tickRead, whatChanged } from "./watch.mjs";
-import { DESK_FILE, DeskError, WORK, allowAsked, archiveFor, deskTitle, describeName, hasSettledAnything, hire, isName, personaFile, retire } from "../desks.mjs";
-import { accountStanding, ask, bandIn, endRun, forget, fullnessIn, hasGoneCold, hasGoneQuiet, hasNearlyGoneCold, hasThread, quotaIn, ranAt, refusedIn, sessions, standingsUnderway } from "./session.mjs";
+import { DESK_FILE, DeskError, WORK, allowAsked, archiveFor, deskTitle, describeName, hasSettledAnything, hire, isName, retire } from "../desks.mjs";
+import { accountStanding, ask, bandIn, endRun, forget, fullnessIn, hasGoneCold, hasGoneQuiet, hasNearlyGoneCold, hasThread, personaFile, quotaIn, ranAt, refusedIn, sessions, standingsUnderway } from "./session.mjs";
 import { NO_NEW_WORK, spawnHeld } from "./gate.mjs";
 import { endHold, enterHold, forgetRefused, holdIn, holdLifted, holdSaid, holdStands, markParked, markRefused } from "./hold.mjs";
 import { inTurn, turnsGoing, waitingFor, whileWaitingFor, wouldWaitForItself } from "./turns.mjs";
@@ -331,13 +331,14 @@ function quietWrapper(instance, name) {
 // The day the two blocks above and below stopped asking the lead to hand people over by hand,
 // because the chat had begun doing it itself.
 //
-// A persona is rendered once, at hire, and an update re-renders nobody's — so a lead hired before
-// this day is running instructions that still say handing a conversation over is a person's to
-// press, and reads a block here that says the chat does it. Two instructions, one of them older,
-// and the session has nothing to look up which. This sentence says which, and it is said only while
-// that is true: read off the persona file's own modified time against this day, the same discipline
-// as the standing ask about a desk — it costs a sentence while it applies and nothing at all once it
-// does not, so it stops by everybody it was for having been hired after it.
+// A persona is rendered when a conversation starts and read as it is for every turn after, an
+// update included — so a lead whose conversation began before this day is running instructions
+// that still say handing a conversation over is a person's to press, and reads a block here that
+// says the chat does it. Two instructions, one of them older, and the session has nothing to look
+// up which. This sentence says which, and it is said only while that is true: read off the
+// modified time of the persona this conversation was rendered, against this day — the same
+// discipline as the standing ask about a desk. It costs a sentence while it applies and nothing at
+// all once it does not, so it stops by every conversation it was for having been handed over.
 const RETOLD_ON = Date.UTC(2026, 8, 11);
 
 function olderInstructions(instance, name) {
@@ -1524,7 +1525,7 @@ function hiredByTool(instance, caller, args) {
   }
 
   try {
-    hire(instance.root, name, panel, instance.config, model);
+    hire(instance.root, name, panel, model);
   } catch (error) {
     if (error instanceof DeskError) {
       return { refused: error.message };
@@ -1936,7 +1937,7 @@ async function postSessions(instance, request, response) {
 
   let wrote;
   try {
-    wrote = hire(instance.root, name, panelDirectory(instance.root, name), instance.config);
+    wrote = hire(instance.root, name, panelDirectory(instance.root, name));
   } catch (error) {
     if (error instanceof DeskError) {
       sendJson(response, 400, { error: error.message });

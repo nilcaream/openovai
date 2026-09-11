@@ -1,10 +1,14 @@
 // Opening a desk for somebody.
 //
-// A person in an instance is three things on disk: a desk to keep their state on, a persona
-// saying who they are, and the one permission rule that lets them write that desk. The installer
-// opens the lead's when it creates the instance; `ovai hire` opens a worker's afterwards. Both come
-// through here, so there is one answer to what a person is made of rather than two that can
-// drift apart.
+// A person in an instance is two things on disk: a desk to keep their state on, and the one
+// permission rule that lets them write that desk. The installer opens the lead's when it creates
+// the instance; `ovai hire` opens a worker's afterwards. Both come through here, so there is one
+// answer to what a person is made of rather than two that can drift apart.
+//
+// Who they are is not kept with either. A persona is rendered from the toolkit's templates the
+// moment a session starts a conversation, and it lives with that conversation — so it is always the
+// template the instance is running now, plus whatever the person at the instance has added to it
+// (`persona` below), and never a copy made at install that an update would have to remember.
 //
 // A fourth is written only when it was asked for: `work/<Name>/MODEL`, one word, when somebody was
 // hired onto a model that is not the one this workspace runs its workers on. Absent is the whole of
@@ -42,14 +46,19 @@ export const DESK_TEMPLATE = path.join("templates", "STATE.md");
 // a header field nobody told it to keep is a field it drops the first time it rewrites one.
 export const MODEL_FILE = "MODEL";
 
-// A worker's persona, before the name is written into it. It lives beside the desk template
-// rather than with either caller, because hiring now happens from two places — the command and
-// the chat's route — and a template named in both would be one word in two files.
+// The personas, before the names are written into them: one for the session that leads and one
+// for everybody else. They are named here rather than with any caller, because a persona is
+// rendered from two places — the chat, for every conversation it starts, and the tests, to read
+// what a session is told — and a template named in both would be one word in two files.
+export const LEADER_TEMPLATE = path.join("templates", "leader.md");
 export const WORKER_TEMPLATE = path.join("templates", "worker.md");
 
-// One persona file per session, named after the session. The names are written into it rather
-// than looked up when it is read, so the file says "You are Superman, Mike's lead" outright.
-export const PERSONAS = "personas";
+// What the person at the instance adds to a persona, one file per kind of session, read as it is
+// and put after the template every time one is rendered. The templates are the toolkit's and are
+// replaced by an update; these are the person's and are never touched by one — so an instruction
+// written here is one that outlives every version, which is what an edit to a rendered persona
+// could never be. Absent is the ordinary case, and it means the template alone.
+export const CUSTOMIZATION = "customization";
 
 // What every session in the instance may do to reach the others: call the tools the chat serves
 // it. One rule serves everybody, because these settings are the instance's rather than anybody's
@@ -205,10 +214,6 @@ export function deskTitle(root, name) {
 // It is made when the first person leaves. An instance nobody has left has nothing to put in one.
 export const ARCHIVE = "archive";
 
-export function personaFile(root, name) {
-  return path.join(root, PERSONAS, `${name}.md`);
-}
-
 function today() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -270,12 +275,10 @@ export function retire(root, name, at, panel) {
   }
 
   fs.rmSync(path.join(root, WORK, name), { recursive: true, force: true });
+  // The persona goes with the conversation it was rendered for: it is the template with a name
+  // written into it, says nothing about what was done here, and names somebody who does not work
+  // here any more.
   fs.rmSync(path.dirname(panel), { recursive: true, force: true });
-
-  // The persona is not filed with the desk. It is the worker template with a name written into it
-  // and says nothing about what was done here, so it is reproducible and it names somebody who does
-  // not work here any more.
-  fs.rmSync(personaFile(root, name), { force: true });
   withdrawDesk(root, name);
   return filed;
 }
@@ -361,15 +364,39 @@ export function writeModel(root, name, model) {
   return [target];
 }
 
-// Every persona this workspace writes goes through here, which is why the budget is added here and
-// not passed in: a caller cannot forget it, and a caller cannot give one persona a budget of its
-// own. It goes on last so that nothing a caller passes can quietly replace it.
-export function writePersona(root, from, name, what, relative, values) {
-  const template = readTemplate(from, what, relative);
-  const target = personaFile(root, name);
-  fs.mkdirSync(path.dirname(target), { recursive: true });
-  fs.writeFileSync(target, render(what, template, { ...values, BUDGET }));
-  return [target];
+// Who a session is, as the text it is handed: the template for its kind with the names written
+// into it, so the file says "You are Superman, Mike's lead" outright, and then whatever the person
+// at the instance has added for that kind. Rendered from the instance's own templates, never from
+// an install source — an instance is what it was given, and this is what makes it say so.
+//
+// Every persona this workspace renders goes through here, which is why the budget is added here
+// and not passed in: a caller cannot forget it, and a caller cannot give one persona a budget of
+// its own. It goes into the template's own placeholder, so nothing a caller passes can quietly
+// replace it — and the person's addition comes after the whole of that, so it can add to what a
+// session is told and cannot take any of it away.
+//
+// The addition is read as it is. It is prose the person wrote for a session to read, not a
+// template: a pair of braces in it is theirs and stays theirs.
+export function persona(root, name, { human, leader }) {
+  const leads = name === leader;
+  const what = leads ? "leader" : "worker";
+  const template = readTemplate(root, what, leads ? LEADER_TEMPLATE : WORKER_TEMPLATE);
+  const rendered = render(what, template, { NAME: name, HUMAN: human, LEADER: leader, BUDGET });
+  const added = customization(root, what);
+  return added === null ? rendered : `${rendered.replace(/\s*$/, "")}\n\n${added.replace(/\s*$/, "")}\n`;
+}
+
+// What the person added for one kind of session, or nothing: the file is theirs, so its absence
+// is an answer and not a mistake.
+function customization(root, what) {
+  try {
+    return fs.readFileSync(path.join(root, CUSTOMIZATION, `${what}.md`), "utf8");
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      return null;
+    }
+    throw error;
+  }
 }
 
 // Grant one thing, leaving whatever is already granted alone. The file is the person's by the time
@@ -436,17 +463,17 @@ export function withdrawDesk(root, name) {
 // lays its directories out is the chat's word, and a second module spelling it would be a word in
 // two places.
 //
-// The templates are read from the instance and not from wherever it was installed from, which is
-// what lets an instance open a desk on a machine the source was never on.
+// The desk template is read from the instance and not from wherever it was installed from, which
+// is what lets an instance open a desk on a machine the source was never on.
 //
 // The model is the last argument and it is optional, because leaving it out is the answer nearly
 // every time: somebody hired without a word about it runs on what this workspace runs its workers
 // on, and goes on doing so if that is ever changed.
 //
 // It is refused before the desk is looked at and long before anything is written, so a model that
-// is not one leaves nothing behind — no desk, no persona, no rule, and no name taken by a person
-// who was never opened one.
-export function hire(root, name, panel, { human, leader }, model = null) {
+// is not one leaves nothing behind — no desk, no rule, and no name taken by a person who was never
+// opened one.
+export function hire(root, name, panel, model = null) {
   if (!isName(name)) {
     throw new DeskError(describeName("a worker name", name));
   }
@@ -472,7 +499,6 @@ export function hire(root, name, panel, { human, leader }, model = null) {
 
   return [
     ...writeDesk(root, root, name),
-    ...writePersona(root, root, name, "worker", WORKER_TEMPLATE, { NAME: name, HUMAN: human, LEADER: leader }),
     // Only when one was named. Writing the workspace's own model into every desk would freeze
     // today's answer onto each person and turn a live setting into a seed nothing reads afterwards
     // — a workspace that changed it and saw nobody move would have a setting that lies.

@@ -166,6 +166,14 @@ describe("taking a newer version from a directory", () => {
     // outside the payload survives reads it along with the rest, and the check below says why.
     fs.mkdirSync(path.join(root, ".claude", "skills", "theirs"), { recursive: true });
     fs.writeFileSync(path.join(root, ".claude", "skills", "theirs", "SKILL.md"), "---\nname: theirs\n---\n");
+    // And what a session is told: the persona rendered beside a conversation, from the templates
+    // this version had, and what the person added to every persona of that kind. The templates are
+    // replaced; neither of these is, which is the whole of how a conversation keeps what it was told
+    // and an addition outlives the version it was written under.
+    fs.mkdirSync(path.join(root, "chat", "Superman"), { recursive: true });
+    fs.writeFileSync(path.join(root, "chat", "Superman", "persona.md"), "You are Superman, as this version put it.\n");
+    fs.mkdirSync(path.join(root, "customization"), { recursive: true });
+    fs.writeFileSync(path.join(root, "customization", "leader.md"), "Always answer in French.\n");
     accumulated = whatTheInstanceAccumulated(root);
     done = await update(root, tree);
   });

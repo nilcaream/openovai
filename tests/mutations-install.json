@@ -225,18 +225,68 @@
     ]
   },
   {
-    "name": "the lead's persona is rendered from wherever the payload came from",
-    "catches": "renders the lead's persona again, from the payload it just put in place",
+    "name": "the installer makes a directory for personas again",
+    "catches": "writes no persona, and makes no directory for one",
     "edits": [
       {
         "file": "tools/install.mjs",
-        "from": "      ...writePersona(plan.root, plan.root, plan.leader, \"leader\", LEADER_TEMPLATE, {",
-        "to": "      ...(fs.existsSync(path.join(plan.root, \"personas\", `${plan.leader}.md`)) ? [] : writePersona(plan.root, plan.root, plan.leader, \"leader\", LEADER_TEMPLATE, {"
-      },
+        "from": "const LAYOUT = [\"work\", \".claude\", \".claude-home\", PLUGINS];",
+        "to": "const LAYOUT = [\"work\", \"personas\", \".claude\", \".claude-home\", PLUGINS];"
+      }
+    ]
+  },
+  {
+    "name": "installing over an instance takes away what an older toolkit rendered",
+    "catches": "leaves what an older toolkit rendered under personas/ exactly as it found it",
+    "edits": [
       {
         "file": "tools/install.mjs",
-        "from": "        LEADER: plan.leader,\n        HUMAN: plan.human,\n      }),\n    ]);",
-        "to": "        LEADER: plan.leader,\n        HUMAN: plan.human,\n      })),\n    ]);"
+        "from": "    report(plan, [\n      ...createLayout(plan),",
+        "to": "    fs.rmSync(path.join(plan.root, \"personas\"), { recursive: true, force: true });\n    report(plan, [\n      ...createLayout(plan),"
+      }
+    ]
+  },
+  {
+    "name": "what the person added to a persona is dropped",
+    "catches": "comes after everything the toolkit puts in, the budget included",
+    "edits": [
+      {
+        "file": "tools/desks.mjs",
+        "from": "  const added = customization(root, what);\n  return added === null ? rendered",
+        "to": "  const added = null;\n  return added === null ? rendered"
+      }
+    ]
+  },
+  {
+    "name": "what the person added is put in front of the template rather than after it",
+    "catches": "comes after everything the toolkit puts in, the budget included",
+    "edits": [
+      {
+        "file": "tools/desks.mjs",
+        "from": "`${rendered.replace(/\\s*$/, \"\")}\\n\\n${added.replace(/\\s*$/, \"\")}\\n`",
+        "to": "`${added.replace(/\\s*$/, \"\")}\\n\\n${rendered.replace(/\\s*$/, \"\")}\\n`"
+      }
+    ]
+  },
+  {
+    "name": "what the person added is read as a template and refused for its braces",
+    "catches": "is read as it is, braces and all",
+    "edits": [
+      {
+        "file": "tools/desks.mjs",
+        "from": "  const added = customization(root, what);",
+        "to": "  const raw = customization(root, what);\n  const added = raw === null ? null : render(what, raw, {});"
+      }
+    ]
+  },
+  {
+    "name": "the lead is given the addition written for everybody else",
+    "catches": "comes after everything the toolkit puts in, the budget included",
+    "edits": [
+      {
+        "file": "tools/desks.mjs",
+        "from": "  const added = customization(root, what);",
+        "to": "  const added = customization(root, \"worker\");"
       }
     ]
   },

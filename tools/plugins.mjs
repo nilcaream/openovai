@@ -24,7 +24,7 @@ import { pathToFileURL } from "node:url";
 
 import { readTemplate, render } from "./desks.mjs";
 
-// Where an instance keeps them. At the root beside work/ and personas/, and deliberately NOT
+// Where an instance keeps them. At the root beside work/, and deliberately NOT
 // under tools/: taking a newer version of the toolkit removes every payload directory before it
 // copies the new one in, so a tool kept in there would be deleted by the first update, silently,
 // because the update reports what it replaced and not what it took away.

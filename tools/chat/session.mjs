@@ -17,17 +17,18 @@ import path from "node:path";
 
 import { environment } from "../claude.mjs";
 import { listening } from "./listening.mjs";
-import { desks, modelFor } from "../desks.mjs";
+import { desks, modelFor, persona } from "../desks.mjs";
 import { ownInstructions } from "../instructions.mjs";
 
 // Where a thread lives between runs, under the name of the session having it. One id, written
 // after every answer: it is the whole reason a per-message run can still be a conversation.
 const SESSION_FILE = "session.json";
 
-// Who a session is, written out when it is opened. A persona is appended to Claude Code's own
-// system prompt rather than replacing it, so a session gains a name and a desk without losing
-// the instructions that make its tools work.
-const PERSONAS = "personas";
+// Who a session is, rendered when it starts a conversation and kept beside the thread for as long
+// as the thread lasts. A persona is appended to Claude Code's own system prompt rather than
+// replacing it, so a session gains a name and a desk without losing the instructions that make its
+// tools work.
+const PERSONA_FILE = "persona.md";
 
 // What a session is told its own name in. `ovai say` reads it, so a message one session sends
 // another arrives under the name of whoever sent it — and a message nobody signed is the human's,
@@ -595,12 +596,17 @@ export function accountStanding(instance) {
 }
 
 // End a thread. The file is the whole of a session's memory between processes, so removing it is
-// the whole of starting a new conversation on the same desk: the desk, the persona, the permission
-// rule and the panel are all untouched, and the next run has nothing to resume.
+// the whole of starting a new conversation on the same desk: the desk, the permission rule and the
+// panel are all untouched, and the next run has nothing to resume.
+//
+// The persona goes with it. It was rendered for this conversation from the templates the instance
+// had then, and the next conversation is rendered its own from the templates the instance has now
+// — which is how a session comes to run a newer version of itself: by handing over, never mid-thread.
 //
 // There is nothing to kill. A run lives for one message and is already gone.
 export function forget(root, name) {
   fs.rmSync(sessionFile(root, name), { force: true });
+  fs.rmSync(personaFile(root, name), { force: true });
 }
 
 // Which model a session runs on. The instance was installed with one model for the session that
@@ -611,18 +617,31 @@ function model(instance, name) {
   return modelFor(instance.root, name, instance.config);
 }
 
-// The persona is passed on every run, resumed ones included. Claude Code does keep it with the
+// Exported for the one reader outside this module that asks the file something other than its
+// words: the chat reads its modified time to tell a conversation running older instructions from
+// one rendered after them, and it has to ask for the file a run is actually handed.
+export function personaFile(root, name) {
+  return path.join(root, "chat", name, PERSONA_FILE);
+}
+
+// The file a run is told who it is from. It is rendered when a conversation starts and read as it
+// is for every run after that, resumed ones included: what a session was told on its first turn is
+// what it is told on its last, whatever an update has since done to the templates, and the next
+// conversation gets the templates as they are then. Claude Code does keep it with the
 // conversation, so a resume would carry it anyway — but a resume that fails is asked again as a
 // new conversation, and that one has no history to carry it. Passing it always means there is no
 // path through here where a session forgets who it is.
 //
-// A session may have no persona file: an instance installed before personas were written out has
-// none for its lead. Claude Code refuses to start at all when pointed at a file that is not
-// there, so the flag is left off instead: a nameless session still answers, and a chat that will
-// not answer helps nobody.
-function persona(root, name) {
-  const file = path.join(root, PERSONAS, `${name}.md`);
-  return fs.existsSync(file) ? file : null;
+// Rendered again only when there is nothing to read: a thread with no persona beside it is one
+// that was started before personas lived here, and Claude Code refuses to start at all when
+// pointed at a file that is not there.
+function personaFor(instance, name, resume) {
+  const file = personaFile(instance.root, name);
+  if (resume === null || !fs.existsSync(file)) {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, persona(instance.root, name, instance.config));
+  }
+  return file;
 }
 
 // Everybody the chat can host, the lead first and the rest as the desks come. A desk is a
@@ -1020,10 +1039,7 @@ function run(instance, name, text, resume, asked) {
   // run rather than kept in the instance's own settings, which are the person's; computed here so
   // it is the list for where the instance sits now.
   args.push("--settings", ownInstructions(instance.root));
-  const who = persona(instance.root, name);
-  if (who !== null) {
-    args.push("--append-system-prompt-file", who);
-  }
+  args.push("--append-system-prompt-file", personaFor(instance, name, resume));
   if (resume !== null) {
     args.push("--resume", resume);
   }

@@ -401,7 +401,7 @@ describe("a worker answers on its own panel", () => {
 
   it("tells the worker who it is", () => {
     assert.ok(
-      callsIn(log).at(-1).includes(path.join(instance, "personas", `${WORKER}.md`)),
+      callsIn(log).at(-1).includes(path.join(instance, "chat", WORKER, "persona.md")),
     );
   });
 
@@ -661,42 +661,55 @@ describe("the conversation carries on", () => {
   });
 });
 
+// Who a session is lives beside its thread, rendered from the instance's templates the moment the
+// conversation starts and handed to every run of it after that. The installer wrote nothing of the
+// kind: the first message is what made this file.
 describe("the leader is told who it is", () => {
-  it("carries the persona on the first message", () => {
-    const opening = callsIn(log).filter((call) => !call.includes("--resume"));
-    assert.ok(
-      opening.some((call) =>
-        call.includes(`--append-system-prompt-file ${path.join(instance, "personas", `${LEADER}.md`)}`),
-      ),
-    );
+  const who = path.join(instance, "chat", LEADER, "persona.md");
+
+  it("renders the persona beside the thread when the conversation starts", () => {
+    assert.ok(fs.readFileSync(who, "utf8").includes(`You are ${LEADER}, ${HUMAN}'s lead`));
   });
 
-  it("carries the persona on a resumed message", () => {
-    assert.ok(
-      readLog(log).includes(
-        `--append-system-prompt-file ${path.join(instance, "personas", `${LEADER}.md`)} --resume test-thread`,
-      ),
-    );
+  // Rendered the way every persona here is, budget included — the file is the template with the
+  // names in it and not a copy of the template.
+  it("renders it whole, with the budget every persona here carries", () => {
+    assert.match(fs.readFileSync(who, "utf8"), /at most 15 tool calls/);
+  });
+
+  it("carries the persona on the first message", () => {
+    const opening = callsIn(log).filter((call) => !call.includes("--resume"));
+    assert.ok(opening.some((call) => call.includes(`--append-system-prompt-file ${who}`)));
+  });
+
+  it("carries the same file on a resumed message", () => {
+    assert.ok(readLog(log).includes(`--append-system-prompt-file ${who} --resume test-thread`));
   });
 });
 
-describe("an instance with no persona still answers", () => {
+// The file can go missing under a thread: a conversation started by a toolkit that kept personas
+// elsewhere, or a person tidying chat/. Claude Code refuses to start at all when pointed at a file
+// that is not there, so the run is handed a fresh one rather than no flag — a nameless session was
+// the old answer, and a session that has forgotten who it is helps nobody.
+describe("a conversation whose persona is gone is handed a fresh one", () => {
+  const who = path.join(instance, "chat", LEADER, "persona.md");
   let answered;
 
   before(async () => {
-    fs.rmSync(path.join(instance, "personas", `${LEADER}.md`), { force: true });
+    fs.rmSync(who, { force: true });
     answered = await say("and now");
   });
 
-  it("accepts a message without a persona", () => {
+  it("accepts the message", () => {
     assert.equal(answered.status, 200);
   });
 
-  it("leaves the persona off when the file is gone", () => {
-    assert.ok(!callsIn(log).at(-1).includes("--append-system-prompt-file"));
+  it("renders the persona again rather than leaving it off", () => {
+    assert.ok(callsIn(log).at(-1).includes(`--append-system-prompt-file ${who} --resume test-thread`));
+    assert.ok(fs.readFileSync(who, "utf8").includes(`You are ${LEADER}`));
   });
 
-  it("still replies without a persona", async () => {
+  it("still replies", async () => {
     assert.ok((await transcriptOf(LEADER)).body.includes("and now"));
   });
 });
@@ -897,10 +910,10 @@ describe("what somebody hired onto a model runs on", () => {
   const modelLog = path.join(standIn, "models.txt");
   let address;
 
-  // Which runs were this session's. The persona is named on the command line and it is named after
-  // the session, so the log says whose every call was without anything having to be recorded.
+  // Which runs were this session's. The persona is named on the command line and it lives under
+  // the session's name, so the log says whose every call was without anything having to be recorded.
   const callsFor = (name) =>
-    callsIn(modelLog).filter((call) => call.includes(path.join("personas", `${name}.md`)));
+    callsIn(modelLog).filter((call) => call.includes(path.join("chat", name, "persona.md")));
 
   // What this session was last run on, as the word itself rather than as a substring of the command
   // line. One model identifier can begin with another — a run on `opus-4-1` holds `--model opus` —
@@ -3610,13 +3623,14 @@ function panelFile(name) {
   return path.join(instance, "chat", name, "conversation.json");
 }
 
-// The persona a session runs under, rendered once at hire and never re-rendered by an update. Its
-// modified time is the one fact that says whether the words it carries are older than what the chat
-// now does by itself — so a fixture sets that time, and puts the file there first if an earlier
-// describe took it away: the suites share one instance, and one of them proves the chat answers
-// with no persona at all by removing the lead's.
+// The persona a conversation runs under, rendered when it started and never re-rendered by an
+// update. Its modified time is the one fact that says whether the words it carries are older than
+// what the chat now does by itself — so a fixture sets that time, and puts the file there first if
+// nothing has rendered one yet: the suites share one instance, and a conversation that has run has
+// one beside its thread.
 function renderedOn(name, when) {
-  const persona = path.join(instance, "personas", `${name}.md`);
+  const persona = path.join(instance, "chat", name, "persona.md");
+  fs.mkdirSync(path.dirname(persona), { recursive: true });
   if (!fs.existsSync(persona)) {
     fs.writeFileSync(persona, `A persona for ${name}, put back by a check.\n`);
   }
@@ -5130,7 +5144,7 @@ describe("a session leaving", () => {
   });
 
   it("takes the persona with it, because it names somebody who is not here", () => {
-    assert.equal(fs.existsSync(path.join(instance, "personas", `${LEAVES}.md`)), false);
+    assert.equal(fs.existsSync(path.join(instance, "chat", LEAVES, "persona.md")), false);
   });
 
   // A rule for a desk nobody has is a grant the instance cannot account for, and the inspector
@@ -5320,6 +5334,73 @@ describe("a message queued behind a session leaving", () => {
   // that had just been given up.
   it("does not put the session's panel back", () => {
     assert.equal(fs.existsSync(path.join(instance, "chat", LEAVES_MID_QUEUE)), false);
+  });
+});
+
+// A persona lasts exactly as long as the conversation it was rendered for. It is read as it is
+// for every resumed message — what a session was told on its first turn is what it is told on its
+// last, whatever an update has since done to the templates — and it goes with the thread at a
+// handover, so the next conversation is rendered from the templates the instance has by then.
+// That is the whole of how a session comes to run a newer version of itself: by handing over,
+// never mid-thread.
+describe("a persona lasts as long as the conversation it was rendered for", () => {
+  const KEEPS_ITS_PERSONA = "Kingfisher";
+  const personaLog = path.join(standIn, "persona.txt");
+  const who = path.join(instance, "chat", KEEPS_ITS_PERSONA, "persona.md");
+  const EDITED = "\n<!-- put here after the conversation began -->\n";
+  let rendered;
+  let midway;
+  let resumedWith;
+  let handedOn;
+  let goneWithThread;
+  let afterwards;
+
+  before(async () => {
+    runTool(instance, ["hire", KEEPS_ITS_PERSONA], process.env);
+    await start(instance, standInEnvironment(standIn, personaLog));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    await say("the first thing said here", KEEPS_ITS_PERSONA);
+    rendered = fs.readFileSync(who, "utf8");
+    // Something the templates do not say, so that a render can be told from a read.
+    fs.appendFileSync(who, EDITED);
+    await say("and a second, on the same thread", KEEPS_ITS_PERSONA);
+    midway = fs.readFileSync(who, "utf8");
+    resumedWith = callsIn(personaLog).at(-1);
+
+    await post(`${URL}/sessions/${KEEPS_ITS_PERSONA}/handover`, {});
+    goneWithThread = !fs.existsSync(who);
+    handedOn = callsIn(personaLog).length;
+    await say("a new conversation", KEEPS_ITS_PERSONA);
+    afterwards = fs.readFileSync(who, "utf8");
+  });
+
+  after(() => {
+    fs.rmSync(path.join(instance, "work", KEEPS_ITS_PERSONA), { recursive: true, force: true });
+    fs.rmSync(path.join(instance, "chat", KEEPS_ITS_PERSONA), { recursive: true, force: true });
+    const file = path.join(instance, ".claude", "settings.json");
+    const settings = JSON.parse(fs.readFileSync(file, "utf8"));
+    settings.permissions.allow = settings.permissions.allow.filter((rule) => !rule.includes(`work/${KEEPS_ITS_PERSONA}/`));
+    fs.writeFileSync(file, `${JSON.stringify(settings, null, 2)}\n`);
+  });
+
+  it("is rendered for the session the moment its first conversation starts", () => {
+    assert.ok(rendered.includes(`You are ${KEEPS_ITS_PERSONA}`));
+  });
+
+  it("is read as it is for a resumed message, not rendered again", () => {
+    assert.ok(midway.endsWith(EDITED));
+    assert.ok(resumedWith.includes(`--append-system-prompt-file ${who} --resume test-thread`));
+  });
+
+  it("goes with the thread when the session hands over", () => {
+    assert.equal(goneWithThread, true);
+  });
+
+  it("is rendered afresh for the next conversation", () => {
+    assert.ok(callsIn(personaLog).length > handedOn, "the next conversation never ran");
+    assert.ok(!afterwards.includes(EDITED));
+    assert.ok(afterwards.includes(`You are ${KEEPS_ITS_PERSONA}`));
   });
 });
 
@@ -5845,9 +5926,11 @@ describe("hiring from the page", () => {
     assert.equal(desk.split("\n")[0], "<!-- DESK | title: -->");
   });
 
-  it("writes the persona that says who they are", () => {
-    const persona = path.join(instance, "personas", `${HIRED_FROM_THE_PAGE}.md`);
-    assert.ok(fs.readFileSync(persona, "utf8").includes(HIRED_FROM_THE_PAGE));
+  // Who they are is rendered when their first conversation starts, from the templates the instance
+  // has then — hiring writes nothing that says so.
+  it("writes no persona, and starts no conversation to keep one beside", () => {
+    assert.equal(fs.existsSync(path.join(instance, "personas")), false);
+    assert.equal(fs.existsSync(path.join(instance, "chat", HIRED_FROM_THE_PAGE)), false);
   });
 
   // A session that cannot write its own desk cannot keep it, and the inspector reads these
@@ -5859,10 +5942,8 @@ describe("hiring from the page", () => {
 
   it("says what it wrote, in the instance's own terms", () => {
     const { wrote } = JSON.parse(hired.body);
-    assert.deepEqual(wrote.slice(0, 2), [
-      path.join("work", HIRED_FROM_THE_PAGE, "STATE.md"),
-      path.join("personas", `${HIRED_FROM_THE_PAGE}.md`),
-    ]);
+    assert.equal(wrote[0], path.join("work", HIRED_FROM_THE_PAGE, "STATE.md"));
+    assert.ok(!wrote.some((entry) => entry.includes("personas")));
   });
 
   // Nothing is started and nothing is registered. The chat reads who works here from work/ each
@@ -6506,7 +6587,7 @@ describe("the session that leads opens a desk", () => {
   // wrong model and says nothing.
   const runsOn = (name) => {
     const line = callsIn(hiringLog)
-      .filter((entry) => entry.includes(path.join("personas", `${name}.md`)))
+      .filter((entry) => entry.includes(path.join("chat", name, "persona.md")))
       .at(-1)
       .split(/\s+/);
     return line[line.indexOf("--model") + 1];
@@ -6611,7 +6692,6 @@ describe("the session that leads opens a desk", () => {
     for (const name of HIRED_HERE) {
       fs.rmSync(path.join(instance, "work", name), { recursive: true, force: true });
       fs.rmSync(chatOf(name), { recursive: true, force: true });
-      fs.rmSync(path.join(instance, "personas", `${name}.md`), { force: true });
     }
     const file = path.join(instance, ".claude", "settings.json");
     const settings = JSON.parse(fs.readFileSync(file, "utf8"));
@@ -6835,7 +6915,6 @@ describe("the session that leads puts a desk away", () => {
     for (const name of [REFUSED_A_WORKER, WHILE_OFF]) {
       fs.rmSync(path.join(instance, "work", name), { recursive: true, force: true });
       fs.rmSync(path.join(instance, "chat", name), { recursive: true, force: true });
-      fs.rmSync(path.join(instance, "personas", `${name}.md`), { force: true });
     }
     const file = path.join(instance, ".claude", "settings.json");
     const settings = JSON.parse(fs.readFileSync(file, "utf8"));
@@ -6988,7 +7067,6 @@ describe("a desk that was never filed is not an answer", () => {
   after(() => {
     fs.rmSync(path.join(instance, "work", TURNED_AWAY), { recursive: true, force: true });
     fs.rmSync(path.join(instance, "chat", TURNED_AWAY), { recursive: true, force: true });
-    fs.rmSync(path.join(instance, "personas", `${TURNED_AWAY}.md`), { force: true });
     const file = path.join(instance, ".claude", "settings.json");
     const settings = JSON.parse(fs.readFileSync(file, "utf8"));
     settings.permissions.allow = settings.permissions.allow.filter((rule) => !rule.includes(`work/${TURNED_AWAY}/`));
@@ -7102,7 +7180,6 @@ describe("what the room was changed to, where the person reads", () => {
     for (const name of [OPENED, WHILE_OFF, BY_BUTTON]) {
       fs.rmSync(path.join(instance, "work", name), { recursive: true, force: true });
       fs.rmSync(path.join(instance, "chat", name), { recursive: true, force: true });
-      fs.rmSync(path.join(instance, "personas", `${name}.md`), { force: true });
     }
     const file = path.join(instance, ".claude", "settings.json");
     const settings = JSON.parse(fs.readFileSync(file, "utf8"));

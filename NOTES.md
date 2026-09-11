@@ -34,6 +34,19 @@ session is not to read is written to `chat/instructions.json` for each run and h
 `claudeMdExcludes` an older toolkit left in your settings is yours now: neither read for this nor
 removed, and harmless.
 
+**A persona is rendered when a conversation starts, and what you add to one is yours.** Nothing
+writes `personas/` any more. Who a session is gets rendered from the toolkit's templates the moment
+it starts a conversation — a hire's first turn, the turn after a handover — and kept beside that
+conversation at `chat/<Name>/persona.md` for as long as it lasts, so a conversation already going
+keeps what it was told and the next one gets the templates the instance has by then. So taking a
+newer version no longer leaves everybody on the old instructions until they are hired again: a
+handover is enough. The `personas/` directory an older toolkit left is read by nothing now and can
+go — but before it does, look for anything you wrote into one of those files yourself, because that
+was the only way to add to a persona and it never survived a hire. It has a place now:
+`customization/leader.md` and `customization/worker.md` at the instance root, appended as they are
+to every persona of that kind the instance renders, after everything the toolkit puts in, and never
+touched by an update.
+
 **The chat now keeps its own room, and it spends none of your account doing it.** The room watch
 used to read the room every five minutes and, when something had crossed into a band, buy the lead a
 turn to hear about it. It reads the same room at the same cadence, and acts instead: a conversation
@@ -92,13 +105,11 @@ shows on `/health` as `watch`: how often, when it was armed, when the last pass 
 sessions it read, decided on and acted on — a watch that died and one that was never armed look the
 same from a quiet room, and this is how they are told apart.
 
-**Your lead was told about the old watch, and an update does not tell it otherwise.** The persona a
-lead runs is rendered once, when its desk is opened, and taking a newer toolkit re-renders nobody's.
-A lead hired before this version has a paragraph in `personas/<Lead>.md` saying the watch gives it a
-turn and that nothing stops running because of it; both are now false, and the lead will act on them
-until the paragraph is replaced. The current text is in `templates/leader.md`, the paragraph
-beginning *The fourth is the room watch* and the one after it — copy them over the old ones by hand.
-A lead hired on this version has them already.
+**Your lead was told about the old watch, and an update does not tell it otherwise.** A lead in a
+conversation started before this version was told that the watch gives it a turn and that nothing
+stops running because of it; both are now false, and the lead will act on them until it is told
+otherwise. A handover is what tells it: the next conversation is rendered from the templates this
+version ships, the paragraph beginning *The fourth is the room watch* and the one after it.
 
 **Every persona now carries a budget for the work it hands to others.** When a session delegates —
 an agent sent to search or to read — what that costs is not how much the agent reads but how many
@@ -106,9 +117,8 @@ times it goes round, because every turn re-reads the whole conversation so far. 
 this. So every persona this workspace writes ends with four sentences to copy into every brief, word
 for word: answer in at most 15 tool calls or report what is missing; split the files between agents
 and never let two read the same one; search first, then read the part that matched; and treat what
-has been filed away as history, not a place to look things up. Here too a persona rendered before
-this version does not have it; the text is `BUDGET` in `tools/desks.mjs`, and `templates/leader.md`
-and `templates/worker.md` show where in a persona it sits.
+has been filed away as history, not a place to look things up. Here too a conversation started
+before this version was not told; the next one is.
 
 **A session the service refused comes back by itself, and a new instance says so in writing.** Left
 to the default, the limit can arrive as a dialog on the session's own terminal offering the wait as

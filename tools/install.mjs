@@ -13,7 +13,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { DeskError, describeModel, describeName, isModel, isName, writePersona } from "./desks.mjs";
+import { DeskError, describeModel, describeName, isModel, isName } from "./desks.mjs";
 import { notAWorkspace } from "./payload.mjs";
 import { PLUGINS } from "./plugins.mjs";
 import { ReleaseError, replacePayload } from "./release.mjs";
@@ -76,7 +76,6 @@ const IN_CONFIG = {
 // The directories an instance is made of, relative to its root.
 //
 //   work/          one directory per person, holding the state a replacement session reads
-//   personas/      one file per session, saying who it is, with the names written into it
 //   .claude/       settings that belong to the instance and can be shared
 //   .claude-home/  the instance's own Claude Code home: its account, transcripts and memory,
 //                  kept apart so two instances on one machine never share a session history
@@ -86,15 +85,10 @@ const IN_CONFIG = {
 // None of these is in the payload. What the toolkit ships and what an instance accumulates are
 // different things and stay in different directories, so that replacing the one never reaches
 // into the other.
-const LAYOUT = ["work", "personas", ".claude", ".claude-home", PLUGINS];
+const LAYOUT = ["work", ".claude", ".claude-home", PLUGINS];
 
 // Bumped when a field changes meaning, so an older instance can be recognised as one.
 const CONFIG_SCHEMA = 1;
-
-// The lead's persona, before the names are written into it. What becomes of it — where it is
-// written and why the names are welded in rather than looked up — is in tools/desks.mjs, which
-// every session's persona goes through.
-const LEADER_TEMPLATE = path.join("templates", "leader.md");
 
 // A bad command line: the person can fix it and try again, so we show them the usage.
 class UsageError extends Error {}
@@ -405,18 +399,14 @@ function main(argv) {
     printPlan(plan);
     checkSource(plan);
     checkRoot(plan);
-    // The payload first and whole, then the person's files where they are missing, then the lead's
-    // persona — which is rendered from the payload just put in place, so an install over an
-    // instance leaves the lead on the templates of the version that was installed.
+    // The payload first and whole, then the person's files where they are missing. No persona is
+    // written: who the lead is gets rendered from these templates when its first conversation
+    // starts, so an install over an instance leaves nothing behind that says who anybody was.
     report(plan, [
       ...createLayout(plan),
       ...replacePayload(plan.root, plan.source),
       ...writeConfig(plan),
       ...seedUserContent(plan.root, plan.leader),
-      ...writePersona(plan.root, plan.root, plan.leader, "leader", LEADER_TEMPLATE, {
-        LEADER: plan.leader,
-        HUMAN: plan.human,
-      }),
     ]);
     return 0;
   } catch (error) {

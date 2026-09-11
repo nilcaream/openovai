@@ -85,8 +85,7 @@ Every option is required. The installer never prompts and never guesses, so one 
 describes a whole instance and can be read back, repeated and tested.
 
 So far the installer creates the directories an instance is made of: `work/` for the desks,
-`personas/` for the file that tells each session who it is, `.claude/` for the settings, and
-`.claude-home/` for the instance's own Claude Code home — its account, its transcripts and what the
+`.claude/` for the settings, and `.claude-home/` for the instance's own Claude Code home — its account, its transcripts and what the
 workspace has learned — so that two instances on one machine never share an account, a session
 history or a memory. None of them is copied from the source: what the toolkit ships and what an
 instance accumulates stay in different directories. It also writes
@@ -113,9 +112,11 @@ Then use the instance's own command:
 ~/my-workspace/bin/ovai say Paul what are you working on
 ```
 
-`ovai hire <name>` opens a desk for a worker: the desk itself at `work/<Name>/STATE.md`, a persona
-at `personas/<Name>.md` with the names written into it, and the one permission rule that lets
-that session keep its own desk. It starts nothing, and a chat that is already running does not
+`ovai hire <name>` opens a desk for a worker: the desk itself at `work/<Name>/STATE.md` and the
+one permission rule that lets that session keep its own desk. Who they are is not written then: the
+persona is rendered from `templates/worker.md`, with the names written into it, the moment the
+session starts its first conversation, and kept beside that conversation at `chat/<Name>/persona.md`
+for as long as it lasts. It starts nothing, and a chat that is already running does not
 need restarting: the panels are built from the desks the server finds, so a desk opened now is a
 panel the next time the page is loaded. Everybody with a desk is somebody the chat can host.
 
@@ -465,8 +466,8 @@ the chat process rather than in a session, so the permission system never sees i
 stands where a rule cannot is that a session may write its own desk and nothing else, so no session
 can give itself a tool: writing that file is a person deciding, and that decision is the gate.
 
-They belong to the instance and not to the toolkit. `plugins/` sits at the root beside `work/` and
-`personas/`, outside everything an update replaces, so taking a newer version leaves your tools
+They belong to the instance and not to the toolkit. `plugins/` sits at the root beside `work/`,
+outside everything an update replaces, so taking a newer version leaves your tools
 exactly where they were.
 
 ### Reaching you when you are not at the page
@@ -738,8 +739,8 @@ heading and is not said again on that line.
 
 ### Hiring somebody, and a session leaving
 
-Above the panels there is a name box and **Hire**. It writes what `ovai hire` writes — the desk, the
-persona, the one permission rule — because it calls the same code, and it shows a refusal in the
+Above the panels there is a name box and **Hire**. It writes what `ovai hire` writes — the desk and
+the one permission rule — because it calls the same code, and it shows a refusal in the
 words that refusal came in.
 
 When somebody's work is finished, press **Leave** on their panel. It is the far end of a handover:
@@ -761,8 +762,8 @@ directory name is a guess somebody has to live with afterwards.
 
 What is filed is what a person would want to read: the desk as the session last wrote it, and the
 whole conversation. Not the thread id, which points at a conversation that has been ended. Not the
-persona, which is the worker template with a name written into it — reproducible, and naming
-somebody who does not work here any more. Nothing in this code ever reads an archive back; it is
+persona, which goes with that conversation: it is the worker template with a name written into it
+— reproducible, and naming somebody who does not work here any more. Nothing in this code ever reads an archive back; it is
 files for a person, which is why nothing here promises them a shape.
 
 The archive sits beside `work/` rather than inside it. The directories under `work/` **are** the
@@ -1253,8 +1254,8 @@ and `VERSION` — which is exactly what the installer put there in the first pla
 whole repository and that is fine: what makes something a valid source is the payload being in it,
 not the absence of anything else.
 
-**Everything a workspace has accumulated is left alone.** Desks under `work/`, the personas the
-sessions here are running, the panels and threads under `chat/`, `openovai.json`, the settings, the
+**Everything a workspace has accumulated is left alone.** Desks under `work/`, the panels, threads
+and personas under `chat/`, `openovai.json`, the settings, the
 Claude Code home with everything the workspace has learned in it — an update does not write them.
 Nothing is re-keyed, nothing is migrated, and no name changes hands. The one thing it adds is a file
 of yours that a fresh install of this version would have given you and this instance has not got —
@@ -1309,11 +1310,19 @@ that is not a row of numbers is placed at all, and neither is an instance made b
 carried a version: a refusal has to be certain of what it is refusing, so where the two cannot be
 ordered the update goes on as it always did.
 
-**An update does not re-render anybody's persona.** A persona is rendered once, when a session is
-hired, and it is part of what the workspace has accumulated rather than part of what the toolkit
-ships. So new templates change nothing for the sessions already here: everybody hired after the
-update gets the new instructions, and everybody hired before goes on running the old ones. Their
-threads carry those instructions anyway, so rewriting the files would not have reached them.
+**An update does not re-render anybody's persona.** A persona is rendered once, when a session
+starts a conversation, from the templates the instance has at that moment, and it lives beside that
+conversation under `chat/` — part of what the workspace has accumulated rather than part of what
+the toolkit ships. So new templates change nothing for a conversation already going: its thread
+carries the old instructions anyway, so rewriting the file would not have reached it. Every
+conversation started after the update — a hire, a handover — is rendered from the new templates.
+
+What you add to a persona is yours and outlives every version. Put it in `customization/leader.md`
+or `customization/worker.md` at the instance root: whatever is in there is appended, as it is, to
+every persona of that kind the instance renders, after the template and after everything the
+toolkit puts in. An update never touches the directory. It is the one place an instruction of yours
+to a session belongs, because an edit to a rendered persona lasts only as long as the conversation
+it was rendered for.
 
 ### The lead is told, and what "at once" honestly means
 

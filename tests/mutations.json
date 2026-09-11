@@ -130,8 +130,8 @@
     "edits": [
       {
         "file": "tools/chat/session.mjs",
-        "from": "export function forget(root, name) {\n  fs.rmSync(sessionFile(root, name), { force: true });\n}",
-        "to": "export function forget(root, name) {\n  try {\n    const held = JSON.parse(fs.readFileSync(sessionFile(root, name), \"utf8\"));\n    fs.writeFileSync(sessionFile(root, name), `${JSON.stringify({ ...held, sessionId: null }, null, 2)}\\n`);\n  } catch {\n    fs.rmSync(sessionFile(root, name), { force: true });\n  }\n}"
+        "from": "export function forget(root, name) {\n  fs.rmSync(sessionFile(root, name), { force: true });\n  fs.rmSync(personaFile(root, name), { force: true });\n}",
+        "to": "export function forget(root, name) {\n  try {\n    const held = JSON.parse(fs.readFileSync(sessionFile(root, name), \"utf8\"));\n    fs.writeFileSync(sessionFile(root, name), `${JSON.stringify({ ...held, sessionId: null }, null, 2)}\\n`);\n  } catch {\n    fs.rmSync(sessionFile(root, name), { force: true });\n  }\n  fs.rmSync(personaFile(root, name), { force: true });\n}"
       }
     ]
   },
@@ -2164,6 +2164,61 @@
     ]
   },
   {
+    "name": "the persona is rendered again on every run, resumed ones included",
+    "catches": "is read as it is for a resumed message, not rendered again",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "  if (resume === null || !fs.existsSync(file)) {",
+        "to": "  if (true) {"
+      }
+    ]
+  },
+  {
+    "name": "a run whose persona has gone is started pointing at nothing",
+    "catches": "renders the persona again rather than leaving it off",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "  if (resume === null || !fs.existsSync(file)) {",
+        "to": "  if (resume === null) {"
+      }
+    ]
+  },
+  {
+    "name": "the persona is left behind when the thread ends",
+    "catches": "goes with the thread when the session hands over",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "  fs.rmSync(sessionFile(root, name), { force: true });\n  fs.rmSync(personaFile(root, name), { force: true });",
+        "to": "  fs.rmSync(sessionFile(root, name), { force: true });"
+      }
+    ]
+  },
+  {
+    "name": "everybody is rendered the worker's persona, the lead included",
+    "catches": "renders the persona beside the thread when the conversation starts",
+    "edits": [
+      {
+        "file": "tools/desks.mjs",
+        "from": "  const leads = name === leader;",
+        "to": "  const leads = false;"
+      }
+    ]
+  },
+  {
+    "name": "the persona is rendered beside nobody's thread in particular",
+    "catches": "carries the persona on the first message",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "  return path.join(root, \"chat\", name, PERSONA_FILE);",
+        "to": "  return path.join(root, \"chat\", PERSONA_FILE);"
+      }
+    ]
+  },
+  {
     "name": "the run is handed the person's settings as the list, an older toolkit's key and all",
     "catches": "hands the list for where the instance is now, not what an older toolkit wrote into the settings",
     "edits": [
@@ -2413,6 +2468,17 @@
         "file": "tools/chat/server.mjs",
         "from": "  return rendered < RETOLD_ON\n    ? [\"If your instructions say otherwise, they were written before this, and this is what happens.\"]\n    : [];\n",
         "to": "  return [];\n"
+      }
+    ]
+  },
+  {
+    "name": "the persona's age is read off where an older toolkit kept it, not off the one this conversation was rendered",
+    "catches": "tells a lead whose persona predates this that its instructions are the older, beside who has stopped",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    rendered = fs.statSync(personaFile(instance.root, name)).mtimeMs;\n",
+        "to": "    rendered = fs.statSync(path.join(instance.root, \"personas\", `${name}.md`)).mtimeMs;\n"
       }
     ]
   },

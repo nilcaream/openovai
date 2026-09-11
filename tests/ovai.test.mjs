@@ -37,7 +37,7 @@ import { LEDGER, settingsProblems, trustProblems } from "./inspect.mjs";
 // The reader this suite asks directly. Everywhere else what a session runs on is seen by starting
 // one, which is right when the subject is a run — and no help at all with what a file holding
 // nothing means, which is a question about the reading rather than about the running.
-import { modelFor } from "../tools/desks.mjs";
+import { modelFor, persona as renderPersona } from "../tools/desks.mjs";
 
 const HUMAN = "Mike";
 const LEADER = "Superman";
@@ -636,17 +636,23 @@ describe("hiring a worker", () => {
     assert.equal(desk.split("\n")[0], "<!-- DESK | title: -->");
   });
 
-  it("writes the worker a persona", () => {
-    assert.ok(fs.existsSync(path.join(instance, "personas", `${WORKER}.md`)));
+  // Who the worker is gets rendered when its first conversation starts, from the templates the
+  // instance has then — so hiring writes nothing that says so, and there is nothing for an update
+  // to leave stale. What it would be told is read here the way the chat renders it.
+  it("writes the worker no persona", () => {
+    assert.equal(fs.existsSync(path.join(instance, "personas")), false);
+    assert.equal(fs.existsSync(path.join(instance, "chat", WORKER)), false);
   });
 
+  const workerPersona = () => renderPersona(instance, WORKER, { human: HUMAN, leader: LEADER });
+
   it("says in the persona who the worker is", () => {
-    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    const persona = workerPersona();
     assert.ok(persona.includes(`You are ${WORKER}`));
   });
 
   it("says in the persona who leads", () => {
-    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    const persona = workerPersona();
     assert.ok(persona.includes(LEADER));
   });
 
@@ -656,14 +662,14 @@ describe("hiring a worker", () => {
   // business; the room is what somebody deciding who does what needs, which is the lead and the
   // person at the page.
   it("does not tell the worker to look at the room", () => {
-    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    const persona = workerPersona();
     assert.ok(!persona.includes("bin/ovai room"));
   });
 
   // Nor to ask for it as a tool. The chat does not offer a worker that one and refuses it if asked
   // anyway, so a persona naming it would be sending a session for a refusal.
   it("does not tell the worker to ask for the room either", () => {
-    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    const persona = workerPersona();
     assert.ok(!/`room` tool/.test(persona));
   });
 
@@ -671,7 +677,7 @@ describe("hiring a worker", () => {
   // knows only that something stopped has the files right there, and rewriting a desk by hand is
   // both easier than asking and indistinguishable from the tool having worked.
   it("tells the worker whose the workspace itself is", () => {
-    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    const persona = workerPersona();
     assert.match(persona, new RegExp(`who is asked to join and who leaves,\\s+is ${LEADER}'s`));
     assert.match(persona, /the files underneath it are never\s+the way round/);
   });
@@ -683,7 +689,7 @@ describe("hiring a worker", () => {
   // told, and the panel showed the desk sentence. Hence the ordering, said in the persona rather
   // than built into the page: it costs a clause, and the alternative is a mechanism.
   it("tells the worker to report a refusal last of all", () => {
-    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    const persona = workerPersona();
     assert.match(persona, /saying so is the last thing you do that turn/);
     assert.match(persona, /Finish the rest first/);
     assert.match(persona, /a panel that shows only the last thing you said/);
@@ -693,7 +699,7 @@ describe("hiring a worker", () => {
   // once. Naming one is what sends a session hunting for it; the paragraph above is written to say
   // where the boundary is without naming a single thing on the other side of it.
   it("names the worker no tool it cannot call", () => {
-    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    const persona = workerPersona();
     assert.doesNotMatch(persona, /\b(hire|retire|room|interrupt)\b/i);
   });
 
@@ -701,30 +707,30 @@ describe("hiring a worker", () => {
   // was opened and there is nothing it can do about it, so a paragraph on the subject is a
   // decision offered to somebody who cannot take it — which is the copy-paste this bites.
   it("says nothing to the worker about what anybody runs on", () => {
-    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    const persona = workerPersona();
     assert.doesNotMatch(persona, /\bmodels?\b/i);
     assert.doesNotMatch(persona, /\b(opus|sonnet|haiku)\b/i);
   });
 
   it("tells the worker which one field of its header is read by anybody else", () => {
-    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    const persona = workerPersona();
     assert.match(persona, /the `title:` in it is the one field/);
   });
 
   it("tells the worker to keep that field saying what it is on", () => {
-    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    const persona = workerPersona();
     assert.match(persona, /Keep it saying what you are on/);
   });
 
   // The desk is one task and goes away with it; the memory is the workspace. A session that does
   // not know the difference files a durable fact where the next person will never look.
   it("tells the worker that everybody here reads what the workspace has learned", () => {
-    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    const persona = workerPersona();
     assert.match(persona, /everybody\s+here reads the same thing/);
   });
 
   it("tells the worker what belongs in the memory rather than on the desk", () => {
-    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    const persona = workerPersona();
     assert.match(persona, /the memory is the workspace/);
   });
 
@@ -732,23 +738,23 @@ describe("hiring a worker", () => {
   // is free text: composed as a shell line, an apostrophe in it ends the quoting and a backtick is
   // run instead of sent.
   it("tells the worker how to say something to somebody", () => {
-    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    const persona = workerPersona();
     assert.match(persona, /The `say` tool is also how you reach anybody else here/);
   });
 
   it("tells the worker how to see who works here", () => {
-    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    const persona = workerPersona();
     assert.match(persona, /the `status` tool says who that is/);
   });
 
   it("does not tell the worker to type the command it replaced", () => {
-    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    const persona = workerPersona();
     assert.ok(!persona.includes("ovai say"));
     assert.ok(!persona.includes("ovai status"));
   });
 
   it("tells the worker its header holds nothing else", () => {
-    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    const persona = workerPersona();
     assert.match(persona, /header holds nothing else/);
   });
 
@@ -756,29 +762,29 @@ describe("hiring a worker", () => {
   // knows that means the human, and it knows the chat has already said so upward — so it answers
   // the human rather than spending a turn passing it on.
   it("tells the worker that a message from a session comes wrapped", () => {
-    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    const persona = workerPersona();
     assert.match(persona, /<from-session name=/);
   });
 
   it("tells the worker that what is outside a wrapper is the human", () => {
-    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    const persona = workerPersona();
     assert.match(persona, new RegExp(`outside a wrapper is ${HUMAN}`));
   });
 
   it("tells the worker that the chat passes it on, so the worker does not", () => {
-    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    const persona = workerPersona();
     assert.match(persona, new RegExp(`the chat tells ${LEADER} what was said`));
   });
 
   // Asserted as an absence, which is the half a text check usually misses: the instruction that
   // cost a whole nested turn has to be GONE, not merely outweighed by a newer paragraph.
   it("no longer tells the worker to pass on what the human said itself", () => {
-    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    const persona = workerPersona();
     assert.ok(!persona.includes(`bin/ovai say ${LEADER}`));
   });
 
   it("tells the worker what to do when the one it is telling is waiting on it", () => {
-    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    const persona = workerPersona();
     assert.match(persona, /waiting for your answer[\s\S]*say it in your reply instead/i);
   });
 
@@ -786,17 +792,17 @@ describe("hiring a worker", () => {
   // it as prose and may do anything with it. These are the two halves it has to have: what the
   // wrapper is, and that the desk is kept current before one ever arrives.
   it("tells the worker what a handover arrives as", () => {
-    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    const persona = workerPersona();
     assert.match(persona, /<handover>/);
   });
 
   it("tells the worker which file to write when one does", () => {
-    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    const persona = workerPersona();
     assert.match(persona, new RegExp(`<handover>[\\s\\S]*work/${WORKER}/STATE.md`));
   });
 
   it("tells the worker that the thread ends when it answers", () => {
-    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    const persona = workerPersona();
     assert.match(persona, /the\s+thread ends when you answer/);
   });
 
@@ -804,17 +810,17 @@ describe("hiring a worker", () => {
   // simply stopped as a fault in the workspace, and — worse — has no reason to keep its desk current
   // for an ending it does not know can happen.
   it("tells the worker that a conversation can also end unannounced", () => {
-    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    const persona = workerPersona();
     assert.match(persona, /<pick-up>/);
   });
 
   it("tells the worker which file to read when one does", () => {
-    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    const persona = workerPersona();
     assert.match(persona, new RegExp(`<pick-up>[\\s\\S]*work/${WORKER}/STATE.md`));
   });
 
   it("tells the worker to keep the desk current before one is ever asked for", () => {
-    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    const persona = workerPersona();
     assert.match(persona, /kept current as you go and not only then/);
   });
 
@@ -823,7 +829,7 @@ describe("hiring a worker", () => {
   // is told to put the budget in it — and told that nothing else will carry it, because the
   // cheapest kinds of agent are given none of this workspace's own instructions.
   it("tells the worker how much a brief it writes may spend", () => {
-    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    const persona = workerPersona();
     assert.match(persona, /at most 15 tool calls/);
     assert.match(persona, /report what you have and say what is missing/);
   });
@@ -832,22 +838,22 @@ describe("hiring a worker", () => {
   // reading this does — so the persona has to say that the sentences go into the brief itself, copied,
   // rather than merely be true of the one reading them. An agent sees its brief and nothing else.
   it("tells the worker to copy the budget into every brief it writes", () => {
-    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    const persona = workerPersona();
     assert.match(persona, /copy the four sentences below into every brief you write, word for word/);
   });
   it("tells the worker the three rules that keep that budget", () => {
-    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    const persona = workerPersona();
     assert.match(persona, /split the files between them/);
     assert.match(persona, /Search first, then read the part that matched/);
     assert.match(persona, /history, not a place to look things up/);
   });
 
   it("tells the worker that only the brief carries it", () => {
-    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    const persona = workerPersona();
     assert.match(persona, /none of what you are\s+reading now/);
   });
   it("leaves no unfilled placeholder in the worker's persona", () => {
-    const persona = fs.readFileSync(path.join(instance, "personas", `${WORKER}.md`), "utf8");
+    const persona = workerPersona();
     assert.ok(!persona.includes("{{"));
   });
 
@@ -1168,8 +1174,8 @@ describe("what hiring refuses", () => {
       assert.equal(fs.existsSync(path.join(instance, "work", NOT_HIRED)), false);
     });
 
-    it("leaves no persona behind either", () => {
-      assert.equal(fs.existsSync(path.join(instance, "personas", `${NOT_HIRED}.md`)), false);
+    it("leaves no conversation behind either", () => {
+      assert.equal(fs.existsSync(path.join(instance, "chat", NOT_HIRED)), false);
     });
   });
 
