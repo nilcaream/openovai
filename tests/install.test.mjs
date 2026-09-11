@@ -443,6 +443,23 @@ describe("what the installer made", () => {
     assert.match(leader, /allowed\.md/);
   });
 
+  // The room watch acts by itself now — it ends a cold conversation and hands seats over under an
+  // account hold, and it spends no lead turn doing either. The template used to say the opposite:
+  // that the watch gave the lead a turn and that nothing stopped running because of any of the four
+  // readings. A persona is rendered once, at hire, and an update re-renders nobody's, so a template
+  // that lies about what the chat does is a lie every instance installed with it keeps for life.
+  // Held here to the three things the pass does, and against the two sentences it retired.
+  it("tells the leader what the room watch does by itself, and no longer that it gives a turn", () => {
+    const leader = contentOf("templates", "leader.md");
+    assert.match(leader, /reads the room itself and acts on what it reads/);
+    assert.match(leader, /ended there and then/);
+    assert.match(leader, /hands each conversation over to its desk itself/);
+    assert.match(leader, /sitting on a permission prompt is left alone/);
+    assert.doesNotMatch(leader, /gives you a turn to hear it/);
+    assert.doesNotMatch(leader, /Nobody typed that turn/);
+    assert.doesNotMatch(leader, /nothing stops running because of any of/);
+  });
+
   // The room is the third of them, and the only one the lead alone is offered. Watched here as
   // well as on the endpoint: what the instance grants and what the persona names have to move
   // together, or a lead is told to ask for something nothing will serve it.
@@ -621,8 +638,11 @@ describe("what the installer made", () => {
     // conversation in it ended. A persona that named the reading without naming what it says would
     // leave the lead reading an instruction it had been told nothing about.
     assert.match(persona, /tell you to stop the tasks and put everybody down/);
-    assert.match(persona, /Each of the four is advice and not a\s+rule the toolkit keeps/);
-    // And the fourth, which is the one that is not riding on a turn the lead was having anyway. A
+    // Three of them are advice; the fourth acts. The sentence that made all four advice was the one
+    // the room watch made false the day it began parking, so the persona is held to the split.
+    assert.match(persona, /Three of the four are advice and not\s+rules the toolkit keeps/);
+    assert.match(persona, /The\s+fourth acts/);
+    // And the fourth, which is the one that does not ride on a turn the lead was having anyway. A
     // persona that named three while the chat handed over four would leave the lead reading a block
     // its own instructions say it does not get.
     assert.match(persona, /The fourth is the room watch/);
