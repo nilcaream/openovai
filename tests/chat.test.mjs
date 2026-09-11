@@ -51,7 +51,7 @@ import {
 // The reader this suite checks directly. No route says this number, and a check that read the
 // file itself would pass with nothing written at all.
 import { LEDGER } from "../tools/desks.mjs";
-import { shapeOf } from "../tools/chat/permissions.mjs";
+import { park, parked, shapeOf } from "../tools/chat/permissions.mjs";
 
 // The window rule itself, asked directly. Every other check here goes through a chat, which is
 // right when the subject is what the chat does about a window — and useless for the two ends of a
@@ -75,11 +75,11 @@ import { WATCH_EVERY, howOften, watchEveryProblem } from "../tools/chat/watch.mj
 // it was in lives on, which is the one arrangement a chat started as a child cannot be put into:
 // stopping one from outside ends it outright. And the handover turn is asked for directly, because
 // over a socket the only thing that can ask for one is the button.
-import { handOver, serve } from "../tools/chat/server.mjs";
+import { handOver, readTheRoom, serve } from "../tools/chat/server.mjs";
 
 // And a turn asked for directly, for the same reason again: where the account stands while a run is
 // going is held in memory by the module that owns the run, and there is no route that says it.
-import { ask, standingsUnderway } from "../tools/chat/session.mjs";
+import { ask, fullnessIn, standingsUnderway } from "../tools/chat/session.mjs";
 
 // The kinds themselves, read from where they are named rather than written out again here. Two
 // copies of a list are two things that drift, and a check comparing what it saw against its own
@@ -108,7 +108,7 @@ import { theWatchRecord } from "../tools/chat/watch.mjs";
 // And a turn held open by hand. A pass must not end a conversation with a run going on it, and the
 // only way to have one going without buying a run is to open the turn from here — which is exactly
 // what a message arriving a moment earlier would have done.
-import { inTurn } from "../tools/chat/turns.mjs";
+import { inTurn, turnsGoing } from "../tools/chat/turns.mjs";
 
 const HUMAN = "Mike";
 const LEADER = "Superman";
@@ -12792,5 +12792,484 @@ describe("a chat that has been stopped has stopped reading its room", () => {
 
   after(() => {
     remove(stopped);
+  });
+});
+
+
+// Which conversation a pass parks first, and the names are chosen so that every rule in the order
+// has a seat that only it can place. A share above the lead's would put the lead first if the lead
+// were placed by its share; two equal shares are placed by their names; a seat nobody has a
+// reading for is placed by that rule alone.
+const PARKED_FULLEST = "Hawfinch";
+const PARKED_TIE_EARLIER = "Dunnock";
+const PARKED_TIE_LATER = "Goldcrest";
+const PARKED_EMPTIER = "Puffin";
+const PARKED_UNREAD = "Gannet";
+const PARK_ABANDONED = "Hobby";
+const ON_A_PROMPT = "Stilt";
+const NOTHING_TO_HAND_OVER = "Capercaillie";
+const CARRIED = "Ptarmigan";
+const BUYS_NO_PARK = "Dipper";
+
+// A window over the stop line, and where it lifts is the whole of what these describes turn on.
+const OVER_THE_STOP_LINE = 0.96;
+const LIFTS_LATER_THAN_THE_HOUR = 180;
+const LIFTS_WITHIN_THE_HOUR = 20;
+
+// A thread, written where a run would have written it, carrying what it is given and nothing else.
+function stageThread(root, name, held) {
+  const file = path.join(root, "chat", name, "session.json");
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(
+    file,
+    `${JSON.stringify({ sessionId: `a-thread-for-${name}`, context: null, quota: null, refused: null, window: null, ...held }, null, 2)}\n`,
+  );
+}
+
+function panelIn(root, name) {
+  const file = path.join(root, "chat", name, "conversation.json");
+  return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")) : [];
+}
+
+// What the chat wrote on a panel when it, and not a person, asked for a handover.
+const parkAskedOn = (panel) =>
+  panel.filter((line) => line.from === "the chat" && typeof line.text === "string" && line.text.startsWith("The chat is asking"));
+
+// What the lead was told about a park, on its panel.
+const parkedLinesOn = (panel) =>
+  panel.filter((line) => line.from === "the chat" && typeof line.text === "string" && line.text.includes("was handed over by the chat"));
+
+// The runs the stand-in was asked for, in the order it was asked for them, each with the name it
+// ran as and the question it heard. Walked in order rather than filtered by kind, because the ORDER
+// is what one of the checks below is about.
+function runsIn(log) {
+  const runs = [];
+  for (const entry of entriesIn(log)) {
+    if (entry.startsWith("pid: ")) {
+      const name = /^OPENOVAI_SESSION_NAME: (.*)$/m.exec(entry)?.[1] ?? "<unset>";
+      runs.push({ name, heard: "" });
+    } else if (entry.startsWith("heard: ") && runs.length > 0) {
+      runs[runs.length - 1].heard = entry.slice("heard: ".length);
+    }
+  }
+  return runs.filter((run) => run.name !== "<unset>");
+}
+
+// Waited on, with a bound of this describe's own rather than waitFor's five seconds: a pass here
+// runs a real turn per seat, one after another.
+async function until(attempt, bound = 20000) {
+  const from = Date.now();
+  while (Date.now() - from < bound) {
+    const found = await attempt();
+    if (found !== null && found !== undefined && found !== false) {
+      return found;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  return null;
+}
+
+// What a pass does about where the account stands.
+//
+// The one condition in the pass that SPENDS: a park is a turn on the session parked, so that it
+// writes its desk before its thread ends. Everything here runs the chat in this process, with the
+// stand-in put in front of this process's own PATH for the length of the describe — a run started
+// from here copies `process.env` — so that a park runs a real turn and the order the turns were
+// taken in can be read back off what the stand-in recorded.
+describe("what a pass does about where the account stands", () => {
+  const pathBefore = process.env.PATH;
+
+  before(() => {
+    process.env.PATH = `${standIn}${path.delimiter}${pathBefore}`;
+    process.env.OPENOVAI_STAND_IN_LIFTS_AT = String(LIFTS_AT);
+  });
+
+  after(() => {
+    process.env.PATH = pathBefore;
+    delete process.env.OPENOVAI_STAND_IN_LIFTS_AT;
+    delete process.env.OPENOVAI_STAND_IN_LOG;
+  });
+
+  // The account is over the stop line and its window lifts later than a conversation can be carried
+  // across. Every seat is parked, in the order the pass determines, and the ones it must not touch
+  // are staged beside them.
+  describe("when the window lifts later than a conversation can be carried across", () => {
+    const parking = `${instance}-parking`;
+    const parkingLog = path.join(parking, "parks.txt");
+    let leader;
+    let acting;
+    let record;
+    let runs;
+    let owedToTheLead;
+    let panels;
+    let threadsLeft;
+    let promptStillParked;
+    let parkQueuedBehindTheHeldTurn;
+    let queuedOnTheHeldSeatTwoTicksLater;
+
+    const thread = (name) => path.join(parking, "chat", name, "session.json");
+
+    before(async () => {
+      process.env.OPENOVAI_STAND_IN_LOG = parkingLog;
+
+      installed(options(parking, 0));
+      for (const name of [PARKED_FULLEST, PARKED_TIE_EARLIER, PARKED_TIE_LATER, PARKED_EMPTIER, PARKED_UNREAD, PARK_ABANDONED, ON_A_PROMPT, NOTHING_TO_HAND_OVER]) {
+        runTool(parking, ["hire", name], process.env);
+      }
+      const config = path.join(parking, "openovai.json");
+      fs.writeFileSync(
+        config,
+        `${JSON.stringify({ ...JSON.parse(fs.readFileSync(config, "utf8")), watchEverySeconds: 1 }, null, 2)}\n`,
+      );
+      const held = JSON.parse(fs.readFileSync(config, "utf8"));
+      leader = held.leader;
+
+      // The shares, none of them equal to the lead's, which is the largest of all — so that a lead
+      // parked where its share puts it is parked FIRST and not last.
+      stageThread(parking, PARKED_FULLEST, { context: 0.7 * WINDOW_HELD, window: WINDOW_HELD });
+      stageThread(parking, PARKED_TIE_EARLIER, { context: 0.5 * WINDOW_HELD, window: WINDOW_HELD });
+      stageThread(parking, PARKED_TIE_LATER, { context: 0.5 * WINDOW_HELD, window: WINDOW_HELD });
+      stageThread(parking, PARKED_EMPTIER, { context: 0.2 * WINDOW_HELD, window: WINDOW_HELD });
+      stageThread(parking, PARKED_UNREAD, {});
+      stageThread(parking, PARK_ABANDONED, { context: UNDER_THE_LINE, window: WINDOW_HELD });
+      stageThread(parking, leader, { context: 0.85 * WINDOW_HELD, window: WINDOW_HELD });
+      // THE READING THAT DECIDES IT SITS ON THE SEAT THAT IS NEVER PARKED. A park ends in `forget`,
+      // which removes the file a reading is folded from, so a reading on a parked seat is gone with
+      // the park — and what every pass after the first does is only readable while a reading is
+      // still there to be read.
+      stageThread(parking, ON_A_PROMPT, {
+        context: UNDER_THE_LINE,
+        window: WINDOW_HELD,
+        quota: [window("five_hour", OVER_THE_STOP_LINE, LIFTS_LATER_THAN_THE_HOUR), window("seven_day", 0.36, 5 * 24 * 60)],
+      });
+      // Sitting on a permission prompt, staged the way `asking` stages one: parked in the chat's own
+      // memory, waiting for a person.
+      park(ON_A_PROMPT, { id: "asked-1", tool: "Bash", input: { command: "ls" } });
+
+      // And one with a turn going on it, held from here, so that the park the pass queues behind it
+      // runs only when this lets it — after the seat has stopped being worth parking.
+      let letGo;
+      const holding = inTurn(PARK_ABANDONED, () => new Promise((resolve) => {
+        letGo = resolve;
+      }));
+
+      const server = await serve({ root: parking, config: held, plugins: [], pop: null });
+
+      // NOTHING IS ASSERTED IN THIS HOOK: it holds a live server and a turn only it can let go, and
+      // an assertion that threw past either would hang the runner rather than fail a check.
+      //
+      // The pass reaches the held seat and queues its park behind the held turn. What is captured
+      // here is that it did — and then the seat is handed over from under it, the way a press
+      // arriving a moment after the room was read would have, before the turn is let go.
+      //
+      // AND THE PASS IS LEFT WAITING THERE FOR TWO MORE TICKS. What is read at the end of that wait
+      // is how many turns are queued on the held seat: the held one and the park behind it, or
+      // those two and one more for every tick that started a pass of its own while the first was
+      // still going. The passes do not overlap anywhere a person could see — every one of them
+      // chains onto the same per-session queues and trails the first, park for park, and is
+      // abandoned at each — so this is where a second pass shows: as a turn queued for nothing on
+      // a seat that already has one waiting, and as a record of the pass overwritten by a pass
+      // that did nothing.
+      parkQueuedBehindTheHeldTurn = await until(() => turnsGoing(PARK_ABANDONED) >= 2);
+      await new Promise((resolve) => setTimeout(resolve, 2200));
+      queuedOnTheHeldSeatTwoTicksLater = turnsGoing(PARK_ABANDONED);
+      fs.rmSync(thread(PARK_ABANDONED), { force: true });
+      letGo();
+      await holding;
+
+      // The pass that acted, captured when its record lands — which is at its END, after the last
+      // park returned.
+      acting = await until(() => {
+        const said = theWatchRecord();
+        return said !== null && said.acted > 0 ? said : null;
+      });
+      // And a breath more, long enough for two further passes, which is what says whether a parked
+      // seat is parked again.
+      await new Promise((resolve) => setTimeout(resolve, 2500));
+
+      record = theWatchRecord();
+      owedToTheLead = owed(leader);
+      runs = runsIn(parkingLog);
+      panels = Object.fromEntries(
+        [PARKED_FULLEST, PARKED_TIE_EARLIER, PARKED_TIE_LATER, PARKED_EMPTIER, PARKED_UNREAD, PARK_ABANDONED, ON_A_PROMPT, NOTHING_TO_HAND_OVER, leader].map(
+          (name) => [name, panelIn(parking, name)],
+        ),
+      );
+      threadsLeft = [PARKED_FULLEST, PARKED_TIE_EARLIER, PARKED_TIE_LATER, PARKED_EMPTIER, PARKED_UNREAD, PARK_ABANDONED, ON_A_PROMPT, NOTHING_TO_HAND_OVER, leader].filter(
+        (name) => fs.existsSync(thread(name)),
+      );
+      promptStillParked = parked(ON_A_PROMPT, parking).length;
+
+      await new Promise((resolve) => server.close(resolve));
+    });
+
+    // Mutation: the branches the wrong way round. The window lifts in three hours; nobody here is
+    // still warm when it does, so every seat with a thread is written down.
+    it("parks every seat when the window lifts later than that", () => {
+      for (const name of [PARKED_FULLEST, PARKED_TIE_EARLIER, PARKED_TIE_LATER, PARKED_EMPTIER, PARKED_UNREAD, leader]) {
+        assert.ok(!threadsLeft.includes(name), `${name} still has a thread: ${JSON.stringify(threadsLeft)}`);
+        assert.equal(parkAskedOn(panels[name]).length, 1, JSON.stringify(panels[name]));
+      }
+    });
+
+    // Mutations: ascending share; a seat with no reading first; a tie to the later name; the lead
+    // where its share puts it. THE WHOLE ORDER, read off the runs the stand-in was asked for, and
+    // not a property of it: each of those four leaves every other rule intact and moves one seat.
+    it("parks in the order it must", () => {
+      assert.deepEqual(
+        runs.map((run) => run.name),
+        [PARKED_FULLEST, PARKED_TIE_EARLIER, PARKED_TIE_LATER, PARKED_EMPTIER, PARKED_UNREAD, leader],
+      );
+    });
+
+    // Mutation: the pass runs again while the last one is still going. The first pass is held on
+    // one seat across two ticks; a tick that started a pass of its own would have queued its own
+    // park behind the one already waiting there. MEASURED before this was written this way: a
+    // second pass never gets ahead of the first, because it chains onto the same queues — so an
+    // assertion on the ORDER of the runs cannot see it, and this one asks the queue instead.
+    it("does not start a second pass while one is still going", () => {
+      assert.ok(parkQueuedBehindTheHeldTurn, "the pass never queued a park behind the held turn");
+      assert.equal(queuedOnTheHeldSeatTwoTicksLater, 2);
+    });
+
+    // Mutation: park a seat sitting on a permission prompt. Nothing is running on it and a person
+    // is mid-decision; parking it saves nothing and takes that decision away.
+    it("leaves a session sitting on a permission prompt alone", () => {
+      assert.ok(threadsLeft.includes(ON_A_PROMPT), JSON.stringify(threadsLeft));
+      assert.equal(promptStillParked, 1);
+      assert.deepEqual(parkAskedOn(panels[ON_A_PROMPT]), []);
+      assert.ok(!runs.some((run) => run.name === ON_A_PROMPT), JSON.stringify(runs.map((run) => run.name)));
+    });
+
+    // Mutation: ask again on every pass whether a seat with no thread wants parking. Two more passes
+    // ran after the one that acted, each with the reading still saying stop — a park removes its own
+    // subject, and that is the whole of what stops it being repeated.
+    it("does not park a session it has already parked", () => {
+      assert.ok(acting !== null, "no pass ever reported an act");
+      assert.ok(record !== null && record.at > acting.at, "no pass ran after the one that acted");
+      for (const name of [PARKED_FULLEST, PARKED_TIE_EARLIER, PARKED_TIE_LATER, PARKED_EMPTIER, PARKED_UNREAD, leader]) {
+        assert.equal(parkAskedOn(panels[name]).length, 1, `${name}: ${JSON.stringify(panels[name])}`);
+        assert.equal(runs.filter((run) => run.name === name).length, 1, JSON.stringify(runs.map((run) => run.name)));
+      }
+      // And a seat that never ran has nothing to hand over either.
+      assert.deepEqual(parkAskedOn(panels[NOTHING_TO_HAND_OVER]), []);
+      assert.deepEqual(parkedLinesOn(panels[leader]).filter((line) => line.text.includes(NOTHING_TO_HAND_OVER)), []);
+    });
+
+    // Mutation: the turn never asks whether it is still wanted, or is told that it always is. The
+    // seat was worth parking when the room was read and was handed over from under the queued park
+    // before its turn ran — and what matters is that NOTHING was written: not the line saying it was
+    // asked to hand over, with nothing after it, and no run.
+    it("abandons a park whose seat stopped being worth parking before its turn ran", () => {
+      assert.ok(parkQueuedBehindTheHeldTurn, "the pass never queued a park behind the held turn");
+      assert.deepEqual(panels[PARK_ABANDONED].filter((line) => line.from === "the chat"), []);
+      assert.ok(!runs.some((run) => run.name === PARK_ABANDONED), JSON.stringify(runs.map((run) => run.name)));
+      assert.deepEqual(parkedLinesOn(panels[leader]).filter((line) => line.text.includes(PARK_ABANDONED)), []);
+    });
+
+    // Mutation: drop either half. THE PAIR, TESTED AS A PAIR: the line on the panel is what a person
+    // reads, and the debt is what the lead's model hears — here, inside its own handover question,
+    // which is why the lead goes last. The lead's park carried every park before it onto its desk.
+    it("says on the lead's panel that it parked somebody, both ways", () => {
+      const said = parkedLinesOn(panels[leader]);
+      assert.deepEqual(
+        said.map((line) => line.text.split(" ")[0]),
+        [PARKED_FULLEST, PARKED_TIE_EARLIER, PARKED_TIE_LATER, PARKED_EMPTIER, PARKED_UNREAD, leader],
+        JSON.stringify(said),
+      );
+      assert.ok(said.every((line) => line.watch === true), JSON.stringify(said));
+      assert.match(said[0].text, new RegExp(`${PARKED_FULLEST} wrote work/${PARKED_FULLEST}/STATE.md first`));
+
+      const leadsOwn = runs.find((run) => run.name === leader);
+      assert.ok(leadsOwn !== undefined, "the lead was never parked");
+      for (const name of [PARKED_FULLEST, PARKED_TIE_EARLIER, PARKED_TIE_LATER, PARKED_EMPTIER, PARKED_UNREAD]) {
+        assert.match(leadsOwn.heard, new RegExp(`<watch read="\\d\\d:\\d\\d">[^]*${name} was handed over by the chat`));
+      }
+      // Settled by the lead's own turn, so none of those is still owed — the one line left is the
+      // one about that turn itself, which the conversation that reads the lead's desk next is the
+      // first that can hear it. The same thing a cold ending leaves for the lead about the lead.
+      assert.equal(owedToTheLead.length, 1, JSON.stringify(owedToTheLead));
+      assert.match(owedToTheLead[0], new RegExp(`^<watch read="\\d\\d:\\d\\d">[^]*${leader} was handed over by the chat`));
+    });
+
+    // Mutations: a park not counted as decided; an abandoned park counted as done. Seven seats were
+    // worth parking when the room was read, and one of them was no longer worth it when its turn
+    // ran.
+    it("counts what it decided and what it did", () => {
+      assert.ok(acting !== null, "no pass ever reported an act, or a pass that did nothing overwrote its record");
+      assert.equal(acting.sessions, 9, JSON.stringify(acting));
+      assert.equal(acting.decided, 7, JSON.stringify(acting));
+      assert.equal(acting.acted, 6, JSON.stringify(acting));
+    });
+
+    after(() => {
+      remove(parking);
+    });
+  });
+
+  // The same reading with the window lifting within the hour, and then with no lift moment at all.
+  // Nothing is parked in either: the first because everybody is still warm when the wait is over,
+  // the second because nothing is known and a park is not something to do on an unknown.
+  for (const [when, claim, liftsInMinutes] of [
+    ["when the window lifts within the hour", "carries everybody when the window lifts within the hour", LIFTS_WITHIN_THE_HOUR],
+    ["when nobody said when the window lifts", "carries everybody when nobody said when the window lifts", null],
+  ]) {
+    describe(when, () => {
+      const carrying = `${instance}-carrying-${liftsInMinutes ?? "unsaid"}`;
+      const carryingLog = path.join(carrying, "parks.txt");
+      let leader;
+      let record;
+      let runs;
+      let panels;
+      let threadsLeft;
+
+      before(async () => {
+        process.env.OPENOVAI_STAND_IN_LOG = carryingLog;
+
+        installed(options(carrying, 0));
+        runTool(carrying, ["hire", CARRIED], process.env);
+        const config = path.join(carrying, "openovai.json");
+        fs.writeFileSync(
+          config,
+          `${JSON.stringify({ ...JSON.parse(fs.readFileSync(config, "utf8")), watchEverySeconds: 1 }, null, 2)}\n`,
+        );
+        const held = JSON.parse(fs.readFileSync(config, "utf8"));
+        leader = held.leader;
+
+        stageThread(carrying, CARRIED, {
+          context: UNDER_THE_LINE,
+          window: WINDOW_HELD,
+          quota: [window("five_hour", OVER_THE_STOP_LINE, liftsInMinutes), window("seven_day", 0.36, 5 * 24 * 60)],
+        });
+        stageThread(carrying, leader, { context: UNDER_THE_LINE, window: WINDOW_HELD });
+
+        const server = await serve({ root: carrying, config: held, plugins: [], pop: null });
+        // Two passes and more, and nothing waited for: what is being read is that they did nothing.
+        await new Promise((resolve) => setTimeout(resolve, 2500));
+
+        record = theWatchRecord();
+        runs = runsIn(carryingLog);
+        panels = { [CARRIED]: panelIn(carrying, CARRIED), [leader]: panelIn(carrying, leader) };
+        threadsLeft = [CARRIED, leader].filter((name) => fs.existsSync(path.join(carrying, "chat", name, "session.json")));
+        await new Promise((resolve) => server.close(resolve));
+      });
+
+      // Mutation: this branch falls into the park-everybody one. Every reading here is under every
+      // band and no conversation is cold, so a pass that decided anything at all decided this.
+      it(claim, () => {
+        assert.ok(record !== null && record.at !== null, "no pass ever ran");
+        assert.deepEqual(threadsLeft, [CARRIED, leader]);
+        assert.deepEqual(parkAskedOn(panels[CARRIED]), []);
+        assert.deepEqual(parkAskedOn(panels[leader]), []);
+        assert.deepEqual(parkedLinesOn(panels[leader]), []);
+        assert.deepEqual(runs, []);
+        assert.equal(record.decided, 0, JSON.stringify(record));
+        assert.equal(record.acted, 0, JSON.stringify(record));
+      });
+
+      after(() => {
+        remove(carrying);
+      });
+    });
+  }
+
+  // A workspace that has asked for no turn to be spent on it, read with the account exactly where
+  // the describe above parks everybody. The pass is called from here rather than waited for: `0`
+  // is read at the default cadence, which no check waits for.
+  describe("in a workspace that buys no turn", () => {
+    const declining = `${instance}-declining-park`;
+    const decliningLog = path.join(declining, "parks.txt");
+    let leader;
+    let record;
+    let runs;
+    let panels;
+    let threadsLeft;
+
+    before(async () => {
+      process.env.OPENOVAI_STAND_IN_LOG = decliningLog;
+
+      installed(options(declining, 0));
+      runTool(declining, ["hire", BUYS_NO_PARK], process.env);
+      const config = path.join(declining, "openovai.json");
+      fs.writeFileSync(
+        config,
+        `${JSON.stringify({ ...JSON.parse(fs.readFileSync(config, "utf8")), watchEverySeconds: 0 }, null, 2)}\n`,
+      );
+      const held = JSON.parse(fs.readFileSync(config, "utf8"));
+      leader = held.leader;
+
+      stageThread(declining, BUYS_NO_PARK, {
+        context: UNDER_THE_LINE,
+        window: WINDOW_HELD,
+        quota: [window("five_hour", OVER_THE_STOP_LINE, LIFTS_LATER_THAN_THE_HOUR), window("seven_day", 0.36, 5 * 24 * 60)],
+      });
+      stageThread(declining, leader, { context: UNDER_THE_LINE, window: WINDOW_HELD });
+
+      const served = { root: declining, config: held, plugins: [], pop: null };
+      const server = await serve(served);
+      await readTheRoom(served);
+
+      record = theWatchRecord();
+      runs = runsIn(decliningLog);
+      panels = { [BUYS_NO_PARK]: panelIn(declining, BUYS_NO_PARK), [leader]: panelIn(declining, leader) };
+      threadsLeft = [BUYS_NO_PARK, leader].filter((name) => fs.existsSync(path.join(declining, "chat", name, "session.json")));
+      await new Promise((resolve) => server.close(resolve));
+    });
+
+    // Mutation: park here like anywhere else. The pass ran — its record says so — and read the room
+    // it was given; what it did not do is the one thing that spends.
+    it("parks nobody in a workspace that buys no turn", () => {
+      assert.ok(record !== null && record.at !== null, "the pass never ran");
+      assert.equal(record.sessions, 2, JSON.stringify(record));
+      assert.deepEqual(threadsLeft, [BUYS_NO_PARK, leader]);
+      assert.deepEqual(parkAskedOn(panels[BUYS_NO_PARK]), []);
+      assert.deepEqual(parkedLinesOn(panels[leader]), []);
+      assert.deepEqual(runs, []);
+      assert.equal(record.decided, 0, JSON.stringify(record));
+    });
+
+    after(() => {
+      remove(declining);
+    });
+  });
+});
+
+// The magnitude beside the band. `bandIn` answers which bucket a conversation is in; this answers
+// how large it is compared with another, which is what an order needs and a bucket cannot give.
+describe("how much of its window a conversation fills", () => {
+  const measured = `${instance}-fullness`;
+  const SHARED = "Wagtail";
+
+  before(() => {
+    fs.mkdirSync(measured, { recursive: true });
+  });
+
+  // Mutation: the window over the context.
+  it("is the share of the window the conversation fills", () => {
+    stageThread(measured, SHARED, { context: 90_000, window: WINDOW_HELD });
+    assert.equal(fullnessIn(measured, SHARED), 0.2);
+  });
+
+  // Mutation: a missing reading divides as nothing, which is the emptiest conversation in the
+  // workspace — the most reassuring reading of an absence and the wrong one.
+  it("is nothing when there is no reading of the conversation", () => {
+    stageThread(measured, SHARED, { window: WINDOW_HELD });
+    assert.equal(fullnessIn(measured, SHARED), null);
+  });
+
+  // Mutation: a reading with no window to compare it with is compared anyway.
+  it("is nothing when the window is not known", () => {
+    stageThread(measured, SHARED, { context: 90_000 });
+    assert.equal(fullnessIn(measured, SHARED), null);
+  });
+
+  // Mutation: divide by a window of nothing.
+  it("is nothing when the window is not positive", () => {
+    stageThread(measured, SHARED, { context: 90_000, window: 0 });
+    assert.equal(fullnessIn(measured, SHARED), null);
+  });
+
+  after(() => {
+    remove(measured);
   });
 });

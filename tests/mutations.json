@@ -1295,8 +1295,8 @@
     "edits": [
       {
         "file": "tools/chat/server.mjs",
-        "from": "async function readTheRoom(instance) {\n  const room = sessions(instance);",
-        "to": "async function readTheRoom(instance) {\n  if (turnsGoing(instance.config.leader) > 0) {\n    return;\n  }\n  const room = sessions(instance);"
+        "from": "async function walkTheRoom(instance) {\n  const room = sessions(instance);",
+        "to": "async function walkTheRoom(instance) {\n  if (turnsGoing(instance.config.leader) > 0) {\n    return;\n  }\n  const room = sessions(instance);"
       }
     ]
   },
@@ -1467,6 +1467,237 @@
         "file": "tools/chat/server.mjs",
         "from": "  armTheWatch();\n  const watch = setInterval(() => {",
         "to": "  if (instance.config.watchEverySeconds !== 0) {\n    armTheWatch();\n  }\n  const watch = setInterval(() => {"
+      }
+    ]
+  },
+  {
+    "name": "a window that lifts within the hour is treated like one that does not",
+    "catches": "carries everybody when the window lifts within the hour",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  if (standing !== null && standing.stop && standing.warm === false) {",
+        "to": "  if (standing !== null && standing.stop && standing.warm !== null) {"
+      }
+    ]
+  },
+  {
+    "name": "an account that did not say when it lifts falls into the park-everybody branch",
+    "catches": "carries everybody when nobody said when the window lifts",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  if (standing !== null && standing.stop && standing.warm === false) {",
+        "to": "  if (standing !== null && standing.stop && standing.warm !== true) {"
+      }
+    ]
+  },
+  {
+    "name": "the branches are the wrong way round: park when it lifts soon, carry when it lifts late",
+    "catches": "parks every seat when the window lifts later than that",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  if (standing !== null && standing.stop && standing.warm === false) {",
+        "to": "  if (standing !== null && standing.stop && standing.warm === true) {"
+      }
+    ]
+  },
+  {
+    "name": "the emptiest seat is parked first",
+    "catches": "parks in the order it must",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "      return theirs - mine;",
+        "to": "      return mine - theirs;"
+      }
+    ]
+  },
+  {
+    "name": "a seat nobody has a reading for is parked first",
+    "catches": "parks in the order it must",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "      if (mine === null) {\n        return 1;\n      }\n      if (theirs === null) {\n        return -1;\n      }",
+        "to": "      if (mine === null) {\n        return -1;\n      }\n      if (theirs === null) {\n        return 1;\n      }"
+      }
+    ]
+  },
+  {
+    "name": "a tie goes to the later name",
+    "catches": "parks in the order it must",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    return one.name < other.name ? -1 : 1;",
+        "to": "    return one.name < other.name ? 1 : -1;"
+      }
+    ]
+  },
+  {
+    "name": "the lead is parked where its share puts it",
+    "catches": "parks in the order it must",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    if (one.name === lead || other.name === lead) {\n      return one.name === lead ? 1 : -1;\n    }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a session sitting on a permission prompt is parked too",
+    "catches": "leaves a session sitting on a permission prompt alone",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  return parked(name, instance.root).length === 0;",
+        "to": "  return true;"
+      }
+    ]
+  },
+  {
+    "name": "a session with no thread is parked again on every pass",
+    "catches": "does not park a session it has already parked",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  if (!hasThread(instance.root, name)) {\n    return false;\n  }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a handover never asks whether it is still wanted",
+    "catches": "abandons a park whose seat stopped being worth parking before its turn ran",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    if (stillHolds !== null && !stillHolds()) {\n      return { abandoned: true };\n    }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the park tells the handover it always still holds",
+    "catches": "abandons a park whose seat stopped being worth parking before its turn ran",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "      const done = await handOver(instance, session.name, parkAsked(session.name, full), () =>\n        worthParking(instance, session.name),\n      );",
+        "to": "      const done = await handOver(instance, session.name, parkAsked(session.name, full), () => true);"
+      }
+    ]
+  },
+  {
+    "name": "a park is said on the lead's panel and never to the lead's model",
+    "catches": "says on the lead's panel that it parked somebody, both ways",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "      announce(instance, parkedLine(session.name, full), at);",
+        "to": "      append(instance.root, instance.config.leader, { from: THE_CHAT, text: parkedLine(session.name, full), watch: true });"
+      }
+    ]
+  },
+  {
+    "name": "a park is said to the lead's model and never on the lead's panel",
+    "catches": "says on the lead's panel that it parked somebody, both ways",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "      announce(instance, parkedLine(session.name, full), at);",
+        "to": "      overhear(instance.config.leader, watchedWrapper(parkedLine(session.name, full), at));"
+      }
+    ]
+  },
+  {
+    "name": "the pass runs again while the last one is still going",
+    "catches": "does not start a second pass while one is still going",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  if (passing) {\n    return;\n  }\n  passing = true;\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a workspace that buys no turn is parked like any other",
+    "catches": "parks nobody in a workspace that buys no turn",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  const standing = buysATurn(instance.config) ? accountStanding(instance) : null;",
+        "to": "  const standing = accountStanding(instance);"
+      }
+    ]
+  },
+  {
+    "name": "a park is not counted as a decision",
+    "catches": "counts what it decided and what it did",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "      decided += 1;\n\n      // ASKED AGAIN INSIDE THE TURN",
+        "to": "      // ASKED AGAIN INSIDE THE TURN"
+      }
+    ]
+  },
+  {
+    "name": "a park that was abandoned is counted as done",
+    "catches": "counts what it decided and what it did",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "      if (done === OFFLINE || done.abandoned === true || done.refused === true) {\n        continue;\n      }\n      acted += 1;\n",
+        "to": "      acted += 1;\n      if (done === OFFLINE || done.abandoned === true || done.refused === true) {\n        continue;\n      }\n"
+      }
+    ]
+  },
+  {
+    "name": "a conversation nobody has a reading for is the emptiest one",
+    "catches": "is nothing when there is no reading of the conversation",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "  if (typeof context !== \"number\" || typeof window !== \"number\" || window <= 0) {\n    return null;\n  }\n  return context / window;",
+        "to": "  if (typeof window !== \"number\" || window <= 0) {\n    return null;\n  }\n  return context / window;"
+      }
+    ]
+  },
+  {
+    "name": "a conversation whose window is not known has a share anyway",
+    "catches": "is nothing when the window is not known",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "  if (typeof context !== \"number\" || typeof window !== \"number\" || window <= 0) {\n    return null;\n  }\n  return context / window;",
+        "to": "  if (typeof context !== \"number\") {\n    return null;\n  }\n  return context / window;"
+      }
+    ]
+  },
+  {
+    "name": "a window of nothing is divided by",
+    "catches": "is nothing when the window is not positive",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "  if (typeof context !== \"number\" || typeof window !== \"number\" || window <= 0) {\n    return null;\n  }\n  return context / window;",
+        "to": "  if (typeof context !== \"number\" || typeof window !== \"number\") {\n    return null;\n  }\n  return context / window;"
+      }
+    ]
+  },
+  {
+    "name": "the share is the window over the context",
+    "catches": "is the share of the window the conversation fills",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "  return context / window;",
+        "to": "  return window / context;"
       }
     ]
   }

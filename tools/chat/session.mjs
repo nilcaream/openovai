@@ -334,6 +334,32 @@ export function bandIn(root, name) {
   return shareOf(contextIn(root, name), windowIn(root, name));
 }
 
+// How much of its window this conversation fills, as a number rather than as a bucket.
+//
+// THE SAME TWO READINGS AS `bandIn`, ANSWERED THE OTHER WAY, and both are wanted. A band says
+// whether a conversation has grown far enough to be worth saying something about, which is what a
+// panel and a line need; this says how large it is compared with another one, which is what an
+// ORDER needs. A band cannot do that job: two conversations in one band are equal to it, and so are
+// two that are in none — a reader ranking on it would put a conversation at nine tenths of its
+// window level with one at a twentieth, and call the result an order.
+//
+// NOTHING IS NOT ZERO, and this is the sentence to read twice before simplifying it. `shareOf` puts
+// it best and the reason belongs here too: a null compared as a number would make a session nobody
+// has a reading for the emptiest conversation in the workspace, which is the most reassuring
+// possible reading of an absence and the wrong one. Whoever ranks on this must put the nothings
+// somewhere deliberately; it will not do it for them by answering zero.
+//
+// The band is unchanged and stays the reading everything else uses. This is a second name for a
+// second job, not a replacement for the first.
+export function fullnessIn(root, name) {
+  const context = contextIn(root, name);
+  const window = windowIn(root, name);
+  if (typeof context !== "number" || typeof window !== "number" || window <= 0) {
+    return null;
+  }
+  return context / window;
+}
+
 // The usage window this rule is about, NAMED — which the reading that carries it deliberately never
 // does.
 //

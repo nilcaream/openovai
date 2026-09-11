@@ -18,9 +18,9 @@ import { popped } from "./pop.mjs";
 import { answerFrom } from "../plugins.mjs";
 import { SKILL as ALLOWED } from "../skills.mjs";
 import { ago, roomLines, shareSaid } from "./room.mjs";
-import { armTheWatch, forgetTheRoom, howOften, nowSeen, tickRead, whatChanged } from "./watch.mjs";
+import { armTheWatch, buysATurn, forgetTheRoom, howOften, nowSeen, tickRead, whatChanged } from "./watch.mjs";
 import { DESK_FILE, DeskError, WORK, allowAsked, archiveFor, deskTitle, describeName, hasSettledAnything, hire, isName, retire } from "../desks.mjs";
-import { accountStanding, ask, bandIn, endRun, forget, hasGoneCold, hasGoneQuiet, hasThread, quotaIn, ranAt, refusedIn, sessions, standingsUnderway } from "./session.mjs";
+import { accountStanding, ask, bandIn, endRun, forget, fullnessIn, hasGoneCold, hasGoneQuiet, hasThread, quotaIn, ranAt, refusedIn, sessions, standingsUnderway } from "./session.mjs";
 import { inTurn, turnsGoing, waitingFor, whileWaitingFor, wouldWaitForItself } from "./turns.mjs";
 import { unfinished } from "./unfinished.mjs";
 import { takeWord } from "./untold.mjs";
@@ -1510,8 +1510,28 @@ async function postTool(instance, caller, request, response) {
 // The line it opens with is handed in rather than written here, because the panel says who asked
 // and not every caller is a person. The words the button writes name whoever pressed it, and a turn
 // that wrote them itself would put a sentence on somebody's panel about somebody who did nothing.
-export async function handOver(instance, name, askedLine) {
+// AND WHETHER IT IS STILL WANTED IS ASKED INSIDE THE TURN, by whoever asked for it.
+//
+// A caller that decided this was worth doing decided it BEFORE the turn began, and the turn may run
+// a long time afterwards: `inTurn` chains onto the session's own queue, so a park that was decided
+// on an idle seat can run behind a message that arrived a moment later and everything that was
+// already stacked up behind it. The condition that made this worth doing may not hold by then.
+//
+// ASKED AS THE FIRST STATEMENT AND NOT ONE LATER, which is the whole of why it lives here rather
+// than in the caller. The callback opens by writing "was asked to hand over" on a panel; a caller
+// that re-read its own condition and then called this would already have said so before finding
+// out, and a person watching would see a park announced and no park — worse than the race it was
+// added to prevent. `deliver` makes both of its checks in the same place, before anything is
+// written.
+//
+// The press passes nothing, because a person pressing a button IS the condition and there is
+// nothing to re-read.
+export async function handOver(instance, name, askedLine, stillHolds = null) {
   return inTurn(name, async () => {
+    if (stillHolds !== null && !stillHolds()) {
+      return { abandoned: true };
+    }
+
     const asked = append(instance.root, name, {
       from: THE_CHAT,
       text: askedLine,
@@ -2289,6 +2309,82 @@ function crossedLine(human, name, held) {
   return `${name} has reached ${held}. Nothing has been stopped and no conversation has been ended by this: handing ${name} over is ${human}'s to press, on that session's panel.`;
 }
 
+// What a session is told when the CHAT, and not a person, is asking it to hand over.
+//
+// `handoverAsked` names whoever pressed the button. Nobody pressed one here, and a line saying
+// somebody had would put a sentence on a panel about a person who did nothing. So this says what
+// actually decided it — a session asked out of nowhere to write its desk has to be able to tell
+// this from somebody deciding it was finished.
+function parkAsked(name, full) {
+  return `The chat is asking ${name} to hand over. The account has reached ${full} of the usage window it is running in, and that window does not lift within the hour a conversation can be carried across, so what is in flight is being written down rather than waited out. ${name} is writing ${desk(name)} before its thread ends.`;
+}
+
+// What the lead is told once a session has been parked on where the account stands.
+function parkedLine(name, full) {
+  return `${name} was handed over by the chat rather than by anybody pressing for it: the account had reached ${full} of the window it is in, and that window does not lift within the hour a conversation can be carried across. ${name} wrote ${desk(name)} first, so what it was doing is on that desk rather than gone, and the next message to it starts a new conversation that reads it.`;
+}
+
+// Whether there is a conversation here worth parking. Asked the same way in both places it is
+// asked, which is what makes the second reading worth taking at all.
+//
+// A SESSION WITH NO THREAD HAS NOTHING TO HAND OVER. It is also what keeps a pass from acting
+// twice: a park ends in `forget`, so a session this feature has already parked answers no here and
+// is not asked again on the next pass. There is no memory of what was parked and none is needed —
+// the act removes its own subject, the way ending a cold conversation does.
+//
+// AND A SESSION SITTING ON A PERMISSION PROMPT IS LEFT ALONE. It costs time and not tokens: nothing
+// is running, no transcript is growing, and a person is mid-decision. Parking it destroys that
+// decision to save nothing. Asked with `parked`, which answers for one session — the all-sessions
+// reading hands back empty entries for anybody who was ever asked about, so a length taken from it
+// would call every session busy that had once been asked anything.
+function worthParking(instance, name) {
+  if (!hasThread(instance.root, name)) {
+    return false;
+  }
+  return parked(name, instance.root).length === 0;
+}
+
+// The room in the order it is parked in, which is DETERMINED and not chosen. A pass that picked an
+// order would be exercising the one judgment this whole feature is written not to have.
+//
+// DESCENDING SHARE OF THE WINDOW, so the seat with the most to lose gets its turn first on an
+// account that may start refusing partway down the list. Ranked on `fullnessIn` and not on the
+// band beside it, because a band is a bucket: two conversations inside one are equal to it, and so
+// are two in none, and an order built on that is alphabetical wearing an argument.
+//
+// A SESSION NOBODY HAS A READING FOR GOES LAST, deliberately and not by falling out of a
+// comparison. Nothing is not zero. A seat whose size is unknown is not the emptiest one here; it
+// is the one there is no reason to hurry for.
+//
+// TIES ON SEAT NAME, ASCENDING. Two seats on an equal share have an equal claim by every measure
+// this has, so the tie goes to the one thing that cannot drift between passes — and a check can
+// then assert the whole order rather than some property of it.
+//
+// AND THE LEAD LAST, which is not courtesy. Every other park leaves its line for the lead, and the
+// lead's own handover turn is what carries those lines onto its desk. Park the lead first and its
+// desk is written before it has been told what became of anybody, and every line after that arrives
+// to a conversation which no longer exists.
+function inParkOrder(instance, room) {
+  const lead = instance.config.leader;
+  return [...room].sort((one, other) => {
+    if (one.name === lead || other.name === lead) {
+      return one.name === lead ? 1 : -1;
+    }
+    const mine = fullnessIn(instance.root, one.name);
+    const theirs = fullnessIn(instance.root, other.name);
+    if (mine !== theirs) {
+      if (mine === null) {
+        return 1;
+      }
+      if (theirs === null) {
+        return -1;
+      }
+      return theirs - mine;
+    }
+    return one.name < other.name ? -1 : 1;
+  });
+}
+
 // One pass over the room, and everything it decides costs nothing.
 //
 // WHAT CHANGED HERE, because the shape of this function is the whole feature. It used to read the
@@ -2317,13 +2413,114 @@ function crossedLine(human, name, held) {
 // THE GATE IS PER CONDITION AND NOT PER SESSION. Ending a cold conversation needs no turn in
 // flight on that session — it is the one thing that must not happen under a live run — while what
 // is only said needs nothing at all.
-async function readTheRoom(instance) {
+//
+// ONE PASS AT A TIME. A pass waits on turns now — a park goes through `handOver`, which chains
+// onto the session's own queue and then runs a whole turn — so a pass can outlast the cadence it
+// fired on, and the timer does not wait for it. Two passes over one room would each decide about
+// the same seats: the second would queue a park behind every park the first has in flight, and
+// start parking whatever the first has not reached yet beside it, in an order nobody chose. So a
+// tick that finds the last pass still going does nothing and records nothing, which is right:
+// the room is being read.
+//
+// NOT SHIPPED BEFORE THIS SLICE, deliberately. Until the park, every await in a pass resolved in
+// microtasks inside the tick's own macrotask, and a guard around a window that does not exist
+// cannot be shown to matter — it was written, could not be reddened, and was taken out again. This
+// is the slice that opens the window.
+//
+// WHERE A SECOND PASS SHOWS, measured while the check for this was written: not in the order of the
+// parks. A second pass chains onto the same per-session queues as the first, so it trails it park
+// for park and is abandoned at each — what it leaves is a turn queued for nothing on every seat the
+// first has not finished with, and a record of the pass that acted overwritten by one that did
+// nothing. The check reads the queue on a seat the first pass is held on.
+let passing = false;
+
+export async function readTheRoom(instance) {
+  if (passing) {
+    return;
+  }
+  passing = true;
+  try {
+    await walkTheRoom(instance);
+  } finally {
+    passing = false;
+  }
+}
+
+// The pass itself, and the shape of this function is the whole feature: see above.
+async function walkTheRoom(instance) {
   const room = sessions(instance);
   const when = new Date();
   const at = `${String(when.getHours()).padStart(2, "0")}:${String(when.getMinutes()).padStart(2, "0")}`;
 
   let decided = 0;
   let acted = 0;
+
+  // THE ACCOUNT FIRST, because it is the only thing read here that is not about a session at all.
+  //
+  // Where the account stands is a fact about the whole workspace, so unlike everything below it
+  // this asks nothing about whether a turn is in flight: a seat that is mid-run is exactly the seat
+  // spending the window, and waiting for it to be idle is waiting for the thing being decided
+  // about to finish happening.
+  //
+  // THREE ANSWERS AND NOT TWO, which is the whole of what this branch is. `warm` says whether the
+  // window lifts inside the hour a conversation can be carried across, and it is THREE-VALUED —
+  // `null` is the account not having said when it lifts, which is not the same answer as no.
+  //   true  — it lifts within the hour. Carry: everybody is still here when the wait is over, and
+  //           parking them would spend the account to save conversations that were never at risk.
+  //   null  — nobody said when it lifts. Carry, because a park is not something to do on an
+  //           unknown: it is irreversible for the conversation it ends, and the reading that would
+  //           have justified it never arrived.
+  //   false — it lifts later than that. Kill: every conversation still here when the window turns
+  //           over is one that will have to be paid for again from nothing, so what each seat knows
+  //           is written to its desk while there is still an account to write it with.
+  //
+  // WHAT THIS DOES AT EVERY PASS, said here because it is not yet what it will be. There is no
+  // record of a hold, so while a reading still says this, every pass parks whatever is still
+  // parkable. That is right rather than merely tolerable in two of the three cases: a park that
+  // SUCCEEDED took the thread away, so `worthParking` answers no and it is not repeated, and a park
+  // that was REFUSED left the thread where it was, so it is tried again — which is what a refused
+  // park is supposed to get while its seat is still warm. What is missing is the other end: once
+  // the last thread is gone there are no readings left, this reads nothing, and the room falls
+  // quiet because the parking destroyed the evidence rather than because the account recovered.
+  // A record of the hold is what answers that, and it is the next thing.
+  //
+  // AND ONLY WHERE THE WORKSPACE BUYS A TURN. A park is a turn on the session parked, which is the
+  // first thing in a pass that spends anything; a workspace that wrote `0` declined exactly this,
+  // and keeps everything above and below it, which spends nothing.
+  const standing = buysATurn(instance.config) ? accountStanding(instance) : null;
+  if (standing !== null && standing.stop && standing.warm === false) {
+    const full = `${Math.round(standing.fullness * 100)}%`;
+    for (const session of inParkOrder(instance, room)) {
+      if (!worthParking(instance, session.name)) {
+        continue;
+      }
+      decided += 1;
+
+      // ASKED AGAIN INSIDE THE TURN, and what is asked again is what can have changed. `inTurn`
+      // chains onto this session's own queue, so this can run behind a message that arrived a
+      // moment after the room was read and behind everything already stacked up: by then the seat
+      // may have been handed over by a press, or may be waiting on a permission prompt.
+      //
+      // WHAT IS DELIBERATELY NOT RE-READ IS THE ACCOUNT. Parking ends in `forget`, which removes
+      // the very file the standing is folded from, so a second reading taken after the first park
+      // can say the account is fine — not because it recovered but because this destroyed what said
+      // otherwise. A park that re-read it would abandon every seat after the first. Reading it
+      // against something that survives a park is what the hold record is for.
+      const done = await handOver(instance, session.name, parkAsked(session.name, full), () =>
+        worthParking(instance, session.name),
+      );
+
+      // Nothing happened, and each of the three ways that can be true is a reason to leave the seat
+      // exactly as it is: the room was off, the turn found the seat no longer worth parking, or the
+      // account turned the run away. The last one is the one that comes back — the thread is still
+      // there, so the next pass tries again.
+      if (done === OFFLINE || done.abandoned === true || done.refused === true) {
+        continue;
+      }
+      acted += 1;
+      announce(instance, parkedLine(session.name, full), at);
+    }
+  }
 
   // A conversation nobody carried on for long enough, ended here rather than on the next message
   // that happens to arrive. The same act, at the moment it becomes true instead of whenever
@@ -2428,7 +2625,7 @@ export function serve(instance) {
   // decline. A field must not grow into a larger promise than the one it was written with.
   //
   // So the cadence is asked for every workspace, and what may be SPENT is asked separately, by
-  // whatever is about to spend it. There is nothing here that does.
+  // whatever is about to spend it — the park asks `buysATurn` where it is about to.
   const every = howOften(instance.config);
   // Said at the moment of arming and nowhere else, so that "no record at all" keeps a meaning of
   // its own. A watch that has been armed and has not yet fired is every restart of the chat, for as

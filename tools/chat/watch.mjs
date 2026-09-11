@@ -101,6 +101,18 @@ export function howOften(config) {
   return said * 1000;
 }
 
+// Whether a pass may spend a turn on this workspace, which is the half of the field `howOften`
+// above says it does not answer. `0` and nothing else: a workspace that wrote it declined a run, not
+// a reading, and every other value — absent, malformed, a cadence — declined nothing.
+//
+// ASKED BY WHATEVER IS ABOUT TO SPEND, at the moment it is about to, and by nothing that only reads
+// or only writes a line. The first thing that spends is handing a session over on where the account
+// stands — a turn on that session, to write its desk — and it arrived with this rather than before
+// it, because a gate with nothing behind it is a promise about code that does not exist yet.
+export function buysATurn(config) {
+  return config?.[WATCH_EVERY] !== 0;
+}
+
 // What band each name was last seen in — the whole of what makes an announcement fire on a
 // transition — and nothing else. One entry per session that has been read, holding the band's name
 // or nothing at all for a session that is in none.
