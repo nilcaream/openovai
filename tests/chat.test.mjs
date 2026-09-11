@@ -16,6 +16,7 @@
 // Run it with: node --test tests/chat.test.mjs
 
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
@@ -69,7 +70,7 @@ import { readable } from "../tools/port.mjs";
 // chat cannot be made to answer: whether every band in the table is one something can be in, and
 // what a cadence nothing can read is refused with, which has to be settled before a chat starts.
 import { BANDS, shareOf } from "../tools/chat/session.mjs";
-import { WATCH_EVERY, howOften, watchEveryProblem } from "../tools/chat/watch.mjs";
+import { PARK_ATTEMPTS, WATCH_EVERY, howOften, parkAttemptsAllowed, parkAttemptsProblem, watchEveryProblem } from "../tools/chat/watch.mjs";
 
 // And the chat itself, in this process. One check needs a server that is closed while the process
 // it was in lives on, which is the one arrangement a chat started as a child cannot be put into:
@@ -11713,6 +11714,74 @@ describe("how often a workspace has asked for its room to be read", () => {
   });
 });
 
+// How many times one seat may be asked to hand over on the account's behalf, under one hold.
+//
+// The cadence's shape and the cadence's reason: a field a person hand-writes into openovai.json,
+// absent from most workspaces, and one nothing can read has to stop a chat starting rather than
+// silently become "as often as it takes". Absent has that meaning on purpose — what a refused run
+// costs is unmeasured, so no number is invented here — and the field only ever caps it lower.
+describe("how often one seat may be asked to hand over on the account's behalf", () => {
+  const attempting = `${instance}-attempts`;
+
+  // Mutation: read absent as some number. Nobody has measured what a refused run costs, so there
+  // is no number to read it as, and a workspace that wrote nothing has every park asked for again
+  // on every pass while the seat is warm.
+  it("has no bound in a workspace that left it out", () => {
+    assert.equal(parkAttemptsProblem(undefined), null);
+    assert.equal(parkAttemptsProblem(null), null);
+    assert.equal(parkAttemptsAllowed({}), null);
+    assert.equal(parkAttemptsAllowed(undefined), null);
+  });
+
+  // Mutation: read the bound off a constant and ignore what the instance said.
+  it("reads the bound the instance wrote", () => {
+    assert.equal(parkAttemptsAllowed({ [PARK_ATTEMPTS]: 1 }), 1);
+    assert.equal(parkAttemptsAllowed({ [PARK_ATTEMPTS]: 3 }), 3);
+  });
+
+  // Whole, and at least one. `0` is refused rather than read as "never ask": that is what
+  // `watchEverySeconds: 0` says, and the sentence points there.
+  it("refuses a bound that is not a whole number of at least one, naming the field", () => {
+    for (const wrong of ["3", 0, 0.5, -1, true, Number.NaN]) {
+      const said = parkAttemptsProblem(wrong);
+      assert.ok(said !== null, `${JSON.stringify(wrong)} was accepted as a number of attempts`);
+      assert.match(said, new RegExp(PARK_ATTEMPTS));
+    }
+    assert.match(parkAttemptsProblem(0), new RegExp(`${WATCH_EVERY}: 0`));
+    assert.equal(parkAttemptsProblem(1), null);
+    assert.equal(parkAttemptsProblem(3), null);
+  });
+
+  // Mutation: leave the line out of the chat's start. The function above answers, and nothing
+  // asks it; a chat that started on the field would read past it into "as often as it takes".
+  it("refuses to start a chat on a bound nothing can read, naming the field", () => {
+    installed(options(attempting, 0));
+    const config = path.join(attempting, "openovai.json");
+    fs.writeFileSync(
+      config,
+      `${JSON.stringify({ ...JSON.parse(fs.readFileSync(config, "utf8")), [PARK_ATTEMPTS]: "two" }, null, 2)}\n`,
+    );
+    // Bounded, because the failure this guards against is a chat that STARTS: a start that read
+    // past the field would serve for as long as it was left to, and a check that waited on it would
+    // be a hang rather than a red — measured, before the bound was put on.
+    const refused = spawnSync("node", [path.join(attempting, "tools", "ovai.mjs"), "--root", attempting, "chat"], {
+      env: process.env,
+      encoding: "utf8",
+      timeout: 10000,
+    });
+    // A chat stopped at the bound exits 0 — being asked to stop is not a failure — and the result
+    // carries ETIMEDOUT instead, so that is what says it started.
+    assert.equal(refused.error, undefined, `the chat started on the field and had to be stopped: ${refused.stdout}`);
+    assert.equal(refused.status, 2, `status ${refused.status}: ${refused.stderr}`);
+    assert.match(refused.stderr, new RegExp(PARK_ATTEMPTS));
+    assert.match(refused.stderr, /"two"/);
+  });
+
+  after(() => {
+    remove(attempting);
+  });
+});
+
 // What the account is doing NOW, said on the row, beside what the session was told when a run last
 // ended. The reading has been arriving all along; until this it left the process only at close, so
 // a window could fill from one side of a line to the other with nothing anybody could look at.
@@ -12818,6 +12887,7 @@ const LIFTED_UNDER = "Chough";
 const LIFTED_COLD_AND_REFUSED = "Kittiwake";
 const LIFTED_PARKED = "Razorbill";
 const REFUSED_TILL_COLD = "Fulmar";
+const ASKED_ONCE = "Gadwall";
 const HOLD_IN_THE_ROOM = "Guillemot";
 const HELD_PAST_THE_LIFT = "Turnstone";
 const UNSAID = "Sanderling";
@@ -13837,6 +13907,89 @@ describe("what a pass does about where the account stands", () => {
     after(() => {
       delete process.env.OPENOVAI_STAND_IN_REFUSED_WHILE;
       remove(refusing);
+    });
+  });
+
+  // A park asked for as often as this workspace allows, and no more. The same seat as above, with
+  // the account turning every park away, in a workspace that wrote `1`: asked once, counted once,
+  // and left — warm, with its thread — until it goes cold, when what was lost is said with that
+  // count.
+  describe("a park asked for as often as the workspace allows", () => {
+    const bounded = `${instance}-bounded-attempts`;
+    const boundedLog = path.join(bounded, "parks.txt");
+    const turnedAway = path.join(bounded, "turned-away");
+    let leader;
+    let afterTheOneAttempt;
+    let runsAfterTheOneAttempt;
+    let threadAfterTheOneAttempt;
+    let panels;
+
+    const thread = (name) => path.join(bounded, "chat", name, "session.json");
+
+    before(async () => {
+      process.env.OPENOVAI_STAND_IN_LOG = boundedLog;
+      process.env.OPENOVAI_STAND_IN_REFUSED_WHILE = turnedAway;
+
+      installed(options(bounded, 0));
+      fs.writeFileSync(turnedAway, "");
+      runTool(bounded, ["hire", ASKED_ONCE], process.env);
+      const config = path.join(bounded, "openovai.json");
+      fs.writeFileSync(
+        config,
+        `${JSON.stringify({ ...JSON.parse(fs.readFileSync(config, "utf8")), watchEverySeconds: 1, [PARK_ATTEMPTS]: 1 }, null, 2)}\n`,
+      );
+      const held = JSON.parse(fs.readFileSync(config, "utf8"));
+      leader = held.leader;
+
+      stageThread(bounded, ASKED_ONCE, {
+        context: 0.5 * WINDOW_HELD,
+        window: WINDOW_HELD,
+        quota: [window("five_hour", OVER_THE_STOP_LINE, LIFTS_LATER_THAN_THE_HOUR), window("seven_day", 0.36, 5 * 24 * 60)],
+      });
+
+      const server = await serve({ root: bounded, config: held, plugins: [], pop: null });
+
+      // NOTHING IS ASSERTED IN THIS HOOK: it holds a live server. One refusal counted, then three
+      // more passes, which is where a second attempt would have been.
+      await until(() => (holdIn(bounded)?.refused[ASKED_ONCE] ?? 0) >= 1, 8000);
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      afterTheOneAttempt = holdIn(bounded);
+      runsAfterTheOneAttempt = runsIn(boundedLog);
+      threadAfterTheOneAttempt = fs.existsSync(thread(ASKED_ONCE));
+
+      await until(() => {
+        if (fs.existsSync(thread(ASKED_ONCE))) {
+          age(thread(ASKED_ONCE), 90);
+        }
+        return holdLinesOn(panelIn(bounded, leader), NEVER_PARKED).length > 0;
+      }, 8000);
+
+      panels = { [ASKED_ONCE]: panelIn(bounded, ASKED_ONCE), [leader]: panelIn(bounded, leader) };
+      await new Promise((resolve) => server.close(resolve));
+    });
+
+    // Mutation: read the bound past, or read it off by one. Passes kept coming and the seat was
+    // still warm and still turned away, and it was asked exactly once.
+    it("asks a seat as many times as the workspace allows and then leaves it", () => {
+      assert.ok(afterTheOneAttempt !== null, "no hold was entered");
+      assert.equal(afterTheOneAttempt.refused[ASKED_ONCE], 1, JSON.stringify(afterTheOneAttempt));
+      assert.equal(runsAfterTheOneAttempt.filter((run) => run.name === ASKED_ONCE).length, 1, JSON.stringify(runsAfterTheOneAttempt.map((run) => run.name)));
+      assert.equal(threadAfterTheOneAttempt, true, "the seat was ended while still warm");
+      assert.deepEqual(afterTheOneAttempt.parked, []);
+    });
+
+    // The seat left is the seat the account kept turning away: what becomes of it is what became of
+    // the one above — said once when it goes cold, with the one attempt it was allowed.
+    it("says what was lost, with the attempts it was allowed, when the seat left goes cold", () => {
+      const said = holdLinesOn(panels[leader], NEVER_PARKED);
+      assert.equal(said.length, 1, JSON.stringify(panels[leader]));
+      assert.match(said[0].text, new RegExp(`^${ASKED_ONCE} was never handed over: the account turned its handover away once, and its conversation has gone cold`));
+      assert.equal(panels[ASKED_ONCE].filter((line) => line.cold === true).length, 1, JSON.stringify(panels[ASKED_ONCE]));
+    });
+
+    after(() => {
+      delete process.env.OPENOVAI_STAND_IN_REFUSED_WHILE;
+      remove(bounded);
     });
   });
 

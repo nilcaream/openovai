@@ -113,6 +113,42 @@ export function buysATurn(config) {
   return config?.[WATCH_EVERY] !== 0;
 }
 
+// How many times a pass may ask one seat to hand over on the account's behalf, under one hold,
+// before it stops asking. The account can turn a park away — the run that would write the desk is
+// itself a run — and a park turned away is asked again on the next pass while the seat is warm.
+//
+// A NUMBER AN INSTANCE SETS, NOT ONE THIS FILE INVENTS, and the honest reason is that nobody has
+// measured the thing it turns on. What a retry costs is what a REFUSED run costs, and nothing in
+// this tree establishes whether a run the service turns away is free, nearly free, or a real charge
+// against the window. So there is no default: a workspace that writes nothing here has every park
+// retried on every pass for as long as the seat is warm, and the field only ever caps that lower.
+// Whoever first measures a refused run knows exactly which number they are settling.
+//
+// PER SEAT AND PER HOLD, because that is what the count it caps is: the hold keeps, by seat, how
+// often the account turned that seat's park away, and a new hold starts every seat afresh.
+export const PARK_ATTEMPTS = "parkAttemptsPerSeat";
+
+// What is wrong with the field, in the words somebody can act on, or nothing at all. Absent is not
+// wrong. `0` is: it would say "never ask", which is a different field's answer — a workspace that
+// wants no park written `watchEverySeconds: 0` and declined the turn itself.
+export function parkAttemptsProblem(attempts) {
+  if (attempts === undefined || attempts === null) {
+    return null;
+  }
+  if (typeof attempts !== "number" || !Number.isInteger(attempts) || attempts < 1) {
+    return `${PARK_ATTEMPTS} is ${JSON.stringify(attempts)}, which is not a number of attempts — it is a whole number of at least 1, like 3; to have nobody handed over at all, write ${WATCH_EVERY}: 0`;
+  }
+  return null;
+}
+
+// How many attempts are allowed, or null for as many as it takes while the seat is warm. Read past
+// anything that is not a whole number of at least one, the way `howOften` reads past a malformed
+// cadence: the chat refused to start on it, so this is never reached with one.
+export function parkAttemptsAllowed(config) {
+  const said = config?.[PARK_ATTEMPTS];
+  return typeof said === "number" && Number.isInteger(said) && said >= 1 ? said : null;
+}
+
 // What band each name was last seen in — the whole of what makes an announcement fire on a
 // transition — and nothing else. One entry per session that has been read, holding the band's name
 // or nothing at all for a session that is in none.

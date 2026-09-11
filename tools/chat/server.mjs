@@ -18,7 +18,7 @@ import { popped } from "./pop.mjs";
 import { answerFrom } from "../plugins.mjs";
 import { SKILL as ALLOWED } from "../skills.mjs";
 import { ago, roomLines, shareSaid } from "./room.mjs";
-import { armTheWatch, buysATurn, forgetTheRoom, howOften, nowSeen, tickRead, whatChanged } from "./watch.mjs";
+import { armTheWatch, buysATurn, forgetTheRoom, howOften, nowSeen, parkAttemptsAllowed, tickRead, whatChanged } from "./watch.mjs";
 import { DESK_FILE, DeskError, WORK, allowAsked, archiveFor, deskTitle, describeName, hasSettledAnything, hire, isName, retire } from "../desks.mjs";
 import { accountStanding, ask, bandIn, endRun, forget, fullnessIn, hasGoneCold, hasGoneQuiet, hasThread, quotaIn, ranAt, refusedIn, sessions, standingsUnderway } from "./session.mjs";
 import { endHold, enterHold, forgetRefused, holdIn, holdLifted, holdSaid, holdStands, markParked, markRefused } from "./hold.mjs";
@@ -2619,6 +2619,7 @@ async function walkTheRoom(instance) {
 
   if (hold !== null && hold.parking) {
     const full = `${Math.round(hold.fullness * 100)}%`;
+    const attempts = parkAttemptsAllowed(instance.config);
     for (const session of inParkOrder(instance, room)) {
       // ONCE PER SEAT PER HOLD, and the hold keeps the list. A seat that was parked and then spoken
       // to again inside the same window has a thread again and is still not parked again; a seat
@@ -2638,6 +2639,14 @@ async function walkTheRoom(instance) {
         continue;
       }
       if (!worthParking(instance, session.name)) {
+        continue;
+      }
+
+      // A SEAT ASKED AS OFTEN AS THIS WORKSPACE ALLOWS IS NOT ASKED AGAIN. The count is the hold's
+      // and the bound is the instance's; absent, there is no bound, and a park is asked for again
+      // on every pass while the seat is warm. What becomes of a seat left here is what becomes of
+      // any seat the account kept turning away: said once if it goes cold, named at the lift if not.
+      if (attempts !== null && (hold.refused[session.name] ?? 0) >= attempts) {
         continue;
       }
       decided += 1;

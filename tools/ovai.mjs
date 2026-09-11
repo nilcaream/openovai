@@ -10,7 +10,7 @@ import { panelDirectory } from "./chat/conversation.mjs";
 import { listening } from "./chat/listening.mjs";
 import { QUIET_HOURS, describePop, popIn, quietHoursProblem } from "./chat/pop.mjs";
 import { roomLines } from "./chat/room.mjs";
-import { WATCH_EVERY, watchEveryProblem } from "./chat/watch.mjs";
+import { PARK_ATTEMPTS, WATCH_EVERY, parkAttemptsProblem, watchEveryProblem } from "./chat/watch.mjs";
 import { serve } from "./chat/server.mjs";
 import { NAME_IN_ENVIRONMENT, endEveryRun, runsGoing } from "./chat/session.mjs";
 import { hasCredential, home, login, machineToken, memoryDirectory } from "./claude.mjs";
@@ -525,6 +525,14 @@ async function chat(root) {
   const wrongCadence = watchEveryProblem(config[WATCH_EVERY]);
   if (wrongCadence !== null) {
     throw new UsageError(`${configIn(root)}: ${wrongCadence}`);
+  }
+
+  // And the bound on how often one seat is asked to hand over on the account's behalf, for the
+  // same reason: a number nothing can read would silently become "as often as it takes", in a
+  // workspace whose owner wrote a number down precisely to cap it.
+  const wrongAttempts = parkAttemptsProblem(config[PARK_ATTEMPTS]);
+  if (wrongAttempts !== null) {
+    throw new UsageError(`${configIn(root)}: ${wrongAttempts}`);
   }
 
   const plugins = await pluginsIn(root);

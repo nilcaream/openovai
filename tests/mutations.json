@@ -2096,5 +2096,71 @@
         "to": "  function showTheRoom({ offline, sessions }) {\n    const hold = null;"
       }
     ]
+  },
+  {
+    "name": "the bound on the attempts is read past",
+    "catches": "asks a seat as many times as the workspace allows and then leaves it",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "      if (attempts !== null && (hold.refused[session.name] ?? 0) >= attempts) {",
+        "to": "      if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "the bound on the attempts is off by one",
+    "catches": "asks a seat as many times as the workspace allows and then leaves it",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "      if (attempts !== null && (hold.refused[session.name] ?? 0) >= attempts) {",
+        "to": "      if (attempts !== null && (hold.refused[session.name] ?? 0) > attempts) {"
+      }
+    ]
+  },
+  {
+    "name": "absent is read as one attempt",
+    "catches": "counts on the hold each time the account turns a park away",
+    "edits": [
+      {
+        "file": "tools/chat/watch.mjs",
+        "from": "  return typeof said === \"number\" && Number.isInteger(said) && said >= 1 ? said : null;",
+        "to": "  return typeof said === \"number\" && Number.isInteger(said) && said >= 1 ? said : 1;"
+      }
+    ]
+  },
+  {
+    "name": "the bound is read off a constant",
+    "catches": "reads the bound the instance wrote",
+    "edits": [
+      {
+        "file": "tools/chat/watch.mjs",
+        "from": "  return typeof said === \"number\" && Number.isInteger(said) && said >= 1 ? said : null;",
+        "to": "  return 3;"
+      }
+    ]
+  },
+  {
+    "name": "zero attempts is accepted as a bound",
+    "catches": "refuses a bound that is not a whole number of at least one, naming the field",
+    "edits": [
+      {
+        "file": "tools/chat/watch.mjs",
+        "from": "  if (typeof attempts !== \"number\" || !Number.isInteger(attempts) || attempts < 1) {",
+        "to": "  if (typeof attempts !== \"number\" || !Number.isInteger(attempts) || attempts < 0) {"
+      }
+    ]
+  },
+  {
+    "name": "the chat starts on a bound nothing can read",
+    "catches": "refuses to start a chat on a bound nothing can read, naming the field",
+    "edits": [
+      {
+        "file": "tools/ovai.mjs",
+        "from": "  const wrongAttempts = parkAttemptsProblem(config[PARK_ATTEMPTS]);\n  if (wrongAttempts !== null) {\n    throw new UsageError(`${configIn(root)}: ${wrongAttempts}`);\n  }\n",
+        "to": ""
+      }
+    ]
   }
 ]
