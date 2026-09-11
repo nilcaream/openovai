@@ -19,7 +19,7 @@ import { answerFrom } from "../plugins.mjs";
 import { SKILL_NAME } from "../payload.mjs";
 import { ago, roomLines, shareSaid } from "./room.mjs";
 import { WATCH_EVERY, armTheWatch, buysATurn, forgetTheRoom, howOften, nowSeen, parkAttemptsAllowed, theWatchRecord, tickRead, whatChanged } from "./watch.mjs";
-import { DESK_FILE, DeskError, WORK, allowAsked, archiveFor, deskTitle, describeName, hasSettledAnything, hire, isName, retire } from "../desks.mjs";
+import { DESK_FILE, DeskError, WORK, allowAsked, archiveFor, deskTitle, describeName, hasSettledAnything, hire, isName, persona, retire } from "../desks.mjs";
 import { accountStanding, ask, bandIn, endRun, forget, fullnessIn, hasGoneCold, hasNearlyGoneCold, hasThread, personaFile, quotaIn, ranAt, refusedIn, sessions, standingsUnderway } from "./session.mjs";
 import { NO_NEW_WORK, spawnHeld } from "./gate.mjs";
 import { endHold, enterHold, forgetRefused, holdIn, holdLifted, holdSaid, holdStands, markParked, markRefused } from "./hold.mjs";
@@ -272,28 +272,32 @@ function permissionsWrapper(instance, name) {
   ].join("\n\n");
 }
 
-// The day the block below stopped asking the lead to hand people over by hand, because the chat
-// had begun doing it itself.
+// Whether this conversation runs the instructions the instance renders now.
 //
 // A persona is rendered when a conversation starts and read as it is for every turn after, an
-// update included — so a lead whose conversation began before this day is running instructions
-// that still say handing a conversation over is a person's to press, and reads a block here that
-// says the chat does it. Two instructions, one of them older, and the session has nothing to look
-// up which. This sentence says which, and it is said only while that is true: read off the
-// modified time of the persona this conversation was rendered, against this day — the same
-// discipline as the standing ask about a desk. It costs a sentence while it applies and nothing at
-// all once it does not, so it stops by every conversation it was for having been handed over.
-const RETOLD_ON = Date.UTC(2026, 8, 11);
-
+// update included — so a lead whose conversation began before the templates last moved may be
+// running instructions that still say handing a conversation over is a person's to press, and
+// reads a block here that says the chat does it. Two instructions, one of them older, and the
+// session has nothing to look up which. This sentence says which, and it is said only while that
+// is true.
+//
+// THE COMPARE IS THE PERSONA AGAINST WHAT THE INSTANCE WOULD RENDER FOR IT NOW, and nothing
+// else. Not a day: a persona rendered yesterday by an older toolkit carries the older templates
+// and reads as "after the day". Not a version: a release that moved no template would say "older"
+// to everybody for nothing, and a template edited between releases — this is a checkout on some
+// machines — moves no version at all. What the instance renders now is the thing itself, and the
+// version is read off it: a moved template or a moved customization, from an update or from an
+// edit, is a difference, and nothing else is. One template read and one customization read on a
+// lead turn that carries a block, nothing kept on disk, nothing for the thread's ending to remove.
 function olderInstructions(instance, name) {
-  let rendered;
+  let running;
   try {
-    rendered = fs.statSync(personaFile(instance.root, name)).mtimeMs;
+    running = fs.readFileSync(personaFile(instance.root, name), "utf8");
   } catch {
     // No persona to contradict, so nothing to say about one.
     return [];
   }
-  return rendered < RETOLD_ON
+  return running !== persona(instance.root, name, instance.config)
     ? ["If your instructions say otherwise, they were written before this, and this is what happens."]
     : [];
 }

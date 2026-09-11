@@ -6,6 +6,18 @@ carries only its own.
 
 ## 0.7.0
 
+**The personas now say what the chat does by itself.** A lead hired on the previous version was
+told that handing a conversation over was yours to press, that the room watch did three things and
+that a crossing into a strong band was said once and left alone — while the chat had begun parking
+a conversation on that crossing, and before its hour, desk written first. Both templates say so
+now: the lead's names all four things the watch does and what its two readings are for, and
+carries what to tell you about a conversation the chat ended; a worker's says a handover may be the
+chat asking, and where in it to read why. A conversation already going keeps the persona it began
+on, as always — and its lead is now told, in the block about who has grown big, that its
+instructions predate this. That is read off the persona itself against what the instance would
+render for it now, so a template you edited by hand, or something you added under
+`customization/`, is told the same way an update is.
+
 **Your lead is no longer told who has stopped.** A block at the top of the lead's turns used to name
 every session that had run nothing for half an hour, and how long each had been doing nothing. It
 was a reading and never a rule, and what it warned of — a conversation ended at the hour with its

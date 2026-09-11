@@ -886,10 +886,20 @@ lead is also told so where its own turn begins:
     412,934 tokens, 92% of its window at the end of its last turn, read as this turn began at 14:07.
 
     A conversation that big is one where what is left has to be planned rather than simply
-    carried on, and what survives it is what its desk says. Handing one over is Mike's to
-    press, on that panel, and pressing it is what asks that session to write its desk before
-    its thread ends — so say which panel and why, your own included. Nothing here does it for
-    you: nothing stops running because of this and no conversation is ended by it.
+    carried on, and what survives it is what its desk says. Which panel is worth handing over
+    early is still yours to say, your own included — and the chat parks a conversation itself,
+    asking it to write its desk first, when it is about to lose its cache, when it has grown
+    into a strong band of its window, or when the account is nearly spent.
+
+A lead whose conversation began on older instructions is told so in the same block — *if your
+instructions say otherwise, they were written before this* — because a persona is rendered once,
+when a conversation starts, and read as it is until that conversation ends: a lead hired before
+the templates last moved may still be running a persona that says handing a conversation over is
+a person's to press. The chat knows, because it can render the persona that conversation would get
+if it started now and compare the two; it keeps no date and no version for it, so a template you
+edit by hand counts the same as one an update shipped, and so does what you add under
+`customization/`. The sentence costs nothing once every conversation begun on the older
+instructions has been handed over.
 
 The size is the one the conversation ended its last turn at, and not what that turn added up to. A
 turn that makes two requests is told about both, and the top of the frame adds them together — a
@@ -942,8 +952,10 @@ and leaving it out would hide the biggest conversation here at the moment it is 
 
 **What the lead can do about it is the honest limit of this.** It cannot press the button, and
 saying something to that session is not the fix — a message starts a run and makes the conversation
-bigger, not smaller. What it can do is tell you, on its own panel, which panel to press and why, and
-stop opening new fronts on that conversation meanwhile. Whether a lead should be able to end
+bigger, not smaller. What it can do is plan: close what can be closed, get written down what is not
+yet, stop opening new fronts on that conversation, and say on its own panel which one is worth
+handing over early and why. The crossing into a strong band is the chat's own to act on — the room
+watch below parks the conversation there, desk written first. Whether a lead should be able to end
 somebody else's conversation is a real question and a bigger one than a reading, so it is not
 answered here: the tools it is served are the same ones it was served before this.
 

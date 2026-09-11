@@ -2461,46 +2461,84 @@
     ]
   },
   {
-    "name": "the older-instructions sentence is said to every persona, whenever it was written",
-    "catches": "says nothing about older instructions to a lead whose persona was written after this, beside who has grown big",
+    "name": "the older-instructions sentence is said to every persona, whatever it runs",
+    "catches": "says nothing about older instructions to a lead whose persona is what the instance renders now, beside who has grown big",
     "edits": [
       {
         "file": "tools/chat/server.mjs",
-        "from": "  return rendered < RETOLD_ON\n    ? [\"If your instructions say otherwise, they were written before this, and this is what happens.\"]\n    : [];\n",
+        "from": "  return running !== persona(instance.root, name, instance.config)\n    ? [\"If your instructions say otherwise, they were written before this, and this is what happens.\"]\n    : [];\n",
         "to": "  return [\"If your instructions say otherwise, they were written before this, and this is what happens.\"];\n"
       }
     ]
   },
   {
     "name": "the older-instructions sentence is said to nobody",
-    "catches": "tells a lead whose persona predates this that its instructions are the older, beside who has grown big",
+    "catches": "tells a lead whose persona differs from what the instance renders now that its instructions are the older, beside who has grown big",
     "edits": [
       {
         "file": "tools/chat/server.mjs",
-        "from": "  return rendered < RETOLD_ON\n    ? [\"If your instructions say otherwise, they were written before this, and this is what happens.\"]\n    : [];\n",
+        "from": "  return running !== persona(instance.root, name, instance.config)\n    ? [\"If your instructions say otherwise, they were written before this, and this is what happens.\"]\n    : [];\n",
         "to": "  return [];\n"
       }
     ]
   },
   {
-    "name": "the persona's age is read off where an older toolkit kept it, not off the one this conversation was rendered",
-    "catches": "tells a lead whose persona predates this that its instructions are the older, beside who has grown big",
+    "name": "the compare reads what the instance renders on both sides, and never the persona this conversation runs",
+    "catches": "tells a lead whose persona differs from what the instance renders now that its instructions are the older, beside who has grown big",
     "edits": [
       {
         "file": "tools/chat/server.mjs",
-        "from": "    rendered = fs.statSync(personaFile(instance.root, name)).mtimeMs;\n",
-        "to": "    rendered = fs.statSync(path.join(instance.root, \"personas\", `${name}.md`)).mtimeMs;\n"
+        "from": "    running = fs.readFileSync(personaFile(instance.root, name), \"utf8\");\n",
+        "to": "    running = persona(instance.root, name, instance.config);\n"
       }
     ]
   },
   {
     "name": "the older-instructions sentence is left off the block about who has grown big",
-    "catches": "tells a lead whose persona predates this that its instructions are the older, beside who has grown big",
+    "catches": "tells a lead whose persona differs from what the instance renders now that its instructions are the older, beside who has grown big",
     "edits": [
       {
         "file": "tools/chat/server.mjs",
         "from": "    ...olderInstructions(instance, name),\n    \"</size>\",\n",
         "to": "    \"</size>\",\n"
+      }
+    ]
+  },
+  {
+    "name": "the persona is compared against the lead's template with nothing rendered into it",
+    "catches": "says nothing about older instructions to a lead whose persona is what the instance renders now, beside who has grown big",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "hire, isName, persona, retire } from \"../desks.mjs\";",
+        "to": "LEADER_TEMPLATE, hire, isName, persona, readTemplate, retire } from \"../desks.mjs\";"
+      },
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  return running !== persona(instance.root, name, instance.config)\n",
+        "to": "  return running !== readTemplate(instance.root, \"leader\", LEADER_TEMPLATE)\n"
+      }
+    ]
+  },
+  {
+    "name": "what the person added to a persona is left out of what the instance renders",
+    "catches": "counts what the person added to the persona as instructions, beside who has grown big",
+    "edits": [
+      {
+        "file": "tools/desks.mjs",
+        "from": "  const added = customization(root, what);\n",
+        "to": "  const added = null;\n"
+      }
+    ]
+  },
+  {
+    "name": "a conversation with no persona beside its thread is a throw",
+    "catches": "says nothing about older instructions, and still answers, when there is no persona beside the thread, beside who has grown big",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  let running;\n  try {\n    running = fs.readFileSync(personaFile(instance.root, name), \"utf8\");\n  } catch {\n    // No persona to contradict, so nothing to say about one.\n    return [];\n  }\n",
+        "to": "  const running = fs.readFileSync(personaFile(instance.root, name), \"utf8\");\n"
       }
     ]
   },

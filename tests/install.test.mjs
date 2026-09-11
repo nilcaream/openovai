@@ -499,7 +499,7 @@ describe("what the installer made", () => {
     const leader = contentOf("templates", "leader.md");
     assert.match(leader, /reads the room itself and acts on what it reads/);
     assert.match(leader, /ended there and then/);
-    assert.match(leader, /hands each conversation over to its desk itself/);
+    assert.match(leader, /hands each\s+conversation over to its desk itself/);
     assert.match(leader, /sitting on a permission prompt is left alone/);
     assert.doesNotMatch(leader, /gives you a turn to hear it/);
     assert.doesNotMatch(leader, /Nobody typed that turn/);
@@ -687,17 +687,59 @@ describe("what the installer made", () => {
     // conversation in it ended. A persona that named the reading without naming what it says would
     // leave the lead reading an instruction it had been told nothing about.
     assert.match(persona, /tell you to stop the tasks and put everybody down/);
-    // Two of them are advice; the third acts. The sentence that made all of them advice was the one
-    // the room watch made false the day it began parking, so the persona is held to the split.
-    assert.match(persona, /Two of the three are advice and not\s+rules the toolkit keeps/);
+    // Two of them are readings; the third acts. The sentence that made all of them advice was the
+    // one the room watch made false the day it began parking, so the persona is held to the split.
+    assert.match(persona, /Two of the three are readings and not rules the toolkit keeps/);
     assert.match(persona, /The\s+third acts/);
     // And the third, which is the one that does not ride on a turn the lead was having anyway. A
     // persona that named two while the chat handed over three would leave the lead reading a block
     // its own instructions say it does not get.
     assert.match(persona, /The third is the room watch/);
-    // And what the middle one can ask for, which is a person being sent to a panel — so the persona
-    // has to say that pressing it is not the lead's, or it would read as something it could do.
-    assert.match(persona, /You cannot hand a session over/);
+  });
+
+  // What the persona says the chat does by itself, held to what the chat does. Every sentence
+  // below was true once and made false by a later commit — the crossing that was "said once, and
+  // nothing more is done about it" is parked; the block that told the lead nothing here ends a
+  // conversation is read by a lead whose conversation the chat will end — and a lead hired today
+  // is rendered the template as it is today, so the template is held to the chat and not the other
+  // way round. Read off the rendered persona and not the file, so the customization path is the
+  // same path. Every inter-word gap is \s+, because the file is hard-wrapped.
+  it("tells the leader the chat parks a conversation itself, and never that handing one over is a person's to press", () => {
+    const persona = leadPersona();
+    assert.doesNotMatch(persona, /nothing more is done about\s+it/);
+    assert.doesNotMatch(persona, new RegExp(`still\\s+${HUMAN}'s to press`));
+    assert.doesNotMatch(persona, /You cannot hand a session\s+over/);
+    assert.doesNotMatch(persona, /Three of the\s+four/);
+    assert.doesNotMatch(persona, /It does three\s+things/);
+    assert.match(persona, /It does four\s+things/);
+    // The size block is for planning and presses nothing: the chat parks on the crossing.
+    assert.match(persona, /the chat parks a\s+conversation itself on the crossing into a strong band of its window/);
+    assert.match(persona, /not for pressing\s+anything/);
+    // The park ahead of the hour, which no persona said before this.
+    assert.match(persona, /about to\s+lose its cache — idle fifty minutes — is handed over to its desk before the hour/);
+    // And the crossing park, with what happens when it cannot be done.
+    assert.match(persona, /crossed into\s+a strong band of its window is handed over to its desk on the crossing/);
+    assert.match(persona, /the crossing is said once, with the reason/);
+    // The split: two readings, and a watch that acts on all four conditions and asks nobody.
+    assert.match(persona, /Two of the three are readings/);
+    assert.match(persona, /on all four conditions, and it\s+asks nobody first/);
+  });
+
+  // What the lead tells the person about a conversation that ended, in the lead's own voice and
+  // without a number beyond "about an hour": a person who is told "fifty minutes" or "nine tenths"
+  // has been handed the mechanism to keep, and the point of the paragraph is that they keep nothing.
+  it("gives the leader what to tell the person about a conversation the chat ended", () => {
+    const persona = leadPersona();
+    const at = persona.indexOf(`${HUMAN} will ask what became of somebody`);
+    assert.notEqual(at, -1, "the persona never says what to tell the person");
+    const paragraph = persona.slice(at, persona.indexOf("\n\n", at));
+    assert.match(paragraph, /lives about an hour/);
+    assert.match(paragraph, /idles most of it, or grows into the last tenth of\s+its window/);
+    assert.match(paragraph, /asks it to write its desk and ends it there/);
+    assert.match(paragraph, /starts a fresh one that reads the desk first/);
+    assert.match(paragraph, /the account is nearly spent the chat holds/);
+    assert.match(paragraph, new RegExp(`Nothing there is ${HUMAN}'s to do`));
+    assert.doesNotMatch(paragraph, /fifty|minutes|tenths|per cent|%/);
   });
 
   it("tells the leader which one field of its header is read by anybody else", () => {

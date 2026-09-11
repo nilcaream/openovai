@@ -585,9 +585,9 @@ function model(instance, name) {
   return modelFor(instance.root, name, instance.config);
 }
 
-// Exported for the one reader outside this module that asks the file something other than its
-// words: the chat reads its modified time to tell a conversation running older instructions from
-// one rendered after them, and it has to ask for the file a run is actually handed.
+// Exported for the one reader outside this module that asks the file anything: the chat reads it
+// to tell a conversation running older instructions from one running what the instance renders
+// now, and it has to ask for the file a run is actually handed.
 export function personaFile(root, name) {
   return path.join(root, "chat", name, PERSONA_FILE);
 }

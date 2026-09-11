@@ -377,5 +377,71 @@
         "to": "Report what happened."
       }
     ]
+  },
+  {
+    "name": "the crossing is said once again, and handing it over is a person's to press again",
+    "catches": "tells the leader the chat parks a conversation itself, and never that handing one over is a person's to press",
+    "edits": [
+      {
+        "file": "templates/leader.md",
+        "from": "a strong band of its window is handed over to its desk on the crossing, when this workspace buys a\nturn and nothing is running on it; when it cannot be, the crossing is said once, with the reason,\nand that band is not tried again. And when",
+        "to": "a band — nine tenths of its window, say — is said once, on the crossing, and nothing more is\ndone about it: handing it over is still {{HUMAN}}'s to press. And when"
+      }
+    ]
+  },
+  {
+    "name": "the size block sends the person to a panel again",
+    "catches": "tells the leader the chat parks a conversation itself, and never that handing one over is a person's to press",
+    "edits": [
+      {
+        "file": "templates/leader.md",
+        "from": "else's. It is there for planning what is left and not for pressing anything: the chat parks a\nconversation itself on the crossing into a strong band of its window, asking it to write its desk\nfirst, and the watch below says so when it has.",
+        "to": "else's. You cannot hand a session over; {{HUMAN}} can, on that session's panel, and pressing\nit is what asks that session to write its desk before its thread ends."
+      }
+    ]
+  },
+  {
+    "name": "the park ahead of the hour is left out of what the watch does, and the count with it",
+    "catches": "tells the leader the chat parks a conversation itself, and never that handing one over is a person's to press",
+    "edits": [
+      {
+        "file": "templates/leader.md",
+        "from": "It does four things. A conversation nobody has carried\non for an hour is ended there and then, rather than at the next message to it — nothing is stopped\nand nothing is asked of that session, whatever it never wrote to its desk is gone, and the next\nmessage to it starts a new conversation that reads the desk first. A conversation that is about to\nlose its cache — idle fifty minutes — is handed over to its desk before the hour, so that what it\nworked out is written down while it can still be asked for. A conversation",
+        "to": "It does three things. A conversation nobody has carried\non for an hour is ended there and then, rather than at the next message to it — nothing is stopped\nand nothing is asked of that session, whatever it never wrote to its desk is gone, and the next\nmessage to it starts a new conversation that reads the desk first. A conversation"
+      }
+    ]
+  },
+  {
+    "name": "the two readings are advice the lead acts on again, and the watch acts on fewer than four",
+    "catches": "tells the leader the chat parks a conversation itself, and never that handing one over is a person's to press",
+    "edits": [
+      {
+        "file": "templates/leader.md",
+        "from": "Two of the three are readings and not rules the toolkit keeps: how big a conversation is and where\nthe account stands are told to you so that you can plan on them, and nothing stops running for\nbeing told. The third acts, on conversations and yours among them, on all four conditions, and it\nasks nobody first.",
+        "to": "Two of the three are advice and not rules the toolkit keeps: nothing stops running because of how\nbig a conversation is or where the account stands, so acting on those is yours. The third acts, on\nconversations and yours among them: it ends a cold one, it hands over under a hold, and it asks\nnobody first."
+      }
+    ]
+  },
+  {
+    "name": "the paragraph for the person is left out of the lead's persona",
+    "catches": "gives the leader what to tell the person about a conversation the chat ended",
+    "edits": [
+      {
+        "file": "templates/leader.md",
+        "from": "\n{{HUMAN}} will ask what became of somebody, and this is what to say, in your own words: a\nconversation lives about an hour. When one of us idles most of it, or grows into the last tenth of\nits window, the chat asks it to write its desk and ends it there; the next thing you say to them\nstarts a fresh one that reads the desk first. When the account is nearly spent the chat holds\neverybody the same way, and I open no new work until it lifts. Nothing there is {{HUMAN}}'s to do.\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the paragraph for the person carries the number the lead is meant to keep to itself",
+    "catches": "gives the leader what to tell the person about a conversation the chat ended",
+    "edits": [
+      {
+        "file": "templates/leader.md",
+        "from": "conversation lives about an hour. When one of us idles most of it,",
+        "to": "conversation lives about an hour. When one of us idles fifty minutes of it,"
+      }
+    ]
   }
 ]

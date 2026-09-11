@@ -52,7 +52,7 @@ import {
 
 // The reader this suite checks directly. No route says this number, and a check that read the
 // file itself would pass with nothing written at all.
-import { LEDGER } from "../tools/desks.mjs";
+import { CUSTOMIZATION, LEDGER, persona } from "../tools/desks.mjs";
 import { park, parked, shapeOf } from "../tools/chat/permissions.mjs";
 
 // The window rule itself, asked directly. Every other check here goes through a chat, which is
@@ -3631,23 +3631,31 @@ function panelFile(name) {
 }
 
 // The persona a conversation runs under, rendered when it started and never re-rendered by an
-// update. Its modified time is the one fact that says whether the words it carries are older than
-// what the chat now does by itself — so a fixture sets that time, and puts the file there first if
-// nothing has rendered one yet: the suites share one instance, and a conversation that has run has
-// one beside its thread.
-function renderedOn(name, when) {
-  const persona = path.join(instance, "chat", name, "persona.md");
+// update. Whether the words it carries are what the instance would render now is read off the
+// words themselves, so a fixture writes the file as given: the suites share one instance, and a
+// conversation that has run has one beside its thread, so what is put there is what the next lead
+// turn is composed against.
+function renderedFrom(name, text) {
+  const persona = personaOf(name);
   fs.mkdirSync(path.dirname(persona), { recursive: true });
-  if (!fs.existsSync(persona)) {
-    fs.writeFileSync(persona, `A persona for ${name}, put back by a check.\n`);
-  }
-  fs.utimesSync(persona, when, when);
+  fs.writeFileSync(persona, text);
 }
 
-// A persona written before the chat did any of this itself. An absolute moment and never "some
-// days ago": a relative age would drift past the line the code draws as the calendar moves on, and
-// the check would go red for a reason that has nothing to do with the code.
-const WRITTEN_BEFORE_ANY_OF_THIS = new Date(Date.UTC(2026, 8, 1));
+function personaOf(name) {
+  return path.join(instance, "chat", name, "persona.md");
+}
+
+// A persona that says something other than what the instance renders — written before any of
+// this, by an older toolkit, or by hand; the compare cannot tell and does not need to.
+const OLDER_PERSONA = "A persona for the lead, rendered before any of this.\n";
+
+// And the one the instance renders now, read the way the chat renders it: the templates the
+// instance was installed with, the names written in, and whatever the person has added. The
+// customization is read at the call, so this is asked for again after that file has moved.
+const currentPersona = () => persona(instance, LEADER, { human: HUMAN, leader: LEADER });
+
+// What the person adds to the lead's persona, for the check that writes one and takes it away.
+const leaderCustomization = path.join(instance, CUSTOMIZATION, "leader.md");
 
 // Age a file by hand. The state these checks act on is a real modified time on a real file, so they
 // make a genuinely old one rather than telling the code what time it is — a knob the check and the
@@ -11162,6 +11170,9 @@ describe("what the lead is told about a conversation that has grown big", () => 
   let roomLine;
   let noWindowLine;
   let toldWithEveryWindowShape;
+  let toldAfterAnAddition;
+  let answeredWithNoPersona;
+  let toldWithNoPersona;
 
   const lastQuestion = (log) => questionsIn(log).slice(-1)[0] ?? "";
 
@@ -11208,13 +11219,34 @@ describe("what the lead is told about a conversation that has grown big", () => 
     assert.ok(await waitForHealth(URL), "the server never came back with the big fixture");
     await say("a turn that grows this one past the line", GROWN_BIG);
     await say("and the lead's own, past it as well", LEADER);
-    // The lead running a persona written before the chat parked anything itself, so the block it
-    // is handed has to say which of the two is the older. Put back to now once it has been read,
-    // so every block after this one is composed for a persona rendered after the change.
-    renderedOn(LEADER, WRITTEN_BEFORE_ANY_OF_THIS);
+    // The lead running a persona that is not what the instance renders now — written before the
+    // chat parked anything itself, say — so the block it is handed has to say which of the two is
+    // the older. Put back to the current one once it has been read, so every block after this one
+    // is composed for a persona the instance would render today.
+    renderedFrom(LEADER, OLDER_PERSONA);
     await say("a second question, with two conversations over the line", LEADER);
     toldWhenBig = lastQuestion(sizeLog);
-    renderedOn(LEADER, new Date());
+    renderedFrom(LEADER, currentPersona());
+
+    // The same persona with something the person added afterwards. An addition is instructions
+    // too, and one made after this conversation started is one this conversation does not run.
+    fs.mkdirSync(path.dirname(leaderCustomization), { recursive: true });
+    fs.writeFileSync(leaderCustomization, "Something the person added after this conversation began.\n");
+    try {
+      await say("a question asked after the person added to the persona", LEADER);
+      toldAfterAnAddition = lastQuestion(sizeLog);
+    } finally {
+      fs.rmSync(leaderCustomization, { force: true });
+    }
+
+    // And no persona beside the thread at all: a conversation begun before personas lived here.
+    // The run renders one again when it starts, so the file is gone only while the block is
+    // composed — which is where it is read. Put back by hand all the same, so that a turn that
+    // never ran leaves the later ones composed against the current persona.
+    fs.rmSync(personaOf(LEADER), { force: true });
+    answeredWithNoPersona = await say("a question asked with no persona beside the thread", LEADER);
+    toldWithNoPersona = lastQuestion(sizeLog);
+    renderedFrom(LEADER, currentPersona());
 
     // The same state, seen from a worker's turn. A worker has one task and no say in when its
     // conversation is handed over.
@@ -11462,15 +11494,34 @@ describe("what the lead is told about a conversation that has grown big", () => 
     assert.doesNotMatch(sizeBlock(toldWhenBig), /Nothing here does it for you/);
   });
 
-  // Mutation: drop the age condition. A persona rendered before the change still tells the lead to
-  // hand people over by hand, and one rendered after it has nothing to be contradicted.
-  it("tells a lead whose persona predates this that its instructions are the older, beside who has grown big", () => {
+  // Mutation: drop the compare. A conversation running a persona other than the one the instance
+  // renders now may still be told that handing a conversation over is a person's to press, and one
+  // running what the instance renders has nothing to be contradicted. The compare is against the
+  // rendered persona and not against a day or a version: a persona rendered yesterday by an older
+  // toolkit reads as "after the day", and a template edited between releases moves no version.
+  it("tells a lead whose persona differs from what the instance renders now that its instructions are the older, beside who has grown big", () => {
     assert.match(sizeBlock(toldWhenBig), /If your instructions say otherwise, they were written before this/);
   });
 
-  it("says nothing about older instructions to a lead whose persona was written after this, beside who has grown big", () => {
+  it("says nothing about older instructions to a lead whose persona is what the instance renders now, beside who has grown big", () => {
     assert.match(toldWithEveryWindowShape, /<size>/, "there was no block to look in");
     assert.doesNotMatch(sizeBlock(toldWithEveryWindowShape), /written before this/);
+  });
+
+  // Mutation: render the persona without what the person added. The compare is the whole persona,
+  // the addition included, because the addition is instructions too — a conversation begun before
+  // the person wrote it does not run it.
+  it("counts what the person added to the persona as instructions, beside who has grown big", () => {
+    assert.match(toldAfterAnAddition, /<size>/, "there was no block to look in");
+    assert.match(sizeBlock(toldAfterAnAddition), /written before this/);
+  });
+
+  // Mutation: read the persona without catching. No persona is nothing to contradict, and a
+  // conversation begun before personas lived beside threads still has to be answered.
+  it("says nothing about older instructions, and still answers, when there is no persona beside the thread, beside who has grown big", () => {
+    assert.equal(answeredWithNoPersona.status, 200, answeredWithNoPersona.body);
+    assert.match(toldWithNoPersona, /<size>/, "there was no block to look in");
+    assert.doesNotMatch(sizeBlock(toldWithNoPersona), /written before this/);
   });
 
   // Mutation: filter the reader out of its own list, the way a reading off a clock would have to

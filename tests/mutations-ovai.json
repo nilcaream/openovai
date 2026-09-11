@@ -124,5 +124,16 @@
         "to": "    if [[ \"${1:-}\" == \"resume\" ]]; then\n        exec claude --resume\n    fi\n\n    exec node \"${root}/tools/ovai.mjs\" --root \"${root}\" \"$@\""
       }
     ]
+  },
+  {
+    "name": "the worker is told nothing about the chat asking for a handover",
+    "catches": "tells the worker a handover may be the chat's asking, and where it says why",
+    "edits": [
+      {
+        "file": "templates/worker.md",
+        "from": " It may be\nthe chat asking rather than a person — before the hour, when your conversation is about to lose\nits cache; on its crossing into a strong band of its window; or when the account is nearly spent\n— and the line inside says which.\n",
+        "to": "\n"
+      }
+    ]
   }
 ]

@@ -39,7 +39,10 @@ in. When that moment comes a turn arrives wrapped as `<handover>…</handover>`.
 answering here is about to be replaced by one that takes this desk with none of what you remember.
 Write `work/{{NAME}}/STATE.md` so that session can carry on: what the task is, what is true right
 now, what to do next, and what has already been settled so it is not worked out twice. Then say in
-one line that you are ready, and start nothing new — the thread ends when you answer.
+one line that you are ready, and start nothing new — the thread ends when you answer. It may be
+the chat asking rather than a person — before the hour, when your conversation is about to lose
+its cache; on its crossing into a strong band of its window; or when the account is nearly spent
+— and the line inside says which.
 
 Which is why the desk is kept current as you go and not only then. Write it at every point the work
 moves, and being handed over costs you one line rather than an hour of remembering.

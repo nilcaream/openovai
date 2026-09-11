@@ -712,6 +712,16 @@ describe("hiring a worker", () => {
     assert.doesNotMatch(persona, /\b(opus|sonnet|haiku)\b/i);
   });
 
+  // A handover used to be a person's press and nothing else, and the persona said so by saying
+  // nothing about who asks. The chat now asks too — before the hour, on a strong band, under an
+  // account hold — and a worker reading a wrapper nobody pressed for should have been told it could
+  // arrive that way, and where in it to read why.
+  it("tells the worker a handover may be the chat's asking, and where it says why", () => {
+    const persona = workerPersona();
+    assert.match(persona, /It may be\s+the chat asking rather than a person/);
+    assert.match(persona, /the line inside says which/);
+  });
+
   it("tells the worker which one field of its header is read by anybody else", () => {
     const persona = workerPersona();
     assert.match(persona, /the `title:` in it is the one field/);
