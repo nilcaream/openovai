@@ -825,8 +825,11 @@ the conversation altogether.
 
 The other thing handed to the lead unasked, and the only one this toolkit has an opinion about.
 
-Every run is told how full the account's usage windows are, and every row on the page shows it. Once
-the five-hour window is past nine tenths, the lead is also told so where its own turn begins:
+Every run is told how full the account's usage windows are, and every row on the page shows it — as
+the run ends, and while it is still going: a row whose session is mid-turn says what the account read
+*now*, on which model and since when the run began, so the reading is never only as old as the last
+turn that finished. Once the five-hour window is past nine tenths, the lead is also told so where its
+own turn begins:
 
     The five-hour usage window was 91% full when Otto last ran, read 4m ago, as this turn
     began at 14:07.
@@ -873,9 +876,12 @@ entirely, because ninety-six per cent of a window that has reset is nothing.
 
 And it is a reading, never a gate. Nothing consults it before delivering a message, hiring, handing
 a session over or queueing anything; a worker asked something while the account is nearly gone
-answers exactly as usual. The lead decides and the lead acts — including with the turns it needs in
-order to act. Nothing here has to be cleared: the work stops, the account fills no further, and when
-the window lifts the block is gone.
+answers exactly as usual. What does act on it is the room watch below, and on exactly one of the
+three cases: when the window lifts later than a conversation can be carried across, the chat holds
+and hands each conversation over to its desk itself. The other two stay the lead's — pausing is a
+decision to stop sending, and an account that did not say when it lifts is not something to park on.
+Nothing here has to be cleared: the work stops, the account fills no further, and when the window
+lifts the block is gone and the hold with it.
 
 **A session that was refused comes back by itself.** Turn that off and the limit arrives as a dialog
 on the session's own terminal, offering the wait as a choice, and the session sits on it until
@@ -885,8 +891,8 @@ installed with it on, and written out rather than left to the default — one ke
 `autoContinueAtUsageLimit`, in the instance's own Claude Code home, which is the only file it is
 read from, and spelled out there because the default belongs to the harness and is its to change.
 What keeps a reopened window from being spent by a whole room coming back at once is not this key
-but the hold above: the lead parks the room well before the account runs out, so that nothing is
-refused in the first place. An instance installed before this keeps what it was given: how a running
+but the hold: the room watch below hands the room over to its desks before the account runs out, so
+that nothing is refused in the first place. An instance installed before this keeps what it was given: how a running
 workspace behaves is not something an installer reaches back and changes.
 
 ### When a conversation has grown big
@@ -976,66 +982,78 @@ whose last run reported no size: nothing is not a small conversation, it is no r
 
 ### The room watch
 
-Every five minutes the chat reads its own room, and on a crossing worth a turn it gives the lead
-one — the only thing here that starts a run nobody asked for.
+Every five minutes the chat reads its own room and acts on what it reads. Nothing it does buys a
+turn: what it did is one line on the lead's panel, and the same line waits in a block at the top of
+the lead's next turn, whenever somebody gives it one.
 
-    The chat is telling you this. Nobody typed it.
+    The chat is telling you this. Nobody typed it, and no turn was bought to say it: it waited
+    here until you were asked something else.
 
-    Ann has reached 412,934 tokens, 92% of its window, and Leo has gone cold, so the next thing
-    said to it ends that conversation and begins a new one from its desk. Read at 14:07, and
-    nobody asked for this turn — the room changed while you were not being spoken to.
+    Leo's conversation had been quiet for longer than one can be carried on, so the chat ended
+    it rather than paying for the whole of it again at the next message. Nothing was stopped
+    and nothing was asked of Leo: whatever it had not written to work/Leo/STATE.md is gone, and
+    the next message to it starts a new conversation that reads that desk first.
 
-    Handing a session over is Mike's to press, on that session's panel. Yours included. Say which
-    panels and why. Nothing here does it for you: nothing has stopped running and no conversation
-    has been ended by this.
+A pass does three things, in this order.
 
-**Why there is a timer at all**, when every other reading here rides on a turn the lead was having
-anyway and costs nothing. Because there is exactly one case where that arrangement fails, and it is
-the case that matters: the lead nobody has typed to for an hour is the lead that most needs to act,
-and it is precisely the lead with no turn to ride on. The readings are free when they are not needed
-and unavailable when they are.
+**Under a hold, the chat hands the room over itself.** When the five-hour window is past the stop
+line — the same reading and the same line as the block above — the pass reads when it lifts against
+the hour a conversation can be carried across, and one of three things follows. It lifts inside the
+hour: nobody is handed over, and everybody is still here when it does. The account did not say when:
+nobody is handed over either — a park is not something to do on an unknown — and the next completed
+turn is read again. It lifts later than the hour: the chat holds, hands each conversation over to its
+desk, fullest first and the lead last, and says each park as it lands. That is the whole of what the
+block above used to leave to the lead, done by the thing that read the number. A seat sitting on a
+permission prompt is left alone. A seat whose park the account turns away is asked again on the next
+pass while it is still warm, and once its conversation has gone cold it is ended as a cold one, with
+the refusals counted in the line that says so. No seat is parked twice under one hold. When the
+window lifts, the hold is over and the room is read as usual again; the line says who was handed
+over under it and who never was.
 
-**It speaks on a crossing and never on a condition.** It holds, in memory, the band each session was
-last seen in, and it says a session only when that band has *changed into* one worth a turn. A
-conversation sitting at ninety per cent for two hours is said once. Nothing is filed, so a chat
-stopped and started again says it again — which is right, because a chat that was not running told
-nobody anything.
+**A conversation gone cold is ended there and then.** The hour after which carrying a conversation on
+would cost the whole of it again is the same hour the next message would have found; the pass finds
+it first, while nothing is running for that session, and ends it. Nothing is stopped and nothing is
+asked of the session, and the next message to it begins a new conversation from its desk. The same
+act as before, at an earlier moment, and said to the lead rather than found by whoever wrote next.
 
-**Only two things are worth a turn**: 90 or 95 per cent of the window, newly reached, and a
-conversation newly gone cold. Four fifths and 85 per cent are not; nor is a session merely gone
-quiet. Those ride on the blocks the lead is handed the next time it is spoken to, exactly as they
-always have. The rule is one sentence long — a turn is spent only where the thing about to be lost
-is larger than the turn.
+**A crossing is said, once, and nothing is done about it.** The chat holds in memory the band each
+conversation was last seen in, and says a session only when that band has changed into nine tenths
+of its window, or into ninety-five per cent. A conversation sitting at ninety per cent for two hours
+is said once. Handing it over is still the person's to press, on that panel, and the line says so:
+being big is a reading, and the one thing here that ends a conversation for its size is still the
+person.
 
-**It says the room and does nothing about it.** There is no handover tool and this does not add one:
-it hands nobody over, refuses no message, hires and retires nobody, and ends no conversation of its
-own. What it gives the lead is an ordinary turn — it queues, it waits, it is refused while the room
-is off — because it goes through the same one door every message goes through, not because anything
-was written twice for it. And it never starts a second turn on a lead that is already answering: it
-skips that read entirely rather than queueing, because a watch that queued would deliver an old room
-to somebody already looking at it.
+**The hold is said above the room while it lasts** — on the page, in `ovai room`, and to the lead —
+as what it does and nothing else: parking, or carried through inside the hour, or nobody handed over
+and why. A room that has gone quiet has its reason written over it.
 
-**It costs a run, and that is worth saying plainly.** A turn nobody asked for is a turn the account
-pays for, and on a lead whose conversation has gone cold it is also the moment that conversation
-ends — which is what the next message would do whoever sent it, but this makes the chat one of the
-senders. It is bounded by the crossing rule: one turn per session per crossing, and a workspace
-where nothing crosses spends nothing at all.
-
-**How often is yours**, in `openovai.json`:
+**Two fields in `openovai.json`**, both optional:
 
 ```json
-"watchEverySeconds": 300
+"watchEverySeconds": 300,
+"parkAttemptsPerSeat": 3
 ```
 
-Whole seconds. Leave it out and the room is read every five minutes. Write `0` and it is not read at
-all — no timer is started and the feature is not there, which is the answer for a workspace that
-does not want to spend on it. A value that is not a whole number of seconds stops the chat starting
-and names the field: being told at the start beats finding it on a bill.
+`watchEverySeconds` is how often the room is read: whole seconds, five minutes when left out. `0`
+does not switch the watch off. It means *spend nothing on me*: the room is still read at the default
+cadence, a cold conversation is still ended and a crossing is still said, but nobody is handed over
+by the chat — under a hold the line above the room says so, and whatever a conversation has not
+written to its desk by the lift goes with it. A workspace that wants a room nobody acts on at all
+takes it offline, below.
+
+`parkAttemptsPerSeat` bounds how many times one seat is asked to hand over under one hold while the
+account keeps turning the park away: a whole number of one or more. Left out, a refused seat is asked
+again on every pass while it is still warm. `0` is refused, with a pointer to `watchEverySeconds: 0`,
+which is the field that means *never park*. A value of either field that is not what it should be
+stops the chat starting and names the field: being told at the start beats finding it on a bill.
+
+**Whether the room is being read shows.** The chat says the cadence as it starts, and `/health`
+carries the watch: how often, when it was armed, when the last pass was, and how many sessions it
+read, decided on and acted on. A watch that died and one that was never armed look the same from a
+quiet room; this is how they are told apart.
 
 The timer belongs to the chat and not to the process. It is cleared when the server closes and it
-never holds the process open, so a chat that has been stopped has stopped reading its room — a timer
-outliving its server would go on giving turns to a lead nobody is serving, with nothing left to stop
-it with.
+never holds the process open, so a chat that has been stopped has stopped reading its room.
 
 ### Taking the room off
 

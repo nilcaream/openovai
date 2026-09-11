@@ -8634,6 +8634,34 @@ describe("the lead breaks in on somebody who is writing", () => {
   });
 });
 
+// What the README says the room watch does. The section was written when a pass bought the lead a
+// turn and touched nothing else; the pass now ends a cold conversation, parks under an account hold
+// and spends no turn, and `0` stopped meaning "the feature is not there". Prose is not run, so the
+// section is held to the two fields the code reads and the three acts the pass performs, and
+// against the three sentences the monitor made false — the same way the persona is held to it.
+describe("what the README says about the room watch", () => {
+  const readme = fs.readFileSync(path.join(repo, "README.md"), "utf8");
+  const section = readme.slice(readme.indexOf("### The room watch"), readme.indexOf("### Taking the room off"));
+
+  it("names both fields the watch reads from the instance file", () => {
+    assert.match(section, new RegExp(`\`${WATCH_EVERY}\``));
+    assert.match(section, new RegExp(`\`${PARK_ATTEMPTS}\``));
+  });
+
+  it("says the three things a pass does", () => {
+    assert.match(section, /hands the room over itself/);
+    assert.match(section, /gone cold is ended there and then/);
+    assert.match(section, /A crossing is said, once/);
+  });
+
+  it("no longer says the watch buys the lead a turn, ends nothing, or is absent at 0", () => {
+    assert.doesNotMatch(section, /gives the lead\s+one/);
+    assert.doesNotMatch(section, /no conversation\s+has been ended by this/);
+    assert.doesNotMatch(section, /the feature is not there/);
+    assert.match(section, /`0`\s+does not switch the watch off/);
+  });
+});
+
 // Feature 13, slice 1: the room has a switch, and nothing reads it yet.
 //
 // A room that is off is one that will start nothing — and the whole reason it is a boolean set by a
