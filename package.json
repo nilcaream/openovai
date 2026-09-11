@@ -1,6 +1,6 @@
 {
   "name": "@openovai/ovai",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "A toolkit for running a small team of AI developer sessions on one machine.",
   "license": "MIT",
   "private": true,

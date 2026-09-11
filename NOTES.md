@@ -6,6 +6,9 @@ carries only its own.
 
 ## 0.7.0
 
+The chat keeps its own room now, and a persona is rendered when a conversation starts rather than
+when the toolkit was installed.
+
 **A room taken off stays off after the chat restarts.** The switch used to live in the running chat
 and go with it, which was right when the only thing that could start a run was a message; the room
 watch can start one now, on its own clock, and a chat restarted for an update came back on and its
@@ -117,6 +120,19 @@ but not including `1`, and the same line decides when the block about the accoun
 which other window is named beside it. A workspace whose account is also spent outside the instance
 can draw it at `0.9` and have everybody put down before ninety-five arrives unannounced.
 
+**Your lead cannot take anybody new on while the account is nearly spent.** Past nine tenths of the
+five-hour window the lead's own block already said to start no new front and take nobody new on;
+that is a mechanism now. A `hire` from the lead is refused before the name is looked at, and so is a
+colleague's message to a seat with no conversation, or with one that has gone cold, because each of
+those would start a conversation from nothing at the moment the account can least afford one. The
+refusal is the answer the caller gets — the window, the reading and the moment it lifts, so it knows
+when to ask again — and nothing is said on any panel. A conversation that is warm is carried on
+whatever the account reads, a run in flight is never touched, and what you start yourself goes
+through whatever the reading: the Hire button and a typed message are yours, and a chat that turned
+its owner's own button away would have stopped being an assistant. Under a hold the line above the
+room now ends by saying so — in the room, in `ovai room`, on the page and to the lead — and it says
+it only because it is true.
+
 **`watchEverySeconds: 0` means something different now, and if your instance wrote it, read this.**
 It used to switch the watch off: no timer, no reading, nothing. It now means *spend nothing on me*.
 The room is read at the default cadence regardless; a cold conversation is still ended and a crossing
@@ -202,12 +218,6 @@ They are three lines in a file you own: delete them with an editor and restart t
 workspace goes back to what it was. And they are written for new instances only — an instance
 already installed keeps whatever it holds, because changing how a workspace somebody is working in
 behaves is not an installer's to do. Add them by hand if you want them.
-
-The skill file is written into `.claude/skills/allowed/SKILL.md` every time the chat starts, out of
-`templates/skills/allowed/SKILL.md`. That is deliberate: what it says about the runtime is measured,
-and a copy installed once would be the one file in your instance asserting how Claude Code behaves
-that no update ever corrects. Edit the copy if you like — it lasts until the next start. Edit the
-template and it is yours until you take a newer toolkit.
 
 ## 0.6.0
 
