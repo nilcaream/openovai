@@ -3060,5 +3060,49 @@
         "to": "    forget(instance.root, session.name);\n    append(instance.root, session.name, { from: THE_CHAT, text: coldLine(session.name), cold: true });\n    const ended = true;"
       }
     ]
+  },
+  {
+    "name": "the desk is never old enough to ask for",
+    "catches": "asks for the desk once five answers have gone by without it changing",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "const DESK_STALE_AFTER = 5;",
+        "to": "const DESK_STALE_AFTER = Infinity;"
+      }
+    ]
+  },
+  {
+    "name": "every line on the panel counts as an answer",
+    "catches": "says nothing about the desk while fewer answers than that have gone by",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    .filter((message) => message.from === name && Date.parse(message.at) > written)",
+        "to": "    .filter((message) => Date.parse(message.at) > written)"
+      }
+    ]
+  },
+  {
+    "name": "the count does not start over when the desk moves",
+    "catches": "stops asking the moment the desk changes",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    .filter((message) => message.from === name && Date.parse(message.at) > written)",
+        "to": "    .filter((message) => message.from === name && Date.parse(message.at) > 0)"
+      }
+    ]
+  },
+  {
+    "name": "a desk with no title is asked for the way a drifted one is",
+    "catches": "asks a desk with no title for the title and not for the desk, whatever the count",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  if (deskTitle(instance.root, name) === \"\") {\n    return [",
+        "to": "  if (false) {\n    return ["
+      }
+    ]
   }
 ]

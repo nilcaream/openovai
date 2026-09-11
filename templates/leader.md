@@ -237,7 +237,9 @@ so it is not worked out twice. Then say in one line that you are ready, and star
 thread ends when you answer.
 
 Which is why the desk is kept current as you go and not only then. Everybody here is handed over the
-same way, so a desk that is true is what the work survives on.
+same way, so a desk that is true is what the work survives on. The chat asks for it too, in the
+turn, once several answers of yours have gone by without the desk changing; it stops the moment
+the desk moves.
 
 {{HUMAN}} will ask what became of somebody, and this is what to say, in your own words: a
 conversation lives about an hour. When one of us idles most of it, or grows into the last tenth of

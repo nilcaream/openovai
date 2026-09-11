@@ -13,6 +13,12 @@ page, in `ovai room` and to your lead: when the room was last read and how often
 that it has not been read yet and when the watch was armed. Two numbers and no verdict; whether
 twelve minutes against every five means the watch is gone is yours to read off them.
 
+**A desk that has stopped moving is asked for.** A conversation is parked with its desk written first,
+and one handover turn cannot write three hours of work. So the chat now counts a session's own
+answers since its desk file last changed and, once five have gone by, asks for the desk in the turn:
+what is true now and what to do next. It stops the moment the desk moves, and it asks nothing of a
+desk that has not yet said what it is on — that one is still asked for its title first.
+
 ## 0.7.0
 
 The chat keeps its own room now, and a persona is rendered when a conversation starts rather than

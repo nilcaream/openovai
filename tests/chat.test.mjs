@@ -4832,6 +4832,124 @@ describe("what a session is asked about its desk", () => {
   });
 });
 
+// What a session is asked when its desk has stopped moving while it kept answering.
+//
+// A desk with a title and hours of unwritten work is asked nothing by the title ask, and the one
+// handover turn at the end cannot write hours. So the chat counts the session's own answers since
+// the desk file last changed — read off the panel and the desk's modified time, nothing stored —
+// and past a chosen number asks for the desk itself, in the turn. The count is what the checks
+// are about: which lines count, what starts it over, and that a desk with no title is still asked
+// for the title first.
+//
+// Two desks, for the same reason as above: one with a title written before a word is said to it,
+// so the only thing left to ask for is the desk; and one left as hiring wrote it, so the title ask
+// has to win however many answers go by.
+const DRIFTS = "Tern";
+const UNTITLED_DRIFTS = "Egret";
+
+describe("what a session is asked about a desk that has drifted", () => {
+  const driftLog = path.join(standIn, "drift.txt");
+  const desk = path.join(instance, "work", DRIFTS, "STATE.md");
+  let fifth;
+  let sixth;
+  let afterTouch;
+  let beforeHandover;
+  let afterHandover;
+  let untitled;
+
+  before(async () => {
+    runTool(instance, ["hire", DRIFTS], process.env);
+    runTool(instance, ["hire", UNTITLED_DRIFTS], process.env);
+
+    const lines = fs.readFileSync(desk, "utf8").split("\n");
+    lines[0] = "<!-- DESK | title: counting the windows on the north side -->";
+    fs.writeFileSync(desk, lines.join("\n"));
+
+    await start(instance, standInEnvironment(standIn, driftLog));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    // Four answers on the panel, then a fifth turn that must not ask yet: eight lines by now,
+    // four of them the session's, so a count of every line is caught here.
+    for (let turn = 0; turn < 4; turn += 1) {
+      await say(`window ${turn + 1}`, DRIFTS);
+    }
+    await say("window 5", DRIFTS);
+    fifth = questionsIn(driftLog).at(-1);
+
+    // Five answers, and the sixth turn asks.
+    await say("window 6", DRIFTS);
+    sixth = questionsIn(driftLog).at(-1);
+
+    // The desk moves — touched, not rewritten, because it is the file changing that answers the
+    // ask and not what was written into it — and the next turn asks nothing.
+    const now = new Date();
+    fs.utimesSync(desk, now, now);
+    await say("window 7", DRIFTS);
+    afterTouch = questionsIn(driftLog).at(-1);
+
+    // Five more answers since the touch, and the ask is back — which is what the handover below
+    // is then measured against.
+    for (let turn = 8; turn <= 11; turn += 1) {
+      await say(`window ${turn}`, DRIFTS);
+    }
+    await say("window 12", DRIFTS);
+    beforeHandover = questionsIn(driftLog).at(-1);
+
+    // A handover, with the session writing its desk in that turn as the handover asks it to.
+    // Held open by a slow stand-in so the write lands inside the turn, and restarted to get it —
+    // which is also the count surviving a restart, since nothing about it is kept in memory.
+    await start(instance, standInEnvironment(standIn, driftLog, { OPENOVAI_STAND_IN_SLOW: "1500" }));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    const handing = post(`${URL}/sessions/${DRIFTS}/handover`, {});
+    await waitFor(() => questionsIn(driftLog).some((question) => question.includes("<handover>")) || null);
+    fs.writeFileSync(desk, `${lines[0]}\n# ${DRIFTS}\n\nthe windows are counted up to twelve\n`);
+    await handing;
+    await say("window 13", DRIFTS);
+    afterHandover = questionsIn(driftLog).at(-1);
+
+    // The desk hiring wrote, title empty, answered past the bound.
+    for (let turn = 0; turn < 5; turn += 1) {
+      await say(`door ${turn + 1}`, UNTITLED_DRIFTS);
+    }
+    await say("door 6", UNTITLED_DRIFTS);
+    untitled = questionsIn(driftLog).at(-1);
+  });
+
+  it("says nothing about the desk while fewer answers than that have gone by", () => {
+    assert.ok(!(fifth ?? "").includes("<desk>"));
+  });
+
+  it("asks for the desk once five answers have gone by without it changing", () => {
+    assert.match(sixth ?? "", /<desk>[\s\S]*has not changed in 5 answers of yours[\s\S]*<\/desk>/);
+  });
+
+  it("names the desk it is asking for", () => {
+    assert.ok((sixth ?? "").includes(`work/${DRIFTS}/STATE.md`));
+  });
+
+  it("asks for the desk in front of the message rather than after it", () => {
+    const wrapped = (sixth ?? "").indexOf("</desk>");
+    assert.ok(wrapped > -1 && wrapped < sixth.indexOf("window 6"));
+  });
+
+  it("stops asking the moment the desk changes", () => {
+    assert.ok(!(afterTouch ?? "").includes("<desk>"));
+  });
+
+  it("asks again once as many answers have gone by since", () => {
+    assert.match(beforeHandover ?? "", /has not changed in 5 answers of yours/);
+  });
+
+  it("starts the count over at a handover, which writes the desk", () => {
+    assert.ok(!(afterHandover ?? "").includes("<desk>"));
+  });
+
+  it("asks a desk with no title for the title and not for the desk, whatever the count", () => {
+    assert.match(untitled ?? "", /<desk>[\s\S]*It is empty[\s\S]*<\/desk>/);
+    assert.doesNotMatch(untitled ?? "", /has not changed in/);
+  });
+});
+
 // The one question a workspace is asked before anything has happened in it.
 //
 // The state it fires on is a workspace where nothing has ever run and nothing has ever been

@@ -19,7 +19,7 @@ import { answerFrom } from "../plugins.mjs";
 import { SKILL_NAME } from "../payload.mjs";
 import { ago, roomLines, shareSaid } from "./room.mjs";
 import { WATCH_EVERY, armTheWatch, buysATurn, forgetTheRoom, howOften, nowSeen, parkAttemptsAllowed, theWatchRecord, tickRead, whatChanged } from "./watch.mjs";
-import { DESK_FILE, DeskError, WORK, allowAsked, archiveFor, deskTitle, describeName, hasSettledAnything, hire, isName, persona, retire } from "../desks.mjs";
+import { DESK_FILE, DeskError, WORK, allowAsked, archiveFor, deskFile, deskTitle, describeName, hasSettledAnything, hire, isName, persona, retire } from "../desks.mjs";
 import { accountStanding, ask, bandIn, endRun, forget, fullnessIn, hasGoneCold, hasNearlyGoneCold, hasThread, personaFile, quotaIn, ranAt, refusedIn, sessions, standingsUnderway } from "./session.mjs";
 import { NO_NEW_WORK, spawnHeld } from "./gate.mjs";
 import { endHold, enterHold, forgetRefused, holdIn, holdLifted, holdSaid, holdStands, markParked, markRefused } from "./hold.mjs";
@@ -161,7 +161,7 @@ function settleWhatWasOverheard(name, carried, answer) {
   }
 }
 
-// What a session is asked for when its desk does not say what it is on.
+// What a session is asked for when its desk does not say what it is on, or has stopped saying it.
 //
 // The header's title: is the one field of a desk anything outside it reads, and a desk that has not
 // filled it in is a name in the room with nothing beside it. The personas ask for it and that is
@@ -174,15 +174,57 @@ function settleWhatWasOverheard(name, carried, answer) {
 // sentence while that is true and nothing at all once it is not, so it stops asking by being
 // answered — including after a handover, which writes the title itself.
 //
+// The second reason is a desk that says what it is on and then stops moving. A title is one line
+// and the rest of the desk is what the work survives on; every park promises that a conversation
+// wrote its desk before it was ended, and one handover turn cannot write three hours of it. So once
+// the session has answered DESK_STALE_AFTER times since the desk file last changed, the turn asks
+// for the desk itself. It stops the same way, by the desk moving.
+//
+// Derived, never stored: the desk's modified time is a stat, and every line the session put on its
+// panel carries the moment it was written — its answers, and the rare line it broke in with. The
+// count is the lines of its own stamped after the desk. Nothing is added to the thread record for
+// it, nothing is threaded through where a turn is remembered, nothing has to be reset by a
+// restart, a handover or an update: the handover writes the desk, and the count is what it is.
+//
 // A wrapper, for the reason `wrap` is one: what is left OUTSIDE every wrapper is the human speaking
 // on this session's own panel, and an instruction from the chat handed over bare would arrive as
 // something the human had typed.
-function deskWrapper(name) {
+//
+// Chosen, not measured: a lead relaying between seats answers often and writes seldom, and five is
+// where "busy" stops explaining a desk that has not moved. Not a setting, because nobody has asked
+// for one and the ask is one sentence.
+const DESK_STALE_AFTER = 5;
+
+function answersSinceDesk(instance, name) {
+  let written;
+  try {
+    written = fs.statSync(deskFile(instance.root, name)).mtimeMs;
+  } catch {
+    // No desk file at all is a desk with no title, and the title ask already covers it.
+    return 0;
+  }
+  return read(instance.root, name)
+    .filter((message) => message.from === name && Date.parse(message.at) > written)
+    .length;
+}
+
+function deskWrapper(instance, name) {
+  if (deskTitle(instance.root, name) === "") {
+    return [
+      `<desk>Your desk ${desk(name)} opens with a one-line header, and the title: in it is the one`,
+      `field of it anybody outside this desk reads — it is how the rest of us see what you are on`,
+      `without opening this panel. It is empty. Put what you are on into it, in a few words, and keep`,
+      `it true as the work moves.</desk>`,
+    ].join(" ");
+  }
+  const answers = answersSinceDesk(instance, name);
+  if (answers < DESK_STALE_AFTER) {
+    return null;
+  }
   return [
-    `<desk>Your desk ${desk(name)} opens with a one-line header, and the title: in it is the one`,
-    `field of it anybody outside this desk reads — it is how the rest of us see what you are on`,
-    `without opening this panel. It is empty. Put what you are on into it, in a few words, and keep`,
-    `it true as the work moves.</desk>`,
+    `<desk>Your desk ${desk(name)} has not changed in ${answers} answers of yours. Write what is true`,
+    `now and what to do next into it before you go on, so that being handed over costs one`,
+    `line.</desk>`,
   ].join(" ");
 }
 
@@ -503,8 +545,9 @@ function inFrontOf(instance, name, message, carried, restarted = false, answerin
   if (standing !== null) {
     said.push(standing);
   }
-  if (deskTitle(instance.root, name) === "") {
-    said.push(deskWrapper(name));
+  const stale = deskWrapper(instance, name);
+  if (stale !== null) {
+    said.push(stale);
   }
   // After the desk, and for once that order is about who answers rather than about what is said.
   // The ask above is answered by the reader itself, in this turn, by writing one line; this one is

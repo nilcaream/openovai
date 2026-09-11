@@ -616,7 +616,9 @@ somebody is when they last ran.
 What each session is on comes from one field: the `title:` in the header its desk file opens with.
 That is the only part of a desk anything outside it reads, and both personas ask for that one line
 to be kept current as the work moves — a session asked to keep a whole header true keeps none of
-it. A session that has not said gets no guess.
+it. A session that has not said gets no guess. And the chat asks for the desk itself, in the turn,
+once several answers have gone by without it changing: the count is read off the panel and the
+desk file, nothing is stored for it, and it starts over whenever the desk moves.
 
 **nothing to carry on** means that session has no thread: it has just been handed over, or has
 never been spoken to. It is said only when it is true, because a full panel whose session
@@ -1158,7 +1160,8 @@ Two things make it real, because the mechanism alone had been sitting unused:
   do not. That is settled here on the desk header title, twice, on real runs. So the handover and
   the leave — the two moments a thread is about to take what a session worked out with it — each
   ask for it in as many words. Not every turn: the title ask can ride on every turn because it
-  stops the moment the field is filled, and "have you learned anything" has no such condition.
+  stops the moment the field is filled, the ask for a desk that has not moved in several answers
+  stops the same way, by the desk moving, and "have you learned anything" has no such condition.
 
 An instance ships the index, `MEMORY.md`, rather than leaving one to grow. A session asked to
 remember something and finding nothing there writes whatever shape occurs to it, and every session

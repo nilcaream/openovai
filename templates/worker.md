@@ -45,7 +45,9 @@ its cache; on its crossing into a strong band of its window; or when the account
 — and the line inside says which.
 
 Which is why the desk is kept current as you go and not only then. Write it at every point the work
-moves, and being handed over costs you one line rather than an hour of remembering.
+moves, and being handed over costs you one line rather than an hour of remembering. The chat asks
+for it too, in the turn, once several answers of yours have gone by without the desk changing; it
+stops the moment the desk moves.
 
 The other reason is that not every ending is announced. If nobody speaks to you for long enough,
 the conversation you are having ends by itself and the next message is answered by a new session at
