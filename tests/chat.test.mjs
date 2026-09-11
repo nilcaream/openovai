@@ -12206,11 +12206,21 @@ describe("what the lead may start while the account is nearly spent", () => {
   const UNDER_THE_PLAN_LINE = 0.89;
   const NOT_UNDER_A_HOLD = "Fieldfare";
   const AFTER_THE_LIFT = "Waxwing";
+  const NEVER_SPOKEN_TO = "Bullfinch";
   let address;
   let refusedADesk;
   let openedADesk;
   let refusedUnderAHold;
   let openedAfterTheLift;
+  let carriedOn;
+  let refusedAFront;
+  let personStarted;
+  let refusedACold;
+  let coldStillThere;
+
+  const saidBy = (who, to, message) =>
+    post(`${address}/mcp/${who}`, { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "say", arguments: { to, message } } });
+  const threadOf = (name) => path.join(gated, "chat", name, "session.json");
 
   const lifts = () => Math.floor(Date.now() / 1000) + 4 * 60 * 60;
   const stage = (fullness) =>
@@ -12221,6 +12231,7 @@ describe("what the lead may start while the account is nearly spent", () => {
   before(async () => {
     installed(options(gated, 0));
     runTool(gated, ["hire", READ_ON], process.env);
+    runTool(gated, ["hire", NEVER_SPOKEN_TO], process.env);
     await start(gated, standInEnvironment(standIn, gatedLog));
     address = await waitForAddress(server);
     assert.ok(address, "the server never said where it was listening");
@@ -12231,6 +12242,26 @@ describe("what the lead may start while the account is nearly spent", () => {
 
     stage(IN_THE_PLAN_BAND);
     refusedADesk = answerOf(await hiredBy(LEADER, NOT_OPENED));
+
+    // WHAT A COLLEAGUE MAY SAY, in the same band. A conversation that is warm is carried on; one
+    // that would have to be started from nothing is not. Every run here writes the stand-in's own
+    // reading over the staged one, so the band is staged again before each call that has to be
+    // decided inside it.
+    carriedOn = answerOf(await saidBy(LEADER, READ_ON, "carrying on a conversation that is warm"));
+
+    stage(IN_THE_PLAN_BAND);
+    refusedAFront = answerOf(await saidBy(LEADER, NEVER_SPOKEN_TO, "starting a conversation from nothing"));
+
+    // The person is never gated: the same seat, the same band, the person's own message.
+    personStarted = (await post(`${address}/sessions/${NEVER_SPOKEN_TO}/message`, { text: "the person starting it instead" })).status;
+
+    // A conversation that has gone cold is one that would be started from nothing too. The staged
+    // reading sits on this seat's own file, so it is staged first and aged after — ageing it moves
+    // the reading's stamp, not the number, and the fullest reading wins whatever its age.
+    stage(IN_THE_PLAN_BAND);
+    age(threadOf(READ_ON), 61);
+    refusedACold = answerOf(await saidBy(LEADER, READ_ON, "carrying on a conversation that has gone cold"));
+    coldStillThere = fs.existsSync(threadOf(READ_ON));
 
     stage(UNDER_THE_PLAN_LINE);
     openedADesk = answerOf(await hiredBy(LEADER, OPENED_AFTER));
@@ -12285,6 +12316,41 @@ describe("what the lead may start while the account is nearly spent", () => {
   it("opens the lead a desk once the hold has lifted, before the pass has removed it", () => {
     assert.equal(openedAfterTheLift.refused, false, openedAfterTheLift.text);
     assert.match(openedAfterTheLift.text, new RegExp(`${AFTER_THE_LIFT} works here now`));
+  });
+
+  // The new front. Mutation: deliver a colleague's message without asking the gate.
+  it("refuses a colleague a conversation started from nothing while the account is in the plan band", () => {
+    assert.equal(refusedAFront.refused, true, refusedAFront.text);
+    assert.match(refusedAFront.text, /92% full/);
+    assert.match(refusedAFront.text, /lifts at \d{2}:\d{2}/);
+  });
+
+  // Refused before anything happened to the seat: no conversation, and nothing on its panel. The
+  // person's message below is what puts the first line there, so this reads the panel as it was
+  // at the moment of the refusal rather than the seat's whole history.
+  it("starts nothing on the seat it refused for, and says nothing on its panel", () => {
+    const panel = panelIn(gated, NEVER_SPOKEN_TO);
+    assert.equal(panel.some((line) => line.text === "starting a conversation from nothing"), false, JSON.stringify(panel));
+    assert.equal(panel.some((line) => line.from === "the chat" && /nearly spent/.test(line.text ?? "")), false, JSON.stringify(panel));
+  });
+
+  // A run in flight and a conversation to carry on are never touched. Mutation: hold a colleague's
+  // message to a warm seat too — which is the gate becoming the very thing it exists not to be.
+  it("delivers a colleague's message to a conversation that is warm, whatever the account reads", () => {
+    assert.equal(carriedOn.refused, false, carriedOn.text);
+  });
+
+  // Mutation: hold the person's message too.
+  it("delivers the person's message to a seat with no conversation, whatever the account reads", () => {
+    assert.equal(personStarted, 200);
+  });
+
+  // Mutation: count a cold conversation as one to carry on. Past the hour there is nothing to carry
+  // on — the next turn would start afresh from the desk — so it is a front started from nothing,
+  // and the refusal leaves the cold thread exactly where it was: nothing ran and nothing was lost.
+  it("refuses a colleague a conversation that has gone cold while the account is in the plan band", () => {
+    assert.equal(refusedACold.refused, true, refusedACold.text);
+    assert.equal(coldStillThere, true, "the refused spawn ended the cold conversation");
   });
 });
 

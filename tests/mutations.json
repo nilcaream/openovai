@@ -2261,5 +2261,60 @@
         "to": "  if (hold !== null) {"
       }
     ]
+  },
+  {
+    "name": "a colleague's message is delivered without asking the gate",
+    "catches": "refuses a colleague a conversation started from nothing while the account is in the plan band",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  if (sender !== null && (!hasThread(instance.root, name) || hasGoneCold(instance.root, name))) {\n    const held = spawnHeld(instance);\n    if (held !== null) {\n      return { status: 409, body: { error: spawnRefused(`nothing is said to ${name}, whose conversation would have to be started from nothing`, held) } };\n    }\n  }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the gate holds a colleague's message to a seat whose conversation is warm",
+    "catches": "delivers a colleague's message to a conversation that is warm, whatever the account reads",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  if (sender !== null && (!hasThread(instance.root, name) || hasGoneCold(instance.root, name))) {",
+        "to": "  if (sender !== null) {"
+      }
+    ]
+  },
+  {
+    "name": "the gate holds the person's message too",
+    "catches": "delivers the person's message to a seat with no conversation, whatever the account reads",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  if (sender !== null && (!hasThread(instance.root, name) || hasGoneCold(instance.root, name))) {",
+        "to": "  if (!hasThread(instance.root, name) || hasGoneCold(instance.root, name)) {"
+      }
+    ]
+  },
+  {
+    "name": "a conversation that has gone cold counts as one to carry on",
+    "catches": "refuses a colleague a conversation that has gone cold while the account is in the plan band",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  if (sender !== null && (!hasThread(instance.root, name) || hasGoneCold(instance.root, name))) {",
+        "to": "  if (sender !== null && !hasThread(instance.root, name)) {"
+      }
+    ]
+  },
+  {
+    "name": "the refused spawn is said on the seat's panel",
+    "catches": "starts nothing on the seat it refused for, and says nothing on its panel",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "      return { status: 409, body: { error: spawnRefused(`nothing is said to ${name}, whose conversation would have to be started from nothing`, held) } };",
+        "to": "      append(instance.root, name, { from: THE_CHAT, text: `nothing is said to ${name}: the account is nearly spent` });\n      return { status: 409, body: { error: spawnRefused(`nothing is said to ${name}, whose conversation would have to be started from nothing`, held) } };"
+      }
+    ]
   }
 ]

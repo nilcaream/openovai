@@ -877,7 +877,8 @@ const SESSION_ROUTE = /^\/sessions\/([^/]+)\/(messages|message|permissions|permi
 // THE INVARIANT ON THIS PATH: a message may be delayed, and the conversation that answers it may be
 // replaced, but it is never parked on a state the addressee is stuck in. The refusals below are all
 // about the MESSAGE — empty text, a signature naming nobody, a circle that would deadlock both
-// ends, a session that has left — and not one of them is about how the addressee is doing.
+// ends, a session that has left — and not one of them is about how the addressee is doing. The one
+// about the ACCOUNT, the gate, says at its own place how it passes this test.
 //
 // That is deliberate and it is what makes it safe to test a session's own state here at all. A
 // message refused because of the state a session is in makes that state unreachable: a session
@@ -910,6 +911,36 @@ async function deliver(instance, name, text, signed, shown = null) {
     const why = `${name} is waiting for your answer, so it cannot take a message until you have given it — say this in your reply instead`;
     append(instance.root, sender.name, { from: THE_CHAT, text: `not delivered to ${name}: ${why}`, failed: true });
     return { status: 409, body: { error: why } };
+  }
+
+  // THE GATE, and it is the one refusal on this path that is about neither the message nor the
+  // addressee: it is about the account. A colleague's message to a seat with no conversation, or
+  // with one that has gone cold, would start a conversation from nothing — a new front, at the
+  // moment the account can least afford one — and while the account is nearly spent it is not
+  // started. The person's message is never held here: the reading exists for the person, and a
+  // message they typed goes through to be refused by the service or not, which is the truth.
+  //
+  // IT PASSES THE INVARIANT'S TEST, which is why it is allowed on this path at all. What happens to
+  // the message when the answer is yes: it is refused NOW, to its sender, with the moment to ask
+  // again in the answer — never queued, never parked on a state somebody has to notice. And the
+  // state it is refused on clears by itself when the window lifts, or at the person's hand, since
+  // the person can always say it themselves. Nothing here waits for anybody.
+  //
+  // DECIDED HERE, AT ARRIVAL, AND NOT AGAIN INSIDE THE TURN. A message let through is a turn in
+  // flight, and a turn in flight is never touched: a conversation that goes cold while it waits its
+  // place in the queue is started afresh below, as it always was, and a reading that crosses the
+  // line while it waits changes nothing about it. The whole of what the gate refuses is what it can
+  // see when the spawn is asked for, and that is the point rather than a gap.
+  //
+  // NOTHING IS WRITTEN ANYWHERE. The circle refusal above leaves a line on the sender's panel
+  // because somebody reading that panel could not otherwise tell why nothing arrived; this leaves
+  // none, because the answer says it all and a line about the account on every refused spawn would
+  // be the account being said once per call rather than once.
+  if (sender !== null && (!hasThread(instance.root, name) || hasGoneCold(instance.root, name))) {
+    const held = spawnHeld(instance);
+    if (held !== null) {
+      return { status: 409, body: { error: spawnRefused(`nothing is said to ${name}, whose conversation would have to be started from nothing`, held) } };
+    }
   }
 
   // The lead hears what was said on a panel it was not on, at the moment it is said.
