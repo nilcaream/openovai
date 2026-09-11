@@ -196,5 +196,71 @@
         "to": "  if (seeded.length < 0) {"
       }
     ]
+  },
+  {
+    "name": "an update does not look for the sessions of this instance at all",
+    "catches": "refuses",
+    "edits": [
+      {
+        "file": "tools/ovai.mjs",
+        "from": "  const running = runningHere(root);",
+        "to": "  const running = [];"
+      }
+    ]
+  },
+  {
+    "name": "the refusal names the session but not what ends it",
+    "catches": "names each session with the command that ends it, and its seat",
+    "edits": [
+      {
+        "file": "tools/running.mjs",
+        "from": "    ...running.map(({ pid, seat }) => `  kill ${pid}  ${seat ?? \"(no seat name)\"}`),",
+        "to": "    ...running.map(({ pid, seat }) => `  ${pid}  ${seat ?? \"(no seat name)\"}`),"
+      }
+    ]
+  },
+  {
+    "name": "a session of any instance on the machine is taken for one of ours",
+    "catches": "names nothing of another instance's",
+    "edits": [
+      {
+        "file": "tools/running.mjs",
+        "from": "    if (environment === null || environment.get(CONFIG_DIR) !== ours) {",
+        "to": "    if (environment === null || environment.get(CONFIG_DIR) === undefined) {"
+      }
+    ]
+  },
+  {
+    "name": "a session carrying no seat name is passed over",
+    "catches": "names a session that carries no seat name as one, since a sign-in is a session too",
+    "edits": [
+      {
+        "file": "tools/running.mjs",
+        "from": "    found.push({ pid, seat: environment.get(NAME_IN_ENVIRONMENT) ?? null });",
+        "to": "    if (environment.has(NAME_IN_ENVIRONMENT)) {\n      found.push({ pid, seat: environment.get(NAME_IN_ENVIRONMENT) });\n    }"
+      }
+    ]
+  },
+  {
+    "name": "the running sessions are said out loud and the update goes on",
+    "catches": "leaves the instance on the version it was on",
+    "edits": [
+      {
+        "file": "tools/ovai.mjs",
+        "from": "    throw new ReleaseError(describeRunning(running));",
+        "to": "    console.error(describeRunning(running));"
+      }
+    ]
+  },
+  {
+    "name": "the update counts its own process as a session when it is started in one's environment",
+    "catches": "does not count itself as a session, whatever environment it was started in",
+    "edits": [
+      {
+        "file": "tools/running.mjs",
+        "from": "    if (pid === process.pid) {\n      continue;\n    }\n",
+        "to": ""
+      }
+    ]
   }
 ]

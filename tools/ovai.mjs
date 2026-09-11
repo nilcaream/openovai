@@ -20,6 +20,7 @@ import { ownSkills } from "./skills.mjs";
 import { leaveWord } from "./chat/untold.mjs";
 import { holderOf } from "./port.mjs";
 import { RELEASES, ReleaseError, latestRelease, notesIn, replacePayload, unpackInto } from "./release.mjs";
+import { describeRunning, runningHere } from "./running.mjs";
 import { CONFIG_FILE, seedUserContent } from "./seed.mjs";
 import { PluginError, describePluginName, describePlugins, isPluginName, pluginsIn, writePlugin } from "./plugins.mjs";
 import { isOlderThan, version } from "./version.mjs";
@@ -312,6 +313,16 @@ async function update(root, argv) {
     throw new ChatError(
       `a chat is serving this instance at ${url} — stop it with ctrl-c and run this again, or it will go on running the version it started with`,
     );
+  }
+
+  // And the sessions themselves, asked of the machine, because a chat stopped is not every session
+  // ended: a run that outlived a chat killed with -9, or a session started by hand with this
+  // instance's home, holds its persona and its code in memory and would go on running the old
+  // version under an instance that says the new one is installed. Each is named with the command
+  // that ends it, since the chat that could have is not there.
+  const running = runningHere(root);
+  if (running.length > 0) {
+    throw new ReleaseError(describeRunning(running));
   }
 
   const here = version(root);

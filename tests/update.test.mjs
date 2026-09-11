@@ -11,6 +11,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { spawn } from "node:child_process";
 import { after, before, describe, it } from "node:test";
 
 import { installed, remove, repo, runToolLater, scratch, serveRelease, waitFor } from "./helpers.mjs";
@@ -437,5 +438,90 @@ describe("an update while the chat is running", () => {
 
   it("leaves the instance on the version it was on", () => {
     assert.equal(fs.readFileSync(path.join(root, "VERSION"), "utf8").trim(), INSTALLED);
+  });
+});
+
+// A chat stopped is not every session ended. A run that outlived a chat killed with -9, or a session
+// somebody started by hand with this instance's Claude Code home, holds the code and the persona an
+// update replaces, in memory, and would go on running the old version under an instance that says
+// the new one is installed. What makes such a process ours is the home in its environment — the
+// chat puts it on every session it starts — so that is what is looked for, on the machine, and
+// nothing on disk is trusted to say who is running.
+describe("an update while a session of this instance is running", () => {
+  const root = makeInstance("while-running");
+  const other = makeInstance("while-running-elsewhere");
+  const tree = makeRelease("while-running-release");
+  const idling = [];
+  let refused;
+  let versionWhileRefused;
+  let afterwards;
+
+  // A process that carries what a session of this instance carries, and nothing else of one: it
+  // is the environment that says whose it is, not what it runs.
+  function idle(environment) {
+    const child = spawn("node", ["-e", "setInterval(() => {}, 1000)"], {
+      env: { ...process.env, ...environment },
+      stdio: "ignore",
+    });
+    idling.push(child);
+    return child;
+  }
+
+  const seated = idle({ CLAUDE_CONFIG_DIR: path.join(root, ".claude-home"), OPENOVAI_SESSION_NAME: "Batman" });
+  const unseated = idle({ CLAUDE_CONFIG_DIR: path.join(root, ".claude-home"), OPENOVAI_SESSION_NAME: undefined });
+  const elsewhere = idle({ CLAUDE_CONFIG_DIR: path.join(other, ".claude-home"), OPENOVAI_SESSION_NAME: "Robin" });
+
+  before(async () => {
+    refused = await update(root, tree);
+    versionWhileRefused = fs.readFileSync(path.join(root, "VERSION"), "utf8").trim();
+    for (const child of idling) {
+      child.kill("SIGKILL");
+    }
+    await Promise.all(idling.map((child) => new Promise((resolve) => child.on("exit", resolve))));
+    afterwards = await update(root, tree);
+  });
+
+  after(() => {
+    for (const child of idling) {
+      child.kill("SIGKILL");
+    }
+  });
+
+  it("refuses", () => {
+    assert.notEqual(refused.status, 0);
+  });
+
+  it("names each session with the command that ends it, and its seat", () => {
+    assert.match(refused.stderr, new RegExp(`kill ${seated.pid}  Batman`));
+  });
+
+  it("names a session that carries no seat name as one, since a sign-in is a session too", () => {
+    assert.match(refused.stderr, new RegExp(`kill ${unseated.pid}  \\(no seat name\\)`));
+  });
+
+  it("names nothing of another instance's", () => {
+    assert.doesNotMatch(refused.stderr, new RegExp(`kill ${elsewhere.pid}`));
+  });
+
+  it("leaves the instance on the version it was on", () => {
+    assert.equal(versionWhileRefused, INSTALLED);
+  });
+
+  it("goes through once they are gone, with nothing to forget them by", () => {
+    assert.equal(afterwards.status, 0, afterwards.stderr);
+    assert.equal(fs.readFileSync(path.join(root, "VERSION"), "utf8").trim(), NEWER);
+  });
+
+  // A command run from inside a session inherits the session's environment, and telling the person
+  // to kill the command that is telling them is not an answer; the session it runs under is, and
+  // is found on its own account.
+  it("does not count itself as a session, whatever environment it was started in", async () => {
+    const again = makeRelease("while-running-release-again", { version: "9.9.10" });
+    const done = await runToolLater(root, ["update", "--from", again], {
+      ...process.env,
+      CLAUDE_CONFIG_DIR: path.join(root, ".claude-home"),
+      OPENOVAI_SESSION_NAME: "Batman",
+    });
+    assert.equal(done.status, 0, done.stderr);
   });
 });

@@ -17,6 +17,13 @@ is left off, and whatever is given is written into it, the rest of the file unto
 instance's own settings are written once, whole, when there is none; the rule a hire adds still goes
 into whatever you have made of the file by then.
 
+**An update refuses while any session of this instance is running, and says which.** It used to ask
+only whether the chat was up; a run that outlived a chat killed with `-9`, or a session started by
+hand with the instance's Claude Code home, went on running the old version from memory under an
+instance that said the new one was installed. Now every process carrying this instance's home in its
+environment is named — `kill <pid>  <seat>`, or `(no seat name)` for a sign-in — and nothing of
+another instance's is. Nothing is written down to find them by, so there is nothing to go stale.
+
 **The chat now keeps its own room, and it spends none of your account doing it.** The room watch
 used to read the room every five minutes and, when something had crossed into a band, buy the lead a
 turn to hear about it. It reads the same room at the same cadence, and acts instead: a conversation

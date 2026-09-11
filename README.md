@@ -1269,6 +1269,21 @@ fix.
 server is executing is the one way to get a mixed instance, and refusing removes that case rather
 than trying to handle it.
 
+**And while any session of this instance is running.** A chat stopped is not every session ended:
+a run that outlived a chat killed with `-9`, a session you started by hand with this instance's
+Claude Code home, a sign-in in progress — each holds the code and the persona it started with, in
+memory, and would go on running the old version under an instance that says the new one is
+installed. So the update asks the machine, not the chat: every process carrying this instance's
+`CLAUDE_CONFIG_DIR` is named, with the command that ends it and the seat it holds —
+
+```
+kill 48213  Superman
+kill 48219  (no seat name)
+```
+
+— and nothing of another instance's is. There is no file behind this, so nothing in it can be
+stale: a session that has ended is not there to be found, and the update goes through.
+
 **It refuses to go backwards.** The same version means there is nothing to do, a newer one is taken,
 and one older than the version this instance is on is refused by name:
 
