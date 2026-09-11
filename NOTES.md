@@ -6,6 +6,14 @@ carries only its own.
 
 ## 0.7.0
 
+**Your lead is no longer told who has stopped.** A block at the top of the lead's turns used to name
+every session that had run nothing for half an hour, and how long each had been doing nothing. It
+was a reading and never a rule, and what it warned of — a conversation ended at the hour with its
+desk unwritten — is what the chat now prevents itself: the room watch parks a conversation before
+its hour, its desk written first. What is left is who is idle, and the room says that whenever the
+lead asks, on the row, as `idle, last ran 35m ago`. The two blocks the lead is still handed on a
+turn, who has grown big and where the account stands, are unchanged and read in the same order.
+
 **An update is now a clean install with your material in it, and so is installing over an
 instance.** Both put the payload in place whole and then seed, once, whatever file of yours a fresh
 install would have given you and this instance has not got — the memory index, either settings file,
@@ -109,7 +117,7 @@ same from a quiet room, and this is how they are told apart.
 conversation started before this version was told that the watch gives it a turn and that nothing
 stops running because of it; both are now false, and the lead will act on them until it is told
 otherwise. A handover is what tells it: the next conversation is rendered from the templates this
-version ships, the paragraph beginning *The fourth is the room watch* and the one after it.
+version ships, the paragraph beginning *The third is the room watch* and the one after it.
 
 **Every persona now carries a budget for the work it hands to others.** When a session delegates —
 an agent sent to search or to read — what that costs is not how much the agent reads but how many

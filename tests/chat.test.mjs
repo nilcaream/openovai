@@ -3778,9 +3778,9 @@ describe("whether a conversation is close enough to losing its cache to be worth
     assert.equal(hasGoneCold(instance, PAST_PARK), false);
   });
 
-  // Mutation: draw it at QUIET_AFTER, the reading beside it. Half an hour is when somebody is told
-  // to look; spending a turn there parks conversations that had twenty-five minutes left to be
-  // answered in, and it is the cheapest way for this number to go quietly wrong.
+  // Mutation: draw it at half the hour, which is where somebody used to be told to look. Spending a
+  // turn there parks conversations that had twenty-five minutes left to be answered in, and it is
+  // the cheapest way for this number to go quietly wrong.
   it("is not yet said of a conversation that has only just gone quiet", () => {
     assert.equal(hasNearlyGoneCold(instance, SHORT_OF_PARK), false);
     assert.equal(hasGoneCold(instance, SHORT_OF_PARK), false);
@@ -10030,250 +10030,6 @@ describe("what the room says about a session answering with an old clock behind 
   });
 });
 
-const STOPPED_SHORT = "Linnet";
-const STOPPED_LONG = "Serin";
-const STILL_GOING = "Crossbill";
-
-// Who has stopped, told to the session that leads without it having asked.
-//
-// The room is deliberately never carried into a turn, and this is the one exception to that: one
-// line, absent while nobody has stopped, dated so it cannot be read as now, about the one state
-// that is not moving. So the fixtures here have to reach both states — somebody stopped, and
-// nobody stopped — or the check that it is said proves only that it is always said.
-describe("what the lead is told about who has stopped", () => {
-  const stoppedLog = path.join(standIn, "stopped.txt");
-  let toldWhenStopped;
-  let toldWhenNobodyHas;
-  let toldAWorker;
-  let toldWhenTheLeadIsTheOldOne;
-
-  // The question a session was handed on its last turn, whole.
-  const lastQuestion = (log) => questionsIn(log).slice(-1)[0] ?? "";
-
-  before(async () => {
-    runTool(instance, ["hire", STOPPED_SHORT], process.env);
-    runTool(instance, ["hire", STOPPED_LONG], process.env);
-    runTool(instance, ["hire", STILL_GOING], process.env);
-    await start(instance, standInEnvironment(standIn, stoppedLog));
-    assert.ok(await waitForHealth(URL), "the server never answered");
-
-    // A turn each, so every one of them has a clock at all.
-    await say("something, so this one has run", STOPPED_SHORT);
-    await say("something, so this one has run too", STOPPED_LONG);
-    await say("and this one, which stays fresh", STILL_GOING);
-    await say("and the lead, so it has one as well", LEADER);
-
-    // Nobody has stopped yet. This is the state that makes the check below mean anything.
-    await say("a first question, with the room busy and nobody stopped", LEADER);
-    toldWhenNobodyHas = lastQuestion(stoppedLog);
-
-    // Two of them stopped, to two different ages, and the panels touched to now so a reading off
-    // the panel's clock could not reach either answer.
-    age(threadFile(STOPPED_SHORT), 35.5);
-    age(threadFile(STOPPED_LONG), 50.5);
-    const now = new Date();
-    fs.utimesSync(panelFile(STOPPED_SHORT), now, now);
-    fs.utimesSync(panelFile(STOPPED_LONG), now, now);
-
-    // And the lead running a persona written before the chat ended anything itself, so the block
-    // it is handed has to say which of the two is the older.
-    renderedOn(LEADER, WRITTEN_BEFORE_ANY_OF_THIS);
-
-    await say("a second question, with two of them stopped", LEADER);
-    toldWhenStopped = lastQuestion(stoppedLog);
-
-    // The same state, seen from a worker's turn. A worker has one task and the others are not its
-    // business.
-    await say("and a worker is asked something, with the same two stopped", STILL_GOING);
-    toldAWorker = lastQuestion(stoppedLog);
-
-    // And the lead's own clock older than anybody's. It is mid-turn whenever this is composed, so
-    // its own reading is the end of its PREVIOUS run and is always stale.
-    age(threadFile(LEADER), 55.5);
-    fs.utimesSync(panelFile(LEADER), now, now);
-    // And its persona written after all of this, which is every persona rendered from now on.
-    renderedOn(LEADER, now);
-    await say("a third question, with the lead the oldest clock in the room", LEADER);
-    toldWhenTheLeadIsTheOldOne = lastQuestion(stoppedLog);
-  });
-
-  // Mutation: build the wrapper and never push it into what the session is handed — the shape this
-  // repo has already paid for twice, a thing built and never attached. Two names and two different
-  // ages are asserted, so no single written sentence satisfies this.
-  it("names who has stopped, and how long each has been doing nothing", () => {
-    assert.match(toldWhenStopped, /<quiet>[\s\S]*<\/quiet>/);
-    assert.match(toldWhenStopped, new RegExp(`${STOPPED_SHORT} last ran 35m ago`));
-    assert.match(toldWhenStopped, new RegExp(`${STOPPED_LONG} last ran 50m ago`));
-  });
-
-  // Mutation: drop the test on how long it has been, and everybody with a thread is named on every
-  // turn. The other half of the WHETHER rule, and without it the check above proves only that a
-  // sentence is always there.
-  //
-  // Read against THESE two and never against the whole line. The suites install one instance and
-  // every describe before this one hires into it, so by the time this runs there are sessions with
-  // genuinely old threads that this is right to name — a check asserting the wrapper is absent
-  // altogether passes alone and fails in a full run, which is exactly what it did.
-  it("does not name a session that has not stopped", () => {
-    assert.doesNotMatch(toldWhenNobodyHas, new RegExp(`${STOPPED_SHORT} last ran`));
-    assert.doesNotMatch(toldWhenNobodyHas, new RegExp(`${STOPPED_LONG} last ran`));
-  });
-
-  // Mutation: drop the test on who is being handed this. The room is the lead's, and this is the
-  // same fact pushed.
-  it("never says it to a worker", () => {
-    assert.doesNotMatch(toldAWorker, /<quiet>/, "a worker was told who has stopped");
-    // And the state it would have been told about was really there, or this passes on a quiet
-    // moment rather than on the rule it is named for.
-    assert.match(toldWhenStopped, /<quiet>/, "nobody had stopped when the worker was asked");
-  });
-
-  // Mutation: drop `turnsGoing(...) === 0`. A session's clock stands still for the whole of a turn,
-  // and this is composed inside the reader's own turn — so without that one predicate the lead is
-  // told it has stopped, on every turn it ever runs, for as long as it is the oldest clock here.
-  it("does not name a session that is mid-turn, the one reading it, included", () => {
-    assert.match(toldWhenTheLeadIsTheOldOne, /<quiet>/, "nobody was named at all");
-    assert.doesNotMatch(toldWhenTheLeadIsTheOldOne, new RegExp(`${LEADER} last ran `));
-  });
-
-  // Mutation: drop the moment. It is the whole of why this may be handed over unasked at all: a
-  // dated line cannot be read as the room now, and an undated one is exactly the stale snapshot
-  // the room is deliberately never carried as. Asserted against the clock and never a literal.
-  it("says the moment the reading was taken", () => {
-    const said = toldWhenStopped.match(/read at (\d\d):(\d\d)/);
-    assert.ok(said !== null, `no moment in: ${toldWhenStopped}`);
-    const when = new Date();
-    when.setHours(Number(said[1]), Number(said[2]), 0, 0);
-    assert.ok(Math.abs(Date.now() - when.getTime()) < 5 * 60_000, `said ${said[0]}, now ${new Date()}`);
-  });
-
-  // Mutation: say the name of the wrapper and nothing about who is speaking. An update ships new
-  // templates and re-renders nobody's persona, so a session reading this may be running one
-  // written before any of it existed and has nothing to look it up in.
-  it("says the chat is the one speaking, and not the person at the page", () => {
-    assert.match(toldWhenStopped, /The chat is telling you this\. Nobody typed it\./);
-  });
-
-  // Mutation: put the old closing sentence back. The chat's own pass ends a conversation nobody
-  // has carried on for an hour, so a block that asks the lead to hand people over by hand is the
-  // product arguing with itself in front of the person reading both. The positive is asserted as
-  // well as the absence, or a block that said nothing at all about it would pass.
-  it("says the chat's own pass ends them, and asks the lead to press nothing", () => {
-    assert.match(toldWhenStopped, /<quiet>[\s\S]*<\/quiet>/);
-    assert.match(toldWhenStopped, /The chat's own pass ends it/);
-    assert.match(toldWhenStopped, /nothing here is yours to press/);
-    assert.doesNotMatch(toldWhenStopped, /hand them over/);
-    assert.doesNotMatch(toldWhenStopped, /Check on them/);
-  });
-
-  // Mutation: drop the age condition and say the sentence to everybody. A persona is rendered once
-  // at hire and never re-rendered, so a lead running one written before the chat did this itself is
-  // still being told to hand people over by its own instructions — and it is told, once here, which
-  // of the two is the older. A persona rendered after the change carries no such sentence to
-  // contradict, and this is the reading that keeps the block from saying it forever.
-  it("tells a lead whose persona predates this that its instructions are the older, beside who has stopped", () => {
-    assert.match(toldWhenStopped, /<quiet>[\s\S]*<\/quiet>/);
-    assert.match(toldWhenStopped, /If your instructions say otherwise, they were written before this/);
-  });
-
-  it("says nothing about older instructions to a lead whose persona was written after this, beside who has stopped", () => {
-    assert.match(toldWhenTheLeadIsTheOldOne, /<quiet>[\s\S]*<\/quiet>/, "there was no block to look in");
-    assert.doesNotMatch(toldWhenTheLeadIsTheOldOne, /written before this/);
-  });
-});
-
-const STOPS_WHILE_A_MESSAGE_WAITS = "Fieldfare";
-
-// Where the reading is taken, which is the half of this feature a wrapper check cannot see.
-//
-// Composing the list is one line either way, and both places produce a correct-looking sentence.
-// What differs is a message that waited: the lead's panel is the busiest in the room, so a question
-// typed while a long turn is going is routinely answered minutes later. A list built where the
-// message ARRIVED describes the room as it was before the wait; a list built where the TURN BEGINS
-// describes it as it is when the lead reads it. Every other reading on this path — whether the
-// conversation has gone cold, which line is being answered, whether the session is still here — is
-// taken at the turn, and this one has to be taken with them or the lead is handed one stale fact
-// in among the fresh ones and no way to tell which.
-//
-// So the fixture holds the system in the wrong state long enough for the difference to show: the
-// session goes quiet while the second message is already queued and cannot yet have been read.
-describe("who has gone quiet is read where the turn begins and not where the message arrived", () => {
-  const waitedLog = path.join(standIn, "waited.txt");
-  let deepEnough;
-  let stillGoing;
-  let toldBeforeItStopped;
-  let toldAfterTheWait;
-
-  before(async () => {
-    runTool(instance, ["hire", STOPS_WHILE_A_MESSAGE_WAITS], process.env);
-    await start(instance, standInEnvironment(standIn, waitedLog, { OPENOVAI_STAND_IN_SLOW: "1500" }));
-    assert.ok(await waitForHealth(URL), "the server never answered");
-
-    // A turn each, so both have a clock at all. Fresh at this point, so nothing here is quiet yet.
-    await say("something, so this one has run", STOPS_WHILE_A_MESSAGE_WAITS);
-    await say("and the lead, so it has one too", LEADER);
-
-    // The lead's first message, left running. Not awaited: the second one has to arrive while this
-    // one still holds the turn.
-    const going = say("the first thing, which takes a while", LEADER);
-    await waitFor(async () => {
-      const row = JSON.parse((await get(`${URL}/sessions`)).body).sessions.find((session) => session.name === LEADER);
-      return row?.busy === true ? row : null;
-    });
-
-    // The second, which joins the queue behind it. Waited for as a DEPTH and not as a duration: the
-    // row says how many are behind the one being answered, so this is the server telling us the
-    // message is in and has not been read, rather than a sleep hoping it is.
-    const queued = say("the second thing, which waits behind the first");
-    deepEnough = await waitFor(async () => {
-      const row = JSON.parse((await get(`${URL}/sessions`)).body).sessions.find((session) => session.name === LEADER);
-      return (row?.queued ?? 0) >= 1 ? row : null;
-    });
-
-    // And NOW it stops — after its message was taken, before its turn begins. The panel is touched
-    // to now with it, so a reading off the panel's clock could not reach this answer either.
-    age(threadFile(STOPS_WHILE_A_MESSAGE_WAITS), 35.5);
-    const now = new Date();
-    fs.utimesSync(panelFile(STOPS_WHILE_A_MESSAGE_WAITS), now, now);
-
-    // The first turn is still the one running, or the wait proved nothing: a session answers one
-    // message at a time, so the second cannot have been read while this is true.
-    stillGoing = JSON.parse((await get(`${URL}/sessions`)).body).sessions.find((session) => session.name === LEADER);
-
-    await going;
-    await queued;
-
-    // Both by POSITION and neither by "the last one". The second turn starts the moment the first
-    // finishes, so a reading taken when the first settles is a race with the question that follows
-    // it. This log belongs to this describe alone and holds these four questions in the order they
-    // were asked: the two that gave each session a clock, then the one that ran long, then the one
-    // that waited behind it.
-    const asked = questionsIn(waitedLog);
-    assert.equal(asked.length, 4, `expected the four questions of this describe, got ${asked.length}`);
-    toldBeforeItStopped = asked[2];
-    toldAfterTheWait = asked[3];
-  });
-
-  // Mutation: compose the list in the route handler, where the message arrives, and pass it down
-  // into the turn. Nobody had stopped when this message was taken, so the lead is told nothing
-  // about a session that stopped while its question sat in the queue — and the wrapper checks above
-  // all stay green, because every one of them asks a question whose message was answered at once.
-  it("names a session that stopped while the message was waiting to be read", () => {
-    assert.equal(stillGoing?.busy, true, "the first turn had already finished, so nothing waited");
-    assert.ok((deepEnough?.queued ?? 0) >= 1, "the second message never queued behind the first");
-    assert.match(toldAfterTheWait, /<quiet>[\s\S]*<\/quiet>/);
-    assert.match(toldAfterTheWait, new RegExp(`${STOPS_WHILE_A_MESSAGE_WAITS} last ran 35m ago`));
-  });
-
-  // The other half of it, and what stops the check above passing on a session that was quiet all
-  // along. Read against THIS name and never against the whole wrapper: the suite installs one
-  // instance and everything before this hires into it, so there are genuinely old threads by now
-  // that the lead is right to be told about.
-  it("said nothing about it on the turn that began before it stopped", () => {
-    assert.doesNotMatch(toldBeforeItStopped, new RegExp(`${STOPS_WHILE_A_MESSAGE_WAITS} last ran`));
-  });
-});
-
 
 const FILLING_UP = "Nuthatch";
 const STILL_ROOM = "Treecreeper";
@@ -10299,9 +10055,10 @@ function stageWindows(name, windows, minutesAgo = 0, root = instance) {
 // The <usage> block alone, cut out by hand.
 //
 // The question a session is handed carries other blocks, and one of them says a sentence this one
-// also says word for word: who-has-stopped opens with the same line about who is speaking. By the
-// time this describe runs there are genuinely old threads in the shared instance, so that block is
-// really there — and a match against the whole question is satisfied by the neighbour. MEASURED:
+// also says word for word: who-has-grown-big opens with the same line about who is speaking. By
+// the time this describe runs there are genuinely big conversations in the shared instance, so that
+// block is really there — and a match against the whole question is satisfied by the neighbour.
+// MEASURED:
 // the mutation that deletes the line from THIS block reported nothing noticed until this existed.
 //
 // The cutting is done here rather than left to a regex, because a match spanning two delimiters
@@ -11397,7 +11154,7 @@ describe("what the lead is told about a conversation that has grown big", () => 
   let toldWhenNobodyIsBig;
   let toldWhenBig;
   let toldAWorker;
-  let toldWithAllThree;
+  let toldWithBothSaid;
   let toldOnceHandedOver;
   let deliveredToTheBigOne;
   let handedOver;
@@ -11464,14 +11221,15 @@ describe("what the lead is told about a conversation that has grown big", () => 
     await say("and a worker is asked something, with the same two over the line", STILL_SMALL);
     toldAWorker = lastQuestion(sizeLog);
 
-    // All three readings at once, which is the only way to see what order they are said in. One
-    // stopped for the first, an account filling up for the third.
+    // Both readings at once, which is the only way to see what order they are said in: an account
+    // filling up for the second. And one of the big ones stopped, past the half hour — the
+    // reading the lead used to be handed a block about, and is no longer.
     const now = new Date();
     age(threadFile(STOPPED_AND_BIG), 50.5);
     fs.utimesSync(panelFile(STOPPED_AND_BIG), now, now);
     stageWindows(LEADER, [window("five_hour", 0.91, 180), window("seven_day", 0.36, 5 * 24 * 60)]);
-    await say("a third question, with all three of them true at once", LEADER);
-    toldWithAllThree = lastQuestion(sizeLog);
+    await say("a third question, with both of them true at once and one of the big ones stopped", LEADER);
+    toldWithBothSaid = lastQuestion(sizeLog);
 
     // The three ways a window can be missing, each on its own chat because the frame a run is
     // answered with is one environment per process. All three carry the same big size, so the only
@@ -11704,8 +11462,7 @@ describe("what the lead is told about a conversation that has grown big", () => 
     assert.doesNotMatch(sizeBlock(toldWhenBig), /Nothing here does it for you/);
   });
 
-  // Mutation: drop the age condition here as well. Same sentence, same reading, same reason as
-  // the block about who has stopped: a persona rendered before the change still tells the lead to
+  // Mutation: drop the age condition. A persona rendered before the change still tells the lead to
   // hand people over by hand, and one rendered after it has nothing to be contradicted.
   it("tells a lead whose persona predates this that its instructions are the older, beside who has grown big", () => {
     assert.match(sizeBlock(toldWhenBig), /If your instructions say otherwise, they were written before this/);
@@ -11716,7 +11473,7 @@ describe("what the lead is told about a conversation that has grown big", () => 
     assert.doesNotMatch(sizeBlock(toldWithEveryWindowShape), /written before this/);
   });
 
-  // Mutation: filter the reader out of its own list, the way the block about who has stopped
+  // Mutation: filter the reader out of its own list, the way a reading off a clock would have to
   // rightly does. It is the largest conversation here and the one that cannot press its own
   // button, so a block naming everybody except it would be the worst reading this could give.
   it("names the session that leads about its own conversation", () => {
@@ -11831,17 +11588,24 @@ describe("what the lead is told about a conversation that has grown big", () => 
     assert.doesNotMatch(theRow, /\blarge\b/, theRow);
   });
 
-  // Mutation: move the push in inFrontOf. Quiet and size are both about what one conversation is
-  // about to lose; the account is about the whole workspace and is the one that says stop, so it
-  // reads last. Staged so that all three are true at once, which is the only turn the order can be
-  // read off at all.
-  it("it is the block after the quiet one and before the usage one", () => {
-    const quietAt = toldWithAllThree.indexOf("<quiet>");
-    const sizeAt = toldWithAllThree.indexOf("<size>");
-    const usageAt = toldWithAllThree.indexOf("<usage>");
-    assert.ok(quietAt !== -1 && sizeAt !== -1 && usageAt !== -1, `not all three were said: ${toldWithAllThree}`);
-    assert.ok(quietAt < sizeAt, "the size was said before the one about who has stopped");
+  // Mutation: move the push in inFrontOf. The size is about what one conversation is about to lose;
+  // the account is about the whole workspace and is the one that says stop, so it reads last.
+  // Staged so that both are true at once, which is the only turn the order can be read off at all.
+  it("it is the block before the one about the account", () => {
+    const sizeAt = toldWithBothSaid.indexOf("<size>");
+    const usageAt = toldWithBothSaid.indexOf("<usage>");
+    assert.ok(sizeAt !== -1 && usageAt !== -1, `not both were said: ${toldWithBothSaid}`);
     assert.ok(sizeAt < usageAt, "the size was said after the one about the account");
+  });
+
+  // No mutation: a deletion. The lead used to be handed a block naming who had stopped, and the
+  // seat staged above has stopped for fifty minutes — long enough that it would have been named.
+  // Nothing names it now, and the two blocks it is still handed are said all the same.
+  it("says nothing about who has stopped, and the size and the account are said all the same", () => {
+    assert.doesNotMatch(toldWithBothSaid, /<quiet>/, "the lead was told who has stopped");
+    assert.doesNotMatch(toldWithBothSaid, new RegExp(`${STOPPED_AND_BIG} last ran`));
+    assert.match(toldWithBothSaid, /<size>[\s\S]*<\/size>/);
+    assert.match(toldWithBothSaid, /<usage>[\s\S]*<\/usage>/);
   });
 });
 
@@ -11849,9 +11613,9 @@ const BIG_MID_TURN = "Greenshank";
 
 // A conversation over the line that is in the middle of a turn.
 //
-// The one place this differs from the block about who has stopped, and the difference is not an
-// oversight. There, a session's clock stands still for the whole of a turn, so a session working
-// reads as one that has stopped and is rightly left out. A size does not go stale that way — it is
+// The one place this differs from a reading off a clock, and the difference is not an oversight.
+// A session's clock stands still for the whole of a turn, so read off one a session working is one
+// that has stopped and is rightly left out. A size does not go stale that way — it is
 // simply behind, and a session mid-turn is at least as large as this says. Leaving it out would
 // hide the biggest conversation here at the moment it is biggest.
 describe("what the lead is told about a big conversation that is mid-turn", () => {
@@ -11888,7 +11652,7 @@ describe("what the lead is told about a big conversation that is mid-turn", () =
     await running;
   });
 
-  // Mutation: copy the mid-turn test out of the block about who has stopped into this filter.
+  // Mutation: filter out whoever is mid-turn, the way a reading off a clock would have to.
   it("names a session that is in the middle of a turn", () => {
     assert.match(toldWhileItRuns, /<size>/, "nothing was said at all");
     assert.match(toldWhileItRuns, new RegExp(`${BIG_MID_TURN} was carrying `));

@@ -798,42 +798,6 @@ None of the page itself is covered by a browser: no suite runs `page.html`. What
 checked on their own data, and the page is checked as text on the served body — that each thing is
 offered, and that it goes to the route behind it.
 
-### Who has gone quiet
-
-The room is deliberately never carried into a turn: a snapshot of it handed to a session would be
-read as now, and it is stale the moment it is composed. There is one exception, and this is it.
-
-When a turn of the lead's begins, any session that has stopped for more than half the hour after
-which a conversation is ended is named to it, unasked, in one block:
-
-    Ann last ran 35m ago, and Ivy last ran 50m ago. That is how long each has been doing
-    nothing, read at 14:07, as this turn began.
-
-It says who is speaking — the chat, and nobody at the page — because an update ships new templates
-and re-renders nobody's persona, so a session reading it may be running one written before any of
-this existed and has nothing to look it up in. It carries the moment it was read, which is what
-makes it safe to hand over unasked at all: a dated line cannot be mistaken for the room now. And it
-is absent entirely while nobody has stopped, rather than saying so — a sentence in every turn
-forever is a sentence nobody reads.
-
-It is a reading and not a gate. Nothing consults it before delivering a message, hiring, handing a
-session over or queueing anything, and a message to a session named in it is delivered exactly as
-any other. No state is added to the room for it either; the phrases above are the whole list.
-
-Only the lead is told, and it is never told about itself or about anything mid-turn. That is one
-rule and not two: the block is composed inside the reader's own turn, so a session with a turn
-going is excluded by the same test that excludes everyone else who is working.
-
-The half-hour is read from the hour rather than written down again, so the day one moves the other
-moves with it. A session that has gone cold stays in the block — it is not capped, because a
-conversation named at 55 minutes and dropped at 61 would stop being mentioned at the moment it
-became expensive. A session with no thread is not in it at all: it has nothing to be quiet with,
-and nothing that waiting could cost it.
-
-Nothing here has to be cleared and nothing remembers having said it. Acting on it is what stops
-it: saying anything to that session starts a run and moves its clock, and handing it over removes
-the conversation altogether.
-
 ### Where the account stands
 
 The other thing handed to the lead unasked, and the only one this toolkit has an opinion about.
@@ -970,9 +934,9 @@ the worst reading this could give. First because the workspace is listed lead fi
 too, which is why the sentence opens in the lower case whenever the lead is one of the large ones:
 the row of the reader reads *you*, and every other row reads a name.
 
-**Nobody is left out for being mid-turn**, which is the one place this differs from the block about
-who has stopped. There the reading is a clock, and a clock stands still for the whole of a turn, so
-a session working reads as one that has stopped. A size does not go stale that way; it is simply
+**Nobody is left out for being mid-turn**, which is the one place this differs from a reading off a
+clock. A session's clock stands still for the whole of a turn, so read off one a session working is
+one that has stopped. A size does not go stale that way; it is simply
 behind. A session in the middle of a turn is at least as large as this says, so naming it is true —
 and leaving it out would hide the biggest conversation here at the moment it is biggest.
 

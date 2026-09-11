@@ -1,8 +1,8 @@
 // The room watch: the one thing in this toolkit whose input is the clock.
 //
 // THE ARGUMENT FOR IT, AND IT IS THE ONLY ONE. Every other reading in this toolkit rides on a turn
-// the lead was having anyway and costs nothing — the size of a conversation, how long somebody has
-// been quiet, where the account stands. That is why "no sweep, no timer, nothing to clear" is the
+// the lead was having anyway and costs nothing — the size of a conversation, where the account
+// stands. That is why "no sweep, no timer, nothing to clear" is the
 // right rule for all of them, and it stays the right rule for all of them. It is wrong for exactly
 // one case: the room nobody has typed into for an hour is the room that most needs something done
 // about it, and that is precisely when there is no turn to ride on. The readings are free when they

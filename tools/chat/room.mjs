@@ -253,8 +253,9 @@ function stateOf(session) {
 // How long ago, in the roughest terms that are still useful. Nothing anybody decides from a room
 // turns on the difference between four minutes and five.
 //
-// Exported, because the chat says the same thing to the session that leads when it tells it who has
-// stopped, and a third copy of this wording is a third place for it to drift. There are already two
+// Exported, because the chat says the same thing to the session that leads, in the block about
+// where the account stands, and on a panel when it parks a conversation nobody has carried on —
+// and a third copy of this wording is a third place for it to drift. There are already two
 // — the page keeps its own, because a page served as text cannot import anything — and that
 // duplication is the one this file names at the top and nobody has to add to.
 export function ago(when) {

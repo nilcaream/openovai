@@ -199,38 +199,6 @@ export function hasGoneCold(root, name) {
   return ran !== null && Date.now() - ran > COLD_AFTER;
 }
 
-// How long a session may be doing nothing before somebody should be told, rather than left to
-// look. Half of COLD_AFTER, and read FROM it rather than written down again: the second half of
-// the hour is what is left to act in, and it is the same length as the first.
-//
-// One number and not two. A literal of its own would be a second thing that can be wrong, and it
-// would sit still on the day the hour moves on a fresh measurement — which is the one way this
-// could come to fire after the thing it exists to give warning of.
-//
-// It is a choice inside a band and not a measurement, and it is worth saying which. What is
-// measured is the hour. That acting on this takes minutes rather than tens of minutes is judgment,
-// so the design is one derived number with its arithmetic in the open, and there is one place to
-// change it.
-const QUIET_AFTER = COLD_AFTER / 2;
-
-// Whether nothing has been run for this session long enough that somebody should look, which is a
-// weaker claim than the one above and is never acted on. Nothing in this toolkit reads it to
-// decide anything: it is said, and a person judges.
-//
-// Same shape and same honesty as hasGoneCold, deliberately. A session with no thread is not quiet
-// — it has nothing to be quiet with, and nothing that waiting could cost it.
-//
-// A conversation past the hour is quiet too, and is not excepted. A session named at fifty-five
-// minutes and gone from the reading at sixty-one would be the worst of the readings this could
-// give: the moment it becomes expensive is the moment it would stop being mentioned.
-export function hasGoneQuiet(root, name) {
-  if (!hasThread(root, name)) {
-    return false;
-  }
-  const ran = ranAt(root, name);
-  return ran !== null && Date.now() - ran > QUIET_AFTER;
-}
-
 // Chosen, not derived, and the measurement only sizes the bet. A session already idle this long
 // goes on to lose its cache seven times in ten (n=33, this workspace, one human's habits), so
 // seven times in ten a park here is the difference between a desk written and a desk not. It
@@ -244,12 +212,12 @@ const PARK_AFTER = (COLD_AFTER / 6) * 5;
 // the right one, so a reading that stayed true there would spend a whole turn writing a desk for a
 // thread that is already gone.
 //
-// Which is why it is not shaped like hasGoneQuiet beside it. That one is deliberately open at the
-// top — a session named at fifty-five minutes and gone from the reading at sixty-one would be the
-// worst reading it could give a person. Nobody reads this one; something acts on it, and the
-// action past the hour is a different and cheaper action.
+// Which is why it is closed at the top. A reading a person is handed would be right to stay open
+// there — a session named at fifty-five minutes and gone from the reading at sixty-one would be
+// the worst reading it could give. Nobody reads this one; something acts on it, and the action
+// past the hour is a different and cheaper action.
 //
-// Same honesty as both of them at the bottom. A session with no thread is never nearly cold, and a
+// Same honesty as hasGoneCold at the bottom. A session with no thread is never nearly cold, and a
 // time that cannot be read is not a time that says "old".
 export function hasNearlyGoneCold(root, name) {
   if (!hasThread(root, name)) {
@@ -444,11 +412,11 @@ export function stopLine(config) {
 // going was told where the account stands as truly as one that has ended — the one it was handed is
 // often the only one there is at the moment a window is being crossed.
 //
-// Nobody is left out for being mid-turn, and that is the one place this differs from hasGoneQuiet()
-// above. There the reading is a fact ABOUT the session, and a session's clock stands still for the
-// whole of a turn, so a working session would read as a stopped one. Here the reading is a fact
-// about the ACCOUNT that a session happened to be handed, and a run still going was told it as
-// truly as one that has finished.
+// Nobody is left out for being mid-turn, and that is the one place this differs from the readings
+// off a clock above. There the reading is a fact ABOUT the session, and a session's clock stands
+// still for the whole of a turn, so a working session would read as a stopped one. Here the
+// reading is a fact about the ACCOUNT that a session happened to be handed, and a run still going
+// was told it as truly as one that has finished.
 //
 // A window whose lift has already passed is dropped: it describes a window that has ended, and
 // ninety-six per cent of a window that has reset is nothing. The same comparison-on-read refusedIn()
@@ -572,7 +540,7 @@ export function accountStanding(instance) {
     // Whether everybody could be carried on where they stand once the wait is over, which is the
     // whole of the choice between pausing people and handing them over.
     //
-    // READ OFF COLD_AFTER AND NEVER WRITTEN DOWN AGAIN, the way QUIET_AFTER above is. The hour here
+    // READ OFF COLD_AFTER AND NEVER WRITTEN DOWN AGAIN, the way PARK_AFTER above is. The hour here
     // and the hour a conversation goes cold in are the same hour for the same reason — a cache
     // lives an hour — and a second copy of it that drifted would tell somebody to pause people it
     // can no longer carry on.

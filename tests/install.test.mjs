@@ -676,22 +676,25 @@ describe("what the installer made", () => {
   it("tells the leader a room it did not ask for is not handed to it, and names every exception", () => {
     const persona = leadPersona();
     assert.match(persona, /The room is not handed to you unasked/);
-    assert.match(persona, /Four things are handed to you without your asking/);
-    assert.match(persona, /who has stopped/);
+    assert.match(persona, /Three things are handed to you without your asking/);
+    // And not who has stopped, which it was handed until the room watch began parking a
+    // conversation before its hour: what that block warned of is now prevented, and the row says
+    // who is idle.
+    assert.doesNotMatch(persona, /who has stopped/);
     assert.match(persona, /how big the conversations here have grown/);
     assert.match(persona, /where the account's usage window stands/);
     // And what the last of them can actually ask for, which is the whole workspace stopped and every
     // conversation in it ended. A persona that named the reading without naming what it says would
     // leave the lead reading an instruction it had been told nothing about.
     assert.match(persona, /tell you to stop the tasks and put everybody down/);
-    // Three of them are advice; the fourth acts. The sentence that made all four advice was the one
+    // Two of them are advice; the third acts. The sentence that made all of them advice was the one
     // the room watch made false the day it began parking, so the persona is held to the split.
-    assert.match(persona, /Three of the four are advice and not\s+rules the toolkit keeps/);
-    assert.match(persona, /The\s+fourth acts/);
-    // And the fourth, which is the one that does not ride on a turn the lead was having anyway. A
-    // persona that named three while the chat handed over four would leave the lead reading a block
+    assert.match(persona, /Two of the three are advice and not\s+rules the toolkit keeps/);
+    assert.match(persona, /The\s+third acts/);
+    // And the third, which is the one that does not ride on a turn the lead was having anyway. A
+    // persona that named two while the chat handed over three would leave the lead reading a block
     // its own instructions say it does not get.
-    assert.match(persona, /The fourth is the room watch/);
+    assert.match(persona, /The third is the room watch/);
     // And what the middle one can ask for, which is a person being sent to a panel — so the persona
     // has to say that pressing it is not the lead's, or it would read as something it could do.
     assert.match(persona, /You cannot hand a session over/);
