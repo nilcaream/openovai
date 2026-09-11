@@ -18,7 +18,7 @@ import { popped } from "./pop.mjs";
 import { answerFrom } from "../plugins.mjs";
 import { SKILL as ALLOWED } from "../skills.mjs";
 import { ago, roomLines, shareSaid } from "./room.mjs";
-import { armTheWatch, buysATurn, forgetTheRoom, howOften, nowSeen, parkAttemptsAllowed, tickRead, whatChanged } from "./watch.mjs";
+import { WATCH_EVERY, armTheWatch, buysATurn, forgetTheRoom, howOften, nowSeen, parkAttemptsAllowed, theWatchRecord, tickRead, whatChanged } from "./watch.mjs";
 import { DESK_FILE, DeskError, WORK, allowAsked, archiveFor, deskTitle, describeName, hasSettledAnything, hire, isName, retire } from "../desks.mjs";
 import { accountStanding, ask, bandIn, endRun, forget, fullnessIn, hasGoneCold, hasGoneQuiet, hasThread, quotaIn, ranAt, refusedIn, sessions, standingsUnderway } from "./session.mjs";
 import { endHold, enterHold, forgetRefused, holdIn, holdLifted, holdSaid, holdStands, markParked, markRefused } from "./hold.mjs";
@@ -1318,6 +1318,30 @@ function leads(instance, caller) {
   return caller === instance.config.leader;
 }
 
+// What the terminal is told when the watch is armed: how often the room is read, and — where the
+// workspace declined the turn — that nothing is spent on it. The one thing somebody starting a
+// chat needs to know about the watch is that there is one, and this is the only place that fact
+// is asserted rather than inferred from the absence of an effect.
+// The record as a reader wants it: moments as moments, not as milliseconds since 1970.
+function watchSaid(record) {
+  if (record === null) {
+    return null;
+  }
+  return {
+    ...record,
+    armedAt: new Date(record.armedAt).toISOString(),
+    at: record.at === null ? null : new Date(record.at).toISOString(),
+  };
+}
+
+function watchArmedLine(config, every) {
+  const cadence = `The room is read every ${every / 1000} seconds`;
+  if (!buysATurn(config)) {
+    return `${cadence}, and nothing is spent on it: this workspace wrote ${WATCH_EVERY}: 0, so nobody is handed over by the chat. Whether it is being read shows on /health as watch.`;
+  }
+  return `${cadence}. Whether it is being read shows on /health as watch.`;
+}
+
 // The room, in the same lines the command prints — the same rows off the same list, laid out by
 // the same function, so that the lead reading it here and the person reading it in a terminal are
 // never told two different things.
@@ -2111,6 +2135,12 @@ async function handle(instance, request, response) {
       instance: instance.root,
       human: instance.config.human,
       leader: instance.config.leader,
+      // And whether the room is being read, as the record the watch keeps of itself: the cadence
+      // it was armed with, when, and when a pass last finished. A timestamp and not a health
+      // indicator — "older than about two cadences" is a judgment, and it is the reader's. Read
+      // off the live record and not re-derived from the config, so that it cannot say a watch is
+      // there when none was armed.
+      watch: watchSaid(theWatchRecord()),
     });
     return;
   }
@@ -2796,7 +2826,15 @@ export function serve(instance) {
   // on arrival would cry fault every time somebody restarts a chat, which is the documented repair
   // for a stale server. Every served instance has one now, `0` included: a record is a record of a
   // watch, and every instance has a watch.
-  armTheWatch();
+  armTheWatch(every);
+  // AND SAID, HERE, AT THE MOMENT OF ARMING. A watch that is armed and working produces no effect
+  // — a pass that decides nothing writes nothing — so nothing a person could test would tell a
+  // working watch from one that was never armed, and the only assertion that cannot be wrong in
+  // the direction that hides the failure is the arming code's own. It is said in this function
+  // rather than by whatever started the server, for the reason `tellTheLead` above is: every way
+  // of serving an instance arms a watch, and the line has to come from the scope that holds
+  // `every`, or it is a second reading of the config that can drift from the one that was armed.
+  console.log(watchArmedLine(instance.config, every));
   const watch = setInterval(() => {
     readTheRoom(instance).catch(() => {
       // A tick that fell over is one tick. There is another along, the room is read fresh, and

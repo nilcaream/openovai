@@ -12793,6 +12793,122 @@ describe("a workspace that buys no turn still has its room watched", () => {
   });
 });
 
+// The room says whether it is being read at all.
+//
+// A watch that works produces no effect — a pass that decides nothing writes nothing — and that is
+// exactly the shape of a watch that was never armed, or that was armed and died. Nothing a reader
+// could TEST tells them apart, so the arming code asserts it, in the two places somebody is already
+// looking: one line on the terminal at the moment of arming, and the watch's own record on
+// `/health`, read off the live handle rather than re-derived from the config, so that it cannot
+// say a watch is there when none is.
+//
+// Five readings out of one record, and no boot line needed to tell them apart: no record at all is
+// never-started; `armedAt` set and `at` null within a cadence is a healthy boot; `at` null past two
+// cadences is armed and dead on arrival; `at` past two cadences is started then died; `at` within a
+// cadence is alive. A timestamp and not a health indicator: no threshold and no colour here, the
+// two-cadence judgment is the reader's, and the cadence is served beside the moments so that the
+// reader has it.
+describe("the room says whether it is being read at all", () => {
+  const reading = `${instance}-read-at-all`;
+  const unread = `${instance}-read-for-nothing`;
+  let saidAtBoot;
+  let saidAtBootForNothing;
+  let healthAtBoot;
+  let healthAfterAPass;
+  let healthForNothing;
+
+  // What `serve()` says on the terminal while it runs, captured for the length of the call.
+  async function servingSaid(served) {
+    const lines = [];
+    const log = console.log;
+    console.log = (line) => lines.push(String(line));
+    try {
+      return { server: await serve(served), lines };
+    } finally {
+      console.log = log;
+    }
+  }
+
+  before(async () => {
+    installed(options(reading, 0));
+    const config = path.join(reading, "openovai.json");
+    fs.writeFileSync(
+      config,
+      `${JSON.stringify({ ...JSON.parse(fs.readFileSync(config, "utf8")), watchEverySeconds: 1 }, null, 2)}\n`,
+    );
+    const held = JSON.parse(fs.readFileSync(config, "utf8"));
+
+    // Nothing is asserted in this hook: it holds live servers.
+    const { server, lines } = await servingSaid({ root: reading, config: held, plugins: [], pop: null });
+    saidAtBoot = lines;
+    const url = JSON.parse(fs.readFileSync(path.join(reading, "chat", "listening.json"), "utf8")).url;
+    healthAtBoot = JSON.parse((await get(`${url}/health`)).body);
+    await waitFor(async () => (theWatchRecord()?.at ?? null) !== null ? true : null);
+    healthAfterAPass = JSON.parse((await get(`${url}/health`)).body);
+    await new Promise((resolve) => server.close(resolve));
+
+    installed(options(unread, 0));
+    const declined = path.join(unread, "openovai.json");
+    fs.writeFileSync(
+      declined,
+      `${JSON.stringify({ ...JSON.parse(fs.readFileSync(declined, "utf8")), watchEverySeconds: 0 }, null, 2)}\n`,
+    );
+    const nothing = await servingSaid({ root: unread, config: JSON.parse(fs.readFileSync(declined, "utf8")), plugins: [], pop: null });
+    saidAtBootForNothing = nothing.lines;
+    const there = JSON.parse(fs.readFileSync(path.join(unread, "chat", "listening.json"), "utf8")).url;
+    healthForNothing = JSON.parse((await get(`${there}/health`)).body);
+    await new Promise((resolve) => nothing.server.close(resolve));
+  });
+
+  // Mutation: arm the watch and say nothing. The line is said by `serve()` itself, from the scope
+  // that holds the cadence it armed, and it names that cadence.
+  it("says on the terminal, at the moment of arming, how often the room is read", () => {
+    assert.equal(saidAtBoot.filter((line) => /The room is read every 1 seconds/.test(line)).length, 1, JSON.stringify(saidAtBoot));
+    assert.doesNotMatch(saidAtBoot.join("\n"), /nothing is spent/);
+  });
+
+  // Mutation: say the same line to a workspace that declined the turn. The room is still read there
+  // — at the default cadence — and the line says so AND says what is not done, because "this
+  // workspace is not read" is exactly the fact the person who wrote `0` half-expects and would be
+  // wrong about.
+  it("says that a workspace which buys no turn is still read, and that nothing is spent on it", () => {
+    const said = saidAtBootForNothing.filter((line) => /The room is read every 300 seconds/.test(line));
+    assert.equal(said.length, 1, JSON.stringify(saidAtBootForNothing));
+    assert.match(said[0], /nothing is spent on it: this workspace wrote watchEverySeconds: 0, so nobody is handed over by the chat/);
+  });
+
+  // And the same fact reaches a terminal through the command, which is the path a person takes:
+  // the shared chat was started by `ovai chat` and its output is what it printed.
+  it("reaches the terminal the chat was started from", () => {
+    assert.match(server.output, /The room is read every \d+ seconds/);
+  });
+
+  // Mutation: leave the watch off `/health`; report the cadence from the constant. The record is
+  // the live one — armed, not yet fired, at the cadence it was armed with — with moments as
+  // moments.
+  it("serves the watch's own record on /health, armed and not yet fired", () => {
+    assert.ok(healthAtBoot.watch !== null && typeof healthAtBoot.watch === "object", JSON.stringify(healthAtBoot));
+    assert.equal(healthAtBoot.watch.everySeconds, 1, JSON.stringify(healthAtBoot.watch));
+    assert.match(healthAtBoot.watch.armedAt, /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/, JSON.stringify(healthAtBoot.watch));
+    assert.equal(healthAtBoot.watch.at, null, JSON.stringify(healthAtBoot.watch));
+    assert.deepEqual([healthAtBoot.watch.sessions, healthAtBoot.watch.decided, healthAtBoot.watch.acted], [0, 0, 0]);
+    assert.equal(healthForNothing.watch.everySeconds, 300, JSON.stringify(healthForNothing.watch));
+  });
+
+  // Mutation: serve `at` as it is kept. Once a pass has finished, `at` is a moment and the counts
+  // are that pass's; the cadence and the arming do not move.
+  it("serves when the last pass finished, once one has", () => {
+    assert.match(healthAfterAPass.watch.at, /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/, JSON.stringify(healthAfterAPass.watch));
+    assert.equal(healthAfterAPass.watch.armedAt, healthAtBoot.watch.armedAt);
+    assert.equal(healthAfterAPass.watch.everySeconds, 1);
+    assert.ok(healthAfterAPass.watch.sessions >= 1, JSON.stringify(healthAfterAPass.watch));
+  });
+
+  after(() => {
+    remove(reading, unread);
+  });
+});
+
 const WATCH_OUTLIVES = "Crossbill";
 
 // A chat that has been stopped has stopped reading its room.

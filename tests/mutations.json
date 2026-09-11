@@ -1399,8 +1399,8 @@
     "edits": [
       {
         "file": "tools/chat/server.mjs",
-        "from": "  armTheWatch();\n  const watch = setInterval(() => {",
-        "to": "  const watch = setInterval(() => {"
+        "from": "  armTheWatch(every);\n  // AND SAID, HERE",
+        "to": "  // AND SAID, HERE"
       }
     ]
   },
@@ -1465,8 +1465,8 @@
     "edits": [
       {
         "file": "tools/chat/server.mjs",
-        "from": "  armTheWatch();\n  const watch = setInterval(() => {",
-        "to": "  if (instance.config.watchEverySeconds !== 0) {\n    armTheWatch();\n  }\n  const watch = setInterval(() => {"
+        "from": "  armTheWatch(every);\n  // AND SAID, HERE",
+        "to": "  if (instance.config.watchEverySeconds !== 0) {\n    armTheWatch(every);\n  }\n  // AND SAID, HERE"
       }
     ]
   },
@@ -2160,6 +2160,61 @@
         "file": "tools/ovai.mjs",
         "from": "  const wrongAttempts = parkAttemptsProblem(config[PARK_ATTEMPTS]);\n  if (wrongAttempts !== null) {\n    throw new UsageError(`${configIn(root)}: ${wrongAttempts}`);\n  }\n",
         "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the watch is armed and nothing is said",
+    "catches": "says on the terminal, at the moment of arming, how often the room is read",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  console.log(watchArmedLine(instance.config, every));\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a workspace that buys no turn is told the same as one that does",
+    "catches": "says that a workspace which buys no turn is still read, and that nothing is spent on it",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  if (!buysATurn(config)) {\n    return `${cadence}, and nothing is spent on it",
+        "to": "  if (false) {\n    return `${cadence}, and nothing is spent on it"
+      }
+    ]
+  },
+  {
+    "name": "the watch is left off /health",
+    "catches": "serves the watch's own record on /health, armed and not yet fired",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "      watch: watchSaid(theWatchRecord()),\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the cadence on the record is the constant and not the one armed",
+    "catches": "serves the watch's own record on /health, armed and not yet fired",
+    "edits": [
+      {
+        "file": "tools/chat/watch.mjs",
+        "from": "  record = { everySeconds: every / 1000, armedAt: Date.now(), at: null, sessions: 0, decided: 0, acted: 0 };",
+        "to": "  record = { everySeconds: EVERY / 1000, armedAt: Date.now(), at: null, sessions: 0, decided: 0, acted: 0 };"
+      }
+    ]
+  },
+  {
+    "name": "the moment of the last pass is served as it is kept",
+    "catches": "serves when the last pass finished, once one has",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    at: record.at === null ? null : new Date(record.at).toISOString(),",
+        "to": "    at: record.at,"
       }
     ]
   }

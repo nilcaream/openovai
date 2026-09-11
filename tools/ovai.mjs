@@ -504,7 +504,9 @@ async function chat(root) {
   ownSkills(root);
 
   // Read here rather than inside the server, and read once. Here because every line a person
-  // sees when a chat starts is composed in this file and the server prints nothing at all; once
+  // sees when a chat starts is composed in this file — all but one: the server says, itself, that
+  // it has armed its watch and how often the room is read, because that line is only true from
+  // the scope that armed it; once
   // because a module is imported once per process, so a directory read again later would show a
   // new file while going on serving the old code of a changed one. A plugin is picked up when the
   // chat is started, which is already the act that replaces everything else the chat is running.

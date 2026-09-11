@@ -243,8 +243,12 @@ let record = null;
 // keeps its own meaning: a chat that armed nothing, which is a workspace that asked for no watch
 // and a `serve()` that never got as far as arming, and those are told apart by the config rather
 // than by guessing here.
-export function armTheWatch() {
-  record = { armedAt: Date.now(), at: null, sessions: 0, decided: 0, acted: 0 };
+//
+// AND IT KEEPS THE CADENCE IT WAS ARMED WITH, in seconds, because a reader judging "older than
+// about two cadences" needs the cadence beside the timestamps, and the one that is true is the one
+// the timer was armed with — not a second reading of the config by whoever answers the question.
+export function armTheWatch(every) {
+  record = { everySeconds: every / 1000, armedAt: Date.now(), at: null, sessions: 0, decided: 0, acted: 0 };
 }
 
 // A pass finished. `sessions` is how many it read, `decided` how many of them it found something
