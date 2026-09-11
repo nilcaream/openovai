@@ -1,12 +1,11 @@
 // The account hold: the record that the account is at its stop line, and what was done about it.
 //
-// A FILE, beside the address the chat leaves behind, for the reason `offline.mjs` gives when it
-// argues the other way about the room being off: the word an update leaves behind is a file,
-// because an update is precisely the thing that stops the chat. An account hold is that kind more
-// plainly than the room being off is — an update does not refill the account. Held in memory, a
-// restart in the middle of a quota cut would forget it, and the next pass would read a room with
-// no readings left and no record of why, and park it a second time on the account that is
-// stopping. Nothing here is a second record of a fact the tree already holds: the readings say
+// A FILE, beside the address the chat leaves behind, for the reason `offline.mjs` gives for the
+// room being off: a fact the next chat has to act on is written where the next chat reads it,
+// because a restart — and an update is one — is precisely the thing that empties the process. Held
+// in memory, a restart in the middle of a quota cut would forget it, and the next pass would read a
+// room with no readings left and no record of why, and park it a second time on the account that
+// is stopping. Nothing here is a second record of a fact the tree already holds: the readings say
 // where the account stood, and this says what was decided on them, which the readings cannot say
 // because parking destroys them.
 //

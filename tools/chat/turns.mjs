@@ -151,8 +151,13 @@ export function callsUnderway() {
 // addressee's. It belongs to the room, it was set by the person reading it, and the press that
 // clears it runs nothing and reaches nobody — so there is no session that has to be reachable for
 // the room to come back.
-export function inTurn(name, answer) {
-  if (offline()) {
+//
+// TOLD WHERE THE ROOM IS, on every call. The word is read off the workspace, and a gate that
+// answered "not off" because nobody told it which workspace to ask would be a silent default on the
+// one question the room must never guess at — so there is no root remembered here from whoever
+// served the chat, and no call that can leave it out.
+export function inTurn(root, name, answer) {
+  if (offline(root)) {
     return Promise.resolve(OFFLINE);
   }
 

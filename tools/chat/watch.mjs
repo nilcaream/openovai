@@ -33,10 +33,12 @@
 // a second record of a fact the tree already holds, and it would be the record that goes wrong —
 // held across an act that never happened, it is the "handled" that handled nothing.
 //
-// IN MEMORY AND NOT IN A FILE, for offline.mjs's reason. What a session has not been told yet is
-// held in the process, because a chat stopped and started again has told nobody anything — so
-// saying it once more after a restart is correct rather than a duplicate. Nothing here survives the
-// chat, and there is nothing to clean up when it goes.
+// IN MEMORY AND NOT IN A FILE. What has been said is a fact about THIS chat: a chat stopped and
+// started again has told nobody anything, so saying a crossing once more after a restart is correct
+// rather than a duplicate, and a file that carried "said" across the restart would be the record
+// that silenced it. Nothing here survives the chat, and there is nothing to clean up when it goes.
+// The room being off is the other kind — a word a person left for the NEXT chat to read — and it is
+// a file for exactly that reason.
 
 import { bandIn } from "./session.mjs";
 

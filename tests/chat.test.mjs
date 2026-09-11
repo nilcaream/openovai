@@ -9569,6 +9569,12 @@ describe("the room can be taken off and brought back", () => {
     assert.ok(rows.length > 0, "there were no rows, so this proved nothing");
     assert.deepEqual(rows.filter((row) => "offline" in row), []);
   });
+
+  // Brought back whatever happened above. The room being off now outlives the chat, so a describe
+  // that fell over with the room off would turn away every check after it, in this run and the next.
+  after(async () => {
+    await post(`${URL}/online`, {});
+  });
 });
 
 // Feature 13, slice 2: the gate, which is the whole feature.
@@ -9718,6 +9724,12 @@ describe("nothing is run for anybody while the room is off", () => {
     assert.equal(JSON.parse(backAgain.body).reply.text, "a reply");
     assert.ok(ranAfterwards > ranWhileOff, "nothing ran once the room was back on");
   });
+
+  // Brought back whatever happened above. The room being off now outlives the chat, so a describe
+  // that fell over with the room off would turn away every check after it, in this run and the next.
+  after(async () => {
+    await post(`${URL}/online`, {});
+  });
 });
 
 // The other half of the gate, and the half a count cannot see: it is asked BEFORE the queue.
@@ -9772,6 +9784,12 @@ describe("a message refused because the room is off does not wait behind the tur
     assert.equal(JSON.parse(refused.body).offline, true);
     assert.equal(slowTurn.status, 200);
     assert.equal(JSON.parse(slowTurn.body).reply.text, "a reply");
+  });
+
+  // Brought back whatever happened above. The room being off now outlives the chat, so a describe
+  // that fell over with the room off would turn away every check after it, in this run and the next.
+  after(async () => {
+    await post(`${URL}/online`, {});
   });
 });
 
@@ -9877,6 +9895,143 @@ describe("the room says it is off", () => {
     assert.match(theRoom, /Go offline/);
     assert.match(theRoom, /"\/online"/);
     assert.match(theRoom, /"\/offline"/);
+  });
+
+  // Brought back whatever happened above. The room being off now outlives the chat, so a describe
+  // that fell over with the room off would turn away every check after it, in this run and the next.
+  after(async () => {
+    await post(`${URL}/online`, {});
+  });
+});
+
+// The word a person left outlives the chat it was left in.
+//
+// A room that is off is a file, `chat/offline`, beside the hold — and this is the check that says
+// why it has to be. A restarted chat used to come back on, and the first pass of its watch would
+// end whatever had gone cold in a room somebody had deliberately stopped. So the restart is real
+// here: the chat is stopped and started again as a child, the way the stale-server repair does it,
+// and the room is asked afterwards. The in-process half stages the one thing a restart would
+// otherwise pay for — a cold conversation — and reads what the first pass did about it.
+//
+// The positive half is asserted as well: the same cold conversation IS ended once the room is back
+// on. Without it "ended nobody" would be satisfied by a pass that ends nobody ever.
+const OFF_ACROSS_A_RESTART = "Peregrine";
+const COLD_WHILE_OFF = "Goshawk";
+
+describe("a room taken off stays off across a restart", () => {
+  const restartLog = path.join(standIn, "offline-restart.txt");
+  const restarted = `${instance}-off-restart`;
+  let chatBefore;
+  let chatWhileOff;
+  let chatBeforeThePressBack;
+  let chatAfter;
+  let afterRestart;
+  let refusedAfterRestart;
+  let wordLeft;
+  let ranAgain;
+  let firstPass;
+  let threadKeptWhileOff;
+  let secondPass;
+  let threadKeptOnceOn;
+
+  before(async () => {
+    runTool(instance, ["hire", OFF_ACROSS_A_RESTART], process.env);
+    await start(instance, standInEnvironment(standIn, restartLog));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    // The directory listing either side of the press, so the check below is about what the press
+    // left behind and not about what else happens to live there.
+    chatBefore = fs.readdirSync(path.join(instance, "chat")).sort();
+    await post(`${URL}/offline`, {});
+    chatWhileOff = fs.readdirSync(path.join(instance, "chat")).sort();
+
+    // The restart. A new process, so whatever the old one held in memory is gone with it.
+    await start(instance, standInEnvironment(standIn, restartLog));
+    assert.ok(await waitForHealth(URL), "the restarted server never answered");
+    afterRestart = JSON.parse((await get(`${URL}/sessions`)).body).offline;
+    refusedAfterRestart = await say("this arrives after the restart", OFF_ACROSS_A_RESTART);
+
+    // The listing either side of the press back, taken again: the refusal above opened a panel of
+    // its own, so what the press removed is read against the moment before it and not the start.
+    chatBeforeThePressBack = fs.readdirSync(path.join(instance, "chat")).sort();
+    await post(`${URL}/online`, {});
+    wordLeft = fs.existsSync(path.join(instance, "chat", "offline"));
+    chatAfter = fs.readdirSync(path.join(instance, "chat")).sort();
+    ranAgain = await say("and now?", OFF_ACROSS_A_RESTART);
+
+    // The pass, on a workspace of its own so the cold conversation staged here is nobody else's.
+    // Taken off through the chat that served it, that chat closed, and the next one asked to read
+    // the room — which is the moment the old shape ended a conversation in a room somebody stopped.
+    installed(options(restarted, 0));
+    runTool(restarted, ["hire", COLD_WHILE_OFF], process.env);
+    const held = JSON.parse(fs.readFileSync(path.join(restarted, "openovai.json"), "utf8"));
+    const served = { root: restarted, config: held, plugins: [], pop: null };
+    const thread = path.join(restarted, "chat", COLD_WHILE_OFF, "session.json");
+    stageThread(restarted, COLD_WHILE_OFF, {});
+    age(thread, 61);
+
+    const first = await serve(served);
+    await post(`http://127.0.0.1:${first.address().port}/offline`, {});
+    await new Promise((resolve) => first.close(resolve));
+
+    const second = await serve(served);
+    await readTheRoom(served);
+    firstPass = theWatchRecord();
+    threadKeptWhileOff = fs.existsSync(thread);
+
+    await post(`http://127.0.0.1:${second.address().port}/online`, {});
+    await readTheRoom(served);
+    secondPass = theWatchRecord();
+    threadKeptOnceOn = fs.existsSync(thread);
+    await new Promise((resolve) => second.close(resolve));
+  });
+
+  // The fixture ends what it started, and on both workspaces: the shared one is everybody's, and
+  // the word now outlives the chat, so a room left off here would turn away every check after it.
+  after(async () => {
+    await post(`${URL}/online`, {});
+    remove(restarted);
+  });
+
+  // Mutation: keep the room's state in the process, or never read it as off at all. The chat that
+  // was taken off is gone; the one answering here was never pressed.
+  it("says it is off after the chat it was taken off in has been restarted", () => {
+    assert.equal(afterRestart, true);
+  });
+
+  it("turns a message away after the restart, for the room being off", () => {
+    assert.equal(refusedAfterRestart.status, 503);
+    assert.equal(JSON.parse(refusedAfterRestart.body).offline, true);
+  });
+
+  // Mutation: end the cold conversation without asking the queue. The record says the pass ran and
+  // found something to decide, and the conversation is exactly where it was.
+  it("ends nobody on the first pass of a restarted chat while the room is off", () => {
+    assert.ok(firstPass !== null && firstPass.at !== null, "the pass never ran");
+    assert.equal(firstPass.decided, 1, JSON.stringify(firstPass));
+    assert.equal(firstPass.acted, 0, JSON.stringify(firstPass));
+    assert.equal(threadKeptWhileOff, true, "a conversation was ended in a room that is off");
+  });
+
+  // The other half, without which the one above would pass on a pass that never ends anybody.
+  it("ends that same conversation once the room is brought back", () => {
+    assert.ok(secondPass !== null && secondPass.at !== null, "the second pass never ran");
+    assert.equal(secondPass.acted, 1, JSON.stringify(secondPass));
+    assert.equal(threadKeptOnceOn, false, "the cold conversation was not ended once the room was on");
+  });
+
+  // The word is one file with one name, and the press leaves nothing else behind.
+  it("leaves one word behind, beside the hold, and nothing else", () => {
+    assert.deepEqual(chatWhileOff, [...chatBefore, "offline"].sort());
+  });
+
+  // Mutation: bring the room back and leave the word on disk. The press answers as if it had, and
+  // the next chat reads the word and refuses everybody.
+  it("takes the word away when the room is brought back, and runs again", () => {
+    assert.equal(wordLeft, false, "the word was left behind");
+    assert.deepEqual(chatAfter, chatBeforeThePressBack.filter((entry) => entry !== "offline"));
+    assert.equal(ranAgain.status, 200);
+    assert.equal(JSON.parse(ranAgain.body).reply.text, "a reply");
   });
 });
 
@@ -12913,7 +13068,7 @@ describe("what a pass does about a conversation nobody carried on", () => {
     // message arriving a moment before the pass would have done — and because opening it with a
     // message would need a run, which is the one thing this describe is asserting does not happen.
     let letGo;
-    const holding = inTurn(HELD_OPEN, () => new Promise((resolve) => {
+    const holding = inTurn(ending, HELD_OPEN, () => new Promise((resolve) => {
       letGo = resolve;
     }));
 
@@ -13539,7 +13694,7 @@ describe("what a pass does about where the account stands", () => {
       // And one with a turn going on it, held from here, so that the park the pass queues behind it
       // runs only when this lets it — after the seat has stopped being worth parking.
       let letGo;
-      const holding = inTurn(PARK_ABANDONED, () => new Promise((resolve) => {
+      const holding = inTurn(parking, PARK_ABANDONED, () => new Promise((resolve) => {
         letGo = resolve;
       }));
 
@@ -13938,7 +14093,7 @@ describe("what a pass does about where the account stands", () => {
       // The seat whose park is to be refused has a turn held on it, so the park queues behind it
       // and the refusal can be put in place while it waits.
       let letGo;
-      const waiting = inTurn(HOLD_REFUSED, () => new Promise((resolve) => {
+      const waiting = inTurn(holding, HOLD_REFUSED, () => new Promise((resolve) => {
         letGo = resolve;
       }));
 
@@ -14144,7 +14299,7 @@ describe("what a pass does about where the account stands", () => {
       stageHold(ending, { resetsAt: Math.floor(Date.now() / 1000) + 3 * 60 * 60, parking: true });
 
       let letGo;
-      const holding = inTurn(HELD_PAST_THE_LIFT, () => new Promise((resolve) => {
+      const holding = inTurn(ending, HELD_PAST_THE_LIFT, () => new Promise((resolve) => {
         letGo = resolve;
       }));
 
@@ -14718,7 +14873,7 @@ describe("what a pass does about a conversation about to lose its cache", () => 
       // chance to have done that: the turn is let go only after the pass has reported, and the seat
       // is read afterwards.
       let letGo;
-      const holding = inTurn(NEARLY_COLD_MID_TURN, () => new Promise((resolve) => {
+      const holding = inTurn(expiring, NEARLY_COLD_MID_TURN, () => new Promise((resolve) => {
         letGo = resolve;
       }));
 
@@ -14989,7 +15144,7 @@ describe("what a pass does about a conversation that has grown into a strong ban
       // queued a park behind it would run that park the moment this lets go — so the turn is let
       // go only after the pass has reported, and the seat is read afterwards.
       let letGo;
-      const holding = inTurn(GROWN_MID_TURN, () => new Promise((resolve) => {
+      const holding = inTurn(grown, GROWN_MID_TURN, () => new Promise((resolve) => {
         letGo = resolve;
       }));
 

@@ -945,7 +945,7 @@ async function deliver(instance, name, text, signed, shown = null) {
   // begins rather than when it arrived. A transcript then reads question, answer, question, answer,
   // instead of two questions followed by two answers nobody can pair up.
   const answered = await whileWaitingFor(sender?.name ?? null, name, () =>
-    inTurn(name, async () => {
+    inTurn(instance.root, name, async () => {
       // Whether this session is still here, asked again where the turn begins. The route said so
       // when the message arrived, and a message that was waiting behind a leave arrived while it
       // still was. Answering it now would start a thread and a panel for somebody who has gone,
@@ -1385,7 +1385,7 @@ function theRoom(instance) {
   // is doing is the reader most likely to be told nothing back — it is the session whose next
   // message will be turned away — so a tool that left this out would be the one place the silence
   // had no explanation.
-  return { text: roomLines(rows, offline(), holdSaid(holdIn(instance.root))).join("\n") };
+  return { text: roomLines(rows, offline(instance.root), holdSaid(holdIn(instance.root))).join("\n") };
 }
 
 // Who works here, which is the half of `ovai status` a session can act on: the names it can say
@@ -1593,7 +1593,7 @@ async function postTool(instance, caller, request, response) {
 // The press passes nothing, because a person pressing a button IS the condition and there is
 // nothing to re-read.
 export async function handOver(instance, name, askedLine, stillHolds = null) {
-  return inTurn(name, async () => {
+  return inTurn(instance.root, name, async () => {
     if (stillHolds !== null && !stillHolds()) {
       return { abandoned: true };
     }
@@ -1751,7 +1751,7 @@ async function putAway(instance, name, asker) {
     return { turnedAway: `nobody called ${name} works here` };
   }
 
-  const done = await inTurn(name, async () => {
+  const done = await inTurn(instance.root, name, async () => {
     const asked = append(instance.root, name, {
       from: THE_CHAT,
       text: leavingAsked(asker, name),
@@ -2206,7 +2206,7 @@ async function handle(instance, request, response) {
       // the room, and a copy of it on every row is N places to disagree — the same reason the
       // fullness of a window is said per row, where it genuinely is one reading per session, and
       // this is not.
-      offline: offline(),
+      offline: offline(instance.root),
       // And whether the account is stopping, for the same reason and in the same place: the facts
       // the hold was decided on, worded by whoever lays the room out, so that the page and the
       // terminal say it in their own copy of one sentence the way they already do for `offline`.
@@ -2234,13 +2234,13 @@ async function handle(instance, request, response) {
   //
   // Instance-level, so not on the session routes: it is the room that is off, not a person.
   if (request.method === "POST" && url.pathname === "/offline") {
-    goOffline();
+    goOffline(instance.root);
     sendJson(response, 200, { offline: true });
     return;
   }
 
   if (request.method === "POST" && url.pathname === "/online") {
-    goOnline();
+    goOnline(instance.root);
     sendJson(response, 200, { offline: false });
     return;
   }
@@ -2863,7 +2863,7 @@ async function walkTheRoom(instance) {
     // That is accepted rather than worked around: `inTurn` is the one place the question "may
     // anything happen right now" is asked, and a free condition that acted anyway would be a second
     // answer to it. The conversation is still cold next pass.
-    const ended = await inTurn(session.name, () => {
+    const ended = await inTurn(instance.root, session.name, () => {
       if (!hasGoneCold(instance.root, session.name)) {
         return false;
       }

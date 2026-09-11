@@ -1938,8 +1938,8 @@
     "edits": [
       {
         "file": "tools/chat/server.mjs",
-        "from": "  return { text: roomLines(rows, offline(), holdSaid(holdIn(instance.root))).join(\"\\n\") };",
-        "to": "  return { text: roomLines(rows, offline()).join(\"\\n\") };"
+        "from": "  return { text: roomLines(rows, offline(instance.root), holdSaid(holdIn(instance.root))).join(\"\\n\") };",
+        "to": "  return { text: roomLines(rows, offline(instance.root)).join(\"\\n\") };"
       }
     ]
   },
@@ -2938,6 +2938,71 @@
         "file": "README.md",
         "from": "Above the box of every panel, one line says what the next message typed there will do: carry this\nconversation on, or start a new one from the desk — because there is nothing to carry on, or because\nthis one went cold. A conversation in its last warm minutes is said to be carried on and to lose its\ncache at the hour, which is a fact and not a promise either way. A turn already going is carried on\nwhatever the clock says, since a turn ends warm however long it took. The size stays on the panel's\nheading and is not said again on that line.\n",
         "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the room being off is kept in the process and never written down",
+    "catches": "says it is off after the chat it was taken off in has been restarted",
+    "edits": [
+      {
+        "file": "tools/chat/offline.mjs",
+        "from": "export function offline(root) {\n  return fs.existsSync(file(root));\n}",
+        "to": "let off = false;\n\nexport function offline(root) {\n  return off || fs.existsSync(file(root));\n}"
+      },
+      {
+        "file": "tools/chat/offline.mjs",
+        "from": "  fs.mkdirSync(path.dirname(file(root)), { recursive: true });\n  fs.writeFileSync(file(root), \"\");\n",
+        "to": "  off = true;\n"
+      },
+      {
+        "file": "tools/chat/offline.mjs",
+        "from": "  fs.rmSync(file(root), { force: true });\n",
+        "to": "  off = false;\n  fs.rmSync(file(root), { force: true });\n"
+      }
+    ]
+  },
+  {
+    "name": "the room never reads as off",
+    "catches": "says it is off after the chat it was taken off in has been restarted",
+    "edits": [
+      {
+        "file": "tools/chat/offline.mjs",
+        "from": "  return fs.existsSync(file(root));",
+        "to": "  return false;"
+      }
+    ]
+  },
+  {
+    "name": "bringing the room back leaves the word on disk",
+    "catches": "takes the word away when the room is brought back, and runs again",
+    "edits": [
+      {
+        "file": "tools/chat/offline.mjs",
+        "from": "  fs.rmSync(file(root), { force: true });\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the queue never asks whether the room is off",
+    "catches": "runs nothing, whichever way in was tried",
+    "edits": [
+      {
+        "file": "tools/chat/turns.mjs",
+        "from": "  if (offline(root)) {\n    return Promise.resolve(OFFLINE);\n  }",
+        "to": "  if (false) {\n    return Promise.resolve(OFFLINE);\n  }"
+      }
+    ]
+  },
+  {
+    "name": "the pass ends a cold conversation without asking the queue",
+    "catches": "ends nobody on the first pass of a restarted chat while the room is off",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    const ended = await inTurn(instance.root, session.name, () => {\n      if (!hasGoneCold(instance.root, session.name)) {\n        return false;\n      }\n      forget(instance.root, session.name);\n      append(instance.root, session.name, { from: THE_CHAT, text: coldLine(session.name), cold: true });\n      return true;\n    });",
+        "to": "    forget(instance.root, session.name);\n    append(instance.root, session.name, { from: THE_CHAT, text: coldLine(session.name), cold: true });\n    const ended = true;"
       }
     ]
   }

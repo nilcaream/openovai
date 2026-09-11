@@ -6,6 +6,13 @@ carries only its own.
 
 ## 0.7.0
 
+**A room taken off stays off after the chat restarts.** The switch used to live in the running chat
+and go with it, which was right when the only thing that could start a run was a message; the room
+watch can start one now, on its own clock, and a chat restarted for an update came back on and its
+first pass parked and ended whatever it found in a room you had stopped. The word is a file beside
+the hold now, `chat/offline`, and a restarted chat reads it: the room says it is off, a message is
+turned away, and the first pass ends nobody. Bringing the room back removes it, as before.
+
 **The personas now say what the chat does by itself.** A lead hired on the previous version was
 told that handing a conversation over was yours to press, that the room watch did three things and
 that a crossing into a strong band was said once and left alone — while the chat had begun parking

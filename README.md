@@ -1115,10 +1115,12 @@ lead, which is the reader most likely to be turned away next:
 Whether the room will start anything is a fact about the room. It is not a state any of those
 sessions is in, and the same word on every row would read as one.
 
-The switch lives in the running chat and nowhere else, for the same reason the queue does: nothing
-about taking the room off stops the chat, and a chat that is not running starts nothing to gate.
-There is no file to leave behind and disagree with, and so no way for a room to be confidently
-wrong about whether it was off.
+The switch is a file, `chat/offline`, beside the hold — empty, and there or not. It is the only
+record: nothing keeps a copy in memory, every question is put to the disk, and only the two presses
+write it. That is what lets the word outlive the chat it was said in. The chat's own watch is armed
+the moment a chat comes up and its first pass ends and parks whatever it finds, so a room taken off
+and then restarted — taking a newer version restarts it — would otherwise come back on and act, in
+a room somebody had deliberately stopped. It stays off until it is brought back.
 
 There is no `ovai offline`. Taking the room off is a person's decision about the whole instance, and
 it stays on the page, beside the button that brings it back.
