@@ -431,7 +431,15 @@
     const waitingLine = document.createElement("p");
     waitingLine.append(whoIsWaiting, showThem);
 
-    section.append(heading, transcript, asking, waitingLine, composer);
+    // What the next message typed into the box will do, in the one respect nothing on this panel
+    // says: carry this conversation on, or start a new one from the desk. The token count is on
+    // the heading of this same panel and is not said again here — one fact, one place. ALWAYS in
+    // the document and always with text, for the line above's reason: a line that appears moves
+    // the box out from under a moving cursor, and every state below yields a sentence, so this
+    // one never collapses and needs no trick to hold its space.
+    const nextTurnLine = document.createElement("p");
+
+    section.append(heading, transcript, asking, waitingLine, nextTurnLine, composer);
 
     // How many rows this panel has put on the screen. The transcript is append-only, so the
     // count is the whole of what a panel needs to know to tell a redraw worth doing from one that
@@ -682,7 +690,35 @@
         typeof tokens === "number" ? ` — ${tokens.toLocaleString("en-US")} tokens after its last turn` : "";
     }
 
-    return { name: session.name, section, show, waiting, busy, carrying };
+    // From the row, first match wins. BUSY BEFORE COLD, which is the one place this page reads a
+    // row in a different order from state(): a running session's clock is stale for the whole of
+    // its turn — its last-ran moment is written after the answer — so a turn that has been going
+    // longer than the hour still ends warm, and a line that read cold first would tell somebody
+    // typing that the turn behind theirs is about to be thrown away while it is being written.
+    // A fact on every branch and a verdict on none: the last-warm-minutes line says the cache is
+    // about to go, not that the pass will park it first or that it will not. No token count, no
+    // share, no colour — the row's own rule, kept here too.
+    function nextTurnSaid(row) {
+      if (row?.busy === true) {
+        return "The next turn queues behind the one going, and carries this conversation on.";
+      }
+      if (row?.thread !== true) {
+        return "The next turn starts a new conversation from the desk — nothing to carry on.";
+      }
+      if (row.cold === true) {
+        return "The next turn starts a new conversation from the desk — this one went cold.";
+      }
+      if (row.expiring === true) {
+        return `The next turn carries this conversation on — ${idleSaid(row.ran)}, and it loses its cache at the hour.`;
+      }
+      return "The next turn carries this conversation on.";
+    }
+
+    function nextTurn(row) {
+      nextTurnLine.textContent = nextTurnSaid(row);
+    }
+
+    return { name: session.name, section, show, waiting, busy, carrying, nextTurn };
   }
 
   const built = sessions.map(panel);
@@ -690,7 +726,9 @@
   showTheRoom(atLoad);
   await Promise.all(built.map(({ show }) => show()));
   for (const panel of built) {
-    panel.carrying(sessions.find((session) => session.name === panel.name)?.context);
+    const row = sessions.find((session) => session.name === panel.name);
+    panel.carrying(row?.context);
+    panel.nextTurn(row);
   }
 
   // Once a second, which is often enough that answering does not feel like waiting and seldom
@@ -717,6 +755,7 @@
       // On the same tick, because it changes for the same reason the busy sign does: a turn ended,
       // and this page need not have been the one that started it.
       panel.carrying(row?.context);
+      panel.nextTurn(row);
     }
   }
 

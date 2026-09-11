@@ -2726,5 +2726,104 @@
         "to": "**A crossing is said, once, and nothing is done about it.** The chat holds in\nmemory the band each conversation was last seen in, and acts on a session only when"
       }
     ]
+  },
+  {
+    "name": "the row says the cold reading where it should say the last warm minutes",
+    "catches": "carries the reading the pass parks on, true in the last warm minutes and never beside cold",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    expiring: hasNearlyGoneCold(instance.root, session.name),\n",
+        "to": "    expiring: hasGoneCold(instance.root, session.name),\n"
+      }
+    ]
+  },
+  {
+    "name": "the row leaves the last warm minutes out",
+    "catches": "carries the reading the pass parks on, true in the last warm minutes and never beside cold",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    expiring: hasNearlyGoneCold(instance.root, session.name),\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the row says nobody is ever in the last warm minutes",
+    "catches": "carries the reading the pass parks on, true in the last warm minutes and never beside cold",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    expiring: hasNearlyGoneCold(instance.root, session.name),\n",
+        "to": "    expiring: false,\n"
+      }
+    ]
+  },
+  {
+    "name": "the row answers nothing about the last warm minutes of a session with no thread",
+    "catches": "is false, not nothing, for a session that has never run",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    expiring: hasNearlyGoneCold(instance.root, session.name),\n",
+        "to": "    expiring: hasThread(instance.root, session.name) ? hasNearlyGoneCold(instance.root, session.name) : null,\n"
+      }
+    ]
+  },
+  {
+    "name": "the page builds the next-turn line and never puts it in the document",
+    "catches": "keeps the line that says who is waiting in the document, held or not",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "    section.append(heading, transcript, asking, waitingLine, nextTurnLine, composer);\n",
+        "to": "    section.append(heading, transcript, asking, waitingLine, composer);\n"
+      }
+    ]
+  },
+  {
+    "name": "the page reads cold before busy on the next-turn line",
+    "catches": "says what the next turn carries from the row, reading busy before cold",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "      if (row?.busy === true) {\n        return \"The next turn queues behind the one going, and carries this conversation on.\";\n      }\n      if (row?.thread !== true) {\n        return \"The next turn starts a new conversation from the desk — nothing to carry on.\";\n      }\n      if (row.cold === true) {\n        return \"The next turn starts a new conversation from the desk — this one went cold.\";\n      }\n",
+        "to": "      if (row?.thread !== true) {\n        return \"The next turn starts a new conversation from the desk — nothing to carry on.\";\n      }\n      if (row.cold === true) {\n        return \"The next turn starts a new conversation from the desk — this one went cold.\";\n      }\n      if (row?.busy === true) {\n        return \"The next turn queues behind the one going, and carries this conversation on.\";\n      }\n"
+      }
+    ]
+  },
+  {
+    "name": "the page draws the next-turn line at load and never again",
+    "catches": "draws the next-turn line at load and on the same tick as the size",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "      panel.carrying(row?.context);\n      panel.nextTurn(row);\n",
+        "to": "      panel.carrying(row?.context);\n"
+      }
+    ]
+  },
+  {
+    "name": "the page says nothing above the box for a conversation that is simply carried on",
+    "catches": "has a sentence for the next turn in every state, so the line never collapses",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "      return \"The next turn carries this conversation on.\";\n",
+        "to": "      return \"\";\n"
+      }
+    ]
+  },
+  {
+    "name": "the README says nothing about the line above the box",
+    "catches": "says what the line above a panel's box tells the person typing, and that the size stays on the heading",
+    "edits": [
+      {
+        "file": "README.md",
+        "from": "Above the box of every panel, one line says what the next message typed there will do: carry this\nconversation on, or start a new one from the desk — because there is nothing to carry on, or because\nthis one went cold. A conversation in its last warm minutes is said to be carried on and to lose its\ncache at the hour, which is a fact and not a promise either way. A turn already going is carried on\nwhatever the clock says, since a turn ends warm however long it took. The size stays on the panel's\nheading and is not said again on that line.\n",
+        "to": ""
+      }
+    ]
   }
 ]

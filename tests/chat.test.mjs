@@ -4076,6 +4076,61 @@ describe("what the room says about a conversation that has gone cold", () => {
 });
 
 
+const EXPIRING_ON_THE_ROW = "Woodcock";
+const SHORT_OF_EXPIRING_ON_THE_ROW = "Crake";
+const PAST_THE_HOUR_ON_THE_ROW = "Rail";
+const NEVER_RAN_ON_THE_ROW = "Spoonbill";
+
+// The reading the pass parks on, said on the row as well, so that the line above a panel's box can
+// say the next turn carries the conversation on but the cache behind it is about to go. Staged the
+// way the reading's own describe stages it: one turn each for a thread with a clock, then aged to
+// the three ages the band is drawn between.
+describe("what the room says about a conversation in its last warm minutes", () => {
+  const log = path.join(standIn, "expiring-row.txt");
+  let rows;
+
+  before(async () => {
+    for (const name of [EXPIRING_ON_THE_ROW, SHORT_OF_EXPIRING_ON_THE_ROW, PAST_THE_HOUR_ON_THE_ROW, NEVER_RAN_ON_THE_ROW]) {
+      runTool(instance, ["hire", name], process.env);
+    }
+    await start(instance, standInEnvironment(standIn, log));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+    await say("something, so this one has a thread", EXPIRING_ON_THE_ROW);
+    await say("something, so this one has a thread too", SHORT_OF_EXPIRING_ON_THE_ROW);
+    await say("and this one, which is about to be left past the hour", PAST_THE_HOUR_ON_THE_ROW);
+    age(threadFile(EXPIRING_ON_THE_ROW), 51);
+    age(threadFile(SHORT_OF_EXPIRING_ON_THE_ROW), 45);
+    age(threadFile(PAST_THE_HOUR_ON_THE_ROW), 90);
+
+    const { sessions } = JSON.parse((await get(`${URL}/sessions`)).body);
+    rows = Object.fromEntries(sessions.map((row) => [row.name, row]));
+  });
+
+  // Mutation: serve the cold reading under this name, or nothing, or false. The row and the pass
+  // have to be reading the same band, or the line above the box describes a park that is not
+  // coming.
+  it("carries the reading the pass parks on, true in the last warm minutes and never beside cold", () => {
+    assert.equal(rows[EXPIRING_ON_THE_ROW]?.expiring, true, JSON.stringify(rows[EXPIRING_ON_THE_ROW]));
+    assert.equal(rows[EXPIRING_ON_THE_ROW]?.cold, false);
+  });
+
+  // Mutation: drop either edge. Short of the park line nothing is about to happen, and past the
+  // hour the cold word is the one that is true.
+  it("is false short of the park line, and false again past the hour, where cold takes over", () => {
+    assert.equal(rows[SHORT_OF_EXPIRING_ON_THE_ROW]?.expiring, false, JSON.stringify(rows[SHORT_OF_EXPIRING_ON_THE_ROW]));
+    assert.equal(rows[SHORT_OF_EXPIRING_ON_THE_ROW]?.cold, false);
+    assert.equal(rows[PAST_THE_HOUR_ON_THE_ROW]?.expiring, false, JSON.stringify(rows[PAST_THE_HOUR_ON_THE_ROW]));
+    assert.equal(rows[PAST_THE_HOUR_ON_THE_ROW]?.cold, true);
+  });
+
+  // Mutation: answer nothing for a session with no thread. A page reading the row tests the field
+  // against true, and a null would pass that — but a row is a set of facts, and "has no cache to
+  // lose" is false, not unknown.
+  it("is false, not nothing, for a session that has never run", () => {
+    assert.strictEqual(rows[NEVER_RAN_ON_THE_ROW]?.expiring, false, JSON.stringify(rows[NEVER_RAN_ON_THE_ROW]));
+  });
+});
+
 const REFUSED_ON_THE_ROW = "Wigeon";
 const LIFTED = "Gadwall";
 const NO_RESET_GIVEN = "Pintail";
@@ -8245,7 +8300,58 @@ describe("what the page does while somebody is writing on it", () => {
   // under a cursor that is half way through a sentence, which is the thing this whole feature is
   // for.
   it("keeps the line that says who is waiting in the document, held or not", () => {
-    assert.ok(page.includes("section.append(heading, transcript, asking, waitingLine, composer);"));
+    assert.ok(page.includes("section.append(heading, transcript, asking, waitingLine, nextTurnLine, composer);"));
+  });
+
+  // The function that says it, cut out by name, so that a page which reads the fields somewhere
+  // else — the room row reads three of them — cannot satisfy this. Busy is read BEFORE cold, which
+  // is the one place the page orders a row differently from state(): a running session's clock is
+  // stale for its whole turn, and a turn ends warm however long it took.
+  function theNextTurn() {
+    const from = page.indexOf("function nextTurnSaid(row)");
+    const to = page.indexOf("function nextTurn(row)", from);
+    assert.ok(from > 0 && to > from, "the page has no next-turn line to read");
+    return page.slice(from, to);
+  }
+
+  it("says what the next turn carries from the row, reading busy before cold", () => {
+    const said = theNextTurn();
+    const busy = said.search(/row\?\.busy === true/);
+    const thread = said.search(/row\?\.thread !== true/);
+    const cold = said.search(/row\.cold === true/);
+    const expiring = said.search(/row\.expiring === true/);
+    assert.ok(busy !== -1 && thread !== -1 && cold !== -1 && expiring !== -1, said);
+    assert.ok(busy < thread && thread < cold && cold < expiring, `busy ${busy}, thread ${thread}, cold ${cold}, expiring ${expiring}`);
+    assert.match(said, /carries this conversation on/);
+    assert.match(said, /starts a new conversation from the desk/);
+    assert.match(said, /loses its cache at the hour/);
+    // And no second copy of the size: the heading carries the count, and this line says only which
+    // of the two the next turn is.
+    assert.doesNotMatch(said, /toLocaleString|tokens|shareSaid/);
+  });
+
+  // Mutation: build the sentence and never put it on the page, or put it there once at load and
+  // never again. It changes for the same reason the size does — a turn ended, and this page need
+  // not have started it — so it is drawn at load and on every tick beside it.
+  it("draws the next-turn line at load and on the same tick as the size", () => {
+    const look = page.slice(page.indexOf("async function look()"), page.indexOf("setInterval("));
+    assert.ok(look.includes("panel.carrying(row?.context);") && look.includes("panel.nextTurn(row);"), look);
+    const load = page.slice(page.indexOf("const built = sessions.map(panel);"), page.indexOf("const EVERY = 1000;"));
+    assert.ok(load.includes("panel.nextTurn(row);"), load);
+    assert.ok(page.includes("nextTurnLine.textContent = nextTurnSaid(row);"), "the sentence is built and never put on the line");
+  });
+
+  // Mutation: return nothing for a state. The line is always in the document so that it never
+  // moves the box; an empty line collapses and moves it anyway, which is the failure the waiting
+  // line above it already paid for.
+  it("has a sentence for the next turn in every state, so the line never collapses", () => {
+    const said = theNextTurn();
+    const returns = said.match(/return [^;]*;/g) ?? [];
+    assert.equal(returns.length, 5, said);
+    for (const one of returns) {
+      assert.match(one, /^return (`|")The next turn /, one);
+    }
+    assert.doesNotMatch(said, /return ""|return null|return undefined/);
   });
 
   it("says how many are waiting and who from", () => {
@@ -8725,6 +8831,13 @@ describe("what the README says about the room watch", () => {
   // adds a field has to say so there, or the one workspace that wrote `0` finds out from a park it
   // did not expect. The release page is cut from these notes by section, so the whole file is read
   // — a note, once written, stays.
+  // And the line above the box, which is the reader's own copy of the readings the pass acts on.
+  it("says what the line above a panel's box tells the person typing, and that the size stays on the heading", () => {
+    const readme = fs.readFileSync(path.join(repo, "README.md"), "utf8");
+    assert.match(readme, /one line says what the next message typed there will\s+do/);
+    assert.match(readme, /The size stays on the panel's\s+heading/);
+  });
+
   it("tells the lead taking the version about the hold, and about both fields", () => {
     const notes = fs.readFileSync(path.join(repo, "NOTES.md"), "utf8");
     assert.match(notes, /hands each conversation over to its desk itself/);

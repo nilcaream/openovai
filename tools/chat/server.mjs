@@ -2156,6 +2156,12 @@ function everySession(instance, session) {
     // when the panel last moved, and whether the conversation behind it survives — and on the lead
     // they routinely disagree, which is the whole reason this exists.
     cold: hasGoneCold(instance.root, session.name),
+    // And whether it is in its last warm minutes: the same reading the pass parks on, said at a
+    // second distance so that the line above a panel's box can say the next turn still carries the
+    // conversation on but the cache behind it is about to go. Never true together with `cold` —
+    // the reading is a band with two edges, past the park line and up to the hour, and the cold
+    // one begins where it ends — so a page reading both has one word to say, never two.
+    expiring: hasNearlyGoneCold(instance.root, session.name),
     // When anything last happened on its panel. A fact and not a verdict — nothing here knows
     // whether a quiet session is finished, stuck or merely quiet, and the person reading does.
     active: lastAt(instance.root, session.name),

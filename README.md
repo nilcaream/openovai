@@ -724,6 +724,13 @@ continuous with a conversation it remembers having.
 A session that has no thread is never cold. There is nothing to carry on, so nothing that carrying
 it on could cost, and a thread that was never there must not be ended nor a restart announced.
 
+Above the box of every panel, one line says what the next message typed there will do: carry this
+conversation on, or start a new one from the desk — because there is nothing to carry on, or because
+this one went cold. A conversation in its last warm minutes is said to be carried on and to lose its
+cache at the hour, which is a fact and not a promise either way. A turn already going is carried on
+whatever the clock says, since a turn ends warm however long it took. The size stays on the panel's
+heading and is not said again on that line.
+
 ### Hiring somebody, and a session leaving
 
 Above the panels there is a name box and **Hire**. It writes what `ovai hire` writes — the desk, the
