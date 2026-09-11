@@ -1027,12 +1027,18 @@ nothing running on it, never one sitting on a permission prompt, and the seat's 
 again inside the turn: if it was spoken to while the park waited its turn, nothing happens. A
 workspace with `watchEverySeconds: 0` is not asked for this turn either.
 
-**A crossing is said, once, and nothing is done about it.** The chat holds in memory the band each
-conversation was last seen in, and says a session only when that band has changed into nine tenths
-of its window, or into ninety-five per cent. A conversation sitting at ninety per cent for two hours
-is said once. Handing it over is still the person's to press, on that panel, and the line says so:
-being big is a reading, and the one thing here that ends a conversation for its size is still the
-person.
+**A crossing is said, once, and the seat is handed over for it when it can be.** The chat holds in
+memory the band each conversation was last seen in, and acts on a session only when that band has
+changed into nine tenths of its window, or into ninety-five per cent. On that crossing the pass asks
+the seat to hand over itself — the same turn as the park above, for a different reason: a
+conversation that far into its window is a few turns from losing whatever its desk does not say, and
+a fresh conversation that reads the desk is cheaper to carry than this one — when the workspace buys
+a turn and nothing is running on that seat. Otherwise the crossing is told: the line says the share
+and why nothing was done about it — a turn going on it, no turn bought here, a permission prompt, the
+account turning the park away — and that handing it over is the person's to press. Once per band
+either way: a conversation told at ninety per cent is not asked again until it reaches ninety-five,
+or idles into the park above. A retry would need a second record beside the one that says what was
+said, and the two could disagree.
 
 **The hold is said above the room while it lasts** — on the page, in `ovai room`, and to the lead —
 as what it does and nothing else: parking, or carried through inside the hour, or nobody handed over

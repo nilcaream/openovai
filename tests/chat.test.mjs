@@ -8703,6 +8703,17 @@ describe("what the README says about the room watch", () => {
     assert.match(section, /`watchEverySeconds: 0` is not asked for this turn/);
   });
 
+  // And the fourth thing is done about, now: the crossing is where the seat is handed over for its
+  // size, once per band, and the paragraph may no longer say that nothing follows it.
+  it("says a crossing hands the seat over when it can be, once per band, and no longer that nothing is done", () => {
+    assert.match(section, /A crossing is said, once, and the seat is handed over for it when it can\s+be/);
+    assert.match(section, /Once per band\s+either way/);
+    assert.doesNotMatch(section, /and nothing is done about it/);
+    const notes = fs.readFileSync(path.join(repo, "NOTES.md"), "utf8");
+    assert.match(notes, /is now\s+acted on as well as said/);
+    assert.doesNotMatch(notes, /and nothing is done about it/);
+  });
+
   it("no longer says the watch buys the lead a turn, ends nothing, or is absent at 0", () => {
     assert.doesNotMatch(section, /gives the lead\s+one/);
     assert.doesNotMatch(section, /no conversation\s+has been ended by this/);
@@ -11510,6 +11521,7 @@ describe("what the lead is told about a conversation that has grown big", () => 
   it("says the chat parks a conversation itself, and asks the lead to press nothing", () => {
     assert.match(sizeBlock(toldWhenBig), /the chat parks a conversation itself/);
     assert.match(sizeBlock(toldWhenBig), /about to lose its cache/);
+    assert.match(sizeBlock(toldWhenBig), /grown into a strong band of its window/);
     assert.match(sizeBlock(toldWhenBig), /the account is nearly spent/);
     assert.match(sizeBlock(toldWhenBig), /still yours to say/);
     assert.doesNotMatch(sizeBlock(toldWhenBig), /to press/);
@@ -12501,6 +12513,9 @@ describe("the room watch, and what it says about the room", () => {
   let address;
   let saidNothingYet;
   let saidAgain;
+  let boughtForBig;
+  let askedOfBig;
+  let bigRow;
   let boughtNoTurn;
   let carriedOnTheNextTurn;
   let saidOfBig;
@@ -12594,14 +12609,22 @@ describe("the room watch, and what it says about the room", () => {
       }),
     );
     address = await waitForAddress(server);
+    // Counted from before the message, because the pass may read the crossing before the answer to
+    // it has reached here: two runs are what the crossing costs, the turn it was asked for and the
+    // handover the pass spends on it.
+    const runsBeforeBig = runs();
     await sayTo(WATCHED_BIG, "a turn that takes this one deep into its window");
 
     saidOfBig = await waitFor(async () => naming(await saidToTheLead(), WATCHED_BIG).at(-1) ?? null);
+    boughtForBig = runs() - runsBeforeBig;
+    askedOfBig = (await panelOf(WATCHED_BIG)).filter((line) => line.from === "the chat" && line.text.startsWith("The chat is asking"));
+    bigRow = JSON.parse((await get(`${address}/sessions`)).body).sessions.find((row) => row.name === WATCHED_BIG) ?? null;
 
-    // Left alone for several more passes, with that conversation sitting exactly where it was. A
-    // watch driven off the condition would say it again every second. And nothing may RUN in that
-    // time either, which is the half the old shape could not have: the block used to arrive by
-    // buying a turn, so counting runs across an idle stretch proved nothing.
+    // Left alone for several more passes. The seat that crossed was handed over on the crossing,
+    // so there is no thread left for a band to be read off — a watch driven off the condition, or
+    // one that recorded nothing for a seat it parked, would find something to say again every
+    // second. And nothing may RUN in that time either: the park is the one turn the crossing buys,
+    // and a pass that tried it again would show up here as a run.
     const soFar = naming(await saidToTheLead(), WATCHED_BIG).length;
     const runsSoFar = runs();
     await waitFor(async () => new Promise((resolve) => setTimeout(() => resolve(true), 3000)));
@@ -12639,10 +12662,15 @@ describe("the room watch, and what it says about the room", () => {
     assert.equal(saidAgain, 0, "the pass said the same crossing again");
   });
 
-  // Mutation: announce by starting a turn on the lead. The whole feature is that the account is not
-  // spent to be told something, and an idle stretch with a crossing standing in it is where a turn
-  // bought to say so would show up.
-  it("buys no turn to say it", () => {
+  // Mutation: announce by starting a turn on the lead. The account is not spent to be TOLD
+  // something: what the crossing buys is one turn, on the seat that crossed, asking it to hand
+  // over — and nothing more in the idle stretch after it, where a turn bought to say so, or a park
+  // tried again, would show up as a run.
+  it("buys exactly one turn on the crossing, and it is the handover of the seat that crossed", () => {
+    assert.equal(boughtForBig, 2, "the message and the handover are the two runs a crossing costs");
+    assert.equal(askedOfBig.length, 1, JSON.stringify(askedOfBig));
+    assert.match(askedOfBig[0].text, /^The chat is asking/);
+    assert.match(askedOfBig[0].text, new RegExp(SHARE_HELD));
     assert.equal(boughtNoTurn, 0);
   });
 
@@ -12651,7 +12679,7 @@ describe("the room watch, and what it says about the room", () => {
   // except a run. Without it the lead's model never hears any of this and goes on addressing a room
   // it cannot see — and the panel would still look right.
   it("hands what it said to the lead in front of the next turn the lead was taking anyway", () => {
-    assert.match(carriedOnTheNextTurn, new RegExp(`${WATCHED_BIG} has reached `));
+    assert.match(carriedOnTheNextTurn, new RegExp(`${WATCHED_BIG} was handed over by the chat`));
     assert.match(carriedOnTheNextTurn, new RegExp(SHARE_HELD));
   });
 
@@ -12724,7 +12752,13 @@ describe("the room watch, and what it says about the room", () => {
           2,
         )}\n`,
       );
-      midTurnSaid = await waitFor(async () => naming(await saidToTheLead(), WATCHED_COLD).at(-1) ?? null);
+      // Read off the panel of the seat that crossed, not the lead's: the pass parks it, and the
+      // line the lead gets comes only once that handover has answered — which, with the stand-in
+      // as slow as this describe makes it, is after the lead's own turn is over. The seat's panel
+      // says the chat asked as the first thing its turn did.
+      midTurnSaid = await waitFor(async () =>
+        (await panelOf(WATCHED_COLD)).find((line) => line.from === "the chat" && line.handover === true) ?? null,
+      );
       await answering;
     });
 
@@ -12732,8 +12766,9 @@ describe("the room watch, and what it says about the room", () => {
     // pass did was start a turn on the lead; with that gone it guards nothing and costs a crossing
     // for the length of every long lead turn — which is exactly when the room is most likely to
     // change.
-    it("says what changed while the lead is answering something else", () => {
-      assert.ok(midTurnSaid !== null, "a crossing during a long lead turn was never said");
+    it("acts on what changed while the lead is answering something else", () => {
+      assert.ok(midTurnSaid !== null, "a crossing during a long lead turn was never acted on");
+      assert.match(midTurnSaid.text, /^The chat is asking/);
     });
   });
 
@@ -12799,14 +12834,17 @@ describe("the room watch, and what it says about the room", () => {
     assert.ok(Math.abs(Date.now() - when.getTime()) < 10 * 60 * 1000, `the moment was ${said[0]}`);
   });
 
-  // Mutation: make the line say what it did about it. It does nothing about a band: handing a
-  // session over is a press on that session's panel and there is no tool for it. Saying otherwise
-  // would be the one reading in this toolkit that is not true.
-  it("says that nothing was stopped and no conversation was ended", () => {
-    assert.match(saidOfBig.text, new RegExp(`${HUMAN}'s to press`));
-    assert.match(saidOfBig.text, /Nothing has been stopped and no conversation has been ended by this/);
-    assert.match(saidOfBig.text, new RegExp(`${WATCHED_BIG} has reached `));
+  // Mutation: say the crossing and leave the seat where it is. The line the lead gets is the park's
+  // — who was handed over, for what share, and that nobody pressed for it — and the seat's thread
+  // is gone; a line that left the person something to press would be describing a pass that did
+  // nothing.
+  it("says the seat was handed over for its size, and leaves nothing to press", () => {
+    assert.match(saidOfBig.text, new RegExp(`^${WATCHED_BIG} was handed over by the chat rather than by anybody pressing`));
+    assert.match(saidOfBig.text, /had reached /);
     assert.match(saidOfBig.text, new RegExp(SHARE_HELD));
+    assert.doesNotMatch(saidOfBig.text, /to press/);
+    assert.ok(bigRow !== null, "the room no longer lists the seat that crossed");
+    assert.equal(bigRow.thread, false, JSON.stringify(bigRow));
   });
 
   after(async () => {
@@ -13379,6 +13417,10 @@ const parkAskedOn = (panel) =>
 // What the lead was told about a park, on its panel.
 const parkedLinesOn = (panel) =>
   panel.filter((line) => line.from === "the chat" && typeof line.text === "string" && line.text.includes("was handed over by the chat"));
+
+// What the lead was told about a crossing that was not parked, on its panel.
+const toldLinesOn = (panel) =>
+  panel.filter((line) => line.from === "the chat" && typeof line.text === "string" && line.text.includes("It was not handed over for it"));
 
 // What the lead was told about the hold itself, on its panel: that it was entered, that it is over,
 // and about the seat it never got to. Each is a phrase from the one line that says it, and the
@@ -14863,6 +14905,291 @@ describe("what a pass does about a conversation about to lose its cache", () => 
       assert.deepEqual(parkedLinesOn(panels[leader]), []);
       assert.deepEqual(runs, []);
       assert.equal(panels[PAST_THE_HOUR_AS_WELL].filter((line) => line.cold === true).length, 1, JSON.stringify(panels[PAST_THE_HOUR_AS_WELL]));
+      assert.equal(record.decided, 1, JSON.stringify(record));
+      assert.equal(record.acted, 1, JSON.stringify(record));
+    });
+
+    after(() => {
+      remove(declining);
+    });
+  });
+});
+
+const GROWN_IDLE = "Lapwing";
+const GROWN_GONE_WHILE_IT_WAITED = "Oystercatcher";
+const GROWN_MID_TURN = "Phalarope";
+const GROWN_ON_A_PROMPT = "Pratincole";
+const GROWN_INTO_A_WEAK_BAND = "Sandpiper";
+const GROWN_BUYS_NO_TURN = "Stint";
+
+// A hair over the band, and the weak one under it, against the window the size checks use.
+const OVER_NINE_TENTHS = Math.ceil(0.91 * WINDOW_HELD);
+const OVER_NINETY_FIVE = Math.ceil(0.96 * WINDOW_HELD);
+const UNDER_THE_STRONG_BANDS = Math.ceil(0.85 * WINDOW_HELD);
+const NINE_TENTHS_SAID = `${OVER_NINE_TENTHS.toLocaleString("en-US")} tokens, 91% of its window`;
+const NINETY_FIVE_SAID = `${OVER_NINETY_FIVE.toLocaleString("en-US")} tokens, 96% of its window`;
+
+// What a pass does about a conversation that has grown into a strong band.
+//
+// The third condition in the pass that SPENDS, through the same door as the two above: a crossing
+// into nine tenths of a window, or ninety-five per cent, is said once — and on the pass that reads
+// it, the seat is asked to hand over itself when the workspace buys a turn and nothing is running
+// on it, told with the reason otherwise. Same arrangement as the park ahead of the hour: the chat
+// runs in this process, the stand-in is on this process's PATH, the cadence is a long one so that
+// what happened is what the passes called from here did, and every seat is a thread staged where a
+// run would have written it, carrying a size and a window so that the bands are the whole of what
+// the pass reads.
+describe("what a pass does about a conversation that has grown into a strong band", () => {
+  const pathBefore = process.env.PATH;
+
+  before(() => {
+    process.env.PATH = `${standIn}${path.delimiter}${pathBefore}`;
+  });
+
+  after(() => {
+    process.env.PATH = pathBefore;
+    delete process.env.OPENOVAI_STAND_IN_LOG;
+  });
+
+  describe("in a workspace that buys a turn", () => {
+    const grown = `${instance}-grown`;
+    const grownLog = path.join(grown, "parks.txt");
+    let leader;
+    let record;
+    let saidAgain;
+    let parkedOnTheNextBand;
+    let runs;
+    let panels;
+    let threadsLeft;
+    let promptStillParked;
+
+    const thread = (name) => path.join(grown, "chat", name, "session.json");
+    const everybody = () => [GROWN_IDLE, GROWN_GONE_WHILE_IT_WAITED, GROWN_MID_TURN, GROWN_ON_A_PROMPT, GROWN_INTO_A_WEAK_BAND, leader];
+    const linesAbout = (name) => parkedLinesOn(panelIn(grown, leader)).concat(toldLinesOn(panelIn(grown, leader))).filter((line) => line.text.startsWith(name));
+
+    before(async () => {
+      process.env.OPENOVAI_STAND_IN_LOG = grownLog;
+      // Every park takes this long to answer, so that a seat further down the list can be handed
+      // over from under the pass while the park before it is still running.
+      process.env.OPENOVAI_STAND_IN_SLOW = "1500";
+
+      installed(options(grown, 0));
+      for (const name of [GROWN_IDLE, GROWN_GONE_WHILE_IT_WAITED, GROWN_MID_TURN, GROWN_ON_A_PROMPT, GROWN_INTO_A_WEAK_BAND]) {
+        runTool(grown, ["hire", name], process.env);
+      }
+      const config = path.join(grown, "openovai.json");
+      fs.writeFileSync(
+        config,
+        `${JSON.stringify({ ...JSON.parse(fs.readFileSync(config, "utf8")), watchEverySeconds: 3600 }, null, 2)}\n`,
+      );
+      const held = JSON.parse(fs.readFileSync(config, "utf8"));
+      leader = held.leader;
+
+      // The lead has a thread and no size, so that nothing here is decided about the lead: it is
+      // the panel every line lands on, and a lead parked first would carry none of them.
+      stageThread(grown, leader, {});
+      for (const name of [GROWN_IDLE, GROWN_GONE_WHILE_IT_WAITED, GROWN_MID_TURN, GROWN_ON_A_PROMPT]) {
+        stageThread(grown, name, { context: OVER_NINE_TENTHS, window: WINDOW_HELD });
+      }
+      stageThread(grown, GROWN_INTO_A_WEAK_BAND, { context: UNDER_THE_STRONG_BANDS, window: WINDOW_HELD });
+      park(GROWN_ON_A_PROMPT, { id: "asked-3", tool: "Bash", input: { command: "ls" } });
+
+      // One with a turn going on it, held from here for the length of the first pass. A pass that
+      // queued a park behind it would run that park the moment this lets go — so the turn is let
+      // go only after the pass has reported, and the seat is read afterwards.
+      let letGo;
+      const holding = inTurn(GROWN_MID_TURN, () => new Promise((resolve) => {
+        letGo = resolve;
+      }));
+
+      const served = { root: grown, config: held, plugins: [], pop: null };
+      const server = await serve(served);
+
+      // NOTHING IS ASSERTED IN THIS HOOK: it holds a live server and a turn only it can let go.
+      //
+      // The first pass reads four crossings and parks the first of them. While that park is
+      // running, the second seat is handed over from under the pass — the way a press a moment
+      // after the room was read would — so that when the pass reaches it, the seat it decided on
+      // is no longer there.
+      const pass = readTheRoom(served);
+      await until(() => runsIn(grownLog).some((run) => run.name === GROWN_IDLE), 8000);
+      fs.rmSync(thread(GROWN_GONE_WHILE_IT_WAITED), { force: true });
+      record = await until(() => {
+        const said = theWatchRecord();
+        return said !== null && said.at !== null ? said : null;
+      }, 8000);
+      letGo();
+      await holding;
+      await pass;
+
+      // A second pass, with every seat exactly where it was: nothing crosses, and nothing is said
+      // again about a seat that was told.
+      const toldSoFar = linesAbout(GROWN_MID_TURN).length;
+      await readTheRoom(served);
+      saidAgain = linesAbout(GROWN_MID_TURN).length - toldSoFar;
+
+      // And a third, after the seat that was told for its turn has grown into the next band with
+      // nothing running on it: a new crossing, and this one is parked.
+      stageThread(grown, GROWN_MID_TURN, { context: OVER_NINETY_FIVE, window: WINDOW_HELD });
+      await readTheRoom(served);
+      parkedOnTheNextBand = linesAbout(GROWN_MID_TURN).filter((line) => line.text.includes(NINETY_FIVE_SAID));
+
+      await new Promise((resolve) => server.close(resolve));
+
+      runs = runsIn(grownLog);
+      panels = Object.fromEntries(everybody().map((name) => [name, panelIn(grown, name)]));
+      threadsLeft = everybody().filter((name) => fs.existsSync(thread(name)));
+      promptStillParked = parked(GROWN_ON_A_PROMPT, grown).length;
+    });
+
+    // Mutation: say the crossing and park nobody, which is what the pass did before it had an
+    // actor for this reading. The line says the share, and the seat's own panel says the chat
+    // asked and why.
+    it("hands over a conversation that has grown into a strong band", () => {
+      assert.ok(record !== null, "the pass never finished");
+      assert.ok(!threadsLeft.includes(GROWN_IDLE), JSON.stringify(threadsLeft));
+      const asked = parkAskedOn(panels[GROWN_IDLE]);
+      assert.equal(asked.length, 1, JSON.stringify(panels[GROWN_IDLE]));
+      assert.match(asked[0].text, new RegExp(`has reached ${NINE_TENTHS_SAID}`));
+      assert.ok(runs.some((run) => run.name === GROWN_IDLE), JSON.stringify(runs.map((run) => run.name)));
+      const said = parkedLinesOn(panels[leader]).filter((line) => line.text.startsWith(GROWN_IDLE));
+      assert.equal(said.length, 1, JSON.stringify(panels[leader]));
+      assert.match(said[0].text, /rather than by anybody pressing/);
+      assert.match(said[0].text, new RegExp(`had reached ${NINE_TENTHS_SAID}`));
+      assert.doesNotMatch(said[0].text, /to press/);
+    });
+
+    // Mutation: say a band that is only worth reading. Under the strong bands nothing is said and
+    // nothing is parked: the seat rides on the block the lead is handed, exactly as before.
+    it("neither says nor parks a conversation in a weak band", () => {
+      assert.ok(threadsLeft.includes(GROWN_INTO_A_WEAK_BAND), JSON.stringify(threadsLeft));
+      assert.deepEqual(parkAskedOn(panels[GROWN_INTO_A_WEAK_BAND]), []);
+      assert.deepEqual(linesAbout(GROWN_INTO_A_WEAK_BAND), []);
+      assert.ok(!runs.some((run) => run.name === GROWN_INTO_A_WEAK_BAND), JSON.stringify(runs.map((run) => run.name)));
+    });
+
+    // Mutation: drop the gate on a turn in flight. A park queued behind a turn runs the moment it
+    // ends, on a conversation somebody is in the middle of — and a pass that queued one here would
+    // not have finished before the turn was let go. The seat is told, and the line says why.
+    it("tells a seat with a turn going on it, and does not park it", () => {
+      assert.ok(record !== null, "the pass never finished, so it queued a turn it could not have");
+      const told = toldLinesOn(panels[leader]).filter((line) => line.text.startsWith(GROWN_MID_TURN));
+      assert.equal(told.length, 1, JSON.stringify(told));
+      assert.match(told[0].text, new RegExp(`^${GROWN_MID_TURN} has reached ${NINE_TENTHS_SAID}`));
+      assert.match(told[0].text, /a turn is going on it/);
+      assert.match(told[0].text, new RegExp(`${HUMAN}'s to press`));
+      // Parked later, on its next band — never on this one: the one run on it, and the one time
+      // it was asked, are the ninety-five per cent crossing's.
+      const asked = parkAskedOn(panels[GROWN_MID_TURN]);
+      assert.equal(asked.length, 1, JSON.stringify(panels[GROWN_MID_TURN]));
+      assert.match(asked[0].text, new RegExp(NINETY_FIVE_SAID));
+      assert.doesNotMatch(asked[0].text, new RegExp(NINE_TENTHS_SAID));
+    });
+
+    // Mutation: drop `worthParking` from the gate. Nothing is running on a seat sitting on a
+    // permission prompt and a person is mid-decision; parking it takes that decision away. Told,
+    // with the prompt as the reason.
+    it("tells a seat sitting on a permission prompt, and does not park it", () => {
+      assert.ok(threadsLeft.includes(GROWN_ON_A_PROMPT), JSON.stringify(threadsLeft));
+      assert.equal(promptStillParked, 1);
+      const told = linesAbout(GROWN_ON_A_PROMPT);
+      assert.equal(told.length, 1, JSON.stringify(told));
+      assert.match(told[0].text, /sitting on a permission prompt/);
+      assert.deepEqual(parkAskedOn(panels[GROWN_ON_A_PROMPT]), []);
+      assert.ok(!runs.some((run) => run.name === GROWN_ON_A_PROMPT), JSON.stringify(runs.map((run) => run.name)));
+    });
+
+    // Mutation: the turn is told that the park always still holds. The seat was worth parking when
+    // the room was read and was gone before its turn came, and what matters is that NOTHING was
+    // written on it: not the line saying it was asked to hand over, and no run. The lead is told
+    // the crossing instead, and why nothing followed.
+    it("abandons a park on a crossing whose seat lost its thread while the parks before it ran", () => {
+      assert.deepEqual(panels[GROWN_GONE_WHILE_IT_WAITED].filter((line) => line.from === "the chat"), []);
+      assert.ok(!runs.some((run) => run.name === GROWN_GONE_WHILE_IT_WAITED), JSON.stringify(runs.map((run) => run.name)));
+      const told = linesAbout(GROWN_GONE_WHILE_IT_WAITED);
+      assert.equal(told.length, 1, JSON.stringify(told));
+      assert.match(told[0].text, /before its turn came/);
+      assert.deepEqual(parkedLinesOn(panels[leader]).filter((line) => line.text.startsWith(GROWN_GONE_WHILE_IT_WAITED)), []);
+    });
+
+    // Mutation: record the band only for a seat that was parked. A seat that was told would then
+    // be told again every pass — and the other half, which the same record buys: the next band is
+    // a new crossing, and a seat told at nine tenths is parked at ninety-five.
+    it("tells a crossing once, and parks the seat on its next band", () => {
+      assert.equal(saidAgain, 0, "a seat that was told was told again on a pass where nothing changed");
+      assert.equal(parkedOnTheNextBand.length, 1, JSON.stringify(linesAbout(GROWN_MID_TURN)));
+      assert.match(parkedOnTheNextBand[0].text, /was handed over by the chat/);
+      assert.ok(!threadsLeft.includes(GROWN_MID_TURN), JSON.stringify(threadsLeft));
+      assert.equal(runs.filter((run) => run.name === GROWN_MID_TURN).length, 1, JSON.stringify(runs.map((run) => run.name)));
+    });
+
+    // Mutation: count a crossing as decided and never as acted. Every crossing is one decision and
+    // one act, parked or told: four crossed, four were said.
+    it("counted what it did", () => {
+      assert.ok(record !== null, "the pass never finished");
+      assert.equal(record.sessions, everybody().length, JSON.stringify(record));
+      assert.equal(record.decided, 4, JSON.stringify(record));
+      assert.equal(record.acted, 4, JSON.stringify(record));
+    });
+
+    after(() => {
+      delete process.env.OPENOVAI_STAND_IN_SLOW;
+      remove(grown);
+    });
+  });
+
+  // `watchEverySeconds: 0` says one thing — do not spend a run on me — and a park is a run. The
+  // crossing is still said, as it always was, and the line says why nothing was done about it.
+  describe("in a workspace that buys no turn", () => {
+    const declining = `${instance}-declining-crossing`;
+    const decliningLog = path.join(declining, "parks.txt");
+    let leader;
+    let record;
+    let runs;
+    let panels;
+    let threadsLeft;
+
+    const thread = (name) => path.join(declining, "chat", name, "session.json");
+
+    before(async () => {
+      process.env.OPENOVAI_STAND_IN_LOG = decliningLog;
+
+      installed(options(declining, 0));
+      runTool(declining, ["hire", GROWN_BUYS_NO_TURN], process.env);
+      const config = path.join(declining, "openovai.json");
+      fs.writeFileSync(
+        config,
+        `${JSON.stringify({ ...JSON.parse(fs.readFileSync(config, "utf8")), watchEverySeconds: 0 }, null, 2)}\n`,
+      );
+      const held = JSON.parse(fs.readFileSync(config, "utf8"));
+      leader = held.leader;
+
+      stageThread(declining, GROWN_BUYS_NO_TURN, { context: OVER_NINE_TENTHS, window: WINDOW_HELD });
+      stageThread(declining, leader, {});
+
+      const served = { root: declining, config: held, plugins: [], pop: null };
+      const server = await serve(served);
+      await readTheRoom(served);
+
+      record = theWatchRecord();
+      runs = runsIn(decliningLog);
+      panels = Object.fromEntries([GROWN_BUYS_NO_TURN, leader].map((name) => [name, panelIn(declining, name)]));
+      threadsLeft = [GROWN_BUYS_NO_TURN, leader].filter((name) => fs.existsSync(thread(name)));
+      await new Promise((resolve) => server.close(resolve));
+    });
+
+    // Mutation: drop `buysATurn`. The pass ran and read the crossing; what it did not do is the one
+    // thing that spends — and the line says that is why.
+    it("tells the crossing and parks nobody", () => {
+      assert.ok(record !== null && record.at !== null, "the pass never ran");
+      assert.deepEqual(threadsLeft, [GROWN_BUYS_NO_TURN, leader]);
+      assert.deepEqual(parkAskedOn(panels[GROWN_BUYS_NO_TURN]), []);
+      assert.deepEqual(parkedLinesOn(panels[leader]), []);
+      assert.deepEqual(runs, []);
+      const told = toldLinesOn(panels[leader]).filter((line) => line.text.startsWith(GROWN_BUYS_NO_TURN));
+      assert.equal(told.length, 1, JSON.stringify(panels[leader]));
+      assert.match(told[0].text, /this workspace buys no turn/);
+      assert.match(told[0].text, new RegExp(`${HUMAN}'s to press`));
       assert.equal(record.decided, 1, JSON.stringify(record));
       assert.equal(record.acted, 1, JSON.stringify(record));
     });

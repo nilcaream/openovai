@@ -37,9 +37,11 @@ running on it and not sitting on a permission prompt, the lead last when it is a
 in a workspace that wrote `watchEverySeconds: 0`. It saves no tokens; what it saves is whatever
 that session had not yet written down.
 
-A crossing is still said — a conversation reaching nine tenths of its window, or ninety-five per
-cent — once, on the crossing, and nothing is done about it: handing a conversation over for its size
-is still yours to press, on its panel, and the line says so.
+A crossing — a conversation reaching nine tenths of its window, or ninety-five per cent — is now
+acted on as well as said: on the crossing, once per band, the pass asks the seat itself to hand over
+when the workspace buys a turn and nothing is running on it, and tells you the crossing with the
+reason when it cannot. Handing a conversation over for its size is then yours to press, on its panel,
+and the line says so.
 
 **Where the stop line is drawn is yours to say.** The hold enters at ninety-five per cent of the
 five-hour window unless `holdAbove` in `openovai.json` says otherwise: a fraction from `0.9` up to

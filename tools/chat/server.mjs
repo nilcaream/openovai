@@ -423,7 +423,7 @@ function sizeWrapper(instance, name) {
     "<size>",
     "The chat is telling you this. Nobody typed it.",
     `${each.join(", and ")}, read as this turn began at ${read}.`,
-    "A conversation that big is one where what is left has to be planned rather than simply carried on, and what survives it is what its desk says. Which panel is worth handing over early is still yours to say, your own included — and the chat parks a conversation itself, asking it to write its desk first, when it is about to lose its cache or when the account is nearly spent.",
+    "A conversation that big is one where what is left has to be planned rather than simply carried on, and what survives it is what its desk says. Which panel is worth handing over early is still yours to say, your own included — and the chat parks a conversation itself, asking it to write its desk first, when it is about to lose its cache, when it has grown into a strong band of its window, or when the account is nearly spent.",
     ...olderInstructions(instance, name),
     "</size>",
   ].join("\n\n");
@@ -2428,17 +2428,19 @@ function endedColdLine(name) {
   return `${name}'s conversation had been quiet for longer than one can be carried on, so the chat ended it rather than paying for the whole of it again at the next message. Nothing was stopped and nothing was asked of ${name}: whatever it had not written to ${desk(name)} is gone, and the next message to it starts a new conversation that reads that desk first.`;
 }
 
-// What the lead is told when a conversation has newly grown into a band worth knowing about.
+// What the lead is told when a conversation has newly grown into a band worth knowing about, and
+// was not handed over for it.
 //
-// Said and not acted on, and it says so: handing a session over is a press on that session's panel
-// and there is no tool for it. That is not a hedge, it is the state of the toolkit, and a line that
-// implied otherwise would be the one reading here that is not true.
+// THE REASON IS IN THE LINE. A crossing is parked at most once, on the pass that reads it, and a
+// seat that could not be parked then is not tried again on this band — so a lead reading "has
+// reached" with nothing after it would be left to guess whether the chat had tried. What is left to
+// press is said last, and it is still true: nothing here comes back for this band.
 //
 // BY NAME AND NOT IN THE SECOND PERSON, including where the name is the lead's own. One sentence
 // said one way — the block this replaced named several sessions at once and had to choose between
 // "you" and a name, and there is nothing left here to choose between.
-function crossedLine(human, name, held) {
-  return `${name} has reached ${held}. Nothing has been stopped and no conversation has been ended by this: handing ${name} over is ${human}'s to press, on that session's panel.`;
+function crossedLine(human, name, held, why) {
+  return `${name} has reached ${held}. It was not handed over for it — ${why} — so handing ${name} over is ${human}'s to press, on that session's panel.`;
 }
 
 // What a session is told when the CHAT, and not a person, is asking it to hand over.
@@ -2466,6 +2468,19 @@ function expiringAsked(name, idle) {
 // What the lead is told once a session has been parked ahead of its cache going cold.
 function expiredLine(name, idle) {
   return `${name} was handed over by the chat rather than by anybody pressing for it: its conversation was about to lose its cache, its last turn having ended ${idle}. ${name} wrote ${desk(name)} first, so what it was doing is on that desk rather than gone, and the next message to it starts a new conversation that reads it.`;
+}
+
+// What a session is asked when the pass hands it over for how far into its window it has grown.
+// The same register as the two above, for the same reason: nobody pressed anything, so the line
+// says what decided it — the share, in the words the row says it in — and why a fresh conversation
+// is the cheaper one to carry from here.
+function grownAsked(name, held) {
+  return `The chat is asking ${name} to hand over. Its conversation has reached ${held}, and from here a fresh conversation that reads ${desk(name)} is cheaper to carry than this one, so what is in flight is being written down while there is room left to ask for it. ${name} is writing ${desk(name)} before its thread ends.`;
+}
+
+// What the lead is told once a session has been parked for the size of its conversation.
+function grownLine(name, held) {
+  return `${name} was handed over by the chat rather than by anybody pressing for it: its conversation had reached ${held}, and a fresh conversation that reads its desk is cheaper to carry than that one. ${name} wrote ${desk(name)} first, so what it was doing is on that desk rather than gone, and the next message to it starts a new conversation that reads it.`;
 }
 
 // Names, said in a sentence.
@@ -2569,6 +2584,48 @@ function worthParking(instance, name) {
     return false;
   }
   return parked(name, instance.root).length === 0;
+}
+
+// Why a crossing into a strong band is told rather than parked, or nothing when the park is worth
+// its turn.
+//
+// THE SAME THREE GATES AS THE PARK AHEAD OF THE HOUR, in the same order, answered as a reason
+// rather than as a filter because the line said about a crossing that was not parked says why. A
+// workspace that buys no turn is told every crossing, as it always was. A seat with a turn going on
+// it is not parked, for the reason the block above gives: a park queued behind that turn would run
+// the moment it ends, on a conversation somebody may be mid-sentence with. And `worthParking` is
+// the seat's own state. A crossing is only ever read off a thread that is there, and the cold
+// ending above has already removed a thread past the hour unless the room is off and it came back
+// OFFLINE — so a permission prompt somebody is mid-decision on is what `worthParking` is saying no
+// about here, and the cold arm is the one reading left, worded rather than checked.
+function keptFromParking(instance, name) {
+  if (!buysATurn(instance.config)) {
+    return "this workspace buys no turn";
+  }
+  if (turnsGoing(name) !== 0) {
+    return "a turn is going on it";
+  }
+  if (!worthParking(instance, name)) {
+    return parked(name, instance.root).length > 0 ? "it is sitting on a permission prompt" : "its conversation has gone cold";
+  }
+  return null;
+}
+
+// Why a park that was asked for did not happen, read off what the turn came back with — or nothing
+// when it did. Three ways, none of them retried on this band: the room is off, and `inTurn` said
+// so; the seat stopped being worth it while the parks before it ran, and the turn's own re-check
+// abandoned it before writing anything; or the account turned the run away.
+function heldBack(done) {
+  if (done === OFFLINE) {
+    return "the room is off";
+  }
+  if (done.abandoned === true) {
+    return "it was handed over, or stopped being worth it, before its turn came";
+  }
+  if (done.refused === true) {
+    return "the account turned the park away";
+  }
+  return null;
 }
 
 // The room in the order it is parked in, which is DETERMINED and not chosen. A pass that picked an
@@ -2922,18 +2979,46 @@ async function walkTheRoom(instance) {
     }
   }
 
-  // And the bands, which are said and not acted on. Read after the cold conversations were ended,
-  // so that a session this pass has just ended is not also announced as having grown: `bandIn`
-  // reads the file that was removed and answers nothing, which is one decision per session without
-  // a rule saying so.
+  // And the bands. Read after the cold conversations were ended, so that a session this pass has
+  // just ended is not also read as having grown: `bandIn` reads the file that was removed and
+  // answers nothing, which is one decision per session without a rule saying so.
+  //
+  // ACTED ON, ONCE PER CROSSING. A crossing into a strong band is the third reason this pass spends
+  // a turn: a conversation that far into its window is a few turns from losing whatever its desk
+  // does not say, and a fresh conversation that reads the desk is cheaper to carry than this one.
+  // The park is a consequence of the crossing, so the crossing's own record bounds it: `whatChanged`
+  // names a seat until `nowSeen` records the band, and that is written EXACTLY ONCE below, after
+  // whichever of the two outcomes happened. A seat that could not be parked on this crossing — a
+  // turn going on it, a permission prompt, no turn bought here, the account turning the park away —
+  // is told, with the reason, and not tried again on this band: its next chance is the next strong
+  // band, or the park ahead of the hour once it idles. That is an accepted loss and not an
+  // oversight. A retry keyed on the band would be a second record beside `seen`, saying "parked"
+  // when nothing parked — the mistake watch.mjs names, on the other channel.
+  //
+  // DECIDED AT THE READ, for every crossing at once, like the block above: the parks run one after
+  // another, and a seat further down the list may not be the seat it was by the time its turn
+  // comes. What can change is not the size — a context cannot shrink while it waits — but the
+  // thread: a press, a leave, the hour passing. `worthParking` reads exactly that, so it is what
+  // the turn asks again before writing anything, and a seat it no longer holds for is told instead.
+  //
+  // IN THE ORDER THE CROSSINGS CAME, not `inParkOrder`. A band is entered on one seat's answer, so
+  // a crossing is one seat at a time by construction; and the lead, when it crosses, is parked like
+  // anybody — every line said before its park is on its panel and goes onto its desk with it, which
+  // is what parking the lead last is for.
   const crossed = whatChanged(instance, room);
   decided += crossed.length;
+  const kept = new Map(crossed.map((one) => [one.name, keptFromParking(instance, one.name)]));
   for (const one of crossed) {
     // The share said off the reading the room was read with, in the wording the row and the size
     // block already say it in: a sentence carrying its own copy of a number, or its own copy of a
     // phrasing, is a second place for one fact to be said two ways.
     const held = `${one.context.toLocaleString("en-US")} tokens, ${shareSaid(one.context, one.window)}`;
-    announce(instance, crossedLine(instance.config.human, one.name, held), at);
+    let why = kept.get(one.name);
+    if (why === null) {
+      const done = await handOver(instance, one.name, grownAsked(one.name, held), () => worthParking(instance, one.name));
+      why = heldBack(done);
+    }
+    announce(instance, why === null ? grownLine(one.name, held) : crossedLine(instance.config.human, one.name, held, why), at);
     nowSeen(one.name, one.band);
     acted += 1;
   }

@@ -417,7 +417,7 @@
   },
   {
     "name": "the pass says a band rather than having entered it",
-    "catches": "says one thing for one crossing and not one every pass",
+    "catches": "tells a crossing once, and parks the seat on its next band",
     "edits": [
       {
         "file": "tools/chat/watch.mjs",
@@ -1192,7 +1192,7 @@
   },
   {
     "name": "a crossing is never recorded as having been said",
-    "catches": "says one thing for one crossing and not one every pass",
+    "catches": "tells a crossing once, and parks the seat on its next band",
     "edits": [
       {
         "file": "tools/chat/server.mjs",
@@ -1236,7 +1236,7 @@
   },
   {
     "name": "the pass buys a turn on the lead to say what it found",
-    "catches": "buys no turn to say it",
+    "catches": "buys exactly one turn on the crossing, and it is the handover of the seat that crossed",
     "edits": [
       {
         "file": "tools/chat/server.mjs",
@@ -1247,7 +1247,7 @@
   },
   {
     "name": "the whole pass is skipped while the lead is answering",
-    "catches": "says what changed while the lead is answering something else",
+    "catches": "acts on what changed while the lead is answering something else",
     "edits": [
       {
         "file": "tools/chat/server.mjs",
@@ -1279,13 +1279,13 @@
     ]
   },
   {
-    "name": "the line about a band claims something was done about it",
-    "catches": "says that nothing was stopped and no conversation was ended",
+    "name": "the line about a crossing that was not parked claims it was",
+    "catches": "tells a seat with a turn going on it, and does not park it",
     "edits": [
       {
         "file": "tools/chat/server.mjs",
-        "from": "Nothing has been stopped and no conversation has been ended by this: handing ${name} over is ${human}'s to press, on that session's panel.",
-        "to": "${name} has been handed over."
+        "from": "  return `${name} has reached ${held}. It was not handed over for it — ${why} — so handing ${name} over is ${human}'s to press, on that session's panel.`;\n",
+        "to": "  return `${name} has reached ${held}, and has been handed over for it.`;\n"
       }
     ]
   },
@@ -2389,7 +2389,7 @@
     "edits": [
       {
         "file": "tools/chat/server.mjs",
-        "from": "    \"A conversation that big is one where what is left has to be planned rather than simply carried on, and what survives it is what its desk says. Which panel is worth handing over early is still yours to say, your own included — and the chat parks a conversation itself, asking it to write its desk first, when it is about to lose its cache or when the account is nearly spent.\",\n",
+        "from": "    \"A conversation that big is one where what is left has to be planned rather than simply carried on, and what survives it is what its desk says. Which panel is worth handing over early is still yours to say, your own included — and the chat parks a conversation itself, asking it to write its desk first, when it is about to lose its cache, when it has grown into a strong band of its window, or when the account is nearly spent.\",\n",
         "to": "    `A conversation that big is one where what is left has to be planned rather than simply carried on, and what survives it is what its desk says. Handing one over is ${instance.config.human}'s to press, on that panel, and pressing it is what asks that session to write its desk before its thread ends — so say which panel and why, your own included. Nothing here does it for you: nothing stops running because of this and no conversation is ended by it.`,\n"
       }
     ]
@@ -2647,6 +2647,83 @@
         "file": "README.md",
         "from": "not read as filling up at all, so a line drawn there would be a hold that could never enter, and it\nis refused with that reason.",
         "to": "not read as filling up at all, and it\nis refused."
+      }
+    ]
+  },
+  {
+    "name": "a crossing into a strong band is said and never parked",
+    "catches": "hands over a conversation that has grown into a strong band",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "      const done = await handOver(instance, one.name, grownAsked(one.name, held), () => worthParking(instance, one.name));\n",
+        "to": "      const done = { abandoned: true };\n"
+      }
+    ]
+  },
+  {
+    "name": "a seat with a turn going on it is parked on its crossing",
+    "catches": "tells a seat with a turn going on it, and does not park it",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  if (turnsGoing(name) !== 0) {\n    return \"a turn is going on it\";\n  }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a workspace that buys no turn is parked on a crossing anyway",
+    "catches": "tells the crossing and parks nobody",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  if (!buysATurn(instance.config)) {\n    return \"this workspace buys no turn\";\n  }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a seat sitting on a permission prompt is parked on its crossing",
+    "catches": "tells a seat sitting on a permission prompt, and does not park it",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  if (!worthParking(instance, name)) {\n    return parked(name, instance.root).length > 0 ? \"it is sitting on a permission prompt\" : \"its conversation has gone cold\";\n  }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the park on a crossing tells the handover it always still holds",
+    "catches": "abandons a park on a crossing whose seat lost its thread while the parks before it ran",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "      const done = await handOver(instance, one.name, grownAsked(one.name, held), () => worthParking(instance, one.name));\n",
+        "to": "      const done = await handOver(instance, one.name, grownAsked(one.name, held), () => true);\n"
+      }
+    ]
+  },
+  {
+    "name": "a crossing that was told and not parked is not recorded as seen",
+    "catches": "tells a crossing once, and parks the seat on its next band",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    announce(instance, why === null ? grownLine(one.name, held) : crossedLine(instance.config.human, one.name, held, why), at);\n    nowSeen(one.name, one.band);\n",
+        "to": "    announce(instance, why === null ? grownLine(one.name, held) : crossedLine(instance.config.human, one.name, held, why), at);\n    if (why === null) {\n      nowSeen(one.name, one.band);\n    }\n"
+      }
+    ]
+  },
+  {
+    "name": "the README says a crossing is said and nothing is done about it",
+    "catches": "says a crossing hands the seat over when it can be, once per band, and no longer that nothing is done",
+    "edits": [
+      {
+        "file": "README.md",
+        "from": "**A crossing is said, once, and the seat is handed over for it when it can be.** The chat holds in\nmemory the band each conversation was last seen in, and acts on a session only when",
+        "to": "**A crossing is said, once, and nothing is done about it.** The chat holds in\nmemory the band each conversation was last seen in, and acts on a session only when"
       }
     ]
   }

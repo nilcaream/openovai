@@ -313,9 +313,10 @@ export function shareOf(context, window) {
   return BANDS.find((band) => share >= band.above) ?? null;
 }
 
-// Whether this conversation has grown far enough into its window to plan around, which is a thing
-// to plan around and never a thing that is done about it. Nothing in this toolkit reads it to
-// decide anything: it is said to the one reader who can act on it, and a person presses the button.
+// Whether this conversation has grown far enough into its window to plan around — and, on the
+// crossing into a strong band, to be handed over for. The room pass is the reader that acts on it:
+// once per crossing it asks the seat to hand over itself where it can, and says the crossing with
+// the reason where it cannot. Nothing else in this toolkit decides anything on it.
 //
 // Same shape and same honesty as the two readings above, deliberately.
 //
