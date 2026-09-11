@@ -418,15 +418,21 @@ const STOP_ABOVE = 0.95;
 // makes, for the same reason — the moment is stored, the comparison happens on every read, and
 // there is no timer, nothing scheduled and nothing to clean up.
 //
-// Reading it changes nothing. It is not consulted before DELIVERING a message, HIRING, HANDING
-// OVER, QUEUEING or REFUSING — the five paths by which anything here happens to somebody — and
-// there is a check that says so rather than this sentence: the account is staged past every line in
-// it and all five are shown to behave exactly as they do when it is empty.
+// Reading it changes nothing a PERSON does. It is not consulted before DELIVERING a message the
+// person typed, HIRING at the person's press, HANDING OVER, QUEUEING or REFUSING — the five paths
+// by which anything here happens to somebody at the person's hand — and there is a check that says
+// so rather than this sentence: the account is staged past every line in it and all five are shown
+// to behave exactly as they do when it is empty.
+//
+// WHAT IT DOES DECIDE IS IN gate.mjs AND NOWHERE ELSE: whether the session that leads may START
+// something — open a desk, begin a colleague's conversation from nothing. That is a decision about
+// a spawn and never about a turn, and it is the whole of what this reading is allowed to become.
 //
 // Named as five paths rather than as "decides nothing", which is what this said before. That was a
-// claim no check stood behind, and it is also one this cannot go on making: what is read here is
-// the input to a decision about whether to hold the instance still. Naming the paths says the part
-// that is enforceable, and it stays true when something does decide on it.
+// claim no check stood behind, and it stopped being true the day the gate was built: what is read
+// here is the input to a decision about what is started and about whether to hold the instance
+// still. Naming the paths says the part that is enforceable, and it stays true now that something
+// does decide on it.
 export function accountStanding(instance) {
   const read = [
     ...sessions(instance).map((session) => ({

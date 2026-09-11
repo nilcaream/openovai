@@ -154,6 +154,8 @@ const live = `${instance}-standing`;
 const nowLive = `${instance}-now`;
 const filling = `${instance}-filling`;
 const unruled = `${instance}-unruled`;
+// And one for the gate on what is started, staged inside the plan band rather than past every line.
+const gated = `${instance}-gated`;
 const owned = path.join(nested, "deep", "instance");
 const overhead = path.dirname(owned);
 const standIn = `${instance}-stand-in`;
@@ -163,7 +165,7 @@ let server;
 
 process.on("exit", () => {
   server?.kill();
-  remove(instance, chosen, quiet, nested, onModels, watched, live, nowLive, filling, unruled, standIn);
+  remove(instance, chosen, quiet, nested, onModels, watched, live, nowLive, filling, unruled, gated, standIn);
 });
 
 after(async () => {
@@ -246,7 +248,7 @@ async function start(root, environment) {
   return server;
 }
 
-remove(instance, chosen, quiet, nested, onModels, watched, live, nowLive, filling, unruled, standIn);
+remove(instance, chosen, quiet, nested, onModels, watched, live, nowLive, filling, unruled, gated, standIn);
 const standInCommand = writeStandIn(standIn);
 installed(options(instance, PORT));
 installed(options(quiet, 0));
@@ -12180,6 +12182,77 @@ describe("what the account being nearly gone does not change", () => {
   // put a refusal on a row nothing had refused.
   it("says a session is refused only when the service refused it", () => {
     assert.equal(rowWhileFull.refused, null, JSON.stringify(rowWhileFull.refused));
+  });
+});
+
+// The one thing the reading DOES change, and it is the sixth path rather than one of the five:
+// what the session that leads may START. Above the plan line the lead is told, in words, to take
+// nobody new on — and this is the mechanism behind the words, so that they hold whether or not
+// they are read. The five paths above are untouched, and the describe above them is what says so.
+//
+// STAGED INSIDE THE PLAN BAND and not past every line, deliberately: the gate holds from the plan
+// line, and a check staged at ninety-nine would be green under a gate that held only from the
+// stop line. MEASURED: the mutation that moves the gate to the stop line reddens this describe and
+// would not redden one staged where the describe above stages.
+//
+// Its own instance, for the reason the describe above has one: the staging has to survive being
+// read, and the shared instance has runs writing readings over it constantly.
+describe("what the lead may start while the account is nearly spent", () => {
+  const gatedLog = path.join(standIn, "gated.txt");
+  const READ_ON = "Whinchat";
+  const NOT_OPENED = "Redpoll";
+  const OPENED_AFTER = "Stonechat";
+  const IN_THE_PLAN_BAND = 0.92;
+  const UNDER_THE_PLAN_LINE = 0.89;
+  let address;
+  let refusedADesk;
+  let openedADesk;
+
+  const lifts = () => Math.floor(Date.now() / 1000) + 4 * 60 * 60;
+  const stage = (fullness) =>
+    stageWindows(READ_ON, [{ name: "five_hour", fullness, resetsAt: lifts() }], 0, gated);
+  const hiredBy = (who, name) =>
+    post(`${address}/mcp/${who}`, { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "hire", arguments: { name } } });
+
+  before(async () => {
+    installed(options(gated, 0));
+    runTool(gated, ["hire", READ_ON], process.env);
+    await start(gated, standInEnvironment(standIn, gatedLog));
+    address = await waitForAddress(server);
+    assert.ok(address, "the server never said where it was listening");
+
+    // One run, so there is a thread to stage a reading on; then nothing else runs, so the staged
+    // reading is the one still there when the tool is called. Opening a desk starts no run.
+    await post(`${address}/sessions/${READ_ON}/message`, { text: "a turn, so there is a thread to stage a reading on" });
+
+    stage(IN_THE_PLAN_BAND);
+    refusedADesk = answerOf(await hiredBy(LEADER, NOT_OPENED));
+
+    stage(UNDER_THE_PLAN_LINE);
+    openedADesk = answerOf(await hiredBy(LEADER, OPENED_AFTER));
+  });
+
+  // Mutation: open the desk without asking the gate; and, separately, hold only from the stop
+  // line. Both are the same mistake seen from two sides — a sentence on the lead's block with
+  // nothing behind it.
+  it("refuses the lead a desk while the account is in the plan band", () => {
+    assert.equal(refusedADesk.refused, true, refusedADesk.text);
+    assert.match(refusedADesk.text, /92% full/);
+    assert.equal(fs.existsSync(path.join(gated, "work", NOT_OPENED)), false, "the desk was opened anyway");
+  });
+
+  // The positive, so that a gate which refuses on every reading is not green. Mutation: hold on
+  // an account nobody has read past the plan line.
+  it("opens the lead a desk while the account is under the plan line", () => {
+    assert.equal(openedADesk.refused, false, openedADesk.text);
+    assert.match(openedADesk.text, new RegExp(`${OPENED_AFTER} works here now`));
+  });
+
+  // A refused spawn is asked for again a moment later, and the sentence has to say which moment.
+  // Mutation: word the refusal without the lift.
+  it("says when the window lifts, so the lead knows when to ask again", () => {
+    assert.match(refusedADesk.text, /lifts at \d{2}:\d{2}/);
+    assert.match(refusedADesk.text, /ask again/);
   });
 });
 

@@ -21,6 +21,7 @@ import { ago, roomLines, shareSaid } from "./room.mjs";
 import { WATCH_EVERY, armTheWatch, buysATurn, forgetTheRoom, howOften, nowSeen, parkAttemptsAllowed, theWatchRecord, tickRead, whatChanged } from "./watch.mjs";
 import { DESK_FILE, DeskError, WORK, allowAsked, archiveFor, deskTitle, describeName, hasSettledAnything, hire, isName, retire } from "../desks.mjs";
 import { accountStanding, ask, bandIn, endRun, forget, fullnessIn, hasGoneCold, hasGoneQuiet, hasThread, quotaIn, ranAt, refusedIn, sessions, standingsUnderway } from "./session.mjs";
+import { spawnHeld } from "./gate.mjs";
 import { endHold, enterHold, forgetRefused, holdIn, holdLifted, holdSaid, holdStands, markParked, markRefused } from "./hold.mjs";
 import { inTurn, turnsGoing, waitingFor, whileWaitingFor, wouldWaitForItself } from "./turns.mjs";
 import { unfinished } from "./unfinished.mjs";
@@ -418,7 +419,9 @@ function sizeWrapper(instance, name) {
 //     nobody's persona, so a session reading this may be running one written before any of it
 //     existed and has nothing to look it up in.
 //   The lead only.
-//   A reading and never a gate. Nothing consults it to deliver, hire, hand over, queue or refuse.
+//   A reading and never a gate. Nothing consults THIS BLOCK to deliver, hire, hand over, queue or
+//     refuse — the one gate on the number it carries is gate.mjs, on what the lead starts, and
+//     that gate reads the account and never this sentence about it.
 //     No sweep, no timer, no new state, nothing to clear.
 //
 // It stops by being acted on, which is the shape deskWrapper and the one beside it already have:
@@ -796,6 +799,24 @@ function handoverOffline(name) {
 
 function leavingOffline(name) {
   return `${name} could not be asked before leaving: the room is offline, so nothing is being run. Nothing was filed and the desk is still open — bring the room back online and ask again.`;
+}
+
+// What a session is told when the gate turned its spawn away — `what` is the thing that was not
+// started, said in the caller's own terms. Three facts, the same three as every refusal above:
+// nothing ran, nothing was lost, and what to do about it — which is to ask again, and when.
+//
+// FROM THE FACTS THE GATE HANDS BACK and nothing else, the way `limitSaid` is worded from the
+// frame's fields: the window as the service names it, the reading, and the moment it lifts when
+// the service gave one. The account not having said when it lifts is a fact too, and a different
+// last sentence — a spawn refused on an unknown is asked again after the next completed turn, which
+// is when a fresh reading arrives.
+function spawnRefused(what, held) {
+  const window = held.window.replace(/_/g, "-");
+  const opening = `Nothing new is started while the account is nearly spent, so ${what}: the ${window} usage window was ${Math.round(held.fullness * 100)}% full`;
+  if (held.resetsAt === null) {
+    return `${opening} and did not say when it lifts. Nothing ran and nothing was lost — ask again after the next completed turn, which is when a fresh reading arrives.`;
+  }
+  return `${opening}, and it lifts at ${atTime(held.resetsAt)}. Nothing ran and nothing was lost — ask again once it has.`;
 }
 
 // How a run asks to be allowed something, on every turn that runs one.
@@ -1425,6 +1446,14 @@ function hiredByTool(instance, caller, args) {
   // one". Nothing is validated here: what a model identifier is has one answer and it is
   // `desks.mjs`'s, so a model that is not one is refused in the sentence the command prints.
   const model = args?.model ?? null;
+
+  // The gate, before the name is so much as looked at: whether anything new may be started is a
+  // question about the account and not about the desk, and it is the same answer whatever the
+  // desk would have been called. Nothing is written and nothing is said anywhere but here.
+  const held = spawnHeld(instance);
+  if (held !== null) {
+    return { refused: spawnRefused("no desk is opened", held) };
+  }
 
   try {
     hire(instance.root, name, panel, instance.config, model);

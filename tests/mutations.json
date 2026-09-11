@@ -2195,5 +2195,49 @@
         "to": "  return kind;"
       }
     ]
+  },
+  {
+    "name": "the hire tool opens a desk without asking the gate",
+    "catches": "refuses the lead a desk while the account is in the plan band",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  const held = spawnHeld(instance);\n  if (held !== null) {\n    return { refused: spawnRefused(\"no desk is opened\", held) };\n  }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the gate holds only from the stop line",
+    "catches": "refuses the lead a desk while the account is in the plan band",
+    "edits": [
+      {
+        "file": "tools/chat/gate.mjs",
+        "from": "  if (standing === null) {\n    return null;\n  }",
+        "to": "  if (standing === null || !standing.stop) {\n    return null;\n  }"
+      }
+    ]
+  },
+  {
+    "name": "the gate holds on an account nobody has read past the plan line",
+    "catches": "opens the lead a desk while the account is under the plan line",
+    "edits": [
+      {
+        "file": "tools/chat/gate.mjs",
+        "from": "  if (standing === null) {\n    return null;\n  }",
+        "to": "  if (standing === null) {\n    return { fullness: 0, window: \"five_hour\", resetsAt: null };\n  }"
+      }
+    ]
+  },
+  {
+    "name": "the refusal says nothing about when to ask again",
+    "catches": "says when the window lifts, so the lead knows when to ask again",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  return `${opening}, and it lifts at ${atTime(held.resetsAt)}. Nothing ran and nothing was lost — ask again once it has.`;",
+        "to": "  return `${opening}. Nothing ran and nothing was lost — ask again once it has.`;"
+      }
+    ]
   }
 ]
