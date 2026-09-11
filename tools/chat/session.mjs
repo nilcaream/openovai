@@ -383,7 +383,7 @@ export function fullnessIn(root, name) {
 // It fails silent rather than wrong. If the service renames this window nothing matches, this
 // answers nothing, and nobody is told anything — while the row goes on naming every window the
 // service names. A reading that stops arriving, never an instruction about the wrong window.
-const RULED_WINDOW = "five_hour";
+export const RULED_WINDOW = "five_hour";
 
 // The line above which the work left has to be planned rather than simply done.
 //

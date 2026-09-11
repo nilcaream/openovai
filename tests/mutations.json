@@ -2239,5 +2239,27 @@
         "to": "  return `${opening}. Nothing ran and nothing was lost — ask again once it has.`;"
       }
     ]
+  },
+  {
+    "name": "the gate reads the readings only, and never the hold",
+    "catches": "refuses the lead a desk while a hold stands and the readings are gone",
+    "edits": [
+      {
+        "file": "tools/chat/gate.mjs",
+        "from": "  if (hold !== null && !holdLifted(hold)) {\n    return { fullness: hold.fullness, window: RULED_WINDOW, resetsAt: hold.resetsAt };\n  }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a hold whose window has lifted still holds",
+    "catches": "opens the lead a desk once the hold has lifted, before the pass has removed it",
+    "edits": [
+      {
+        "file": "tools/chat/gate.mjs",
+        "from": "  if (hold !== null && !holdLifted(hold)) {",
+        "to": "  if (hold !== null) {"
+      }
+    ]
   }
 ]

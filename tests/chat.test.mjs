@@ -12204,9 +12204,13 @@ describe("what the lead may start while the account is nearly spent", () => {
   const OPENED_AFTER = "Stonechat";
   const IN_THE_PLAN_BAND = 0.92;
   const UNDER_THE_PLAN_LINE = 0.89;
+  const NOT_UNDER_A_HOLD = "Fieldfare";
+  const AFTER_THE_LIFT = "Waxwing";
   let address;
   let refusedADesk;
   let openedADesk;
+  let refusedUnderAHold;
+  let openedAfterTheLift;
 
   const lifts = () => Math.floor(Date.now() / 1000) + 4 * 60 * 60;
   const stage = (fullness) =>
@@ -12230,6 +12234,18 @@ describe("what the lead may start while the account is nearly spent", () => {
 
     stage(UNDER_THE_PLAN_LINE);
     openedADesk = answerOf(await hiredBy(LEADER, OPENED_AFTER));
+
+    // THE HOLD WITH THE READINGS GONE, which is the room after the watch has parked it: every park
+    // removes the file the readings are folded from, and what is left is the record. The one
+    // reading here is under the plan line, so it is the hold alone that can refuse.
+    stageHold(gated, { resetsAt: lifts(), parking: true });
+    refusedUnderAHold = answerOf(await hiredBy(LEADER, NOT_UNDER_A_HOLD));
+
+    // And the same hold once its window has turned over, still on disk because the pass that
+    // removes it has not run: nothing stands behind it any more.
+    stageHold(gated, { resetsAt: Math.floor(Date.now() / 1000) - 60, parking: true });
+    openedAfterTheLift = answerOf(await hiredBy(LEADER, AFTER_THE_LIFT));
+    fs.rmSync(path.join(gated, "chat", "hold.json"), { force: true });
   });
 
   // Mutation: open the desk without asking the gate; and, separately, hold only from the stop
@@ -12253,6 +12269,22 @@ describe("what the lead may start while the account is nearly spent", () => {
   it("says when the window lifts, so the lead knows when to ask again", () => {
     assert.match(refusedADesk.text, /lifts at \d{2}:\d{2}/);
     assert.match(refusedADesk.text, /ask again/);
+  });
+
+  // The hold before the readings. Mutation: read the readings only — and the gate opens the room
+  // at exactly the instant the parks destroyed what said it was spent.
+  it("refuses the lead a desk while a hold stands and the readings are gone", () => {
+    assert.equal(refusedUnderAHold.refused, true, refusedUnderAHold.text);
+    assert.match(refusedUnderAHold.text, /lifts at \d{2}:\d{2}/);
+    assert.equal(fs.existsSync(path.join(gated, "work", NOT_UNDER_A_HOLD)), false, "the desk was opened anyway");
+  });
+
+  // Mutation: a hold holds for as long as it is on disk. The pass removes it on its own cadence,
+  // which can be minutes after the window turned over, and a spawn refused inside that gap is
+  // refused on nothing.
+  it("opens the lead a desk once the hold has lifted, before the pass has removed it", () => {
+    assert.equal(openedAfterTheLift.refused, false, openedAfterTheLift.text);
+    assert.match(openedAfterTheLift.text, new RegExp(`${AFTER_THE_LIFT} works here now`));
   });
 });
 

@@ -28,16 +28,35 @@
 // DECIDED ONCE, WHERE THE SPAWN IS ASKED FOR. A spawn let through is a run in flight, and a run in
 // flight is never touched — so nothing re-reads the account inside the turn, and a reading that
 // crosses the line while a run is going changes nothing about that run.
-import { accountStanding } from "./session.mjs";
+//
+// THE HOLD BEFORE THE READINGS, and it is not a tidiness. Where the account stands is folded out of
+// each session's own file, and a park ends by removing that file — so the moment the room watch has
+// parked the room on an account that is stopping, there are no readings left, and a gate that read
+// them alone would open desks and start conversations at exactly the instant the account was most
+// spent: not because it recovered but because the parks destroyed what said otherwise. The hold is
+// the record that survives a park, latched on the moment its window lifts, and while one stands the
+// answer is no whatever the readings have left to say.
+import { holdIn, holdLifted } from "./hold.mjs";
+import { RULED_WINDOW, accountStanding } from "./session.mjs";
 
 // Whether nothing new may be started right now, as the facts a refusal is worded from, or null
 // when a spawn goes through. Facts and not a sentence, for `holdSaid`'s reason: the sentence is
 // worded where the caller's other refusals are worded, in the reader's own hours.
 //
+// A hold that has lifted is read as no hold: the pass that removes it may not have run yet, and a
+// spawn refused on a window that has already turned over would be refused on nothing. A hold with
+// no moment never lifts by this test — it stands until a later reading no longer says the account
+// is stopping, and the pass ends it then. The hold is always about the ruled window, because it is
+// entered from the reading of it, so the window's name is the one the reading rules on.
+//
 // The reading is null below the plan line, so "there is a reading at all" is the whole of the
-// test: `accountStanding` is written to answer nothing until there is something to plan around,
-// and this asks it nothing more.
+// second test: `accountStanding` is written to answer nothing until there is something to plan
+// around, and this asks it nothing more.
 export function spawnHeld(instance) {
+  const hold = holdIn(instance.root);
+  if (hold !== null && !holdLifted(hold)) {
+    return { fullness: hold.fullness, window: RULED_WINDOW, resetsAt: hold.resetsAt };
+  }
   const standing = accountStanding(instance);
   if (standing === null) {
     return null;

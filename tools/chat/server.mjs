@@ -810,9 +810,14 @@ function leavingOffline(name) {
 // the service gave one. The account not having said when it lifts is a fact too, and a different
 // last sentence — a spawn refused on an unknown is asked again after the next completed turn, which
 // is when a fresh reading arrives.
+//
+// The reading may be missing — a hold read back off disk with no number on it — and then the
+// sentence says the line and not the number: the hold stands on the account having reached its
+// stop line, and that is as much as is known.
 function spawnRefused(what, held) {
   const window = held.window.replace(/_/g, "-");
-  const opening = `Nothing new is started while the account is nearly spent, so ${what}: the ${window} usage window was ${Math.round(held.fullness * 100)}% full`;
+  const read = typeof held.fullness === "number" ? `was ${Math.round(held.fullness * 100)}% full` : "has reached its stop line";
+  const opening = `Nothing new is started while the account is nearly spent, so ${what}: the ${window} usage window ${read}`;
   if (held.resetsAt === null) {
     return `${opening} and did not say when it lifts. Nothing ran and nothing was lost — ask again after the next completed turn, which is when a fresh reading arrives.`;
   }
