@@ -755,11 +755,15 @@ describe("a chat installed with --port 0", () => {
 
 // A session reads CLAUDE.md from the directory it is started in and from every directory above
 // it, so an instance installed under somebody's project would start every session with that
-// project's rules in its head. The chat writes the list of what is not to be read before it
-// serves anything, every time it starts.
+// project's rules in its head. The list of what is not to be read is handed to every run as it is
+// started — a settings document of the chat's own, never the instance's settings, which are the
+// person's and are not the toolkit's to keep rewriting.
 describe("the instructions an instance runs under", () => {
+  const settings = path.join(owned, ".claude", "settings.json");
   let excluded;
+  let handed;
   let said;
+  let settingsBefore;
 
   before(async () => {
     installed(options(owned, 0));
@@ -767,16 +771,28 @@ describe("the instructions an instance runs under", () => {
     // CLAUDE.local.md beside it, the .claude/ spellings — are deliberately not created, because
     // the interesting half of the line is what it does not claim.
     fs.writeFileSync(path.join(overhead, "CLAUDE.md"), "# the rules of the house\n");
-    // And something stale in the settings, from an instance that was somewhere else when it last
-    // started, to see the list written fresh rather than added to.
-    const settings = path.join(owned, ".claude", "settings.json");
+    // And the person's own hand in their settings — a key an older toolkit wrote there, and a
+    // key of their own — to see both left exactly as they are.
     const before_ = JSON.parse(fs.readFileSync(settings, "utf8"));
-    fs.writeFileSync(settings, JSON.stringify({ ...before_, claudeMdExcludes: ["/somewhere/else/CLAUDE.md"] }, null, 2));
+    settingsBefore = `${JSON.stringify({ ...before_, claudeMdExcludes: ["/somewhere/else/CLAUDE.md"], theirs: true }, null, 2)}\n`;
+    fs.writeFileSync(settings, settingsBefore);
 
     await start(owned, standIns);
-    assert.ok(await waitForAddress(server), "the server never said where it was listening");
-    excluded = JSON.parse(fs.readFileSync(settings, "utf8")).claudeMdExcludes;
+    const address = await waitForAddress(server);
+    assert.ok(address, "the server never said where it was listening");
+    await post(`${address}/sessions/${LEADER}/message`, { text: "hello" });
+    await waitFor(() => (callsIn(log).at(-1)?.includes("--settings") ? true : null));
+    handed = callsIn(log).at(-1).match(/--settings (\S+)/)[1];
+    excluded = JSON.parse(fs.readFileSync(handed, "utf8")).claudeMdExcludes;
     said = server.output;
+  });
+
+  it("hands the list to the run, as a settings document of the chat's own", () => {
+    assert.equal(handed, path.join(owned, "chat", "instructions.json"));
+  });
+
+  it("leaves the instance's own settings exactly as the person had them", () => {
+    assert.equal(fs.readFileSync(settings, "utf8"), settingsBefore);
   });
 
   it("keeps every way a directory above it can hold instructions out", () => {
@@ -807,13 +823,8 @@ describe("the instructions an instance runs under", () => {
     }
   });
 
-  it("writes the list fresh rather than adding to what was there", () => {
+  it("hands the list for where the instance is now, not what an older toolkit wrote into the settings", () => {
     assert.ok(!excluded.includes("/somewhere/else/CLAUDE.md"));
-  });
-
-  it("leaves what the instance grants its sessions alone", () => {
-    const allow = JSON.parse(fs.readFileSync(path.join(owned, ".claude", "settings.json"), "utf8")).permissions.allow;
-    assert.ok(allow.includes(`Edit(work/${LEADER}/STATE.md)`), JSON.stringify(allow));
   });
 
   it("says at start what it found up there", () => {
@@ -826,47 +837,26 @@ describe("the instructions an instance runs under", () => {
 });
 
 // The one question a person inside a chat cannot answer for themselves — what may be done here —
-// is answered by a lead reading a skill, and the skill is written out of the payload every time
-// the chat starts. A copy installed once would be the one file in an instance that asserts how the
-// runtime behaves and that no update ever corrects, which is the worst possible place for it.
+// is answered by a lead reading a skill. The skill is payload: placed by the install, replaced by
+// an update, and not the chat's to write. A start leaves it exactly as it is, hand edit and all —
+// a chat rewriting a file the update owns would be a second writer of one file, and the file says
+// itself how long an edit to it lasts.
 describe("the skill an instance explains itself with", () => {
   const target = path.join(instance, ".claude", "skills", "allowed", "SKILL.md");
-  const shipped = path.join(instance, "templates", "skills", "allowed", "SKILL.md");
   const HAND_EDITED = "# somebody rewrote this by hand\n";
-  let written;
+  let placed;
   let afterAnEdit;
-  let withoutIt;
 
-  // Read so that a file that is not there is a check going red rather than this hook throwing:
-  // where the skill is written is one of the things being checked, and a hook that fell over would
-  // take every check here with it and say which one was wrong to nobody.
+  // Read so that a file that is not there is a check going red rather than this hook throwing.
   const held = (from) => (fs.existsSync(from) ? fs.readFileSync(from, "utf8") : null);
 
   before(async () => {
-    // What the start at the top of this file left, before anything here touches it.
-    written = held(target);
-
-    fs.mkdirSync(path.dirname(target), { recursive: true });
+    placed = held(target);
     fs.writeFileSync(target, HAND_EDITED);
     await start(instance, standIns);
     assert.ok(await waitForHealth(URL), "the server never came back");
     afterAnEdit = held(target);
-
-    // And a chat asked to start where the payload has no such skill, in the instance no chat is
-    // ever served for. The file is put back immediately afterwards, so nothing else here sees an
-    // instance with a template missing.
-    //
-    // Started rather than run to completion, and given up on after a few seconds: a chat that does
-    // NOT refuse serves until it is killed, so a check that waited for this one to exit would hang
-    // the suite for ever on the mutation it is written to catch. What is waited for is the refusal
-    // itself, and not finding it is the answer.
-    const missing = path.join(quiet, "templates", "skills", "allowed", "SKILL.md");
-    const kept = fs.readFileSync(missing, "utf8");
-    fs.rmSync(missing);
-    const refusing = startChat(quiet, standIns);
-    withoutIt = await waitFor(() => (refusing.output.includes("allowed skill template is missing") ? refusing.output : null));
-    await stopChat(refusing);
-    fs.writeFileSync(missing, kept);
+    fs.writeFileSync(target, placed ?? "");
   });
 
   after(async () => {
@@ -874,34 +864,23 @@ describe("the skill an instance explains itself with", () => {
     assert.ok(await waitForHealth(URL), "the server never came back");
   });
 
-  it("writes it where a session reads a skill from", () => {
-    assert.notEqual(written, null, `the chat started and left nothing at ${target}`);
+  it("is where a session reads a skill from before any chat has started", () => {
+    assert.notEqual(placed, null, `nothing at ${target}`);
   });
 
-  it("writes what the payload ships and nothing of its own", () => {
-    assert.equal(written, held(shipped));
+  it("is left as it is by a start, since it is the update's to replace and not the chat's", () => {
+    assert.equal(afterAnEdit, HAND_EDITED);
   });
 
-  it("writes it again at every start, over whatever was there", () => {
-    assert.notEqual(afterAnEdit, HAND_EDITED);
-    assert.equal(afterAnEdit, held(shipped));
-  });
-
-  it("says in the file itself that an edit to the copy lasts until the next start", () => {
-    assert.match(written ?? "", /replaced every time the chat starts/);
-  });
-
-  // A chat that started without it would leave a lead answering the one question this feature
-  // exists for from memory, and nothing would say so. It is refused instead, naming the file.
-  it("refuses to start at all where the payload has no such skill", () => {
-    assert.match(withoutIt ?? "", /allowed skill template is missing/);
+  it("says in the file itself that an edit to it lasts until the next update", () => {
+    assert.match(placed ?? "", /lasts\s+until the next update/);
   });
 
   // A skill is found by the name in its front matter, and the name the first-turn block and the
   // lead's persona both send a session to is `allowed`. A file whose front matter said anything
   // else would be a skill nobody could run, sitting in exactly the right place.
   it("carries the name the rest of the workspace sends a session to", () => {
-    assert.match(written ?? "", /^name: allowed$/m);
+    assert.match(placed ?? "", /^name: allowed$/m);
   });
 });
 

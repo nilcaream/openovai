@@ -784,68 +784,24 @@
     ]
   },
   {
-    "name": "the skill is written once and never corrected after that",
-    "catches": "writes it again at every start, over whatever was there",
-    "edits": [
-      {
-        "file": "tools/skills.mjs",
-        "from": "  fs.writeFileSync(target, readTemplate(root, `${SKILL} skill`, SKILL_SOURCE));",
-        "to": "  if (!fs.existsSync(target)) {\n    fs.writeFileSync(target, readTemplate(root, `${SKILL} skill`, SKILL_SOURCE));\n  }"
-      }
-    ]
-  },
-  {
-    "name": "the skill is written where nothing looks for a skill",
-    "catches": "writes it where a session reads a skill from",
-    "edits": [
-      {
-        "file": "tools/skills.mjs",
-        "from": "export const SKILL_TARGET = path.join(\".claude\", \"skills\", SKILL, SKILL_FILE);",
-        "to": "export const SKILL_TARGET = path.join(\".claude\", \"skill\", SKILL, SKILL_FILE);"
-      }
-    ]
-  },
-  {
-    "name": "the chat writes something of its own into the skill it was shipped",
-    "catches": "writes what the payload ships and nothing of its own",
-    "edits": [
-      {
-        "file": "tools/skills.mjs",
-        "from": "  fs.writeFileSync(target, readTemplate(root, `${SKILL} skill`, SKILL_SOURCE));",
-        "to": "  fs.writeFileSync(target, `<!-- written by the chat -->\\n${readTemplate(root, `${SKILL} skill`, SKILL_SOURCE)}`);"
-      }
-    ]
-  },
-  {
-    "name": "a chat starts with no skill for its lead to read rather than refusing",
-    "catches": "refuses to start at all where the payload has no such skill",
-    "edits": [
-      {
-        "file": "tools/ovai.mjs",
-        "from": "  ownSkills(root);",
-        "to": "  void root;"
-      }
-    ]
-  },
-  {
     "name": "the skill goes by a name nothing sends a session to",
     "catches": "carries the name the rest of the workspace sends a session to",
     "edits": [
       {
-        "file": "templates/skills/allowed/SKILL.md",
+        "file": ".claude/skills/allowed/SKILL.md",
         "from": "name: allowed",
         "to": "name: permissions"
       }
     ]
   },
   {
-    "name": "the skill stops saying that the copy is rewritten at every start",
-    "catches": "says in the file itself that an edit to the copy lasts until the next start",
+    "name": "the skill stops saying how long an edit to it lasts",
+    "catches": "says in the file itself that an edit to it lasts until the next update",
     "edits": [
       {
-        "file": "templates/skills/allowed/SKILL.md",
-        "from": "This file is written by `ovai` and is replaced every time the chat starts.",
-        "to": "This file is written by `ovai`."
+        "file": ".claude/skills/allowed/SKILL.md",
+        "from": "This file is the toolkit's, and taking a newer toolkit replaces it. An edit made to it here lasts\nuntil the next update and no longer:",
+        "to": "This file is the toolkit's. What it says:"
       }
     ]
   },
@@ -855,7 +811,7 @@
     "edits": [
       {
         "file": "tools/chat/server.mjs",
-        "from": "`Run the \\`${ALLOWED}\\` skill first and read ${instance.config.human} what it answers:",
+        "from": "`Run the \\`${SKILL_NAME}\\` skill first and read ${instance.config.human} what it answers:",
         "to": "`Tell ${instance.config.human} what this workspace allows:"
       }
     ]
@@ -2171,6 +2127,50 @@
         "file": "tools/chat/server.mjs",
         "from": "    at: record.at === null ? null : new Date(record.at).toISOString(),",
         "to": "    at: record.at,"
+      }
+    ]
+  },
+  {
+    "name": "the chat writes the skill again at every start, over whatever was there",
+    "catches": "is left as it is by a start, since it is the update's to replace and not the chat's",
+    "edits": [
+      {
+        "file": "tools/ovai.mjs",
+        "from": "  console.log(describeInstructions(instructionsAbove(root).existing));",
+        "to": "  console.log(describeInstructions(instructionsAbove(root).existing));\n  fs.writeFileSync(path.join(root, \".claude\", \"skills\", \"allowed\", \"SKILL.md\"), \"---\\nname: allowed\\n---\\n\");"
+      }
+    ]
+  },
+  {
+    "name": "the list of what is not to be read is written into the person's settings rather than handed to the run",
+    "catches": "leaves the instance's own settings exactly as the person had them",
+    "edits": [
+      {
+        "file": "tools/instructions.mjs",
+        "from": "export function ownInstructions(root) {\n  const target = path.join(root, FILE);",
+        "to": "export function ownInstructions(root) {\n  fs.writeFileSync(path.join(root, \".claude\", \"settings.json\"), `${JSON.stringify({ [EXCLUDES]: excludes(root) }, null, 2)}\\n`);\n  const target = path.join(root, FILE);"
+      }
+    ]
+  },
+  {
+    "name": "a run is started without the list of what is not to be read",
+    "catches": "hands the list to the run, as a settings document of the chat's own",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "  args.push(\"--settings\", ownInstructions(instance.root));",
+        "to": "  ownInstructions(instance.root);"
+      }
+    ]
+  },
+  {
+    "name": "the run is handed the person's settings as the list, an older toolkit's key and all",
+    "catches": "hands the list for where the instance is now, not what an older toolkit wrote into the settings",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "  args.push(\"--settings\", ownInstructions(instance.root));",
+        "to": "  ownInstructions(instance.root);\n  args.push(\"--settings\", path.join(instance.root, \".claude\", \"settings.json\"));"
       }
     ]
   },

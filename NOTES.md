@@ -24,6 +24,16 @@ instance that said the new one was installed. Now every process carrying this in
 environment is named — `kill <pid>  <seat>`, or `(no seat name)` for a sign-in — and nothing of
 another instance's is. Nothing is written down to find them by, so there is nothing to go stale.
 
+**The `allowed` skill is payload, and `.claude/settings.json` is yours.** The skill a lead reads to
+say what the workspace allows now ships at `.claude/skills/allowed` — placed by the install,
+replaced by an update, the one directory and never `.claude/skills`, so a skill of your own beside
+it stays. The chat no longer rewrites it at every start, and no longer rewrites `claudeMdExcludes`
+into your settings at every start either: the list of instructions above the instance that a
+session is not to read is written to `chat/instructions.json` for each run and handed over with
+`--settings`, which was measured to be honoured on a resumed run as it is on a fresh one. A
+`claudeMdExcludes` an older toolkit left in your settings is yours now: neither read for this nor
+removed, and harmless.
+
 **The chat now keeps its own room, and it spends none of your account doing it.** The room watch
 used to read the room every five minutes and, when something had crossed into a band, buy the lead a
 turn to hear about it. It reads the same room at the same cadence, and acts instead: a conversation

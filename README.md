@@ -159,13 +159,15 @@ it the ordinary way.
 It also takes the instructions above the instance out of play. Claude Code reads `CLAUDE.md` from
 the directory a session starts in and from every directory above it, so an instance installed
 under your home, or inside a project, would otherwise start every session with rules nobody here
-wrote and nobody here can see on the page. Every time `ovai chat` starts it writes into the
-instance's own `.claude/settings.json` the list of what is not to be read: `CLAUDE.md`,
-`CLAUDE.local.md`, `.claude/CLAUDE.md` and `.claude/rules/**` in every directory from the
-instance's parent up to the filesystem root, whether or not anything is there today, so a file
-dropped in tomorrow is covered too. It prints one line naming the ones that do exist. The
-instance's own instructions are never on that list. The list is written at start rather than at
-install because it is absolute paths: an instance that is moved gets the list for where it is now.
+wrote and nobody here can see on the page. Every session is started with the list of what is not
+to be read — `CLAUDE.md`, `CLAUDE.local.md`, `.claude/CLAUDE.md` and `.claude/rules/**` in every
+directory from the instance's parent up to the filesystem root, whether or not anything is there
+today, so a file dropped in tomorrow is covered too. The chat writes it to `chat/instructions.json`
+for each run and hands it over with `--settings`; it is not in your `.claude/settings.json`, which
+is yours and which the toolkit writes once, when the instance is made, and never again. `ovai chat`
+prints one line at start naming the ones that do exist. The instance's own instructions are never
+on the list. It is computed per run rather than at install because it is absolute paths: an
+instance that is moved gets the list for where it is now.
 
 One thing cannot be taken out of play: a managed policy `CLAUDE.md` — `/etc/claude-code/CLAUDE.md`
 on Linux — which Claude Code will not let any setting exclude, so that an organisation's own

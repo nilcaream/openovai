@@ -11,10 +11,20 @@
 // having been told nothing about it. So this is not a precaution against something that might
 // happen; it is a channel that is open by default.
 //
-// The lever is `claudeMdExcludes` in the instance's own settings: a list of patterns matched
-// against absolute paths, each naming something that is not to be read. Measured, all of it:
-// a settings FILE is enough, so nothing has to be passed per run; globs work; a relative path is
-// silently ignored, which is why everything here resolves first.
+// The lever is `claudeMdExcludes`: a list of patterns matched against absolute paths, each naming
+// something that is not to be read. Measured, all of it: globs work; a relative path is silently
+// ignored, which is why everything here resolves first; and a settings document handed to a run
+// with `--settings` is honoured, on a fresh `--print` run and on a resumed one alike (measured on
+// claude 2.1.259: a run resumed with it answered NONE to what the file above said, and the same
+// conversation resumed without it read the file again).
+//
+// It is handed to every run rather than written into the instance's `.claude/settings.json`,
+// because that file is the person's. The toolkit writes it once, when the instance is made, and
+// what the person makes of it afterwards is theirs; a product default rewritten into it at every
+// start would be the toolkit's hand in their file for the life of the instance. The list is
+// absolute paths worked out from where the instance sits now, so it is computed for each run and
+// kept under `chat/` with the rest of what the chat keeps for itself — an instance that was moved
+// carries no list for where it used to be.
 //
 // One thing this cannot close, and the claim we make says so: a managed policy CLAUDE.md —
 // /etc/claude-code/CLAUDE.md on Linux — is deliberately not excludable, so an organisation's own
@@ -23,10 +33,13 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { readSettings, writeSettings } from "./settings.mjs";
-
 // The key Claude Code reads the list under.
 export const EXCLUDES = "claudeMdExcludes";
+
+// The settings document a run is started with, under the directory the chat keeps for itself.
+// Named for what it holds rather than as "settings", so that nobody reads it for the instance's
+// settings — those are in `.claude/settings.json` and are the person's.
+const FILE = path.join("chat", "instructions.json");
 
 // What is read out of one directory, and so what has to be named to keep it out. The first two
 // are the walk itself; `.claude/CLAUDE.md` is the other spelling of a directory's instructions,
@@ -73,15 +86,20 @@ export function found(patterns) {
   );
 }
 
-// Write the list into the instance's settings, replacing whatever was there and leaving the rest
-// of the file alone. Answers with what is on the list and what of it exists, so the caller can
-// say so out loud: a person who wonders why a session is not following the rules of the project
-// the instance sits in should be able to see, at start, that it is not reading them.
+// Write the settings document a run is to be started with, and answer with where it is. Written
+// on every call, so a run is always started with the list for where the instance is now; the
+// file is tiny and the write is cheaper than any reasoning about whether it is current.
 export function ownInstructions(root) {
+  const target = path.join(root, FILE);
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.writeFileSync(target, `${JSON.stringify({ [EXCLUDES]: excludes(root) }, null, 2)}\n`);
+  return target;
+}
+
+// What is on the list and what of it exists, so the chat can say so out loud at start: a person
+// who wonders why a session is not following the rules of the project the instance sits in
+// should be able to see, there, that it is not reading them.
+export function instructionsAbove(root) {
   const patterns = excludes(root);
-  const settings = readSettings(root);
-
-  writeSettings(root, { ...settings, [EXCLUDES]: patterns });
-
   return { patterns, existing: found(patterns) };
 }

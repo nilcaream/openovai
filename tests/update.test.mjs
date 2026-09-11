@@ -15,6 +15,7 @@ import { spawn } from "node:child_process";
 import { after, before, describe, it } from "node:test";
 
 import { installed, remove, repo, runToolLater, scratch, serveRelease, waitFor } from "./helpers.mjs";
+import { PAYLOAD, SKILL } from "../tools/payload.mjs";
 import { RELEASES } from "../tools/release.mjs";
 import { isOlderThan } from "../tools/version.mjs";
 
@@ -40,6 +41,7 @@ const MARKED = [
   ["bin", "ovai"],
   ["tools", "ovai.mjs"],
   ["templates", "leader.md"],
+  [SKILL, "SKILL.md"],
 ];
 
 const here = scratch("update-test");
@@ -73,7 +75,7 @@ function makeInstance(name) {
 // made of and leave the rest where it found it.
 function makeRelease(name, { version = NEWER, notes = "Hiring happens on the page now.", without = null } = {}) {
   const tree = path.join(here, name);
-  for (const entry of ["bin", "tools", "templates"]) {
+  for (const entry of PAYLOAD.filter((entry) => entry !== "VERSION")) {
     fs.cpSync(path.join(repo, entry), path.join(tree, entry), { recursive: true });
   }
   for (const marked of MARKED) {
@@ -97,15 +99,17 @@ function update(root, from) {
 
 // Everything an instance is, apart from what the toolkit ships it. This is what an update must
 // leave exactly as it found it, and reading it as content rather than as a list of names is the
-// point: a desk rewritten under the same name would pass any check that only counted files.
+// point: a desk rewritten under the same name would pass any check that only counted files. The
+// payload is skipped by the path of each entry rather than by top-level name, because one entry
+// sits inside a directory the person also uses.
 function whatTheInstanceAccumulated(root) {
-  const shipped = new Set(["bin", "tools", "templates", "VERSION"]);
+  const shipped = new Set(PAYLOAD.map((entry) => entry.split(path.sep).join("/")));
   const found = new Map();
 
   const walk = (directory, prefix) => {
     for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
       const relative = prefix === "" ? entry.name : `${prefix}/${entry.name}`;
-      if (prefix === "" && shipped.has(entry.name)) {
+      if (shipped.has(relative)) {
         continue;
       }
       const full = path.join(directory, entry.name);
@@ -157,6 +161,11 @@ describe("taking a newer version from a directory", () => {
     // and already asks of every file at once, and a second one reading this file back would be
     // reddened by the same single edit and by nothing else.
     fs.writeFileSync(path.join(root, "plugins", "notify.mjs"), "// a tool this instance serves itself\n");
+    // And a skill of the person's own, beside the one the toolkit ships. The payload entry is the
+    // one skill and not the directory, so this one is theirs and stays; the check that everything
+    // outside the payload survives reads it along with the rest, and the check below says why.
+    fs.mkdirSync(path.join(root, ".claude", "skills", "theirs"), { recursive: true });
+    fs.writeFileSync(path.join(root, ".claude", "skills", "theirs", "SKILL.md"), "---\nname: theirs\n---\n");
     accumulated = whatTheInstanceAccumulated(root);
     done = await update(root, tree);
   });
@@ -191,6 +200,11 @@ describe("taking a newer version from a directory", () => {
 
   // A release is the whole repository. What an instance is made of is a list, and everything else
   // in there is somebody else's business.
+  it("replaces the skill the toolkit ships and leaves the skill beside it that the person wrote", () => {
+    assert.match(fs.readFileSync(path.join(root, SKILL, "SKILL.md"), "utf8"), new RegExp(MARKER));
+    assert.equal(fs.readFileSync(path.join(root, ".claude", "skills", "theirs", "SKILL.md"), "utf8"), "---\nname: theirs\n---\n");
+  });
+
   it("takes only what an instance is made of", () => {
     assert.equal(fs.existsSync(path.join(root, "CONTRIBUTING.md")), false);
   });

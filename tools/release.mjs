@@ -147,8 +147,10 @@ export function notesIn(tree) {
 //
 // Replaced rather than copied over: a file the new version dropped has to go, or the instance stops
 // being a copy of any version and starts being the union of two. Nothing an instance accumulates is
-// in here — no session has ever written inside bin, tools or templates — so there is nothing under
-// these names to lose.
+// in here — no session has ever written inside bin, tools, templates or the skill the toolkit
+// ships — so there is nothing under these names to lose. An entry may sit below a directory the
+// person also uses, as the skill sits under `.claude/skills` beside their own; what is removed and
+// put back is the entry, never the directory above it.
 //
 // Everything is copied in beside what it replaces FIRST, and only then swapped, so the moment in
 // which the instance is neither one version nor the other is a remove and a rename rather than a

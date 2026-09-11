@@ -5,9 +5,9 @@ description: Say what this workspace is allowed to do, by reading the files that
 
 # What this workspace allows, read rather than remembered
 
-This file is written by `ovai` and is replaced every time the chat starts. An edit made to it here
-lasts until the next start; the copy that outlives one is `templates/skills/allowed/SKILL.md` in
-this instance, and taking a newer toolkit replaces that.
+This file is the toolkit's, and taking a newer toolkit replaces it. An edit made to it here lasts
+until the next update and no longer: what it says about the runtime is measured, and the
+measurement travels with the version.
 
 This is a procedure and not an answer. The answer is in files, the files change, and the person
 asking gave up the panel and the command line they would otherwise have read them with.
@@ -37,7 +37,9 @@ applying. That gap is the reason this procedure exists, and it is block F.
 2. The command line the chat starts a session with: `tools/chat/session.mjs`, where the arguments
    are built. It is fixed by the toolkit rather than by configuration, and it is the one input a
    person cannot see from any file. Report `--print`, `--permission-prompt-tool stdio`, the model,
-   and whether a `--permission-mode` is passed at all.
+   and whether a `--permission-mode` is passed at all. Report `--settings chat/instructions.json`
+   too: the list of instructions above the instance that a session is NOT to read travels with the
+   run, in a document the chat writes for itself, and is not in the instance's settings.
 3. `.claude/settings.local.json` — nothing here writes it. If it is there, somebody put it there
    by hand, and it outranks the instance's own.
 4. `.claude/settings.json` — the instance's own.
@@ -61,8 +63,8 @@ answer is one word.
 The permission mode, and where it came from — a `defaultMode` key with its `path:line`, or *"no
 key in any of these files, so Claude Code's default"*. Where a call that stops goes:
 `--permission-prompt-tool stdio` means the panel the person is looking at. One line saying that
-the same settings file also carries `claudeMdExcludes`, which decides what instructions a session
-reads and is not a permission.
+`claudeMdExcludes` is not in that file but handed to each run (`chat/instructions.json`), decides
+what instructions a session reads, and is not a permission.
 
 And one line for **hooks**: whether any `hooks` entry exists in the files just read, and if so,
 which events it fires on and what it runs, each with its `path:line`. A hook is shell that runs on
@@ -175,9 +177,10 @@ and resumes the conversation. Almost everything follows from that:
 - **A session nobody asks anything again is never affected.** There is no turn in which to read
   the file.
 - **A change to the toolkit needs the chat restarted**, because a process keeps the code it
-  started with. That covers this file too: it is written when the chat starts.
-- **`claudeMdExcludes` is rewritten every time the chat starts**, so a hand edit of that key lasts
-  until the next start.
+  started with. An update refuses while the chat, or any session of this instance, is running.
+- **`claudeMdExcludes` is written for every run**, into `chat/instructions.json`, from where the
+  instance sits now; a copy of that key in `.claude/settings.json` is the person's — an older
+  toolkit wrote one there — and is neither read for this nor removed.
 - **A rule pressed on the panel applies from the next call.** The rule and its line in the ledger
   are written in one act, into the file the next process reads.
 

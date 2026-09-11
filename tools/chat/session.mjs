@@ -18,6 +18,7 @@ import path from "node:path";
 import { environment } from "../claude.mjs";
 import { listening } from "./listening.mjs";
 import { desks, modelFor } from "../desks.mjs";
+import { ownInstructions } from "../instructions.mjs";
 
 // Where a thread lives between runs, under the name of the session having it. One id, written
 // after every answer: it is the whole reason a per-message run can still be a conversation.
@@ -1015,6 +1016,10 @@ function run(instance, name, text, resume, asked) {
   if (tools !== null) {
     args.push("--mcp-config", tools);
   }
+  // What is NOT to be read: the instructions of every directory above the instance. Handed to the
+  // run rather than kept in the instance's own settings, which are the person's; computed here so
+  // it is the list for where the instance sits now.
+  args.push("--settings", ownInstructions(instance.root));
   const who = persona(instance.root, name);
   if (who !== null) {
     args.push("--append-system-prompt-file", who);

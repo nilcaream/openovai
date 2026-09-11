@@ -33,24 +33,13 @@
     ]
   },
   {
-    "name": "the payload is copied without the skills under it",
-    "catches": "copies the skill an instance explains itself with in",
+    "name": "the skill is left out of what the toolkit ships",
+    "catches": "places the skill an instance explains itself with where a session reads it",
     "edits": [
       {
-        "file": "tools/release.mjs",
-        "from": "    fs.cpSync(path.join(tree, entry), beside, { recursive: true });",
-        "to": "    fs.cpSync(path.join(tree, entry), beside, { recursive: true, filter: (from) => !from.includes(\"skills\") });"
-      }
-    ]
-  },
-  {
-    "name": "the installer writes the skill directory itself, where no update will ever correct it",
-    "catches": "leaves the writing of it to the chat rather than doing it here",
-    "edits": [
-      {
-        "file": "tools/install.mjs",
-        "from": "      ...seedUserContent(plan.root, plan.leader),",
-        "to": "      ...seedUserContent(plan.root, plan.leader),\n      ...[fs.mkdirSync(path.join(plan.root, \".claude\", \"skills\"), { recursive: true })].slice(1),"
+        "file": "tools/payload.mjs",
+        "from": "export const PAYLOAD = [\"bin\", \"tools\", \"templates\", SKILL, VERSION_FILE];",
+        "to": "export const PAYLOAD = [\"bin\", \"tools\", \"templates\", VERSION_FILE];"
       }
     ]
   },
@@ -70,7 +59,7 @@
     "catches": "is found under the name the workspace sends a session to",
     "edits": [
       {
-        "file": "templates/skills/allowed/SKILL.md",
+        "file": ".claude/skills/allowed/SKILL.md",
         "from": "name: allowed",
         "to": "name: permissions"
       }
@@ -81,7 +70,7 @@
     "catches": "lays down seven blocks and their order",
     "edits": [
       {
-        "file": "templates/skills/allowed/SKILL.md",
+        "file": ".claude/skills/allowed/SKILL.md",
         "from": "### E. The other mechanism: the working directory",
         "to": "### The other mechanism: the working directory"
       }
@@ -92,7 +81,7 @@
     "catches": "makes the trust check admit it is a reconstruction",
     "edits": [
       {
-        "file": "templates/skills/allowed/SKILL.md",
+        "file": ".claude/skills/allowed/SKILL.md",
         "from": "**Say plainly, in the report, that this check is our reconstruction and not the runtime speaking,\nand mark it Assumes.**",
         "to": "**Say what this check found.**"
       }
@@ -103,7 +92,7 @@
     "catches": "has the denied block cross its paths against the shell rules that reach them",
     "edits": [
       {
-        "file": "templates/skills/allowed/SKILL.md",
+        "file": ".claude/skills/allowed/SKILL.md",
         "from": "name the pair in one line and do not soften it: *\"`Bash(sed:*)` reaches the paths\n`Edit(.claude/**)` protects\"*",
         "to": "say so"
       }
@@ -114,7 +103,7 @@
     "catches": "names the working directory as a refusal with no rule in it",
     "edits": [
       {
-        "file": "templates/skills/allowed/SKILL.md",
+        "file": ".claude/skills/allowed/SKILL.md",
         "from": "**this report may not claim a write will be allowed on rule evidence alone.**",
         "to": "**this report says whether a write will be allowed.**"
       }
@@ -125,7 +114,7 @@
     "catches": "says the calls that never stop are out of reach of allow and not of deny",
     "edits": [
       {
-        "file": "templates/skills/allowed/SKILL.md",
+        "file": ".claude/skills/allowed/SKILL.md",
         "from": "This class is out of reach of\n`allow`; it is **not** out of reach of `deny`.",
         "to": "This class is out of reach of\nthe permission rules altogether."
       }
@@ -136,7 +125,7 @@
     "catches": "names no rule the person could press next",
     "edits": [
       {
-        "file": "templates/skills/allowed/SKILL.md",
+        "file": ".claude/skills/allowed/SKILL.md",
         "from": "It does not name rules the person could usefully press next. It is a report, not advice, and a\nlead suggesting rules is a lead improvising grants.",
         "to": "It names the rules the person could usefully press next."
       }
@@ -292,6 +281,17 @@
         "file": "tools/install.mjs",
         "from": "    if (JSON.stringify(config) === JSON.stringify(plan.existing)) {\n      return [];\n    }",
         "to": "    if (JSON.stringify(config) === JSON.stringify(plan.existing)) {\n      return [target];\n    }"
+      }
+    ]
+  },
+  {
+    "name": "the skill says an edit to it lasts for ever",
+    "catches": "says it is the toolkit's and an edit to it lasts until the next update",
+    "edits": [
+      {
+        "file": ".claude/skills/allowed/SKILL.md",
+        "from": "An edit made to it here lasts\nuntil the next update and no longer:",
+        "to": "An edit made to it here is\nyours to keep:"
       }
     ]
   },

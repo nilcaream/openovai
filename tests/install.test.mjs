@@ -201,16 +201,15 @@ describe("what the installer made", () => {
     assert.ok(fs.existsSync(inside("templates", "worker.md")));
   });
 
-  // The skill a lead answers "what may be done here" from travels with the payload, so an update
-  // replaces it. Nothing is copied into .claude/skills by the installer: that copy is written when
-  // the chat starts, which is what keeps an instance from carrying a year-old account of a runtime
-  // that has been measured to do something else since.
-  it("copies the skill an instance explains itself with in", () => {
-    assert.ok(fs.existsSync(inside("templates", "skills", "allowed", "SKILL.md")));
+  // The skill a lead answers "what may be done here" from is payload: placed where a session
+  // reads a skill from, and replaced by an update, which is what keeps an instance from carrying a
+  // year-old account of a runtime that has been measured to do something else since.
+  it("places the skill an instance explains itself with where a session reads it", () => {
+    assert.ok(fs.existsSync(inside(".claude", "skills", "allowed", "SKILL.md")));
   });
 
-  it("leaves the writing of it to the chat rather than doing it here", () => {
-    assert.ok(!fs.existsSync(inside(".claude", "skills")));
+  it("names the skill among what it wrote", () => {
+    assert.ok(made.stdout.includes(inside(".claude", "skills", "allowed")));
   });
 
   // The one sentence in the persona for it. A persona is rendered when somebody is hired and an
@@ -688,14 +687,15 @@ describe("what the installer made", () => {
 // worth watching: the blocks it must not skip, and the three sentences that stop each of the three
 // ways this report can be confidently wrong.
 describe("what the skill tells a lead to report", () => {
-  const skill = () => contentOf("templates", "skills", "allowed", "SKILL.md");
+  const skill = () => contentOf(".claude", "skills", "allowed", "SKILL.md");
 
   it("is found under the name the workspace sends a session to", () => {
     assert.match(skill(), /^name: allowed$/m);
   });
 
-  it("says the copy a session reads is rewritten every time the chat starts", () => {
-    assert.match(skill(), /replaced every time the chat starts/);
+  it("says it is the toolkit's and an edit to it lasts until the next update", () => {
+    assert.match(skill(), /taking a newer toolkit replaces it/);
+    assert.match(skill(), /lasts\s+until the next update/);
   });
 
   it("has the lead read the files in the turn it is asked, never remember", () => {

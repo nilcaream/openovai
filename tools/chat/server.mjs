@@ -16,7 +16,7 @@ import { heard, overhear, owed } from "./overheard.mjs";
 import { allow, askedFor, answer as settle, giveUp, inside, park, parked, refuse, shapeOf } from "./permissions.mjs";
 import { popped } from "./pop.mjs";
 import { answerFrom } from "../plugins.mjs";
-import { SKILL as ALLOWED } from "../skills.mjs";
+import { SKILL_NAME } from "../payload.mjs";
 import { ago, roomLines, shareSaid } from "./room.mjs";
 import { WATCH_EVERY, armTheWatch, buysATurn, forgetTheRoom, howOften, nowSeen, parkAttemptsAllowed, theWatchRecord, tickRead, whatChanged } from "./watch.mjs";
 import { DESK_FILE, DeskError, WORK, allowAsked, archiveFor, deskTitle, describeName, hasSettledAnything, hire, isName, personaFile, retire } from "../desks.mjs";
@@ -251,7 +251,7 @@ function permissionsWrapper(instance, name) {
   return [
     "<permissions>",
     "The chat is telling you this. Nobody typed it.",
-    `Run the \`${ALLOWED}\` skill first and read ${instance.config.human} what it answers: what this workspace denies, what it allows and who asked for each, what stops a session and waits on their panel, what never stops at all, and which of that the runtime is honouring here. It reads the files in this turn, so what they hear now is the same answer they get in three weeks when they ask again — and nothing in this block describes that state itself, because a sentence written months ago about a workspace nobody had installed yet is the one thing they cannot check.`,
+    `Run the \`${SKILL_NAME}\` skill first and read ${instance.config.human} what it answers: what this workspace denies, what it allows and who asked for each, what stops a session and waits on their panel, what never stops at all, and which of that the runtime is honouring here. It reads the files in this turn, so what they hear now is the same answer they get in three weeks when they ask again — and nothing in this block describes that state itself, because a sentence written months ago about a workspace nobody had installed yet is the one thing they cannot check.`,
     `Whatever it comes to, everything not settled by a rule stops a session mid-turn and waits on a panel. That is the right default, and it means ${instance.config.human} would otherwise find out what they are willing to allow one interruption at a time, over days, each one arriving in the middle of somebody else's work.`,
     `Ask them the one question that settles most of it, now, while they are thinking about this workspace rather than about whatever a session was doing when it stopped: what may be done at this root. Ask it open and offer no menu — an answer sounds like "never push anything", "never write outside work/", "no restrictions", "ask me every time" — and take it as they say it. Nothing here reads it, records it or turns it into a setting.`,
     "Then, if what they said allows anything at all, make the calls it permits, one at a time, so that each one stops and they can press Always allow on it while the question is still in their head. There are two shapes to trip and no others: a COMMAND they named, never one you chose, and a WRITE at the path their answer names — where they named a place, at the root itself where they said no restrictions, and under `.tmp/` at the root where they named nowhere in particular. Tripping somewhere narrower than they allowed asks them to grant less than they said yes to, which is the one thing this exists to prevent.",
