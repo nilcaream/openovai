@@ -79,7 +79,8 @@ import { handOver, readTheRoom, serve } from "../tools/chat/server.mjs";
 
 // And a turn asked for directly, for the same reason again: where the account stands while a run is
 // going is held in memory by the module that owns the run, and there is no route that says it.
-import { ask, fullnessIn, standingsUnderway } from "../tools/chat/session.mjs";
+import { ask, fullnessIn, quotaIn, standingsUnderway } from "../tools/chat/session.mjs";
+import { holdIn } from "../tools/chat/hold.mjs";
 
 // The kinds themselves, read from where they are named rather than written out again here. Two
 // copies of a list are two things that drift, and a check comparing what it saw against its own
@@ -12810,6 +12811,12 @@ const ON_A_PROMPT = "Stilt";
 const NOTHING_TO_HAND_OVER = "Capercaillie";
 const CARRIED = "Ptarmigan";
 const BUYS_NO_PARK = "Dipper";
+const HOLD_READ = "Whimbrel";
+const HOLD_REFUSED = "Shearwater";
+const HOLD_COLD = "Petrel";
+const LIFTED_UNDER = "Chough";
+const HELD_PAST_THE_LIFT = "Turnstone";
+const UNSAID = "Sanderling";
 
 // A window over the stop line, and where it lifts is the whole of what these describes turn on.
 const OVER_THE_STOP_LINE = 0.96;
@@ -12823,6 +12830,16 @@ function stageThread(root, name, held) {
   fs.writeFileSync(
     file,
     `${JSON.stringify({ sessionId: `a-thread-for-${name}`, context: null, quota: null, refused: null, window: null, ...held }, null, 2)}\n`,
+  );
+}
+
+// A hold, written where the pass would have written it: entered a while ago, nobody parked yet.
+function stageHold(root, { resetsAt, parking }) {
+  const file = path.join(root, "chat", "hold.json");
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(
+    file,
+    `${JSON.stringify({ since: new Date(Date.now() - 10 * 60 * 1000).toISOString(), resetsAt, fullness: OVER_THE_STOP_LINE, parking, parked: [] }, null, 2)}\n`,
   );
 }
 
@@ -13122,6 +13139,7 @@ describe("what a pass does about where the account stands", () => {
       let runs;
       let panels;
       let threadsLeft;
+      let hold;
 
       before(async () => {
         process.env.OPENOVAI_STAND_IN_LOG = carryingLog;
@@ -13148,6 +13166,7 @@ describe("what a pass does about where the account stands", () => {
         await new Promise((resolve) => setTimeout(resolve, 2500));
 
         record = theWatchRecord();
+        hold = holdIn(carrying);
         runs = runsIn(carryingLog);
         panels = { [CARRIED]: panelIn(carrying, CARRIED), [leader]: panelIn(carrying, leader) };
         threadsLeft = [CARRIED, leader].filter((name) => fs.existsSync(path.join(carrying, "chat", name, "session.json")));
@@ -13167,6 +13186,16 @@ describe("what a pass does about where the account stands", () => {
         assert.equal(record.acted, 0, JSON.stringify(record));
       });
 
+      // Mutation: record a hold only where somebody is parked. The account is stopping either way,
+      // and the room has to be able to say so; what the record says here is that nobody is parked,
+      // and — where the account said — when it lifts.
+      it("records the hold when everybody is carried", () => {
+        assert.ok(hold !== null, "no hold was recorded");
+        assert.equal(hold.parking, false, JSON.stringify(hold));
+        assert.equal(hold.resetsAt === null, liftsInMinutes === null, JSON.stringify(hold));
+        assert.equal(hold.fullness, OVER_THE_STOP_LINE, JSON.stringify(hold));
+      });
+
       after(() => {
         remove(carrying);
       });
@@ -13184,6 +13213,7 @@ describe("what a pass does about where the account stands", () => {
     let runs;
     let panels;
     let threadsLeft;
+    let hold;
 
     before(async () => {
       process.env.OPENOVAI_STAND_IN_LOG = decliningLog;
@@ -13210,6 +13240,7 @@ describe("what a pass does about where the account stands", () => {
       await readTheRoom(served);
 
       record = theWatchRecord();
+      hold = holdIn(declining);
       runs = runsIn(decliningLog);
       panels = { [BUYS_NO_PARK]: panelIn(declining, BUYS_NO_PARK), [leader]: panelIn(declining, leader) };
       threadsLeft = [BUYS_NO_PARK, leader].filter((name) => fs.existsSync(path.join(declining, "chat", name, "session.json")));
@@ -13226,10 +13257,356 @@ describe("what a pass does about where the account stands", () => {
       assert.deepEqual(parkedLinesOn(panels[leader]), []);
       assert.deepEqual(runs, []);
       assert.equal(record.decided, 0, JSON.stringify(record));
+      // The hold is still recorded — recording it spends nothing — and says that nobody is parked.
+      assert.ok(hold !== null, "no hold was recorded");
+      assert.equal(hold.parking, false, JSON.stringify(hold));
     });
 
     after(() => {
       remove(declining);
+    });
+  });
+
+  // The hold, which is what everything above decides against once it has been entered, and which
+  // survives the parks that destroy the readings it was entered on.
+  describe("the hold outlives the readings it was entered on", () => {
+    const holding = `${instance}-holding`;
+    const holdingLog = path.join(holding, "parks.txt");
+    const refusing = path.join(holding, "refusing");
+    let leader;
+    let holdOnEntry;
+    let hold;
+    let readingsAfterTheFirstPark;
+    let runs;
+    let panels;
+    let threadsLeft;
+    let reopenedStillThere;
+
+    const thread = (name) => path.join(holding, "chat", name, "session.json");
+    const readingsIn = () => [HOLD_READ, HOLD_REFUSED, HOLD_COLD, leader].filter((name) => Array.isArray(quotaIn(holding, name)));
+
+    before(async () => {
+      process.env.OPENOVAI_STAND_IN_LOG = holdingLog;
+      // Turned away for as long as something is at this path, which is how ONE park is refused in a
+      // chat that otherwise answers: the file is put there while that park is queued and taken away
+      // once it has been refused.
+      process.env.OPENOVAI_STAND_IN_REFUSED_WHILE = refusing;
+
+      installed(options(holding, 0));
+      for (const name of [HOLD_READ, HOLD_REFUSED, HOLD_COLD]) {
+        runTool(holding, ["hire", name], process.env);
+      }
+      const config = path.join(holding, "openovai.json");
+      fs.writeFileSync(
+        config,
+        `${JSON.stringify({ ...JSON.parse(fs.readFileSync(config, "utf8")), watchEverySeconds: 1 }, null, 2)}\n`,
+      );
+      const held = JSON.parse(fs.readFileSync(config, "utf8"));
+      leader = held.leader;
+
+      // THE ONE READING IS ON THE SEAT PARKED FIRST, so that the first park removes it and everything
+      // after that is decided with no reading left anywhere.
+      stageThread(holding, HOLD_READ, {
+        context: 0.6 * WINDOW_HELD,
+        window: WINDOW_HELD,
+        quota: [window("five_hour", OVER_THE_STOP_LINE, LIFTS_LATER_THAN_THE_HOUR), window("seven_day", 0.36, 5 * 24 * 60)],
+      });
+      stageThread(holding, HOLD_REFUSED, { context: 0.4 * WINDOW_HELD, window: WINDOW_HELD });
+      stageThread(holding, HOLD_COLD, { context: 0.3 * WINDOW_HELD, window: WINDOW_HELD });
+      age(thread(HOLD_COLD), 90);
+      // And the lead has no thread, so it has nothing to hand over: the refusal put in place below
+      // is lifted a moment after it bit, and a lead parked right behind it could be caught by it
+      // or not depending on nothing but pace.
+
+      // The seat whose park is to be refused has a turn held on it, so the park queues behind it
+      // and the refusal can be put in place while it waits.
+      let letGo;
+      const waiting = inTurn(HOLD_REFUSED, () => new Promise((resolve) => {
+        letGo = resolve;
+      }));
+
+      const server = await serve({ root: holding, config: held, plugins: [], pop: null });
+
+      // NOTHING IS ASSERTED IN THIS HOOK: it holds a live server and a turn only it can let go.
+      await until(() => turnsGoing(HOLD_REFUSED) >= 2);
+      holdOnEntry = holdIn(holding);
+      readingsAfterTheFirstPark = fs.existsSync(thread(HOLD_READ)) ? null : readingsIn();
+      fs.writeFileSync(refusing, "");
+      letGo();
+      await waiting;
+      // Refused, and the refusal taken away again so that the retry goes through — on the next pass.
+      await until(() => panelIn(holding, HOLD_REFUSED).some((line) => line.refused === true));
+      fs.rmSync(refusing, { force: true });
+      await until(() => !fs.existsSync(thread(HOLD_REFUSED)));
+
+      // And the first seat spoken to again inside the same window: a thread again, no reading.
+      stageThread(holding, HOLD_READ, { context: UNDER_THE_LINE, window: WINDOW_HELD });
+      await new Promise((resolve) => setTimeout(resolve, 2500));
+      reopenedStillThere = fs.existsSync(thread(HOLD_READ));
+
+      hold = holdIn(holding);
+      runs = runsIn(holdingLog);
+      panels = Object.fromEntries([HOLD_READ, HOLD_REFUSED, HOLD_COLD, leader].map((name) => [name, panelIn(holding, name)]));
+      threadsLeft = [HOLD_READ, HOLD_REFUSED, HOLD_COLD, leader].filter((name) => fs.existsSync(thread(name)));
+      await new Promise((resolve) => server.close(resolve));
+    });
+
+    // Mutation: decide the hold and never write it down. The record is a file because a restart
+    // in the middle of a quota cut must not forget it — and because the pass reads it back.
+    it("enters a hold when the account is at the stop line", () => {
+      assert.ok(holdOnEntry !== null, "no hold was written");
+      assert.equal(holdOnEntry.parking, true, JSON.stringify(holdOnEntry));
+      assert.equal(holdOnEntry.fullness, OVER_THE_STOP_LINE, JSON.stringify(holdOnEntry));
+      assert.ok(typeof holdOnEntry.resetsAt === "number" && holdOnEntry.resetsAt * 1000 > Date.now(), JSON.stringify(holdOnEntry));
+      assert.match(holdOnEntry.since, /^\d{4}-\d\d-\d\dT/);
+    });
+
+    // Mutation: decide the parks from the readings rather than from the hold. The only reading went
+    // with the first park; the refused seat is retried on the pass after that with nothing left
+    // anywhere saying the account is stopping — which is the whole of why the hold exists.
+    it("keeps parking off the hold after the readings are gone", () => {
+      assert.deepEqual(readingsAfterTheFirstPark, [], "the first park had not removed the only reading");
+      assert.equal(panels[HOLD_REFUSED].filter((line) => line.refused === true).length, 1, JSON.stringify(panels[HOLD_REFUSED]));
+      assert.equal(runs.filter((run) => run.name === HOLD_REFUSED).length, 2, JSON.stringify(runs.map((run) => run.name)));
+      assert.ok(!threadsLeft.includes(HOLD_REFUSED), JSON.stringify(threadsLeft));
+      assert.equal(parkedLinesOn(panels[leader]).filter((line) => line.text.startsWith(HOLD_REFUSED)).length, 1);
+    });
+
+    // Mutation: park a seat again whenever it has a thread again. A park is entered once per
+    // window, not once per thread: the seat was parked, was spoken to again, and is left alone.
+    it("parks a seat once per hold", () => {
+      assert.ok(reopenedStillThere, "the reopened seat was parked again");
+      assert.equal(parkAskedOn(panels[HOLD_READ]).length, 1, JSON.stringify(panels[HOLD_READ]));
+      assert.equal(runs.filter((run) => run.name === HOLD_READ).length, 1, JSON.stringify(runs.map((run) => run.name)));
+    });
+
+    // Mutation: never enter a parked seat in the hold. The list is what the rule above is read off,
+    // in the order the parks returned — the refused one second, because its first try did not.
+    it("remembers in the hold whom it parked", () => {
+      assert.ok(hold !== null, "the hold is gone");
+      assert.deepEqual(hold.parked, [HOLD_READ, HOLD_REFUSED]);
+      assert.equal(hold.since, holdOnEntry.since, "the hold was entered a second time");
+    });
+
+    // Mutation: ask a cold seat to hand over. Past the hour there is nothing a handover could write
+    // down; the cold ending in the same pass says on its panel where the memory stops, and no run
+    // is spent on it.
+    it("leaves a seat that has gone cold to the cold ending", () => {
+      assert.ok(!runs.some((run) => run.name === HOLD_COLD), JSON.stringify(runs.map((run) => run.name)));
+      assert.deepEqual(parkAskedOn(panels[HOLD_COLD]), []);
+      assert.equal(panels[HOLD_COLD].filter((line) => line.cold === true).length, 1, JSON.stringify(panels[HOLD_COLD]));
+      assert.ok(!threadsLeft.includes(HOLD_COLD), JSON.stringify(threadsLeft));
+      assert.ok(!hold.parked.includes(HOLD_COLD), JSON.stringify(hold));
+    });
+
+    after(() => {
+      delete process.env.OPENOVAI_STAND_IN_REFUSED_WHILE;
+      remove(holding);
+    });
+  });
+
+  // A hold found on disk whose window has lifted — what a chat restarted after the lift finds, and
+  // what any pass finds on the first tick after the moment passes.
+  describe("a hold whose window has lifted", () => {
+    const lifted = `${instance}-lifted`;
+    const liftedLog = path.join(lifted, "parks.txt");
+    let leader;
+    let holdAfter;
+    let runs;
+    let panels;
+    let threadsLeft;
+
+    before(async () => {
+      process.env.OPENOVAI_STAND_IN_LOG = liftedLog;
+
+      installed(options(lifted, 0));
+      runTool(lifted, ["hire", LIFTED_UNDER], process.env);
+      const config = path.join(lifted, "openovai.json");
+      fs.writeFileSync(
+        config,
+        `${JSON.stringify({ ...JSON.parse(fs.readFileSync(config, "utf8")), watchEverySeconds: 1 }, null, 2)}\n`,
+      );
+      const held = JSON.parse(fs.readFileSync(config, "utf8"));
+      leader = held.leader;
+
+      stageThread(lifted, LIFTED_UNDER, { context: 0.5 * WINDOW_HELD, window: WINDOW_HELD });
+      // A hold that parks, entered a while ago, whose window lifted a minute ago.
+      stageHold(lifted, { resetsAt: Math.floor(Date.now() / 1000) - 60, parking: true });
+
+      const server = await serve({ root: lifted, config: held, plugins: [], pop: null });
+      await new Promise((resolve) => setTimeout(resolve, 2500));
+
+      holdAfter = holdIn(lifted);
+      runs = runsIn(liftedLog);
+      panels = { [LIFTED_UNDER]: panelIn(lifted, LIFTED_UNDER), [leader]: panelIn(lifted, leader) };
+      threadsLeft = [LIFTED_UNDER].filter((name) => fs.existsSync(path.join(lifted, "chat", name, "session.json")));
+      await new Promise((resolve) => server.close(resolve));
+    });
+
+    // Mutation: a lifted hold stands forever. It ends on the first pass that reads it lifted, and
+    // the seat under it, which still has a thread, is not parked on a window that is over.
+    it("ends the hold when the window lifts", () => {
+      assert.equal(holdAfter, null, JSON.stringify(holdAfter));
+      assert.deepEqual(threadsLeft, [LIFTED_UNDER]);
+      assert.deepEqual(parkAskedOn(panels[LIFTED_UNDER]), []);
+      assert.deepEqual(runs, []);
+    });
+
+    after(() => {
+      remove(lifted);
+    });
+  });
+
+  // A park decided under a hold and still queued when that hold ends.
+  describe("a park still queued when its hold ends", () => {
+    const ending = `${instance}-hold-ending`;
+    const endingLog = path.join(ending, "parks.txt");
+    let leader;
+    let parkQueuedBehindTheHeldTurn;
+    let runs;
+    let panels;
+    let threadsLeft;
+
+    const thread = (name) => path.join(ending, "chat", name, "session.json");
+
+    before(async () => {
+      process.env.OPENOVAI_STAND_IN_LOG = endingLog;
+
+      installed(options(ending, 0));
+      runTool(ending, ["hire", HELD_PAST_THE_LIFT], process.env);
+      const config = path.join(ending, "openovai.json");
+      fs.writeFileSync(
+        config,
+        `${JSON.stringify({ ...JSON.parse(fs.readFileSync(config, "utf8")), watchEverySeconds: 1 }, null, 2)}\n`,
+      );
+      const held = JSON.parse(fs.readFileSync(config, "utf8"));
+      leader = held.leader;
+
+      stageThread(ending, HELD_PAST_THE_LIFT, { context: 0.5 * WINDOW_HELD, window: WINDOW_HELD });
+      // A hold that parks and stands for hours yet, and no reading anywhere: the pass acts on the
+      // hold alone.
+      stageHold(ending, { resetsAt: Math.floor(Date.now() / 1000) + 3 * 60 * 60, parking: true });
+
+      let letGo;
+      const holding = inTurn(HELD_PAST_THE_LIFT, () => new Promise((resolve) => {
+        letGo = resolve;
+      }));
+
+      const server = await serve({ root: ending, config: held, plugins: [], pop: null });
+
+      // NOTHING IS ASSERTED IN THIS HOOK: it holds a live server and a turn only it can let go.
+      // The park queues behind the held turn; then the window lifts from under it — the hold on
+      // disk is rewritten as lifted, which is what the clock does — and the turn is let go.
+      parkQueuedBehindTheHeldTurn = await until(() => turnsGoing(HELD_PAST_THE_LIFT) >= 2);
+      stageHold(ending, { resetsAt: Math.floor(Date.now() / 1000) - 1, parking: true });
+      letGo();
+      await holding;
+      await new Promise((resolve) => setTimeout(resolve, 2500));
+
+      runs = runsIn(endingLog);
+      panels = { [HELD_PAST_THE_LIFT]: panelIn(ending, HELD_PAST_THE_LIFT), [leader]: panelIn(ending, leader) };
+      threadsLeft = [HELD_PAST_THE_LIFT].filter((name) => fs.existsSync(thread(name)));
+      await new Promise((resolve) => server.close(resolve));
+    });
+
+    // Mutation: the park never asks whether its hold still stands. Parking after the lift spends
+    // the new window to save a conversation that is no longer at risk, and nothing is written.
+    it("abandons a park whose hold ended before its turn ran", () => {
+      assert.ok(parkQueuedBehindTheHeldTurn, "the pass never queued a park behind the held turn");
+      assert.deepEqual(panels[HELD_PAST_THE_LIFT].filter((line) => line.from === "the chat"), []);
+      assert.deepEqual(runs, []);
+      assert.deepEqual(threadsLeft, [HELD_PAST_THE_LIFT]);
+      assert.deepEqual(parkedLinesOn(panels[leader]), []);
+    });
+
+    after(() => {
+      remove(ending);
+    });
+  });
+
+  // The one hold with no moment to wait for, and the two ways it is re-decided from the readings
+  // that keep arriving because it parks nobody.
+  describe("a hold with no lift moment", () => {
+    const unsaid = `${instance}-unsaid-hold`;
+    const unsaidLog = path.join(unsaid, "parks.txt");
+    let leader;
+    let holdEntered;
+    let holdAfterTheReadingEased;
+    let holdEnteredAgain;
+    let holdAfterAMomentWasNamed;
+    let threadsLeft;
+
+    const thread = (name) => path.join(unsaid, "chat", name, "session.json");
+
+    before(async () => {
+      process.env.OPENOVAI_STAND_IN_LOG = unsaidLog;
+
+      installed(options(unsaid, 0));
+      runTool(unsaid, ["hire", UNSAID], process.env);
+      const config = path.join(unsaid, "openovai.json");
+      fs.writeFileSync(
+        config,
+        `${JSON.stringify({ ...JSON.parse(fs.readFileSync(config, "utf8")), watchEverySeconds: 1 }, null, 2)}\n`,
+      );
+      const held = JSON.parse(fs.readFileSync(config, "utf8"));
+      leader = held.leader;
+
+      const reading = (fullness, liftsInMinutes) => ({
+        context: UNDER_THE_LINE,
+        window: WINDOW_HELD,
+        quota: [window("five_hour", fullness, liftsInMinutes), window("seven_day", 0.36, 5 * 24 * 60)],
+      });
+      stageThread(unsaid, UNSAID, reading(OVER_THE_STOP_LINE, null));
+      stageThread(unsaid, leader, { context: UNDER_THE_LINE, window: WINDOW_HELD });
+
+      const server = await serve({ root: unsaid, config: held, plugins: [], pop: null });
+      holdEntered = await until(() => holdIn(unsaid));
+
+      // A later reading, under the line: the account stopped saying it was stopping.
+      stageThread(unsaid, UNSAID, reading(0.4, null));
+      await new Promise((resolve) => setTimeout(resolve, 2500));
+      holdAfterTheReadingEased = holdIn(unsaid);
+
+      // Over the line again with no moment, so that a hold with no moment is STANDING when the
+      // reading that names one arrives — measured: staged with the easing in between, the
+      // re-decision below went through the no-hold path, and a pass that ignored the later reading
+      // on a standing hold was never noticed.
+      stageThread(unsaid, UNSAID, reading(OVER_THE_STOP_LINE, null));
+      holdEnteredAgain = await until(() => holdIn(unsaid));
+
+      // And later again, over the line with a moment this time, later than the hour.
+      stageThread(unsaid, UNSAID, reading(OVER_THE_STOP_LINE, LIFTS_LATER_THAN_THE_HOUR));
+      holdAfterAMomentWasNamed = await until(() => {
+        const now = holdIn(unsaid);
+        return now !== null && now.resetsAt !== null ? now : null;
+      });
+      await until(() => !fs.existsSync(thread(UNSAID)));
+      threadsLeft = [UNSAID, leader].filter((name) => fs.existsSync(thread(name)));
+      await new Promise((resolve) => server.close(resolve));
+    });
+
+    // Mutation: a hold with no moment is never released. It has nothing to wait for, so it stands
+    // only as long as the readings say the account is stopping — and here they stopped saying it.
+    it("a hold with no lift moment ends when the readings stop saying stop", () => {
+      assert.ok(holdEntered !== null, "no hold was entered on the reading with no moment");
+      assert.equal(holdEntered.resetsAt, null, JSON.stringify(holdEntered));
+      assert.equal(holdEntered.parking, false, JSON.stringify(holdEntered));
+      assert.equal(holdAfterTheReadingEased, null, JSON.stringify(holdAfterTheReadingEased));
+    });
+
+    // Mutation: a hold with no moment ignores a later reading that names one. The readings keep
+    // arriving because nothing was parked, and the one that names a moment decides the hold afresh
+    // — here into one that parks.
+    it("a hold with no lift moment is re-decided when a later reading names one", () => {
+      assert.ok(holdEnteredAgain !== null && holdEnteredAgain.resetsAt === null, "no hold with no moment was standing when the moment was named");
+      assert.ok(holdAfterAMomentWasNamed !== null, "the hold never took the moment a later reading named");
+      assert.equal(holdAfterAMomentWasNamed.parking, true, JSON.stringify(holdAfterAMomentWasNamed));
+      assert.ok(holdAfterAMomentWasNamed.resetsAt * 1000 > Date.now(), JSON.stringify(holdAfterAMomentWasNamed));
+      assert.deepEqual(threadsLeft, []);
+    });
+
+    after(() => {
+      remove(unsaid);
     });
   });
 });

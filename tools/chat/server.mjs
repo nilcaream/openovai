@@ -21,6 +21,7 @@ import { ago, roomLines, shareSaid } from "./room.mjs";
 import { armTheWatch, buysATurn, forgetTheRoom, howOften, nowSeen, tickRead, whatChanged } from "./watch.mjs";
 import { DESK_FILE, DeskError, WORK, allowAsked, archiveFor, deskTitle, describeName, hasSettledAnything, hire, isName, retire } from "../desks.mjs";
 import { accountStanding, ask, bandIn, endRun, forget, fullnessIn, hasGoneCold, hasGoneQuiet, hasThread, quotaIn, ranAt, refusedIn, sessions, standingsUnderway } from "./session.mjs";
+import { endHold, enterHold, holdIn, holdLifted, holdStands, markParked } from "./hold.mjs";
 import { inTurn, turnsGoing, waitingFor, whileWaitingFor, wouldWaitForItself } from "./turns.mjs";
 import { unfinished } from "./unfinished.mjs";
 import { takeWord } from "./untold.mjs";
@@ -2337,8 +2338,14 @@ function parkedLine(name, full) {
 // decision to save nothing. Asked with `parked`, which answers for one session — the all-sessions
 // reading hands back empty entries for anybody who was ever asked about, so a length taken from it
 // would call every session busy that had once been asked anything.
+//
+// AND A CONVERSATION THAT HAS GONE COLD IS NOT PARKED EITHER. Past the hour the thread cannot be
+// carried on, so there is nothing a handover turn could write down that the desk does not already
+// hold — the ending it gets is the cold one, below in the same pass, which says on its panel where
+// the memory stops. This is what bounds a park the service keeps turning away: it is tried again
+// while the seat is warm, and stops being tried when the seat is not.
 function worthParking(instance, name) {
-  if (!hasThread(instance.root, name)) {
+  if (!hasThread(instance.root, name) || hasGoneCold(instance.root, name)) {
     return false;
   }
   return parked(name, instance.root).length === 0;
@@ -2462,36 +2469,61 @@ async function walkTheRoom(instance) {
   // spending the window, and waiting for it to be idle is waiting for the thing being decided
   // about to finish happening.
   //
-  // THREE ANSWERS AND NOT TWO, which is the whole of what this branch is. `warm` says whether the
+  // WHAT IS READ IS THE HOLD, AND THE READINGS ONLY WHERE THERE IS NONE. The readings are folded
+  // out of each session's own file and a park ends by removing that file, so a pass that decided
+  // from the readings alone would go quiet the moment it had parked the seats carrying them — a
+  // refused park would stop being retried not because the account recovered but because the parks
+  // around it destroyed what said otherwise. The hold is entered ONCE, on the reading that crossed
+  // the line, and everything after that is decided against the hold, which survives every park
+  // and a restart of the chat.
+  //
+  // THREE ANSWERS AND NOT TWO, which is the whole of what entering it is. `warm` says whether the
   // window lifts inside the hour a conversation can be carried across, and it is THREE-VALUED —
   // `null` is the account not having said when it lifts, which is not the same answer as no.
   //   true  — it lifts within the hour. Carry: everybody is still here when the wait is over, and
   //           parking them would spend the account to save conversations that were never at risk.
+  //           The hold is recorded, parks nobody, and lifts at that moment.
   //   null  — nobody said when it lifts. Carry, because a park is not something to do on an
   //           unknown: it is irreversible for the conversation it ends, and the reading that would
-  //           have justified it never arrived.
+  //           have justified it never arrived. This hold has no moment to wait for, so it is the
+  //           one that is re-decided from the readings on every pass — it parks nobody, so the
+  //           readings keep arriving — and it ends when they no longer say the account is stopping.
   //   false — it lifts later than that. Kill: every conversation still here when the window turns
   //           over is one that will have to be paid for again from nothing, so what each seat knows
   //           is written to its desk while there is still an account to write it with.
   //
-  // WHAT THIS DOES AT EVERY PASS, said here because it is not yet what it will be. There is no
-  // record of a hold, so while a reading still says this, every pass parks whatever is still
-  // parkable. That is right rather than merely tolerable in two of the three cases: a park that
-  // SUCCEEDED took the thread away, so `worthParking` answers no and it is not repeated, and a park
-  // that was REFUSED left the thread where it was, so it is tried again — which is what a refused
-  // park is supposed to get while its seat is still warm. What is missing is the other end: once
-  // the last thread is gone there are no readings left, this reads nothing, and the room falls
-  // quiet because the parking destroyed the evidence rather than because the account recovered.
-  // A record of the hold is what answers that, and it is the next thing.
-  //
-  // AND ONLY WHERE THE WORKSPACE BUYS A TURN. A park is a turn on the session parked, which is the
-  // first thing in a pass that spends anything; a workspace that wrote `0` declined exactly this,
-  // and keeps everything above and below it, which spends nothing.
-  const standing = buysATurn(instance.config) ? accountStanding(instance) : null;
-  if (standing !== null && standing.stop && standing.warm === false) {
-    const full = `${Math.round(standing.fullness * 100)}%`;
+  // AND ONLY WHERE THE WORKSPACE BUYS A TURN IS ANYBODY PARKED. A park is a turn on the session
+  // parked, which is the first thing in a pass that spends anything; a workspace that wrote `0`
+  // declined exactly this. The hold is still recorded there, because recording it spends nothing
+  // and the room should be able to say the account is stopping.
+  let hold = holdIn(instance.root);
+  if (hold !== null && holdLifted(hold)) {
+    endHold(instance.root);
+    hold = null;
+  }
+  if (hold === null || hold.resetsAt === null) {
+    const standing = accountStanding(instance);
+    if (standing === null || !standing.stop) {
+      if (hold !== null) {
+        endHold(instance.root);
+        hold = null;
+      }
+    } else if (hold === null || standing.resetsAt !== null) {
+      hold = enterHold(instance.root, {
+        resetsAt: standing.resetsAt,
+        fullness: standing.fullness,
+        parking: standing.warm === false && buysATurn(instance.config),
+      });
+    }
+  }
+
+  if (hold !== null && hold.parking) {
+    const full = `${Math.round(hold.fullness * 100)}%`;
     for (const session of inParkOrder(instance, room)) {
-      if (!worthParking(instance, session.name)) {
+      // ONCE PER SEAT PER HOLD, and the hold keeps the list. A seat that was parked and then spoken
+      // to again inside the same window has a thread again and is still not parked again; a seat
+      // whose park was turned away is not in the list, and is tried again while it is warm.
+      if (hold.parked.includes(session.name) || !worthParking(instance, session.name)) {
         continue;
       }
       decided += 1;
@@ -2499,24 +2531,26 @@ async function walkTheRoom(instance) {
       // ASKED AGAIN INSIDE THE TURN, and what is asked again is what can have changed. `inTurn`
       // chains onto this session's own queue, so this can run behind a message that arrived a
       // moment after the room was read and behind everything already stacked up: by then the seat
-      // may have been handed over by a press, or may be waiting on a permission prompt.
+      // may have been handed over by a press, may be waiting on a permission prompt, or the window
+      // may have lifted — and a park after the lift spends the new window to save nothing.
       //
-      // WHAT IS DELIBERATELY NOT RE-READ IS THE ACCOUNT. Parking ends in `forget`, which removes
-      // the very file the standing is folded from, so a second reading taken after the first park
+      // WHAT IS DELIBERATELY NOT RE-READ IS THE ACCOUNT'S READINGS. Parking ends in `forget`, which
+      // removes the very file they are folded from, so a second reading taken after the first park
       // can say the account is fine — not because it recovered but because this destroyed what said
-      // otherwise. A park that re-read it would abandon every seat after the first. Reading it
-      // against something that survives a park is what the hold record is for.
+      // otherwise. A park that re-read them would abandon every seat after the first. The hold is
+      // what survives a park, and the hold is what is asked.
       const done = await handOver(instance, session.name, parkAsked(session.name, full), () =>
-        worthParking(instance, session.name),
+        worthParking(instance, session.name) && holdStands(instance.root, hold),
       );
 
       // Nothing happened, and each of the three ways that can be true is a reason to leave the seat
       // exactly as it is: the room was off, the turn found the seat no longer worth parking, or the
       // account turned the run away. The last one is the one that comes back — the thread is still
-      // there, so the next pass tries again.
+      // there and the seat is not in the hold's list, so the next pass tries again.
       if (done === OFFLINE || done.abandoned === true || done.refused === true) {
         continue;
       }
+      markParked(instance.root, session.name);
       acted += 1;
       announce(instance, parkedLine(session.name, full), at);
     }

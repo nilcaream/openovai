@@ -1476,8 +1476,8 @@
     "edits": [
       {
         "file": "tools/chat/server.mjs",
-        "from": "  if (standing !== null && standing.stop && standing.warm === false) {",
-        "to": "  if (standing !== null && standing.stop && standing.warm !== null) {"
+        "from": "        parking: standing.warm === false && buysATurn(instance.config),",
+        "to": "        parking: standing.warm !== null && buysATurn(instance.config),"
       }
     ]
   },
@@ -1487,8 +1487,8 @@
     "edits": [
       {
         "file": "tools/chat/server.mjs",
-        "from": "  if (standing !== null && standing.stop && standing.warm === false) {",
-        "to": "  if (standing !== null && standing.stop && standing.warm !== true) {"
+        "from": "        parking: standing.warm === false && buysATurn(instance.config),",
+        "to": "        parking: standing.warm !== true && buysATurn(instance.config),"
       }
     ]
   },
@@ -1498,8 +1498,8 @@
     "edits": [
       {
         "file": "tools/chat/server.mjs",
-        "from": "  if (standing !== null && standing.stop && standing.warm === false) {",
-        "to": "  if (standing !== null && standing.stop && standing.warm === true) {"
+        "from": "        parking: standing.warm === false && buysATurn(instance.config),",
+        "to": "        parking: standing.warm === true && buysATurn(instance.config),"
       }
     ]
   },
@@ -1564,8 +1564,8 @@
     "edits": [
       {
         "file": "tools/chat/server.mjs",
-        "from": "  if (!hasThread(instance.root, name)) {\n    return false;\n  }\n",
-        "to": ""
+        "from": "  if (!hasThread(instance.root, name) || hasGoneCold(instance.root, name)) {\n    return false;\n  }\n",
+        "to": "  if (hasGoneCold(instance.root, name)) {\n    return false;\n  }\n"
       }
     ]
   },
@@ -1586,7 +1586,7 @@
     "edits": [
       {
         "file": "tools/chat/server.mjs",
-        "from": "      const done = await handOver(instance, session.name, parkAsked(session.name, full), () =>\n        worthParking(instance, session.name),\n      );",
+        "from": "      const done = await handOver(instance, session.name, parkAsked(session.name, full), () =>\n        worthParking(instance, session.name) && holdStands(instance.root, hold),\n      );",
         "to": "      const done = await handOver(instance, session.name, parkAsked(session.name, full), () => true);"
       }
     ]
@@ -1630,8 +1630,8 @@
     "edits": [
       {
         "file": "tools/chat/server.mjs",
-        "from": "  const standing = buysATurn(instance.config) ? accountStanding(instance) : null;",
-        "to": "  const standing = accountStanding(instance);"
+        "from": "        parking: standing.warm === false && buysATurn(instance.config),",
+        "to": "        parking: standing.warm === false,"
       }
     ]
   },
@@ -1652,8 +1652,8 @@
     "edits": [
       {
         "file": "tools/chat/server.mjs",
-        "from": "      if (done === OFFLINE || done.abandoned === true || done.refused === true) {\n        continue;\n      }\n      acted += 1;\n",
-        "to": "      acted += 1;\n      if (done === OFFLINE || done.abandoned === true || done.refused === true) {\n        continue;\n      }\n"
+        "from": "      if (done === OFFLINE || done.abandoned === true || done.refused === true) {\n        continue;\n      }\n      markParked(instance.root, session.name);\n      acted += 1;\n",
+        "to": "      acted += 1;\n      if (done === OFFLINE || done.abandoned === true || done.refused === true) {\n        continue;\n      }\n      markParked(instance.root, session.name);\n"
       }
     ]
   },
@@ -1698,6 +1698,116 @@
         "file": "tools/chat/session.mjs",
         "from": "  return context / window;",
         "to": "  return window / context;"
+      }
+    ]
+  },
+  {
+    "name": "the parks are decided from the readings and not from the hold",
+    "catches": "keeps parking off the hold after the readings are gone",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  if (hold !== null && hold.parking) {",
+        "to": "  if (hold !== null && hold.parking && accountStanding(instance)?.stop === true) {"
+      }
+    ]
+  },
+  {
+    "name": "a seat is parked again whenever it has a thread again",
+    "catches": "parks a seat once per hold",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "      if (hold.parked.includes(session.name) || !worthParking(instance, session.name)) {",
+        "to": "      if (!worthParking(instance, session.name)) {"
+      }
+    ]
+  },
+  {
+    "name": "a parked seat is never entered in the hold",
+    "catches": "remembers in the hold whom it parked",
+    "edits": [
+      {
+        "file": "tools/chat/hold.mjs",
+        "from": "  fs.writeFileSync(file(root), `${JSON.stringify({ ...held, parked: [...held.parked, name] }, null, 2)}\\n`);",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the hold is decided and never written down",
+    "catches": "enters a hold when the account is at the stop line",
+    "edits": [
+      {
+        "file": "tools/chat/hold.mjs",
+        "from": "  fs.writeFileSync(target, `${JSON.stringify(held, null, 2)}\\n`);\n  return held;",
+        "to": "  return held;"
+      }
+    ]
+  },
+  {
+    "name": "a hold whose window has lifted stands forever",
+    "catches": "ends the hold when the window lifts",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  if (hold !== null && holdLifted(hold)) {\n    endHold(instance.root);\n    hold = null;\n  }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the park never asks whether the hold still stands",
+    "catches": "abandons a park whose hold ended before its turn ran",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "        worthParking(instance, session.name) && holdStands(instance.root, hold),",
+        "to": "        worthParking(instance, session.name),"
+      }
+    ]
+  },
+  {
+    "name": "a hold with no lift moment is never released",
+    "catches": "a hold with no lift moment ends when the readings stop saying stop",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    if (standing === null || !standing.stop) {\n      if (hold !== null) {\n        endHold(instance.root);\n        hold = null;\n      }\n    } else if",
+        "to": "    if (standing === null || !standing.stop) {\n      // held\n    } else if"
+      }
+    ]
+  },
+  {
+    "name": "a hold with no lift moment ignores a later reading that names one",
+    "catches": "a hold with no lift moment is re-decided when a later reading names one",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    } else if (hold === null || standing.resetsAt !== null) {",
+        "to": "    } else if (hold === null) {"
+      }
+    ]
+  },
+  {
+    "name": "a hold is recorded only when somebody is parked",
+    "catches": "records the hold when everybody is carried",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    } else if (hold === null || standing.resetsAt !== null) {",
+        "to": "    } else if ((hold === null || standing.resetsAt !== null) && standing.warm === false) {"
+      }
+    ]
+  },
+  {
+    "name": "a cold seat is still asked to hand over",
+    "catches": "leaves a seat that has gone cold to the cold ending",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  if (!hasThread(instance.root, name) || hasGoneCold(instance.root, name)) {",
+        "to": "  if (!hasThread(instance.root, name)) {"
       }
     ]
   }
