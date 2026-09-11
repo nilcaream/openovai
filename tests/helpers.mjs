@@ -764,6 +764,16 @@ export function writeStandIn(directory) {
 // run. See `lifts()` in the stand-in itself for why it cannot be worked out per run.
 export const LIFTS_AT = Math.floor(Date.now() / 1000) + 3 * 60 * 60;
 
+// That moment the way a panel line says it, hours and minutes on the local clock. A check that
+// compares a line with "three hours from now" worked out at the moment it runs names a different
+// hour whenever the hour turns between the suite loading and the check running — a suite started
+// in the last minutes of an hour went red on two checks for it, on an unmutated tree. So a check
+// reads the moment the stand-in was handed, and says it the way the line does.
+export function saidAt(seconds) {
+  const when = new Date(seconds * 1000);
+  return `${String(when.getHours()).padStart(2, "0")}:${String(when.getMinutes()).padStart(2, "0")}`;
+}
+
 export function standInEnvironment(directory, log, extra = {}) {
   return {
     ...process.env,

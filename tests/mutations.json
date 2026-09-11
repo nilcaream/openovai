@@ -2173,5 +2173,27 @@
         "to": "    at: record.at,"
       }
     ]
+  },
+  {
+    "name": "the lift moment on a turned-away message is said an hour late",
+    "catches": "says when the limit lifts, in the reading of whoever is looking at the panel",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  return refused.resetsAt === null ? kind : `${kind}, which lifts at ${atTime(refused.resetsAt)}`;",
+        "to": "  return refused.resetsAt === null ? kind : `${kind}, which lifts at ${atTime(refused.resetsAt + 60 * 60)}`;"
+      }
+    ]
+  },
+  {
+    "name": "the moment a refused handover could be pressed again is left off the line",
+    "catches": "says when the limit lifts, so the person knows when to press it again",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  return refused.resetsAt === null ? kind : `${kind}, which lifts at ${atTime(refused.resetsAt)}`;",
+        "to": "  return kind;"
+      }
+    ]
   }
 ]

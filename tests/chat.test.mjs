@@ -47,6 +47,7 @@ import {
   writeStandIn,
   driveStandIn,
   LIFTS_AT,
+  saidAt,
 } from "./helpers.mjs";
 
 // The reader this suite checks directly. No route says this number, and a check that read the
@@ -7653,12 +7654,13 @@ describe("a message the service turned away", () => {
   });
 
   it("says when the limit lifts, in the reading of whoever is looking at the panel", () => {
-    // The stand-in refuses with a reset three hours out and puts a DIFFERENT hour in its prose, so
-    // a sentence built by reading the message rather than the field says the wrong one and is
-    // caught saying it.
-    const lifts = new Date(Date.now() + 3 * 60 * 60 * 1000);
-    const hour = `${String(lifts.getHours()).padStart(2, "0")}:`;
-    assert.ok(panel.at(-1).text.includes(hour), `the line said ${JSON.stringify(panel.at(-1).text)}`);
+    // The stand-in refuses with the reset it was handed for the whole suite run — LIFTS_AT, three
+    // hours out from when the suite loaded — and puts a DIFFERENT hour in its prose, so a sentence
+    // built by reading the message rather than the field says the wrong one and is caught saying
+    // it. The moment is read back off that same constant and never off the clock: a check that
+    // recomputed "three hours from now" here would name a different hour whenever the hour turned
+    // between the suite loading and this line running, and be red for a bug nobody had written.
+    assert.ok(panel.at(-1).text.includes(saidAt(LIFTS_AT)), `the line said ${JSON.stringify(panel.at(-1).text)}`);
     assert.ok(!panel.at(-1).text.includes("9am"), "it read the hour out of the service's prose");
   });
 
@@ -7895,8 +7897,9 @@ describe("a handover the service turned away", () => {
   });
 
   it("says when the limit lifts, so the person knows when to press it again", () => {
-    const lifts = new Date(Date.now() + 3 * 60 * 60 * 1000);
-    assert.ok(rows.at(-1).text.includes(`${String(lifts.getHours()).padStart(2, "0")}:`));
+    // Against the moment the stand-in was handed, never against the clock — see the same check on
+    // a turned-away message for why.
+    assert.ok(rows.at(-1).text.includes(saidAt(LIFTS_AT)), `the line said ${JSON.stringify(rows.at(-1).text)}`);
   });
 
   it("credits the session with nothing, since it never answered", () => {
