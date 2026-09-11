@@ -2371,5 +2371,60 @@
         "to": "    return `${opening}. ${lifts}, later than a conversation can be carried across, so each conversation is being handed over to its desk, fullest first, while there is still an account to write it with. Each park is said here as it lands.`;"
       }
     ]
+  },
+  {
+    "name": "the block about who has stopped asks the lead to hand them over by hand again",
+    "catches": "says the chat's own pass ends them, and asks the lead to press nothing",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    \"A conversation nobody carries on for an hour is ended and begun again from the desk, and whatever it worked out and never wrote down goes with it. The chat's own pass ends it, at the hour, and asks nobody first; nothing here is yours to press.\",\n",
+        "to": "    \"A conversation nobody carries on for an hour is ended and begun again from the desk, and whatever it worked out and never wrote down goes with it. Check on them while there is still time to, or hand them over deliberately.\",\n"
+      }
+    ]
+  },
+  {
+    "name": "the block about who has grown big says nothing here ends a conversation again",
+    "catches": "says the chat parks a conversation itself, and asks the lead to press nothing",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    \"A conversation that big is one where what is left has to be planned rather than simply carried on, and what survives it is what its desk says. Which panel is worth handing over early is still yours to say, your own included — and the chat parks a conversation itself, asking it to write its desk first, when it is about to lose its cache or when the account is nearly spent.\",\n",
+        "to": "    `A conversation that big is one where what is left has to be planned rather than simply carried on, and what survives it is what its desk says. Handing one over is ${instance.config.human}'s to press, on that panel, and pressing it is what asks that session to write its desk before its thread ends — so say which panel and why, your own included. Nothing here does it for you: nothing stops running because of this and no conversation is ended by it.`,\n"
+      }
+    ]
+  },
+  {
+    "name": "the older-instructions sentence is said to every persona, whenever it was written",
+    "catches": "says nothing about older instructions to a lead whose persona was written after this, beside who has stopped",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  return rendered < RETOLD_ON\n    ? [\"If your instructions say otherwise, they were written before this, and this is what happens.\"]\n    : [];\n",
+        "to": "  return [\"If your instructions say otherwise, they were written before this, and this is what happens.\"];\n"
+      }
+    ]
+  },
+  {
+    "name": "the older-instructions sentence is said to nobody",
+    "catches": "tells a lead whose persona predates this that its instructions are the older, beside who has stopped",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  return rendered < RETOLD_ON\n    ? [\"If your instructions say otherwise, they were written before this, and this is what happens.\"]\n    : [];\n",
+        "to": "  return [];\n"
+      }
+    ]
+  },
+  {
+    "name": "the older-instructions sentence is left off the block about who has grown big",
+    "catches": "tells a lead whose persona predates this that its instructions are the older, beside who has grown big",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    ...olderInstructions(instance, name),\n    \"</size>\",\n",
+        "to": "    \"</size>\",\n"
+      }
+    ]
   }
 ]

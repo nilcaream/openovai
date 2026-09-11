@@ -19,7 +19,7 @@ import { answerFrom } from "../plugins.mjs";
 import { SKILL as ALLOWED } from "../skills.mjs";
 import { ago, roomLines, shareSaid } from "./room.mjs";
 import { WATCH_EVERY, armTheWatch, buysATurn, forgetTheRoom, howOften, nowSeen, parkAttemptsAllowed, theWatchRecord, tickRead, whatChanged } from "./watch.mjs";
-import { DESK_FILE, DeskError, WORK, allowAsked, archiveFor, deskTitle, describeName, hasSettledAnything, hire, isName, retire } from "../desks.mjs";
+import { DESK_FILE, DeskError, WORK, allowAsked, archiveFor, deskTitle, describeName, hasSettledAnything, hire, isName, personaFile, retire } from "../desks.mjs";
 import { accountStanding, ask, bandIn, endRun, forget, fullnessIn, hasGoneCold, hasGoneQuiet, hasThread, quotaIn, ranAt, refusedIn, sessions, standingsUnderway } from "./session.mjs";
 import { NO_NEW_WORK, spawnHeld } from "./gate.mjs";
 import { endHold, enterHold, forgetRefused, holdIn, holdLifted, holdSaid, holdStands, markParked, markRefused } from "./hold.mjs";
@@ -296,6 +296,11 @@ function permissionsWrapper(instance, name) {
 // It stops by being acted on, which is the shape the standing ask about a desk already has. Saying
 // anything to a session starts a run and moves its clock; handing it over removes the thread
 // altogether. Nothing here has to be cleared, and nothing remembers having said it.
+//
+// It asks the lead to press nothing. The chat's own pass ends a conversation nobody has carried on
+// for an hour, and a block that asked the lead to hand people over by hand would be the product
+// arguing with itself in front of the person reading both. What it still says is the reading and
+// what the ending costs, because that is the reason a desk is kept current as the work moves.
 function quietWrapper(instance, name) {
   if (name !== instance.config.leader) {
     return null;
@@ -317,9 +322,35 @@ function quietWrapper(instance, name) {
     "<quiet>",
     "The chat is telling you this. Nobody typed it.",
     `${each.join(", and ")}. That is how long each has been doing nothing, read at ${read}, as this turn began.`,
-    "A conversation nobody carries on for an hour is ended and begun again from the desk, and whatever it worked out and never wrote down goes with it. Check on them while there is still time to, or hand them over deliberately.",
+    "A conversation nobody carries on for an hour is ended and begun again from the desk, and whatever it worked out and never wrote down goes with it. The chat's own pass ends it, at the hour, and asks nobody first; nothing here is yours to press.",
+    ...olderInstructions(instance, name),
     "</quiet>",
   ].join("\n\n");
+}
+
+// The day the two blocks above and below stopped asking the lead to hand people over by hand,
+// because the chat had begun doing it itself.
+//
+// A persona is rendered once, at hire, and an update re-renders nobody's — so a lead hired before
+// this day is running instructions that still say handing a conversation over is a person's to
+// press, and reads a block here that says the chat does it. Two instructions, one of them older,
+// and the session has nothing to look up which. This sentence says which, and it is said only while
+// that is true: read off the persona file's own modified time against this day, the same discipline
+// as the standing ask about a desk — it costs a sentence while it applies and nothing at all once it
+// does not, so it stops by everybody it was for having been hired after it.
+const RETOLD_ON = Date.UTC(2026, 8, 11);
+
+function olderInstructions(instance, name) {
+  let rendered;
+  try {
+    rendered = fs.statSync(personaFile(instance.root, name)).mtimeMs;
+  } catch {
+    // No persona to contradict, so nothing to say about one.
+    return [];
+  }
+  return rendered < RETOLD_ON
+    ? ["If your instructions say otherwise, they were written before this, and this is what happens."]
+    : [];
 }
 
 // Which conversations here have grown big enough to plan around, told to the session that leads and
@@ -392,7 +423,8 @@ function sizeWrapper(instance, name) {
     "<size>",
     "The chat is telling you this. Nobody typed it.",
     `${each.join(", and ")}, read as this turn began at ${read}.`,
-    `A conversation that big is one where what is left has to be planned rather than simply carried on, and what survives it is what its desk says. Handing one over is ${instance.config.human}'s to press, on that panel, and pressing it is what asks that session to write its desk before its thread ends — so say which panel and why, your own included. Nothing here does it for you: nothing stops running because of this and no conversation is ended by it.`,
+    "A conversation that big is one where what is left has to be planned rather than simply carried on, and what survives it is what its desk says. Which panel is worth handing over early is still yours to say, your own included — and the chat parks a conversation itself, asking it to write its desk first, when it is about to lose its cache or when the account is nearly spent.",
+    ...olderInstructions(instance, name),
     "</size>",
   ].join("\n\n");
 }

@@ -3631,6 +3631,24 @@ function panelFile(name) {
   return path.join(instance, "chat", name, "conversation.json");
 }
 
+// The persona a session runs under, rendered once at hire and never re-rendered by an update. Its
+// modified time is the one fact that says whether the words it carries are older than what the chat
+// now does by itself — so a fixture sets that time, and puts the file there first if an earlier
+// describe took it away: the suites share one instance, and one of them proves the chat answers
+// with no persona at all by removing the lead's.
+function renderedOn(name, when) {
+  const persona = path.join(instance, "personas", `${name}.md`);
+  if (!fs.existsSync(persona)) {
+    fs.writeFileSync(persona, `A persona for ${name}, put back by a check.\n`);
+  }
+  fs.utimesSync(persona, when, when);
+}
+
+// A persona written before the chat did any of this itself. An absolute moment and never "some
+// days ago": a relative age would drift past the line the code draws as the calendar moves on, and
+// the check would go red for a reason that has nothing to do with the code.
+const WRITTEN_BEFORE_ANY_OF_THIS = new Date(Date.UTC(2026, 8, 1));
+
 // Age a file by hand. The state these checks act on is a real modified time on a real file, so they
 // make a genuinely old one rather than telling the code what time it is — a knob the check and the
 // code both read would prove nothing.
@@ -9836,6 +9854,10 @@ describe("what the lead is told about who has stopped", () => {
     fs.utimesSync(panelFile(STOPPED_SHORT), now, now);
     fs.utimesSync(panelFile(STOPPED_LONG), now, now);
 
+    // And the lead running a persona written before the chat ended anything itself, so the block
+    // it is handed has to say which of the two is the older.
+    renderedOn(LEADER, WRITTEN_BEFORE_ANY_OF_THIS);
+
     await say("a second question, with two of them stopped", LEADER);
     toldWhenStopped = lastQuestion(stoppedLog);
 
@@ -9848,6 +9870,8 @@ describe("what the lead is told about who has stopped", () => {
     // its own reading is the end of its PREVIOUS run and is always stale.
     age(threadFile(LEADER), 55.5);
     fs.utimesSync(panelFile(LEADER), now, now);
+    // And its persona written after all of this, which is every persona rendered from now on.
+    renderedOn(LEADER, now);
     await say("a third question, with the lead the oldest clock in the room", LEADER);
     toldWhenTheLeadIsTheOldOne = lastQuestion(stoppedLog);
   });
@@ -9907,6 +9931,33 @@ describe("what the lead is told about who has stopped", () => {
   // written before any of it existed and has nothing to look it up in.
   it("says the chat is the one speaking, and not the person at the page", () => {
     assert.match(toldWhenStopped, /The chat is telling you this\. Nobody typed it\./);
+  });
+
+  // Mutation: put the old closing sentence back. The chat's own pass ends a conversation nobody
+  // has carried on for an hour, so a block that asks the lead to hand people over by hand is the
+  // product arguing with itself in front of the person reading both. The positive is asserted as
+  // well as the absence, or a block that said nothing at all about it would pass.
+  it("says the chat's own pass ends them, and asks the lead to press nothing", () => {
+    assert.match(toldWhenStopped, /<quiet>[\s\S]*<\/quiet>/);
+    assert.match(toldWhenStopped, /The chat's own pass ends it/);
+    assert.match(toldWhenStopped, /nothing here is yours to press/);
+    assert.doesNotMatch(toldWhenStopped, /hand them over/);
+    assert.doesNotMatch(toldWhenStopped, /Check on them/);
+  });
+
+  // Mutation: drop the age condition and say the sentence to everybody. A persona is rendered once
+  // at hire and never re-rendered, so a lead running one written before the chat did this itself is
+  // still being told to hand people over by its own instructions — and it is told, once here, which
+  // of the two is the older. A persona rendered after the change carries no such sentence to
+  // contradict, and this is the reading that keeps the block from saying it forever.
+  it("tells a lead whose persona predates this that its instructions are the older, beside who has stopped", () => {
+    assert.match(toldWhenStopped, /<quiet>[\s\S]*<\/quiet>/);
+    assert.match(toldWhenStopped, /If your instructions say otherwise, they were written before this/);
+  });
+
+  it("says nothing about older instructions to a lead whose persona was written after this, beside who has stopped", () => {
+    assert.match(toldWhenTheLeadIsTheOldOne, /<quiet>[\s\S]*<\/quiet>/, "there was no block to look in");
+    assert.doesNotMatch(toldWhenTheLeadIsTheOldOne, /written before this/);
   });
 });
 
@@ -11179,8 +11230,13 @@ describe("what the lead is told about a conversation that has grown big", () => 
     assert.ok(await waitForHealth(URL), "the server never came back with the big fixture");
     await say("a turn that grows this one past the line", GROWN_BIG);
     await say("and the lead's own, past it as well", LEADER);
+    // The lead running a persona written before the chat parked anything itself, so the block it
+    // is handed has to say which of the two is the older. Put back to now once it has been read,
+    // so every block after this one is composed for a persona rendered after the change.
+    renderedOn(LEADER, WRITTEN_BEFORE_ANY_OF_THIS);
     await say("a second question, with two conversations over the line", LEADER);
     toldWhenBig = lastQuestion(sizeLog);
+    renderedOn(LEADER, new Date());
 
     // The same state, seen from a worker's turn. A worker has one task and no say in when its
     // conversation is handed over.
@@ -11409,6 +11465,33 @@ describe("what the lead is told about a conversation that has grown big", () => 
   it("is handed to the session that leads and to nobody else", () => {
     assert.doesNotMatch(toldAWorker, /<size>/, "a worker was told which conversations are big");
     assert.match(toldWhenBig, /<size>/, "nobody was over the line when the worker was asked");
+  });
+
+  // Mutation: put the old closing sentence back. It said nothing here ends a conversation and
+  // that handing one over is the person's to press — and the chat now parks a conversation itself,
+  // asking it to write its desk first, when it is about to lose its cache and when the account is
+  // nearly spent. Which panel is worth handing over EARLY is still the lead's to say, and the block
+  // says so; what it no longer does is ask the lead for what the chat does by itself. The positive
+  // is asserted as well as the absence, or a block that said nothing about it would pass.
+  it("says the chat parks a conversation itself, and asks the lead to press nothing", () => {
+    assert.match(sizeBlock(toldWhenBig), /the chat parks a conversation itself/);
+    assert.match(sizeBlock(toldWhenBig), /about to lose its cache/);
+    assert.match(sizeBlock(toldWhenBig), /the account is nearly spent/);
+    assert.match(sizeBlock(toldWhenBig), /still yours to say/);
+    assert.doesNotMatch(sizeBlock(toldWhenBig), /to press/);
+    assert.doesNotMatch(sizeBlock(toldWhenBig), /Nothing here does it for you/);
+  });
+
+  // Mutation: drop the age condition here as well. Same sentence, same reading, same reason as
+  // the block about who has stopped: a persona rendered before the change still tells the lead to
+  // hand people over by hand, and one rendered after it has nothing to be contradicted.
+  it("tells a lead whose persona predates this that its instructions are the older, beside who has grown big", () => {
+    assert.match(sizeBlock(toldWhenBig), /If your instructions say otherwise, they were written before this/);
+  });
+
+  it("says nothing about older instructions to a lead whose persona was written after this, beside who has grown big", () => {
+    assert.match(toldWithEveryWindowShape, /<size>/, "there was no block to look in");
+    assert.doesNotMatch(sizeBlock(toldWithEveryWindowShape), /written before this/);
   });
 
   // Mutation: filter the reader out of its own list, the way the block about who has stopped
