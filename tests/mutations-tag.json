@@ -1,0 +1,24 @@
+[
+  {
+    "name": "the release stops waiting for the checks",
+    "catches": "runs the checks before anything is tagged",
+    "edits": [
+      {
+        "file": ".github/workflows/release.yml",
+        "from": "    name: Release\n    needs: tests\n",
+        "to": "    name: Release\n"
+      }
+    ]
+  },
+  {
+    "name": "CI is left with nothing another workflow can call",
+    "catches": "leaves CI something a release can call",
+    "edits": [
+      {
+        "file": ".github/workflows/ci.yml",
+        "from": "  workflow_call:\n",
+        "to": ""
+      }
+    ]
+  }
+]

@@ -196,5 +196,27 @@
         "to": "  return OWN_ACCOUNT_RULES.flatMap((rule) => [\n    ...account(root, { rule, session: \"the installer\", call: rule, day: today() }),\n    ...deny(root, rule),\n  ]);"
       }
     ]
+  },
+  {
+    "name": "only the block is told what a trip has to do, and not the persona a lead runs",
+    "catches": "tells the leader that a trip only counts when the call stops",
+    "edits": [
+      {
+        "file": "templates/leader.md",
+        "from": "A trip only counts when it stops, and you cannot see whether it did. Much of what you could run is\nsettled by the frame itself — a status or a listing reads and returns, and nothing parks — so reach\nfor the form of their command that parks rather than the form that reads. A call coming back tells\nyou nothing either way: it returns the same whether the frame let it through or whether they pressed\nthe rule, you are not shown their panel, and no press is reported back to you. What was granted is a\nfile: every rule this workspace holds beyond a desk is one line in `.claude/allowed.md`, written in\nthe same act as the rule and saying who asked and what for. Read it when the calls are made and\nreport what is on its lines, and never tell them what did or did not stop.",
+        "to": "A trip is a trip."
+      }
+    ]
+  },
+  {
+    "name": "only the block is told where what was granted is written, and not the persona a lead runs",
+    "catches": "tells the leader the panel is not shown to it and the ledger is the record",
+    "edits": [
+      {
+        "file": "templates/leader.md",
+        "from": "What was granted is a\nfile: every rule this workspace holds beyond a desk is one line in `.claude/allowed.md`, written in\nthe same act as the rule and saying who asked and what for. Read it when the calls are made and\nreport what is on its lines, and never tell them what did or did not stop.",
+        "to": "Report what happened."
+      }
+    ]
   }
 ]
