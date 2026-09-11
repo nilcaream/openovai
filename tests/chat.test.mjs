@@ -82,7 +82,7 @@ import { handOver, readTheRoom, serve } from "../tools/chat/server.mjs";
 
 // And a turn asked for directly, for the same reason again: where the account stands while a run is
 // going is held in memory by the module that owns the run, and there is no route that says it.
-import { ask, fullnessIn, quotaIn, standingsUnderway } from "../tools/chat/session.mjs";
+import { HOLD_ABOVE, accountStanding, ask, fullnessIn, holdAboveProblem, quotaIn, standingsUnderway, stopLine } from "../tools/chat/session.mjs";
 import { holdIn } from "../tools/chat/hold.mjs";
 
 // The kinds themselves, read from where they are named rather than written out again here. Two
@@ -8672,6 +8672,17 @@ describe("what the README says about the room watch", () => {
     assert.match(section, new RegExp(`\`${PARK_ATTEMPTS}\``));
   });
 
+  // And the third, the stop line a workspace draws for itself, with its floor and the reason for
+  // the floor: a person who writes 0.8 is told at the start, and the README is where they learn why.
+  it("names the stop line field, its floor, and why the floor is where it is", () => {
+    assert.match(section, new RegExp(`\`${HOLD_ABOVE}\``));
+    assert.match(section, /from\s+`0\.9`\s+up to but not including\s+`1`/);
+    assert.match(section, /could never enter/);
+    const notes = fs.readFileSync(path.join(repo, "NOTES.md"), "utf8");
+    assert.match(notes, new RegExp(`\`${HOLD_ABOVE}\``));
+    assert.match(notes, /Where the stop line is drawn is yours to say/);
+  });
+
   it("says the three things a pass does", () => {
     assert.match(section, /hands the room over itself/);
     assert.match(section, /gone cold is ended there and then/);
@@ -14858,6 +14869,153 @@ describe("what a pass does about a conversation about to lose its cache", () => 
 
     after(() => {
       remove(declining);
+    });
+  });
+});
+
+const HELD_EARLY = "Harrier";
+const NOT_HELD_AT_THE_DEFAULT = "Buzzard";
+
+// Where a workspace draws its own stop line.
+//
+// The account hold enters when the ruled window is stopping, and stopping is ninety-five per cent
+// by this toolkit's judgment. A workspace whose account is also spent outside the instance can have
+// ninety-five arrive with no warning, and wants everybody put down at ninety instead: a house rule,
+// so it is one field in openovai.json, the constant staying what an instance gets when it writes
+// nothing. The floor is the plan line, because under it the account is not read as filling up at
+// all — a stop line drawn there would be a hold that could never enter.
+describe("where a workspace draws its own stop line", () => {
+  // Mutation: read absent as some other number. An instance that wrote nothing stops where it
+  // always did.
+  it("is the default in a workspace that left it out", () => {
+    assert.equal(holdAboveProblem(undefined), null);
+    assert.equal(holdAboveProblem(null), null);
+    assert.equal(stopLine({}), 0.95);
+    assert.equal(stopLine(undefined), 0.95);
+  });
+
+  // Mutation: read the line off the constant and ignore what the instance said.
+  it("reads the line the instance wrote", () => {
+    assert.equal(stopLine({ [HOLD_ABOVE]: 0.9 }), 0.9);
+    assert.equal(stopLine({ [HOLD_ABOVE]: 0.97 }), 0.97);
+  });
+
+  // Mutation: drop the floor. A line under the plan line is refused with the reason in the
+  // sentence — the reading answers nothing under it, so the hold could never enter — and the
+  // sentence names the floor so the person knows what to write instead.
+  it("refuses a line under the plan line or not a fraction, naming the field and the floor", () => {
+    for (const wrong of ["0.9", 0.5, 0.89, 1, 1.5, -1, true, Number.NaN]) {
+      const said = holdAboveProblem(wrong);
+      assert.ok(said !== null, `${JSON.stringify(wrong)} was accepted as a stop line`);
+      assert.match(said, new RegExp(HOLD_ABOVE));
+    }
+    assert.match(holdAboveProblem(0.5), /0\.9/);
+    assert.match(holdAboveProblem(0.5), /could never enter/);
+    assert.equal(holdAboveProblem(0.9), null);
+    assert.equal(holdAboveProblem(0.95), null);
+    assert.equal(holdAboveProblem(0.99), null);
+  });
+
+  // Mutation: leave the line out of the chat's start. The function above answers, and nothing
+  // asks it; a chat that started on the field would read past it into the default and hold at
+  // ninety-five in a workspace that wrote ninety and thought it had been heard.
+  it("refuses to start a chat on a stop line nothing can read, naming the field", () => {
+    const drawn = `${instance}-stop-line`;
+    installed(options(drawn, 0));
+    const config = path.join(drawn, "openovai.json");
+    fs.writeFileSync(
+      config,
+      `${JSON.stringify({ ...JSON.parse(fs.readFileSync(config, "utf8")), [HOLD_ABOVE]: 0.5 }, null, 2)}\n`,
+    );
+    // Bounded, for the reason the bound on attempts is: a start that read past the field would
+    // serve for as long as it was left to.
+    const refused = spawnSync("node", [path.join(drawn, "tools", "ovai.mjs"), "--root", drawn, "chat"], {
+      env: process.env,
+      encoding: "utf8",
+      timeout: 10_000,
+    });
+    remove(drawn);
+    assert.notEqual(refused.status, 0, refused.stdout);
+    assert.match(refused.stderr, new RegExp(HOLD_ABOVE));
+    assert.match(refused.stderr, /0\.9/);
+  });
+
+  // The line, read where the account is read. Two instances staged with the same window, at
+  // ninety-two per cent and lifting later than the hour: the one that drew its line at ninety
+  // enters the hold, the one that drew none does not. `watchEverySeconds: 0`, so that entering
+  // the hold spends nothing and the hold is the whole of what is read; and the week window over
+  // the same line, so that the second place the constant decided — which other window is named
+  // beside the ruled one — is read off the same field.
+  describe("read where the account is read", () => {
+    const early = `${instance}-holds-early`;
+    const late = `${instance}-holds-at-the-default`;
+    let heldEarly;
+    let heldEarlyPanel;
+    let standingEarly;
+    let heldAtTheDefault;
+    let heldAtTheDefaultPanel;
+    let standingAtTheDefault;
+
+    const staged = (root, name, fields) => {
+      installed(options(root, 0));
+      runTool(root, ["hire", name], process.env);
+      const config = path.join(root, "openovai.json");
+      fs.writeFileSync(
+        config,
+        `${JSON.stringify({ ...JSON.parse(fs.readFileSync(config, "utf8")), watchEverySeconds: 0, ...fields }, null, 2)}\n`,
+      );
+      const held = JSON.parse(fs.readFileSync(config, "utf8"));
+      stageThread(root, name, {
+        context: UNDER_THE_LINE,
+        window: WINDOW_HELD,
+        quota: [window("five_hour", 0.92, LIFTS_LATER_THAN_THE_HOUR), window("seven_day", 0.92, 5 * 24 * 60)],
+      });
+      stageThread(root, held.leader, { context: UNDER_THE_LINE, window: WINDOW_HELD });
+      return { root, config: held, plugins: [], pop: null };
+    };
+
+    before(async () => {
+      const servedEarly = staged(early, HELD_EARLY, { [HOLD_ABOVE]: 0.9 });
+      const early_server = await serve(servedEarly);
+      await readTheRoom(servedEarly);
+      heldEarly = holdIn(early);
+      heldEarlyPanel = panelIn(early, servedEarly.config.leader);
+      standingEarly = accountStanding(servedEarly);
+      await new Promise((resolve) => early_server.close(resolve));
+
+      const servedLate = staged(late, NOT_HELD_AT_THE_DEFAULT, {});
+      const late_server = await serve(servedLate);
+      await readTheRoom(servedLate);
+      heldAtTheDefault = holdIn(late);
+      heldAtTheDefaultPanel = panelIn(late, servedLate.config.leader);
+      standingAtTheDefault = accountStanding(servedLate);
+      await new Promise((resolve) => late_server.close(resolve));
+    });
+
+    // Mutation: decide `stop` on the constant. Ninety-two is over the line this workspace drew and
+    // under the one it did not, and only the first enters a hold.
+    it("enters the hold at the line the workspace drew", () => {
+      assert.ok(heldEarly !== null, "no hold was entered at ninety-two with the line at ninety");
+      assert.equal(heldEarly.fullness, 0.92, JSON.stringify(heldEarly));
+      assert.equal(holdLinesOn(heldEarlyPanel, ENTERED).length, 1, JSON.stringify(heldEarlyPanel));
+      // And the same reading in a workspace that drew no line is not stopping at all.
+      assert.equal(heldAtTheDefault, null, JSON.stringify(heldAtTheDefault));
+      assert.deepEqual(holdLinesOn(heldAtTheDefaultPanel, ENTERED), []);
+      assert.ok(standingAtTheDefault !== null && standingAtTheDefault.stop === false, JSON.stringify(standingAtTheDefault));
+    });
+
+    // Mutation: name the other window on the constant. The week is at ninety-two as well, over the
+    // line this workspace drew; it is named beside the ruled window here and not in the workspace
+    // that drew none. One line, both reads.
+    it("names the other window over the same line", () => {
+      assert.ok(standingEarly !== null, "the account was not read as filling up");
+      assert.equal(standingEarly.alsoWeek?.name, "seven_day", JSON.stringify(standingEarly));
+      assert.equal(standingAtTheDefault?.alsoWeek, null, JSON.stringify(standingAtTheDefault));
+    });
+
+    after(() => {
+      remove(early);
+      remove(late);
     });
   });
 });

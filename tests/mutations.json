@@ -2583,5 +2583,71 @@
         "to": "A conversation's cache lives an\nhour past its last turn,"
       }
     ]
+  },
+  {
+    "name": "stopping is decided on the constant, whatever line the workspace drew",
+    "catches": "enters the hold at the line the workspace drew",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "    stop: ruled.fullness >= stopAbove,",
+        "to": "    stop: ruled.fullness >= STOP_ABOVE,"
+      }
+    ]
+  },
+  {
+    "name": "the other window is named on the constant, whatever line the workspace drew",
+    "catches": "names the other window over the same line",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "        (window) => window.name !== RULED_WINDOW && !ended(window) && window.fullness >= stopAbove,",
+        "to": "        (window) => window.name !== RULED_WINDOW && !ended(window) && window.fullness >= STOP_ABOVE,"
+      }
+    ]
+  },
+  {
+    "name": "a stop line under the plan line is accepted",
+    "catches": "refuses a line under the plan line or not a fraction, naming the field and the floor",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "  if (typeof band !== \"number\" || !Number.isFinite(band) || band < PLAN_ABOVE || band >= 1) {",
+        "to": "  if (typeof band !== \"number\" || !Number.isFinite(band) || band >= 1) {"
+      }
+    ]
+  },
+  {
+    "name": "the stop line is read off the constant and the field is ignored",
+    "catches": "reads the line the instance wrote",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "  return typeof said === \"number\" && holdAboveProblem(said) === null ? said : STOP_ABOVE;",
+        "to": "  return STOP_ABOVE;"
+      }
+    ]
+  },
+  {
+    "name": "the chat starts on a stop line nothing can read",
+    "catches": "refuses to start a chat on a stop line nothing can read, naming the field",
+    "edits": [
+      {
+        "file": "tools/ovai.mjs",
+        "from": "  const wrongLine = holdAboveProblem(config[HOLD_ABOVE]);\n  if (wrongLine !== null) {\n    throw new UsageError(`${configIn(root)}: ${wrongLine}`);\n  }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the README counts two fields again and says nothing of the stop line's floor",
+    "catches": "names the stop line field, its floor, and why the floor is where it is",
+    "edits": [
+      {
+        "file": "README.md",
+        "from": "not read as filling up at all, so a line drawn there would be a hold that could never enter, and it\nis refused with that reason.",
+        "to": "not read as filling up at all, and it\nis refused."
+      }
+    ]
   }
 ]

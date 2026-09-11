@@ -399,6 +399,40 @@ const PLAN_ABOVE = 0.9;
 // longer the right answer.
 const STOP_ABOVE = 0.95;
 
+// Where a workspace draws the stop line for itself, when it does not want the one above.
+//
+// The line above is this toolkit's judgment, and a workspace may have its own reason to hold earlier
+// — an account that is also spent outside the instance, say, where ninety-five arrives with no
+// warning. That is a house rule and not this toolkit's behaviour, so it ships as one field in
+// `openovai.json` and the constant above stays what an instance gets when it writes nothing.
+//
+// A FRACTION FROM PLAN_ABOVE UP TO BUT NOT INCLUDING 1, AND THE FLOOR IS NOT TASTE. accountStanding
+// below answers nothing at all while the ruled window is under PLAN_ABOVE, so a stop line drawn
+// under it would be a hold that can never enter — a field that said "hold at eighty" and did
+// nothing, silently. The sentence that refuses it says so. The plan line itself is not a field:
+// one line moves, the other is where the reading begins.
+export const HOLD_ABOVE = "holdAbove";
+
+// What is wrong with the field, in the words somebody can act on, or nothing at all. Absent is not
+// wrong: most workspaces have no such field and every one of them stops at STOP_ABOVE.
+export function holdAboveProblem(band) {
+  if (band === undefined || band === null) {
+    return null;
+  }
+  if (typeof band !== "number" || !Number.isFinite(band) || band < PLAN_ABOVE || band >= 1) {
+    return `${HOLD_ABOVE} is ${JSON.stringify(band)}, which is not a stop line — it is a fraction of the window from ${PLAN_ABOVE} up to but not including 1, like 0.9; under ${PLAN_ABOVE} the account is not read as filling up at all, so a hold drawn there could never enter`;
+  }
+  return null;
+}
+
+// The line the account is read as stopping at, in this workspace. ALWAYS A NUMBER: the field when it
+// is there and sound, STOP_ABOVE otherwise — and a field that is not sound never reaches here, because
+// the chat refuses to start on one.
+export function stopLine(config) {
+  const said = config?.[HOLD_ABOVE];
+  return typeof said === "number" && holdAboveProblem(said) === null ? said : STOP_ABOVE;
+}
+
 // Where the account stands, as the fullest thing it has told anybody here about the window that is
 // still running, or nothing at all.
 //
@@ -512,6 +546,10 @@ export function accountStanding(instance) {
     return null;
   }
 
+  // The stop line, this workspace's own or the default, read once and used at both places below
+  // that decide "stopping": one meaning, two reads.
+  const stopAbove = stopLine(instance.config);
+
   // The window's name goes back with it, spelled as the service spells it, so whoever says this in
   // words says the name of the window that was actually matched. A sentence carrying its own copy
   // of it would be a second place for the two to disagree.
@@ -527,7 +565,7 @@ export function accountStanding(instance) {
     fullness: ruled.fullness,
     resetsAt: ruled.resetsAt,
     // Whether there is still something to plan around, or nothing left to plan with.
-    stop: ruled.fullness >= STOP_ABOVE,
+    stop: ruled.fullness >= stopAbove,
     // Whether everybody could be carried on where they stand once the wait is over, which is the
     // whole of the choice between pausing people and handing them over.
     //
@@ -549,7 +587,7 @@ export function accountStanding(instance) {
     // and a number handed over with no instruction attached is the one most likely to be acted on.
     alsoWeek:
       winner.windows.find(
-        (window) => window.name !== RULED_WINDOW && !ended(window) && window.fullness >= STOP_ABOVE,
+        (window) => window.name !== RULED_WINDOW && !ended(window) && window.fullness >= stopAbove,
       ) ?? null,
   };
 }

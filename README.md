@@ -837,7 +837,8 @@ own turn begins:
     Plan what is left wisely: finish what is in flight, start no new front and take nobody
     new on until that window has lifted.
 
-Past ninety-five per cent it says to stop instead, and which way to put people down. That choice is
+Past the stop line — ninety-five per cent, or lower where `holdAbove` in `openovai.json` draws it,
+below — it says to stop instead, and which way to put people down. That choice is
 the whole reason this exists, because the two ways cost very different things: pausing a session
 leaves its conversation where it stands and costs nothing to undo, while parking one ends the
 conversation and is paid for in whatever it worked out and never wrote to its desk. So the block
@@ -863,7 +864,7 @@ sentences said of a seven-day window would stop the workspace for something that
 emergency. If the service ever renames that window, nothing matches, the block says nothing, and the
 rows go on naming every window the service names. It fails silent rather than wrong.
 
-A second window is named only when it too is past ninety-five per cent, and only as a fact with
+A second window is named only when it too is past the same stop line, and only as a fact with
 nothing to do about it attached. It is there for the one case where the advice above would otherwise
 be wrong — *pause everybody, it lifts in twenty minutes* is false while a week nobody mentioned is
 what is actually refusing. What to do about a full week is not a rule anybody has decided, and this
@@ -1037,11 +1038,12 @@ person.
 as what it does and nothing else: parking, or carried through inside the hour, or nobody handed over
 and why. A room that has gone quiet has its reason written over it.
 
-**Two fields in `openovai.json`**, both optional:
+**Three fields in `openovai.json`**, all optional:
 
 ```json
 "watchEverySeconds": 300,
-"parkAttemptsPerSeat": 3
+"parkAttemptsPerSeat": 3,
+"holdAbove": 0.9
 ```
 
 `watchEverySeconds` is how often the room is read: whole seconds, five minutes when left out. `0`
@@ -1054,8 +1056,18 @@ takes it offline, below.
 `parkAttemptsPerSeat` bounds how many times one seat is asked to hand over under one hold while the
 account keeps turning the park away: a whole number of one or more. Left out, a refused seat is asked
 again on every pass while it is still warm. `0` is refused, with a pointer to `watchEverySeconds: 0`,
-which is the field that means *never park*. A value of either field that is not what it should be
-stops the chat starting and names the field: being told at the start beats finding it on a bill.
+which is the field that means *never park*.
+
+`holdAbove` is where this workspace draws the stop line: the share of the five-hour window past
+which the account is read as stopping, the hold enters, and the block above says to stop. Left out,
+it is ninety-five per cent. A workspace whose account is also spent outside the instance — a chat on
+the same account, say — can see ninety-five arrive with no warning and wants everybody put down at
+ninety instead; that is a house rule and not this toolkit's, which is why it is a field. A fraction
+from `0.9` up to but not including `1`. The floor is not taste: under nine tenths the account is
+not read as filling up at all, so a line drawn there would be a hold that could never enter, and it
+is refused with that reason. The plan line itself does not move. A value of any of the three fields
+that is not what it should be stops the chat starting and names the field: being told at the start
+beats finding it on a bill.
 
 **Whether the room is being read shows.** The chat says the cadence as it starts, and `/health`
 carries the watch: how often, when it was armed, when the last pass was, and how many sessions it

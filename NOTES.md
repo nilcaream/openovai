@@ -41,6 +41,12 @@ A crossing is still said — a conversation reaching nine tenths of its window, 
 cent — once, on the crossing, and nothing is done about it: handing a conversation over for its size
 is still yours to press, on its panel, and the line says so.
 
+**Where the stop line is drawn is yours to say.** The hold enters at ninety-five per cent of the
+five-hour window unless `holdAbove` in `openovai.json` says otherwise: a fraction from `0.9` up to
+but not including `1`, and the same line decides when the block about the account says to stop and
+which other window is named beside it. A workspace whose account is also spent outside the instance
+can draw it at `0.9` and have everybody put down before ninety-five arrives unannounced.
+
 **`watchEverySeconds: 0` means something different now, and if your instance wrote it, read this.**
 It used to switch the watch off: no timer, no reading, nothing. It now means *spend nothing on me*.
 The room is read at the default cadence regardless; a cold conversation is still ended and a crossing

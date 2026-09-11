@@ -12,7 +12,7 @@ import { QUIET_HOURS, describePop, popIn, quietHoursProblem } from "./chat/pop.m
 import { roomLines } from "./chat/room.mjs";
 import { PARK_ATTEMPTS, WATCH_EVERY, parkAttemptsProblem, watchEveryProblem } from "./chat/watch.mjs";
 import { serve } from "./chat/server.mjs";
-import { NAME_IN_ENVIRONMENT, endEveryRun, runsGoing } from "./chat/session.mjs";
+import { HOLD_ABOVE, NAME_IN_ENVIRONMENT, endEveryRun, holdAboveProblem, runsGoing } from "./chat/session.mjs";
 import { hasCredential, home, login, machineToken, memoryDirectory } from "./claude.mjs";
 import { DeskError, describeName, desks, hire, isName, modelFor } from "./desks.mjs";
 import { ownInstructions } from "./instructions.mjs";
@@ -535,6 +535,15 @@ async function chat(root) {
   const wrongAttempts = parkAttemptsProblem(config[PARK_ATTEMPTS]);
   if (wrongAttempts !== null) {
     throw new UsageError(`${configIn(root)}: ${wrongAttempts}`);
+  }
+
+  // And where this workspace draws its stop line, for the sharpest version of the same reason: a
+  // line nothing can read would silently become the default, and a line under the plan line would
+  // be a hold that never enters — in a workspace whose owner wrote the number down precisely so that
+  // everybody is put down before the account is spent.
+  const wrongLine = holdAboveProblem(config[HOLD_ABOVE]);
+  if (wrongLine !== null) {
+    throw new UsageError(`${configIn(root)}: ${wrongLine}`);
   }
 
   const plugins = await pluginsIn(root);
