@@ -169,6 +169,10 @@ export function claudeIsInstalled() {
 //   OPENOVAI_STAND_IN_WINDOW_KEY    what the usage map keys the run's own entry under, for a check
 //                             that needs it to differ from what the run said it was on
 //                             (default: what the run said it was on)
+//   OPENOVAI_STAND_IN_UNDER         run something of its own underneath this run while it answers,
+//                             the way a tool call is — a `sleep` the chat did not start and can
+//                             see only in the process table — logged as `under: <pid>` and ended by
+//                             this run before it answers, so that nothing outlives the turn
 //   OPENOVAI_STAND_IN_SIGNED_IN     what `auth status` reports     (default: true)
 //   OPENOVAI_STAND_IN_LOGIN_STATUS  what `auth login` exits with   (default: 0)
 // It is plain ESM, like everything else here. A command on the PATH is named the way it is
@@ -630,10 +634,21 @@ if ((process.env.OPENOVAI_STAND_IN_FULLNESS_AGAIN ?? "") !== "") {
   });
 }
 
+// Something of its own underneath this run while it answers, the way a tool call is: a process
+// the chat did not start and can reach only through the process table. Started before the wait
+// below and ended after it, so that a reader looking mid-run finds it and nothing outlives the turn.
+const under = (process.env.OPENOVAI_STAND_IN_UNDER ?? "") !== "" ? spawn("sleep", ["60"], { stdio: "ignore" }) : null;
+if (under !== null) {
+  fs.appendFileSync(log, \`under: \${under.pid}\\n\`);
+}
+
 const slow = Number(process.env.OPENOVAI_STAND_IN_SLOW ?? 0);
 if (slow > 0) {
   await new Promise((resolve) => setTimeout(resolve, slow));
   fs.appendFileSync(log, \`answered: \${asked}\\n\`);
+}
+if (under !== null) {
+  under.kill();
 }
 
 // One request's worth of usage, in the three fields a context is the sum of. Split rather than put

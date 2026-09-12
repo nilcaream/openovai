@@ -1333,8 +1333,8 @@
     "edits": [
       {
         "file": "tools/chat/watch.mjs",
-        "from": "  seen.clear();\n  record = null;",
-        "to": "  seen.clear();"
+        "from": "  named.clear();\n  record = null;",
+        "to": "  named.clear();"
       }
     ]
   },
@@ -2733,13 +2733,13 @@
     ]
   },
   {
-    "name": "the README counts three things again",
+    "name": "the README counts four things again",
     "catches": "says a conversation about to go cold is handed over, between the ending and the crossing",
     "edits": [
       {
         "file": "README.md",
-        "from": "A pass does four things, in this order.\n",
-        "to": "A pass does three things, in this order.\n"
+        "from": "A pass does five things, in this order.\n",
+        "to": "A pass does four things, in this order.\n"
       }
     ]
   },
@@ -3102,6 +3102,94 @@
         "file": "tools/chat/server.mjs",
         "from": "  if (deskTitle(instance.root, name) === \"\") {\n    return [",
         "to": "  if (false) {\n    return ["
+      }
+    ]
+  },
+  {
+    "name": "a run is named on every pass, not once per run",
+    "catches": "names the same run no second time",
+    "edits": [
+      {
+        "file": "tools/chat/watch.mjs",
+        "from": "    (run) => here.has(run.name) && now - run.since > bound && named.get(run.name) !== run.since,",
+        "to": "    (run) => here.has(run.name) && now - run.since > bound && true,"
+      }
+    ]
+  },
+  {
+    "name": "a session once named is never named again, whatever run it is on",
+    "catches": "names the next run of the same session that goes long",
+    "edits": [
+      {
+        "file": "tools/chat/watch.mjs",
+        "from": "    (run) => here.has(run.name) && now - run.since > bound && named.get(run.name) !== run.since,",
+        "to": "    (run) => here.has(run.name) && now - run.since > bound && !named.has(run.name),"
+      }
+    ]
+  },
+  {
+    "name": "what is under the run is left off the line",
+    "catches": "names a run past the bound once, with what is running under it",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "longRunLine(instance.config.human, run.name, run.since, run.at, underneath(run.name))",
+        "to": "longRunLine(instance.config.human, run.name, run.since, run.at, [])"
+      }
+    ]
+  },
+  {
+    "name": "the run is ended once it has been named",
+    "catches": "ends nothing: what was under the run is still there, and the run answers on its own",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    nowNamed(run.name, run.since);\n",
+        "to": "    nowNamed(run.name, run.since);\n    endRun(run.name);\n"
+      }
+    ]
+  },
+  {
+    "name": "the process tree is read as pids only",
+    "catches": "names a run past the bound once, with what is running under it",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "{ pid: one, command: command.join(\" \") }",
+        "to": "{ pid: one, command: String(one) }"
+      }
+    ]
+  },
+  {
+    "name": "the pass reads the bound as nothing",
+    "catches": "names nobody on a pass while the run is younger than the bound",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "export function nameTheLongRuns(instance, room, read, bound = A_WHOLE_TURN) {",
+        "to": "export function nameTheLongRuns(instance, room, read, bound = 0) {"
+      }
+    ]
+  },
+  {
+    "name": "the line says the service has not spoken to the run whether it has or not",
+    "catches": "says when the service last spoke to the run, when it has",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  const spoken = at === null",
+        "to": "  const spoken = true"
+      }
+    ]
+  },
+  {
+    "name": "the README says a run past the half hour is ended",
+    "catches": "says a run that will not end is named, between the hold and the ending, and that nothing is ended for it",
+    "edits": [
+      {
+        "file": "README.md",
+        "from": "**A run that has outlived what anything here waits for is named, and nothing is ended.**",
+        "to": "**A run that has gone on past the half hour is ended.**"
       }
     ]
   }

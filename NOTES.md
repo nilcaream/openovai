@@ -19,6 +19,15 @@ answers since its desk file last changed and, once five have gone by, asks for t
 what is true now and what to do next. It stops the moment the desk moves, and it asks nothing of a
 desk that has not yet said what it is on — that one is still asked for its title first.
 
+**A run that will not end is named, with what is under it.** A run wedged on something that is not
+the model — a clone the harness starts before its first request, say — holds its session's queue,
+and every message to that seat waits behind it while the row says only `began 43m ago`. Past half
+an hour, longer than anything in the toolkit waits for an answer, the room watch now names it to
+your lead once: how long it has been running, whether the service has spoken to it at all, and what
+is running underneath it, by name — `ssh` under a run is a different reading from `mvn`. Nothing is
+ended. The chat cannot tell a long build from a hang and does not guess; ending a run is still the
+End button on that panel, and the line puts the diagnosis beside it.
+
 ## 0.7.0
 
 The chat keeps its own room now, and a persona is rendered when a conversation starts rather than

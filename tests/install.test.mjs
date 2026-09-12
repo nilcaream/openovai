@@ -711,7 +711,8 @@ describe("what the installer made", () => {
     assert.doesNotMatch(persona, /You cannot hand a session\s+over/);
     assert.doesNotMatch(persona, /Three of the\s+four/);
     assert.doesNotMatch(persona, /It does three\s+things/);
-    assert.match(persona, /It does four\s+things/);
+    assert.doesNotMatch(persona, /It does four\s+things/);
+    assert.match(persona, /It does five\s+things/);
     // The size block is for planning and presses nothing: the chat parks on the crossing.
     assert.match(persona, /the chat parks a\s+conversation itself on the crossing into a strong band of its window/);
     assert.match(persona, /not for pressing\s+anything/);
@@ -720,9 +721,13 @@ describe("what the installer made", () => {
     // And the crossing park, with what happens when it cannot be done.
     assert.match(persona, /crossed into\s+a strong band of its window is handed over to its desk on the crossing/);
     assert.match(persona, /the crossing is said once, with the reason/);
-    // The split: two readings, and a watch that acts on all four conditions and asks nobody.
+    // The split: two readings, and a watch that acts on four of its five conditions and asks nobody.
     assert.match(persona, /Two of the three are readings/);
-    assert.match(persona, /on all four conditions, and it\s+asks nobody first/);
+    assert.match(persona, /on four of its five conditions,\s+and it asks nobody first/);
+    assert.match(persona, /on the fifth it names what it read and acts on nothing/);
+    // And the fifth: a run past the half hour is named, with what is under it, and nothing is done.
+    assert.match(persona, /is named to you once, with what is running\s+underneath it/);
+    assert.match(persona, new RegExp(`ending it is ${HUMAN}'s to press on that panel`));
   });
 
   // What the lead tells the person about a conversation that ended, in the lead's own voice and

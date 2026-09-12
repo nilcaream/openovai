@@ -40,7 +40,7 @@
 // The room being off is the other kind — a word a person left for the NEXT chat to read — and it is
 // a file for exactly that reason.
 
-import { bandIn } from "./session.mjs";
+import { bandIn, standingsUnderway } from "./session.mjs";
 
 // How often the room is read when the instance does not say. Five minutes, and it is a JUDGMENT
 // rather than a measurement — the same honesty the bands are written with. It is short enough that
@@ -218,6 +218,52 @@ export function nowSeen(name, band) {
   seen.set(name, band === null ? null : band.named);
 }
 
+// Which run each name was last named for — the moment that run began — and nothing else. The
+// `seen` of a run that will not end: a line about a run is said on the transition, once, and this is
+// what makes the second pass over the same run say nothing.
+//
+// THE MOMENT THE RUN BEGAN AND NOT THE NAME, because the name is the seat and the run is the thing.
+// A session whose run answered at last and whose next run also goes long has a second thing to
+// look at, and the first line said nothing about it; keyed by name alone this would have said it
+// once per seat for the life of the chat. `since` is set on the line a run starts and never moves,
+// so two runs of one session never share it.
+//
+// IN MEMORY, for `seen`'s reason and one more: after a restart nothing is in flight — the chat ends
+// every run on its way out — so there is no run left to have been named.
+const named = new Map();
+
+// Every run that has outlived the bound and has not been named yet, or nothing.
+//
+// THE BOUND IS HANDED IN, and the pass hands in the one this toolkit already lives by: a `say` to a
+// session gives up after A_WHOLE_TURN, so a run still going past it has outlived the longest wait
+// anything here has for an answer. That is the only number in this, and it is not this file's.
+// Taking it as an argument is what lets a check read the block against a run a few seconds old;
+// nothing else passes anything but the real one.
+//
+// ONLY RUNS OF SESSIONS IN THE ROOM. What is in flight is keyed by name and what is remembered is
+// keyed by name, and a name that has left the roster is dropped from the memory here the way
+// `seen` drops it, so a desk opened again under a recycled name is read fresh.
+export function longRuns(room, bound) {
+  const here = new Set(room.map((session) => session.name));
+  for (const name of [...named.keys()]) {
+    if (!here.has(name)) {
+      named.delete(name);
+    }
+  }
+
+  const now = Date.now();
+  return standingsUnderway().filter(
+    (run) => here.has(run.name) && now - run.since > bound && named.get(run.name) !== run.since,
+  );
+}
+
+// This run has been named, so the same run is not named again. Called once the line is on the
+// panel and not before, for `nowSeen`'s reason: a pass that read a long run and fell over before
+// saying so must find it still unnamed on the next pass.
+export function nowNamed(name, since) {
+  named.set(name, since);
+}
+
 // That the pass happened, and almost nothing about what it found.
 //
 // ONE OBJECT, REPLACED EACH PASS, IN MEMORY. Never appended to and never written to disk, for the
@@ -277,5 +323,6 @@ export function theWatchRecord() {
 // behind would say a watch was armed for a server that has been closed.
 export function forgetTheRoom() {
   seen.clear();
+  named.clear();
   record = null;
 }

@@ -78,11 +78,11 @@ import { PARK_ATTEMPTS, WATCH_EVERY, howOften, parkAttemptsAllowed, parkAttempts
 // it was in lives on, which is the one arrangement a chat started as a child cannot be put into:
 // stopping one from outside ends it outright. And the handover turn is asked for directly, because
 // over a socket the only thing that can ask for one is the button.
-import { handOver, readTheRoom, serve } from "../tools/chat/server.mjs";
+import { handOver, nameTheLongRuns, readTheRoom, serve } from "../tools/chat/server.mjs";
 
 // And a turn asked for directly, for the same reason again: where the account stands while a run is
 // going is held in memory by the module that owns the run, and there is no route that says it.
-import { HOLD_ABOVE, accountStanding, ask, fullnessIn, holdAboveProblem, quotaIn, standingsUnderway, stopLine } from "../tools/chat/session.mjs";
+import { HOLD_ABOVE, accountStanding, ask, fullnessIn, holdAboveProblem, quotaIn, runsUnderway, sessions, standingsUnderway, stopLine } from "../tools/chat/session.mjs";
 import { holdIn } from "../tools/chat/hold.mjs";
 
 // The kinds themselves, read from where they are named rather than written out again here. Two
@@ -106,7 +106,7 @@ import { BUILT_IN } from "../tools/plugins.mjs";
 // happened at all is another — so the checks about them run a chat in THIS process, which is the
 // only arrangement either can be seen from. Over a socket there is nothing to read: one is not
 // served anywhere yet and the other is a thing a session hears, not a thing a route says.
-import { owed } from "../tools/chat/overheard.mjs";
+import { heard, owed } from "../tools/chat/overheard.mjs";
 import { theWatchRecord } from "../tools/chat/watch.mjs";
 
 // And a turn held open by hand. A pass must not end a conversation with a run going on it, and the
@@ -8994,7 +8994,7 @@ describe("what the README says about the room watch", () => {
   // a section that still counted three would be describing a pass that spends a turn it does not
   // mention. Every inter-word gap is \s+, because the file is hard-wrapped.
   it("says a conversation about to go cold is handed over, between the ending and the crossing", () => {
-    assert.match(section, /A pass does four things/);
+    assert.match(section, /A pass does five things/);
     const ended = section.search(/gone cold is ended there and then/);
     const parked = section.search(/about to go cold is handed over before it does/);
     const crossed = section.search(/A crossing is said, once/);
@@ -9002,6 +9002,21 @@ describe("what the README says about the room watch", () => {
     assert.ok(ended < parked && parked < crossed, `ended ${ended}, parked ${parked}, crossed ${crossed}`);
     assert.match(section, /saves no\s+tokens/);
     assert.match(section, /`watchEverySeconds: 0` is not asked for this turn/);
+  });
+
+  // And the fifth, a run that has outlived what anything here waits for, in its place between the
+  // hold and the ending — the one condition that wants a turn in flight, before the ones that want
+  // none — and said as what it is: a diagnosis, and no act. A README that counted four would be
+  // describing a pass that says a line it does not mention.
+  it("says a run that will not end is named, between the hold and the ending, and that nothing is ended for it", () => {
+    const held = section.search(/hands the room over itself/);
+    const named = section.search(/A run that has outlived what anything here waits for is named/);
+    const ended = section.search(/gone cold is ended there and then/);
+    assert.ok(named !== -1, "the section never says a run that will not end is named");
+    assert.ok(held < named && named < ended, `held ${held}, named ${named}, ended ${ended}`);
+    assert.match(section, /what is running underneath it, by\s+name/);
+    assert.match(section, /Nothing is ended/);
+    assert.match(section, /the End button on that session's\s+panel/);
   });
 
   // And the fourth thing is done about, now: the crossing is where the seat is handed over for its
@@ -15315,6 +15330,8 @@ describe("what a pass does about a conversation about to lose its cache", () => 
 });
 
 const GROWN_IDLE = "Lapwing";
+// And one whose run outlives what anything here waits for.
+const RUNS_LONG = "Tarn";
 const GROWN_GONE_WHILE_IT_WAITED = "Oystercatcher";
 const GROWN_MID_TURN = "Phalarope";
 const GROWN_ON_A_PROMPT = "Pratincole";
@@ -15783,5 +15800,157 @@ describe("how much of its window a conversation fills", () => {
 
   after(() => {
     remove(measured);
+  });
+});
+
+// A run that has outlived what anything here waits for. The pass names it, once, with what is
+// running underneath it and whether the service has spoken to it at all — and does nothing about
+// it, because from here a long build and a run wedged on something that is not the model look the
+// same, and a person with the diagnosis in front of them can tell.
+//
+// Asked IN THIS PROCESS, for the reason the live standing above is: when a run began is memory
+// inside the module that owns the run, so it cannot be aged the way a thread file is. The bound is
+// read through the one seam the block has — the pass hands in the real half hour and this hands in
+// nothing — so what runs here is the block itself, against a run that is genuinely going and has
+// something of its own underneath it.
+describe("what a pass does about a run that will not end", () => {
+  const lasting = `${instance}-lasting`;
+  const lastingLog = path.join(lasting, "runs.txt");
+  const pathBefore = process.env.PATH;
+  let leader;
+  let server;
+  let namedOnThePass;
+  let namedFirst;
+  let namedAgain;
+  let namedSecond;
+  let linesOnThePass;
+  let linesWhenNamed;
+  let linesWhenNamedAgain;
+  let linesAfterTheSecond;
+  let owedWhenNamed;
+  let underWhenNamed;
+  let runningWhenNamed;
+  let answered;
+  let answeredAgain;
+
+  const underIn = (file) =>
+    (fs.existsSync(file) ? fs.readFileSync(file, "utf8") : "")
+      .split("\n")
+      .filter((line) => line.startsWith("under: "))
+      .map((line) => Number(line.slice("under: ".length)));
+  const linesAbout = (panel) =>
+    panel.filter((line) => line.from === "the chat" && typeof line.text === "string" && line.text.startsWith(`${RUNS_LONG} has been running`));
+
+  before(async () => {
+    installed(options(lasting, 0));
+    runTool(lasting, ["hire", RUNS_LONG], process.env);
+    const held = JSON.parse(fs.readFileSync(path.join(lasting, "openovai.json"), "utf8"));
+    leader = held.leader;
+
+    process.env.PATH = `${standIn}${path.delimiter}${pathBefore}`;
+    process.env.OPENOVAI_STAND_IN_LOG = lastingLog;
+    // Long enough that the run is still going after it has been named, and named again, and read
+    // once more by a pass with the real bound. Nothing here waits it out.
+    process.env.OPENOVAI_STAND_IN_SLOW = "4000";
+    process.env.OPENOVAI_STAND_IN_UNDER = "1";
+
+    const served = { root: lasting, config: held, plugins: [], pop: null };
+    server = await serve(served);
+    try {
+      const going = ask(served, RUNS_LONG, "something that takes a while");
+      const under = await waitFor(() => underIn(lastingLog)[0] ?? null);
+      await waitFor(() => standingsUnderway().find((one) => one.name === RUNS_LONG) ?? null);
+      const room = sessions(served);
+
+      // The pass itself, with the bound it really reads. A run a few seconds old is nobody's business.
+      await readTheRoom(served);
+      linesOnThePass = linesAbout(panelIn(lasting, leader));
+      namedOnThePass = linesOnThePass.length;
+
+      namedFirst = nameTheLongRuns(served, room, "12:34", 0);
+      linesWhenNamed = linesAbout(panelIn(lasting, leader));
+      owedWhenNamed = owed(leader).filter((line) => line.includes(`${RUNS_LONG} has been running`));
+      underWhenNamed = under !== null && alive(under);
+      runningWhenNamed = runsUnderway().includes(RUNS_LONG);
+
+      namedAgain = nameTheLongRuns(served, room, "12:39", 0);
+      linesWhenNamedAgain = linesAbout(panelIn(lasting, leader));
+
+      answered = await going;
+
+      // A second run of the same session, and this one has been spoken to: the reading the service
+      // sends before anything else is what says so.
+      process.env.OPENOVAI_STAND_IN_LIMIT = "allowed";
+      const goingAgain = ask(served, RUNS_LONG, "and another");
+      await waitFor(() => standingsUnderway().find((one) => one.name === RUNS_LONG && one.at !== null) ?? null);
+      namedSecond = nameTheLongRuns(served, room, "12:44", 0);
+      linesAfterTheSecond = linesAbout(panelIn(lasting, leader));
+      answeredAgain = await goingAgain;
+    } finally {
+      process.env.PATH = pathBefore;
+      for (const knob of ["OPENOVAI_STAND_IN_LOG", "OPENOVAI_STAND_IN_SLOW", "OPENOVAI_STAND_IN_UNDER", "OPENOVAI_STAND_IN_LIMIT"]) {
+        delete process.env[knob];
+      }
+    }
+  });
+
+  // Mutation: read the bound as nothing. A pass that named every run on its first tick would name
+  // every turn in the room, and the line would be the one nobody reads by the third one.
+  it("names nobody on a pass while the run is younger than the bound", () => {
+    assert.equal(namedOnThePass, 0, JSON.stringify(linesOnThePass));
+  });
+
+  // Mutation: leave what is under the run off the line. The row already says how long a run has
+  // been going; what it cannot say is whether that is a build or a clone, and the names underneath
+  // are the only thing that can.
+  it("names a run past the bound once, with what is running under it", () => {
+    assert.equal(namedFirst, 1);
+    assert.equal(linesWhenNamed.length, 1, JSON.stringify(linesWhenNamed));
+    assert.equal(linesWhenNamed[0].watch, true, JSON.stringify(linesWhenNamed[0]));
+    assert.match(linesWhenNamed[0].text, /longer than anything here waits for an answer/);
+    assert.match(linesWhenNamed[0].text, /Under it: sleep\b/);
+    assert.match(linesWhenNamed[0].text, /the service has not spoken to it at all/);
+    // And the lead's model is owed the same line, wrapped as the pass wraps what it says.
+    assert.equal(owedWhenNamed.length, 1, JSON.stringify(owedWhenNamed));
+    assert.match(owedWhenNamed[0], /^<watch read="12:34">/);
+  });
+
+  // Mutation: name it on every pass. The row says it is running; a line about it every five
+  // minutes is a doorbell.
+  it("names the same run no second time", () => {
+    assert.equal(namedAgain, 0);
+    assert.equal(linesWhenNamedAgain.length, 1, JSON.stringify(linesWhenNamedAgain));
+  });
+
+  // Mutation: remember the name rather than the run. A session whose next run also goes long is a
+  // session with a second thing to look at, and the first line said nothing about it.
+  it("names the next run of the same session that goes long", () => {
+    assert.equal(namedSecond, 1);
+    assert.equal(linesAfterTheSecond.length, 2, JSON.stringify(linesAfterTheSecond));
+  });
+
+  // Mutation: end the run once it is named. That is the timeout this block exists not to be: the
+  // run was working, and it answers.
+  it("ends nothing: what was under the run is still there, and the run answers on its own", () => {
+    assert.equal(underWhenNamed, true, "the process under the run was gone when it was named");
+    assert.equal(runningWhenNamed, true);
+    assert.equal(answered?.failed, false, JSON.stringify(answered));
+    assert.equal(answeredAgain?.failed, false, JSON.stringify(answeredAgain));
+  });
+
+  // Mutation: say the service has not spoken whether it has or not. A run the service has answered
+  // is a run past the harness and into the model, which is the one thing that tells a slow turn
+  // from a wedged one.
+  it("says when the service last spoke to the run, when it has", () => {
+    assert.match(linesAfterTheSecond[1].text, /the service last spoke to it just now/);
+    assert.doesNotMatch(linesAfterTheSecond[1].text, /has not spoken to it/);
+  });
+
+  after(async () => {
+    // What the lead was told here is drained, so the next describe's lead is owed nothing from
+    // this instance: the debt is kept by name, and the name is everybody's lead.
+    heard(leader, owed(leader));
+    await new Promise((resolve) => server.close(resolve));
+    remove(lasting);
   });
 });

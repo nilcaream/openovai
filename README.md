@@ -986,7 +986,7 @@ the lead's next turn, whenever somebody gives it one.
     and nothing was asked of Leo: whatever it had not written to work/Leo/STATE.md is gone, and
     the next message to it starts a new conversation that reads that desk first.
 
-A pass does four things, in this order.
+A pass does five things, in this order.
 
 **Under a hold, the chat hands the room over itself.** When the five-hour window is past the stop
 line — the same reading and the same line as the block above — the pass reads when it lifts against
@@ -1001,6 +1001,17 @@ pass while it is still warm, and once its conversation has gone cold it is ended
 the refusals counted in the line that says so. No seat is parked twice under one hold. When the
 window lifts, the hold is over and the room is read as usual again; the line says who was handed
 over under it and who never was.
+
+**A run that has outlived what anything here waits for is named, and nothing is ended.** A `say`
+to a session is answered when that session's turn is over, and it gives up after half an hour,
+because a turn is minutes. A run still going past that has outlived the longest wait in the toolkit,
+and the pass says so to the lead, once per run: how long it has been running, when the service last
+spoke to it or that it has not at all, and what is running underneath it, by name — `ssh` and
+`git-remote-https` under a run is a different reading from `mvn`. Nothing is ended, because the
+pass cannot tell a long build from a run wedged on something that is not the model, and a run ended
+before it answers loses whatever it has not written. Ending it is the End button on that session's
+panel, with the diagnosis in front of whoever presses it; the next run of the same session that goes
+long is named again.
 
 **A conversation gone cold is ended there and then.** The hour after which carrying a conversation on
 would cost the whole of it again is the same hour the next message would have found; the pass finds

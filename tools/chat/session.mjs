@@ -37,7 +37,11 @@ export const NAME_IN_ENVIRONMENT = "OPENOVAI_SESSION_NAME";
 
 // How long a session may be kept waiting on one of the instance's own tools. Half an hour, because
 // `say` is answered only when the session it reached has finished its turn, and a turn is minutes.
-const A_WHOLE_TURN = 30 * 60 * 1000;
+//
+// EXPORTED FOR ONE READER, the room watch, and for the meaning this file gives it rather than for the
+// number: a run still going past this has outlived the longest wait anything in the toolkit has for
+// an answer, which is the one fact about its length that is not a judgment.
+export const A_WHOLE_TURN = 30 * 60 * 1000;
 
 function sessionFile(root, name) {
   return path.join(root, "chat", name, SESSION_FILE);
@@ -790,7 +794,7 @@ const ENDED_BY_HAND = "this run was ended before it answered";
 // How long a run is given to go quietly before it is made to.
 const PATIENCE = 2000;
 
-// Everything running underneath a process, itself last.
+// Everything running underneath a process, each with the name it is running as.
 //
 // This exists for one case, and the case is measured. A run puts every tool call it makes in a
 // session of its own — not merely a process group of its own — so a shell it started is out of
@@ -804,17 +808,25 @@ const PATIENCE = 2000;
 //
 // So the tree is read BEFORE the run is forced: killing it first would reparent everything under
 // it to init and lose the only thread back to what it started.
+//
+// THE NAME BESIDE THE PID, since the second reader of this. The forcing needs only a pid to signal;
+// what the room watch needs is the one thing a pid cannot say — whether what is under a run that
+// has gone on for an hour is `mvn` or `ssh` — and it is the same table read, one column wider.
+// `comm` is the kernel's name for the process, fifteen characters and no arguments, which is what a
+// line on a panel can carry and a command line with a credential in it cannot.
 function descendants(pid) {
-  const asked = spawnSync("ps", ["-eo", "pid=,ppid="], { encoding: "utf8" });
+  const asked = spawnSync("ps", ["-eo", "pid=,ppid=,comm="], { encoding: "utf8" });
   if (asked.status !== 0 || typeof asked.stdout !== "string") {
     return [];
   }
 
   const below = new Map();
   for (const line of asked.stdout.split("\n")) {
-    const [child, parent] = line.trim().split(/\s+/).map(Number);
-    if (Number.isInteger(child) && Number.isInteger(parent)) {
-      below.set(parent, [...(below.get(parent) ?? []), child]);
+    const [child, parent, ...command] = line.trim().split(/\s+/);
+    const one = Number(child);
+    const above = Number(parent);
+    if (child !== "" && Number.isInteger(one) && Number.isInteger(above)) {
+      below.set(above, [...(below.get(above) ?? []), { pid: one, command: command.join(" ") }]);
     }
   }
 
@@ -825,10 +837,22 @@ function descendants(pid) {
       // A pid cannot be its own ancestor, so nothing here can loop; a table read mid-change
       // could still name one twice, and doing it twice is only a wasted signal.
       found.push(under);
-      left.push(under);
+      left.push(under.pid);
     }
   }
   return found;
+}
+
+// What is running underneath a session's run right now, by name — nothing at all when it has none.
+//
+// THE FIRST READER OF THE TREE THAT ENDS NOTHING. The forcing above reads it on the way to a kill;
+// this reads it for a line, so that a person looking at a run forty minutes in can see whether the
+// thing under it is a build or a clone before deciding anything. It answers off the running map
+// rather than taking a pid, for the map's own reason: the child is the one thing that knows the
+// pid, and it stays in here.
+export function underneath(name) {
+  const child = running.get(name);
+  return child === undefined ? [] : descendants(child.pid);
 }
 
 // End one run and wait for it to actually be over. Asked first, because a run told to stop can
@@ -847,7 +871,7 @@ async function end(child, patience) {
   const made = setTimeout(() => {
     const under = descendants(child.pid);
     child.kill("SIGKILL");
-    for (const pid of under) {
+    for (const { pid } of under) {
       try {
         process.kill(pid, "SIGKILL");
       } catch {

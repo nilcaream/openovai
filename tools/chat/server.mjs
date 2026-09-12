@@ -18,9 +18,9 @@ import { popped } from "./pop.mjs";
 import { answerFrom } from "../plugins.mjs";
 import { SKILL_NAME } from "../payload.mjs";
 import { ago, roomLines, shareSaid } from "./room.mjs";
-import { WATCH_EVERY, armTheWatch, buysATurn, forgetTheRoom, howOften, nowSeen, parkAttemptsAllowed, theWatchRecord, tickRead, whatChanged } from "./watch.mjs";
+import { WATCH_EVERY, armTheWatch, buysATurn, forgetTheRoom, howOften, longRuns, nowNamed, nowSeen, parkAttemptsAllowed, theWatchRecord, tickRead, whatChanged } from "./watch.mjs";
 import { DESK_FILE, DeskError, WORK, allowAsked, archiveFor, deskFile, deskTitle, describeName, hasSettledAnything, hire, isName, persona, retire } from "../desks.mjs";
-import { accountStanding, ask, bandIn, endRun, forget, fullnessIn, hasGoneCold, hasNearlyGoneCold, hasThread, personaFile, quotaIn, ranAt, refusedIn, sessions, standingsUnderway } from "./session.mjs";
+import { A_WHOLE_TURN, accountStanding, ask, bandIn, endRun, forget, fullnessIn, hasGoneCold, hasNearlyGoneCold, hasThread, personaFile, quotaIn, ranAt, refusedIn, sessions, standingsUnderway, underneath } from "./session.mjs";
 import { NO_NEW_WORK, spawnHeld } from "./gate.mjs";
 import { endHold, enterHold, forgetRefused, holdIn, holdLifted, holdSaid, holdStands, markParked, markRefused } from "./hold.mjs";
 import { inTurn, turnsGoing, waitingFor, whileWaitingFor, wouldWaitForItself } from "./turns.mjs";
@@ -2558,6 +2558,66 @@ function neverParkedLine(name, count) {
   return `${name} was never handed over: the account turned its handover away ${times(count)}, and its conversation has gone cold with ${desk(name)} unwritten, so whatever it had worked out since that desk was last written is gone. It is ended as a cold conversation, and the next message to it starts a new one from that desk.`;
 }
 
+// How long something has been going, in the words the row says an age in — minutes under the hour,
+// hours and minutes past it — so that a line about a run and the row about the same run do not
+// spell one duration two ways.
+function lasting(since) {
+  const minutes = Math.floor((Date.now() - since) / 60000);
+  if (minutes < 1) {
+    return "under a minute";
+  }
+  if (minutes < 60) {
+    return `${minutes}m`;
+  }
+  return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+}
+
+// What the lead is told about a run that has outlived what anything here waits for. A diagnosis and
+// not a verdict: how long, whether the service has said anything to it, and what is running under
+// it by name — which is the one thing the row cannot say and the one thing that tells a build from a
+// run wedged on something that is not the model. It ends with what has NOT been done and whose
+// press the ending is, because the sentence before it reads like a reason to press.
+//
+// `at` IS THE LAST READING THE SERVICE SENT THIS RUN — the frame that carries the account's standing,
+// which the service sends on the first request it answers and again whenever the reading moves. A
+// run with none has not had a request answered at all, which is exactly the run stuck ahead of its
+// first one: on the thing the harness does before it ever speaks to the model.
+function longRunLine(human, name, since, at, under) {
+  const spoken = at === null
+    ? "the service has not spoken to it at all"
+    : `the service last spoke to it ${ago(new Date(at).toISOString())}`;
+  const below = under.length === 0 ? "Nothing is running under it." : `Under it: ${under.map((one) => one.command).join(", ")}.`;
+  return `${name} has been running for ${lasting(since)}, longer than anything here waits for an answer; ${spoken}. ${below} Nothing has been done: it may be working, and ending it is ${human}'s to press on that panel — a run ended before it answers loses whatever it has not written.`;
+}
+
+// The one block of the pass that wants a turn in flight, and it ends nothing.
+//
+// READ, NAMED, AND HANDED TO THE PERSON. The row already says a run began forty minutes ago; what
+// nobody could see is whether that is `mvn` or `ssh`, and the pass cannot tell either — a bound on
+// the clock ends both. The one act that destroys work in progress is one press away on the panel,
+// with its own line already written for it, so a second door to the same act, opened by a timer,
+// adds nothing a person cannot do faster with the diagnosis in front of them. So this says, once
+// per run, and a saying is the act: `decided` and `acted` both count it, as a crossing's does.
+//
+// ONCE PER RUN AND NOT ONCE PER SEAT: the run that answers at last and the next one that goes long
+// are two things to look at. watch.mjs keeps the memory and says why it is the run's start.
+//
+// THE BOUND IS THE ONE THE TOOLKIT ALREADY LIVES BY, and it is read here so that a check can hand
+// in another: the pass passes nothing and gets the half hour a `say` gives up after.
+//
+// EXPORTED FOR THE SAME REASON `readTheRoom` IS. When a run began is memory inside the module that
+// owns it, and cannot be aged the way a thread file can — so a check reads this block against a
+// run that is genuinely going, with the bound at nothing, and the pass itself is proven to name
+// nobody with the bound where it is.
+export function nameTheLongRuns(instance, room, read, bound = A_WHOLE_TURN) {
+  const long = longRuns(room, bound);
+  for (const run of long) {
+    announce(instance, longRunLine(instance.config.human, run.name, run.since, run.at, underneath(run.name)), read);
+    nowNamed(run.name, run.since);
+  }
+  return long.length;
+}
+
 // Whether there is a conversation here worth parking. Asked the same way in both places it is
 // asked, which is what makes the second reading worth taking at all.
 //
@@ -2879,6 +2939,14 @@ async function walkTheRoom(instance) {
       announce(instance, parkedLine(session.name, full), at);
     }
   }
+
+  // A run that has outlived what anything here waits for, named. Before the blocks below because it
+  // is the one condition that wants a turn in flight, and every one of them wants none; after the
+  // hold because the account is read first and its parks are said before anything about one seat.
+  // Nothing is ended here — `nameTheLongRuns` says why — and the saying is the act.
+  const named = nameTheLongRuns(instance, room, at);
+  decided += named;
+  acted += named;
 
   // A conversation nobody carried on for long enough, ended here rather than on the next message
   // that happens to arrive. The same act, at the moment it becomes true instead of whenever
