@@ -13891,12 +13891,15 @@ describe("a chat that has been stopped has stopped reading its room", () => {
     panelAfterClosing = fs.existsSync(panel) ? JSON.parse(fs.readFileSync(panel, "utf8")) : [];
   });
 
-  // Mutation: leave the interval where the server closes. The question is written to the panel
-  // before anything is run, so a tick that fired here leaves its mark whether or not there is
-  // anything on the PATH to answer it — which is what makes this readable without a stand-in.
+  // Mutation: leave the interval where the server closes. A tick that fired here finds the
+  // crossing, acts on it, and leaves its line on the lead's panel flagged as the chat's own — so the
+  // flag is what is read, never the wording. The line used to open with a tag of its own and this
+  // read the panel for that tag; when the pass stopped handing the lead a block, the tag moved to
+  // what is overheard, nothing on the panel carried it any more, and this was satisfied by every
+  // panel there could be. Read what the check reads, and read the field the panel keeps.
   it("the chat can be stopped", () => {
     assert.deepEqual(
-      panelAfterClosing.filter((line) => typeof line.text === "string" && line.text.includes("<watch>")),
+      panelAfterClosing.filter((line) => line.watch === true),
       [],
       JSON.stringify(panelAfterClosing),
     );
