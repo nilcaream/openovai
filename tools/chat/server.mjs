@@ -666,22 +666,23 @@ function handoverWrapper(name) {
   ].join(" ");
 }
 
-// What a session is told when its thread ended while nobody was speaking to it.
+// What a session is told on the first turn of a conversation begun where one ended.
 //
 // The mirror of handoverWrapper, and a wrapper for the same reason: what is left OUTSIDE every
 // wrapper is the human speaking on this session's own panel, so an instruction from the chat handed
 // over bare would arrive as the human having typed it. Where the handover says "your thread is
 // about to end, write your desk", this says "your thread has ended, read it".
 //
-// It rides only on the turn that follows a reset. Whether there was one is known where it happened
-// and is passed in from there, so this costs a sentence exactly once and nothing on any turn after.
+// It rides only on the turn that follows an ending — whichever way the thread ended: handed over,
+// or gone cold and ended by the pass or by the message itself. The turn reads that off the panel
+// where the ending was written, so this costs a sentence exactly once and nothing on any turn after.
 //
-// It does not apologise for the loss or explain the cache. What the session can act on is where the
-// work stands, and that is on the desk.
+// It does not say why or explain the cache; the panel says why, for the person. What the session
+// can act on is where the work stands, and that is on the desk.
 function pickUpWrapper(name) {
   return [
-    `<pick-up>Nobody spoke to you for long enough that the conversation you were having ended by`,
-    `itself, and this is a new one: you remember none of it. Read ${desk(name)} before anything`,
+    `<pick-up>The conversation you were having has ended — handed over, or left for longer than one`,
+    `can be carried — and this is a new one: you remember none of it. Read ${desk(name)} before anything`,
     `else and carry on from what it says the work is, what is true right now and what to do next.`,
     `If what you find there is behind where the work actually got to, say so in your reply rather`,
     `than guessing at the difference.</pick-up>`,
@@ -696,6 +697,32 @@ function pickUpWrapper(name) {
 // Written before the question, so the record reads in the order it happened.
 function coldLine(name) {
   return `${name} had been quiet for longer than a conversation can be carried, so the thread that answered up to here is gone. What follows was answered by a new one, which reads ${desk(name)} first.`;
+}
+
+// The end of a conversation and the line that says so, together. Removing the thread is the whole
+// of ending one — `forget` says so — and the row written after it is flagged, because the flag is
+// what the next turn on this desk reads to know that it begins where a conversation ended. Every
+// way a thread ends comes through here: a handover, whoever asked for it, and the cold reading,
+// whether the pass took it or a message did.
+//
+// On disk, on the panel, and deliberately not in memory: a chat stopped and started again between
+// the ending and the next message must still tell that message's turn, and an update is exactly
+// that — the room is handed over, then the chat is replaced.
+function endThread(root, name, row) {
+  forget(root, name);
+  return append(root, name, { from: THE_CHAT, ...row, ended: true });
+}
+
+// Whether the next run on this desk begins a conversation where one has ended: no thread to
+// resume, and a panel that says one was ended. Read where the turn begins, after that turn's own
+// cold reading, so a thread this turn ended and one a handover or the pass ended read the same.
+//
+// A desk that never had a conversation is not one that begins again. The persona already tells a
+// new hire to read its desk, and the first turn of one has nothing to pick up from. And it stays
+// true until a run has answered — a first turn that fell over is asked again on the next — and
+// stops being true the moment one has, so the sentence costs exactly one turn per ending.
+function beginsAgain(root, name) {
+  return !hasThread(root, name) && read(root, name).some((row) => row.ended === true);
 }
 
 // What the panel says a handover is, while it happens and once it has. Written under `the chat`
@@ -1042,11 +1069,14 @@ async function deliver(instance, name, text, signed, shown = null) {
       // whole of the cold handling in a chat whose timer has been taken out. The two cannot fight:
       // ending one is removing `session.json`, after which `hasThread` fails and `hasGoneCold`
       // answers false, so whichever of them arrives second finds nothing left to do.
-      const restarted = hasGoneCold(instance.root, name);
-      if (restarted) {
-        forget(instance.root, name);
-        append(instance.root, name, { from: THE_CHAT, text: coldLine(name), cold: true });
+      if (hasGoneCold(instance.root, name)) {
+        endThread(instance.root, name, { text: coldLine(name), cold: true });
       }
+
+      // Whether this turn begins a new conversation where one has ended — read AFTER the ending
+      // above, so the thread this turn ended and one ended before it got its place in the queue,
+      // by a handover or by the pass, are the same reading and get the same first turn.
+      const restarted = beginsAgain(instance.root, name);
 
       // Which line of this session's the sender was looking at. Worked out from the position that
       // came WITH the message, so what it names cannot be moved by anything this session said while
@@ -1536,7 +1566,7 @@ function saidBack(to, answered) {
   }
 
   if (answered.body.restarted === true) {
-    return { text: `(${to} had gone quiet for too long, so it answered this from a new conversation, having read its desk rather than remembering what you told it before.)\n\n${answered.body.reply.text}` };
+    return { text: `(${to} answered this from a new conversation: the one you had been talking to has ended, so it read its desk rather than remembering what you told it before.)\n\n${answered.body.reply.text}` };
   }
 
   return { text: answered.body.reply.text };
@@ -1753,10 +1783,7 @@ export async function handOver(instance, name, askedLine, stillHolds = null) {
       ...(answer.silent ? { silent: true } : {}),
     });
 
-    forget(instance.root, name);
-
-    const ended = append(instance.root, name, {
-      from: THE_CHAT,
+    const ended = endThread(instance.root, name, {
       text: answer.failed ? handoverUnanswered(name) : handoverDone(name),
       handover: true,
       ...(answer.failed ? { failed: true } : {}),
@@ -3043,8 +3070,7 @@ async function walkTheRoom(instance) {
       if (!hasGoneCold(instance.root, session.name)) {
         return false;
       }
-      forget(instance.root, session.name);
-      append(instance.root, session.name, { from: THE_CHAT, text: coldLine(session.name), cold: true });
+      endThread(instance.root, session.name, { text: coldLine(session.name), cold: true });
       return true;
     });
     if (ended !== true) {

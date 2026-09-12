@@ -3225,5 +3225,49 @@
         "to": "    // the panel row is all there is"
       }
     ]
+  },
+  {
+    "name": "the turn after an ending is told nothing about picking up from its desk",
+    "catches": "hands the new conversation the instruction to pick up from its desk, ahead of everything",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  return !hasThread(root, name) && read(root, name).some((row) => row.ended === true);",
+        "to": "  return false;"
+      }
+    ]
+  },
+  {
+    "name": "the pick-up rides on every turn after an ending, whether or not a conversation has begun since",
+    "catches": "says so once, and the turn after that carries the conversation on",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  return !hasThread(root, name) && read(root, name).some((row) => row.ended === true);",
+        "to": "  return read(root, name).some((row) => row.ended === true);"
+      }
+    ]
+  },
+  {
+    "name": "the line that ends a thread is written without the flag the next turn reads",
+    "catches": "flags the line that ended the thread as an ending",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  return append(root, name, { from: THE_CHAT, ...row, ended: true });",
+        "to": "  return append(root, name, { from: THE_CHAT, ...row });"
+      }
+    ]
+  },
+  {
+    "name": "the caller of say is told nothing about the conversation being a new one",
+    "catches": "tells whoever said it that a new conversation answered, before the answer",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  if (answered.body.restarted === true) {",
+        "to": "  if (false) {"
+      }
+    ]
   }
 ]

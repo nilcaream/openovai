@@ -37,6 +37,15 @@ and puts it in front of the asker's next message — the way anything else said 
 not running to hear it already is. A refusal is carried the same way, in the sentence `say` would
 have answered with.
 
+**A conversation begun after any ending reads its desk first, and whoever spoke to it is told.** Only
+a conversation that had gone cold was told, on its first turn, that it was a new one and should read
+its desk; one begun after a handover — the button, the lead's tool, the room watch under a hold —
+was left to the persona's standing instruction, and a session that spoke to it through `say` heard
+nothing about who answered. The line that ends a thread is flagged on the panel now, and the first
+turn on a desk that has no thread and such a line opens with the pick-up instruction whichever way
+the thread ended; `say` says in its answer that a new conversation answered, as it already did for a
+cold one.
+
 ## 0.7.0
 
 The chat keeps its own room now, and a persona is rendered when a conversation starts rather than

@@ -5767,6 +5767,67 @@ describe("handing a session over", () => {
   });
 });
 
+const BEGINS_AGAIN = "Redshank";
+
+// The turn after a handover starts a new conversation, and only the turn after a COLD ending used
+// to be told so: the pick-up line rode on the cold reading, and a desk with no thread never gives
+// one. A conversation begun after a handover — the button, the lead's tool, the pass under a hold
+// — was left to the persona's standing "read your desk first", and a session that said something
+// to it was told nothing about who answered.
+//
+// Asked through the lead's tool, because the tool is what tells a session who answered; the page
+// reads the same flag off the route.
+describe("the first message after a handover", () => {
+  const beginsLog = path.join(standIn, "begins-again.txt");
+  let endedRow;
+  let said;
+  let asked;
+  let again;
+  let askedAgain;
+
+  before(async () => {
+    runTool(instance, ["hire", BEGINS_AGAIN], process.env);
+    await start(instance, standInEnvironment(standIn, beginsLog));
+    assert.ok(await waitForHealth(URL), "the server never answered");
+
+    // A thread to end, and the ending. Its last row is read before the next message, which is
+    // the one that reads it.
+    await say("the first conversation", BEGINS_AGAIN);
+    await post(`${URL}/sessions/${BEGINS_AGAIN}/handover`, {});
+    endedRow = JSON.parse((await transcriptOf(BEGINS_AGAIN)).body).messages.at(-1);
+
+    said = answerOf(await call(LEADER, "tools/call", { name: "say", arguments: { to: BEGINS_AGAIN, message: "after the handover" } }));
+    asked = questionsIn(beginsLog).find((question) => question.includes("after the handover"));
+
+    // And the one after that, which carries the new conversation on.
+    again = answerOf(await call(LEADER, "tools/call", { name: "say", arguments: { to: BEGINS_AGAIN, message: "and once more" } }));
+    askedAgain = questionsIn(beginsLog).find((question) => question.includes("and once more"));
+  });
+
+  // The flag is what the next turn reads, and it is on disk so that a chat stopped and started
+  // again between the handover and the message — an update is exactly that — still reads it.
+  it("flags the line that ended the thread as an ending", () => {
+    assert.equal(endedRow?.handover, true, JSON.stringify(endedRow));
+    assert.equal(endedRow?.ended, true, JSON.stringify(endedRow));
+  });
+
+  it("hands the new conversation the instruction to pick up from its desk, ahead of everything", () => {
+    assert.match(asked ?? "", new RegExp(`^<pick-up>[\\s\\S]*work/${BEGINS_AGAIN}/STATE.md[\\s\\S]*</pick-up>`));
+  });
+
+  it("tells whoever said it that a new conversation answered, before the answer", () => {
+    assert.match(said.text ?? "", /^\(.*new conversation.*\)\n\na reply$/s);
+  });
+
+  // Mutation: read the flag alone, without asking whether a thread has begun since. A conversation
+  // that has answered once is the one being carried on, and telling it every turn that it
+  // remembers nothing is the sentence on every turn for ever.
+  it("says so once, and the turn after that carries the conversation on", () => {
+    assert.doesNotMatch(askedAgain ?? "", /<pick-up>/);
+    assert.doesNotMatch(again.text ?? "", /new conversation/);
+  });
+});
+
 const ASKED_IN_OTHER_WORDS = "Wren";
 
 // The words on the panel belong to whoever asked for the handover, and the button is not the only
@@ -13366,6 +13427,9 @@ describe("what a pass does about a conversation nobody carried on", () => {
     assert.equal(said.length, 1, JSON.stringify(coldPanel));
     assert.equal(said[0].from, "the chat");
     assert.match(said[0].text, new RegExp(ENDED_COLD));
+    // And flagged as the ending, which is what the next turn on that desk reads to know it begins
+    // where a conversation ended — the pass writes the row, and the message after it reads it.
+    assert.equal(said[0].ended, true, JSON.stringify(said[0]));
   });
 
   // Mutation: drop the gate on a turn in flight. `forget` is a bare rmSync with no lock and every
