@@ -1,6 +1,6 @@
 # What changed
 
-For the lead of a workspace taking this version. Short, and about what is different for the people
+For the Leader of a workspace taking this version. Short, and about what is different for the people
 working there — not a developer changelog. A section per release, newest first; a release page
 carries only its own.
 
@@ -12,7 +12,7 @@ stopped moving, a run that will not end — and nothing said across an ending is
 **The room says when it was last read.** A pass that finds nothing writes nothing, so a room watch
 that had died looked exactly like one with nothing to do — and the watch is what parks a conversation
 now, so its death was the one thing nobody would notice. One line above the room says it, on the
-page, in `ovai room` and to your lead: when the room was last read and how often it is read, or
+page, in `ovai room` and to your Leader: when the room was last read and how often it is read, or
 that it has not been read yet and when the watch was armed. Two numbers and no verdict; whether
 twelve minutes against every five means the watch is gone is yours to read off them.
 
@@ -26,7 +26,7 @@ desk that has not yet said what it is on — that one is still asked for its tit
 the model — a clone the harness starts before its first request, say — holds its session's queue,
 and every message to that seat waits behind it while the row says only `began 43m ago`. Past half
 an hour, longer than anything in the toolkit waits for an answer, the room watch now names it to
-your lead once: how long it has been running, whether the service has spoken to it at all, and what
+your Leader once: how long it has been running, whether the service has spoken to it at all, and what
 is running underneath it, by name — `ssh` under a run is a different reading from `mvn`. Nothing is
 ended. The chat cannot tell a long build from a hang and does not guess; ending a run is still the
 End button on that panel, and the line puts the diagnosis beside it.
@@ -42,7 +42,7 @@ have answered with.
 
 **A conversation begun after any ending reads its desk first, and whoever spoke to it is told.** Only
 a conversation that had gone cold was told, on its first turn, that it was a new one and should read
-its desk; one begun after a handover — the button, the lead's tool, the room watch under a hold —
+its desk; one begun after a handover — the button, the Leader's tool, the room watch under a hold —
 was left to the persona's standing instruction, and a session that spoke to it through `say` heard
 nothing about who answered. The line that ends a thread is flagged on the panel now, and the first
 turn on a desk that has no thread and such a line opens with the pick-up instruction whichever way
@@ -61,32 +61,32 @@ first pass parked and ended whatever it found in a room you had stopped. The wor
 the hold now, `chat/offline`, and a restarted chat reads it: the room says it is off, a message is
 turned away, and the first pass ends nobody. Bringing the room back removes it, as before.
 
-**The personas now say what the chat does by itself.** A lead hired on the previous version was
+**The personas now say what the chat does by itself.** A Leader hired on the previous version was
 told that handing a conversation over was yours to press, that the room watch did three things and
 that a crossing into a strong band was said once and left alone — while the chat had begun parking
 a conversation on that crossing, and before its hour, desk written first. Both templates say so
-now: the lead's names all four things the watch does and what its two readings are for, and
+now: the Leader's names all four things the watch does and what its two readings are for, and
 carries what to tell you about a conversation the chat ended; a worker's says a handover may be the
 chat asking, and where in it to read why. A conversation already going keeps the persona it began
-on, as always — and its lead is now told, in the block about who has grown big, that its
+on, as always — and its Leader is now told, in the block about who has grown big, that its
 instructions predate this. That is read off the persona itself against what the instance would
 render for it now, so a template you edited by hand, or something you added under
 `customization/`, is told the same way an update is.
 
-**Your lead is no longer told who has stopped.** A block at the top of the lead's turns used to name
+**Your Leader is no longer told who has stopped.** A block at the top of the Leader's turns used to name
 every session that had run nothing for half an hour, and how long each had been doing nothing. It
 was a reading and never a rule, and what it warned of — a conversation ended at the hour with its
 desk unwritten — is what the chat now prevents itself: the room watch parks a conversation before
 its hour, its desk written first. What is left is who is idle, and the room says that whenever the
-lead asks, on the row, as `idle, last ran 35m ago`. The two blocks the lead is still handed on a
+Leader asks, on the row, as `idle, last ran 35m ago`. The two blocks the Leader is still handed on a
 turn, who has grown big and where the account stands, are unchanged and read in the same order.
 
 **An update is now a clean install with your material in it, and so is installing over an
 instance.** Both put the payload in place whole and then seed, once, whatever file of yours a fresh
 install would have given you and this instance has not got — the memory index, either settings file,
-the lead's desk — and name what they seeded. A file you have is yours whatever is in it and is never
+the Leader's desk — and name what they seeded. A file you have is yours whatever is in it and is never
 written over; `install --force` over an instance used to rewrite `openovai.json`, the memory index,
-the home settings and the lead's desk, and merged the payload instead of replacing it. Over an
+the home settings and the Leader's desk, and merged the payload instead of replacing it. Over an
 instance the installer's options are no longer all required: `openovai.json` answers for whatever
 is left off, and whatever is given is written into it, the rest of the file untouched. The
 instance's own settings are written once, whole, when there is none; the rule a hire adds still goes
@@ -99,7 +99,7 @@ instance that said the new one was installed. Now every process carrying this in
 environment is named — `kill <pid>  <seat>`, or `(no seat name)` for a sign-in — and nothing of
 another instance's is. Nothing is written down to find them by, so there is nothing to go stale.
 
-**The `allowed` skill is payload, and `.claude/settings.json` is yours.** The skill a lead reads to
+**The `allowed` skill is payload, and `.claude/settings.json` is yours.** The skill a Leader reads to
 say what the workspace allows now ships at `.claude/skills/allowed` — placed by the install,
 replaced by an update, the one directory and never `.claude/skills`, so a skill of your own beside
 it stays. The chat no longer rewrites it at every start, and no longer rewrites `claudeMdExcludes`
@@ -123,18 +123,18 @@ to every persona of that kind the instance renders, after everything the toolkit
 touched by an update.
 
 **The chat now keeps its own room, and it spends none of your account doing it.** The room watch
-used to read the room every five minutes and, when something had crossed into a band, buy the lead a
+used to read the room every five minutes and, when something had crossed into a band, buy the Leader a
 turn to hear about it. It reads the same room at the same cadence, and acts instead: a conversation
 nobody has carried on for an hour is ended by the pass, there and then, rather than by the next
 message that happens to reach it; and when the account has reached the stop line of its five-hour
 window and that window lifts later than a conversation can be carried across, the chat holds — it
-hands each conversation over to its desk itself, fullest first and the lead last, and says each park
-as it lands. Nothing in this buys a turn. What the pass did is one line on the lead's panel, and the
-same line waits in a block at the top of the lead's next turn, whenever you give it one; the lead is
+hands each conversation over to its desk itself, fullest first and the Leader last, and says each park
+as it lands. Nothing in this buys a turn. What the pass did is one line on the Leader's panel, and the
+same line waits in a block at the top of the Leader's next turn, whenever you give it one; the Leader is
 no longer woken to be told what the chat has already done.
 
 The hold does one of three things, and says which above the room — on the page, in `ovai room`, and
-to the lead. If the window lifts inside the hour, nobody is handed over: everybody is still here
+to the Leader. If the window lifts inside the hour, nobody is handed over: everybody is still here
 when it does. If the service did not say when it lifts, nobody is handed over either, because a park
 is not something to do on an unknown; the next completed turn is read again. Only when it lifts later
 than the hour does the chat park, and then a seat sitting on a permission prompt is left alone, no
@@ -148,8 +148,8 @@ who never was.
 **A conversation about to go cold is handed over before it does.** A conversation's cache lives an
 hour past its last turn, and a seat idle for fifty minutes of it usually goes on to lose it. So in
 those last minutes the pass asks the seat itself to hand over — one turn on that session, to write
-its desk while it can still be asked to — and tells the lead as it lands. Only a seat with nothing
-running on it and not sitting on a permission prompt, the lead last when it is among them, and never
+its desk while it can still be asked to — and tells the Leader as it lands. Only a seat with nothing
+running on it and not sitting on a permission prompt, the Leader last when it is among them, and never
 in a workspace that wrote `watchEverySeconds: 0`. It saves no tokens; what it saves is whatever
 that session had not yet written down.
 
@@ -165,9 +165,9 @@ but not including `1`, and the same line decides when the block about the accoun
 which other window is named beside it. A workspace whose account is also spent outside the instance
 can draw it at `0.9` and have everybody put down before ninety-five arrives unannounced.
 
-**Your lead cannot take anybody new on while the account is nearly spent.** Past nine tenths of the
-five-hour window the lead's own block already said to start no new front and take nobody new on;
-that is a mechanism now. A `hire` from the lead is refused before the name is looked at, and so is a
+**Your Leader cannot take anybody new on while the account is nearly spent.** Past nine tenths of the
+five-hour window the Leader's own block already said to start no new front and take nobody new on;
+that is a mechanism now. A `hire` from the Leader is refused before the name is looked at, and so is a
 colleague's message to a seat with no conversation, or with one that has gone cold, because each of
 those would start a conversation from nothing at the moment the account can least afford one. The
 refusal is the answer the caller gets — the window, the reading and the moment it lifts, so it knows
@@ -175,7 +175,7 @@ when to ask again — and nothing is said on any panel. A conversation that is w
 whatever the account reads, a run in flight is never touched, and what you start yourself goes
 through whatever the reading: the Hire button and a typed message are yours, and a chat that turned
 its owner's own button away would have stopped being an assistant. Under a hold the line above the
-room now ends by saying so — in the room, in `ovai room`, on the page and to the lead — and it says
+room now ends by saying so — in the room, in `ovai room`, on the page and to the Leader — and it says
 it only because it is true.
 
 **`watchEverySeconds: 0` means something different now, and if your instance wrote it, read this.**
@@ -193,9 +193,9 @@ shows on `/health` as `watch`: how often, when it was armed, when the last pass 
 sessions it read, decided on and acted on — a watch that died and one that was never armed look the
 same from a quiet room, and this is how they are told apart.
 
-**Your lead was told about the old watch, and an update does not tell it otherwise.** A lead in a
+**Your Leader was told about the old watch, and an update does not tell it otherwise.** A Leader in a
 conversation started before this version was told that the watch gives it a turn and that nothing
-stops running because of it; both are now false, and the lead will act on them until it is told
+stops running because of it; both are now false, and the Leader will act on them until it is told
 otherwise. A handover is what tells it: the next conversation is rendered from the templates this
 version ships, the paragraph beginning *The third is the room watch* and the one after it.
 
@@ -216,14 +216,14 @@ the room, and it cannot be asked, told or parked. A new instance is installed wi
 the harness. What keeps a reopened window from being spent by a whole room coming back at once is
 the hold above, not this key. An instance installed before this keeps what it was given.
 
-**Ask your lead what this workspace allows, and it reads the files rather than remembering.** The
-answer used to be whatever the lead had picked up: a first-turn paragraph written months before your
+**Ask your Leader what this workspace allows, and it reads the files rather than remembering.** The
+answer used to be whatever the Leader had picked up: a first-turn paragraph written months before your
 instance existed said that nothing had been granted here, and every answer after that came out of a
 conversation. Inside a chat you have no permission dialog in front of you and no command line to
-point at the session, so a lead that remembers instead of reading is the whole of what you have to
+point at the session, so a Leader that remembers instead of reading is the whole of what you have to
 go on — and it is wrong the moment anything changes.
 
-There is now a skill for it, `allowed`, and the lead is told to run it whenever the question comes
+There is now a skill for it, `allowed`, and the Leader is told to run it whenever the question comes
 up. It opens the files in that turn — a managed policy if the machine has one, the settings beside
 yours, the instance's own, the ones its Claude Code home keeps, and the ledger that says who asked
 for each rule — and reports what it read with the path and line of every claim. Seven blocks, in
@@ -243,7 +243,7 @@ And it says when a change lands, which is better news than you would expect: eve
 process, so an edit to `.claude/settings.json` is in force from each session's next turn, with
 nothing to restart and nobody to hire again. The exception is a persona — a resumed conversation
 still carries what it has already read, so tightening a persona is additive in effect until a
-handover replaces the conversation. A lead now tells you that rather than leaving you to work it
+handover replaces the conversation. A Leader now tells you that rather than leaving you to work it
 out from a session that seems to be ignoring you.
 
 **A new instance now refuses three paths outright, and they are the ones it keeps its own account
@@ -252,7 +252,7 @@ the ledger that says who asked for each rule — or the two files its Claude Cod
 settings and the record of whether this workspace has been trusted. They hold whether or not the
 workspace has been trusted, which is the case they matter most in.
 
-What they are worth is narrower than it looks, and your lead will tell you so rather than
+What they are worth is narrower than it looks, and your Leader will tell you so rather than
 reassuring you: a rule binds the tools its matcher names, and `Edit(...)` names the tools that
 write files. A shell command is not one of them, so if you grant something like `Bash(sed:*)` a
 session can edit those files anyway — and the `allowed` report crosses the two lists and says so in
@@ -297,7 +297,7 @@ reads `node ovai.mjs --root my-workspace chat`. A line that already fits is prin
 is, paths and all. And where the machine will not say — a process belonging to somebody else is the
 usual reason — you get the pid on its own, or the advice on its own, as you did before.
 
-How full each conversation here is, said where you already look — and your lead told when one of
+How full each conversation here is, said where you already look — and your Leader told when one of
 them fills up, whether or not anybody is talking to it.
 
 **The lines are shares of the window and not sizes in tokens: four fifths, then 85, 90 and 95 per
@@ -317,32 +317,32 @@ absent. Where the frame names no window — or names no model this run said it w
 when a turn is answered only beside, by a helper the service called on its own account — there is
 no share, the row says the tokens alone as it always did, and the block does not name that session.
 
-**Every five minutes the chat reads its own room, and on a crossing worth a turn it gives the lead
-one.** It is the first timer in the toolkit and there is one case that earns it: the lead nobody has
+**Every five minutes the chat reads its own room, and on a crossing worth a turn it gives the Leader
+one.** It is the first timer in the toolkit and there is one case that earns it: the Leader nobody has
 typed to for an hour is the one that most needs to act, and it is precisely the one with no turn to
 ride on. It speaks on a crossing and never on a condition — the band each session was last in is
 held in memory, and a conversation sitting at ninety per cent for two hours is said once. Only two
 things buy a turn: 90 or 95 per cent newly reached, and a conversation newly gone cold. It hands
-nobody over, refuses nothing and ends no conversation of its own; a lead already answering is left
+nobody over, refuses nothing and ends no conversation of its own; a Leader already answering is left
 alone. `watchEverySeconds` in `openovai.json` sets the cadence, and `0` turns it off entirely.
 
 You are asked once what may be done here, instead of one interruption at a time.
 
 **The question, on the first turn.** A workspace where nothing has run and nothing has been granted
-now opens by having your lead ask you one thing: what may be done at this root. It is open, there is
+now opens by having your Leader ask you one thing: what may be done at this root. It is open, there is
 no menu, and nothing reads your answer or turns it into a setting — say *never push anything*, or
 *never write outside `work/`*, or *no restrictions*, or *ask me every time*, however you would say
-it. Then, if what you said allows anything, your lead goes and makes the calls it permits, one at a
+it. Then, if what you said allows anything, your Leader goes and makes the calls it permits, one at a
 time, so that each one stops on a panel and you settle it there while you are still thinking about
 the workspace. Not everything it reaches for stops — read-only work is settled by the frame itself —
-and your lead is not shown your panel, so it does not tell you what stopped: when the calls are made
+and your Leader is not shown your panel, so it does not tell you what stopped: when the calls are made
 it reads `.claude/allowed.md` back to you, which is this workspace's own account of every rule it
 holds, and the only place either of you can read one off. **Not now is a whole answer**: nothing is
 tripped, nothing is granted, and the workspace is exactly as capable as it was.
 
 It is asked once and then it is gone, because it stops the moment either half of what it fires on
 stops being true — the first turn, or the first thing granted. One consequence is worth knowing
-rather than being surprised by: a lead handed over in a workspace where you have still granted
+rather than being surprised by: a Leader handed over in a workspace where you have still granted
 nothing is asked again, because a new conversation has no way of knowing the question was put once.
 Answering anything at all, or answering *not now* and granting one thing, ends it.
 
@@ -376,10 +376,10 @@ Two things that happen here can only be ended by you, and until now both of them
 panel you may not have had open. From this version the chat also pops on your desktop when either
 of them happens.
 
-**Your lead breaking in.** It has always had one line it can send you without being asked: it
+**Your Leader breaking in.** It has always had one line it can send you without being asked: it
 breaks in, and what you were half way through writing arrives with it. That worked as long as you
 were looking, and did nothing at all when you were not — the line went onto the panel and waited
-there, and the lead had no way of knowing you had never seen it.
+there, and the Leader had no way of knowing you had never seen it.
 
 **A session stopping to ask you something.** A run that reaches for a tool your workspace has not
 already allowed stops where it stands and waits for your answer, for as long as that takes: nothing
@@ -400,7 +400,7 @@ cannot ship in a toolkit that installs on machines it knows nothing about. Put a
 import { execFile } from "node:child_process";
 
 export function pop({ on, why }, { config }) {
-  execFile("notify-send", ["--", config.human, `${on}: ${why}`]);
+  execFile("notify-send", ["--", config.user, `${on}: ${why}`]);
 }
 ```
 
@@ -415,11 +415,11 @@ waiting for. All of those are a record, and a record is read when
 you read it. A workspace that popped for every one of them would be a workspace whose popups you
 learned to ignore, which is the same as having none.
 
-**And your lead does not pop you itself.** It still has the one line it can send you without being
+**And your Leader does not pop you itself.** It still has the one line it can send you without being
 asked, and it is now told plainly that this is the whole of what it has: no notification tool of
 its own, no command that raises one on your desktop. A second way in is what teaches somebody to
 stop trusting the first. An update leaves the personas it finds where they are, as it always does,
-so this is what a workspace installed from this version tells its lead.
+so this is what a workspace installed from this version tells its Leader.
 
 **When you are not to be woken**, say so in `openovai.json`:
 
@@ -436,7 +436,7 @@ told at the start beats finding out at three in the morning.
 **Somebody can be hired onto a model that is not the usual one.** Until now everybody you hired ran
 on the one model your workspace was installed with for its workers, and the only way to move one of
 them was to move all of them. `ovai hire <name> [model]` takes a model beside the name, the Hire
-box on the page does not, and your lead can name one when it opens a desk itself.
+box on the page does not, and your Leader can name one when it opens a desk itself.
 
 Leaving it out is still the answer nearly every time, and it is the answer that keeps moving with
 you: nothing is written down for somebody hired the usual way, so the model in `openovai.json` stays
@@ -449,15 +449,15 @@ worker model`, because that is what it is, and the row listing the desks names e
 the model it resolves to. That is the reading to reach for when the chat is not running; the room
 on the page already says it for everybody in it.
 
-**Your lead is told the shape of the choice and no model names.** The instructions it is given say
+**Your Leader is told the shape of the choice and no model names.** The instructions it is given say
 that leaving the model out is right nearly every time, that a stronger one is drawn from the same
 account window everybody there shares, and that when it chooses one it should say on its own panel
 why — the room already shows what each session is on, and the reason is the part missing from it.
 Which models your workspace actually uses stays in `openovai.json` and in whatever you tell your
-lead yourself. An update leaves the personas it finds where they are, so this is what a workspace
-installed from this version tells its lead.
+Leader yourself. An update leaves the personas it finds where they are, so this is what a workspace
+installed from this version tells its Leader.
 
-**Your lead is told which conversations here have grown big.** The room already says how much of
+**Your Leader is told which conversations here have grown big.** The room already says how much of
 itself every session is carrying, and the panel says it again beside the name — a number with no
 opinion attached, for a person to judge. From this version the one reader who would otherwise go on
 loading a conversation is handed a block of its own, unasked, naming every session here whose
@@ -468,12 +468,12 @@ that cannot press its own button.
 
 **Pressing it is still yours.** Nothing is ended, refused, queued or delayed because a conversation
 is big — the whole of this is one block of text on one session's turn, and **Hand over** is where it
-always was, beside the composer. So the lead is told to say which panel and why, its own included.
+always was, beside the composer. So the Leader is told to say which panel and why, its own included.
 The block says nothing at all while every conversation here is under the line, and it stops by being
 acted on: handing a session over takes the reading with the thread, so there is nothing to clear and
-nothing here remembers having said it. Your lead is told that much in its own instructions, and told
+nothing here remembers having said it. Your Leader is told that much in its own instructions, and told
 plainly that it cannot press the button itself. An update leaves the personas it finds where they
-are, so this is what a workspace installed from this version tells its lead.
+are, so this is what a workspace installed from this version tells its Leader.
 
 **The line is 300,000 tokens, and it is a judgment about a long context window.** It is the size at
 which answers measurably degrade on the windows the workspaces this was built for run on. On a
@@ -488,7 +488,7 @@ The desks under `work/` are the roster: hiring opens one, leaving takes it away,
 second list anybody has to keep true. But `work/` is a directory on your machine as well: an
 editor opening the workspace leaves its own in there, a copy of a desk gets made beside the desks,
 something of your own writes where it seemed sensible. Until now every one of those arrived as a
-person — a panel, a row in the room, a name your lead could say something to — and **Leave** on such
+person — a panel, a row in the room, a name your Leader could say something to — and **Leave** on such
 a panel would have put away whatever that directory was holding. From this version the roster is the
 directories somebody could have been hired under, and nothing else in `work/` is a person anywhere:
 not on the page, not in the room, not in `ovai status`, and not on a route. Everybody you did hire
@@ -497,16 +497,16 @@ is untouched, and there is nothing to do after taking this version.
 
 ## 0.4.0
 
-Your lead can open a desk and put one away now. It has two tools it did not have before:
+Your Leader can open a desk and put one away now. It has two tools it did not have before:
 `hire`, which opens a desk for somebody new the way the **Hire** box does, and `retire`, which asks
 somebody to write their desk one last time and then files that desk and their whole conversation
-away together, exactly as **Leave** does. Both are the lead's alone; nobody else here is offered
+away together, exactly as **Leave** does. Both are the Leader's alone; nobody else here is offered
 either.
 
 Nothing about the buttons changes and neither does anything you have to do. What changes is that a
-lead which has just decided somebody is needed can act on it in the same turn instead of asking you
+Leader which has just decided somebody is needed can act on it in the same turn instead of asking you
 to press something, and you will see it happen: every desk it opens or puts away is written on the
-lead's own panel, in a line saying which it was and for whom. What the lead still cannot do is
+Leader's own panel, in a line saying which it was and for whom. What the Leader still cannot do is
 anything else about who works here — handing a session over is yours, so is a conversation somebody
 left behind, and so is everything in `archive/`.
 
@@ -531,7 +531,7 @@ couple of dozen of them that nobody dares remove. A rule in the settings with no
 is a grant nobody can account for, and the toolkit says so.
 
 Your workers are told where the boundary runs, too. The persona now says that the desk is theirs
-and that who works here is the lead's, and that the files under a stop are never the way round — a
+and that who works here is the Leader's, and that the files under a stop are never the way round — a
 session refused something used to have your desk files sitting right there, and writing one by hand
 is easier than asking and looks, from the outside, exactly like the tool having worked.
 
@@ -568,7 +568,7 @@ in the words of the failure, naming the tool it happened in. And a handler that 
 nothing usable is refused in words naming the file, saying what the two shapes are and what it
 answered instead — the first mistake anybody writing one of these makes, and left alone it comes
 back as a call that came back empty, which is the one answer nothing can be done with. There is no
-way to hide one, either: a tool that is only the lead's is offered to everybody and says so itself
+way to hide one, either: a tool that is only the Leader's is offered to everybody and says so itself
 in one line, because a hidden tool costs more turns than a visible one that refuses, and a session
 never reads the refusal of a tool it was not offered anyway.
 
@@ -651,7 +651,7 @@ saying what was not done — the conversation untouched, the desk still open, no
 nothing lost. What stays open is everything that ends something rather than starting it: a run can
 still be ended, a session stopped waiting to be allowed a tool can still be answered, and somebody
 can still be hired. A turn already going runs to its end. The room says it is off above the rows
-and never on one — on the page, in `ovai room`, and to the lead. There is no `ovai offline`: taking the
+and never on one — on the page, in `ovai room`, and to the Leader. There is no `ovai offline`: taking the
 room off is a person's decision about the whole instance, and it stays on the page beside the
 button that brings it back.
 
@@ -669,23 +669,23 @@ never run. It is part of the idle phrase and never a fact of its own beside the 
 is only true there — every state above idle is a run in flight, and the clock is rewritten when a
 run ends, so a duration printed beside *answering* would tell you a session had been doing nothing
 for exactly as long as it had been working. It is the conversation's clock and not the panel's: a
-lead's panel moves every time it overhears something said elsewhere, and what matters when you are
+Leader's panel moves every time it overhears something said elsewhere, and what matters when you are
 deciding whether to check on somebody is when they last ran.
 
-Two things are handed to the lead unasked, which the room deliberately never is, and both are
+Two things are handed to the Leader unasked, which the room deliberately never is, and both are
 absent while they do not apply. The first is who has gone quiet: any session stopped for more than
-half the hour after which a conversation is ended is named where the lead's turn begins, with the
-moment it was read. It is never about the lead itself or about anybody mid-turn, and acting on it
+half the hour after which a conversation is ended is named where the Leader's turn begins, with the
+moment it was read. It is never about the Leader itself or about anybody mid-turn, and acting on it
 is the whole of what stops it — saying anything to that session starts a run and moves its clock.
 
 The second is where the account stands, and it is the only thing this toolkit holds an opinion
-about. Once the five-hour window is past nine tenths the lead is told to finish what is in flight,
+about. Once the five-hour window is past nine tenths the Leader is told to finish what is in flight,
 start no new front and take nobody new on until it lifts. Past ninety-five per cent it is told to
 stop, and which way to put people down — which is the whole reason the block exists, because
 pausing a session leaves its conversation where it stands and costs nothing to undo, while parking
 one ends the conversation and is paid for in whatever it worked out and never wrote to its desk. So
 it reads the moment the window lifts against the hour after which a conversation here is ended
-anyway. Lifting inside that hour: pause everybody where they are. Later: park everybody, the lead
+anyway. Lifting inside that hour: pause everybody where they are. Later: park everybody, the Leader
 included, and start fresh on the desks afterwards. A service that did not say when it lifts: stop,
 and go and find that out before choosing. The window is matched by name, which is the one place a
 service's name for a window is written into the code, and if it is ever renamed the block says
@@ -694,10 +694,10 @@ about it attached, the reading picked is the freshest rather than the fullest, a
 has already passed is dropped. It is advice and never a gate: nothing stops running because of it,
 and when the window lifts the block is gone.
 
-Two smaller things about being talked to. What a lead says at the end of a turn goes back to
+Two smaller things about being talked to. What a Leader says at the end of a turn goes back to
 whoever spoke to it in that turn and to nobody else, so a closing line addressed to the person at
 the page at the end of a worker's turn lands on the worker's panel, about somebody who never reads
-it; the lead's instructions now say so, and say to break in when the person has to know before they
+it; the Leader's instructions now say so, and say to break in when the person has to know before they
 are next asked. And on the page, a line that broke in drags the reader down to it — the one redraw
 allowed to move somebody who had scrolled up to re-read, because a break-in drawn off-screen is the
 one case no wording could have saved.
@@ -713,9 +713,9 @@ checks that a value came from somewhere are proved against a second source of it
 one fixture behind it is green whether the code reads the value or hard-codes it.
 
 **One thing is yours to do after taking this version.** Both readings above arrive from the chat
-whatever instructions the lead is running, so they will turn up for a lead hired before this update
+whatever instructions the Leader is running, so they will turn up for a Leader hired before this update
 that has been told nothing about them. Personas are not re-rendered, so either say what those two
-blocks are yourself, or hand the lead over once and let the session that replaces it read the new
+blocks are yourself, or hand the Leader over once and let the session that replaces it read the new
 instructions.
 
 ## 0.1.0
@@ -764,7 +764,7 @@ because asking would be exactly the expensive turn being avoided.
 
 Nobody is exempt, including whoever leads. It holds the largest conversation in the workspace and
 is the one this saves most on — and it is the one you would otherwise be most likely to catch out,
-because a lead's panel keeps moving while it overhears what is said elsewhere, and the conversation
+because a Leader's panel keeps moving while it overhears what is said elsewhere, and the conversation
 behind that panel goes cold all the same.
 
 You will see it three ways: the room says `cold` where it said `idle` for a session whose next

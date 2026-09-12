@@ -22,10 +22,8 @@
 // the machine's TMPDIR is, which can be a home with a CLAUDE.md in it, so the directory is where
 // the run works and safe mode is what it does not read.
 //
-// GATED LIKE A TURN. A helper call is one request on the account, so it passes the same gate the
-// chat puts before starting anything: while the account is nearly spent it is refused in words and
-// nothing is spawned. Everything a grep can serve — a record by id, the list, an absolute `until`,
-// a retire — never comes here, so all of that keeps working while the gate is closed.
+// ONE REQUEST ON THE ACCOUNT per call. Everything a grep can serve — a record by id, the list, an
+// absolute `until`, a retire — never comes here, so the store answers those without spending one.
 //
 // NO RETRY. A process that does not answer inside the clock is killed and the tool call is refused;
 // one that answers badly is refused the same way, with the model's output in the chat's log and
@@ -38,7 +36,6 @@ import os from "node:os";
 import path from "node:path";
 
 import { environment } from "./claude.mjs";
-import { spawnHeld } from "./chat/gate.mjs";
 
 export const HELPER_MODEL = "sonnet";
 export const HELPER_EFFORT = "medium";
@@ -120,11 +117,6 @@ export async function ask(instance, question, request, { clock = HELPER_CLOCK, l
     throw new Error(`the helper has no question called ${question}`);
   }
 
-  const held = spawnHeld(instance);
-  if (held !== null) {
-    return { refused: heldSaid(held) };
-  }
-
   const env = { ...environment(instance.root, instance.config.auth), [NO_MEMORY]: "1" };
   const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "openovai-helper-"));
 
@@ -154,11 +146,6 @@ export async function ask(instance, question, request, { clock = HELPER_CLOCK, l
   } finally {
     fs.rmSync(cwd, { recursive: true, force: true });
   }
-}
-
-function heldSaid(held) {
-  const read = typeof held.fullness === "number" ? `is ${Math.round(held.fullness * 100)}% full` : "has reached its stop line";
-  return `the helper is held: the account's ${held.window.replace(/_/g, "-")} usage window ${read}, so nothing that needs a model is started; a recall by id or all, and a remember with replaces and an absolute until, still work`;
 }
 
 function asJson(text) {

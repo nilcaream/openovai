@@ -1,0 +1,271 @@
+[
+  {
+    "name": "the rule composed for a write names the tool that asked rather than the one that governs writing",
+    "catches": "composes the rule that governs writing, and never one that matches nothing",
+    "edits": [
+      {
+        "file": "tools/chat/permissions.mjs",
+        "from": "  return `Edit(${subtree})`;",
+        "to": "  return `Write(${subtree})`;"
+      }
+    ]
+  },
+  {
+    "name": "the rule composed for a write is the path it was handed rather than the directory that path is in",
+    "catches": "composes a rule for the directory the write was in",
+    "edits": [
+      {
+        "file": "tools/chat/permissions.mjs",
+        "from": "  const held = path.posix.dirname(named);",
+        "to": "  const held = named;"
+      }
+    ]
+  },
+  {
+    "name": "the rule is spelled as the bare directory, which reads like one level and is a subtree",
+    "catches": "composes the spelling that says a subtree out loud",
+    "edits": [
+      {
+        "file": "tools/chat/permissions.mjs",
+        "from": "  const subtree = held === \".\" ? \"**\" : `${held}/**`;",
+        "to": "  const subtree = held === \".\" ? \"**\" : held;"
+      }
+    ]
+  },
+  {
+    "name": "a write at the root composes the dirname it was given, leading ./ and all",
+    "catches": "composes a rule at the root with no ./ in front of it",
+    "edits": [
+      {
+        "file": "tools/chat/permissions.mjs",
+        "from": "  const subtree = held === \".\" ? \"**\" : `${held}/**`;",
+        "to": "  const subtree = `${held}/**`;"
+      }
+    ]
+  },
+  {
+    "name": "a write that lands outside the instance composes a rule all the same",
+    "catches": "composes no rule for a write outside the instance",
+    "edits": [
+      {
+        "file": "tools/chat/permissions.mjs",
+        "from": "  return named === \"\" || named === \"..\" || named.startsWith(\"../\") || path.isAbsolute(named) ? null : named;",
+        "to": "  return named;"
+      }
+    ]
+  },
+  {
+    "name": "the composed path is the one the request named, which is a place on this machine",
+    "catches": "names no place on this machine in the rule it composes",
+    "edits": [
+      {
+        "file": "tools/chat/permissions.mjs",
+        "from": "  const named = path.relative(root, path.resolve(root, where)).split(path.sep).join(\"/\");",
+        "to": "  const named = path.resolve(root, where);"
+      },
+      {
+        "file": "tools/chat/permissions.mjs",
+        "from": "  return named === \"\" || named === \"..\" || named.startsWith(\"../\") || path.isAbsolute(named) ? null : named;",
+        "to": "  return named === \"\" || named === \"..\" || named.startsWith(\"../\") ? null : named;"
+      }
+    ]
+  },
+  {
+    "name": "a path rule is composed for anything whose input carries a path",
+    "catches": "offers a button only where the request says what the class of calls is",
+    "edits": [
+      {
+        "file": "tools/chat/permissions.mjs",
+        "from": "  if (request.tool === \"Write\" || request.tool === \"Edit\") {",
+        "to": "  if (typeof request.input?.file_path === \"string\") {"
+      }
+    ]
+  },
+  {
+    "name": "the tool that writes a file it has not read is left out of the pair",
+    "catches": "composes the rule that governs writing, and never one that matches nothing",
+    "edits": [
+      {
+        "file": "tools/chat/permissions.mjs",
+        "from": "  if (request.tool === \"Write\" || request.tool === \"Edit\") {",
+        "to": "  if (request.tool === \"Edit\") {"
+      }
+    ]
+  },
+  {
+    "name": "the tool that edits a file it has read is left out of the pair",
+    "catches": "composes a rule for the directory the write was in",
+    "edits": [
+      {
+        "file": "tools/chat/permissions.mjs",
+        "from": "  if (request.tool === \"Write\" || request.tool === \"Edit\") {",
+        "to": "  if (request.tool === \"Write\") {"
+      }
+    ]
+  },
+  {
+    "name": "the rule handed to the page is prettified on its way out",
+    "catches": "offers the directory the write was in, and grants it",
+    "edits": [
+      {
+        "file": "tools/chat/permissions.mjs",
+        "from": "    const shape = shapeOf(request, root);",
+        "to": "    const shape = shapeOf(request, root)?.replace(\"/**\", \" and everything under it\") ?? null;"
+      }
+    ]
+  },
+  {
+    "name": "the page is shown the request without the rule that would allow it",
+    "catches": "tells the page which rule would allow it",
+    "edits": [
+      {
+        "file": "tools/chat/permissions.mjs",
+        "from": "    return shape === null ? request : { ...request, shape };",
+        "to": "    return request;"
+      }
+    ]
+  },
+  {
+    "name": "the desktop is not told that somebody is stopped",
+    "catches": "pops the desktop once, saying who is stopped and on what",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    popped(instance, { on: seat, why: `${seat} is stopped, waiting to be allowed to use ${request.tool}` });\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the desktop is popped inside its quiet hours",
+    "catches": "is not popped, though the question is shown",
+    "edits": [
+      {
+        "file": "tools/chat/pop.mjs",
+        "from": "  if (withinQuietHours(instance.config?.[QUIET_HOURS])) {",
+        "to": "  if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "any word at all is taken as a decision",
+    "catches": "is refused when the answer is not one of the three, or names no request",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  if (decision !== \"allow\" && decision !== \"deny\" && decision !== \"always\") {\n    sendJson(response, 400, { error: \"a decision is allow, deny or always\" });\n    return;\n  }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "answering what nobody is waiting on is reported as answered",
+    "catches": "is refused, with nothing to answer",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  if (!settle(seat, id, said)) {\n    sendJson(response, 409, { error: \"nothing is waiting on that any more\" });\n    return;\n  }\n",
+        "to": "  settle(seat, id, said);\n"
+      }
+    ]
+  },
+  {
+    "name": "a refusal without a word carries no reason, which the run does not read as a refusal",
+    "catches": "gives the run the chat's own reason",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "      ? refuse(typeof why === \"string\" && why.trim() !== \"\" ? why.trim() : \"not allowed from the chat\")",
+        "to": "      ? refuse(typeof why === \"string\" ? why.trim() : \"\")"
+      }
+    ]
+  },
+  {
+    "name": "always allows the call and grants nothing",
+    "catches": "grants exactly that rule and nothing else",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    allowAsked(instance.root, {\n      rule: granted,\n      session: seat,\n      call: asked.input?.command ?? inside(asked.input?.file_path, instance.root),\n      day: new Date().toISOString().slice(0, 10),\n    });\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the page is not told which rule was granted",
+    "catches": "says which rule it granted",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  sendJson(response, 200, { answered: id, decision, ...(granted === undefined ? {} : { granted }) });",
+        "to": "  sendJson(response, 200, { answered: id, decision });"
+      }
+    ]
+  },
+  {
+    "name": "a call no rule can be composed for is granted the widest rule there is",
+    "catches": "refuses to grant one, and leaves the call unanswered",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    if (granted === null) {\n      sendJson(response, 400, { error: \"there is no rule that would allow that call\" });\n      return;\n    }\n",
+        "to": "    if (granted === null) {\n      granted = \"Bash(*)\";\n    }\n"
+      }
+    ]
+  },
+  {
+    "name": "the line accounting for a write names a place on this machine",
+    "catches": "writes down which write it was for",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "      call: asked.input?.command ?? inside(asked.input?.file_path, instance.root),",
+        "to": "      call: asked.input?.command ?? asked.input?.file_path,"
+      }
+    ]
+  },
+  {
+    "name": "a run that ends leaves its question on the page",
+    "catches": "takes the question down with it",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  return start(instance, seat, { asked: asking(instance, seat), ended: () => giveUp(seat) });",
+        "to": "  return start(instance, seat, { asked: asking(instance, seat), ended: () => {} });"
+      }
+    ]
+  },
+  {
+    "name": "a window whose end is before its start is never quiet",
+    "catches": "is half-open, and a window whose end is before its start wraps midnight",
+    "edits": [
+      {
+        "file": "tools/chat/pop.mjs",
+        "from": "  return from < to ? now >= from && now < to : now >= from || now < to;",
+        "to": "  return from < to && now >= from && now < to;"
+      }
+    ]
+  },
+  {
+    "name": "a window is anything with a hyphen in it",
+    "catches": "refuses a window it cannot read, naming the field",
+    "edits": [
+      {
+        "file": "tools/chat/pop.mjs",
+        "from": "const WINDOW = /^([01]\\d|2[0-3]):([0-5]\\d)-([01]\\d|2[0-3]):([0-5]\\d)$/;",
+        "to": "const WINDOW = /^.+-.+$/;"
+      }
+    ]
+  },
+  {
+    "name": "a window that begins where it ends is taken as a window",
+    "catches": "refuses a window it cannot read, naming the field",
+    "edits": [
+      {
+        "file": "tools/chat/pop.mjs",
+        "from": "  if (from === to) {\n    return `${QUIET_HOURS} begins and ends at ${from}, which is no time at all — a window that says nothing is better left out`;\n  }\n",
+        "to": ""
+      }
+    ]
+  }
+]

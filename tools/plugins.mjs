@@ -9,7 +9,7 @@
 //
 // Not the desktop popup, which is written beside the instance for the same reason and is NOT one of
 // these. `pop.mjs` is called by the chat because something happened; a file in here is a tool a
-// session chooses to call, and the popup being one would hand a lead a second way to reach the
+// session chooses to call, and the popup being one would hand a Leader a second way to reach the
 // person. See tools/chat/pop.mjs.
 //
 // A file is the whole of it. One file is one tool and its name is the tool's name, so two files
@@ -53,14 +53,14 @@ const SUFFIX = ".mjs";
 const NAME = /^[A-Za-z][A-Za-z0-9-]{0,31}$/;
 
 // The names the chat serves itself, which a file cannot take. They are checked before the module
-// is read rather than after the list is built, so that a file called say.mjs is told it cannot be
-// called that, instead of being appended to a list where the first say wins and the second is a
+// is read rather than after the list is built, so that a file called room.mjs is told it cannot be
+// called that, instead of being appended to a list where the first room wins and the second is a
 // tool that is there and never reached.
 //
 // It is written here and not beside those tools because the chat reads this file and not the other
 // way round. The suite holds the two in step: it reads this list and asserts that what the chat
-// serves a lead is exactly it, so a tool of the chat's own that nobody added here is a red suite.
-export const BUILT_IN = ["say", "status", "room", "interrupt", "hire", "retire", "recall", "remember"];
+// serves a Leader is exactly it, so a tool of the chat's own that nobody added here is a red suite.
+export const BUILT_IN = ["message", "room", "recall", "remember"];
 
 // What every one of them has to export. A file missing any of these is not a tool that half works;
 // it is a tool the chat would offer and then fail on, at whatever later moment somebody called it.
@@ -199,7 +199,7 @@ function describeBuiltIn(name) {
 // A name the chat serves itself is refused too, and it is refused here rather than beside the
 // character rule, because the two are refusals about different things. A name a tool cannot have
 // is something wrong with what was typed — answered where a command line is answered, with the
-// usage under it. A name that is taken is something true of the workspace: `say` is a name a tool
+// usage under it. A name that is taken is something true of the instance: `room` is a name a tool
 // can have, and what is in the way is that this chat already serves one. That is the refusal the
 // file-is-already-there guard below makes, and this is the same refusal about a file that does not
 // have to exist yet.

@@ -23,7 +23,7 @@ after(() => remove(here));
 const NOTES = [
   "# What changed",
   "",
-  "For the lead of a workspace taking this version.",
+  "For the Leader of a workspace taking this version.",
   "",
   "## 1.2.0",
   "",

@@ -17,8 +17,8 @@ export function configProblems(file, expected) {
   const config = JSON.parse(text);
   const wrong = [];
 
-  if (config.human !== expected.human) {
-    wrong.push(`human is ${config.human}, expected ${expected.human}`);
+  if (config.user !== expected.user) {
+    wrong.push(`user is ${config.user}, expected ${expected.user}`);
   }
   if (config.leader !== expected.leader) {
     wrong.push(`leader is ${config.leader}, expected ${expected.leader}`);

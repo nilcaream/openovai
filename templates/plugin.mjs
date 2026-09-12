@@ -24,9 +24,9 @@ export const inputSchema = {
 
 // The work. It is handed what the call carried and what this workspace knows about the caller:
 //
-//   caller  the name of the session calling, taken from the workspace and never from anything the
-//           session says, so it cannot be signed as somebody else
-//   leads   whether that session is the one leading here
+//   seat    the name of the session calling, resolved by the server from the secret the process
+//           was started with and never from anything the session says
+//   role    "Leader" or "Worker" — which of the two that session is
 //   root    where this instance is, as an absolute path — the one thing this file cannot work out
 //           for itself, since an instance records no path anywhere
 //   config  what the instance says about itself, including the names of the person it works for
@@ -39,10 +39,10 @@ export const inputSchema = {
 //
 // It may be async. Whatever it throws is caught and reaches the caller as words naming this file,
 // so the chat and everybody working in it survive a bad afternoon in here.
-export function run({ message }, { caller, leads, root, config }) {
-  if (!leads) {
-    return { refused: `{{NAME}} is the lead's, so ask ${config.leader}` };
+export function run({ message }, { seat, role, root, config }) {
+  if (role !== "Leader") {
+    return { refused: `{{NAME}} is the Leader's, so ask ${config.leader}` };
   }
 
-  return { text: `${caller} said ${message}, and ${root} is where this workspace lives` };
+  return { text: `${seat} said ${message}, and ${root} is where this instance lives` };
 }

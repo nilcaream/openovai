@@ -6,22 +6,22 @@
 // have sat there for good, because nothing on that path times out and the request was drawn on a
 // page nobody had open.
 //
-// So this carries those two moments off the page. It is a doorbell and not a channel: nothing here
-// is a tool, nothing here can be called by a session, and there is nothing new for anybody to say.
-// The lead already has its one unprompted line to the person — `interrupt` — and a second way to
-// reach them is exactly what "one thing at a time" is there to stop.
+// So this carries that moment off the page. It is a doorbell and not a channel: nothing here is a
+// tool, nothing here can be called by a session, and there is nothing new for anybody to say. A
+// session with a way to reach the person's desktop would be a session with a second way to reach
+// them, which is exactly what "one thing at a time" is there to stop.
 //
-// WHAT IT FIRES ON, and why those two and nothing else. A popup goes up when a session's `interrupt`
-// lands, and when a permission request is parked. Both mean the same thing — this stops until a
-// person acts — and they are the only two states in the whole workspace that do. Everything else
-// that happens here is a record, and a record is read when somebody reads it.
+// WHAT IT FIRES ON, and why that and nothing else. A popup goes up when a permission request is
+// parked. That means one thing — this stops until a person acts — and it is the only state in the
+// whole workspace that does. Everything else that happens here is a record, and a record is read
+// when somebody reads it.
 //
-// ON THE TRANSITION, NEVER ON THE CONDITION. Both are one-shot calls: a tool call happens once, and
-// a request is parked once. So "one popup per thing waiting" is true because of when this is called
-// and not because anything remembers what it has already said — there is no store here, no sweep, no
-// timer and nothing to clear. It also settles the loudest way this could have gone wrong: the page
-// asks what is parked once a second, and a popup driven off that answer would go up sixty times a
-// minute for one stopped session.
+// ON THE TRANSITION, NEVER ON THE CONDITION. Parking is a one-shot call: a request is parked once.
+// So "one popup per thing waiting" is true because of when this is called and not because anything
+// remembers what it has already said — there is no store here, no sweep, no timer and nothing to
+// clear. It also settles the loudest way this could have gone wrong: the page asks what is parked
+// once a second, and a popup driven off that answer would go up sixty times a minute for one
+// stopped session.
 //
 // AND HOW IT POPS IS NOT THIS TOOLKIT'S BUSINESS. Making a desktop pop is `notify-send` on one
 // machine, `osascript` on another and a toast API on a third, and none of that can ship in
@@ -164,11 +164,11 @@ export function describePop({ pop, refused }) {
 // Somebody is needed. `on` is whose panel it is about, so the person knows where to look, and `why`
 // is the one sentence they read, composed already.
 //
-// TOLD, NOT ASKED. Whatever it answers is ignored and it is never awaited. `interrupt` promises in
-// its own description that it says it and returns at once, and putting somebody else's code inside
-// that promise would be putting a hang inside it — a file that never returns would hold the lead
-// for as long as it liked. So the call is made, a failure is caught on both paths, and the caller
-// carries on in the same tick.
+// TOLD, NOT ASKED. Whatever it answers is ignored and it is never awaited. Parking a request is
+// what a stopped run is waiting on, and putting somebody else's code inside that path would be
+// putting a hang inside it — a file that never returns would hold the run for as long as it liked.
+// So the call is made, a failure is caught on both paths, and the caller carries on in the same
+// tick.
 export function popped(instance, { on, why }) {
   if (typeof instance?.pop !== "function") {
     return;
@@ -191,9 +191,8 @@ export function popped(instance, { on, why }) {
 
 // The desktop did not light up, said on the panel it was about.
 //
-// It is said at all because of who is left believing otherwise: a lead that has just broken in
-// thinks the person has it, and a file that has been broken since Tuesday is invisible to everybody
-// forever. On the panel rather than in the terminal, because the server prints nothing — the panel
+// It is said at all because of who is left believing otherwise: a file that has been broken since
+// Tuesday is invisible to everybody forever. On the panel rather than in the terminal, because the server prints nothing — the panel
 // is where the chat speaks — and on the panel the popup was ABOUT, so the record of somebody being
 // needed and the record of them not being reached sit together.
 //

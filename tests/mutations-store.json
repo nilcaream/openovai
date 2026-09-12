@@ -122,7 +122,7 @@
   },
   {
     "name": "the literal now goes to the helper",
-    "catches": "takes until now from its own clock, asks the helper nothing, and so retires with the gate closed",
+    "catches": "takes until now from its own clock, asks the helper nothing, and so retires without a request on the account",
     "edits": [
       {
         "file": "tools/store.mjs",
@@ -528,13 +528,13 @@
     ]
   },
   {
-    "name": "recall is offered to the lead only",
+    "name": "recall is offered to the Leader only",
     "catches": "lists recall and remember for a Worker and for the Leader",
     "edits": [
       {
         "file": "tools/chat/server.mjs",
-        "from": "      run: (args) =>\n        recall(instance.root, args, {",
-        "to": "      offered: lead,\n      run: (args) =>\n        recall(instance.root, args, {"
+        "from": "  recall: [LEADER, WORKER],",
+        "to": "  recall: [LEADER],"
       }
     ]
   },
@@ -544,8 +544,8 @@
     "edits": [
       {
         "file": "tools/plugins.mjs",
-        "from": "\"hire\", \"retire\", \"recall\", \"remember\"];",
-        "to": "\"hire\", \"retire\", \"recall\"];"
+        "from": "\"message\", \"room\", \"recall\", \"remember\"];",
+        "to": "\"message\", \"room\", \"recall\"];"
       }
     ]
   },
@@ -656,17 +656,6 @@
         "file": "tools/store.mjs",
         "from": "  if (by === \"all\") {\n    return {",
         "to": "  if (by === \"all\") {\n    await helper(\"select\", { question: \"select\", query: \"\", records: [] });\n    return {"
-      }
-    ]
-  },
-  {
-    "name": "the helper is asked before the gate",
-    "catches": "refuses recall by meaning while the gate is closed, spawns no helper, and still answers by id",
-    "edits": [
-      {
-        "file": "tools/helper.mjs",
-        "from": "  const held = spawnHeld(instance);\n  if (held !== null) {\n    return { refused: heldSaid(held) };\n  }",
-        "to": "  const held = null;"
       }
     ]
   },

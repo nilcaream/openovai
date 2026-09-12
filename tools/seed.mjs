@@ -39,11 +39,10 @@ export const CONFIG_FILE = "openovai.json";
 // arrives instead as a dialog on that session's own terminal offering the wait as a choice, and the
 // session sits on it until somebody answers at that keyboard. A workspace is run by messages, so a
 // session waiting on a dialog has left the room: it cannot be asked anything, told anything, or
-// parked. Waiting the window out is much the lesser of the two.
+// ended. Waiting the window out is much the lesser of the two.
 //
-// What keeps a reopened window from being spent by a whole room coming back at once is not this
-// key. It is the hold the lead puts on the room well before the account runs out, so that nothing
-// is refused in the first place.
+// What keeps a reopened window from being spent by a whole room coming back at once is a
+// different question, and this key is not its answer.
 //
 // The key is written out rather than left to the default, because the default belongs to the
 // harness and is its to change. It goes into the instance's Claude Code home rather than its own
@@ -57,7 +56,7 @@ const HOME_SETTINGS = {
   autoMemoryEnabled: false,
 };
 
-// The instance's own settings, whole, as a fresh workspace holds them: the lead may keep its desk,
+// The instance's own settings, whole, as a fresh workspace holds them: the Leader may keep its desk,
 // any session may use the tools the chat serves, and no file-writing tool reaches the workspace's
 // own account of what it allows. One object written once — the desk rules a hire adds later go
 // through tools/desks.mjs `allow`, which merges into whatever the person has made of this file by

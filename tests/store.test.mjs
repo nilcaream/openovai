@@ -3,10 +3,10 @@
 //
 // The first half calls tools/store.mjs directly — a scratch root, a clock handed in, a helper that
 // answers what a check stages — because the rules of the store are rules of that module and the
-// question each check asks is answered there. The second half starts a chat of its own and calls
-// the two tools over the door a session is given, as a Worker and as the Leader, with the stand-in
-// answering the helper: what the tool sent it is read from the stand-in's log, and what the tool
-// did with the answer from the tool's own reply.
+// question each check asks is answered there. The second half serves a chat in this process,
+// starts a Worker and the Leader on it, and calls the two tools over each one's own door — its
+// secret, read from the stand-in's log — with the stand-in answering the helper: what the tool
+// sent it is read from that log, and what the tool did with the answer from the tool's own reply.
 //
 // The helper is never a model here. Every mutation in tests/mutations-store.json names the check
 // it was written to redden.
@@ -37,25 +37,13 @@ import {
 } from "../tools/store.mjs";
 import { BUILT_IN } from "../tools/plugins.mjs";
 import { persona } from "../tools/desks.mjs";
-import { enterHold } from "../tools/chat/hold.mjs";
-import {
-  installed,
-  post,
-  readLog,
-  remove,
-  repo,
-  runTool,
-  scratch,
-  standInEnvironment,
-  startChat,
-  stopChat,
-  waitForHealth,
-  writeStandIn,
-} from "./helpers.mjs";
+import { endSeat, serve, startSeat } from "../tools/chat/server.mjs";
+import { CONFIG_FILE } from "../tools/seed.mjs";
+import { installed, post, readLog, remove, repo, runTool, scratch, secretsIn, standInEnvironment, waitFor, writeStandIn } from "./helpers.mjs";
 
 const ZONE = "Europe/Warsaw";
 const NOW = new Date("2026-09-12T19:04:11+02:00");
-const LEAD = { name: "Superman", role: LEADER };
+const SUPERMAN = { name: "Superman", role: LEADER };
 const PAUL = { name: "Paul", role: WORKER };
 
 const base = scratch("store-test");
@@ -91,7 +79,7 @@ async function nothing(question) {
 }
 
 function context(root, overrides = {}) {
-  return { caller: LEAD, now: NOW, zone: ZONE, config: {}, helper: nothing, ...overrides };
+  return { caller: SUPERMAN, now: NOW, zone: ZONE, config: {}, helper: nothing, ...overrides };
 }
 
 function filesIn(root, store) {
@@ -196,7 +184,7 @@ describe("when a record runs out", () => {
     assert.deepEqual(filesIn(root, "memory"), ["000001.md"]);
   });
 
-  it("takes until now from its own clock, asks the helper nothing, and so retires with the gate closed", async () => {
+  it("takes until now from its own clock, asks the helper nothing, and so retires without a request on the account", async () => {
     const { helper, asked } = stubHelper();
     const said = await rule(root, "Never push before the release commit is on main", { replaces: "m1", until: "now" }, { helper });
     assert.equal(said.refused, undefined, said.refused);
@@ -245,7 +233,7 @@ describe("replacing", () => {
   });
 
   it("writes provenance: by, at, supersedes, the replaced text byte for byte, the reason", async () => {
-    const said = await rule(root, "Never push before the release commit is on main", { source: "user", replaces: "m1", reason: "the User widened it" }, { caller: LEAD });
+    const said = await rule(root, "Never push before the release commit is on main", { source: "user", replaces: "m1", reason: "the User widened it" }, { caller: SUPERMAN });
     assert.equal(said.refused, undefined, said.refused);
     const record = readRecord(root, "memory", 3);
     assert.equal(record.by, "Leader");
@@ -577,7 +565,7 @@ describe("the persona a session is spawned with", () => {
     // The exact inverse on the persona an installed instance really spawns its Leader with, byte
     // for byte: a running session's instructions minus the render must equal what the instance
     // renders now, or every hard-rule write would read as older instructions.
-    const real = persona(instance, CHAT_LEADER, { human: HUMAN, leader: CHAT_LEADER });
+    const real = persona(instance, CHAT_LEADER, { user: USER, leader: CHAT_LEADER });
     assert.match(real, /[^\n]\n$/, "the leader template must end in exactly one newline");
     assert.equal(withoutHardRules(withHardRules(real, root, LEADER, { now: NOW, zone: ZONE }).text), real);
   });
@@ -602,44 +590,44 @@ describe("what recall accepts", () => {
 // ---------------------------------------------------------------------------------------------
 // Through the chat: the two tools over a session's own door, the stand-in answering the helper.
 
-const HUMAN = "Mike";
+const USER = "Mike";
 const CHAT_LEADER = "Superman";
 const CHAT_WORKER = "Paul";
-const PORT = 30000 + (process.pid % 20000);
-const URL = `http://127.0.0.1:${PORT}`;
 
 const instance = `${base}-chat`;
-const held = `${base}-held`;
 const standIn = `${base}-stand-in`;
 const log = path.join(standIn, "calls.txt");
 const helperAnswer = path.join(standIn, "helper-answer.json");
 
-let server;
+// The chat, served in this process; the seats' processes are the stand-in, started through the one
+// seam that starts a seat, and each one's door is the secret it was given.
+let server = null;
+let url = null;
+const doors = {};
+const warned = [];
+let warn = null;
+let log_ = null;
+let environmentBefore = null;
 
 process.on("exit", () => {
-  server?.kill();
-  remove(instance, held, standIn);
+  remove(instance, standIn);
 });
 
-after(async () => {
-  await stopChat(server);
-});
-
-function options(root, port) {
+function options(root) {
   return {
     "--root": root,
     "--source": repo,
-    "--human": HUMAN,
+    "--user": USER,
     "--leader": CHAT_LEADER,
     "--leader-model": "sonnet",
     "--worker-model": "sonnet",
-    "--port": port,
+    "--port": 0,
     "--auth": "login",
   };
 }
 
 function call(as, method, params) {
-  return post(`${URL}/mcp/${as}`, { jsonrpc: "2.0", id: 1, method, ...(params === undefined ? {} : { params }) });
+  return post(`${url}/mcp/${doors[as]}`, { jsonrpc: "2.0", id: 1, method, ...(params === undefined ? {} : { params }) });
 }
 
 function answerOf(said) {
@@ -659,10 +647,6 @@ function stage(answer) {
   fs.writeFileSync(helperAnswer, JSON.stringify(answer));
 }
 
-function unstage() {
-  fs.rmSync(helperAnswer, { force: true });
-}
-
 // The helper requests the stand-in read, whole and in order.
 function helperRequests() {
   return readLog(log)
@@ -675,21 +659,54 @@ function helperCalls() {
   return readLog(log).split("\n").filter((line) => line.startsWith("helper-argv: ")).length;
 }
 
-remove(instance, held, standIn);
-writeStandIn(standIn);
-installed(options(instance, PORT));
-installed(options(held, PORT));
-runTool(instance, ["hire", CHAT_WORKER], process.env);
-runTool(held, ["hire", CHAT_WORKER], process.env);
-// A hold on the account of the second instance, so a call that needs the helper is refused there.
-enterHold(held, { resetsAt: Math.floor(Date.now() / 1000) + 3600, fullness: 0.96, warm: true, parking: false });
+// The helper runs on the environment this process has, so the stand-in's knobs are set on it for
+// the checks and taken off after them; a knob set for one call is set and unset around that call.
+async function withKnob(name, body) {
+  process.env[name] = "1";
+  try {
+    return await body();
+  } finally {
+    delete process.env[name];
+  }
+}
 
-const environment = standInEnvironment(standIn, log, { OPENOVAI_STAND_IN_HELPER: helperAnswer });
+remove(instance, standIn);
+writeStandIn(standIn);
+installed(options(instance));
+runTool(instance, ["hire", CHAT_WORKER], process.env);
 
 describe("the tools the chat serves for the store", () => {
   before(async () => {
-    server = startChat(instance, environment);
-    assert.ok(await waitForHealth(URL), "the server never answered");
+    environmentBefore = { ...process.env };
+    Object.assign(process.env, standInEnvironment(standIn, log, { OPENOVAI_STAND_IN_HELPER: helperAnswer }));
+    warn = console.warn;
+    console.warn = (line) => warned.push(String(line));
+    // The server says every request on console.log; a suite is not its log.
+    log_ = console.log;
+    console.log = () => {};
+    const config = JSON.parse(fs.readFileSync(path.join(instance, CONFIG_FILE), "utf8"));
+    const chat = { root: instance, config, plugins: [], pop: () => {} };
+    server = await serve(chat);
+    url = `http://127.0.0.1:${server.address().port}`;
+    for (const seat of [CHAT_LEADER, CHAT_WORKER]) {
+      startSeat(chat, seat);
+      const before_ = Object.keys(doors).length;
+      assert.ok(await waitFor(() => secretsIn(log).length > before_), `${seat} never logged its secret`);
+      doors[seat] = secretsIn(log).at(-1);
+    }
+  });
+
+  after(async () => {
+    await Promise.all([endSeat(CHAT_LEADER), endSeat(CHAT_WORKER)]);
+    await new Promise((resolve) => server.close(resolve));
+    console.warn = warn;
+    console.log = log_;
+    for (const name of Object.keys(process.env)) {
+      if (!(name in environmentBefore)) {
+        delete process.env[name];
+      }
+    }
+    Object.assign(process.env, environmentBefore);
   });
 
   it("lists recall and remember for a Worker and for the Leader", async () => {
@@ -800,24 +817,15 @@ describe("the tools the chat serves for the store", () => {
     assert.equal(said.refused, true);
     assert.equal(said.text, "the helper answered badly");
     assert.doesNotMatch(said.text, /PLUM-CRUMBLE/);
-    assert.match(server.output, /the helper answered badly to select: the model wrote PLUM-CRUMBLE here/);
-    await stopChat(server);
-    server = startChat(instance, { ...environment, OPENOVAI_STAND_IN_REFUSED: "1" });
-    assert.ok(await waitForHealth(URL), "the server never answered");
-    said = await tool(CHAT_WORKER, "remember", { store: "memory", kind: "fact", text: "a fourth fact" });
+    assert.ok(warned.some((line) => /the helper answered badly to select: the model wrote PLUM-CRUMBLE here/.test(line)), warned.join("\n"));
+    said = await withKnob("OPENOVAI_STAND_IN_REFUSED", () => tool(CHAT_WORKER, "remember", { store: "memory", kind: "fact", text: "a fourth fact" }));
     assert.equal(said.refused, true);
     assert.equal(said.text, "the helper did not answer");
-    await stopChat(server);
-    server = startChat(instance, { ...environment, OPENOVAI_STAND_IN_BROKEN: "1" });
-    assert.ok(await waitForHealth(URL), "the server never answered");
-    said = await tool(CHAT_WORKER, "remember", { store: "memory", kind: "fact", text: "a fourth fact" });
+    said = await withKnob("OPENOVAI_STAND_IN_BROKEN", () => tool(CHAT_WORKER, "remember", { store: "memory", kind: "fact", text: "a fourth fact" }));
     assert.equal(said.refused, true);
     assert.equal(said.text, "the helper did not answer");
-    assert.match(server.output, /the helper exited 1: a model was never reached/);
+    assert.ok(warned.some((line) => /the helper exited 1: a model was never reached/.test(line)), warned.join("\n"));
     assert.equal(fs.readdirSync(path.join(instance, "store", "memory")).length, before_);
-    await stopChat(server);
-    server = startChat(instance, environment);
-    assert.ok(await waitForHealth(URL), "the server never answered");
   });
 
   it("refuses a team write when the helper names the User's record, over the door", async () => {
@@ -825,33 +833,5 @@ describe("the tools the chat serves for the store", () => {
     const said = await tool(CHAT_LEADER, "remember", { store: "memory", kind: HARD_RULE, text: "Push only once the release commit is on main" });
     assert.equal(said.refused, true);
     assert.match(said.text, /m2 is the User's hard-rule; only a write with source user can replace it/);
-  });
-});
-
-describe("the store while the account is held", () => {
-  before(async () => {
-    await stopChat(server);
-    server = startChat(held, environment);
-    assert.ok(await waitForHealth(URL), "the server never answered");
-    const said = await tool(CHAT_LEADER, "remember", { store: "memory", kind: HARD_RULE, text: "a rule written under the hold" });
-    assert.equal(said.refused, false, said.text);
-  });
-
-  it("refuses recall by meaning while the gate is closed, spawns no helper, and still answers by id", async () => {
-    const calls = helperCalls();
-    stage({ ids: ["m1"] });
-    const byMeaning = await tool(CHAT_WORKER, "recall", { store: "memory", query: "rules about holds" });
-    assert.equal(byMeaning.refused, true);
-    assert.match(byMeaning.text, /the helper is held: the account's five-hour usage window is 96% full/);
-    assert.equal(helperCalls(), calls);
-    const byId = await tool(CHAT_WORKER, "recall", { store: "memory", id: "m1" });
-    assert.equal(byId.refused, false, byId.text);
-    assert.match(byId.text, /a rule written under the hold/);
-  });
-
-  it("retires a rule while the gate is closed", async () => {
-    const said = await tool(CHAT_LEADER, "remember", { store: "memory", kind: HARD_RULE, text: "a rule written under the hold", replaces: "m1", until: "now" });
-    assert.equal(said.refused, false, said.text);
-    assert.match(said.text, /rule 1 retired/);
   });
 });

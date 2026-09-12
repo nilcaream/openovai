@@ -25,7 +25,7 @@ import { CUSTOMIZATION, persona } from "../tools/desks.mjs";
 import { PAYLOAD } from "../tools/payload.mjs";
 import { RELEASE_NOTES } from "../tools/release.mjs";
 
-const HUMAN = "Mike";
+const USER = "Mike";
 const LEADER = "Superman";
 const LEADER_MODEL = "sonnet";
 const WORKER_MODEL = "haiku";
@@ -53,7 +53,7 @@ function options(root, changes = {}) {
   return {
     "--root": root,
     "--source": repo,
-    "--human": HUMAN,
+    "--user": USER,
     "--leader": LEADER,
     "--leader-model": LEADER_MODEL,
     "--worker-model": WORKER_MODEL,
@@ -94,11 +94,11 @@ function contentOf(...parts) {
   return fs.readFileSync(inside(...parts), "utf8");
 }
 
-// What the lead is told, rendered the way the chat renders it when the lead's first conversation
+// What the Leader is told, rendered the way the chat renders it when the Leader's first conversation
 // starts: from the templates the installer put in place, with the names written in. The installer
-// writes no persona file, so this is the one way to read what a lead of this instance would be told.
+// writes no persona file, so this is the one way to read what a Leader of this instance would be told.
 function leadPersona(root = instance) {
-  return persona(root, LEADER, { human: HUMAN, leader: LEADER });
+  return persona(root, LEADER, { user: USER, leader: LEADER });
 }
 
 remove(instance, chosen);
@@ -205,7 +205,7 @@ describe("what the installer made", () => {
     assert.ok(fs.existsSync(inside("templates", "worker.md")));
   });
 
-  // The skill a lead answers "what may be done here" from is payload: placed where a session
+  // The skill a Leader answers "what may be done here" from is payload: placed where a session
   // reads a skill from, and replaced by an update, which is what keeps an instance from carrying a
   // year-old account of a runtime that has been measured to do something else since.
   it("places the skill an instance explains itself with where a session reads it", () => {
@@ -218,15 +218,15 @@ describe("what the installer made", () => {
 
   // The one sentence in the persona for it. A persona is rendered when a conversation starts and
   // read as it is until the conversation ends, so this is the half that has to be right in the
-  // template as well: a lead reading only the block pushed into its first turn would answer the
+  // template as well: a Leader reading only the block pushed into its first turn would answer the
   // question from memory on every turn after it.
   it("tells the leader to answer what the workspace allows from the skill, never from memory", () => {
     const persona = leadPersona();
-    assert.match(persona, /run the\s+`allowed` skill and report what it answers/);
+    assert.match(persona, /run the\s+`allowed` skill and report what it\s+answers/);
     assert.match(persona, /Never answer that question from memory/);
   });
 
-  // Who the lead is gets rendered when its first conversation starts, from the templates just put
+  // Who the Leader is gets rendered when its first conversation starts, from the templates just put
   // in place — so there is nothing here to say who anybody was, and nothing for an update to leave
   // stale.
   it("writes no persona, and makes no directory for one", () => {
@@ -235,7 +235,7 @@ describe("what the installer made", () => {
   });
 
   it("says in the persona who the leader is", () => {
-    assert.ok(leadPersona().includes(`You are ${LEADER}, ${HUMAN}'s lead`));
+    assert.ok(leadPersona().includes(`You are ${LEADER}, the Leader of ${USER}'s workspace`));
   });
 
   it("points the persona at the leader's own desk", () => {
@@ -243,9 +243,9 @@ describe("what the installer made", () => {
   });
 
   // The same budget the workspace writes into every other persona. It is one block from one place,
-  // so the lead and the workers cannot end up telling agents two different things — and the lead is
-  // the one here who hands out the most work, so a lead without it is the expensive half.
-  it("tells the lead how much a brief it writes may spend", () => {
+  // so the Leader and the workers cannot end up telling agents two different things — and the Leader is
+  // the one here who hands out the most work, so a Leader without it is the expensive half.
+  it("tells the Leader how much a brief it writes may spend", () => {
     const persona = leadPersona();
     assert.match(persona, /at most 15 tool calls/);
     assert.match(persona, /report what you have and say what is missing/);
@@ -301,7 +301,7 @@ describe("what the installer made", () => {
     assert.deepEqual(settingsProblems(inside(".claude", "settings.json"), [LEADER]), []);
   });
 
-  // A lead that cannot reach the team has to do the work itself. The rule is relative, like the
+  // A Leader that cannot reach the team has to do the work itself. The rule is relative, like the
   // desk rules, because a session is started with the instance root as its working directory.
   it("names each file it wrote once, however many things went into it", () => {
     const settings = inside(".claude", "settings.json");
@@ -363,67 +363,34 @@ describe("what the installer made", () => {
 
   // It replaced two rules, one per spelling of a command. Nothing should be left granting a shell
   // line no persona names any more: a grant nobody uses is a grant nobody is watching.
-  it("no longer grants the command it replaced", () => {
+  it("grants no shell line for saying something to somebody", () => {
     const allow = JSON.parse(contentOf(".claude", "settings.json")).permissions.allow;
     assert.ok(!allow.some((rule) => rule.includes("ovai say")));
   });
 
   // Seeing who else works here is a tool now, under the one rule above. Watched before there was
-  // any rule for it: a lead sat parked on `bin/ovai status` for six and a half minutes and would not
+  // any rule for it: a Leader sat parked on `bin/ovai status` for six and a half minutes and would not
   // have stopped, so nothing may be left telling a session to type it.
-  it("no longer grants the command that listed who works here", () => {
+  it("grants no shell line for seeing who works here", () => {
     const allow = JSON.parse(contentOf(".claude", "settings.json")).permissions.allow;
     assert.ok(!allow.some((rule) => rule.includes("ovai status")));
   });
 
   it("tells the leader how to say something to somebody", () => {
-    assert.match(leadPersona(), /the `say` tool says something to one of them/);
-  });
-
-  // A persona that still named the command would be telling a session to type a shell line the
-  // instance no longer grants, which is a session stopped for doing as it was told.
-  it("does not tell the leader to type the command it replaced", () => {
-    assert.ok(!leadPersona().includes("ovai say"));
+    assert.match(leadPersona(), /The `message` tool says something to one of them/);
   });
 
   it("tells the leader how to see who works here", () => {
-    assert.match(leadPersona(), /The `status` tool lists who\s+works here/);
+    assert.match(leadPersona(), /The `room` tool says who works\s+here/);
   });
 
-  it("does not tell the leader to type the command that listed who works here", () => {
+  // A persona naming a shell line would be telling a session to type something the instance does
+  // not grant, which is a session stopped for doing as it was told.
+  it("does not tell the leader to type a shell line for either", () => {
+    assert.ok(!leadPersona().includes("ovai say"));
     assert.ok(!leadPersona().includes("ovai status"));
   });
 
-  // The two tools that change who works here. A tool is offered whether or not the persona says a
-  // word about it, so what is checked here is that the lead is TOLD — a lead reaching for something
-  // it has only inferred from a tool list reaches for it the way it guessed.
-  it("tells the leader it can open a desk, and what that opens", () => {
-    assert.match(leadPersona(), /`hire` opens a desk for somebody new/);
-    assert.match(leadPersona(), /Nothing is started by\s+it/);
-  });
-
-  // What somebody runs on is the lead's too, and a tool is offered whether or not the persona says
-  // so — a lead that has only inferred the argument from a schema reaches for it the way it
-  // guessed, or never reaches for it at all.
-  it("tells the leader that hiring takes a model beside the name", () => {
-    assert.match(leadPersona(), /`hire` takes a model beside the\s+name/);
-  });
-
-  // And the half that keeps it a default rather than a decision to be taken every time.
-  it("tells the leader that leaving it out uses the workspace's own", () => {
-    assert.match(leadPersona(), /leaving it out puts them on the one this workspace runs its workers on/);
-  });
-
-  // The cost, and what to do about it. A stronger model comes out of the window everybody here
-  // shares, so the choice is one the human is entitled to see a reason for.
-  it("tells the leader to say why, on its own panel, when it chooses one", () => {
-    assert.match(leadPersona(), /say on\s+your own panel why/);
-  });
-
-  // The check that keeps one workspace's policy out of everybody's product. `templates/` ships
-  // with the toolkit and is rendered into every instance, so a model named in it would be this
-  // workspace's answer written into everybody's — and it would go stale the week the service
-  // renames something. What the models here are is `openovai.json`'s to say, not the persona's.
   it("names the leader no model at all", () => {
     const persona = leadPersona();
     assert.ok(!persona.includes(LEADER_MODEL), persona);
@@ -431,33 +398,14 @@ describe("what the installer made", () => {
     assert.doesNotMatch(persona, /\b(opus|sonnet|haiku)\b/i);
   });
 
-  // The half that has to survive an edit: filed, not thrown away. Without it the paragraph reads as
-  // deletion, and a lead that reads it as deletion will not use it when it should.
-  it("tells the leader that putting a desk away files it rather than throws it away", () => {
-    assert.match(leadPersona(), /`retire` is the other end of it/);
-    assert.match(leadPersona(), /files rather than throws away/);
-  });
-
-  // What the tool refuses, said as whose it is rather than as a rule. A lead told only that the
-  // name was refused goes looking for a way round it, and there is one — moving the conversation —
-  // which is exactly the thing that is not the lead's to do.
-  it("tells the leader that a conversation somebody left behind is not its to move", () => {
-    assert.match(
-      leadPersona(),
-      /A conversation somebody left behind is\s+a person's to move out of the way/,
-    );
-  });
-
-  // The one that bites the copy-paste. A worker told about a tool it cannot call goes hunting for
-  // it, and what it finds is the refusal naming the lead — a whole turn spent on a sentence.
-  it("tells a worker about neither of them", () => {
-    const worker = contentOf("templates", "worker.md");
-    assert.ok(!worker.includes("`hire`"), "the worker template names hire");
-    assert.ok(!worker.includes("`retire`"), "the worker template names retire");
+  // Naming a tool is what sends a session hunting for it, so the persona names only what the chat
+  // offers: message, room, recall, remember.
+  it("names the leader no tool it is not offered", () => {
+    assert.doesNotMatch(leadPersona(), /`(hire|retire|interrupt|say|status)`/);
   });
 
   // And the other direction: the sentence that tells a worker whose these are is the WORKER's. A
-  // lead reading it would be told the thing it does is somebody else's, which is the one reading
+  // Leader reading it would be told the thing it does is somebody else's, which is the one reading
   // of it that is wrong.
   it("does not tell the leader the workspace is somebody else's", () => {
     assert.doesNotMatch(
@@ -466,165 +414,88 @@ describe("what the installer made", () => {
     );
   });
 
-  // The block is pushed into a turn; the template is what a lead is running when it reads it. An
-  // update ships new templates and re-renders nobody's persona, so the three things a lead got
-  // wrong on a real instance have to be in both or a lead hired today reads only half of them.
-  it("tells the leader that a trip only counts when the call stops", () => {
-    const leader = contentOf("templates", "leader.md");
-    assert.match(leader, /only counts when it stops/);
-    assert.match(leader, /allows commands but names none/);
-    assert.match(leader, /never what they said/);
-  });
-
-  // And the fourth, found by the re-test: a lead told to watch the panel guesses, because it is
-  // never shown one. Here too the template has to say it, or a lead hired today is the one still
-  // reporting a press it cannot see.
+  // A Leader told to watch the panel guesses, because it is never shown one. The template has to
+  // say it, or a Leader hired today is the one reporting a press it cannot see.
   it("tells the leader the panel is not shown to it and the ledger is the record", () => {
     const leader = contentOf("templates", "leader.md");
     assert.match(leader, /not shown their panel/);
     assert.match(leader, /allowed\.md/);
   });
 
-  // The room watch acts by itself now — it ends a cold conversation and hands seats over under an
-  // account hold, and it spends no lead turn doing either. The template used to say the opposite:
-  // that the watch gave the lead a turn and that nothing stopped running because of any of the four
-  // readings. A persona is rendered once per conversation and read as it is until that ends, so a
-  // template that lies about what the chat does is a lie every conversation started on it keeps.
-  // Held here to the three things the pass does, and against the two sentences it retired.
-  it("tells the leader what the room watch does by itself, and no longer that it gives a turn", () => {
-    const leader = contentOf("templates", "leader.md");
-    assert.match(leader, /reads the room itself and acts on what it reads/);
-    assert.match(leader, /ended there and then/);
-    assert.match(leader, /hands each\s+conversation over to its desk itself/);
-    assert.match(leader, /sitting on a permission prompt is left alone/);
-    assert.doesNotMatch(leader, /gives you a turn to hear it/);
-    assert.doesNotMatch(leader, /Nobody typed that turn/);
-    assert.doesNotMatch(leader, /nothing stops running because of any of/);
-  });
-
-  // The room is the third of them, and the only one the lead alone is offered. Watched here as
-  // well as on the endpoint: what the instance grants and what the persona names have to move
-  // together, or a lead is told to ask for something nothing will serve it.
-  it("no longer grants the command that showed the room", () => {
+  it("grants no shell line for the room", () => {
     const allow = JSON.parse(contentOf(".claude", "settings.json")).permissions.allow;
     assert.ok(!allow.some((rule) => rule.includes("ovai room")));
   });
 
-  // What the lead cannot see for itself: its own lines wait while the person it is talking to is
-  // writing. A lead that did not know would read a panel that had gone quiet as a person who had
-  // stopped listening, and say it all again.
-  it("tells the leader that what it says waits while the human is writing", () => {
-    assert.match(leadPersona(), /panel stops moving for them/);
-    assert.match(leadPersona(), /how many\s+are waiting and who from/);
-  });
-
-  // The exception, and the whole of it. The tool is offered to the lead whether or not the persona
-  // says a word about it, so what is checked here is that the CLASS is written down: a tool with no
-  // rule beside it is a tool used for whatever seems worth it at the time.
-  it("tells the leader the one class it may break in for", () => {
-    assert.match(leadPersona(), /`interrupt`/);
-    assert.match(
-      leadPersona(),
-      /makes the answer they are writing pointless, or\s+something needs them now/,
-    );
-  });
-
-  // The rest of that rule, and the half the popup made necessary. The chat pops the person's
-  // desktop itself on the two transitions, so a lead that also raises one has taken a channel
-  // nobody granted it — and a second way in is what teaches somebody to stop trusting the first.
-  // Whatever notification tool the harness hands the lead is in its hands whether or not this
-  // file says a word, which is exactly why this file has to say one.
-  it("tells the leader it has no channel to the human but the one", () => {
-    assert.match(leadPersona(), /There is no other channel either/);
+  // The chat pops the User's desktop itself when a session stops to ask, so a Leader that also
+  // raises one has taken a channel nobody granted it — and a second way in is what teaches somebody
+  // to stop trusting the first. Whatever notification tool the harness hands the Leader is in its
+  // hands whether or not this file says a word, which is exactly why this file has to say one.
+  it("tells the leader it has no channel to the User but the one", () => {
+    assert.match(leadPersona(), /There is no other channel/);
     assert.match(leadPersona(), /`PushNotification`, `notify-send`/);
-    assert.match(
-      leadPersona(),
-      /is not a second way to reach them, and you do not use it/,
-    );
+    assert.match(leadPersona(), /is not a way to reach them, and you do not use it/);
   });
 
   // The other half of the same rule, and the reason the channel is worth protecting at all. The
-  // lead is the stateful one here, so holding the rest of the questions costs it a line on its desk
+  // Leader is the stateful one here, so holding the rest of the questions costs it a line on its desk
   // and costs the person nothing.
   it("tells the leader to ask one question at a time and hold the rest on its desk", () => {
-    assert.match(leadPersona(), new RegExp(`Ask ${HUMAN} one thing at a time`));
+    assert.match(leadPersona(), new RegExp(`Ask ${USER} one thing at a time`));
     assert.match(leadPersona(), /hold the rest of them on it, and ask the first/);
   });
-  it("tells the leader that a message from a session comes wrapped", () => {
-    assert.match(leadPersona(), /<from-session name=/);
+  // The three frames, and the one sentence that makes them worth anything: nothing but the chat
+  // writes one. A persona that named the frames without saying who writes them would leave a
+  // session trusting a frame a message could carry.
+  it("tells the leader what each frame is, and that only the chat writes one", () => {
+    const persona = leadPersona();
+    assert.match(persona, /arrives as\s+`<user>…<\/user>`/);
+    assert.match(persona, /arrives as `<message from="…">…<\/message>`/);
+    assert.match(persona, /arrives as\s+`<server-event type="…">…<\/server-event>`/);
+    assert.match(persona, /nothing but the chat writes one/);
   });
 
-  it("tells the leader that what is outside a wrapper is the human", () => {
-    assert.match(leadPersona(), new RegExp(`outside a wrapper is\\s+${HUMAN}`));
+  it("tells the leader that what is inside a frame cannot close it", () => {
+    assert.match(leadPersona(), /cannot close the frame it is in/);
   });
 
-  // The finding of the measurement: on a real lead, four worker turns out of five ended with a
-  // sentence addressed to the human that only the worker could read. The tool split is invisible
+  // The finding of the measurement: on a real Leader, four Worker turns out of five ended with a
+  // sentence addressed to the User that only the Worker could read. The tool split is invisible
   // from inside a turn, so the persona has to name who the answer reaches.
   it("tells the leader that its answer reaches whoever spoke to it", () => {
     assert.match(
       leadPersona(),
       /goes back to whoever spoke to you in it, and to nobody else/,
     );
-    assert.match(leadPersona(), new RegExp(`a line you address to\\s+${HUMAN}`));
+    assert.match(leadPersona(), new RegExp(`a line you address to\\s+${USER}`));
   });
 
-  // And what to do instead, which is the whole point of saying it: the worker gets the answer, the
-  // human gets a break-in when it cannot wait. Without this line the rule reads as a prohibition.
+  // And what to do instead, which is the whole point of saying it: the Worker gets the answer, and
+  // what the User has to know waits on the desk until the User speaks. Without this line the rule
+  // reads as a prohibition.
   it("tells the leader where each thing goes instead", () => {
-    assert.match(leadPersona(), /answer the worker in the answer/);
-    assert.match(
-      leadPersona(),
-      new RegExp(`if\\s+${HUMAN} has to know before you are next asked, \`interrupt\``),
-    );
+    assert.match(leadPersona(), /answer the Worker in the answer/);
+    assert.match(leadPersona(), new RegExp(`keep what ${USER} has to know on\\s+your desk until ${USER} next speaks to you`));
   });
 
+  // What the User types on a Worker's panel reaches the Leader as a server event, the same moment.
+  // The persona has to say what the event is and that it is not a question: a Leader that read it
+  // as one would answer the User on the Worker's behalf, on a panel the User is not reading.
   it("tells the leader that the chat says what was typed on another panel", () => {
-    assert.match(leadPersona(), /<overheard on="[^"]*" from="Mike">/);
+    assert.match(leadPersona(), /<server-event type="user-typed" who="…">…<\/server-event>/);
+    assert.match(leadPersona(), /You\s+are being told, not asked/);
+    assert.match(leadPersona(), new RegExp(`do not answer ${USER} on their behalf`));
   });
 
-  // An update ships new templates and re-renders nothing, so this paragraph is for the sessions
-  // hired after one — the lead that was running through the update is told in the wrapper itself.
-  it("tells the leader that the chat says when the toolkit under it was replaced", () => {
-    assert.match(leadPersona(), /<update from="[^"]*" to="[^"]*">/);
+  // A conversation ends and the desk is what survives it. The Leader is the session it takes most
+  // from — what goes is who it had waiting on what — so it is told to write that down as it happens.
+  it("tells the leader that the desk is what survives a conversation", () => {
+    assert.match(leadPersona(), /what survives one is its desk/);
+    assert.match(leadPersona(), /write it\s+down as it happens, not when you next think of it/);
   });
 
-  it("tells the leader that a conversation started after an update runs the new instructions", () => {
-    assert.match(leadPersona(), /every conversation started after the update — a hire, a handover, your own — runs on what the new\s+version ships/);
-  });
-
-  it("tells the leader when it will hear it, since it is not at the moment it was said", () => {
-    assert.match(leadPersona(), /at the start of your\s+next turn/);
-  });
-
-  // The lead used to be told the workers would pass it on. They no longer do, and a persona still
-  // saying so would have it waiting for something that is not coming.
-  it("no longer tells the leader that workers pass it on themselves", () => {
+  it("does not tell the leader that workers pass on what the User typed", () => {
     assert.ok(!leadPersona().includes("Workers are told to tell you"));
-  });
-
-  // The lead keeps a desk and is handed over exactly as everybody else is, so it is told the same
-  // thing — and told to write the part of the desk only a lead has, which is the room.
-  it("tells the leader what a handover arrives as", () => {
-    assert.match(leadPersona(), /<handover>/);
-  });
-
-  it("tells the leader which file to write when one does", () => {
-    assert.match(leadPersona(), new RegExp(`<handover>[\\s\\S]*work/${LEADER}/STATE.md`));
-  });
-
-  it("tells the leader that the thread ends when it answers", () => {
-    assert.match(leadPersona(), /the\s+thread ends when you answer/);
-  });
-
-  // The lead is not exempt from the ending nobody announces, and is the session it takes most from:
-  // what goes is who it had waiting on what, which is nowhere else unless its desk says so.
-  it("tells the leader that a conversation can also end unannounced", () => {
-    assert.match(leadPersona(), /<pick-up>/);
-  });
-
-  it("tells the leader which file to read when one does", () => {
-    assert.match(leadPersona(), new RegExp(`<pick-up>[\\s\\S]*work/${LEADER}/STATE.md`));
   });
 
   it("tells the leader that everybody here reads what the workspace has learned", () => {
@@ -645,113 +516,12 @@ describe("what the installer made", () => {
   });
 
   it("tells the leader to keep the desk current before one is ever asked for", () => {
-    assert.match(leadPersona(), /kept current as you go and not only then/);
+    assert.match(leadPersona(), /current as you\s+go and not only when something is about to end/);
   });
 
-  // What the lead is on has to come from somewhere, and the only thing that knows it is the lead.
-  // One field of the desk header, named in the persona, is the whole of the arrangement.
-  // The lead is the one session that cannot look at the page, because it is on it. Naming the
-  // command in its persona is the whole of how it finds out; a command a persona names and an
-  // instance does not grant is the failure this repo has already had twice.
-  it("tells the leader how to see the room", () => {
-    assert.match(leadPersona(), /The `room` tool is the other half of that/);
-  });
-
-  it("does not tell the leader to type the command that showed the room", () => {
+  it("does not tell the leader to type a shell line for the room", () => {
     assert.ok(!leadPersona().includes("ovai room"));
   });
-
-  // Said in the persona because it is not said anywhere else the lead reads: a tool it is offered
-  // and the others are not is the only asymmetry in this instance, and a lead that did not know
-  // would tell a worker to go and look for itself.
-  it("tells the leader the room is its own to look at", () => {
-    assert.match(leadPersona(), /it is yours alone/);
-  });
-
-  it("tells the leader the room is true at the moment it asks", () => {
-    assert.match(leadPersona(), /true at the moment you ask/);
-  });
-
-  // The rule the lead is held to about a room it did not ask for, and the one exception to it.
-  //
-  // The rule was in this persona from the day the room was, and nothing in any suite read it — so
-  // the day something WAS handed over unasked, the sentence forbidding it could have been left
-  // standing beside the thing that made it false, and no check would have said a word. This is
-  // that sentence getting the check it was believed to have.
-  it("tells the leader a room it did not ask for is not handed to it, and names every exception", () => {
-    const persona = leadPersona();
-    assert.match(persona, /The room is not handed to you unasked/);
-    assert.match(persona, /Three things are handed to you without your asking/);
-    // And not who has stopped, which it was handed until the room watch began parking a
-    // conversation before its hour: what that block warned of is now prevented, and the row says
-    // who is idle.
-    assert.doesNotMatch(persona, /who has stopped/);
-    assert.match(persona, /how big the conversations here have grown/);
-    assert.match(persona, /where the account's usage window stands/);
-    // And what the last of them can actually ask for, which is the whole workspace stopped and every
-    // conversation in it ended. A persona that named the reading without naming what it says would
-    // leave the lead reading an instruction it had been told nothing about.
-    assert.match(persona, /tell you to stop the tasks and put everybody down/);
-    // Two of them are readings; the third acts. The sentence that made all of them advice was the
-    // one the room watch made false the day it began parking, so the persona is held to the split.
-    assert.match(persona, /Two of the three are readings and not rules the toolkit keeps/);
-    assert.match(persona, /The\s+third acts/);
-    // And the third, which is the one that does not ride on a turn the lead was having anyway. A
-    // persona that named two while the chat handed over three would leave the lead reading a block
-    // its own instructions say it does not get.
-    assert.match(persona, /The third is the room watch/);
-  });
-
-  // What the persona says the chat does by itself, held to what the chat does. Every sentence
-  // below was true once and made false by a later commit — the crossing that was "said once, and
-  // nothing more is done about it" is parked; the block that told the lead nothing here ends a
-  // conversation is read by a lead whose conversation the chat will end — and a lead hired today
-  // is rendered the template as it is today, so the template is held to the chat and not the other
-  // way round. Read off the rendered persona and not the file, so the customization path is the
-  // same path. Every inter-word gap is \s+, because the file is hard-wrapped.
-  it("tells the leader the chat parks a conversation itself, and never that handing one over is a person's to press", () => {
-    const persona = leadPersona();
-    assert.doesNotMatch(persona, /nothing more is done about\s+it/);
-    assert.doesNotMatch(persona, new RegExp(`still\\s+${HUMAN}'s to press`));
-    assert.doesNotMatch(persona, /You cannot hand a session\s+over/);
-    assert.doesNotMatch(persona, /Three of the\s+four/);
-    assert.doesNotMatch(persona, /It does three\s+things/);
-    assert.doesNotMatch(persona, /It does four\s+things/);
-    assert.match(persona, /It does five\s+things/);
-    // The size block is for planning and presses nothing: the chat parks on the crossing.
-    assert.match(persona, /the chat parks a\s+conversation itself on the crossing into a strong band of its window/);
-    assert.match(persona, /not for pressing\s+anything/);
-    // The park ahead of the hour, which no persona said before this.
-    assert.match(persona, /about to\s+lose its cache — idle fifty minutes — is handed over to its desk before the hour/);
-    // And the crossing park, with what happens when it cannot be done.
-    assert.match(persona, /crossed into\s+a strong band of its window is handed over to its desk on the crossing/);
-    assert.match(persona, /the crossing is said once, with the reason/);
-    // The split: two readings, and a watch that acts on four of its five conditions and asks nobody.
-    assert.match(persona, /Two of the three are readings/);
-    assert.match(persona, /on four of its five conditions,\s+and it asks nobody first/);
-    assert.match(persona, /on the fifth it names what it read and acts on nothing/);
-    // And the fifth: a run past the half hour is named, with what is under it, and nothing is done.
-    assert.match(persona, /is named to you once, with what is running\s+underneath it/);
-    assert.match(persona, new RegExp(`ending it is ${HUMAN}'s to press on that panel`));
-  });
-
-  // What the lead tells the person about a conversation that ended, in the lead's own voice and
-  // without a number beyond "about an hour": a person who is told "fifty minutes" or "nine tenths"
-  // has been handed the mechanism to keep, and the point of the paragraph is that they keep nothing.
-  it("gives the leader what to tell the person about a conversation the chat ended", () => {
-    const persona = leadPersona();
-    const at = persona.indexOf(`${HUMAN} will ask what became of somebody`);
-    assert.notEqual(at, -1, "the persona never says what to tell the person");
-    const paragraph = persona.slice(at, persona.indexOf("\n\n", at));
-    assert.match(paragraph, /lives about an hour/);
-    assert.match(paragraph, /idles most of it, or grows into the last tenth of\s+its window/);
-    assert.match(paragraph, /asks it to write its desk and ends it there/);
-    assert.match(paragraph, /starts a fresh one that reads the desk first/);
-    assert.match(paragraph, /the account is nearly spent the chat holds/);
-    assert.match(paragraph, new RegExp(`Nothing there is ${HUMAN}'s to do`));
-    assert.doesNotMatch(paragraph, /fifty|minutes|tenths|per cent|%/);
-  });
-
   it("tells the leader which one field of its header is read by anybody else", () => {
     assert.match(leadPersona(), /the `title:` in it is the one field/);
   });
@@ -772,7 +542,7 @@ describe("what the installer made", () => {
   it("describes the instance that was asked for", () => {
     assert.deepEqual(
       configProblems(inside("openovai.json"), {
-        human: HUMAN,
+        user: USER,
         leader: LEADER,
         leaderModel: LEADER_MODEL,
         workerModel: WORKER_MODEL,
@@ -784,11 +554,11 @@ describe("what the installer made", () => {
   });
 });
 
-// What the skill makes a lead do, read from the copy the instance was shipped. It is a procedure
+// What the skill makes a Leader do, read from the copy the instance was shipped. It is a procedure
 // rather than an answer, and the parts of the procedure that keep the answer honest are the parts
 // worth watching: the blocks it must not skip, and the three sentences that stop each of the three
 // ways this report can be confidently wrong.
-describe("what the skill tells a lead to report", () => {
+describe("what the skill tells a Leader to report", () => {
   const skill = () => contentOf(".claude", "skills", "allowed", "SKILL.md");
 
   it("is found under the name the workspace sends a session to", () => {
@@ -800,7 +570,7 @@ describe("what the skill tells a lead to report", () => {
     assert.match(skill(), /lasts\s+until the next update/);
   });
 
-  it("has the lead read the files in the turn it is asked, never remember", () => {
+  it("has the Leader read the files in the turn it is asked, never remember", () => {
     assert.match(skill(), /\*\*Read now, in this turn\.\*\*/);
     assert.match(skill(), /Never answer from the conversation/);
   });
@@ -892,7 +662,7 @@ describe("what the skill tells a lead to report", () => {
   // The exception a competent person gets caught by: a tightened persona is additive in effect
   // until the conversation is replaced, because the session read the old one and resumes from it.
   it("says a resumed conversation keeps what it has already read", () => {
-    assert.match(skill(), /tightening a persona is additive in effect until a handover replaces the/);
+    assert.match(skill(), /tightening a persona is additive in effect until a new process replaces the/);
     assert.match(skill(), /What clears it is replacing the conversation/);
   });
 
@@ -900,7 +670,7 @@ describe("what the skill tells a lead to report", () => {
     assert.match(skill(), /honoured from each session's next turn/);
   });
 
-  // It is a report and not advice. The moment it names rules worth pressing it is a lead
+  // It is a report and not advice. The moment it names rules worth pressing it is a Leader
   // improvising grants, which is the one thing the first turn forbids.
   it("names no rule the person could press next", () => {
     assert.match(skill(), /It is a report, not advice/);
@@ -977,7 +747,7 @@ describe("installing over an instance", () => {
     const fewer = install({ "--root": root, "--source": repo, "--force": true });
     const config = JSON.parse(fs.readFileSync(path.join(root, "openovai.json"), "utf8"));
     assert.equal(fewer.status, 0, fewer.stderr);
-    assert.deepEqual([config.port, config.models.leader, config.human], [4242, "haiku", HUMAN]);
+    assert.deepEqual([config.port, config.models.leader, config.user], [4242, "haiku", USER]);
     assert.ok(!fewer.stdout.includes(path.join(root, "openovai.json")));
   });
 
@@ -1037,7 +807,7 @@ describe("what the installer refuses", () => {
     const asked = {
       "--root": instance,
       "--source": repo,
-      "--human": HUMAN,
+      "--user": USER,
       "--leader": LEADER,
     };
     assert.notEqual(install(asked).status, 0);
@@ -1119,7 +889,7 @@ describe("a port the machine picks", () => {
   it("records the port as 0 rather than one it chose", () => {
     assert.deepEqual(
       configProblems(path.join(chosen, "openovai.json"), {
-        human: HUMAN,
+        user: USER,
         leader: LEADER,
         leaderModel: LEADER_MODEL,
         workerModel: WORKER_MODEL,
@@ -1137,8 +907,8 @@ describe("the instance runs", { skip: claudeIsInstalled() ? false : "Claude Code
     assert.equal(runOvai(instance, ["status"], process.env).status, 0);
   });
 
-  it("names the human in ovai status", () => {
-    assert.match(runOvai(instance, ["status"], process.env).stdout, new RegExp(HUMAN));
+  it("names the User in ovai status", () => {
+    assert.match(runOvai(instance, ["status"], process.env).stdout, new RegExp(USER));
   });
 });
 
@@ -1152,11 +922,11 @@ describe("the version the toolkit is on", () => {
   });
 });
 
-// A release is cut from the repository, and what it carries for the lead of a workspace taking it
-// is a file in that repository. A release cut without one tells the lead an update happened and
+// A release is cut from the repository, and what it carries for the Leader of a workspace taking it
+// is a file in that repository. A release cut without one tells the Leader an update happened and
 // nothing about what it was — which is the whole of what this feature is for.
 describe("what a release says for itself", () => {
-  it("carries notes for the lead at the root of the repository", () => {
+  it("carries notes for the Leader at the root of the repository", () => {
     assert.match(fs.readFileSync(path.join(repo, RELEASE_NOTES), "utf8").trim(), /\S/);
   });
 

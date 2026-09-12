@@ -120,6 +120,45 @@ jobs:
       - name: Ask the helper, and refuse what it answers badly
         run: node --test tests/helper.test.mjs
 
+  frames:
+    name: Frames
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+
+      - name: Frame what a session is told
+        run: node --test tests/frames.test.mjs
+
+  secrets:
+    name: Secrets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+
+      - name: Mint, resolve and revoke a secret
+        run: node --test tests/secrets.test.mjs
+
+  permissions:
+    name: Permissions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+
+      - name: Ask to be allowed, and answer
+        run: node --test tests/permissions.test.mjs
+
   release:
     name: Release
     runs-on: ubuntu-latest

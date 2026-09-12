@@ -12,7 +12,7 @@ import path from "node:path";
 import { PAYLOAD, notAWorkspace } from "./payload.mjs";
 import { version } from "./version.mjs";
 
-// The notes a release carries, written for the lead of a workspace rather than for whoever works
+// The notes a release carries, written for the Leader of a workspace rather than for whoever works
 // on the toolkit: what changed in how the workspace runs. Read from the package rather than from the
 // release description, so that what an instance was told and what it installed are the same thing.
 export const RELEASE_NOTES = "NOTES.md";
@@ -130,7 +130,7 @@ export async function unpackInto(url, directory) {
   return directory;
 }
 
-// What the release says has changed, for the lead of the workspace taking it. A release with none
+// What the release says has changed, for the Leader of the workspace taking it. A release with none
 // is taken all the same: not saying anything is a poor release and not a broken one.
 export function notesIn(tree) {
   try {

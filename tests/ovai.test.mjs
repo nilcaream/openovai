@@ -39,7 +39,7 @@ import { LEDGER, settingsProblems, trustProblems } from "./inspect.mjs";
 // nothing means, which is a question about the reading rather than about the running.
 import { modelFor, persona as renderPersona } from "../tools/desks.mjs";
 
-const HUMAN = "Mike";
+const USER = "Mike";
 const LEADER = "Superman";
 // Two models and not one. They sit side by side in the same file and are printed on two lines of
 // the same report, so with one word in both fields a report that read the wrong one — or wrote a
@@ -68,7 +68,7 @@ function install(root, auth) {
   installed({
     "--root": root,
     "--source": repo,
-    "--human": HUMAN,
+    "--user": USER,
     "--leader": LEADER,
     "--leader-model": LEADER_MODEL,
     "--worker-model": WORKER_MODEL,
@@ -132,8 +132,8 @@ describe("what status reports", () => {
     assert.match(said, new RegExp(`version\\s+${fs.readFileSync(path.join(repo, "VERSION"), "utf8").trim()}`));
   });
 
-  it("names the human", () => {
-    assert.match(said, new RegExp(HUMAN));
+  it("names the User", () => {
+    assert.match(said, new RegExp(USER));
   });
 
   it("names the leader and the model it runs on", () => {
@@ -643,7 +643,7 @@ describe("hiring a worker", () => {
     assert.equal(fs.existsSync(path.join(instance, "chat", WORKER)), false);
   });
 
-  const workerPersona = () => renderPersona(instance, WORKER, { human: HUMAN, leader: LEADER });
+  const workerPersona = () => renderPersona(instance, WORKER, { user: USER, leader: LEADER });
 
   it("says in the persona who the worker is", () => {
     const persona = workerPersona();
@@ -655,26 +655,15 @@ describe("hiring a worker", () => {
     assert.ok(persona.includes(LEADER));
   });
 
-  // A worker is asked for the same one line the lead is: the header field that says what it is on.
+  // A worker is asked for the same one line the Leader is: the header field that says what it is on.
   // Without it the page has a column with nothing in it and no way to fill one.
-  // And the worker is not told about it. A worker has one task and the others are not its
-  // business; the room is what somebody deciding who does what needs, which is the lead and the
-  // person at the page.
-  it("does not tell the worker to look at the room", () => {
+  // The room is a tool of its own, offered to everybody: a Worker reaching for a message needs to
+  // know who is here to send it to.
+  it("tells the worker the room is a tool it can ask for", () => {
     const persona = workerPersona();
-    assert.ok(!persona.includes("bin/ovai room"));
+    assert.match(persona, /the `room` tool says who that is/);
   });
 
-  // Nor to ask for it as a tool. The chat does not offer a worker that one and refuses it if asked
-  // anyway, so a persona naming it would be sending a session for a refusal.
-  it("does not tell the worker to ask for the room either", () => {
-    const persona = workerPersona();
-    assert.ok(!/`room` tool/.test(persona));
-  });
-
-  // What it IS told, in place of the tools it has not got: where the boundary runs. A worker that
-  // knows only that something stopped has the files right there, and rewriting a desk by hand is
-  // both easier than asking and indistinguishable from the tool having worked.
   it("tells the worker whose the workspace itself is", () => {
     const persona = workerPersona();
     assert.match(persona, new RegExp(`who is asked to join and who leaves,\\s+is ${LEADER}'s`));
@@ -694,12 +683,12 @@ describe("hiring a worker", () => {
     assert.match(persona, /a panel that shows only the last thing you said/);
   });
 
-  // The same rule as the two above, widened to every tool the worker is not offered and asserted
+  // The same rule, widened to every tool the worker is not offered and asserted
   // once. Naming one is what sends a session hunting for it; the paragraph above is written to say
   // where the boundary is without naming a single thing on the other side of it.
   it("names the worker no tool it cannot call", () => {
     const persona = workerPersona();
-    assert.doesNotMatch(persona, /\b(hire|retire|room|interrupt)\b/i);
+    assert.doesNotMatch(persona, /`(hire|retire|interrupt|say|status)`/);
   });
 
   // And says nothing to it about models either. What a worker runs on was settled when its desk
@@ -709,16 +698,6 @@ describe("hiring a worker", () => {
     const persona = workerPersona();
     assert.doesNotMatch(persona, /\bmodels?\b/i);
     assert.doesNotMatch(persona, /\b(opus|sonnet|haiku)\b/i);
-  });
-
-  // A handover used to be a person's press and nothing else, and the persona said so by saying
-  // nothing about who asks. The chat now asks too — before the hour, on a strong band, under an
-  // account hold — and a worker reading a wrapper nobody pressed for should have been told it could
-  // arrive that way, and where in it to read why.
-  it("tells the worker a handover may be the chat's asking, and where it says why", () => {
-    const persona = workerPersona();
-    assert.match(persona, /It may be\s+the chat asking rather than a person/);
-    assert.match(persona, /the line inside says which/);
   });
 
   it("tells the worker which one field of its header is read by anybody else", () => {
@@ -754,18 +733,19 @@ describe("hiring a worker", () => {
   // run instead of sent.
   it("tells the worker how to say something to somebody", () => {
     const persona = workerPersona();
-    assert.match(persona, /The `say` tool is also how you reach anybody else here/);
+    assert.match(persona, /The `message` tool is how you reach anybody else here/);
   });
 
   it("tells the worker how to see who works here", () => {
     const persona = workerPersona();
-    assert.match(persona, /the `status` tool says who that is/);
+    assert.match(persona, /the `room` tool says who that is/);
   });
 
-  it("does not tell the worker to type the command it replaced", () => {
+  it("does not tell the worker to type a shell line for either", () => {
     const persona = workerPersona();
     assert.ok(!persona.includes("ovai say"));
     assert.ok(!persona.includes("ovai status"));
+    assert.ok(!persona.includes("ovai room"));
   });
 
   it("tells the worker its header holds nothing else", () => {
@@ -773,29 +753,23 @@ describe("hiring a worker", () => {
     assert.match(persona, /header holds nothing else/);
   });
 
-  // The whole of the speakerphone on the worker's side: it can see that nobody wrapped the turn, it
-  // knows that means the human, and it knows the chat has already said so upward — so it answers
-  // the human rather than spending a turn passing it on.
-  it("tells the worker that a message from a session comes wrapped", () => {
+  // The three frames on the Worker's side, and the sentence that makes them worth anything:
+  // nothing but the chat writes one. It can see who is speaking, it knows a bare <user> frame is
+  // the User, and it knows the chat has already said so upward — so it answers the User rather
+  // than spending a turn passing it on.
+  it("tells the worker what each frame is, and that only the chat writes one", () => {
     const persona = workerPersona();
-    assert.match(persona, /<from-session name=/);
-  });
-
-  it("tells the worker that what is outside a wrapper is the human", () => {
-    const persona = workerPersona();
-    assert.match(persona, new RegExp(`outside a wrapper is ${HUMAN}`));
+    assert.match(persona, /arrives as\s+`<user>…<\/user>`/);
+    assert.match(persona, /arrives as `<message from="…">…<\/message>`/);
+    assert.match(persona, /arrives as `<server-event type="…">…<\/server-event>`/);
+    assert.match(persona, /nothing but the chat writes one/);
+    assert.match(persona, /cannot close the frame it is in/);
   });
 
   it("tells the worker that the chat passes it on, so the worker does not", () => {
     const persona = workerPersona();
     assert.match(persona, new RegExp(`the chat tells ${LEADER} what was said`));
-  });
-
-  // Asserted as an absence, which is the half a text check usually misses: the instruction that
-  // cost a whole nested turn has to be GONE, not merely outweighed by a newer paragraph.
-  it("no longer tells the worker to pass on what the human said itself", () => {
-    const persona = workerPersona();
-    assert.ok(!persona.includes(`bin/ovai say ${LEADER}`));
+    assert.match(persona, new RegExp(`Answer ${USER}\\.`));
   });
 
   it("tells the worker what to do when the one it is telling is waiting on it", () => {
@@ -803,40 +777,18 @@ describe("hiring a worker", () => {
     assert.match(persona, /waiting for your answer[\s\S]*say it in your reply instead/i);
   });
 
-  // A handover is asked for in words, so a session that does not know what the wrapper means reads
-  // it as prose and may do anything with it. These are the two halves it has to have: what the
-  // wrapper is, and that the desk is kept current before one ever arrives.
-  it("tells the worker what a handover arrives as", () => {
+  // A conversation ends and the desk is what survives it. A Worker that did not know would keep
+  // its desk for the ending it expects and lose everything to the one it does not.
+  it("tells the worker that the desk is what survives a conversation", () => {
     const persona = workerPersona();
-    assert.match(persona, /<handover>/);
+    assert.match(persona, /what survives one is its desk/);
+    assert.match(persona, new RegExp(`work/${WORKER}/STATE.md`));
+    assert.match(persona, /the next session at this\s+desk reads the desk first/);
   });
 
-  it("tells the worker which file to write when one does", () => {
+  it("tells the worker to keep the desk current before anything is about to end", () => {
     const persona = workerPersona();
-    assert.match(persona, new RegExp(`<handover>[\\s\\S]*work/${WORKER}/STATE.md`));
-  });
-
-  it("tells the worker that the thread ends when it answers", () => {
-    const persona = workerPersona();
-    assert.match(persona, /the\s+thread ends when you answer/);
-  });
-
-  // And the ending nobody announces. A session told only about <handover> reads a conversation that
-  // simply stopped as a fault in the workspace, and — worse — has no reason to keep its desk current
-  // for an ending it does not know can happen.
-  it("tells the worker that a conversation can also end unannounced", () => {
-    const persona = workerPersona();
-    assert.match(persona, /<pick-up>/);
-  });
-
-  it("tells the worker which file to read when one does", () => {
-    const persona = workerPersona();
-    assert.match(persona, new RegExp(`<pick-up>[\\s\\S]*work/${WORKER}/STATE.md`));
-  });
-
-  it("tells the worker to keep the desk current before one is ever asked for", () => {
-    const persona = workerPersona();
-    assert.match(persona, /kept current as you go and not only then/);
+    assert.match(persona, /Write it at every point\s+the work moves, not only when something is about to end/);
   });
 
   // What a brief costs is how many times the agent it went to goes round, and that agent cannot
@@ -1057,7 +1009,7 @@ describe("what a desk is read as running on", () => {
     assert.equal(modelFor(instance, WORKER, config), WORKER_MODEL);
   });
 
-  it("reads the lead as the model this workspace leads on", () => {
+  it("reads the Leader as the model this workspace leads on", () => {
     assert.equal(modelFor(instance, LEADER, config), LEADER_MODEL);
   });
 });
@@ -1069,7 +1021,7 @@ describe("what the README says about hiring onto a model", () => {
   const readme = fs.readFileSync(path.join(repo, "README.md"), "utf8");
   const section = readme.slice(
     readme.indexOf("`ovai hire <name>` opens a desk"),
-    readme.indexOf("The chat page hires too"),
+    readme.indexOf("`ovai chat` serves the instance"),
   );
 
   it("names the model as the argument beside the name", () => {
@@ -1115,13 +1067,13 @@ describe("what status says each desk runs on", () => {
     assert.match(said, new RegExp(`${THE_USUAL_WAY} \\(${WORKER_MODEL}\\)`));
   });
 
-  // The lead is on the row too, and on the model this workspace leads on rather than on the one
-  // its workers get — the resolver is asked about every desk and it knows which one is the lead's.
+  // The Leader is on the row too, and on the model this workspace leads on rather than on the one
+  // its workers get — the resolver is asked about every desk and it knows which one is the Leader's.
   //
-  // Read off the desks row rather than out of the report. The leader row prints the lead and its
+  // Read off the desks row rather than out of the report. The leader row prints the Leader and its
   // model two lines above, so a check that looked anywhere would pass on that line however the
   // desks row was written.
-  it("names the lead with the model this workspace leads on", () => {
+  it("names the Leader with the model this workspace leads on", () => {
     assert.ok(desksRow()?.includes(`${LEADER} (${LEADER_MODEL})`), desksRow());
   });
 
@@ -1203,7 +1155,7 @@ describe("what hiring refuses", () => {
         const putting = installing({
           "--root": `${instance}-never-made`,
           "--source": repo,
-          "--human": HUMAN,
+          "--user": USER,
           "--leader": LEADER,
           "--leader-model": LEADER_MODEL,
           "--worker-model": value,
@@ -1218,10 +1170,10 @@ describe("what hiring refuses", () => {
     }
   });
 
-  // The lead is not hired: the installer opened that desk when the workspace was made. So there is
-  // no door here that can put the lead on another model, and it is refused by the desk it has
+  // The Leader is not hired: the installer opened that desk when the workspace was made. So there is
+  // no door here that can put the Leader on another model, and it is refused by the desk it has
   // rather than by a guard written for the occasion.
-  describe("the lead, named with a model", () => {
+  describe("the Leader, named with a model", () => {
     let said;
 
     before(() => {
@@ -1232,12 +1184,12 @@ describe("what hiring refuses", () => {
       assert.match(said.stderr, new RegExp(`${LEADER} already has a desk here`));
     });
 
-    it("writes nothing down about what the lead runs on", () => {
+    it("writes nothing down about what the Leader runs on", () => {
       assert.equal(fs.existsSync(path.join(instance, "work", LEADER, "MODEL")), false);
     });
   });
 
-  // A name is more than its desk. The chat keeps a panel and a thread under the same name, and a
+  // A name is more than its desk. The chat keeps a panel and a persona under the same name, and a
   // desk opened over the top of those is a new person answering out of somebody else's
   // conversation — which reads as a fresh start right up until the first reply. The state is
   // reached the way it happens: a desk gone and a conversation still here.
@@ -1313,10 +1265,10 @@ describe("starting a tool the instance serves itself", () => {
   // refused here or it is refused on the next chat start, by which time somebody has written a
   // handler into a file that was never going to be served.
   it("refuses a name the chat already serves, and writes nothing", () => {
-    const refused = ovai(["plugin", "say"]);
+    const refused = ovai(["plugin", "message"]);
     assert.equal(refused.status, 1);
-    assert.match(refused.stderr, /say is already the name of a tool the chat serves everywhere/);
-    assert.ok(!fs.existsSync(path.join(instance, "plugins", "say.mjs")));
+    assert.match(refused.stderr, /message is already the name of a tool the chat serves everywhere/);
+    assert.ok(!fs.existsSync(path.join(instance, "plugins", "message.mjs")));
   });
 
   // A name a tool cannot have is a command line that is wrong, not a workspace that is: answered

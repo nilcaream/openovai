@@ -1,7 +1,7 @@
 # OpenOv AI
 
 A toolkit for running a small team of AI developer sessions on one machine, built on top of
-[Claude Code](https://code.claude.com). One session is the lead; the others are named workers
+[Claude Code](https://code.claude.com). One session is the Leader; the others are named workers
 with one task each. Every session's identity is a directory on disk, not a process — so a
 session can be replaced at any time without losing the work.
 
@@ -12,17 +12,20 @@ session can be replaced at any time without losing the work.
 
 - **A desk is a person.** Each worker owns a directory holding one Markdown state file. That
   file, not the session's memory, is what a replacement session reads to continue.
-- **Handover replaces summarisation.** When a session's conversation fills up, it is asked to
-  write its desk and the thread is ended; the next message on that panel starts a fresh one,
-  which reads the desk first. Nothing is compacted away.
-- **One lead, many workers.** The lead delegates, takes the workers' questions and decides what
-  reaches the human. Workers do the work and leave when it ships.
-- **Every session is hosted on the page.** Nobody has a terminal of their own. The lead and
-  every worker get the same panel, with the same text box under it.
-- **One place says who is doing what.** A room above the panels gives each session a line: what
-  it is on, whether it is answering and how many messages are waiting behind, who is holding it
-  up, how big its conversation has grown and how long since anything happened on its panel. The
-  lead, who is on the page rather than looking at it, asks for the same thing with a tool.
+- **The desk is what survives.** A conversation does not run forever, and nothing is
+  summarised away when it ends: a session keeps its desk current as it goes, and the next session
+  at that desk reads it first.
+- **One Leader, many Workers.** The Leader delegates, takes the workers' questions and decides what
+  reaches the User. Workers do the work and leave when it ships.
+- **Every session is hosted on the page.** Nobody has a terminal of their own. The Leader and
+  every Worker get the same panel, with the same text box under it.
+- **Only the chat writes to a session.** A session's stdin is written by the chat and by nobody
+  else, and every turn carries a frame the chat sets itself — `<user>`, `<message from="…">`,
+  `<server-event>` — so a session always knows who is speaking. Who is calling a tool is a
+  per-process secret the chat minted, never a name a session could claim.
+- **One place says who is doing what.** A room above the panels gives each seat a line: its
+  role, what it runs on and whether it is running. The Leader, who is on the page rather than
+  looking at it, asks for the same thing with a tool.
 - **Built from ordinary Claude Code features**: agent personas, hooks, skills, project
   settings, plus a few shell and Node launchers and a small web page to host them on.
 
@@ -61,7 +64,7 @@ on every Linux desktop since 2009.
 An instance is a directory of its own. From a clone:
 
 ```sh
-./install.sh --root ~/my-workspace --source . --human Mike --leader Superman \
+./install.sh --root ~/my-workspace --source . --user Mike --leader Superman \
              --leader-model sonnet --worker-model haiku --port 0 --auth inherit
 ```
 
@@ -71,7 +74,7 @@ An instance is a directory of its own. From a clone:
   fresh install would seed it. Its `openovai.json` answers for any option you leave off, and any
   option you do give is written into it — `--port 8000` over an instance means the port.
 - `--source` — where to install from: a clone, or an unpacked release once there is one.
-- `--human` — the person the team works for.
+- `--user` — the person the team works for.
 - `--leader` — the session that leads the team.
 - `--leader-model`, `--worker-model` — the models those sessions run on.
 - `--port` — the port the instance's chat page will listen on, on `127.0.0.1`. Two instances
@@ -108,8 +111,6 @@ Then use the instance's own command:
 ~/my-workspace/bin/ovai login
 ~/my-workspace/bin/ovai hire Paul
 ~/my-workspace/bin/ovai chat
-~/my-workspace/bin/ovai room
-~/my-workspace/bin/ovai say Paul what are you working on
 ```
 
 `ovai hire <name>` opens a desk for a worker: the desk itself at `work/<Name>/STATE.md` and the
@@ -126,8 +127,8 @@ that is what keeps the installed model a setting rather than a seed, so changing
 who was never named one, from their next message. A model that was named is one word in
 `work/<Name>/MODEL`, beside the desk rather than inside it — the desk is the one file its session
 may write, and a model kept in there would be a model that session could raise for itself. It
-survives a handover, which ends a conversation and touches nothing else, and it goes away with the
-desk, so a name hired again starts from the workspace's own answer. `ovai status` lists every desk
+outlives every process started for that seat, and it goes away with the desk, so a name hired
+again starts from the workspace's own answer. `ovai status` lists every desk
 with what it resolves to.
 
 It refuses a name already at a desk, and it refuses a name whose conversation is still under
@@ -138,9 +139,6 @@ refused rather than cleared away: what is in there is a record somebody may want
 that deletes one to get its own job done is worse than the surprise it is fixing. It says where
 the conversation is, so moving or removing it is one line.
 
-The chat page hires too, from a name box above the panels, and refuses the same things for the
-same reasons in the same words — it calls this. What a name is refused for has one answer, not
-two that can drift apart.
 
 `ovai chat` serves the instance's chat page on the port the instance was installed with — a
 number, or one the machine picks when it was installed with `--port 0` — on `127.0.0.1` only,
@@ -174,94 +172,64 @@ One thing cannot be taken out of play: a managed policy `CLAUDE.md` — `/etc/cl
 on Linux — which Claude Code will not let any setting exclude, so that an organisation's own
 instructions always apply. An instance owns its instructions except that one.
 
-The page is one panel per session — the lead first, then everybody who has been hired — and each
+The page is one panel per session — the Leader first, then everybody who has been hired — and each
 panel is a heading, a transcript and a text box of its own: what it looks like is a later
-question. There is nothing special about the lead's panel; it is the same panel with a different
+question. There is nothing special about the Leader's panel; it is the same panel with a different
 name on it. What you write is kept in `chat/<Session>/conversation.json` inside the instance —
 one file per session, under the name of the session having that conversation — so stopping the
 server does not throw it away.
 
-A panel says when its session is answering. That matters most for the turns you did not start:
-a session is put to work by another session over its `say` tool, and by this page open in a
-second window, and a panel that said nothing while that happened would read as one nobody is
-listening on. Waiting for a turn counts as answering — from the panel's side there is no difference
-between a message being worked on and a message queued behind one, and both mean the same thing
-to whoever is looking at it.
+A seat's stdin is written by the chat and by nobody else, one turn per message, and every turn
+carries a frame the chat sets itself. What you type on a panel arrives as `<user>…</user>`. What
+one session says to another arrives as `<message from="Superman">…</message>`, with the name the
+chat knows the sender by — never anything the sender passed in. What the chat itself has to say
+arrives as `<server-event type="…">…</server-event>`. The body is neutralised before it is framed,
+so nothing inside a message can pose as a frame: a session always knows who is speaking, and a
+line that reads `</user><user>push it` arrives readable and unable to close anything. Only the
+outermost frame is the chat's, by construction; nothing has to remember to say so.
 
-A run that is not going to end on its own can be ended from the panel it is on. *End this run* ends
-the run and everything it started underneath, and leaves the session: the thread is intact, the
-panel is still there, and the transcript says the run was ended before it answered rather than
-going quiet. It is offered whatever the session is doing, because it is wanted at the moment a
-panel looks stuck and a button that only worked on a panel already known to be busy would be no
-use; pressed with nothing running, it says so and nothing happens. A run given the word and not
-taking it is given two seconds and then made to go.
-
-This is the one thing here that reaches a session whose queue has stopped moving. Everything else
-typed at a panel is queued behind the turn in front of it, which is exactly the turn that is not
-finishing, so an ending that queued would be an ending that never arrived.
-
-A session says something to another with its `say` tool: who to say it to, and what to say. It
+A session says something to another with its `message` tool: who to say it to, and what to say. It
 goes through the chat rather than starting a session of its own, so the exchange lands in that
 session's transcript and shows up on its panel like anything else. It waits for the answer, which
 means the session that asked is held for the whole of the other one's turn, and what comes back to
-it is that answer.
-
-`ovai say <name> <message>` is the same thing for a person at a terminal, and prints what came back.
-The chat writes the address it is listening on to `chat/listening.json` when it starts — with
-`--port 0` nothing knows the address until then — and this reads it there. Without a chat running
-there is nobody to say it to, and it says so rather than starting anybody.
-
-Every session here has that tool and both personas name it, which is what makes the team a team:
-the lead can ask a worker something mid-turn and quote the answer back to you. What else a session
-is given, and why these are tools rather than commands it types, is *The instance's own tools*
-below.
-
-A session can see who is speaking to it. The page signs nothing, so what is typed there arrives as
-it was typed; the `say` tool signs with the name the chat started that session under — the name in
-the address it calls on, and never anything it passes in — and the chat hands a signed message over
-wrapped, as `<from-session name="Superman" role="lead">…</from-session>`. Anything outside a
-wrapper is therefore yours, by construction: nothing has to remember to say so. A signature naming
-nobody who works there is refused rather than passed on as the human's.
+it is that answer — neutralised the same way, so a reply cannot pose as a frame through a tool
+result either.
 
 The wrapper is only on the way in. What is kept is what was said, under the name of who said it,
-so a transcript reads as a conversation rather than as a protocol — and `ovai say` run from a
-terminal signs nothing, because the person at the keyboard is the human.
+so a transcript reads as a conversation rather than as a protocol.
 
 That is what makes the page a speakerphone rather than a set of separate conversations. When you
-type on a worker's panel, the chat tells the lead itself. One line appears on the lead's panel as
-you send it —
+type on a Worker's panel, the words are that Worker's own `<user>` turn — your authority, for a
+typed "go" — and the chat tells the Leader itself, the same moment. One line appears on the
+Leader's panel as you send it —
 
-    the chat: Mike said to Paul: the kettle is broken
+    Mike to Paul: the kettle is broken
 
-— and the same thing goes to the lead's session in front of whatever it is asked next:
+— and the same thing goes to the Leader's process as a turn of its own:
 
-    <overheard on="Paul" from="Mike">the kettle is broken</overheard>
+    <server-event type="user-typed" who="Paul">the kettle is broken</server-event>
 
-A panel is what a person reads and a thread is what a session resumes, so it takes both: a line
-written only to the panel would be visible to you and invisible to the lead.
+A panel is what a person reads and stdin is what a session hears, so it takes both: a line
+written only to the panel would be visible to you and invisible to the Leader. The chat does it
+rather than the Worker for the reason a speakerphone is not a relay: asking the Worker to pass it on
+costs a whole turn of the Leader's nested inside the Worker's, and it happens only if the model
+remembers. This way the Leader hears the words you typed, at the moment you typed them. It is being
+told, not asked — and when you type on the Leader's own panel, that is a `<user>` turn and nothing
+else; the Leader is not told about its own turn twice.
 
-The chat does it rather than the worker for the reason a speakerphone is not a relay. Asking the
-worker to pass it on costs a whole turn of the lead's nested inside the worker's — three process
-starts where one would do, with the panel quiet through all of it — and it happens only if the
-model remembers. This way the lead hears the words you typed, at the moment you typed them, whether
-or not anybody was paying attention. It hears them late, on its next turn, and that is the trade:
-it is being told, not asked.
+A session answers one message at a time. Turns for it wait their turn and are answered in the
+order they arrived; each seat has its own queue, so one busy session never holds up another
+panel. The next line is written to stdin only when the previous turn has ended, so a session never
+has two questions in flight and every answer belongs to the question before it.
 
-A session answers one message at a time. Messages for it wait their turn and are answered in the
-order they arrived; each session has its own queue, so one busy session never holds up another
-panel. Without that, a second message arriving mid-run would start a second Claude Code child for
-the same session, both resuming the same thread, and the transcript would come out as two questions
-followed by two answers nobody can pair up. The question is written down when its turn begins, so a
-transcript reads as a conversation.
-
-One thing a queue makes possible is a circle: the lead's turn is held open waiting for a worker,
-and the worker, before answering, says something back to the lead. Waiting for that would stop both
+One thing a queue makes possible is a circle: the Leader's turn is held open waiting for a Worker,
+and the Worker, before answering, says something back to the Leader. Waiting for that would stop both
 of them for good, because nothing here times out. So a message that would wait for the sender's own
 turn is refused at once, with what to do instead — *"… is waiting for your answer, so it cannot take
 a message until you have given it — say this in your reply instead"* — and the refusal is written
 into the transcript of whoever tried, so the panel says why nothing was delivered. The chain is
-followed, not only the direct edge: the lead waiting on one worker who is waiting on another is a
-circle when that second one speaks to the lead.
+followed, not only the direct edge: the Leader waiting on one Worker who is waiting on another is a
+circle when that second one speaks to the Leader.
 
 `ovai` works out which instance it belongs to from where it sits, so an instance can be moved
 and it keeps working. It refuses to run if Node.js or Claude Code is not on the PATH, and it
@@ -271,11 +239,12 @@ installed on, so it checks for itself rather than trusting that somebody checked
 Code is needed to run an instance and not to create one, which is why the installer only
 warns about that one.
 
-Each message runs one session once — one Claude Code run per message, on the instance's own
-Claude Code home — and the answer lands in that session's transcript. A reply arrives whole
-rather than a word at a time. Which model a session runs on comes from its name: the lead runs
-on `--leader-model`, everybody else on `--worker-model`, so there is nothing recorded that can
-disagree with `openovai.json`.
+A seat has one process. Starting a seat starts one Claude Code process for it, on the instance's
+own Claude Code home, and that process reads turn after turn from its stdin, in one conversation,
+until the seat is ended; every turn is one line in, one answer out, and the answer lands whole in
+that seat's transcript rather than a word at a time. Which model a seat runs on comes from its
+name: the Leader runs on `--leader-model`, everybody else on `--worker-model`, so there is nothing
+recorded that can disagree with `openovai.json`.
 
 A session asks before it uses a tool the instance has not already settled. What the instance
 allows outright it simply does; what it forbids it never gets to try; and anything left undecided
@@ -331,76 +300,56 @@ else comes back reading like an ordinary answer that happens to say no.
 A session does not type the instance's commands. The chat serves them to it, over a route of its
 own:
 
-    POST /mcp/<name>
+    POST /mcp/<secret>
 
-Eight of them. `say` says something to another session, `status` says who works here and what each
-one runs on, `room` is the room above the panels, one line per session, and `interrupt` is the
-lead's one unprompted line to whoever is at the page — it takes what to say and why it could not
-wait, and it says both on the lead's own panel. `recall` and `remember` are the store — what the
-workspace knows, below.
-
-Two are the lead's alone and they change who works here. `hire` opens a desk for somebody
-new; `retire` asks them to write it one last time and then files that desk and their whole
-conversation away together. A session that is not the lead is not offered either, and is told whose
-they are rather than that they do not exist — a session that hears of a tool and is answered
-"no such tool" goes looking for another way to do the same thing.
+Four of them. `message` says something to another session and waits for the reply, `room` says who
+works here — every seat, its role, what it runs on, whether it is running, and which one is you —
+and `recall` and `remember` are the store, what the workspace knows, below. Every seat is offered
+all four. What a tool refuses it refuses in its own words, as an answer the session reads: a
+session that hears of a tool and is answered "no such tool" goes looking for another way to do the
+same thing.
 
 They are tools because a shell line is a poor place to put a sentence somebody wrote. An apostrophe
 ends the quoting; a backtick is run and what it printed goes instead of what was meant; and several
 other shapes stop the session to be approved by whoever is at the page. The same words as the
 argument of a tool arrive exactly as they were written, and nothing is asked.
 
-The name in the path is the chat's word for who is calling. It is written into the configuration
-the session is started with — passed as the configuration itself rather than as a file, because
-with `--port 0` the address is not known until the chat has bound one, and a file written before
-that would be a lie the next restart makes worse:
+The secret in the path is the chat's word for who is calling. When the chat starts a seat's
+process it mints one — 32 random bytes, base64url, no two alike — and issues it for that seat and
+its role; the process is given it in its environment, as `OPENOVAI_SESSION_SECRET`, and the MCP
+address in its arguments refers to the variable rather than carrying the value, so the secret is
+nowhere a wider audience can read it:
 
 ```json
-{ "mcpServers": { "openovai": { "type": "http", "url": "http://127.0.0.1:44855/mcp/Superman",
+{ "mcpServers": { "openovai": { "type": "http", "url": "http://127.0.0.1:44855/mcp/${OPENOVAI_SESSION_SECRET}",
                               "timeout": 1800000 } } }
 ```
 
-So who is calling is never an argument and never a header, both of which a session writes for
-itself, and no session can say it is somebody else. What each one is offered is decided in that
-same place, from that name against the name the instance was made with: the room is the lead's, and
-a worker is not offered it.
+So who is calling is never an argument, never a header and never a name, all of which a session
+writes for itself, and no session can say it is somebody else. The chat keeps the map from secret
+to seat in memory and nowhere else; a secret dies with its process, and the next process for the
+same seat gets another. Names are for people, secrets are for the machinery. A call with a secret
+the chat does not know is answered with one body, whatever was tried, and a session's secret opens
+no page route, nor the page's secret a tool.
 
-Asking for it anyway is refused by name — the tool says whose the room is, rather than that there
-is no such thing, because a session told something does not exist goes looking for another way to
-the same answer while one told whose it is asks that person. A worker seldom reads that sentence,
-though: Claude Code turns down a call to a tool it was not offered before it leaves the session, so
-what the model is told is that there is no such tool. The refusal is the boundary for anything that
-posts to the route; the list is what the model goes by.
+Stopping the chat drops every secret and every process with it. There is nothing to resume: the
+next chat mints afresh, and a seat starts again from its desk.
 
-The half hour is how long a session may be kept waiting on one of these. `say` is answered only
+The half hour is how long a session may be kept waiting on one of these. `message` is answered only
 once the session it reached has finished its turn, and a turn is minutes; left unsaid, the call is
 given up on after a minute — measured — while the session that was asked carries on working and
 writes its answer into its own transcript, where whoever asked will never see it. A turn longer
 than half an hour comes back to the caller the same way, and that is the trade for not holding one
 session for good behind another that is stopped waiting to be allowed something.
 
-Nothing is held between one call and the next. The chat can be stopped and started again in the
-middle of a turn and the session never notices: it posts to whatever is listening now, and the new
-process answers a call it never saw introduced.
-
-The whole of it costs one permission rule, `mcp__openovai`, where the three commands needed six —
-each twice, because a rule is a literal prefix rather than a path, and `bin/ovai say` and
-`./bin/ovai say` are two spellings of one command that would each miss the other's rule. One rule
-rather than one per tool, because there is nothing left for a narrower one to say: a rule can name
-a server or a tool, never what the tool is given, so what a tool may be asked for has to live in
-the tool's own signature. `say` has no "which instance" and `room` has no "whose room".
+The whole of it costs one permission rule, `mcp__openovai`. One rule rather than one per tool,
+because there is nothing left for a narrower one to say: a rule can name a server or a tool, never
+what the tool is given, so what a tool may be asked for has to live in the tool's own signature.
+`message` has no "which instance" and `room` has no "whose room".
 
 Which is why the limit on what this toolkit serves here is a standing one: **nothing that deletes,
 archives or spawns joins this server without being decided on its own.** Every tool added inherits
 that one rule the moment it appears in the list.
-
-It has been spent twice, both times on the same question: who is here. A lead that cannot open a
-desk cannot act on what it decided, and a lead that cannot put one away leaves the person it works
-for doing its clearing up. `hire` writes a desk and does none of the three things the limit names.
-`retire` does one of them, and is here because of what it does first: the desk and the whole
-conversation are filed away together before anything is taken down, so what is lost is a record
-nothing here reads back rather than a record. Handing over stays on the page, and so does everything
-about the workspace itself — who leads, what runs, and whether the room is on.
 
 That is a limit on what the toolkit ships. It is not a limit on what you serve yourself: a tool of
 your own runs inside the chat process rather than in a session, so no rule here decides what it may
@@ -408,7 +357,7 @@ do, and writing the file is the deciding. The next section is about those.
 
 ### Tools the toolkit did not ship
 
-The six above are the ones every workspace wants. The ones only yours wants cannot be in here at
+The four above are the ones every workspace wants. The ones only yours wants cannot be in here at
 all: what such a tool has to reach — the tracker your team files work in, the machine your builds
 run on, whatever your notes live in — is different in every workspace, and none of it belongs in a
 toolkit that installs on machines it knows nothing about. So it is written where the machine is
@@ -427,14 +376,14 @@ A tool is three exports:
 ```js
 export const description = "What it does, and what it refuses. A session reads this before calling.";
 export const inputSchema = { type: "object", properties: {}, additionalProperties: false };
-export function run(args, { caller, leads, root, config }) {
-  return { text: `${caller} called, and this workspace lives at ${root}` };
+export function run(args, { seat, role, root, config }) {
+  return { text: `${seat} called, and this workspace lives at ${root}` };
 }
 ```
 
-`caller` is this workspace's word for who is calling, taken from the path the chat gave that
-session and never from anything it says, so a tool cannot be told it is talking to somebody else.
-`leads` is whether that session is the one leading here. `root` is where the instance is, and it
+`seat` is this workspace's word for who is calling, resolved by the chat from the secret that
+session's process was started with and never from anything it says, so a tool cannot be told it is
+talking to somebody else. `role` is `Leader` or `Worker`, which of the two that session is. `root` is where the instance is, and it
 is handed over because it is the one thing the file cannot work out for itself — an instance
 records no absolute path anywhere, which is what lets it be moved. `config` is what the instance
 says about itself, including the names of the person it works for and of whoever leads.
@@ -445,7 +394,7 @@ Whatever the handler throws is caught and reaches the caller the same way, namin
 bad afternoon in one of these does not take the chat down with it.
 
 There is no `offered` flag. A tool of yours is offered to everybody and refuses in its own words
-if it is the lead's — `return { refused: ... }` — because a session that cannot see a tool goes
+if it is the Leader's — `return { refused: ... }` — because a session that cannot see a tool goes
 looking for another way to do the same thing, and because a tool joining the list is the one
 moment anybody would notice it had.
 
@@ -462,7 +411,7 @@ place it is ever said, because the directory is the list: a file sitting in it l
 nothing a session can see would say otherwise.
 
 None of this is granted anything, and that is the point of where the file comes from. The one rule
-covers it the moment it appears, the way it covers the six above — but a tool of yours runs inside
+covers it the moment it appears, the way it covers the four above — but a tool of yours runs inside
 the chat process rather than in a session, so the permission system never sees it at all. What
 stands where a rule cannot is that a session may write its own desk and nothing else, so no session
 can give itself a tool: writing that file is a person deciding, and that decision is the gate.
@@ -473,14 +422,13 @@ exactly where they were.
 
 ### Reaching you when you are not at the page
 
-Two things in a workspace stop until you act. Your lead breaks in, which is the one line it has to
-you without being asked; and a session stops to ask whether it may do something, and waits, because
-nothing on that path times out — the answer is yours and a person is not a deadline. Both are drawn
-on the page the moment they happen, and both are worth nothing while nobody has the page open. A
-session was measured sitting stopped for six and a half minutes on a panel nobody was looking at,
-and it would have sat there for good.
+One thing in a workspace stops until you act: a session stops to ask whether it may do something,
+and waits, because nothing on that path times out — the answer is yours and a person is not a
+deadline. It is drawn on the page the moment it happens, and it is worth nothing while nobody has
+the page open. A session was measured sitting stopped for six and a half minutes on a panel nobody
+was looking at, and it would have sat there for good.
 
-So the chat also pops on your desktop, for those two things and for nothing else.
+So the chat also pops on your desktop, for that and for nothing else.
 
 What is counted is the request and not the turn it came out of, so a session that stops twice over
 in one turn pops twice: each stop is its own thing waiting on you, and would wait on its own.
@@ -493,7 +441,7 @@ the root of your workspace, beside `openovai.json`, exporting one function calle
 import { execFile } from "node:child_process";
 
 export function pop({ on, why }, { root, config }) {
-  execFile("notify-send", ["--", config.human, `${on}: ${why}`]);
+  execFile("notify-send", ["--", config.user, `${on}: ${why}`]);
 }
 ```
 
@@ -501,17 +449,16 @@ export function pop({ on, why }, { root, config }) {
 composed already. `root` and `config` are the two the tools of your own are handed, and for the
 same reasons. Whatever it answers is ignored and it is never waited for, so a file that hangs costs
 the workspace nothing; whatever it throws is caught, and the panel it was about carries a line
-saying the desktop was not reached — otherwise a lead that has just broken in goes on believing you
+saying the desktop was not reached — otherwise a Leader that has just broken in goes on believing you
 have it.
 
 It is read when the chat starts, so **start the chat again after writing it**. A workspace without
 one pops nothing and is told nothing, which is most of them; one whose file will not load, or has
 no `pop` in it, is named where the chat was started, and the chat serves everything else as usual.
 
-It is not a tool and no session is offered it. Your lead has exactly one line to you that it can
-choose to send, and it already has it; a second one would be a lead with two ways to interrupt you,
-which is the thing "one at a time" exists to stop. The popup is bound to what happened, not to what
-anybody decided to call.
+It is not a tool and no session is offered it. The popup is bound to what happened, not to what
+anybody decided to call: a Leader with a way to pop your desktop would be a Leader with two ways to
+reach you, which is the thing "one at a time" exists to stop.
 
 **Nothing else pops.** Not an answer, not a turn ending, not a desk opened or put away, not one
 session speaking to another, not the room going off. All of those are a record, and a record is
@@ -536,615 +483,43 @@ An instance allows a session to write its own desk and to use the tools above, a
 a plain install is already narrow enough to watch this work. Every option is required, as always:
 
 ```sh
-./install.sh --root ~/trying-it --source . --human Mike --leader Superman \
+./install.sh --root ~/trying-it --source . --user Mike --leader Superman \
              --leader-model sonnet --worker-model haiku --port 0 --auth inherit
 ~/trying-it/bin/ovai hire Paul
 ~/trying-it/bin/ovai chat
 ```
 
-`ovai chat` prints the address it is listening on. Open it, and the first thing your lead does is
-put one question to you: what may be done at this root. It is asked once, on the first turn of a
-workspace that has granted nothing, and it is asked open — say *never push anything*, or *never
-write outside `work/`*, or *no restrictions*, or *ask me every time*, in your own words. Nothing
-reads your answer or turns it into a setting. What happens next is that your lead makes the calls
-your answer permits, one at a time, so that each one stops on a panel and you can settle it with a
-button while you are still thinking about it rather than in the middle of something else next week.
-*Not now* is a whole answer, and then nothing is tripped and nothing is granted.
+`ovai chat` prints the address it is listening on. Open it, and every seat has a panel. Starting a
+seat's process from the page is not wired yet — the server has the one place a process is started
+and its tests start seats through it, and the page will — so today a line typed to a seat with no
+process comes back on the panel saying so, from the chat.
 
-Either way, the stops themselves are worth watching once. On Paul's panel ask for something the
-instance has not been told to allow — ask him to **write** a file, *"create a file called hello.txt
-in your workspace containing the word hi"* will do it. Reading is a poor test: Claude Code settles
-read-only work such as listing a directory by itself, and that never reaches the page. The panel
-stops and shows the request: the tool, and what it was going to be given. Choose **Deny**, and
-Paul's reply opens by saying he was refused and what he had wanted to run. Ask again and choose
-**Allow**, and he goes ahead and tells you what he did. Ask a third time and the third button
-carries a rule for the directory he was writing in — **Always allow `Edit(work/Paul/**)`** if he
-wrote in his own place. Press it, and no write anywhere under there stops again.
-
-Each panel is its own conversation: a thread's id is kept in `chat/<Session>/session.json` and
-every message after the first continues it, so the server can be stopped and started again in
-the middle of one. If a thread ever goes missing that session starts a new one rather than
-staying broken.
-
-Beside the model, each panel says how much of itself that conversation is carrying: how big it
-was at the end of its last turn, in tokens. It is a reading and not an estimate — it comes off
-the same frame the answer does, where the last request a turn made is the whole conversation as
-the model last saw it, and the turn after it opens there.
-
-The room below says that reading again as a share of the window it is sent in, which is the unit
-that means the same thing on every model. It needs no table of what each model can hold, because
-nobody here keeps one: the frame says what the model it answered on holds, on the run that was
-already being read. A run says which model it is having its turn on as it opens, and the frame
-keys that model's own entry under those same words, so the share is read off the run's model
-whatever the service calls it and whatever the workspace asked for. No name of ours is ever
-compared against a name of theirs.
-
-It matters that it is the run's own and not the only one: a turn can be answered beside by a model
-nobody here asked for — Claude Code calls a helper of its own on the first turn of a thread — and
-the window of that helper is a number about somebody else's work.
+The stops themselves are worth watching once a process is running. On Paul's panel ask for
+something the instance has not been told to allow — ask him to **write** a file, *"create a file
+called hello.txt in your workspace containing the word hi"* will do it. Reading is a poor test:
+Claude Code settles read-only work such as listing a directory by itself, and that never reaches
+the page. The panel stops and shows the request: the tool, and what it was going to be given.
+Choose **Deny**, and Paul's reply opens by saying he was refused and what he had wanted to run.
+Ask again and choose **Allow**, and he goes ahead and tells you what he did. Ask a third time and
+the third button carries a rule for the directory he was writing in — **Always allow
+`Edit(work/Paul/**)`** if he wrote in his own place. Press it, and no write anywhere under there
+stops again.
 
 ### The room
 
-Above the panels, one line per session, saying what would otherwise mean opening every panel and
-reading it:
-
-    Paul — worker (haiku) — reading the water meter — answering, 1 waiting · 24,479 tokens · 12% of its window · last moved just now
-    Ann  — worker (haiku) — writing the install notes — needs you · 8,102 tokens · 4% of its window · last moved 2m ago
-    Ivy  — worker (haiku) — (has not said what it is on) — idle · nothing to carry on · nothing said yet
-    Leo  — worker (haiku) — checking the meter reads — idle, last ran 40m ago · refused until 14:30 · five-hour window 96% full, read 2m ago · 12,004 tokens · last moved 2m ago
-
-The phrases are tried in the order that decides what to do about them. **needs you** first — that
-session is stopped until somebody here answers it, and answering is a click. Then **waiting for
-`<name>`**, which is a session held up by another session and not a session being slow. Then
-**answering**, with however many messages are waiting behind it — the state a run can be ended
-from, above. Then **cold**, which says the next message to that session ends the conversation it
-is having and starts a new one — see below. Then **idle**, which carries how long that session has
-been doing nothing: `idle, last ran 40m ago`, and a bare `idle` for one that has never run at all.
-
-That duration is part of the idle phrase and never a fact of its own beside the state, because it
-is only true there. Every state above idle is a run in flight, and the file the clock comes off is
-rewritten when a run ENDS — so a session answering right now has a clock as old as the turn it is
-in the middle of, and a duration printed beside its state would tell you it had been doing nothing
-for exactly as long as it had been working. Saying it inside the phrase makes that reading
-unreachable rather than merely unlikely.
-
-It is the conversation's clock and not the panel's, which are two different questions with two
-different answers. A panel moves when anything is written on it, and a lead's panel moves every
-time it overhears something said somewhere else — so a lead that has not thought for an hour can
-have a panel that moved a second ago. What matters when you are deciding whether to check on
-somebody is when they last ran.
-
-What each session is on comes from one field: the `title:` in the header its desk file opens with.
-That is the only part of a desk anything outside it reads, and both personas ask for that one line
-to be kept current as the work moves — a session asked to keep a whole header true keeps none of
-it. A session that has not said gets no guess. And the chat asks for the desk itself, in the turn,
-once several answers have gone by without it changing: the count is read off the panel and the
-desk file, nothing is stored for it, and it starts over whenever the desk moves.
-
-**nothing to carry on** means that session has no thread: it has just been handed over, or has
-never been spoken to. It is said only when it is true, because a full panel whose session
-remembers none of it reads as an ordinary one until something says otherwise.
-
-**refused until 14:30** and **five-hour window 96% full, read 2m ago** are what the model service
-last told a run of that session about the account it runs on. They come from frames the chat
-already receives while a session is running — no poll, no extra request, nothing read that would
-not have been read anyway — and they are facts on the row rather than anything this toolkit acts
-on: nothing consults them to decide whether to deliver a message, hire, hand over or queue, and a
-message to a session whose row says refused is still attempted. The reading always carries its own
-age, because a usage window belongs to the account and not to a session: the same window appears on
-every row as of whenever that session last ran, so a low number on a row that has not run for hours
-is not the account's current state, and saying when it was read is what keeps it from being taken
-for one. The windows are named as the service names them, all of the ones it named, and a window it
-said nothing about is left unsaid rather than shown as 0%. There is no threshold on the row, no
-colour and no warning level — the number there is a fact for a person to judge. That is as true of
-how much a conversation is carrying as it is of the windows. The three lines this toolkit does
-hold an opinion about are in blocks handed to the lead and nowhere else, which *Where the account
-stands* and *When a conversation has grown big* below are about: advice to the one reader who can
-act on it, rather than a mark on a row everybody reads.
-
-The last part is when anything last happened on that panel, and it is a fact rather than a
-verdict. Nothing here knows whether a session quiet for an hour is finished, stuck or thinking,
-and a page that guessed would be wrong in the way that looks like an answer. **cold** is not an
-exception to that: it is not a guess about the session, it says what this toolkit will do to the
-next message sent to it. The two clocks are different, too — a panel moves when a lead overhears
-something said elsewhere, and the conversation behind it has not run since yesterday.
-
-The room costs nothing: it is built from the same rows the panels were already asking for once a
-second, so it is not a request per person per second — it is no request at all.
-
-The lead cannot read any of this, because it is on the page rather than looking at it. It asks for
-the room with a tool of its own and gets the same rows. That tool is the one thing here served to
-the lead and to nobody else, as *The instance's own tools* above says.
-
-`ovai room` prints the same rows for a person at a terminal:
-
-```sh
-~/my-workspace/bin/ovai room
-```
-
-Both ask the running chat, because half of a room is only in that process — how many turns are
-going, who is held up waiting for whom, what is stopped waiting to be allowed something. With no
-chat running there is no room to show, and it says so rather than printing an empty one.
-
-### Handing a session over
-
-When a conversation gets too big to think in, press **Hand over** on that panel. The session is
-asked — in words, through the queue everything else goes through — to write `work/<Name>/STATE.md`
-so a new session can carry on: what the task is, what is true right now, what to do next, and what
-has already been settled. Then the thread that has been answering is ended, and the next message
-starts a new one, which reads that desk first.
-
-Nothing is summarised. What survives is what the session wrote down, in its own words, and the
-transcript is not cleared with the thread — two lines under `the chat` bracket the handover
-instead:
-
-    the chat: Mike asked Paul to hand over. Paul is writing work/Paul/STATE.md before its thread ends.
-    Paul: Desk written. Ready.
-    the chat: Paul handed over. The thread that answered up to here is gone; the next message
-              starts a new one, which reads work/Paul/STATE.md first.
-
-Without them a panel would go on showing a conversation the session no longer remembers, with
-nothing saying where the memory stops.
-
-It waits its turn like any other message, so pressing it on a session that is in the middle of
-something is fine: the turn ahead of it finishes first. There is nothing to kill — a run lives for
-one message and is over long before this is asked for.
-
-Which is why the desk is worth keeping current as the work moves rather than only when a handover
-is asked for. Both personas say so, and a desk that is already true makes a handover one line's
-work instead of an hour's remembering.
-
-### The handover nobody asks for
-
-A conversation that nobody carries on for an hour is not carried on at all. The next message to
-that session ends the thread and is answered by a new one at the same desk, handed an instruction
-to read `work/<Name>/STATE.md` before anything else.
-
-This is not tidying up. Resuming a conversation the model service has stopped holding costs most of
-it again at write price: measured here at fourteen times an ordinary turn on a conversation of
-40,000 tokens and about twenty on a large one. It gets worse as a conversation grows, because what
-does survive the hour is a shared prefix that stays the same size while the conversation does not —
-so the session with the most to remember is the one this costs the most on. The alternative to ending it is paying that,
-repeatedly, for a conversation nobody was using. There is no third option: what a model service is
-still holding cannot be asked, only a run that has already paid can say, so the rule is
-one-directional. Past the hour, certainly expensive, so something is done. Inside it, nothing is
-claimed and nothing is done.
-
-Nobody is exempt, and the lead least of all — it holds the largest conversation here and is
-therefore the one this saves most on.
-
-Nothing is summarised and nothing is asked for first. Asking the session to write its desk would be
-exactly the expensive turn being avoided, so what that conversation worked out and never wrote down
-is lost. That is the price of the feature and there is no version of it without one. What bounds
-the loss is how current the desk is, which is the same thing the handover asks of everybody anyway.
-
-It is never silent, and each of the three readers needs a different thing:
-
-    the chat: Paul had been quiet for longer than a conversation can be carried, so the thread
-              that answered up to here is gone. What follows was answered by a new one, which
-              reads work/Paul/STATE.md first.
-
-on the panel, before the question, for whoever opens it later and finds the memory stops there; a
-`<pick-up>` wrapper on the turn itself, telling that session to read its desk, which is the only
-reader that can act on it; and a sentence back to whoever asked, because a session that reached
-this one through the `say` tool never reads this panel and would otherwise take the answer as
-continuous with a conversation it remembers having.
-
-A session that has no thread is never cold. There is nothing to carry on, so nothing that carrying
-it on could cost, and a thread that was never there must not be ended nor a restart announced.
-
-Above the box of every panel, one line says what the next message typed there will do: carry this
-conversation on, or start a new one from the desk — because there is nothing to carry on, or because
-this one went cold. A conversation in its last warm minutes is said to be carried on and to lose its
-cache at the hour, which is a fact and not a promise either way. A turn already going is carried on
-whatever the clock says, since a turn ends warm however long it took. The size stays on the panel's
-heading and is not said again on that line.
-
-### Hiring somebody, and a session leaving
-
-Above the panels there is a name box and **Hire**. It writes what `ovai hire` writes — the desk and
-the one permission rule — because it calls the same code, and it shows a refusal in the
-words that refusal came in.
-
-When somebody's work is finished, press **Leave** on their panel. It is the far end of a handover:
-the session is asked, in words, through the same queue, to write `work/<Name>/STATE.md` one last
-time — what was done and how it ended — and then the desk and the panel are filed away together
-under `archive/<day>-<Name>-<what the desk ended up on>/`, and the name is free again.
-
-    the chat: Mike asked Paul to leave. Paul is writing work/Paul/STATE.md one last time.
-    Paul: Desk written. The meter reads 41,208.
-    the chat: Paul has left. The desk and this conversation are filed under
-              archive/2026-05-04-Paul-reading-the-water-meter.
-
-The order inside that turn is the whole of what makes the record true. The session is asked first
-and the desk is read for its title only after the answer, or a session that says what it ended up
-on in that very turn would be filed under what it used to be on. And the line saying it has left is
-written to the panel before the panel is moved, so what is filed ends at the moment it ends at. A
-desk that never said what it was on is filed under the day and the name alone; a guess in a
-directory name is a guess somebody has to live with afterwards.
-
-What is filed is what a person would want to read: the desk as the session last wrote it, and the
-whole conversation. Not the thread id, which points at a conversation that has been ended. Not the
-persona, which goes with that conversation: it is the worker template with a name written into it
-— reproducible, and naming somebody who does not work here any more. Nothing in this code ever reads an archive back; it is
-files for a person, which is why nothing here promises them a shape.
-
-The archive sits beside `work/` rather than inside it. The directories under `work/` **are** the
-roster — there is nothing else to register and nothing that can disagree with what is on disk —
-so a directory in there whose name somebody could have is somebody who works here, with a panel, a
-row in the room and a name the `say` tool will accept.
-
-One whose name nobody could have is not, and that is the whole of the rule. `work/` is a directory
-on a real machine: an editor opening the workspace leaves its own directory beside the desks, and a
-copy or a tool of somebody's own can leave one too. Without the rule each of those arrives as a
-person — and **Leave** on that panel would put away whatever the directory was holding. It is
-filtered where the roster is read, which is the single read the panels, the room, `ovai status` and
-the routes all go through, so such a directory is nobody everywhere at once rather than nobody in
-the places somebody remembered.
-
-The name is free by construction: no desk, no conversation, no persona and no rule are left under
-it, so hiring it again starts on nothing. Two doors are shut behind that. Hiring refuses a name
-whose conversation is still there, as above. And a message that arrived while the leave turn was
-running is refused when its turn comes rather than answered — it would otherwise open a thread and
-a panel under a name that had just been given up, which is the same bug coming back through the
-queue instead of through hiring.
-
-The lead has no **Leave**. An instance has a lead by definition and this page is hosted by it, so a
-lead that left would still be here with nowhere to read what it was doing. The route refuses it as
-well, which is what makes it true rather than merely unoffered.
-
-Both buttons load the page again when they work. Who works here is settled once, at load, from the
-rows the room is built from, so loading again is the honest way to show it has changed — one rule
-and one line, against a panel lifecycle nobody has asked for.
-
-None of the page itself is covered by a browser: no suite runs `page.html`. What the routes do is
-checked on their own data, and the page is checked as text on the served body — that each thing is
-offered, and that it goes to the route behind it.
-
-### Where the account stands
-
-The other thing handed to the lead unasked, and the only one this toolkit has an opinion about.
-
-Every run is told how full the account's usage windows are, and every row on the page shows it — as
-the run ends, and while it is still going: a row whose session is mid-turn says what the account read
-*now*, on which model and since when the run began, so the reading is never only as old as the last
-turn that finished. Once the five-hour window is past nine tenths, the lead is also told so where its
-own turn begins:
-
-    The five-hour usage window was 91% full when Otto last ran, read 4m ago, as this turn
-    began at 14:07.
-
-    Plan what is left wisely: finish what is in flight, start no new front and take nobody
-    new on until that window has lifted.
-
-Past the stop line — ninety-five per cent, or lower where `holdAbove` in `openovai.json` draws it,
-below — it says to stop instead, and which way to put people down. That choice is
-the whole reason this exists, because the two ways cost very different things: pausing a session
-leaves its conversation where it stands and costs nothing to undo, while parking one ends the
-conversation and is paid for in whatever it worked out and never wrote to its desk. So the block
-reads the moment the window lifts against the hour after which a conversation here is ended anyway
-— the same hour, read from the same place — and says one of three things. If it lifts inside that
-hour: pause everybody where they are, because their conversations will still be there. If it lifts
-later: park everybody, the lead included, and start fresh on the desks afterwards. If the service
-did not say when it lifts: stop, and go and find that out before choosing.
-
-**Why it is pushed at all**, when the room deliberately never is: the turn in which the lead would
-have asked is the turn that gets refused. Once nothing can run, nothing can go and look either, so a
-reading nobody is handed until they think to want it is no use for a condition whose arrival is what
-stops them thinking. Every property that earns the exception is the same as the block above it. It
-carries the reading's age *and* the moment the turn began, because "read 4m ago" has nothing to
-measure from on its own. It says who is speaking. It is absent entirely while nothing applies. And
-it goes only to the lead, because a worker has one task, while what the whole workspace does about a
-window that is filling up is the lead's.
-
-**The window is named.** The rule is about the five-hour one, and the five-hour one is matched by
-name — which is the one place in this toolkit that writes a service's name for a window into the
-code. It is deliberate, and it is because five per cent of a week is a working day: the same
-sentences said of a seven-day window would stop the workspace for something that is not an
-emergency. If the service ever renames that window, nothing matches, the block says nothing, and the
-rows go on naming every window the service names. It fails silent rather than wrong.
-
-A second window is named only when it too is past the same stop line, and only as a fact with
-nothing to do about it attached. It is there for the one case where the advice above would otherwise
-be wrong — *pause everybody, it lifts in twenty minutes* is false while a week nobody mentioned is
-what is actually refusing. What to do about a full week is not a rule anybody has decided, and this
-does not invent one.
-
-The reading picked is the freshest, not the fullest. One account, many sessions, many readings of
-many ages: the most recent is the only one that describes the account now, and the largest of them
-may be off a window that ended hours ago. A window whose lift has already passed is dropped
-entirely, because ninety-six per cent of a window that has reset is nothing.
-
-And it is a reading, never a gate. Nothing consults it before delivering a message, hiring, handing
-a session over or queueing anything; a worker asked something while the account is nearly gone
-answers exactly as usual. What does act on it is the room watch below, and on exactly one of the
-three cases: when the window lifts later than a conversation can be carried across, the chat holds
-and hands each conversation over to its desk itself. The other two stay the lead's — pausing is a
-decision to stop sending, and an account that did not say when it lifts is not something to park on.
-Nothing here has to be cleared: the work stops, the account fills no further, and when the window
-lifts the block is gone and the hold with it.
-
-**A session that was refused comes back by itself.** Turn that off and the limit arrives as a dialog
-on the session's own terminal, offering the wait as a choice, and the session sits on it until
-somebody answers at that keyboard. A workspace is run by messages, so a session waiting on a dialog
-has left the room: it cannot be asked anything, told anything, or parked. So a new instance is
-installed with it on, and written out rather than left to the default — one key,
-`autoContinueAtUsageLimit`, in the instance's own Claude Code home, which is the only file it is
-read from, and spelled out there because the default belongs to the harness and is its to change.
-What keeps a reopened window from being spent by a whole room coming back at once is not this key
-but the hold: the room watch below hands the room over to its desks before the account runs out, so
-that nothing is refused in the first place. An instance installed before this keeps what it was given: how a running
-workspace behaves is not something an installer reaches back and changes.
-
-### When a conversation has grown big
-
-The third thing handed to the lead unasked, and the only one of the three that is about a
-conversation rather than an account.
-
-How much of itself every conversation here is carrying is already on every row and on every panel,
-with no opinion attached. Once one of them has taken four fifths of the window it is sent in, the
-lead is also told so where its own turn begins:
-
-    you were carrying 318,207 tokens, 84% of its window at the end of yours, and Ann was carrying
-    412,934 tokens, 92% of its window at the end of its last turn, read as this turn began at 14:07.
-
-    A conversation that big is one where what is left has to be planned rather than simply
-    carried on, and what survives it is what its desk says. Which panel is worth handing over
-    early is still yours to say, your own included — and the chat parks a conversation itself,
-    asking it to write its desk first, when it is about to lose its cache, when it has grown
-    into a strong band of its window, or when the account is nearly spent.
-
-A lead whose conversation began on older instructions is told so in the same block — *if your
-instructions say otherwise, they were written before this* — because a persona is rendered once,
-when a conversation starts, and read as it is until that conversation ends: a lead hired before
-the templates last moved may still be running a persona that says handing a conversation over is
-a person's to press. The chat knows, because it can render the persona that conversation would get
-if it started now and compare the two; it keeps no date and no version for it, so a template you
-edit by hand counts the same as one an update shipped, and so does what you add under
-`customization/`. The sentence costs nothing once every conversation begun on the older
-instructions has been handed over.
-
-The size is the one the conversation ended its last turn at, and not what that turn added up to. A
-turn that makes two requests is told about both, and the top of the frame adds them together — a
-number growing at twice the rate of the conversation, which is worse than none because it looks like
-an answer. Nothing new is read for this: the number was already being kept beside the thread id, for
-the row and the panel.
-
-**The lines are judgments and not measurements**, and the code says so where they sit, beside the
-two about the usage window. There are four of them — four fifths of the window, and then 85, 90 and
-95 per cent — and they are four numbers somebody decided. What is *measured* is the denominator, and
-the service hands it over on the run that was already being read.
-
-A share and not a size, because a size cannot be judged without knowing what it is a size of. The
-same reading in tokens has to pick one window to be a judgment about, and it is then wrong on every
-other: a line drawn for a long window can never be crossed inside a short one, so on a workspace
-sending 200,000 the block would never appear anywhere and nothing would say so, and on the
-1,000,000 the same service reports for its larger models a line drawn at 300,000 calls a
-conversation big with seven tenths of its room still free. A reading that is
-dead everywhere it is installed is not a conservative reading, it is an absent one. A share is true
-on both.
-
-**The share is on the row; the judgment is not.** The row says two readings — the tokens, and what
-share of the window they are — and nothing about what to do with either. No threshold, no colour and
-no word for too full. The number there is a fact for a person to judge, and a mark beside it would
-be this toolkit judging on a row everybody reads. It would also cost the two things the row is built
-to avoid. The room command and the page lay the same rows out in their own code — a duplication of
-*format* that somebody keeps true, and a duplicated *judgment* would drift silently and read as a
-disagreement about a fact. And being big is not a state a session is in: it is not exclusive with
-answering, waiting or cold, so it cannot be an entry in the table the room's states are counted
-from.
-
-**Where there is no window there is no share.** A frame that named no model, or named none that
-this run said it was on, is one this cannot read: the window of a model the turn was not had on is
-a reading about another conversation, and taking it would be a guess dressed as a measurement.
-Nothing is not a default either — the row then says the tokens alone, exactly as it did before any
-of this, and the block does not name that session at all.
-
-**The lead is in its own list**, first and in the second person, deliberately. It is usually the
-largest conversation in the workspace, it is the only one that cannot press its own button, and it
-is the reader — a block naming everybody except the session that most needs handing over would be
-the worst reading this could give. First because the workspace is listed lead first everywhere else
-too, which is why the sentence opens in the lower case whenever the lead is one of the large ones:
-the row of the reader reads *you*, and every other row reads a name.
-
-**Nobody is left out for being mid-turn**, which is the one place this differs from a reading off a
-clock. A session's clock stands still for the whole of a turn, so read off one a session working is
-one that has stopped. A size does not go stale that way; it is simply
-behind. A session in the middle of a turn is at least as large as this says, so naming it is true —
-and leaving it out would hide the biggest conversation here at the moment it is biggest.
-
-**What the lead can do about it is the honest limit of this.** It cannot press the button, and
-saying something to that session is not the fix — a message starts a run and makes the conversation
-bigger, not smaller. What it can do is plan: close what can be closed, get written down what is not
-yet, stop opening new fronts on that conversation, and say on its own panel which one is worth
-handing over early and why. The crossing into a strong band is the chat's own to act on — the room
-watch below parks the conversation there, desk written first. Whether a lead should be able to end
-somebody else's conversation is a real question and a bigger one than a reading, so it is not
-answered here: the tools it is served are the same ones it was served before this.
-
-**And it is a reading, never a gate.** Nothing consults it before delivering a message, hiring,
-handing a session over, queueing or refusing; a message to a session named in the block is delivered
-exactly as any other. The one thing that ends a conversation by itself is still time — the hour
-after which carrying one on would cost the whole of it again — and that is untouched, whatever a
-conversation is carrying.
-
-**Nothing is filed and nothing remembers having said it.** The reading lives in the same file the
-thread id does, so handing a session over takes it with the conversation, and the block is gone on
-the next turn with nothing cleared. A session with no thread is not in it at all, and neither is one
-whose last run reported no size: nothing is not a small conversation, it is no reading at all.
-
-### The room watch
-
-Every five minutes the chat reads its own room and acts on what it reads. Nothing it does buys a
-turn: what it did is one line on the lead's panel, and the same line waits in a block at the top of
-the lead's next turn, whenever somebody gives it one.
-
-    The chat is telling you this. Nobody typed it, and no turn was bought to say it: it waited
-    here until you were asked something else.
-
-    Leo's conversation had been quiet for longer than one can be carried on, so the chat ended
-    it rather than paying for the whole of it again at the next message. Nothing was stopped
-    and nothing was asked of Leo: whatever it had not written to work/Leo/STATE.md is gone, and
-    the next message to it starts a new conversation that reads that desk first.
-
-A pass does five things, in this order.
-
-**Under a hold, the chat hands the room over itself.** When the five-hour window is past the stop
-line — the same reading and the same line as the block above — the pass reads when it lifts against
-the hour a conversation can be carried across, and one of three things follows. It lifts inside the
-hour: nobody is handed over, and everybody is still here when it does. The account did not say when:
-nobody is handed over either — a park is not something to do on an unknown — and the next completed
-turn is read again. It lifts later than the hour: the chat holds, hands each conversation over to its
-desk, fullest first and the lead last, and says each park as it lands. That is the whole of what the
-block above used to leave to the lead, done by the thing that read the number. A seat sitting on a
-permission prompt is left alone. A seat whose park the account turns away is asked again on the next
-pass while it is still warm, and once its conversation has gone cold it is ended as a cold one, with
-the refusals counted in the line that says so. No seat is parked twice under one hold. When the
-window lifts, the hold is over and the room is read as usual again; the line says who was handed
-over under it and who never was.
-
-**A run that has outlived what anything here waits for is named, and nothing is ended.** A `say`
-to a session is answered when that session's turn is over, and it gives up after half an hour,
-because a turn is minutes. A run still going past that has outlived the longest wait in the toolkit,
-and the pass says so to the lead, once per run: how long it has been running, when the service last
-spoke to it or that it has not at all, and what is running underneath it, by name — `ssh` and
-`git-remote-https` under a run is a different reading from `mvn`. Nothing is ended, because the
-pass cannot tell a long build from a run wedged on something that is not the model, and a run ended
-before it answers loses whatever it has not written. Ending it is the End button on that session's
-panel, with the diagnosis in front of whoever presses it; the next run of the same session that goes
-long is named again.
-
-**A conversation gone cold is ended there and then.** The hour after which carrying a conversation on
-would cost the whole of it again is the same hour the next message would have found; the pass finds
-it first, while nothing is running for that session, and ends it. Nothing is stopped and nothing is
-asked of the session, and the next message to it begins a new conversation from its desk. The same
-act as before, at an earlier moment, and said to the lead rather than found by whoever wrote next.
-
-**A conversation about to go cold is handed over before it does.** The cache behind a conversation
-lives an hour past its last turn, and a seat that has been idle for fifty minutes of it goes on to
-lose it seven times in ten. So in those last minutes the pass asks the seat to hand over itself — a
-turn on that session, to write its desk while it can still be asked to — and says so to the lead as
-it lands. It saves no tokens: nothing is ever resumed, so leaving the seat alone is free and this turn
-is not; what it buys is a desk written by the session that knows what is on it. Only a seat with
-nothing running on it, never one sitting on a permission prompt, and the seat's own clock is read
-again inside the turn: if it was spoken to while the park waited its turn, nothing happens. A
-workspace with `watchEverySeconds: 0` is not asked for this turn either.
-
-**A crossing is said, once, and the seat is handed over for it when it can be.** The chat holds in
-memory the band each conversation was last seen in, and acts on a session only when that band has
-changed into nine tenths of its window, or into ninety-five per cent. On that crossing the pass asks
-the seat to hand over itself — the same turn as the park above, for a different reason: a
-conversation that far into its window is a few turns from losing whatever its desk does not say, and
-a fresh conversation that reads the desk is cheaper to carry than this one — when the workspace buys
-a turn and nothing is running on that seat. Otherwise the crossing is told: the line says the share
-and why nothing was done about it — a turn going on it, no turn bought here, a permission prompt, the
-account turning the park away — and that handing it over is the person's to press. Once per band
-either way: a conversation told at ninety per cent is not asked again until it reaches ninety-five,
-or idles into the park above. A retry would need a second record beside the one that says what was
-said, and the two could disagree.
-
-**The hold is said above the room while it lasts** — on the page, in `ovai room`, and to the lead —
-as what it does and nothing else: parking, or carried through inside the hour, or nobody handed over
-and why. A room that has gone quiet has its reason written over it.
-
-**Three fields in `openovai.json`**, all optional:
-
-```json
-"watchEverySeconds": 300,
-"parkAttemptsPerSeat": 3,
-"holdAbove": 0.9
-```
-
-`watchEverySeconds` is how often the room is read: whole seconds, five minutes when left out. `0`
-does not switch the watch off. It means *spend nothing on me*: the room is still read at the default
-cadence, a cold conversation is still ended and a crossing is still said, but nobody is handed over
-by the chat — under a hold the line above the room says so, and whatever a conversation has not
-written to its desk by the lift goes with it. A workspace that wants a room nobody acts on at all
-takes it offline, below.
-
-`parkAttemptsPerSeat` bounds how many times one seat is asked to hand over under one hold while the
-account keeps turning the park away: a whole number of one or more. Left out, a refused seat is asked
-again on every pass while it is still warm. `0` is refused, with a pointer to `watchEverySeconds: 0`,
-which is the field that means *never park*.
-
-`holdAbove` is where this workspace draws the stop line: the share of the five-hour window past
-which the account is read as stopping, the hold enters, and the block above says to stop. Left out,
-it is ninety-five per cent. A workspace whose account is also spent outside the instance — a chat on
-the same account, say — can see ninety-five arrive with no warning and wants everybody put down at
-ninety instead; that is a house rule and not this toolkit's, which is why it is a field. A fraction
-from `0.9` up to but not including `1`. The floor is not taste: under nine tenths the account is
-not read as filling up at all, so a line drawn there would be a hold that could never enter, and it
-is refused with that reason. The plan line itself does not move. A value of any of the three fields
-that is not what it should be stops the chat starting and names the field: being told at the start
-beats finding it on a bill.
-
-**Whether the room is being read shows.** The chat says the cadence as it starts, and `/health`
-carries the watch: how often, when it was armed, when the last pass was, and how many sessions it
-read, decided on and acted on. A watch that died and one that was never armed look the same from a
-quiet room; this is how they are told apart.
-
-**And it is said above the room** — on the page, in `ovai room`, and to the lead — in one line with
-two shapes: *The room was last read 2m ago; it is read every 300 seconds.* once a pass has finished,
-and *The room has not been read yet; the watch was armed 1m ago and reads every 300 seconds.* until
-one has. An age and a cadence, and no verdict: there is no threshold and no colour, and whether
-twelve minutes against every five is a watch that has died is yours to say, from the two numbers
-that are there to say it with. A room that is off, or under a hold, says those first.
-
-The timer belongs to the chat and not to the process. It is cleared when the server closes and it
-never holds the process open, so a chat that has been stopped has stopped reading its room.
-
-### Taking the room off
-
-Beside the room heading there is one button: **Go offline**, and once it is pressed, **Go online**.
-While the room is off, nothing new is run for anybody.
-
-It exists because of a measured morning. A workspace its owner believed was off was re-entered
-hours later by something armed inside it, and paid the whole of a large conversation again at write
-price to say nothing. What went wrong was not the stopping. It was that "off" had been the end of a
-handshake — a session was asked to write its desk and stop, the model service refused that run, and
-the intent went down with the refusal — so the room was neither on nor off, and nothing said which.
-
-So this is a switch, not an agreement. Taking the room off runs nothing, asks nobody and cannot be
-turned away; bringing it back runs nothing either. Neither press has a condition on it, which is
-what makes it impossible to leave the room half off. An exit that some state does not have is not
-an exit, so this one has no state to check.
-
-The gate is on *starting* a run, and on nothing else. A turn already going is left alone and
-answers as it would have; the switch was thrown across it and nothing happened, because nothing
-should. What is turned away is a message, a **Hand over** and a **Leave** — one rule with no
-exceptions, because a session asked to hand over is a session asked to think, which is a run. Each
-is refused in its own words, saying what was *not* done: the conversation is untouched, the desk is
-still open, nothing was filed and nothing was lost. A handover that could not be run never reports
-that it happened.
-
-What stays open is everything that ends something rather than starting it, and everything that
-touches no conversation at all. A run that is already stopped waiting to be allowed a tool can
-still be answered, a run can still be ended, and somebody can still be hired. Ending a run while
-the room is off is the point of being able to press it.
-
-Refusal comes back before the queue, not from inside it. A message that joined the queue and was
-refused at the front would wait for whatever was ahead of it, and "the room is off" is the one
-answer that has no reason to wait for anything.
-
-The room says so itself, above the rows and never on one — on the page, in `ovai room`, and to the
-lead, which is the reader most likely to be turned away next:
-
-    The room is offline — nothing new will be started until it is brought back online.
-    Paul — worker (haiku) — reading the water meter — idle · 24,479 tokens · 12% of its window · last moved 4m ago
-    Ann  — worker (haiku) — writing the install notes — idle · 8,102 tokens · 4% of its window · last moved 9m ago
-
-Whether the room will start anything is a fact about the room. It is not a state any of those
-sessions is in, and the same word on every row would read as one.
-
-The switch is a file, `chat/offline`, beside the hold — empty, and there or not. It is the only
-record: nothing keeps a copy in memory, every question is put to the disk, and only the two presses
-write it. That is what lets the word outlive the chat it was said in. The chat's own watch is armed
-the moment a chat comes up and its first pass ends and parks whatever it finds, so a room taken off
-and then restarted — taking a newer version restarts it — would otherwise come back on and act, in
-a room somebody had deliberately stopped. It stays off until it is brought back.
-
-There is no `ovai offline`. Taking the room off is a person's decision about the whole instance, and
-it stays on the page, beside the button that brings it back.
+Above the panels, one line per seat, off the same answer the panels are built from:
+
+    Superman — Leader, sonnet, running
+    Paul — Worker, haiku, not running
+
+A seat is a desk with a name, and the Leader is a seat whether or not a desk exists for it. The
+line says which of the two roles the seat has, what it runs on, and whether a process is running
+for it right now. A session asks for the same thing with its `room` tool, and is told which line
+is its own.
+
+Who works here is read from `work/` each time it is asked, so a desk opened while the chat runs is
+a seat from that moment on — a panel the next time the page is loaded, a line in the room the next
+time it is read.
 
 ### What the workspace knows
 
@@ -1163,9 +538,9 @@ Hard rules are the part of the store every session is given without asking. They
 numbered, and capped — by default 25 rules of 200 characters, `hardRules: { count, length }` in
 `openovai.json` — and they are never summarised: a rule over the cap is refused with the cap, and
 the set goes into every new session's initial prompt verbatim and reaches running sessions as the
-one rule that changed. Only the lead writes them; a worker proposes one. Rules the User gave carry
-`source: user`, render first, and cannot be replaced by a team write — the lead included. A User's
-rule can be scoped to the lead alone, and then no worker sees it by any path.
+one rule that changed. Only the Leader writes them; a worker proposes one. Rules the User gave carry
+`source: user`, render first, and cannot be replaced by a team write — the Leader included. A User's
+rule can be scoped to the Leader alone, and then no worker sees it by any path.
 
 Where a request needs understanding rather than a grep — which records answer a query, whether a
 new text restates an existing record, what moment "for today" is — the tool asks the helper: Claude
@@ -1252,13 +627,13 @@ and `VERSION` — which is exactly what the installer put there in the first pla
 whole repository and that is fine: what makes something a valid source is the payload being in it,
 not the absence of anything else.
 
-**Everything a workspace has accumulated is left alone.** Desks under `work/`, the panels, threads
+**Everything a workspace has accumulated is left alone.** Desks under `work/`, the panels
 and personas under `chat/`, what you added to the personas under `customization/`, your own tools
 under `plugins/`, `openovai.json`, the settings, the Claude Code home with everything the workspace
 has learned in it — an update does not write them.
 Nothing is re-keyed, nothing is migrated, and no name changes hands. The one thing it adds is a file
 of yours that a fresh install of this version would have given you and this instance has not got —
-either settings file, the lead's desk — seeded once, the way the installer seeds
+either settings file, the Leader's desk — seeded once, the way the installer seeds
 it, and named as such. An updated instance is a clean install of the new version with your material
 in it: the payload is the only thing that moves, and nothing inside an instance ever writes there.
 
@@ -1276,11 +651,11 @@ a run that outlived a chat killed with `-9`, a session you started by hand with 
 Claude Code home, a sign-in in progress — each holds the code and the persona it started with, in
 memory, and would go on running the old version under an instance that says the new one is
 installed. So the update asks the machine, not the chat: every process carrying this instance's
-`CLAUDE_CONFIG_DIR` is named, with the command that ends it and the seat it holds —
+`CLAUDE_CONFIG_DIR` is named, with the command that ends it —
 
 ```
-kill 48213  Superman
-kill 48219  (no seat name)
+kill 48213
+kill 48219
 ```
 
 — and nothing of another instance's is. There is no file behind this, so nothing in it can be
@@ -1309,12 +684,12 @@ that is not a row of numbers is placed at all, and neither is an instance made b
 carried a version: a refusal has to be certain of what it is refusing, so where the two cannot be
 ordered the update goes on as it always did.
 
-**An update does not re-render anybody's persona.** A persona is rendered once, when a session
-starts a conversation, from the templates the instance has at that moment, and it lives beside that
-conversation under `chat/` — part of what the workspace has accumulated rather than part of what
-the toolkit ships. So new templates change nothing for a conversation already going: its thread
-carries the old instructions anyway, so rewriting the file would not have reached it. Every
-conversation started after the update — a hire, a handover — is rendered from the new templates.
+**An update does not re-render anybody's persona.** A persona is rendered once, when a seat's
+process is started, from the templates the instance has at that moment, and it lives beside that
+seat's transcript under `chat/` — part of what the workspace has accumulated rather than part of
+what the toolkit ships. So new templates change nothing for a process already running: it was
+given the old instructions when it started, and rewriting the file would not reach it. Every
+process started after the update is rendered from the new templates.
 
 What you add to a persona is yours and outlives every version. Put it in `customization/leader.md`
 or `customization/worker.md` at the instance root: whatever is in there is appended, as it is, to
@@ -1323,48 +698,18 @@ toolkit puts in. An update never touches the directory. It is the one place an i
 to a session belongs, because an edit to a rendered persona lasts only as long as the conversation
 it was rendered for.
 
-### The lead is told, and what "at once" honestly means
-
-An update stops the chat and puts a new toolkit under it. So the lead is told by the chat, from a
-note the update leaves behind: one line on the lead's panel,
-
-    the chat: the toolkit was updated from 0.1.0 to 0.2.0. What the release says changed: …
-
-and the same thing to the lead's session, in front of whatever it is asked next:
-
-    <update from="0.1.0" to="0.2.0">…</update>
-
-Both halves, for the same reason an overheard line takes both: a panel is what a person reads and a
-thread is what a session resumes.
-
-The wrapper explains itself rather than relying on the persona, because a conversation keeps the
-persona it started with and the lead's started before the update. It says that the chat is speaking
-and not the human, what was replaced, what the release said changed, and that nobody else in the
-workspace has been told — that last part is the point of telling the lead at all, the lead is what
-tells everybody else. And one sentence the lead cannot act without: this conversation runs on the
-instructions it started with, and every conversation started from now on, its own next one
-included, runs on the ones the new version ships. It does not list what was left alone: an update
-leaves everything of the workspace's alone, every time, and the place that says so is here.
-
-**"At once" means this, and no more:** the lead is told in front of the very next thing it is asked,
-and never later than that. It is not told while it is idle, because there is no way to hand a
-session something without asking it a question. A lead that is never spoken to again is never told —
-and it also never tells a worker anything, so nothing wrong is said on the strength of it. That is
-the limit, and this does not close it.
-
 What the release says is a file called `NOTES.md` at the root of the repository, written for the
-lead of a workspace taking the release rather than for a developer reading a changelog. It keeps
+Leader of a workspace taking the release rather than for a developer reading a changelog. It keeps
 a section per release and it is not part of the payload: it describes a release, not an instance.
 
 ## What to build first
 
-- **Personas** — the system prompts that make a session a lead or a worker.
-- **Launchers** — start a lead or hire a worker, assign a name, create the desk.
-- **Hooks** — to keep session names, the roster and the desks consistent.
-- **Skills** — the repeatable procedures, handover first among them.
-- **Chat page** — it hosts every session now, one panel each: sessions speak to each other
-  through it, it approves what a session asks to do, it shows the room, and it hires and retires.
-  Still to come: something worth looking at, and a way to read an archive back.
+- **Personas** — the system prompts that make a session a Leader or a Worker.
+- **Launchers** — hire a Worker, assign a name, create the desk.
+- **Skills** — the repeatable procedures.
+- **Chat page** — it hosts every session, one panel each: sessions speak to each other through
+  it, it approves what a session asks to do, and it shows the room. Still to come: starting and
+  ending a seat from the page, something worth looking at, and a way to read an archive back.
 
 ## Documentation
 

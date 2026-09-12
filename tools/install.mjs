@@ -40,7 +40,7 @@ const AUTH_MODES = ["inherit", "login"];
 const OPTIONS = [
   ["--root", "root", "directory to install the instance into"],
   ["--source", "source", "directory to install from: a clone, or an unpacked release"],
-  ["--human", "human", "name of the person the team works for"],
+  ["--user", "user", "name of the person the team works for"],
   ["--leader", "leader", "name of the session that leads the team"],
   ["--leader-model", "leaderModel", "model the leader runs on"],
   ["--worker-model", "workerModel", "model hired workers run on"],
@@ -65,7 +65,7 @@ const REQUIRED = OPTIONS.map(([, key]) => key);
 
 // Where each answer sits in openovai.json, for reading one out and for writing one in.
 const IN_CONFIG = {
-  human: (config) => config.human,
+  user: (config) => config.user,
   leader: (config) => config.leader,
   leaderModel: (config) => config.models?.leader,
   workerModel: (config) => config.models?.worker,
@@ -104,7 +104,7 @@ function usage() {
     "Install an OpenOv AI instance.",
     "",
     "Usage:",
-    "  ./install.sh --root <dir> --source <dir> --human <name> --leader <name>",
+    "  ./install.sh --root <dir> --source <dir> --user <name> --leader <name>",
     "               --leader-model <model> --worker-model <model> --port <number|0>",
     `               --auth <${AUTH_MODES.join("|")}>`,
     "",
@@ -205,7 +205,7 @@ function resolvePlan(parsed) {
     }
   }
 
-  for (const key of ["human", "leader"]) {
+  for (const key of ["user", "leader"]) {
     if (!isName(parsed[key])) {
       const flag = OPTIONS.find(([, name]) => name === key)[0];
       throw new UsageError(describeName(flag, parsed[key]));
@@ -252,7 +252,7 @@ function resolvePlan(parsed) {
   return {
     source,
     root,
-    human: parsed.human,
+    user: parsed.user,
     leader: parsed.leader,
     leaderModel: parsed.leaderModel,
     workerModel: parsed.workerModel,
@@ -321,7 +321,7 @@ function createLayout(plan) {
 function writeConfig(plan) {
   const target = path.join(plan.root, CONFIG_FILE);
   const answers = {
-    human: plan.human,
+    user: plan.user,
     leader: plan.leader,
     models: {
       leader: plan.leaderModel,
@@ -354,7 +354,7 @@ function printPlan(plan) {
   const rows = [
     ["source", plan.source],
     ["instance", plan.root],
-    ["human", plan.human],
+    ["user", plan.user],
     ["leader", plan.leader],
     ["leader model", plan.leaderModel],
     ["worker model", plan.workerModel],
@@ -402,7 +402,7 @@ function main(argv) {
     checkSource(plan);
     checkRoot(plan);
     // The payload first and whole, then the person's files where they are missing. No persona is
-    // written: who the lead is gets rendered from these templates when its first conversation
+    // written: who the Leader is gets rendered from these templates when its first conversation
     // starts, so an install over an instance leaves nothing behind that says who anybody was.
     report(plan, [
       ...createLayout(plan),

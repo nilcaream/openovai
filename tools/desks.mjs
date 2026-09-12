@@ -1,7 +1,7 @@
 // Opening a desk for somebody.
 //
 // A person in an instance is two things on disk: a desk to keep their state on, and the one
-// permission rule that lets them write that desk. The installer opens the lead's when it creates
+// permission rule that lets them write that desk. The installer opens the Leader's when it creates
 // the instance; `ovai hire` opens a worker's afterwards. Both come through here, so there is one
 // answer to what a person is made of rather than two that can drift apart.
 //
@@ -68,9 +68,9 @@ export const CUSTOMIZATION = "customization";
 // permission rule can name a server and a tool, never an argument. So a tool is granted the moment
 // the chat offers it, which is why what the chat offers is decided rather than added to.
 //
-// It replaces the pair of rules each of these commands used to need — a rule is a literal prefix
-// rather than a path, so `ovai say …` and `./bin/ovai say …` were two different rules for one command,
-// and a session that typed the other spelling stopped to be approved for doing as it was told.
+// And one rule for a server rather than for shell lines — a rule is a literal prefix rather than
+// a path, so a command and its `./bin/` spelling are two rules for one thing, and a session that
+// typed the other spelling stopped to be approved for doing as it was told.
 export const TOOL_RULES = ["mcp__openovai"];
 
 // Everything else this workspace allows, and who asked for it. It sits beside the settings and is
@@ -285,7 +285,7 @@ export function retire(root, name, at, panel) {
 
 // What every persona here says about handing work to another agent, written into each one as it is
 // rendered rather than repeated in the templates. It is one paragraph in two personas today and it
-// has to be the same paragraph: a lead and a worker briefing agents to two different budgets is
+// has to be the same paragraph: a Leader and a worker briefing agents to two different budgets is
 // worse than either budget.
 //
 // Why it goes in the text a session hands over and nowhere else: an agent is given the question and
@@ -365,8 +365,8 @@ export function writeModel(root, name, model) {
 }
 
 // Who a session is, as the text it is handed: the template for its kind with the names written
-// into it, so the file says "You are Superman, Mike's lead" outright, and then whatever the person
-// at the instance has added for that kind. Rendered from the instance's own templates, never from
+// into it, so the file says "You are Superman, the Leader of Mike's workspace" outright, and then
+// whatever the person at the instance has added for that kind. Rendered from the instance's own templates, never from
 // an install source — an instance is what it was given, and this is what makes it say so.
 //
 // Every persona this workspace renders goes through here, which is why the budget is added here
@@ -377,11 +377,11 @@ export function writeModel(root, name, model) {
 //
 // The addition is read as it is. It is prose the person wrote for a session to read, not a
 // template: a pair of braces in it is theirs and stays theirs.
-export function persona(root, name, { human, leader }) {
+export function persona(root, name, { user, leader }) {
   const leads = name === leader;
   const what = leads ? "leader" : "worker";
   const template = readTemplate(root, what, leads ? LEADER_TEMPLATE : WORKER_TEMPLATE);
-  const rendered = render(what, template, { NAME: name, HUMAN: human, LEADER: leader, BUDGET });
+  const rendered = render(what, template, { NAME: name, USER: user, LEADER: leader, BUDGET });
   const added = customization(root, what);
   return added === null ? rendered : `${rendered.replace(/\s*$/, "")}\n\n${added.replace(/\s*$/, "")}\n`;
 }
@@ -459,9 +459,8 @@ export function withdrawDesk(root, name) {
 // values and not printed lines for the same reason: the command puts them on stderr, the route
 // answers 400 with them, and neither has an opinion about the wording.
 //
-// The panel directory is handed in rather than worked out here, as `retire` takes it: how a chat
-// lays its directories out is the chat's word, and a second module spelling it would be a word in
-// two places.
+// The panel directory is handed in rather than worked out here: how a chat lays its directories
+// out is the chat's word, and a second module spelling it would be a word in two places.
 //
 // The desk template is read from the instance and not from wherever it was installed from, which
 // is what lets an instance open a desk on a machine the source was never on.
@@ -484,10 +483,9 @@ export function hire(root, name, panel, model = null) {
     throw new DeskError(`${name} already has a desk here`);
   }
 
-  // A name is more than its desk. The chat keeps a panel and a thread under the same name, and a
-  // desk opened over the top of those is a new person answering out of somebody else's
-  // conversation, with somebody else's transcript on their panel — which looks like a fresh start
-  // until the first reply.
+  // A name is more than its desk. The chat keeps a panel and a persona under the same name, and a
+  // desk opened over the top of those is a new person answering with somebody else's transcript on
+  // their panel — which looks like a fresh start until the first reply.
   //
   // Refused rather than cleared away: what is in there is a record somebody may want, and a
   // command that deletes one to get its own job done is worse than the surprise it is fixing.

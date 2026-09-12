@@ -210,12 +210,12 @@
   },
   {
     "name": "the refusal names the session but not what ends it",
-    "catches": "names each session with the command that ends it, and its seat",
+    "catches": "names each session with the command that ends it",
     "edits": [
       {
         "file": "tools/running.mjs",
-        "from": "    ...running.map(({ pid, seat }) => `  kill ${pid}  ${seat ?? \"(no seat name)\"}`),",
-        "to": "    ...running.map(({ pid, seat }) => `  ${pid}  ${seat ?? \"(no seat name)\"}`),"
+        "from": "    ...running.map(({ pid }) => `  kill ${pid}`),",
+        "to": "    ...running.map(({ pid }) => `  ${pid}`),"
       }
     ]
   },
@@ -227,17 +227,6 @@
         "file": "tools/running.mjs",
         "from": "    if (environment === null || environment.get(CONFIG_DIR) !== ours) {",
         "to": "    if (environment === null || environment.get(CONFIG_DIR) === undefined) {"
-      }
-    ]
-  },
-  {
-    "name": "a session carrying no seat name is passed over",
-    "catches": "names a session that carries no seat name as one, since a sign-in is a session too",
-    "edits": [
-      {
-        "file": "tools/running.mjs",
-        "from": "    found.push({ pid, seat: environment.get(NAME_IN_ENVIRONMENT) ?? null });",
-        "to": "    if (environment.has(NAME_IN_ENVIRONMENT)) {\n      found.push({ pid, seat: environment.get(NAME_IN_ENVIRONMENT) });\n    }"
       }
     ]
   },

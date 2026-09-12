@@ -187,7 +187,7 @@ and resumes the conversation. Almost everything follows from that:
 **And the exception, which is not a footnote.**
 
 > A resumed conversation keeps what it has already read, and the appended system prompt survives a
-> resume. So tightening a persona is additive in effect until a handover replaces the
+> resume. So tightening a persona is additive in effect until a new process replaces the
 > conversation.
 
 Removing an instruction does not remove it from a running session: the session read it, and the
@@ -200,7 +200,7 @@ What clears it is replacing the conversation. Say that in the same breath.
 ## What this report does not do
 
 It does not name rules the person could usefully press next. It is a report, not advice, and a
-lead suggesting rules is a lead improvising grants. It does not read a hook script and say what it
+Leader suggesting rules is a Leader improvising grants. It does not read a hook script and say what it
 would do. It does not describe models, cadences, personas or the roster — that is a neighbouring
 question and this one is *what may be done here*. And it keeps nothing: there is no stored copy of
 the answer to disagree with the next read.

@@ -77,33 +77,6 @@
     ]
   },
   {
-    "name": "the arguments stop being readable where the run is started",
-    "catches": "says what command and what arguments every process it starts is given",
-    "edits": [
-      {
-        "file": "tools/chat/session.mjs",
-        "from": "      child = spawn(\"claude\", args, {",
-        "to": "      child = spawn(\"claude\", args.slice(), {"
-      }
-    ]
-  },
-  {
-    "name": "the run is started through a name of its own rather than by the command",
-    "edits": [
-      {
-        "file": "tools/chat/session.mjs",
-        "from": "function run(instance, name, text, resume, asked) {",
-        "to": "const CLAUDE_BIN = \"claude\";\n\nfunction run(instance, name, text, resume, asked) {"
-      },
-      {
-        "file": "tools/chat/session.mjs",
-        "from": "      child = spawn(\"claude\", args, {",
-        "to": "      child = spawn(CLAUDE_BIN, args, {"
-      }
-    ],
-    "catches": "says what command and what arguments every process it starts is given"
-  },
-  {
     "name": "the walk is pointed somewhere no process is started",
     "catches": "starts Claude Code somewhere, so that what follows is about something",
     "edits": [
@@ -122,17 +95,6 @@
         "file": "bin/ovai",
         "from": "    exec node \"${root}/tools/ovai.mjs\" --root \"${root}\" \"$@\"",
         "to": "    if [[ \"${1:-}\" == \"resume\" ]]; then\n        exec claude --resume\n    fi\n\n    exec node \"${root}/tools/ovai.mjs\" --root \"${root}\" \"$@\""
-      }
-    ]
-  },
-  {
-    "name": "the worker is told nothing about the chat asking for a handover",
-    "catches": "tells the worker a handover may be the chat's asking, and where it says why",
-    "edits": [
-      {
-        "file": "templates/worker.md",
-        "from": " It may be\nthe chat asking rather than a person — before the hour, when your conversation is about to lose\nits cache; on its crossing into a strong band of its window; or when the account is nearly spent\n— and the line inside says which.\n",
-        "to": "\n"
       }
     ]
   },
@@ -166,6 +128,77 @@
         "file": "templates/worker.md",
         "from": "a hard rule is the Leader's to write,\nso when you think the team needs one, say it to the Leader as a proposal.",
         "to": "write a hard rule\nwhen you think the team needs one."
+      }
+    ]
+  },
+  {
+    "name": "the arguments stop being readable where the run is started",
+    "catches": "says what command and what arguments every process it starts is given",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "  const child = spawn(\"claude\", args, {",
+        "to": "  const child = spawn(\"claude\", args.slice(), {"
+      }
+    ]
+  },
+  {
+    "name": "the run is started through a name of its own rather than by the command",
+    "catches": "says what command and what arguments every process it starts is given",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "export function start(instance, seat, { asked = nobodyToAsk, ended = nothing } = {}) {",
+        "to": "const CLAUDE_BIN = \"claude\";\n\nexport function start(instance, seat, { asked = nobodyToAsk, ended = nothing } = {}) {"
+      },
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "  const child = spawn(\"claude\", args, {",
+        "to": "  const child = spawn(CLAUDE_BIN, args, {"
+      }
+    ]
+  },
+  {
+    "name": "the worker persona names the frames without saying who writes them",
+    "catches": "tells the worker what each frame is, and that only the chat writes one",
+    "edits": [
+      {
+        "file": "templates/worker.md",
+        "from": "You can always see who is speaking to you, because the chat says so in a frame of its own around\nevery turn, and nothing but the chat writes one.",
+        "to": "You can always see who is speaking to you, because every turn arrives in a frame."
+      }
+    ]
+  },
+  {
+    "name": "the worker persona names the tool for saying something by another name",
+    "catches": "tells the worker how to say something to somebody",
+    "edits": [
+      {
+        "file": "templates/worker.md",
+        "from": "The `message` tool is how you reach anybody else here, and the `room` tool says who that is:",
+        "to": "The `say` tool is how you reach anybody else here, and the `room` tool says who that is:"
+      }
+    ]
+  },
+  {
+    "name": "the worker persona tells the worker to pass on what the User typed",
+    "catches": "tells the worker that the chat passes it on, so the worker does not",
+    "edits": [
+      {
+        "file": "templates/worker.md",
+        "from": "When {{USER}} speaks to you directly, the chat tells {{LEADER}} what was said, in {{USER}}'s own\nwords and at the moment it is said. You do not have to pass it on, and telling {{LEADER}} yourself\nwould only hold {{USER}} up waiting for a turn nobody needed. Answer {{USER}}.",
+        "to": "When {{USER}} speaks to you directly, tell {{LEADER}} what was said before you answer."
+      }
+    ]
+  },
+  {
+    "name": "the worker persona says nothing about what survives a conversation",
+    "catches": "tells the worker that the desk is what survives a conversation",
+    "edits": [
+      {
+        "file": "templates/worker.md",
+        "from": "A conversation does not run forever, and what survives one is its desk. Write it at every point\nthe work moves, not only when something is about to end:",
+        "to": "Write your desk:"
       }
     ]
   }

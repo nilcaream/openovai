@@ -160,7 +160,7 @@ Everything it needs is already in the repository, so there is nothing to type in
 nothing to paste afterwards:
 
 1. Put the new version in `VERSION`.
-2. Add a `## <version>` section to `NOTES.md` saying what changed for the lead of a workspace
+2. Add a `## <version>` section to `NOTES.md` saying what changed for the Leader of a workspace
    taking it. The file keeps the older sections; the workflow publishes only the new one.
 3. Merge both to `main`.
 4. Run the workflow.

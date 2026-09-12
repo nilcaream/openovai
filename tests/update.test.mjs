@@ -19,7 +19,7 @@ import { PAYLOAD, SKILL } from "../tools/payload.mjs";
 import { RELEASES } from "../tools/release.mjs";
 import { isOlderThan } from "../tools/version.mjs";
 
-const HUMAN = "Mike";
+const USER = "Mike";
 const LEADER = "Superman";
 const NEWER = "9.9.9";
 const OLDER = "0.0.1";
@@ -52,7 +52,7 @@ function options(root) {
   return {
     "--root": root,
     "--source": repo,
-    "--human": HUMAN,
+    "--user": USER,
     "--leader": LEADER,
     "--leader-model": "sonnet",
     "--worker-model": "haiku",
@@ -219,20 +219,9 @@ describe("taking a newer version from a directory", () => {
 
   // The whole of what an update must not do, in one reading. Every file outside the payload,
   // compared by content: the desks, the personas, the settings, the instance's own description of
-  // itself, its Claude Code home with what the workspace has learned in it, and the panels. The one
-  // thing that may appear is the word it leaves for the chat.
-  it("changes nothing outside the payload but the word it leaves for the chat", () => {
-    assert.deepEqual(difference(accumulated, whatTheInstanceAccumulated(root)), ["added chat/untold.json"]);
-  });
-
-  it("leaves the word saying which versions it moved between", () => {
-    const said = JSON.parse(fs.readFileSync(path.join(root, "chat", "untold.json"), "utf8"));
-    assert.deepEqual([said.from, said.to], [INSTALLED, NEWER]);
-  });
-
-  it("leaves the notes the release carried with it", () => {
-    const said = JSON.parse(fs.readFileSync(path.join(root, "chat", "untold.json"), "utf8"));
-    assert.match(said.notes, /Hiring happens on the page now\./);
+  // itself, its Claude Code home, the store and the panels.
+  it("changes nothing outside the payload", () => {
+    assert.deepEqual(difference(accumulated, whatTheInstanceAccumulated(root)), []);
   });
 
   it("says nothing to do when the instance is already on it", async () => {
@@ -265,7 +254,7 @@ describe("taking a newer version into an instance that lacks a file of the perso
     assert.equal(settings.autoContinueAtUsageLimit, true);
   });
 
-  it("seeds the lead's desk from the templates it just put in place", () => {
+  it("seeds the Leader's desk from the templates it just put in place", () => {
     assert.ok(fs.readFileSync(path.join(root, "work", LEADER, "STATE.md"), "utf8").includes(LEADER));
   });
 
@@ -478,8 +467,9 @@ describe("an update while a session of this instance is running", () => {
   let versionWhileRefused;
   let afterwards;
 
-  // A process that carries what a session of this instance carries, and nothing else of one: it
-  // is the environment that says whose it is, not what it runs.
+  // A process that carries what a session of this instance carries — the instance's own home in
+  // its environment — and nothing else of one: it is the environment that says whose it is, not
+  // what it runs.
   function idle(environment) {
     const child = spawn("node", ["-e", "setInterval(() => {}, 1000)"], {
       env: { ...process.env, ...environment },
@@ -489,9 +479,9 @@ describe("an update while a session of this instance is running", () => {
     return child;
   }
 
-  const seated = idle({ CLAUDE_CONFIG_DIR: path.join(root, ".claude-home"), OPENOVAI_SESSION_NAME: "Batman" });
-  const unseated = idle({ CLAUDE_CONFIG_DIR: path.join(root, ".claude-home"), OPENOVAI_SESSION_NAME: undefined });
-  const elsewhere = idle({ CLAUDE_CONFIG_DIR: path.join(other, ".claude-home"), OPENOVAI_SESSION_NAME: "Robin" });
+  const one = idle({ CLAUDE_CONFIG_DIR: path.join(root, ".claude-home") });
+  const another = idle({ CLAUDE_CONFIG_DIR: path.join(root, ".claude-home") });
+  const elsewhere = idle({ CLAUDE_CONFIG_DIR: path.join(other, ".claude-home") });
 
   before(async () => {
     refused = await update(root, tree);
@@ -513,12 +503,9 @@ describe("an update while a session of this instance is running", () => {
     assert.notEqual(refused.status, 0);
   });
 
-  it("names each session with the command that ends it, and its seat", () => {
-    assert.match(refused.stderr, new RegExp(`kill ${seated.pid}  Batman`));
-  });
-
-  it("names a session that carries no seat name as one, since a sign-in is a session too", () => {
-    assert.match(refused.stderr, new RegExp(`kill ${unseated.pid}  \\(no seat name\\)`));
+  it("names each session with the command that ends it", () => {
+    assert.match(refused.stderr, new RegExp(`^  kill ${one.pid}$`, "m"));
+    assert.match(refused.stderr, new RegExp(`^  kill ${another.pid}$`, "m"));
   });
 
   it("names nothing of another instance's", () => {
@@ -542,7 +529,6 @@ describe("an update while a session of this instance is running", () => {
     const done = await runToolLater(root, ["update", "--from", again], {
       ...process.env,
       CLAUDE_CONFIG_DIR: path.join(root, ".claude-home"),
-      OPENOVAI_SESSION_NAME: "Batman",
     });
     assert.equal(done.status, 0, done.stderr);
   });

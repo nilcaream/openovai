@@ -153,17 +153,6 @@
     ]
   },
   {
-    "name": "the helper is spawned before the gate is asked",
-    "catches": "is refused in words before anything is spawned",
-    "edits": [
-      {
-        "file": "tools/helper.mjs",
-        "from": "  const held = spawnHeld(instance);\n  if (held !== null) {\n    return { refused: heldSaid(held) };\n  }",
-        "to": "  const held = null;"
-      }
-    ]
-  },
-  {
     "name": "the helper runs outside safe mode",
     "catches": "starts it in print mode with one JSON result, nothing persisted, in safe mode, no MCP server, no tools, sonnet at medium effort, and the question as the whole system prompt",
     "edits": [

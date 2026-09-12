@@ -76,103 +76,29 @@ export function claudeIsInstalled() {
 
 // The stand-in, written into a directory that goes first on the PATH.
 //
-// It reads its behaviour from the environment, so one stand-in serves every suite:
+// It speaks the streaming protocol the way a session is run: one process, started once, reading
+// user frames from stdin one after another and answering each with a result frame, until stdin
+// is closed. It reads its behaviour from the environment, so one stand-in serves every suite:
 //   OPENOVAI_STAND_IN_LOG           file to record each call in (required)
 //   OPENOVAI_STAND_IN_REPLY         what an answer says            (default: a reply)
-//   OPENOVAI_STAND_IN_SESSION       the thread id it returns       (default: test-thread)
-//   OPENOVAI_STAND_IN_RESUME_FAILS  refuse to resume a thread      (default: no)
-//   OPENOVAI_STAND_IN_SLOW          milliseconds to take answering (default: none)
+//   OPENOVAI_STAND_IN_SLOW          milliseconds to take answering each turn (default: none)
 //   OPENOVAI_STAND_IN_NOISE         emit what the real one says beside an answer — a keep-alive, a
 //                             system notice, an assistant turn, and a line that is not a frame
-//   OPENOVAI_STAND_IN_BROKEN        fall over before framing anything, saying why on stderr — which is
-//                             where the real one puts it: a model it does not know gives
-//                             `[claude-code:unrecognized_model] …` there, a missing persona file
-//                             `Error: Append system prompt file not found: …`, and stdout stays
-//                             frames either way
-//   OPENOVAI_STAND_IN_MUTE          fall over saying nothing on either stream
-//   OPENOVAI_STAND_IN_HALF          frame a few things and then stop, with no result frame and nothing
-//                             on stderr — a run killed in the middle of its turn, which is what
-//                             stopping the chat does to one on purpose
-//   OPENOVAI_STAND_IN_REFUSED       be turned away by the service: a rate_limit_event saying rejected,
-//                             then a result frame spelled success while carrying is_error and
-//                             api_error_status 429 — what a run gets when the account has hit a
-//                             usage limit, which is neither an answer nor a failure
-//   OPENOVAI_STAND_IN_NO_RESET      refuse without saying when the limit lifts (with REFUSED)
-//   OPENOVAI_STAND_IN_REFUSED_DEAF  refuse and then ignore stdin being closed, for good (with REFUSED)
-//   OPENOVAI_STAND_IN_REFUSED_WHILE a path: be turned away for as long as something is at it, so that
-//                             ONE chat can be refused and then answer — which is what a check about
-//                             something surviving a refusal needs and no env-only knob can give it
-//   OPENOVAI_STAND_IN_LIMIT         a status to report in a rate_limit_event before doing anything else
-//   OPENOVAI_STAND_IN_FULLNESS      how full the five-hour window says it is  (default: 0.29)
-//   OPENOVAI_STAND_IN_FULLNESS_AGAIN  a second reading, sent LATER in the same run, saying the window
-//                             has moved to this. The real one emits the frame whenever the reading
-//                             changes rather than once at the start, and a fixture that only ever
-//                             sent one lets a reader that keeps the first for ever pass
-//   OPENOVAI_STAND_IN_FULLNESS_AGAIN_IN  milliseconds to wait before sending that second reading
-//                             (default: none). Its own knob rather than a delay folded into the one
-//                             above, because it is what puts daylight between when a run BEGAN and
-//                             when it was last told something — two moments a fixture that sent
-//                             both in the same millisecond could not tell apart
-//   OPENOVAI_STAND_IN_LIMIT_KIND    which window the service names as the one that refused
-//                             (default: "five_hour")
-//                             — "allowed" or "allowed_warning", which is what an ordinary run
-//                             sends whenever the reading moves
-//   OPENOVAI_STAND_IN_REFUSED_QUIETLY  be turned away with the 429 alone and no rate_limit_event, which
-//                             is what a refusal looks like if that frame does not reach a
-//                             headless caller
-//   OPENOVAI_STAND_IN_SIGNED_OUT    fail for want of a credential: every field a refusal has, spelled
-//                             the same way, except the 429 — the one thing telling them apart
-//   OPENOVAI_STAND_IN_EMPTY         answer successfully with an empty result, the way a session that
-//                             ends its turn without saying anything does
-//   OPENOVAI_STAND_IN_DEAF          ignore being asked to stop, and start a shell of its own the way
-//                             a tool call does — its own process group AND its own session — so a
-//                             check can watch what a forced run leaves behind
-//   OPENOVAI_STAND_IN_STUCK         answer nothing, ignore its input being closed, and never exit — the
-//                             one state no fixture here could reach before, and the one the real
-//                             one is in when it is waiting to be allowed something and nobody
-//                             answers. Beside DEAF it also refuses to go when it is asked, which
-//                             is what leaves the forcing something to do
-//   OPENOVAI_STAND_IN_ASKS          ask to be allowed to use this tool, wait for the answer, and make
-//                             what it was told the reply
-//   OPENOVAI_STAND_IN_ASKS_INPUT    the argument that tool would be given, and a knob for the same
-//                             reason the fullness is one: with every fixture naming one tool and
-//                             one argument, a page that named a tool of its own satisfied the
-//                             checks about both  (default: "the one it wanted to run")
+//   OPENOVAI_STAND_IN_BROKEN        fall over before framing anything, saying why on stderr
+//   OPENOVAI_STAND_IN_EMPTY         answer every turn with an empty result
+//   OPENOVAI_STAND_IN_DIES          exit without a result frame in the middle of the first turn it
+//                             is asked — a run that ended mid-turn
+//   OPENOVAI_STAND_IN_STUCK         ignore stdin being closed and never exit on its own
+//   OPENOVAI_STAND_IN_ASKS          ask to be allowed to use this tool before answering each turn,
+//                             wait for the answer, and make the answer say what was decided
+//   OPENOVAI_STAND_IN_ASKS_INPUT    the argument that tool would be given
 //   OPENOVAI_STAND_IN_ASKS_FILE     the same, for the other shape a request takes: a tool that
-//                             writes names a `file_path` and never a command, and a fixture that
-//                             could only ask about a command could not reach the half of the
-//                             composer that reads a path. Set, it replaces the input entirely
+//                             names a path rather than a command
 //   OPENOVAI_STAND_IN_WAITS         milliseconds to wait for that answer before giving up on it
-//                             (default: 5000) — the real one waits for good, and a suite cannot
-//   OPENOVAI_STAND_IN_CALLS         "Speaker>Addressee,…" — while answering, that speaker says
-//                             something to that addressee with the instance's own command, which
-//                             is how a check builds a session that talks back mid-turn
-//   OPENOVAI_STAND_IN_USAGE         "n,n,…" — how big the thread was at each request this turn made,
-//                             reported the way the real one reports it: one `usage.iterations`
-//                             entry each, and a top level that ADDS them up. A check about the
-//                             reading has to be able to tell those two apart, so the sizes differ
-//                             and each is split across the three fields a context is made of
-//   OPENOVAI_STAND_IN_WINDOW        "n,n,…" — how much each model the frame names can hold, reported
-//                             the way the real one reports it: a `modelUsage` map whose LAST key is
-//                             the model this run answered on, and every key before it a model that
-//                             answered beside it, so a check sees a real key and not a fixture's.
-//                             That order is measured rather than invented: on 2.1.263 the first
-//                             turn of a thread names a background helper of Claude Code's own
-//                             FIRST and the model the run was given after it. Unset means no
-//                             `modelUsage` at all, which is what the frame carried before any of
-//                             this; set and empty means a `modelUsage` that named nothing, which is
-//                             a different fact. An entry that is not a number arrives as JSON null,
-//                             which is how a check reaches a window the service named without a size
-//   OPENOVAI_STAND_IN_MODEL_ID      what the run says it is on when it opens, in the service's own
-//                             words rather than the workspace's — what a service that resolves an
-//                             alias answers under  (default: whatever was passed to --model)
-//   OPENOVAI_STAND_IN_WINDOW_KEY    what the usage map keys the run's own entry under, for a check
-//                             that needs it to differ from what the run said it was on
-//                             (default: what the run said it was on)
-//   OPENOVAI_STAND_IN_UNDER         run something of its own underneath this run while it answers,
-//                             the way a tool call is — a `sleep` the chat did not start and can
-//                             see only in the process table — logged as `under: <pid>` and ended by
-//                             this run before it answers, so that nothing outlives the turn
+//                             (default: 5000)
+//   OPENOVAI_STAND_IN_LIFETIME      milliseconds after which it exits on its own whatever is
+//                             going on (default: 60000) — so a run a suite forgot to end cannot
+//                             hold the suite's output open
 //   OPENOVAI_STAND_IN_SIGNED_IN     what `auth status` reports     (default: true)
 //   OPENOVAI_STAND_IN_LOGIN_STATUS  what `auth login` exits with   (default: 0)
 //   OPENOVAI_STAND_IN_HELPER        a file holding what the memory helper answers — the JSON the
@@ -183,8 +109,13 @@ export function claudeIsInstalled() {
 //                             arguments, which no session run carries; it logs its arguments
 //                             whole as JSON (`helper-argv:`), since one of them is the empty
 //                             string and a space-joined line cannot show one, and the request it
-//                             read from stdin (`helper:`). REFUSED, STUCK and BROKEN apply to it
-//                             the way they apply to a session
+//                             read from stdin (`helper:`). STUCK and BROKEN apply to it the way
+//                             they apply to a session; REFUSED makes it exit the way the service
+//                             turns a run away
+// It records what a session was given — its arguments, the environment it can be identified
+// by, and every frame it was told — so a check can read what a seat was told rather than
+// trusting what the server says it sent.
+//
 // It is plain ESM, like everything else here. A command on the PATH is named the way it is
 // typed, so this file has no extension and Node cannot tell from the name what it is written
 // in; from 24 it works that out from the syntax instead. The one thing that would take the
@@ -192,13 +123,13 @@ export function claudeIsInstalled() {
 // makes an extensionless module do nothing at all and exit 0, so the field is left out.
 const STAND_IN = `#!/usr/bin/env node
 
-import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 
 const argv = process.argv.slice(2);
 const called = argv.join(" ");
 const value = (name) => process.env[name] || "<unset>";
 const log = process.env.OPENOVAI_STAND_IN_LOG;
+const note = (line) => fs.appendFileSync(log, line + "\\n");
 
 fs.appendFileSync(
   log,
@@ -210,40 +141,23 @@ fs.appendFileSync(
     \`CLAUDE_CODE_PROJECT_DIR_NAME: \${value("CLAUDE_CODE_PROJECT_DIR_NAME")}\`,
     \`ANTHROPIC_API_KEY: \${value("ANTHROPIC_API_KEY")}\`,
     \`CLAUDE_CODE_OAUTH_TOKEN: \${value("CLAUDE_CODE_OAUTH_TOKEN")}\`,
-    \`OPENOVAI_SESSION_NAME: \${value("OPENOVAI_SESSION_NAME")}\`,
+    \`OPENOVAI_SESSION_SECRET: \${value("OPENOVAI_SESSION_SECRET")}\`,
     "",
   ].join("\\n"),
 );
 
-// A run that will not take no for an answer. The real one can be in the middle of anything when
-// it is told to stop, so the chat cannot assume being asked is enough.
-if ((process.env.OPENOVAI_STAND_IN_DEAF ?? "") !== "") {
-  process.on("SIGTERM", () => {});
-  process.on("SIGINT", () => {});
-  process.on("SIGHUP", () => {});
-
-}
-
-if (called === "auth status") {
+if (argv[0] === "auth" && argv[1] === "status") {
   const signedIn = process.env.OPENOVAI_STAND_IN_SIGNED_IN ?? "true";
-  process.stdout.write(\`{"loggedIn":\${signedIn},"authMethod":"claude.ai"}\\n\`);
-  process.exit(signedIn === "true" ? 0 : 1);
+  process.stdout.write(JSON.stringify({ loggedIn: signedIn === "true" }) + "\\n");
+  process.exit(0);
 }
-
-if (called === "auth login") {
-  process.stdout.write("(the real one opens a browser here)\\n");
+if (argv[0] === "auth" && argv[1] === "login") {
   process.exit(Number(process.env.OPENOVAI_STAND_IN_LOGIN_STATUS ?? 0));
 }
 
-// Falling over before anything could be framed: whatever it has to say, it says in prose, and it
-// says it on stderr — measured on the real one, where stdout stays frames whatever goes wrong.
+// The real one falls over on stderr, not stdout, because that is where it puts prose.
 if ((process.env.OPENOVAI_STAND_IN_BROKEN ?? "") !== "") {
   process.stderr.write("a model was never reached\\n");
-  process.exit(1);
-}
-
-// The same fall, with nothing said about it on either stream.
-if ((process.env.OPENOVAI_STAND_IN_MUTE ?? "") !== "") {
   process.exit(1);
 }
 
@@ -286,133 +200,31 @@ if (argv.includes("--system-prompt")) {
   process.exit(0);
 }
 
-// The reading the service sends when it is NOT refusing anything. It arrives on an ordinary run
-// whenever the numbers move, and both captures on this machine hold the frame in exactly this
-// state, so a check that never produced it would be checking the chat against a wire it will not
-// meet. Said as early as the run can say anything, and before every branch below: a reading that
-// only ever reached the paths that go on to answer would leave the paths that do not unwatched,
-// and one of those is where the thread is dropped.
-// One reading, in the shape four real captures on this workstation hold — not a shape invented
-// here. The whole of it is copied because the parts left out of a fixture are exactly the parts a
-// reader can go wrong on, and this frame has a trap in it.
-//
-// THE TRAP: overageStatus sits directly beside status, it is about billing rather than about this
-// run, and it reads "rejected" on every capture — every one of which was an ALLOWED run. A reader
-// reaching for the wrong one of two field names that read equally plausibly would call every
-// ordinary run a refusal. A fixture without the field lets that reader pass everything here, which
-// is why it is in.
-//
-// utilization is a fraction and not a percentage, resetsAt is unix seconds, and unifiedWindows
-// names its own windows rather than being one — all measured, none of it read by this feature,
-// all of it here so the frame is the frame.
-const reading = (status, lifts, full = fullness()) => ({
-  status,
-  ...(lifts === null ? {} : { resetsAt: lifts }),
-  rateLimitType: limitKind(),
-  overageStatus: "rejected",
-  overageDisabledReason: "org_level_disabled",
-  isUsingOverage: false,
-  unifiedWindows: {
-    five_hour: { utilization: full, ...(lifts === null ? {} : { resetsAt: lifts }) },
-    // Derived from the knob rather than written down, and deliberately not the same number as
-    // the window above: with a literal here, a reader that answered with a constant for this
-    // window — or read the wrong window entirely — reached the right answer in every fixture.
-    seven_day: { utilization: full / 2, resetsAt: Math.floor(Date.now() / 1000) + 5 * 24 * 60 * 60 },
-  },
+// A run that will not end on its own, whatever it is told. The lifetime bound below still ends
+// it, so a suite that forgot it cannot hang.
+const stuck = (process.env.OPENOVAI_STAND_IN_STUCK ?? "") !== "";
+
+setTimeout(() => {
+  note("outlived: " + (process.env.OPENOVAI_STAND_IN_LIFETIME ?? 60000));
+  process.exit(0);
+}, Number(process.env.OPENOVAI_STAND_IN_LIFETIME ?? 60000)).unref();
+
+frame({
+  type: "system",
+  subtype: "init",
+  session_id: "test-thread",
+  model: argv[argv.indexOf("--model") + 1] || "a-model",
 });
 
-// WHEN THE WINDOW LIFTS — ONE MOMENT, NOT ONE PER RUN.
-//
-// A window has a boundary. Everything told about it between now and that boundary is told about
-// the SAME window, and every reading of it names the same moment; that is what makes two readings
-// comparable at all. Derived per run instead, this said "three hours from whenever this run
-// happened", which models a window that restarts every time anybody speaks — and two readings of
-// one window then differ by the seconds between the runs that carried them.
-//
-// MEASURED, and it cost a green check: with the moment derived per run, a reading staged by hand
-// and a reading from a run a second later name two different windows, and a reader that compares
-// only within one window rightly refuses to put them together.
-//
-// The moment is handed in by whoever set this stand-in up, so one suite run means one window. On
-// its own — driven directly, with nothing passing the knob — it falls back to the derived moment,
-// which is what a single run in isolation has always meant.
-const lifts = () =>
-  Number(process.env.OPENOVAI_STAND_IN_LIFTS_AT ?? Math.floor(Date.now() / 1000) + 3 * 60 * 60);
-
-// How full the window says it is, and a knob rather than a literal for the same reason resetsAt is
-// computed above: a check that asserted the number this file had written down would be matching a
-// constant both sides already agree on, and would pass whether or not anything read the frame.
-const fullness = () => Number(process.env.OPENOVAI_STAND_IN_FULLNESS ?? 0.29);
-
-// Which window the service says refused, and a knob for exactly the reason the two above are.
-// It was a literal until it was measured: with every refusal fixture named five_hour, a reader
-// that ignored the field and hard-coded the string reached the right answer in all of them, and
-// the check whose whole job is this — "carries the kind of limit the frame named" — stayed green
-// under that mutation. The service names its own windows, so a fixture that only ever names one
-// proves nothing about whether the field is read.
-const limitKind = () => process.env.OPENOVAI_STAND_IN_LIMIT_KIND ?? "five_hour";
-
-if ((process.env.OPENOVAI_STAND_IN_LIMIT ?? "") !== "") {
-  frame({
-    type: "rate_limit_event",
-    rate_limit_info: reading(process.env.OPENOVAI_STAND_IN_LIMIT, lifts()),
-    uuid: crypto.randomUUID(),
-    session_id: process.env.OPENOVAI_STAND_IN_SESSION ?? "test-thread",
-  });
-}
-
-
-// Stopped in the middle of the turn: the frames it had already emitted are on stdout, there is no
-// result frame, and stderr is empty. This is the shape that put 14,546 characters of protocol on a
-// panel as what a session had said.
-if ((process.env.OPENOVAI_STAND_IN_HALF ?? "") !== "") {
-  frame({ type: "system", subtype: "init", session_id: "test-thread", tools: ["Bash", "Read"] });
-  frame({ type: "assistant", message: { role: "assistant", content: [{ type: "text", text: "half a thought" }] } });
-  process.exit(1);
-}
-
-// A thread that is not there any more. Measured on the real one (2.1.259) by resuming an id no
-// conversation was ever written under: the subtype is error_during_execution, the message is an
-// array of plain strings under errors and there is no result field at all, and session_id is the
-// id the run was asked to resume rather than null — the run adopts it before finding out it is
-// gone. The same message goes to stderr, and it exits 1 without ever reading stdin.
-if (called.includes("--resume") && (process.env.OPENOVAI_STAND_IN_RESUME_FAILS ?? "") !== "") {
-  const wanted = argv[argv.indexOf("--resume") + 1];
-  const gone = \`No conversation found with session ID: \${wanted}\`;
-  process.stderr.write(gone + "\\n");
-  frame({
-    type: "result",
-    subtype: "error_during_execution",
-    duration_ms: 0,
-    duration_api_ms: 0,
-    is_error: true,
-    num_turns: 0,
-    stop_reason: null,
-    session_id: wanted,
-    total_cost_usd: 0,
-    usage: { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, iterations: [] },
-    modelUsage: {},
-    permission_denials: [],
-    uuid: crypto.randomUUID(),
-    errors: [gone],
-  });
-  process.exit(1);
-}
-
-// The question arrives on stdin now, as a user frame, and not in the arguments. Reading it is
-// what says the run began — the argument line is written before there is anything to answer.
-//
-// Read with a listener rather than with for-await: leaving a for-await early closes the stream it
-// was reading, and this one has to stay open afterwards to see whether the caller ever ends it.
+// Frames arrive on stdin one per line. A user frame is a question; anything else is an answer to
+// something this run asked. Read with a listener rather than with for-await: leaving a for-await
+// early closes the stream it was reading, and this one stays open for the next question.
 process.stdin.setEncoding("utf8");
 
 let rest = "";
-let heard = null;
-let answered = null;
-const question = new Promise((resolve) => {
-  heard = resolve;
-});
-const ended = new Promise((resolve) => process.stdin.on("end", resolve));
+const questions = [];
+let wakeQuestion = null;
+let wakeAnswer = null;
 
 process.stdin.on("data", (chunk) => {
   rest += chunk;
@@ -425,204 +237,49 @@ process.stdin.on("data", (chunk) => {
       continue;
     }
     const said = JSON.parse(line);
-    if (said.type === "user" && heard !== null) {
-      heard(said.message.content);
-      heard = null;
+    if (said.type === "user") {
+      // Noted the moment the line arrives, before its turn: what the server wrote and when it
+      // wrote it, as against "heard:", which is when this run got round to it.
+      note("read: " + said.message.content);
+      questions.push(said.message.content);
+      if (wakeQuestion !== null) {
+        const wake = wakeQuestion;
+        wakeQuestion = null;
+        wake();
+      }
       continue;
     }
-    if (answered !== null) {
-      answered(said);
+    if (wakeAnswer !== null) {
+      wakeAnswer(said);
     }
   }
 });
 
-const asked = await question;
-fs.appendFileSync(log, \`heard: \${asked}\\n\`);
-
-// Turned away with nothing said about it in a frame — the refusal reaching the caller only as the
-// 429 on the result. This is the state the design's one open assumption is about: the rejected
-// reading has never been watched on the wire, and if it turns out not to travel to a headless
-// caller, this is what a refusal looks like instead. A stand-in that could only refuse the loud
-// way would leave the field that covers it unproven.
-if ((process.env.OPENOVAI_STAND_IN_REFUSED_QUIETLY ?? "") !== "") {
-  frame({
-    type: "result",
-    subtype: "success",
-    is_error: true,
-    api_error_status: 429,
-    num_turns: 0,
-    result: "You've hit your session limit · resets 9am",
-    session_id: process.env.OPENOVAI_STAND_IN_SESSION ?? "test-thread",
-  });
-  await ended;
-  process.exit(1);
-}
-
-// A run with no usable credential. Every field a refusal has, spelled the same way, EXCEPT the
-// 429 — which is the whole of the difference and the reason this exists. Nothing about it is a
-// rate limit, and a chat that called it one would go on calling it one for ever, since the
-// condition never clears by itself.
-if ((process.env.OPENOVAI_STAND_IN_SIGNED_OUT ?? "") !== "") {
-  frame({
-    type: "result",
-    subtype: "success",
-    is_error: true,
-    num_turns: 0,
-    result: "Invalid API key · Please run /login",
-    session_id: process.env.OPENOVAI_STAND_IN_SESSION ?? "test-thread",
-  });
-  await ended;
-  process.exit(1);
-}
-
-// Turned away by the service. Not a failure and not an answer: the run reached the service, was
-// refused, and said so in the shape the published schema gives — a rate_limit_event whose
-// rate_limit_info.status is "rejected", and then a result frame spelled subtype "success" while
-// carrying is_error true and api_error_status 429.
-//
-// That spelling is the trap the whole thing turns on. A refusal differs from an ordinary answer
-// ONLY in is_error, and it is not separable from a signed-out run without api_error_status or the
-// rate_limit_event beside it. A stand-in that spelled it error_during_execution would be modelling
-// an unresumable thread instead, and everything built on it would be proven against a fiction.
-//
-// resetsAt is computed rather than fixed, so a check about the reset time cannot pass by matching
-// a literal both sides already agree on. The time in the PROSE is deliberately not that one: a
-// panel that got its sentence by reading the message rather than the field would say the wrong
-// hour, and be caught saying it.
-//
-// It waits to be told the run is over, exactly as the ordinary path below does — a refusal is not
-// what ends a run — and then exits 1, which is what the real one exits when its last result frame
-// carries is_error.
-const refusedWhile = process.env.OPENOVAI_STAND_IN_REFUSED_WHILE ?? "";
-if ((process.env.OPENOVAI_STAND_IN_REFUSED ?? "") !== "" || (refusedWhile !== "" && fs.existsSync(refusedWhile))) {
-  // The same reading as an ordinary run sends, in the same captured shape, saying rejected instead
-  // of allowed. Everything beside status is unchanged, overageStatus included — which is the
-  // point of it: the two states differ in the one field, and a reader of any other field cannot
-  // tell them apart at all.
-  //
-  // A refusal that does not say when it lifts is the other knob here. The schema does not promise
-  // the field, and a chat that needed it to recognise a refusal would go deaf the first time one
-  // came without it.
-  frame({
-    type: "rate_limit_event",
-    rate_limit_info: reading("rejected", (process.env.OPENOVAI_STAND_IN_NO_RESET ?? "") !== "" ? null : lifts()),
-    uuid: crypto.randomUUID(),
-    session_id: process.env.OPENOVAI_STAND_IN_SESSION ?? "test-thread",
-  });
-  frame({
-    type: "result",
-    subtype: "success",
-    is_error: true,
-    api_error_status: 429,
-    num_turns: 0,
-    result: "You've hit your session limit · resets 9am",
-    session_id: process.env.OPENOVAI_STAND_IN_SESSION ?? "test-thread",
-  });
-
-  // Refused AND deaf: the shape nobody has watched. It has been refused, it has said so, and it
-  // then ignores its input being closed for good — which is what the run would look like if some
-  // refusal did go quiet. Nothing but being ended reaches it, so it is what proves the ending.
-  if ((process.env.OPENOVAI_STAND_IN_REFUSED_DEAF ?? "") !== "") {
-    setInterval(() => {}, 60000);
-    await new Promise(() => {});
+let closed = false;
+process.stdin.on("end", () => {
+  closed = true;
+  if (wakeQuestion !== null) {
+    const wake = wakeQuestion;
+    wakeQuestion = null;
+    wake();
   }
-
-  const told = await Promise.race([
-    ended.then(() => true),
-    new Promise((resolve) => {
-      setTimeout(() => {
-        fs.appendFileSync(log, \`stdin was never closed: \${asked}\\n\`);
-        resolve(false);
-      }, 5000);
-    }),
-  ]);
-
-  // Written on the way out, and only when the input really was closed. It is what lets a check
-  // tell a run that left because it was told the turn was over from one that was made to go, which
-  // are the same exit code and otherwise the same from outside.
-  if (told) {
-    fs.appendFileSync(log, \`left: \${asked}\\n\`);
-  }
-  process.exit(1);
-}
-
-// What a tool call looks like from the outside. detached puts it in a process group AND a session
-// of its own, which is what the real one was measured doing, and is the whole reason a signal sent
-// to this process or to the chat cannot reach it. Left alone it outlives this run.
-if ((process.env.OPENOVAI_STAND_IN_DEAF ?? "") !== "") {
-  const started = spawn(process.execPath, ["-e", "setTimeout(() => {}, 60000)"], {
-    detached: true,
-    stdio: "ignore",
-  });
-  started.unref();
-  fs.appendFileSync(log, \`shell: \${started.pid}\\n\`);
-}
-
-// A run that goes quiet and stays that way. No answer, no failure, no notice on either stream, and
-// its input being closed changes nothing — the state a real one is in while it waits to be allowed
-// something that nobody is going to answer. Every other knob here ends somehow; this one is the
-// absence of an ending, which is the whole point of it.
-//
-// It sits after the shell above so a run can be stuck AND have left something running underneath
-// it, and before everything below so nothing is ever framed.
-if ((process.env.OPENOVAI_STAND_IN_STUCK ?? "") !== "") {
-  // Its own pid, said before it goes quiet, because after this line it says nothing ever again.
-  // This is the only thread back to it: a run in this state ends because the chat ends it, so a
-  // suite checking whether the chat DOES would have no way to clear up after itself the one time
-  // it matters — when the ending is broken and the check is about to say so. A stuck run left
-  // behind holds the test process's own output open, and a check that cannot be watched failing
-  // proves nothing.
-  fs.appendFileSync(log, \`stuck: \${process.pid}\\n\`);
-  setInterval(() => {}, 60000);
-  await new Promise(() => {});
-}
-
-// What this run is on, said as the run opens, in the service's own words. Measured on 2.1.263: a
-// run given \`sonnet\` opens under \`claude-sonnet-5\`, and that is the key its usage map uses for
-// the run's own entry — so the model a run answered on is a thing the run itself says twice, and
-// never a thing the caller has to recognise from the outside.
-//
-// After the branches that end without answering and before every frame that says anything about
-// this turn, which is where the real one puts it.
-const ranOn = process.env.OPENOVAI_STAND_IN_MODEL_ID || argv[argv.indexOf("--model") + 1] || "a-model";
-frame({
-  type: "system",
-  subtype: "init",
-  session_id: process.env.OPENOVAI_STAND_IN_SESSION ?? "test-thread",
-  model: ranOn,
 });
 
-// Said from inside this turn, with the instance's own command, from the directory a session is
-// started in. A timeout, because the thing being checked is sometimes whether this returns at all.
-const me = process.env.OPENOVAI_SESSION_NAME ?? "";
-for (const pair of (process.env.OPENOVAI_STAND_IN_CALLS ?? "").split(",").filter(Boolean)) {
-  const [speaker, addressee] = pair.split(">");
-  if (speaker !== me) {
-    continue;
-  }
-  const said = spawnSync("./bin/ovai", ["say", addressee, \`a word from \${me}\`], { encoding: "utf8", timeout: 5000 });
-  fs.appendFileSync(
-    log,
-    \`said by \${me} to \${addressee}: status=\${said.status} out=\${JSON.stringify((said.stdout ?? "").trim())} err=\${JSON.stringify((said.stderr ?? "").trim())}\\n\`,
-  );
-}
+const nextQuestion = () =>
+  new Promise((resolve) => {
+    if (questions.length > 0 || closed) {
+      resolve();
+      return;
+    }
+    wakeQuestion = resolve;
+  });
 
-// What the real one says beside an answer: a keep-alive while a long turn runs, a system notice,
-// and — because stdout is a stream and not only frames — the odd line that is not JSON at all.
-if ((process.env.OPENOVAI_STAND_IN_NOISE ?? "") !== "") {
-  frame({ type: "keep_alive" });
-  frame({ type: "system", subtype: "init", session_id: "test-thread" });
-  process.stdout.write("this line is not a frame at all\\n");
-  frame({ type: "assistant", message: { role: "assistant", content: [{ type: "text", text: "thinking" }] } });
-}
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Asking to be allowed to use a tool, the way a run does when the instance has not already
-// settled it: a control_request on stdout, then nothing at all until an answer comes back on
-// stdin. What the answer was becomes the reply, so a check can read the decision in the transcript
-// rather than only in the log.
-let decided = null;
-if ((process.env.OPENOVAI_STAND_IN_ASKS ?? "") !== "") {
-  const id = "request-1";
+// Asking to be allowed, the way the real one asks: a control request, then a wait for the
+// control response echoing the same request id. The real one waits for good; a suite cannot.
+async function askPermission(turn) {
+  const id = "request-" + turn;
   frame({
     type: "control_request",
     request_id: id,
@@ -633,155 +290,81 @@ if ((process.env.OPENOVAI_STAND_IN_ASKS ?? "") !== "") {
         (process.env.OPENOVAI_STAND_IN_ASKS_FILE ?? "") === ""
           ? { command: process.env.OPENOVAI_STAND_IN_ASKS_INPUT ?? "the one it wanted to run" }
           : { file_path: process.env.OPENOVAI_STAND_IN_ASKS_FILE },
-      tool_use_id: "use-1",
     },
   });
-
-  // Nothing times out on this path in the real one, and that is the point of it. Here it must,
-  // because a suite that hangs says nothing about what broke: an answer that never arrives, or one
-  // that comes back with the wrong id on it, has to read as a failed check and not as a stuck run.
-  decided = await Promise.race([
+  const answer = await Promise.race([
     new Promise((resolve) => {
-      answered = (said) => {
+      wakeAnswer = (said) => {
         if (said.type === "control_response" && said.response?.request_id === id) {
+          wakeAnswer = null;
           resolve(said.response.response);
         }
       };
     }),
-    new Promise((resolve) => {
-      setTimeout(
-        () => resolve({ behavior: "never told", message: "no answer came back for " + id }),
-        Number(process.env.OPENOVAI_STAND_IN_WAITS ?? 5000),
-      );
-    }),
+    sleep(Number(process.env.OPENOVAI_STAND_IN_WAITS ?? 5000)).then(() => null),
   ]);
-  fs.appendFileSync(log, \`told: \${JSON.stringify(decided)}\\n\`);
+  note(answer === null ? "nobody answered: " + id : "decided: " + JSON.stringify(answer));
+  return answer;
 }
 
-// The reading moving WHILE the run is going, which is what the real one does: the frame's own
-// schema calls it "emitted when rate limit info changes", so a run that spends a window sends
-// several and a run that spends nothing sends one. Sent from here, after the frame that says what
-// this run is on and before whatever it takes to answer, so a reader looking mid-run has two
-// different readings to have kept the wrong one of.
-if ((process.env.OPENOVAI_STAND_IN_FULLNESS_AGAIN ?? "") !== "") {
-  const after = Number(process.env.OPENOVAI_STAND_IN_FULLNESS_AGAIN_IN ?? 0);
-  if (after > 0) {
-    await new Promise((resolve) => setTimeout(resolve, after));
+let turn = 0;
+for (;;) {
+  await nextQuestion();
+  if (questions.length === 0) {
+    break;
   }
+  const asked = questions.shift();
+  turn += 1;
+  note("heard: " + asked);
+
+  let decided = null;
+  if ((process.env.OPENOVAI_STAND_IN_ASKS ?? "") !== "") {
+    decided = await askPermission(turn);
+  }
+
+  // What the real one says beside an answer: a keep-alive while a long turn runs, a system
+  // notice, and — because stdout is a stream and not only frames — the odd line that is not
+  // JSON at all.
+  if ((process.env.OPENOVAI_STAND_IN_NOISE ?? "") !== "") {
+    frame({ type: "keep_alive" });
+    frame({ type: "system", subtype: "init", session_id: "test-thread" });
+    process.stdout.write("this line is not a frame at all\\n");
+    frame({ type: "assistant", message: { role: "assistant", content: [{ type: "text", text: "thinking" }] } });
+  }
+
+  const slow = Number(process.env.OPENOVAI_STAND_IN_SLOW ?? 0);
+  if (slow > 0) {
+    await sleep(slow);
+  }
+
+  if ((process.env.OPENOVAI_STAND_IN_DIES ?? "") !== "") {
+    note("died: " + asked);
+    process.exit(1);
+  }
+
+  note("answered: " + asked);
   frame({
-    type: "rate_limit_event",
-    rate_limit_info: reading(
-      process.env.OPENOVAI_STAND_IN_LIMIT || "allowed",
-      lifts(),
-      Number(process.env.OPENOVAI_STAND_IN_FULLNESS_AGAIN),
-    ),
-    uuid: crypto.randomUUID(),
-    session_id: process.env.OPENOVAI_STAND_IN_SESSION ?? "test-thread",
+    type: "result",
+    subtype: "success",
+    is_error: false,
+    num_turns: turn,
+    session_id: "test-thread",
+    result:
+      (process.env.OPENOVAI_STAND_IN_EMPTY ?? "") !== ""
+        ? ""
+        : decided === null
+          ? (process.env.OPENOVAI_STAND_IN_REPLY ?? "a reply")
+          : \`I was told \${decided.behavior}\${decided.message === undefined ? "" : \`: \${decided.message}\`}\`,
   });
 }
 
-// Something of its own underneath this run while it answers, the way a tool call is: a process
-// the chat did not start and can reach only through the process table. Started before the wait
-// below and ended after it, so that a reader looking mid-run finds it and nothing outlives the turn.
-const under = (process.env.OPENOVAI_STAND_IN_UNDER ?? "") !== "" ? spawn("sleep", ["60"], { stdio: "ignore" }) : null;
-if (under !== null) {
-  fs.appendFileSync(log, \`under: \${under.pid}\\n\`);
+// Stdin was closed: the conversation is over. A stuck run stays until its lifetime is up — held
+// by an interval, because a promise nobody settles with nothing else on the loop is an exit.
+note("left: " + turn);
+if (stuck) {
+  setInterval(() => {}, 60000);
+  await new Promise(() => {});
 }
-
-const slow = Number(process.env.OPENOVAI_STAND_IN_SLOW ?? 0);
-if (slow > 0) {
-  await new Promise((resolve) => setTimeout(resolve, slow));
-  fs.appendFileSync(log, \`answered: \${asked}\\n\`);
-}
-if (under !== null) {
-  under.kill();
-}
-
-// One request's worth of usage, in the three fields a context is the sum of. Split rather than put
-// in one, so that a reader dropping any of the three is a reader that comes out short.
-const iteration = (size) => ({
-  type: "message",
-  output_tokens: 1,
-  input_tokens: 8,
-  cache_creation_input_tokens: 5,
-  cache_read_input_tokens: size - 13,
-});
-
-const sizes = (process.env.OPENOVAI_STAND_IN_USAGE ?? "").split(",").filter(Boolean).map(Number);
-const usage =
-  sizes.length === 0
-    ? {}
-    : {
-        usage: {
-          output_tokens: sizes.length,
-          input_tokens: 8 * sizes.length,
-          cache_creation_input_tokens: 5 * sizes.length,
-          cache_read_input_tokens: sizes.reduce((all, size) => all + size - 13, 0),
-          iterations: sizes.map(iteration),
-        },
-      };
-
-// What each model the frame names can hold, keyed the way the real one keys it — by the model, not
-// by anything the workspace passed. The LAST key is the model this run said it was on when it
-// opened, so a check about reading the window off the model a run answered on is looking at a real
-// key; every key before it is a model that answered beside it on the same turn.
-//
-// That order is the measured one and it matters. On 2.1.263 the first turn of a thread is answered
-// by two models — a background helper Claude Code calls on its own account, named FIRST, and the
-// model the run was given after it — so a fixture that put the run's own model first would let a
-// reader that takes the first entry pass everything here and be wrong on every real first turn.
-//
-// The key can be made to differ from what the run said it was on, which is the frame no window may
-// be read off: models answered, and none of them is the one this run is having its turn on.
-//
-// The absence of the variable and an empty value are different frames on purpose. Unset is the
-// frame as it has always been, carrying no \`modelUsage\` at all; set and empty is a frame that
-// named no model, which is a service that answered "nothing" rather than one that never spoke.
-// \`in\` and not \`??\`, because an empty string is exactly the case the two would collapse.
-const keyedUnder = process.env.OPENOVAI_STAND_IN_WINDOW_KEY || ranOn;
-const windows = "OPENOVAI_STAND_IN_WINDOW" in process.env
-  ? process.env.OPENOVAI_STAND_IN_WINDOW.split(",").filter(Boolean)
-  : null;
-const held =
-  windows === null
-    ? {}
-    : {
-        modelUsage: Object.fromEntries(
-          windows.map((size, at) => [
-            at === windows.length - 1 ? keyedUnder : \`a-model-answering-beside-it-\${at + 1}\`,
-            { contextWindow: Number(size) },
-          ]),
-        ),
-      };
-
-frame({
-  type: "result",
-  subtype: "success",
-  is_error: false,
-  num_turns: 1,
-  ...usage,
-  ...held,
-  session_id: process.env.OPENOVAI_STAND_IN_SESSION ?? "test-thread",
-  result:
-    (process.env.OPENOVAI_STAND_IN_EMPTY ?? "") !== ""
-      ? ""
-      : decided === null
-      ? (process.env.OPENOVAI_STAND_IN_REPLY ?? "a reply")
-      : \`I was told \${decided.behavior}\${decided.message === undefined ? "" : \`: \${decided.message}\`}\`,
-});
-
-// The real one would now wait for another question: a result is not what ends it. Whoever asked
-// has to close stdin, and a run that is left holding it open is a bug worth naming rather than a
-// test that hangs until somebody kills it.
-await Promise.race([
-  ended,
-  new Promise((resolve) => {
-    setTimeout(() => {
-      fs.appendFileSync(log, \`stdin was never closed: \${asked}\\n\`);
-      resolve();
-    }, 5000);
-  }),
-]);
 process.exit(0);
 `;
 
@@ -821,24 +404,9 @@ export function writeStandIn(directory) {
 
 // The environment an instance's command or chat runs in for a test: the stand-in first on the
 // PATH, and the log it records its calls in.
-// The moment the window every stand-in run reports lifts at, fixed once for the whole of a suite
-// run. See `lifts()` in the stand-in itself for why it cannot be worked out per run.
-export const LIFTS_AT = Math.floor(Date.now() / 1000) + 3 * 60 * 60;
-
-// That moment the way a panel line says it, hours and minutes on the local clock. A check that
-// compares a line with "three hours from now" worked out at the moment it runs names a different
-// hour whenever the hour turns between the suite loading and the check running — a suite started
-// in the last minutes of an hour went red on two checks for it, on an unmutated tree. So a check
-// reads the moment the stand-in was handed, and says it the way the line does.
-export function saidAt(seconds) {
-  const when = new Date(seconds * 1000);
-  return `${String(when.getHours()).padStart(2, "0")}:${String(when.getMinutes()).padStart(2, "0")}`;
-}
-
 export function standInEnvironment(directory, log, extra = {}) {
   return {
     ...process.env,
-    OPENOVAI_STAND_IN_LIFTS_AT: String(LIFTS_AT),
     OPENOVAI_STAND_IN_LOG: log,
     PATH: `${directory}${path.delimiter}${process.env.PATH}`,
     ...extra,
@@ -919,28 +487,42 @@ export function callsIn(log) {
     .filter((line) => line.startsWith("argv: "));
 }
 
-// The questions the stand-in was asked, newest last. The question is a frame on stdin rather than
-// an argument, so what a session was actually asked is read from here and not from callsIn.
-// The processes the stand-in ran as, newest last. A check about a run being ended needs the
-// process itself and not the promise for it: whether the chat is still holding a model open is a
-// question about the machine, and only a pid answers it.
-// The shells the stand-in started as a tool call would, newest last.
-export function shellsIn(log) {
+// A line the stand-in recorded under a label, newest last: `heard: ` for every frame it was
+// told, `pid: ` for the process it ran as, and so on.
+function recordedIn(log, label) {
   return readLog(log)
     .split("\n")
-    .filter((line) => line.startsWith("shell: "))
-    .map((line) => Number(line.slice("shell: ".length)));
+    .filter((line) => line.startsWith(label))
+    .map((line) => line.slice(label.length));
 }
 
-// The runs the stand-in left in the state that has no ending of its own, newest last. Read by a
-// teardown rather than by a check: what these checks are about is whether the chat ends such a
-// run, so the suite cannot lean on the chat to have done it and still be able to report that it
-// did not.
-export function stuckRunsIn(log) {
+// The frames a session was told, newest last. A frame goes in on stdin rather than in an
+// argument, so what a session was actually told is read from here and not from callsIn.
+export function heardIn(log) {
+  return recordedIn(log, "heard: ");
+}
+
+// Every note the stand-in made, in order, as [label, rest] pairs: for a check about the ORDER of
+// what arrived and what was answered rather than about one kind of note.
+export function notesIn(log) {
   return readLog(log)
     .split("\n")
-    .filter((line) => line.startsWith("stuck: "))
-    .map((line) => Number(line.slice("stuck: ".length)));
+    .map((line) => /^([a-z]+): (.*)$/.exec(line))
+    .filter((found) => found !== null)
+    .map((found) => [found[1], found[2]]);
+}
+
+// The secrets the stand-in found in its environment, one per run, newest last. This is the one
+// place a test reads a session's secret from: the server never says it.
+export function secretsIn(log) {
+  return recordedIn(log, "OPENOVAI_SESSION_SECRET: ");
+}
+
+// The processes the stand-in ran as, newest last. A check about a run being ended needs the
+// process itself: whether a model is still held open is a question about the machine, and only
+// a pid answers it.
+export function pidsIn(log) {
+  return recordedIn(log, "pid: ").map(Number);
 }
 
 // What Claude Code was told to file this instance's transcripts and memory under, newest last.
@@ -953,13 +535,6 @@ export function projectDirectoriesIn(log) {
     .map((line) => line.slice("CLAUDE_CODE_PROJECT_DIR_NAME: ".length));
 }
 
-export function pidsIn(log) {
-  return readLog(log)
-    .split("\n")
-    .filter((line) => line.startsWith("pid: "))
-    .map((line) => Number(line.slice("pid: ".length)));
-}
-
 // Whether a process is there at all. Signal 0 asks without sending anything.
 export function alive(pid) {
   try {
@@ -968,12 +543,6 @@ export function alive(pid) {
   } catch {
     return false;
   }
-}
-
-export function heardIn(log) {
-  return readLog(log)
-    .split("\n")
-    .filter((line) => line.startsWith("heard: "));
 }
 
 // Start a chat server as a child, keeping whatever it prints. The output is where the address

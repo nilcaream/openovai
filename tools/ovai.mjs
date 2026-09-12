@@ -9,16 +9,13 @@ import path from "node:path";
 import { panelDirectory } from "./chat/conversation.mjs";
 import { listening } from "./chat/listening.mjs";
 import { QUIET_HOURS, describePop, popIn, quietHoursProblem } from "./chat/pop.mjs";
-import { roomLines } from "./chat/room.mjs";
-import { PARK_ATTEMPTS, WATCH_EVERY, parkAttemptsProblem, watchEveryProblem } from "./chat/watch.mjs";
 import { serve } from "./chat/server.mjs";
-import { HOLD_ABOVE, NAME_IN_ENVIRONMENT, endEveryRun, holdAboveProblem, runsGoing } from "./chat/session.mjs";
+import { endEvery, runningSeats } from "./chat/session.mjs";
 import { hasCredential, home, login, machineToken } from "./claude.mjs";
-import { DeskError, describeName, desks, hire, isName, modelFor } from "./desks.mjs";
+import { DeskError, desks, hire, modelFor } from "./desks.mjs";
 import { instructionsAbove } from "./instructions.mjs";
-import { leaveWord } from "./chat/untold.mjs";
 import { holderOf } from "./port.mjs";
-import { RELEASES, ReleaseError, latestRelease, notesIn, replacePayload, unpackInto } from "./release.mjs";
+import { RELEASES, ReleaseError, latestRelease, replacePayload, unpackInto } from "./release.mjs";
 import { describeRunning, runningHere } from "./running.mjs";
 import { CONFIG_FILE, seedUserContent } from "./seed.mjs";
 import { STORE_DIRECTORY } from "./store.mjs";
@@ -26,14 +23,13 @@ import { PluginError, describePluginName, describePlugins, isPluginName, plugins
 import { isOlderThan, version } from "./version.mjs";
 
 
-const COMMANDS = ["status", "room", "chat", "hire", "plugin", "say", "login", "update"];
+const COMMANDS = ["status", "chat", "hire", "plugin", "login", "update"];
 
 // What a command takes after its name, for the ones that take anything. A command that is not
 // here takes nothing, which is most of them.
 const TAKES = {
   hire: { most: 2, shape: "a name, and a model if not the usual one" },
   plugin: { most: 1, shape: "one name" },
-  say: { most: Number.POSITIVE_INFINITY, shape: "a name and a message" },
   update: { most: 3, shape: "at most --from <url or directory> and --downgrade" },
 };
 
@@ -52,14 +48,11 @@ function usage() {
     "",
     "Usage:",
     "  ovai status        show who works in this instance and on which models",
-    "  ovai room          show what each of them is doing right now",
     "  ovai chat          serve the chat page until you stop it",
     "  ovai hire <name> [model]",
     "                   open a desk for a worker, so the chat can host one; on the",
     "                   model this workspace runs its workers on unless another is named",
     "  ovai plugin <name> start a tool this instance serves itself, from the scaffold",
-    "  ovai say <name> <message>",
-    "                   say something to another session in this instance and wait for its reply",
     "  ovai login         sign this instance in to an Anthropic account",
     "  ovai update        take the latest release, replacing what the toolkit ships",
     "                   [--from <url or directory>] where to look instead",
@@ -175,117 +168,6 @@ function pluginHere(root, name) {
   console.log("Start the chat again to serve it: it reads these when it starts.");
 }
 
-// The room: one line per session, saying what is true of each of them right now.
-//
-// It asks the chat rather than reading the instance, because half of what a room is cannot be
-// read off disk. How many turns are going, who is held up waiting for whom and what is stopped
-// waiting to be allowed something all live in the process serving the page; only what a session
-// is called, what it is on and how big its thread is are in files. So there is no room to show
-// when no chat is running, and saying so is the honest answer.
-//
-// The same rows the page builds its own room from, on the same route. What each of them means is
-// settled in one place — the server — and what they SAY is settled in one place beside it, which is
-// where the session that leads asks the same question from.
-async function room(root) {
-  const url = listening(root);
-  if (url === null) {
-    throw new ChatError("no chat is running in this instance, so there is no room to show — start one with: ovai chat");
-  }
-
-  let answered;
-  try {
-    answered = await fetch(`${url}/sessions`);
-  } catch (error) {
-    throw new ChatError(`the chat at ${url} did not answer (${error.cause?.code ?? error.message}) — start one with: ovai chat`);
-  }
-
-  let body;
-  try {
-    body = await answered.json();
-  } catch {
-    body = null;
-  }
-
-  if (!answered.ok || !Array.isArray(body?.sessions)) {
-    throw new ChatError(`the chat answered ${answered.status} with nothing that reads as a room`);
-  }
-
-  // The room's own fact rides with the rows it belongs to. Read as a boolean rather than trusted:
-  // a chat too old to know the field would send nothing, and a room that is on is what it was.
-  for (const line of roomLines(body.sessions, body.offline === true, body.hold ?? null, body.watch ?? null)) {
-    console.log(line);
-  }
-}
-
-// Say something to another session and wait for what it answers.
-//
-// It goes through the chat rather than starting a session here: a session belongs to the chat
-// serving this instance, which is what keeps its transcript and its thread in one place no matter
-// who spoke to it. So this is a message posted to the same route the page posts to, and the panel
-// shows the exchange as it would any other.
-//
-// The reply is waited for. The caller is a session itself, mid-turn, and it asked because it
-// wants the answer — which costs it the whole of the other session's turn, and is the trade to
-// revisit when a session waiting is actually in the way.
-//
-// The message is signed with the name of the session running the command, which the chat put in
-// its environment when it started it. Run from a terminal there is no name and nothing is signed,
-// which is correct: the person at the keyboard is the human, and that is who it arrives as.
-async function say(root, name, words) {
-  if (name === undefined) {
-    throw new UsageError("say needs somebody to say it to: ovai say <name> <message>");
-  }
-  if (!isName(name)) {
-    throw new UsageError(describeName("a name", name));
-  }
-
-  const text = words.join(" ").trim();
-  if (text === "") {
-    throw new UsageError(`say needs something to say: ovai say ${name} <message>`);
-  }
-
-  const url = listening(root);
-  if (url === null) {
-    throw new ChatError("no chat is running in this instance — start one with: ovai chat");
-  }
-
-  const from = process.env[NAME_IN_ENVIRONMENT];
-
-  let answered;
-  try {
-    answered = await fetch(`${url}/sessions/${encodeURIComponent(name)}/message`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ text, ...(from === undefined || from === "" ? {} : { from }) }),
-    });
-  } catch (error) {
-    // The address was written down by a chat that has since been stopped, or one that is no
-    // longer answering. Say where we tried, so the next question is about that process.
-    throw new ChatError(`the chat at ${url} did not answer (${error.cause?.code ?? error.message}) — start one with: ovai chat`);
-  }
-
-  let body;
-  try {
-    body = await answered.json();
-  } catch {
-    body = null;
-  }
-
-  if (!answered.ok) {
-    throw new ChatError(body?.error ?? `the chat answered ${answered.status}`);
-  }
-
-  // The reply is what the caller asked for, so anything that is not one is said out loud rather
-  // than printed as an answer. A session reading "undefined" off its own tool has no way to tell
-  // that apart from a colleague who said it.
-  const reply = body?.reply?.text;
-  if (typeof reply !== "string") {
-    throw new ChatError(`the chat answered ${answered.status} with nothing that reads as a reply`);
-  }
-
-  console.log(reply);
-}
-
 // Where the package is opened before any of it is put in place. Inside the instance rather than
 // somewhere shared: an instance is self-contained, and an update that falls over half way leaves
 // what it was working on where somebody would look for it rather than in a directory nobody owns.
@@ -295,7 +177,7 @@ const UNPACKING = ".release";
 //
 // What the toolkit ships is replaced, whole. Everything an instance accumulated — the desks, the
 // settings, its Claude Code home with its account and its transcripts and what the workspace has
-// learned, the panels and the threads they resume, its own description of itself — is the person's
+// learned, the panels and their conversations, its own description of itself — is the person's
 // and is left as it is; a file of theirs that a fresh install would have given them and they have
 // not got is seeded, once, the way the installer seeds it (tools/seed.mjs). So an updated instance
 // is a clean install of the new version with the person's material in it, there is nothing here to
@@ -345,14 +227,12 @@ async function update(root, argv) {
 
   const opened = path.join(root, UNPACKING);
   let replaced;
-  let notes;
   try {
     fs.rmSync(opened, { recursive: true, force: true });
     const tree = release.unpacked ? release.package : await unpackInto(release.package, opened);
     // What was downloaded is asked whether it is a workspace before any of it is put in place,
     // inside replacePayload, so an instance is never half replaced by something that turned out to
     // be something else.
-    notes = notesIn(tree);
     replaced = replacePayload(root, tree);
   } finally {
     fs.rmSync(opened, { recursive: true, force: true });
@@ -373,10 +253,9 @@ async function update(root, argv) {
     }
   }
 
-  // Left where the chat will look. The lead running in this instance was started under the old
+  // Left where the chat will look. The Leader running in this instance was started under the old
   // arrangement and will go on telling everybody the old way until it is told otherwise, and it
   // cannot be told while nothing is running it.
-  leaveWord(root, { from: here, to: now, notes });
 
   console.log("");
   console.log("Start the chat again to run it:");
@@ -455,7 +334,7 @@ function status(root) {
     // rather than from openovai.json, so it says what the code here IS and not what it was installed
     // as.
     ["version", version(root) ?? "not recorded — this instance was made before the toolkit carried one"],
-    ["human", config.human],
+    ["user", config.user],
     ["leader", `${config.leader} (${config.models.leader})`],
     // The default, said so. Somebody can be hired onto a model of their own, so a row headed
     // "worker model" names what some of the workers here run on while reading as though it named
@@ -531,32 +410,6 @@ async function chat(root) {
     throw new UsageError(`${configIn(root)}: ${wrongWindow}`);
   }
 
-  // Beside it and for the same reason. This is the field that decides how often the workspace
-  // spends a turn nobody asked for, and a cadence nothing can read would otherwise fall back to
-  // five minutes — silently, in a workspace whose owner had written a number down precisely
-  // because they did not want five minutes. Being told at the start beats finding it on a bill.
-  const wrongCadence = watchEveryProblem(config[WATCH_EVERY]);
-  if (wrongCadence !== null) {
-    throw new UsageError(`${configIn(root)}: ${wrongCadence}`);
-  }
-
-  // And the bound on how often one seat is asked to hand over on the account's behalf, for the
-  // same reason: a number nothing can read would silently become "as often as it takes", in a
-  // workspace whose owner wrote a number down precisely to cap it.
-  const wrongAttempts = parkAttemptsProblem(config[PARK_ATTEMPTS]);
-  if (wrongAttempts !== null) {
-    throw new UsageError(`${configIn(root)}: ${wrongAttempts}`);
-  }
-
-  // And where this workspace draws its stop line, for the sharpest version of the same reason: a
-  // line nothing can read would silently become the default, and a line under the plan line would
-  // be a hold that never enters — in a workspace whose owner wrote the number down precisely so that
-  // everybody is put down before the account is spent.
-  const wrongLine = holdAboveProblem(config[HOLD_ABOVE]);
-  if (wrongLine !== null) {
-    throw new UsageError(`${configIn(root)}: ${wrongLine}`);
-  }
-
   const plugins = await pluginsIn(root);
 
   // What was found, and what was meant to be found and could not be. Only when there is something
@@ -606,11 +459,11 @@ async function chat(root) {
   // That case is the reason a stopped chat is stopped with ctrl-c and not with kill -9.
   const stop = async () => {
     server.close();
-    const going = runsGoing();
+    const going = runningSeats().length;
     if (going > 0) {
       console.log(`Ending ${going} ${going === 1 ? "session" : "sessions"}.`);
     }
-    await endEveryRun();
+    await endEvery();
     // Stopping a server that was asked to stop is what it was told to do, not a failure.
     process.exit(0);
   };
@@ -651,14 +504,6 @@ async function main(argv) {
     }
     if (command === "plugin") {
       pluginHere(root, arguments_[0]);
-      return 0;
-    }
-    if (command === "room") {
-      await room(root);
-      return 0;
-    }
-    if (command === "say") {
-      await say(root, arguments_[0], arguments_.slice(1));
       return 0;
     }
     if (command === "update") {

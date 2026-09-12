@@ -1,8 +1,7 @@
 // The instance's own commands, offered to its sessions as tools rather than as shell lines.
 //
-// A persona used to tell a session to run `ovai say <name> <message>`, and a session runs that by
-// composing a shell line. The message is free text, so an apostrophe ends the quoting and a
-// backtick is executed and its output sent instead of what was written — and several further
+// A shell line is a poor place to put a sentence somebody wrote: an apostrophe ends the quoting,
+// a backtick is executed and its output sent instead of what was written — and several further
 // shapes stop the session to be approved, on a panel nobody may be looking at. The same text as a
 // tool argument is JSON: it arrives byte for byte, and nothing about it can end a quote.
 //

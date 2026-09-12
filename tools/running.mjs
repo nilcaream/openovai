@@ -13,8 +13,8 @@
 // (tools/claude.mjs): CLAUDE_CONFIG_DIR, set to this instance's own Claude Code home. Another
 // instance on the same machine has another home. A Claude Code the person runs in the instance's
 // directory with their own config is not ours, and correctly so — it is not reading this
-// instance's settings and will not be running its persona. The seat name travels beside it, when
-// there is one; a sign-in has none.
+// instance's settings and will not be running its persona. Nothing else about a process is read:
+// which seat it is, if any, is the server's to know and nobody else's.
 //
 // Read from /proc, which is where Linux keeps a process's environment and which this toolkit
 // already reads for sockets (tools/port.mjs). Only the person's own processes are readable there,
@@ -26,7 +26,6 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { home } from "./claude.mjs";
-import { NAME_IN_ENVIRONMENT } from "./chat/session.mjs";
 
 const PROCESSES = "/proc";
 
@@ -55,8 +54,7 @@ function environmentOf(pid) {
   return found;
 }
 
-// Every process of this instance's that is running, as `{ pid, seat }` — the seat null where the
-// process carries no name, which a sign-in does not. The caller's own process is never among them:
+// Every process of this instance's that is running, as `{ pid }`. The caller's own process is never among them:
 // a command run from inside a session inherits the session's environment, and telling the person
 // to kill the very command that is telling them is not an answer, where the session it runs under
 // is and is listed. The root is compared as a canonical path, which is what bin/ovai hands over.
@@ -83,7 +81,7 @@ export function runningHere(root) {
     if (environment === null || environment.get(CONFIG_DIR) !== ours) {
       continue;
     }
-    found.push({ pid, seat: environment.get(NAME_IN_ENVIRONMENT) ?? null });
+    found.push({ pid });
   }
   return found;
 }
@@ -94,7 +92,7 @@ export function runningHere(root) {
 export function describeRunning(running) {
   return [
     "a session of this instance is running — an update would replace, on disk, what it is running from memory, and it would go on running the old version:",
-    ...running.map(({ pid, seat }) => `  kill ${pid}  ${seat ?? "(no seat name)"}`),
+    ...running.map(({ pid }) => `  kill ${pid}`),
     "End them, or let them finish, and run this again.",
   ].join("\n");
 }

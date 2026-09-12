@@ -1,15 +1,19 @@
-// Asking a session something.
+// One process per seat, and the one writer of its stdin.
 //
-// One Claude Code run per message: the process starts, answers, and is closed. It need not be —
-// held open, a run answers question after question in one conversation — and it is closed anyway,
-// because the conversation surviving in a session id rather than in a running process is what lets
-// the server be stopped and started again in the middle of one without losing it. Keeping a
-// process per session would trade that away and make this the place that supervises them. The
-// price of the trade is a start-up per message, and it is knowingly paid.
+// A seat is a desk with a name. When a seat starts, this module spawns one Claude Code process for
+// it and keeps it: the process reads turn after turn from its stdin, in one conversation, until
+// the seat is ended. Nothing else in the toolkit holds a child or writes to one. Text reaches a
+// session in exactly one way — `tell(seat, frame)` — and only with a frame built by
+// `frames.mjs`, so a body is neutralised before it can get anywhere near a process.
 //
-// Every session in the instance is run through here, the lead included. A session differs from
-// another only in its name, the model it runs on and the persona it is given; nothing else about
-// the run is anybody's in particular, so there is one way to run one rather than one per kind.
+// Identity travels with the process. Before the child exists a secret is minted and issued for the
+// seat and its role (`secrets.mjs`); the child is spawned with the secret in its environment and
+// an MCP address that names it, and the server knows every call from that process by the secret
+// alone. When the child ends, the secret is revoked with it.
+//
+// A turn is one frame written as one line, answered by one `result` line. A seat has a queue of
+// frames; the next one is written only when the previous turn has ended, so a session never has
+// two questions in flight and every answer belongs to the question before it.
 
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -20,647 +24,94 @@ import { listening } from "./listening.mjs";
 import { desks, modelFor, persona } from "../desks.mjs";
 import { LEADER, WORKER, withHardRules } from "../store.mjs";
 import { ownInstructions } from "../instructions.mjs";
+import { isFrame } from "./frames.mjs";
+import { issue, revoke } from "./secrets.mjs";
 
-// Where a thread lives between runs, under the name of the session having it. One id, written
-// after every answer: it is the whole reason a per-message run can still be a conversation.
-const SESSION_FILE = "session.json";
-
-// Who a session is, rendered when it starts a conversation and kept beside the thread for as long
-// as the thread lasts. A persona is appended to Claude Code's own system prompt rather than
-// replacing it, so a session gains a name and a desk without losing the instructions that make its
-// tools work.
 const PERSONA_FILE = "persona.md";
 
-// What a session is told its own name in. `ovai say` reads it, so a message one session sends
-// another arrives under the name of whoever sent it — and a message nobody signed is the human's,
-// which is the whole of how a session tells the two apart.
-export const NAME_IN_ENVIRONMENT = "OPENOVAI_SESSION_NAME";
+// The one thing a session is handed that says who it is, and the only place it is said: the MCP
+// address in the child's arguments refers to this variable rather than carrying the value, so the
+// secret is in the process environment and nowhere a wider audience can read it.
+export const SECRET_IN_ENVIRONMENT = "OPENOVAI_SESSION_SECRET";
 
-// How long a session may be kept waiting on one of the instance's own tools. Half an hour, because
-// `say` is answered only when the session it reached has finished its turn, and a turn is minutes.
-//
-// EXPORTED FOR ONE READER, the room watch, and for the meaning this file gives it rather than for the
-// number: a run still going past this has outlived the longest wait anything in the toolkit has for
-// an answer, which is the one fact about its length that is not a judgment.
+// The role words are the store's: what a tool is refused and what a hard rule is scoped to are
+// said in the same two words as who is calling.
+export { LEADER, WORKER } from "../store.mjs";
+
+// How long a session may wait on another session's answer over the MCP connection. A turn can
+// be long; Claude Code's own default would give up on a colleague who was merely thinking.
 export const A_WHOLE_TURN = 30 * 60 * 1000;
 
-function sessionFile(root, name) {
-  return path.join(root, "chat", name, SESSION_FILE);
+export function roleOf(instance, seat) {
+  return seat === instance.config.leader ? LEADER : WORKER;
 }
 
-function remembered(root, name) {
-  try {
-    return JSON.parse(fs.readFileSync(sessionFile(root, name), "utf8")).sessionId ?? null;
-  } catch {
-    return null;
-  }
+// The role a seat is: the one its process was issued, for as long as that process runs, and
+// otherwise the one the configuration would issue it now. A process is one role for its whole
+// life; what the configuration says is what its next process will be.
+function roleNow(instance, seat) {
+  return processes.get(seat)?.role ?? roleOf(instance, seat);
 }
 
-function remember(root, name, sessionId, context, quota, refused, window) {
-  const target = sessionFile(root, name);
-  fs.mkdirSync(path.dirname(target), { recursive: true });
-  fs.writeFileSync(target, `${JSON.stringify({ sessionId, context, quota, refused, window }, null, 2)}\n`);
-}
-
-// How much of itself a thread is carrying, as of the end of its last turn. Read from the same file
-// the thread id lives in, so it is what is known about this conversation between runs and goes with
-// it when it ends — a session that has just been handed over has no reading, which is the truth.
-export function contextIn(root, name) {
-  try {
-    const held = JSON.parse(fs.readFileSync(sessionFile(root, name), "utf8")).context;
-    return typeof held === "number" ? held : null;
-  } catch {
-    return null;
-  }
-}
-
-// How much this conversation's model can hold, as the run that last answered was told. Beside the
-// reading above and read the same way, because the two are one fact said in one unit and neither is
-// worth anything to the other's reader on its own: a size is a number, and a size against a window
-// is a share.
-//
-// It dies with the thread, for contextIn's reason: it is in the file `forget` removes, so a session
-// that has just been handed over has no window and no share, which is the truth.
-//
-// Nothing is NOT a default. A window nobody was told about is not two hundred thousand tokens; it
-// is no reading, and everything downstream is written to say nothing on null rather than to guess
-// the most reassuring possible denominator.
-export function windowIn(root, name) {
-  try {
-    const held = JSON.parse(fs.readFileSync(sessionFile(root, name), "utf8")).window;
-    return typeof held === "number" ? held : null;
-  } catch {
-    return null;
-  }
-}
-
-// How full the account's usage windows were when this session last ran, as the service last told
-// that run. Read from the same file and with the same honesty as the reading above: what the run
-// was told, or nothing.
-//
-// A list rather than one number, because the frame names its own windows — a five-hour one and a
-// seven-day one today — and picking one of them would write a name into this toolkit for a service
-// that can rename its windows or add to them. Carrying them all is less code than choosing and
-// makes no judgment.
-//
-// Nothing is NOT zero. A window nobody has been told about and a window that is empty are opposite
-// facts, and a row that printed 0% for the first would be inventing the most reassuring possible
-// reading out of an absence.
-export function quotaIn(root, name) {
-  try {
-    const held = JSON.parse(fs.readFileSync(sessionFile(root, name), "utf8")).quota;
-    return Array.isArray(held) ? held : null;
-  } catch {
-    return null;
-  }
-}
-
-// The refusal this session is still under, or nothing.
-//
-// A refusal is not a fact about a moment the way a reading is; it is a condition that lasts, and
-// the service says when it ends. So this is the one thing here that answers differently at
-// different times without anything having been written in between: the moment is stored, the
-// comparison happens on every read, and there is no timer, nothing scheduled and nothing to clean
-// up. Exactly the shape hasGoneCold() already has, for the same reason.
-//
-// A refusal that named no moment cannot expire this way and stays until a run reports otherwise.
-// That is the honest answer rather than a guessed expiry: the service did not say, so neither does
-// this, and the next run settles it. Dropping such a refusal for saying less would be the most
-// confident possible silence.
-export function refusedIn(root, name) {
-  let held;
-  try {
-    held = JSON.parse(fs.readFileSync(sessionFile(root, name), "utf8")).refused;
-  } catch {
-    return null;
-  }
-  if (held === null || typeof held !== "object") {
-    return null;
-  }
-  const lifts = typeof held.resetsAt === "number" ? held.resetsAt : null;
-  if (lifts !== null && lifts * 1000 <= Date.now()) {
-    return null;
-  }
-  return { kind: held.kind ?? null, resetsAt: lifts };
-}
-
-// Whether this session has a conversation to carry on, which is not the same question as how big
-// it is. A run that reported no usage is remembered with `context: null`, and so is a session
-// that has never answered at all — so a reading of null cannot tell a live thread from no thread,
-// and only the id can. The id itself stays in here: what a page or a command wants to know is
-// whether there is one.
-export function hasThread(root, name) {
-  return remembered(root, name) !== null;
-}
-
-// When this conversation last ran, or nothing when it has never run or has been ended. The file
-// below is rewritten after every answer that reported a session id, so its modified time IS that
-// moment — there is nothing to record and nothing that can disagree with it.
-//
-// The thread's own clock, deliberately, and not the panel's: a panel is appended to outside any
-// run, so its time walks forward while the conversation it belongs to sits untouched. The two
-// answer different questions and only this one answers "when did this session last think".
-//
-// Nothing, rather than a guess, when the file is not there or cannot be read. A reading that
-// cannot be taken is not a reading that says "old", and every caller is written to do nothing on
-// null — the same honesty contextIn already has.
-export function ranAt(root, name) {
-  try {
-    return fs.statSync(sessionFile(root, name)).mtimeMs;
-  } catch {
-    return null;
-  }
-}
-
-// How long a conversation can go unanswered before carrying it on certainly costs the whole of it
-// again at write price. The cache holding a conversation between runs lives an hour.
-//
-// Not in openovai.json: it describes the model service rather than this workspace, it is the same number
-// everywhere, and a wrong one silently either throws conversations away or pays for them. If it
-// ever changes it is this literal and a fresh measurement.
-//
-// Not shortened for a margin, deliberately. Going under the hour discards conversations that were
-// still warm and buys a fresh start for nothing. Being late costs money now and then; being early
-// costs a conversation every single time.
-const COLD_AFTER = 60 * 60 * 1000;
-
-// Whether carrying this conversation on would certainly cost the whole of it again — which is the
-// one question worth asking, because it is the only one that can be answered. The state of the
-// cache itself cannot be read: only a run that WROTE reports what it bought, and by then the money
-// is spent.
-//
-// So the rule is one-directional. Past the hour, certainly cold, and something is done about it.
-// Inside it, nothing is claimed and nothing is done: a conversation in there may be warm or may
-// not, and today's behaviour is already the right answer to not knowing.
-//
-// A session with no thread is never cold. There is nothing to carry on and so nothing that
-// carrying it on could cost, and whatever is built on this would otherwise end a thread that was
-// not there and announce a restart nobody made.
-export function hasGoneCold(root, name) {
-  if (!hasThread(root, name)) {
-    return false;
-  }
-  const ran = ranAt(root, name);
-  return ran !== null && Date.now() - ran > COLD_AFTER;
-}
-
-// Chosen, not derived, and the measurement only sizes the bet. A session already idle this long
-// goes on to lose its cache seven times in ten (n=33, this workspace, one human's habits), so
-// seven times in ten a park here is the difference between a desk written and a desk not. It
-// saves no tokens: nothing is ever resumed, so doing nothing is free and this turn is not. What
-// it buys is unwritten work, and what that is worth is a judgement nobody has measured.
-const PARK_AFTER = (COLD_AFTER / 6) * 5;
-
-// Whether a conversation is close enough to losing its cache that spending a turn on it is worth
-// doing, and still close enough to be worth spending on. Both edges, because this reading is acted
-// on rather than said: past the hour there is nothing left to save and the cheaper answer above is
-// the right one, so a reading that stayed true there would spend a whole turn writing a desk for a
-// thread that is already gone.
-//
-// Which is why it is closed at the top. A reading a person is handed would be right to stay open
-// there — a session named at fifty-five minutes and gone from the reading at sixty-one would be
-// the worst reading it could give. Nobody reads this one; something acts on it, and the action
-// past the hour is a different and cheaper action.
-//
-// Same honesty as hasGoneCold at the bottom. A session with no thread is never nearly cold, and a
-// time that cannot be read is not a time that says "old".
-export function hasNearlyGoneCold(root, name) {
-  if (!hasThread(root, name)) {
-    return false;
-  }
-  const ran = ranAt(root, name);
-  if (ran === null) {
-    return false;
-  }
-  const idle = Date.now() - ran;
-  return idle > PARK_AFTER && idle <= COLD_AFTER;
-}
-
-// How full a conversation is, in bands, and where the words for it are decided.
-//
-// A SHARE AND NOT A SIZE, and that is the whole of what this replaces. There was one line here and
-// it was 300,000 tokens — a judgment about a LONG context window, written for workspaces that run
-// on one. Two windows have now been measured on real runs, 200,000 and 1,000,000, and a
-// conversation cannot grow past the window it is sent in: on the first that line could never be
-// crossed at all, so the reading was not conservative but absent and nothing said so, and on the
-// second it fires with seven tenths of the room still free. One number is wrong in both directions
-// depending on where it is installed. A share is true on either and needs no paragraph explaining
-// when it is inert.
-//
-// FOUR NUMBERS SOMEBODY DECIDED. Every one of these is a JUDGMENT — unlike COLD_AFTER above, which
-// is an hour because a cache lives an hour. Nothing here measured where eighty per cent is; what
-// was measured is the denominator, and the service hands it to us on the run we already read.
-//
-// A frozen table rather than a chain of comparisons, in the shape STATES already has, so that the
-// bands can be COUNTED: a band written into a branch is one nobody can enumerate, and there is then
-// no way to hold this to every band it can say being one something can reach.
-//
-// `named` is the band and `strong` is what it is worth, and they are apart for the reason STATES
-// keeps its wording apart from its name: what a band is called belongs here and is free to change,
-// while whether crossing it is worth a turn nobody asked for is a judgment, and it is the one
-// judgment in this whole feature. It is one sentence long — a turn is spent only where the thing
-// about to be lost is larger than the turn. A conversation at ninety per cent of its window is two
-// turns from losing whatever its desk does not say; one at eighty is not.
-//
-// Highest first, because shareOf takes the first that holds.
-export const BANDS = Object.freeze([
-  Object.freeze({ named: "0.95", above: 0.95, strong: true }),
-  Object.freeze({ named: "0.90", above: 0.9, strong: true }),
-  Object.freeze({ named: "0.85", above: 0.85, strong: false }),
-  Object.freeze({ named: "0.80", above: 0.8, strong: false }),
-]);
-
-// Which band a conversation is in, or nothing at all.
-//
-// Nothing whenever either half is missing, and nothing under the lowest band. Two readings and one
-// answer: a size with no window and a window with no size are both no share, and neither of them is
-// zero. A null compared as a number would make a session nobody has a reading for the emptiest
-// conversation in the workspace, which is the most reassuring possible reading of an absence and
-// the one this is written not to give.
-//
-// A window of zero or less is nothing rather than a division. It is not a window; it is a frame
-// that said something impossible, and the answer to that is the answer to not having been told.
-export function shareOf(context, window) {
-  if (typeof context !== "number" || typeof window !== "number" || window <= 0) {
-    return null;
-  }
-  const share = context / window;
-  return BANDS.find((band) => share >= band.above) ?? null;
-}
-
-// Whether this conversation has grown far enough into its window to plan around — and, on the
-// crossing into a strong band, to be handed over for. The room pass is the reader that acts on it:
-// once per crossing it asks the seat to hand over itself where it can, and says the crossing with
-// the reason where it cannot. Nothing else in this toolkit decides anything on it.
-//
-// Same shape and same honesty as the two readings above, deliberately.
-//
-// A session with no thread is not large. That exception is not written again here — it is reached
-// THROUGH the readings, because contextIn() and windowIn() both answer nothing for a session whose
-// file is gone, and one call cannot disagree with itself the way two tests of the same fact can.
-//
-// Nothing is NOT zero, for quotaIn()'s reason. A run that reported no usage is remembered as
-// nothing, and nothing is not a small conversation — it is no reading at all, and a session nobody
-// has a size for is not one anybody should be told to hand over.
-//
-// One-directional, like the hour. Inside a band, certainly worth planning around; under the lowest
-// one nothing is claimed. The comparison happens on read, so there is no timer, nothing scheduled
-// and nothing to clean up.
-export function bandIn(root, name) {
-  return shareOf(contextIn(root, name), windowIn(root, name));
-}
-
-// How much of its window this conversation fills, as a number rather than as a bucket.
-//
-// THE SAME TWO READINGS AS `bandIn`, ANSWERED THE OTHER WAY, and both are wanted. A band says
-// whether a conversation has grown far enough to be worth saying something about, which is what a
-// panel and a line need; this says how large it is compared with another one, which is what an
-// ORDER needs. A band cannot do that job: two conversations in one band are equal to it, and so are
-// two that are in none — a reader ranking on it would put a conversation at nine tenths of its
-// window level with one at a twentieth, and call the result an order.
-//
-// NOTHING IS NOT ZERO, and this is the sentence to read twice before simplifying it. `shareOf` puts
-// it best and the reason belongs here too: a null compared as a number would make a session nobody
-// has a reading for the emptiest conversation in the workspace, which is the most reassuring
-// possible reading of an absence and the wrong one. Whoever ranks on this must put the nothings
-// somewhere deliberately; it will not do it for them by answering zero.
-//
-// The band is unchanged and stays the reading everything else uses. This is a second name for a
-// second job, not a replacement for the first.
-export function fullnessIn(root, name) {
-  const context = contextIn(root, name);
-  const window = windowIn(root, name);
-  if (typeof context !== "number" || typeof window !== "number" || window <= 0) {
-    return null;
-  }
-  return context / window;
-}
-
-// The usage window this rule is about, NAMED — which the reading that carries it deliberately never
-// does.
-//
-// The fence at windowsIn() says picking a window writes a name into this toolkit for the service to
-// rename underneath it, and that fence is right for a reader that must say every window without
-// judging any of them. That is the row, and the row is untouched. It is crossed here for a reader
-// that judges: this is one rule somebody decided about one window, and a rule about a particular
-// window cannot be written without saying which. Five per cent of a week is a working day, so the
-// same two numbers said of a seven-day window would stop everything for something that is not an
-// emergency.
-//
-// Picking it WITHOUT the name was measured and does not work. "The window that lifts soonest" holds
-// on four of the five frames we have captured and fails on the first: the seven-day window rolled
-// at 17:00Z on 2026-09-02 while the five-hour window then running lifted at 20:20Z, so for those
-// hundred minutes the soonest-lifting window was the seven-day one. Roughly a hundred minutes every
-// seven days in which a name-free reader hands this rule to somebody about the wrong window. And
-// nothing else on the frame says how long a window IS — only the key does — so parsing the key
-// would hard-code the naming FORMAT, which is more fragile than the name and fails into the wrong
-// window silently.
-//
-// It fails silent rather than wrong. If the service renames this window nothing matches, this
-// answers nothing, and nobody is told anything — while the row goes on naming every window the
-// service names. A reading that stops arriving, never an instruction about the wrong window.
-export const RULED_WINDOW = "five_hour";
-
-// The line above which the work left has to be planned rather than simply done.
-//
-// This is a judgment and not a measurement, and that is worth saying where it sits: COLD_AFTER
-// above is an hour because a cache lives an hour, and this is ninety per cent because that is where
-// somebody decided to change what they do. Nothing here can check it and nothing pretends to.
-const PLAN_ABOVE = 0.9;
-
-// The line above which there is not enough left to plan around, and the work stops instead.
-//
-// The other judgment, said beside the first for the same reason. Ninety-five is not five per cent
-// of anything anybody measured; it is where somebody decided that finishing what is in flight is no
-// longer the right answer.
-const STOP_ABOVE = 0.95;
-
-// Where a workspace draws the stop line for itself, when it does not want the one above.
-//
-// The line above is this toolkit's judgment, and a workspace may have its own reason to hold earlier
-// — an account that is also spent outside the instance, say, where ninety-five arrives with no
-// warning. That is a house rule and not this toolkit's behaviour, so it ships as one field in
-// `openovai.json` and the constant above stays what an instance gets when it writes nothing.
-//
-// A FRACTION FROM PLAN_ABOVE UP TO BUT NOT INCLUDING 1, AND THE FLOOR IS NOT TASTE. accountStanding
-// below answers nothing at all while the ruled window is under PLAN_ABOVE, so a stop line drawn
-// under it would be a hold that can never enter — a field that said "hold at eighty" and did
-// nothing, silently. The sentence that refuses it says so. The plan line itself is not a field:
-// one line moves, the other is where the reading begins.
-export const HOLD_ABOVE = "holdAbove";
-
-// What is wrong with the field, in the words somebody can act on, or nothing at all. Absent is not
-// wrong: most workspaces have no such field and every one of them stops at STOP_ABOVE.
-export function holdAboveProblem(band) {
-  if (band === undefined || band === null) {
-    return null;
-  }
-  if (typeof band !== "number" || !Number.isFinite(band) || band < PLAN_ABOVE || band >= 1) {
-    return `${HOLD_ABOVE} is ${JSON.stringify(band)}, which is not a stop line — it is a fraction of the window from ${PLAN_ABOVE} up to but not including 1, like 0.9; under ${PLAN_ABOVE} the account is not read as filling up at all, so a hold drawn there could never enter`;
-  }
-  return null;
-}
-
-// The line the account is read as stopping at, in this workspace. ALWAYS A NUMBER: the field when it
-// is there and sound, STOP_ABOVE otherwise — and a field that is not sound never reaches here, because
-// the chat refuses to start on one.
-export function stopLine(config) {
-  const said = config?.[HOLD_ABOVE];
-  return typeof said === "number" && holdAboveProblem(said) === null ? said : STOP_ABOVE;
-}
-
-// Where the account stands, as the fullest thing it has told anybody here about the window that is
-// still running, or nothing at all.
-//
-// THE FULLEST OF ONE WINDOW, and the argument for it is in the body where the comparison is. The
-// readings folded here come from runs that have finished and from runs still going, and a run still
-// going was told where the account stands as truly as one that has ended — the one it was handed is
-// often the only one there is at the moment a window is being crossed.
-//
-// Nobody is left out for being mid-turn, and that is the one place this differs from the readings
-// off a clock above. There the reading is a fact ABOUT the session, and a session's clock stands
-// still for the whole of a turn, so a working session would read as a stopped one. Here the
-// reading is a fact about the ACCOUNT that a session happened to be handed, and a run still going
-// was told it as truly as one that has finished.
-//
-// A window whose lift has already passed is dropped: it describes a window that has ended, and
-// ninety-six per cent of a window that has reset is nothing. The same comparison-on-read refusedIn()
-// makes, for the same reason — the moment is stored, the comparison happens on every read, and
-// there is no timer, nothing scheduled and nothing to clean up.
-//
-// Reading it changes nothing a PERSON does. It is not consulted before DELIVERING a message the
-// person typed, HIRING at the person's press, HANDING OVER, QUEUEING or REFUSING — the five paths
-// by which anything here happens to somebody at the person's hand — and there is a check that says
-// so rather than this sentence: the account is staged past every line in it and all five are shown
-// to behave exactly as they do when it is empty.
-//
-// WHAT IT DOES DECIDE IS IN gate.mjs AND NOWHERE ELSE: whether the session that leads may START
-// something — open a desk, begin a colleague's conversation from nothing. That is a decision about
-// a spawn and never about a turn, and it is the whole of what this reading is allowed to become.
-//
-// Named as five paths rather than as "decides nothing", which is what this said before. That was a
-// claim no check stood behind, and it stopped being true the day the gate was built: what is read
-// here is the input to a decision about what is started and about whether to hold the instance
-// still. Naming the paths says the part that is enforceable, and it stays true now that something
-// does decide on it.
-export function accountStanding(instance) {
-  const read = [
-    ...sessions(instance).map((session) => ({
-      name: session.name,
-      at: ranAt(instance.root, session.name),
-      windows: quotaIn(instance.root, session.name),
-      // Whether the run this reading was handed is still going. It is carried from here rather than
-      // worked out again later, because by the time anything says this in words the two kinds have
-      // been folded into one list and there is nothing left to tell them apart by.
-      live: false,
-    })),
-    // The runs in flight, told as truly as the ones that finished. Folded in BEFORE the filter
-    // below: a frame that named no windows publishes `windows: null`, and the filter already says
-    // the right thing about that — one that skipped it would carry the null into the comparison and
-    // throw on the first read.
-    ...standingsUnderway().map((one) => ({ name: one.name, at: one.at, windows: one.windows, live: true })),
-  ].filter((one) => one.at !== null && Array.isArray(one.windows));
-  if (read.length === 0) {
-    return null;
-  }
-
-  // A window that named no moment cannot be known to have ended, so it stays. The service did not
-  // say, so this does not decide. Asked of every window here rather than of one, so the window this
-  // rule is about and the one merely mentioned beside it are dropped by the same comparison.
-  const ended = (window) => window.resetsAt !== null && window.resetsAt * 1000 <= Date.now();
-
-  // Every reading that says anything about the ruled window, with the window it says it beside it.
-  const ofTheWindow = read
-    .map((one) => ({ ...one, ruled: one.windows.find((window) => window.name === RULED_WINDOW) }))
-    .filter((one) => one.ruled !== undefined && !ended(one.ruled));
-  if (ofTheWindow.length === 0) {
-    return null;
-  }
-
-
-  // THE FULLEST AND NOT THE FRESHEST, which is the whole of the rule.
-  //
-  // Usage inside a window accumulates — this file's own reader says so in the sentence it hands the
-  // lead, that a reading is a floor because what a window has been used for does not go back down.
-  // So of two readings of one window the higher is the true one and the lower is older news, however
-  // the two are stamped. And they are stamped by two clocks, not one: a finished reading carries the
-  // moment its run ENDED and a live one the moment its frame ARRIVED, so ordering by stamp lets an
-  // honest number taken now lose to a thinner one written a second later off a run that started long
-  // before it.
-  //
-  // Said honestly: this file asserts the monotonicity and nothing in it enforces it — the service is
-  // the authority. If a window were ever reported going down without rolling over, the fullest would
-  // latch high and this would read the account as more spent than it is, which is the same direction
-  // the sentence it feeds already tells the lead to reason in.
-  //
-  // AND IT IS TAKEN ACROSS EVERY READING HERE, not within one window at a time. Grouping the
-  // readings by the moment they say their window lifts was considered and refused, and the reason is
-  // worth keeping so it is not put back. What it would be for — that ninety-six per cent of a window
-  // which has rolled over must not beat two per cent of the one running now — is already done one
-  // step above: a rolled-over window has a moment in the PAST, and `ended` drops it before anything
-  // is compared. What grouping would add is a way to throw the FULLEST reading away whenever two
-  // readings of one window name moments that differ at all, and the one it throws away is the
-  // reading of the window that lifts SOONER, which is the urgent one.
-  //
-  // WHAT THAT GIVES UP, deliberately: a window that has rolled over while still reporting a moment
-  // in the future would keep its old high reading, and the account would read as more spent than it
-  // is. That is the same direction this whole comparison is already wrong in, and it is the
-  // direction a floor is allowed to be wrong in.
-  //
-  // A tie goes to the fresher reading. There is nothing to choose between the numbers, so the only
-  // thing left is which run to speak for — and everything said afterwards comes from that ONE
-  // reading, or the sentence describes a state nobody was ever in.
-  const winner = ofTheWindow.reduce((one, other) =>
-    other.ruled.fullness > one.ruled.fullness ||
-    (other.ruled.fullness === one.ruled.fullness && other.at > one.at)
-      ? other
-      : one,
-  );
-  const ruled = winner.ruled;
-
-  if (ruled.fullness < PLAN_ABOVE) {
-    return null;
-  }
-
-  // The stop line, this workspace's own or the default, read once and used at both places below
-  // that decide "stopping": one meaning, two reads.
-  const stopAbove = stopLine(instance.config);
-
-  // The window's name goes back with it, spelled as the service spells it, so whoever says this in
-  // words says the name of the window that was actually matched. A sentence carrying its own copy
-  // of it would be a second place for the two to disagree.
-  return {
-    on: winner.name,
-    at: winner.at,
-    // Whether the run that was told this is still going, which is the one thing whoever says it in
-    // words cannot work out for itself once the two kinds are one list. A run still going has not
-    // LAST RUN, and a sentence that said so about the most decision-relevant number here would be
-    // telling the lead something false at exactly the moment it matters most.
-    live: winner.live,
-    window: ruled.name,
-    fullness: ruled.fullness,
-    resetsAt: ruled.resetsAt,
-    // Whether there is still something to plan around, or nothing left to plan with.
-    stop: ruled.fullness >= stopAbove,
-    // Whether everybody could be carried on where they stand once the wait is over, which is the
-    // whole of the choice between pausing people and handing them over.
-    //
-    // READ OFF COLD_AFTER AND NEVER WRITTEN DOWN AGAIN, the way PARK_AFTER above is. The hour here
-    // and the hour a conversation goes cold in are the same hour for the same reason — a cache
-    // lives an hour — and a second copy of it that drifted would tell somebody to pause people it
-    // can no longer carry on.
-    //
-    // Null when the frame named no moment, which is not the same answer as no: nothing is known,
-    // so nothing is decided, and whoever says this in words has a third thing to say.
-    warm: ruled.resetsAt === null ? null : ruled.resetsAt * 1000 - Date.now() <= COLD_AFTER,
-    // The other window beside it, and ONLY when it too is over the stop line.
-    //
-    // A FACT AND NOT AN INSTRUCTION. What to do about a full week is not a rule anybody here has
-    // decided, and inventing one is the misfire this whole reading is built not to make. It is
-    // carried at all because it is the one case where the advice above would otherwise be wrong:
-    // "pause everybody, it lifts in twenty minutes" is false while a week nobody mentioned is what
-    // is actually refusing. Below the stop line it is not carried, because the row already says it
-    // and a number handed over with no instruction attached is the one most likely to be acted on.
-    alsoWeek:
-      winner.windows.find(
-        (window) => window.name !== RULED_WINDOW && !ended(window) && window.fullness >= stopAbove,
-      ) ?? null,
-  };
-}
-
-// End a thread. The file is the whole of a session's memory between processes, so removing it is
-// the whole of starting a new conversation on the same desk: the desk, the permission rule and the
-// panel are all untouched, and the next run has nothing to resume.
-//
-// The persona goes with it. It was rendered for this conversation from the templates the instance
-// had then, and the next conversation is rendered its own from the templates the instance has now
-// — which is how a session comes to run a newer version of itself: by handing over, never mid-thread.
-//
-// There is nothing to kill. A run lives for one message and is already gone.
-export function forget(root, name) {
-  fs.rmSync(sessionFile(root, name), { force: true });
-  fs.rmSync(personaFile(root, name), { force: true });
-}
-
-// Which model a session runs on. The instance was installed with one model for the session that
-// leads and one for everybody else, and hiring may name another for one person — so the answer is
-// the desk's first and the instance's second, and it is `desks.mjs` that gives it: what a person is
-// made of is that module's word, and the command asks the same question of it with no chat running.
-function model(instance, name) {
-  return modelFor(instance.root, name, instance.config);
-}
-
-// Exported for the one reader outside this module that asks the file anything: the chat reads it
-// to tell a conversation running older instructions from one running what the instance renders
-// now, and it has to ask for the file a run is actually handed.
-export function personaFile(root, name) {
-  return path.join(root, "chat", name, PERSONA_FILE);
-}
-
-// The file a run is told who it is from. It is rendered when a conversation starts and read as it
-// is for every run after that, resumed ones included: what a session was told on its first turn is
-// what it is told on its last, whatever an update has since done to the templates, and the next
-// conversation gets the templates as they are then. Claude Code does keep it with the
-// conversation, so a resume would carry it anyway — but a resume that fails is asked again as a
-// new conversation, and that one has no history to carry it. Passing it always means there is no
-// path through here where a session forgets who it is.
-//
-// Rendered again only when there is nothing to read: a thread with no persona beside it is one
-// that was started before personas lived here, and Claude Code refuses to start at all when
-// pointed at a file that is not there.
-// The persona, and after it the hard rules as they stand now for this session's role: a new
-// conversation is told the current numbered set verbatim, and what it was told stays with it.
-function personaFor(instance, name, resume) {
-  const file = personaFile(instance.root, name);
-  if (resume === null || !fs.existsSync(file)) {
-    fs.mkdirSync(path.dirname(file), { recursive: true });
-    const role = name === instance.config.leader ? LEADER : WORKER;
-    const { text } = withHardRules(persona(instance.root, name, instance.config), instance.root, role);
-    fs.writeFileSync(file, text);
-  }
-  return file;
-}
-
-// Everybody the chat can host, the lead first and the rest as the desks come. A desk is a
-// person, so this is read from work/ every time it is asked for rather than kept anywhere: a desk
-// opened while the chat is running is somebody the chat can host from that moment on.
-//
-// The lead is named whether or not it has a desk. An instance has a lead by definition, and a
-// chat that dropped it because a directory went missing would be a chat nobody can reach.
-export function sessions(instance) {
+// Everybody who works here: the Leader first, then every desk. Read from work/ each time it is
+// asked, so a desk opened while the server runs is a seat from that moment on. The Leader is a
+// seat whether or not a desk exists for it.
+export function seats(instance) {
   const leader = instance.config.leader;
   const rest = desks(instance.root).filter((name) => name !== leader);
-
   return [leader, ...rest].map((name) => ({
     name,
-    role: name === leader ? "lead" : "worker",
-    model: model(instance, name),
-    context: contextIn(instance.root, name),
-    // And what that size is a share OF, beside it and read at the same moment. Carried here rather
-    // than worked out again by every reader, so that the row, the block handed to the lead and the
-    // watch are all saying one reading and cannot disagree about it — a filter that could not agree
-    // with its own sentence is the failure the size block already names.
-    window: windowIn(instance.root, name),
+    role: roleNow(instance, name),
+    model: modelFor(instance.root, name, instance.config),
   }));
 }
 
-// The frame a question is sent as. Claude Code reads one JSON object per line on stdin; a user
-// message is the smallest of them, and `content` is allowed to be the plain string rather than a
-// list of blocks, which is all a question from a page ever is.
-function question(text) {
-  return `${JSON.stringify({ type: "user", message: { role: "user", content: text } })}\n`;
+export function isSeat(instance, seat) {
+  return seats(instance).some((one) => one.name === seat);
 }
 
-// Everything Claude Code says comes back one JSON object per line, and only the `result` line is
-// an answer. The rest is read and handed over all the same — the assistant's own turns,
-// `keep_alive` every thirty seconds while a long one runs, `system` notices — because what a frame
-// is worth is the caller's business and not the reader's. A line that is not JSON at all is
+export function personaFile(root, seat) {
+  return path.join(root, "chat", seat, PERSONA_FILE);
+}
+
+// Rendered on every start: a process is one conversation, and the persona it opens with is the
+// one the instance renders now — the persona, and after it the hard rules as they stand for this
+// seat's role, so a new conversation is told the current numbered set verbatim.
+function personaFor(instance, seat) {
+  const file = personaFile(instance.root, seat);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const { text } = withHardRules(persona(instance.root, seat, instance.config), instance.root, roleOf(instance, seat));
+  fs.writeFileSync(file, text);
+  return file;
+}
+
+// The MCP server a session reaches the toolkit through. The address names the process by its
+// secret, and it does so by referring to the environment variable: Claude Code expands `${VAR}`
+// in a server's url from the process environment, so the literal secret is never in argv.
+function toolsIn(root) {
+  const chat = listening(root);
+  if (chat === null) {
+    return null;
+  }
+  return JSON.stringify({
+    mcpServers: {
+      openovai: {
+        type: "http",
+        url: `${chat}/mcp/\${${SECRET_IN_ENVIRONMENT}}`,
+        timeout: A_WHOLE_TURN,
+      },
+    },
+  });
+}
+
+// ------------------------------------------------------------------------------ what a child says
+
+// Everything Claude Code says comes back one JSON object per line. A line that is not JSON is
 // skipped rather than fatal: stdout is the protocol, but a stray warning on it should not lose an
 // answer that arrived beside it.
 function frames(chunk, rest, saw) {
   const lines = (rest + chunk).split("\n");
   const left = lines.pop();
-
   for (const line of lines) {
     if (line.trim() === "") {
       continue;
@@ -674,23 +125,12 @@ function frames(chunk, rest, saw) {
   return left;
 }
 
-// Being asked whether the run may use a tool, and saying.
-//
-// Only tool calls the instance's own settings leave undecided ever get here: something already
-// allowed is not asked about, and something already refused is refused without us. So this is the
-// question a person is actually needed for.
-//
-// Three things about the answer, each of which costs a run that hangs for good if it is got wrong:
-// the request id goes back exactly as it came, nothing else about the tool is named alongside it
-// (a mismatched name makes the answer be ignored and the request stay open), and one request is
-// answered once. Nothing here times out, on this side or the other.
+// Being asked whether the run may use a tool, and saying. Only tool calls the instance's own
+// settings leave undecided ever get here. The request id goes back exactly as it came, nothing
+// else about the tool is named beside it, and one request is answered once: get any of that
+// wrong and the run hangs for good.
 function permission(child, frame, asked) {
-  const request = {
-    id: frame.request_id,
-    tool: frame.request.tool_name,
-    input: frame.request.input,
-  };
-
+  const request = { id: frame.request_id, tool: frame.request.tool_name, input: frame.request.input };
   asked(request).then(
     (decision) => {
       child.stdin.write(
@@ -717,311 +157,55 @@ function permission(child, frame, asked) {
   );
 }
 
-// Every run this chat has going, under the name of the session it belongs to. A run puts itself
-// in when it starts and takes itself out when it is over, so what is in here is what is alive
-// right now, and there is one place to look when the chat is asked to stop.
-//
-// Keyed by name rather than held as a bare set, because one of them can now be asked for by
-// itself. That the key is enough is not a hope: a session answers one message at a time, so at
-// most one run of a session is alive at once, and the queue is what makes that true rather than
-// anything here.
-const running = new Map();
-
-// Where the account stood, as the service told a run that is still going, under the name of the
-// session having it.
-//
-// THE READING ALREADY ARRIVED; ONLY THE SAYING OF IT WAS MISSING. Every rate_limit_event frame
-// carries the account's standing, the run below has been reading all of them into a local since
-// the day that frame was understood, and that local is handed on exactly once — at close. So a
-// window can fill from one side of a line to the other while the only thing that knows is a
-// variable inside a promise, and on the one run that matters most it is worse than that: a run
-// turned away with no result frame has its reading read correctly and then dropped, because what
-// carries it out is written only for a run that reported a thread.
-//
-// BESIDE `running` AND NOT INSIDE IT. What that map holds is the child, and `endRun` and the close
-// handler both read it as one; a second meaning on that value would give two readers a shape to
-// disagree about to save one map. This is written and cleared on the same lines the run itself is,
-// which is what keeps the two from coming apart.
-//
-// IN MEMORY, because a reading whose process is gone is not a stale reading — it is not a reading
-// at all. What the account was doing while a run went on is true for as long as that run is, and a
-// file holding it would outlive the only thing that made it so. It is also the second writer
-// argument: `remember` owns what a FINISHED run was told, and one fact with two writers on disk is
-// two records that can disagree.
-//
-// REPLACED AND NEVER EDITED, for `owed`'s reason: what a reader is holding is what it read, and
-// nothing moves underneath it while it looks.
-const standings = new Map();
-
-// Where the account stands as every run in flight has been told it, newest word per run.
-//
-// A LIST AND NOT A MAP. Every reader of this asks what anybody is being told right now rather than
-// what one named session is, so handing back a lookup would make each of them turn it into this
-// first — and the one thing a map would buy, asking by name, is a question nobody here has.
-export function standingsUnderway() {
-  return [...standings.values()];
+// What a turn came to, read off its result line. `result` is a plain string on success; a run
+// that failed carries `errors` instead.
+function answerIn(frame) {
+  const failed = frame.is_error === true || typeof frame.result !== "string";
+  const text =
+    typeof frame.result === "string"
+      ? frame.result
+      : Array.isArray(frame.errors)
+        ? frame.errors.join("\n")
+        : JSON.stringify(frame);
+  return { text, failed, silent: !failed && text.trim() === "" };
 }
 
-// What a run has just been told, folded into what it had been told before.
+// ------------------------------------------------------------------------------------ processes
+
+// Every seat with a process, by name. A seat is in here from the moment its child is spawned to
+// the moment the child closes.
+const processes = new Map();
+
+function nobodyToAsk() {
+  return Promise.reject(new Error("no way to ask anybody"));
+}
+
+function nothing() {}
+
+export function running(seat) {
+  return processes.has(seat);
+}
+
+export function runningSeats() {
+  return [...processes.keys()];
+}
+
+// Start a seat: one process, one secret, one conversation.
 //
-// Nothing at all once that run is gone. A frame read after the close handler has run belongs to a
-// run nobody is waiting on, and putting it back would leave a reading in here that no process can
-// ever take out again.
-function wasTold(name, said) {
-  const held = standings.get(name);
-  if (held === undefined) {
-    return;
+// `asked` is called with every permission request the run makes and answers with a decision;
+// `ended` is called once, when the process has closed, so whoever started the seat can let go of
+// what it was holding for it.
+export function start(instance, seat, { asked = nobodyToAsk, ended = nothing } = {}) {
+  if (!isSeat(instance, seat)) {
+    throw new Error(`nobody called ${seat} works here`);
   }
-  standings.set(name, { ...held, ...said });
-}
-
-// The run is over, so there is nothing being told any more.
-//
-// Its own name rather than the bare delete written twice, because it is said on both the ways a run
-// can end and the two have to stay together: a reading left behind by either of them is a number
-// with nothing producing it that nothing will ever take out, and it would read exactly like a run
-// still going.
-function forgetTheStanding(name) {
-  standings.delete(name);
-}
-
-// The runs somebody ended, waiting for their own close to be read. A name goes in when the ending
-// is asked for and comes out when the run settles, so nothing is left here for a run that is over.
-const endedHere = new Set();
-
-// What such a run amounted to. Its own sentence, because the alternative is a lie: a run ended
-// before it answered has no result frame, and `interpret` calls a run with no result frame one
-// that "ended without answering" — which is true of a run that fell over and not of one somebody
-// ended on purpose. Said here so the turn appends it the way it appends any other failed turn,
-// and the panel carries ONE line about it rather than a second posted from the side.
-const ENDED_BY_HAND = "this run was ended before it answered";
-
-// How long a run is given to go quietly before it is made to.
-const PATIENCE = 2000;
-
-// Everything running underneath a process, each with the name it is running as.
-//
-// This exists for one case, and the case is measured. A run puts every tool call it makes in a
-// session of its own — not merely a process group of its own — so a shell it started is out of
-// reach of any signal sent to this chat or to the run itself. Watched: a run doing real work in a
-// shell had that shell at sid 765409 while the run was at sid 765091.
-//
-// Asked to stop, a run takes its own shells with it, so none of this is needed on that path.
-// Watched: chat, run, shell, xargs and the command all gone together. FORCED to stop, it cannot —
-// it is not running any more to do it. Watched: the run was gone and its `xargs` and a freshly
-// started `sha256sum` were still going, orphaned into their own session.
-//
-// So the tree is read BEFORE the run is forced: killing it first would reparent everything under
-// it to init and lose the only thread back to what it started.
-//
-// THE NAME BESIDE THE PID, since the second reader of this. The forcing needs only a pid to signal;
-// what the room watch needs is the one thing a pid cannot say — whether what is under a run that
-// has gone on for an hour is `mvn` or `ssh` — and it is the same table read, one column wider.
-// `comm` is the kernel's name for the process, fifteen characters and no arguments, which is what a
-// line on a panel can carry and a command line with a credential in it cannot.
-function descendants(pid) {
-  const asked = spawnSync("ps", ["-eo", "pid=,ppid=,comm="], { encoding: "utf8" });
-  if (asked.status !== 0 || typeof asked.stdout !== "string") {
-    return [];
+  if (processes.has(seat)) {
+    throw new Error(`${seat} is already running`);
   }
 
-  const below = new Map();
-  for (const line of asked.stdout.split("\n")) {
-    const [child, parent, ...command] = line.trim().split(/\s+/);
-    const one = Number(child);
-    const above = Number(parent);
-    if (child !== "" && Number.isInteger(one) && Number.isInteger(above)) {
-      below.set(above, [...(below.get(above) ?? []), { pid: one, command: command.join(" ") }]);
-    }
-  }
+  const role = roleOf(instance, seat);
+  const secret = issue(seat, role);
 
-  const found = [];
-  const left = [pid];
-  while (left.length > 0) {
-    for (const under of below.get(left.pop()) ?? []) {
-      // A pid cannot be its own ancestor, so nothing here can loop; a table read mid-change
-      // could still name one twice, and doing it twice is only a wasted signal.
-      found.push(under);
-      left.push(under.pid);
-    }
-  }
-  return found;
-}
-
-// What is running underneath a session's run right now, by name — nothing at all when it has none.
-//
-// THE FIRST READER OF THE TREE THAT ENDS NOTHING. The forcing above reads it on the way to a kill;
-// this reads it for a line, so that a person looking at a run forty minutes in can see whether the
-// thing under it is a build or a clone before deciding anything. It answers off the running map
-// rather than taking a pid, for the map's own reason: the child is the one thing that knows the
-// pid, and it stays in here.
-export function underneath(name) {
-  const child = running.get(name);
-  return child === undefined ? [] : descendants(child.pid);
-}
-
-// End one run and wait for it to actually be over. Asked first, because a run told to stop can
-// close its own files, write down where its conversation got to, and take its own shells with it;
-// made to only if it will not, because a chat that hangs on the way out is worse than a run that
-// loses its last few words.
-//
-// A run that has to be made to go cannot tidy up after itself, so this does it: what was under it
-// is read while it is still there to be read, and goes with it.
-async function end(child, patience) {
-  if (child.exitCode !== null || child.signalCode !== null) {
-    return;
-  }
-  const gone = new Promise((resolve) => child.once("close", resolve));
-  child.kill("SIGTERM");
-  const made = setTimeout(() => {
-    const under = descendants(child.pid);
-    child.kill("SIGKILL");
-    for (const { pid } of under) {
-      try {
-        process.kill(pid, "SIGKILL");
-      } catch {
-        // Already gone, or not ours any more. Either way there is nothing to do about it.
-      }
-    }
-  }, patience);
-  await gone;
-  clearTimeout(made);
-}
-
-// How long a run the service turned away is given to leave on the close of its own input before
-// it is ended for it.
-const GRACE = 2000;
-
-// A run the service refused, seen off.
-//
-// Its input is closed exactly as it is when an answer arrives, and on everything measured that is
-// the whole of it: a refused turn still emits a result frame, so the run ends by the door it
-// already has and nothing below this line ever runs. It is here anyway, and deliberately.
-//
-// All of that rests on a read of the binary rather than on a refused process anybody has watched,
-// and the cost of being wrong is one-sided. If some refusal shape does go quiet, without this the
-// turn never ends, the queue behind that session stops, and whoever said something waits out the
-// half hour. So the close is followed by a bounded grace and then the ending that already exists.
-//
-// This is not the clock a turn is never given. A watchdog guesses whether work is still happening;
-// this starts only after the service has said the run was refused, and a refused run has nothing
-// left to lose.
-function leave(child) {
-  child.stdin.end();
-  const made = setTimeout(() => end(child, PATIENCE), GRACE);
-  child.once("close", () => clearTimeout(made));
-}
-
-// End every run this chat started, and do not return until they are gone.
-//
-// A ctrl-c in a terminal reaches them without any of this: a child is spawned into the process
-// group the terminal signals, so it is sent the same interrupt the chat is. Nothing else is. A
-// kill on the chat, or the window it was started in going away, leaves a run with a parent that
-// is no longer there — and a run does not notice. Watched: one parked on an approval outlived its
-// chat and was reparented to init, still holding the model open, still waiting for an answer
-// nobody could give it any more.
-//
-// So the chat ends what it started rather than trusting whatever stopped it to have done it. The
-// one stop this cannot cover is a SIGKILL on the chat itself, where no code of ours runs at all.
-export function endEveryRun(patience = PATIENCE) {
-  return Promise.all([...running.values()].map((child) => end(child, patience)));
-}
-
-// End the one run this session has going, and do not answer until it is gone. Answers whether
-// there was one, so a caller can tell "ended it" from "there was nothing to end" rather than
-// having to ask first and race its own answer.
-//
-// It is the ending that already exists, whole: the run is asked, and made to go after PATIENCE if
-// it will not, with what it started read out of the process table before the forcing rather than
-// after it. Nothing new is written for the ending itself — what is new is only that one of them
-// can be named.
-export async function endRun(name, patience = PATIENCE) {
-  const child = running.get(name);
-  if (child === undefined) {
-    return false;
-  }
-  endedHere.add(name);
-  await end(child, patience);
-  return true;
-}
-
-// How many runs are going. The chat says so on the way out: ending them takes a moment, and a
-// terminal that sits there saying nothing reads as a hang.
-export function runsGoing() {
-  return running.size;
-}
-
-// Which sessions have one. The count above is what a terminal needs on the way out; this is what a
-// census needs, and they are kept apart rather than one being written in terms of the other because
-// a caller that wants a number and a caller that wants names should not have to agree on a shape.
-export function runsUnderway() {
-  return [...running.keys()];
-}
-
-// Which run this session has going, as a thing to hold and compare and nothing more. A caller that
-// asked something during a run and hears the answer after it wants to know whether the run that
-// asked is the one still going, and a name cannot say that: the next run under the same name is a
-// different run, and it did not ask. Nothing when there is none — and nothing both before and
-// after is the same run, which is to say no run at all.
-export function runOf(name) {
-  return running.get(name) ?? null;
-}
-
-// The instance's own tools, handed to a session as it starts.
-//
-// It is passed as the configuration itself rather than as a file to read, because there is nothing
-// here worth a file: the address is only known once the chat has bound a port, and the name in it
-// is this session and no other. A file would have to be written at every start to stay true, and a
-// stale one would quietly point a session at a chat that is not there.
-//
-// The name goes in the path, which is how the chat knows who is calling: it comes from here, where
-// the session is being started, and never from anything the session says about itself.
-//
-// Nothing when no chat has recorded an address. A session started with no chat serving the
-// instance can still answer; it simply cannot reach the others, which is the truth of its
-// situation and not a reason to refuse to start it.
-//
-// The wait is said out loud because the default is far too short for what `say` does. A call to it
-// is answered when the session it reached has finished its turn, and a turn is minutes; measured
-// with nothing said, a call was given up on after exactly 60 seconds while the session it asked
-// carried on working and wrote its answer where the caller could never see it. This is a
-// wall-clock limit rather than no limit at all: a session stopped waiting to be allowed something
-// would hold whoever asked it for as long as nobody answered, and half an hour of that is enough
-// for the room to have said so and somebody to have looked.
-function toolsIn(root, name) {
-  const chat = listening(root);
-  if (chat === null) {
-    return null;
-  }
-
-  return JSON.stringify({
-    mcpServers: {
-      openovai: {
-        type: "http",
-        url: `${chat}/mcp/${encodeURIComponent(name)}`,
-        timeout: A_WHOLE_TURN,
-      },
-    },
-  });
-}
-
-// One run, one question, one answer.
-//
-// The question goes in on stdin rather than in the arguments: with --input-format stream-json a
-// prompt argument is read past in silence, so passing one would look right and ask nothing. Stdin
-// then stays open until the answer arrives, because a run that is waiting to be told whether it
-// may use a tool has to be able to hear the reply, which is what this format is for. Closing it
-// once the answer is in is what ends the run: the child would otherwise sit
-// there waiting for another question, which is a conversation the chat keeps in a session id
-// instead, so that stopping the server never costs one.
-//
-// --print is load-bearing twice over, and the second reason is easy to lose. It makes this a run
-// rather than a conversation held on a terminal; it also keeps Claude Code from arming its
-// background-shell pressure reaper, which is armed only for a session it judged interactive,
-// judged once as the session opens, and a run given --print is never one. A seat whose background
-// work is being reaped loses it silently, so every way this toolkit starts Claude Code is held to
-// that shape by a check in tests/ovai.test.mjs.
-function run(instance, name, text, resume, asked) {
   const args = [
     "--print",
     "--input-format",
@@ -1030,383 +214,213 @@ function run(instance, name, text, resume, asked) {
     "stream-json",
     "--verbose",
     // Ask us rather than refusing on the spot. The literal is reserved: it means "over the pipes
-    // to whoever started me", where any other value would have to name a tool from an MCP server
-    // and the run would not start without one.
+    // to whoever started me".
     "--permission-prompt-tool",
     "stdio",
     "--model",
-    model(instance, name),
+    modelFor(instance.root, seat, instance.config),
   ];
-  const tools = toolsIn(instance.root, name);
+  const tools = toolsIn(instance.root);
   if (tools !== null) {
     args.push("--mcp-config", tools);
   }
-  // What is NOT to be read: the instructions of every directory above the instance. Handed to the
-  // run rather than kept in the instance's own settings, which are the person's; computed here so
-  // it is the list for where the instance sits now.
+  // What is NOT to be read: the instructions of every directory above the instance.
   args.push("--settings", ownInstructions(instance.root));
-  args.push("--append-system-prompt-file", personaFor(instance, name, resume));
-  if (resume !== null) {
-    args.push("--resume", resume);
-  }
+  args.push("--append-system-prompt-file", personaFor(instance, seat));
 
-  return new Promise((resolve) => {
-    let child;
-    try {
-      child = spawn("claude", args, {
-        cwd: instance.root,
-        env: { ...environment(instance.root, instance.config.auth), [NAME_IN_ENVIRONMENT]: name },
-        stdio: ["pipe", "pipe", "pipe"],
-      });
-    } catch (error) {
-      // `refused: null` and not left off. A run that never started cannot have been turned away by
-      // anybody, and every reader of this answer asks whether it was — `=== null` on a field that is
-      // not there is false, which would make a toolkit that could not be started look like a
-      // service that was busy. Nothing was refused here; there was nothing to refuse.
-      resolve({ failed: true, refused: null, text: `Claude Code could not be started: ${error.message}` });
-      return;
-    }
+  // --print is load-bearing: it makes this a run rather than a conversation held on a terminal,
+  // and it keeps Claude Code from arming its background-shell reaper, which is armed only for a
+  // session it judged interactive. Every way this toolkit starts Claude Code is held to that
+  // shape by a check in tests/ovai.test.mjs.
+  const child = spawn("claude", args, {
+    cwd: instance.root,
+    env: { ...environment(instance.root, instance.config.auth), [SECRET_IN_ENVIRONMENT]: secret },
+    stdio: ["pipe", "pipe", "pipe"],
+  });
 
-    running.set(name, child);
-    // And an entry beside it, on the same line, so that a run in flight is a run something can be
-    // read about. Nothing is known yet and nothing is guessed: the frames that say what this run is
-    // on and where the account stands have not arrived, and null is what that is.
-    //
-    // `since` IS THE ONE GENUINELY NEW FACT here, and it has to be made on this line because
-    // nothing else in this toolkit stamps when a run began. The map above stores the child and no
-    // moment, and the count of turns going is raised from the moment a message was TAKEN, with no
-    // clock in it at all. How long a run has been going is half of what somebody deciding whether
-    // it is worth finishing is asking, and until this line there was no way to answer it.
-    //
-    // Set once, where the run starts, and never touched again. A moment that walked forward with
-    // every reading would be saying how long ago the last frame was — which is what `at` beside it
-    // already says — so the two would say one thing twice and the useful thing not at all.
-    standings.set(name, { name, ranModel: null, windows: null, at: null, since: Date.now() });
+  const record = { seat, role, secret, child, queue: [], turn: null, rest: "", err: "" };
+  processes.set(seat, record);
 
-    let answer = null;
-    let limit = null;
-    // Which model this run is having its turn on, in the service's own words. The run says it as it
-    // opens and the same words key its own entry in the usage the result frame reports, so the two
-    // sides of that lookup are both theirs — see windowAfter below, which is the only reader of it.
-    let ranOn = null;
-    // What the service last said about the account, whatever it said — kept apart from `limit`
-    // above on purpose. `limit` is a refusal or it is nothing, and it is what decides how the run
-    // ENDED; this is a reading and decides nothing. Two locals rather than one object serving both,
-    // so that no reader downstream has to work out which half of it they are allowed to look at.
-    let reading = null;
-    let rest = "";
-    let err = "";
-
-    child.stdout.on("data", (chunk) => {
-      rest = frames(String(chunk), rest, (frame) => {
-        if (frame.type === "control_request" && frame.request?.subtype === "can_use_tool") {
-          permission(child, frame, asked);
-          return;
-        }
-        // The service naming the condition itself, rather than us inferring it. Kept the way the
-        // answer is kept and handed on, because what a run amounted to is decided in one place and
-        // this is one of the things it is decided from.
-        //
-        // Only a refusal is kept. The frame is sent whenever the reading changes, so an ordinary
-        // run sends one saying it is allowed, and both captures on this machine hold it in exactly
-        // that state. Keeping those too would mean a run that was allowed early and turned away
-        // later remembers the allowance and reads as an answer.
-        if (frame.type === "rate_limit_event") {
-          // Every reading, including the ones that say the run is fine. The comment above says why
-          // only a refusal may reach the verdict, and that is still true: this one goes nowhere
-          // near it. What it is for is the row, where a number that was true a moment ago is worth
-          // reading and a number that decides something is not.
-          reading = frame.rate_limit_info ?? null;
-          // And said where somebody can read it, which is the whole of what was missing. The
-          // comment above is right that this must go nowhere near the verdict; where it goes
-          // instead is to whoever is looking at the room, and until now that was nowhere at all.
-          //
-          // In the shape the row already reads a stored reading in, so that a reading taken while a
-          // run is going and one taken when it finished are one shape and nothing downstream has to
-          // know which of the two it was handed.
-          wasTold(name, { windows: windowsIn(reading), at: Date.now() });
-          if (frame.rate_limit_info?.status === "rejected") {
-            limit = frame.rate_limit_info;
-            leave(child);
-          }
-          return;
-        }
-        // Which model this run is on, said on the frame it opens with. Only a frame that NAMES one
-        // counts, so the notices a run sends afterwards — which carry no model — cannot unsay it,
-        // and if a run ever named a second the later word is the one it went on answering under.
-        if (frame.type === "system" && typeof frame.model === "string") {
-          ranOn = frame.model;
-          // The service's word for it and never the seat's. What a session is configured to run on
-          // is a different fact, it is already on the row, and the two disagree exactly where it
-          // matters — a reading is worth a different amount depending on what is spending it.
-          wasTold(name, { ranModel: frame.model });
-          return;
-        }
-        if (frame.type !== "result" || answer !== null) {
-          return;
-        }
-        answer = frame;
-        child.stdin.end();
-      });
-    });
-    child.stderr.on("data", (chunk) => {
-      err += chunk;
-    });
-
-    // Writing to a child that is already gone is an error on the pipe, not a throw, and there is
-    // nothing to do about it here: the close handler is about to say what happened.
-    child.stdin.on("error", () => {});
-
-    child.on("error", (error) => {
-      running.delete(name);
-      forgetTheStanding(name);
-      const why =
-        error.code === "ENOENT"
-          ? "Claude Code is not on the PATH of the process serving this page"
-          : error.message;
-      // Same reason as the spawn that threw: a run that never reached the service was not turned
-      // away by it, and the field says so rather than being absent.
-      resolve({ failed: true, refused: null, text: why });
-    });
-
-    child.on("close", () => {
-      running.delete(name);
-      forgetTheStanding(name);
-      // Ended by somebody rather than over of its own accord, and it says so in its own words. An
-      // answer that had already arrived is still the answer: what was ended then was a run with
-      // nothing left to say, and reporting it as ended would throw away what it did say.
-      if (endedHere.delete(name) && answer === null) {
-        resolve({ failed: true, refused: null, ended: true, text: ENDED_BY_HAND });
+  child.stdout.on("data", (chunk) => {
+    record.rest = frames(String(chunk), record.rest, (frame) => {
+      if (frame.type === "control_request" && frame.request?.subtype === "can_use_tool") {
+        permission(child, frame, asked);
         return;
       }
-      resolve(interpret(answer, err, limit, reading, ranOn));
+      if (frame.type === "result" && record.turn !== null) {
+        const turn = record.turn;
+        record.turn = null;
+        turn.resolve(answerIn(frame));
+        drain(record);
+      }
     });
-
-    child.stdin.write(question(text));
   });
-}
+  child.stderr.on("data", (chunk) => {
+    record.err += chunk;
+  });
+  child.stdin.on("error", () => {});
 
-// What the run amounted to. The result frame carries the answer as a plain string in `result`,
-// which is the same field and the same string the older whole-of-stdout JSON put it in, so what
-// the chat does with an answer did not have to change with how it arrives.
-// Whether the service turned this run away, and what it said about it.
-//
-// Two readings, and neither is a fallback for the other. The frame is the service naming the
-// condition and it is the better one, so where it arrives it is what is reported — it says which
-// limit and when it lifts, where a status number says neither. The field answers the same question
-// on its own, and it is the only thing on a result frame that tells a refusal from a run with no
-// credential — both come back spelled `subtype: "success"` with `is_error` set, differing after
-// that only in prose.
-//
-// The two never contradict each other here, because only a refusal is ever kept: `limit` is a
-// refusal or it is nothing, so a run that was told it was allowed and then turned away is read
-// off the 429 rather than off the reading it was given first.
-//
-// Nothing here requires the reset time. A refusal that does not say when it lifts is still a
-// refusal, and is reported as one with nothing said about the time.
-function turnedAway(answer, limit) {
-  if (limit !== null) {
-    return {
-      resetsAt: typeof limit.resetsAt === "number" ? limit.resetsAt : null,
-      kind: limit.rateLimitType ?? null,
-    };
-  }
-  return answer?.api_error_status === 429 ? { resetsAt: null, kind: null } : null;
-}
-
-// Every window the reading named, in the order it named them, as a name and a fullness.
-//
-// `fullness` rather than the wire's `utilization` because this is what a row says to a person, and
-// a fraction rather than a percentage because that is what arrives — measured on four real frames:
-// 0.29, 0.57, 0.04, 0.02. Turning it into a percentage is a thing to do when printing it, not a
-// thing to do to it here.
-//
-// Nothing, rather than an empty list, when there is no reading or it named no windows. An empty
-// list is a service that answered "no windows", which is not what a frame that never came means,
-// and everything downstream is written to say nothing on null.
-function windowsIn(reading) {
-  const named = reading?.unifiedWindows;
-  if (named === null || typeof named !== "object") {
-    return null;
-  }
-  const windows = Object.entries(named)
-    .filter(([, window]) => typeof window?.utilization === "number")
-    .map(([name, window]) => ({
-      name,
-      fullness: window.utilization,
-      // When the service says this window ends. Every window on the frame carries its own, and it
-      // arrives on ordinary ALLOWED runs — so when a window lifts is known long before anything is
-      // refused, which is the half a refusal cannot answer because there has not been one yet.
-      //
-      // Its own and never the one beside `status`. Those two agree for the window the frame names
-      // as the one it is talking about, and for no other, so a reader taking the outer one gives
-      // every window the same ending.
-      //
-      // Nothing rather than a guess when the frame did not say, which is the rule the refusal
-      // beside this already follows: the service did not say, so neither do we.
-      resetsAt: typeof window.resetsAt === "number" ? window.resetsAt : null,
-    }));
-  return windows.length === 0 ? null : windows;
-}
-
-// `reading` is handed in beside `limit` and goes nowhere near `turnedAway()` below, which is the
-// whole of what keeps a gauge from becoming a verdict: an ordinary run is told "allowed" and can be
-// turned away moments later, and a function that saw both would have to choose which to believe.
-// The signature is the guard. There is a check that goes red if this is ever widened.
-function interpret(answer, err, limit = null, reading = null, ranOn = null) {
-  const refused = turnedAway(answer, limit);
-  // No result frame at all: the run was stopped, or it fell over before it could answer. Whatever
-  // it has to say about that is on stderr, which is the only stream carrying prose — measured:
-  // a model it does not know gives `[claude-code:unrecognized_model] …`, a persona file that is
-  // not there gives `Error: Append system prompt file not found: …`, and stdout stays frames.
-  //
-  // Stdout was once read here too, back when it was one JSON document and a run that fell over
-  // could leave the reason in it. Since the switch to stream-json it is frames and nothing else,
-  // so falling back to it can only ever put the protocol on the page — watched, 14,546 characters
-  // of it, offered as what a session said. Do not put it back.
-  if (answer === null) {
-    const said = err.trim();
-    return {
-      failed: true,
-      refused,
-      quota: windowsIn(reading),
-      text: said === "" ? "Claude Code ended without answering" : said,
-    };
-  }
-
-  const text = typeof answer.result === "string" ? answer.result : JSON.stringify(answer);
-  const failed = answer.is_error === true;
-
-  return {
-    failed,
-    // What the run amounted to, third state: it reached the service and was turned away. Not an
-    // answer and not a failure — the thread is perfectly good and the account is what is
-    // unavailable — so it is said here rather than worked out again by everybody who asks.
-    refused,
-    // What the account was told to be at, on this run and no other. Beside the verdict rather than
-    // inside it: it is a fact the run was handed, not a thing the run amounted to.
-    quota: windowsIn(reading),
-    text,
-    // A run can end well and say nothing: the result frame arrives, is not an error, and carries
-    // an empty string. Twice now that has reached a panel as a blank line, which reads as the
-    // chat having lost the reply rather than as the session having had nothing to say. Why a
-    // session does it is not known and is not guessed at here; that it did is worth saying.
-    silent: !failed && text.trim() === "",
-    sessionId: answer.session_id ?? null,
-    context: contextAfter(answer),
-    // Beside the reading and never inside it. What a conversation is carrying and what it may carry
-    // are two facts off one frame, and either can arrive without the other — a frame that named no
-    // model still says a size, and a run that reported no usage at all still says what the model
-    // holds. One field carrying both would have to decide what to do when half of it is missing.
-    window: windowAfter(answer, ranOn),
+  let closed = false;
+  const gone = (why) => {
+    if (closed) {
+      return;
+    }
+    closed = true;
+    processes.delete(seat);
+    revoke(secret);
+    const left = [record.turn, ...record.queue].filter((turn) => turn !== null);
+    record.turn = null;
+    record.queue = [];
+    for (const turn of left) {
+      turn.resolve({ ended: true, text: why });
+    }
+    ended();
   };
+
+  child.on("error", (error) => {
+    gone(error.code === "ENOENT" ? "Claude Code is not on the PATH of the process serving this page" : error.message);
+  });
+  child.on("close", () => {
+    gone(record.err.trim() === "" ? `${seat} ended before answering` : record.err.trim());
+  });
+
+  return { seat, role, pid: child.pid };
 }
 
-// Where the thread stood when the run ended, in tokens.
-//
-// `usage.iterations` is one entry per request the turn made, and the LAST of them is the whole of
-// the conversation as the model last saw it: what was sent, what was read back out of the cache,
-// and what was written into it. The turn after this one opens there.
-//
-// The top level of `usage` is NOT that. It adds the turn's requests together, so a turn that made
-// two of them reports roughly twice what the thread is carrying — measured on a real session,
-// 67,090 for a turn that ended at 41,929, and the next turn opened at 42,059. A number that grows
-// at twice the rate of the conversation is worse than none, because it looks like an answer.
-//
-// Nothing here converts it to a share of anything. That is windowAfter's below, off the same frame,
-// and the two are kept apart because one of them can be there when the other is not.
-function contextAfter(answer) {
-  const last = answer.usage?.iterations?.at(-1);
-  if (last === undefined) {
-    return null;
+// The next frame goes in only when no turn is running.
+function drain(record) {
+  if (record.turn !== null || record.queue.length === 0) {
+    return;
   }
-
-  const used =
-    (last.input_tokens ?? 0) + (last.cache_read_input_tokens ?? 0) + (last.cache_creation_input_tokens ?? 0);
-  return used > 0 ? used : null;
+  record.turn = record.queue.shift();
+  record.child.stdin.write(
+    `${JSON.stringify({ type: "user", message: { role: "user", content: record.turn.frame.text } })}\n`,
+  );
 }
 
-// How much the model this run answered on can hold, off the same frame, in the same tokens.
+// Put one frame on one seat's queue.
 //
-// LOOKED UP BY THE MODEL THE RUN SAID IT WAS ON, and never by a name of ours. A run says which
-// model it is having its turn on as it opens, and the usage on the result frame keys that model's
-// entry under those same words, so both sides of this lookup come from the run: the workspace can
-// pass an alias, the service can answer under a resolved id, and they still meet. Comparing a key
-// of ours against a key of theirs is the lookup that fails silent — nothing matches, and the share
-// is never seen anywhere with nothing saying so — and there is no key of ours here to compare.
-//
-// It used to be "exactly one entry, take it", on the reasoning that a run answers on one model.
-// A run does; the frame does not only report the run. Measured on 2.1.263: the first turn of a
-// thread names a background helper Claude Code called on its own account BESIDE the model the run
-// was given, two entries, so nothing was read — and the first turn of every session, which is
-// every cold start and every handover, showed no share while saying nothing about why. The entry
-// beside it belongs to somebody else's work and is not what this conversation is being held in.
-//
-// So a frame naming several is read, and a frame naming none of them the run's is not: models
-// answered, and the window of a model this turn was not had on is a number about another
-// conversation. Nothing at all is the honest answer there, and it costs exactly what the row
-// already pays when the service says nothing — today's behaviour.
-//
-// And why nothing is not a default. A window nobody was told about is not the last one anybody
-// measured. Writing a measured number in as a fallback would make every workspace on every other
-// model read its share off that one run — a share that is confidently wrong everywhere it fires,
-// which is worse than a row that says nothing.
-function windowAfter(answer, ranOn) {
-  const named = answer.modelUsage;
-  if (named === null || typeof named !== "object") {
-    return null;
+// Answers at once with whether it was taken: `{ delivered: true, answered }` where `answered`
+// resolves when that turn ends — with the reply, or with `ended: true` if the process closed
+// before it could answer — or `{ refused: "no process" }` when the seat has none, in which case
+// nothing is queued. A frame is accepted by provenance and not by shape: a string that reproduces
+// a frame byte for byte is refused.
+export function tell(seat, frame, { ahead = false } = {}) {
+  if (!isFrame(frame)) {
+    throw new Error("a session is told frames built by frames.mjs, and nothing else");
   }
-  const size = named[ranOn]?.contextWindow;
-  return typeof size === "number" && size > 0 ? size : null;
+  const record = processes.get(seat);
+  if (record === undefined) {
+    console.log(`no process: ${seat} (${frame.kind})`);
+    return { refused: "no process" };
+  }
+  const answered = new Promise((resolve) => {
+    const turn = { frame, resolve };
+    if (ahead) {
+      record.queue.unshift(turn);
+    } else {
+      record.queue.push(turn);
+    }
+  });
+  drain(record);
+  return { delivered: true, answered };
 }
 
+// ------------------------------------------------------------------------------- waiting on each other
 
+// Who each seat's turn is waiting for an answer FROM. A seat runs one turn at a time, so one seat
+// is waiting on at most one other, which makes this a map and the walk below a walk rather than
+// a search.
+const waitingOn = new Map();
 
-// What a run is told when nobody has been given a way to answer it. A caller that does not care
-// about permissions still gets a session that runs; what it does not get is a session that can sit
-// there for good waiting on a question nobody will ever see.
-function nobodyToAsk() {
-  return Promise.reject(new Error("this chat was not given a way to ask"));
+// Would waiting for this seat mean waiting for ourselves?
+//
+// The Leader's turn asks Paul something; Paul's turn, before answering, messages the Leader. The
+// Leader cannot take it, because the Leader is holding its own turn open until Paul answers — and
+// Paul cannot answer until the Leader takes it. Nothing times out, so that is both sessions
+// stopped for good. A message that would close a circle is refused at once instead.
+export function wouldWaitForItself(sender, addressee) {
+  let ahead = addressee;
+  for (let step = 0; step <= waitingOn.size; step += 1) {
+    if (ahead === sender) {
+      return true;
+    }
+    const next = waitingOn.get(ahead);
+    if (next === undefined) {
+      return false;
+    }
+    ahead = next;
+  }
+  return false;
 }
 
-export async function ask(instance, name, text, asked = nobodyToAsk) {
-  const resume = remembered(instance.root, name);
-  let answer = await run(instance, name, text, resume, asked);
-
-  // A remembered thread can go away — the Claude Code home was cleared, or the conversation
-  // was never written. Rather than leave the chat permanently broken, drop the id and ask
-  // again as a new conversation. Losing the history beats losing the chat.
-  //
-  // A run the service turned away is not that, and the two used to be the same word here. Failed
-  // means the thread could not be used, and asking again without it is the repair; refused means
-  // the account is unavailable and the thread is untouched. Retrying a refusal spends a second run
-  // that cannot succeed, and forgetting throws a conversation away for a condition that clears by
-  // itself. So this fires on what its own comment describes, and on nothing else.
-  //
-  // A run somebody ENDED is the third of those, and the strongest case of the three: retrying it
-  // starts another run of exactly what was just stopped — measured, and on a run that had gone
-  // quiet the second one went quiet too — and the forget throws away a conversation that nothing
-  // was ever wrong with. Somebody asked for this to stop; asking again is the one thing they did
-  // not ask for.
-  if (answer.failed && answer.refused === null && answer.ended !== true && resume !== null) {
-    forget(instance.root, name);
-    answer = await run(instance, name, text, null, asked);
+export async function whileWaitingFor(sender, addressee, wait) {
+  waitingOn.set(sender, addressee);
+  try {
+    return await wait();
+  } finally {
+    waitingOn.delete(sender);
   }
+}
 
-  if (typeof answer.sessionId === "string" && answer.sessionId !== "") {
-    // Written together, because they are one fact about one conversation. What this run reported is
-    // what is kept, `null` included: a reading that stopped arriving should show as nothing rather
-    // than as a number from some earlier turn that is no longer where the thread is.
-    remember(
-      instance.root,
-      name,
-      answer.sessionId,
-      answer.context ?? null,
-      answer.quota ?? null,
-      answer.refused ?? null,
-      answer.window ?? null,
-    );
+// --------------------------------------------------------------------------------------- ending
+
+const PATIENCE = 2000;
+
+// Every process under this one, read from the process table. Claude Code runs tools in shells of
+// its own, and a run that will not go quietly has to be taken down with everything under it.
+function descendants(pid) {
+  const asked = spawnSync("ps", ["-eo", "pid=,ppid=,comm="], { encoding: "utf8" });
+  if (asked.status !== 0 || typeof asked.stdout !== "string") {
+    return [];
   }
+  const below = new Map();
+  for (const line of asked.stdout.split("\n")) {
+    const [child, parent] = line.trim().split(/\s+/);
+    const one = Number(child);
+    const above = Number(parent);
+    if (child !== "" && Number.isInteger(one) && Number.isInteger(above)) {
+      below.set(above, [...(below.get(above) ?? []), one]);
+    }
+  }
+  const found = [];
+  const left = [pid];
+  while (left.length > 0) {
+    for (const under of below.get(left.pop()) ?? []) {
+      found.push(under);
+      left.push(under);
+    }
+  }
+  return found;
+}
 
-  return answer;
+// End a seat's process: close its stdin, which is what ends a run that is between turns, and
+// take it down if it is still there once patience has run out. Resolves when the process has
+// closed and its secret is gone; false if the seat had no process.
+export async function end(seat, patience = PATIENCE) {
+  const record = processes.get(seat);
+  if (record === undefined) {
+    return false;
+  }
+  const { child } = record;
+  const gone = new Promise((resolve) => child.once("close", resolve));
+  child.stdin.end();
+  const made = setTimeout(() => {
+    const under = descendants(child.pid);
+    child.kill("SIGKILL");
+    for (const pid of under) {
+      try {
+        process.kill(pid, "SIGKILL");
+      } catch {
+        // Already gone.
+      }
+    }
+  }, patience);
+  await gone;
+  clearTimeout(made);
+  return true;
+}
+
+export function endEvery(patience = PATIENCE) {
+  return Promise.all(runningSeats().map((seat) => end(seat, patience)));
 }

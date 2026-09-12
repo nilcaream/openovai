@@ -1,535 +1,129 @@
 <!doctype html>
 <meta charset="utf-8">
-<title>OpenOv AI chat</title>
+<!-- The page's own secret, filled in by the server on every load. Every request this page makes
+     carries it, and the server answers nothing else. A bookmark or an installed app reopens this
+     one plain address and gets the current secret again, so a server restart costs a reload and
+     nothing more. -->
+<meta name="openovai-secret" content="">
+<title>OpenOv AI</title>
 
-<h1 id="who">Chat</h1>
+<h1 id="who"></h1>
 
-<h2>The room <button id="switch" type="button"></button></h2>
+<h2>The room</h2>
 <div id="room"></div>
-
-<!-- Opening a desk for somebody new. Written here rather than built in the script because it is
-     fixed content and not a panel: nothing about it depends on who works here, so there is nothing
-     for the script to decide and no way for it to be built and never attached. -->
-<form id="hiring">
-  <input id="named" placeholder="A name" autocomplete="off">
-  <button id="hire" type="submit">Hire</button>
-  <span id="refusal"></span>
-</form>
 
 <div id="panels"></div>
 
 <script type="module">
-  // Deliberately plain. The point of this page is that every session in the workspace can be
+  // Deliberately plain. The point of this page is that every session in the instance can be
   // typed to and read back in one place; how it looks is a later question.
-  //
-  // One panel per session, built from what the server says works here. The server reads that from
-  // the desks each time it is asked, so a desk opened while the chat is running is a panel on the
-  // next load of this page.
-  const panels = document.getElementById("panels");
 
-  // Who works here is settled at load: the panels are built once from /sessions, so the set of
-  // them is a load-time fact. Anything that changes it — hiring somebody, a session leaving —
-  // loads the page again rather than growing a panel lifecycle nobody has asked for.
-  function whoWorksHereChanged() {
-    location.reload();
+  const secret = document.querySelector('meta[name="openovai-secret"]').content;
+
+  // Every call to the server, with the page's secret on it. The server refuses a call without it
+  // with 401, and a page that got one has been outlived by a server restart: reload and it has
+  // the new secret.
+  async function call(path, options = {}) {
+    const answered = await fetch(path, {
+      ...options,
+      headers: { ...(options.headers ?? {}), authorization: `Bearer ${secret}` },
+    });
+    if (answered.status === 401) {
+      location.reload();
+      throw new Error("the server no longer knows this page");
+    }
+    return answered;
   }
 
-  // Hiring, wired before anything is fetched: it is the one thing on this page that works when
-  // there is nobody to show yet.
-  const hiring = document.getElementById("hiring");
-  const named = document.getElementById("named");
-  const hire = document.getElementById("hire");
-  const refusal = document.getElementById("refusal");
+  const atLoad = await call("/sessions").then((response) => response.json());
+  const { user, leader, sessions } = atLoad;
 
-  hiring.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const name = named.value.trim();
-    if (name === "") {
-      return;
-    }
-    hire.disabled = true;
-    refusal.textContent = "";
-    try {
-      const answered = await fetch("/sessions", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name }),
-      });
-      if (answered.ok) {
-        whoWorksHereChanged();
-        return;
-      }
-      // In the words the route used, which are the words `ovai hire` prints. A page that reworded a
-      // refusal would be a second answer to what a name is refused for.
-      refusal.textContent = (await answered.json()).error;
-    } finally {
-      hire.disabled = false;
-    }
-  });
+  document.getElementById("who").textContent = `${leader}`;
 
-  const health = await fetch("/health").then((response) => response.json());
-  document.getElementById("who").textContent = `${health.leader} — ${health.instance}`;
-
-  const atLoad = await fetch("/sessions").then((response) => response.json());
-  const { sessions } = atLoad;
-
-  // What to call somebody on this page. The chat writes the human's rows as `human` because it
-  // cannot know what to call them until an instance is installed, so every place a name is SHOWN
-  // reads it back through here — or the same person is two people on one page, which is what a
-  // waiting line saying "human" above a transcript saying their name looked like.
+  // What to call somebody on this page. The server writes the User's rows as `user`, so every
+  // place a name is shown reads it back through here.
   function nameOf(from) {
-    return from === "human" ? health.human : from;
+    return from === "user" ? user : from;
   }
 
+  // One line of a transcript. A line the User typed onto another panel says which one, so the
+  // Leader's transcript reads as what the Leader was told.
   function said(message) {
     const line = document.createElement("p");
     const who = nameOf(message.from);
-    // A session that answered with nothing gets a sentence rather than a blank line, which
-    // would read as the chat having lost the reply.
-    const said = message.silent ? "(ended its turn without saying anything)" : message.text;
-    // A line that broke in says why in the same row. It is the row itself that has to carry it:
-    // this one arrived while a sentence was being written, and what it makes stale is the whole
-    // reason it was worth reading now rather than in a minute.
-    const breaking = typeof message.breaking === "string" ? ` (breaking in — ${message.breaking})` : "";
-    line.textContent = `${who}${message.failed ? " (failed)" : ""}${breaking}: ${said}`;
+    const to = typeof message.typedTo === "string" ? ` to ${message.typedTo}` : "";
+    const text = message.silent ? "(ended its turn without saying anything)" : message.text;
+    line.textContent = `${who}${to}${message.failed ? " (failed)" : ""}: ${text}`;
     return line;
   }
 
-  // The room: one line per session, so that deciding whom to talk to and whom to hand over does
-  // not mean opening every panel and reading it. Everything in it comes off the same rows the
-  // panels are already asking for once a second, so it costs the page nothing new.
+  // The room: one line per seat, off the same rows the panels ask for.
   const room = document.getElementById("room");
-  const switchRoom = document.getElementById("switch");
 
-  // How long ago, in the roughest terms that are still useful. Nothing anybody decides from this
-  // page turns on the difference between four minutes and five.
-  function ago(when) {
-    if (typeof when !== "string") {
-      return null;
-    }
-    const seconds = Math.round((Date.now() - Date.parse(when)) / 1000);
-    if (seconds < 60) {
-      return "just now";
-    }
-    if (seconds < 3600) {
-      return `${Math.floor(seconds / 60)}m ago`;
-    }
-    return `${Math.floor(seconds / 3600)}h ago`;
+  function showTheRoom({ sessions }) {
+    room.replaceChildren(
+      ...sessions.map((session) => {
+        const line = document.createElement("p");
+        line.textContent = `${session.name} — ${session.role}, ${session.model}, ${session.running ? "running" : "not running"}`;
+        return line;
+      }),
+    );
   }
 
-  // When the limit lifts, in the hours of whoever is reading. The moment comes from the service
-  // and only its spelling is ours.
-  function atTime(seconds) {
-    const when = new Date(seconds * 1000);
-    return `${String(when.getHours()).padStart(2, "0")}:${String(when.getMinutes()).padStart(2, "0")}`;
-  }
-
-  // The refusal still in force, if there is one. A refusal that named no moment is still said.
-  function refusedSaid(refused) {
-    if (refused === null || refused === undefined) {
-      return null;
-    }
-    return typeof refused.resetsAt === "number" ? `refused until ${atTime(refused.resetsAt)}` : "refused";
-  }
-
-  // How full each window the frame named was, and — never separately — when it was read. One
-  // account means N rows carrying N readings of N different ages, so a number printed without its
-  // age invites a low reading off a stale row being taken for the account's current state. The
-  // two are one phrase so there is no way to print half of it.
-  function windowsSaid(quota) {
-    if (quota === null || quota === undefined || !Array.isArray(quota.windows) || quota.windows.length === 0) {
-      return null;
-    }
-    if (typeof quota.at !== "number") {
-      return null;
-    }
-    const full = quota.windows
-      .map((window) => `${window.name.replace(/_/g, "-")} window ${Math.round(window.fullness * 100)}% full`)
-      .join(", ");
-
-    return `${full}, read ${ago(new Date(quota.at).toISOString())}`;
-  }
-
-  // And where the account stands as the run this session has going right now has been told it.
-  //
-  // ITS OWN PHRASE AND NOT THE ONE ABOVE WIDENED. The two readings answer different questions —
-  // where the account stands while a run is going, and where it stood when one last ended — and a
-  // builder that could print either would be one edit away from printing them as one.
-  //
-  // Every part of it earns its place. The windows, because this row does not pick one. The AGE,
-  // for the reason the phrase above exists at all: a number with no age invites exactly the
-  // judgment it cannot support, and a live reading that quietly went stale would read as a stale
-  // stamp rather than as a wrong number. The MODEL, because the same number means very different
-  // things depending on what is spending it. And how long the run has been going, because a run
-  // three minutes in and a run forty minutes in are different decisions at the same reading.
-  //
-  // Said in the parts that are there rather than all or nothing: a run that has begun and not yet
-  // been told anything is a real state, and the model and the age of it are worth saying on their
-  // own. It says `now` first so that nothing can read it as the stored one.
-  function standingSaid(standing) {
-    if (standing === null || standing === undefined) {
-      return null;
-    }
-    const said = [];
-    if (Array.isArray(standing.windows) && standing.windows.length > 0 && typeof standing.at === "number") {
-      said.push(
-        standing.windows
-          .map((window) => `${window.name.replace(/_/g, "-")} window ${Math.round(window.fullness * 100)}% full`)
-          .join(", "),
-      );
-      said.push(`read ${ago(new Date(standing.at).toISOString())}`);
-    }
-    if (typeof standing.ranModel === "string" && standing.ranModel !== "") {
-      said.push(`on ${standing.ranModel}`);
-    }
-    // The same words the ages beside it are said in, rather than a second ladder of its own: how
-    // long a run has been going and how long ago it began are one reading, and two spellings of it
-    // on one row is a difference a reader would look for a meaning in.
-    if (typeof standing.since === "number") {
-      said.push(`began ${ago(new Date(standing.since).toISOString())}`);
-    }
-    return said.length === 0 ? null : `now ${said.join(", ")}`;
-  }
-
-  // How much of the window this conversation has taken, the same phrase the command's copy of this
-  // row says, from the same two fields. Nothing whenever either half is missing: on a service that
-  // named no window this row is byte for byte what it said before any of this existed.
-  function shareSaid(context, window) {
-    if (typeof context !== "number" || typeof window !== "number" || window <= 0) {
-      return null;
-    }
-    return `${Math.round((context / window) * 100)}% of its window`;
-  }
-
-  // What a session is doing, as one phrase, in the order that decides what to do about it. Held up
-  // by a person comes first, because it is the only one the person reading this can end; then held
-  // up by another session, which is not the same as being slow; then busy, with the pile behind it.
-  function state(row) {
-    if (row.asking > 0) {
-      return row.asking === 1 ? "needs you" : `needs you (${row.asking})`;
-    }
-    if (row.waitingFor !== null && row.waitingFor !== undefined) {
-      return `waiting for ${row.waitingFor}`;
-    }
-    if (row.queued > 0) {
-      return `answering, ${row.queued} waiting`;
-    }
-    // The same word the room command says, from the same field. The two lay out the same rows in
-    // their own scripts and there is nothing that would notice them drifting apart.
-    if (row.cold) {
-      return "cold";
-    }
-    return row.busy ? "answering" : idleSaid(row.ran);
-  }
-
-  // How long a session has been doing nothing, said with the word for doing nothing, and the same
-  // phrase the room command says. It is part of the state and never a fact of its own beside it:
-  // every state above idle is a run in flight, and a running session's clock is stale for the
-  // whole of its turn.
-  function idleSaid(ran) {
-    return typeof ran === "string" ? `idle, last ran ${ago(ran)}` : "idle";
-  }
-
-  // Facts, in one line, and no verdict on any of them. Whether a session that has been quiet for
-  // an hour is finished, stuck or thinking is not something this page can know, and a page that
-  // guessed would be wrong in the way that looks like an answer.
-  function inTheRoom(row) {
-    const line = document.createElement("p");
-
-    const who = document.createElement("strong");
-    who.textContent = row.name;
-
-    const rest = document.createElement("span");
-    const when = ago(row.active);
-    const how = [
-      state(row),
-      // The same two phrases the room command says, from the same two fields, in the same order.
-      // Beside the state phrase and not inside it: a session answering right now while its last
-      // run was turned away is a real state, and one word could not say it.
-      refusedSaid(row.refused),
-      // Where the account stands NOW first, and what this session was last told after it. The live
-      // one is the one somebody is acting on; the stored one is how it got there.
-      standingSaid(row.standing),
-      windowsSaid(row.quota),
-      // Said only when there is none, because that is the surprising half: a full panel whose
-      // session remembers none of it reads as an ordinary one until somebody says so.
-      row.thread ? null : "nothing to carry on",
-      typeof row.context === "number" ? `${row.context.toLocaleString("en-US")} tokens` : null,
-      // The same reading in the unit that means something on every model, and the same rule the
-      // command's copy of this row keeps: beside the tokens, never instead of them, and nothing at
-      // all when the service named no window. No threshold, no colour and no word for too full —
-      // the row carries readings and never an instruction.
-      shareSaid(row.context, row.window),
-      when === null ? "nothing said yet" : `last moved ${when}`,
-    ].filter((part) => part !== null);
-
-    rest.textContent = ` — ${row.role} (${row.model})${row.doing === "" ? "" : ` — ${row.doing}`} — ${how.join(" · ")}`;
-
-    line.append(who, rest);
-    return line;
-  }
-
-  // What the room says about itself, drawn from the one field the chat sends beside the rows.
-  //
-  // The sentence and the button that changes it are ONE control built from ONE reading. A state
-  // drawn by one thing and undone by another is a state that can be shown with no way out of it,
-  // and that is precisely the failure this feature was paid for: a room nothing said was off, that
-  // nothing could bring back. Here the label IS the exit, so a page that can say "off" can always
-  // also be pressed back.
-  //
-  // Above the rows and never on one, for the reason the command has: it is the room that is off.
-  const OFF = "The room is offline — nothing new will be started until it is brought back online.";
-  let roomIsOff = false;
-
-  // What the room says while the account is at its stop line, from the facts the chat sends beside
-  // the rows: what the hold does, and what the gate refuses while it stands. The moment is said in
-  // this reader's hours, which is why the chat sends the facts and not a sentence. And `warm` is
-  // read off the hold and never off the clock: it was answered once, when the hold was entered, and
-  // a room handed over on that answer must not be described by a later one.
-  //
-  // The same four sentences as the command prints, kept true by hand, as the row phrases are — and
-  // the clause after each is a COPY of gate.mjs's, held to it word for word by a check, because it
-  // claims a gate and a page saying that about a gate that did not exist would be believed.
-  const NO_NEW_WORK = "No new work is being started: for as long as this stands, the session that leads is refused a new desk and any conversation it would have to start from nothing, and only what a person starts goes through.";
-
-  function holdSaid(hold) {
-    if (typeof hold.resetsAt !== "number") {
-      return `The account is nearly spent and did not say when it lifts — nobody is being handed over; the next completed turn settles it. ${NO_NEW_WORK}`;
-    }
-    const lifts = `its window lifts at ${atTime(hold.resetsAt)}`;
-    if (hold.warm === true) {
-      return `The account is nearly spent — ${lifts}, inside the hour a conversation can be carried across, so nothing is being ended or handed over. ${NO_NEW_WORK}`;
-    }
-    if (hold.parking === true) {
-      return `The account is nearly spent — ${lifts}, later than a conversation can be carried across, so each conversation is being handed over to its desk. ${NO_NEW_WORK}`;
-    }
-    return `The account is nearly spent — ${lifts}, later than a conversation can be carried across, and this workspace buys no turn, so nobody is handed over. ${NO_NEW_WORK}`;
-  }
-
-  // Whether the room is being read, from the record the chat sends beside the rows: when it was
-  // last read and how often it is read. An age and a cadence and no verdict — no threshold here and
-  // no colour; whether "12m ago" against "every 300 seconds" is a dead watch is the reader's call.
-  // The same two sentences as the command prints, kept true by hand, as the hold's four are.
-  function watchSaid(watch) {
-    if (typeof watch.at === "string") {
-      return `The room was last read ${ago(watch.at)}; it is read every ${watch.everySeconds} seconds.`;
-    }
-    return `The room has not been read yet; the watch was armed ${ago(watch.armedAt)} and reads every ${watch.everySeconds} seconds.`;
-  }
-
-  function showTheRoom({ offline, hold, watch, sessions }) {
-    roomIsOff = offline === true;
-    switchRoom.textContent = roomIsOff ? "Go online" : "Go offline";
-
-    const said = roomIsOff ? [Object.assign(document.createElement("p"), { textContent: OFF })] : [];
-    if (hold !== null && typeof hold === "object") {
-      said.push(Object.assign(document.createElement("p"), { textContent: holdSaid(hold) }));
-    }
-    if (watch !== null && typeof watch === "object") {
-      said.push(Object.assign(document.createElement("p"), { textContent: watchSaid(watch) }));
-    }
-    room.replaceChildren(...said, ...sessions.map(inTheRoom));
-  }
-
-  // Neither press runs anything, neither can be refused, and so neither is pressed once and left
-  // disabled: it is enabled again either way, because both are states somebody may want to press
-  // back out of a moment later. The room is asked again straight after rather than waited for on
-  // the tick, so the label a person just pressed does not sit there saying the old thing.
-  switchRoom.addEventListener("click", async () => {
-    switchRoom.disabled = true;
-    try {
-      await fetch(roomIsOff ? "/online" : "/offline", { method: "POST" });
-      await look();
-    } finally {
-      switchRoom.disabled = false;
-    }
-  });
+  // One panel per seat, built once from what the server said at load.
+  const panels = document.getElementById("panels");
 
   function panel(session) {
     const section = document.createElement("section");
-
     const heading = document.createElement("h2");
-    heading.textContent = `${session.name} — ${session.role} (${session.model})`;
-
-    // Whether this session is in the middle of a turn. It is a word beside the name and nothing
-    // else: the panel already shows what was said, and what is wanted here is only the difference
-    // between a session thinking and a session with nothing to do.
-    const mood = document.createElement("span");
-
-    // How much of itself this session's conversation is carrying, so that whoever is reading can
-    // tell when it is worth handing over rather than finding out from the answers. It is where the
-    // thread stood at the END of its last turn, which is what the phrasing says: a turn going on
-    // right now is already past it, and there is no way to ask a run in progress.
-    //
-    // A count, not a share of anything. What a model can hold would have to be kept in a table
-    // here, and a number that is quietly wrong is worse than one that needs a moment's thought.
-    const size = document.createElement("span");
-
-    heading.append(mood, size);
+    heading.textContent = session.name;
 
     const transcript = document.createElement("div");
-    // A height of its own, with its own scrollbar. This is for the COMPOSER below it, not for the
-    // transcript: the panels sit in one flow, so a row landing on the panel ABOVE moves the box
-    // somebody is half way through a sentence in — and holding that panel does nothing about it,
-    // because nobody is writing in the other one. A panel whose height cannot change cannot move
-    // anything below it, whatever arrives.
-    transcript.style.height = "18em";
+    transcript.style.maxHeight = "24em";
     transcript.style.overflowY = "auto";
 
+    const asking = document.createElement("div");
+
+    const composer = document.createElement("form");
     const box = document.createElement("textarea");
     box.rows = 3;
     box.cols = 80;
-    box.placeholder = `Write to ${session.name}`;
-
     const send = document.createElement("button");
     send.type = "submit";
     send.textContent = "Send";
+    composer.append(box, send);
 
-    // End the thread that has been answering, so the next message starts a new one that reads
-    // this session's desk first. It is a button and not a form: a handover takes no words.
-    //
-    // Not disabled while the session is busy. A handover waits its turn like anything else, and
-    // the moment somebody wants one is usually the moment the session is in the middle of
-    // something — a button that could only be pressed on an idle panel would be no use.
-    const hand = document.createElement("button");
-    hand.type = "button";
-    hand.textContent = "Hand over";
-
-    // And the exit: the session is asked to write its desk one last time, and the desk and the
-    // panel are filed away together. Not offered on the lead's panel, because an instance has a
-    // lead by definition and this page is hosted by it — a lead that left would still be here,
-    // with nothing to read what it was doing from. The route refuses it too; this is so nobody is
-    // offered a button that cannot work.
-    const leave = session.role === "lead" ? null : document.createElement("button");
-    if (leave !== null) {
-      leave.type = "button";
-      leave.textContent = "Leave";
-    }
-
-    // The way out of a run that will not end itself. Everything else on this panel is a turn and
-    // waits in the same queue; this is the one press that does not, because the session it is for
-    // is the one whose queue has stopped moving.
-    //
-    // Offered whatever the session is doing, for the reason the handover is: it is wanted at the
-    // moment the panel looks stuck, and a button that only worked on an idle panel would be no
-    // use. Pressed with nothing running, the route says so and nothing happens.
-    const endRun = document.createElement("button");
-    endRun.type = "button";
-    endRun.textContent = "End this run";
-
-    const composer = document.createElement("form");
-    composer.className = "composer";
-    composer.append(box, send, hand, endRun, ...(leave === null ? [] : [leave]));
-
-    // Where this session says what it wants to be allowed to do. Empty almost always: only a tool
-    // the instance has not already settled one way or the other ever gets this far.
-    const asking = document.createElement("div");
-
-    // The buzz in the pocket. One line between the transcript and the composer, ALWAYS in the
-    // document and empty when nothing is held, so that a line appearing never moves the box out
-    // from under a moving cursor. It says how many and who from, and never a word of what: the
-    // content is the interruption this exists to prevent, and a fragment read sideways is worse
-    // than either waiting or looking.
-    const whoIsWaiting = document.createElement("span");
-
-    const showThem = document.createElement("button");
-    showThem.type = "button";
-    showThem.textContent = "Show them";
-    // Hidden by taking up its space rather than by leaving the document. "Always in the document"
-    // is not "always occupying its space": an empty span makes no line box, so with the button gone
-    // the line was zero-height and its margins collapsed, and the first held row pushed the box
-    // down under the cursor by the height of a line and two margins. A button that is invisible
-    // still holds the line open, and it cannot be clicked or tabbed to while it is.
-    showThem.style.visibility = "hidden";
-
-    const waitingLine = document.createElement("p");
-    waitingLine.append(whoIsWaiting, showThem);
-
-    // What the next message typed into the box will do, in the one respect nothing on this panel
-    // says: carry this conversation on, or start a new one from the desk. The token count is on
-    // the heading of this same panel and is not said again here — one fact, one place. ALWAYS in
-    // the document and always with text, for the line above's reason: a line that appears moves
-    // the box out from under a moving cursor, and every state below yields a sentence, so this
-    // one never collapses and needs no trick to hold its space.
-    const nextTurnLine = document.createElement("p");
-
-    section.append(heading, transcript, asking, waitingLine, nextTurnLine, composer);
+    section.append(heading, transcript, asking, composer);
 
     // How many rows this panel has put on the screen. The transcript is append-only, so the
-    // count is the whole of what a panel needs to know to tell a redraw worth doing from one that
-    // is not.
+    // count is all a panel needs to tell a redraw worth doing from one that is not.
     let shown = -1;
 
-    // Whether the reader has asked to see the held rows in spite of still writing. It is one
-    // boolean and it clears itself: the next fetch asks with no writing, everything is drawn,
-    // shown catches up, and the hold begins again from there. Nothing to expire, nothing to reset.
-    let showThemAnyway = false;
-
     async function show() {
-      // Writing is: there is text in the box, read at the moment the answer is needed. No listener
-      // is added and nothing is counted per keystroke — an idle timer would be wrong exactly while
-      // somebody is thinking mid-sentence, which is the moment this feature exists for. Composing
-      // ends when the box is empty, and sending empties it.
-      const writing = box.value !== "" && !showThemAnyway;
-      showThemAnyway = false;
-
-      const query = new URLSearchParams({ shown: String(Math.max(shown, 0)) });
-      if (writing) {
-        query.set("writing", "1");
-      }
-
-      const answered = await fetch(`/sessions/${session.name}/messages?${query}`);
-      const { messages, held, from } = await answered.json();
-
-      // Who is waiting, BEFORE anything about redrawing. While a panel is holding, its row count
-      // is by definition unchanged, so a count drawn after the guard below would never be drawn at
-      // all and the hold would read as a page that had stopped working.
-      whoIsWaiting.textContent = held === 0 ? "" : `${held} waiting — ${from.map(nameOf).join(", ")} `;
-      showThem.style.visibility = held === 0 ? "hidden" : "visible";
-
-      // Nothing new, so nothing is touched. replaceChildren throws a selection away, and on the
-      // tick that would be every second — a person could not copy a line out of a running chat.
+      const answered = await call(`/sessions/${session.name}/messages`);
+      const { messages } = await answered.json();
       if (messages.length === shown) {
         return;
       }
-      // Now that a transcript scrolls, a redraw has to decide where to leave it. At the newest line
-      // if that is where the reader already was — and on the first draw, when a panel opened on its
-      // oldest line would be a chat nobody could read. Otherwise exactly where they left it: being
-      // dragged back down is the same interruption as the box moving.
+      // At the newest line if that is where the reader already was, or on the first draw; otherwise
+      // exactly where they left it.
       const atTheNewest = shown === -1 || transcript.scrollHeight - transcript.scrollTop - transcript.clientHeight < 1;
-      // The one exception, and it is the whole of what marks a line that broke in: a reader who
-      // had scrolled up is dragged back down for it. Anything else arriving is worth less than
-      // where they were reading; a line that broke in is by definition worth more, and a row drawn
-      // where nobody is looking is the one place no wording could have saved it.
-      const brokeIn = messages.slice(Math.max(shown, 0)).some((message) => typeof message.breaking === "string");
-      shown = messages.length;
       transcript.replaceChildren(...messages.map(said));
-      if (atTheNewest || brokeIn) {
+      shown = messages.length;
+      if (atTheNewest) {
         transcript.scrollTop = transcript.scrollHeight;
       }
     }
 
-    // Shows what is being held without sending anything and without touching what has been
-    // written. The flag is consumed by the next fetch, which is the whole of ending a hold.
-    showThem.addEventListener("click", () => {
-      showThemAnyway = true;
-    });
-
-    // A request is answered by whoever is at the page, so the page has to notice one arriving
-    // without having been the one who caused it — the same reason the transcript rides the tick.
+    // A permission the session is stopped on: what it wants, and the three answers. "Always"
+    // is offered only when the server found a rule that would let a call like this one through.
     function question(request) {
       const line = document.createElement("p");
-
       const what = document.createElement("span");
-      what.textContent = `${session.name} wants to use ${request.tool}: ${JSON.stringify(request.input)} `;
+      what.textContent = `wants to use ${request.tool}${request.input?.command ? `: ${request.input.command}` : ""}${request.input?.file_path ? `: ${request.input.file_path}` : ""} `;
 
-      // A refusal is the whole of what the session is told about it, so it is somebody's sentence
-      // rather than a button press. The box is on the line from the start and not revealed by a
-      // first press: a person deciding to refuse should be typing the reason, not discovering they
-      // now have to.
       const reason = document.createElement("input");
-      reason.type = "text";
-      reason.placeholder = "why not";
+      reason.placeholder = "why not (needed to deny)";
 
       const yes = document.createElement("button");
       yes.type = "button";
@@ -539,13 +133,6 @@
       no.type = "button";
       no.textContent = "Deny";
 
-      // The third answer, and the only one that is still true tomorrow: it allows the shape rather
-      // than this one call, so the next session that reaches for the same thing does not stop and
-      // nobody is asked the same question twice. The rule is written on the button in full — a
-      // person allows a rule they have read, never one inferred from a press.
-      //
-      // Absent, rather than there and dead, where the server could compose no rule. An offer that
-      // cannot be taken is worse than no offer: it is read as the thing being refused.
       const always = request.shape === undefined ? null : document.createElement("button");
       if (always !== null) {
         always.type = "button";
@@ -558,7 +145,7 @@
         if (always !== null) {
           always.disabled = true;
         }
-        await fetch(`/sessions/${session.name}/permission`, {
+        await call(`/sessions/${session.name}/permission`, {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify(body),
@@ -566,26 +153,16 @@
         await waiting();
       }
 
-      // Allowing says nothing. A reason attached to an allow is a note nobody reads, and a field
-      // the route would have to start ignoring.
-      yes.addEventListener("click", async () => {
-        await answer({ id: request.id, decision: "allow" });
-      });
-
+      yes.addEventListener("click", () => answer({ id: request.id, decision: "allow" }));
       if (always !== null) {
-        always.addEventListener("click", async () => {
-          await answer({ id: request.id, decision: "always" });
-        });
+        always.addEventListener("click", () => answer({ id: request.id, decision: "always" }));
       }
-
-      no.addEventListener("click", async () => {
-        // Nothing happens while the box is empty, and the button is not disabled either: a dead
-        // button explains nothing, and a cursor landing in the box says what is missing.
+      no.addEventListener("click", () => {
         if (reason.value.trim() === "") {
           reason.focus();
           return;
         }
-        await answer({ id: request.id, decision: "deny", why: reason.value.trim() });
+        answer({ id: request.id, decision: "deny", why: reason.value.trim() });
       });
 
       line.append(what, reason, yes, no);
@@ -595,15 +172,10 @@
       return line;
     }
 
-    // What is drawn, by the id of the request it is drawing. A parked request never changes while
-    // it waits — same id, same call, same shape — so a tick has nothing to redraw about one it has
-    // already drawn, and redrawing it anyway threw away the box somebody was typing in once a
-    // second. A refusal is a sentence, and a sentence takes longer than a tick to write: the line
-    // is built once and then left alone, and only arrivals are added and departures removed.
     const drawn = new Map();
 
     async function waiting() {
-      const answered = await fetch(`/sessions/${session.name}/permissions`);
+      const answered = await call(`/sessions/${session.name}/permissions`);
       const { permissions } = await answered.json();
       for (const [id, line] of drawn) {
         if (!permissions.some((request) => request.id === id)) {
@@ -611,8 +183,6 @@
           drawn.delete(id);
         }
       }
-      // Appended in the order they arrive, which is the order the queue holds them in: it is a
-      // queue and nothing is ever inserted into the middle of it.
       for (const request of permissions) {
         if (!drawn.has(request.id)) {
           const line = question(request);
@@ -622,6 +192,8 @@
       }
     }
 
+    // What is typed goes to the server as text and nothing else: the server knows it came from
+    // this page by the secret on the call, and frames it as the User's own words.
     composer.addEventListener("submit", async (event) => {
       event.preventDefault();
       const text = box.value;
@@ -629,160 +201,32 @@
         return;
       }
       box.value = "";
-      // A reply takes as long as it takes, and the panel says so rather than looking broken.
-      //
-      // Drawn on the transcript as it stands, which while this page was holding is a transcript
-      // missing the rows behind it: for one tick the sentence appears above rows that happened
-      // before it, and the next draw puts it where it belongs. Kept deliberately. Sending empties
-      // the box, so the very next fetch asks with no hold and corrects it — and the alternative is
-      // a second of nothing on the one thing the person just did, which reads as a page that
-      // dropped what they wrote. A row a tick early is a smaller lie than a page that looks broken.
-      transcript.append(
-        said({ from: "human", text }),
-        Object.assign(document.createElement("p"), { textContent: "…" }),
-      );
-      await fetch(`/sessions/${session.name}/message`, {
+      await call(`/sessions/${session.name}/message`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        // What this page had drawn when the sentence was written, so the row can record which line
-        // it was answering. By the time it is delivered the panel may have moved on — that is the
-        // whole reason it is sent.
-        body: JSON.stringify({ text, shown }),
+        body: JSON.stringify({ text }),
       });
       await show();
     });
 
-    // Pressed once, until it is done. A second handover queued behind the first would ask a
-    // session that has just written its desk to write it again, from a thread that remembers
-    // nothing — which is not what anybody pressing this twice meant.
-    hand.addEventListener("click", async () => {
-      hand.disabled = true;
-      transcript.append(Object.assign(document.createElement("p"), { textContent: "…" }));
-      try {
-        await fetch(`/sessions/${session.name}/handover`, { method: "POST" });
-        await show();
-      } finally {
-        hand.disabled = false;
-      }
-    });
-
-    // Pressed once, and enabled again either way. The run is gone or there was none, and both are
-    // states somebody may want to press from again a moment later.
-    endRun.addEventListener("click", async () => {
-      endRun.disabled = true;
-      try {
-        await fetch(`/sessions/${session.name}/end`, { method: "POST" });
-        await show();
-      } finally {
-        endRun.disabled = false;
-      }
-    });
-
-    // Pressed once, for the reason the handover is: leaving is a turn, and a second one queued
-    // behind the first would be asked of a name that is not here any more. It stays disabled when
-    // it works, because the page is about to load again.
-    leave?.addEventListener("click", async () => {
-      leave.disabled = true;
-      transcript.append(Object.assign(document.createElement("p"), { textContent: "…" }));
-      const answered = await fetch(`/sessions/${session.name}/leave`, { method: "POST" });
-      if (answered.ok) {
-        whoWorksHereChanged();
-        return;
-      }
-      await show();
-      leave.disabled = false;
-    });
-
-    function busy(is) {
-      mood.textContent = is ? " (answering…)" : "";
-    }
-
-    // Nothing at all until the session has answered once: a conversation that has not started has
-    // no size, and a zero there would read as one that had.
-    function carrying(tokens) {
-      size.textContent =
-        typeof tokens === "number" ? ` — ${tokens.toLocaleString("en-US")} tokens after its last turn` : "";
-    }
-
-    // From the row, first match wins. BUSY BEFORE COLD, which is the one place this page reads a
-    // row in a different order from state(): a running session's clock is stale for the whole of
-    // its turn — its last-ran moment is written after the answer — so a turn that has been going
-    // longer than the hour still ends warm, and a line that read cold first would tell somebody
-    // typing that the turn behind theirs is about to be thrown away while it is being written.
-    // A fact on every branch and a verdict on none: the last-warm-minutes line says the cache is
-    // about to go, not that the pass will park it first or that it will not. No token count, no
-    // share, no colour — the row's own rule, kept here too.
-    function nextTurnSaid(row) {
-      if (row?.busy === true) {
-        return "The next turn queues behind the one going, and carries this conversation on.";
-      }
-      if (row?.thread !== true) {
-        return "The next turn starts a new conversation from the desk — nothing to carry on.";
-      }
-      if (row.cold === true) {
-        return "The next turn starts a new conversation from the desk — this one went cold.";
-      }
-      if (row.expiring === true) {
-        return `The next turn carries this conversation on — ${idleSaid(row.ran)}, and it loses its cache at the hour.`;
-      }
-      return "The next turn carries this conversation on.";
-    }
-
-    function nextTurn(row) {
-      nextTurnLine.textContent = nextTurnSaid(row);
-    }
-
-    return { name: session.name, section, show, waiting, busy, carrying, nextTurn };
+    panels.append(section);
+    return { name: session.name, show, waiting };
   }
 
   const built = sessions.map(panel);
-  panels.replaceChildren(...built.map(({ section }) => section));
   showTheRoom(atLoad);
   await Promise.all(built.map(({ show }) => show()));
-  for (const panel of built) {
-    const row = sessions.find((session) => session.name === panel.name);
-    panel.carrying(row?.context);
-    panel.nextTurn(row);
-  }
 
-  // Once a second, which is often enough that answering does not feel like waiting and seldom
-  // enough to be free. A run asking for permission has stopped until it is answered, so there is
-  // nothing else for the page to be doing meanwhile.
-  //
-  // Everything this asks for starts on the far side: a session asks to use a tool, a session is put
-  // to work by another session or by this page in another window, and a session writes down what it
-  // is on. None of it is something the page can know by having caused it.
-  //
-  // The room rides on this tick rather than having one of its own. It is built from the same rows
-  // the panels were already being told about, so a room on the page is not a request per second per
-  // person — it is nothing at all.
   const EVERY = 1000;
-
-  async function look() {
-    const answered = await fetch("/sessions").then((response) => response.json());
-    // The room first: it is the thing somebody is watching when they are not reading a panel.
-    showTheRoom(answered);
-    const rows = new Map(answered.sessions.map((session) => [session.name, session]));
-    for (const panel of built) {
-      const row = rows.get(panel.name);
-      panel.busy(row?.busy === true);
-      // On the same tick, because it changes for the same reason the busy sign does: a turn ended,
-      // and this page need not have been the one that started it.
-      panel.carrying(row?.context);
-      panel.nextTurn(row);
-    }
-  }
 
   setInterval(() => {
     for (const { waiting, show } of built) {
-      waiting().catch(() => {
-        // The chat is gone or restarting. The next tick will find out.
-      });
-      // The panel too, for the same reason: what a session says starts on the far side. Until
-      // this, a panel showed what had happened when this page last spoke, and the lead answering
-      // a worker was invisible until somebody sent something or reloaded.
+      waiting().catch(() => {});
       show().catch(() => {});
     }
-    look().catch(() => {});
+    call("/sessions")
+      .then((response) => response.json())
+      .then(showTheRoom)
+      .catch(() => {});
   }, EVERY);
 </script>

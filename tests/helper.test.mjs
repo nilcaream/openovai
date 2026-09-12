@@ -11,7 +11,6 @@ import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
 import { ask } from "../tools/helper.mjs";
-import { enterHold, endHold } from "../tools/chat/hold.mjs";
 import { alive, installed, readLog, remove, repo, scratch, writeStandIn } from "./helpers.mjs";
 
 const root = scratch("helper-test");
@@ -32,7 +31,7 @@ writeStandIn(standIn);
 installed({
   "--root": root,
   "--source": repo,
-  "--human": "Mike",
+  "--user": "Mike",
   "--leader": "Superman",
   "--leader-model": "sonnet",
   "--worker-model": "sonnet",
@@ -196,23 +195,5 @@ describe("a helper that does not answer", () => {
     assert.deepEqual(said, { refused: "the helper did not answer" });
     assert.ok(pid > 0, "no pid was logged");
     assert.equal(alive(pid), false, `${pid} is still running`);
-  });
-});
-
-describe("the helper while the account is held", () => {
-  before(() => {
-    enterHold(root, { resetsAt: Math.floor(Date.now() / 1000) + 3600, fullness: 0.96, warm: true, parking: false });
-  });
-
-  after(() => {
-    endHold(root);
-  });
-
-  it("is refused in words before anything is spawned", async () => {
-    stage({ ids: ["m1"] });
-    const runs = lines("helper-argv").length;
-    const said = await ask(instance, "select", A_QUESTION, { log: quietLog() });
-    assert.match(said.refused ?? "", /^the helper is held: the account's five-hour usage window is 96% full/);
-    assert.equal(lines("helper-argv").length, runs);
   });
 });

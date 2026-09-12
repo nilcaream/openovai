@@ -58,7 +58,7 @@ const RECORD_FILE_WIDTH = 6;
 const ABSOLUTE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})$/;
 
 // The one word that retires a record: `until: now` is this clock, absolute, and never a question
-// for the helper — so a retire works while the helper is held.
+// for the helper — so a retire is never a request on the account.
 const NOW = "now";
 
 const TAG = "given";

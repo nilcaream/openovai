@@ -17,7 +17,7 @@ import { VERSION_FILE } from "./version.mjs";
 // instance became: it travels with the code it names, so taking a newer version replaces it along
 // with everything else and there is no field anywhere to keep in step.
 //
-// The skill is in it because a skill is machinery: the procedure a lead follows to say what the
+// The skill is in it because a skill is machinery: the procedure a Leader follows to say what the
 // workspace allows asserts how the runtime behaves, that is measured, and the measurement travels
 // with the version — a copy written once and never corrected would be the one file in an instance
 // explaining a Claude Code that has since been measured to do something else. It is the ONE
