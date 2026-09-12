@@ -13,7 +13,7 @@ import { roomLines } from "./chat/room.mjs";
 import { PARK_ATTEMPTS, WATCH_EVERY, parkAttemptsProblem, watchEveryProblem } from "./chat/watch.mjs";
 import { serve } from "./chat/server.mjs";
 import { HOLD_ABOVE, NAME_IN_ENVIRONMENT, endEveryRun, holdAboveProblem, runsGoing } from "./chat/session.mjs";
-import { hasCredential, home, login, machineToken, memoryDirectory } from "./claude.mjs";
+import { hasCredential, home, login, machineToken } from "./claude.mjs";
 import { DeskError, describeName, desks, hire, isName, modelFor } from "./desks.mjs";
 import { instructionsAbove } from "./instructions.mjs";
 import { leaveWord } from "./chat/untold.mjs";
@@ -21,6 +21,7 @@ import { holderOf } from "./port.mjs";
 import { RELEASES, ReleaseError, latestRelease, notesIn, replacePayload, unpackInto } from "./release.mjs";
 import { describeRunning, runningHere } from "./running.mjs";
 import { CONFIG_FILE, seedUserContent } from "./seed.mjs";
+import { STORE_DIRECTORY } from "./store.mjs";
 import { PluginError, describePluginName, describePlugins, isPluginName, pluginsIn, writePlugin } from "./plugins.mjs";
 import { isOlderThan, version } from "./version.mjs";
 
@@ -468,12 +469,10 @@ function status(root) {
     // them can differ — and on an instance whose chat is not running it is the only place it can
     // be read at all, because the room and the status tool both need one.
     ["desks", desks(root).map((name) => `${name} (${modelFor(root, name, config)})`).join(", ") || "none"],
-    // Where what this workspace has learned is kept. Every session reads it before it is asked
-    // anything and writes into it when a thread ends, and it is the one part of an instance a
-    // person would otherwise have no way of finding: it sits inside the Claude Code home, which is
-    // there to be left alone. Named here rather than shown, because it is a directory of files for
-    // whoever wants to read them.
-    ["memory", memoryDirectory(root)],
+    // Where what this workspace knows is kept: one file per record, memory and knowledge side by
+    // side. Sessions reach it through the recall and remember tools and never by path; it is named
+    // here for the person, who may want to read the files.
+    ["store", path.join(root, STORE_DIRECTORY)],
   ];
   const width = Math.max(...rows.map(([label]) => label.length));
 

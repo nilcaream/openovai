@@ -16,6 +16,8 @@ import { heard, overhear, owed } from "./overheard.mjs";
 import { allow, askedFor, answer as settle, giveUp, inside, park, parked, refuse, shapeOf } from "./permissions.mjs";
 import { popped } from "./pop.mjs";
 import { answerFrom } from "../plugins.mjs";
+import { ask as askTheHelper } from "../helper.mjs";
+import { LEADER as LEADS, WORKER as WORKS, recall, remember, withoutHardRules } from "../store.mjs";
 import { SKILL_NAME } from "../payload.mjs";
 import { ago, roomLines, shareSaid } from "./room.mjs";
 import { WATCH_EVERY, armTheWatch, buysATurn, forgetTheRoom, howOften, longRuns, nowNamed, nowSeen, parkAttemptsAllowed, theWatchRecord, tickRead, whatChanged } from "./watch.mjs";
@@ -358,7 +360,10 @@ function olderInstructions(instance, name) {
     // No persona to contradict, so nothing to say about one.
     return [];
   }
-  return running !== persona(instance.root, name, instance.config)
+  // The hard rules a session was spawned with end its persona file, and a rule written since is
+  // not older instructions: the delta reaches it on its next turn. So they are taken off before
+  // the compare.
+  return withoutHardRules(running) !== persona(instance.root, name, instance.config)
     ? ["If your instructions say otherwise, they were written before this, and this is what happens."]
     : [];
 }
@@ -633,17 +638,16 @@ function desk(name) {
 // anything" has no such condition, so asking it always would be a sentence in every turn forever. A
 // thread ending is the only moment something is actually about to be lost.
 //
-// It names the memory rather than describing it. Claude Code puts what the workspace has learned in
-// front of every session before it is asked anything, and adding to it takes a Write and no
-// permission this instance has to grant. So a session already has both the file and the hands, and
-// what was missing was being asked.
+// It names the tool rather than describing the store. Every session here has `remember` and it
+// never prompts, so a session already has the hands, and what was missing was being asked.
 //
-// One sentence, inside the wrapper, after the desk. The desk is this task and the memory is the
+// One sentence, inside the wrapper, after the desk. The desk is this task and the store is the
 // workspace; a session that runs out of turn loses the desk, which is the right one to lose.
 const WHAT_WAS_LEARNED =
   "Anything you worked out here that the next person would otherwise work out again — how something" +
-  " works, a trap, a decision and the argument that took it — put in your memory, which every session" +
-  " after you reads before it is asked anything; the desk is this task, the memory is the workspace.";
+  " works, a trap, a decision and the argument that took it — put in the store with remember (a fact" +
+  " or a trap, in memory when it is about us and in knowledge when it is about the project), which" +
+  " every session after you can recall; the desk is this task, the store is the workspace.";
 
 // What a session is asked to do before its thread is ended.
 //
@@ -1400,6 +1404,64 @@ function toolsFor(instance, caller) {
         lead
           ? retiredByTool(instance, caller, args)
           : { refused: `putting a desk away is the lead's, so ask ${instance.config.leader}` },
+    },
+
+    // The store: what this workspace knows, behind two tools and reached no other way. Both are
+    // everybody's; what differs by role is what a call is refused, and the description says so —
+    // a session that can read why it would be refused does not go hunting for another way round.
+    // The tool is handed who is calling and whether they lead, and never looks at how that was
+    // established; the store applies every rule on its own side.
+    {
+      name: "recall",
+      description:
+        "Read what this workspace knows. store is memory (about us: hard rules, facts, traps) or knowledge (about the project). Give exactly one of: query (words — what you are looking for, found by meaning, not by grep), id (one record, such as m17), all (every current record of the store, or of one kind) — or kind hard-rule on its own for the numbered rule set exactly as every session is given it, with the set version. kind narrows to hard-rule, fact or trap; expired true adds records whose until has passed, marked. Answers each record as written: its id, kind, source, until, the text, who wrote it and when, and what it replaced. A record that was replaced is reachable by id only, marked with what replaced it. Refused: two of query, id and all, or none; kind hard-rule with store knowledge (hard rules are memory). A rule scoped to the Leader is not in a Worker's answer by any of these. While the account is nearly spent, query is refused (it asks a model) and id, all and the rule set still answer.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          store: { type: "string", enum: ["memory", "knowledge"], description: "memory or knowledge." },
+          query: { type: "string", description: "Words: what you are looking for, found by meaning." },
+          kind: { type: "string", enum: ["hard-rule", "fact", "trap"], description: "Narrow to one kind." },
+          id: { type: "string", description: "One record by id." },
+          all: { type: "boolean", description: "Every current record of the store, or of the kind given." },
+          expired: { type: "boolean", description: "Include records whose until has passed, marked. Default false." },
+        },
+        required: ["store"],
+        additionalProperties: false,
+      },
+      run: (args) =>
+        recall(instance.root, args, {
+          caller: { name: caller, role: lead ? LEADS : WORKS },
+          now: new Date(),
+          config: instance.config,
+          helper: (question, request) => askTheHelper(instance, question, request),
+        }),
+    },
+    {
+      name: "remember",
+      description:
+        "Write one record of what this workspace knows. store is memory or knowledge; kind is hard-rule, fact or trap in memory and fact or trap in knowledge; text is the record — a hard rule is ONE line under the workspace's length cap, stored as written, never shortened. Supersede, never accumulate: replaces names the current record this one replaces (reason says why); left out, the store asks whether the text restates a current record of the same store and kind and replaces that one. until makes a record run out — an absolute ISO 8601 moment with an offset, words such as 'for today' or 'until Monday' (turned into an absolute moment before anything is stored), or now, which retires the record it replaces; an expired record stays visible with expired true and can be renewed by a write that replaces it with a later until. source user says the User said it (default team); scope leader keeps a User's hard rule from Workers. Refused, in this order: kind hard-rule from a Worker (say it to the Leader as a proposal); source user or scope leader from a Worker; scope leader on anything but a hard-rule with source user; a kind the store has not got; a hard rule with a newline or over the length cap (the cap is in the refusal); an until that cannot be placed, or that has already passed (except now); replaces naming a record that is missing, of another store or kind, or already replaced (the current one is named); a team write over the User's record, the Leader included; a hard rule over the count cap (the numbered set is in the refusal, so one can be retired or merged). A hard-rule write answers with the rule's number, the set version and the update line every running session gets. A write with replaces given and until absent, absolute or now asks no model, so it works while the account is nearly spent.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          store: { type: "string", enum: ["memory", "knowledge"], description: "memory or knowledge." },
+          kind: { type: "string", enum: ["hard-rule", "fact", "trap"], description: "hard-rule, fact or trap; knowledge has fact and trap." },
+          text: { type: "string", description: "The record, stored as written. A hard rule is one line." },
+          source: { type: "string", enum: ["user", "team"], description: "user when the User said it. Default team. Leader only." },
+          scope: { type: "string", enum: ["team", "leader"], description: "leader keeps a User's hard rule from Workers. Default team. Leader only." },
+          until: { type: "string", description: "When it runs out: an absolute ISO 8601 moment with an offset, words such as 'for today', or now to retire." },
+          replaces: { type: "string", description: "The id of the current record this one replaces." },
+          reason: { type: "string", description: "Why it replaces what it replaces." },
+        },
+        required: ["store", "kind", "text"],
+        additionalProperties: false,
+      },
+      run: (args) =>
+        remember(instance.root, args, {
+          caller: { name: caller, role: lead ? LEADS : WORKS },
+          now: new Date(),
+          config: instance.config,
+          helper: (question, request) => askTheHelper(instance, question, request),
+        }),
     },
 
     // And after them, the tools this instance serves itself. After rather than among: a plugin

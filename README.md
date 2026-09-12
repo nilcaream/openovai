@@ -86,8 +86,8 @@ describes a whole instance and can be read back, repeated and tested.
 
 So far the installer creates the directories an instance is made of: `work/` for the desks,
 `.claude/` for the settings, and `.claude-home/` for the instance's own Claude Code home — its account, its transcripts and what the
-workspace has learned — so that two instances on one machine never share an account, a session
-history or a memory. None of them is copied from the source: what the toolkit ships and what an
+workspace has learned — so that two instances on one machine never share an account or a session
+history. None of them is copied from the source: what the toolkit ships and what an
 instance accumulates stay in different directories. It also writes
 `openovai.json`, the instance's description of itself — who works there, on which models, and on
 which port. That
@@ -333,12 +333,13 @@ own:
 
     POST /mcp/<name>
 
-Six of them. `say` says something to another session, `status` says who works here and what each
+Eight of them. `say` says something to another session, `status` says who works here and what each
 one runs on, `room` is the room above the panels, one line per session, and `interrupt` is the
 lead's one unprompted line to whoever is at the page — it takes what to say and why it could not
-wait, and it says both on the lead's own panel.
+wait, and it says both on the lead's own panel. `recall` and `remember` are the store — what the
+workspace knows, below.
 
-The last two are the lead's alone and they change who works here. `hire` opens a desk for somebody
+Two are the lead's alone and they change who works here. `hire` opens a desk for somebody
 new; `retire` asks them to write it one last time and then files that desk and their whole
 conversation away together. A session that is not the lead is not offered either, and is told whose
 they are rather than that they do not exist — a session that hears of a tool and is answered
@@ -1145,45 +1146,43 @@ a room somebody had deliberately stopped. It stays off until it is brought back.
 There is no `ovai offline`. Taking the room off is a person's decision about the whole instance, and
 it stays on the page, beside the button that brings it back.
 
-### What the workspace has learned
+### What the workspace knows
 
 A desk is one task and goes away with it. A conversation is shorter still. So an instance keeps one
-thing that outlives both: what a session worked out that the next person would otherwise work out
-again — how something here works, a trap, a decision and the argument that took it.
+thing that outlives both, and every session reads the same one: the store. `memory` is about us —
+the hard rules the team works under, facts, traps — and `knowledge` is about the project. A
+session reaches it through two tools and no other way. `recall` reads: by meaning ("the User's
+preferred palette" — a model call, not a grep), by id, or the whole of a store; `remember` writes
+one record. Nothing is ever deleted or edited in place: a record that changes is superseded by a
+new one that names it, with who wrote it, when, and the text it replaced copied in, so one file
+answers "what was here before". A record can carry an `until`; when that passes it leaves the
+render and the count, stays visible to `recall` on request, and can be renewed. Retiring a record
+is a write that replaces it with `until: now`.
 
-It is Claude Code's own memory, kept inside the instance's own Claude Code home. That is a
-deliberate choice rather than a shortcut. Measured on a real run: a session reads that memory before
-it is asked anything, with nothing granted and nothing in the turn spent asking it to look; and
-writing to it takes a `Write` and no permission an instance has to grant, while an ordinary write
-in the same run is refused. A directory of our own beside `work/` would have needed a grant to be
-written and a sentence in every turn to be read — a second answer to one question, read worse than
-the answer already there.
+Hard rules are the part of the store every session is given without asking. They are one-liners,
+numbered, and capped — by default 25 rules of 200 characters, `hardRules: { count, length }` in
+`openovai.json` — and they are never summarised: a rule over the cap is refused with the cap, and
+the set goes into every new session's initial prompt verbatim and reaches running sessions as the
+one rule that changed. Only the lead writes them; a worker proposes one. Rules the User gave carry
+`source: user`, render first, and cannot be replaced by a team write — the lead included. A User's
+rule can be scoped to the lead alone, and then no worker sees it by any path.
 
-Two things make it real, because the mechanism alone had been sitting unused:
+Where a request needs understanding rather than a grep — which records answer a query, whether a
+new text restates an existing record, what moment "for today" is — the tool asks the helper: Claude
+Code run once, in print mode and safe mode, on the instance's own account, with no tools, no
+persona, no instruction file of the machine's and nothing persisted, in an empty directory made for
+the call. It proposes; the tool checks its answer against
+what it was sent and applies every rule itself. It is one request on the account, gated like any
+other while the account is nearly spent, and everything a grep can serve — a record by id, the
+list, an absolute `until`, a retire — never goes near it.
 
-- **An instance files it under one name.** Left alone, Claude Code names the directory it keeps a
-  workspace's transcripts and memory in after the absolute directory a session was started in — and
-  every session here starts in the instance root. A workspace that was moved would look for its
-  threads and everything it had learned under the path it used to sit at. So the name is fixed, and
-  an instance that is moved or copied is still itself, which is the promise it makes everywhere
-  else.
-- **A turn asks for it.** A field named in the turn gets written; the same words in a persona alone
-  do not. That is settled here on the desk header title, twice, on real runs. So the handover and
-  the leave — the two moments a thread is about to take what a session worked out with it — each
-  ask for it in as many words. Not every turn: the title ask can ride on every turn because it
-  stops the moment the field is filled, the ask for a desk that has not moved in several answers
-  stops the same way, by the desk moving, and "have you learned anything" has no such condition.
+The files are markdown with a front matter block, one per record, under `store/memory/` and
+`store/knowledge/` in the instance; `ovai status` names the directory. Sessions never read them:
+what a file says on its own is a record without its currency, scope and expiry, and what `recall`
+says is the truth. Claude Code's own memory is off in the instance's home settings, so the store is
+the only thing that outlives a conversation.
 
-An instance ships the index, `MEMORY.md`, rather than leaving one to grow. A session asked to
-remember something and finding nothing there writes whatever shape occurs to it, and every session
-after that reads that shape as the workspace's own — measured, and what came out was a bare pointer
-line with no heading. The shipped index says what belongs there, that it is an index and each fact
-belongs in a file beside it, and that what is written should say what it assumes.
-
-`bin/ovai status` names the directory, because it is inside the Claude Code home and is otherwise the
-one part of an instance nobody would think to look in.
-
-Both personas say the difference in a line: the desk is this task, the memory is the workspace.
+Both personas say the difference in a line: the desk is this task, the store is the workspace.
 
 ## Signing in
 
@@ -1213,8 +1212,8 @@ tidier and behaves much worse: those credentials refresh themselves independentl
 of one credential go stale at different times, so the instances quietly diverge hours after
 they were installed.
 
-Either way `CLAUDE_CONFIG_DIR` is the instance's own directory, so transcripts, memory and
-settings stay separate. Only the account is shared, and only when you ask for it.
+Either way `CLAUDE_CONFIG_DIR` is the instance's own directory, so transcripts and settings stay
+separate. Only the account is shared, and only when you ask for it.
 
 `ovai status` reports whether the instance has a credential, and says plainly that it has not
 checked it. Nothing cheap can: asking Claude Code answers from disk and from the environment,
@@ -1259,7 +1258,7 @@ under `plugins/`, `openovai.json`, the settings, the Claude Code home with every
 has learned in it — an update does not write them.
 Nothing is re-keyed, nothing is migrated, and no name changes hands. The one thing it adds is a file
 of yours that a fresh install of this version would have given you and this instance has not got —
-the memory index, either settings file, the lead's desk — seeded once, the way the installer seeds
+either settings file, the lead's desk — seeded once, the way the installer seeds
 it, and named as such. An updated instance is a clean install of the new version with your material
 in it: the payload is the only thing that moves, and nothing inside an instance ever writes there.
 

@@ -18,6 +18,7 @@ import path from "node:path";
 import { environment } from "../claude.mjs";
 import { listening } from "./listening.mjs";
 import { desks, modelFor, persona } from "../desks.mjs";
+import { LEADER, WORKER, withHardRules } from "../store.mjs";
 import { ownInstructions } from "../instructions.mjs";
 
 // Where a thread lives between runs, under the name of the session having it. One id, written
@@ -607,11 +608,15 @@ export function personaFile(root, name) {
 // Rendered again only when there is nothing to read: a thread with no persona beside it is one
 // that was started before personas lived here, and Claude Code refuses to start at all when
 // pointed at a file that is not there.
+// The persona, and after it the hard rules as they stand now for this session's role: a new
+// conversation is told the current numbered set verbatim, and what it was told stays with it.
 function personaFor(instance, name, resume) {
   const file = personaFile(instance.root, name);
   if (resume === null || !fs.existsSync(file)) {
     fs.mkdirSync(path.dirname(file), { recursive: true });
-    fs.writeFileSync(file, persona(instance.root, name, instance.config));
+    const role = name === instance.config.leader ? LEADER : WORKER;
+    const { text } = withHardRules(persona(instance.root, name, instance.config), instance.root, role);
+    fs.writeFileSync(file, text);
   }
   return file;
 }

@@ -233,11 +233,10 @@ describe("an instance with no version in it", () => {
 });
 
 describe("where a person can read what the workspace has learned", () => {
-  // Inside the Claude Code home, which is the one part of an instance nobody is expected to go
-  // looking in. Spelled out here rather than asked of the code, so that moving it and moving the
-  // check cannot be one edit.
+  // Spelled out here rather than asked of the code, so that moving the store and moving the check
+  // cannot be one edit.
   it("says where this instance keeps it", () => {
-    assert.match(ovai(["status"]).stdout, new RegExp(`memory\\s+${instance}/.claude-home/projects/workspace/memory`));
+    assert.match(ovai(["status"]).stdout, new RegExp(`store\\s+${instance}/store`));
   });
 });
 
@@ -739,9 +738,15 @@ describe("hiring a worker", () => {
     assert.match(persona, /everybody\s+here reads the same thing/);
   });
 
-  it("tells the worker what belongs in the memory rather than on the desk", () => {
+  it("tells the worker what belongs in the store rather than on the desk, and that the two tools are the only way to it", () => {
     const persona = workerPersona();
-    assert.match(persona, /the memory is the workspace/);
+    assert.match(persona, /the store is the workspace/);
+    assert.match(persona, /reached through two tools and no other way/);
+    assert.doesNotMatch(persona, /store\//);
+  });
+
+  it("tells the worker that a hard rule is the Leader's to write and is proposed to it", () => {
+    assert.match(workerPersona(), /a hard rule is the Leader's to write,\s+so when you think the team needs one, say it to the Leader as a proposal/);
   });
 
   // How a worker reaches anybody else here. It is a tool rather than a command because the message

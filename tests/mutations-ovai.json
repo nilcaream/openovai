@@ -135,5 +135,38 @@
         "to": "\n"
       }
     ]
+  },
+  {
+    "name": "status names the Claude Code home instead of the store",
+    "catches": "says where this instance keeps it",
+    "edits": [
+      {
+        "file": "tools/ovai.mjs",
+        "from": "    [\"store\", path.join(root, STORE_DIRECTORY)],",
+        "to": "    [\"store\", path.join(root, \".claude-home\")],"
+      }
+    ]
+  },
+  {
+    "name": "the worker is told nothing about the two tools",
+    "catches": "tells the worker what belongs in the store rather than on the desk, and that the two tools are the only way to it",
+    "edits": [
+      {
+        "file": "templates/worker.md",
+        "from": "project. It is reached through two tools and no other way: `recall` reads it (by meaning, by id,\nor the whole of a store), and `remember` writes one record.",
+        "to": "project."
+      }
+    ]
+  },
+  {
+    "name": "the worker is told to write hard rules",
+    "catches": "tells the worker that a hard rule is the Leader's to write and is proposed to it",
+    "edits": [
+      {
+        "file": "templates/worker.md",
+        "from": "a hard rule is the Leader's to write,\nso when you think the team needs one, say it to the Leader as a proposal.",
+        "to": "write a hard rule\nwhen you think the team needs one."
+      }
+    ]
   }
 ]

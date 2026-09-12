@@ -139,27 +139,23 @@ describe("what the installer made", () => {
     assert.ok(fs.existsSync(inside("templates", "STATE.md")));
   });
 
-  it("copies the memory index template in", () => {
-    assert.ok(fs.existsSync(inside("templates", "MEMORY.md")));
+  // Where the workspace keeps what it knows: two empty directories, one per store, and nothing
+  // seeded into them. The paths are spelled out rather than asked of the code, so that moving the
+  // store and moving the check cannot be one edit.
+  it("makes the store's two directories, empty", () => {
+    assert.deepEqual(fs.readdirSync(inside("store", "memory")), []);
+    assert.deepEqual(fs.readdirSync(inside("store", "knowledge")), []);
   });
 
-  // Where a session reads it is not the installer's choice — it is inside the instance's own
-  // Claude Code home, under the fixed name that survives the instance being moved. The path is
-  // spelled out here rather than asked of the code, so that moving the index and moving the check
-  // cannot be one edit.
-  it("gives the instance an index of what it knows, where its sessions read it", () => {
-    assert.ok(fs.existsSync(inside(".claude-home", "projects", "workspace", "memory", "MEMORY.md")));
+  // Claude Code's own memory is a second answer to what the workspace knows, read by the one
+  // session that wrote it. The store is the only one. The key is honoured in the home's settings.
+  it("turns Claude Code's own memory off in the home settings", () => {
+    const settings = JSON.parse(contentOf(".claude-home", "settings.json"));
+    assert.equal(settings.autoMemoryEnabled, false);
   });
 
-  it("says in that index what belongs in it", () => {
-    assert.match(
-      contentOf(".claude-home", "projects", "workspace", "memory", "MEMORY.md"),
-      /work it out again/,
-    );
-  });
-
-  it("says it wrote the index", () => {
-    assert.ok(made.stdout.includes(inside(".claude-home", "projects", "workspace", "memory", "MEMORY.md")));
+  it("seeds no memory index into the Claude Code home", () => {
+    assert.equal(fs.existsSync(inside(".claude-home", "projects", "workspace", "memory", "MEMORY.md")), false);
   });
 
   // The path is spelled out rather than asked of the code. The key is only honoured in the home's
@@ -635,8 +631,17 @@ describe("what the installer made", () => {
     assert.match(leadPersona(), /everybody\s+here reads the same thing/);
   });
 
-  it("tells the leader what belongs in the memory rather than on a desk", () => {
-    assert.match(leadPersona(), /the memory is the workspace/);
+  it("tells the leader what belongs in the store rather than on a desk, and that the two tools are the only way to it", () => {
+    assert.match(leadPersona(), /the store is the workspace/);
+    assert.match(leadPersona(), /reached through two tools and no other way/);
+    assert.match(leadPersona(), /`recall` reads it/);
+    assert.match(leadPersona(), /`remember` writes one record/);
+    assert.doesNotMatch(leadPersona(), /store\//);
+  });
+
+  it("tells the leader that hard rules are its to write and that a worker proposes one", () => {
+    assert.match(leadPersona(), /Hard rules are yours\s+to write and nobody else's/);
+    assert.match(leadPersona(), /a Worker proposes one to you and you write it/);
   });
 
   it("tells the leader to keep the desk current before one is ever asked for", () => {
@@ -920,7 +925,6 @@ describe("installing over an instance", () => {
   const USER_FILES = [
     [".claude", "settings.json"],
     [".claude-home", "settings.json"],
-    [".claude-home", "projects", "workspace", "memory", "MEMORY.md"],
     ["work", LEADER, "STATE.md"],
   ];
   let again;

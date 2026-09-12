@@ -6762,7 +6762,7 @@ describe("a session calls the tools the chat serves it", () => {
     });
 
     it("still offers everybody else everything else", async () => {
-      assert.deepEqual((await offeredTo(WORKER)).sort(), ["say", "status"]);
+      assert.deepEqual((await offeredTo(WORKER)).sort(), ["recall", "remember", "say", "status"]);
     });
 
     // Refused in the tool's own words rather than as a tool that does not exist, because it does
@@ -9092,7 +9092,7 @@ describe("the lead breaks in on somebody who is writing", () => {
   // wrong in the one line somebody would have counted on.
   it("says in the README how many tools there are, and names every one of them", () => {
     const readme = fs.readFileSync(path.join(repo, "README.md"), "utf8");
-    assert.match(readme, /Six of them/);
+    assert.match(readme, /Eight of them/);
     for (const tool of BUILT_IN) {
       assert.ok(readme.includes(`\`${tool}\``), `the README never names ${tool}`);
     }
@@ -11211,7 +11211,7 @@ export function run({ word }, { caller }) {
   // the way this goes wrong. Everything beside a plugin that is not one stays out — a file that is
   // not a module is not a tool called notes.
   it("offers a worker the tools it always did and this one, and nothing else", async () => {
-    assert.deepEqual((await offeredTo(WORKER)).sort(), ["echo", "say", "status"]);
+    assert.deepEqual((await offeredTo(WORKER)).sort(), ["echo", "recall", "remember", "say", "status"]);
   });
 
   it("serves the input schema the plugin declared", () => {

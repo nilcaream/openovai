@@ -21,9 +21,10 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { MEMORY_FILE, homeSettingsFile, memoryDirectory } from "./claude.mjs";
+import { homeSettingsFile } from "./claude.mjs";
 import { DESK_TEMPLATE, OWN_ACCOUNT_RULES, TOOL_RULES, deskFile, deskRule, readTemplate, render } from "./desks.mjs";
 import { settingsFile } from "./settings.mjs";
+import { STORES, storeDirectory } from "./store.mjs";
 
 // The instance's own description of itself, and the file whose absence says a directory is not an
 // instance. It sits at the root beside the payload rather than inside it, because it describes
@@ -32,13 +33,6 @@ import { settingsFile } from "./settings.mjs";
 // anything running inside works out from where it sits — so that an instance can be moved or
 // copied and still be itself. Named here, with the rest of what the person owns.
 export const CONFIG_FILE = "openovai.json";
-
-// The index of what the workspace knows, before anybody has put anything in it. An instance is
-// given one rather than left to grow one, because a session asked to remember something and
-// finding nothing there writes whatever shape occurs to it, and every session after that reads
-// that shape as the workspace's own. What the index says about what belongs in it is the only
-// steering there is.
-const MEMORY_TEMPLATE = path.join("templates", "MEMORY.md");
 
 // What a session does when it is refused for the rest of a usage window. Left to itself Claude Code
 // waits the window out and takes the session up again when it reopens. Turned off, the limit
@@ -54,8 +48,13 @@ const MEMORY_TEMPLATE = path.join("templates", "MEMORY.md");
 // The key is written out rather than left to the default, because the default belongs to the
 // harness and is its to change. It goes into the instance's Claude Code home rather than its own
 // settings because that is the only one of the two files the key is read from.
+//
+// And Claude Code's own memory is off. What a workspace knows lives in its store, reached through
+// the `recall` and `remember` tools by every session alike; a second memory that each session
+// grew on its own would be a second answer to what the workspace knows, read by nobody else.
 const HOME_SETTINGS = {
   autoContinueAtUsageLimit: true,
+  autoMemoryEnabled: false,
 };
 
 // The instance's own settings, whole, as a fresh workspace holds them: the lead may keep its desk,
@@ -96,8 +95,13 @@ function seed(target, content) {
 //
 // Answers with what it wrote, the way everything else that puts a file in an instance does.
 export function seedUserContent(root, leader) {
+  // The store's two directories, empty: a record is written when somebody has something to
+  // remember, and nothing is seeded into them. They are made so that where the workspace keeps what
+  // it knows is there to be seen from the first minute.
+  for (const store of STORES) {
+    fs.mkdirSync(storeDirectory(root, store), { recursive: true });
+  }
   return [
-    ...seed(path.join(memoryDirectory(root), MEMORY_FILE), () => readTemplate(root, "memory", MEMORY_TEMPLATE)),
     ...seed(homeSettingsFile(root), () => asJson(HOME_SETTINGS)),
     ...seed(deskFile(root, leader), () => render("desk", readTemplate(root, "desk", DESK_TEMPLATE), { NAME: leader })),
     ...seed(settingsFile(root), () => asJson(settingsToStartWith(leader))),

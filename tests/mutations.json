@@ -2521,7 +2521,7 @@
     "edits": [
       {
         "file": "tools/chat/server.mjs",
-        "from": "  return running !== persona(instance.root, name, instance.config)\n    ? [\"If your instructions say otherwise, they were written before this, and this is what happens.\"]\n    : [];\n",
+        "from": "  return withoutHardRules(running) !== persona(instance.root, name, instance.config)\n    ? [\"If your instructions say otherwise, they were written before this, and this is what happens.\"]\n    : [];\n",
         "to": "  return [\"If your instructions say otherwise, they were written before this, and this is what happens.\"];\n"
       }
     ]
@@ -2532,7 +2532,7 @@
     "edits": [
       {
         "file": "tools/chat/server.mjs",
-        "from": "  return running !== persona(instance.root, name, instance.config)\n    ? [\"If your instructions say otherwise, they were written before this, and this is what happens.\"]\n    : [];\n",
+        "from": "  return withoutHardRules(running) !== persona(instance.root, name, instance.config)\n    ? [\"If your instructions say otherwise, they were written before this, and this is what happens.\"]\n    : [];\n",
         "to": "  return [];\n"
       }
     ]
@@ -2570,8 +2570,8 @@
       },
       {
         "file": "tools/chat/server.mjs",
-        "from": "  return running !== persona(instance.root, name, instance.config)\n",
-        "to": "  return running !== readTemplate(instance.root, \"leader\", LEADER_TEMPLATE)\n"
+        "from": "  return withoutHardRules(running) !== persona(instance.root, name, instance.config)\n",
+        "to": "  return withoutHardRules(running) !== readTemplate(instance.root, \"leader\", LEADER_TEMPLATE)\n"
       }
     ]
   },

@@ -34,7 +34,7 @@ const PORT_CHOSEN_AT_START = 0;
 //            Claude Code home. Two instances can be signed in as two different people.
 //   inherit  it takes CLAUDE_CODE_OAUTH_TOKEN from the environment it is started in, so one
 //            token minted on the machine signs every instance in and starting one needs no
-//            browser. Instances still keep their own transcripts and memory.
+//            browser. Instances still keep their own transcripts and store.
 const AUTH_MODES = ["inherit", "login"];
 
 const OPTIONS = [
@@ -77,8 +77,10 @@ const IN_CONFIG = {
 //
 //   work/          one directory per person, holding the state a replacement session reads
 //   .claude/       settings that belong to the instance and can be shared
-//   .claude-home/  the instance's own Claude Code home: its account, transcripts and memory,
-//                  kept apart so two instances on one machine never share a session history
+//   .claude-home/  the instance's own Claude Code home: its account and transcripts, kept
+//                  apart so two instances on one machine never share a session history
+//   store/         what the workspace knows: memory/ and knowledge/, one file per record,
+//                  reached by sessions through the recall and remember tools
 //   plugins/       tools this instance serves itself, one file per tool, written where the
 //                  machine they reach out to is known
 //

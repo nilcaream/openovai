@@ -94,6 +94,32 @@ jobs:
       - name: Take a newer version, and refuse to
         run: node --test tests/update.test.mjs
 
+  store:
+    name: Store
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+
+      - name: Remember and recall
+        run: node --test tests/store.test.mjs
+
+  helper:
+    name: Helper
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+
+      - name: Ask the helper, and refuse what it answers badly
+        run: node --test tests/helper.test.mjs
+
   release:
     name: Release
     runs-on: ubuntu-latest

@@ -454,5 +454,60 @@
         "to": "has gone quiet has the reason written over it."
       }
     ]
+  },
+  {
+    "name": "Claude Code's own memory is left on",
+    "catches": "turns Claude Code's own memory off in the home settings",
+    "edits": [
+      {
+        "file": "tools/seed.mjs",
+        "from": "  autoMemoryEnabled: false,\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a memory index is seeded into the Claude Code home",
+    "catches": "seeds no memory index into the Claude Code home",
+    "edits": [
+      {
+        "file": "tools/seed.mjs",
+        "from": "  return [\n    ...seed(homeSettingsFile(root), () => asJson(HOME_SETTINGS)),",
+        "to": "  return [\n    ...seed(path.join(root, \".claude-home\", \"projects\", \"workspace\", \"memory\", \"MEMORY.md\"), () => \"# Memory\\n\"),\n    ...seed(homeSettingsFile(root), () => asJson(HOME_SETTINGS)),"
+      }
+    ]
+  },
+  {
+    "name": "the store's directories are not made",
+    "catches": "makes the store's two directories, empty",
+    "edits": [
+      {
+        "file": "tools/seed.mjs",
+        "from": "  for (const store of STORES) {\n    fs.mkdirSync(storeDirectory(root, store), { recursive: true });\n  }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the leader is told nothing about the two tools",
+    "catches": "tells the leader what belongs in the store rather than on a desk, and that the two tools are the only way to it",
+    "edits": [
+      {
+        "file": "templates/leader.md",
+        "from": "project. It is reached through two tools and no other way: `recall` reads it (by meaning, by id,\nor the whole of a store), and `remember` writes one record.",
+        "to": "project."
+      }
+    ]
+  },
+  {
+    "name": "the leader is told a worker writes hard rules too",
+    "catches": "tells the leader that hard rules are its to write and that a worker proposes one",
+    "edits": [
+      {
+        "file": "templates/leader.md",
+        "from": "Hard rules are yours\nto write and nobody else's:",
+        "to": "Hard rules are anybody's\nto write:"
+      }
+    ]
   }
 ]
