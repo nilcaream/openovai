@@ -3192,5 +3192,38 @@
         "to": "**A run that has gone on past the half hour is ended.**"
       }
     ]
+  },
+  {
+    "name": "an answer that came back after the run that asked was gone is not carried anywhere",
+    "catches": "is written on the caller's panel, under the chat, carrying what the addressee said",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  if (sender !== null && runOf(sender.name) !== saidFrom) {",
+        "to": "  if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "every answer to a session is carried, whether or not the run that asked is still there to hear it",
+    "catches": "is carried only when the run that asked is gone",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  if (sender !== null && runOf(sender.name) !== saidFrom) {",
+        "to": "  if (sender !== null) {"
+      }
+    ]
+  },
+  {
+    "name": "the unheard answer is written on the panel and never put in front of the next turn",
+    "catches": "rides in front of the caller's next turn",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    overhear(sender.name, unheardWrapper(name, unheard));",
+        "to": "    // the panel row is all there is"
+      }
+    ]
   }
 ]

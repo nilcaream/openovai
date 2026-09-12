@@ -953,6 +953,15 @@ export function runsUnderway() {
   return [...running.keys()];
 }
 
+// Which run this session has going, as a thing to hold and compare and nothing more. A caller that
+// asked something during a run and hears the answer after it wants to know whether the run that
+// asked is the one still going, and a name cannot say that: the next run under the same name is a
+// different run, and it did not ask. Nothing when there is none — and nothing both before and
+// after is the same run, which is to say no run at all.
+export function runOf(name) {
+  return running.get(name) ?? null;
+}
+
 // The instance's own tools, handed to a session as it starts.
 //
 // It is passed as the configuration itself rather than as a file to read, because there is nothing

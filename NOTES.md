@@ -28,6 +28,15 @@ is running underneath it, by name — `ssh` under a run is a different reading f
 ended. The chat cannot tell a long build from a hang and does not guess; ending a run is still the
 End button on that panel, and the line puts the diagnosis beside it.
 
+**An answer that comes back after the run that asked was ended reaches its next turn.** A session
+that says something to a colleague is held for the whole of the colleague's turn, and the End button
+on its panel ends that run while it waits. The answer used to come back to nobody: it landed on the
+colleague's panel, and the session that asked was never told. The chat now notices that the run
+which asked is not the run there is, writes what came of it on the asker's panel under its own name,
+and puts it in front of the asker's next message — the way anything else said while a session was
+not running to hear it already is. A refusal is carried the same way, in the sentence `say` would
+have answered with.
+
 ## 0.7.0
 
 The chat keeps its own room now, and a persona is rendered when a conversation starts rather than

@@ -2847,6 +2847,85 @@ describe("ending a run that will not end itself", () => {
     });
   });
 
+  // The caller of `say` is held for the whole of the addressee's turn, and it can be ended while it
+  // waits. The answer then comes back to a request nobody is reading: before this it landed on the
+  // addressee's panel and nowhere else, and the caller's next turn — a conversation that remembers
+  // asking — was never told.
+  //
+  // The lead's stand-in says something to the worker as it answers, the worker takes its time over
+  // the reply, and the lead's run is ended in between. Both stand-ins are slow, and it does not
+  // matter: the lead's says its piece before it waits, and the ending is what takes it out.
+  describe("an answer that comes back after the run that asked for it was ended", () => {
+    const unheardLog = path.join(standIn, "unheard.txt");
+    let answering;
+    let ended;
+    let workerSaid;
+    let carried;
+    let nextTurn;
+    let carriedTwice;
+
+    before(async () => {
+      await start(
+        instance,
+        standInEnvironment(standIn, unheardLog, {
+          OPENOVAI_STAND_IN_CALLS: `${LEADER}>${WORKER}`,
+          OPENOVAI_STAND_IN_SLOW: "3000",
+          OPENOVAI_STAND_IN_REPLY: "the word that came back",
+        }),
+      );
+      assert.ok(await waitForHealth(URL), "the server never answered");
+
+      const exchange = say("ask the worker something");
+      // The worker's turn is going, so the lead's run has said its piece and is waiting on it.
+      answering = await untilAnswering(WORKER);
+      ended = await within(20000, "the ending", post(`${URL}/sessions/${LEADER}/end`, {}));
+      await within(5000, "the message", exchange);
+
+      // The worker answers on its own clock, well after the lead's run is gone.
+      await waitFor(async () => {
+        const row = await rowFor(WORKER);
+        return row !== null && !row.busy ? row : null;
+      });
+      workerSaid = JSON.parse((await transcriptOf(WORKER)).body).messages.at(-1);
+      carried = JSON.parse((await transcriptOf(LEADER)).body).messages.findLast((message) => message.unheard === true);
+
+      // The next turn, which is where the answer is due. This run says its piece too, and this
+      // time it is there to hear the answer.
+      await say("and what did it say", LEADER);
+      nextTurn = questionsIn(unheardLog).find((question) => question.includes("and what did it say"));
+      carriedTwice = JSON.parse((await transcriptOf(LEADER)).body).messages.filter((message) => message.unheard === true);
+    });
+
+    // The fixture, before the thing it makes possible: a worker that was never asked, or a run that
+    // was never ended, would leave every check below proving nothing.
+    it("was asked while the lead's run was going, and that run was ended before it answered", () => {
+      assert.equal(answering?.busy, true, "the worker never took a turn, so nothing was asked of it");
+      assert.equal(ended.status, 200, ended.body);
+      assert.equal(workerSaid?.from, WORKER, JSON.stringify(workerSaid));
+      assert.equal(workerSaid?.text, "the word that came back");
+    });
+
+    // Read off the caller's panel, and compared with the addressee's own row rather than with the
+    // fixture's word: a row that said something WAS carried and carried something else would pass a
+    // check on the flag alone.
+    it("is written on the caller's panel, under the chat, carrying what the addressee said", () => {
+      assert.ok(carried !== undefined, "no row on the lead's panel says an answer came back unheard");
+      assert.equal(carried.from, "the chat");
+      assert.ok(carried.text.includes(workerSaid.text), carried.text);
+    });
+
+    it("rides in front of the caller's next turn", () => {
+      assert.match(nextTurn ?? "", new RegExp(`^<unheard from="${WORKER}">[\\s\\S]*the word that came back[\\s\\S]*</unheard>`));
+    });
+
+    // The second turn said something to the worker as well, and was there to hear the answer. An
+    // answer that reached the run that asked is not owed to anybody, and a rule that carried every
+    // answer would tell the next turn things this one already knows.
+    it("is carried only when the run that asked is gone", () => {
+      assert.equal(carriedTwice.length, 1, JSON.stringify(carriedTwice.map((row) => row.text)));
+    });
+  });
+
   // A second message behind the first. The press that gets out of this has to reach the session
   // WITHOUT joining the queue it is unsticking — a way out that waits in the queue is not one.
   describe("with something else waiting behind it", () => {

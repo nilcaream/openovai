@@ -20,7 +20,7 @@ import { SKILL_NAME } from "../payload.mjs";
 import { ago, roomLines, shareSaid } from "./room.mjs";
 import { WATCH_EVERY, armTheWatch, buysATurn, forgetTheRoom, howOften, longRuns, nowNamed, nowSeen, parkAttemptsAllowed, theWatchRecord, tickRead, whatChanged } from "./watch.mjs";
 import { DESK_FILE, DeskError, WORK, allowAsked, archiveFor, deskFile, deskTitle, describeName, hasSettledAnything, hire, isName, persona, retire } from "../desks.mjs";
-import { A_WHOLE_TURN, accountStanding, ask, bandIn, endRun, forget, fullnessIn, hasGoneCold, hasNearlyGoneCold, hasThread, personaFile, quotaIn, ranAt, refusedIn, sessions, standingsUnderway, underneath } from "./session.mjs";
+import { A_WHOLE_TURN, accountStanding, ask, bandIn, endRun, forget, fullnessIn, hasGoneCold, hasNearlyGoneCold, hasThread, personaFile, quotaIn, ranAt, refusedIn, runOf, sessions, standingsUnderway, underneath } from "./session.mjs";
 import { NO_NEW_WORK, spawnHeld } from "./gate.mjs";
 import { endHold, enterHold, forgetRefused, holdIn, holdLifted, holdSaid, holdStands, markParked, markRefused } from "./hold.mjs";
 import { inTurn, turnsGoing, waitingFor, whileWaitingFor, wouldWaitForItself } from "./turns.mjs";
@@ -98,6 +98,25 @@ function overheardLine(human, on, text) {
 // construction. This is what a turn is handed in front of the message it is actually about.
 function overheardWrapper(human, on, text) {
   return `<overheard on="${on}" from="${human}">${text}</overheard>`;
+}
+
+// What a session's panel says when an answer to something it said came back after the run that
+// said it was gone.
+//
+// `say` holds its caller for the whole of the addressee's turn, and a run can be ended while it
+// waits — the End button on its panel does exactly that. The answer then comes back to a request
+// nobody is reading. It is on the addressee's panel, as any answer is; this is the same answer on
+// the panel of whoever asked, under `the chat`, because the chat is the only party left that
+// knows the two belong together.
+function unheardLine(caller, to, outcome) {
+  return `What came of what ${caller} said to ${to} arrived after the run that said it had ended, so it goes in front of ${caller}'s next turn instead: ${outcome}`;
+}
+
+// The same thing said to that session's model, in front of its next message, the way anything
+// else it was not running to hear is. The conversation remembers asking and never hearing; this is
+// what it was owed, and a wrapper for the reason every other one is.
+function unheardWrapper(to, outcome) {
+  return `<unheard from="${to}">You said something to ${to} on an earlier turn, and that turn was ended before anything came back, so what came of it never reached you. This is it: ${outcome}</unheard>`;
 }
 
 // What the lead's panel says when the toolkit underneath it was replaced.
@@ -984,6 +1003,14 @@ async function deliver(instance, name, text, signed, shown = null) {
     overhear(instance.config.leader, overheardWrapper(instance.config.human, name, text.trim()));
   }
 
+  // The run the sender said this from, held BEFORE the answer is waited for. A session says
+  // something from inside its own run and is held for the whole of the addressee's turn, and the
+  // run can be ended while it waits — the End button on its panel does exactly that — after which
+  // what comes back goes to a request nobody is reading. Nothing when the sender is not a session,
+  // or is one speaking from no run at all — the command, from a shell — and nothing both before and
+  // after is the same nothing.
+  const saidFrom = sender === null ? null : runOf(sender.name);
+
   // The whole exchange happens inside the session's turn, the question written down when the turn
   // begins rather than when it arrived. A transcript then reads question, answer, question, answer,
   // instead of two questions followed by two answers nobody can pair up.
@@ -1100,6 +1127,32 @@ async function deliver(instance, name, text, signed, shown = null) {
     }),
   );
 
+  const came = whatCameOf(instance, name, answered);
+
+  // The run that asked is not the run there is now — gone, or a new one under the same name that
+  // asked nothing — so what came of this is owed to the sender's next turn instead: on its panel,
+  // for the person, and in front of its next message, for the model, the way anything else said
+  // while it was not running to hear it is. Whatever conversation takes that turn is the right
+  // one to tell: the one that asked remembers asking and never hearing, and one begun since reads
+  // its desk, which is where a question worth asking was written down.
+  //
+  // A refusal is carried the same way as a reply, because to a sender that is not there they are
+  // the same thing: an outcome it never heard. And it is the sentence `say` would have answered
+  // with, so that a session hears one sentence whichever way it reaches it.
+  if (sender !== null && runOf(sender.name) !== saidFrom) {
+    const said = saidBack(name, came);
+    const unheard = said.text ?? `not delivered to ${name}: ${said.refused}`;
+    append(instance.root, sender.name, { from: THE_CHAT, text: unheardLine(sender.name, name, unheard), unheard: true });
+    overhear(sender.name, unheardWrapper(name, unheard));
+  }
+
+  return came;
+}
+
+// What a delivery came to, as the route and the tool answer it: a status and a body, from what the
+// turn returned. Its own function so that what is said back to the caller is decided in one place,
+// and then said to whoever is left to hear it.
+function whatCameOf(instance, name, answered) {
   // The room is off, so no turn was taken and nothing was run. The question is not written down —
   // it was never asked of anybody — and what goes on the panel is the chat saying so in its own
   // voice, flagged, so that a check reads the flag rather than the prose.
@@ -1467,14 +1520,21 @@ async function saidByTool(instance, caller, args) {
     return { refused: `nobody called ${to} works here` };
   }
 
-  const answered = await deliver(instance, to, args?.message, caller);
+  return saidBack(to, await deliver(instance, to, args?.message, caller));
+}
+
+// What `say` answers, from what the delivery came to: the reply, or the refusal in the delivery's
+// own words. The copy carried to a caller whose run was gone before the answer came is made here
+// too, so that what a session hears is one sentence whether it heard it or was owed it.
+//
+// In the tool's own words rather than as a flag: what comes back here is read by a model, and a
+// field beside the text is a thing it may or may not look at. Before the answer, because it
+// changes what the answer is worth.
+function saidBack(to, answered) {
   if (answered.status !== 200) {
     return { refused: answered.body.error };
   }
 
-  // In the tool's own words rather than as a flag: what comes back here is read by a model, and a
-  // field beside the text is a thing it may or may not look at. Before the answer, because it
-  // changes what the answer is worth.
   if (answered.body.restarted === true) {
     return { text: `(${to} had gone quiet for too long, so it answered this from a new conversation, having read its desk rather than remembering what you told it before.)\n\n${answered.body.reply.text}` };
   }
