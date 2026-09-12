@@ -6,6 +6,9 @@ carries only its own.
 
 ## 0.8.0
 
+The chat says what it can see but not settle — a room that has not been read, a desk that has
+stopped moving, a run that will not end — and nothing said across an ending is lost.
+
 **The room says when it was last read.** A pass that finds nothing writes nothing, so a room watch
 that had died looked exactly like one with nothing to do — and the watch is what parks a conversation
 now, so its death was the one thing nobody would notice. One line above the room says it, on the
