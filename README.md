@@ -142,12 +142,12 @@ The chat page hires too, from a name box above the panels, and refuses the same 
 same reasons in the same words — it calls this. What a name is refused for has one answer, not
 two that can drift apart.
 
-`ovai chat` serves the instance's chat page on the port it was installed with — or, with
-`--port 0`, on one the machine picks — on `127.0.0.1` only, and runs until you stop it. It
-always prints the whole address it is listening on, so there is one line to open or copy
-whichever way the port was chosen. If the port is already taken it says which process is
-holding it, with the pid and the command, so the usual culprit — a chat somebody forgot to
-stop — takes one `kill` rather than a search.
+`ovai chat` serves the instance's chat page on the port the instance was installed with — a
+number, or one the machine picks when it was installed with `--port 0` — on `127.0.0.1` only,
+and runs until you stop it. It takes no arguments of its own. It always prints the whole address
+it is listening on, so there is one line to open or copy whichever way the port was chosen. If
+the port is already taken it says which process is holding it, with the pid and the command, so
+the usual culprit — a chat somebody forgot to stop — takes one `kill` rather than a search.
 
 Stopping it stops the sessions it started. A session runs as a process of its own, and a process
 does not notice that the thing which started it has gone: left alone it sits there holding a
@@ -485,8 +485,8 @@ What is counted is the request and not the turn it came out of, so a session tha
 in one turn pops twice: each stop is its own thing waiting on you, and would wait on its own.
 
 How your desktop is made to pop is yours to write, for the same reason a tool of your own is: it is
-`notify-send` here, `osascript` there and a toast API somewhere else. One file at the root of your
-workspace, beside `openovai.json`, exporting one function:
+`notify-send` here, `osascript` there and a toast API somewhere else. One file named `pop.mjs` at
+the root of your workspace, beside `openovai.json`, exporting one function called `pop`:
 
 ```js
 import { execFile } from "node:child_process";
