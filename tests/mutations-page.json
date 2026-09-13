@@ -16,8 +16,8 @@
     "edits": [
       {
         "file": "tools/chat/page.html",
-        "from": "border: 1px solid var(--line); border-radius: 6px; background: var(--panel);",
-        "to": "border: 1px solid var(--line); border-radius: 6px; background: #ffffff;"
+        "from": "border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel);",
+        "to": "border: 1px solid var(--line); border-radius: var(--radius); background: #ffffff;"
       }
     ]
   },
@@ -51,6 +51,28 @@
         "file": "tools/chat/render.mjs",
         "from": "kind: \"user\"",
         "to": "kind: \"person\""
+      }
+    ]
+  },
+  {
+    "name": "the body font goes back to fourteen pixels on a shorter line",
+    "catches": "set the page's type in rem on the sans stack, one and a half lines high",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "font: 1rem/1.5 var(--sans);",
+        "to": "font: 14px/1.4 var(--sans);"
+      }
+    ]
+  },
+  {
+    "name": "the empty state is emitted while both of its rules are gone",
+    "catches": "give every class the page emits at least one rule",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "  .rows .empty { color: var(--fg-faint); font-size: .8rem; padding: 4px 0; }\n  #mid .rows .empty { font-size: inherit; text-align: center; padding: 20px 0; }\n",
+        "to": ""
       }
     ]
   }

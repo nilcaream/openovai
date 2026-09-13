@@ -86,6 +86,11 @@ describe("the token table", () => {
 });
 
 describe("the rules", () => {
+  it("set the page's type in rem on the sans stack, one and a half lines high", () => {
+    const body = rules.find((rule) => rule.selector === "body" && rule.media === null);
+    assert.equal(body.declarations.font, "1rem/1.5 var(--sans)");
+  });
+
   it("carry no raw colour outside the token blocks", () => {
     for (const rule of rules) {
       if (tokenBlocks.includes(rule)) continue;

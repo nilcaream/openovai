@@ -961,7 +961,7 @@ describe("what the page is made of", () => {
       }
     }
     const labels = [...script.matchAll(/\.textContent = "([^"]*)"/g)].map((found) => found[1]);
-    assert.deepEqual(labels, ["STOP"], "a button label on the page other than STOP (the dialog buttons come from dialog.mjs)");
+    assert.deepEqual(labels, ["STOP", "Waiting for the transcript…"], "a word of the page's own other than STOP and the empty state (the dialog buttons come from dialog.mjs)");
     assert.equal(source.split("<button").length - 1, 0, "a button in the markup");
   });
 
