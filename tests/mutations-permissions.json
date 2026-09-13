@@ -432,5 +432,16 @@
         "to": "    if (false) {"
       }
     ]
+  },
+  {
+    "name": "a rule dialog is listed at the turn's end and the page is not told",
+    "catches": "tells the page again once the turn has ended, so the dialog is drawn then",
+    "edits": [
+      {
+        "file": "tools/chat/lifecycle.mjs",
+        "from": "  if (rulesPending(seat).length > 0) {\n    publish(\"asking\", { seat });\n  }",
+        "to": ""
+      }
+    ]
   }
 ]

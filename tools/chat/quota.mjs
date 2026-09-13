@@ -24,6 +24,8 @@
 // which is the reset of the one window the frame is about. No window scoped to a model was on the
 // frame, so the per-model window has no wire name until one is measured (see FABLE_WINDOW).
 
+import { publish } from "./events.mjs";
+
 // The windows the frame names, and the key each is configured under. Only these two are read
 // as windows of the account; anything else on the frame is kept for the standing and gates
 // nothing.
@@ -101,6 +103,7 @@ export function reset() {
   listeners.clear();
   heldBySeat.clear();
   arrivals = 0;
+  lastTold = null;
   configure();
 }
 
@@ -118,6 +121,14 @@ function moment(resetsAt) {
     return null;
   }
   return resetsAt < 1e12 ? resetsAt * 1000 : resetsAt;
+}
+
+// When a window resets, as the page says it: hh:mm on the clock of the machine the server runs
+// on, which is the User's own — the page is loopback. Takes what the readings hold (milliseconds)
+// and what the gates answer (ISO-8601) alike.
+export function hhmm(resets) {
+  const at = new Date(resets);
+  return `${String(at.getHours()).padStart(2, "0")}:${String(at.getMinutes()).padStart(2, "0")}`;
 }
 
 function current(window, now) {
@@ -183,7 +194,22 @@ export function saw(seat, model, info, now = clock()) {
       rejected: true,
     });
   }
-  return announce(now);
+  const fired = announce(now);
+  tellThePage(now);
+  return fired;
+}
+
+// The page is told the standing whenever a reading changed it — the same object GET /sessions
+// carries — and not for a reading that says what the last one said (when it was read aside).
+let lastTold = null;
+
+function tellThePage(now) {
+  const said = standing(now);
+  const worth = JSON.stringify(said, (key, value) => (key === "at" ? undefined : value));
+  if (worth !== lastTold) {
+    lastTold = worth;
+    publish("standing", said);
+  }
 }
 
 function announce(now) {
@@ -225,8 +251,11 @@ export function standing(now = clock()) {
   const said = {};
   for (const [window, reading] of readings) {
     said[window] = {
+      // The window as configured (5h, 7d), when it is one of the account's; the wire name else.
+      key: keyed[window] ?? window,
       utilization: reading.utilization,
       resetsAt: reading.resetsAt === null ? null : new Date(reading.resetsAt).toISOString(),
+      resets: reading.resetsAt === null ? null : hhmm(reading.resetsAt),
       at: new Date(reading.at).toISOString(),
       from: reading.from,
       ...(reading.rejected ? { rejected: true } : {}),

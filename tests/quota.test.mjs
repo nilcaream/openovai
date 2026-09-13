@@ -10,7 +10,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { subscribe } from "../tools/chat/events.mjs";
+
 import {
+  hhmm,
   DEFAULT_THRESHOLDS,
   FABLE_WINDOW,
   configure,
@@ -112,6 +115,35 @@ describe("the readings", () => {
     saw("Paul", "opus", reading(0.5));
     assert.equal(standing().seven_day.resetsAt, new Date(RESET_7D).toISOString());
     assert.equal(standing().five_hour.resetsAt, new Date(RESET_5H).toISOString());
+  });
+
+  it("say the reset as hh:mm on the server's clock too, and the window as configured", () => {
+    fresh();
+    saw("Paul", "opus", reading(0.5));
+    assert.equal(hhmm(RESET_5H), new Date(RESET_5H).toTimeString().slice(0, 5));
+    assert.equal(standing().five_hour.resets, hhmm(RESET_5H));
+    assert.equal(standing().five_hour.key, "5h");
+    assert.equal(standing().seven_day.key, "7d");
+    assert.equal(hhmm(new Date(RESET_5H).toISOString()), hhmm(RESET_5H));
+  });
+
+  it("tell the page the standing when a reading changed it, and not when it did not", () => {
+    const told = [];
+    const unsubscribe = subscribe((event) => {
+      if (event.name === "standing") {
+        told.push(event.data);
+      }
+    });
+    const clock = fresh();
+    saw("Paul", "opus", reading(0.5));
+    clock.at(T0 + 60_000);
+    saw("Paul", "opus", reading(0.5));
+    clock.at(T0 + 120_000);
+    saw("Paul", "opus", reading(0.7));
+    unsubscribe();
+    assert.equal(told.length, 2, JSON.stringify(told));
+    assert.deepEqual(told.map((standing) => standing.five_hour.utilization), [0.5, 0.7]);
+    assert.equal(told[1].five_hour.resets, hhmm(RESET_5H));
   });
 
   it("read the reset as seconds and say it as a moment", () => {

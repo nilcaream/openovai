@@ -616,10 +616,14 @@ describe("the quota gate", () => {
     assert.deepEqual(JSON.parse(held.body), { delivered: false, held: { window: "5h", resets: new Date(resets).toISOString() } });
     await new Promise((resolve) => setTimeout(resolve, 200));
     assert.equal(heardIn(superman.log).filter((frame) => frame === "<user>at two</user>").length, 0);
-    assert.deepEqual(panel(instance, LEADER).at(-1).text, `held until the 5h window resets at ${new Date(resets).toISOString()}; your message is waiting`);
+    assert.deepEqual(panel(instance, LEADER).at(-1).text, `limit exhausted (5h window), reset at ${quota.hhmm(resets)}, your message is waiting`);
     now = resets + 1;
     tick(chat);
     assert.equal((await told(superman.log, 4)).at(-1), "<user>at two</user>");
+    // The reply is waited for on the panel, not read off the moment the run logged the frame: the
+    // log and the pipe are two channels, and the run on its own core can note "heard" before the
+    // result it wrote right after has been read here.
+    await waitFor(() => (panel(instance, LEADER).at(-1).from === LEADER ? true : null));
     assert.deepEqual(panel(instance, LEADER).slice(-1).map((row) => [row.from, row.text]), [[LEADER, "a reply"]]);
   });
 
@@ -790,7 +794,7 @@ describe("the quota gate", () => {
     await end(OTHER, 500);
   });
 
-  it("a restart while the window is closed waits for the reset: the successor starts then, the carried turns with it", async () => {
+  it("a restart while the window is closed is a stop: no successor is queued, the carried turns are answered so, and the Leader hears of it after the reset", async () => {
     const resets = RESETS();
     await fresh({ OPENOVAI_STAND_IN_SLOW: "400", ...readings(reading(0.96, { resets })), ...callsThen("restart_session", 'stage="critical"') });
     const spawns = readLog(unexpected);
@@ -801,15 +805,15 @@ describe("the quota gate", () => {
     await settle();
     assert.equal(running(WORKER), false);
     assert.equal(readLog(unexpected), spawns, "a successor was started through the closed gate");
-    assert.ok(said.includes(`successor held: ${WORKER} until 5h resets ${new Date(resets).toISOString()}`), said.slice(-8).join("\n"));
+    assert.ok(said.includes(`no successor: ${WORKER} stopped, 5h exhausted until ${new Date(resets).toISOString()}`), said.slice(-8).join("\n"));
+    assert.deepEqual(await carried.answered, { ended: true, text: `${WORKER} stopped: the 5h window is exhausted, reset at ${quota.hhmm(resets)}` });
+    assert.ok(!heardIn(superman.log).some((frame) => frame.startsWith('<server-event type="stopped"')), "the Leader was told through a closed gate");
     now = resets + 1;
-    const successor = await spawnedBy(WORKER, async () => {
-      tick(chat);
-      await waitFor(() => (running(WORKER) ? true : null));
-    });
-    assert.notEqual(successor.secret, paul.secret);
-    assert.deepEqual(await told(successor.log, 1), ["<user>carried</user>"]);
-    assert.equal((await carried.answered).text, "a reply");
+    tick(chat);
+    assert.equal((await told(superman.log, 2)).at(-1), `<server-event type="stopped" who="${WORKER}" why="quota"/>`);
+    await settle();
+    assert.equal(running(WORKER), false, "a successor was started at the reset");
+    assert.equal(readLog(unexpected), spawns);
   });
 
   it("the per-model window, once named, touches seats on that model only", async () => {
@@ -834,7 +838,7 @@ describe("the quota gate", () => {
       assert.deepEqual(heardIn(superman.log), []);
       assert.equal(JSON.parse((await page("POST", `/sessions/${LEADER}/message`, { text: "opus goes" })).body).delivered, true);
       assert.deepEqual(await tool(superman.secret, "message", { to: "Zed", text: "fable is held" }), {
-        text: `Zed is held until the 7d-fable window resets at ${new Date(resets).toISOString()}; your message is waiting`,
+        text: `Zed: limit exhausted (7d-fable window), reset at ${quota.hhmm(resets)}, your message is waiting`,
         refused: true,
         error: null,
       });

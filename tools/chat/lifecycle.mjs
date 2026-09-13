@@ -15,13 +15,14 @@
 // Leader's `hire` and by their own `restart_session`, both through `startSeat` here; a message to a
 // stopped Worker is refused, never a spawn.
 
-import { modelFor } from "../desks.mjs";
+import { deskHeader, modelFor } from "../desks.mjs";
 import { onHardRulesChanged } from "../store.mjs";
+import { publish } from "./events.mjs";
 import { rulesUpdateFrame, serverEvent } from "./frames.mjs";
-import { giveUp, park as parkRequest, rulesToPop, waitedLong } from "./permissions.mjs";
+import { giveUp, park as parkRequest, rulesPending, rulesToPop, waitedLong } from "./permissions.mjs";
 import { popped } from "./pop.mjs";
 import * as quota from "./quota.mjs";
-import { LEADER, WORKER, arrival, end, interrupt, prefix, recordOf, running, runningSeats, start, tell } from "./session.mjs";
+import { LEADER, WORKER, arrival, end, interrupt, prefix, recordOf, running, runningSeats, seats, start, tell } from "./session.mjs";
 
 // ------------------------------------------------------------------------------------ settings
 
@@ -84,6 +85,35 @@ function leaderOf(instance) {
   return instance.config.leader;
 }
 
+// ------------------------------------------------------------------------------- what a seat is
+
+// The header, idle time and context of a seat, for the room and the page: what the server knows
+// about a desk and its process, beside who it is. `busy` is whether a turn is running — the one
+// thing the page's STOP needs to know.
+export function aboutSeat(instance, seat) {
+  const header = deskHeader(instance.root, seat.name);
+  const record = recordOf(seat.name);
+  const idle = idleOf(seat.name, clockOf(instance)());
+  return {
+    ...seat,
+    running: running(seat.name),
+    busy: record !== undefined && record.turn !== null,
+    title: header?.title ?? "",
+    status: header?.status ?? "",
+    rules: header?.rules ?? "",
+    ...(record === undefined ? {} : { idle, context: record.context, ending: record.ending }),
+  };
+}
+
+// The page is told about a seat whenever what the server knows about it changes: its process
+// started or gone, a turn taken or over. One event, the same object the snapshot lists.
+function seatChanged(instance, name) {
+  const seat = seats(instance).find((one) => one.name === name);
+  if (seat !== undefined) {
+    publish("seat", aboutSeat(instance, seat));
+  }
+}
+
 // ------------------------------------------------------------------------------ starting a seat
 
 // How a session's permission requests reach the page: parked on its panel, and the desktop told
@@ -110,12 +140,17 @@ export function showRules(instance, seat) {
   for (const { rule } of rulesToPop(seat)) {
     popped(instance, { on: seat, why: `${seat} asks you to settle ${rule}` });
   }
+  // A rule dialog is listed only off a turn: what the page shows for this seat changed with the
+  // turn's end when any is pending.
+  if (rulesPending(seat).length > 0) {
+    publish("asking", { seat });
+  }
 }
 
 // The one place a seat's process is started. `queue` is what a predecessor left for it. The gate
 // is the process's own, read by session.mjs at every write; what it holds goes on the held list.
 export function startSeat(instance, seat, { queue = [] } = {}) {
-  return start(instance, seat, {
+  const started = start(instance, seat, {
     asked: asking(instance, seat),
     turned: (record) => turned(instance, record),
     ended: (closed) => {
@@ -129,12 +164,11 @@ export function startSeat(instance, seat, { queue = [] } = {}) {
         holdTurn(seat, turn, holding);
       }
     },
+    changed: () => seatChanged(instance, seat),
   });
+  seatChanged(instance, seat);
+  return started;
 }
-
-// Successors waiting for a window: a seat that restarted while the gate was closed, with the turns
-// its predecessor left, started at the first tick after the reset.
-const successors = new Map();
 
 function startSuccessor(instance, seat, carried) {
   try {
@@ -147,23 +181,42 @@ function startSuccessor(instance, seat, carried) {
   }
 }
 
-// What follows a process closing: a successor for one that was restarting, with the turns it left
-// — now, or once the window that would hold its first write has reset; and, after every idle stop
-// of a Worker, the FYI to the Leader.
+// What follows a process closing: the page told; a successor for one that was restarting, with
+// the turns it left — unless the window that would hold its first write is exhausted, in which
+// case there is no successor: a panel is a process, and a process that could not work until a
+// window resets, minutes or hours away, is not kept for it. The restart is a stop then: the turns
+// it carried are answered so, and the Leader is told the way it is told of every stop of a
+// Worker — through the gate, so it hears it once the window has reset and decides whether to
+// hire again; a Leader whose own successor would be held is simply not running, and the next
+// thing addressed to it starts it after the reset. And, after every idle stop of a Worker, the
+// FYI to the Leader.
 function afterClose(instance, { seat, role, ending, carried }) {
+  seatChanged(instance, seat);
   if (ending === "restart") {
     const holding = quota.mayStart(modelFor(instance.root, seat, instance.config));
     if (holding === null) {
       startSuccessor(instance, seat, carried);
-    } else {
-      console.log(`successor held: ${seat} until ${holding.window} resets ${holding.resets}`);
-      successors.set(seat, carried);
+      return;
+    }
+    console.log(`no successor: ${seat} stopped, ${holding.window} exhausted until ${holding.resets}`);
+    for (const turn of carried) {
+      turn.resolve({ ended: true, text: `${seat} stopped: the ${holding.window} window is exhausted, reset at ${quota.hhmm(holding.resets)}` });
+    }
+    if (role === WORKER) {
+      deliver(instance, leaderOf(instance), serverEvent("stopped", { who: seat, why: "quota" }));
     }
     return;
   }
   if (role === WORKER && (ending === "idle" || ending === "idle-forced")) {
     deliver(instance, leaderOf(instance), serverEvent("stopped", { who: seat, why: ending }));
   }
+}
+
+// The instance is stopping: the page is told, and every page route answers 503 from here on
+// (server.mjs) while the tool route stays open for the desks and stops the park takes.
+export function stopping(instance) {
+  instance.stopping = true;
+  publish("stopping", {});
 }
 
 // --------------------------------------------------------------------------------- delivering
@@ -226,18 +279,10 @@ export function deliver(instance, seat, frame, { ahead = false, ask = null } = {
   return holding === null || told.refused !== undefined ? told : { delivered: false, held: holding, answered: told.answered };
 }
 
-// The successors whose window has reset, started now — the Leader's first — and the held frames
-// whose window has reset, written now: the Leader's first, then the Workers', each in arrival
-// order — the server decides what resumes and in what order.
+// The held frames whose window has reset, written now: the Leader's first, then the Workers',
+// each in arrival order — the server decides what resumes and in what order.
 export function releaseHeld(instance) {
   const leader = leaderOf(instance);
-  for (const seat of [...successors.keys()].sort((a, b) => (a === leader ? -1 : b === leader ? 1 : 0))) {
-    if (quota.mayStart(modelFor(instance.root, seat, instance.config)) === null) {
-      const carried = successors.get(seat);
-      successors.delete(seat);
-      startSuccessor(instance, seat, carried);
-    }
-  }
   const released = quota.releasedBy();
   const ordered = [...released.filter((entry) => entry.seat === leader), ...released.filter((entry) => entry.seat !== leader)];
   for (const entry of ordered) {

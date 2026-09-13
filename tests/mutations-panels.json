@@ -1,0 +1,156 @@
+[
+  {
+    "name": "the first seat is the middle panel",
+    "catches": "the Leader is the middle panel and the Workers alternate left and right in hire order",
+    "edits": [
+      {
+        "file": "tools/chat/panels.mjs",
+        "from": "  return { left, mid: leader, right };",
+        "to": "  return { left, mid: seats[0], right };"
+      }
+    ]
+  },
+  {
+    "name": "the snapshot's order wins over the page's",
+    "catches": "the order is the order the panels appeared, not the order of a later snapshot",
+    "edits": [
+      {
+        "file": "tools/chat/panels.mjs",
+        "from": "      state.standing = data.standing ?? {};\n      const listed",
+        "to": "      state.standing = data.standing ?? {};\n      state.order = data.sessions.map((about) => about.name);\n      const listed"
+      }
+    ]
+  },
+  {
+    "name": "Shift+Enter sends",
+    "catches": "Enter sends, Shift+Enter is a newline, anything else is nothing",
+    "edits": [
+      {
+        "file": "tools/chat/panels.mjs",
+        "from": "  return shiftKey ? \"newline\" : \"send\";",
+        "to": "  return \"send\";"
+      }
+    ]
+  },
+  {
+    "name": "a process gone removes the panel at once",
+    "catches": "a restart of seconds keeps the panel: dimmed while the process is gone, back when it is up, rows and all",
+    "edits": [
+      {
+        "file": "tools/chat/panels.mjs",
+        "from": "    if (panel.name !== state.leader && panel.dimmed && panel.stoppedAt !== null && now - panel.stoppedAt >= GONE_AFTER) {",
+        "to": "    if (panel.name !== state.leader && panel.dimmed) {"
+      }
+    ]
+  },
+  {
+    "name": "a dimmed panel still takes input",
+    "catches": "a restart of seconds keeps the panel: dimmed while the process is gone, back when it is up, rows and all",
+    "edits": [
+      {
+        "file": "tools/chat/panels.mjs",
+        "from": "  return panel !== undefined && state.connection !== \"stopping\" && !panel.dimmed;",
+        "to": "  return panel !== undefined && state.connection !== \"stopping\";"
+      }
+    ]
+  },
+  {
+    "name": "a gone process keeps its panel forever",
+    "catches": "a process that stays gone takes its panel with it after a while",
+    "edits": [
+      {
+        "file": "tools/chat/panels.mjs",
+        "from": "export const GONE_AFTER = 30_000;",
+        "to": "export const GONE_AFTER = 30_000_000;"
+      }
+    ]
+  },
+  {
+    "name": "a Worker not running gets a panel from the snapshot",
+    "catches": "a Worker not running in the snapshot gets no panel; one started later does, without rows until asked",
+    "edits": [
+      {
+        "file": "tools/chat/panels.mjs",
+        "from": "    if (about.running !== true && name !== state.leader) {\n      return;\n    }",
+        "to": "    if (false) {\n      return;\n    }"
+      }
+    ]
+  },
+  {
+    "name": "a row from the past is appended again",
+    "catches": "a row lands at its index once; a row from the past is ignored",
+    "edits": [
+      {
+        "file": "tools/chat/panels.mjs",
+        "from": "      if (data.index === panel.rows.length) {\n        panel.rows.push(data.row);",
+        "to": "      if (data.index <= panel.rows.length) {\n        panel.rows.push(data.row);"
+      }
+    ]
+  },
+  {
+    "name": "the Leader's panel goes like a Worker's",
+    "catches": "is there whether or not the Leader runs, never dimmed, never pruned, its composer open",
+    "edits": [
+      {
+        "file": "tools/chat/panels.mjs",
+        "from": "  if (name === state.leader) {\n    return;\n  }\n  if (panel.running) {",
+        "to": "  if (panel.running) {"
+      }
+    ]
+  },
+  {
+    "name": "the title never carries the mark",
+    "catches": "the panel that asks carries the mark, the title carries it while any panel asks",
+    "edits": [
+      {
+        "file": "tools/chat/panels.mjs",
+        "from": "  return any ? `● ${SHORT}` : SHORT;",
+        "to": "  return SHORT;"
+      }
+    ]
+  },
+  {
+    "name": "STOP is enabled on an idle seat",
+    "catches": "STOP is enabled while a turn runs and nowhere else",
+    "edits": [
+      {
+        "file": "tools/chat/panels.mjs",
+        "from": "  return composersEnabled(state, name) && panel.busy;",
+        "to": "  return composersEnabled(state, name);"
+      }
+    ]
+  },
+  {
+    "name": "composers stay open while stopping",
+    "catches": "nothing is typed into an instance that is stopping",
+    "edits": [
+      {
+        "file": "tools/chat/panels.mjs",
+        "from": "    case \"stopping\": {\n      state.connection = \"stopping\";\n      break;\n    }",
+        "to": "    case \"stopping\": {\n      break;\n    }"
+      }
+    ]
+  },
+  {
+    "name": "the status line drops the version",
+    "catches": "names the version, the instance, the port, the Leader, the quota and the connection",
+    "edits": [
+      {
+        "file": "tools/chat/panels.mjs",
+        "from": "    `${PRODUCT} ${health?.version ?? \"?\"}`,",
+        "to": "    PRODUCT,"
+      }
+    ]
+  },
+  {
+    "name": "the status line says ok at every stage",
+    "catches": "says which window is at a stage and when it resets",
+    "edits": [
+      {
+        "file": "tools/chat/panels.mjs",
+        "from": "  return said.length === 0 ? \"ok\" : said.join(\"; \");",
+        "to": "  return \"ok\";"
+      }
+    ]
+  }
+]

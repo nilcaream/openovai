@@ -862,6 +862,292 @@ describe("what the User types", () => {
 
 // Only one module writes to a session's stdin, and only in the places that put a frame or a
 // permission answer there. Read off the code, because the rule is about the code.
+// ---------------------------------------------------------------------------------------------
+
+// What the page is made of, beside the script: the modules it draws from, served open beside it,
+// the manifest an installed page carries, and what the page never says or loads. The page script
+// is read as text and never run here; what a browser alone can show is measured, not claimed.
+describe("what the page is made of", () => {
+  const source = fs.readFileSync(path.join(repo, "tools", "chat", "page.html"), "utf8");
+  const script = source.slice(source.indexOf("<script"), source.indexOf("</script>"));
+  const modules = ["panels.mjs", "render.mjs"].map((name) => [name, fs.readFileSync(path.join(repo, "tools", "chat", name), "utf8")]);
+
+  it("draws from the two tested modules and the dialog module", () => {
+    assert.match(script, /import \{[^}]*\bapplyEvent\b[^}]*\bplace\b[^}]*\} from "\.\/panels\.mjs"/);
+    assert.match(script, /import \{[^}]*\brow as rowOf\b[^}]*\} from "\.\/render\.mjs"/);
+    assert.match(script, /import \{ dialogOf \} from "\.\/dialog\.mjs"/);
+    assert.match(script, /place\(/);
+    assert.match(script, /rowOf\(/);
+  });
+
+  it("serves each module and the parser open, as the file, and nothing else on those routes", async () => {
+    for (const name of ["dialog.mjs", "panels.mjs", "render.mjs", "marked.mjs"]) {
+      const answered = await fetchPlain(`${url}/${name}`);
+      assert.equal(answered.status, 200, name);
+      assert.equal(answered.body, fs.readFileSync(path.join(repo, "tools", "chat", name), "utf8"), name);
+    }
+    assert.equal((await fetchPlain(`${url}/server.mjs`)).status, 401);
+    assert.equal((await fetchPlain(`${url}/icons/other.png`)).status, 401);
+  });
+
+  it("installs as a standalone app: a manifest with two icons that are PNGs, and no service worker", async () => {
+    const answered = await fetchPlain(`${url}/manifest.webmanifest`);
+    assert.equal(answered.status, 200);
+    const manifest = JSON.parse(answered.body);
+    assert.equal(manifest.display, "standalone");
+    assert.equal(manifest.name, "OpenOv AI");
+    assert.equal(manifest.icons.length, 2);
+    for (const icon of manifest.icons) {
+      const image = await fetch(`${url}${icon.src}`);
+      assert.equal(image.status, 200, icon.src);
+      assert.equal(image.headers.get("content-type"), "image/png");
+      assert.deepEqual([...new Uint8Array(await image.arrayBuffer()).slice(0, 8)], [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], icon.src);
+    }
+    assert.match(source, /<link rel="manifest" href="\/manifest\.webmanifest">/);
+    assert.ok(!source.includes("serviceWorker"));
+  });
+
+  it("carries no lifecycle button and no lifecycle word, and STOP is its one button", () => {
+    const { words } = JSON.parse(fs.readFileSync(path.join(repo, "tests", "forbidden-words.json"), "utf8"));
+    for (const [name, text] of [["page.html", source], ...modules]) {
+      for (const word of words) {
+        const found = new RegExp(`\\b${word.replace(/ /g, "\\s+")}`, "i").exec(text);
+        assert.equal(found, null, `${name} carries "${word}": ${found !== null ? text.slice(Math.max(0, found.index - 40), found.index + 40) : ""}`);
+      }
+    }
+    const labels = [...script.matchAll(/\.textContent = "([^"]*)"/g)].map((found) => found[1]);
+    assert.deepEqual(labels, ["STOP"], "a button label on the page other than STOP (the dialog buttons come from dialog.mjs)");
+    assert.equal(source.split("<button").length - 1, 0, "a button in the markup");
+  });
+
+  it("never reads how a process is going: no ending on the page or in panels.mjs, no running read on the page", () => {
+    assert.doesNotMatch(source, /\bending\b/);
+    assert.doesNotMatch(modules[0][1], /\bending\b/);
+    assert.doesNotMatch(source, /\.running\b/);
+  });
+
+  it("loads nothing from outside the server and prompts for nothing of its own", () => {
+    assert.doesNotMatch(source, /(src|href)="https?:\/\//);
+    assert.doesNotMatch(source, /Notification\.requestPermission/);
+    assert.doesNotMatch(source, /serviceWorker/);
+    assert.doesNotMatch(source, /import\s*\(|from "https?:/);
+  });
+
+  it("answers a panel's rows from an index on", async () => {
+    remove(panelFile(instance, OTHER));
+    const { append: appendRow } = await import("../tools/chat/conversation.mjs");
+    for (const text of ["one", "two", "three"]) {
+      appendRow(instance, OTHER, { from: "user", text });
+    }
+    const all = JSON.parse((await page("GET", `/sessions/${OTHER}/messages`)).body).messages;
+    assert.deepEqual(all.map((row) => row.text), ["one", "two", "three"]);
+    const rest = JSON.parse((await page("GET", `/sessions/${OTHER}/messages?since=2`)).body).messages;
+    assert.deepEqual(rest.map((row) => row.text), ["three"]);
+    assert.deepEqual(JSON.parse((await page("GET", `/sessions/${OTHER}/messages?since=9`)).body).messages, []);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+
+// The stream: the page is told what happens as it happens, on one connection, and asks for what
+// it missed with the counts it has. Read here with fetch on the body, the way a browser's
+// EventSource would read it, except that a browser sends no header — which is why the secret is
+// on the query of this one route (measured: the check below sends the bearer and is refused).
+describe("the stream", () => {
+  let superman;
+  let paul;
+  const open = [];
+
+  async function listen(query = "") {
+    const controller = new AbortController();
+    const response = await fetch(`${url}/events?page=${pageSecret()}${query}`, { signal: controller.signal });
+    const events = [];
+    const client = { status: response.status, type: response.headers.get("content-type"), events, close: () => controller.abort() };
+    open.push(client);
+    if (response.status !== 200) {
+      return client;
+    }
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let rest = "";
+    (async () => {
+      try {
+        for (;;) {
+          const { value, done } = await reader.read();
+          if (done) {
+            break;
+          }
+          rest += decoder.decode(value, { stream: true });
+          let at;
+          while ((at = rest.indexOf("\n\n")) !== -1) {
+            const block = rest.slice(0, at);
+            rest = rest.slice(at + 2);
+            const fields = {};
+            for (const line of block.split("\n")) {
+              const colon = line.indexOf(": ");
+              fields[line.slice(0, colon)] = line.slice(colon + 2);
+            }
+            events.push({ id: Number(fields.id), name: fields.event, data: JSON.parse(fields.data) });
+          }
+        }
+      } catch {
+        // closed by the check
+      }
+    })();
+    return client;
+  }
+
+  function about(client, name, kind = "seat") {
+    return client.events.filter((event) => event.name === kind && (event.data.name ?? event.data.seat) === name);
+  }
+
+  async function until(client, predicate) {
+    assert.ok(await waitFor(() => (client.events.some(predicate) ? true : null)), client.events.map((event) => `${event.name} ${JSON.stringify(event.data).slice(0, 120)}`).join("\n"));
+  }
+
+  before(async () => {
+    remove(panelFile(instance, LEADER), panelFile(instance, WORKER), panelFile(instance, OTHER));
+    superman = await seatUp(LEADER, { OPENOVAI_STAND_IN_REPLY: "noted" });
+  });
+
+  after(async () => {
+    for (const client of open) {
+      client.close();
+    }
+    chat.stopping = false;
+    await endEvery(500);
+  });
+
+  it("opens to the page secret on its query, and to nothing else — not even the bearer", async () => {
+    const bare = await fetch(`${url}/events`);
+    assert.equal(bare.status, 401);
+    const bearer = await fetch(`${url}/events`, { headers: { authorization: `Bearer ${pageSecret()}` } });
+    assert.equal(bearer.status, 401);
+    const client = await listen();
+    assert.equal(client.status, 200);
+    assert.match(client.type, /^text\/event-stream/);
+    await until(client, (event) => event.name === "asking");
+    const names = client.events.map((event) => event.name);
+    assert.equal(names[0], "snapshot");
+    assert.deepEqual(names.slice(1), ["rows", "rows", "rows", "asking", "asking", "asking"]);
+    assert.deepEqual(client.events.map((event) => event.id), [1, 2, 3, 4, 5, 6, 7]);
+    const { data } = client.events[0];
+    assert.equal(data.user, USER);
+    assert.equal(data.leader, LEADER);
+    assert.equal(data.chat, THE_CHAT);
+    assert.deepEqual(data.sessions.map((seat) => [seat.name, seat.running, seat.busy]), [[LEADER, true, false], [OTHER, false, false], [WORKER, false, false]]);
+    assert.deepEqual(client.events[1].data, { seat: LEADER, since: 0, rows: [] });
+    assert.ok(!said.some((line) => line.includes("page=")), "the stream's URL was logged");
+  });
+
+  it("a new row reaches the page without a poll", async () => {
+    const client = await listen();
+    await until(client, (event) => event.name === "asking");
+    await page("POST", `/sessions/${LEADER}/message`, { text: "hello" });
+    await until(client, (event) => event.name === "row" && event.data.seat === LEADER && event.data.row.from === LEADER);
+    const rows = about(client, LEADER, "row");
+    assert.deepEqual(rows.map((event) => [event.data.index, event.data.row.from, event.data.row.text]), [[0, "user", "hello"], [1, LEADER, "noted"]]);
+  });
+
+  it("a client connecting with counts gets only the rows after them", async () => {
+    const client = await listen(`&since=${encodeURIComponent(`${LEADER}:1`)}`);
+    await until(client, (event) => event.name === "asking");
+    const rows = about(client, LEADER, "rows")[0].data;
+    assert.equal(rows.since, 1);
+    assert.deepEqual(rows.rows.map((row) => row.text), ["noted"]);
+  });
+
+  it("tells of a seat's process starting, a turn under way and over, and the process gone", async () => {
+    const client = await listen();
+    await until(client, (event) => event.name === "asking");
+    paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_REPLY: "on it" });
+    await until(client, (event) => event.name === "seat" && event.data.name === WORKER && event.data.running === true);
+    await page("POST", `/sessions/${WORKER}/message`, { text: "go" });
+    await until(client, (event) => event.name === "row" && event.data.seat === WORKER && event.data.row.from === WORKER);
+    const busy = about(client, WORKER).map((event) => [event.data.running, event.data.busy]);
+    assert.deepEqual(busy.slice(0, 3), [[true, false], [true, true], [true, false]], JSON.stringify(busy));
+    await end(WORKER, 500);
+    await until(client, (event) => event.name === "seat" && event.data.name === WORKER && event.data.running === false);
+    assert.ok(client.events.every((event) => ["snapshot", "rows", "asking", "row", "seat"].includes(event.name)));
+  });
+
+  it("a restart of seconds is two seat events, gone then back, and nothing else for the page", async () => {
+    const client = await listen();
+    await until(client, (event) => event.name === "asking");
+    paul = await seatUp(WORKER, {
+      OPENOVAI_STAND_IN_TOOL: JSON.stringify([
+        { name: "write_desk", arguments: { title: "restart by the stand-in", status: "going", body: "## State\nx\n" } },
+        { name: "restart_session", arguments: {} },
+      ]),
+    });
+    const first = paul.secret;
+    await page("POST", `/sessions/${WORKER}/message`, { text: "go" });
+    await until(client, (event) => event.name === "seat" && event.data.name === WORKER && event.data.running === false);
+    await until(client, (event) => event.name === "seat" && event.data.name === WORKER && event.data.running === true && about(client, WORKER).some((seen) => seen.data.running === false));
+    assert.ok(await waitFor(() => (secretsIn(paul.log).length >= 2 || running(WORKER) ? true : null)));
+    const flags = about(client, WORKER).map((event) => event.data.running);
+    assert.ok(flags.indexOf(false) < flags.lastIndexOf(true), JSON.stringify(flags));
+    assert.notEqual(first, undefined);
+    assert.ok(client.events.every((event) => ["snapshot", "rows", "asking", "row", "seat"].includes(event.name)));
+    await end(WORKER, 500);
+  });
+
+  it("the page's STOP interrupts the turn, and the row says so rather than the seat", async () => {
+    const client = await listen();
+    await until(client, (event) => event.name === "asking");
+    paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_SLOW: "4000", OPENOVAI_STAND_IN_REPLY: "late" });
+    await page("POST", `/sessions/${WORKER}/message`, { text: "slowly" });
+    await until(client, (event) => event.name === "seat" && event.data.name === WORKER && event.data.busy === true);
+    const stopped = await page("POST", `/sessions/${WORKER}/stop`);
+    assert.deepEqual(JSON.parse(stopped.body), { interrupted: true });
+    await until(client, (event) => event.name === "row" && event.data.seat === WORKER && event.data.row.from === WORKER);
+    const row = about(client, WORKER, "row").at(-1).data.row;
+    assert.equal(row.interrupted, true);
+    assert.equal(row.text, "interrupted");
+    await until(client, (event) => event.name === "seat" && event.data.name === WORKER && event.data.busy === false && about(client, WORKER).some((seen) => seen.data.busy === true));
+    await end(WORKER, 500);
+  });
+
+  it("a call stop is pushed as it is parked, and taken down as it is answered", async () => {
+    const client = await listen();
+    await until(client, (event) => event.name === "asking");
+    const jane = await seatUp(OTHER, { OPENOVAI_STAND_IN_ASKS: "Bash", OPENOVAI_STAND_IN_ASKS_INPUT: "git status", OPENOVAI_STAND_IN_ASKS_WAITS: "10000" });
+    assert.notEqual(jane.secret, undefined);
+    await page("POST", `/sessions/${OTHER}/message`, { text: "look" });
+    await until(client, (event) => event.name === "asking" && event.data.seat === OTHER && event.data.pending.length === 1);
+    const asked = about(client, OTHER, "asking").at(-1).data.pending[0];
+    assert.equal(asked.tool, "Bash");
+    assert.deepEqual(asked.input, { command: "git status" });
+    // The take-down has to be an asking event AFTER the one that listed the stop: the stream opened
+    // with an empty list for this seat, and that one must not count.
+    const listed = about(client, OTHER, "asking").length;
+    await page("POST", `/sessions/${OTHER}/permission`, { id: asked.id, decision: "allow" });
+    await until(client, () => about(client, OTHER, "asking").length > listed && about(client, OTHER, "asking").at(-1).data.pending.length === 0);
+    await end(OTHER, 500);
+  });
+
+  it("the Leader's close is told like anybody's, and nothing follows it for the Leader", async () => {
+    const client = await listen();
+    await until(client, (event) => event.name === "asking");
+    await end(LEADER, 500);
+    await until(client, (event) => event.name === "seat" && event.data.name === LEADER && event.data.running === false);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    assert.equal(about(client, LEADER).at(-1).data.running, false);
+    assert.equal(running(LEADER), false);
+  });
+
+  it("the page is told the instance is stopping, and every page route answers 503 from then on", async () => {
+    const client = await listen();
+    await until(client, (event) => event.name === "asking");
+    const { stopping } = await import("../tools/chat/lifecycle.mjs");
+    stopping(chat);
+    await until(client, (event) => event.name === "stopping");
+    assert.equal((await page("POST", `/sessions/${LEADER}/message`, { text: "x" })).status, 503);
+    assert.equal((await fetch(`${url}/events?page=${pageSecret()}`)).status, 503);
+    chat.stopping = false;
+  });
+});
+
 describe("who writes to a session", () => {
   it("is session.mjs, through the frame writer, the two permission answers and the interrupt, and nobody else", () => {
     const found = spawnSync("grep", ["-rn", "stdin.write", path.join(repo, "tools")], { encoding: "utf8" });
@@ -916,6 +1202,10 @@ describe("the chat as a process", () => {
     await fetch(`${address}/sessions`, { headers: { authorization: `Bearer ${firstPage}` } });
     assert.ok(child.output.includes("POST /mcp/<secret> 401"), child.output);
     assert.ok(child.output.includes("GET /sessions 200"), child.output);
+    // The stream carries its secret on the query, and the query is not part of the route.
+    await fetch(`${address}/events?page=not-the-secret`);
+    assert.ok(await waitFor(() => (child.output.includes("GET /events 401") ? true : null)), child.output);
+    assert.ok(!child.output.includes("page="), child.output);
     assert.ok(!child.output.includes(firstPage), "the page secret is in the log");
   });
 

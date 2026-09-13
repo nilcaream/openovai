@@ -38,8 +38,8 @@
     "edits": [
       {
         "file": "tools/chat/server.mjs",
-        "from": "      user: instance.config.user,",
-        "to": "      user: \"User\","
+        "from": "    user: instance.config.user,\n    leader: instance.config.leader,\n    // Who a row",
+        "to": "    user: \"User\",\n    leader: instance.config.leader,\n    // Who a row"
       }
     ]
   },
@@ -785,8 +785,228 @@
     "edits": [
       {
         "file": "tools/chat/page.html",
-        "from": "    call(\"/sessions\")",
-        "to": "    fetch(\"/sessions\")"
+        "from": "call(\"/sessions\").then(",
+        "to": "fetch(\"/sessions\").then("
+      }
+    ]
+  },
+  {
+    "name": "a new row is written and nobody is told",
+    "catches": "a new row reaches the page without a poll",
+    "edits": [
+      {
+        "file": "tools/chat/conversation.mjs",
+        "from": "  publish(\"row\", { seat: session, index: messages.length - 1, row: entry });\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the counts a page connects with are ignored",
+    "catches": "a client connecting with counts gets only the rows after them",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    const since = counts.get(name) ?? 0;",
+        "to": "    const since = 0;"
+      }
+    ]
+  },
+  {
+    "name": "a turn taken is not told",
+    "catches": "tells of a seat's process starting, a turn under way and over, and the process gone",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "  record.child.stdin.write(`${JSON.stringify({ type: \"user\", message: { role: \"user\", content } })}\\n`);\n  if (prefix.length > 0) {\n    record.rules = prefix.at(-1).version;\n    writeDeskHeader(record.root, record.seat, { rules: record.rules });\n  }\n  record.changed(record);\n}",
+        "to": "  record.child.stdin.write(`${JSON.stringify({ type: \"user\", message: { role: \"user\", content } })}\\n`);\n  if (prefix.length > 0) {\n    record.rules = prefix.at(-1).version;\n    writeDeskHeader(record.root, record.seat, { rules: record.rules });\n  }\n}"
+      }
+    ]
+  },
+  {
+    "name": "a process gone is not told",
+    "catches": "tells of a seat's process starting, a turn under way and over, and the process gone",
+    "edits": [
+      {
+        "file": "tools/chat/lifecycle.mjs",
+        "from": "function afterClose(instance, { seat, role, ending, carried }) {\n  seatChanged(instance, seat);",
+        "to": "function afterClose(instance, { seat, role, ending, carried }) {"
+      }
+    ]
+  },
+  {
+    "name": "the Leader's close is kept from the page",
+    "catches": "the Leader's close is told like anybody's, and nothing follows it for the Leader",
+    "edits": [
+      {
+        "file": "tools/chat/lifecycle.mjs",
+        "from": "function afterClose(instance, { seat, role, ending, carried }) {\n  seatChanged(instance, seat);",
+        "to": "function afterClose(instance, { seat, role, ending, carried }) {\n  if (role === WORKER) {\n    seatChanged(instance, seat);\n  }"
+      }
+    ]
+  },
+  {
+    "name": "an interrupted turn is shown as a reply",
+    "catches": "the page's STOP interrupts the turn, and the row says so rather than the seat",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "      ...(reply.interrupted ? { interrupted: true } : {}),\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a call stop is parked and the page is not told",
+    "catches": "a call stop is pushed as it is parked, and taken down as it is answered",
+    "edits": [
+      {
+        "file": "tools/chat/permissions.mjs",
+        "from": "    forSession(name).set(request.id, { request, answer, parkedAt: now, told: false });\n    asking(name);",
+        "to": "    forSession(name).set(request.id, { request, answer, parkedAt: now, told: false });"
+      }
+    ]
+  },
+  {
+    "name": "a call stop answered stays on the page",
+    "catches": "a call stop is pushed as it is parked, and taken down as it is answered",
+    "edits": [
+      {
+        "file": "tools/chat/permissions.mjs",
+        "from": "  held.answer(decision);\n  asking(name);\n  return true;",
+        "to": "  held.answer(decision);\n  return true;"
+      }
+    ]
+  },
+  {
+    "name": "the stream takes the bearer too",
+    "catches": "opens to the page secret on its query, and to nothing else — not even the bearer",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  const carried = url.pathname === EVENTS_ROUTE ? url.searchParams.get(\"page\") : bearer(request.headers.authorization);",
+        "to": "  const carried = (url.pathname === EVENTS_ROUTE ? url.searchParams.get(\"page\") : null) ?? bearer(request.headers.authorization);"
+      }
+    ]
+  },
+  {
+    "name": "the stream's address is logged with its query",
+    "catches": "logs the route and never a secret",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "      console.log(`${request.method} ${shownAs(new URL(request.url, `http://${HOST}`).pathname)} ${response.statusCode}`);",
+        "to": "      console.log(`${request.method} ${request.url} ${response.statusCode}`);"
+      }
+    ]
+  },
+  {
+    "name": "the page installs in a browser tab",
+    "catches": "installs as a standalone app: a manifest with two icons that are PNGs, and no service worker",
+    "edits": [
+      {
+        "file": "tools/chat/manifest.webmanifest",
+        "from": "  \"display\": \"standalone\",",
+        "to": "  \"display\": \"browser\","
+      }
+    ]
+  },
+  {
+    "name": "a lifecycle button on the page",
+    "catches": "carries no lifecycle button and no lifecycle word, and STOP is its one button",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "<p id=\"status\"></p>",
+        "to": "<p id=\"status\"></p>\n<button>Go online</button>"
+      }
+    ]
+  },
+  {
+    "name": "a second button label in the script",
+    "catches": "carries no lifecycle button and no lifecycle word, and STOP is its one button",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "    composer.append(box);",
+        "to": "    const send = document.createElement(\"button\");\n    send.type = \"submit\";\n    send.textContent = \"Send\";\n    composer.append(box, send);"
+      }
+    ]
+  },
+  {
+    "name": "the page says a session is on its way out",
+    "catches": "never reads how a process is going: no ending on the page or in panels.mjs, no running read on the page",
+    "edits": [
+      {
+        "file": "tools/chat/panels.mjs",
+        "from": "  panel.busy = about.busy === true;\n  panel.running",
+        "to": "  panel.busy = about.busy === true;\n  panel.title = about.ending === null ? panel.title : `${about.ending}`;\n  panel.running"
+      }
+    ]
+  },
+  {
+    "name": "the page loads the parser from a CDN",
+    "catches": "loads nothing from outside the server and prompts for nothing of its own",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "<title>OpenOv AI</title>",
+        "to": "<title>OpenOv AI</title>\n<script src=\"https://cdn.jsdelivr.net/npm/marked\"></script>"
+      }
+    ]
+  },
+  {
+    "name": "the page asks to notify",
+    "catches": "loads nothing from outside the server and prompts for nothing of its own",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "  connect();\n  setInterval(",
+        "to": "  connect();\n  Notification.requestPermission();\n  setInterval("
+      }
+    ]
+  },
+  {
+    "name": "the placement is inlined on the page",
+    "catches": "draws from the two tested modules and the dialog module",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "  import { applyEvent, composersEnabled, fresh, head, keyAction, place, prune, statusLine, stopEnabled, title } from \"./panels.mjs\";",
+        "to": "  import { applyEvent, composersEnabled, fresh, head, keyAction, prune, statusLine, stopEnabled, title } from \"./panels.mjs\";\n  const place = (seats, leader) => ({ left: seats.filter((s) => s !== leader), mid: leader, right: [] });"
+      }
+    ]
+  },
+  {
+    "name": "a since on the rows is ignored",
+    "catches": "answers a panel's rows from an index on",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  return Number.isInteger(from) && from > 0 ? rows.slice(from) : rows;",
+        "to": "  return rows;"
+      }
+    ]
+  },
+  {
+    "name": "the instance stops and the page is not told",
+    "catches": "the page is told the instance is stopping, and every page route answers 503 from then on",
+    "edits": [
+      {
+        "file": "tools/chat/lifecycle.mjs",
+        "from": "  instance.stopping = true;\n  publish(\"stopping\", {});",
+        "to": "  instance.stopping = true;"
+      }
+    ]
+  },
+  {
+    "name": "the parser is served from somewhere else",
+    "catches": "serves each module and the parser open, as the file, and nothing else on those routes",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  \"/marked.mjs\": { file: path.join(HERE, \"marked.mjs\"), type: \"text/javascript; charset=utf-8\" },",
+        "to": "  \"/marked.mjs\": { file: path.join(HERE, \"render.mjs\"), type: \"text/javascript; charset=utf-8\" },"
       }
     ]
   }

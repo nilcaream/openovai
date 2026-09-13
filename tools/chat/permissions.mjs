@@ -20,6 +20,8 @@
 import crypto from "node:crypto";
 import path from "node:path";
 
+import { publish } from "./events.mjs";
+
 // name -> id -> { request, answer, parkedAt, told }
 const waiting = new Map();
 
@@ -52,7 +54,15 @@ function rulesOf(name) {
 export function park(name, request, now = Date.now()) {
   return new Promise((answer) => {
     forSession(name).set(request.id, { request, answer, parkedAt: now, told: false });
+    asking(name);
   });
+}
+
+// The page is told that what this seat asks has changed — a question parked, or one taken down
+// — and reads the list itself: what the list shows depends on the seat's turn and the instance,
+// which are the server's to know.
+function asking(name) {
+  publish("asking", { seat: name });
 }
 
 // What this session's panel shows, oldest first, so a page can show them in the order they were
@@ -80,6 +90,7 @@ function shownRule({ id, kind, rule, why, from }) {
 export function parkRule(name, { rule, why, from }, now = Date.now()) {
   const id = crypto.randomUUID();
   rulesOf(name).set(id, { id, kind: "rule", rule, why, from, parkedAt: now, popped: false });
+  asking(name);
   return id;
 }
 
@@ -106,7 +117,11 @@ export function ruleAskedFor(name, id) {
 
 // Take one down: the User has pressed, and what the press does is the caller's.
 export function answerRule(name, id) {
-  return rulesOf(name).delete(id);
+  const taken = rulesOf(name).delete(id);
+  if (taken) {
+    asking(name);
+  }
+  return taken;
 }
 
 // ------------------------------------------------------------------------------- the long wait
@@ -292,6 +307,7 @@ export function answer(name, id, decision) {
   }
   forSession(name).delete(id);
   held.answer(decision);
+  asking(name);
   return true;
 }
 
@@ -299,9 +315,13 @@ export function answer(name, id, decision) {
 // asking about, it is not there to hear the answer any more, and a page still offering to allow
 // something that nobody is waiting for is a page that lies.
 export function giveUp(name) {
+  const asked = forSession(name).size > 0;
   for (const [id, held] of forSession(name)) {
     forSession(name).delete(id);
     held.answer(refuse("the run that asked this is no longer waiting for an answer"));
+  }
+  if (asked) {
+    asking(name);
   }
 }
 

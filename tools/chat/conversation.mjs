@@ -11,6 +11,8 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import { publish } from "./events.mjs";
+
 const FILE = "conversation.json";
 
 function file(root, session) {
@@ -59,5 +61,7 @@ export function append(root, session, message) {
   const target = file(root, session);
   fs.mkdirSync(path.dirname(target), { recursive: true });
   fs.writeFileSync(target, `${JSON.stringify(messages, null, 2)}\n`);
+  // The page is told the row and where it sits, so a panel appends rather than re-reads.
+  publish("row", { seat: session, index: messages.length - 1, row: entry });
   return entry;
 }

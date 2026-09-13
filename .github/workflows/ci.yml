@@ -211,6 +211,32 @@ jobs:
       - name: Tell a Leader and a Worker only what is there
         run: node --test tests/personas.test.mjs
 
+  panels:
+    name: Panels
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+
+      - name: Place the seats in three columns and keep their rows
+        run: node --test tests/panels.test.mjs
+
+  render:
+    name: Render
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+
+      - name: Draw a row as markdown, and nothing a row must not do
+        run: node --test tests/render.test.mjs
+
   release:
     name: Release
     runs-on: ubuntu-latest

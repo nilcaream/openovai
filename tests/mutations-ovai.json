@@ -115,8 +115,8 @@
     "edits": [
       {
         "file": "tools/chat/session.mjs",
-        "from": "export function start(instance, seat, { asked = nobodyToAsk, ended = nothing, turned = nothing, queue = [], gate = () => null, held = nothing } = {}) {",
-        "to": "const CLAUDE_BIN = \"claude\";\n\nexport function start(instance, seat, { asked = nobodyToAsk, ended = nothing, turned = nothing, queue = [], gate = () => null, held = nothing } = {}) {"
+        "from": "export function start(instance, seat, { asked = nobodyToAsk, ended = nothing, turned = nothing, queue = [], gate = () => null, held = nothing, changed = nothing } = {}) {",
+        "to": "const CLAUDE_BIN = \"claude\";\n\nexport function start(instance, seat, { asked = nobodyToAsk, ended = nothing, turned = nothing, queue = [], gate = () => null, held = nothing, changed = nothing } = {}) {"
       },
       {
         "file": "tools/chat/session.mjs",

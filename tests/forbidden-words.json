@@ -1,0 +1,21 @@
+{
+  "about": "Strings the page never carries, case-insensitive, matched at the start of a word: the labels of lifecycle buttons and the words that would say what state a session is in. Checked over page.html, panels.mjs and render.mjs as text.",
+  "words": [
+    "hire",
+    "go offline",
+    "go online",
+    "start fresh",
+    "resume",
+    "restart",
+    "retire",
+    "park",
+    "force end",
+    "not running",
+    "offline",
+    "online",
+    "cold",
+    "preparing",
+    "heavy",
+    "ending"
+  ]
+}

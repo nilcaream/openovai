@@ -13,9 +13,15 @@
 // does not know — never issued, revoked with a dead process, the page's on the MCP path or a
 // session's on a page route — is answered with one uniform 401 and nothing else happens.
 //
-// Only `GET /`, `GET /dialog.mjs` and `GET /health` are open: the page and the module it imports
-// have to be reachable at one plain address that survives a server restart, and `ovai status` has
-// to be able to ask whether anything is running. All are served on the loopback address only.
+// Only `GET /`, the page's own assets (`GET /dialog.mjs` and its siblings, the manifest, the icons)
+// and `GET /health` are open: the page and what it imports have to be reachable at one plain
+// address that survives a server restart, and `ovai status` has to be able to ask whether anything
+// is running. All are served on the loopback address only.
+//
+// The page is told what happens as it happens, on one stream (`GET /events`, events.mjs): a row
+// appended, a question parked or answered, a seat started or gone, a quota reading, the
+// instance stopping. The stream is the one route whose secret rides on the query, because the
+// browser's EventSource carries no header; that URL is never logged.
 
 import fs from "node:fs";
 import http from "node:http";
@@ -23,15 +29,16 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { THE_CHAT, append, read } from "./conversation.mjs";
+import { subscribe } from "./events.mjs";
 import { HOST, record } from "./listening.mjs";
 import { respond } from "./mcp.mjs";
 import { acceptRule, allow, answerRule, askedFor, answer as settle, inside, parkRule, parked, refuse, ruleAskedFor, rulesPending, shapeOf } from "./permissions.mjs";
 import { answerFrom } from "../plugins.mjs";
 import { ask as askTheHelper } from "../helper.mjs";
 import { recall, remember } from "../store.mjs";
-import { DeskError, LEDGER, LISTS, allowAsked, deskFile, deskHeader, hire as openDesk, isModel, isName, modelFor, ruleAsked, writeDeskWhole } from "../desks.mjs";
+import { DeskError, LEDGER, LISTS, allowAsked, deskFile, hire as openDesk, isModel, isName, modelFor, ruleAsked, writeDeskWhole } from "../desks.mjs";
 import { LEADER, WORKER, TURN_PATIENCE, end, interrupt, isSeat, recordOf, running, seats, whileWaitingFor, wouldWaitForItself } from "./session.mjs";
-import { arm, deliver, idleOf, isParking, parkRoom, showRules, startSeat } from "./lifecycle.mjs";
+import { aboutSeat, arm, deliver, isParking, parkRoom, showRules, startSeat } from "./lifecycle.mjs";
 import * as quota from "./quota.mjs";
 import { panelDirectory } from "./conversation.mjs";
 import { messageFrame, neutralise, serverEvent, userFrame } from "./frames.mjs";
@@ -41,9 +48,18 @@ import { version } from "../version.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PAGE = path.join(HERE, "page.html");
-// What a dialog shows, decided in one module the page imports: served open beside the page, since
-// a module import carries no bearer, and it holds nothing but the words of a rendering.
-const DIALOG = path.join(HERE, "dialog.mjs");
+// What the page imports and links, served open beside it, since a module import carries no
+// bearer: the three modules that decide what is drawn (a dialog, the panels, a row), the markdown
+// parser, the manifest and its icons. Each holds nothing but a rendering; none reads the instance.
+const ASSETS = Object.freeze({
+  "/dialog.mjs": { file: path.join(HERE, "dialog.mjs"), type: "text/javascript; charset=utf-8" },
+  "/panels.mjs": { file: path.join(HERE, "panels.mjs"), type: "text/javascript; charset=utf-8" },
+  "/render.mjs": { file: path.join(HERE, "render.mjs"), type: "text/javascript; charset=utf-8" },
+  "/marked.mjs": { file: path.join(HERE, "marked.mjs"), type: "text/javascript; charset=utf-8" },
+  "/manifest.webmanifest": { file: path.join(HERE, "manifest.webmanifest"), type: "application/manifest+json; charset=utf-8" },
+  "/icons/192.png": { file: path.join(HERE, "icons", "192.png"), type: "image/png" },
+  "/icons/512.png": { file: path.join(HERE, "icons", "512.png"), type: "image/png" },
+});
 const SECRET_TAG = '<meta name="openovai-secret" content="">';
 
 const TOOLKIT = "openovai";
@@ -76,13 +92,13 @@ function sendPage(response) {
   response.end(page);
 }
 
-function sendDialog(response) {
-  const module = fs.readFileSync(DIALOG);
+function sendAsset(response, { file, type }) {
+  const bytes = fs.readFileSync(file);
   response.writeHead(200, {
-    "content-type": "text/javascript; charset=utf-8",
-    "content-length": module.length,
+    "content-type": type,
+    "content-length": bytes.length,
   });
-  response.end(module);
+  response.end(bytes);
 }
 
 function readBody(request) {
@@ -112,16 +128,20 @@ function bearer(header) {
   return found === null ? null : found[1];
 }
 
+const EVENTS_ROUTE = "/events";
+
 // Who is calling: a session, from the secret in the MCP path; the page, from the secret in its
-// Authorization header; or nobody. The two kinds never cross: the page's secret is not in the
-// session map, so it resolves to nothing on the MCP path, and a session's secret is never the
+// Authorization header — or, on the event stream alone, on its query, since the browser's
+// EventSource sends no header; or nobody. The two kinds never cross: the page's secret is not in
+// the session map, so it resolves to nothing on the MCP path, and a session's secret is never the
 // page's, so it is nothing as a bearer.
 function whoIs(request, url) {
   const calling = TOOL_ROUTE.exec(url.pathname);
   if (calling !== null) {
     return resolve(calling[1]);
   }
-  return isPageSecret(bearer(request.headers.authorization)) ? { page: true } : null;
+  const carried = url.pathname === EVENTS_ROUTE ? url.searchParams.get("page") : bearer(request.headers.authorization);
+  return isPageSecret(carried) ? { page: true } : null;
 }
 
 // ------------------------------------------------------------------------------- starting a seat
@@ -147,6 +167,8 @@ function showTheReply(root, seat, answered) {
       text: reply.text,
       ...(reply.failed ? { failed: true } : {}),
       ...(reply.silent ? { silent: true } : {}),
+      // A turn the page stopped is not words the seat said: shown as stopped, not as a reply.
+      ...(reply.interrupted ? { interrupted: true } : {}),
     });
   });
 }
@@ -157,7 +179,7 @@ function showTheReply(root, seat, answered) {
 // A frame held by the quota gate is said so on the panel, once, with when the window resets;
 // the reply lands when it eventually goes.
 function heldLine(held) {
-  return `held until the ${held.window} window resets at ${held.resets}; your message is waiting`;
+  return `limit exhausted (${held.window} window), reset at ${quota.hhmm(held.resets)}, your message is waiting`;
 }
 
 function typed(instance, seat, text) {
@@ -214,22 +236,6 @@ const OFFERED_TO = {
 const LONGEST_TITLE = 120;
 const LONGEST_STATUS = 80;
 const LONGEST_BODY = 64 * 1024;
-
-// The header, idle time and context of a seat, for the room and the page: what the server knows
-// about a desk and its process, beside who it is.
-function aboutSeat(instance, seat) {
-  const header = deskHeader(instance.root, seat.name);
-  const record = recordOf(seat.name);
-  const idle = idleOf(seat.name, (instance.clock ?? Date.now)());
-  return {
-    ...seat,
-    running: running(seat.name),
-    title: header?.title ?? "",
-    status: header?.status ?? "",
-    rules: header?.rules ?? "",
-    ...(record === undefined ? {} : { idle, context: record.context, ending: record.ending }),
-  };
-}
 
 // The completion of a restart or a stop: the desk must have been written since the server asked,
 // or since this turn began; then the process is marked, answered, and ended on the server's clock
@@ -313,7 +319,7 @@ export function toolsFor(instance, caller) {
           // panel then. Nobody waits hours on a tool call.
           append(root, to, { from: THE_CHAT, text: heldLine(told.held) });
           showTheReply(root, to, told.answered);
-          return { refused: `${to} is ${heldLine(told.held)}` };
+          return { refused: `${to}: ${heldLine(told.held)}` };
         }
         const reply = await whileWaitingFor(caller.seat, to, () => told.answered);
         if (reply.ended === true) {
@@ -745,6 +751,85 @@ async function postPermission(instance, seat, request, response) {
   sendJson(response, 200, { answered: id, decision, ...(granted === undefined ? {} : { granted }) });
 }
 
+// ----------------------------------------------------------------------------------- the stream
+
+// What GET /sessions answers, and what the stream sends first.
+function snapshot(instance) {
+  return {
+    user: instance.config.user,
+    leader: instance.config.leader,
+    // Who a row is from when it is from nobody: the page tells such a row apart by this.
+    chat: THE_CHAT,
+    sessions: seats(instance).map((seat) => aboutSeat(instance, seat)),
+    standing: quota.standing(),
+  };
+}
+
+// A seat's rows from an index on: everything when none is given, so a page that has some asks
+// for the rest and a page that has none asks for all.
+function rowsSince(instance, seat, since) {
+  const rows = read(instance.root, seat);
+  const from = Number.parseInt(since ?? "0", 10);
+  return Number.isInteger(from) && from > 0 ? rows.slice(from) : rows;
+}
+
+// What a seat's panel asks the User now: the call stops, and the rule requests once the turn
+// that raised them has ended.
+function pending(instance, seat) {
+  const record = recordOf(seat);
+  return parked(seat, instance.root, { onTurn: record !== undefined && record.turn !== null });
+}
+
+// The counts a page connects with: `since=<seat>:<count>`, one per panel it has rows on.
+function countsIn(url) {
+  const counts = new Map();
+  for (const entry of url.searchParams.getAll("since")) {
+    const at = entry.lastIndexOf(":");
+    const count = Number.parseInt(entry.slice(at + 1), 10);
+    if (at > 0 && Number.isInteger(count) && count >= 0) {
+      counts.set(entry.slice(0, at), count);
+    }
+  }
+  return counts;
+}
+
+function eventLine({ id, name, data }) {
+  return `id: ${id}\nevent: ${name}\ndata: ${JSON.stringify(data)}\n\n`;
+}
+
+// One page, one stream. First what the page needs to draw — the snapshot, every seat's rows
+// after the count the page came with, what every seat asks — then everything as it happens.
+// The stream is subscribed before the first write, so nothing that happens while the opening is
+// composed is lost; the page connects again with its counts if the stream drops, so nothing is
+// kept for it here.
+function stream(instance, url, response) {
+  response.writeHead(200, {
+    "content-type": "text/event-stream; charset=utf-8",
+    "cache-control": "no-store",
+    connection: "keep-alive",
+  });
+  let sent = 0;
+  const write = (event) => {
+    sent += 1;
+    response.write(eventLine({ id: sent, ...event }));
+  };
+  const unsubscribe = subscribe((event) => {
+    write(event.name === "asking" ? { name: "asking", data: { seat: event.data.seat, pending: pending(instance, event.data.seat) } } : event);
+  });
+  response.once("close", unsubscribe);
+
+  const counts = countsIn(url);
+  const opening = snapshot(instance);
+  write({ name: "snapshot", data: opening });
+  for (const { name } of opening.sessions) {
+    const since = counts.get(name) ?? 0;
+    write({ name: "rows", data: { seat: name, since, rows: rowsSince(instance, name, String(since)) } });
+  }
+  for (const { name } of opening.sessions) {
+    write({ name: "asking", data: { seat: name, pending: pending(instance, name) } });
+  }
+}
+
 // ------------------------------------------------------------------------------------- routing
 
 // The request log names the route and never a secret: the segment after /mcp/ is printed as
@@ -761,8 +846,8 @@ async function handle(instance, port, request, response) {
     return;
   }
 
-  if (request.method === "GET" && url.pathname === "/dialog.mjs") {
-    sendDialog(response);
+  if (request.method === "GET" && Object.hasOwn(ASSETS, url.pathname)) {
+    sendAsset(response, ASSETS[url.pathname]);
     return;
   }
 
@@ -795,12 +880,12 @@ async function handle(instance, port, request, response) {
   }
 
   if (request.method === "GET" && url.pathname === "/sessions") {
-    sendJson(response, 200, {
-      user: instance.config.user,
-      leader: instance.config.leader,
-      sessions: seats(instance).map((seat) => aboutSeat(instance, seat)),
-      standing: quota.standing(),
-    });
+    sendJson(response, 200, snapshot(instance));
+    return;
+  }
+
+  if (request.method === "GET" && url.pathname === EVENTS_ROUTE) {
+    stream(instance, url, response);
     return;
   }
 
@@ -813,7 +898,7 @@ async function handle(instance, port, request, response) {
       return;
     }
     if (request.method === "GET" && what === "messages") {
-      sendJson(response, 200, { messages: read(instance.root, seat) });
+      sendJson(response, 200, { messages: rowsSince(instance, seat, url.searchParams.get("since")) });
       return;
     }
     if (request.method === "POST" && what === "message") {
@@ -821,8 +906,7 @@ async function handle(instance, port, request, response) {
       return;
     }
     if (request.method === "GET" && what === "permissions") {
-      const record = recordOf(seat);
-      sendJson(response, 200, { permissions: parked(seat, instance.root, { onTurn: record !== undefined && record.turn !== null }) });
+      sendJson(response, 200, { permissions: pending(instance, seat) });
       return;
     }
     if (request.method === "POST" && what === "permission") {

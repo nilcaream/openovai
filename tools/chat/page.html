@@ -1,30 +1,108 @@
 <!doctype html>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#1e293b">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icons/192.png">
 <!-- The page's own secret, filled in by the server on every load. Every request this page makes
      carries it, and the server answers nothing else. A bookmark or an installed app reopens this
-     one plain address and gets the current secret again, so a server restart costs a reload and
+     one plain address and gets the current secret again, so a new server costs a reload and
      nothing more. -->
 <meta name="openovai-secret" content="">
 <title>OpenOv AI</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --ink: #1e293b;
+    --muted: #64748b;
+    --paper: #f8fafc;
+    --panel: #ffffff;
+    --line: #cbd5e1;
+    --mark: #b45309;
+    --bad: #b91c1c;
+    --link: #1d4ed8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ink: #e2e8f0;
+      --muted: #94a3b8;
+      --paper: #0f172a;
+      --panel: #1e293b;
+      --line: #334155;
+      --mark: #fbbf24;
+      --bad: #f87171;
+      --link: #93c5fd;
+    }
+  }
+  html, body { height: 100%; margin: 0; }
+  body {
+    display: flex; flex-direction: column;
+    font: 14px/1.4 system-ui, sans-serif; color: var(--ink); background: var(--paper);
+  }
+  a { color: var(--link); }
+  #status { margin: 0; padding: 4px 8px; font-size: 12px; color: var(--muted); border-bottom: 1px solid var(--line); }
+  #stage {
+    flex: 1 1 auto; min-height: 0;
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1092px) minmax(0, 1fr);
+  }
+  .col { min-height: 0; display: flex; flex-direction: column; gap: 4px; padding: 4px; overflow-y: auto; }
+  .col:empty { padding: 0; }
+  @media (max-width: 900px) {
+    #stage { grid-template-columns: minmax(0, 1fr); }
+    #mid { order: 0; }
+    #left { order: 1; }
+    #right { order: 2; }
+  }
+  .panel {
+    display: flex; flex-direction: column; min-height: 12em; max-height: 100%;
+    border: 1px solid var(--line); border-radius: 6px; background: var(--panel);
+    transition: opacity .4s;
+  }
+  #mid .panel { flex: 1 1 auto; }
+  .panel.dimmed { opacity: .45; }
+  .head { display: flex; align-items: baseline; gap: 8px; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  .head .name { flex: 1 1 auto; font-weight: 600; }
+  .panel.asking .head .name { color: var(--mark); }
+  .head button { font: inherit; font-size: 12px; }
+  .rows { flex: 1 1 auto; min-height: 6em; overflow-y: auto; padding: 4px 8px; }
+  .row { margin: 4px 0; }
+  .row .who { color: var(--muted); font-size: 12px; }
+  .row.user .text, .row.chat .text, .row.failed .text, .row.silent .text, .row.interrupted .text { white-space: pre-wrap; }
+  .row.chat, .row.silent, .row.interrupted { color: var(--muted); }
+  .row.failed .text { color: var(--bad); }
+  .md > :first-child { margin-top: 0; }
+  .md > :last-child { margin-bottom: 0; }
+  .md pre { overflow-x: auto; padding: 6px; background: var(--paper); border-radius: 4px; }
+  .asking:not(:empty) { padding: 4px 8px; border-top: 1px solid var(--line); }
+  .asking p { margin: 4px 0; }
+  .asking code, .asking q { display: block; margin: 2px 0; }
+  .asking input { font: inherit; }
+  .asking button { font: inherit; margin-right: 4px; }
+  .composer { padding: 6px 8px; border-top: 1px solid var(--line); }
+  .composer textarea { width: 100%; box-sizing: border-box; resize: vertical; font: inherit; }
+</style>
 
-<h1 id="who"></h1>
-
-<h2>The room</h2>
-<div id="room"></div>
-
-<div id="panels"></div>
+<p id="status"></p>
+<div id="stage">
+  <div class="col" id="left"></div>
+  <div class="col" id="mid"></div>
+  <div class="col" id="right"></div>
+</div>
 
 <script type="module">
-  // Deliberately plain. The point of this page is that every session in the instance can be
-  // typed to and read back in one place; how it looks is a later question.
+  // Everything in this instance in one place: the Leader in the middle, the Workers beside it,
+  // each panel a process. What to show is decided in panels.mjs and render.mjs; this script
+  // draws it and carries what is typed and pressed to the server.
 
   import { dialogOf } from "./dialog.mjs";
+  import { applyEvent, composersEnabled, fresh, head, keyAction, place, prune, statusLine, stopEnabled, title } from "./panels.mjs";
+  import { row as rowOf } from "./render.mjs";
 
   const secret = document.querySelector('meta[name="openovai-secret"]').content;
 
   // Every call to the server, with the page's secret on it. The server refuses a call without it
-  // with 401, and a page that got one has been outlived by a server restart: reload and it has
-  // the new secret.
+  // with 401, and a page that got one has been outlived by its server: reload and it has the
+  // new secret. A 503 is the instance stopping: nothing is typed into it from here on.
   async function call(path, options = {}) {
     const answered = await fetch(path, {
       ...options,
@@ -34,206 +112,286 @@
       location.reload();
       throw new Error("the server no longer knows this page");
     }
+    if (answered.status === 503) {
+      applyEvent(state, { name: "stopping", data: {} });
+      draw();
+    }
     return answered;
   }
 
-  const atLoad = await call("/sessions").then((response) => response.json());
-  const { user, leader, sessions } = atLoad;
+  const state = fresh();
+  const health = await call("/health").then((response) => response.json());
+  const status = document.getElementById("status");
+  const columns = { left: document.getElementById("left"), mid: document.getElementById("mid"), right: document.getElementById("right") };
 
-  document.getElementById("who").textContent = `${leader}`;
+  // ------------------------------------------------------------------------------- one panel
 
-  // What to call somebody on this page. The server writes the User's rows as `user`, so every
-  // place a name is shown reads it back through here.
-  function nameOf(from) {
-    return from === "user" ? user : from;
-  }
+  const sections = new Map();
 
-  // One line of a transcript. A line the User typed onto another panel says which one, so the
-  // Leader's transcript reads as what the Leader was told.
-  function said(message) {
-    const line = document.createElement("p");
-    const who = nameOf(message.from);
-    const to = typeof message.typedTo === "string" ? ` to ${message.typedTo}` : "";
-    const text = message.silent ? "(ended its turn without saying anything)" : message.text;
-    line.textContent = `${who}${to}${message.failed ? " (failed)" : ""}: ${text}`;
-    return line;
-  }
-
-  // The room: one line per seat, off the same rows the panels ask for.
-  const room = document.getElementById("room");
-
-  function showTheRoom({ sessions }) {
-    room.replaceChildren(
-      ...sessions.map((session) => {
-        const line = document.createElement("p");
-        line.textContent = `${session.name} — ${session.role}, ${session.model}, ${session.running ? "running" : "not running"}`;
-        return line;
-      }),
-    );
-  }
-
-  // One panel per seat, built once from what the server said at load.
-  const panels = document.getElementById("panels");
-
-  function panel(session) {
+  function build(name) {
     const section = document.createElement("section");
-    const heading = document.createElement("h2");
-    heading.textContent = session.name;
+    section.className = "panel";
 
-    const transcript = document.createElement("div");
-    transcript.style.maxHeight = "24em";
-    transcript.style.overflowY = "auto";
+    const headLine = document.createElement("div");
+    headLine.className = "head";
+    const nameLine = document.createElement("span");
+    nameLine.className = "name";
+    const stop = document.createElement("button");
+    stop.type = "button";
+    stop.textContent = "STOP";
+    stop.addEventListener("click", () => {
+      stop.disabled = true;
+      call(`/sessions/${encodeURIComponent(name)}/stop`, { method: "POST" }).catch(() => {});
+    });
+    headLine.append(nameLine, stop);
 
+    const rows = document.createElement("div");
+    rows.className = "rows";
     const asking = document.createElement("div");
+    asking.className = "asking";
 
     const composer = document.createElement("form");
+    composer.className = "composer";
     const box = document.createElement("textarea");
     box.rows = 3;
-    box.cols = 80;
-    const send = document.createElement("button");
-    send.type = "submit";
-    send.textContent = "Send";
-    composer.append(box, send);
-
-    section.append(heading, transcript, asking, composer);
-
-    // How many rows this panel has put on the screen. The transcript is append-only, so the
-    // count is all a panel needs to tell a redraw worth doing from one that is not.
-    let shown = -1;
-
-    async function show() {
-      const answered = await call(`/sessions/${session.name}/messages`);
-      const { messages } = await answered.json();
-      if (messages.length === shown) {
-        return;
+    box.addEventListener("keydown", (event) => {
+      if (keyAction(event) === "send") {
+        event.preventDefault();
+        composer.requestSubmit();
       }
-      // At the newest line if that is where the reader already was, or on the first draw; otherwise
-      // exactly where they left it.
-      const atTheNewest = shown === -1 || transcript.scrollHeight - transcript.scrollTop - transcript.clientHeight < 1;
-      transcript.replaceChildren(...messages.map(said));
-      shown = messages.length;
-      if (atTheNewest) {
-        transcript.scrollTop = transcript.scrollHeight;
-      }
-    }
-
-    // A question on this panel: a call the session is stopped on, or a rule the Leader asks the
-    // User to settle. What it shows is decided by dialogOf() — the words of the request and
-    // nothing else — and drawn here with textContent, one line per field the request carried,
-    // one button per decision that kind of question takes. A deny on a call stop needs a word
-    // from the person, since the run is told why; a rule dialog carries the Leader's why already.
-    function question(request) {
-      const dialog = dialogOf(request, session.name);
-      const line = document.createElement("p");
-      const heading = document.createElement("span");
-      heading.textContent = dialog.heading;
-      line.append(heading);
-      for (const { kind, text } of dialog.lines) {
-        const shown = document.createElement(kind === "reason" || kind === "why" ? "q" : "code");
-        shown.className = kind;
-        shown.textContent = text;
-        line.append(" ", shown);
-      }
-
-      const reason = dialog.kind === "call" ? document.createElement("input") : null;
-      if (reason !== null) {
-        reason.placeholder = "why not (needed to deny)";
-        line.append(" ", reason);
-      }
-
-      const buttons = dialog.buttons.map(({ decision, label }) => {
-        const button = document.createElement("button");
-        button.type = "button";
-        button.textContent = label;
-        button.dataset.decision = decision;
-        return button;
-      });
-
-      async function answer(body) {
-        for (const button of buttons) {
-          button.disabled = true;
-        }
-        await call(`/sessions/${session.name}/permission`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(body),
-        });
-        await waiting();
-      }
-
-      for (const button of buttons) {
-        const decision = button.dataset.decision;
-        button.addEventListener("click", () => {
-          if (decision === "deny" && reason !== null) {
-            if (reason.value.trim() === "") {
-              reason.focus();
-              return;
-            }
-            answer({ id: request.id, decision, why: reason.value.trim() });
-            return;
-          }
-          answer({ id: request.id, decision });
-        });
-        line.append(" ", button);
-      }
-      return line;
-    }
-
-    const drawn = new Map();
-
-    async function waiting() {
-      const answered = await call(`/sessions/${session.name}/permissions`);
-      const { permissions } = await answered.json();
-      for (const [id, line] of drawn) {
-        if (!permissions.some((request) => request.id === id)) {
-          line.remove();
-          drawn.delete(id);
-        }
-      }
-      for (const request of permissions) {
-        if (!drawn.has(request.id)) {
-          const line = question(request);
-          drawn.set(request.id, line);
-          asking.append(line);
-        }
-      }
-    }
-
+    });
+    composer.append(box);
     // What is typed goes to the server as text and nothing else: the server knows it came from
     // this page by the secret on the call, and frames it as the User's own words.
-    composer.addEventListener("submit", async (event) => {
+    composer.addEventListener("submit", (event) => {
       event.preventDefault();
       const text = box.value;
       if (text.trim() === "") {
         return;
       }
       box.value = "";
-      await call(`/sessions/${session.name}/message`, {
+      call(`/sessions/${encodeURIComponent(name)}/message`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ text }),
-      });
-      await show();
+      }).catch(() => {});
     });
 
-    panels.append(section);
-    return { name: session.name, show, waiting };
+    section.append(headLine, rows, asking, composer);
+    return { name, section, nameLine, stop, rows, asking, box, shown: 0, drawn: new Map(), loading: false };
   }
 
-  const built = sessions.map(panel);
-  showTheRoom(atLoad);
-  await Promise.all(built.map(({ show }) => show()));
-
-  const EVERY = 1000;
-
-  setInterval(() => {
-    for (const { waiting, show } of built) {
-      waiting().catch(() => {});
-      show().catch(() => {});
+  function rowElement(entry) {
+    const shown = rowOf(entry, { chat: state.chat });
+    const line = document.createElement("div");
+    line.className = `row ${shown.kind}`;
+    const who = document.createElement("div");
+    who.className = "who";
+    who.textContent = shown.who;
+    const body = document.createElement("div");
+    if (shown.html !== undefined) {
+      body.className = "md";
+      body.innerHTML = shown.html;
+    } else {
+      body.className = "text";
+      body.textContent = shown.text;
     }
-    call("/sessions")
+    line.append(who, body);
+    return line;
+  }
+
+  // A question on this panel: a call the session is stopped on, or a rule the Leader asks the
+  // User to settle. What it shows is decided by dialogOf() — the words of the request and
+  // nothing else — and drawn here with textContent, one line per field the request carried,
+  // one button per decision that kind of question takes. A deny on a call stop needs a word
+  // from the person, since the run is told why; a rule dialog carries the Leader's why already.
+  function question(name, request) {
+    const dialog = dialogOf(request, name);
+    const line = document.createElement("p");
+    const heading = document.createElement("span");
+    heading.textContent = dialog.heading;
+    line.append(heading);
+    for (const { kind, text } of dialog.lines) {
+      const shown = document.createElement(kind === "reason" || kind === "why" ? "q" : "code");
+      shown.className = kind;
+      shown.textContent = text;
+      line.append(" ", shown);
+    }
+
+    const reason = dialog.kind === "call" ? document.createElement("input") : null;
+    if (reason !== null) {
+      reason.placeholder = "why not (needed to deny)";
+      line.append(" ", reason);
+    }
+
+    const buttons = dialog.buttons.map(({ decision, label }) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = label;
+      button.dataset.decision = decision;
+      return button;
+    });
+
+    function answer(body) {
+      for (const button of buttons) {
+        button.disabled = true;
+      }
+      call(`/sessions/${encodeURIComponent(name)}/permission`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      }).catch(() => {});
+    }
+
+    for (const button of buttons) {
+      const decision = button.dataset.decision;
+      button.addEventListener("click", () => {
+        if (decision === "deny" && reason !== null) {
+          if (reason.value.trim() === "") {
+            reason.focus();
+            return;
+          }
+          answer({ id: request.id, decision, why: reason.value.trim() });
+          return;
+        }
+        answer({ id: request.id, decision });
+      });
+      line.append(" ", button);
+    }
+    return line;
+  }
+
+  // A panel made from a later event has no rows yet: they are asked for once, and arrive as
+  // the rows of a stream do.
+  function load(panel) {
+    if (panel.loading) {
+      return;
+    }
+    panel.loading = true;
+    call(`/sessions/${encodeURIComponent(panel.name)}/messages`)
       .then((response) => response.json())
-      .then(showTheRoom)
-      .catch(() => {});
-  }, EVERY);
+      .then(({ messages }) => {
+        applyEvent(state, { name: "rows", data: { seat: panel.name, since: 0, rows: messages } });
+        panel.loading = false;
+        draw();
+      })
+      .catch(() => {
+        panel.loading = false;
+      });
+  }
+
+  function drawPanel(panel) {
+    const about = state.panels[panel.name];
+    panel.nameLine.textContent = head(state, panel.name);
+    panel.section.title = about.title;
+    panel.section.classList.toggle("dimmed", about.dimmed);
+    panel.section.classList.toggle("asking", about.asking.length > 0);
+    panel.stop.disabled = !stopEnabled(state, panel.name);
+    panel.box.disabled = !composersEnabled(state, panel.name);
+
+    if (about.rows === null) {
+      load(panel);
+    } else {
+      // At the newest line if that is where the reader already was, or on the first draw;
+      // otherwise exactly where they left it.
+      const atTheNewest = panel.shown === 0 || panel.rows.scrollHeight - panel.rows.scrollTop - panel.rows.clientHeight < 1;
+      if (about.rows.length < panel.shown) {
+        panel.rows.replaceChildren();
+        panel.shown = 0;
+      }
+      if (about.rows.length > panel.shown) {
+        panel.rows.append(...about.rows.slice(panel.shown).map(rowElement));
+        panel.shown = about.rows.length;
+        if (atTheNewest) {
+          panel.rows.scrollTop = panel.rows.scrollHeight;
+        }
+      }
+    }
+
+    for (const [id, line] of panel.drawn) {
+      if (!about.asking.some((request) => request.id === id)) {
+        line.remove();
+        panel.drawn.delete(id);
+      }
+    }
+    for (const request of about.asking) {
+      if (!panel.drawn.has(request.id)) {
+        const line = question(panel.name, request);
+        panel.drawn.set(request.id, line);
+        panel.asking.append(line);
+      }
+    }
+  }
+
+  // ------------------------------------------------------------------------------- the page
+
+  function draw() {
+    for (const name of Object.keys(state.panels)) {
+      if (!sections.has(name)) {
+        sections.set(name, build(name));
+      }
+    }
+    for (const [name, panel] of sections) {
+      if (state.panels[name] === undefined) {
+        panel.section.remove();
+        sections.delete(name);
+      }
+    }
+    const placed = place([...sections.keys()], state.leader, state.order);
+    for (const [side, names] of [["left", placed.left], ["mid", [placed.mid]], ["right", placed.right]]) {
+      const wanted = names.filter((name) => sections.has(name)).map((name) => sections.get(name).section);
+      if (wanted.some((section, at) => columns[side].children[at] !== section) || columns[side].children.length !== wanted.length) {
+        columns[side].replaceChildren(...wanted);
+      }
+    }
+    for (const panel of sections.values()) {
+      drawPanel(panel);
+    }
+    status.textContent = statusLine(health, state, state.connection);
+    document.title = title(state);
+  }
+
+  // One stream from the server: what to draw first, then everything as it happens. The page
+  // connects again itself when the stream drops, with the counts it has, so nothing arrives
+  // twice and nothing is missed; the secret rides on the address, since the stream carries no
+  // header.
+  const EVENTS = ["snapshot", "rows", "row", "asking", "seat", "standing", "stopping"];
+  let stream = null;
+
+  function connect() {
+    const since = Object.values(state.panels)
+      .filter((panel) => panel.rows !== null)
+      .map((panel) => `&since=${encodeURIComponent(`${panel.name}:${panel.rows.length}`)}`)
+      .join("");
+    stream = new EventSource(`/events?page=${encodeURIComponent(secret)}${since}`);
+    for (const name of EVENTS) {
+      stream.addEventListener(name, (event) => {
+        applyEvent(state, { name, data: JSON.parse(event.data) });
+        draw();
+      });
+    }
+    stream.addEventListener("open", () => {
+      if (state.connection !== "stopping") {
+        state.connection = "connected";
+        draw();
+      }
+    });
+    stream.addEventListener("error", () => {
+      stream.close();
+      if (state.connection !== "stopping") {
+        state.connection = "reconnecting…";
+        draw();
+      }
+      // A stream that will not open is asked about once: a 401 means a new server and a new
+      // secret (reload, in call), a 503 the instance stopping; anything else, try again.
+      setTimeout(() => call("/sessions").then((answered) => (answered.status === 503 ? undefined : connect()), connect), 1000);
+    });
+  }
+
+  connect();
+  setInterval(() => {
+    if (prune(state, Date.now()).length > 0) {
+      draw();
+    }
+  }, 1000);
 </script>

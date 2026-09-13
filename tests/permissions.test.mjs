@@ -13,6 +13,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
+import { subscribe } from "../tools/chat/events.mjs";
 import { acceptRule, shapeOf } from "../tools/chat/permissions.mjs";
 import { QUIET_HOURS, quietHoursProblem, withinQuietHours } from "../tools/chat/pop.mjs";
 import { pageSecret } from "../tools/chat/secrets.mjs";
@@ -710,6 +711,11 @@ describe("asking to be allowed", () => {
     let popsDuring;
     let after_;
     let reply;
+    // The page is told when what the Leader's panel asks has changed: once at the park, and again
+    // when the turn ends and the dialog is listed.
+    const told = [];
+    let toldDuring;
+    let unsubscribe;
 
     async function permission(args) {
       const answered = await post(`${url}/mcp/${leader.secret}`, { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "permission", arguments: args } });
@@ -720,11 +726,17 @@ describe("asking to be allowed", () => {
       leader = await leaderAsking({ OPENOVAI_STAND_IN_SLOW: "1500" });
       leader.secret = secretsIn(leader.log)[0];
       pops.length = 0;
+      unsubscribe = subscribe((event) => {
+        if (event.name === "asking" && event.data.seat === LEADER) {
+          told.push(event);
+        }
+      });
       reply = await say("take your time");
       await waitFor(() => (heardIn(leader.log).length > 0 ? true : null));
       assert.match(await permission({ rule: "Bash(cargo:*)", why: "the build is cargo" }), /^asked on your panel/);
       during = JSON.parse((await page("GET", `/sessions/${LEADER}/permissions`)).body).permissions;
       popsDuring = pops.length;
+      toldDuring = told.length;
       await reply();
       after_ = await waitFor(async () => {
         const { permissions } = JSON.parse((await page("GET", `/sessions/${LEADER}/permissions`)).body);
@@ -733,8 +745,14 @@ describe("asking to be allowed", () => {
     });
 
     after(async () => {
+      unsubscribe();
       await page("POST", `/sessions/${LEADER}/permission`, { id: after_[0].id, decision: "deny" });
       await endSeat(LEADER, 500);
+    });
+
+    it("tells the page again once the turn has ended, so the dialog is drawn then", () => {
+      assert.equal(toldDuring, 1);
+      assert.equal(told.length, 2, JSON.stringify(told));
     });
 
     it("lists a rule request only after the turn that raised it ended", () => {

@@ -9,7 +9,7 @@ import path from "node:path";
 import { panelDirectory } from "./chat/conversation.mjs";
 import { listening } from "./chat/listening.mjs";
 import { QUIET_HOURS, describePop, popIn, quietHoursProblem } from "./chat/pop.mjs";
-import { parkRoom, settingsIn } from "./chat/lifecycle.mjs";
+import { parkRoom, settingsIn, stopping } from "./chat/lifecycle.mjs";
 import { serve } from "./chat/server.mjs";
 import { endEvery, runningSeats } from "./chat/session.mjs";
 import { hasCredential, home, login, machineToken } from "./claude.mjs";
@@ -493,7 +493,7 @@ async function chat(root) {
   // closed; (4) whoever is left is ended; (5) exit. A server closed first would refuse the very
   // write_desk and stop_session calls the park waits for.
   const stop = async () => {
-    instance.stopping = true;
+    stopping(instance);
     const going = runningSeats().length;
     if (going > 0) {
       console.log(`Parking ${going} ${going === 1 ? "session" : "sessions"}.`);

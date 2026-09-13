@@ -234,8 +234,10 @@ export function recordOf(seat) {
 // predecessor left, drained into this process from its first moment. `gate` is asked before every
 // write, with the frame about to go in: null lets it through, anything else says why not (a
 // window and when it resets); what it holds leaves the queue through `held`, each turn beside
-// the answer that held it, for whoever gates to keep and bring back.
-export function start(instance, seat, { asked = nobodyToAsk, ended = nothing, turned = nothing, queue = [], gate = () => null, held = nothing } = {}) {
+// the answer that held it, for whoever gates to keep and bring back. `changed` is called whenever
+// what the server knows about the process changes while it lives — a turn taken, a turn over —
+// for whoever shows the process to the page.
+export function start(instance, seat, { asked = nobodyToAsk, ended = nothing, turned = nothing, queue = [], gate = () => null, held = nothing, changed = nothing } = {}) {
   if (!isSeat(instance, seat)) {
     throw new Error(`nobody called ${seat} works here`);
   }
@@ -296,6 +298,7 @@ export function start(instance, seat, { asked = nobodyToAsk, ended = nothing, tu
     startedAt: now,
     gate,
     held,
+    changed,
     // Frames to go in front of the next turn, never as a turn of their own (the hard-rule delta).
     prefix: [],
     // The rule-set version this process was told, at spawn and after every delta delivered.
@@ -340,6 +343,7 @@ export function start(instance, seat, { asked = nobodyToAsk, ended = nothing, tu
         if (context !== null) {
           record.context = context;
         }
+        changed(record);
         if (record.interrupting !== null) {
           // The turn was interrupted from here; this is its ending, not an answer.
           turn.resolve({ interrupted: true, text: "interrupted" });
@@ -438,6 +442,7 @@ function drain(record) {
     record.rules = prefix.at(-1).version;
     writeDeskHeader(record.root, record.seat, { rules: record.rules });
   }
+  record.changed(record);
 }
 
 // Put a frame in front of a seat's next turn, never as a turn of its own. It is written with the
@@ -480,6 +485,7 @@ export async function interrupt(seat, { patience = INTERRUPT_PATIENCE, thenDrain
   if (record.turn === turn) {
     record.turn = null;
     turn.resolve({ interrupted: true, text: "interrupted" });
+    record.changed(record);
   }
   record.idleSince = record.clock();
   if (thenDrain) {

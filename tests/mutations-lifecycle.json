@@ -308,7 +308,7 @@
   },
   {
     "name": "a restart successor spawns through a closed gate",
-    "catches": "a restart while the window is closed waits for the reset: the successor starts then, the carried turns with it",
+    "catches": "a restart while the window is closed is a stop: no successor is queued, the carried turns are answered so, and the Leader hears of it after the reset",
     "edits": [
       {
         "file": "tools/chat/lifecycle.mjs",
@@ -318,13 +318,13 @@
     ]
   },
   {
-    "name": "a held successor is never started",
-    "catches": "a restart while the window is closed waits for the reset: the successor starts then, the carried turns with it",
+    "name": "a successor is started through the closed gate",
+    "catches": "a restart while the window is closed is a stop: no successor is queued, the carried turns are answered so, and the Leader hears of it after the reset",
     "edits": [
       {
         "file": "tools/chat/lifecycle.mjs",
-        "from": "    if (quota.mayStart(modelFor(instance.root, seat, instance.config)) === null) {\n      const carried = successors.get(seat);",
-        "to": "    if (false) {\n      const carried = successors.get(seat);"
+        "from": "    if (holding === null) {\n      startSuccessor(instance, seat, carried);\n      return;\n    }",
+        "to": "    startSuccessor(instance, seat, carried);\n    if (holding === null) {\n      return;\n    }"
       }
     ]
   },
@@ -636,8 +636,8 @@
     "edits": [
       {
         "file": "tools/ovai.mjs",
-        "from": "    instance.stopping = true;\n    const going = runningSeats().length;",
-        "to": "    instance.stopping = true;\n    server.close();\n    const going = runningSeats().length;"
+        "from": "    stopping(instance);\n    const going = runningSeats().length;",
+        "to": "    stopping(instance);\n    server.close();\n    const going = runningSeats().length;"
       },
       {
         "file": "tools/ovai.mjs",
@@ -753,6 +753,39 @@
         "file": "tools/chat/permissions.mjs",
         "from": "      if (!entry.told && now - entry.parkedAt >= minutes * 60_000) {",
         "to": "      if (!entry.told) {"
+      }
+    ]
+  },
+  {
+    "name": "the Leader is not told of a stop the window forced",
+    "catches": "a restart while the window is closed is a stop: no successor is queued, the carried turns are answered so, and the Leader hears of it after the reset",
+    "edits": [
+      {
+        "file": "tools/chat/lifecycle.mjs",
+        "from": "    if (role === WORKER) {\n      deliver(instance, leaderOf(instance), serverEvent(\"stopped\", { who: seat, why: \"quota\" }));\n    }\n    return;",
+        "to": "    return;"
+      }
+    ]
+  },
+  {
+    "name": "a held message is not said to be waiting",
+    "catches": "passes a page message at stage one, holds it at stage two, and writes it once the window has reset",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  return `limit exhausted (${held.window} window), reset at ${quota.hhmm(held.resets)}, your message is waiting`;",
+        "to": "  return `limit exhausted (${held.window} window), reset at ${quota.hhmm(held.resets)}`;"
+      }
+    ]
+  },
+  {
+    "name": "the reset is said as the wire says it",
+    "catches": "passes a page message at stage one, holds it at stage two, and writes it once the window has reset",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  return `limit exhausted (${held.window} window), reset at ${quota.hhmm(held.resets)}, your message is waiting`;",
+        "to": "  return `limit exhausted (${held.window} window), reset at ${held.resets}, your message is waiting`;"
       }
     ]
   }
