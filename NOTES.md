@@ -4,6 +4,80 @@ For the Leader of a workspace taking this version. Short, and about what is diff
 working there — not a developer changelog. A section per release, newest first; a release page
 carries only its own.
 
+## 0.9.0
+
+The server frames every turn, owns every seat's lifecycle and gates every turn on the account's
+windows; the page draws it all from one stream, in three columns. A workspace taking this version
+starts every session afresh: the personas, the tools and the page are new, and nothing a session
+did on the previous version carries over except the desks.
+
+**What the workspace knows is one store, reached through two tools.** `recall` and `remember`
+replace the memory file each session grew for itself. `memory` is about us — hard rules, facts,
+traps — and `knowledge` is about the project; each record is a markdown file under `store/`,
+numbered, never rewritten: a later record replaces an earlier one and says so, with who wrote it and
+when. Hard rules are rendered into every persona byte for byte, the User's first, numbered, with a
+set version; a running session is told the change in front of its next turn. A Worker cannot write
+one and is told to propose it; a write over the cap, a duplicate or a team write over the User's
+record is refused in words. Where the store needs understanding rather than a grep — which records
+answer a query, whether a new one replaces an old one, when "for today" ends — it asks a helper:
+one Claude Code run in print mode and safe mode, with no tools, from an empty directory outside the
+instance, on the smaller model. Claude Code's own memory is off for every session, and `ovai
+status` names the store.
+
+**Only the server writes to a session, and a process is who it says it is.** Every turn is one line
+on a seat's stdin carrying a frame the server sets: `<user>` for what you typed, `<message
+from="Name">` for what another session said, `<server-event type="…">` for the server. The body is
+neutralised before it is framed, so nothing inside a message can pose as a frame. What you type on
+a Worker's panel is that Worker's own turn, and the Leader is woken the same moment with what was
+typed. When a seat starts, the server mints a secret for that process, hands it over in the
+environment and keys the tool route by it; the map lives in memory only and dies with the process,
+so nothing about identity is read from a name a session could claim. The actors are the User, the
+Leader and the Workers, in the config, the flags, the templates and the page alike: the option is
+`--user`, the key is `user`. Nothing rewrites a 0.8.0 workspace's `openovai.json`: it
+carries the User's name under the old key, `ovai status` prints `user undefined` until the
+instance is installed again with `./install.sh --root <instance> --source <release> --user <name>
+--force`, and the old key stays.
+
+**Every seat has a lifecycle the server runs, and one gate on the account.** Three tools for every
+seat — `write_desk`, `restart_session`, `stop_session` — and two for the Leader, `hire` and
+`park`. A restart is a new process on the same desk with the queue carried; a stop keeps the desk
+and the panel; both refuse until the desk was written since the event that asked. The server owns
+the desk header and writes it. What the server has to say is a fixed set of events: context-full,
+quota-low, idle, park, hard-rules, stopped, and each asks one thing of the seat. The quota gate
+reads the windows Claude Code reports — 5h and 7d, two thresholds each, 90/95 and 95/97 by default
+— and fires a stage once per crossing: the first holds hires and tells every seat, the second holds
+every write and interrupts the Workers, the Leader told once. A frame that would not pass waits in
+the server's queue and is released at the reset, the Leader's first. `park` waits for the Workers'
+stops or the deadline; `ovai stop` parks the whole room, the Leader included, then exits. A
+per-model 7d window is wired and gates nothing until an instance names it: the frame this server
+reads has never carried one.
+
+**The personas say what the server serves, and a stop is shown in the session's own words.** Both
+templates are written around the tools by name, the frames by type and what each event asks; the
+first-turn audit, the `allowed` skill and every mention of a file under `.claude/` are gone, and
+an update removes that skill from an instance an earlier version installed. A call stop shows the
+command and the reason the session gave for it, or the path it was going to write, with Allow,
+Deny and — where a rule can be composed — Always allow with the rule on the button. The Leader
+has a tenth tool, `permission`: a rule the instance should settle, in one of the two shapes the
+server accepts, and why, in words you read beside it. It lands on the Leader's panel with Allow,
+Deny and Ask every time; the press writes the rule to that list, takes it off the other two and
+tells the Leader in an event. A call stop that has waited ten minutes is reported to the Leader
+once. The seed allows the tool server and the reads and denies an edit of any desk file, so a
+stray write on a desk is refused without a prompt; `ovai hire` grants nothing of its own any
+more.
+
+**The page draws from one stream, in three columns, with markdown and STOP.** It opens one
+`EventSource` and draws everything from it: a snapshot, the rows of every seat, then each row, seat
+change, question and quota stage as it happens; the server keeps nothing for a page that is not
+there, and a page that reconnects asks for what it missed. The Leader's panel is in the middle and
+always there; the Workers alternate left and right in the order they appeared, a panel dims when its
+process is gone and is removed thirty seconds later unless the process is back. Replies are rendered
+as markdown, raw HTML escaped, links kept only on `http(s)` and `mailto`, images shown as links.
+STOP interrupts the running turn of that seat and is the only button besides the permission
+buttons: nothing on the page starts or ends a seat. The room list is gone; the panels are the room.
+The status line carries the version, the instance, the port, the Leader, the quota standing and
+whether the page is connected, and the page installs as a web app, with a manifest and two icons.
+
 ## 0.8.0
 
 The chat says what it can see but not settle — a room that has not been read, a desk that has

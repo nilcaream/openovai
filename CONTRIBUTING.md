@@ -20,7 +20,7 @@ text.
 ## Branches
 
 Branch off `main` and name the branch `<type>/<short-slug>`, using the same types as the
-commits below — for example `feat/worker-launcher` or `docs/handover-flow`.
+commits below — for example `feat/quota-gate` or `docs/quick-start`.
 
 ## Commits
 
@@ -36,8 +36,8 @@ This is required.**
 ```
 
 - **type** — one of `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `build`, `ci`.
-- **scope** — optional, the part of the toolkit touched: `hooks`, `launchers`, `personas`,
-  `skills`, `chat`, `docs`.
+- **scope** — optional, the part of the toolkit touched: `install`, `ovai`, `chat`, `store`,
+  `personas`, `docs`.
 - **subject** — imperative mood, lower case, no trailing period, 72 characters or fewer.
   Write `feat(hooks): name a new worker session`, not `Added the naming hook.`
 - **body** — optional. Explain why the change is needed, not what the diff already shows.
@@ -62,29 +62,41 @@ One logical change per commit.
 
 ## Tests
 
-Five suites, all on Node's own test runner:
+One suite per module, all on Node's own test runner, sixteen of them under `tests/`:
 
 ```sh
-node --test tests/install.test.mjs   # install an instance, check what came out
-node --test tests/chat.test.mjs      # serve the chat, talk to it, stop it
-node --test tests/ovai.test.mjs        # what status reports and what login hands over
-node --test tests/update.test.mjs    # take a newer version from a release, and refuse to
-node --test tests/tag.test.mjs       # what a release of this tree would be, and what it refuses to be
+node --test tests/install.test.mjs      # install an instance, check what came out
+node --test tests/ovai.test.mjs         # what status reports and what login hands over
+node --test tests/chat.test.mjs         # serve the chat, talk to it, stop it
+node --test tests/lifecycle.test.mjs    # start, tell, restart, stop and park the seats
+node --test tests/quota.test.mjs        # read the windows, stage them, hold at the gate
+node --test tests/permissions.test.mjs  # ask to be allowed, and answer
+node --test tests/dialog.test.mjs       # show a question in the words it was asked in
+node --test tests/frames.test.mjs       # frame what a session is told
+node --test tests/secrets.test.mjs      # mint, resolve and revoke a secret
+node --test tests/store.test.mjs        # remember and recall
+node --test tests/helper.test.mjs       # ask the helper, and refuse what it answers badly
+node --test tests/personas.test.mjs     # tell a Leader and a Worker only what is there
+node --test tests/panels.test.mjs       # place the seats in three columns and keep their rows
+node --test tests/render.test.mjs       # draw a row as markdown, and nothing a row must not do
+node --test tests/update.test.mjs       # take a newer version from a release, and refuse to
+node --test tests/tag.test.mjs          # what a release of this tree would be, and what it refuses to be
 ```
 
-Run all five with `node --test tests/*.test.mjs`.
+Run them all with `node --test tests/*.test.mjs`. Continuous integration runs each as a job of
+its own, so a red one is named.
 
 The update suite serves a release to itself — a directory for one already unpacked, and a local
 HTTP server answering the shape GitHub answers in, with a real `.tar.gz` — so no check reaches the
 network and no check needs a release to exist.
 
 They need Node.js and nothing else. The install suite skips the checks that start an instance
-when Claude Code is absent, and says it skipped them rather than passing quietly. The other four
+when Claude Code is absent, and says it skipped them rather than passing quietly. The others
 never run Claude Code at all: the stand-in in `tests/helpers.mjs` goes first on the PATH and
-answers in the shape the real one answers in, so what gets checked is our side — the arguments
-the leader is run with, the thread being resumed, and what the transcript says when Claude Code
-is missing. Anything else that needs Claude Code in a suite uses that same stand-in; it takes
-its behaviour from environment variables rather than being copied.
+speaks the streaming protocol the way a session is run — one process, user frames in, result
+frames out — so what gets checked is our side: the arguments a seat is started with, the frames
+it is written, and what its panel says. It takes its behaviour from environment variables, so one
+stand-in serves every suite.
 
 They install into `.tmp/` inside the clone and clean up after themselves. Continuous
 integration runs them on every push and pull request.
@@ -98,7 +110,7 @@ the baseline, the bounds or the restore wrong in a different place every time, a
 mistakes reads like a finding about the suite.
 
 ```sh
-node tests/mutate.mjs tests/mutations.json --suite tests/chat.test.mjs
+node tests/mutate.mjs tests/mutations-dialog.json --suite tests/dialog.test.mjs
 ```
 
 You write the list. It is JSON, and it lives beside the suite it is about:
@@ -106,10 +118,10 @@ You write the list. It is JSON, and it lives beside the suite it is about:
 ```json
 [
   {
-    "name": "the popup is awaited",
-    "catches": "says nothing on the panel when the desktop is not reached",
+    "name": "the dialog says what the call is for in the server's words",
+    "catches": "carries the reason the session gave, verbatim, or none",
     "edits": [
-      { "file": "tools/chat/pop.mjs", "from": "  pop(instance, note);", "to": "  await pop(instance, note);" }
+      { "file": "tools/chat/dialog.mjs", "from": "  const reason = input[REASON_FIELD];", "to": "  const reason = \"for the task\";" }
     ]
   }
 ]
