@@ -828,3 +828,62 @@ export function serveRelease(tree, tag) {
     });
   });
 }
+
+// ------------------------------------------------------------------------------- the stylesheet
+
+// The page's <style> block, read as rules rather than as text: one entry per rule in source
+// order, `{ selector, media, declarations }`, where `media` is the query the rule sits under or
+// null at the top level and `declarations` maps each property to its value. A regex over the
+// stylesheet text says whether a string is present; this says which rule carries which value,
+// which is what a check on a token table or on a stray colour needs. The page is read by the
+// browser and never here, so the parser covers what the page writes — comments, plain rules and
+// one level of @media — and throws on anything else rather than reading it as something it is not.
+export function styleRules(source) {
+  const opened = source.indexOf("<style>");
+  const closed = source.indexOf("</style>", opened);
+  if (opened === -1 || closed === -1) throw new Error("the page has no <style> block");
+  const css = source.slice(opened + "<style>".length, closed).replace(/\/\*[\s\S]*?\*\//g, "");
+
+  const rules = [];
+  const parse = (text, media) => {
+    let rest = text;
+    for (;;) {
+      const open = rest.indexOf("{");
+      if (open === -1) {
+        if (rest.trim() !== "") throw new Error(`text outside any rule: "${rest.trim().slice(0, 40)}"`);
+        return;
+      }
+      const head = rest.slice(0, open).trim();
+      const close = blockEnd(rest, open);
+      const body = rest.slice(open + 1, close);
+      if (head.startsWith("@")) {
+        if (!head.startsWith("@media") || media !== null) throw new Error(`unsupported block: "${head}"`);
+        parse(body, head.slice("@media".length).trim());
+      } else {
+        if (body.includes("{")) throw new Error(`a nested block under "${head}"`);
+        const declarations = {};
+        for (const piece of body.split(";")) {
+          const line = piece.trim();
+          if (line === "") continue;
+          const colon = line.indexOf(":");
+          if (colon === -1) throw new Error(`not a declaration under "${head}": "${line}"`);
+          declarations[line.slice(0, colon).trim()] = line.slice(colon + 1).trim();
+        }
+        rules.push({ selector: head, media, declarations });
+      }
+      rest = rest.slice(close + 1);
+    }
+  };
+  parse(css, null);
+  return rules;
+}
+
+// The index of the brace that closes the block opened at `open`, counting nested ones.
+function blockEnd(text, open) {
+  let depth = 0;
+  for (let at = open; at < text.length; at += 1) {
+    if (text[at] === "{") depth += 1;
+    else if (text[at] === "}" && (depth -= 1) === 0) return at;
+  }
+  throw new Error("an unclosed block in the stylesheet");
+}
