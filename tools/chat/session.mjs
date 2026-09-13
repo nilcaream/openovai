@@ -21,11 +21,12 @@ import path from "node:path";
 
 import { environment } from "../claude.mjs";
 import { listening } from "./listening.mjs";
-import { desks, modelFor, persona } from "../desks.mjs";
+import { desks, modelFor, persona, readDesk, writeDeskHeader } from "../desks.mjs";
 import { LEADER, WORKER, withHardRules } from "../store.mjs";
 import { ownInstructions } from "../instructions.mjs";
 import { isFrame } from "./frames.mjs";
 import { issue, revoke } from "./secrets.mjs";
+import { saw as sawQuota } from "./quota.mjs";
 
 const PERSONA_FILE = "persona.md";
 
@@ -41,6 +42,18 @@ export { LEADER, WORKER } from "../store.mjs";
 // How long a session may wait on another session's answer over the MCP connection. A turn can
 // be long; Claude Code's own default would give up on a colleague who was merely thinking.
 export const A_WHOLE_TURN = 30 * 60 * 1000;
+
+// How long an interrupted turn is given to say so. Measured 2026-09-12 on claude 2.1.270: the
+// control_response came 5 ms after the interrupt and the turn's `result` (subtype
+// error_during_execution) 13 ms after it, and the run went on answering the next question. The
+// bound is a net over that, not a stopwatch: with or without the result the turn is over when it
+// runs out.
+export const INTERRUPT_PATIENCE = 2000;
+
+// How long a session that asked to restart or stop is given to end its own turn once its stdin
+// is closed, before it is taken down. Long enough for a closing sentence to stream, short enough
+// that nothing else gets done — a guess, not a measurement: no real restart has been timed yet.
+export const TURN_PATIENCE = 10_000;
 
 export function roleOf(instance, seat) {
   return seat === instance.config.leader ? LEADER : WORKER;
@@ -75,14 +88,30 @@ export function personaFile(root, seat) {
 }
 
 // Rendered on every start: a process is one conversation, and the persona it opens with is the
-// one the instance renders now — the persona, and after it the hard rules as they stand for this
-// seat's role, so a new conversation is told the current numbered set verbatim.
+// one the instance renders now — the persona, after it the hard rules as they stand for this
+// seat's role, so a new conversation is told the current numbered set verbatim, and after those
+// the seat's desk as it stands, so a successor starts from it without spending a turn reading it.
+// Answers the file and the rule-set version the render carried.
+export const DESK_OPENS = (seat) => `Your desk, work/${seat}/STATE.md, as it stands at this start:`;
+
 function personaFor(instance, seat) {
   const file = personaFile(instance.root, seat);
   fs.mkdirSync(path.dirname(file), { recursive: true });
-  const { text } = withHardRules(persona(instance.root, seat, instance.config), instance.root, roleOf(instance, seat));
-  fs.writeFileSync(file, text);
-  return file;
+  const { text, version } = withHardRules(persona(instance.root, seat, instance.config), instance.root, roleOf(instance, seat));
+  const desk = readDesk(instance.root, seat);
+  fs.writeFileSync(file, desk === null ? text : `${text}\n${DESK_OPENS(seat)}\n\n${desk}\n`);
+  return { file, version };
+}
+
+// How much of the model's context the last request of a turn took: the last iteration's input,
+// cached and fresh, as the `usage` on a result frame says it. Null when the frame did not say —
+// a refused turn carries `iterations: null`.
+export function contextOf(usage) {
+  const last = Array.isArray(usage?.iterations) ? usage.iterations.at(-1) : undefined;
+  if (last === undefined || last === null) {
+    return null;
+  }
+  return (last.input_tokens ?? 0) + (last.cache_read_input_tokens ?? 0) + (last.cache_creation_input_tokens ?? 0);
 }
 
 // The MCP server a session reaches the toolkit through. The address names the process by its
@@ -190,12 +219,23 @@ export function runningSeats() {
   return [...processes.keys()];
 }
 
+// The process record of a seat, for whoever runs its lifecycle: what it is ending as, when it
+// last turned, what it was asked. Undefined when the seat has no process.
+export function recordOf(seat) {
+  return processes.get(seat);
+}
+
 // Start a seat: one process, one secret, one conversation.
 //
 // `asked` is called with every permission request the run makes and answers with a decision;
-// `ended` is called once, when the process has closed, so whoever started the seat can let go of
-// what it was holding for it.
-export function start(instance, seat, { asked = nobodyToAsk, ended = nothing } = {}) {
+// `turned` after every turn the process ends, with the record; `ended` once, when the process has
+// closed, with what it was ending as and the turns it had not got to — so whoever started the seat
+// can let go of what it was holding for it, or hand the turns to a successor. `queue` is turns a
+// predecessor left, drained into this process from its first moment. `gate` is asked before every
+// write, with the frame about to go in: null lets it through, anything else says why not (a
+// window and when it resets); what it holds leaves the queue through `held`, each turn beside
+// the answer that held it, for whoever gates to keep and bring back.
+export function start(instance, seat, { asked = nobodyToAsk, ended = nothing, turned = nothing, queue = [], gate = () => null, held = nothing } = {}) {
   if (!isSeat(instance, seat)) {
     throw new Error(`nobody called ${seat} works here`);
   }
@@ -226,7 +266,8 @@ export function start(instance, seat, { asked = nobodyToAsk, ended = nothing } =
   }
   // What is NOT to be read: the instructions of every directory above the instance.
   args.push("--settings", ownInstructions(instance.root));
-  args.push("--append-system-prompt-file", personaFor(instance, seat));
+  const rendered = personaFor(instance, seat);
+  args.push("--append-system-prompt-file", rendered.file);
 
   // --print is load-bearing: it makes this a run rather than a conversation held on a terminal,
   // and it keeps Claude Code from arming its background-shell reaper, which is armed only for a
@@ -238,8 +279,47 @@ export function start(instance, seat, { asked = nobodyToAsk, ended = nothing } =
     stdio: ["pipe", "pipe", "pipe"],
   });
 
-  const record = { seat, role, secret, child, queue: [], turn: null, rest: "", err: "" };
+  const clock = instance.clock ?? Date.now;
+  const now = clock();
+  const record = {
+    seat,
+    role,
+    secret,
+    child,
+    queue: [...queue],
+    turn: null,
+    rest: "",
+    err: "",
+    root: instance.root,
+    model: modelFor(instance.root, seat, instance.config),
+    clock,
+    startedAt: now,
+    gate,
+    held,
+    // Frames to go in front of the next turn, never as a turn of their own (the hard-rule delta).
+    prefix: [],
+    // The rule-set version this process was told, at spawn and after every delta delivered.
+    rules: rendered.version ?? "none",
+    // What the lifecycle knows about this process: when it last wrote its desk, what the turn it
+    // is on asks of it and since when (an ask is an event that wants a stop for a reason; any
+    // later turn is a reprieve and clears it), what it is ending as, when it last turned and
+    // what it was told.
+    deskWrittenAt: null,
+    askedAt: null,
+    askedWhy: null,
+    turnBegan: null,
+    ending: null,
+    idleSince: now,
+    idleTold: 0,
+    context: null,
+    contextFullTold: false,
+    interrupting: null,
+    passedClosedGate: new Set(),
+  };
   processes.set(seat, record);
+  // The desk records the rule-set version its process was told (a desk that exists; a header is
+  // a desk's and never a way to make one).
+  writeDeskHeader(instance.root, seat, { rules: record.rules });
 
   child.stdout.on("data", (chunk) => {
     record.rest = frames(String(chunk), record.rest, (frame) => {
@@ -247,10 +327,27 @@ export function start(instance, seat, { asked = nobodyToAsk, ended = nothing } =
         permission(child, frame, asked);
         return;
       }
+      if (frame.type === "rate_limit_event") {
+        sawQuota(seat, record.model, frame.rate_limit_info);
+        return;
+      }
       if (frame.type === "result" && record.turn !== null) {
         const turn = record.turn;
         record.turn = null;
+        record.idleSince = clock();
+        record.idleTold = 0;
+        const context = contextOf(frame.usage);
+        if (context !== null) {
+          record.context = context;
+        }
+        if (record.interrupting !== null) {
+          // The turn was interrupted from here; this is its ending, not an answer.
+          turn.resolve({ interrupted: true, text: "interrupted" });
+          record.interrupting();
+          return;
+        }
         turn.resolve(answerIn(frame));
+        turned(record);
         drain(record);
       }
     });
@@ -268,34 +365,145 @@ export function start(instance, seat, { asked = nobodyToAsk, ended = nothing } =
     closed = true;
     processes.delete(seat);
     revoke(secret);
-    const left = [record.turn, ...record.queue].filter((turn) => turn !== null);
+    // A process ending to restart hands the turns it had not got to on to its successor, which
+    // whoever started this one spawns; any other ending answers them ended. The turn that was
+    // running is answered ended either way: its process is gone.
+    const carried = record.ending === "restart" ? record.queue : [];
+    const left = [record.turn, ...(record.ending === "restart" ? [] : record.queue)].filter((turn) => turn !== null);
     record.turn = null;
     record.queue = [];
+    if (record.interrupting !== null) {
+      record.interrupting();
+    }
     for (const turn of left) {
       turn.resolve({ ended: true, text: why });
     }
-    ended();
+    ended({ seat, role, ending: record.ending, carried, why });
   };
 
   child.on("error", (error) => {
     gone(error.code === "ENOENT" ? "Claude Code is not on the PATH of the process serving this page" : error.message);
   });
   child.on("close", () => {
-    gone(record.err.trim() === "" ? `${seat} ended before answering` : record.err.trim());
+    gone(
+      record.ending === "restart"
+        ? `${seat} restarted`
+        : record.err.trim() === ""
+          ? `${seat} ended before answering`
+          : record.err.trim(),
+    );
   });
 
+  drain(record);
   return { seat, role, pid: child.pid };
 }
 
-// The next frame goes in only when no turn is running.
+// The next frame goes in only when no turn is running, and only when the gate lets it: the gate
+// is read at the write, so a frame queued behind a turn before a window closed is held when its
+// turn comes and not written into the closed window. What the gate holds leaves the queue in
+// order, each turn keeping its arrival, and a frame the gate passes goes in ahead of them.
+// Whatever was waiting to go in front of the write — a hard-rule delta — goes in the same write,
+// one line, frames only, and the desk header says which set this process has now been told.
 function drain(record) {
-  if (record.turn !== null || record.queue.length === 0) {
+  // A process on its way out takes no new turn: what is queued waits for the successor, or is
+  // answered ended when the process closes.
+  if (record.turn !== null || record.queue.length === 0 || record.ending !== null) {
+    return;
+  }
+  const held = [];
+  while (record.queue.length > 0) {
+    const holding = record.gate(record.queue[0].frame);
+    if (holding === null) {
+      break;
+    }
+    held.push({ turn: record.queue.shift(), holding });
+  }
+  if (held.length > 0) {
+    record.held(held);
+  }
+  if (record.queue.length === 0) {
     return;
   }
   record.turn = record.queue.shift();
+  record.turnBegan = record.clock();
+  // What this turn asks of the seat, if it is an ask. Any other turn is a reprieve: the ask
+  // before it is over, and the seat is not ended for it.
+  record.askedWhy = record.turn.ask;
+  record.askedAt = record.turn.ask === null ? null : record.turnBegan;
+  const prefix = record.prefix;
+  record.prefix = [];
+  const content = [...prefix.map((entry) => entry.frame), record.turn.frame].map((frame) => frame.text).join("\n");
+  record.child.stdin.write(`${JSON.stringify({ type: "user", message: { role: "user", content } })}\n`);
+  if (prefix.length > 0) {
+    record.rules = prefix.at(-1).version;
+    writeDeskHeader(record.root, record.seat, { rules: record.rules });
+  }
+}
+
+// Put a frame in front of a seat's next turn, never as a turn of its own. It is written with the
+// next frame the seat is told; if the process ends first, it dies with it — the successor gets
+// the whole set at spawn.
+export function prefix(seat, frame, version) {
+  if (!isFrame(frame)) {
+    throw new Error("a session is told frames built by frames.mjs, and nothing else");
+  }
+  const record = processes.get(seat);
+  if (record === undefined) {
+    return false;
+  }
+  record.prefix.push({ frame, version });
+  return true;
+}
+
+// Cancel the turn a seat is on, and wait — up to `patience` — for the run to say the turn is over.
+// With or without that word the turn is answered `interrupted` and the seat is free for the next
+// frame; the queue is drained again unless the caller is about to put something in front of it.
+// False when no turn was running.
+export async function interrupt(seat, { patience = INTERRUPT_PATIENCE, thenDrain = true } = {}) {
+  const record = processes.get(seat);
+  if (record === undefined || record.turn === null || record.interrupting !== null) {
+    return false;
+  }
+  const turn = record.turn;
+  let acknowledged;
+  const said = new Promise((resolve) => {
+    acknowledged = resolve;
+  });
+  record.interrupting = acknowledged;
   record.child.stdin.write(
-    `${JSON.stringify({ type: "user", message: { role: "user", content: record.turn.frame.text } })}\n`,
+    `${JSON.stringify({ type: "control_request", request_id: `interrupt-${Date.now()}`, request: { subtype: "interrupt" } })}\n`,
   );
+  let waited = null;
+  await Promise.race([said, new Promise((resolve) => { waited = setTimeout(resolve, patience); })]);
+  clearTimeout(waited);
+  record.interrupting = null;
+  if (record.turn === turn) {
+    record.turn = null;
+    turn.resolve({ interrupted: true, text: "interrupted" });
+  }
+  record.idleSince = record.clock();
+  if (thenDrain) {
+    drain(record);
+  }
+  return true;
+}
+
+// Write whatever is next for a seat, if nothing is running: for after an interrupt that was told
+// not to.
+export function resume(seat) {
+  const record = processes.get(seat);
+  if (record !== undefined) {
+    drain(record);
+  }
+}
+
+// Every frame told to any seat is numbered as it arrives, so what is held and brought back later
+// comes back in the order it was told, whichever seat it was told to.
+let arrivals = 0;
+
+export function arrival() {
+  arrivals += 1;
+  return arrivals;
 }
 
 // Put one frame on one seat's queue.
@@ -303,9 +511,10 @@ function drain(record) {
 // Answers at once with whether it was taken: `{ delivered: true, answered }` where `answered`
 // resolves when that turn ends — with the reply, or with `ended: true` if the process closed
 // before it could answer — or `{ refused: "no process" }` when the seat has none, in which case
-// nothing is queued. A frame is accepted by provenance and not by shape: a string that reproduces
-// a frame byte for byte is refused.
-export function tell(seat, frame, { ahead = false } = {}) {
+// nothing is queued. `ask` names what the frame asks of the seat (a stop, for a reason) when it
+// is an event that does. A frame is accepted by provenance and not by shape: a string that
+// reproduces a frame byte for byte is refused.
+export function tell(seat, frame, { ahead = false, ask = null } = {}) {
   if (!isFrame(frame)) {
     throw new Error("a session is told frames built by frames.mjs, and nothing else");
   }
@@ -315,7 +524,7 @@ export function tell(seat, frame, { ahead = false } = {}) {
     return { refused: "no process" };
   }
   const answered = new Promise((resolve) => {
-    const turn = { frame, resolve };
+    const turn = { frame, resolve, ahead, ask, order: arrival() };
     if (ahead) {
       record.queue.unshift(turn);
     } else {

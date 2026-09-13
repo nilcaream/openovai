@@ -632,7 +632,7 @@ describe("hiring a worker", () => {
   // one field anything outside the desk reads.
   it("opens that desk with a header holding the title and nothing else", () => {
     const desk = fs.readFileSync(path.join(instance, "work", WORKER, "STATE.md"), "utf8");
-    assert.equal(desk.split("\n")[0], "<!-- DESK | title: -->");
+    assert.equal(desk.split("\n")[0], "<!-- DESK | title: | status: | rules: | updated: -->");
   });
 
   // Who the worker is gets rendered when its first conversation starts, from the templates the

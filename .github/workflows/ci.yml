@@ -146,6 +146,32 @@ jobs:
       - name: Mint, resolve and revoke a secret
         run: node --test tests/secrets.test.mjs
 
+  quota:
+    name: Quota
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+
+      - name: Read the windows, stage them, hold at the gate
+        run: node --test tests/quota.test.mjs
+
+  lifecycle:
+    name: Lifecycle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+
+      - name: Start, tell, restart, stop and park the seats
+        run: node --test tests/lifecycle.test.mjs
+
   permissions:
     name: Permissions
     runs-on: ubuntu-latest

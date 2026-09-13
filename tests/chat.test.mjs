@@ -128,6 +128,32 @@ async function seatUp(seat, knobs = {}, { on = chat, command = standIn, first = 
   return { ...started, log, secret: secretsIn(log)[0] ?? null, asked };
 }
 
+// Let the chat spawn a seat of its own accord — the Leader, for something addressed to it — with
+// the stand-in as the process and a log of its own: the knobs stay on this process's environment
+// for as long as `act` runs, since the spawn happens inside it. Answers what `act` answered, the
+// log, and the secret once the process has said it.
+async function spawnedBy(seat, act, knobs = {}) {
+  logs += 1;
+  const log = path.join(standIn, `${seat}-${logs}.txt`);
+  const before_ = { ...process.env };
+  process.env.OPENOVAI_STAND_IN_LOG = log;
+  process.env.PATH = `${standIn}${path.delimiter}${before_.PATH}`;
+  Object.assign(process.env, knobs);
+  let result;
+  try {
+    result = await act();
+  } finally {
+    for (const name of Object.keys(process.env)) {
+      if (!(name in before_)) {
+        delete process.env[name];
+      }
+    }
+    Object.assign(process.env, before_);
+  }
+  assert.ok(await waitFor(() => secretsIn(log).length > 0), `${seat} was never started`);
+  return { seat, result, log, secret: secretsIn(log)[0] };
+}
+
 // The page's own calls, carrying its secret.
 function page(method, route, body) {
   return fetch(`${url}${route}`, {
@@ -405,8 +431,8 @@ describe("starting a seat", () => {
     try {
       const fromLeader = JSON.parse((await tool(superman.secret, "room")).text);
       const fromPaul = JSON.parse((await tool(paul.secret, "room")).text);
-      assert.equal(fromLeader.find((seat) => seat.you).role, LEADS);
-      assert.equal(fromPaul.find((seat) => seat.you).role, WORKS);
+      assert.equal(fromLeader.seats.find((seat) => seat.you).role, LEADS);
+      assert.equal(fromPaul.seats.find((seat) => seat.you).role, WORKS);
     } finally {
       chat.config = { ...chat.config, leader };
     }
@@ -581,9 +607,12 @@ describe("the tools a session is served", () => {
     await endEvery(500);
   });
 
-  it("serves the Leader exactly what BUILT_IN names, and a Worker the same", async () => {
+  it("serves the Leader exactly what BUILT_IN names, and a Worker the same but park and hire", async () => {
     assert.deepEqual(await listed(superman.secret), BUILT_IN);
-    assert.deepEqual(await listed(paul.secret), BUILT_IN);
+    assert.deepEqual(
+      await listed(paul.secret),
+      BUILT_IN.filter((name) => name !== "park" && name !== "hire"),
+    );
   });
 
   it("binds who is calling into every tool, so none of them reads it from an argument", () => {
@@ -693,7 +722,7 @@ describe("the tools a session is served", () => {
   it("tells a session who works here, who runs, and which one it is", async () => {
     const room = JSON.parse((await tool(paul.secret, "room")).text);
     assert.deepEqual(
-      room.map((seat) => [seat.name, seat.role, seat.model, seat.running, seat.you]),
+      room.seats.map((seat) => [seat.name, seat.role, seat.model, seat.running, seat.you]),
       [
         [LEADER, LEADS, LEADER_MODEL, true, false],
         [OTHER, WORKS, WORKER_MODEL, false, false],
@@ -715,7 +744,7 @@ describe("the tools a session is served", () => {
     };
     chat.plugins = [plugin];
     try {
-      assert.deepEqual(await listed(paul.secret), [...BUILT_IN, "weather"]);
+      assert.deepEqual(await listed(superman.secret), [...BUILT_IN, "weather"]);
       const said_ = await tool(paul.secret, "weather", { where: "Oslo" });
       assert.equal(said_.text, "sunny in Oslo");
       assert.deepEqual(seen, [{ args: { where: "Oslo" }, caller: { seat: WORKER, role: WORKS, root: instance, config: chat.config } }]);
@@ -797,16 +826,14 @@ describe("what the User types", () => {
     assert.deepEqual(heardIn(paul.log), ["<user>go</user>"]);
   });
 
-  it("says when the Leader could not be told, and never queues the event for its next process", async () => {
+  it("starts a stopped Leader for the event, the event its first line", async () => {
     await endSeat(LEADER, 500);
-    const before_ = said.length;
-    const answered = await page("POST", `/sessions/${WORKER}/message`, { text: "carry on" });
-    assert.deepEqual(JSON.parse(answered.body), { delivered: true, leaderTold: false });
+    assert.equal(running(LEADER), false);
+    const spawned = await spawnedBy(LEADER, () => page("POST", `/sessions/${WORKER}/message`, { text: "carry on" }));
+    assert.deepEqual(JSON.parse(spawned.result.body), { delivered: true, leaderTold: true });
     assert.equal((await told(paul.log, 2)).at(-1), "<user>carry on</user>");
-    assert.ok(said.slice(before_).includes(`no process: ${LEADER} (server-event)`), said.slice(before_).join("\n"));
-    superman = await seatUp(LEADER);
-    await page("POST", `/sessions/${LEADER}/message`, { text: "hello again" });
-    assert.deepEqual(await told(superman.log, 1), ["<user>hello again</user>"]);
+    assert.deepEqual(await told(spawned.log, 1), [`<server-event type="user-typed" who="${WORKER}">carry on</server-event>`]);
+    superman = spawned;
   });
 
   it("says when the seat itself has no process, on the panel too", async () => {
@@ -836,10 +863,10 @@ describe("what the User types", () => {
 // Only one module writes to a session's stdin, and only in the places that put a frame or a
 // permission answer there. Read off the code, because the rule is about the code.
 describe("who writes to a session", () => {
-  it("is session.mjs, through the frame writer and the two permission answers, and nobody else", () => {
+  it("is session.mjs, through the frame writer, the two permission answers and the interrupt, and nobody else", () => {
     const found = spawnSync("grep", ["-rn", "stdin.write", path.join(repo, "tools")], { encoding: "utf8" });
     const lines = found.stdout.trim().split("\n");
-    assert.equal(lines.length, 3, found.stdout);
+    assert.equal(lines.length, 4, found.stdout);
     for (const line of lines) {
       assert.match(line, /^.*tools\/chat\/session\.mjs:\d+:/, line);
     }

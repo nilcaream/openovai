@@ -190,7 +190,7 @@ describe("what the installer made", () => {
   // what anything outside the desk reads, so it is what the header carries and there is nothing
   // else in there for a session to keep true for nobody.
   it("opens that desk with a header holding the title and nothing else", () => {
-    assert.equal(contentOf("work", LEADER, "STATE.md").split("\n")[0], "<!-- DESK | title: -->");
+    assert.equal(contentOf("work", LEADER, "STATE.md").split("\n")[0], "<!-- DESK | title: | status: | rules: | updated: -->");
   });
 
   it("leaves no unfilled placeholder on the desk", () => {

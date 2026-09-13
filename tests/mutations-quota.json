@@ -1,0 +1,178 @@
+[
+  {
+    "name": "the first reading of a window is kept, not the newest",
+    "catches": "keep the newest per window",
+    "edits": [
+      { "file": "tools/chat/quota.mjs", "from": "      readings.set(window, {\n        utilization: entry.utilization,", "to": "      if (readings.has(window)) continue;\n      readings.set(window, {\n        utilization: entry.utilization," }
+    ]
+  },
+  {
+    "name": "every window takes the outer resetsAt",
+    "catches": "take each window's own reset, never the outer one",
+    "edits": [
+      { "file": "tools/chat/quota.mjs", "from": "        resetsAt: moment(entry.resetsAt),", "to": "        resetsAt: moment(info.resetsAt)," }
+    ]
+  },
+  {
+    "name": "the reset is read as milliseconds",
+    "catches": "read the reset as seconds and say it as a moment",
+    "edits": [
+      { "file": "tools/chat/quota.mjs", "from": "  return resetsAt < 1e12 ? resetsAt * 1000 : resetsAt;", "to": "  return resetsAt;" }
+    ]
+  },
+  {
+    "name": "a window without a utilization is kept",
+    "catches": "skip a window without a numeric utilization",
+    "edits": [
+      { "file": "tools/chat/quota.mjs", "from": "      if (typeof entry?.utilization !== \"number\") {\n        continue;\n      }", "to": "" }
+    ]
+  },
+  {
+    "name": "nobody is recorded as the reading's source",
+    "catches": "say who reported the reading and when",
+    "edits": [
+      { "file": "tools/chat/quota.mjs", "from": "        at: now,\n        from: seat,\n        rejected: false,", "to": "        at: now,\n        from: null,\n        rejected: false," }
+    ]
+  },
+  {
+    "name": "a reading never expires",
+    "catches": "expire once the window's reset has passed",
+    "edits": [
+      { "file": "tools/chat/quota.mjs", "from": "  if (reading === undefined || reading.resetsAt === null || reading.resetsAt <= now) {", "to": "  if (reading === undefined || reading.resetsAt === null) {" }
+    ]
+  },
+  {
+    "name": "the 5h thresholds are used for every window",
+    "catches": "apply per window: 0.91 is a warning on 5h and nothing on 7d",
+    "edits": [
+      { "file": "tools/chat/quota.mjs", "from": "  const [warning, critical] = thresholds[key];", "to": "  const [warning, critical] = thresholds[\"5h\"];" }
+    ]
+  },
+  {
+    "name": "a threshold met exactly is not met",
+    "catches": "are inclusive: exactly 0.90 on 5h is a warning and exactly 0.95 is critical",
+    "edits": [
+      { "file": "tools/chat/quota.mjs", "from": "  if (percent >= critical) {", "to": "  if (percent > critical) {" },
+      { "file": "tools/chat/quota.mjs", "from": "  if (percent >= warning) {", "to": "  if (percent > warning) {" }
+    ]
+  },
+  {
+    "name": "the instance's thresholds are ignored",
+    "catches": "take the instance's own per window and keep the defaults for the rest",
+    "edits": [
+      { "file": "tools/chat/quota.mjs", "from": "    const given = own[key];", "to": "    const given = undefined;" }
+    ]
+  },
+  {
+    "name": "the gate holds from the first stage",
+    "catches": "passes at stage one and holds at stage two",
+    "edits": [
+      { "file": "tools/chat/quota.mjs", "from": "export function mayWrite(seat, model, now = clock()) {\n  return holdOn(model, CRITICAL, now);", "to": "export function mayWrite(seat, model, now = clock()) {\n  return holdOn(model, WARNING, now);" }
+    ]
+  },
+  {
+    "name": "a start is held from the first stage",
+    "catches": "holds the helper and a start at stage two only",
+    "edits": [
+      { "file": "tools/chat/quota.mjs", "from": "export function mayStart(model, now = clock()) {\n  return holdOn(model, CRITICAL, now);", "to": "export function mayStart(model, now = clock()) {\n  return holdOn(model, WARNING, now);" }
+    ]
+  },
+  {
+    "name": "a hire is refused only at the second stage",
+    "catches": "holds a hire from stage one",
+    "edits": [
+      { "file": "tools/chat/quota.mjs", "from": "export function holdsHire(model, now = clock()) {\n  return holdOn(model, WARNING, now);", "to": "export function holdsHire(model, now = clock()) {\n  return holdOn(model, CRITICAL, now);" }
+    ]
+  },
+  {
+    "name": "a rejected status is ignored",
+    "catches": "closes a window on rejected whatever the utilization",
+    "edits": [
+      { "file": "tools/chat/quota.mjs", "from": "  if (info?.status === \"rejected\" && typeof info.rateLimitType === \"string\") {", "to": "  if (false) {" }
+    ]
+  },
+  {
+    "name": "a rejection always closes the 5h window",
+    "catches": "closes the window the rejection names and not another",
+    "edits": [
+      { "file": "tools/chat/quota.mjs", "from": "    const window = info.rateLimitType;", "to": "    const window = \"five_hour\";" }
+    ]
+  },
+  {
+    "name": "the latest reset is named when two windows hold",
+    "catches": "names the window with the earliest reset when two hold",
+    "edits": [
+      { "file": "tools/chat/quota.mjs", "from": "    .sort((a, b) => a.resetsAt - b.resetsAt);", "to": "    .sort((a, b) => b.resetsAt - a.resetsAt);" }
+    ]
+  },
+  {
+    "name": "the per-model window is applied without a wire name",
+    "catches": "is not on the wire, so it gates nothing until a name is given",
+    "edits": [
+      { "file": "tools/chat/quota.mjs", "from": "  const applies = fableWire !== null && FABLE_WINDOW.models.test(String(model ?? \"\"));", "to": "  const applies = FABLE_WINDOW.models.test(String(model ?? \"\"));" }
+    ]
+  },
+  {
+    "name": "the per-model window is applied to every model",
+    "catches": "with a name given, applies to fable models only",
+    "edits": [
+      { "file": "tools/chat/quota.mjs", "from": "  const applies = fableWire !== null && FABLE_WINDOW.models.test(String(model ?? \"\"));", "to": "  const applies = fableWire !== null;" }
+    ]
+  },
+  {
+    "name": "a stage fires on every frame above the threshold",
+    "catches": "fires once per crossing upward",
+    "edits": [
+      { "file": "tools/chat/quota.mjs", "from": "    if (STAGES.indexOf(stage) <= STAGES.indexOf(last)) {\n      continue;\n    }", "to": "" }
+    ]
+  },
+  {
+    "name": "a stage never re-arms after the reset",
+    "catches": "re-arms once the reset has passed",
+    "edits": [
+      { "file": "tools/chat/quota.mjs", "from": "      announced.delete(key);", "to": "" }
+    ]
+  },
+  {
+    "name": "an expired reading still fires",
+    "catches": "a reading past its reset fires nothing",
+    "edits": [
+      { "file": "tools/chat/quota.mjs", "from": "    const stage = stageOf(window, now);\n    if (stage === null) {\n      continue;\n    }", "to": "    const stage = stageOf(window, now) ?? (readings.has(window) ? CRITICAL : null);\n    if (stage === null) {\n      continue;\n    }" }
+    ]
+  },
+  {
+    "name": "no model is named for the per-model window",
+    "catches": "names the model for the per-model window",
+    "edits": [
+      { "file": "tools/chat/quota.mjs", "from": "    const model = key === FABLE_WINDOW.key ? \"fable\" : null;", "to": "    const model = null;" }
+    ]
+  },
+  {
+    "name": "unsubscribing keeps the listener",
+    "catches": "can be unsubscribed",
+    "edits": [
+      { "file": "tools/chat/quota.mjs", "from": "  return () => listeners.delete(listener);", "to": "  return () => {};" }
+    ]
+  },
+  {
+    "name": "a held frame is released before the reset",
+    "catches": "keeps frames per seat in arrival order and releases them once the window has reset",
+    "edits": [
+      { "file": "tools/chat/quota.mjs", "from": "      if (stillHolding(entry.window, now)) {", "to": "      if (false) {" }
+    ]
+  },
+  {
+    "name": "held frames are released newest first",
+    "catches": "keeps frames per seat in arrival order and releases them once the window has reset",
+    "edits": [
+      { "file": "tools/chat/quota.mjs", "from": "  return released.sort((a, b) => a.order - b.order);", "to": "  return released.sort((a, b) => b.order - a.order);" }
+    ]
+  },
+  {
+    "name": "one window's reset releases every window's holds",
+    "catches": "releases only what the passed window held",
+    "edits": [
+      { "file": "tools/chat/quota.mjs", "from": "      if (stillHolding(entry.window, now)) {", "to": "      if (stillHolding(\"5h\", now)) {" }
+    ]
+  }
+]

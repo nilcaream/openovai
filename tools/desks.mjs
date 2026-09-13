@@ -207,6 +207,84 @@ export function deskTitle(root, name) {
   return said === null ? "" : said[1].replace(/-->\s*$/, "").trim();
 }
 
+// The header, field by field. Line 1 of a desk is the server's: `<!-- DESK | title: … | status: … |
+// rules: … | updated: … -->`, and it is read and rewritten here and nowhere else. A field that is
+// not there reads as empty; a header written before a field existed still reads.
+const HEADER = /^<!--\s*DESK\s*(\|.*)?-->\s*$/;
+const HEADER_FIELDS = ["title", "status", "rules", "updated"];
+
+export function deskHeader(root, name) {
+  let opening;
+  try {
+    opening = fs.readFileSync(deskFile(root, name), "utf8").split("\n")[0];
+  } catch {
+    return null;
+  }
+  return parseHeader(opening);
+}
+
+function parseHeader(opening) {
+  if (!HEADER.test(opening)) {
+    return null;
+  }
+  const fields = {};
+  for (const field of HEADER_FIELDS) {
+    const said = new RegExp(`\\|\\s*${field}:\\s*([^|]*)`).exec(opening);
+    fields[field] = said === null ? "" : said[1].replace(/-->\s*$/, "").trim();
+  }
+  return fields;
+}
+
+export function renderHeader(fields) {
+  const value = (field) => (fields[field] === undefined || fields[field] === "" ? `${field}:` : `${field}: ${fields[field]}`);
+  return `<!-- DESK | ${HEADER_FIELDS.map(value).join(" | ")} -->`;
+}
+
+export function deskStatus(root, name) {
+  return deskHeader(root, name)?.status ?? "";
+}
+
+// Rewrite the header of an existing desk with the fields given, keeping the rest of the header
+// and the whole body as they are. Nothing is written when there is no desk: a header is a desk's
+// and not a way to make one. Answers the fields as written, or null.
+export function writeDeskHeader(root, name, fields) {
+  const file = deskFile(root, name);
+  let text;
+  try {
+    text = fs.readFileSync(file, "utf8");
+  } catch {
+    return null;
+  }
+  const lines = text.split("\n");
+  const kept = parseHeader(lines[0]);
+  const merged = { ...(kept ?? {}), ...fields, updated: fields.updated ?? new Date().toISOString() };
+  const header = renderHeader(merged);
+  const body = kept === null ? lines : lines.slice(1);
+  fs.writeFileSync(file, [header, ...body].join("\n"));
+  return merged;
+}
+
+// Write a whole desk: the header (server-owned), the heading, then the body as the session wrote
+// it. The body goes below the header verbatim — a body that carries a header line of its own is
+// prose to the reader, since only line 1 is ever read as the header.
+export function writeDeskWhole(root, name, { title, status, rules, body }) {
+  const file = deskFile(root, name);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const header = renderHeader({ title, status, rules: rules ?? deskHeader(root, name)?.rules ?? "", updated: new Date().toISOString() });
+  const text = `${header}\n# ${name} - ${title}\n\n${body.replace(/\n*$/, "")}\n`;
+  fs.writeFileSync(file, text);
+  return text;
+}
+
+// The desk as it stands, whole, or null when there is none.
+export function readDesk(root, name) {
+  try {
+    return fs.readFileSync(deskFile(root, name), "utf8");
+  } catch {
+    return null;
+  }
+}
+
 // Where a desk goes when the person at it has left. Beside work/ rather than inside it: work/ is
 // a directory listing and that listing IS the roster, so a directory in there is somebody who works
 // here. work/ is who works here, archive/ is who has.

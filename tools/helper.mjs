@@ -35,6 +35,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
+import { mayStart } from "./chat/quota.mjs";
 import { environment } from "./claude.mjs";
 
 export const HELPER_MODEL = "sonnet";
@@ -115,6 +116,13 @@ export async function ask(instance, question, request, { clock = HELPER_CLOCK, l
   const asked = QUESTIONS[question];
   if (asked === undefined) {
     throw new Error(`the helper has no question called ${question}`);
+  }
+
+  // The quota gate, before anything is spawned: a helper run at the second stage of a window
+  // would spend what the gate exists to keep.
+  const held = mayStart(HELPER_MODEL);
+  if (held !== null) {
+    return { refused: "the helper is held: quota" };
   }
 
   const env = { ...environment(instance.root, instance.config.auth), [NO_MEMORY]: "1" };

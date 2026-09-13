@@ -101,6 +101,22 @@ export function claudeIsInstalled() {
 //                             hold the suite's output open
 //   OPENOVAI_STAND_IN_SIGNED_IN     what `auth status` reports     (default: true)
 //   OPENOVAI_STAND_IN_LOGIN_STATUS  what `auth login` exits with   (default: 0)
+//   OPENOVAI_STAND_IN_RATE_LIMIT    a JSON list, one entry per QUESTION — a user or message frame; a
+//                             server event is a turn but consumes no entry — the rate_limit_info
+//                             (or a list of them) to emit as rate_limit_event frames when that
+//                             question is heard, before it is answered — the shape measured on
+//                             the real one
+//   OPENOVAI_STAND_IN_USAGE         a JSON usage object put on every result, or a list of them, one
+//                             per question the same way (a server event's result carries none)
+//   OPENOVAI_STAND_IN_TOOL          a JSON list of { name, arguments } to call over the MCP address
+//                             in its own --mcp-config, in order, before answering a turn; each
+//                             answer is logged as `tool: <name> -> <text>`
+//   OPENOVAI_STAND_IN_TOOL_ON       only turns whose question contains this text make those calls
+//                             (default: every turn)
+//   OPENOVAI_STAND_IN_IGNORES_INTERRUPT
+//                             carry on with the turn when told to interrupt it; without this an
+//                             interrupt ends the turn with an error result, as the real one does
+//                             (measured 2026-09-12: subtype error_during_execution, 13 ms after)
 //   OPENOVAI_STAND_IN_HELPER        a file holding what the memory helper answers — the JSON the
 //                             model would return, read afresh on every call so one chat can be
 //                             handed a different answer per question. Unset, or the file not
@@ -225,6 +241,9 @@ let rest = "";
 const questions = [];
 let wakeQuestion = null;
 let wakeAnswer = null;
+// An interrupt under way: set while a turn runs, called when one arrives.
+let interrupted = false;
+let onInterrupt = null;
 
 process.stdin.on("data", (chunk) => {
   rest += chunk;
@@ -237,9 +256,21 @@ process.stdin.on("data", (chunk) => {
       continue;
     }
     const said = JSON.parse(line);
+    if (said.type === "control_request" && said.request?.subtype === "interrupt") {
+      note("interrupt: " + said.request_id);
+      frame({ type: "control_response", response: { subtype: "success", request_id: said.request_id, response: {} } });
+      if ((process.env.OPENOVAI_STAND_IN_IGNORES_INTERRUPT ?? "") === "") {
+        interrupted = true;
+        if (onInterrupt !== null) {
+          onInterrupt();
+        }
+      }
+      continue;
+    }
     if (said.type === "user") {
       // Noted the moment the line arrives, before its turn: what the server wrote and when it
       // wrote it, as against "heard:", which is when this run got round to it.
+      note("read-at: " + process.hrtime.bigint());
       note("read: " + said.message.content);
       questions.push(said.message.content);
       if (wakeQuestion !== null) {
@@ -276,6 +307,61 @@ const nextQuestion = () =>
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// A wait that an interrupt cuts short.
+const sleepUnlessInterrupted = (ms) =>
+  new Promise((resolve) => {
+    const made = setTimeout(resolve, ms);
+    onInterrupt = () => {
+      clearTimeout(made);
+      resolve();
+    };
+  }).finally(() => {
+    onInterrupt = null;
+  });
+
+const perTurn = (name, turn) => {
+  const raw = process.env[name] ?? "";
+  if (raw === "") {
+    return null;
+  }
+  const parsed = JSON.parse(raw);
+  if (!Array.isArray(parsed)) {
+    return parsed;
+  }
+  return parsed.length === 0 ? null : (parsed[turn - 1] ?? null);
+};
+
+// The MCP address this run was given, with the secret it refers to filled in from the environment
+// the way Claude Code does it.
+const toolAddress = () => {
+  const at = argv.indexOf("--mcp-config");
+  if (at === -1) {
+    return null;
+  }
+  const url = JSON.parse(argv[at + 1]).mcpServers.openovai.url;
+  return url.replace(/\\$\\{([A-Z_]+)\\}/g, (_, name) => process.env[name] ?? "");
+};
+
+async function callTool(name, args) {
+  const address = toolAddress();
+  if (address === null) {
+    note("tool: " + name + " -> no MCP address");
+    return;
+  }
+  try {
+    const answered = await fetch(address, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args ?? {} } }),
+    });
+    const body = await answered.json();
+    const text = body.result?.content?.[0]?.text ?? JSON.stringify(body);
+    note("tool: " + name + " -> " + (body.result?.isError === true ? "refused: " : "") + text);
+  } catch (error) {
+    note("tool: " + name + " -> failed: " + error.message);
+  }
+}
+
 // Asking to be allowed, the way the real one asks: a control request, then a wait for the
 // control response echoing the same request id. The real one waits for good; a suite cannot.
 async function askPermission(turn) {
@@ -308,6 +394,7 @@ async function askPermission(turn) {
 }
 
 let turn = 0;
+let question = 0;
 for (;;) {
   await nextQuestion();
   if (questions.length === 0) {
@@ -315,7 +402,24 @@ for (;;) {
   }
   const asked = questions.shift();
   turn += 1;
+  interrupted = false;
   note("heard: " + asked);
+
+  // A server event is a turn like any other, but the per-question knobs count questions: what
+  // the account stands at and what a turn cost are staged against what the suite asked.
+  const isQuestion = !asked.startsWith("<server-event");
+  if (isQuestion) {
+    question += 1;
+  }
+  const readings = isQuestion ? perTurn("OPENOVAI_STAND_IN_RATE_LIMIT", question) : null;
+  for (const info of readings === null ? [] : Array.isArray(readings) ? readings : [readings]) {
+    frame({ type: "rate_limit_event", rate_limit_info: info, session_id: "test-thread" });
+  }
+  const usage = !isQuestion ? null : perTurn("OPENOVAI_STAND_IN_USAGE", question) ?? (() => {
+    const raw = process.env.OPENOVAI_STAND_IN_USAGE ?? "";
+    const parsed = raw === "" ? null : JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed.at(-1) : null;
+  })();
 
   let decided = null;
   if ((process.env.OPENOVAI_STAND_IN_ASKS ?? "") !== "") {
@@ -333,13 +437,34 @@ for (;;) {
   }
 
   const slow = Number(process.env.OPENOVAI_STAND_IN_SLOW ?? 0);
-  if (slow > 0) {
-    await sleep(slow);
+  if (slow > 0 && !interrupted) {
+    await sleepUnlessInterrupted(slow);
   }
 
   if ((process.env.OPENOVAI_STAND_IN_DIES ?? "") !== "") {
     note("died: " + asked);
     process.exit(1);
+  }
+
+  const calls = (process.env.OPENOVAI_STAND_IN_TOOL ?? "") === "" ? [] : JSON.parse(process.env.OPENOVAI_STAND_IN_TOOL);
+  const on = process.env.OPENOVAI_STAND_IN_TOOL_ON ?? "";
+  if (!interrupted && (on === "" || asked.includes(on))) {
+    for (const call of calls) {
+      await callTool(call.name, call.arguments);
+    }
+  }
+
+  if (interrupted) {
+    note("interrupted: " + asked);
+    frame({
+      type: "result",
+      subtype: "error_during_execution",
+      is_error: true,
+      num_turns: turn,
+      session_id: "test-thread",
+      ...(usage === null ? {} : { usage }),
+    });
+    continue;
   }
 
   note("answered: " + asked);
@@ -349,6 +474,7 @@ for (;;) {
     is_error: false,
     num_turns: turn,
     session_id: "test-thread",
+    ...(usage === null ? {} : { usage }),
     result:
       (process.env.OPENOVAI_STAND_IN_EMPTY ?? "") !== ""
         ? ""
@@ -521,6 +647,12 @@ export function secretsIn(log) {
 // The processes the stand-in ran as, newest last. A check about a run being ended needs the
 // process itself: whether a model is still held open is a question about the machine, and only
 // a pid answers it.
+// When each frame arrived on this run's stdin, in nanoseconds of the machine's monotonic clock:
+// comparable across runs, which is what an ORDER of writes across seats is read from.
+export function arrivalsIn(log) {
+  return recordedIn(log, "read-at: ").map(BigInt);
+}
+
 export function pidsIn(log) {
   return recordedIn(log, "pid: ").map(Number);
 }

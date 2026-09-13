@@ -25,13 +25,15 @@ import { fileURLToPath } from "node:url";
 import { THE_CHAT, append, read } from "./conversation.mjs";
 import { HOST, record } from "./listening.mjs";
 import { respond } from "./mcp.mjs";
-import { allow, askedFor, answer as settle, giveUp, inside, park, parked, refuse, shapeOf } from "./permissions.mjs";
-import { popped } from "./pop.mjs";
+import { allow, askedFor, answer as settle, inside, parked, refuse, shapeOf } from "./permissions.mjs";
 import { answerFrom } from "../plugins.mjs";
 import { ask as askTheHelper } from "../helper.mjs";
 import { recall, remember } from "../store.mjs";
-import { allowAsked, isName } from "../desks.mjs";
-import { LEADER, WORKER, end, isSeat, running, seats, start, tell, whileWaitingFor, wouldWaitForItself } from "./session.mjs";
+import { DeskError, allowAsked, deskFile, deskHeader, hire as openDesk, isModel, isName, modelFor, writeDeskWhole } from "../desks.mjs";
+import { LEADER, WORKER, TURN_PATIENCE, end, interrupt, isSeat, recordOf, running, seats, whileWaitingFor, wouldWaitForItself } from "./session.mjs";
+import { arm, deliver, idleOf, isParking, parkRoom, startSeat } from "./lifecycle.mjs";
+import * as quota from "./quota.mjs";
+import { panelDirectory } from "./conversation.mjs";
 import { messageFrame, neutralise, serverEvent, userFrame } from "./frames.mjs";
 import { isPageSecret, pageSecret, resolve } from "./secrets.mjs";
 import { version } from "../version.mjs";
@@ -111,20 +113,9 @@ function whoIs(request, url) {
 
 // ------------------------------------------------------------------------------- starting a seat
 
-// How a session's permission requests reach the page: parked on its panel, and the desktop told.
-function asking(instance, seat) {
-  return (request) => {
-    const waiting = park(seat, request);
-    popped(instance, { on: seat, why: `${seat} is stopped, waiting to be allowed to use ${request.tool}` });
-    return waiting;
-  };
-}
-
-// The one place a seat's process is started. Nothing in this slice calls it in production: the
-// lifecycle that starts and ends seats is the next slice's, and it will go through here.
-export function startSeat(instance, seat) {
-  return start(instance, seat, { asked: asking(instance, seat), ended: () => giveUp(seat) });
-}
+// A seat's process is started in lifecycle.mjs and nowhere else: the Leader by whatever is
+// addressed to it, a Worker by `hire` and by its own restart. Re-exported for the suite.
+export { startSeat };
 
 export { end as endSeat };
 
@@ -150,13 +141,22 @@ function showTheReply(root, seat, answered) {
 // What the User typed onto a panel. The words are the User's own turn to that seat, and when the
 // seat is a Worker the Leader is told the fact — once, as a server event — so nothing has to be
 // reported by hand.
+// A frame held by the quota gate is said so on the panel, once, with when the window resets;
+// the reply lands when it eventually goes.
+function heldLine(held) {
+  return `held until the ${held.window} window resets at ${held.resets}; your message is waiting`;
+}
+
 function typed(instance, seat, text) {
   const root = instance.root;
   append(root, seat, { from: "user", text });
-  const told = tell(seat, userFrame(text));
+  const told = deliver(instance, seat, userFrame(text));
   if (told.refused !== undefined) {
     append(root, seat, { from: THE_CHAT, text: `${seat} has no process`, failed: true });
   } else {
+    if (told.held !== undefined) {
+      append(root, seat, { from: THE_CHAT, text: heldLine(told.held) });
+    }
     showTheReply(root, seat, told.answered);
   }
 
@@ -164,14 +164,18 @@ function typed(instance, seat, text) {
   if (seat !== instance.config.leader) {
     const leader = instance.config.leader;
     append(root, leader, { from: "user", typedTo: seat, text });
-    const woken = tell(leader, serverEvent("user-typed", { who: seat }, text));
+    const woken = deliver(instance, leader, serverEvent("user-typed", { who: seat }, text));
     leaderTold = woken.refused === undefined;
     if (leaderTold) {
       showTheReply(root, leader, woken.answered);
     }
   }
 
-  return { delivered: told.refused === undefined, ...(seat === instance.config.leader ? {} : { leaderTold }) };
+  return {
+    delivered: told.delivered === true,
+    ...(told.held === undefined ? {} : { held: told.held }),
+    ...(seat === instance.config.leader ? {} : { leaderTold }),
+  };
 }
 
 // --------------------------------------------------------------------------------------- tools
@@ -184,7 +188,58 @@ const OFFERED_TO = {
   room: [LEADER, WORKER],
   recall: [LEADER, WORKER],
   remember: [LEADER, WORKER],
+  write_desk: [LEADER, WORKER],
+  restart_session: [LEADER, WORKER],
+  stop_session: [LEADER, WORKER],
+  park: [LEADER],
+  hire: [LEADER],
 };
+
+// What write_desk takes: a title and a status short enough for one header line, a body under a
+// size a desk has no business exceeding.
+const LONGEST_TITLE = 120;
+const LONGEST_STATUS = 80;
+const LONGEST_BODY = 64 * 1024;
+
+// The header, idle time and context of a seat, for the room and the page: what the server knows
+// about a desk and its process, beside who it is.
+function aboutSeat(instance, seat) {
+  const header = deskHeader(instance.root, seat.name);
+  const record = recordOf(seat.name);
+  const idle = idleOf(seat.name, (instance.clock ?? Date.now)());
+  return {
+    ...seat,
+    running: running(seat.name),
+    title: header?.title ?? "",
+    status: header?.status ?? "",
+    rules: header?.rules ?? "",
+    ...(record === undefined ? {} : { idle, context: record.context, ending: record.ending }),
+  };
+}
+
+// The completion of a restart or a stop: the desk must have been written since the server asked,
+// or since this turn began; then the process is marked, answered, and ended on the server's clock
+// — stdin closed, so the harness ends after the running turn, taken down after TURN_PATIENCE.
+function endOwn(instance, caller, ending, answer) {
+  const record = recordOf(caller.seat);
+  if (record === undefined) {
+    return { refused: "you have no process" };
+  }
+  if (record.ending !== null) {
+    return { refused: "already ending" };
+  }
+  const since = Math.max(record.askedAt ?? 0, record.turnBegan ?? 0);
+  if (record.deskWrittenAt === null || record.deskWrittenAt < since) {
+    return { refused: "write your desk first (write_desk)" };
+  }
+  record.ending = ending === "stop" ? (record.askedWhy === "restart" ? "stop" : (record.askedWhy ?? "stop")) : ending;
+  // After this answer has gone back: the tool result travels its own connection, but a process
+  // whose stdin closed first could end before reading it.
+  setImmediate(() => {
+    end(caller.seat, TURN_PATIENCE);
+  });
+  return { text: answer };
+}
 
 // The tools a caller is served, with the caller bound into every one of them: a tool never reads
 // who is calling from its arguments, because the server already knows.
@@ -234,11 +289,18 @@ export function toolsFor(instance, caller) {
             refused: `${to} is waiting for your answer, so it cannot take a message until you have given it — say this in your reply instead`,
           };
         }
-        const told = tell(to, messageFrame(caller.seat, text));
+        const told = deliver(instance, to, messageFrame(caller.seat, text));
         if (told.refused !== undefined) {
           return { refused: `${to} has no process` };
         }
         append(root, to, { from: caller.seat, text });
+        if (told.held !== undefined) {
+          // Held by the quota gate: it goes when the window resets, and the reply lands on the
+          // panel then. Nobody waits hours on a tool call.
+          append(root, to, { from: THE_CHAT, text: heldLine(told.held) });
+          showTheReply(root, to, told.answered);
+          return { refused: `${to} is ${heldLine(told.held)}` };
+        }
         const reply = await whileWaitingFor(caller.seat, to, () => told.answered);
         if (reply.ended === true) {
           append(root, to, { from: THE_CHAT, text: `${to} stopped before answering: ${reply.text}`, failed: true });
@@ -265,9 +327,10 @@ export function toolsFor(instance, caller) {
           return { refused: "room is not offered to you" };
         }
         return {
-          text: JSON.stringify(
-            seats(instance).map((seat) => ({ ...seat, running: running(seat.name), you: seat.name === caller.seat })),
-          ),
+          text: JSON.stringify({
+            seats: seats(instance).map((seat) => ({ ...aboutSeat(instance, seat), you: seat.name === caller.seat })),
+            standing: quota.standing(),
+          }),
         };
       },
     },
@@ -316,6 +379,159 @@ export function toolsFor(instance, caller) {
       offered: offered("remember"),
       run: (args) => (offered("remember") ? remember(root, args, storeContext()) : { refused: "remember is not offered to you" }),
     },
+    {
+      name: "write_desk",
+      description:
+        "Write your own desk, work/<you>/STATE.md: title (one line, up to 120 characters — what you are on), status (one line, up to 80 characters, no |) and body (the sections, as markdown). The server writes the header line and the heading; the body is yours, as given. Call it before restart_session or stop_session — both refuse until the desk was written since the event that asked, or since this turn. Refused: an empty title or status, a newline in either, a | in status, a body over 64 KB, any other key.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "What you are on, one line, up to 120 characters." },
+          status: { type: "string", description: "Where it stands, one line, up to 80 characters, no |." },
+          body: { type: "string", description: "The sections, as markdown, up to 64 KB." },
+        },
+        required: ["title", "status", "body"],
+        additionalProperties: false,
+      },
+      offered: offered("write_desk"),
+      run(args) {
+        if (!offered("write_desk")) {
+          return { refused: "write_desk is not offered to you" };
+        }
+        const keys = Object.keys(args ?? {});
+        const unknown = keys.filter((key) => !["title", "status", "body"].includes(key));
+        if (unknown.length > 0) {
+          return { refused: `write_desk takes title, status and body, not ${unknown.join(", ")}` };
+        }
+        const { title, status, body } = args ?? {};
+        if (typeof title !== "string" || title.trim() === "" || title.length > LONGEST_TITLE || title.includes("\n")) {
+          return { refused: `title is one line of 1 to ${LONGEST_TITLE} characters` };
+        }
+        if (typeof status !== "string" || status.trim() === "" || status.length > LONGEST_STATUS || status.includes("\n") || status.includes("|")) {
+          return { refused: `status is one line of 1 to ${LONGEST_STATUS} characters, without |` };
+        }
+        if (typeof body !== "string" || Buffer.byteLength(body) > LONGEST_BODY) {
+          return { refused: `body is markdown of at most ${LONGEST_BODY} bytes` };
+        }
+        const record = recordOf(caller.seat);
+        const written = writeDeskWhole(root, caller.seat, { title: title.trim(), status: status.trim(), rules: record?.rules, body });
+        if (record !== undefined) {
+          record.deskWrittenAt = (instance.clock ?? Date.now)();
+        }
+        const lines = written.split("\n").length - 1;
+        return { text: `desk written: work/${caller.seat}/STATE.md (${lines} lines, rules ${record?.rules ?? ""})` };
+      },
+    },
+    {
+      name: "restart_session",
+      description:
+        "End your process and start a successor on your desk. Write your desk with write_desk first: this refuses until the desk was written since the event that asked (context-full) or since this turn began. Whatever is queued for you goes to the successor, which starts from the desk. After it answers, nothing you say changes what happens.",
+      inputSchema: { type: "object", properties: {}, additionalProperties: false },
+      offered: offered("restart_session"),
+      run() {
+        if (!offered("restart_session")) {
+          return { refused: "restart_session is not offered to you" };
+        }
+        return endOwn(instance, caller, "restart", "restarting; your successor starts from your desk");
+      },
+    },
+    {
+      name: "stop_session",
+      description:
+        "End your process and its panel; your desk stays. Write your desk with write_desk first: this refuses until the desk was written since the event that asked (quota-low, idle, park) or since this turn began. After it answers, nothing you say changes what happens.",
+      inputSchema: { type: "object", properties: {}, additionalProperties: false },
+      offered: offered("stop_session"),
+      run() {
+        if (!offered("stop_session")) {
+          return { refused: "stop_session is not offered to you" };
+        }
+        return endOwn(instance, caller, "stop", "stopping; your desk stays");
+      },
+    },
+    {
+      name: "park",
+      description:
+        "Park the room: every running Worker is told to write its desk and stop (interrupted first when interrupt is true), and this waits until each has called stop_session or the deadline (seconds, at least 5; the instance's park.deadline when not given) passes, ending at the deadline whoever has not. Answers who stopped and who was ended, with when each desk was written. Then write your own desk and call stop_session. Refused: while a park is under way; while the server is stopping.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          interrupt: { type: "boolean", description: "Interrupt every Worker's turn before telling it. Default false." },
+          deadline: { type: "integer", minimum: 5, description: "Seconds to wait before ending whoever has not stopped." },
+        },
+        additionalProperties: false,
+      },
+      offered: offered("park"),
+      async run(args) {
+        if (!offered("park")) {
+          return { refused: "park is not offered to you" };
+        }
+        if (instance.stopping === true) {
+          return { refused: "the server is stopping" };
+        }
+        if (isParking()) {
+          return { refused: "already parking" };
+        }
+        const interruptFirst = args?.interrupt === true;
+        const deadline = args?.deadline;
+        if (deadline !== undefined && (!Number.isInteger(deadline) || deadline < 5)) {
+          return { refused: "deadline is a whole number of seconds, at least 5" };
+        }
+        return parkRoom(instance, { interrupt: interruptFirst, deadline: deadline ?? null });
+      },
+    },
+    {
+      name: "hire",
+      description:
+        "Start a Worker on a desk: name (a letter, then up to 31 letters, digits, _ or -), and model when not the usual one. A name without a desk gets one opened; a name with a desk — somebody who stopped — is started again on it, panel log kept. Refused: a name that is not one; already running; while the quota gate holds hires (from the first stage of a window, until it resets); while the server is stopping; a name whose panel log exists without a desk.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "Who to start." },
+          model: { type: "string", description: "The model, when not the usual one." },
+        },
+        required: ["name"],
+        additionalProperties: false,
+      },
+      offered: offered("hire"),
+      run(args) {
+        if (!offered("hire")) {
+          return { refused: "hire is not offered to you" };
+        }
+        const name = args?.name;
+        const model = args?.model ?? null;
+        if (!isName(name)) {
+          return { refused: `${JSON.stringify(name)} is not a name here` };
+        }
+        if (model !== null && !isModel(model)) {
+          return { refused: `${JSON.stringify(model)} is not a model identifier` };
+        }
+        if (name === instance.config.leader) {
+          return { refused: `${name} is the Leader` };
+        }
+        if (running(name)) {
+          return { refused: `${name} is already running` };
+        }
+        if (instance.stopping === true) {
+          return { refused: "the server is stopping" };
+        }
+        const held = quota.holdsHire(model ?? modelFor(root, name, instance.config));
+        if (held !== null) {
+          return { refused: `held: quota (${held.window} resets ${held.resets})` };
+        }
+        if (!fs.existsSync(deskFile(root, name))) {
+          try {
+            openDesk(root, name, panelDirectory(root, name), model);
+          } catch (error) {
+            if (error instanceof DeskError) {
+              return { refused: error.message };
+            }
+            throw error;
+          }
+        }
+        startSeat(instance, name);
+        return { text: `${name} started on the desk work/${name} (${modelFor(root, name, instance.config)})` };
+      },
+    },
     ...instance.plugins.map((plugin) => ({
       name: plugin.name,
       description: plugin.description,
@@ -349,7 +565,7 @@ async function postTool(instance, caller, request, response) {
 
 // --------------------------------------------------------------------------------- page routes
 
-const SESSION_ROUTE = /^\/sessions\/([^/]+)\/(messages|message|permissions|permission)$/;
+const SESSION_ROUTE = /^\/sessions\/([^/]+)\/(messages|message|permissions|permission|stop)$/;
 
 async function postMessage(instance, seat, request, response) {
   let text;
@@ -455,11 +671,19 @@ async function handle(instance, port, request, response) {
     return;
   }
 
+  // A server that is stopping is parking its seats, and the MCP route above stays open for the
+  // desks and stops that takes; the page is told to wait.
+  if (instance.stopping === true) {
+    sendJson(response, 503, { error: "stopping" });
+    return;
+  }
+
   if (request.method === "GET" && url.pathname === "/sessions") {
     sendJson(response, 200, {
       user: instance.config.user,
       leader: instance.config.leader,
-      sessions: seats(instance).map((seat) => ({ ...seat, running: running(seat.name) })),
+      sessions: seats(instance).map((seat) => aboutSeat(instance, seat)),
+      standing: quota.standing(),
     });
     return;
   }
@@ -488,6 +712,13 @@ async function handle(instance, port, request, response) {
       await postPermission(instance, seat, request, response);
       return;
     }
+    // The page's STOP: the turn is interrupted and nothing else — the process stays, the next
+    // frame queued for it is written.
+    if (request.method === "POST" && what === "stop") {
+      const interrupted = await interrupt(seat);
+      sendJson(response, 200, { interrupted });
+      return;
+    }
   }
 
   sendJson(response, 404, { error: `nothing at ${request.method} ${shownAs(url.pathname)}` });
@@ -510,6 +741,8 @@ export function serve(instance) {
     server.listen(instance.config.port, HOST, () => {
       port = server.address().port;
       record(instance.root, port);
+      const disarm = arm(instance);
+      server.once("close", disarm);
       resolve(server);
     });
   });

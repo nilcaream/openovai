@@ -1,4 +1,4 @@
-<!-- DESK | title: -->
+<!-- DESK | title: | status: | rules: | updated: -->
 # {{NAME}}
 
 ## Assignment

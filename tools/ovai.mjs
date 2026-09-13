@@ -9,6 +9,7 @@ import path from "node:path";
 import { panelDirectory } from "./chat/conversation.mjs";
 import { listening } from "./chat/listening.mjs";
 import { QUIET_HOURS, describePop, popIn, quietHoursProblem } from "./chat/pop.mjs";
+import { parkRoom, settingsIn } from "./chat/lifecycle.mjs";
 import { serve } from "./chat/server.mjs";
 import { endEvery, runningSeats } from "./chat/session.mjs";
 import { hasCredential, home, login, machineToken } from "./claude.mjs";
@@ -23,7 +24,7 @@ import { PluginError, describePluginName, describePlugins, isPluginName, plugins
 import { isOlderThan, version } from "./version.mjs";
 
 
-const COMMANDS = ["status", "chat", "hire", "plugin", "login", "update"];
+const COMMANDS = ["status", "chat", "stop", "hire", "plugin", "login", "update"];
 
 // What a command takes after its name, for the ones that take anything. A command that is not
 // here takes nothing, which is most of them.
@@ -49,6 +50,7 @@ function usage() {
     "Usage:",
     "  ovai status        show who works in this instance and on which models",
     "  ovai chat          serve the chat page until you stop it",
+    "  ovai stop          stop the chat serving this instance: it parks every session first",
     "  ovai hire <name> [model]",
     "                   open a desk for a worker, so the chat can host one; on the",
     "                   model this workspace runs its workers on unless another is named",
@@ -325,6 +327,31 @@ function describeAuth(config) {
   ];
 }
 
+// Stop the chat serving this instance: SIGTERM to whatever holds its port, which parks the room
+// and exits; then wait until nothing answers on the address any more.
+async function stopChat(root) {
+  const url = listening(root);
+  if (url === null || !(await isAnswering(url))) {
+    throw new ChatError("no chat is serving this instance");
+  }
+  const port = Number(new URL(url).port);
+  const holder = holderOf(port);
+  if (holder === null) {
+    throw new ChatError(`a chat answers at ${url} but the process holding port ${port} could not be named — stop it by hand`);
+  }
+  console.log(`Stopping the chat at ${url} (pid ${holder.pid}).`);
+  process.kill(holder.pid, "SIGTERM");
+  const patience = (settingsIn(readConfig(root)).park.timeout + 15) * 1000;
+  const began = Date.now();
+  while (await isAnswering(url)) {
+    if (Date.now() - began > patience) {
+      throw new ChatError(`the chat at ${url} is still answering after ${patience / 1000}s`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+  console.log("Stopped.");
+}
+
 function status(root) {
   const config = readConfig(root);
   const rows = [
@@ -433,9 +460,10 @@ async function chat(root) {
     console.log(aboutPop);
   }
 
+  const instance = { root, config, plugins: plugins.tools, pop: pop.pop, stopping: false };
   let server;
   try {
-    server = await serve({ root, config, plugins: plugins.tools, pop: pop.pop });
+    server = await serve(instance);
   } catch (error) {
     if (error.code === "EADDRINUSE") {
       throw new UsageError(`port ${config.port} is already taken${byWhom(config.port)}`);
@@ -457,12 +485,22 @@ async function chat(root) {
   //
   // Nothing is left to catch a SIGKILL on this process, where no handler of ours runs at all.
   // That case is the reason a stopped chat is stopped with ctrl-c and not with kill -9.
+  //
+  // In this order, because the park is a conversation over this very server: (1) the instance is
+  // marked stopping, so the page is told to wait and nobody is hired, while the MCP route keeps
+  // answering; (2) the room is parked, the Leader included — every session is interrupted, told,
+  // and given the stop timeout to write its desk and stop itself; (3) only then is the server
+  // closed; (4) whoever is left is ended; (5) exit. A server closed first would refuse the very
+  // write_desk and stop_session calls the park waits for.
   const stop = async () => {
-    server.close();
+    instance.stopping = true;
     const going = runningSeats().length;
     if (going > 0) {
-      console.log(`Ending ${going} ${going === 1 ? "session" : "sessions"}.`);
+      console.log(`Parking ${going} ${going === 1 ? "session" : "sessions"}.`);
+      const parked = await parkRoom(instance, { interrupt: true, deadline: settingsIn(config).park.timeout, leaderToo: true });
+      console.log(parked.text ?? parked.refused);
     }
+    server.close();
     await endEvery();
     // Stopping a server that was asked to stop is what it was told to do, not a failure.
     process.exit(0);
@@ -496,6 +534,10 @@ async function main(argv) {
 
     if (command === "chat") {
       await chat(root);
+      return 0;
+    }
+    if (command === "stop") {
+      await stopChat(root);
       return 0;
     }
     if (command === "hire") {

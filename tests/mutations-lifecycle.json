@@ -1,0 +1,737 @@
+[
+  {
+    "name": "deliver never starts the Leader",
+    "catches": "starts a stopped Leader for a page message, the message its first line",
+    "edits": [
+      {
+        "file": "tools/chat/lifecycle.mjs",
+        "from": "      return { delivered: false, held: holding, answered };\n    }\n    startSeat(instance, seat);\n",
+        "to": "      return { delivered: false, held: holding, answered };\n    }\n"
+      }
+    ]
+  },
+  {
+    "name": "deliver starts any seat that has no process",
+    "catches": "never starts a Worker for a message",
+    "edits": [
+      {
+        "file": "tools/chat/lifecycle.mjs",
+        "from": "    if (seat !== leaderOf(instance)) {\n      return tell(seat, frame, { ahead, ask });\n    }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "deliver spawns the Leader before the gate is asked",
+    "catches": "holds a message to a stopped Leader before spawning it, and spawns once when the window resets",
+    "edits": [
+      {
+        "file": "tools/chat/lifecycle.mjs",
+        "from": "      return { delivered: false, held: holding, answered };\n    }\n    startSeat(instance, seat);\n",
+        "to": "      return { delivered: false, held: holding, answered };\n    }\n"
+      },
+      {
+        "file": "tools/chat/lifecycle.mjs",
+        "from": "    if (holding !== null) {\n      let resolve;",
+        "to": "    startSeat(instance, seat);\n    if (holding !== null) {\n      let resolve;"
+      }
+    ]
+  },
+  {
+    "name": "hire opens a desk every time",
+    "catches": "hire opens a desk once and starts; again is already running; after a stop it starts on the desk as it is",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "        if (!fs.existsSync(deskFile(root, name))) {\n          try {\n            openDesk(",
+        "to": "        if (true) {\n          try {\n            openDesk("
+      }
+    ]
+  },
+  {
+    "name": "hire is offered to Workers",
+    "catches": "hire is the Leader's: a Worker is refused and nothing is spawned",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  hire: [LEADER],\n",
+        "to": "  hire: [LEADER, WORKER],\n"
+      }
+    ]
+  },
+  {
+    "name": "write_desk takes a name and writes that desk",
+    "catches": "writes its own desk only, the server owning the header",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "        const unknown = keys.filter((key) => ![\"title\", \"status\", \"body\"].includes(key));\n        if (unknown.length > 0) {\n          return { refused: `write_desk takes title, status and body, not ${unknown.join(\", \")}` };\n        }\n",
+        "to": ""
+      },
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "        const written = writeDeskWhole(root, caller.seat, {",
+        "to": "        const written = writeDeskWhole(root, args.name ?? caller.seat, {"
+      }
+    ]
+  },
+  {
+    "name": "write_desk takes an empty title",
+    "catches": "refuses an empty title, a status with a |, and a body over 64 KB, leaving the desk as it was",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "        if (typeof title !== \"string\" || title.trim() === \"\" || title.length > LONGEST_TITLE || title.includes(\"\\n\")) {\n          return { refused: `title is one line of 1 to ${LONGEST_TITLE} characters` };\n        }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "write_desk takes a body of any size",
+    "catches": "refuses an empty title, a status with a |, and a body over 64 KB, leaving the desk as it was",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "        if (typeof body !== \"string\" || Buffer.byteLength(body) > LONGEST_BODY) {\n          return { refused: `body is markdown of at most ${LONGEST_BODY} bytes` };\n        }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "write_desk takes a | in the status",
+    "catches": "refuses an empty title, a status with a |, and a body over 64 KB, leaving the desk as it was",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": " || status.includes(\"\\n\") || status.includes(\"|\")) {",
+        "to": " || status.includes(\"\\n\")) {"
+      }
+    ]
+  },
+  {
+    "name": "restart_session and stop_session do not want the desk written",
+    "catches": "restart_session wants the desk written since the event that asked",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  if (record.deskWrittenAt === null || record.deskWrittenAt < since) {\n    return { refused: \"write your desk first (write_desk)\" };\n  }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a closing process answers its queue ended whatever it was ending as",
+    "catches": "a restart is a new process on the same desk, the queue carried, the successor started from the desk",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "    const carried = record.ending === \"restart\" ? record.queue : [];\n    const left = [record.turn, ...(record.ending === \"restart\" ? [] : record.queue)].filter((turn) => turn !== null);",
+        "to": "    const carried = [];\n    const left = [record.turn, ...record.queue].filter((turn) => turn !== null);"
+      }
+    ]
+  },
+  {
+    "name": "the persona is rendered without the desk",
+    "catches": "a restart is a new process on the same desk, the queue carried, the successor started from the desk",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "  fs.writeFileSync(file, desk === null ? text : `${text}\\n${DESK_OPENS(seat)}\\n\\n${desk}\\n`);",
+        "to": "  fs.writeFileSync(file, text);"
+      }
+    ]
+  },
+  {
+    "name": "stop_session ends as a restart, so a successor spawns",
+    "catches": "stop_session ends the process and its panel; the desk and the log stay; hire brings it back appending",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "        return endOwn(instance, caller, \"stop\", \"stopping; your desk stays\");",
+        "to": "        return endOwn(instance, caller, \"restart\", \"stopping; your desk stays\");"
+      }
+    ]
+  },
+  {
+    "name": "stop_session deletes the panel",
+    "catches": "stop_session ends the process and its panel; the desk and the log stay; hire brings it back appending",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  record.ending = ending === \"stop\" ? (record.askedWhy === \"restart\" ? \"stop\" : (record.askedWhy ?? \"stop\")) : ending;\n",
+        "to": "  record.ending = ending === \"stop\" ? (record.askedWhy === \"restart\" ? \"stop\" : (record.askedWhy ?? \"stop\")) : ending;\n  if (ending === \"stop\") {\n    fs.rmSync(panelDirectory(instance.root, caller.seat), { recursive: true, force: true });\n  }\n"
+      }
+    ]
+  },
+  {
+    "name": "hire starts a stopped seat on a fresh panel",
+    "catches": "stop_session ends the process and its panel; the desk and the log stay; hire brings it back appending",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "        startSeat(instance, name);\n        return { text: `${name} started on the desk",
+        "to": "        fs.rmSync(panelDirectory(root, name), { recursive: true, force: true });\n        startSeat(instance, name);\n        return { text: `${name} started on the desk"
+      }
+    ]
+  },
+  {
+    "name": "the context is read from the top-level usage, not the last request",
+    "catches": "fires once, ahead of what was queued, from the last request of the turn",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "  const last = Array.isArray(usage?.iterations) ? usage.iterations.at(-1) : undefined;\n  if (last === undefined || last === null) {\n    return null;\n  }\n  return (last.input_tokens ?? 0) + (last.cache_read_input_tokens ?? 0) + (last.cache_creation_input_tokens ?? 0);",
+        "to": "  if (usage === undefined || usage === null || typeof usage.input_tokens !== \"number\") {\n    return null;\n  }\n  return (usage.input_tokens ?? 0) + (usage.cache_read_input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0);"
+      }
+    ]
+  },
+  {
+    "name": "context-full fires after every turn over the ceiling",
+    "catches": "fires once, ahead of what was queued, from the last request of the turn",
+    "edits": [
+      {
+        "file": "tools/chat/lifecycle.mjs",
+        "from": "  if (record.context === null || record.context <= context.ceiling || record.contextFullTold) {",
+        "to": "  if (record.context === null || record.context <= context.ceiling) {"
+      }
+    ]
+  },
+  {
+    "name": "the first reading of a window is kept, not the newest",
+    "catches": "keeps the newest reading per window from one turn, and stage one tells every seat ahead, nobody interrupted",
+    "edits": [
+      {
+        "file": "tools/chat/quota.mjs",
+        "from": "      readings.set(window, {\n        utilization: entry.utilization,",
+        "to": "      if (readings.has(window)) continue;\n      readings.set(window, {\n        utilization: entry.utilization,"
+      }
+    ]
+  },
+  {
+    "name": "stage one is told to Workers only",
+    "catches": "keeps the newest reading per window from one turn, and stage one tells every seat ahead, nobody interrupted",
+    "edits": [
+      {
+        "file": "tools/chat/lifecycle.mjs",
+        "from": "    for (const seat of seats) {\n      deliver(instance, seat, serverEvent(\"quota-low\", attrs), { ahead: true });",
+        "to": "    for (const seat of seats.filter((seat) => seat !== leader)) {\n      deliver(instance, seat, serverEvent(\"quota-low\", attrs), { ahead: true });"
+      }
+    ]
+  },
+  {
+    "name": "every window takes the frame's outer reset",
+    "catches": "applies the 7d thresholds to the 7d window: nothing at 0.91, warning at 0.96, interrupt and critical at 0.98",
+    "edits": [
+      {
+        "file": "tools/chat/quota.mjs",
+        "from": "        resetsAt: moment(entry.resetsAt),",
+        "to": "        resetsAt: moment(info.resetsAt),"
+      }
+    ]
+  },
+  {
+    "name": "stage two tells the Worker critical without interrupting it",
+    "catches": "stage two interrupts a Worker mid-turn and tells it critical; the Leader is told, not interrupted",
+    "edits": [
+      {
+        "file": "tools/chat/lifecycle.mjs",
+        "from": "      await interrupt(seat, { thenDrain: false });\n      deliver(instance, seat, serverEvent(\"quota-low\", { ...attrs, interrupted: \"true\" }, BODY_CRITICAL), { ahead: true, ask: \"stop\" });",
+        "to": "      deliver(instance, seat, serverEvent(\"quota-low\", { ...attrs, interrupted: \"true\" }, BODY_CRITICAL), { ahead: true, ask: \"stop\" });"
+      }
+    ]
+  },
+  {
+    "name": "stage two interrupts the Leader too",
+    "catches": "stage two interrupts a Worker mid-turn and tells it critical; the Leader is told, not interrupted",
+    "edits": [
+      {
+        "file": "tools/chat/lifecycle.mjs",
+        "from": "      if (seat === leader) {\n        deliver(instance, seat, serverEvent(\"quota-low\", attrs, BODY_CRITICAL_LEADER), { ahead: true });\n        return;\n      }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the gate holds from stage one",
+    "catches": "passes a page message at stage one, holds it at stage two, and writes it once the window has reset",
+    "edits": [
+      {
+        "file": "tools/chat/quota.mjs",
+        "from": "export function mayWrite(seat, model, now = clock()) {\n  return holdOn(model, CRITICAL, now);",
+        "to": "export function mayWrite(seat, model, now = clock()) {\n  return holdOn(model, WARNING, now);"
+      }
+    ]
+  },
+  {
+    "name": "the gate never holds",
+    "catches": "passes a page message at stage one, holds it at stage two, and writes it once the window has reset",
+    "edits": [
+      {
+        "file": "tools/chat/quota.mjs",
+        "from": "export function mayWrite(seat, model, now = clock()) {\n  return holdOn(model, CRITICAL, now);",
+        "to": "export function mayWrite(seat, model, now = clock()) {\n  return null;"
+      }
+    ]
+  },
+  {
+    "name": "the critical event goes through the closed gate like any frame",
+    "catches": "stage two interrupts a Worker mid-turn and tells it critical; the Leader is told, not interrupted",
+    "edits": [
+      {
+        "file": "tools/chat/lifecycle.mjs",
+        "from": "  if (record !== undefined && passesAClosedGate(frame) && !record.passedClosedGate.has(frame.event.type)) {\n    record.passedClosedGate.add(frame.event.type);\n    return null;\n  }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the write is not gated",
+    "catches": "holds at the write what was queued behind a turn before the window closed, and releases it in arrival order",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "    const holding = record.gate(record.queue[0].frame);",
+        "to": "    const holding = null;"
+      }
+    ]
+  },
+  {
+    "name": "held turns lose their arrival",
+    "catches": "holds at the write what was queued behind a turn before the window closed, and releases it in arrival order",
+    "edits": [
+      {
+        "file": "tools/chat/lifecycle.mjs",
+        "from": "resolve: turn.resolve, window: holding.window, order: turn.order });",
+        "to": "resolve: turn.resolve, window: holding.window });"
+      }
+    ]
+  },
+  {
+    "name": "a restart successor spawns through a closed gate",
+    "catches": "a restart while the window is closed waits for the reset: the successor starts then, the carried turns with it",
+    "edits": [
+      {
+        "file": "tools/chat/lifecycle.mjs",
+        "from": "    const holding = quota.mayStart(modelFor(instance.root, seat, instance.config));\n    if (holding === null) {\n      startSuccessor",
+        "to": "    const holding = null;\n    if (holding === null) {\n      startSuccessor"
+      }
+    ]
+  },
+  {
+    "name": "a held successor is never started",
+    "catches": "a restart while the window is closed waits for the reset: the successor starts then, the carried turns with it",
+    "edits": [
+      {
+        "file": "tools/chat/lifecycle.mjs",
+        "from": "    if (quota.mayStart(modelFor(instance.root, seat, instance.config)) === null) {\n      const carried = successors.get(seat);",
+        "to": "    if (false) {\n      const carried = successors.get(seat);"
+      }
+    ]
+  },
+  {
+    "name": "a hire is held from the second stage only",
+    "catches": "holds a hire from stage one, until the reset",
+    "edits": [
+      {
+        "file": "tools/chat/quota.mjs",
+        "from": "export function holdsHire(model, now = clock()) {\n  return holdOn(model, WARNING, now);",
+        "to": "export function holdsHire(model, now = clock()) {\n  return holdOn(model, CRITICAL, now);"
+      }
+    ]
+  },
+  {
+    "name": "the per-model window applies to every model",
+    "catches": "the per-model window, once named, touches seats on that model only",
+    "edits": [
+      {
+        "file": "tools/chat/quota.mjs",
+        "from": "  const applies = fableWire !== null && FABLE_WINDOW.models.test(String(model ?? \"\"));",
+        "to": "  const applies = fableWire !== null;"
+      }
+    ]
+  },
+  {
+    "name": "the write gate ignores the seat's model",
+    "catches": "the per-model window, once named, touches seats on that model only",
+    "edits": [
+      {
+        "file": "tools/chat/quota.mjs",
+        "from": "export function mayWrite(seat, model, now = clock()) {\n  return holdOn(model, CRITICAL, now);",
+        "to": "export function mayWrite(seat, model, now = clock()) {\n  return holdOn(\"fable\", CRITICAL, now);"
+      }
+    ]
+  },
+  {
+    "name": "the helper runs whatever the gate says",
+    "catches": "holds the helper at stage two only",
+    "edits": [
+      {
+        "file": "tools/helper.mjs",
+        "from": "  const held = mayStart(HELPER_MODEL);\n  if (held !== null) {\n    return { refused: \"the helper is held: quota\" };\n  }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the helper is held from stage one",
+    "catches": "holds the helper at stage two only",
+    "edits": [
+      {
+        "file": "tools/chat/quota.mjs",
+        "from": "export function mayStart(model, now = clock()) {\n  return holdOn(model, CRITICAL, now);",
+        "to": "export function mayStart(model, now = clock()) {\n  return holdOn(model, WARNING, now);"
+      }
+    ]
+  },
+  {
+    "name": "a rejected status is ignored",
+    "catches": "a rejected status closes the window whatever the number, until its reset",
+    "edits": [
+      {
+        "file": "tools/chat/quota.mjs",
+        "from": "  if (info?.status === \"rejected\" && typeof info.rateLimitType === \"string\") {",
+        "to": "  if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "the critical idle frame needs more than the force minute",
+    "catches": "tells the Leader at 10 and at 50, the seat at 55, and ends it at 60 with the Leader told why",
+    "edits": [
+      {
+        "file": "tools/chat/lifecycle.mjs",
+        "from": "    if (minutes >= idle.force) {",
+        "to": "    if (minutes > idle.force) {"
+      }
+    ]
+  },
+  {
+    "name": "the 10-minute FYI is not remembered, so it repeats every tick",
+    "catches": "tells the Leader at 10 and at 50, the seat at 55, and ends it at 60 with the Leader told why",
+    "edits": [
+      {
+        "file": "tools/chat/lifecycle.mjs",
+        "from": "      record.idleTold = idle.fyi[0];\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a seat asked to stop for idling is never ended",
+    "catches": "tells the Leader at 10 and at 50, the seat at 55, and ends it at 60 with the Leader told why",
+    "edits": [
+      {
+        "file": "tools/chat/lifecycle.mjs",
+        "from": "    if (record.askedWhy === \"idle\" && record.turn === null && now - record.askedAt >= IDLE_GRACE * 60_000) {\n      record.ending = \"idle-forced\";\n      end(seat);\n      continue;\n    }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "an idle ask never expires",
+    "catches": "a turn after the ask is a reprieve: asked at 55, given work at 57, alive at 60 with the ask gone",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "  record.askedWhy = record.turn.ask;\n  record.askedAt = record.turn.ask === null ? null : record.turnBegan;\n",
+        "to": "  if (record.turn.ask !== null) {\n    record.askedWhy = record.turn.ask;\n    record.askedAt = record.turnBegan;\n  }\n"
+      }
+    ]
+  },
+  {
+    "name": "a seat on a turn is ended idle-forced",
+    "catches": "the ask's own turn is never cut short: a permission pending at 60 keeps the seat, ended once the turn is over",
+    "edits": [
+      {
+        "file": "tools/chat/lifecycle.mjs",
+        "from": "    if (record.askedWhy === \"idle\" && record.turn === null && now - record.askedAt >= IDLE_GRACE * 60_000) {",
+        "to": "    if (record.askedWhy === \"idle\" && now - record.askedAt >= IDLE_GRACE * 60_000) {"
+      }
+    ]
+  },
+  {
+    "name": "the stopped FYI follows a forced idle stop only",
+    "catches": "the stopped FYI follows a voluntary idle stop too",
+    "edits": [
+      {
+        "file": "tools/chat/lifecycle.mjs",
+        "from": "  if (role === WORKER && (ending === \"idle\" || ending === \"idle-forced\")) {",
+        "to": "  if (role === WORKER && ending === \"idle-forced\") {"
+      }
+    ]
+  },
+  {
+    "name": "a seat on a turn counts as idle",
+    "catches": "a seat on a turn is not idle, however long the turn: a pending permission at 55 gets no critical frame",
+    "edits": [
+      {
+        "file": "tools/chat/lifecycle.mjs",
+        "from": "  if (record === undefined || record.turn !== null) {\n    return null;\n  }\n  return Math.floor(",
+        "to": "  if (record === undefined) {\n    return null;\n  }\n  return Math.floor("
+      }
+    ]
+  },
+  {
+    "name": "the idle FYIs are sent about the Leader too",
+    "catches": "the Leader has no 10 and no 50, and the critical frame at 55",
+    "edits": [
+      {
+        "file": "tools/chat/lifecycle.mjs",
+        "from": "    if (seat !== leader && minutes >= idle.fyi[0] && record.idleTold < idle.fyi[0]) {",
+        "to": "    if (minutes >= idle.fyi[0] && record.idleTold < idle.fyi[0]) {"
+      },
+      {
+        "file": "tools/chat/lifecycle.mjs",
+        "from": "    if (seat !== leader && minutes >= idle.fyi[1] && record.idleTold < idle.fyi[1]) {",
+        "to": "    if (minutes >= idle.fyi[1] && record.idleTold < idle.fyi[1]) {"
+      }
+    ]
+  },
+  {
+    "name": "the idle clock is set at spawn only",
+    "catches": "a message resets the idle clock",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "        record.turn = null;\n        record.idleSince = clock();\n        record.idleTold = 0;",
+        "to": "        record.turn = null;\n        record.idleTold = 0;"
+      }
+    ]
+  },
+  {
+    "name": "the hard-rule delta is a turn of its own",
+    "catches": "is prepended to the next frame in one write, never a turn of its own, and the header says the set",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "  record.prefix.push({ frame, version });\n  return true;",
+        "to": "  record.queue.push({ frame, resolve() {} });\n  drain(record);\n  return true;"
+      }
+    ]
+  },
+  {
+    "name": "a rule rendering to nothing for a role is prefixed anyway",
+    "catches": "is prepended to the next frame in one write, never a turn of its own, and the header says the set",
+    "edits": [
+      {
+        "file": "tools/chat/lifecycle.mjs",
+        "from": "      if (text !== null) {\n        prefix(seat, rulesUpdateFrame(version, text), version);\n      }",
+        "to": "      prefix(seat, rulesUpdateFrame(version, text ?? \"\"), version);"
+      }
+    ]
+  },
+  {
+    "name": "the delta body is a raw template",
+    "catches": "neutralises the rule text in the delta",
+    "edits": [
+      {
+        "file": "tools/chat/frames.mjs",
+        "from": "  return serverEvent(\"hard-rules\", { set: version }, text);",
+        "to": "  return new Frame(BUILT_HERE, \"server-event\", `<server-event type=\"hard-rules\" set=\"${version}\">${text}</server-event>`, { type: \"hard-rules\", attrs: { set: version } });"
+      }
+    ]
+  },
+  {
+    "name": "a pending delta is carried to the successor",
+    "catches": "a pending delta dies with the process; the successor has the set at spawn, in its header, and no frame",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "    ended({ seat, role, ending: record.ending, carried, why });",
+        "to": "    ended({ seat, role, ending: record.ending, carried: [...record.prefix.map((entry) => ({ frame: entry.frame, resolve() {} })), ...carried], why });"
+      }
+    ]
+  },
+  {
+    "name": "the persona render drops the version",
+    "catches": "records the rule-set version in the desk header at spawn",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "  return { file, version };",
+        "to": "  return { file, version: undefined };"
+      }
+    ]
+  },
+  {
+    "name": "the header is not written at spawn",
+    "catches": "records the rule-set version in the desk header at spawn",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "  writeDeskHeader(instance.root, seat, { rules: record.rules });\n\n  child.stdout.on(",
+        "to": "\n  child.stdout.on("
+      }
+    ]
+  },
+  {
+    "name": "park does not wait for the stops",
+    "catches": "interrupts when asked, waits for the stops, ends the rest at the deadline, and leaves the Leader's turn alone",
+    "edits": [
+      {
+        "file": "tools/chat/lifecycle.mjs",
+        "from": "    while (clock() < until && !waitedFor.every(stopped)) {",
+        "to": "    while (false) {"
+      }
+    ]
+  },
+  {
+    "name": "park ends nobody at the deadline",
+    "catches": "interrupts when asked, waits for the stops, ends the rest at the deadline, and leaves the Leader's turn alone",
+    "edits": [
+      {
+        "file": "tools/chat/lifecycle.mjs",
+        "from": "      said.push(`${seat} ended at the deadline (${hhmm(record.deskWrittenAt)})`);\n      end(seat);",
+        "to": "      said.push(`${seat} ended at the deadline (${hhmm(record.deskWrittenAt)})`);"
+      }
+    ]
+  },
+  {
+    "name": "park with no deadline has no ceiling",
+    "catches": "with no deadline has the instance's ceiling, says who it ended there, and the flag clears on every exit",
+    "edits": [
+      {
+        "file": "tools/chat/lifecycle.mjs",
+        "from": "    const seconds = deadline ?? settingsIn(instance.config).park.deadline;",
+        "to": "    const seconds = deadline ?? Infinity;"
+      }
+    ]
+  },
+  {
+    "name": "the parking flag clears on the return path only",
+    "catches": "with no deadline has the instance's ceiling, says who it ended there, and the flag clears on every exit",
+    "edits": [
+      {
+        "file": "tools/chat/lifecycle.mjs",
+        "from": "    return { text: `parked: ${said.length === 0 ? \"nobody was running\" : said.join(\"; \")}` };\n  } finally {\n    parking = false;\n  }",
+        "to": "    parking = false;\n    return { text: `parked: ${said.length === 0 ? \"nobody was running\" : said.join(\"; \")}` };\n  } finally {\n  }"
+      }
+    ]
+  },
+  {
+    "name": "the signal handler ends every session without a park",
+    "catches": "SIGTERM parks the room, the Leader too, over a server that keeps answering the tools, then exits 0",
+    "edits": [
+      {
+        "file": "tools/ovai.mjs",
+        "from": "    if (going > 0) {\n      console.log(`Parking ${going} ${going === 1 ? \"session\" : \"sessions\"}.`);\n      const parked = await parkRoom(instance, { interrupt: true, deadline: settingsIn(config).park.timeout, leaderToo: true });\n      console.log(parked.text ?? parked.refused);\n    }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the park under the signal skips the Leader",
+    "catches": "SIGTERM parks the room, the Leader too, over a server that keeps answering the tools, then exits 0",
+    "edits": [
+      {
+        "file": "tools/ovai.mjs",
+        "from": "deadline: settingsIn(config).park.timeout, leaderToo: true });",
+        "to": "deadline: settingsIn(config).park.timeout, leaderToo: false });"
+      }
+    ]
+  },
+  {
+    "name": "the server is closed before the park",
+    "catches": "SIGTERM parks the room, the Leader too, over a server that keeps answering the tools, then exits 0",
+    "edits": [
+      {
+        "file": "tools/ovai.mjs",
+        "from": "    instance.stopping = true;\n    const going = runningSeats().length;",
+        "to": "    instance.stopping = true;\n    server.close();\n    const going = runningSeats().length;"
+      },
+      {
+        "file": "tools/ovai.mjs",
+        "from": "    server.close();\n    await endEvery();",
+        "to": "    await endEvery();"
+      }
+    ]
+  },
+  {
+    "name": "ovai stop sends SIGKILL",
+    "catches": "ovai stop is SIGTERM to the holder of the port, and waits until nothing answers",
+    "edits": [
+      {
+        "file": "tools/ovai.mjs",
+        "from": "  process.kill(holder.pid, \"SIGTERM\");",
+        "to": "  process.kill(holder.pid, \"SIGKILL\");"
+      }
+    ]
+  },
+  {
+    "name": "the page's STOP ends the process",
+    "catches": "interrupts the turn and nothing else: the process stays, the next frame goes in",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "      const interrupted = await interrupt(seat);\n      sendJson(response, 200, { interrupted });",
+        "to": "      const interrupted = await interrupt(seat);\n      end(seat);\n      sendJson(response, 200, { interrupted });"
+      }
+    ]
+  },
+  {
+    "name": "an interrupt waits for the result for good",
+    "catches": "the interrupt patience bounds the wait: a run that ignores the interrupt still gets the critical frame",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "  await Promise.race([said, new Promise((resolve) => { waited = setTimeout(resolve, patience); })]);",
+        "to": "  await said;"
+      }
+    ]
+  },
+  {
+    "name": "serve starts the Leader",
+    "catches": "does not start the Leader with the server",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "      const disarm = arm(instance);\n",
+        "to": "      const disarm = arm(instance);\n      startSeat(instance, instance.config.leader);\n"
+      }
+    ]
+  },
+  {
+    "name": "the 5h thresholds apply to every window",
+    "catches": "applies the 7d thresholds to the 7d window: nothing at 0.91, warning at 0.96, interrupt and critical at 0.98",
+    "edits": [
+      {
+        "file": "tools/chat/quota.mjs",
+        "from": "  const [warning, critical] = thresholds[key];",
+        "to": "  const [warning, critical] = thresholds[\"5h\"];"
+      }
+    ]
+  },
+  {
+    "name": "held frames are released in pure arrival order",
+    "catches": "releases held frames the Leader's first, then the Workers', each in arrival order",
+    "edits": [
+      {
+        "file": "tools/chat/lifecycle.mjs",
+        "from": "  const ordered = [...released.filter((entry) => entry.seat === leader), ...released.filter((entry) => entry.seat !== leader)];",
+        "to": "  const ordered = released;"
+      }
+    ]
+  },
+  {
+    "name": "held frames are released the Workers' first",
+    "catches": "releases held frames the Leader's first, then the Workers', each in arrival order",
+    "edits": [
+      {
+        "file": "tools/chat/lifecycle.mjs",
+        "from": "  const ordered = [...released.filter((entry) => entry.seat === leader), ...released.filter((entry) => entry.seat !== leader)];",
+        "to": "  const ordered = [...released.filter((entry) => entry.seat !== leader), ...released.filter((entry) => entry.seat === leader)];"
+      }
+    ]
+  },
+  {
+    "name": "a stage fires on every reading at or past it",
+    "catches": "a stage fires once per crossing and again after the reset",
+    "edits": [
+      {
+        "file": "tools/chat/quota.mjs",
+        "from": "    if (STAGES.indexOf(stage) <= STAGES.indexOf(last)) {\n      continue;\n    }\n",
+        "to": ""
+      }
+    ]
+  }
+]

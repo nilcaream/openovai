@@ -63,12 +63,16 @@ function attributes(attrs) {
 const BUILT_HERE = Symbol("built by the frame builders");
 
 class Frame {
-  constructor(key, kind, text) {
+  constructor(key, kind, text, event = null) {
     if (key !== BUILT_HERE) {
       throw new Error("a frame comes from the builders in frames.mjs and from nowhere else");
     }
     this.kind = kind;
     this.text = text;
+    // For a server event: its type and attributes as the builder was given them, so the server
+    // can read what it built back off the frame — which events pass a closed gate is decided on
+    // this and never on the text.
+    this.event = event === null ? null : Object.freeze({ type: event.type, attrs: Object.freeze({ ...event.attrs }) });
     Object.freeze(this);
   }
 }
@@ -85,11 +89,25 @@ export function messageFrame(from, text) {
   return new Frame(BUILT_HERE, "message", `<message from="${token("from", from)}">${neutralise(text)}</message>`);
 }
 
+// Every kind of event the server says. A kind not in here is a bug upstream, refused here.
+export const EVENTS = Object.freeze(["user-typed", "context-full", "quota-low", "idle", "stopped", "park", "hard-rules"]);
+
 export function serverEvent(kind, attrs = {}, body = undefined) {
+  if (!EVENTS.includes(kind)) {
+    throw new Error(`${JSON.stringify(kind)} is not an event the server says`);
+  }
   const opening = `<server-event type="${token("type", kind)}"${attributes(attrs)}`;
   return new Frame(
     BUILT_HERE,
     "server-event",
     body === undefined ? `${opening}/>` : `${opening}>${neutralise(body)}</server-event>`,
+    { type: kind, attrs },
   );
+}
+
+// The hard-rule delta a running session is handed on its next turn: the set version as an
+// attribute and the update line as the body — a rule is written by a person and neutralised
+// like any other body.
+export function rulesUpdateFrame(version, text) {
+  return serverEvent("hard-rules", { set: version }, text);
 }

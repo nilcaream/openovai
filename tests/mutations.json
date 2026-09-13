@@ -214,8 +214,8 @@
     "edits": [
       {
         "file": "tools/chat/session.mjs",
-        "from": "  const { text } = withHardRules(persona(instance.root, seat, instance.config), instance.root, roleOf(instance, seat));\n  fs.writeFileSync(file, text);",
-        "to": "  fs.writeFileSync(file, persona(instance.root, seat, instance.config));"
+        "from": "  const { text, version } = withHardRules(persona(instance.root, seat, instance.config), instance.root, roleOf(instance, seat));",
+        "to": "  const { version } = withHardRules(persona(instance.root, seat, instance.config), instance.root, roleOf(instance, seat));\n  const text = persona(instance.root, seat, instance.config);"
       }
     ]
   },
@@ -280,8 +280,8 @@
     "edits": [
       {
         "file": "tools/chat/session.mjs",
-        "from": "  if (!isFrame(frame)) {",
-        "to": "  if (false) {"
+        "from": "export function tell(seat, frame, { ahead = false, ask = null } = {}) {\n  if (!isFrame(frame)) {",
+        "to": "export function tell(seat, frame, { ahead = false, ask = null } = {}) {\n  if (false) {"
       }
     ]
   },
@@ -291,8 +291,8 @@
     "edits": [
       {
         "file": "tools/chat/session.mjs",
-        "from": "content: record.turn.frame.text }",
-        "to": "content: record.turn.frame.kind }"
+        "from": ".map((frame) => frame.text).join(\"\\n\");",
+        "to": ".map((frame) => frame.kind).join(\"\\n\");"
       }
     ]
   },
@@ -302,8 +302,8 @@
     "edits": [
       {
         "file": "tools/chat/session.mjs",
-        "from": "  if (record.turn !== null || record.queue.length === 0) {\n    return;\n  }",
-        "to": "  if (record.queue.length === 0) {\n    return;\n  }"
+        "from": "  if (record.turn !== null || record.queue.length === 0 || record.ending !== null) {",
+        "to": "  if (record.queue.length === 0 || record.ending !== null) {"
       }
     ]
   },
@@ -320,7 +320,7 @@
   },
   {
     "name": "a seat with no process is told anyway, into a queue nobody drains",
-    "catches": "says when the Leader could not be told, and never queues the event for its next process",
+    "catches": "says when the seat itself has no process, on the panel too",
     "edits": [
       {
         "file": "tools/chat/session.mjs",
@@ -334,8 +334,8 @@
       },
       {
         "file": "tools/chat/session.mjs",
-        "from": "  const record = { seat, role, secret, child, queue: [], turn: null, rest: \"\", err: \"\" };\n  processes.set(seat, record);",
-        "to": "  const record = { seat, role, secret, child, queue: held.get(seat) ?? [], turn: null, rest: \"\", err: \"\" };\n  held.delete(seat);\n  processes.set(seat, record);"
+        "from": "    queue: [...queue],\n    turn: null,",
+        "to": "    queue: [...queue, ...(held.get(seat) ?? [])],\n    turn: null,"
       }
     ]
   },
@@ -389,8 +389,8 @@
     "edits": [
       {
         "file": "tools/chat/session.mjs",
-        "from": "    gone(record.err.trim() === \"\" ? `${seat} ended before answering` : record.err.trim());",
-        "to": "    gone(`${seat} ended before answering`);"
+        "from": "    gone(\n      record.ending === \"restart\"\n        ? `${seat} restarted`\n        : record.err.trim() === \"\"\n          ? `${seat} ended before answering`\n          : record.err.trim(),\n    );",
+        "to": "    gone(record.ending === \"restart\" ? `${seat} restarted` : `${seat} ended before answering`);"
       }
     ]
   },
@@ -440,7 +440,7 @@
   },
   {
     "name": "room is the Leader's alone",
-    "catches": "serves the Leader exactly what BUILT_IN names, and a Worker the same",
+    "catches": "serves the Leader exactly what BUILT_IN names, and a Worker the same but park and hire",
     "edits": [
       {
         "file": "tools/chat/server.mjs",
@@ -466,8 +466,8 @@
     "edits": [
       {
         "file": "tools/chat/server.mjs",
-        "from": "        const told = tell(to, messageFrame(caller.seat, text));",
-        "to": "        const told = tell(to, messageFrame(args?.from ?? caller.seat, text));"
+        "from": "        const told = deliver(instance, to, messageFrame(caller.seat, text));",
+        "to": "        const told = deliver(instance, to, messageFrame(args?.from ?? caller.seat, text));"
       }
     ]
   },
@@ -543,8 +543,8 @@
     "edits": [
       {
         "file": "tools/chat/server.mjs",
-        "from": "        const told = tell(to, messageFrame(caller.seat, text));",
-        "to": "        if (!running(to)) {\n          startSeat(instance, to);\n        }\n        const told = tell(to, messageFrame(caller.seat, text));"
+        "from": "        const told = deliver(instance, to, messageFrame(caller.seat, text));",
+        "to": "        if (!running(to)) {\n          startSeat(instance, to);\n        }\n        const told = deliver(instance, to, messageFrame(caller.seat, text));"
       }
     ]
   },
@@ -631,8 +631,8 @@
     "edits": [
       {
         "file": "tools/chat/server.mjs",
-        "from": "  const told = tell(seat, userFrame(text));",
-        "to": "  const told = tell(seat, messageFrame(\"User\", text));"
+        "from": "  const told = deliver(instance, seat, userFrame(text));",
+        "to": "  const told = deliver(instance, seat, messageFrame(\"User\", text));"
       }
     ]
   },
@@ -704,12 +704,23 @@
   },
   {
     "name": "the server writes to a session's stdin on its own",
-    "catches": "is session.mjs, through the frame writer and the two permission answers, and nobody else",
+    "catches": "is session.mjs, through the frame writer, the two permission answers and the interrupt, and nobody else",
     "edits": [
       {
         "file": "tools/chat/server.mjs",
         "from": "  sendJson(response, 200, typed(instance, seat, text));",
         "to": "  // running(seat) && processes.get(seat).child.stdin.write(text);\n  sendJson(response, 200, typed(instance, seat, text));"
+      }
+    ]
+  },
+  {
+    "name": "the lifecycle writes to a session's stdin on its own",
+    "catches": "is session.mjs, through the frame writer, the two permission answers and the interrupt, and nobody else",
+    "edits": [
+      {
+        "file": "tools/chat/lifecycle.mjs",
+        "from": "  const told = tell(seat, frame, { ahead, ask });",
+        "to": "  // recordOf(seat)?.child.stdin.write(frame.text);\n  const told = tell(seat, frame, { ahead, ask });"
       }
     ]
   },

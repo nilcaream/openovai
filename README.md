@@ -302,12 +302,17 @@ own:
 
     POST /mcp/<secret>
 
-Four of them. `message` says something to another session and waits for the reply, `room` says who
+Nine of them. `message` says something to another session and waits for the reply, `room` says who
 works here — every seat, its role, what it runs on, whether it is running, and which one is you —
-and `recall` and `remember` are the store, what the workspace knows, below. Every seat is offered
-all four. What a tool refuses it refuses in its own words, as an answer the session reads: a
-session that hears of a tool and is answered "no such tool" goes looking for another way to do the
-same thing.
+and `recall` and `remember` are the store, what the workspace knows, below. `write_desk` writes the
+caller's own desk and nobody else's; `restart_session` ends the caller's process and starts a new
+one on the same desk, and `stop_session` ends it and starts nothing — both refuse until the desk
+was written since the server asked for it, or since the turn began. `park` tells every Worker to
+write its desk and stop, and waits for them; `hire` opens a desk and starts a process on it. Every
+seat is offered the first seven; `park` and `hire` are the Leader's, and a Worker asking for
+either is refused. What a tool refuses it refuses in its own words, as an answer the session reads:
+a session that hears of a tool and is answered "no such tool" goes looking for another way to do
+the same thing.
 
 They are tools because a shell line is a poor place to put a sentence somebody wrote. An apostrophe
 ends the quoting; a backtick is run and what it printed goes instead of what was meant; and several
@@ -357,7 +362,7 @@ do, and writing the file is the deciding. The next section is about those.
 
 ### Tools the toolkit did not ship
 
-The four above are the ones every workspace wants. The ones only yours wants cannot be in here at
+The nine above are the ones every workspace wants. The ones only yours wants cannot be in here at
 all: what such a tool has to reach — the tracker your team files work in, the machine your builds
 run on, whatever your notes live in — is different in every workspace, and none of it belongs in a
 toolkit that installs on machines it knows nothing about. So it is written where the machine is
@@ -411,7 +416,7 @@ place it is ever said, because the directory is the list: a file sitting in it l
 nothing a session can see would say otherwise.
 
 None of this is granted anything, and that is the point of where the file comes from. The one rule
-covers it the moment it appears, the way it covers the four above — but a tool of yours runs inside
+covers it the moment it appears, the way it covers the nine above — but a tool of yours runs inside
 the chat process rather than in a session, so the permission system never sees it at all. What
 stands where a rule cannot is that a session may write its own desk and nothing else, so no session
 can give itself a tool: writing that file is a person deciding, and that decision is the gate.
@@ -489,10 +494,13 @@ a plain install is already narrow enough to watch this work. Every option is req
 ~/trying-it/bin/ovai chat
 ```
 
-`ovai chat` prints the address it is listening on. Open it, and every seat has a panel. Starting a
-seat's process from the page is not wired yet — the server has the one place a process is started
-and its tests start seats through it, and the page will — so today a line typed to a seat with no
-process comes back on the panel saying so, from the chat.
+`ovai chat` prints the address it is listening on. Open it, and every seat has a panel. The Leader
+is started by whatever is addressed to it — a line typed on its panel, a message from a Worker, an
+event the server sends on its own account — so the chat starts with nobody running, and the first
+line to the Leader starts it. A Worker is started by the Leader's `hire` (the command at the
+prompt opens the desk; the tool opens it and starts the process) and by its own `restart_session`,
+never by a line typed to it: a line typed to a Worker with no process comes back on the panel
+saying so, from the chat.
 
 The stops themselves are worth watching once a process is running. On Paul's panel ask for
 something the instance has not been told to allow — ask him to **write** a file, *"create a file
