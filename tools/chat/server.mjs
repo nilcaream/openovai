@@ -68,11 +68,12 @@ const LONGEST_MESSAGE = 100_000;
 
 const UNKNOWN = { error: "unknown secret" };
 
-function sendJson(response, status, body) {
+function sendJson(response, status, body, headers = {}) {
   const text = JSON.stringify(body);
   response.writeHead(status, {
     "content-type": "application/json; charset=utf-8",
     "content-length": Buffer.byteLength(text),
+    ...headers,
   });
   response.end(text);
 }
@@ -833,9 +834,12 @@ function stream(instance, url, response) {
 // ------------------------------------------------------------------------------------- routing
 
 // The request log names the route and never a secret: the segment after /mcp/ is printed as
-// the word, whatever was there.
+// the word, whatever was there and wherever it sits — a caller that goes looking for a login
+// appends the whole tool path to a discovery route.
+const SECRET_IN_PATH = /\/mcp\/[^/]+/g;
+
 function shownAs(pathname) {
-  return TOOL_ROUTE.test(pathname) ? "/mcp/<secret>" : pathname;
+  return pathname.replace(SECRET_IN_PATH, "/mcp/<secret>");
 }
 
 async function handle(instance, port, request, response) {
@@ -862,8 +866,15 @@ async function handle(instance, port, request, response) {
     return;
   }
 
-  if (request.method === "POST" && TOOL_ROUTE.test(url.pathname)) {
-    await postTool(instance, who, request, response);
+  if (TOOL_ROUTE.test(url.pathname)) {
+    if (request.method === "POST") {
+      await postTool(instance, who, request, response);
+      return;
+    }
+    // A session opens GET on its own door to listen for a stream the server does not offer.
+    // The answer is the one the protocol reserves for that, and nothing else: a 401 here would
+    // read as "log in first" and send the caller looking for a login that does not exist.
+    sendJson(response, 405, { error: "method not allowed" }, { allow: "POST" });
     return;
   }
 

@@ -218,8 +218,12 @@ Who is calling a tool travels with the process. When the server starts a seat it
 
 The MCP address in the process's arguments refers to the variable rather than carrying the value,
 the map from secret to seat lives in memory only, a secret dies with its process, and a call with
-one the server does not know is answered with one body whatever was tried. Names are for people;
-secrets are for the machinery. The page has a secret of its own that opens no tool route.
+one the server does not know is answered with one body whatever was tried. POST is the route's one
+method: a GET with a known secret is the transport listening for a stream the server does not
+offer, and it is answered 405 rather than 401, so the process is not sent looking for a login.
+The request log prints the secret as the word `<secret>` wherever a path carries one. Names are
+for people; secrets are for the machinery. The page has a secret of its own that opens no tool
+route.
 
 ## The tools
 

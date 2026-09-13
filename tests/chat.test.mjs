@@ -329,6 +329,40 @@ describe("the gate", () => {
     assert.equal((await call(paul.secret, "tools/list")).status, 200);
   });
 
+  // A caller opens GET on its own door to listen for a stream the server does not offer. The
+  // answer is 405, the one the protocol reserves for that, and nothing else: a 401 here reads as
+  // "log in first" and sends the caller looking for a login that does not exist.
+  it("answers GET on the door it issued with 405, and GET on an unknown one with the same 401", async () => {
+    const before_ = said.length;
+    const own = await fetch(`${url}/mcp/${paul.secret}`, { headers: { accept: "text/event-stream" } });
+    assert.equal(own.status, 405);
+    assert.equal(own.headers.get("allow"), "POST");
+    await own.text();
+    const stranger = await fetchPlain(`${url}/mcp/${"x".repeat(43)}`);
+    assert.equal(stranger.status, 401);
+    assert.equal(stranger.body, UNKNOWN);
+    assert.ok(await waitFor(() => said.slice(before_).includes("GET /mcp/<secret> 405")), said.slice(before_).join("\n"));
+    assert.deepEqual(heardIn(paul.log), [], "a GET reached a session");
+  });
+
+  // A secret is masked wherever a logged path carries it, not only on the tool route: a caller
+  // that goes looking for a login appends the whole tool path to a discovery route.
+  it("prints no secret in the request log, wherever a path carries one", async () => {
+    const before_ = said.length;
+    const probes = [
+      `/.well-known/oauth-protected-resource/mcp/${paul.secret}`,
+      `/mcp/${paul.secret}/`,
+      `/mcp/${paul.secret}/messages`,
+    ];
+    for (const probe of probes) {
+      assert.equal((await fetchPlain(`${url}${probe}`)).status, 401);
+    }
+    assert.ok(await waitFor(() => said.slice(before_).filter((line) => line.startsWith("GET ")).length >= probes.length));
+    const logged = said.slice(before_);
+    assert.ok(!logged.some((line) => line.includes(paul.secret)), `a secret was logged:\n${logged.join("\n")}`);
+    assert.ok(logged.includes("GET /.well-known/oauth-protected-resource/mcp/<secret> 401"), logged.join("\n"));
+  });
+
   it("forgets a secret when its process has gone, and the next process gets another", async () => {
     const old = paul.secret;
     await endSeat(WORKER, 500);

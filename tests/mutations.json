@@ -1009,5 +1009,27 @@
         "to": "  \"/marked.mjs\": { file: path.join(HERE, \"render.mjs\"), type: \"text/javascript; charset=utf-8\" },"
       }
     ]
+  },
+  {
+    "name": "a GET on an issued door is refused like a stranger",
+    "catches": "answers GET on the door it issued with 405, and GET on an unknown one with the same 401",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "    sendJson(response, 405, { error: \"method not allowed\" }, { allow: \"POST\" });",
+        "to": "    sendJson(response, 401, UNKNOWN);"
+      }
+    ]
+  },
+  {
+    "name": "the log masks the secret on the tool route only",
+    "catches": "prints no secret in the request log, wherever a path carries one",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  return pathname.replace(SECRET_IN_PATH, \"/mcp/<secret>\");",
+        "to": "  return TOOL_ROUTE.test(pathname) ? \"/mcp/<secret>\" : pathname;"
+      }
+    ]
   }
 ]
