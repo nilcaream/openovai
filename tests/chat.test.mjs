@@ -37,6 +37,10 @@ const instance = `${base}-instance`;
 // log is the one place a secret is written on purpose.
 const standIn = `${base}-stand-in`;
 const nowhere = `${base}-nowhere`;
+// Where a process the chat starts of its own accord — the successor after a restart — writes:
+// nobody arranged a log for it, and the machine's own `claude`, present or not, must never be it.
+const unarranged = path.join(standIn, "unarranged.txt");
+const realPath = process.env.PATH;
 
 process.on("exit", () => {
   remove(instance, standIn, nowhere);
@@ -82,6 +86,11 @@ before(async () => {
   // from here rather than from the suite's output.
   log_ = console.log;
   console.log = (line) => said.push(String(line));
+  // A seat is started with the stand-in on the PATH for that spawn only (seatUp); a spawn the
+  // chat makes later on its own gets the environment of that moment, so the stand-in is on the
+  // PATH for the whole suite and a spawn nobody arranged a log for writes to the one place.
+  process.env.PATH = `${standIn}${path.delimiter}${realPath}`;
+  process.env.OPENOVAI_STAND_IN_LOG = unarranged;
   server = await serve(chat);
   url = `http://127.0.0.1:${server.address().port}`;
 });
@@ -90,6 +99,8 @@ after(async () => {
   await endEvery(500);
   await new Promise((resolve) => server.close(resolve));
   console.log = log_;
+  process.env.PATH = realPath;
+  delete process.env.OPENOVAI_STAND_IN_LOG;
 });
 
 // Start a seat with the stand-in as its process, its own log, and the knobs given, and answer
@@ -1115,13 +1126,18 @@ describe("the stream", () => {
       ]),
     });
     const first = paul.secret;
+    const spawned = secretsIn(unarranged).length;
     await page("POST", `/sessions/${WORKER}/message`, { text: "go" });
     await until(client, (event) => event.name === "seat" && event.data.name === WORKER && event.data.running === false);
     await until(client, (event) => event.name === "seat" && event.data.name === WORKER && event.data.running === true && about(client, WORKER).some((seen) => seen.data.running === false));
-    assert.ok(await waitFor(() => (secretsIn(paul.log).length >= 2 || running(WORKER) ? true : null)));
+    // The successor is the chat's own spawn: a new process under a new secret, in the log nobody
+    // arranged for it, and running.
+    const successor = await waitFor(() => secretsIn(unarranged)[spawned] ?? null);
+    assert.notEqual(successor, null, `no successor was started for ${WORKER}`);
+    assert.notEqual(successor, first);
+    assert.equal(running(WORKER), true);
     const flags = about(client, WORKER).map((event) => event.data.running);
     assert.ok(flags.indexOf(false) < flags.lastIndexOf(true), JSON.stringify(flags));
-    assert.notEqual(first, undefined);
     assert.ok(client.events.every((event) => ["snapshot", "rows", "asking", "row", "seat"].includes(event.name)));
     await end(WORKER, 500);
   });
