@@ -171,6 +171,11 @@ function buildCopy(into) {
       fs.cpSync(from, to, { recursive: true });
     } else {
       fs.rmSync(to, { recursive: true, force: true });
+      // A directory whose last file was deleted is not in the tree either; the archive laid it
+      // down, and a check that a directory is gone would find it standing here, empty.
+      for (let dir = path.dirname(to); dir !== into && fs.readdirSync(dir).length === 0; dir = path.dirname(dir)) {
+        fs.rmdirSync(dir);
+      }
     }
   }
   return into;

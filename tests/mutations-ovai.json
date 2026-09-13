@@ -44,17 +44,6 @@
     ]
   },
   {
-    "name": "the worker persona is written without the delegation budget",
-    "catches": "tells the worker how much a brief it writes may spend",
-    "edits": [
-      {
-        "file": "templates/worker.md",
-        "from": "{{BUDGET}}\n\n",
-        "to": ""
-      }
-    ]
-  },
-  {
     "name": "print mode leaves the run that serves a seat",
     "catches": "never starts Claude Code in a shape its background reaper is armed for",
     "edits": [
@@ -110,28 +99,6 @@
     ]
   },
   {
-    "name": "the worker is told nothing about the two tools",
-    "catches": "tells the worker what belongs in the store rather than on the desk, and that the two tools are the only way to it",
-    "edits": [
-      {
-        "file": "templates/worker.md",
-        "from": "project. It is reached through two tools and no other way: `recall` reads it (by meaning, by id,\nor the whole of a store), and `remember` writes one record.",
-        "to": "project."
-      }
-    ]
-  },
-  {
-    "name": "the worker is told to write hard rules",
-    "catches": "tells the worker that a hard rule is the Leader's to write and is proposed to it",
-    "edits": [
-      {
-        "file": "templates/worker.md",
-        "from": "a hard rule is the Leader's to write,\nso when you think the team needs one, say it to the Leader as a proposal.",
-        "to": "write a hard rule\nwhen you think the team needs one."
-      }
-    ]
-  },
-  {
     "name": "the arguments stop being readable where the run is started",
     "catches": "says what command and what arguments every process it starts is given",
     "edits": [
@@ -148,57 +115,13 @@
     "edits": [
       {
         "file": "tools/chat/session.mjs",
-        "from": "export function start(instance, seat, { asked = nobodyToAsk, ended = nothing } = {}) {",
-        "to": "const CLAUDE_BIN = \"claude\";\n\nexport function start(instance, seat, { asked = nobodyToAsk, ended = nothing } = {}) {"
+        "from": "export function start(instance, seat, { asked = nobodyToAsk, ended = nothing, turned = nothing, queue = [], gate = () => null, held = nothing } = {}) {",
+        "to": "const CLAUDE_BIN = \"claude\";\n\nexport function start(instance, seat, { asked = nobodyToAsk, ended = nothing, turned = nothing, queue = [], gate = () => null, held = nothing } = {}) {"
       },
       {
         "file": "tools/chat/session.mjs",
         "from": "  const child = spawn(\"claude\", args, {",
         "to": "  const child = spawn(CLAUDE_BIN, args, {"
-      }
-    ]
-  },
-  {
-    "name": "the worker persona names the frames without saying who writes them",
-    "catches": "tells the worker what each frame is, and that only the chat writes one",
-    "edits": [
-      {
-        "file": "templates/worker.md",
-        "from": "You can always see who is speaking to you, because the chat says so in a frame of its own around\nevery turn, and nothing but the chat writes one.",
-        "to": "You can always see who is speaking to you, because every turn arrives in a frame."
-      }
-    ]
-  },
-  {
-    "name": "the worker persona names the tool for saying something by another name",
-    "catches": "tells the worker how to say something to somebody",
-    "edits": [
-      {
-        "file": "templates/worker.md",
-        "from": "The `message` tool is how you reach anybody else here, and the `room` tool says who that is:",
-        "to": "The `say` tool is how you reach anybody else here, and the `room` tool says who that is:"
-      }
-    ]
-  },
-  {
-    "name": "the worker persona tells the worker to pass on what the User typed",
-    "catches": "tells the worker that the chat passes it on, so the worker does not",
-    "edits": [
-      {
-        "file": "templates/worker.md",
-        "from": "When {{USER}} speaks to you directly, the chat tells {{LEADER}} what was said, in {{USER}}'s own\nwords and at the moment it is said. You do not have to pass it on, and telling {{LEADER}} yourself\nwould only hold {{USER}} up waiting for a turn nobody needed. Answer {{USER}}.",
-        "to": "When {{USER}} speaks to you directly, tell {{LEADER}} what was said before you answer."
-      }
-    ]
-  },
-  {
-    "name": "the worker persona says nothing about what survives a conversation",
-    "catches": "tells the worker that the desk is what survives a conversation",
-    "edits": [
-      {
-        "file": "templates/worker.md",
-        "from": "A conversation does not run forever, and what survives one is its desk. Write it at every point\nthe work moves, not only when something is about to end:",
-        "to": "Write your desk:"
       }
     ]
   }

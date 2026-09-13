@@ -46,17 +46,18 @@ export function configProblems(file, expected) {
   return wrong;
 }
 
-// Does the instance grant exactly what working there takes and nothing wider: one rule per person
-// for their own desk, and the one rule that lets a session call the tools the chat serves it.
+// Does the instance grant exactly what working there takes and nothing wider: the one rule that
+// lets a session call the tools the chat serves it, and the one that lets it read any file here.
 //
-// Two per person and one for everybody, and it used to be two per person and six for everybody:
-// every command a persona named needed both of its spellings granted. The list being exact in both
-// directions is what says that retiring a command retired its rule with it.
-export function settingsProblems(file, names) {
-  const expected = [
-    ...names.map((name) => `Edit(work/${name}/STATE.md)`),
-    "mcp__openovai",
-  ];
+// Two for everybody and nothing per person. It used to be one per person for their own desk —
+// a desk is written through a tool now, and a file-tool edit of one is refused — and before that
+// two per person and six for everybody: every command a persona named needed both of its
+// spellings granted. The list being exact in both directions is what says that retiring a command
+// retired its rule with it.
+export const STANDING = ["mcp__openovai", "Read(**)"];
+
+export function settingsProblems(file) {
+  const expected = STANDING;
 
   let settings;
   try {
@@ -89,17 +90,22 @@ export function settingsProblems(file, names) {
   // words of a sentence somebody was typing. Measured, in the workspace this toolkit came out of:
   // twenty-six rules, every one a press, not one of them accounted for.
   const accounted = ledger(file);
-  const wider = allow.filter((rule) => !expected.includes(rule) && !accounted.includes(rule));
+  const inList = (list) => accounted.filter((entry) => entry.list === list).map((entry) => entry.rule);
+  const wider = allow.filter((rule) => !expected.includes(rule) && !inList("allow").includes(rule));
   if (wider.length > 0) {
-    wrong.push(`rules nothing accounts for, beyond the desks of ${names.join(", ")} and saying something: ${JSON.stringify(wider)}`);
+    wrong.push(`rules nothing accounts for, beyond saying something and reading: ${JSON.stringify(wider)}`);
   }
 
   // And the other direction, which is the half a ledger is usually missing. A line for a rule that
-  // is not granted is not harmless bookkeeping: it is the file saying this workspace allows
-  // something it does not, which is worse than saying nothing, because it is read as an answer.
-  const claimed = accounted.filter((rule) => !allow.includes(rule));
+  // is not held is not harmless bookkeeping: it is the file saying this workspace settled
+  // something it did not, which is worse than saying nothing, because it is read as an answer. A
+  // rule settled twice has two lines, and the last one is the one the settings hold.
+  const latest = new Map(accounted.map((entry) => [entry.rule, entry.list]));
+  const claimed = [...latest.entries()]
+    .filter(([rule, list]) => !(Array.isArray(settings?.permissions?.[list]) ? settings.permissions[list] : []).includes(rule))
+    .map(([rule]) => rule);
   if (claimed.length > 0) {
-    wrong.push(`accounted for but not granted: ${JSON.stringify(claimed)}`);
+    wrong.push(`accounted for but not held: ${JSON.stringify(claimed)}`);
   }
 
   return wrong;
@@ -107,7 +113,9 @@ export function settingsProblems(file, names) {
 
 // What the workspace has written down about the rules it holds beyond the two it hands out by
 // itself. One file beside the settings, one line per rule, the rule in backticks first on the
-// line — a person reads it top to bottom and can see who asked for what and when.
+// line and the list it landed in after it — a person reads it top to bottom and can see who
+// asked for what and when. A line naming no list is one an older instance wrote, and it is an
+// allow.
 //
 // It lives beside the settings rather than inside them, because `.claude/settings.json` has a
 // shape Claude Code owns and a key of ours in it is a key we would be guessing about. A workspace
@@ -123,7 +131,11 @@ function ledger(settings) {
 
   return lines
     .filter((line) => line.startsWith("- `") && line.indexOf("`", 3) > 3)
-    .map((line) => line.slice(3, line.indexOf("`", 3)));
+    .map((line) => {
+      const close = line.indexOf("`", 3);
+      const list = /^ \((allow|deny|ask)\)/.exec(line.slice(close + 1));
+      return { rule: line.slice(3, close), list: list === null ? "allow" : list[1] };
+    });
 }
 
 // Is the instance's own directory recorded as trusted in the Claude Code state file inside its

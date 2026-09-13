@@ -185,6 +185,32 @@ jobs:
       - name: Ask to be allowed, and answer
         run: node --test tests/permissions.test.mjs
 
+  dialog:
+    name: Dialog
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+
+      - name: Show a question in the words it was asked in
+        run: node --test tests/dialog.test.mjs
+
+  personas:
+    name: Personas
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+
+      - name: Tell a Leader and a Worker only what is there
+        run: node --test tests/personas.test.mjs
+
   release:
     name: Release
     runs-on: ubuntu-latest

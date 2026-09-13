@@ -22,7 +22,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { homeSettingsFile } from "./claude.mjs";
-import { DESK_TEMPLATE, OWN_ACCOUNT_RULES, TOOL_RULES, deskFile, deskRule, readTemplate, render } from "./desks.mjs";
+import { DESK_DENY_RULES, DESK_TEMPLATE, OWN_ACCOUNT_RULES, READ_RULES, TOOL_RULES, deskFile, readTemplate, render } from "./desks.mjs";
 import { settingsFile } from "./settings.mjs";
 import { STORES, storeDirectory } from "./store.mjs";
 
@@ -56,19 +56,20 @@ const HOME_SETTINGS = {
   autoMemoryEnabled: false,
 };
 
-// The instance's own settings, whole, as a fresh workspace holds them: the Leader may keep its desk,
-// any session may use the tools the chat serves, and no file-writing tool reaches the workspace's
-// own account of what it allows. One object written once — the desk rules a hire adds later go
-// through tools/desks.mjs `allow`, which merges into whatever the person has made of this file by
-// then. What each rule is worth is said beside the rules themselves.
+// The instance's own settings, whole, as a fresh workspace holds them: any session may use the
+// tools the chat serves and read any file in the instance; no file-writing tool reaches the
+// workspace's own account of what it allows, nor any desk — a desk is written through a tool.
+// One object written once — the rules the User settles later go through tools/desks.mjs
+// `ruleAsked`, which merges into whatever the person has made of this file by then. What each
+// rule is worth is said beside the rules themselves.
 //
 // Nothing here goes through the ledger beside the settings. The ledger says who asked for a rule,
 // and nobody asked for these: they are what an instance is born with.
-function settingsToStartWith(leader) {
+function settingsToStartWith() {
   return {
     permissions: {
-      allow: [deskRule(leader), ...TOOL_RULES],
-      deny: OWN_ACCOUNT_RULES,
+      allow: [...TOOL_RULES, ...READ_RULES],
+      deny: [...OWN_ACCOUNT_RULES, ...DESK_DENY_RULES],
     },
   };
 }
@@ -103,6 +104,6 @@ export function seedUserContent(root, leader) {
   return [
     ...seed(homeSettingsFile(root), () => asJson(HOME_SETTINGS)),
     ...seed(deskFile(root, leader), () => render("desk", readTemplate(root, "desk", DESK_TEMPLATE), { NAME: leader })),
-    ...seed(settingsFile(root), () => asJson(settingsToStartWith(leader))),
+    ...seed(settingsFile(root), () => asJson(settingsToStartWith())),
   ];
 }

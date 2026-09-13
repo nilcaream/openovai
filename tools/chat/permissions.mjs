@@ -11,11 +11,20 @@
 //
 // One session can have more than one waiting at a time: a turn is free to reach for two tools at
 // once, and a store that held only the newest would leave the first one waiting for good.
+//
+// A second kind of question is parked beside those: a RULE REQUEST, the Leader asking the User to
+// settle one rule for the whole instance through the `permission` tool. Nothing waits on one — the
+// tool answers at once and the press reaches the Leader as an event — so it holds no promise; it
+// is listed on the Leader's panel with the call stops, and answered from the same route.
 
+import crypto from "node:crypto";
 import path from "node:path";
 
-// name -> id -> { request, answer }
+// name -> id -> { request, answer, parkedAt, told }
 const waiting = new Map();
+
+// name -> id -> { id, kind: "rule", rule, why, from, parkedAt, popped }
+const rules = new Map();
 
 function forSession(name) {
   const held = waiting.get(name);
@@ -27,21 +36,95 @@ function forSession(name) {
   return made;
 }
 
+function rulesOf(name) {
+  const held = rules.get(name);
+  if (held !== undefined) {
+    return held;
+  }
+  const made = new Map();
+  rules.set(name, made);
+  return made;
+}
+
 // Park a request and hand back the promise the run waits on. What is given to whoever asks is
-// what a person needs to decide: which tool, and what it was going to be given.
-export function park(name, request) {
+// what a person needs to decide: which tool, and what it was going to be given. `now` is the
+// server's clock: the wait below is measured from it.
+export function park(name, request, now = Date.now()) {
   return new Promise((answer) => {
-    forSession(name).set(request.id, { request, answer });
+    forSession(name).set(request.id, { request, answer, parkedAt: now, told: false });
   });
 }
 
-// What this session is waiting on, oldest first, so a page can show them in the order they were
-// asked rather than in whatever order a map happens to keep.
-export function parked(name, root) {
-  return [...forSession(name).values()].map(({ request }) => {
+// What this session's panel shows, oldest first, so a page can show them in the order they were
+// asked rather than in whatever order a map happens to keep: the call stops, each with the rule
+// the server would offer when it composed one, and the rule requests — a rule request only once
+// the turn that raised it has ended (`onTurn` false), so the Leader's reply lands on the panel
+// before its dialogs.
+export function parked(name, root, { onTurn = false } = {}) {
+  const stops = [...forSession(name).values()].map(({ request, parkedAt }) => {
     const shape = shapeOf(request, root);
-    return shape === null ? request : { ...request, shape };
+    return { parkedAt, shown: shape === null ? request : { ...request, shape } };
   });
+  const asked = onTurn ? [] : [...rulesOf(name).values()].map((held) => ({ parkedAt: held.parkedAt, shown: shownRule(held) }));
+  return [...stops, ...asked].sort((a, b) => a.parkedAt - b.parkedAt).map(({ shown }) => shown);
+}
+
+function shownRule({ id, kind, rule, why, from }) {
+  return { id, kind, rule, why, from };
+}
+
+// ------------------------------------------------------------------------------- rule requests
+
+// Park one rule request on a seat's panel. The id is the server's, and the answer is a press on
+// the page that writes the rule and tells the seat; nothing here waits for it.
+export function parkRule(name, { rule, why, from }, now = Date.now()) {
+  const id = crypto.randomUUID();
+  rulesOf(name).set(id, { id, kind: "rule", rule, why, from, parkedAt: now, popped: false });
+  return id;
+}
+
+// The rule requests on a seat's panel, as the page sees them, oldest first.
+export function rulesPending(name) {
+  return [...rulesOf(name).values()].sort((a, b) => a.parkedAt - b.parkedAt).map(shownRule);
+}
+
+// The rule requests on a seat's panel that the desktop has not been told about, marked told.
+// Read once the turn that raised them has ended: the pop goes with the listing, never before it.
+export function rulesToPop(name) {
+  const fresh = [...rulesOf(name).values()].filter((held) => !held.popped);
+  for (const held of fresh) {
+    held.popped = true;
+  }
+  return fresh.map(shownRule);
+}
+
+// One rule request, as parked, or nothing.
+export function ruleAskedFor(name, id) {
+  const held = rulesOf(name).get(id);
+  return held === undefined ? undefined : shownRule(held);
+}
+
+// Take one down: the User has pressed, and what the press does is the caller's.
+export function answerRule(name, id) {
+  return rulesOf(name).delete(id);
+}
+
+// ------------------------------------------------------------------------------- the long wait
+
+// Every call stop, on any seat, that has waited at least `minutes` and has not been reported
+// yet: marked told and answered as { seat, request }, once each. A stop is inside a turn, so no
+// idle clock ever sees it; this is its own clock, from the park time.
+export function waitedLong(now, minutes) {
+  const found = [];
+  for (const [name, held] of waiting) {
+    for (const entry of held.values()) {
+      if (!entry.told && now - entry.parkedAt >= minutes * 60_000) {
+        entry.told = true;
+        found.push({ seat: name, request: entry.request });
+      }
+    }
+  }
+  return found;
 }
 
 // One of them, as it was parked. What answers a request has to be composed from what was asked
@@ -62,9 +145,11 @@ export function askedFor(name, id) {
 // asked over and over — `ls`, `find` and `cat` went through, `rm -f` stopped — and it is stopped
 // per path for the two tools that write one. The tools a name-only rule would have been for are
 // not there to grant: `Glob` and `Grep` do not exist in the harness at all, and a session asking
-// for either is told so; `Read` is never stopped, so a rule for it would be a grant nobody was
-// ever asked for. An MCP tool is granted the moment the chat offers it, and a rule can name a
-// server and a tool, never an argument.
+// for either is told so; `Read` is never stopped inside the instance (measured: a read under
+// the cwd goes through with no rule at all, and the `Read(**)` the seed grants is that same
+// ground said out loud — a read outside it stops whatever rule is held), so a rule for it would
+// be a grant nobody was ever asked for. An MCP tool is granted the moment the chat offers it, and
+// a rule can name a server and a tool, never an argument.
 //
 // The first word of the command only, and only when it is a bare name. A rule is a literal prefix
 // rather than a path or a command line, so a word with a slash, a tilde, a dollar or a quote in it
@@ -86,6 +171,34 @@ export function shapeOf(request, root) {
   }
 
   return null;
+}
+
+// The inverse of `shapeOf`: a rule written by hand, accepted when it is one of the two shapes
+// this workspace grants and refused otherwise. The Leader's `permission` tool asks through this,
+// so what a person can be asked to settle is exactly what an Always button could have offered —
+// one checker, two callers, and a rule nobody here has measured is not asked.
+//
+// `Bash(word:*)`: a first word that is a bare name, then any number of further words — a rule is
+// a literal prefix, so `Bash(git push:*)` is honoured as "git push" and whatever follows — and the
+// prefix star. `Edit(dir/**)`: a directory inside the instance, spelt the way `shapeOf` spells it,
+// so no absolute path, no `..`, no leading `./`; and `Edit(**)`, the root, which `shapeOf` composes
+// for a write there.
+const BASH_RULE = /^Bash\(([A-Za-z0-9_.-]+(?: [A-Za-z0-9_.=-]+)*):\*\)$/;
+const EDIT_RULE = /^Edit\((.+)\/\*\*\)$/;
+
+export function acceptRule(rule, root) {
+  if (typeof rule !== "string") {
+    return null;
+  }
+  if (BASH_RULE.test(rule) || rule === "Edit(**)") {
+    return rule;
+  }
+  const edit = EDIT_RULE.exec(rule);
+  if (edit === null) {
+    return null;
+  }
+  const named = inside(edit[1], root);
+  return named === edit[1] ? rule : null;
 }
 
 // What a write may be allowed by: the directory it was in, and never the file itself.
@@ -162,6 +275,11 @@ export function inside(where, root) {
 // deciding what an empty one means.
 export function requestsUnderway() {
   return [...waiting.entries()].map(([name, held]) => [name, [...held.values()].map(({ request }) => request)]);
+}
+
+// The rule requests every seat has up, for the same census.
+export function rulesUnderway() {
+  return [...rules.entries()].map(([name, held]) => [name, [...held.values()].map(shownRule)]);
 }
 
 // Answer one. The id has to match something still waiting: a page that was showing a stale

@@ -440,7 +440,7 @@
   },
   {
     "name": "room is the Leader's alone",
-    "catches": "serves the Leader exactly what BUILT_IN names, and a Worker the same but park and hire",
+    "catches": "serves the Leader exactly what BUILT_IN names, and a Worker the same but park, hire and permission",
     "edits": [
       {
         "file": "tools/chat/server.mjs",

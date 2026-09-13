@@ -13,9 +13,9 @@
 // does not know — never issued, revoked with a dead process, the page's on the MCP path or a
 // session's on a page route — is answered with one uniform 401 and nothing else happens.
 //
-// Only `GET /` and `GET /health` are open: the page has to be reachable at one plain address that
-// survives a server restart, and `ovai status` has to be able to ask whether anything is running.
-// Both are served on the loopback address only.
+// Only `GET /`, `GET /dialog.mjs` and `GET /health` are open: the page and the module it imports
+// have to be reachable at one plain address that survives a server restart, and `ovai status` has
+// to be able to ask whether anything is running. All are served on the loopback address only.
 
 import fs from "node:fs";
 import http from "node:http";
@@ -25,21 +25,25 @@ import { fileURLToPath } from "node:url";
 import { THE_CHAT, append, read } from "./conversation.mjs";
 import { HOST, record } from "./listening.mjs";
 import { respond } from "./mcp.mjs";
-import { allow, askedFor, answer as settle, inside, parked, refuse, shapeOf } from "./permissions.mjs";
+import { acceptRule, allow, answerRule, askedFor, answer as settle, inside, parkRule, parked, refuse, ruleAskedFor, rulesPending, shapeOf } from "./permissions.mjs";
 import { answerFrom } from "../plugins.mjs";
 import { ask as askTheHelper } from "../helper.mjs";
 import { recall, remember } from "../store.mjs";
-import { DeskError, allowAsked, deskFile, deskHeader, hire as openDesk, isModel, isName, modelFor, writeDeskWhole } from "../desks.mjs";
+import { DeskError, LEDGER, LISTS, allowAsked, deskFile, deskHeader, hire as openDesk, isModel, isName, modelFor, ruleAsked, writeDeskWhole } from "../desks.mjs";
 import { LEADER, WORKER, TURN_PATIENCE, end, interrupt, isSeat, recordOf, running, seats, whileWaitingFor, wouldWaitForItself } from "./session.mjs";
-import { arm, deliver, idleOf, isParking, parkRoom, startSeat } from "./lifecycle.mjs";
+import { arm, deliver, idleOf, isParking, parkRoom, showRules, startSeat } from "./lifecycle.mjs";
 import * as quota from "./quota.mjs";
 import { panelDirectory } from "./conversation.mjs";
 import { messageFrame, neutralise, serverEvent, userFrame } from "./frames.mjs";
 import { isPageSecret, pageSecret, resolve } from "./secrets.mjs";
+import { readSettings } from "../settings.mjs";
 import { version } from "../version.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PAGE = path.join(HERE, "page.html");
+// What a dialog shows, decided in one module the page imports: served open beside the page, since
+// a module import carries no bearer, and it holds nothing but the words of a rendering.
+const DIALOG = path.join(HERE, "dialog.mjs");
 const SECRET_TAG = '<meta name="openovai-secret" content="">';
 
 const TOOLKIT = "openovai";
@@ -70,6 +74,15 @@ function sendPage(response) {
     "content-length": page.length,
   });
   response.end(page);
+}
+
+function sendDialog(response) {
+  const module = fs.readFileSync(DIALOG);
+  response.writeHead(200, {
+    "content-type": "text/javascript; charset=utf-8",
+    "content-length": module.length,
+  });
+  response.end(module);
 }
 
 function readBody(request) {
@@ -193,6 +206,7 @@ const OFFERED_TO = {
   stop_session: [LEADER, WORKER],
   park: [LEADER],
   hire: [LEADER],
+  permission: [LEADER],
 };
 
 // What write_desk takes: a title and a status short enough for one header line, a body under a
@@ -532,6 +546,54 @@ export function toolsFor(instance, caller) {
         return { text: `${name} started on the desk work/${name} (${modelFor(root, name, instance.config)})` };
       },
     },
+    // What the instance may do is settled in words, and the words are the User's: the Leader asks
+    // with this, the User presses, the press is written for every session by the one writer
+    // (postPermission below) and reaches the Leader as an event. The tool never writes a rule.
+    {
+      name: "permission",
+      description:
+        "Ask the User, on your panel, to settle one rule for the whole instance: rule is a Claude Code permission rule - Bash(word:*) for a command by its first word and prefix, Edit(dir/**) for writes under a directory - and why is what the User reads beside it. The dialog has Allow, Deny and Ask; the click is written for every session, current and future, and reaches you as a server-event of type permission. Called with no rule, answers every rule the instance holds and every dialog still pending. Refused: a rule without why; a shape the checker does not accept (Bash(word:*) and Edit(dir/**) only); a rule already held or already pending.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          rule: { type: "string", description: "The rule, in Claude Code's shape: Bash(word:*) or Edit(dir/**)." },
+          why: { type: "string", description: "What the User reads beside it." },
+        },
+        additionalProperties: false,
+      },
+      offered: offered("permission"),
+      run(args) {
+        if (!offered("permission")) {
+          return { refused: "permission is not offered to you" };
+        }
+        const rule = args?.rule;
+        const why = args?.why;
+        if (rule === undefined && why === undefined) {
+          return { text: JSON.stringify(rulesHeld(instance, caller.seat)) };
+        }
+        if (typeof rule !== "string" || rule.trim() === "") {
+          return { refused: "rule is the rule to settle, in Claude Code's shape" };
+        }
+        if (typeof why !== "string" || why.trim() === "") {
+          return { refused: "say why: the User reads it on the button" };
+        }
+        const accepted = acceptRule(rule.trim(), root);
+        if (accepted === null) {
+          return { refused: `${rule} is not a rule this workspace settles: Bash(word:*) for a command by its first word and prefix, Edit(dir/**) for writes under a directory inside the instance` };
+        }
+        const permissions = readSettings(root).permissions ?? {};
+        const held = LISTS.find((list) => Array.isArray(permissions[list]) && permissions[list].includes(accepted));
+        if (held !== undefined) {
+          return { refused: `${accepted} is already ${SETTLED_AS[held]} - say it to the User` };
+        }
+        if (rulesPending(caller.seat).some((pending) => pending.rule === accepted)) {
+          return { refused: `${accepted} is already asked on your panel` };
+        }
+        const id = parkRule(caller.seat, { rule: accepted, why: why.trim(), from: caller.seat }, (instance.clock ?? Date.now)());
+        showRules(instance, caller.seat);
+        return { text: `asked on your panel: ${accepted} (${id})` };
+      },
+    },
     ...instance.plugins.map((plugin) => ({
       name: plugin.name,
       description: plugin.description,
@@ -541,6 +603,28 @@ export function toolsFor(instance, caller) {
       },
     })),
   ];
+}
+
+// How a settled rule is said: the list it is in, as a word the Leader can repeat to the User.
+const SETTLED_AS = { allow: "allowed", deny: "denied", ask: "asked every time" };
+
+// What the instance holds, for the tool called with no rule: the three lists as the settings
+// hold them, each rule with its ledger line when the ledger has one, and the dialogs still
+// pending on the caller's panel. A tool answer, never a procedure: nothing is tripped and no
+// settings file is read by a session.
+function rulesHeld(instance, seat) {
+  const permissions = readSettings(instance.root).permissions ?? {};
+  let ledger = [];
+  try {
+    ledger = fs.readFileSync(path.join(instance.root, LEDGER), "utf8").split("\n");
+  } catch {
+    ledger = [];
+  }
+  const lineFor = (rule, list) => ledger.find((line) => line.startsWith(`- \`${rule}\` (${list}) `)) ?? null;
+  const listed = Object.fromEntries(
+    LISTS.map((list) => [list, (Array.isArray(permissions[list]) ? permissions[list] : []).map((rule) => ({ rule, ...(lineFor(rule, list) === null ? {} : { line: lineFor(rule, list) }) }))]),
+  );
+  return { ...listed, pending: rulesPending(seat).map(({ rule, why }) => ({ rule, why })) };
 }
 
 async function postTool(instance, caller, request, response) {
@@ -596,8 +680,35 @@ async function postPermission(instance, seat, request, response) {
     sendJson(response, 400, { error: "which request is being answered" });
     return;
   }
+
+  // A rule request: the id is one the tool parked. The press is the User's last word on that
+  // rule — written for every session, current and future, by the one writer — and the Leader is
+  // told what was pressed, as an event, which starts it if it has stopped.
+  const asked = ruleAskedFor(seat, id);
+  if (asked !== undefined) {
+    if (!LISTS.includes(decision)) {
+      sendJson(response, 400, { error: "a decision on a rule is allow, deny or ask" });
+      return;
+    }
+    ruleAsked(instance.root, {
+      rule: asked.rule,
+      list: decision,
+      session: asked.from,
+      call: asked.why,
+      day: new Date().toISOString().slice(0, 10),
+    });
+    answerRule(seat, id);
+    const leader = instance.config.leader;
+    const woken = deliver(instance, leader, serverEvent("permission", { decision, who: seat }, asked.rule));
+    if (woken.refused === undefined) {
+      showTheReply(instance.root, leader, woken.answered);
+    }
+    sendJson(response, 200, { answered: id, decision, settled: asked.rule });
+    return;
+  }
+
   if (decision !== "allow" && decision !== "deny" && decision !== "always") {
-    sendJson(response, 400, { error: "a decision is allow, deny or always" });
+    sendJson(response, 400, { error: "a decision on a call is allow, deny or always" });
     return;
   }
 
@@ -647,6 +758,11 @@ async function handle(instance, port, request, response) {
 
   if (request.method === "GET" && url.pathname === "/") {
     sendPage(response);
+    return;
+  }
+
+  if (request.method === "GET" && url.pathname === "/dialog.mjs") {
+    sendDialog(response);
     return;
   }
 
@@ -705,7 +821,8 @@ async function handle(instance, port, request, response) {
       return;
     }
     if (request.method === "GET" && what === "permissions") {
-      sendJson(response, 200, { permissions: parked(seat, instance.root) });
+      const record = recordOf(seat);
+      sendJson(response, 200, { permissions: parked(seat, instance.root, { onTurn: record !== undefined && record.turn !== null }) });
       return;
     }
     if (request.method === "POST" && what === "permission") {

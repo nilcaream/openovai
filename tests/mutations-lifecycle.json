@@ -733,5 +733,27 @@
         "to": ""
       }
     ]
+  },
+  {
+    "name": "a call stop that waited long is reported on every tick",
+    "catches": "the Leader is told once per wait: at ten minutes, the call as made, and not again at twenty",
+    "edits": [
+      {
+        "file": "tools/chat/permissions.mjs",
+        "from": "        entry.told = true;\n",
+        "to": "        entry.told = false;\n"
+      }
+    ]
+  },
+  {
+    "name": "a call stop is reported before it has waited long",
+    "catches": "answered before ten minutes: the Leader is never told",
+    "edits": [
+      {
+        "file": "tools/chat/permissions.mjs",
+        "from": "      if (!entry.told && now - entry.parkedAt >= minutes * 60_000) {",
+        "to": "      if (!entry.told) {"
+      }
+    ]
   }
 ]

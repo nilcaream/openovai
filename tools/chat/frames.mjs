@@ -90,7 +90,7 @@ export function messageFrame(from, text) {
 }
 
 // Every kind of event the server says. A kind not in here is a bug upstream, refused here.
-export const EVENTS = Object.freeze(["user-typed", "context-full", "quota-low", "idle", "stopped", "park", "hard-rules"]);
+export const EVENTS = Object.freeze(["user-typed", "context-full", "quota-low", "idle", "stopped", "park", "hard-rules", "permission"]);
 
 export function serverEvent(kind, attrs = {}, body = undefined) {
   if (!EVENTS.includes(kind)) {

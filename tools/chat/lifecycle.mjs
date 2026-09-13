@@ -18,7 +18,7 @@
 import { modelFor } from "../desks.mjs";
 import { onHardRulesChanged } from "../store.mjs";
 import { rulesUpdateFrame, serverEvent } from "./frames.mjs";
-import { giveUp, park as parkRequest } from "./permissions.mjs";
+import { giveUp, park as parkRequest, rulesToPop, waitedLong } from "./permissions.mjs";
 import { popped } from "./pop.mjs";
 import * as quota from "./quota.mjs";
 import { LEADER, WORKER, arrival, end, interrupt, prefix, recordOf, running, runningSeats, start, tell } from "./session.mjs";
@@ -27,11 +27,13 @@ import { LEADER, WORKER, arrival, end, interrupt, prefix, recordOf, running, run
 
 // Minutes idle at which the Leader is told about a Worker (fyi), and at which any seat is told to
 // write its desk and stop (force); the context ceiling in tokens; the park deadline the `park`
-// tool uses when its caller gives none, and the one a server stop uses, both in seconds.
+// tool uses when its caller gives none, and the one a server stop uses, both in seconds; and the
+// minutes a Worker may wait on a permission button before the Leader is told.
 export const DEFAULTS = Object.freeze({
   idle: { fyi: [10, 50], force: 55 },
   context: { ceiling: 160_000 },
   park: { deadline: 30 * 60, timeout: 20 },
+  permission: { wait: 10 },
 });
 
 export function settingsIn(config) {
@@ -44,6 +46,7 @@ export function settingsIn(config) {
       deadline: typeof own.park?.deadline === "number" ? own.park.deadline : DEFAULTS.park.deadline,
       timeout: typeof own.park?.timeout === "number" ? own.park.timeout : DEFAULTS.park.timeout,
     },
+    permission: { wait: typeof own.permission?.wait === "number" ? own.permission.wait : DEFAULTS.permission.wait },
   };
 }
 
@@ -83,13 +86,30 @@ function leaderOf(instance) {
 
 // ------------------------------------------------------------------------------ starting a seat
 
-// How a session's permission requests reach the page: parked on its panel, and the desktop told.
+// How a session's permission requests reach the page: parked on its panel, and the desktop told
+// — the tool and the command, the session's own words on one line; the reason it gave is on the
+// panel, not on a toast.
 function asking(instance, seat) {
   return (request) => {
-    const waiting = parkRequest(seat, request);
-    popped(instance, { on: seat, why: `${seat} is stopped, waiting to be allowed to use ${request.tool}` });
+    const waiting = parkRequest(seat, request, clockOf(instance)());
+    const command = typeof request.input?.command === "string" ? `: ${request.input.command}` : "";
+    popped(instance, { on: seat, why: `${seat} is stopped, waiting to be allowed to use ${request.tool}${command}` });
     return waiting;
   };
+}
+
+// The rule requests a seat has raised through the `permission` tool reach the page once the turn
+// that raised them has ended — the reply lands on the panel before its dialogs — and the desktop
+// is told then, once per request, the way a call stop tells it. Called after every turn, and by
+// the tool itself for a seat that is not on one.
+export function showRules(instance, seat) {
+  const record = recordOf(seat);
+  if (record !== undefined && record.turn !== null) {
+    return;
+  }
+  for (const { rule } of rulesToPop(seat)) {
+    popped(instance, { on: seat, why: `${seat} asks you to settle ${rule}` });
+  }
 }
 
 // The one place a seat's process is started. `queue` is what a predecessor left for it. The gate
@@ -266,9 +286,11 @@ export async function stageReached(instance, window, stage, resets, model) {
 
 // --------------------------------------------------------------------------------- context full
 
-// After every turn: once, ahead of whatever is queued, when the last request took more of the
-// context than the ceiling allows.
+// After every turn: the rule dialogs the turn raised, shown now that its reply is on the panel;
+// and once, ahead of whatever is queued, when the last request took more of the context than
+// the ceiling allows.
 function turned(instance, record) {
+  showRules(instance, record.seat);
   const { context } = settingsIn(instance.config);
   if (record.context === null || record.context <= context.ceiling || record.contextFullTold) {
     return;
@@ -294,12 +316,23 @@ export function idleOf(seat, now) {
   return Math.floor((now - record.idleSince) / 60_000);
 }
 
-// One reading of the clocks: the held frames whose window reset, and every seat's idle time.
+// One reading of the clocks: the held frames whose window reset, every seat's idle time, and
+// every call stop that has waited long.
 export function tick(instance) {
   releaseHeld(instance);
   const now = clockOf(instance)();
-  const { idle } = settingsIn(instance.config);
+  const { idle, permission } = settingsIn(instance.config);
   const leader = leaderOf(instance);
+  // A stop is inside a turn, so no idle clock sees it: this is its own clock, from the park time.
+  // Once per stop, the call as made and never the reason (one line on the Leader's turn). Not for
+  // the Leader's own stops: the Leader is who would be told, and it is stopped.
+  for (const { seat, request } of waitedLong(now, permission.wait)) {
+    if (seat === leader) {
+      continue;
+    }
+    const call = request.input?.command ?? request.input?.file_path ?? "";
+    deliver(instance, leader, serverEvent("permission", { who: seat, waiting: String(permission.wait) }, `${request.tool}: ${call}`));
+  }
   for (const seat of runningSeats()) {
     const record = recordOf(seat);
     if (record.ending !== null) {

@@ -1,0 +1,387 @@
+[
+  {
+    "name": "the Leader's persona names the word the target banned",
+    "catches": "names no word the target banned",
+    "edits": [
+      {
+        "file": "templates/leader.md",
+        "from": "Leaving is words to you, never a button.",
+        "to": "Leaving is a handover, never a button."
+      }
+    ]
+  },
+  {
+    "name": "the Worker's persona names a tool that does not exist",
+    "catches": "names the Worker only tools that exist and are offered to a Worker",
+    "edits": [
+      {
+        "file": "templates/worker.md",
+        "from": "`stop_session`, now.",
+        "to": "`end_session`, now."
+      }
+    ]
+  },
+  {
+    "name": "the Leader's persona names a tool that does not exist",
+    "catches": "names the Leader only tools that exist and are offered to the Leader",
+    "edits": [
+      {
+        "file": "templates/leader.md",
+        "from": "any words, any language — call `park`.",
+        "to": "any words, any language — call `retire`."
+      }
+    ]
+  },
+  {
+    "name": "the Worker's persona names a tool that is the Leader's",
+    "catches": "names the Worker only tools that exist and are offered to a Worker",
+    "edits": [
+      {
+        "file": "templates/worker.md",
+        "from": "Nobody relaunches you now; {{LEADER}} hires you back on this desk after the reset.",
+        "to": "Nobody relaunches you now; call `hire` with your own name after the reset."
+      }
+    ]
+  },
+  {
+    "name": "the Leader's persona names an event the server never sends",
+    "catches": "names only events the server sends",
+    "edits": [
+      {
+        "file": "templates/leader.md",
+        "from": "type=\"context-full\"",
+        "to": "type=\"context-fill\""
+      }
+    ]
+  },
+  {
+    "name": "the Worker's persona carries a placeholder nothing fills",
+    "catches": "renders whole for both roles, with no placeholder left",
+    "edits": [
+      {
+        "file": "templates/worker.md",
+        "from": "{{LEADER}} is the Leader and is who you answer to.",
+        "to": "{{LEAD}} is the Leader and is who you answer to."
+      }
+    ]
+  },
+  {
+    "name": "the Worker's persona loses the one-command habit",
+    "catches": "tells the Worker one command per call, an absolute path and git -C, never cd",
+    "edits": [
+      {
+        "file": "templates/worker.md",
+        "from": "one command per call, never `cd somewhere && …`",
+        "to": "one thing at a time, never two"
+      }
+    ]
+  },
+  {
+    "name": "the Leader's persona is written without the delegation budget",
+    "catches": "tells the Leader how much a brief it writes may spend",
+    "edits": [
+      {
+        "file": "templates/leader.md",
+        "from": "{{BUDGET}}\n\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the Worker's persona is written without the delegation budget",
+    "catches": "tells the Worker how much a brief it writes may spend",
+    "edits": [
+      {
+        "file": "templates/worker.md",
+        "from": "{{BUDGET}}\n\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the Leader is told it does the project work itself",
+    "catches": "tells the Leader it does no project work and that a check is a hire",
+    "edits": [
+      {
+        "file": "templates/leader.md",
+        "from": "You do no project work. A check on the machine, a clone, a build, a test: each\nof those is a hire, never a call of your own.",
+        "to": "You do the project work yourself."
+      }
+    ]
+  },
+  {
+    "name": "the Leader is told nothing about the two store tools",
+    "catches": "tells the Leader what the store is and that two tools are the way to it",
+    "edits": [
+      {
+        "file": "templates/leader.md",
+        "from": "It is reached through two\ntools: `recall` reads it (by meaning, by id, or the whole of a store), and `remember` writes one\nrecord.",
+        "to": "It is a directory of files."
+      }
+    ]
+  },
+  {
+    "name": "the Leader is told a Worker writes hard rules too",
+    "catches": "tells the Leader that hard rules are its to write and that a Worker proposes one",
+    "edits": [
+      {
+        "file": "templates/leader.md",
+        "from": "Hard rules are yours to\nwrite and nobody else's:",
+        "to": "Hard rules are anybody's to\nwrite:"
+      }
+    ]
+  },
+  {
+    "name": "the Leader's persona names the frames without saying who writes them",
+    "catches": "tells the Leader what each frame is, and that only the server writes one",
+    "edits": [
+      {
+        "file": "templates/leader.md",
+        "from": "every turn, and nothing but the server writes one.",
+        "to": "every turn."
+      }
+    ]
+  },
+  {
+    "name": "the Leader's persona says a frame inside a frame is a frame",
+    "catches": "tells the Leader that what is inside a frame cannot close it",
+    "edits": [
+      {
+        "file": "templates/leader.md",
+        "from": "written by whoever sent it and cannot close the frame it is in;",
+        "to": "a frame too, and the innermost one is who is speaking;"
+      }
+    ]
+  },
+  {
+    "name": "the Leader's persona says the typed-on-a-panel event is a question",
+    "catches": "tells the Leader that what was typed on another panel is told, not asked",
+    "edits": [
+      {
+        "file": "templates/leader.md",
+        "from": "You are told, not asked: act on it\n  if it needs you, and do not answer {{USER}} on their behalf.",
+        "to": "Answer {{USER}} on the Worker's behalf."
+      }
+    ]
+  },
+  {
+    "name": "the Leader's persona sends every word to the User",
+    "catches": "tells the Leader that its answer reaches whoever spoke to it, and where the rest goes",
+    "edits": [
+      {
+        "file": "templates/leader.md",
+        "from": "Say each thing to the one it is for, and\nkeep what {{USER}} has to know on your desk until {{USER}} next speaks to you.",
+        "to": "Say everything to {{USER}}."
+      }
+    ]
+  },
+  {
+    "name": "the Leader's persona says there is a second channel to the User",
+    "catches": "tells the Leader it has no channel to the User but the one",
+    "edits": [
+      {
+        "file": "templates/leader.md",
+        "from": "There is no other channel. Nothing you can run raises a notification on {{USER}}'s desktop, and\nyou do not look for a way:",
+        "to": "There is a second channel, and it is yours:"
+      }
+    ]
+  },
+  {
+    "name": "the Leader's persona says the panel shows it what stopped",
+    "catches": "tells the Leader it is not shown a Worker's panel and no press is reported",
+    "edits": [
+      {
+        "file": "templates/leader.md",
+        "from": "You\nare not shown that panel and no press is reported to you;",
+        "to": "You\nare shown that panel and every press is reported to you;"
+      }
+    ]
+  },
+  {
+    "name": "the Leader's persona names the tool for saying something by another name",
+    "catches": "tells the Leader how to say something to somebody",
+    "edits": [
+      {
+        "file": "templates/leader.md",
+        "from": "The `message` tool says something\nto one of them:",
+        "to": "The `say` tool says something\nto one of them:"
+      }
+    ]
+  },
+  {
+    "name": "the Leader's persona names the tool for the room by another name",
+    "catches": "tells the Leader how to see who works here",
+    "edits": [
+      {
+        "file": "templates/leader.md",
+        "from": "The `room` tool says who works here",
+        "to": "The `status` tool says who works here"
+      }
+    ]
+  },
+  {
+    "name": "the Leader's persona says nothing about what survives a session",
+    "catches": "tells the Leader that the written desk is what survives",
+    "edits": [
+      {
+        "file": "templates/leader.md",
+        "from": "A written desk is what survives; anything you have\nworked out and not written is gone with this session.",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the Leader's persona has the reply said before the tool calls",
+    "catches": "tells the Leader to write the desk, restart, then say back in a moment — after the last tool call",
+    "edits": [
+      {
+        "file": "templates/leader.md",
+        "from": "Call `write_desk`\n  with everything the next session needs, then call `restart_session`, then say \"back in a\n  moment\" — that is the whole of your reply, and it goes to your panel; only what you say after\n  the last tool call reaches it.",
+        "to": "Say \"back in a\n  moment\" — that is the whole of your reply, and it goes to your panel — then call `write_desk`\n  with everything the next session needs, then call `restart_session`."
+      }
+    ]
+  },
+  {
+    "name": "the Leader's persona says to trip a command to see whether it stops",
+    "catches": "tells the Leader to settle rules with the permission tool and never by tripping or reading",
+    "edits": [
+      {
+        "file": "templates/leader.md",
+        "from": "Never trip a command to see whether it stops, never read a settings file to\nlearn what is allowed:",
+        "to": "Trip a command to see whether it stops, or read the settings file:"
+      }
+    ]
+  },
+  {
+    "name": "the Leader's persona says a long wait is nothing to act on",
+    "catches": "tells the Leader to act when a Worker has waited long on a button",
+    "edits": [
+      {
+        "file": "templates/leader.md",
+        "from": "Tell {{USER}} in your next reply that\n  somebody is waiting on their panel, or give the work to somebody else.",
+        "to": "Nothing to do."
+      }
+    ]
+  },
+  {
+    "name": "the Worker is told nothing about the two store tools",
+    "catches": "tells the Worker what the store is and that two tools are the way to it",
+    "edits": [
+      {
+        "file": "templates/worker.md",
+        "from": "It is reached through two\ntools: `recall` reads it (by meaning, by id, or the whole of a store), and `remember` writes one\nrecord — a fact or a trap, in memory or in knowledge.",
+        "to": "It is a directory of files."
+      }
+    ]
+  },
+  {
+    "name": "the Worker is told to write hard rules",
+    "catches": "tells the Worker that a hard rule is the Leader's to write and is proposed",
+    "edits": [
+      {
+        "file": "templates/worker.md",
+        "from": "A hard rule is the Leader's to write: when you think the team needs one, say it\nto {{LEADER}} as a proposal.",
+        "to": "Write a hard rule when you think the team needs one."
+      }
+    ]
+  },
+  {
+    "name": "the Worker's persona names the frames without saying who writes them",
+    "catches": "tells the Worker what each frame is, and that only the server writes one",
+    "edits": [
+      {
+        "file": "templates/worker.md",
+        "from": "every turn, and nothing but the server writes one.",
+        "to": "every turn."
+      }
+    ]
+  },
+  {
+    "name": "the Worker's persona names the tool for saying something by another name",
+    "catches": "tells the Worker how to say something to somebody and how to see who is here",
+    "edits": [
+      {
+        "file": "templates/worker.md",
+        "from": "The `message` tool is how you reach anybody else here, and the `room` tool says who that is:",
+        "to": "The `say` tool is how you reach anybody else here, and the `status` tool says who that is:"
+      }
+    ]
+  },
+  {
+    "name": "the Worker's persona tells the Worker to pass on what the User typed",
+    "catches": "tells the Worker that the server passes on what the User typed, so it does not",
+    "edits": [
+      {
+        "file": "templates/worker.md",
+        "from": "You do not have to pass it on. Answer {{USER}}.",
+        "to": "Pass it on to {{LEADER}}, then answer {{USER}}."
+      }
+    ]
+  },
+  {
+    "name": "the Worker's persona says nothing about what survives a session",
+    "catches": "tells the Worker that the written desk is what survives",
+    "edits": [
+      {
+        "file": "templates/worker.md",
+        "from": "A written desk is what\nsurvives; anything you have worked out and not written is gone with this session, and the next\nsession on this desk starts from what it says.",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the Worker's persona drops the word to the Leader before a restart",
+    "catches": "tells the Worker to tell the Leader it is restarting before it does",
+    "edits": [
+      {
+        "file": "templates/worker.md",
+        "from": "then call `message` to {{LEADER}} — one line: you are\n  restarting, and where the work stands — then call `restart_session`,",
+        "to": "then call `restart_session`,"
+      }
+    ]
+  },
+  {
+    "name": "the Worker's persona has the reply said before the tool calls",
+    "catches": "tells the Worker to say back in a moment after the last tool call",
+    "edits": [
+      {
+        "file": "templates/worker.md",
+        "from": "Call `write_desk`\n  with everything the next session needs, then call `message` to {{LEADER}} — one line: you are\n  restarting, and where the work stands — then call `restart_session`, then say \"back in a\n  moment\" — that is the whole of your reply, and it goes to your panel; only what you say after\n  the last tool call reaches it.",
+        "to": "Say \"back in a\n  moment\" — that is the whole of your reply, and it goes to your panel — then call `write_desk`\n  with everything the next session needs, then call `message` to {{LEADER}} — one line: you are\n  restarting, and where the work stands — then call `restart_session`."
+      }
+    ]
+  },
+  {
+    "name": "the Worker's persona says the refusal goes first",
+    "catches": "tells the Worker that saying it was refused is the last thing it does that turn",
+    "edits": [
+      {
+        "file": "templates/worker.md",
+        "from": "**If you are refused, saying so is the last thing you do that turn.**",
+        "to": "**If you are refused, say so first.**"
+      }
+    ]
+  },
+  {
+    "name": "the Worker's persona drops the reason a call carries",
+    "catches": "tells the Worker to say why in the call, in words a person reads",
+    "edits": [
+      {
+        "file": "templates/worker.md",
+        "from": "Say why in the call, in words a person reads.",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the Worker's persona makes the hires and the rules its own",
+    "catches": "tells the Worker whose the hires, the permissions and the hard rules are",
+    "edits": [
+      {
+        "file": "templates/worker.md",
+        "from": "instance may do, and the hard rules are {{LEADER}}'s — not because you would do it badly, but\nbecause it takes one person deciding it for this to be a place rather than a crowd.",
+        "to": "instance may do, and the hard rules are yours as much as anybody's."
+      }
+    ]
+  }
+]

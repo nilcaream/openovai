@@ -932,7 +932,7 @@ describe("idle", () => {
   });
 
   it("a seat on a turn is not idle, however long the turn: a pending permission at 55 gets no critical frame", async () => {
-    ({ superman, paul } = await pair({ OPENOVAI_STAND_IN_ASKS: "Bash", OPENOVAI_STAND_IN_WAITS: "1500" }));
+    ({ superman, paul } = await pair({ OPENOVAI_STAND_IN_ASKS: "Bash", OPENOVAI_STAND_IN_WAITS: "4000" }));
     await awake(WORKER);
     const idleFrom = now;
     now = idleFrom + 50 * MINUTE;
@@ -945,6 +945,18 @@ describe("idle", () => {
     await settle();
     assert.ok(!heardIn(paul.log).some((frame) => frame.includes('stage="critical"')), heardIn(paul.log).join("\n"));
     assert.ok(!readIn(paul.log).some((frame) => frame.includes('stage="critical"')), readIn(paul.log).join("\n"));
+    assert.equal(running(WORKER), true);
+    assert.ok(alive(pidsIn(paul.log)[0]));
+    // Nor past the force and the grace, the button still up: a Worker waiting on a button is
+    // never forced idle, and the Leader hears no idle event about it.
+    now = idleFrom + (55 + IDLE_GRACE + 1) * MINUTE;
+    assert.notEqual(recordOf(WORKER).turn, null, "the ask's turn ended before the clock was read");
+    tick(chat);
+    tick(chat);
+    await settle();
+    assert.ok(!readIn(paul.log).some((frame) => frame.includes('type="idle"')), readIn(paul.log).join("\n"));
+    assert.ok(!heardIn(superman.log).some((frame) => frame.includes('type="idle"')), heardIn(superman.log).join("\n"));
+    assert.equal(recordOf(WORKER).ending, null);
     assert.equal(running(WORKER), true);
     assert.ok(alive(pidsIn(paul.log)[0]));
     // Nor once the turn is over: nothing was queued behind it, and nothing was asked of the seat.
@@ -1038,6 +1050,70 @@ describe("idle", () => {
     tick(chat);
     assert.ok(await waitFor(() => (heardIn(paul.log).some((frame) => frame.includes('stage="critical"')) ? true : null)), heardIn(paul.log).join("\n"));
     assert.equal(heardIn(paul.log).at(-1), `<server-event type="idle" stage="critical" minutes="55">${BODY_IDLE(55)}</server-event>`);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+
+// A call stop is inside a turn, so the idle clocks never see it: the wait on a button is its own
+// clock, from the park time, and it reaches the Leader once.
+describe("a call stop that waits", () => {
+  let superman = null;
+  let paul = null;
+  const KNOBS = { OPENOVAI_STAND_IN_ASKS: "Bash", OPENOVAI_STAND_IN_ASKS_INPUT: "git push", OPENOVAI_STAND_IN_WAITS: "600000" };
+
+  after(async () => {
+    await endEvery(500);
+  });
+
+  async function stopParked() {
+    const stops = await waitFor(async () => {
+      const { permissions } = JSON.parse((await page("GET", `/sessions/${WORKER}/permissions`)).body);
+      return permissions.length > 0 ? permissions : null;
+    });
+    assert.ok(stops !== null, "no call stop was parked");
+    return stops[0];
+  }
+
+  it("the Leader is told once per wait: at ten minutes, the call as made, and not again at twenty", async () => {
+    ({ superman, paul } = await pair(KNOBS));
+    await awake(LEADER);
+    const from = now;
+    const asking_ = tell(WORKER, userFrame("push it"));
+    const stop = await stopParked();
+    now = from + 9 * MINUTE;
+    tick(chat);
+    tick(chat);
+    await settle();
+    assert.deepEqual(heardIn(superman.log), ["<user>stay awake</user>"]);
+    now = from + 10 * MINUTE;
+    tick(chat);
+    assert.equal((await told(superman.log, 2)).at(-1), `<server-event type="permission" who="${WORKER}" waiting="10">Bash: git push</server-event>`);
+    now = from + 20 * MINUTE;
+    tick(chat);
+    tick(chat);
+    await settle();
+    assert.equal(heardIn(superman.log).length, 2, "the wait was reported twice");
+    assert.equal(running(WORKER), true, "the wait ended the seat");
+    await page("POST", `/sessions/${WORKER}/permission`, { id: stop.id, decision: "deny", why: "not today" });
+    await asking_.answered;
+  });
+
+  it("answered before ten minutes: the Leader is never told", async () => {
+    ({ superman, paul } = await pair(KNOBS));
+    await awake(LEADER);
+    const from = now;
+    const asking_ = tell(WORKER, userFrame("push it"));
+    const stop = await stopParked();
+    now = from + 5 * MINUTE;
+    tick(chat);
+    await page("POST", `/sessions/${WORKER}/permission`, { id: stop.id, decision: "deny", why: "not today" });
+    await asking_.answered;
+    now = from + 20 * MINUTE;
+    tick(chat);
+    tick(chat);
+    await settle();
+    assert.ok(!heardIn(superman.log).some((frame) => frame.includes('type="permission"')), heardIn(superman.log).join("\n"));
   });
 });
 

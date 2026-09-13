@@ -13,14 +13,14 @@ import fs from "node:fs";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
-import { shapeOf } from "../tools/chat/permissions.mjs";
+import { acceptRule, shapeOf } from "../tools/chat/permissions.mjs";
 import { QUIET_HOURS, quietHoursProblem, withinQuietHours } from "../tools/chat/pop.mjs";
 import { pageSecret } from "../tools/chat/secrets.mjs";
-import { endSeat, serve, startSeat } from "../tools/chat/server.mjs";
-import { endEvery } from "../tools/chat/session.mjs";
-import { LEDGER } from "../tools/desks.mjs";
+import { endSeat, serve, startSeat, toolsFor } from "../tools/chat/server.mjs";
+import { LEADER as LEADS, WORKER, endEvery } from "../tools/chat/session.mjs";
+import { LEDGER, ruleAsked } from "../tools/desks.mjs";
 import { CONFIG_FILE } from "../tools/seed.mjs";
-import { installed, remove, repo, scratch, secretsIn, waitFor, writeStandIn } from "./helpers.mjs";
+import { heardIn, installed, post, remove, repo, scratch, secretsIn, waitFor, writeStandIn } from "./helpers.mjs";
 import { settingsProblems } from "./inspect.mjs";
 
 const USER = "Mike";
@@ -121,6 +121,60 @@ describe("the rule a write could be allowed by", () => {
 
 // ---------------------------------------------------------------------------------------------
 // The window in which nobody's desktop is disturbed.
+
+// The inverse: a rule written by hand, for the Leader's permission tool. One checker for both
+// callers, so what a person can be asked to settle is exactly what an Always button could offer.
+describe("the rule a person may be asked to settle", () => {
+  it("accepts what shapeOf composes and nothing else", () => {
+    for (const rule of ["Bash(git:*)", "Bash(git push:*)", "Bash(pip install:*)", "Edit(work/Paul/**)", "Edit(**)"]) {
+      assert.equal(acceptRule(rule, AT), rule);
+    }
+    for (const rule of ["Bash(*)", "Bash(git push)", "Bash(git:*) ", "Edit(/etc/**)", "Edit(../**)", "Edit(./work/**)", "Edit(work/Paul/STATE.md)", "Read(**)", "mcp__openovai", "", null]) {
+      assert.equal(acceptRule(rule, AT), null, String(rule));
+    }
+    for (const request of [
+      { id: "r", tool: "Bash", input: { command: "git push origin main" } },
+      { id: "r", tool: "Write", input: { file_path: path.join(AT, "work", "Paul", "notes.md") } },
+    ]) {
+      const composed = shapeOf(request, AT);
+      assert.equal(acceptRule(composed, AT), composed);
+    }
+  });
+});
+
+// The one writer of a settled rule: the list it names, and the ledger line beside it.
+describe("settling a rule in the settings", () => {
+  const root = `${base}-settling`;
+  const settings = () => JSON.parse(fs.readFileSync(path.join(root, ".claude", "settings.json"), "utf8")).permissions;
+  const ledger = () => fs.readFileSync(path.join(root, LEDGER), "utf8").split("\n").filter((line) => line.startsWith("- `"));
+
+  before(() => {
+    remove(root);
+    fs.mkdirSync(path.join(root, ".claude"), { recursive: true });
+    fs.writeFileSync(path.join(root, ".claude", "settings.json"), JSON.stringify({ permissions: { allow: ["mcp__openovai"], deny: ["Edit(.claude/**)"] } }));
+  });
+
+  after(() => remove(root));
+
+  it("moves a rule settled again into the new list and out of the old one", () => {
+    ruleAsked(root, { rule: "Bash(pip:*)", list: "ask", session: LEADER, call: "pip is too much", day: "2026-09-13" });
+    assert.deepEqual(settings().ask, ["Bash(pip:*)"]);
+    assert.deepEqual(settings().allow, ["mcp__openovai"]);
+    ruleAsked(root, { rule: "Bash(pip:*)", list: "allow", session: LEADER, call: "pip install", day: "2026-09-13" });
+    assert.deepEqual(settings().allow, ["mcp__openovai", "Bash(pip:*)"]);
+    assert.deepEqual(settings().ask, []);
+    assert.deepEqual(settings().deny, ["Edit(.claude/**)"]);
+    assert.deepEqual(ledger().map((line) => line.slice(0, line.indexOf(" — "))), ["- `Bash(pip:*)` (ask)", "- `Bash(pip:*)` (allow)"]);
+    // The same thing again is one line and one entry.
+    ruleAsked(root, { rule: "Bash(pip:*)", list: "allow", session: LEADER, call: "pip install", day: "2026-09-13" });
+    assert.equal(ledger().length, 2);
+    assert.deepEqual(settings().allow, ["mcp__openovai", "Bash(pip:*)"]);
+  });
+
+  it("refuses a list that is not one of the three", () => {
+    assert.throws(() => ruleAsked(root, { rule: "Bash(x:*)", list: "always", session: LEADER, call: "x", day: "d" }), /allow, deny, ask/);
+  });
+});
 
 describe("the hours a workspace is not to be woken", () => {
   // The machine's own clock: a moment is built from local hours, the way the window reads them.
@@ -273,7 +327,7 @@ describe("asking to be allowed", () => {
     it("pops the desktop once, saying who is stopped and on what", () => {
       assert.equal(pops.length, 1);
       assert.equal(pops[0].on, LEADER);
-      assert.match(pops[0].why, new RegExp(`^${LEADER} is stopped, waiting to be allowed to use Bash$`));
+      assert.equal(pops[0].why, `${LEADER} is stopped, waiting to be allowed to use Bash: the one it wanted to run`);
     });
   });
 
@@ -376,6 +430,8 @@ describe("asking to be allowed", () => {
 
     it("is refused when the answer is not one of the three, or names no request", async () => {
       assert.equal((await page("POST", `/sessions/${LEADER}/permission`, { id: "request-1", decision: "maybe" })).status, 400);
+      // "ask" settles a rule, never a call: a call that stopped is already being asked.
+      assert.equal((await page("POST", `/sessions/${LEADER}/permission`, { id: "request-1", decision: "ask" })).status, 400);
       assert.equal((await page("POST", `/sessions/${LEADER}/permission`, { decision: "allow" })).status, 400);
     });
   });
@@ -515,6 +571,182 @@ describe("asking to be allowed", () => {
       await endSeat(LEADER, 500);
       const { permissions } = JSON.parse((await page("GET", `/sessions/${LEADER}/permissions`)).body);
       assert.deepEqual(permissions, []);
+    });
+  });
+
+  // The Leader's permission tool: the ask is the tool call, the write is the User's press, and
+  // the press reaches the Leader as an event.
+  describe("settling a rule", () => {
+    const settings = () => JSON.parse(fs.readFileSync(path.join(instance, ".claude", "settings.json"), "utf8")).permissions;
+    const ledger = () => fs.readFileSync(path.join(instance, LEDGER), "utf8").split("\n").filter((line) => line.startsWith("- `"));
+    let leader;
+    let said = {};
+    let listedOnPanel;
+    let pressed;
+    let heardBefore;
+
+    async function permission(args) {
+      const answered = await post(`${url}/mcp/${leader.secret}`, { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "permission", arguments: args } });
+      const body = JSON.parse(answered.body);
+      return { text: body.result?.content?.[0]?.text, refused: body.result?.isError === true };
+    }
+
+    before(async () => {
+      leader = await leaderAsking({});
+      leader.secret = secretsIn(leader.log)[0];
+      pops.length = 0;
+      ruleAsked(instance, { rule: "Bash(git:*)", list: "deny", session: LEADER, call: "settled by hand for the check", day: "2026-09-13" });
+      said.noWhy = await permission({ rule: "Bash(pip:*)" });
+      said.badShape = await permission({ rule: "Bash(*)", why: "anything" });
+      said.held = await permission({ rule: "Bash(git:*)", why: "the User asked" });
+      said.asked = await permission({ rule: "Bash(pip:*)", why: "pip install is too much" });
+      said.again = await permission({ rule: "Bash(pip:*)", why: "pip install is too much" });
+      listedOnPanel = JSON.parse((await page("GET", `/sessions/${LEADER}/permissions`)).body).permissions;
+      said.listing = await permission({});
+      heardBefore = heardIn(leader.log).length;
+      pressed = await page("POST", `/sessions/${LEADER}/permission`, { id: listedOnPanel[0].id, decision: "ask" });
+      await waitFor(() => (heardIn(leader.log).length > heardBefore ? true : null));
+    });
+
+    after(async () => {
+      await endSeat(LEADER, 500);
+    });
+
+    it("refuses a Worker the permission tool", () => {
+      const tools = toolsFor(chat, { seat: "Paul", role: WORKER });
+      const forWorker = tools.find((tool) => tool.name === "permission");
+      assert.equal(forWorker.offered, false);
+      assert.deepEqual(forWorker.run({ rule: "Bash(pip:*)", why: "x" }), { refused: "permission is not offered to you" });
+      assert.equal(toolsFor(chat, { seat: LEADER, role: LEADS }).find((tool) => tool.name === "permission").offered, true);
+    });
+
+    it("refuses a rule without a why, a rule already pending, and a shape it does not accept", () => {
+      assert.equal(said.noWhy.refused, true);
+      assert.match(said.noWhy.text, /say why/);
+      assert.equal(said.badShape.refused, true);
+      assert.match(said.badShape.text, /Bash\(word:\*\)/);
+      assert.match(said.badShape.text, /Edit\(dir\/\*\*\)/);
+      assert.equal(said.again.refused, true);
+      assert.match(said.again.text, /already asked on your panel/);
+    });
+
+    it("refuses a rule the instance already holds, naming how it is held", () => {
+      assert.equal(said.held.refused, true);
+      assert.match(said.held.text, /Bash\(git:\*\) is already denied/);
+    });
+
+    it("answers at once that the rule is asked on the panel", () => {
+      assert.equal(said.asked.refused, false, said.asked.text);
+      assert.match(said.asked.text, /^asked on your panel: Bash\(pip:\*\) \(.+\)$/);
+    });
+
+    it("lists the rule request on the Leader's panel with the rule and the why", () => {
+      assert.equal(listedOnPanel.length, 1, JSON.stringify(listedOnPanel));
+      const [request] = listedOnPanel;
+      assert.equal(request.kind, "rule");
+      assert.equal(request.rule, "Bash(pip:*)");
+      assert.equal(request.why, "pip install is too much");
+      assert.equal(request.from, LEADER);
+      assert.ok(said.asked.text.includes(request.id));
+    });
+
+    it("pops the desktop once the rule dialog is listed, naming the rule", () => {
+      assert.equal(pops.length, 1, JSON.stringify(pops));
+      assert.equal(pops[0].on, LEADER);
+      assert.equal(pops[0].why, `${LEADER} asks you to settle Bash(pip:*)`);
+    });
+
+    it("answers the three lists and the pending dialogs when called with no rule", () => {
+      assert.equal(said.listing.refused, false, said.listing.text);
+      const listing = JSON.parse(said.listing.text);
+      assert.deepEqual(Object.keys(listing).sort(), ["allow", "ask", "deny", "pending"]);
+      assert.ok(listing.allow.some((entry) => entry.rule === "mcp__openovai"));
+      const denied = listing.deny.find((entry) => entry.rule === "Bash(git:*)");
+      assert.ok(denied !== undefined, said.listing.text);
+      assert.match(denied.line, /^- `Bash\(git:\*\)` \(deny\) — /);
+      assert.deepEqual(listing.pending, [{ rule: "Bash(pip:*)", why: "pip install is too much" }]);
+    });
+
+    it("writes an ask decision to the ask list, and the ledger says so", () => {
+      assert.equal(pressed.status, 200, pressed.body);
+      assert.deepEqual(JSON.parse(pressed.body), { answered: listedOnPanel[0].id, decision: "ask", settled: "Bash(pip:*)" });
+      assert.ok(settings().ask.includes("Bash(pip:*)"), JSON.stringify(settings()));
+      assert.ok(!settings().allow.includes("Bash(pip:*)"));
+      assert.ok(!settings().deny.includes("Bash(pip:*)"));
+      const line = ledger().find((held) => held.startsWith("- `Bash(pip:*)`"));
+      assert.equal(line, `- \`Bash(pip:*)\` (ask) — ${LEADER}, ${new Date().toISOString().slice(0, 10)}, for \`pip install is too much\``);
+    });
+
+    it("tells the Leader what the User pressed, as an event with the rule in it", () => {
+      const heard = heardIn(leader.log);
+      assert.equal(heard.length, heardBefore + 1, heard.join(" / "));
+      assert.equal(heard.at(-1), `<server-event type="permission" decision="ask" who="${LEADER}">Bash(pip:*)</server-event>`);
+    });
+
+    it("takes the dialog down once pressed, and refuses a second press", async () => {
+      assert.deepEqual(JSON.parse((await page("GET", `/sessions/${LEADER}/permissions`)).body).permissions, []);
+      assert.equal((await page("POST", `/sessions/${LEADER}/permission`, { id: listedOnPanel[0].id, decision: "deny" })).status, 409);
+    });
+
+    it("refuses a decision that is not one of the three for that kind of question", async () => {
+      const asked = await permission({ rule: "Bash(npm:*)", why: "the User said npm is fine" });
+      assert.equal(asked.refused, false, asked.text);
+      const [request] = JSON.parse((await page("GET", `/sessions/${LEADER}/permissions`)).body).permissions;
+      assert.equal(request.rule, "Bash(npm:*)");
+      const always = await page("POST", `/sessions/${LEADER}/permission`, { id: request.id, decision: "always" });
+      assert.equal(always.status, 400, always.body);
+      assert.match(always.body, /allow, deny or ask/);
+      const denied = await page("POST", `/sessions/${LEADER}/permission`, { id: request.id, decision: "deny" });
+      assert.equal(denied.status, 200, denied.body);
+      assert.ok(settings().deny.includes("Bash(npm:*)"));
+    });
+  });
+
+  // The reply goes first: a rule asked in the middle of a turn is listed, and popped, once the turn
+  // has ended.
+  describe("a rule asked in the middle of a turn", () => {
+    let leader;
+    let during;
+    let popsDuring;
+    let after_;
+    let reply;
+
+    async function permission(args) {
+      const answered = await post(`${url}/mcp/${leader.secret}`, { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "permission", arguments: args } });
+      return JSON.parse(answered.body).result?.content?.[0]?.text;
+    }
+
+    before(async () => {
+      leader = await leaderAsking({ OPENOVAI_STAND_IN_SLOW: "1500" });
+      leader.secret = secretsIn(leader.log)[0];
+      pops.length = 0;
+      reply = await say("take your time");
+      await waitFor(() => (heardIn(leader.log).length > 0 ? true : null));
+      assert.match(await permission({ rule: "Bash(cargo:*)", why: "the build is cargo" }), /^asked on your panel/);
+      during = JSON.parse((await page("GET", `/sessions/${LEADER}/permissions`)).body).permissions;
+      popsDuring = pops.length;
+      await reply();
+      after_ = await waitFor(async () => {
+        const { permissions } = JSON.parse((await page("GET", `/sessions/${LEADER}/permissions`)).body);
+        return permissions.length > 0 ? permissions : null;
+      });
+    });
+
+    after(async () => {
+      await page("POST", `/sessions/${LEADER}/permission`, { id: after_[0].id, decision: "deny" });
+      await endSeat(LEADER, 500);
+    });
+
+    it("lists a rule request only after the turn that raised it ended", () => {
+      assert.deepEqual(during, []);
+      assert.equal(after_.length, 1);
+      assert.equal(after_[0].rule, "Bash(cargo:*)");
+    });
+
+    it("pops the desktop after the turn, not during it", () => {
+      assert.equal(popsDuring, 0);
+      assert.equal(pops.length, 1);
+      assert.equal(pops[0].why, `${LEADER} asks you to settle Bash(cargo:*)`);
     });
   });
 

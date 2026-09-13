@@ -328,24 +328,6 @@ alone. `watchEverySeconds` in `openovai.json` sets the cadence, and `0` turns it
 
 You are asked once what may be done here, instead of one interruption at a time.
 
-**The question, on the first turn.** A workspace where nothing has run and nothing has been granted
-now opens by having your Leader ask you one thing: what may be done at this root. It is open, there is
-no menu, and nothing reads your answer or turns it into a setting — say *never push anything*, or
-*never write outside `work/`*, or *no restrictions*, or *ask me every time*, however you would say
-it. Then, if what you said allows anything, your Leader goes and makes the calls it permits, one at a
-time, so that each one stops on a panel and you settle it there while you are still thinking about
-the workspace. Not everything it reaches for stops — read-only work is settled by the frame itself —
-and your Leader is not shown your panel, so it does not tell you what stopped: when the calls are made
-it reads `.claude/allowed.md` back to you, which is this workspace's own account of every rule it
-holds, and the only place either of you can read one off. **Not now is a whole answer**: nothing is
-tripped, nothing is granted, and the workspace is exactly as capable as it was.
-
-It is asked once and then it is gone, because it stops the moment either half of what it fires on
-stops being true — the first turn, or the first thing granted. One consequence is worth knowing
-rather than being surprised by: a Leader handed over in a workspace where you have still granted
-nothing is asked again, because a new conversation has no way of knowing the question was put once.
-Answering anything at all, or answering *not now* and granting one thing, ends it.
-
 **A write can now be settled for good.** A session stopped to write a file used to get **Allow** and
 **Deny** and never a third button — the very first thing this README asks you to try, and it asked
 you again every time. It now offers a rule for the directory the write was in, with the rule on the

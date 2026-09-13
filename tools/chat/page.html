@@ -18,6 +18,8 @@
   // Deliberately plain. The point of this page is that every session in the instance can be
   // typed to and read back in one place; how it looks is a later question.
 
+  import { dialogOf } from "./dialog.mjs";
+
   const secret = document.querySelector('meta[name="openovai-secret"]').content;
 
   // Every call to the server, with the page's secret on it. The server refuses a call without it
@@ -115,35 +117,41 @@
       }
     }
 
-    // A permission the session is stopped on: what it wants, and the three answers. "Always"
-    // is offered only when the server found a rule that would let a call like this one through.
+    // A question on this panel: a call the session is stopped on, or a rule the Leader asks the
+    // User to settle. What it shows is decided by dialogOf() — the words of the request and
+    // nothing else — and drawn here with textContent, one line per field the request carried,
+    // one button per decision that kind of question takes. A deny on a call stop needs a word
+    // from the person, since the run is told why; a rule dialog carries the Leader's why already.
     function question(request) {
+      const dialog = dialogOf(request, session.name);
       const line = document.createElement("p");
-      const what = document.createElement("span");
-      what.textContent = `wants to use ${request.tool}${request.input?.command ? `: ${request.input.command}` : ""}${request.input?.file_path ? `: ${request.input.file_path}` : ""} `;
-
-      const reason = document.createElement("input");
-      reason.placeholder = "why not (needed to deny)";
-
-      const yes = document.createElement("button");
-      yes.type = "button";
-      yes.textContent = "Allow";
-
-      const no = document.createElement("button");
-      no.type = "button";
-      no.textContent = "Deny";
-
-      const always = request.shape === undefined ? null : document.createElement("button");
-      if (always !== null) {
-        always.type = "button";
-        always.textContent = `Always allow ${request.shape}`;
+      const heading = document.createElement("span");
+      heading.textContent = dialog.heading;
+      line.append(heading);
+      for (const { kind, text } of dialog.lines) {
+        const shown = document.createElement(kind === "reason" || kind === "why" ? "q" : "code");
+        shown.className = kind;
+        shown.textContent = text;
+        line.append(" ", shown);
       }
 
+      const reason = dialog.kind === "call" ? document.createElement("input") : null;
+      if (reason !== null) {
+        reason.placeholder = "why not (needed to deny)";
+        line.append(" ", reason);
+      }
+
+      const buttons = dialog.buttons.map(({ decision, label }) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = label;
+        button.dataset.decision = decision;
+        return button;
+      });
+
       async function answer(body) {
-        yes.disabled = true;
-        no.disabled = true;
-        if (always !== null) {
-          always.disabled = true;
+        for (const button of buttons) {
+          button.disabled = true;
         }
         await call(`/sessions/${session.name}/permission`, {
           method: "POST",
@@ -153,21 +161,20 @@
         await waiting();
       }
 
-      yes.addEventListener("click", () => answer({ id: request.id, decision: "allow" }));
-      if (always !== null) {
-        always.addEventListener("click", () => answer({ id: request.id, decision: "always" }));
-      }
-      no.addEventListener("click", () => {
-        if (reason.value.trim() === "") {
-          reason.focus();
-          return;
-        }
-        answer({ id: request.id, decision: "deny", why: reason.value.trim() });
-      });
-
-      line.append(what, reason, yes, no);
-      if (always !== null) {
-        line.append(always);
+      for (const button of buttons) {
+        const decision = button.dataset.decision;
+        button.addEventListener("click", () => {
+          if (decision === "deny" && reason !== null) {
+            if (reason.value.trim() === "") {
+              reason.focus();
+              return;
+            }
+            answer({ id: request.id, decision, why: reason.value.trim() });
+            return;
+          }
+          answer({ id: request.id, decision });
+        });
+        line.append(" ", button);
       }
       return line;
     }

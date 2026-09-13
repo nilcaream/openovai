@@ -251,5 +251,16 @@
         "to": ""
       }
     ]
+  },
+  {
+    "name": "the skill an earlier version shipped is left in the instance",
+    "catches": "takes away the skill an earlier version shipped and leaves the skill beside it that the person wrote",
+    "edits": [
+      {
+        "file": "tools/release.mjs",
+        "from": "  for (const entry of RETIRED) {\n    fs.rmSync(path.join(root, entry), { recursive: true, force: true });\n  }\n",
+        "to": ""
+      }
+    ]
   }
 ]

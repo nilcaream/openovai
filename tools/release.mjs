@@ -9,7 +9,7 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
-import { PAYLOAD, notAWorkspace } from "./payload.mjs";
+import { PAYLOAD, RETIRED, notAWorkspace } from "./payload.mjs";
 import { version } from "./version.mjs";
 
 // The notes a release carries, written for the Leader of a workspace rather than for whoever works
@@ -146,11 +146,11 @@ export function notesIn(tree) {
 // Put the new payload in place of the old one.
 //
 // Replaced rather than copied over: a file the new version dropped has to go, or the instance stops
-// being a copy of any version and starts being the union of two. Nothing an instance accumulates is
-// in here — no session has ever written inside bin, tools, templates or the skill the toolkit
-// ships — so there is nothing under these names to lose. An entry may sit below a directory the
-// person also uses, as the skill sits under `.claude/skills` beside their own; what is removed and
-// put back is the entry, never the directory above it.
+// being a copy of any version and starts being the union of two — and so has an entry an earlier
+// version shipped and this one does not (RETIRED). Nothing an instance accumulates is in here — no
+// session has ever written inside bin, tools or templates — so there is nothing under these names
+// to lose. An entry may sit below a directory the person also uses, as the retired skill sat under
+// `.claude/skills` beside their own; what is removed is the entry, never the directory above it.
 //
 // Everything is copied in beside what it replaces FIRST, and only then swapped, so the moment in
 // which the instance is neither one version nor the other is a remove and a rename rather than a
@@ -175,6 +175,10 @@ export function replacePayload(root, tree) {
     fs.rmSync(target, { recursive: true, force: true });
     fs.renameSync(beside, target);
     replaced.push(target);
+  }
+  // Taken away, not listed among what was put in place: nothing stands where it was.
+  for (const entry of RETIRED) {
+    fs.rmSync(path.join(root, entry), { recursive: true, force: true });
   }
 
   return replaced;

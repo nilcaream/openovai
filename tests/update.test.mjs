@@ -15,7 +15,7 @@ import { spawn } from "node:child_process";
 import { after, before, describe, it } from "node:test";
 
 import { installed, remove, repo, runToolLater, scratch, serveRelease, waitFor } from "./helpers.mjs";
-import { PAYLOAD, SKILL } from "../tools/payload.mjs";
+import { PAYLOAD, RETIRED } from "../tools/payload.mjs";
 import { RELEASES } from "../tools/release.mjs";
 import { isOlderThan } from "../tools/version.mjs";
 
@@ -41,7 +41,6 @@ const MARKED = [
   ["bin", "ovai"],
   ["tools", "ovai.mjs"],
   ["templates", "leader.md"],
-  [SKILL, "SKILL.md"],
 ];
 
 const here = scratch("update-test");
@@ -103,7 +102,7 @@ function update(root, from) {
 // payload is skipped by the path of each entry rather than by top-level name, because one entry
 // sits inside a directory the person also uses.
 function whatTheInstanceAccumulated(root) {
-  const shipped = new Set(PAYLOAD.map((entry) => entry.split(path.sep).join("/")));
+  const shipped = new Set([...PAYLOAD, ...RETIRED].map((entry) => entry.split(path.sep).join("/")));
   const found = new Map();
 
   const walk = (directory, prefix) => {
@@ -161,9 +160,13 @@ describe("taking a newer version from a directory", () => {
     // and already asks of every file at once, and a second one reading this file back would be
     // reddened by the same single edit and by nothing else.
     fs.writeFileSync(path.join(root, "plugins", "notify.mjs"), "// a tool this instance serves itself\n");
-    // And a skill of the person's own, beside the one the toolkit ships. The payload entry is the
-    // one skill and not the directory, so this one is theirs and stays; the check that everything
+    // And the skill an earlier version shipped, beside a skill of the person's own. The retired
+    // entry is the one skill and not the directory, so theirs stays; the check that everything
     // outside the payload survives reads it along with the rest, and the check below says why.
+    for (const entry of RETIRED) {
+      fs.mkdirSync(path.join(root, entry), { recursive: true });
+      fs.writeFileSync(path.join(root, entry, "SKILL.md"), "---\nname: allowed\n---\nshipped by an earlier version\n");
+    }
     fs.mkdirSync(path.join(root, ".claude", "skills", "theirs"), { recursive: true });
     fs.writeFileSync(path.join(root, ".claude", "skills", "theirs", "SKILL.md"), "---\nname: theirs\n---\n");
     // And what a session is told: the persona rendered beside a conversation, from the templates
@@ -206,10 +209,12 @@ describe("taking a newer version from a directory", () => {
     assert.equal(fs.existsSync(path.join(root, "tools", "left-behind.mjs")), false);
   });
 
-  // A release is the whole repository. What an instance is made of is a list, and everything else
-  // in there is somebody else's business.
-  it("replaces the skill the toolkit ships and leaves the skill beside it that the person wrote", () => {
-    assert.match(fs.readFileSync(path.join(root, SKILL, "SKILL.md"), "utf8"), new RegExp(MARKER));
+  // What an earlier version shipped and this one does not goes too, or the instance is the union
+  // of two versions; and it is the one entry that goes, never the directory the person also uses.
+  it("takes away the skill an earlier version shipped and leaves the skill beside it that the person wrote", () => {
+    for (const entry of RETIRED) {
+      assert.equal(fs.existsSync(path.join(root, entry)), false, entry);
+    }
     assert.equal(fs.readFileSync(path.join(root, ".claude", "skills", "theirs", "SKILL.md"), "utf8"), "---\nname: theirs\n---\n");
   });
 

@@ -607,11 +607,11 @@ describe("the tools a session is served", () => {
     await endEvery(500);
   });
 
-  it("serves the Leader exactly what BUILT_IN names, and a Worker the same but park and hire", async () => {
+  it("serves the Leader exactly what BUILT_IN names, and a Worker the same but park, hire and permission", async () => {
     assert.deepEqual(await listed(superman.secret), BUILT_IN);
     assert.deepEqual(
       await listed(paul.secret),
-      BUILT_IN.filter((name) => name !== "park" && name !== "hire"),
+      BUILT_IN.filter((name) => name !== "park" && name !== "hire" && name !== "permission"),
     );
   });
 

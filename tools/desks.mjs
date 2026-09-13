@@ -73,16 +73,31 @@ export const CUSTOMIZATION = "customization";
 // typed the other spelling stopped to be approved for doing as it was told.
 export const TOOL_RULES = ["mcp__openovai"];
 
+// And every session's file-read tool, for any file in the instance. Reading is how a session
+// reaches its memory, its knowledge and every desk, and a workspace whose Leader can read any
+// file here is what lets "reading is yours, doing is a Worker's" be a rule rather than a hope.
+// Relative to the instance root, the way every rule here is, so it grants nothing outside it.
+// Measured: a read under the instance goes through with no rule at all, so this changes no
+// stop; it is the grant said out loud, where a person reading the settings looks for it.
+export const READ_RULES = ["Read(**)"];
+
+// The one file no session writes with a file tool: a desk. A desk is written through the
+// `write_desk` tool and no other way, so a session reaching for its desk with an editor is refused
+// on the spot rather than stopping the User for a press that would settle the wrong thing. One
+// segment for the name, so it is every desk here and nothing beside them.
+export const DESK_DENY_RULES = ["Edit(work/*/STATE.md)"];
+
 // Everything else this workspace allows, and who asked for it. It sits beside the settings and is
 // written whenever a rule is granted that is nobody's desk and not the rule above.
 export const LEDGER = path.join(".claude", "allowed.md");
 
 const LEDGER_OPENING = [
-  "# What this workspace allows beyond a desk",
+  "# What this workspace has settled",
   "",
-  "One line per rule. Every one of them is something a person was asked about and said yes to,",
-  "and it says who, when, and what they were doing at the time. A rule in the settings with no",
-  "line here is a grant nobody can account for.",
+  "One line per rule: the rule, the list it landed in (allow, deny or ask), and who asked for",
+  "it, when, and what they were doing at the time. Every one of them is something a person was",
+  "asked about and pressed a button on. A rule in the settings with no line here is one nobody",
+  "can account for.",
   "",
   "",
 ].join("\n");
@@ -477,43 +492,15 @@ function customization(root, what) {
   }
 }
 
-// Grant one thing, leaving whatever is already granted alone. The file is the person's by the time
-// this runs — the installer wrote it whole, once, and whatever they have made of it since is theirs
-// — so hiring adds one rule to it and must not take anything else away doing it.
-function allow(root, rule) {
-  const settings = readSettings(root);
-
-  const granted = Array.isArray(settings?.permissions?.allow) ? settings.permissions.allow : [];
-  if (granted.includes(rule)) {
-    return [];
-  }
-
-  return writeSettings(root, {
-    ...settings,
-    permissions: { ...settings.permissions, allow: [...granted, rule] },
-  });
-}
-
-// The right to keep one desk. A session that cannot write its own desk cannot keep it, and a
-// workspace whose state files go stale is one that has to be explained out loud every time
-// somebody new sits down.
-//
-// One rule, one person. `Edit(...)` is the rule that governs every built-in tool that writes a
-// file, the Write tool included; a `Write(...)` rule is never matched, so adding one would look
-// like care and do nothing. The path in it is relative, which is what it means to Claude Code:
-// the chat starts it with the instance root as its working directory.
+// The rule an older instance granted per desk, before the desk was written through a tool: one
+// `Edit(...)` per person, for its own STATE.md. Nothing grants it any more — a desk is written by
+// `write_desk` and a file-tool edit of one is refused (DESK_DENY_RULES) — and retiring a desk still
+// takes the rule back when an instance from before holds one: a rule for a desk nobody has is a
+// grant nobody can account for.
 export function deskRule(name) {
   return `Edit(${path.posix.join(WORK, name, DESK_FILE)})`;
 }
 
-export function allowDesk(root, name) {
-  return allow(root, deskRule(name));
-}
-
-// And taking that right back, when the desk it names is not there any more. A rule for a desk
-// nobody has is a grant nobody can account for — `tests/inspect.mjs` reads the settings as "one
-// rule per desk and nothing wider", so leaving one behind is not untidiness, it is the instance no
-// longer being able to say what it allows and why.
 export function withdrawDesk(root, name) {
   const settings = readSettings(root);
   const granted = Array.isArray(settings?.permissions?.allow) ? settings.permissions.allow : [];
@@ -579,34 +566,66 @@ export function hire(root, name, panel, model = null) {
     // today's answer onto each person and turn a live setting into a seed nothing reads afterwards
     // — a workspace that changed it and saw nobody move would have a setting that lies.
     ...(model === null ? [] : writeModel(root, name, model)),
-    ...allowDesk(root, name),
   ];
 }
 
-// Granting something wider than the two kinds this workspace hands out by itself, and writing
-// down who asked for it in the same act.
+// Settling one rule for the whole instance — allowed, denied, or asked every time — and writing
+// down who asked for it in the same act. The three lists a settings file holds, and the one the
+// press names; a rule lands in that list and leaves the other two, because a press is the User's
+// last word on that rule, and deny and ask beat allow inside Claude Code, so a stale allow beside
+// a new ask would look like the ask lost.
 //
 // The line first and the rule second. If only one of the two can happen, the workspace is better
 // off accounting for a rule it does not hold than holding one nothing accounts for: the first is
 // noticed by anything that reads the pair, and the second is what twenty-six rules in a workspace
 // nobody can explain look like.
 //
-// Nothing happens twice. The same shape allowed again is one rule and one line, because the second
-// press is a person answering the same question rather than a second decision.
-export function allowAsked(root, { rule, session, call, day }) {
-  return [...account(root, { rule, session, call, day }), ...allow(root, rule)];
+// Nothing happens twice. The same rule settled the same way again is one entry and one line,
+// because the second press is a person answering the same question rather than a second decision.
+export const LISTS = Object.freeze(["allow", "deny", "ask"]);
+
+export function ruleAsked(root, { rule, list, session, call, day }) {
+  if (!LISTS.includes(list)) {
+    throw new Error(`a rule is settled as one of ${LISTS.join(", ")}, not ${JSON.stringify(list)}`);
+  }
+  return [...account(root, { rule, list, session, call, day }), ...settle(root, rule, list)];
 }
 
-// The file a person reads to find out what this workspace allows beyond a desk. One line per rule:
-// the rule in backticks first, so it can be read off the line, and then who asked for it, when, and
-// what they were doing at the time.
+// A rule pressed Always on a call stop: allowed, instance-wide.
+export function allowAsked(root, { rule, session, call, day }) {
+  return ruleAsked(root, { rule, list: "allow", session, call, day });
+}
+
+// The file is the person's by the time this runs — the installer wrote it whole, once, and
+// whatever they have made of it since is theirs — so settling one rule merges into it and must
+// not take anything else away doing it.
+function settle(root, rule, list) {
+  const settings = readSettings(root);
+  const permissions = settings?.permissions ?? {};
+  const held = (name) => (Array.isArray(permissions[name]) ? permissions[name] : []);
+  if (held(list).includes(rule) && LISTS.every((other) => other === list || !held(other).includes(rule))) {
+    return [];
+  }
+  const written = { ...permissions };
+  for (const other of LISTS) {
+    if (other !== list && Array.isArray(permissions[other])) {
+      written[other] = permissions[other].filter((entry) => entry !== rule);
+    }
+  }
+  written[list] = held(list).includes(rule) ? held(list) : [...held(list), rule];
+  return writeSettings(root, { ...settings, permissions: written });
+}
+
+// The file a person reads to find out what this workspace has settled beyond a desk. One line per
+// rule: the rule in backticks first, so it can be read off the line, then the list it landed in,
+// and then who asked for it, when, and what they were doing at the time.
 //
 // Beside the settings rather than inside them: `.claude/settings.json` has a shape Claude Code
 // owns, and a key of ours in it is a key we would be guessing about.
-export function account(root, { rule, session, call, day }) {
+export function account(root, { rule, list = "allow", session, call, day }) {
   const file = path.join(root, LEDGER);
   const held = readLedger(root);
-  if (held !== null && held.includes(`- \`${rule}\` `)) {
+  if (held !== null && held.includes(`- \`${rule}\` (${list}) `)) {
     return [];
   }
 
@@ -615,7 +634,7 @@ export function account(root, { rule, session, call, day }) {
   // file from the lines it recognised would quietly throw all of that away.
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const text = held === null ? LEDGER_OPENING : held.endsWith("\n") ? held : `${held}\n`;
-  fs.writeFileSync(file, `${text}- \`${rule}\` — ${session}, ${day}, for ${asked(call)}\n`);
+  fs.writeFileSync(file, `${text}- \`${rule}\` (${list}) — ${session}, ${day}, for ${asked(call)}\n`);
   return [file];
 }
 
@@ -657,7 +676,7 @@ function asked(call) {
 //
 // WHAT THEY ARE WORTH, exactly, and it is narrower than it looks. `Edit(...)` governs every
 // built-in tool that writes a file, the Write tool included, and nothing else — the same fact
-// `allowDesk` above rests on. A shell command is not one of those tools, and these paths sit inside
+// DESK_DENY_RULES rests on. A shell command is not one of those tools, and these paths sit inside
 // the working directory, so nothing else refuses them either. A granted `Bash(sed:*)` reaches every
 // one of them. So the honest sentence is that these paths are closed to the file tools, never that
 // a session here cannot widen its own permissions — and the skill that reports on all this crosses

@@ -610,8 +610,8 @@ describe("the Node the command needs", () => {
   });
 });
 
-// Hiring is the whole of what it takes to add a person to an instance: a desk to keep state on,
-// a persona saying who they are, and the one rule that lets them write that desk.
+// Hiring is the whole of what it takes to add a person to an instance: a desk to keep state on and
+// a persona saying who they are. No rule: the desk is written through a tool.
 describe("hiring a worker", () => {
   let said;
 
@@ -645,150 +645,11 @@ describe("hiring a worker", () => {
 
   const workerPersona = () => renderPersona(instance, WORKER, { user: USER, leader: LEADER });
 
-  it("says in the persona who the worker is", () => {
-    const persona = workerPersona();
-    assert.ok(persona.includes(`You are ${WORKER}`));
-  });
-
-  it("says in the persona who leads", () => {
-    const persona = workerPersona();
-    assert.ok(persona.includes(LEADER));
-  });
-
-  // A worker is asked for the same one line the Leader is: the header field that says what it is on.
-  // Without it the page has a column with nothing in it and no way to fill one.
-  // The room is a tool of its own, offered to everybody: a Worker reaching for a message needs to
-  // know who is here to send it to.
-  it("tells the worker the room is a tool it can ask for", () => {
-    const persona = workerPersona();
-    assert.match(persona, /the `room` tool says who that is/);
-  });
-
-  it("tells the worker whose the workspace itself is", () => {
-    const persona = workerPersona();
-    assert.match(persona, new RegExp(`who is asked to join and who leaves,\\s+is ${LEADER}'s`));
-    assert.match(persona, /the files underneath it are never\s+the way round/);
-  });
-
-  // The other half of the same paragraph, and the half a person actually sees. A panel is handed
-  // one thing per turn — what the run amounted to — so a refusal reported and then followed by a
-  // desk edit and a closing line is a refusal that reaches nobody, and the turn reads as done.
-  // Measured on a real session: it reported the refusal exactly as told, wrote its desk exactly as
-  // told, and the panel showed the desk sentence. Hence the ordering, said in the persona rather
-  // than built into the page: it costs a clause, and the alternative is a mechanism.
-  it("tells the worker to report a refusal last of all", () => {
-    const persona = workerPersona();
-    assert.match(persona, /saying so is the last thing you do that turn/);
-    assert.match(persona, /Finish the rest first/);
-    assert.match(persona, /a panel that shows only the last thing you said/);
-  });
-
-  // The same rule, widened to every tool the worker is not offered and asserted
-  // once. Naming one is what sends a session hunting for it; the paragraph above is written to say
-  // where the boundary is without naming a single thing on the other side of it.
-  it("names the worker no tool it cannot call", () => {
-    const persona = workerPersona();
-    assert.doesNotMatch(persona, /`(hire|retire|interrupt|say|status)`/);
-  });
-
-  // And says nothing to it about models either. What a worker runs on was settled when its desk
-  // was opened and there is nothing it can do about it, so a paragraph on the subject is a
-  // decision offered to somebody who cannot take it — which is the copy-paste this bites.
-  it("says nothing to the worker about what anybody runs on", () => {
-    const persona = workerPersona();
-    assert.doesNotMatch(persona, /\bmodels?\b/i);
-    assert.doesNotMatch(persona, /\b(opus|sonnet|haiku)\b/i);
-  });
-
-  it("tells the worker which one field of its header is read by anybody else", () => {
-    const persona = workerPersona();
-    assert.match(persona, /the `title:` in it is the one field/);
-  });
-
-  it("tells the worker to keep that field saying what it is on", () => {
-    const persona = workerPersona();
-    assert.match(persona, /Keep it saying what you are on/);
-  });
-
-  // The desk is one task and goes away with it; the memory is the workspace. A session that does
-  // not know the difference files a durable fact where the next person will never look.
-  it("tells the worker that everybody here reads what the workspace has learned", () => {
-    const persona = workerPersona();
-    assert.match(persona, /everybody\s+here reads the same thing/);
-  });
-
-  it("tells the worker what belongs in the store rather than on the desk, and that the two tools are the only way to it", () => {
-    const persona = workerPersona();
-    assert.match(persona, /the store is the workspace/);
-    assert.match(persona, /reached through two tools and no other way/);
-    assert.doesNotMatch(persona, /store\//);
-  });
-
-  it("tells the worker that a hard rule is the Leader's to write and is proposed to it", () => {
-    assert.match(workerPersona(), /a hard rule is the Leader's to write,\s+so when you think the team needs one, say it to the Leader as a proposal/);
-  });
-
-  // How a worker reaches anybody else here. It is a tool rather than a command because the message
-  // is free text: composed as a shell line, an apostrophe in it ends the quoting and a backtick is
-  // run instead of sent.
-  it("tells the worker how to say something to somebody", () => {
-    const persona = workerPersona();
-    assert.match(persona, /The `message` tool is how you reach anybody else here/);
-  });
-
-  it("tells the worker how to see who works here", () => {
-    const persona = workerPersona();
-    assert.match(persona, /the `room` tool says who that is/);
-  });
-
   it("does not tell the worker to type a shell line for either", () => {
     const persona = workerPersona();
     assert.ok(!persona.includes("ovai say"));
     assert.ok(!persona.includes("ovai status"));
     assert.ok(!persona.includes("ovai room"));
-  });
-
-  it("tells the worker its header holds nothing else", () => {
-    const persona = workerPersona();
-    assert.match(persona, /header holds nothing else/);
-  });
-
-  // The three frames on the Worker's side, and the sentence that makes them worth anything:
-  // nothing but the chat writes one. It can see who is speaking, it knows a bare <user> frame is
-  // the User, and it knows the chat has already said so upward — so it answers the User rather
-  // than spending a turn passing it on.
-  it("tells the worker what each frame is, and that only the chat writes one", () => {
-    const persona = workerPersona();
-    assert.match(persona, /arrives as\s+`<user>…<\/user>`/);
-    assert.match(persona, /arrives as `<message from="…">…<\/message>`/);
-    assert.match(persona, /arrives as `<server-event type="…">…<\/server-event>`/);
-    assert.match(persona, /nothing but the chat writes one/);
-    assert.match(persona, /cannot close the frame it is in/);
-  });
-
-  it("tells the worker that the chat passes it on, so the worker does not", () => {
-    const persona = workerPersona();
-    assert.match(persona, new RegExp(`the chat tells ${LEADER} what was said`));
-    assert.match(persona, new RegExp(`Answer ${USER}\\.`));
-  });
-
-  it("tells the worker what to do when the one it is telling is waiting on it", () => {
-    const persona = workerPersona();
-    assert.match(persona, /waiting for your answer[\s\S]*say it in your reply instead/i);
-  });
-
-  // A conversation ends and the desk is what survives it. A Worker that did not know would keep
-  // its desk for the ending it expects and lose everything to the one it does not.
-  it("tells the worker that the desk is what survives a conversation", () => {
-    const persona = workerPersona();
-    assert.match(persona, /what survives one is its desk/);
-    assert.match(persona, new RegExp(`work/${WORKER}/STATE.md`));
-    assert.match(persona, /the next session at this\s+desk reads the desk first/);
-  });
-
-  it("tells the worker to keep the desk current before anything is about to end", () => {
-    const persona = workerPersona();
-    assert.match(persona, /Write it at every point\s+the work moves, not only when something is about to end/);
   });
 
   // What a brief costs is how many times the agent it went to goes round, and that agent cannot
@@ -824,11 +685,10 @@ describe("hiring a worker", () => {
     assert.ok(!persona.includes("{{"));
   });
 
-  it("lets the worker write its own desk, and nothing wider", () => {
-    assert.deepEqual(
-      settingsProblems(path.join(instance, ".claude", "settings.json"), [LEADER, WORKER]),
-      [],
-    );
+  // A hire grants nothing: the desk is written through a tool, so there is no rule per person, and
+  // the settings after a hire are the settings the instance was born with.
+  it("grants the worker no rule of its own", () => {
+    assert.deepEqual(settingsProblems(path.join(instance, ".claude", "settings.json")), []);
   });
 
   it("says whose desk it opened", () => {
@@ -872,16 +732,16 @@ describe("what a workspace can account for", () => {
     } else {
       fs.writeFileSync(written, lines.join("\n"));
     }
-    return settingsProblems(settings, [LEADER]);
+    return settingsProblems(settings);
   }
 
-  const standing = [`Edit(work/${LEADER}/STATE.md)`, "mcp__openovai"];
+  const standing = ["mcp__openovai", "Read(**)"];
 
   after(() => remove(accounting));
 
-  // The state every instance starts in, and the one the check has always held: the two kinds it
+  // The state every instance starts in, and the one the check has always held: the two rules it
   // hands out itself, nothing wider, and nothing to account for.
-  it("says nothing about an instance that has only ever granted a desk", () => {
+  it("says nothing about an instance that holds only what it was born with", () => {
     assert.deepEqual(holding(standing, undefined), []);
   });
 
@@ -895,26 +755,40 @@ describe("what a workspace can account for", () => {
   });
 
   // And says nothing about the same rule once somebody has. The line is the account: the rule
-  // first, in backticks, and then whatever a person needs to know about it.
+  // first, in backticks, the list it landed in, and then whatever a person needs to know about it.
   it("says nothing about the same rule once it is written down", () => {
     assert.deepEqual(
       holding([...standing, WIDE], [
-        "# What this workspace allows beyond a desk",
+        "# What this workspace has settled",
         "",
-        `- \`${WIDE}\` — ${LEADER}, for \`node --test tests\``,
+        `- \`${WIDE}\` (allow) — ${LEADER}, for \`node --test tests\``,
         "",
       ]),
       [],
     );
   });
 
+  // A line from an older instance names no list, and it is an allow: the only list there was.
+  it("reads a line naming no list as an allow", () => {
+    assert.deepEqual(holding([...standing, WIDE], [`- \`${WIDE}\` — ${LEADER}, for \`node --test tests\``]), []);
+  });
+
+  // A rule settled twice has two lines, and the settings hold the last one: an allow moved to ask
+  // is accounted for by its (ask) line, and the stale (allow) line does not make it a claim.
+  it("reads the last line for a rule as the one the settings hold", () => {
+    fs.mkdirSync(path.dirname(settings), { recursive: true });
+    fs.writeFileSync(settings, `${JSON.stringify({ permissions: { allow: standing, ask: [WIDE] } }, null, 2)}\n`);
+    fs.writeFileSync(path.join(path.dirname(settings), LEDGER), [`- \`${WIDE}\` (allow) — ${LEADER}, for x`, `- \`${WIDE}\` (ask) — ${LEADER}, for y`].join("\n"));
+    assert.deepEqual(settingsProblems(settings), []);
+  });
+
   // Both directions, which is the half a ledger is usually missing. A line for a rule that is not
   // granted reads as an answer and is not one, and a file allowed to over-claim is a file that
   // stops being evidence — a rule could be removed by hand and its line would keep vouching for it.
   it("names a rule the file claims and the settings do not hold", () => {
-    const problems = holding(standing, [`- \`${WIDE}\` — ${LEADER}, for something that is not granted`]);
+    const problems = holding(standing, [`- \`${WIDE}\` (allow) — ${LEADER}, for something that is not granted`]);
     assert.equal(problems.length, 1, JSON.stringify(problems));
-    assert.match(problems[0], /accounted for but not granted/);
+    assert.match(problems[0], /accounted for but not held/);
     assert.match(problems[0], /Bash\(node:\*\)/);
   });
 
@@ -924,7 +798,7 @@ describe("what a workspace can account for", () => {
   it("reads the lines that are rules and leaves the rest of the file alone", () => {
     assert.deepEqual(
       holding(standing, [
-        "# What this workspace allows beyond a desk",
+        "# What this workspace has settled",
         "",
         `Every line below was asked for by somebody. \`${WIDE}\` is the shape of one.`,
         "",
