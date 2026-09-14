@@ -1,9 +1,10 @@
-// tests/ovai.test.mjs — check the instance command: what status reports, and what login hands over.
+// tests/ovai.test.mjs — check the instance command: what configuration reports, what the server
+// commands do, and what login hands over.
 //
 // Claude Code is never really run. The stand-in from helpers.mjs answers `auth status` and
-// `auth login`, so this checks our side of both: that status asks rather than guesses, that an
-// instance without a credential says how to fix itself, and that a failed sign-in cannot look
-// like a success.
+// `auth login`, so this checks our side of both: that configuration asks rather than guesses,
+// that an instance without a credential says how to fix itself, and that a failed sign-in cannot
+// look like a success.
 //
 // It also reads the toolkit's own source, for the one thing about starting Claude Code that
 // cannot be seen by starting it: that no way of doing so gives the session a terminal.
@@ -37,7 +38,21 @@ import { LEDGER, settingsProblems, trustProblems } from "./inspect.mjs";
 // The reader this suite asks directly. Everywhere else what a session runs on is seen by starting
 // one, which is right when the subject is a run — and no help at all with what a file holding
 // nothing means, which is a question about the reading rather than about the running.
-import { modelFor, persona as renderPersona } from "../lib/desks.mjs";
+import { DeskError, hire, modelFor, persona as renderPersona } from "../lib/desks.mjs";
+
+// Open a desk the way the Leader's `hire` tool does, in this process, and answer the way a command
+// would: what was written, or the refusal. The command line has no hire — a Worker joins through
+// the tool — and this suite is about the desk that opening one leaves behind.
+function hiring(name, model = null) {
+  try {
+    return { ok: true, written: hire(instance, name, model) };
+  } catch (error) {
+    if (error instanceof DeskError) {
+      return { ok: false, refused: error.message };
+    }
+    throw error;
+  }
+}
 
 const USER = "Mike";
 const LEADER = "Superman";
@@ -119,11 +134,11 @@ fs.writeFileSync(
   )}\n`,
 );
 
-describe("what status reports", () => {
+describe("what configuration reports", () => {
   let said;
 
   before(() => {
-    said = ovai(["status"]).stdout;
+    said = ovai(["configuration"]).stdout;
   });
 
   // What this instance is running. Read from the payload, so it names the code that is actually
@@ -167,7 +182,7 @@ describe("an instance with no credential", () => {
   let said;
 
   before(() => {
-    said = ovai(["status"], { OPENOVAI_STAND_IN_SIGNED_IN: "false" }).stdout;
+    said = ovai(["configuration"], { OPENOVAI_STAND_IN_SIGNED_IN: "false" }).stdout;
   });
 
   it("reports that it has none", () => {
@@ -181,33 +196,33 @@ describe("an instance with no credential", () => {
 
 describe("how the instance signs in", () => {
   it("says an instance with an account of its own signs itself in", () => {
-    assert.match(ovai(["status"]).stdout, /signs in by\s+an account of its own/);
+    assert.match(ovai(["configuration"]).stdout, /signs in by\s+an account of its own/);
   });
 
   it("names the variable an inheriting instance signs in with", () => {
-    assert.match(ovaiInherited(["status"]).stdout, /signs in by\s+CLAUDE_CODE_OAUTH_TOKEN/);
+    assert.match(ovaiInherited(["configuration"]).stdout, /signs in by\s+CLAUDE_CODE_OAUTH_TOKEN/);
   });
 
   it("says the machine's token is there", () => {
-    assert.match(ovaiInherited(["status"]).stdout, /which is set here/);
+    assert.match(ovaiInherited(["configuration"]).stdout, /which is set here/);
   });
 
   it("notices a missing machine token", () => {
-    assert.match(ovaiInherited(["status"], { CLAUDE_CODE_OAUTH_TOKEN: "" }).stdout, /not set here/);
+    assert.match(ovaiInherited(["configuration"], { CLAUDE_CODE_OAUTH_TOKEN: "" }).stdout, /not set here/);
   });
 
   it("never prints the value of the machine's token", () => {
-    assert.ok(!ovaiInherited(["status"]).stdout.includes(TOKEN));
+    assert.ok(!ovaiInherited(["configuration"]).stdout.includes(TOKEN));
   });
 
   it("does not send an inheriting instance to a sign-in that would refuse it", () => {
-    const said = ovaiInherited(["status"], { OPENOVAI_STAND_IN_SIGNED_IN: "false" }).stdout;
+    const said = ovaiInherited(["configuration"], { OPENOVAI_STAND_IN_SIGNED_IN: "false" }).stdout;
     assert.ok(!said.includes("run: ovai login"));
   });
 });
 
 // An instance made before the toolkit carried a version is a real thing to be standing in front
-// of, and status is the command somebody runs when they are working out what they have. So it
+// of, and configuration is the command somebody runs when they are working out what they have. So it
 // answers that question instead of dying of it.
 describe("an instance with no version in it", () => {
   let said;
@@ -217,7 +232,7 @@ describe("an instance with no version in it", () => {
     const kept = fs.readFileSync(file, "utf8");
     fs.rmSync(file);
     try {
-      said = ovai(["status"]);
+      said = ovai(["configuration"]);
     } finally {
       fs.writeFileSync(file, kept);
     }
@@ -236,7 +251,7 @@ describe("where a person can read what the workspace has learned", () => {
   // Spelled out here rather than asked of the code, so that moving the store and moving the check
   // cannot be one edit.
   it("says where this instance keeps it", () => {
-    assert.match(ovai(["status"]).stdout, new RegExp(`store\\s+${instance}/store`));
+    assert.match(ovai(["configuration"]).stdout, new RegExp(`store\\s+${instance}/store`));
   });
 });
 
@@ -512,8 +527,8 @@ describe("what the toolkit starts", () => {
 // wherever it sits" is observably different from "made out of where it sits".
 describe("where an instance files what it knows", () => {
   before(() => {
-    ovai(["status"]);
-    ovaiInherited(["status"]);
+    ovai(["configuration"]);
+    ovaiInherited(["configuration"]);
   });
 
   it("names the directory Claude Code files this instance's transcripts and memory under", () => {
@@ -525,7 +540,7 @@ describe("where an instance files what it knows", () => {
   });
 
   it("does not let the environment it was started in decide", () => {
-    ovai(["status"], { CLAUDE_CODE_PROJECT_DIR_NAME: "somebody-elses-workspace" });
+    ovai(["configuration"], { CLAUDE_CODE_PROJECT_DIR_NAME: "somebody-elses-workspace" });
     assert.equal(projectDirectoriesIn(log).at(-1), "workspace");
   });
 
@@ -559,7 +574,7 @@ describe("an instance that signs itself in", () => {
 
 describe("an instance that inherits", () => {
   before(() => {
-    ovaiInherited(["status"]);
+    ovaiInherited(["configuration"]);
   });
 
   it("takes the machine's token", () => {
@@ -587,7 +602,7 @@ describe("an instance that inherits", () => {
 // machine from the one it was installed on, so the launcher applies the same floor the
 // installer does rather than trusting that it was checked once.
 describe("the Node the command needs", () => {
-  const refused = ovai(["status"], onNode("v20.18.1"));
+  const refused = ovai(["configuration"], onNode("v20.18.1"));
 
   it("refuses a Node older than the one it needs", () => {
     assert.notEqual(refused.status, 0);
@@ -602,11 +617,11 @@ describe("the Node the command needs", () => {
   });
 
   it("runs on the Node it needs", () => {
-    assert.equal(ovai(["status"], onNode("v24.0.0")).status, 0);
+    assert.equal(ovai(["configuration"], onNode("v24.0.0")).status, 0);
   });
 
   it("runs on a Node newer than the one it needs", () => {
-    assert.equal(ovai(["status"], onNode("v99.0.0")).status, 0);
+    assert.equal(ovai(["configuration"], onNode("v99.0.0")).status, 0);
   });
 });
 
@@ -617,7 +632,7 @@ describe("hiring a worker", () => {
   let said;
 
   before(() => {
-    said = ovai(["hire", WORKER]);
+    said = hiring(WORKER);
   });
 
   it("opens the worker a desk", () => {
@@ -657,7 +672,7 @@ describe("hiring a worker", () => {
   });
 
   it("names the settings among what it wrote, since it changed them", () => {
-    assert.ok(said.stdout.includes(path.join(instance, ".claude", "settings.json")), said.stdout);
+    assert.ok(said.written.includes(path.join(instance, ".claude", "settings.json")), said.written.join("\n"));
   });
 
   const workerPersona = () => renderPersona(instance, WORKER, { user: USER, leader: LEADER });
@@ -708,16 +723,12 @@ describe("hiring a worker", () => {
     assert.deepEqual(settingsProblems(path.join(instance, ".claude", "settings.json")), []);
   });
 
-  it("says whose desk it opened", () => {
-    assert.match(said.stdout, new RegExp(WORKER));
+  it("names the desk among what it wrote", () => {
+    assert.ok(said.written.some((entry) => entry.includes(path.join("desks", WORKER))), said.written.join("\n"));
   });
 
-  it("lists the new desk in status", () => {
-    assert.match(ovai(["status"]).stdout, new RegExp(`desks.*${WORKER}`));
-  });
-
-  it("starts no session doing it", () => {
-    assert.ok(!readLog(log).includes("argv: -p"));
+  it("lists the new desk in the configuration", () => {
+    assert.match(ovai(["configuration"]).stdout, new RegExp(`desks.*${WORKER}`));
   });
 });
 
@@ -844,11 +855,11 @@ describe("hiring somebody onto a model of their own", () => {
   let said;
 
   before(() => {
-    said = ovai(["hire", ON_A_MODEL, CHOSEN]);
+    said = hiring(ON_A_MODEL, CHOSEN);
   });
 
   it("opens the desk", () => {
-    assert.deepEqual([said.status, fs.existsSync(path.join(instance, "desks", ON_A_MODEL, "STATE.md"))], [0, true]);
+    assert.deepEqual([said.ok, fs.existsSync(path.join(instance, "desks", ON_A_MODEL, "STATE.md"))], [true, true]);
   });
 
   it("writes down the model they were hired onto and nothing else", () => {
@@ -856,7 +867,7 @@ describe("hiring somebody onto a model of their own", () => {
   });
 
   it("names that file among what it wrote", () => {
-    assert.match(said.stdout, new RegExp(`desks.${ON_A_MODEL}.MODEL`));
+    assert.ok(said.written.some((entry) => entry.endsWith(path.join("desks", ON_A_MODEL, "MODEL"))), said.written.join("\n"));
   });
 });
 
@@ -884,7 +895,7 @@ describe("what a desk is read as running on", () => {
   const file = path.join(instance, "desks", READ_BACK, "MODEL");
 
   before(() => {
-    ovai(["hire", READ_BACK, "opus"]);
+    hiring(READ_BACK, "opus");
   });
 
   it("reads the word the desk was hired onto", () => {
@@ -921,13 +932,10 @@ describe("what a desk is read as running on", () => {
 // it — the argument, and where a named model is written down.
 describe("what the README says about hiring onto a model", () => {
   const readme = fs.readFileSync(path.join(repo, "README.md"), "utf8");
-  const section = readme.slice(
-    readme.indexOf("`ovai hire <name>` opens a desk"),
-    readme.indexOf("`ovai chat` serves the instance"),
-  );
+  const section = readme.slice(readme.indexOf("- `hire` (Leader)"), readme.indexOf("- `permission` (Leader)"));
 
-  it("names the model as the argument beside the name", () => {
-    assert.match(section, /`ovai hire <name> \[model\]`/);
+  it("names the model as what a hire takes beside the name", () => {
+    assert.match(section, /a name, and a model when not the usual one/);
   });
 
   it("says where a model that was named is written down", () => {
@@ -942,10 +950,10 @@ describe("what the README says about hiring onto a model", () => {
   });
 });
 
-// And what status says about all of them at once. Once one desk can differ from another, the row
+// And what configuration says about all of them at once. Once one desk can differ from another, the row
 // listing the desks is the only place the answer for each of them is written down — and on an
 // instance whose chat is not running it is the only place it can be read at all.
-describe("what status says each desk runs on", () => {
+describe("what configuration says each desk runs on", () => {
   const OF_THEIR_OWN = "Faye";
   const THE_USUAL_WAY = "Gil";
   const CHOSEN = "opus";
@@ -954,9 +962,9 @@ describe("what status says each desk runs on", () => {
   const desksRow = () => said.split("\n").find((line) => line.trim().startsWith("desks"));
 
   before(() => {
-    ovai(["hire", OF_THEIR_OWN, CHOSEN]);
-    ovai(["hire", THE_USUAL_WAY]);
-    said = ovai(["status"]).stdout;
+    hiring(OF_THEIR_OWN, CHOSEN);
+    hiring(THE_USUAL_WAY);
+    said = ovai(["configuration"]).stdout;
   });
 
   it("names somebody hired onto a model of their own with that model", () => {
@@ -987,30 +995,16 @@ describe("what status says each desk runs on", () => {
 });
 
 describe("what hiring refuses", () => {
-  it("refuses to hire nobody", () => {
-    assert.notEqual(ovai(["hire"]).status, 0);
-  });
-
-  it("says a name is the thing that is missing", () => {
-    assert.match(ovai(["hire"]).stderr, /hire needs a name/);
-  });
-
   it("refuses a name a directory could not be", () => {
-    assert.notEqual(ovai(["hire", "../elsewhere"]).status, 0);
+    assert.equal(hiring("../elsewhere").ok, false);
   });
 
   it("refuses somebody who already has a desk", () => {
-    assert.notEqual(ovai(["hire", LEADER]).status, 0);
+    assert.equal(hiring(LEADER).ok, false);
   });
 
   it("says who already has a desk", () => {
-    assert.match(ovai(["hire", LEADER]).stderr, new RegExp(`${LEADER} already has a desk`));
-  });
-
-  // Two words are a name and a model. A third is somebody typing a second name, and a name and a
-  // model are shaped alike, so the count is the only thing that can tell them apart.
-  it("refuses more than a name and a model at a time", () => {
-    assert.notEqual(ovai(["hire", "Ann", "opus", "Bob"]).status, 0);
+    assert.match(hiring(LEADER).refused, new RegExp(`${LEADER} already has a desk`));
   });
 
   // The model is refused before a byte of the desk exists, so a name typed with a model that is not
@@ -1021,11 +1015,11 @@ describe("what hiring refuses", () => {
     let said;
 
     before(() => {
-      said = ovai(["hire", NOT_HIRED, "not a model"]);
+      said = hiring(NOT_HIRED, "not a model");
     });
 
     it("refuses it", () => {
-      assert.notEqual(said.status, 0);
+      assert.equal(said.ok, false);
     });
 
     // The rule, not the verdict. "Is not a model identifier" says the value is wrong and leaves
@@ -1033,10 +1027,10 @@ describe("what hiring refuses", () => {
     // list of models, and a list is the one thing this sentence must never send them to.
     it("says what a model identifier is rather than listing the models there are", () => {
       assert.match(
-        said.stderr,
+        said.refused,
         /a model must start with a letter or digit and hold only letters, digits, '\.', '-' or '_' \(got "not a model"\)/,
       );
-      assert.doesNotMatch(said.stderr, /\b(opus|sonnet|haiku)\b/i);
+      assert.doesNotMatch(said.refused, /\b(opus|sonnet|haiku)\b/i);
     });
 
     it("leaves no desk behind", () => {
@@ -1065,8 +1059,8 @@ describe("what hiring refuses", () => {
           "--auth": "login",
         });
         assert.deepEqual(
-          [ovai(["hire", "Ann", value]).status, putting.status, fs.existsSync(`${instance}-never-made`)],
-          [1, 2, false],
+          [hiring("Ann", value).ok, putting.status, fs.existsSync(`${instance}-never-made`)],
+          [false, 2, false],
         );
       });
     }
@@ -1079,11 +1073,11 @@ describe("what hiring refuses", () => {
     let said;
 
     before(() => {
-      said = ovai(["hire", LEADER, "opus"]);
+      said = hiring(LEADER, "opus");
     });
 
     it("refuses the name for the desk it already has", () => {
-      assert.match(said.stderr, new RegExp(`${LEADER} already has a desk here`));
+      assert.match(said.refused, new RegExp(`${LEADER} already has a desk here`));
     });
 
     it("writes nothing down about what the Leader runs on", () => {
@@ -1099,22 +1093,22 @@ describe("what hiring refuses", () => {
     const CAME_BACK = "Otter";
 
     before(() => {
-      ovai(["hire", CAME_BACK]);
+      hiring(CAME_BACK);
       fs.rmSync(path.join(instance, "desks", CAME_BACK), { recursive: true, force: true });
       fs.mkdirSync(path.join(instance, "desks", CAME_BACK), { recursive: true });
       fs.writeFileSync(path.join(instance, "desks", CAME_BACK, "conversation.json"), "[]\n");
     });
 
     it("refuses", () => {
-      assert.notEqual(ovai(["hire", CAME_BACK]).status, 0);
+      assert.equal(hiring(CAME_BACK).ok, false);
     });
 
     it("says what is in the way and where it is", () => {
-      assert.match(ovai(["hire", CAME_BACK]).stderr, new RegExp(`conversation here.*desks/${CAME_BACK}`));
+      assert.match(hiring(CAME_BACK).refused, new RegExp(`conversation here.*desks/${CAME_BACK}`));
     });
 
     it("leaves that conversation alone", () => {
-      ovai(["hire", CAME_BACK]);
+      hiring(CAME_BACK);
       assert.ok(fs.existsSync(path.join(instance, "desks", CAME_BACK, "conversation.json")));
     });
   });
@@ -1138,10 +1132,11 @@ describe("starting a tool the instance serves itself", () => {
   });
 
   // The file, and then the one thing somebody would otherwise sit and wonder about: a tool is read
-  // when the chat starts, so a chat that is already running goes on serving what it started with.
-  it("says what it wrote, and that the chat has to be started again", () => {
+  // when the server starts, so a server that is already running goes on serving what it started
+  // with — and the command that reads it again is named.
+  it("says what it wrote, and that the server has to be restarted", () => {
     assert.match(said.stdout, new RegExp(path.join("plugins", `${TOOL}.mjs`)));
-    assert.match(said.stdout, /chat again/);
+    assert.match(said.stdout, /^Restart the server to serve it.*: ovai restart$/m);
   });
 
   // And the first line, which is the one somebody reads and believes, says when the tool is served
@@ -1149,7 +1144,7 @@ describe("starting a tool the instance serves itself", () => {
   // now is told there is no such tool — a line saying the instance serves it is a line that sends
   // somebody looking for what is wrong with a workspace that is working.
   it("says when the tool is served, which is not yet", () => {
-    assert.match(said.stdout, new RegExp(`^${TOOL} is a tool this instance serves from the next chat start\\.`));
+    assert.match(said.stdout, new RegExp(`^${TOOL} is a tool this instance serves from the next server start\\.`));
   });
 
   // Refused rather than written over, and the check reads the file rather than the status: a
@@ -1188,6 +1183,151 @@ describe("starting a tool the instance serves itself", () => {
     const refused = ovai(["plugin"]);
     assert.equal(refused.status, 2);
     assert.match(refused.stderr, /plugin needs a name/);
+  });
+});
+
+// The server as a daemon: started in the background by the command, asked after with status,
+// stopped with stop. Through bin/ovai with the stand-in on the PATH, so what is checked is exactly
+// what a person at a terminal gets — and that the terminal gets its prompt back, which is what
+// spawnSync returning at all proves. On an instance of its own, installed with --port 0: a fixed
+// port would be one port for every copy of this suite running at once.
+describe("the server commands", () => {
+  const served = `${instance}-served`;
+  const runtime = path.join(served, "runtime.json");
+  const pidRecorded = () => JSON.parse(fs.readFileSync(runtime, "utf8")).pid;
+  const ovai = (argv, changes) => run(served, log, argv, changes);
+  let url;
+  const answering = async () => {
+    try {
+      return (await fetch(`${url}/health`)).ok;
+    } catch {
+      return false;
+    }
+  };
+
+  before(() => {
+    remove(served);
+    installed({
+      "--root": served,
+      "--source": repo,
+      "--user": USER,
+      "--leader": LEADER,
+      "--leader-model": LEADER_MODEL,
+      "--worker-model": WORKER_MODEL,
+      "--port": 0,
+      "--auth": "login",
+    });
+  });
+  const settled = async (expected) => {
+    for (let waited = 0; waited < 10_000; waited += 100) {
+      if ((await answering()) === expected) {
+        return true;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    return false;
+  };
+
+  after(() => {
+    // Whatever the checks left running is ended by the pid the server wrote down.
+    try {
+      process.kill(pidRecorded(), "SIGTERM");
+    } catch {
+      // Nothing running, or nothing recorded.
+    }
+    remove(served);
+  });
+
+  it("prints the help when given no command", () => {
+    const bare = ovai([]);
+    assert.equal(bare.status, 0);
+    assert.equal(bare.stdout, ovai(["help"]).stdout);
+    assert.match(bare.stdout, /^Usage:$/m);
+  });
+
+  it("has no chat and no hire", () => {
+    for (const gone of ["chat", "hire"]) {
+      const refused = ovai([gone]);
+      assert.equal(refused.status, 2, gone);
+      assert.match(refused.stderr, new RegExp(`^ovai: unknown command: ${gone}$`, "m"));
+    }
+  });
+
+  it("says not running, and exits 3, while nothing runs", () => {
+    const asked = ovai(["status"]);
+    assert.equal(asked.stdout, "not running\n");
+    assert.equal(asked.status, 3);
+  });
+
+  it("stops nothing without complaint", () => {
+    const asked = ovai(["stop"]);
+    assert.equal(asked.stdout, "not running\n");
+    assert.equal(asked.status, 0);
+  });
+
+  it("starts the server in the background and prints its address, and nothing else", async () => {
+    const started = ovai(["start"]);
+    assert.equal(started.status, 0, started.stderr);
+    assert.match(started.stdout, /^http:\/\/127\.0\.0\.1:\d+\n$/);
+    assert.equal(started.stderr, "");
+    url = started.stdout.trim();
+    assert.ok(await settled(true), "the server is not answering after start returned");
+  });
+
+  // The last line, not the whole: what the server found on its way up — a plugin file it could not
+  // serve, say — is written above it, and that is what the log is for.
+  it("writes what the server says to runtime.log at the root, and no request lines", async () => {
+    await fetch(`${url}/`);
+    await fetch(`${url}/health`);
+    const lines = fs.readFileSync(path.join(served, "runtime.log"), "utf8").split("\n").filter((line) => line !== "");
+    assert.equal(lines.at(-1), `Serving ${served} at ${url}`);
+    assert.deepEqual(lines.filter((line) => /^(GET|POST) /.test(line)), []);
+  });
+
+  it("says where it runs, with the pid the server recorded", () => {
+    const asked = ovai(["status"]);
+    assert.equal(asked.status, 0);
+    assert.match(asked.stdout, new RegExp(`^running at ${url} \\(pid ${pidRecorded()}, since \\d{4}-\\d{2}-\\d{2}T[^)]+\\)$`, "m"));
+  });
+
+  it("does not start a second server over the first", () => {
+    const pid = pidRecorded();
+    const again = ovai(["start"]);
+    assert.equal(again.status, 0);
+    assert.equal(again.stdout, `already running at ${url}\n`);
+    assert.equal(pidRecorded(), pid);
+  });
+
+  it("restarts: stops the one running, starts another, prints the address", async () => {
+    const pid = pidRecorded();
+    const restarted = ovai(["restart"]);
+    assert.equal(restarted.status, 0, restarted.stderr);
+    assert.match(restarted.stdout, new RegExp(`^Stopping the server at ${url} \\(pid ${pid}\\)\\.\nStopped\\.\n(http://127\\.0\\.0\\.1:\\d+)\n$`));
+    assert.notEqual(pidRecorded(), pid);
+    url = restarted.stdout.trim().split("\n").at(-1);
+    assert.ok(await settled(true));
+  });
+
+  it("stops it, and status says so after", async () => {
+    const pid = pidRecorded();
+    const stopped = ovai(["stop"]);
+    assert.equal(stopped.status, 0, stopped.stderr);
+    assert.equal(stopped.stdout, `Stopping the server at ${url} (pid ${pid}).\nStopped.\n`);
+    assert.ok(await settled(false), "still answering after stop");
+    assert.equal(ovai(["status"]).status, 3);
+  });
+
+  // The record outlives the process on purpose; a status that read it without trying would say
+  // running about a server that was killed. The state is made the way it happens: -9.
+  it("finds a stale record out by trying", async () => {
+    const started = ovai(["start"]);
+    assert.equal(started.status, 0);
+    url = started.stdout.trim();
+    process.kill(pidRecorded(), "SIGKILL");
+    assert.ok(await settled(false));
+    assert.ok(fs.existsSync(runtime));
+    assert.equal(ovai(["status"]).stdout, "not running\n");
+    assert.equal(ovai(["stop"]).stdout, "not running\n");
   });
 });
 

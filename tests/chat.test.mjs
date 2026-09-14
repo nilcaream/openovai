@@ -18,11 +18,12 @@ import { THE_CHAT, panelFile, read as panel } from "../lib/chat/conversation.mjs
 import { serverEvent, userFrame } from "../lib/chat/frames.mjs";
 import { listening } from "../lib/chat/runtime.mjs";
 import { pageSecret } from "../lib/chat/secrets.mjs";
+import { hire } from "../lib/desks.mjs";
 import { endSeat, serve, startSeat, toolsFor } from "../lib/chat/server.mjs";
 import { LEADER as LEADS, SECRET_IN_ENVIRONMENT, WORKER as WORKS, end, endEvery, running, runningSeats, start, tell, wouldWaitForItself, whileWaitingFor } from "../lib/chat/session.mjs";
 import { BUILT_IN } from "../lib/plugins.mjs";
 import { CONFIG_FILE } from "../lib/seed.mjs";
-import { alive, callsIn, get as fetchPlain, heardIn, installed, notesIn, post as postPlain, remove, repo, runTool, scratch, secretsIn, startChat, stopChat, waitFor, waitForAddress, writeStandIn } from "./helpers.mjs";
+import { alive, callsIn, get as fetchPlain, heardIn, installed, notesIn, post as postPlain, remove, repo, scratch, secretsIn, startChat, stopChat, waitFor, waitForAddress, writeStandIn } from "./helpers.mjs";
 
 const USER = "Mike";
 const LEADER = "Superman";
@@ -77,8 +78,8 @@ remove(instance, standIn, nowhere);
 writeStandIn(standIn);
 fs.mkdirSync(nowhere, { recursive: true });
 installed(options(instance));
-runTool(instance, ["hire", WORKER], process.env);
-runTool(instance, ["hire", OTHER], process.env);
+hire(instance, WORKER);
+hire(instance, OTHER);
 
 before(async () => {
   chat = { root: instance, config: configOf(instance), plugins: [], pop: (asked) => pops.push(asked) };
@@ -353,13 +354,15 @@ describe("the gate", () => {
     const stranger = await fetchPlain(`${url}/mcp/${"x".repeat(43)}`);
     assert.equal(stranger.status, 401);
     assert.equal(stranger.body, UNKNOWN);
-    assert.ok(await waitFor(() => said.slice(before_).includes("GET /mcp/<secret> 405")), said.slice(before_).join("\n"));
+    assert.deepEqual(said.slice(before_), [], "a request was logged");
     assert.deepEqual(heardIn(paul.log), [], "a GET reached a session");
   });
 
-  // A secret is masked wherever a logged path carries it, not only on the tool route: a caller
-  // that goes looking for a login appends the whole tool path to a discovery route.
-  it("prints no secret in the request log, wherever a path carries one", async () => {
+  // A request is never a line the server says: what it says is about the room, and the traffic of
+  // a page polling for rows would bury that. And a secret is masked wherever an ANSWER names the
+  // path that carried it — a caller that goes looking for a login appends the whole tool path to
+  // a discovery route, and the one answer that repeats a path is the 404.
+  it("says nothing about a request, and never a secret where an answer names the path", async () => {
     const before_ = said.length;
     const probes = [
       `/.well-known/oauth-protected-resource/mcp/${paul.secret}`,
@@ -369,10 +372,10 @@ describe("the gate", () => {
     for (const probe of probes) {
       assert.equal((await fetchPlain(`${url}${probe}`)).status, 401);
     }
-    assert.ok(await waitFor(() => said.slice(before_).filter((line) => line.startsWith("GET ")).length >= probes.length));
-    const logged = said.slice(before_);
-    assert.ok(!logged.some((line) => line.includes(paul.secret)), `a secret was logged:\n${logged.join("\n")}`);
-    assert.ok(logged.includes("GET /.well-known/oauth-protected-resource/mcp/<secret> 401"), logged.join("\n"));
+    const nowhere = await fetch(`${url}/nowhere/mcp/${paul.secret}`, { headers: { authorization: `Bearer ${pageSecret()}` } });
+    assert.equal(nowhere.status, 404);
+    assert.equal((await nowhere.json()).error, "nothing at GET /nowhere/mcp/<secret>");
+    assert.deepEqual(said.slice(before_), [], "a request was logged");
   });
 
   it("forgets a secret when its process has gone, and the next process gets another", async () => {
@@ -1401,9 +1404,11 @@ describe("the chat as a process", () => {
     return /<meta name="openovai-secret" content="([^"]*)">/.exec(pageText)[1];
   }
 
-  it("says at the start what instructions above it are not read, and where it listens", () => {
-    assert.match(child.output, /^This instance's instructions are its own/m);
-    assert.match(child.output, new RegExp(`^${LEADER} is listening on ${address}$`, "m"));
+  // The one line a start says: the address. Not the instruction files above the instance — every
+  // session is started with that list whether or not anybody read it here — and not the quota
+  // windows, which have a default each.
+  it("says where it listens, and nothing else", () => {
+    assert.equal(child.output.trim(), `Serving ${own} at ${address}`);
   });
 
   it("hands the page a secret that opens the page routes", async () => {
@@ -1413,16 +1418,12 @@ describe("the chat as a process", () => {
     assert.equal(answered.status, 200);
   });
 
-  it("logs the route and never a secret", async () => {
+  it("prints no request and no secret, whatever the page or a caller asks for", async () => {
     await postPlain(`${address}/mcp/${firstPage}`, { jsonrpc: "2.0", id: 1, method: "tools/list" });
     await fetch(`${address}/sessions`, { headers: { authorization: `Bearer ${firstPage}` } });
-    assert.ok(child.output.includes("POST /mcp/<secret> 401"), child.output);
-    assert.ok(child.output.includes("GET /sessions 200"), child.output);
-    // The stream carries its secret on the query, and the query is not part of the route.
     await fetch(`${address}/events?page=not-the-secret`);
-    assert.ok(await waitFor(() => (child.output.includes("GET /events 401") ? true : null)), child.output);
-    assert.ok(!child.output.includes("page="), child.output);
-    assert.ok(!child.output.includes(firstPage), "the page secret is in the log");
+    assert.doesNotMatch(child.output, /^(GET|POST) /m, child.output);
+    assert.ok(!child.output.includes(firstPage), "the page secret is in the output");
   });
 
   it("starts with nothing when started again: the old page secret opens nothing", async () => {

@@ -22,9 +22,9 @@ import * as quota from "../lib/chat/quota.mjs";
 import { pageSecret } from "../lib/chat/secrets.mjs";
 import { serve, startSeat, toolsFor } from "../lib/chat/server.mjs";
 import { INTERRUPT_PATIENCE, end, endEvery, recordOf, running, runningSeats, tell } from "../lib/chat/session.mjs";
-import { deskFile, deskHeader, deskTitle } from "../lib/desks.mjs";
+import { deskFile, deskHeader, deskTitle, hire } from "../lib/desks.mjs";
 import { CONFIG_FILE } from "../lib/seed.mjs";
-import { alive, arrivalsIn, callsIn, heardIn, installed, notesIn, pidsIn, post as postPlain, readLog, remove, repo, runTool, runToolLater, scratch, secretsIn, startChat, stopChat, waitFor, waitForAddress, writeStandIn } from "./helpers.mjs";
+import { alive, arrivalsIn, callsIn, heardIn, installed, notesIn, pidsIn, post as postPlain, readLog, remove, repo, runToolLater, scratch, secretsIn, startChat, stopChat, waitFor, waitForAddress, writeStandIn } from "./helpers.mjs";
 
 const USER = "Mike";
 const LEADER = "Superman";
@@ -91,7 +91,7 @@ const realPath = process.env.PATH;
 remove(instance, standIn);
 writeStandIn(standIn);
 installed(options(instance));
-runTool(instance, ["hire", WORKER], process.env);
+hire(instance, WORKER);
 
 before(async () => {
   chat = { root: instance, config: configOf(instance), plugins: [], pop: () => {}, clock: () => now };
@@ -235,8 +235,10 @@ describe("serving", () => {
     assert.equal(readLog(unexpected), "");
   });
 
-  it("says once that the per-model window is not gated when no wire name is known", () => {
-    assert.equal(said.filter((line) => line.startsWith("7d-fable: no window")).length, 1);
+  // Every window has a default threshold pair, the per-model one included, so an instance that
+  // names none has nothing to be told about at start.
+  it("says nothing about the quota windows at the start", () => {
+    assert.deepEqual(said.filter((line) => /^(5h|7d|7d-fable)\b/.test(line)), []);
   });
 });
 
@@ -1407,7 +1409,7 @@ describe("a signal to the chat", () => {
     const closed = new Promise((resolve) => child.once("close", resolve));
     const stopped = await runToolLater(own, ["stop"], ownEnvironment());
     assert.equal(stopped.status, 0, stopped.stderr);
-    assert.match(stopped.stdout, new RegExp(`^Stopping the chat at ${address.replace(/[.]/g, "\\.")} \\(pid ${child.pid}\\)\\.$`, "m"));
+    assert.match(stopped.stdout, new RegExp(`^Stopping the server at ${address.replace(/[.]/g, "\\.")} \\(pid ${child.pid}\\)\\.$`, "m"));
     assert.equal(await closed, 0, child.output);
     assert.match(child.output, /^Parking 3 sessions\.$/m);
     assert.equal(notesIn(ownLog).filter(([label]) => label === "left").length, 3);

@@ -36,10 +36,10 @@ import {
   withoutHardRules,
 } from "../lib/store.mjs";
 import { BUILT_IN } from "../lib/plugins.mjs";
-import { persona } from "../lib/desks.mjs";
+import { hire, persona } from "../lib/desks.mjs";
 import { endSeat, serve, startSeat } from "../lib/chat/server.mjs";
 import { CONFIG_FILE } from "../lib/seed.mjs";
-import { installed, post, readLog, remove, repo, runTool, scratch, secretsIn, standInEnvironment, waitFor, writeStandIn } from "./helpers.mjs";
+import { installed, post, readLog, remove, repo, scratch, secretsIn, standInEnvironment, waitFor, writeStandIn } from "./helpers.mjs";
 
 const ZONE = "Europe/Warsaw";
 const NOW = new Date("2026-09-12T19:04:11+02:00");
@@ -673,7 +673,7 @@ async function withKnob(name, body) {
 remove(instance, standIn);
 writeStandIn(standIn);
 installed(options(instance));
-runTool(instance, ["hire", CHAT_WORKER], process.env);
+hire(instance, CHAT_WORKER);
 
 describe("the tools the chat serves for the store", () => {
   before(async () => {

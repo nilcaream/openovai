@@ -21,12 +21,13 @@ cd openovai
              --leader-model sonnet --worker-model sonnet --port 7799 --auth login
 # sign the instance in: opens a browser once, the credential stays inside the instance
 ~/my-workspace/bin/ovai login
-# first start: serves the page until you stop it with ctrl-c — open http://127.0.0.1:7799
-~/my-workspace/bin/ovai chat
+# start the server in the background: it prints http://127.0.0.1:7799 and returns
+~/my-workspace/bin/ovai start
 ```
 
 Open the address it prints. The Leader's panel is in the middle; type what you want and the
-Leader starts. Everything else here says what that page and that command do.
+Leader starts. `ovai status` says whether the server is running and where, `ovai stop` stops it.
+Everything else here says what that page and that command do.
 
 ## The idea
 
@@ -85,7 +86,7 @@ An instance is a directory of its own. From a clone:
 - `--leader` — the name of the session that leads the team.
 - `--leader-model`, `--worker-model` — the models those sessions run on.
 - `--port` — the port the page listens on, on `127.0.0.1` only. `0` means "whatever is free", and
-  `ovai chat` prints the address it actually got; pick a number when you want the same one every
+  `ovai start` prints the address it actually got; pick a number when you want the same one every
   time — a bookmark, or a web app pinned to it.
 - `--auth` — how the instance gets an account: `inherit` or `login`. See
   [Signing in](#signing-in).
@@ -100,7 +101,8 @@ The instance root is this, and nothing else ever lands in it:
   bin/ovai          the one command
   lib/              everything else the release ships; replaced whole on update
   openovai.json     the instance's description of itself
-  runtime.json      the running chat: url, pid, since
+  runtime.json      the running server: url, pid, since
+  runtime.log       what the server said, this run; written over at the next start
   plugins/          tools the instance serves itself, one file each; yours, kept across updates
   store/            what the workspace knows: memory/ and knowledge/, one file per record
   customization/    what you add to the personas, one file per kind; yours, never touched
@@ -115,7 +117,7 @@ The instance root is this, and nothing else ever lands in it:
 ```
 
 In groups: the product is `bin/` and `lib/`; the instance's own is `openovai.json`, `runtime.json`,
-`plugins/`, `store/` and `customization/`; the people are `desks/` and `archive/`; your material
+`runtime.log`, `plugins/`, `store/` and `customization/`; the people are `desks/` and `archive/`; your material
 is `reference/`, `projects/` and `temp/`; Claude Code's is `.claude/` and `.local/`. The installer
 makes `desks/`, `reference/`, `projects/`, `temp/`, `plugins/`, `store/`, `.claude/` and `.local/`
 (two instances on one machine share neither account nor transcripts), copies `bin/` and `lib/` in
@@ -135,52 +137,52 @@ a tool, and a stray `Write` on one is refused by the harness without a prompt. T
 Claude Code home turns the built-in memory off, so the store is the only thing that outlives a
 conversation.
 
-Then use the instance's own command:
+Then use the instance's own command. `ovai` with no command prints the help; the commands are
+`help`, `status`, `configuration`, `start`, `stop`, `restart`, `plugin`, `login` and `update`.
 
 ```sh
-~/my-workspace/bin/ovai status
+~/my-workspace/bin/ovai configuration
 ~/my-workspace/bin/ovai login
-~/my-workspace/bin/ovai hire Paul
-~/my-workspace/bin/ovai chat
+~/my-workspace/bin/ovai start
+~/my-workspace/bin/ovai status
+~/my-workspace/bin/ovai stop
 ```
 
-`ovai hire <name>` opens a desk for a Worker: `desks/<Name>/STATE.md` from the template, and the
-pair of rules that makes `desks/<Name>/` the Worker's to write in — nothing else; no session is
-started. A chat already running reads `desks/` each time it is asked, so the desk is in `room`
-from that moment, and the Leader's
-`hire` on that name starts a process on it. The tool is the usual way a Worker joins: it opens the
-desk and starts the process in one call.
+`ovai start` starts the server in the background and prints the whole address it is listening on:
+the instance's page, on the port it was installed with, on `127.0.0.1` only. The terminal is yours
+again the moment the address is printed; nothing is left to press ctrl-c on. The server's own
+process writes `runtime.json` at the root — url, pid, since — and whatever it has to say goes to
+`runtime.log` beside it, one file per run, written over at the next start: a plugin file it could
+not serve, a session held by the quota gate or released, a park that reached its deadline. No
+request is ever logged. If the port is already taken it says which process holds it, with the
+pid; a server already running is reported with its address and left alone.
 
-`ovai hire <name> [model]` takes a model beside the name, for somebody who should not run on what
-this workspace runs its Workers on. Leaving it out writes nothing down, so changing the installed
-model moves everybody who was never named one, from their next process. A model that was named is
-one word in `desks/<Name>/MODEL`, its own file rather than a line of the desk — the desk file is
-written by its session, and a model kept in there would be a model that session could raise for
-itself. It goes away with the desk. `ovai status` lists every desk with what it resolves to.
+`ovai status` is the daemon's answer: `not running` (exit 3), or `running at <url> (pid, since)`.
+It reads `runtime.json` and then tries the address: a record a killed server left behind is found
+out by asking, not trusted.
 
-It refuses a name already at a desk, and a name whose directory is still under `desks/` without
-a desk file in it — a conversation left behind. What is in there is a record somebody may want,
-so it is refused rather than cleared away, and the message says where it is.
+`ovai stop` stops the server. The sessions it started are its own to end: the room is parked —
+every session is told to write its desk and stop, the Leader included, with the instance's
+`park.timeout` as the deadline — then the server closes, whoever is left is ended, and it exits.
+`ovai stop` sends the signal to whatever holds the port and waits until nothing answers on the
+address any more; a `kill` or a `kill -HUP` of the server's pid reach the same handler. Stopping
+what is not running says `not running` and is not a failure. `ovai restart` is the two in a row,
+and prints the new address.
 
-`ovai chat` serves the instance's page on the port it was installed with, on `127.0.0.1` only, and
-runs in the foreground until you stop it. It prints the whole address it is listening on. If the port is already taken it says which process holds it, with the pid.
-It also prints, once, the instruction files it found above the instance: Claude Code reads
-`CLAUDE.md` from every directory above a session's working directory, so every session is
-started with the list of what is not to be read — `CLAUDE.md`, `CLAUDE.local.md`,
-`.claude/CLAUDE.md` and `.claude/rules/**` from the instance's parent up to the root — written to
-`.local/instructions.json` per run and handed over with `--settings`. The instance's own
-instructions are never on the list, and a managed policy file (`/etc/claude-code/CLAUDE.md`) is
-the one thing no setting can exclude.
+Every session is started with the list of instruction files it is not to read: Claude Code reads
+`CLAUDE.md` from every directory above a session's working directory, so `CLAUDE.md`,
+`CLAUDE.local.md`, `.claude/CLAUDE.md` and `.claude/rules/**` from the instance's parent up to the
+root are written to `.local/instructions.json` per run and handed over with `--settings`. The
+instance's own instructions are never on the list, and a managed policy file
+(`/etc/claude-code/CLAUDE.md`) is the one thing no setting can exclude.
 
-Stopping it stops the sessions it started. `ctrl-c`, a `kill`, or the window going away all reach
-the same handler: the room is parked — every session is told to write its desk and stop, the
-Leader included, with the instance's `park.timeout` as the deadline — then the server closes,
-whoever is left is ended, and it exits. `ovai stop` from another terminal does the same by sending
-that signal to whatever holds the port.
+A Worker joins through the Leader's `hire` tool, below, which opens the desk and starts the
+process in one call; there is no command for it.
 
-The other commands: `ovai status` (who works here, on which models, how the instance signs in,
-whether it has a credential, where the store is), `ovai login`, `ovai plugin <name>` and
-`ovai update`, each below. `ovai` with no command is `ovai status`.
+The other commands: `ovai configuration` (what this instance is: who works here, on which models,
+the port, how the instance signs in, whether it has a credential, when it was installed, every
+desk with what it runs on, where the store is), `ovai login`, `ovai plugin <name>` and
+`ovai update`, each below.
 
 ## The page
 
@@ -278,8 +280,18 @@ answered "no such tool" goes looking for another way to do the same thing.
   when asked, and the call waits for each `stop_session` or the deadline, ending at the deadline
   whoever has not. The Leader is told and not waited for.
 - `hire` (Leader) — start a Worker on a desk: a name, and a model when not the usual one. A name
-  without a desk gets one opened; a name with a desk — somebody who stopped — is started again on
-  it, panel kept. Refused while the quota gate holds hires, and for the Leader's own name.
+  without a desk gets one opened — `desks/<Name>/STATE.md` from the template, and the pair of
+  rules that makes `desks/<Name>/` the Worker's to write in; a name with a desk — somebody who
+  stopped — is started again on it, panel kept. Refused while the quota gate holds hires, for the
+  Leader's own name, and for a name whose directory is still under `desks/` without a desk file
+  in it — a conversation left behind, a record somebody may want, so it is named rather than
+  cleared away. A model beside the name is for somebody who should not run on what this
+  workspace runs its Workers on. Leaving it out writes nothing down, so changing the installed
+  model moves everybody who was never named one, from their next process. A model that was named
+  is one word in `desks/<Name>/MODEL`, its own file rather than a line of the desk — the desk file
+  is written by its session, and a model kept in there would be a model that session could raise
+  for itself. It goes away with the desk. `ovai configuration` lists every desk with what it
+  resolves to.
 - `permission` (Leader) — settle one rule for the whole instance, below.
 
 The whole of it costs one permission rule, `mcp__openovai`, seeded at install. A rule can name a
@@ -334,7 +346,7 @@ session answers with a tool call.
   permission stop included — is never idle. What is not stopped by 60 is ended with its desk as
   it was last written, and the Leader is told.
 - `park` — the Leader's tool, when you say this is it for the day: every Worker writes its desk
-  and stops. `ovai stop`, and any signal to `ovai chat`, park the whole room the same way, the
+  and stops. `ovai stop`, and any signal to the server, park the whole room the same way, the
   Leader included, with `park.timeout` (20 seconds by default) as the deadline.
 - `quota-low` — the gate, below.
 
@@ -364,7 +376,8 @@ successor: it stops, and the Leader is told.
 After the reset, held frames are released the Leader's first, then the Workers', each in the
 order they arrived, and the Leader brings Workers back with `hire` on their desks — never the
 server. A per-model 7d window is wired behind `quota.windows["7d-fable"]` and gates nothing until
-an instance names it, because the frame this server reads has never carried one.
+an instance names it, because the frame this server reads has never carried one; its thresholds
+have a default like the other two, so an instance that never names it has nothing to set.
 
 ## What the workspace knows
 
@@ -397,7 +410,7 @@ killed and the call refused, with no retry. It is one request on the account and
 other while a window is at its second stage.
 
 The files are markdown with a front matter block, one per record, numbered, under `store/memory/`
-and `store/knowledge/`; `ovai status` names the directory. Sessions never read them: what `recall`
+and `store/knowledge/`; `ovai configuration` names the directory. Sessions never read them: what `recall`
 says is the truth.
 
 ## Tools the toolkit did not ship
@@ -425,8 +438,8 @@ Answer `{ text }` or `{ refused }`; whatever the handler throws reaches the call
 naming the file. A tool of yours is offered to everybody and refuses in its own words if it is the
 Leader's.
 
-They are read when the chat starts, so **start the chat again after writing or changing one.** A
-file that cannot be served is named where the chat was started and the chat starts without it:
+They are read when the server starts, so **`ovai restart` after writing or changing one.** A file
+that cannot be served is named in `runtime.log` and the server starts without it:
 it will not load, it is missing one of the three exports, its name is not one a tool can have — a
 letter, then letters, digits and hyphens — or its name is one the server already serves. A tool of
 yours runs inside the server process, so the permission system never sees it: writing the file is
@@ -453,9 +466,9 @@ export function pop({ on, why }, { root, config }) {
 
 `on` is whose panel it is about and `why` is the sentence to read, the command in it. It is told,
 not asked: whatever it answers is ignored and never waited for, and whatever it throws is caught
-and written as a line on the panel it was about. It is read when the chat starts, so **start the
-chat again after writing it**. An instance without one pops nothing; one whose file will not load,
-or has no `pop` in it, is named where the chat was started.
+and written as a line on the panel it was about. It is read when the server starts, so
+**`ovai restart` after writing it**. An instance without one pops nothing; one whose file will not
+load, or has no `pop` in it, is named in `runtime.log`.
 
 **When you are not to be woken**, say so in `openovai.json`:
 
@@ -484,7 +497,7 @@ expires every instance stops at once with the same message, and a new token fixe
 `ovai login` refuses under this option and says so.
 
 Either way `CLAUDE_CONFIG_DIR` is the instance's own home, so transcripts and settings stay
-separate. `ovai status` reports whether the instance has a credential and says plainly that it has
+separate. `ovai configuration` reports whether the instance has a credential and says plainly that it has
 not checked it against Anthropic: finding out costs a request, so the first message is where a
 dead credential shows up. `ANTHROPIC_API_KEY` and `ANTHROPIC_AUTH_TOKEN` are removed from what an
 instance runs with, under both options.
@@ -506,7 +519,7 @@ one does not ship is taken away. Desks, conversations, `customization/`, `plugin
 `openovai.json`, the settings and the Claude Code home are left alone. There is no rollback: taking
 the release again is the fix.
 
-It refuses while the chat is serving this instance, and while any session of this instance is
+It refuses while the server is running, and while any session of this instance is
 running — found on the machine by the `CLAUDE_CONFIG_DIR` it carries, named with the `kill` that
 ends it. It refuses to go backwards by name; `--downgrade` takes an older release anyway, and
 `--from <url or directory>` takes one from somewhere other than GitHub.

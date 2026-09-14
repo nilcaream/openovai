@@ -694,10 +694,11 @@ export function alive(pid) {
   }
 }
 
-// Start a chat server as a child, keeping whatever it prints. The output is where the address
-// comes from when the instance was installed with --port 0, which is the only way to learn it.
+// Start the server process as a child in the foreground — lib/serve.mjs, the very file
+// `ovai start` runs detached — keeping whatever it prints. The output is where the address comes
+// from when the instance was installed with --port 0, which is the only way to learn it.
 export function startChat(root, environment) {
-  const child = spawn("node", [path.join(root, "lib", "ovai.mjs"), "--root", root, "chat"], {
+  const child = spawn("node", [path.join(root, "lib", "serve.mjs"), "--root", root], {
     env: environment,
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -799,7 +800,7 @@ export async function waitForHealth(url) {
   });
 }
 
-// The address a chat printed for itself.
+// The address the server printed for itself.
 export async function waitForAddress(child) {
   return waitFor(() => /http:\/\/127\.0\.0\.1:\d+/.exec(child.output)?.[0] ?? null);
 }

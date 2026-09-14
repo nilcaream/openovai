@@ -6,6 +6,19 @@ carries only its own.
 
 ## 0.11.0
 
+**The command is a daemon's.** `ovai start` starts the server in the background, prints the
+address and returns; `ovai stop` stops it, parking every session first as before; `ovai restart`
+is the two in a row. `ovai status` says `not running` (exit 3) or `running at <url> (pid, since)`,
+found out by trying the address rather than by trusting `runtime.json`. What `status` used to
+print — who works here, the models, the port, how the instance signs in, the desks, the store — is
+`ovai configuration`. Bare `ovai` prints the help. `ovai chat` and `ovai hire` are gone: the
+server is started with `start`, and a Worker joins through the Leader's `hire` tool, which opens
+the desk and starts the process in one call. The server's own lines — a plugin it could not serve,
+a session held or released, a park at the deadline — go to `runtime.log` at the root, one file per
+run, written over at the next start; no request is logged anywhere any more, and the start says
+nothing about instruction files above the instance or about the per-model quota window, which has
+a default like the other two.
+
 **The instance root is laid out for what each thing is.** `bin/ovai` is the one command and `lib/`
 is everything else the release ships, replaced whole on update — what `tools/` and `templates/` held
 is in there now. `openovai.json` is the instance's description of itself and `runtime.json` the

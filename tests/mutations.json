@@ -725,24 +725,24 @@
     ]
   },
   {
-    "name": "the chat starts without saying what it does not read",
-    "catches": "says at the start what instructions above it are not read, and where it listens",
+    "name": "the answer that names a path carries the secret as it came",
+    "catches": "says nothing about a request, and never a secret where an answer names the path",
     "edits": [
       {
-        "file": "lib/ovai.mjs",
-        "from": "  console.log(describeInstructions(instructionsAbove(root).existing));\n",
-        "to": ""
+        "file": "lib/chat/server.mjs",
+        "from": "  return pathname.replace(SECRET_IN_PATH, \"/mcp/<secret>\");",
+        "to": "  return pathname;"
       }
     ]
   },
   {
-    "name": "the request log carries the path as it came",
-    "catches": "logs the route and never a secret",
+    "name": "every request is a line the server says",
+    "catches": "says nothing about a request, and never a secret where an answer names the path",
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "  return TOOL_ROUTE.test(pathname) ? \"/mcp/<secret>\" : pathname;",
-        "to": "  return pathname;"
+        "from": "  const server = http.createServer((request, response) => {\n    handle(",
+        "to": "  const server = http.createServer((request, response) => {\n    response.once(\"finish\", () => console.log(`${request.method} ${shownAs(new URL(request.url, `http://${HOST}`).pathname)} ${response.statusCode}`));\n    handle("
       }
     ]
   },
@@ -886,17 +886,6 @@
         "file": "lib/chat/server.mjs",
         "from": "  const carried = url.pathname === EVENTS_ROUTE ? url.searchParams.get(\"page\") : bearer(request.headers.authorization);",
         "to": "  const carried = (url.pathname === EVENTS_ROUTE ? url.searchParams.get(\"page\") : null) ?? bearer(request.headers.authorization);"
-      }
-    ]
-  },
-  {
-    "name": "the stream's address is logged with its query",
-    "catches": "logs the route and never a secret",
-    "edits": [
-      {
-        "file": "lib/chat/server.mjs",
-        "from": "      console.log(`${request.method} ${shownAs(new URL(request.url, `http://${HOST}`).pathname)} ${response.statusCode}`);",
-        "to": "      console.log(`${request.method} ${request.url} ${response.statusCode}`);"
       }
     ]
   },

@@ -636,12 +636,12 @@ describe("a port the machine picks", () => {
 
 // Claude Code is a prerequisite of running an instance, not of making one.
 describe("the instance runs", { skip: claudeIsInstalled() ? false : "Claude Code is not on the PATH" }, () => {
-  it("answers ovai status", () => {
-    assert.equal(runOvai(instance, ["status"], process.env).status, 0);
+  it("answers ovai configuration", () => {
+    assert.equal(runOvai(instance, ["configuration"], process.env).status, 0);
   });
 
-  it("names the User in ovai status", () => {
-    assert.match(runOvai(instance, ["status"], process.env).stdout, new RegExp(USER));
+  it("names the User in ovai configuration", () => {
+    assert.match(runOvai(instance, ["configuration"], process.env).stdout, new RegExp(USER));
   });
 });
 

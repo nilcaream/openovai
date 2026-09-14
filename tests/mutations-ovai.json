@@ -124,5 +124,49 @@
         "to": "  const child = spawn(CLAUDE_BIN, args, {"
       }
     ]
+  },
+  {
+    "name": "a bare command is the status",
+    "catches": "prints the help when given no command",
+    "edits": [
+      {
+        "file": "lib/ovai.mjs",
+        "from": "    const command = rest[0] ?? \"help\";",
+        "to": "    const command = rest[0] ?? \"status\";"
+      }
+    ]
+  },
+  {
+    "name": "status trusts the record without trying the address",
+    "catches": "finds a stale record out by trying",
+    "edits": [
+      {
+        "file": "lib/ovai.mjs",
+        "from": "  const health = await healthAt(record.url);\n  if (health === null || path.resolve(String(health.instance)) !== path.resolve(root)) {\n    return null;\n  }\n  return record;",
+        "to": "  return record;"
+      }
+    ]
+  },
+  {
+    "name": "start does not look for a server already running",
+    "catches": "does not start a second server over the first",
+    "edits": [
+      {
+        "file": "lib/ovai.mjs",
+        "from": "  const running = await serving(root);\n  if (running !== null) {\n    console.log(`already running at ${running.url}`);\n    return;\n  }\n\n  // \"node\" by name",
+        "to": "  // \"node\" by name"
+      }
+    ]
+  },
+  {
+    "name": "status exits 0 while nothing runs",
+    "catches": "says not running, and exits 3, while nothing runs",
+    "edits": [
+      {
+        "file": "lib/ovai.mjs",
+        "from": "const NOT_RUNNING = 3;",
+        "to": "const NOT_RUNNING = 0;"
+      }
+    ]
   }
 ]

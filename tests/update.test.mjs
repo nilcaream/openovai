@@ -14,7 +14,7 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { after, before, describe, it } from "node:test";
 
-import { installed, remove, repo, runToolLater, scratch, serveRelease, waitFor } from "./helpers.mjs";
+import { installed, remove, repo, runToolLater, scratch, serveRelease } from "./helpers.mjs";
 import { PAYLOAD, RETIRED } from "../lib/payload.mjs";
 import { RELEASES } from "../lib/release.mjs";
 import { isOlderThan } from "../lib/version.mjs";
@@ -419,36 +419,25 @@ describe("which version is older", () => {
 // A running chat is serving the code that is about to be replaced under it, and a process keeps the
 // code it started with. Refusing here is also what means no session is ever mid-turn during an
 // update.
-describe("an update while the chat is running", () => {
+describe("an update while the server is running", () => {
   const root = makeInstance("while-serving");
   const tree = makeRelease("while-serving-release");
-  let chat;
   let refused;
 
+  // Started the way a person starts it: `ovai start` returns once the server answers, so there is
+  // nothing to wait for here.
   before(async () => {
-    chat = runToolLater(root, ["chat"], { ...process.env, PATH: process.env.PATH });
-    await waitFor(() => (fs.existsSync(path.join(root, "runtime.json")) ? true : null));
-    const url = JSON.parse(fs.readFileSync(path.join(root, "runtime.json"), "utf8")).url;
-    await waitFor(async () => {
-      try {
-        return (await fetch(`${url}/health`)).ok ? true : null;
-      } catch {
-        return null;
-      }
-    });
+    const started = await runToolLater(root, ["start"], process.env);
+    assert.equal(started.status, 0, started.stderr);
     refused = await update(root, tree);
   });
 
   after(async () => {
-    const recorded = path.join(root, "runtime.json");
-    if (fs.existsSync(recorded)) {
-      process.kill(JSON.parse(fs.readFileSync(recorded, "utf8")).pid, "SIGTERM");
-    }
-    await chat;
+    await runToolLater(root, ["stop"], process.env);
   });
 
-  it("refuses, and says to stop the chat", async () => {
-    const said = /stop it with ctrl-c/.test(refused.stderr);
+  it("refuses, and says to stop the server", async () => {
+    const said = /stop it with: ovai stop/.test(refused.stderr);
     assert.equal([refused.status === 0, said].join(" "), "false true");
   });
 

@@ -613,7 +613,7 @@
     "catches": "SIGTERM parks the room, the Leader too, over a server that keeps answering the tools, then exits 0",
     "edits": [
       {
-        "file": "lib/ovai.mjs",
+        "file": "lib/serve.mjs",
         "from": "    if (going > 0) {\n      console.log(`Parking ${going} ${going === 1 ? \"session\" : \"sessions\"}.`);\n      const parked = await parkRoom(instance, { interrupt: true, deadline: settingsIn(config).park.timeout, leaderToo: true });\n      console.log(parked.text ?? parked.refused);\n    }\n",
         "to": ""
       }
@@ -624,7 +624,7 @@
     "catches": "SIGTERM parks the room, the Leader too, over a server that keeps answering the tools, then exits 0",
     "edits": [
       {
-        "file": "lib/ovai.mjs",
+        "file": "lib/serve.mjs",
         "from": "deadline: settingsIn(config).park.timeout, leaderToo: true });",
         "to": "deadline: settingsIn(config).park.timeout, leaderToo: false });"
       }
@@ -635,12 +635,12 @@
     "catches": "SIGTERM parks the room, the Leader too, over a server that keeps answering the tools, then exits 0",
     "edits": [
       {
-        "file": "lib/ovai.mjs",
+        "file": "lib/serve.mjs",
         "from": "    stopping(instance);\n    const going = runningSeats().length;",
         "to": "    stopping(instance);\n    server.close();\n    const going = runningSeats().length;"
       },
       {
-        "file": "lib/ovai.mjs",
+        "file": "lib/serve.mjs",
         "from": "    server.close();\n    await endEvery();",
         "to": "    await endEvery();"
       }
@@ -652,8 +652,19 @@
     "edits": [
       {
         "file": "lib/ovai.mjs",
-        "from": "  process.kill(holder.pid, \"SIGTERM\");",
-        "to": "  process.kill(holder.pid, \"SIGKILL\");"
+        "from": "  process.kill(pid, \"SIGTERM\");",
+        "to": "  process.kill(pid, \"SIGKILL\");"
+      }
+    ]
+  },
+  {
+    "name": "the quota gate says at start that the per-model window is not gated",
+    "catches": "says nothing about the quota windows at the start",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "  quota.configure({ config: instance.config, clock: clockOf(instance) });\n",
+        "to": "  quota.configure({ config: instance.config, clock: clockOf(instance) });\n  console.log(`${quota.FABLE_WINDOW.key}: no window of that scope is on the frame; not gated`);\n"
       }
     ]
   },

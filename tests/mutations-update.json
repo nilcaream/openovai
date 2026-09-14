@@ -203,8 +203,8 @@
     "edits": [
       {
         "file": "lib/ovai.mjs",
-        "from": "  const running = runningHere(root);",
-        "to": "  const running = [];"
+        "from": "  const sessions = runningHere(root);",
+        "to": "  const sessions = [];"
       }
     ]
   },
@@ -236,8 +236,8 @@
     "edits": [
       {
         "file": "lib/ovai.mjs",
-        "from": "    throw new ReleaseError(describeRunning(running));",
-        "to": "    console.error(describeRunning(running));"
+        "from": "    throw new ReleaseError(describeRunning(sessions));",
+        "to": "    console.error(describeRunning(sessions));"
       }
     ]
   },
