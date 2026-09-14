@@ -22,13 +22,13 @@
     ]
   },
   {
-    "name": "the row rule is renamed while the script still emits row",
+    "name": "the bubble rule is renamed while the script still emits bubble",
     "catches": "name no class the page never emits",
     "edits": [
       {
         "file": "tools/chat/page.html",
-        "from": "  .row { margin: 4px 0; }",
-        "to": "  .msg { margin: 4px 0; }"
+        "from": "  .bubble { width: 100%;",
+        "to": "  .balloon { width: 100%;"
       }
     ]
   },
@@ -38,8 +38,8 @@
     "edits": [
       {
         "file": "tools/chat/page.html",
-        "from": ".row.user .text, .row.chat .text,",
-        "to": ".msg.user .text, .msg.chat .text,"
+        "from": "  .msg.chat .bubble, .msg.silent .bubble { color: var(--fg-dim); }",
+        "to": "  .row.chat .bubble, .row.silent .bubble { color: var(--fg-dim); }"
       }
     ]
   },
@@ -84,6 +84,83 @@
         "file": "tools/chat/page.html",
         "from": "  .panel.dimmed .phead .name::before { background: var(--bad); }",
         "to": "  .panel.dimmed .phead .name::before { background: var(--warn); }"
+      }
+    ]
+  },
+  {
+    "name": "the User's bubble takes the reply ground",
+    "catches": "draw what the User typed on the User's own ground",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": ".msg.user .bubble { background: var(--me);",
+        "to": ".msg.user .bubble { background: var(--reply);"
+      }
+    ]
+  },
+  {
+    "name": "the head bubble's ground names a token the table does not declare",
+    "catches": "name no token the table does not declare",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "border: 2px solid var(--line); border-radius: var(--radius); background: var(--panel-2);",
+        "to": "border: 2px solid var(--line); border-radius: var(--radius); background: var(--panel-3);"
+      }
+    ]
+  },
+  {
+    "name": "the row's stamp drops the weekday",
+    "catches": "stamps a row with the reader's own day and time, the weekday written out, on a 24-hour clock",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "day: \"2-digit\", weekday: \"long\", hour:",
+        "to": "day: \"2-digit\", hour:"
+      }
+    ]
+  },
+  {
+    "name": "a reply's markdown is pasted as text instead of parsed into elements",
+    "catches": "draws a reply's markdown as elements — a link, a code span — never as the words of the markup",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "      body.innerHTML = shown.html;",
+        "to": "      body.textContent = shown.html;"
+      }
+    ]
+  },
+  {
+    "name": "a link in a reply takes a raw hex instead of the accent token",
+    "catches": "carry no raw colour outside the token blocks",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": ".md a, .bubble a { color: var(--accent); }",
+        "to": ".md a, .bubble a { color: #5eaeff; }"
+      }
+    ]
+  },
+  {
+    "name": "inline code takes a ground other than the one grey the rules allow",
+    "catches": "carry no raw colour outside the token blocks",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "background: rgba(127,127,127,.18); padding: .1em .35em;",
+        "to": "background: rgba(0,0,0,.18); padding: .1em .35em;"
+      }
+    ]
+  },
+  {
+    "name": "the day pill is formatted in a zone of the page's own",
+    "catches": "stamps a row with the reader's own day and time, the weekday written out, on a 24-hour clock",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "new Intl.DateTimeFormat(\"en-GB\", { weekday: \"short\", day: \"2-digit\", month: \"short\" })",
+        "to": "new Intl.DateTimeFormat(\"en-GB\", { timeZone: \"Europe/Warsaw\", weekday: \"short\", day: \"2-digit\", month: \"short\" })"
       }
     ]
   }

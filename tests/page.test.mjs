@@ -1,5 +1,6 @@
-// The page's stylesheet, read as rules: the token table per theme, no colour outside it, a rule
-// for every class the page emits and no rule for a class it never does. The page is read as text
+// The page's stylesheet, read as rules: the token table per theme, no colour outside it, no token
+// outside the table, a rule for every class the page emits and no rule for a class it never
+// does. The page is read as text
 // and never run here, and the stylesheet is parsed rather than grepped, so a check is about a rule
 // and its value rather than about a string being somewhere in the file. Every mutation in
 // tests/mutations-page.json names the check it was written to redden.
@@ -10,6 +11,7 @@ import path from "node:path";
 import { describe, it } from "node:test";
 
 import { repo, styleRules } from "./helpers.mjs";
+import { row } from "../tools/chat/render.mjs";
 
 const source = fs.readFileSync(path.join(repo, "tools", "chat", "page.html"), "utf8");
 const script = source.slice(source.indexOf("<script"), source.indexOf("</script>"));
@@ -61,9 +63,9 @@ function classes() {
   return { emitted, selectors: rules.map((rule) => rule.selector).join(" ") };
 }
 
-// A class the page emits without a rule of its own: a reply row is drawn as .md and takes its
-// defaults. The check keeps this list honest by refusing a rule for a name on it.
-const UNSTYLED = new Set(["reply"]);
+// A class the page emits without a rule of its own, taking its defaults. The check keeps this
+// list honest by refusing a rule for a name on it.
+const UNSTYLED = new Set([]);
 
 const named = (name) => new RegExp(`\\.${name}(?![\\w-])`);
 
@@ -96,6 +98,11 @@ describe("the rules", () => {
     assert.equal(dot.declarations.background, "var(--bad)");
   });
 
+  it("draw what the User typed on the User's own ground", () => {
+    const bubble = rules.find((rule) => rule.selector === ".msg.user .bubble");
+    assert.equal(bubble.declarations.background, "var(--me)");
+  });
+
   it("carry no raw colour outside the token blocks", () => {
     for (const rule of rules) {
       if (tokenBlocks.includes(rule)) continue;
@@ -106,6 +113,22 @@ describe("the rules", () => {
         for (const word of bare.toLowerCase().match(/[a-z]+/g) ?? []) assert.ok(!NAMED.has(word), where);
       }
     }
+  });
+
+  // A var() naming a token the table does not declare renders as nothing: the browser drops the
+  // declaration, and the page looks wrong without a word.
+  it("name no token the table does not declare", () => {
+    const declared = new Set(Object.keys(tokens.light));
+    let used = 0;
+    for (const rule of rules) {
+      for (const [property, value] of Object.entries(rule.declarations)) {
+        for (const [, name] of value.matchAll(/var\((--[\w-]+)/g)) {
+          used += 1;
+          assert.ok(declared.has(name), `${rule.selector} { ${property}: ${value} } names ${name}, which the table does not declare`);
+        }
+      }
+    }
+    assert.ok(used >= 20, `the stylesheet uses a token only ${used} times, so this check read almost nothing`);
   });
 
   it("give every class the page emits at least one rule", () => {
@@ -121,5 +144,28 @@ describe("the rules", () => {
     for (const [, name] of selectors.matchAll(/\.([a-z][\w-]*)/gi)) {
       assert.ok(emitted.has(name), `.${name} matches nothing the page emits`);
     }
+  });
+});
+
+describe("the script", () => {
+  it("stamps a row with the reader's own day and time, the weekday written out, on a 24-hour clock", () => {
+    const options = [...script.matchAll(/new Intl\.DateTimeFormat\("en-GB", \{([^}]*)\}\)/g)].map(([, inside]) => inside);
+    assert.equal(options.length, 2, "one formatter for the row's stamp and one for the day pill");
+    const [stamp, day] = options;
+    assert.match(stamp, /\bweekday: "long"/);
+    assert.match(stamp, /\bhourCycle: "h23"/);
+    assert.match(day, /\bweekday: "short"/);
+    for (const inside of options) assert.doesNotMatch(inside, /timeZone/, "a zone of the page's own instead of the reader's");
+  });
+
+  // The page is never run here, so the proof is in two halves: the renderer turns a reply into
+  // markup that carries elements, and the page hands that markup to the body as markup — the one
+  // place a reply's HTML is parsed. Pasted as text, a link would read as its brackets.
+  it("draws a reply's markdown as elements — a link, a code span — never as the words of the markup", () => {
+    const shown = row({ from: "Ray", text: "see [it](https://x.y/z) in `code`" }, { chat: "the chat" });
+    assert.match(shown.html, /<a href="https:\/\/x\.y\/z"[^>]*>it<\/a>/);
+    assert.match(shown.html, /<code>code<\/code>/);
+    assert.match(script, /body\.className = "md";\s*body\.innerHTML = shown\.html;/, "the reply body is not filled with its markup under .md");
+    assert.doesNotMatch(script, /textContent = shown\.html/, "a reply's markup pasted as text");
   });
 });

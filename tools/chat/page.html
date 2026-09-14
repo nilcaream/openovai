@@ -87,14 +87,41 @@
   .rows { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 0; }
   .rows .empty { color: var(--fg-faint); font-size: .8rem; padding: 4px 0; }
   #mid .rows .empty { font-size: inherit; text-align: center; padding: 20px 0; }
-  .row { margin: 4px 0; }
-  .row .who { color: var(--fg-dim); font-size: 12px; }
-  .row.user .text, .row.chat .text, .row.failed .text, .row.silent .text, .row.interrupted .text { white-space: pre-wrap; }
-  .row.chat, .row.silent, .row.interrupted { color: var(--fg-dim); }
-  .row.failed .text { color: var(--bad); }
-  .md > :first-child { margin-top: 0; }
-  .md > :last-child { margin-bottom: 0; }
-  .md pre { overflow-x: auto; padding: 6px; background: var(--bg); border-radius: var(--radius); }
+  /* a row is a bubble: the label row on top, the body under it; the kind of the row picks its ground */
+  .msg { display: flex; margin: 4px 0; }
+  .bubble { width: 100%; max-width: 100%; border: 1px solid var(--line); border-radius: var(--radius); padding: 6px 10px 4px; background: var(--panel-2); position: relative; min-width: 120px; }
+  .msg.user .bubble { background: var(--me); border-color: var(--me-line); white-space: pre-wrap; overflow-wrap: anywhere; }
+  .msg.reply .bubble { background: var(--reply); border-color: var(--reply-line); }
+  .msg.chat .bubble, .msg.silent .bubble { color: var(--fg-dim); }
+  .msg.interrupted .bubble { background: var(--pending); border-style: dashed; color: var(--fg-dim); }
+  .msg.failed .bubble { border-color: var(--bad); }
+  .text { white-space: pre-wrap; }
+  /* the label row: the speaker on the left, ellipsised before it could push the timestamp, the timestamp last */
+  .who { font-size: .78rem; font-weight: 600; color: var(--fg-dim); display: flex; gap: 8px; align-items: baseline; margin-right: auto; flex: 1 1 auto; min-width: 0; }
+  .who .lbl { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .meta { font-size: .72rem; color: var(--fg-faint); text-align: right; margin: 0 0 3px; font-family: var(--mono); display: flex; gap: 8px; justify-content: flex-end; align-items: baseline; }
+  .meta .t { flex: 0 0 auto; order: 1; }
+  /* the pill between two days */
+  .divider { text-align: center; margin: 14px 0; color: var(--fg-faint); font-size: .78rem; font-family: var(--mono); }
+  .divider span { background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 2px 12px; }
+  /* markdown inside a reply */
+  .md > :first-child { margin-top: 0; } .md > :last-child { margin-bottom: 0; }
+  .md p, .md ul, .md ol, .md pre, .md table, .md blockquote { margin: .45em 0; }
+  .md h1, .md h2, .md h3, .md h4 { margin: .7em 0 .3em; line-height: 1.25; }
+  .md h1 { font-size: 1.25rem; } .md h2 { font-size: 1.15rem; } .md h3 { font-size: 1.05rem; } .md h4 { font-size: 1rem; }
+  .md code { font-family: var(--mono); font-size: .88em; background: rgba(127,127,127,.18); padding: .1em .35em; border-radius: 5px; }
+  .md pre { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; overflow-x: auto; }
+  .md pre code { background: none; padding: 0; font-size: .85rem; }
+  .md table { border-collapse: collapse; display: block; overflow-x: auto; max-width: 100%; font-size: .92rem; }
+  .md th, .md td { border: 1px solid var(--line); padding: 4px 9px; text-align: left; vertical-align: top; }
+  .md th { background: var(--panel); }
+  .md blockquote { border-left: 3px solid var(--line); padding-left: 10px; color: var(--fg-dim); }
+  .md a, .bubble a { color: var(--accent); }
+  .md ul, .md ol { padding-left: 1.2em; }
+  .md li { margin: .1em 0; }
+  .md li > p { margin: .15em 0; }
+  .md hr { border: 0; border-top: 1px solid var(--line); }
+  .md img { max-width: 100%; }
   /* the questions box, a child of the panel: the panel itself carries the asking class too */
   .panel > .asking:not(:empty) { padding: 4px 8px; border-top: 1px solid var(--line); }
   .panel > .asking p { margin: 4px 0; }
@@ -211,16 +238,49 @@
     });
 
     section.append(headLine, rows, asking, composer);
-    return { name, section, nameLine, info, word, stop, rows, empty, asking, box, shown: 0, drawn: new Map(), loading: false };
+    return { name, section, nameLine, info, word, stop, rows, empty, asking, box, shown: 0, day: null, drawn: new Map(), loading: false };
   }
 
+  // When a row was written, in the reader's own zone: `2026.09.13 Sunday 23:17:05` on the row, and
+  // `Sun 13 Sept` on the pill between two days.
+  const timeOf = new Intl.DateTimeFormat("en-GB", { year: "numeric", month: "2-digit", day: "2-digit", weekday: "long", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" });
+  const dayOf = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "2-digit", month: "short" });
+
+  function stamp(at) {
+    if (at === undefined) return "";
+    const part = Object.fromEntries(timeOf.formatToParts(new Date(at)).map((piece) => [piece.type, piece.value]));
+    return `${part.year}.${part.month}.${part.day} ${part.weekday} ${part.hour}:${part.minute}:${part.second}`;
+  }
+
+  function dayPill(day) {
+    const pill = document.createElement("div");
+    pill.className = "divider";
+    const text = document.createElement("span");
+    text.textContent = day;
+    pill.append(text);
+    return pill;
+  }
+
+  // A row is a bubble: the label row on top — who spoke, and when, last — and the body under it,
+  // the HTML of a reply or the words of anyone else as they are.
   function rowElement(entry) {
     const shown = rowOf(entry, { chat: state.chat });
     const line = document.createElement("div");
-    line.className = `row ${shown.kind}`;
+    line.className = `msg ${shown.kind}`;
+    const bubble = document.createElement("div");
+    bubble.className = "bubble";
+    const meta = document.createElement("div");
+    meta.className = "meta";
     const who = document.createElement("div");
     who.className = "who";
-    who.textContent = shown.who;
+    const label = document.createElement("span");
+    label.className = "lbl";
+    label.textContent = shown.who;
+    who.append(label);
+    const time = document.createElement("span");
+    time.className = "t";
+    time.textContent = stamp(entry.at);
+    meta.append(who, time);
     const body = document.createElement("div");
     if (shown.html !== undefined) {
       body.className = "md";
@@ -229,7 +289,8 @@
       body.className = "text";
       body.textContent = shown.text;
     }
-    line.append(who, body);
+    bubble.append(meta, body);
+    line.append(bubble);
     return line;
   }
 
@@ -334,10 +395,19 @@
       if (about.rows.length < panel.shown) {
         panel.rows.replaceChildren(panel.empty);
         panel.shown = 0;
+        panel.day = null;
       }
       panel.empty.hidden = about.rows.length > 0;
       if (about.rows.length > panel.shown) {
-        panel.rows.append(...about.rows.slice(panel.shown).map(rowElement));
+        // A pill names the day before the first row written on it.
+        for (const entry of about.rows.slice(panel.shown)) {
+          const day = entry.at === undefined ? panel.day : dayOf.format(new Date(entry.at));
+          if (day !== panel.day) {
+            panel.day = day;
+            panel.rows.append(dayPill(day));
+          }
+          panel.rows.append(rowElement(entry));
+        }
         panel.shown = about.rows.length;
         if (atTheNewest) {
           panel.rows.scrollTop = panel.rows.scrollHeight;
