@@ -295,5 +295,49 @@
         "to": "  const said = reading(now);\n  const words = JSON.stringify(said);\n  if (said !== null && words !== lastTold) {"
       }
     ]
+  },
+  {
+    "name": "the gate is handed nothing",
+    "catches": "hands fable's own window to the gate with every answer — a fraction, its own reset, from usage — and the account's two stay the frames'",
+    "edits": [
+      {
+        "file": "lib/chat/usage.mjs",
+        "from": "    gate(live.data, now());\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the gate is handed the percent as the fraction",
+    "catches": "hands fable's own window to the gate with every answer — a fraction, its own reset, from usage — and the account's two stay the frames'",
+    "edits": [
+      {
+        "file": "lib/chat/usage.mjs",
+        "from": "utilization: fable.percent / 100,",
+        "to": "utilization: fable.percent,"
+      }
+    ]
+  },
+  {
+    "name": "the gate is handed the account's weekly window as fable's when the account has none",
+    "catches": "hands the gate nothing when the account has no window of fable's own",
+    "edits": [
+      {
+        "file": "lib/chat/usage.mjs",
+        "from": "  if (fable === undefined || typeof fable.percent !== \"number\") {\n    return;\n  }",
+        "to": "  if (fable === undefined || typeof fable.percent !== \"number\") {\n    saw(\"usage\", null, { unifiedWindows: { [FABLE_WINDOW]: { utilization: (data.seven_day?.utilization ?? 0) / 100, resetsAt: Date.parse(data.seven_day?.resets_at ?? \"\") } } }, now);\n    return;\n  }"
+      }
+    ]
+  },
+  {
+    "name": "the gate is handed the reading with the wall clock, not the caller's",
+    "catches": "hands fable's own window to the gate with every answer — a fraction, its own reset, from usage — and the account's two stay the frames'",
+    "edits": [
+      {
+        "file": "lib/chat/usage.mjs",
+        "from": "    gate(live.data, now());\n",
+        "to": "    gate(live.data, Date.now());\n"
+      }
+    ]
   }
 ]

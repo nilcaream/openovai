@@ -369,9 +369,13 @@ A stop keeps the desk and the panel's rows; anything addressed to the Leader sta
 ## The quota gate
 
 The server reads the usage windows Claude Code reports with every turn — **5h** and **7d** —
-and each window has two thresholds, `quota: { "5h": [90, 95], "7d": [95, 97] }` in
-`openovai.json` — those are the defaults. One event, `quota-low`, is sent at both stages and carries
-`stage`, `window` and `resets`.
+and fable's own weekly window, which those reports do not carry, from the account's usage
+endpoint, at the pace the head reads it (once a minute while a page is open). Two threshold pairs
+cover the three: `quota: { "5h": [90, 95], "7d": [95, 97] }` in `openovai.json` — those are the
+defaults, and the `7d` pair holds every weekly window, the one over all models and fable's own
+alike; there is no separate pair to set for fable. One event, `quota-low`, is sent at both stages
+and carries `stage`, `window` (`5h`, `7d` or `7d-fable`) and `resets`; for fable's window it
+carries `model="fable"` too, and it goes to the seats on that model only.
 
 At the first stage every running seat is told. A Worker writes its desk and calls `stop_session`;
 the Leader tells you — which window, that the Workers stopped, the reset time — writes its desk
@@ -388,9 +392,9 @@ successor: it stops, and the Leader is told.
 
 After the reset, held frames are released the Leader's first, then the Workers', each in the
 order they arrived, and the Leader brings Workers back with `hire` on their desks — never the
-server. A per-model 7d window is wired behind `quota.windows["7d-fable"]` and gates nothing until
-an instance names it, because the frame this server reads has never carried one; its thresholds
-have a default like the other two, so an instance that never names it has nothing to set.
+server. Fable's own window holds fable and nothing else: at its second stage no process starts on
+fable — no hire, no restart, no held turn written — and every other model goes on; from its first
+stage a hire onto fable is refused, as with every window.
 
 ## What the workspace knows
 

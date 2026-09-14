@@ -71,7 +71,7 @@
     "edits": [
       {
         "file": "lib/chat/quota.mjs",
-        "from": "  const [warning, critical] = thresholds[key];",
+        "from": "  const [warning, critical] = thresholds[known.thresholds];",
         "to": "  const [warning, critical] = thresholds[\"5h\"];"
       }
     ]
@@ -170,24 +170,24 @@
     ]
   },
   {
-    "name": "the per-model window is applied without a wire name",
-    "catches": "is not on the wire, so it gates nothing until a name is given",
+    "name": "fable's own window is held against a pair of its own, not the 7d pair",
+    "catches": "hold every weekly window against the one 7d pair: the account's and fable's own alike, the default and the instance's",
     "edits": [
       {
         "file": "lib/chat/quota.mjs",
-        "from": "  const applies = fableWire !== null && FABLE_WINDOW.models.test(String(model ?? \"\"));",
-        "to": "  const applies = FABLE_WINDOW.models.test(String(model ?? \"\"));"
+        "from": "  [FABLE_WINDOW]: { key: \"7d-fable\", thresholds: \"7d\", model: \"fable\" },",
+        "to": "  [FABLE_WINDOW]: { key: \"7d-fable\", thresholds: \"5h\", model: \"fable\" },"
       }
     ]
   },
   {
-    "name": "the per-model window is applied to every model",
-    "catches": "with a name given, applies to fable models only",
+    "name": "fable's own window is applied to every model",
+    "catches": "is read on a fresh instance with nothing configured, and applies to fable models only",
     "edits": [
       {
         "file": "lib/chat/quota.mjs",
-        "from": "  const applies = fableWire !== null && FABLE_WINDOW.models.test(String(model ?? \"\"));",
-        "to": "  const applies = fableWire !== null;"
+        "from": "  return Object.keys(WINDOWS).filter((window) => WINDOWS[window].model === undefined || name.includes(WINDOWS[window].model));",
+        "to": "  return Object.keys(WINDOWS);"
       }
     ]
   },
@@ -225,13 +225,13 @@
     ]
   },
   {
-    "name": "no model is named for the per-model window",
-    "catches": "names the model for the per-model window",
+    "name": "no model is named for fable's own window",
+    "catches": "names the model for fable's own window and no model for the account's",
     "edits": [
       {
         "file": "lib/chat/quota.mjs",
-        "from": "    const model = key === FABLE_WINDOW.key ? \"fable\" : null;",
-        "to": "    const model = null;"
+        "from": "  for (const [window, { key, model = null }] of Object.entries(WINDOWS)) {",
+        "to": "  for (const [window, { key }] of Object.entries(WINDOWS)) {\n    const model = null;"
       }
     ]
   },
@@ -287,6 +287,50 @@
         "file": "lib/chat/quota.mjs",
         "from": "      resets: reading.resetsAt === null ? null : hhmm(reading.resetsAt),",
         "to": "      resets: reading.resetsAt === null ? null : new Date(reading.resetsAt).toISOString(),"
+      }
+    ]
+  },
+  {
+    "name": "a second weekly pair is configurable",
+    "catches": "default to 90/95 on 5h and 95/97 on 7d, and there are no others",
+    "edits": [
+      {
+        "file": "lib/chat/quota.mjs",
+        "from": "  \"7d\": [95, 97],\n});",
+        "to": "  \"7d\": [95, 97],\n  \"7d-fable\": [95, 97],\n});"
+      }
+    ]
+  },
+  {
+    "name": "fable's own window is held and announced under the account's weekly key",
+    "catches": "holds a fable frame by fable's own window, not by the account's weekly one",
+    "edits": [
+      {
+        "file": "lib/chat/quota.mjs",
+        "from": "  [FABLE_WINDOW]: { key: \"7d-fable\", thresholds: \"7d\", model: \"fable\" },",
+        "to": "  [FABLE_WINDOW]: { key: \"7d\", thresholds: \"7d\", model: \"fable\" },"
+      }
+    ]
+  },
+  {
+    "name": "a fable start is let through at the second stage of fable's own window",
+    "catches": "at the second stage nothing more runs on fable until it resets, and from the first no fable Worker is hired",
+    "edits": [
+      {
+        "file": "lib/chat/quota.mjs",
+        "from": "export function mayStart(model, now = clock()) {\n  return holdOn(model, CRITICAL, now);",
+        "to": "export function mayStart(model, now = clock()) {\n  return holdOn(model, CRITICAL, now)?.window === \"7d-fable\" ? null : holdOn(model, CRITICAL, now);"
+      }
+    ]
+  },
+  {
+    "name": "the model is matched case-sensitively",
+    "catches": "is read on a fresh instance with nothing configured, and applies to fable models only",
+    "edits": [
+      {
+        "file": "lib/chat/quota.mjs",
+        "from": "  const name = String(model ?? \"\").toLowerCase();",
+        "to": "  const name = String(model ?? \"\");"
       }
     ]
   }

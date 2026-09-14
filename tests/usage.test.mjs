@@ -1,5 +1,6 @@
 // The account's usage windows, as the head shows them: where the token comes from, how the
-// endpoint is asked and how often, what the reading says and when the page is told.
+// endpoint is asked and how often, what the reading says and when the page is told — and how
+// fable's own weekly window, which only this endpoint carries, reaches the quota gate.
 // Every mutation in tests/mutations-usage.json names the check it was written to redden.
 
 import assert from "node:assert/strict";
@@ -9,6 +10,7 @@ import { after, afterEach, before, beforeEach, describe, it } from "node:test";
 
 import { home } from "../lib/claude.mjs";
 import { subscribe } from "../lib/chat/events.mjs";
+import * as quota from "../lib/chat/quota.mjs";
 import { BACKOFF, CREDENTIALS_FILE, MACHINE_TOKEN, TTL, USAGE_URL, format, reading, refresh, reset, tick, token, until } from "../lib/chat/usage.mjs";
 import { remove, scratch } from "./helpers.mjs";
 
@@ -58,6 +60,8 @@ after(() => {
 
 beforeEach(() => {
   reset();
+  quota.reset();
+  quota.configure({ clock: () => T0 });
 });
 
 describe("the token", () => {
@@ -101,6 +105,24 @@ describe("asking the endpoint", () => {
     assert.ok(get.asked[0].options.signal instanceof AbortSignal, "no timeout on the request");
     assert.equal(reading(T0).updated, new Date(T0).toISOString());
     assert.equal(reading(T0).session, "8%");
+  });
+
+  it("hands fable's own window to the gate with every answer — a fraction, its own reset, from usage — and the account's two stay the frames'", async () => {
+    await refresh(instance, { get: answering(), now: () => T0 });
+    assert.deepEqual(quota.standing(T0), {
+      seven_day_fable: { key: "7d-fable", utilization: 0.2, resetsAt: "2026-09-19T21:00:00.000Z", resets: quota.hhmm("2026-09-19T21:00:00.000Z"), at: new Date(T0).toISOString(), from: "usage", stage: null },
+    });
+    assert.equal(quota.mayStart("fable", T0), null);
+    await refresh(instance, { get: answering({ body: payload({ fable: 97.5 }) }), now: () => T0 + TTL });
+    assert.equal(quota.standing(T0 + TTL).seven_day_fable.utilization, 0.975);
+    assert.deepEqual(quota.mayStart("fable", T0 + TTL), { window: "7d-fable", resets: "2026-09-19T21:00:00.000Z" }, "held at the 7d pair, 95/97");
+    assert.equal(quota.mayStart("opus", T0 + TTL), null);
+  });
+
+  it("hands the gate nothing when the account has no window of fable's own", async () => {
+    await refresh(instance, { get: answering({ body: payload({ fable: null }) }), now: () => T0 });
+    assert.deepEqual(quota.standing(T0), {});
+    assert.equal(reading(T0).fable, "-");
   });
 
   it("asks nothing without a token, and not again for the backoff", async () => {

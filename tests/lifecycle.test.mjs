@@ -818,20 +818,19 @@ describe("the quota gate", () => {
     assert.equal(readLog(unexpected), spawns);
   });
 
-  it("the per-model window, once named, touches seats on that model only", async () => {
-    const config = chat.config;
-    chat.config = { ...config, quota: { windows: { "7d-fable": "seven_day_fable" } } };
-    quota.configure({ config: chat.config, clock: chat.clock });
+  // Fable's own weekly window reaches the gate from the usage endpoint (usage.mjs hands it in as
+  // `saw("usage", ...)`, checked in tests/usage.test.mjs), never on a process's frame; here the
+  // reading is handed in the same way while a fable Worker is mid-turn.
+  it("fable's own window, read with nothing configured, touches seats on that model only", async () => {
     try {
       const resets = now + 3 * 24 * 60 * MINUTE;
       await fresh({});
-      const zed = await spawnedBy("Zed", () => tool(superman.secret, "hire", { name: "Zed", model: "fable" }), {
-        OPENOVAI_STAND_IN_SLOW: "3000",
-        ...readings(reading(0.5, { extra: { seven_day_fable: { utilization: 0.98, resetsAt: resets / 1000 } } })),
-      });
+      const zed = await spawnedBy("Zed", () => tool(superman.secret, "hire", { name: "Zed", model: "fable" }), { OPENOVAI_STAND_IN_SLOW: "3000" });
       assert.equal(zed.result.refused, false, zed.result.text);
       assert.match(callsIn(zed.log)[0], /--model fable/);
       const busy = tell("Zed", userFrame("busy"));
+      await told(zed.log, 1);
+      quota.saw("usage", null, { unifiedWindows: { [quota.FABLE_WINDOW]: { utilization: 0.98, resetsAt: resets } } }, now);
       assert.deepEqual(await busy.answered, { interrupted: true, text: "interrupted" });
       const frames = await told(zed.log, 2);
       assert.match(frames[1], /^<server-event type="quota-low" stage="critical" window="7d-fable" resets="[^"]+" model="fable" interrupted="true">/);
@@ -850,8 +849,6 @@ describe("the quota gate", () => {
       assert.equal(running("Cy"), false);
     } finally {
       await endEvery(500);
-      chat.config = config;
-      quota.configure({ config, clock: chat.clock });
       quota.forget();
       for (const name of ["Zed", "Bo"]) {
         remove(path.join(instance, "desks", name), path.join(instance, "desks", name));

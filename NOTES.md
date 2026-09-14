@@ -11,7 +11,11 @@ head reads `<name> · opus · 22k · listening` — the dot, the name, the model
 word — and on the Leader's head after that `connected · 8% (3h) · all 86% (6d) · fable 20% (6d)`:
 the session window and the time to its reset, the weekly window over all models, the weekly window
 of the one model that has its own, read from the account's usage endpoint with the instance's own
-credential while a page is open. The theme toggle sits at the right edge. The version, the path and the port
+credential while a page is open. That third window is the quota gate's too, on a fresh instance with
+nothing set: it is held at the same `7d` thresholds as the window over all models — one pair for
+every weekly window, no key of fable's own in `openovai.json` — and when it reaches the second stage
+nothing more runs on fable until it resets, while every other model goes on. The theme toggle sits
+at the right edge. The version, the path and the port
 are no longer on the head, and the context is never hidden. `STOP` is gone from the heads: while a
 turn runs, a stop glyph sits at the right edge of that panel's text box, and only then. When the
 server is gone the page says so — every dot red, no state words, `disconnected` on the Leader's
@@ -27,8 +31,7 @@ server is started with `start`, and a Worker joins through the Leader's `hire` t
 the desk and starts the process in one call. The server's own lines — a plugin it could not serve,
 a session held or released, a park at the deadline — go to `runtime.log` at the root, one file per
 run, written over at the next start; no request is logged anywhere any more, and the start says
-nothing about instruction files above the instance or about the per-model quota window, which has
-a default like the other two.
+nothing about instruction files above the instance or about the quota windows.
 
 **The instance root is laid out for what each thing is.** `bin/ovai` is the one command and `lib/`
 is everything else the release ships, replaced whole on update — what `tools/` and `templates/` held

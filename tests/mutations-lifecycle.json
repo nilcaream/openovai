@@ -340,19 +340,19 @@
     ]
   },
   {
-    "name": "the per-model window applies to every model",
-    "catches": "the per-model window, once named, touches seats on that model only",
+    "name": "fable's own window applies to every model",
+    "catches": "fable's own window, read with nothing configured, touches seats on that model only",
     "edits": [
       {
         "file": "lib/chat/quota.mjs",
-        "from": "  const applies = fableWire !== null && FABLE_WINDOW.models.test(String(model ?? \"\"));",
-        "to": "  const applies = fableWire !== null;"
+        "from": "  return Object.keys(WINDOWS).filter((window) => WINDOWS[window].model === undefined || name.includes(WINDOWS[window].model));",
+        "to": "  return Object.keys(WINDOWS);"
       }
     ]
   },
   {
     "name": "the write gate ignores the seat's model",
-    "catches": "the per-model window, once named, touches seats on that model only",
+    "catches": "fable's own window, read with nothing configured, touches seats on that model only",
     "edits": [
       {
         "file": "lib/chat/quota.mjs",
@@ -664,7 +664,7 @@
       {
         "file": "lib/chat/lifecycle.mjs",
         "from": "  quota.configure({ config: instance.config, clock: clockOf(instance) });\n",
-        "to": "  quota.configure({ config: instance.config, clock: clockOf(instance) });\n  console.log(`${quota.FABLE_WINDOW.key}: no window of that scope is on the frame; not gated`);\n"
+        "to": "  quota.configure({ config: instance.config, clock: clockOf(instance) });\n  console.log(`7d-fable: read from the usage endpoint while a page is open`);\n"
       }
     ]
   },
@@ -707,7 +707,7 @@
     "edits": [
       {
         "file": "lib/chat/quota.mjs",
-        "from": "  const [warning, critical] = thresholds[key];",
+        "from": "  const [warning, critical] = thresholds[known.thresholds];",
         "to": "  const [warning, critical] = thresholds[\"5h\"];"
       }
     ]
