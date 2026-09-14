@@ -122,12 +122,16 @@
   .md li > p { margin: .15em 0; }
   .md hr { border: 0; border-top: 1px solid var(--line); }
   .md img { max-width: 100%; }
-  /* the questions box, a child of the panel: the panel itself carries the asking class too */
-  .panel > .asking:not(:empty) { padding: 4px 8px; border-top: 1px solid var(--line); }
-  .panel > .asking p { margin: 4px 0; }
-  .panel > .asking code, .panel > .asking q { display: block; margin: 2px 0; }
-  .panel > .asking input { font: inherit; }
-  .panel > .asking button { font: inherit; margin-right: 4px; }
+  /* a question is a card in the slot under the rows: the heading, the raw words of the request, the reason, then the decisions */
+  .msg.perm .bubble { background: var(--panel-2); border-color: var(--warn); border-width: 2px; }
+  .msg.perm .desc { font-size: .92rem; margin: 2px 0 4px; overflow-wrap: anywhere; }
+  .msg.perm .reason { font-size: .78rem; color: var(--fg-dim); font-family: var(--mono); margin: 0 0 4px; }
+  .msg.perm .raw { font-family: var(--mono); font-size: .76rem; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; margin: 4px 0; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 18em; overflow: auto; }
+  .msg.perm .acts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0 2px; }
+  .msg.perm .acts button { font: 600 .82rem var(--sans); padding: 4px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); cursor: pointer; }
+  .msg.perm .acts button[data-decision=allow] { background: var(--me); border-color: var(--me-line); }
+  .msg.perm .acts button[data-decision=deny] { background: var(--to); border-color: var(--to-line); }
+  .msg.perm .acts input { flex: 1 1 200px; min-width: 120px; font: .82rem var(--sans); padding: 4px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); }
   .composer { padding: 6px 8px; border-top: 1px solid var(--line); }
   .composer textarea { width: 100%; resize: vertical; font: inherit; }
 </style>
@@ -296,26 +300,36 @@
 
   // A question on this panel: a call the session is stopped on, or a rule the Leader asks the
   // User to settle. What it shows is decided by dialogOf() — the words of the request and
-  // nothing else — and drawn here with textContent, one line per field the request carried,
-  // one button per decision that kind of question takes. A deny on a call stop needs a word
-  // from the person, since the run is told why; a rule dialog carries the Leader's why already.
+  // nothing else — and drawn here with textContent as a card: the heading, then one block per
+  // field the request carried (the words of a request in a raw block, a reason on a line of its
+  // own), then the row of decisions, one button per decision that kind of question takes. A deny
+  // on a call stop needs a word from the person, since the run is told why; a rule dialog
+  // carries the Leader's why already.
   function question(name, request) {
     const dialog = dialogOf(request, name);
-    const line = document.createElement("p");
-    const heading = document.createElement("span");
+    const card = document.createElement("div");
+    card.className = "msg perm";
+    const bubble = document.createElement("div");
+    bubble.className = "bubble";
+    card.append(bubble);
+    const heading = document.createElement("div");
+    heading.className = "desc";
     heading.textContent = dialog.heading;
-    line.append(heading);
+    bubble.append(heading);
     for (const { kind, text } of dialog.lines) {
-      const shown = document.createElement(kind === "reason" || kind === "why" ? "q" : "code");
-      shown.className = kind;
+      const shown = document.createElement("div");
+      if (kind === "reason" || kind === "why") shown.className = "reason";
+      else shown.className = "raw";
       shown.textContent = text;
-      line.append(" ", shown);
+      bubble.append(shown);
     }
 
+    const acts = document.createElement("div");
+    acts.className = "acts";
+    bubble.append(acts);
     const reason = dialog.kind === "call" ? document.createElement("input") : null;
     if (reason !== null) {
       reason.placeholder = "why not (needed to deny)";
-      line.append(" ", reason);
     }
 
     const buttons = dialog.buttons.map(({ decision, label }) => {
@@ -350,9 +364,12 @@
         }
         answer({ id: request.id, decision });
       });
-      line.append(" ", button);
+      if (decision === "deny" && reason !== null) {
+        acts.append(reason);
+      }
+      acts.append(button);
     }
-    return line;
+    return card;
   }
 
   // A panel made from a later event has no rows yet: they are asked for once, and arrive as
@@ -415,17 +432,17 @@
       }
     }
 
-    for (const [id, line] of panel.drawn) {
+    for (const [id, card] of panel.drawn) {
       if (!about.asking.some((request) => request.id === id)) {
-        line.remove();
+        card.remove();
         panel.drawn.delete(id);
       }
     }
     for (const request of about.asking) {
       if (!panel.drawn.has(request.id)) {
-        const line = question(panel.name, request);
-        panel.drawn.set(request.id, line);
-        panel.asking.append(line);
+        const card = question(panel.name, request);
+        panel.drawn.set(request.id, card);
+        panel.asking.append(card);
       }
     }
   }

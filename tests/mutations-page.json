@@ -163,5 +163,49 @@
         "to": "new Intl.DateTimeFormat(\"en-GB\", { timeZone: \"Europe/Warsaw\", weekday: \"short\", day: \"2-digit\", month: \"short\" })"
       }
     ]
+  },
+  {
+    "name": "the deny button of a question takes the User's own ground",
+    "catches": "draw the deny button of a question on the ground of what goes to the session",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": ".msg.perm .acts button[data-decision=deny] { background: var(--to); border-color: var(--to-line); }",
+        "to": ".msg.perm .acts button[data-decision=deny] { background: var(--me); border-color: var(--to-line); }"
+      }
+    ]
+  },
+  {
+    "name": "the question card is emitted as perm while every one of its rules is renamed",
+    "catches": "give every class the page emits at least one rule",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "  .msg.perm .bubble { background: var(--panel-2); border-color: var(--warn); border-width: 2px; }\n  .msg.perm .desc { font-size: .92rem; margin: 2px 0 4px; overflow-wrap: anywhere; }\n  .msg.perm .reason { font-size: .78rem; color: var(--fg-dim); font-family: var(--mono); margin: 0 0 4px; }\n  .msg.perm .raw { font-family: var(--mono); font-size: .76rem; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; margin: 4px 0; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 18em; overflow: auto; }\n  .msg.perm .acts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0 2px; }\n  .msg.perm .acts button { font: 600 .82rem var(--sans); padding: 4px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); cursor: pointer; }\n  .msg.perm .acts button[data-decision=allow] { background: var(--me); border-color: var(--me-line); }\n  .msg.perm .acts button[data-decision=deny] { background: var(--to); border-color: var(--to-line); }\n  .msg.perm .acts input { flex: 1 1 200px; min-width: 120px; font: .82rem var(--sans); padding: 4px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); }\n",
+        "to": "  .msg.card .bubble { background: var(--panel-2); border-color: var(--warn); border-width: 2px; }\n  .msg.card .desc { font-size: .92rem; margin: 2px 0 4px; overflow-wrap: anywhere; }\n  .msg.card .reason { font-size: .78rem; color: var(--fg-dim); font-family: var(--mono); margin: 0 0 4px; }\n  .msg.card .raw { font-family: var(--mono); font-size: .76rem; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; margin: 4px 0; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 18em; overflow: auto; }\n  .msg.card .acts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0 2px; }\n  .msg.card .acts button { font: 600 .82rem var(--sans); padding: 4px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); cursor: pointer; }\n  .msg.card .acts button[data-decision=allow] { background: var(--me); border-color: var(--me-line); }\n  .msg.card .acts button[data-decision=deny] { background: var(--to); border-color: var(--to-line); }\n  .msg.card .acts input { flex: 1 1 200px; min-width: 120px; font: .82rem var(--sans); padding: 4px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); }\n"
+      }
+    ]
+  },
+  {
+    "name": "the reason line of a question is styled under a class the script never emits",
+    "catches": "name no class the page never emits",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "  .msg.perm .reason { font-size: .78rem;",
+        "to": "  .msg.perm .why { font-size: .78rem;"
+      }
+    ]
+  },
+  {
+    "name": "a decision button carries no data-decision attribute",
+    "catches": "select no attribute the script never sets",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "      button.dataset.decision = decision;\n",
+        "to": ""
+      }
+    ]
   }
 ]

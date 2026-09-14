@@ -1,6 +1,6 @@
 // The page's stylesheet, read as rules: the token table per theme, no colour outside it, no token
-// outside the table, a rule for every class the page emits and no rule for a class it never
-// does. The page is read as text
+// outside the table, a rule for every class the page emits, no rule for a class it never
+// does and no selector on an attribute the script never sets. The page is read as text
 // and never run here, and the stylesheet is parsed rather than grepped, so a check is about a rule
 // and its value rather than about a string being somewhere in the file. Every mutation in
 // tests/mutations-page.json names the check it was written to redden.
@@ -46,9 +46,9 @@ const INLINE_CODE_GROUND = "rgba(127,127,127,.18)";
 // Every class the page puts on an element, read from its source: the literals the script assigns
 // (`className = "…"`, `classList.add|toggle("…")`, `class="…"` in a template), the static head of a
 // template literal (`row ${kind}` names `row`), the row kinds that template is filled with
-// (`kind: "…"` in render.mjs), and the classes the markup outside the script carries. The dialog
-// lines' kinds (`shown.className = kind`, from dialog.mjs) are not read: no rule styles them, and the
-// dead-selector check is what says so the day one does.
+// (`kind: "…"` in render.mjs), and the classes the markup outside the script carries. A dialog
+// line (from dialog.mjs) is drawn under one of two literal classes, the raw block or the reason
+// line, so its kind never reaches the page as a class.
 function classes() {
   const emitted = new Set();
   const add = (list) => list.split(/\s+/).forEach((name) => name !== "" && emitted.add(name));
@@ -103,6 +103,11 @@ describe("the rules", () => {
     assert.equal(bubble.declarations.background, "var(--me)");
   });
 
+  it("draw the deny button of a question on the ground of what goes to the session", () => {
+    const deny = rules.find((rule) => rule.selector === ".msg.perm .acts button[data-decision=deny]");
+    assert.equal(deny.declarations.background, "var(--to)");
+  });
+
   it("carry no raw colour outside the token blocks", () => {
     for (const rule of rules) {
       if (tokenBlocks.includes(rule)) continue;
@@ -144,6 +149,21 @@ describe("the rules", () => {
     for (const [, name] of selectors.matchAll(/\.([a-z][\w-]*)/gi)) {
       assert.ok(emitted.has(name), `.${name} matches nothing the page emits`);
     }
+  });
+
+  // The same for an attribute: `[data-x=…]` matches only an element the script stamps with
+  // `dataset.x = …`, and the stamp is also what a click reads back — so a selector on an
+  // attribute the script never sets parses, matches nothing, and says nothing.
+  it("select no attribute the script never sets", () => {
+    let seen = 0;
+    for (const rule of rules) {
+      for (const [, name] of rule.selector.matchAll(/\[data-([\w-]+)/g)) {
+        seen += 1;
+        const property = name.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
+        assert.match(script, new RegExp(`dataset\\.${property} = `), `[data-${name}] matches nothing the script sets`);
+      }
+    }
+    assert.ok(seen >= 1, "the stylesheet selects on no attribute, so this check read nothing");
   });
 });
 
