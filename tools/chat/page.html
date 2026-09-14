@@ -132,8 +132,11 @@
   .msg.perm .acts button[data-decision=allow] { background: var(--me); border-color: var(--me-line); }
   .msg.perm .acts button[data-decision=deny] { background: var(--to); border-color: var(--to-line); }
   .msg.perm .acts input { flex: 1 1 200px; min-width: 120px; font: .82rem var(--sans); padding: 4px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); }
-  .composer { padding: 6px 8px; border-top: 1px solid var(--line); }
-  .composer textarea { width: 100%; resize: vertical; font: inherit; }
+  /* the composer: one row that grows with what is typed, never dragged, up to 40% of the window */
+  .composer { flex: 0 0 auto; min-height: 0; padding: 0; }
+  textarea { display: block; width: 100%; resize: none; min-height: 40px; max-height: 40vh; padding: 8px 10px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--bg); color: var(--fg); font: inherit; line-height: 1.5; outline: none; overflow-y: hidden; }
+  textarea:focus { border-color: var(--accent); }
+  textarea:disabled { opacity: .55; }
 </style>
 
 <p id="status"></p>
@@ -217,7 +220,17 @@
     const composer = document.createElement("form");
     composer.className = "composer";
     const box = document.createElement("textarea");
-    box.rows = 3;
+    box.rows = 1;
+    box.placeholder = `Message ${name} — Enter sends, Shift+Enter for a new line`;
+    // The box is one row until what is typed needs more, and stops growing at 40% of the window,
+    // where it scrolls instead.
+    const autosize = () => {
+      box.style.height = "auto";
+      const max = window.innerHeight * 0.4;
+      box.style.height = `${Math.min(box.scrollHeight, max)}px`;
+      box.style.overflowY = box.scrollHeight > max ? "auto" : "hidden";
+    };
+    box.addEventListener("input", autosize);
     box.addEventListener("keydown", (event) => {
       if (keyAction(event) === "send") {
         event.preventDefault();
@@ -234,6 +247,7 @@
         return;
       }
       box.value = "";
+      autosize();
       call(`/sessions/${encodeURIComponent(name)}/message`, {
         method: "POST",
         headers: { "content-type": "application/json" },

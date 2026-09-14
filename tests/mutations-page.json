@@ -207,5 +207,71 @@
         "to": ""
       }
     ]
+  },
+  {
+    "name": "the composer box can be dragged taller",
+    "catches": "let the composer grow with what is typed and never by a drag",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "  textarea { display: block; width: 100%; resize: none;",
+        "to": "  textarea { display: block; width: 100%; resize: vertical;"
+      }
+    ]
+  },
+  {
+    "name": "the empty box says nothing about whom it reaches or which key sends",
+    "catches": "says in the empty box whom a message reaches and which key sends it",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "    box.placeholder = `Message ${name} — Enter sends, Shift+Enter for a new line`;\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "Enter no longer sends: the keydown handler is gone",
+    "catches": "sends on Enter through the form, and grows the box with what is typed, capped at 40vh",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "    box.addEventListener(\"keydown\", (event) => {\n      if (keyAction(event) === \"send\") {\n        event.preventDefault();\n        composer.requestSubmit();\n      }\n    });\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the box no longer grows with what is typed: the input listener is gone",
+    "catches": "sends on Enter through the form, and grows the box with what is typed, capped at 40vh",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "    box.addEventListener(\"input\", autosize);\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the box grows past 40vh: the cap is gone",
+    "catches": "sends on Enter through the form, and grows the box with what is typed, capped at 40vh",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "      box.style.height = `${Math.min(box.scrollHeight, max)}px`;",
+        "to": "      box.style.height = `${box.scrollHeight}px`;"
+      }
+    ]
+  },
+  {
+    "name": "the box never shrinks back: the height reset before the measure is gone",
+    "catches": "sends on Enter through the form, and grows the box with what is typed, capped at 40vh",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "      box.style.height = \"auto\";\n",
+        "to": ""
+      }
+    ]
   }
 ]

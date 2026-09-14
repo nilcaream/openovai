@@ -108,6 +108,11 @@ describe("the rules", () => {
     assert.equal(deny.declarations.background, "var(--to)");
   });
 
+  it("let the composer grow with what is typed and never by a drag", () => {
+    const box = rules.find((rule) => rule.selector === "textarea");
+    assert.equal(box.declarations.resize, "none");
+  });
+
   it("carry no raw colour outside the token blocks", () => {
     for (const rule of rules) {
       if (tokenBlocks.includes(rule)) continue;
@@ -176,6 +181,22 @@ describe("the script", () => {
     assert.match(stamp, /\bhourCycle: "h23"/);
     assert.match(day, /\bweekday: "short"/);
     for (const inside of options) assert.doesNotMatch(inside, /timeZone/, "a zone of the page's own instead of the reader's");
+  });
+
+  // Enter sends and the box grows: the page is never run here, so the wiring is read as text —
+  // the key handler hands a send to the form, and every input resets the height to auto and
+  // then sets it from the scroll height under the 40vh cap — without the reset the box never
+  // shrinks back after a send or a deleted line.
+  it("sends on Enter through the form, and grows the box with what is typed, capped at 40vh", () => {
+    assert.match(script, /box\.addEventListener\("keydown", \(event\) => \{\s*if \(keyAction\(event\) === "send"\) \{\s*event\.preventDefault\(\);\s*composer\.requestSubmit\(\);/);
+    assert.match(script, /box\.addEventListener\("input", autosize\)/);
+    assert.match(script, /box\.style\.height = "auto";\s*const max = window\.innerHeight \* 0\.4;\s*box\.style\.height = `\$\{Math\.min\(box\.scrollHeight, max\)\}px`;/);
+  });
+
+  // The placeholder is a property of the box, not a word of the page's own, so it is read here and
+  // not in the literal list chat.test.mjs pins.
+  it("says in the empty box whom a message reaches and which key sends it", () => {
+    assert.match(script, /box\.placeholder = `Message \$\{name\} — Enter sends, Shift\+Enter for a new line`/);
   });
 
   // The page is never run here, so the proof is in two halves: the renderer turns a reply into
