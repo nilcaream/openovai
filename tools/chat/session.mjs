@@ -154,6 +154,12 @@ function frames(chunk, rest, saw) {
   return left;
 }
 
+// The content blocks of a message frame; a message whose content is a string has none.
+function blocksOf(frame) {
+  const content = frame.message?.content;
+  return Array.isArray(content) ? content.filter((block) => block !== null && typeof block === "object") : [];
+}
+
 // Being asked whether the run may use a tool, and saying. Only tool calls the instance's own
 // settings leave undecided ever get here. The request id goes back exactly as it came, nothing
 // else about the tool is named beside it, and one request is answered once: get any of that
@@ -236,8 +242,10 @@ export function recordOf(seat) {
 // window and when it resets); what it holds leaves the queue through `held`, each turn beside
 // the answer that held it, for whoever gates to keep and bring back. `changed` is called whenever
 // what the server knows about the process changes while it lives — a turn taken, a turn over —
-// for whoever shows the process to the page.
-export function start(instance, seat, { asked = nobodyToAsk, ended = nothing, turned = nothing, queue = [], gate = () => null, held = nothing, changed = nothing } = {}) {
+// for whoever shows the process to the page. `called` is called with every tool the process
+// itself calls — `{ id, name, input }`, the moment the call is made, and never a call a subagent
+// of its makes — and `failed` with `{ id }` once a call's result comes back as an error.
+export function start(instance, seat, { asked = nobodyToAsk, ended = nothing, turned = nothing, queue = [], gate = () => null, held = nothing, changed = nothing, called = nothing, failed = nothing } = {}) {
   if (!isSeat(instance, seat)) {
     throw new Error(`nobody called ${seat} works here`);
   }
@@ -332,6 +340,28 @@ export function start(instance, seat, { asked = nobodyToAsk, ended = nothing, tu
       }
       if (frame.type === "rate_limit_event") {
         sawQuota(seat, record.model, frame.rate_limit_info);
+        return;
+      }
+      // What the process says it is doing: one assistant frame per content block, a tool call
+      // among them; a frame under a parent call is a subagent's own and is not this process's
+      // doing. The result of a call comes back as the user's turn of the protocol, and the one
+      // thing read off it is whether the call failed.
+      if (frame.type === "assistant") {
+        if ((frame.parent_tool_use_id ?? null) === null) {
+          for (const block of blocksOf(frame)) {
+            if (block.type === "tool_use") {
+              called({ id: block.id, name: block.name, input: block.input });
+            }
+          }
+        }
+        return;
+      }
+      if (frame.type === "user") {
+        for (const block of blocksOf(frame)) {
+          if (block.type === "tool_result" && block.is_error === true) {
+            failed({ id: block.tool_use_id });
+          }
+        }
         return;
       }
       if (frame.type === "result" && record.turn !== null) {

@@ -114,6 +114,10 @@
   .rows { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 0; }
   .rows .empty { color: var(--fg-faint); font-size: .8rem; padding: 4px 0; }
   #mid .rows .empty { font-size: inherit; text-align: center; padding: 20px 0; }
+  /* a tool call is a light line: one per call, no label, no stamp */
+  .rows .line { display: block; width: 100%; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); font-family: var(--mono); font-size: .76rem; color: var(--fg-dim); padding: 3px 8px; margin: 3px 0; overflow-wrap: anywhere; }
+  .rows .line.err { color: var(--bad); }
+  .rows .line .n { color: var(--fg-faint); }
   /* a row is a bubble: the label row on top, the body under it; the kind of the row picks its ground */
   .msg { display: flex; margin: 4px 0; }
   .bubble { width: 100%; max-width: 100%; border: 1px solid var(--line); border-radius: var(--radius); padding: 6px 10px 4px; background: var(--panel-2); position: relative; min-width: 120px; }
@@ -374,7 +378,9 @@
     });
 
     section.append(headLine, rows, asking, composer);
-    return { name, section, nameLine, info, word, fitHead, fitPlaceholder, facts, stop, rows, empty, asking, jump, box, shown: 0, day: null, drawn: new Map(), loading: false };
+    // `last` is the tool line appended last, for a repeated call to count itself into; `lines` is
+    // the element of every tool line by the index of its row, for a failed call to find its line.
+    return { name, section, nameLine, info, word, fitHead, fitPlaceholder, facts, stop, rows, empty, asking, jump, box, shown: 0, day: null, drawn: new Map(), loading: false, last: null, lines: new Map() };
   }
 
   // When a row was written, in the reader's own zone: `2026.09.13 Sunday 23:17:05` on the row, and
@@ -409,10 +415,23 @@
     return pill;
   }
 
+  // A tool call is a light line, not a bubble: the summary as the element's own text, a counter
+  // after it that a repeated call writes into, red once the call failed. No label, no stamp.
+  function lineElement(shown) {
+    const line = document.createElement("div");
+    line.className = "line";
+    if (shown.err === true) line.classList.add("err");
+    line.textContent = shown.text;
+    const count = document.createElement("span");
+    count.className = "n";
+    line.append(count);
+    return line;
+  }
+
   // A row is a bubble: the label row on top — who spoke, and when, last — and the body under it,
-  // the HTML of a reply or the words of anyone else as they are.
-  function rowElement(entry) {
-    const shown = rowOf(entry, { chat: state.chat });
+  // the HTML of a reply or the words of anyone else as they are. A tool call is a line instead.
+  function rowElement(entry, shown) {
+    if (shown.kind === "line") return lineElement(shown);
     const line = document.createElement("div");
     line.className = `msg ${shown.kind}`;
     const bubble = document.createElement("div");
@@ -579,28 +598,65 @@
         panel.rows.replaceChildren(panel.empty);
         panel.shown = 0;
         panel.day = null;
+        panel.last = null;
+        panel.lines.clear();
       }
       panel.empty.hidden = about.rows.length > 0;
       if (about.rows.length > panel.shown) {
-        // A pill names the day before the first row written on it.
+        // A Worker panel keeps its last hundred rows, so its first draw starts there: a long log
+        // builds a hundred elements, not thousands. The Leader's panel draws every row it holds.
+        const from = panel.jump === null && panel.shown === 0 ? Math.max(panel.shown, about.rows.length - 100) : panel.shown;
+        // A pill names the day before the first row written on it. A tool call that repeats the
+        // line appended last counts itself into that line rather than drawing a second one; any
+        // other row — a bubble, a pill — ends the run.
         const added = [];
-        for (const entry of about.rows.slice(panel.shown)) {
+        for (const [offset, entry] of about.rows.slice(from).entries()) {
+          const index = from + offset;
           const day = entry.at === undefined ? panel.day : dayOf.format(new Date(entry.at));
           if (day !== panel.day) {
             panel.day = day;
+            panel.last = null;
             panel.rows.append(dayPill(day));
           }
-          const line = rowElement(entry);
+          const shown = rowOf(entry, { chat: state.chat });
+          if (shown.kind === "line" && panel.last !== null && panel.last.text === shown.text) {
+            panel.last.count += 1;
+            panel.last.n.textContent = ` ×${panel.last.count}`;
+            panel.lines.set(index, panel.last.el);
+            continue;
+          }
+          const line = rowElement(entry, shown);
           panel.rows.append(line);
-          added.push(line.querySelector(".t"));
+          if (shown.kind === "line") {
+            panel.last = { text: shown.text, el: line, count: 1, n: line.lastElementChild };
+            panel.lines.set(index, line);
+          } else {
+            panel.last = null;
+          }
+          const time = line.querySelector(".t");
+          if (time !== null) added.push(time);
         }
         fitStamps(added);
         panel.shown = about.rows.length;
+        // A Worker panel keeps a hundred drawn rows — bubbles, lines and pills; the empty box is
+        // not a row — and lets the oldest go, with the lines it no longer holds.
+        if (panel.jump === null) {
+          const drawn = [...panel.rows.children].filter((child) => child.matches(".msg, .line, .divider"));
+          while (drawn.length > 100) drawn.shift().remove();
+          for (const [index, element] of panel.lines) {
+            if (!element.isConnected) panel.lines.delete(index);
+          }
+        }
         if (atTheNewest) {
           panel.rows.scrollTop = panel.rows.scrollHeight;
         } else if (panel.jump !== null && !near) {
           panel.jump.classList.add("show");
         }
+      }
+      // A call that failed after its line was drawn: the line at that row's index turns red.
+      for (const index of about.amended.splice(0)) {
+        const element = panel.lines.get(index);
+        if (element !== undefined && about.rows[index].err === true) element.classList.add("err");
       }
       // Rows are appended after the pill; it goes back to the end so it sticks to the bottom edge.
       if (panel.jump !== null && panel.jump !== panel.rows.lastElementChild) panel.rows.append(panel.jump);

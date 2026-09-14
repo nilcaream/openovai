@@ -684,5 +684,93 @@
         "to": ""
       }
     ]
+  },
+  {
+    "name": "a tool line takes the body ink",
+    "catches": "draw a tool line in the dim mono of a machine word",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "font-size: .76rem; color: var(--fg-dim); padding: 3px 8px;",
+        "to": "font-size: .76rem; color: var(--fg); padding: 3px 8px;"
+      }
+    ]
+  },
+  {
+    "name": "a tool line is emitted while its rules are renamed",
+    "catches": "give every class the page emits at least one rule",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "  .rows .line { display: block; width: 100%; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); font-family: var(--mono); font-size: .76rem; color: var(--fg-dim); padding: 3px 8px; margin: 3px 0; overflow-wrap: anywhere; }\n  .rows .line.err { color: var(--bad); }\n  .rows .line .n { color: var(--fg-faint); }\n",
+        "to": "  .rows .tool { display: block; width: 100%; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); font-family: var(--mono); font-size: .76rem; color: var(--fg-dim); padding: 3px 8px; margin: 3px 0; overflow-wrap: anywhere; }\n  .rows .tool.err { color: var(--bad); }\n  .rows .tool .n { color: var(--fg-faint); }\n"
+      }
+    ]
+  },
+  {
+    "name": "the counter is styled under a class the script never emits",
+    "catches": "name no class the page never emits",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "  .rows .line .n { color: var(--fg-faint); }\n",
+        "to": "  .rows .line .count { color: var(--fg-faint); }\n"
+      }
+    ]
+  },
+  {
+    "name": "a failed call never turns its line red: the err mark is gone from the draw",
+    "catches": "marks the line of a call that failed red, by its index",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "        if (element !== undefined && about.rows[index].err === true) element.classList.add(\"err\");\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "identical neighbouring calls are drawn one under the other: the merge is gone",
+    "catches": "merges a repeated call into one line with a counter",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "          if (shown.kind === \"line\" && panel.last !== null && panel.last.text === shown.text) {\n            panel.last.count += 1;\n            panel.last.n.textContent = ` ×${panel.last.count}`;\n            panel.lines.set(index, panel.last.el);\n            continue;\n          }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a Worker panel draws every row it holds: the cap is gone",
+    "catches": "keeps the last hundred rows of a Worker panel and every row of the Leader's",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "          while (drawn.length > 100) drawn.shift().remove();\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the first draw builds every row before trimming: the start index is gone",
+    "catches": "keeps the last hundred rows of a Worker panel and every row of the Leader's",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "Math.max(panel.shown, about.rows.length - 100)",
+        "to": "panel.shown"
+      }
+    ]
+  },
+  {
+    "name": "a line's missing stamp is pushed to the fitter",
+    "catches": "pushes only a stamp it found to the fitter",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "          const time = line.querySelector(\".t\");\n          if (time !== null) added.push(time);\n",
+        "to": "          added.push(line.querySelector(\".t\"));\n"
+      }
+    ]
   }
 ]

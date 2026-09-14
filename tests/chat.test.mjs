@@ -906,6 +906,161 @@ describe("what the User types", () => {
 
 // ---------------------------------------------------------------------------------------------
 
+// The stream, read here with fetch on the body the way a browser's EventSource would read it,
+// except that a browser sends no header — which is why the secret is on the query of this one
+// route. Every client opened is closed by the describe that opened it.
+const open = [];
+
+async function listen(query = "") {
+  const controller = new AbortController();
+  const response = await fetch(`${url}/events?page=${pageSecret()}${query}`, { signal: controller.signal });
+  const events = [];
+  const client = { status: response.status, type: response.headers.get("content-type"), events, close: () => controller.abort() };
+  open.push(client);
+  if (response.status !== 200) {
+    return client;
+  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let rest = "";
+  (async () => {
+    try {
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) {
+          break;
+        }
+        rest += decoder.decode(value, { stream: true });
+        let at;
+        while ((at = rest.indexOf("\n\n")) !== -1) {
+          const block = rest.slice(0, at);
+          rest = rest.slice(at + 2);
+          const fields = {};
+          for (const line of block.split("\n")) {
+            const colon = line.indexOf(": ");
+            fields[line.slice(0, colon)] = line.slice(colon + 2);
+          }
+          events.push({ id: Number(fields.id), name: fields.event, data: JSON.parse(fields.data) });
+        }
+      }
+    } catch {
+      // closed by the check
+    }
+  })();
+  return client;
+}
+
+function about(client, name, kind = "seat") {
+  return client.events.filter((event) => event.name === kind && (event.data.name ?? event.data.seat) === name);
+}
+
+async function until(client, predicate) {
+  assert.ok(await waitFor(() => (client.events.some(predicate) ? true : null)), client.events.map((event) => `${event.name} ${JSON.stringify(event.data).slice(0, 120)}`).join("\n"));
+}
+
+
+// ---------------------------------------------------------------------------------------------
+
+// What a Worker's tool calls write: one line per call on its own conversation, as the call is
+// made, marked once the call's result comes back as an error; nothing for a call the summary
+// says nothing about, nothing for a subagent's call, and never anything for the Leader's own.
+describe("what a Worker's calls draw", () => {
+  let superman;
+  let paul;
+  let client;
+  const READ = { name: "Read", input: { file_path: "/srv/app/tools/chat/session.mjs" } };
+  const FAILING = { name: "Bash", input: { command: "npm test", description: "Run the suite" }, error: true };
+  const CALLS = JSON.stringify([
+    [READ, FAILING],
+    [{ name: "ToolSearch", input: { query: "select:Monitor" } }, { name: "mcp__openovai__stop_session", input: {} }],
+    [{ ...READ, parent: "call-0-0" }],
+    [READ, READ],
+  ]);
+
+  before(async () => {
+    remove(panelFile(instance, LEADER), panelFile(instance, WORKER));
+    superman = await seatUp(LEADER, { OPENOVAI_STAND_IN_REPLY: "noted", OPENOVAI_STAND_IN_CALLS: CALLS });
+    paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_REPLY: "on it", OPENOVAI_STAND_IN_CALLS: CALLS });
+    client = await listen();
+    await until(client, (event) => event.name === "asking");
+  });
+
+  after(async () => {
+    for (const opened of open.splice(0)) {
+      opened.close();
+    }
+    await endEvery(500);
+  });
+
+  // The rows a turn wrote on a seat's panel: everything after `from`, once the reply is there.
+  async function turn(seat, from, text) {
+    await page("POST", `/sessions/${seat}/message`, { text });
+    await waitFor(() => {
+      const last = panel(instance, seat).at(-1);
+      return panel(instance, seat).length > from && last.from === seat && typeof last.text === "string" ? true : null;
+    });
+    return panel(instance, seat).slice(from);
+  }
+
+  it("writes one line per call on the Worker's panel as it is made, before the reply: the summary and the call, never the input", async () => {
+    const rows = await turn(WORKER, 0, "go");
+    assert.deepEqual(rows.map((row) => row.from), ["user", WORKER, WORKER, WORKER]);
+    assert.deepEqual(rows.map((row) => row.line), [undefined, "Reading /srv/app/tools/chat/session.mjs", "Run the suite", undefined]);
+    assert.deepEqual(rows.map((row) => row.call), [undefined, "call-1-0", "call-1-1", undefined]);
+    assert.deepEqual(rows.map((row) => row.text), ["go", undefined, undefined, "on it"]);
+    for (const row of rows.slice(1, 3)) {
+      assert.deepEqual(Object.keys(row).filter((key) => !["at", "from", "line", "call", "err"].includes(key)), [], JSON.stringify(row));
+      assert.match(row.at, /^\d{4}-\d{2}-\d{2}T/);
+    }
+    assert.equal(rows[1].err, undefined, "a call that went well carries no flag");
+  });
+
+  it("marks the line of a call that failed, in the file and on the stream", async () => {
+    const rows = panel(instance, WORKER);
+    assert.equal(rows[2].line, "Run the suite");
+    assert.equal(rows[2].err, true);
+    assert.equal(rows[1].err, undefined);
+    // The page was told the row twice: as the line was written, and again — at the same index,
+    // marked — as its result came back.
+    await until(client, (event) => event.name === "row" && event.data.seat === WORKER && event.data.index === 2 && event.data.row.err === true);
+    const told = about(client, WORKER, "row").filter((event) => event.data.index === 2).map((event) => [event.data.row.line, event.data.row.err]);
+    assert.deepEqual(told, [["Run the suite", undefined], ["Run the suite", true]]);
+    // The reply came after the mark, so a page drawing the file draws the line red from the start.
+    const indexes = about(client, WORKER, "row").map((event) => [event.data.index, event.data.row.err ?? event.data.row.text ?? event.data.row.line]);
+    assert.deepEqual(indexes, [[0, "go"], [1, "Reading /srv/app/tools/chat/session.mjs"], [2, "Run the suite"], [2, true], [3, "on it"]]);
+  });
+
+  it("writes no line for the Leader's own calls", async () => {
+    // The Leader's panel already holds what was typed to the Worker and what the Leader made of it.
+    const rows = await turn(LEADER, panel(instance, LEADER).length, "go");
+    assert.deepEqual(rows.map((row) => [row.from, row.text]), [["user", "go"], [LEADER, "noted"]]);
+    assert.ok(rows.every((row) => row.line === undefined && row.call === undefined), JSON.stringify(rows));
+  });
+
+  it("draws nothing for a search of the tool list or a session's own stop", async () => {
+    const rows = await turn(WORKER, panel(instance, WORKER).length, "again");
+    assert.deepEqual(rows.map((row) => [row.from, row.text]), [["user", "again"], [WORKER, "on it"]]);
+    assert.ok(rows.every((row) => row.line === undefined), JSON.stringify(rows));
+    assert.deepEqual(await told(paul.log, 2), ["<user>go</user>", "<user>again</user>"]);
+  });
+
+  it("draws nothing for a call made under another call", async () => {
+    const rows = await turn(WORKER, panel(instance, WORKER).length, "delegate");
+    assert.deepEqual(rows.map((row) => [row.from, row.text]), [["user", "delegate"], [WORKER, "on it"]]);
+    assert.ok(rows.every((row) => row.line === undefined), JSON.stringify(rows));
+  });
+
+  it("writes two entries for two identical calls: the merge into one line is the page's", async () => {
+    const rows = await turn(WORKER, panel(instance, WORKER).length, "twice");
+    assert.deepEqual(rows.map((row) => row.line), [undefined, "Reading /srv/app/tools/chat/session.mjs", "Reading /srv/app/tools/chat/session.mjs", undefined]);
+    assert.deepEqual(rows.map((row) => row.call), [undefined, "call-4-0", "call-4-1", undefined]);
+    const shown = JSON.parse((await page("GET", `/sessions/${WORKER}/messages?since=8`)).body).messages;
+    assert.deepEqual(shown, rows, "the page is served the file as it is");
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+
 // Only one module writes to a session's stdin, and only in the places that put a frame or a
 // permission answer there. Read off the code, because the rule is about the code.
 // ---------------------------------------------------------------------------------------------
@@ -1012,54 +1167,6 @@ describe("what the page is made of", () => {
 describe("the stream", () => {
   let superman;
   let paul;
-  const open = [];
-
-  async function listen(query = "") {
-    const controller = new AbortController();
-    const response = await fetch(`${url}/events?page=${pageSecret()}${query}`, { signal: controller.signal });
-    const events = [];
-    const client = { status: response.status, type: response.headers.get("content-type"), events, close: () => controller.abort() };
-    open.push(client);
-    if (response.status !== 200) {
-      return client;
-    }
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let rest = "";
-    (async () => {
-      try {
-        for (;;) {
-          const { value, done } = await reader.read();
-          if (done) {
-            break;
-          }
-          rest += decoder.decode(value, { stream: true });
-          let at;
-          while ((at = rest.indexOf("\n\n")) !== -1) {
-            const block = rest.slice(0, at);
-            rest = rest.slice(at + 2);
-            const fields = {};
-            for (const line of block.split("\n")) {
-              const colon = line.indexOf(": ");
-              fields[line.slice(0, colon)] = line.slice(colon + 2);
-            }
-            events.push({ id: Number(fields.id), name: fields.event, data: JSON.parse(fields.data) });
-          }
-        }
-      } catch {
-        // closed by the check
-      }
-    })();
-    return client;
-  }
-
-  function about(client, name, kind = "seat") {
-    return client.events.filter((event) => event.name === kind && (event.data.name ?? event.data.seat) === name);
-  }
-
-  async function until(client, predicate) {
-    assert.ok(await waitFor(() => (client.events.some(predicate) ? true : null)), client.events.map((event) => `${event.name} ${JSON.stringify(event.data).slice(0, 120)}`).join("\n"));
-  }
 
   before(async () => {
     remove(panelFile(instance, LEADER), panelFile(instance, WORKER), panelFile(instance, OTHER));

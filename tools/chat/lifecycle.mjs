@@ -17,12 +17,14 @@
 
 import { deskHeader, modelFor } from "../desks.mjs";
 import { onHardRulesChanged } from "../store.mjs";
+import { amend, append } from "./conversation.mjs";
 import { publish } from "./events.mjs";
 import { rulesUpdateFrame, serverEvent } from "./frames.mjs";
 import { giveUp, park as parkRequest, rulesPending, rulesToPop, waitedLong } from "./permissions.mjs";
 import { popped } from "./pop.mjs";
 import * as quota from "./quota.mjs";
-import { LEADER, WORKER, arrival, end, interrupt, prefix, recordOf, running, runningSeats, seats, start, tell } from "./session.mjs";
+import { line } from "./lines.mjs";
+import { LEADER, WORKER, arrival, end, interrupt, prefix, recordOf, roleOf, running, runningSeats, seats, start, tell } from "./session.mjs";
 
 // ------------------------------------------------------------------------------------ settings
 
@@ -153,6 +155,9 @@ export function startSeat(instance, seat, { queue = [] } = {}) {
   const started = start(instance, seat, {
     asked: asking(instance, seat),
     turned: (record) => turned(instance, record),
+    // A Worker's calls are drawn on its panel as lines, one per call, marked once the call
+    // failed; the Leader's own calls never are — its panel is the User's conversation.
+    ...(roleOf(instance, seat) === WORKER ? { called: calledBy(instance, seat), failed: ({ id }) => amend(instance.root, seat, id) } : {}),
     ended: (closed) => {
       giveUp(seat);
       afterClose(instance, closed);
@@ -168,6 +173,17 @@ export function startSeat(instance, seat, { queue = [] } = {}) {
   });
   seatChanged(instance, seat);
   return started;
+}
+
+// One line per call on the caller's own conversation, written the moment the call is made; a
+// call the summary says nothing about writes nothing.
+function calledBy(instance, seat) {
+  return ({ id, name, input }) => {
+    const text = line(name, input);
+    if (text !== null) {
+      append(instance.root, seat, { from: seat, line: text, call: id });
+    }
+  };
 }
 
 function startSuccessor(instance, seat, carried) {

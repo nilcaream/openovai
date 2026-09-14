@@ -70,6 +70,9 @@ function panelOf(state, about, now) {
     // null until the page has this panel's history; a panel made from the snapshot gets its rows
     // on the same stream, a panel made from a later `seat` event asks for them.
     rows: null,
+    // The indexes of rows the server wrote again after the page drew them — a tool line whose
+    // call failed — for the page to mark, and to empty once it has.
+    amended: [],
   };
 }
 
@@ -143,6 +146,10 @@ export function applyEvent(state, { name, data }, now = Date.now()) {
         panel.rows.push(data.row);
       } else if (data.index > panel.rows.length) {
         panel.rows = null;
+      } else {
+        // A row the server wrote again, at an index the page holds: it replaces the one there.
+        panel.rows[data.index] = data.row;
+        panel.amended.push(data.index);
       }
       break;
     }

@@ -92,13 +92,20 @@ describe("a Worker's panel lives with its process", () => {
     assert.equal(state.panels.Paul.rows.length, 1);
   });
 
-  it("a row lands at its index once; a row from the past is ignored", () => {
+  it("a row lands at its index once; a row at a past index replaces the one there", () => {
     const state = fresh();
     applyEvent(state, snapshot([about(LEADER)]), 0);
     applyEvent(state, { name: "rows", data: { seat: LEADER, since: 0, rows: [{ from: "user", text: "a" }] } }, 0);
     applyEvent(state, { name: "row", data: { seat: LEADER, index: 1, row: { from: LEADER, text: "b" } } }, 0);
+    assert.deepEqual(state.panels[LEADER].amended, []);
     applyEvent(state, { name: "row", data: { seat: LEADER, index: 1, row: { from: LEADER, text: "b" } } }, 0);
     assert.deepEqual(state.panels[LEADER].rows.map((row) => row.text), ["a", "b"]);
+    // A tool line written again once its call failed: the entry at that index is the new one, and
+    // the index is listed for the page to mark.
+    applyEvent(state, { name: "row", data: { seat: LEADER, index: 0, row: { from: "user", text: "a", err: true } } }, 0);
+    assert.deepEqual(state.panels[LEADER].rows[0], { from: "user", text: "a", err: true });
+    assert.deepEqual(state.panels[LEADER].amended, [1, 0]);
+    assert.equal(state.panels[LEADER].rows.length, 2);
   });
 });
 

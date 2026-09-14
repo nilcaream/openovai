@@ -65,3 +65,19 @@ export function append(root, session, message) {
   publish("row", { seat: session, index: messages.length - 1, row: entry });
   return entry;
 }
+
+// A tool call whose result came back as an error, after its line was written: the entry is marked
+// in place, so a page that loads later draws the line red from the start, and the page that is
+// open is told the row again at its index. A call that drew no line — one the summary says
+// nothing about — is the usual case, and nothing.
+export function amend(root, session, call) {
+  const messages = read(root, session);
+  const index = messages.findLastIndex((entry) => entry.call === call);
+  if (index === -1) {
+    return null;
+  }
+  messages[index].err = true;
+  fs.writeFileSync(file(root, session), `${JSON.stringify(messages, null, 2)}\n`);
+  publish("row", { seat: session, index, row: messages[index] });
+  return messages[index];
+}

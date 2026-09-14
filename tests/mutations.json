@@ -1075,5 +1075,60 @@
         "to": "  return TOOL_ROUTE.test(pathname) ? \"/mcp/<secret>\" : pathname;"
       }
     ]
+  },
+  {
+    "name": "a tool line is written on the Leader's panel too",
+    "catches": "writes no line for the Leader's own calls",
+    "edits": [
+      {
+        "file": "tools/chat/lifecycle.mjs",
+        "from": "    ...(roleOf(instance, seat) === WORKER ? { called:",
+        "to": "    ...(true ? { called:"
+      }
+    ]
+  },
+  {
+    "name": "a failed call leaves its line as it was: the amend is gone",
+    "catches": "marks the line of a call that failed, in the file and on the stream",
+    "edits": [
+      {
+        "file": "tools/chat/lifecycle.mjs",
+        "from": "failed: ({ id }) => amend(instance.root, seat, id) }",
+        "to": "failed: () => {} }"
+      }
+    ]
+  },
+  {
+    "name": "the amend tells the page but keeps the old entry on disk",
+    "catches": "marks the line of a call that failed, in the file and on the stream",
+    "edits": [
+      {
+        "file": "tools/chat/conversation.mjs",
+        "from": "  messages[index].err = true;\n  fs.writeFileSync(file(root, session), `${JSON.stringify(messages, null, 2)}\\n`);\n",
+        "to": "  messages[index].err = true;\n"
+      }
+    ]
+  },
+  {
+    "name": "a subagent's calls draw as the seat's own: the parent check is gone",
+    "catches": "draws nothing for a call made under another call",
+    "edits": [
+      {
+        "file": "tools/chat/session.mjs",
+        "from": "        if ((frame.parent_tool_use_id ?? null) === null) {",
+        "to": "        {"
+      }
+    ]
+  },
+  {
+    "name": "a line is written for every call, the silent ones included",
+    "catches": "draws nothing for a search of the tool list or a session's own stop",
+    "edits": [
+      {
+        "file": "tools/chat/lifecycle.mjs",
+        "from": "    if (text !== null) {\n      append(instance.root, seat, { from: seat, line: text, call: id });\n    }\n",
+        "to": "    append(instance.root, seat, { from: seat, line: text, call: id });\n"
+      }
+    ]
   }
 ]

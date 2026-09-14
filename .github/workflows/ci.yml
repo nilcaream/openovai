@@ -250,6 +250,19 @@ jobs:
       - name: Read the stylesheet as rules, and hold every colour to the token table
         run: node --test tests/page.test.mjs
 
+  lines:
+    name: Lines
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+
+      - name: Read what every tool call is drawn as
+        run: node --test tests/lines.test.mjs
+
   release:
     name: Release
     runs-on: ubuntu-latest

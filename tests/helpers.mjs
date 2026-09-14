@@ -113,6 +113,13 @@ export function claudeIsInstalled() {
 //                             answer is logged as `tool: <name> -> <text>`
 //   OPENOVAI_STAND_IN_TOOL_ON       only turns whose question contains this text make those calls
 //                             (default: every turn)
+//   OPENOVAI_STAND_IN_CALLS         a JSON list, one entry per QUESTION the same way, each a list of
+//                             { name, input, error?, parent? }: the tools the real one would say
+//                             it is using in that turn, each written before the answer as one
+//                             assistant frame with a tool_use block (id call-<turn>-<i>,
+//                             parent_tool_use_id from parent, else null) and one user frame
+//                             with its tool_result (is_error from error) — the shapes measured on
+//                             the real one, one frame per block
 //   OPENOVAI_STAND_IN_IGNORES_INTERRUPT
 //                             carry on with the turn when told to interrupt it; without this an
 //                             interrupt ends the turn with an error result, as the real one does
@@ -434,6 +441,16 @@ for (;;) {
     frame({ type: "system", subtype: "init", session_id: "test-thread" });
     process.stdout.write("this line is not a frame at all\\n");
     frame({ type: "assistant", message: { role: "assistant", content: [{ type: "text", text: "thinking" }] } });
+  }
+
+  // The tools the real one would say it is using in this turn: the call as its own assistant
+  // frame, then its result as the user's turn of the protocol, before the answer — as measured.
+  const made = isQuestion ? perTurn("OPENOVAI_STAND_IN_CALLS", question) : null;
+  for (const [i, call] of (made ?? []).entries()) {
+    const id = "call-" + turn + "-" + i;
+    const parent = call.parent ?? null;
+    frame({ type: "assistant", message: { role: "assistant", content: [{ type: "tool_use", id, name: call.name, input: call.input ?? {} }] }, parent_tool_use_id: parent, session_id: "test-thread" });
+    frame({ type: "user", message: { role: "user", content: [{ type: "tool_result", content: call.error === true ? "failed" : "done", is_error: call.error === true, tool_use_id: id }] }, parent_tool_use_id: parent, session_id: "test-thread" });
   }
 
   const slow = Number(process.env.OPENOVAI_STAND_IN_SLOW ?? 0);

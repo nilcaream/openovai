@@ -131,6 +131,11 @@ describe("the rules", () => {
     assert.equal(pill.declarations["border-radius"], "999px");
   });
 
+  it("draw a tool line in the dim mono of a machine word", () => {
+    const line = rules.find((rule) => rule.selector === ".rows .line");
+    assert.equal(line.declarations.color, "var(--fg-dim)");
+  });
+
   // The pill sticks to the bottom edge of the rows it belongs to, not to the viewport: a pill fixed
   // to the viewport sits over whatever is open below the rows — the reason input of a permission
   // card, first of all — while a sticky last child of the rows sits above it, 24px up.
@@ -269,7 +274,7 @@ describe("the script", () => {
   it("shows the pill when rows land below a reader who is not near the newest, and takes them there on a click", () => {
     assert.match(script, /const nearTheNewest = \(rows\) => rows\.scrollHeight - rows\.scrollTop - rows\.clientHeight < 80;/);
     assert.match(script, /\n      rows\.append\(jump\);\n/, "the pill is a child of the rows");
-    assert.match(script, /panel\.shown = about\.rows\.length;\n(?:[^\n]*\n){7}      if \(panel\.jump !== null && panel\.jump !== panel\.rows\.lastElementChild\) panel\.rows\.append\(panel\.jump\);\n    \}\n/, "the pill is put back last AFTER the rows are appended, as the last statement of the draw");
+    assert.match(script, /panel\.shown = about\.rows\.length;\n(?:[^\n]*\n){21}      if \(panel\.jump !== null && panel\.jump !== panel\.rows\.lastElementChild\) panel\.rows\.append\(panel\.jump\);\n    \}\n/, "the pill is put back last AFTER the rows are appended, as the last statement of the draw");
     assert.match(script, /\} else if \(panel\.jump !== null && !near\) \{\s*panel\.jump\.classList\.add\("show"\);/);
     assert.match(script, /rows\.addEventListener\("scroll", \(\) => \{\s*if \(nearTheNewest\(rows\)\) jump\.classList\.remove\("show"\);/);
     assert.match(script, /jump\.addEventListener\("click", \(\) => \{\s*rows\.scrollTop = rows\.scrollHeight;\s*jump\.classList\.remove\("show"\);/);
@@ -299,7 +304,44 @@ describe("the script", () => {
     assert.match(script, /time\.dataset\.whole = when\.whole;\s*time\.dataset\.clock = when\.clock;\s*time\.textContent = when\.whole;/);
     assert.match(script, /function fitStamps\(stamps\) \{\s*for \(const time of stamps\) time\.textContent = time\.dataset\.whole;\s*const cut = \[\.\.\.stamps\]\.filter\(\(time\) => \{ const label = time\.parentElement\.querySelector\("\.lbl"\); return label\.scrollWidth > label\.clientWidth; \}\);\s*for \(const time of cut\) time\.textContent = time\.dataset\.clock;\s*\}/);
     assert.match(script, /new ResizeObserver\(\(\) => fitStamps\(rows\.querySelectorAll\("\.t"\)\)\)\.observe\(rows\);/);
-    assert.match(script, /added\.push\(line\.querySelector\("\.t"\)\);\s*\}\s*fitStamps\(added\);\s*panel\.shown = about\.rows\.length;/, "the appended rows are fitted once, after the loop");
+    assert.match(script, /if \(time !== null\) added\.push\(time\);\s*\}\s*fitStamps\(added\);\s*panel\.shown = about\.rows\.length;/, "the appended rows are fitted once, after the loop");
+  });
+
+  // A tool line has no stamp: what the loop pushes to the fitter is the stamp it found, never a
+  // null the fitter would read textContent on.
+  it("pushes only a stamp it found to the fitter", () => {
+    assert.match(script, /const time = line\.querySelector\("\.t"\);\s*if \(time !== null\) added\.push\(time\);/);
+  });
+
+  // A tool call is a line, built by one function that always appends the counter span: the err
+  // class from the shown row, never a ternary in the class name (the classes check reads
+  // literals), and the text as text.
+  it("builds a tool line as a div with its summary as text, the err class from the row, and a counter span after it", () => {
+    assert.match(script, /function lineElement\(shown\) \{\s*const line = document\.createElement\("div"\);\s*line\.className = "line";\s*if \(shown\.err === true\) line\.classList\.add\("err"\);\s*line\.textContent = shown\.text;\s*const count = document\.createElement\("span"\);\s*count\.className = "n";\s*line\.append\(count\);\s*return line;/);
+    assert.match(script, /if \(shown\.kind === "line"\) return lineElement\(shown\);/);
+  });
+
+  // A call that failed after its line was drawn: the server writes the row again with err, the
+  // page lists its index under amended, and the draw marks the element of that index.
+  it("marks the line of a call that failed red, by its index", () => {
+    assert.match(script, /for \(const index of about\.amended\.splice\(0\)\) \{\s*const element = panel\.lines\.get\(index\);\s*if \(element !== undefined && about\.rows\[index\]\.err === true\) element\.classList\.add\("err"\);/);
+    assert.match(script, /panel\.lines\.set\(index, line\);/, "a drawn line is kept by its index");
+  });
+
+  // Identical neighbouring calls are one line with a counter: the repeated call writes ×N into
+  // the counter span of the line appended last and draws nothing; any other row ends the run.
+  it("merges a repeated call into one line with a counter", () => {
+    assert.match(script, /if \(shown\.kind === "line" && panel\.last !== null && panel\.last\.text === shown\.text\) \{\s*panel\.last\.count \+= 1;\s*panel\.last\.n\.textContent = ` ×\$\{panel\.last\.count\}`;\s*panel\.lines\.set\(index, panel\.last\.el\);\s*continue;/);
+    assert.match(script, /\} else \{\s*panel\.last = null;\s*\}/, "a bubble ends the run");
+    assert.match(script, /panel\.day = day;\s*panel\.last = null;/, "a pill ends the run");
+  });
+
+  // A Worker panel holds a hundred drawn rows: the first draw starts
+  // a hundred from the end rather than building every row and trimming, and every draw lets the
+  // oldest go past a hundred. The Leader's panel is the User's own conversation and keeps it all.
+  it("keeps the last hundred rows of a Worker panel and every row of the Leader's", () => {
+    assert.match(script, /const from = panel\.jump === null && panel\.shown === 0 \? Math\.max\(panel\.shown, about\.rows\.length - 100\) : panel\.shown;/);
+    assert.match(script, /if \(panel\.jump === null\) \{\s*const drawn = \[\.\.\.panel\.rows\.children\]\.filter\(\(child\) => child\.matches\("\.msg, \.line, \.divider"\)\);\s*while \(drawn\.length > 100\) drawn\.shift\(\)\.remove\(\);/);
   });
 
   // The instance facts on the Leader's head, drawn from the parts panels.mjs makes: the connection

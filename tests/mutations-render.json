@@ -75,5 +75,27 @@
         "to": "  if (entry.interrupted === true && false) {"
       }
     ]
+  },
+  {
+    "name": "a line entry is drawn as a reply",
+    "catches": "a tool call is a line: the summary as text, its kind line, red once the call failed",
+    "edits": [
+      {
+        "file": "tools/chat/render.mjs",
+        "from": "  if (typeof entry.line === \"string\") {\n    return { who: entry.from, kind: \"line\", text: entry.line, err: entry.err === true };\n  }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a failed line is drawn plain",
+    "catches": "a tool call is a line: the summary as text, its kind line, red once the call failed",
+    "edits": [
+      {
+        "file": "tools/chat/render.mjs",
+        "from": "text: entry.line, err: entry.err === true };",
+        "to": "text: entry.line, err: false };"
+      }
+    ]
   }
 ]

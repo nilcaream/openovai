@@ -43,11 +43,15 @@ export function html(text) {
 export const SILENT = "(ended its turn without saying anything)";
 export const INTERRUPTED = "turn interrupted";
 
-// One row: `{ who, kind, text }` for words shown as they are, `{ who, kind, html }` for a reply.
-// `names.chat` is who the server writes as when it is nobody — the chat saying what became of a
-// message. The User's own rows say `you`, and on the Leader's panel one typed to a Worker says
-// where it went.
+// One row: `{ who, kind, text }` for words shown as they are, `{ who, kind, html }` for a reply,
+// `{ who, kind: "line", text, err }` for a tool call — the summary the server wrote for it, red
+// once the call failed. `names.chat` is who the server writes as when it is nobody — the chat
+// saying what became of a message. The User's own rows say `you`, and on the Leader's panel one
+// typed to a Worker says where it went.
 export function row(entry, names) {
+  if (typeof entry.line === "string") {
+    return { who: entry.from, kind: "line", text: entry.line, err: entry.err === true };
+  }
   if (entry.interrupted === true) {
     return { who: names.chat, kind: "interrupted", text: INTERRUPTED };
   }

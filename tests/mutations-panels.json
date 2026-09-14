@@ -78,7 +78,7 @@
   },
   {
     "name": "a row from the past is appended again",
-    "catches": "a row lands at its index once; a row from the past is ignored",
+    "catches": "a row lands at its index once; a row at a past index replaces the one there",
     "edits": [
       {
         "file": "tools/chat/panels.mjs",
@@ -194,6 +194,17 @@
         "file": "tools/chat/panels.mjs",
         "from": "  if (panel.dimmed) return \"\";\n",
         "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a row at a past index is dropped again",
+    "catches": "a row lands at its index once; a row at a past index replaces the one there",
+    "edits": [
+      {
+        "file": "tools/chat/panels.mjs",
+        "from": "      } else {\n        // A row the server wrote again, at an index the page holds: it replaces the one there.\n        panel.rows[data.index] = data.row;\n        panel.amended.push(data.index);\n      }\n",
+        "to": "      }\n"
       }
     ]
   }

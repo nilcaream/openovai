@@ -68,4 +68,13 @@ describe("every other row", () => {
   it("an interrupted turn is shown as interrupted, not as a reply", () => {
     assert.deepEqual(row({ from: "Paul", text: "interrupted", interrupted: true }, names), { who: "the chat", kind: "interrupted", text: INTERRUPTED });
   });
+
+  // A tool call is what the server summarised it as, as text — never markdown, never a reply —
+  // and stays a line whatever else the entry carries; red once its call failed.
+  it("a tool call is a line: the summary as text, its kind line, red once the call failed", () => {
+    assert.deepEqual(row({ at: "2026-09-14T09:00:00.000Z", from: "Paul", line: "Reading ~/x/y.mjs", call: "toolu_1" }, names), { who: "Paul", kind: "line", text: "Reading ~/x/y.mjs", err: false });
+    assert.deepEqual(row({ from: "Paul", line: "Run the suite", call: "toolu_2", err: true }, names), { who: "Paul", kind: "line", text: "Run the suite", err: true });
+    assert.equal(row({ from: "Paul", line: "Searching **x**", call: "toolu_3", interrupted: true }, names).kind, "line");
+    assert.equal(row({ from: "Paul", line: "Searching **x**", call: "toolu_3" }, names).html, undefined, "a line is never markdown");
+  });
 });
