@@ -201,7 +201,7 @@ export function stopEnabled(state, name) {
 
 // --------------------------------------------------------------------------------------- marks
 
-export const WAITING = "● waiting for you";
+export const WAITING = "waiting for you";
 
 export function asking(state, name) {
   const panel = state.panels[name];
@@ -214,17 +214,12 @@ export function title(state) {
   return any ? `● ${SHORT}` : SHORT;
 }
 
-// The head of a panel: the name, the model, the context in k when known, the mark when it asks.
+// The head of a panel, in parts: the name, the facts (the model, the context in k when known)
+// and the state word while it asks.
 export function head(state, name) {
   const panel = state.panels[name];
-  const parts = [panel.name, panel.model].filter((part) => part !== "");
-  if (panel.context !== null) {
-    parts.push(`${Math.round(panel.context / 1000)}k`);
-  }
-  if (asking(state, name)) {
-    parts.push(WAITING);
-  }
-  return parts.join(" · ");
+  const facts = [panel.model, panel.context === null ? "" : `${Math.round(panel.context / 1000)}k`];
+  return { name: panel.name, info: facts.filter((fact) => fact !== "").join(" "), state: asking(state, name) ? WAITING : "" };
 }
 
 // ---------------------------------------------------------------------------------- status line

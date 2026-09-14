@@ -62,18 +62,29 @@
     #left { order: 1; }
     #right { order: 2; }
   }
-  .panel {
-    display: flex; flex-direction: column; gap: 3px; min-height: 160px; max-height: 100%; font-size: .9rem;
-    border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel);
-    transition: opacity .4s;
-  }
+  /* a panel is a bare slot: the head bubble first, then the rows */
+  .panel { flex: 1 1 0; min-height: 160px; display: flex; flex-direction: column; gap: 3px; overflow: hidden; font-size: .9rem; transition: opacity .4s; }
   #mid .panel { flex: 1 1 auto; }
   .panel.dimmed { opacity: .45; }
-  .head { display: flex; align-items: baseline; gap: 8px; padding: 6px 8px; border-bottom: 1px solid var(--line); }
-  .head .name { flex: 1 1 auto; font-weight: 600; }
-  .panel.asking .head .name { color: var(--warn); }
-  .head button { font: inherit; font-size: 12px; }
-  .rows { flex: 1 1 auto; min-height: 6em; overflow-y: auto; padding: 4px 8px; }
+  .phead {
+    flex: 0 0 auto; padding: 4px 10px 3px; border: 2px solid var(--line); border-radius: var(--radius); background: var(--panel-2);
+    display: flex; align-items: baseline; gap: 0; min-width: 0; overflow: hidden; white-space: nowrap;
+  }
+  .panel.asking .phead { border-color: var(--warn); }
+  .phead .name { margin-right: 8px; flex: 0 0 auto; white-space: nowrap; font-weight: 700; font-size: 1rem; }
+  /* the dot before the name: red once the process is gone, pulsing while the panel asks */
+  .phead .name::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--fg-faint); margin-right: 8px; vertical-align: 1px; }
+  .panel.dimmed .phead .name::before { background: var(--bad); }
+  .panel.asking .phead .name::before { animation: pulse 1.2s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .25; } }
+  /* the facts never shrink; the state word is the one part the row may trim */
+  .phead .info { font-family: var(--mono); font-size: .78rem; color: var(--fg-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 0 auto; }
+  .phead .state { color: var(--fg-dim); font-size: .78rem; font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 0 1 auto; min-width: 0; }
+  .phead .info:not(:empty) + .state:not(:empty)::before { content: "\00a0·\00a0"; }
+  .phead button { font: .74rem var(--mono); color: var(--bad); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 1px 8px; cursor: pointer; flex: 0 0 auto; margin-left: 10px; align-self: center; }
+  .phead button:hover { color: var(--fg); border-color: var(--fg-faint); }
+  .phead button:disabled { opacity: .45; cursor: default; }
+  .rows { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 0; }
   .rows .empty { color: var(--fg-faint); font-size: .8rem; padding: 4px 0; }
   #mid .rows .empty { font-size: inherit; text-align: center; padding: 20px 0; }
   .row { margin: 4px 0; }
@@ -84,11 +95,12 @@
   .md > :first-child { margin-top: 0; }
   .md > :last-child { margin-bottom: 0; }
   .md pre { overflow-x: auto; padding: 6px; background: var(--bg); border-radius: var(--radius); }
-  .asking:not(:empty) { padding: 4px 8px; border-top: 1px solid var(--line); }
-  .asking p { margin: 4px 0; }
-  .asking code, .asking q { display: block; margin: 2px 0; }
-  .asking input { font: inherit; }
-  .asking button { font: inherit; margin-right: 4px; }
+  /* the questions box, a child of the panel: the panel itself carries the asking class too */
+  .panel > .asking:not(:empty) { padding: 4px 8px; border-top: 1px solid var(--line); }
+  .panel > .asking p { margin: 4px 0; }
+  .panel > .asking code, .panel > .asking q { display: block; margin: 2px 0; }
+  .panel > .asking input { font: inherit; }
+  .panel > .asking button { font: inherit; margin-right: 4px; }
   .composer { padding: 6px 8px; border-top: 1px solid var(--line); }
   .composer textarea { width: 100%; resize: vertical; font: inherit; }
 </style>
@@ -144,9 +156,13 @@
     section.className = "panel";
 
     const headLine = document.createElement("div");
-    headLine.className = "head";
+    headLine.className = "phead";
     const nameLine = document.createElement("span");
     nameLine.className = "name";
+    const info = document.createElement("span");
+    info.className = "info";
+    const word = document.createElement("span");
+    word.className = "state";
     const stop = document.createElement("button");
     stop.type = "button";
     stop.textContent = "STOP";
@@ -154,7 +170,7 @@
       stop.disabled = true;
       call(`/sessions/${encodeURIComponent(name)}/stop`, { method: "POST" }).catch(() => {});
     });
-    headLine.append(nameLine, stop);
+    headLine.append(nameLine, info, word, stop);
 
     const rows = document.createElement("div");
     rows.className = "rows";
@@ -195,7 +211,7 @@
     });
 
     section.append(headLine, rows, asking, composer);
-    return { name, section, nameLine, stop, rows, empty, asking, box, shown: 0, drawn: new Map(), loading: false };
+    return { name, section, nameLine, info, word, stop, rows, empty, asking, box, shown: 0, drawn: new Map(), loading: false };
   }
 
   function rowElement(entry) {
@@ -299,7 +315,10 @@
 
   function drawPanel(panel) {
     const about = state.panels[panel.name];
-    panel.nameLine.textContent = head(state, panel.name);
+    const parts = head(state, panel.name);
+    panel.nameLine.textContent = parts.name;
+    panel.info.textContent = parts.info;
+    panel.word.textContent = parts.state;
     panel.section.title = about.title;
     panel.section.classList.toggle("dimmed", about.dimmed);
     panel.section.classList.toggle("asking", about.asking.length > 0);

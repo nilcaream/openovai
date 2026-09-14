@@ -91,6 +91,11 @@ describe("the rules", () => {
     assert.equal(body.declarations.font, "1rem/1.5 var(--sans)");
   });
 
+  it("mark a panel whose process is gone with a red dot on its head", () => {
+    const dot = rules.find((rule) => rule.selector === ".panel.dimmed .phead .name::before");
+    assert.equal(dot.declarations.background, "var(--bad)");
+  });
+
   it("carry no raw colour outside the token blocks", () => {
     for (const rule of rules) {
       if (tokenBlocks.includes(rule)) continue;

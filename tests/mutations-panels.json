@@ -152,5 +152,16 @@
         "to": "  return \"ok\";"
       }
     ]
+  },
+  {
+    "name": "the head drops the model",
+    "catches": "the head is the name, the model and the context in k, in parts",
+    "edits": [
+      {
+        "file": "tools/chat/panels.mjs",
+        "from": "  const facts = [panel.model, panel.context === null",
+        "to": "  const facts = [\"\", panel.context === null"
+      }
+    ]
   }
 ]

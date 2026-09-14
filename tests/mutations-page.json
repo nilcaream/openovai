@@ -11,13 +11,13 @@
     ]
   },
   {
-    "name": "the panel ground is a hex instead of a token",
+    "name": "the head bubble's ground is a hex instead of a token",
     "catches": "carry no raw colour outside the token blocks",
     "edits": [
       {
         "file": "tools/chat/page.html",
-        "from": "border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel);",
-        "to": "border: 1px solid var(--line); border-radius: var(--radius); background: #ffffff;"
+        "from": "border: 2px solid var(--line); border-radius: var(--radius); background: var(--panel-2);",
+        "to": "border: 2px solid var(--line); border-radius: var(--radius); background: #eef1f5;"
       }
     ]
   },
@@ -73,6 +73,17 @@
         "file": "tools/chat/page.html",
         "from": "  .rows .empty { color: var(--fg-faint); font-size: .8rem; padding: 4px 0; }\n  #mid .rows .empty { font-size: inherit; text-align: center; padding: 20px 0; }\n",
         "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the dot of a panel whose process is gone takes the busy colour",
+    "catches": "mark a panel whose process is gone with a red dot on its head",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "  .panel.dimmed .phead .name::before { background: var(--bad); }",
+        "to": "  .panel.dimmed .phead .name::before { background: var(--warn); }"
       }
     ]
   }

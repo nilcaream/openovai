@@ -125,20 +125,21 @@ describe("marks and controls", () => {
     assert.equal(title(state), "ovai");
     applyEvent(state, { name: "asking", data: { seat: "Paul", pending: [{ id: "r1", tool: "Bash", input: { command: "ls" } }] } }, 0);
     assert.equal(title(state), "● ovai");
-    assert.match(head(state, "Paul"), /● waiting for you$/);
-    assert.ok(!head(state, LEADER).includes("●"));
+    assert.equal(head(state, "Paul").state, "waiting for you");
+    assert.equal(head(state, LEADER).state, "");
     applyEvent(state, { name: "asking", data: { seat: LEADER, pending: [{ id: "u1", kind: "rule", rule: "Bash(git:*)", why: "w", from: LEADER }] } }, 0);
-    assert.match(head(state, LEADER), /● waiting for you$/);
+    assert.equal(head(state, LEADER).state, "waiting for you");
     applyEvent(state, { name: "asking", data: { seat: "Paul", pending: [] } }, 0);
     applyEvent(state, { name: "asking", data: { seat: LEADER, pending: [] } }, 0);
     assert.equal(title(state), "ovai");
-    assert.ok(!head(state, "Paul").includes("●"));
+    assert.equal(head(state, "Paul").state, "");
   });
 
-  it("the head is the name, the model and the context in k", () => {
+  it("the head is the name, the model and the context in k, in parts", () => {
     const state = fresh();
-    applyEvent(state, snapshot([about(LEADER, { model: "opus", context: 41_200 })]), 0);
-    assert.equal(head(state, LEADER), "Leader · opus · 41k");
+    applyEvent(state, snapshot([about(LEADER, { model: "opus", context: 41_200 }), about("Paul", { model: "" })]), 0);
+    assert.deepEqual(head(state, LEADER), { name: "Leader", info: "opus 41k", state: "" });
+    assert.deepEqual(head(state, "Paul"), { name: "Paul", info: "", state: "" });
   });
 
   it("STOP is enabled while a turn runs and nowhere else", () => {
