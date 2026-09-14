@@ -133,11 +133,11 @@
   },
   {
     "name": "the head drops the model",
-    "catches": "the head is the name, the model with its effort when one is set, and the context in k, in parts",
+    "catches": "the head is the name, the model and the context in k, in parts",
     "edits": [
       {
         "file": "lib/chat/panels.mjs",
-        "from": "  const facts = [model, panel.context === null",
+        "from": "  const facts = [panel.model, panel.context === null",
         "to": "  const facts = [\"\", panel.context === null"
       }
     ]
@@ -194,28 +194,6 @@
         "file": "lib/chat/panels.mjs",
         "from": "      state.instance = data.instance ?? \"\";\n",
         "to": ""
-      }
-    ]
-  },
-  {
-    "name": "the head names the model without its effort",
-    "catches": "the head is the name, the model with its effort when one is set, and the context in k, in parts",
-    "edits": [
-      {
-        "file": "lib/chat/panels.mjs",
-        "from": "  const model = panel.effort === \"\" ? panel.model : `${panel.model}/${panel.effort}`;",
-        "to": "  const model = panel.model;"
-      }
-    ]
-  },
-  {
-    "name": "a seat event without an effort drops the one the head has",
-    "catches": "the head is the name, the model with its effort when one is set, and the context in k, in parts",
-    "edits": [
-      {
-        "file": "lib/chat/panels.mjs",
-        "from": "  panel.effort = typeof about.effort === \"string\" ? about.effort : panel.effort;",
-        "to": "  panel.effort = typeof about.effort === \"string\" ? about.effort : \"\";"
       }
     ]
   },

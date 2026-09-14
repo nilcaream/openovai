@@ -23,7 +23,6 @@ import { endSeat, serve, shownRoot, startSeat, toolsFor } from "../lib/chat/serv
 import { LEADER as LEADS, SECRET_IN_ENVIRONMENT, WORKER as WORKS, end, endEvery, running, runningSeats, start, tell, wouldWaitForItself, whileWaitingFor } from "../lib/chat/session.mjs";
 import { BUILT_IN } from "../lib/plugins.mjs";
 import { CONFIG_FILE } from "../lib/seed.mjs";
-import { readSettings, writeSettings } from "../lib/settings.mjs";
 import { alive, callsIn, get as fetchPlain, heardIn, installed, notesIn, post as postPlain, remove, repo, scratch, secretsIn, startChat, stopChat, waitFor, waitForAddress, writeStandIn } from "./helpers.mjs";
 
 const USER = "Mike";
@@ -268,22 +267,6 @@ describe("what the chat serves", () => {
     assert.equal(shownRoot("/home/u", "/home/u"), "~");
     assert.equal(shownRoot("/home/user2/inst", "/home/u"), "/home/user2/inst");
     assert.equal(shownRoot("/srv/inst", "/home/u"), "/srv/inst");
-  });
-
-  // The effort every seat runs at is the instance's own setting; a seat says it beside its model,
-  // and says nothing when none is set.
-  it("tells the page each seat's effort from the instance's settings, and none when none is set", async () => {
-    const before = readSettings(instance);
-    try {
-      writeSettings(instance, { ...before, effortLevel: "high" });
-      let { sessions } = JSON.parse((await page("GET", "/sessions")).body);
-      assert.deepEqual(sessions.map((seat) => seat.effort), ["high", "high", "high"]);
-      writeSettings(instance, before);
-      ({ sessions } = JSON.parse((await page("GET", "/sessions")).body));
-      assert.deepEqual(sessions.map((seat) => seat.effort), [null, null, null]);
-    } finally {
-      writeSettings(instance, before);
-    }
   });
 
   it("puts the Leader first and the rest in name order", async () => {

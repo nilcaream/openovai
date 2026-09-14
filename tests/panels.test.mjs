@@ -151,16 +151,14 @@ describe("marks and controls", () => {
     assert.equal(head(state, "Paul").state, "listening");
   });
 
-  it("the head is the name, the model with its effort when one is set, and the context in k, in parts", () => {
+  it("the head is the name, the model and the context in k, in parts", () => {
     const state = fresh();
-    applyEvent(state, snapshot([about(LEADER, { model: "opus", effort: "high", context: 41_200 }), about("Paul", { model: "" }), about("Ann", { model: "sonnet", effort: null })]), 0);
-    assert.deepEqual(head(state, LEADER), { name: "Leader", info: "opus/high 41k", state: "listening" });
+    applyEvent(state, snapshot([about(LEADER, { model: "opus", context: 41_200 }), about("Paul", { model: "" }), about("Ann", { model: "sonnet" })]), 0);
+    assert.deepEqual(head(state, LEADER), { name: "Leader", info: "opus 41k", state: "listening" });
     assert.deepEqual(head(state, "Paul"), { name: "Paul", info: "", state: "listening" });
     assert.deepEqual(head(state, "Ann"), { name: "Ann", info: "sonnet", state: "listening" });
-    applyEvent(state, seat("Ann", { model: "sonnet", effort: "low", context: 2_600 }), 1);
-    assert.equal(head(state, "Ann").info, "sonnet/low 3k");
-    applyEvent(state, seat("Ann", { model: "sonnet", effort: null }), 2);
-    assert.equal(head(state, "Ann").info, "sonnet/low 3k", "a seat event without an effort keeps the one the head has");
+    applyEvent(state, seat("Ann", { model: "sonnet", context: 2_600 }), 1);
+    assert.equal(head(state, "Ann").info, "sonnet 3k");
   });
 
   // The word follows the turn: a seat event with busy flips it, an ask outranks it, and a dimmed

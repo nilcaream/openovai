@@ -1240,38 +1240,5 @@
         "to": ""
       }
     ]
-  },
-  {
-    "name": "a seat says no effort",
-    "catches": "tells the page each seat's effort from the instance's settings, and none when none is set",
-    "edits": [
-      {
-        "file": "lib/chat/lifecycle.mjs",
-        "from": "    effort: effortOf(instance),\n",
-        "to": ""
-      }
-    ]
-  },
-  {
-    "name": "the effort is read from the instance's own file and never from its settings",
-    "catches": "tells the page each seat's effort from the instance's settings, and none when none is set",
-    "edits": [
-      {
-        "file": "lib/chat/lifecycle.mjs",
-        "from": "  const level = readSettings(instance.root).effortLevel;",
-        "to": "  const level = instance.config.effortLevel;"
-      }
-    ]
-  },
-  {
-    "name": "an effort that is not set reads as the empty word",
-    "catches": "tells the page each seat's effort from the instance's settings, and none when none is set",
-    "edits": [
-      {
-        "file": "lib/chat/lifecycle.mjs",
-        "from": "  return typeof level === \"string\" && level !== \"\" ? level : null;",
-        "to": "  return typeof level === \"string\" ? level : \"\";"
-      }
-    ]
   }
 ]
