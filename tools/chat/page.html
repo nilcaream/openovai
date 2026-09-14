@@ -126,12 +126,19 @@
   .msg.chat .bubble, .msg.silent .bubble { color: var(--fg-dim); }
   .msg.interrupted .bubble { background: var(--pending); border-style: dashed; color: var(--fg-dim); }
   .msg.failed .bubble { border-color: var(--bad); }
+  /* a message between two sessions on the Leader's panel: one ground for what went to a session, another for what came from one */
+  .msg.peer-in .bubble, .msg.peer-out .bubble { overflow-wrap: anywhere; }
+  .msg.peer-in .bubble { background: var(--from); border-color: var(--from-line); }
+  .msg.peer-out .bubble { background: var(--to); border-color: var(--to-line); }
   .text { white-space: pre-wrap; }
   /* the label row: the speaker on the left, ellipsised before it could push the timestamp, the timestamp last */
   .who { font-size: .78rem; font-weight: 600; color: var(--fg-dim); display: flex; gap: 8px; align-items: baseline; margin-right: auto; flex: 1 1 auto; min-width: 0; }
   .who .lbl { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .meta { font-size: .72rem; color: var(--fg-faint); text-align: right; margin: 0 0 3px; font-family: var(--mono); display: flex; gap: 8px; justify-content: flex-end; align-items: baseline; }
   .meta .t { flex: 0 0 auto; order: 1; }
+  /* what became of a message the Leader sent: a glyph before the stamp, red when it did not go */
+  .meta .st { flex: 0 0 auto; color: var(--ok); }
+  .meta .st.bad { color: var(--bad); }
   /* the pill between two days */
   .divider { text-align: center; margin: 14px 0; color: var(--fg-faint); font-size: .78rem; font-family: var(--mono); }
   .divider span { background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 2px 12px; }
@@ -151,6 +158,9 @@
   .md ul, .md ol { padding-left: 1.2em; }
   .md li { margin: .1em 0; }
   .md li > p { margin: .15em 0; }
+  /* the compact form, for a message between two sessions */
+  .md.tight p, .md.tight ul, .md.tight ol, .md.tight li, .md.tight li > p, .md.tight pre { margin: 0; }
+  .md.tight ul, .md.tight ol { padding-left: 1.1em; }
   .md hr { border: 0; border-top: 1px solid var(--line); }
   .md img { max-width: 100%; }
   /* a question is a card in the slot under the rows: the heading, the raw words of the request, the reason, then the decisions */
@@ -430,6 +440,8 @@
 
   // A row is a bubble: the label row on top — who spoke, and when, last — and the body under it,
   // the HTML of a reply or the words of anyone else as they are. A tool call is a line instead.
+  // A message the Leader sent carries what became of it as a glyph in the label row, after the
+  // stamp in the DOM and before it on screen; its body is the compact markdown.
   function rowElement(entry, shown) {
     if (shown.kind === "line") return lineElement(shown);
     const line = document.createElement("div");
@@ -451,10 +463,19 @@
     time.dataset.clock = when.clock;
     time.textContent = when.whole;
     meta.append(who, time);
+    if (shown.status !== undefined) {
+      const st = document.createElement("span");
+      st.className = "st";
+      if (shown.status.bad === true) st.classList.add("bad");
+      st.textContent = shown.status.text;
+      st.title = shown.status.title;
+      meta.append(st);
+    }
     const body = document.createElement("div");
     if (shown.html !== undefined) {
       body.className = "md";
       body.innerHTML = shown.html;
+      if (shown.tight === true) body.classList.add("tight");
     } else {
       body.className = "text";
       body.textContent = shown.text;
@@ -618,7 +639,7 @@
             panel.last = null;
             panel.rows.append(dayPill(day));
           }
-          const shown = rowOf(entry, { chat: state.chat });
+          const shown = rowOf(entry, { chat: state.chat, seat: panel.name, leader: state.leader });
           if (shown.kind === "line" && panel.last !== null && panel.last.text === shown.text) {
             panel.last.count += 1;
             panel.last.n.textContent = ` ×${panel.last.count}`;

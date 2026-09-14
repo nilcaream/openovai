@@ -297,25 +297,37 @@ export function toolsFor(instance, caller) {
         }
         const to = args?.to;
         const text = args?.text;
-        if (!isName(to) || !isSeat(instance, to)) {
+        if (!isName(to)) {
           return { refused: `nobody called ${to} works here` };
-        }
-        if (to === caller.seat) {
-          return { refused: "that is you" };
         }
         if (typeof text !== "string" || text.trim() === "") {
           return { refused: "a message needs some text" };
         }
+        // The call is a row on the caller's own log — who it went to, the words, and what
+        // became of it — written once, as soon as that is known: `refused` when a rule stopped
+        // it before anything was attempted, `not sent` when it was attempted and nobody could
+        // take it, `sent` once the seat has it. A message with no name to go to, or nothing in
+        // it, is no message and leaves no row.
+        if (!isSeat(instance, to)) {
+          append(root, caller.seat, { from: caller.seat, to, text, outcome: "not sent", why: `nobody called ${to} works here` });
+          return { refused: `nobody called ${to} works here` };
+        }
+        if (to === caller.seat) {
+          append(root, caller.seat, { from: caller.seat, to, text, outcome: "refused", why: "that is you" });
+          return { refused: "that is you" };
+        }
         if (wouldWaitForItself(caller.seat, to)) {
-          return {
-            refused: `${to} is waiting for your answer, so it cannot take a message until you have given it — say this in your reply instead`,
-          };
+          const why = `${to} is waiting for your answer, so it cannot take a message until you have given it — say this in your reply instead`;
+          append(root, caller.seat, { from: caller.seat, to, text, outcome: "refused", why });
+          return { refused: why };
         }
         const told = deliver(instance, to, messageFrame(caller.seat, text));
         if (told.refused !== undefined) {
+          append(root, caller.seat, { from: caller.seat, to, text, outcome: "not sent", why: `${to} has no process` });
           return { refused: `${to} has no process` };
         }
-        append(root, to, { from: caller.seat, text });
+        append(root, caller.seat, { from: caller.seat, to, text, outcome: "sent" });
+        append(root, to, { from: caller.seat, to, text });
         if (told.held !== undefined) {
           // Held by the quota gate: it goes when the window resets, and the reply lands on the
           // panel then. Nobody waits hours on a tool call.
@@ -328,12 +340,20 @@ export function toolsFor(instance, caller) {
           append(root, to, { from: THE_CHAT, text: `${to} stopped before answering: ${reply.text}`, failed: true });
           return { refused: `${to} stopped before answering` };
         }
-        append(root, to, {
+        // The answer is a row on the one who answered, and on the Leader's log too when the
+        // Leader asked: the Leader's panel then carries the whole exchange, in the middle. A
+        // Worker who asked gets it as the tool's result and draws nothing, as for any call.
+        const answer = {
           from: to,
+          to: caller.seat,
           text: reply.text,
           ...(reply.failed ? { failed: true } : {}),
           ...(reply.silent ? { silent: true } : {}),
-        });
+        };
+        append(root, to, answer);
+        if (caller.role === LEADER) {
+          append(root, caller.seat, answer);
+        }
         // A reply is a thing the server hands into a session, so it is neutralised like a body:
         // no session can pose as the User through a tool result.
         return { text: neutralise(reply.text) };

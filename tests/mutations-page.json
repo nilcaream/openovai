@@ -772,5 +772,59 @@
         "to": "          added.push(line.querySelector(\".t\"));\n"
       }
     ]
+  },
+  {
+    "name": "a message the Leader sent takes the ground of one it received",
+    "catches": "draw a message the Leader sent on the ground of what goes to the session",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "  .msg.peer-out .bubble { background: var(--to); border-color: var(--to-line); }\n",
+        "to": "  .msg.peer-out .bubble { background: var(--from); border-color: var(--from-line); }\n"
+      }
+    ]
+  },
+  {
+    "name": "the peer kinds are emitted while their rules are gone",
+    "catches": "give every class the page emits at least one rule",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "  .msg.peer-in .bubble, .msg.peer-out .bubble { overflow-wrap: anywhere; }\n",
+        "to": ""
+      },
+      {
+        "file": "tools/chat/page.html",
+        "from": "  .msg.peer-in .bubble { background: var(--from); border-color: var(--from-line); }\n",
+        "to": ""
+      },
+      {
+        "file": "tools/chat/page.html",
+        "from": "  .msg.peer-out .bubble { background: var(--to); border-color: var(--to-line); }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the outcome glyph's bad class is styled but never emitted",
+    "catches": "name no class the page never emits",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "      if (shown.status.bad === true) st.classList.add(\"bad\");\n",
+        "to": "      if (shown.status.bad === true) st.classList.add(\"st\");\n"
+      }
+    ]
+  },
+  {
+    "name": "the compact markdown class is styled but never put on a body",
+    "catches": "name no class the page never emits",
+    "edits": [
+      {
+        "file": "tools/chat/page.html",
+        "from": "      if (shown.tight === true) body.classList.add(\"tight\");\n",
+        "to": ""
+      }
+    ]
   }
 ]

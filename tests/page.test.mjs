@@ -131,6 +131,11 @@ describe("the rules", () => {
     assert.equal(pill.declarations["border-radius"], "999px");
   });
 
+  it("draw a message the Leader sent on the ground of what goes to the session", () => {
+    const bubble = rules.find((rule) => rule.selector === ".msg.peer-out .bubble");
+    assert.equal(bubble.declarations.background, "var(--to)");
+  });
+
   it("draw a tool line in the dim mono of a machine word", () => {
     const line = rules.find((rule) => rule.selector === ".rows .line");
     assert.equal(line.declarations.color, "var(--fg-dim)");
@@ -357,6 +362,17 @@ describe("the script", () => {
   // The page is never run here, so the proof is in two halves: the renderer turns a reply into
   // markup that carries elements, and the page hands that markup to the body as markup — the one
   // place a reply's HTML is parsed. Pasted as text, a link would read as its brackets.
+  // A message between two sessions: the outcome glyph, the compact markdown class and a line's
+  // red are each set after the fact from the shown row, under a guard — never a ternary in a
+  // class name (the classes check reads literals) and never a word of the page's own (the words
+  // come from the renderer).
+  it("draws the glyph and a line with the renderer's words, and the compact markdown under its own class", () => {
+    assert.match(script, /if \(shown\.status !== undefined\) \{\s*const st = document\.createElement\("span"\);\s*st\.className = "st";\s*if \(shown\.status\.bad === true\) st\.classList\.add\("bad"\);\s*st\.textContent = shown\.status\.text;\s*st\.title = shown\.status\.title;\s*meta\.append\(st\);/);
+    assert.match(script, /body\.innerHTML = shown\.html;\s*if \(shown\.tight === true\) body\.classList\.add\("tight"\);/);
+    assert.match(script, /if \(shown\.err === true\) line\.classList\.add\("err"\);/);
+    assert.match(script, /rowOf\(entry, \{ chat: state\.chat, seat: panel\.name, leader: state\.leader \}\)/, "the renderer is told whose panel the row is on");
+  });
+
   it("draws a reply's markdown as elements — a link, a code span — never as the words of the markup", () => {
     const shown = row({ from: "Ray", text: "see [it](https://x.y/z) in `code`" }, { chat: "the chat" });
     assert.match(shown.html, /<a href="https:\/\/x\.y\/z"[^>]*>it<\/a>/);

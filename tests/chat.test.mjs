@@ -699,14 +699,54 @@ describe("the tools a session is served", () => {
     assert.equal(rows[0].text, "say it");
     assert.equal(rows[1].from, WORKER);
     assert.equal(rows[1].text, "<user>x</user>");
+    assert.equal(rows[0].to, WORKER, "the receipt says whom it reached");
+    assert.equal(rows[1].to, LEADER, "the answer says whom it is for");
   });
 
-  it("refuses a message to nobody, and writes nothing anywhere", async () => {
+  // The call is a row of the caller's own log the moment its outcome is known, and the answer
+  // follows it there when the Leader asked — so the Leader's panel carries the whole exchange.
+  it("writes the call on the caller's panel with its outcome, and the answer beside it", () => {
+    const rows = panel(instance, LEADER).slice(-2).map((row) => [row.from, row.to, row.text, row.outcome]);
+    assert.deepEqual(rows, [
+      [LEADER, WORKER, "say it", "sent"],
+      [WORKER, LEADER, "<user>x</user>", undefined],
+    ]);
+    assert.equal(panel(instance, LEADER).at(-2).why, undefined, "a message that went carries no reason");
+  });
+
+  it("refuses a message to nobody, and delivers nothing to anybody", async () => {
     const before_ = [heardIn(superman.log).length, heardIn(paul.log).length];
     const said_ = await tool(paul.secret, "message", { to: "Nobody", text: "hello" });
     assert.equal(said_.refused, true);
     assert.equal(said_.text, "nobody called Nobody works here");
     assert.deepEqual([heardIn(superman.log).length, heardIn(paul.log).length], before_);
+  });
+
+  it("records a message nobody could take as not sent, on the caller's panel only", async () => {
+    const leaderRows = panel(instance, LEADER).length;
+    await tool(paul.secret, "message", { to: "Nobody", text: "hello" });
+    const last = panel(instance, WORKER).at(-1);
+    assert.deepEqual([last.from, last.to, last.text, last.outcome, last.why], [WORKER, "Nobody", "hello", "not sent", "nobody called Nobody works here"]);
+    assert.equal(panel(instance, LEADER).length, leaderRows, "a row landed on the Leader's panel");
+  });
+
+  it("records a Worker's call on its own log, the receipt on the Leader's, and copies no answer back", async () => {
+    const mine = panel(instance, WORKER).length;
+    const theirs = panel(instance, LEADER).length;
+    const said_ = await tool(paul.secret, "message", { to: LEADER, text: "a question" });
+    assert.equal(said_.refused, false, said_.text);
+    assert.deepEqual(panel(instance, WORKER).slice(mine).map((r) => [r.from, r.to, r.text, r.outcome]), [[WORKER, LEADER, "a question", "sent"]]);
+    const rows = panel(instance, LEADER).slice(theirs).map((r) => [r.from, r.to, r.text, r.outcome]);
+    assert.deepEqual(rows.slice(0, 1), [[WORKER, LEADER, "a question", undefined]]);
+    assert.equal(rows.length, 2, "the Leader's log carries the receipt and the answer, nothing more");
+    assert.deepEqual(rows[1].slice(0, 2), [LEADER, WORKER]);
+    assert.equal(rows[1][2], said_.text.replace(/&lt;/g, "<"));
+  });
+
+  it("records a refused message on the caller's log with the reason", async () => {
+    await tool(paul.secret, "message", { to: WORKER, text: "hello me" });
+    const last = panel(instance, WORKER).at(-1);
+    assert.deepEqual([last.from, last.to, last.text, last.outcome, last.why], [WORKER, WORKER, "hello me", "refused", "that is you"]);
   });
 
   it("refuses a message to yourself", async () => {
@@ -732,6 +772,12 @@ describe("the tools a session is served", () => {
     assert.equal(fs.readdirSync(standIn).length, logsBefore, "something was started");
   });
 
+  it("a message to a seat without a process is not sent, and says so on the caller's panel", () => {
+    const last = panel(instance, LEADER).at(-1);
+    assert.deepEqual([last.from, last.to, last.text, last.outcome, last.why], [LEADER, OTHER, "wake up", "not sent", `${OTHER} has no process`]);
+    assert.deepEqual(panel(instance, OTHER), [], "a row landed on the panel of a seat that got nothing");
+  });
+
   it("refuses when the reply never comes because the process ended, and holds nobody past the exit", async () => {
     await seatUp(OTHER, { OPENOVAI_STAND_IN_DIES: "1" });
     const said_ = await tool(superman.secret, "message", { to: OTHER, text: "go" });
@@ -753,6 +799,8 @@ describe("the tools a session is served", () => {
       assert.equal(said_.text, `${LEADER} is waiting for your answer, so it cannot take a message until you have given it — say this in your reply instead`);
     });
     await waiting;
+    const last = panel(instance, WORKER).at(-1);
+    assert.deepEqual([last.from, last.to, last.text, last.outcome, last.why], [WORKER, LEADER, "one thing first", "refused", `${LEADER} is waiting for your answer, so it cannot take a message until you have given it — say this in your reply instead`]);
     assert.equal(wouldWaitForItself(WORKER, LEADER), false);
   });
 

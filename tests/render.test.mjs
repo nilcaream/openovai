@@ -6,7 +6,9 @@ import { describe, it } from "node:test";
 
 import { INTERRUPTED, SILENT, html, row } from "../tools/chat/render.mjs";
 
-const names = { chat: "the chat" };
+// The Leader's panel, and a Worker's: the same rows drawn from two seats.
+const names = { chat: "the chat", seat: "Leader", leader: "Leader" };
+const worker = { chat: "the chat", seat: "Paul", leader: "Leader" };
 
 describe("a reply", () => {
   it("renders markdown and escapes raw HTML in it", () => {
@@ -76,5 +78,62 @@ describe("every other row", () => {
     assert.deepEqual(row({ from: "Paul", line: "Run the suite", call: "toolu_2", err: true }, names), { who: "Paul", kind: "line", text: "Run the suite", err: true });
     assert.equal(row({ from: "Paul", line: "Searching **x**", call: "toolu_3", interrupted: true }, names).kind, "line");
     assert.equal(row({ from: "Paul", line: "Searching **x**", call: "toolu_3" }, names).html, undefined, "a line is never markdown");
+  });
+});
+
+// A message between two sessions carries `to`. The Leader's panel draws its whole text, compact,
+// `To` on the way out with what became of it, `From` on the way in; a Worker's panel draws one
+// line for a call it made or a message it got, and its own answer as its reply.
+describe("a message between two sessions", () => {
+  it("a message the Leader sent is To its addressee, compact, with its outcome", () => {
+    assert.deepEqual(row({ from: "Leader", to: "Paul", text: "go", outcome: "sent" }, names), {
+      who: "To Paul",
+      kind: "peer-out",
+      html: "<p>go</p>\n",
+      tight: true,
+      status: { text: "sent ✓", bad: false, title: "" },
+    });
+    assert.deepEqual(row({ from: "Leader", to: "Paul", text: "go", outcome: "not sent", why: "Paul has no process" }, names).status, {
+      text: "not sent ✗",
+      bad: true,
+      title: "Paul has no process",
+    });
+    assert.deepEqual(row({ from: "Leader", to: "Paul", text: "go", outcome: "refused", why: "that is you" }, names).status, {
+      text: "refused ✗",
+      bad: true,
+      title: "that is you",
+    });
+    assert.deepEqual(row({ from: "Leader", to: "Paul", text: "the answer" }, names), { who: "To Paul", kind: "peer-out", html: "<p>the answer</p>\n", tight: true });
+  });
+
+  it("a message the Leader received is From its sender", () => {
+    assert.deepEqual(row({ from: "Paul", to: "Leader", text: "- one\n- two" }, names), {
+      who: "From Paul",
+      kind: "peer-in",
+      html: "<ul>\n<li>one</li>\n<li>two</li>\n</ul>\n",
+      tight: true,
+    });
+  });
+
+  it("on a Worker's panel a message is a line, red when it did not go", () => {
+    assert.deepEqual(row({ from: "Paul", to: "Leader", text: "go", outcome: "sent" }, worker), { who: "Paul", kind: "line", text: "Writing a message to Leader", err: false });
+    assert.deepEqual(row({ from: "Paul", to: "Nobody", text: "go", outcome: "not sent", why: "nobody called Nobody works here" }, worker), {
+      who: "Paul",
+      kind: "line",
+      text: "Writing a message to Nobody",
+      err: true,
+    });
+    assert.deepEqual(row({ from: "Paul", to: "Paul", text: "go", outcome: "refused", why: "that is you" }, worker), { who: "Paul", kind: "line", text: "Writing a message to Paul", err: true });
+    assert.deepEqual(row({ from: "Leader", to: "Paul", text: "**go**" }, worker), { who: "Leader", kind: "line", text: "Received a message from Leader", err: false });
+  });
+
+  it("a Worker's answer stays its own reply", () => {
+    const shown = row({ from: "Paul", to: "Leader", text: "pong" }, worker);
+    assert.equal(shown.who, "Paul");
+    assert.equal(shown.kind, "reply");
+    assert.match(shown.html, /<p>pong<\/p>/);
+    assert.equal(shown.tight, undefined);
+    assert.equal(row({ from: "Paul", to: "Leader", text: "", failed: true }, worker).kind, "failed");
+    assert.equal(row({ from: "Paul", to: "Leader", text: "", failed: true }, names).kind, "failed", "a failed answer stays red on the Leader's panel too");
   });
 });

@@ -97,5 +97,38 @@
         "to": "text: entry.line, err: false };"
       }
     ]
+  },
+  {
+    "name": "the caller's message is drawn as a plain reply",
+    "catches": "a message the Leader sent is To its addressee, compact, with its outcome",
+    "edits": [
+      {
+        "file": "tools/chat/render.mjs",
+        "from": "    if (names.seat === names.leader) {\n      if (entry.from === names.seat) {",
+        "to": "    if (names.seat === names.leader) {\n      if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "a message that did not go says sent",
+    "catches": "a message the Leader sent is To its addressee, compact, with its outcome",
+    "edits": [
+      {
+        "file": "tools/chat/render.mjs",
+        "from": "bad: entry.outcome !== \"sent\"",
+        "to": "bad: false"
+      }
+    ]
+  },
+  {
+    "name": "a Worker's panel draws the whole message as a bubble",
+    "catches": "on a Worker's panel a message is a line, red when it did not go",
+    "edits": [
+      {
+        "file": "tools/chat/render.mjs",
+        "from": "      return { who: entry.from, kind: \"line\", text: `Received a message from ${entry.from}`, err: false };",
+        "to": "      return { who: `From ${entry.from}`, kind: \"peer-in\", html: html(entry.text), tight: true };"
+      }
+    ]
   }
 ]

@@ -499,18 +499,18 @@
     "edits": [
       {
         "file": "tools/chat/server.mjs",
-        "from": "        append(root, to, { from: caller.seat, text });\n",
+        "from": "        append(root, to, { from: caller.seat, to, text });\n",
         "to": ""
       }
     ]
   },
   {
     "name": "a message to nobody is passed on to see what happens",
-    "catches": "refuses a message to nobody, and writes nothing anywhere",
+    "catches": "refuses a message to nobody, and delivers nothing to anybody",
     "edits": [
       {
         "file": "tools/chat/server.mjs",
-        "from": "        if (!isName(to) || !isSeat(instance, to)) {",
+        "from": "        if (!isSeat(instance, to)) {",
         "to": "        if (false) {"
       }
     ]
@@ -1128,6 +1128,94 @@
         "file": "tools/chat/lifecycle.mjs",
         "from": "    if (text !== null) {\n      append(instance.root, seat, { from: seat, line: text, call: id });\n    }\n",
         "to": "    append(instance.root, seat, { from: seat, line: text, call: id });\n"
+      }
+    ]
+  },
+  {
+    "name": "the caller's panel gets nothing for a message it sent",
+    "catches": "writes the call on the caller's panel with its outcome, and the answer beside it",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "        append(root, caller.seat, { from: caller.seat, to, text, outcome: \"sent\" });\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the Leader's panel gets no copy of the answer to its message",
+    "catches": "writes the call on the caller's panel with its outcome, and the answer beside it",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "        if (caller.role === LEADER) {\n          append(root, caller.seat, answer);\n        }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a message nobody could take is recorded as sent",
+    "catches": "records a message nobody could take as not sent, on the caller's panel only",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "{ from: caller.seat, to, text, outcome: \"not sent\", why: `nobody called ${to} works here` }",
+        "to": "{ from: caller.seat, to, text, outcome: \"sent\", why: `nobody called ${to} works here` }"
+      }
+    ]
+  },
+  {
+    "name": "a message to a seat without a process is recorded as sent",
+    "catches": "a message to a seat without a process is not sent, and says so on the caller's panel",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "{ from: caller.seat, to, text, outcome: \"not sent\", why: `${to} has no process` }",
+        "to": "{ from: caller.seat, to, text, outcome: \"sent\", why: `${to} has no process` }"
+      }
+    ]
+  },
+  {
+    "name": "the receipt loses its addressee",
+    "catches": "writes both sides onto the addressee's panel",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "        append(root, to, { from: caller.seat, to, text });\n",
+        "to": "        append(root, to, { from: caller.seat, text });\n"
+      }
+    ]
+  },
+  {
+    "name": "a message to yourself leaves no row on the caller's log",
+    "catches": "records a refused message on the caller's log with the reason",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "          append(root, caller.seat, { from: caller.seat, to, text, outcome: \"refused\", why: \"that is you\" });\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a message that would wait for the sender's own turn is recorded as sent",
+    "catches": "refuses a message that would wait for the sender's own turn",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "          append(root, caller.seat, { from: caller.seat, to, text, outcome: \"refused\", why });\n",
+        "to": "          append(root, caller.seat, { from: caller.seat, to, text, outcome: \"sent\", why });\n"
+      }
+    ]
+  },
+  {
+    "name": "every caller's log gets a copy of the answer",
+    "catches": "records a Worker's call on its own log, the receipt on the Leader's, and copies no answer back",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "        if (caller.role === LEADER) {\n          append(root, caller.seat, answer);\n        }\n",
+        "to": "        append(root, caller.seat, answer);\n"
       }
     ]
   }
