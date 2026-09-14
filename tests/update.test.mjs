@@ -28,7 +28,7 @@ const OLDER = "0.0.1";
 // down, because these instances are installed from it: a literal would be a second place holding
 // the version this repository is on, and every check below would go red the day it is bumped
 // while nothing about an update had changed.
-const INSTALLED = fs.readFileSync(path.join(repo, "VERSION"), "utf8").trim();
+const INSTALLED = fs.readFileSync(path.join(repo, "lib", "VERSION"), "utf8").trim();
 
 // Something in the newer payload that the installed one has not got. Without it the release is a
 // copy of what the instance already has, and a check asking whether an entry was replaced cannot
@@ -74,7 +74,7 @@ function makeInstance(name) {
 // made of and leave the rest where it found it.
 function makeRelease(name, { version = NEWER, notes = "Hiring happens on the page now.", without = null } = {}) {
   const tree = path.join(here, name);
-  for (const entry of PAYLOAD.filter((entry) => entry !== "VERSION")) {
+  for (const entry of PAYLOAD) {
     fs.cpSync(path.join(repo, entry), path.join(tree, entry), { recursive: true });
   }
   for (const marked of MARKED) {
@@ -83,7 +83,7 @@ function makeRelease(name, { version = NEWER, notes = "Hiring happens on the pag
       fs.appendFileSync(file, `\n// ${MARKER}\n`);
     }
   }
-  fs.writeFileSync(path.join(tree, "VERSION"), `${version}\n`);
+  fs.writeFileSync(path.join(tree, "lib", "VERSION"), `${version}\n`);
   fs.writeFileSync(path.join(tree, "NOTES.md"), `${notes}\n`);
   fs.writeFileSync(path.join(tree, "CONTRIBUTING.md"), "not part of an instance\n");
   if (without !== null) {
@@ -186,7 +186,7 @@ describe("taking a newer version from a directory", () => {
   });
 
   it("puts the instance on the version the release is", () => {
-    assert.equal(fs.readFileSync(path.join(root, "VERSION"), "utf8").trim(), NEWER);
+    assert.equal(fs.readFileSync(path.join(root, "lib", "VERSION"), "utf8").trim(), NEWER);
   });
 
   it("names both versions", () => {
@@ -290,7 +290,7 @@ describe("taking a newer version from a release", () => {
   });
 
   it("puts the instance on the version the release is", () => {
-    assert.equal(fs.readFileSync(path.join(root, "VERSION"), "utf8").trim(), NEWER);
+    assert.equal(fs.readFileSync(path.join(root, "lib", "VERSION"), "utf8").trim(), NEWER);
   });
 
   // The archive is opened somewhere inside the instance and that somewhere is not part of it.
@@ -309,7 +309,7 @@ describe("what an update refuses", () => {
   });
 
   it("leaves the instance on the version it was on", () => {
-    assert.equal(fs.readFileSync(path.join(root, "VERSION"), "utf8").trim(), INSTALLED);
+    assert.equal(fs.readFileSync(path.join(root, "lib", "VERSION"), "utf8").trim(), INSTALLED);
   });
 
   // A default that is taken quietly when the command line is mistyped would update an instance
@@ -366,7 +366,7 @@ describe("taking an older version", () => {
   // Named for this describe alone. Two others here already assert "leaves the instance on the
   // version it was on", and a proof that a check went red reads the name of the check.
   it("does not take the instance back to the older one", () => {
-    assert.equal(fs.readFileSync(path.join(root, "VERSION"), "utf8").trim(), INSTALLED);
+    assert.equal(fs.readFileSync(path.join(root, "lib", "VERSION"), "utf8").trim(), INSTALLED);
   });
 
   // The way back. Going backwards is a thing somebody does on purpose — a release that turned out
@@ -374,7 +374,7 @@ describe("taking an older version", () => {
   // not forbidden.
   it("takes it when told to go backwards on purpose", async () => {
     const done = await runToolLater(root, ["update", "--from", tree, "--downgrade"], process.env);
-    const now = fs.readFileSync(path.join(root, "VERSION"), "utf8").trim();
+    const now = fs.readFileSync(path.join(root, "lib", "VERSION"), "utf8").trim();
     assert.deepEqual([done.status, now], [0, OLDER]);
   });
 });
@@ -442,7 +442,7 @@ describe("an update while the server is running", () => {
   });
 
   it("leaves the instance on the version it was on", () => {
-    assert.equal(fs.readFileSync(path.join(root, "VERSION"), "utf8").trim(), INSTALLED);
+    assert.equal(fs.readFileSync(path.join(root, "lib", "VERSION"), "utf8").trim(), INSTALLED);
   });
 });
 
@@ -479,7 +479,7 @@ describe("an update while a session of this instance is running", () => {
 
   before(async () => {
     refused = await update(root, tree);
-    versionWhileRefused = fs.readFileSync(path.join(root, "VERSION"), "utf8").trim();
+    versionWhileRefused = fs.readFileSync(path.join(root, "lib", "VERSION"), "utf8").trim();
     for (const child of idling) {
       child.kill("SIGKILL");
     }
@@ -512,7 +512,7 @@ describe("an update while a session of this instance is running", () => {
 
   it("goes through once they are gone, with nothing to forget them by", () => {
     assert.equal(afterwards.status, 0, afterwards.stderr);
-    assert.equal(fs.readFileSync(path.join(root, "VERSION"), "utf8").trim(), NEWER);
+    assert.equal(fs.readFileSync(path.join(root, "lib", "VERSION"), "utf8").trim(), NEWER);
   });
 
   // A command run from inside a session inherits the session's environment, and telling the person

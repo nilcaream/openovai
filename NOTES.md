@@ -32,17 +32,24 @@ a default like the other two.
 
 **The instance root is laid out for what each thing is.** `bin/ovai` is the one command and `lib/`
 is everything else the release ships, replaced whole on update — what `tools/` and `templates/` held
-is in there now. `openovai.json` is the instance's description of itself and `runtime.json` the
-running chat: url, pid, since. `plugins/` holds the tools the instance serves itself, one file each,
-the User's and kept across updates. `desks/<Name>/` is one directory per person — the desk file, the
+is in there now, and so is the version: `lib/VERSION`, no longer a file at the root. `openovai.json`
+is the instance's description of itself, `instructions.json` beside it the settings document every
+session is started with — the instruction files above the instance it is not to read, written by the
+installer and again at every start — and `runtime.json` the running chat: url, pid, since. `plugins/`
+holds the tools the instance serves itself, one file each, the User's and kept across updates;
+`store/` is what the workspace knows and `customization/` what the User adds to the personas, both
+at the root, and `customization/` is made by the installer like the rest. `desks/<Name>/` is one directory per person — the desk file, the
 persona the session was last started with, the conversation the chat kept for it, the model when one
 was named, and whatever that person keeps there — and the listing of `desks/` is the roster;
 `archive/` is where a retired desk goes, moved whole, as `<day>-<Name>-<slug of the final title>/`.
 `reference/`, `projects/` and `temp/` are the User's material: `reference/` is kept to look at and
 never worked on, `projects/` is worked on, `temp/` is scratch anyone may delete at any time.
 `.claude/` is Claude Code's project settings for the instance, a name that is Claude Code's, and
-`.local/` is Claude Code's config dir for it — account, transcripts, memory — with the settings
-document a run is started with beside them.
+`.local/` is Claude Code's config dir for it — account, transcripts, memory, and nothing of the
+instance's own. A fresh instance's root is exactly `.claude/`, `.local/`, `bin/`, `customization/`,
+`desks/`, `instructions.json`, `lib/`, `openovai.json`, `plugins/`, `projects/`, `reference/`,
+`store/` and `temp/`; `runtime.json` and `runtime.log` appear at the first start, `archive/` at the
+first retire.
 
 **A desk is a working directory; the desk file stays the tool's.** Every seat may edit and write
 under its own `desks/<Name>/` without a prompt: the pair of rules is granted when the desk is opened
@@ -59,7 +66,8 @@ still under `desks/`.
 **A 0.10.0 instance is installed again, not updated.** Nothing here reads the places the previous
 version used — `work/`, `personas/`, `chat/`, `tools/`, `templates/`, `.claude-home/` — and nothing
 moves what is in them. `ovai update` on a 0.10.0 instance refuses this release, since the release
-has no `tools/` and no `templates/` for it to take. Install into an empty directory with
+has no `tools/`, no `templates/` and no `VERSION` at the root for it to take. Install into an empty
+directory with
 `./install.sh --root <instance> --source <release> --user <name> …` and copy over by hand what
 should survive.
 

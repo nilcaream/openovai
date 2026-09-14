@@ -99,8 +99,11 @@ The instance root is this, and nothing else ever lands in it:
 ```
 <root>/
   bin/ovai          the one command
-  lib/              everything else the release ships; replaced whole on update
+  lib/              everything else the release ships, its version in lib/VERSION; replaced
+                    whole on update
   openovai.json     the instance's description of itself
+  instructions.json the settings document every session is started with: the instruction
+                    files above the instance it is not to read; written at every start
   runtime.json      the running server: url, pid, since
   runtime.log       what the server said, this run; written over at the next start
   plugins/          tools the instance serves itself, one file each; yours, kept across updates
@@ -116,15 +119,17 @@ The instance root is this, and nothing else ever lands in it:
   .local/           Claude Code's config dir for the instance: account, transcripts, memory
 ```
 
-In groups: the product is `bin/` and `lib/`; the instance's own is `openovai.json`, `runtime.json`,
-`runtime.log`, `plugins/`, `store/` and `customization/`; the people are `desks/` and `archive/`; your material
-is `reference/`, `projects/` and `temp/`; Claude Code's is `.claude/` and `.local/`. The installer
-makes `desks/`, `reference/`, `projects/`, `temp/`, `plugins/`, `store/`, `.claude/` and `.local/`
-(two instances on one machine share neither account nor transcripts), copies `bin/` and `lib/` in
-so the instance never reaches back to where it was installed from, and writes `openovai.json` —
-who works here, on which models, on which port; no absolute path, so an instance can be moved and
-still be itself. It opens the Leader's desk at `desks/<Leader>/STATE.md` from
-`lib/templates/STATE.md`.
+In groups: the product is `bin/` and `lib/`; the instance's own is `openovai.json`,
+`instructions.json`, `runtime.json`, `runtime.log`, `plugins/`, `store/` and `customization/`;
+the people are `desks/` and `archive/`; your material is `reference/`, `projects/` and `temp/`;
+Claude Code's is `.claude/` and `.local/`. The installer makes `desks/`, `reference/`,
+`projects/`, `temp/`, `plugins/`, `store/`, `customization/`, `.claude/` and `.local/` (two
+instances on one machine share neither account nor transcripts), copies `bin/` and `lib/` in so
+the instance never reaches back to where it was installed from, writes `openovai.json` — who works
+here, on which models, on which port; no absolute path, so an instance can be moved and still be
+itself — and `instructions.json`. It opens the Leader's desk at `desks/<Leader>/STATE.md` from
+`lib/templates/STATE.md`. A fresh instance's root is exactly that list; `runtime.json` and
+`runtime.log` appear at the first start and `archive/` when the first desk is retired.
 
 Two settings files are seeded once and never touched again. `.claude/settings.json` allows the
 tool server (`mcp__openovai`), reading any file (`Read(**)`), editing and writing under the three
@@ -172,7 +177,7 @@ and prints the new address.
 Every session is started with the list of instruction files it is not to read: Claude Code reads
 `CLAUDE.md` from every directory above a session's working directory, so `CLAUDE.md`,
 `CLAUDE.local.md`, `.claude/CLAUDE.md` and `.claude/rules/**` from the instance's parent up to the
-root are written to `.local/instructions.json` per run and handed over with `--settings`. The
+root are written to `instructions.json` at the root per run and handed over with `--settings`. The
 instance's own instructions are never on the list, and a managed policy file
 (`/etc/claude-code/CLAUDE.md`) is the one thing no setting can exclude.
 
@@ -520,7 +525,7 @@ its own. `ovai update` is how it catches up:
 ```
 
 It asks GitHub for the latest release, and if that is newer than the version this instance is on
-it takes it: the payload — `bin/`, `lib/` and `VERSION` — is replaced whole,
+it takes it: the payload — `bin/` and `lib/`, the version inside it — is replaced whole,
 nothing else is written, and a file of yours that a fresh install of this version would have seeded
 and this instance has not got is seeded once. What an earlier version put in an instance and this
 one does not ship is taken away. Desks, conversations, `customization/`, `plugins/`,

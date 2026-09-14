@@ -109,8 +109,8 @@
     "edits": [
       {
         "file": "lib/install.mjs",
-        "from": "const LAYOUT = [DESKS, ...USER_TREES, \".claude\", HOME, PLUGINS];",
-        "to": "const LAYOUT = [DESKS, ...USER_TREES, \"personas\", \".claude\", HOME, PLUGINS];"
+        "from": "const LAYOUT = [DESKS, ...USER_TREES, \".claude\", HOME, PLUGINS, CUSTOMIZATION];",
+        "to": "const LAYOUT = [DESKS, ...USER_TREES, \"personas\", \".claude\", HOME, PLUGINS, CUSTOMIZATION];"
       }
     ]
   },
@@ -252,8 +252,8 @@
     "edits": [
       {
         "file": "lib/install.mjs",
-        "from": "const LAYOUT = [DESKS, ...USER_TREES, \".claude\", HOME, PLUGINS];",
-        "to": "const LAYOUT = [DESKS, ...USER_TREES, \".claude\", HOME, PLUGINS, path.join(\".claude\", \"skills\", \"allowed\")];"
+        "from": "const LAYOUT = [DESKS, ...USER_TREES, \".claude\", HOME, PLUGINS, CUSTOMIZATION];",
+        "to": "const LAYOUT = [DESKS, ...USER_TREES, \".claude\", HOME, PLUGINS, path.join(\".claude\", \"skills\", \"allowed\"), CUSTOMIZATION];"
       }
     ]
   },
@@ -340,8 +340,8 @@
     "edits": [
       {
         "file": "lib/install.mjs",
-        "from": "const LAYOUT = [DESKS, ...USER_TREES, \".claude\", HOME, PLUGINS];",
-        "to": "const LAYOUT = [DESKS, \".claude\", HOME, PLUGINS];"
+        "from": "const LAYOUT = [DESKS, ...USER_TREES, \".claude\", HOME, PLUGINS, CUSTOMIZATION];",
+        "to": "const LAYOUT = [DESKS, \".claude\", HOME, PLUGINS, CUSTOMIZATION];"
       }
     ]
   },
@@ -375,6 +375,61 @@
         "file": "lib/install.mjs",
         "from": "  console.log(`  ${ovai} start`);",
         "to": "  console.log(`  ${ovai} chat`);"
+      }
+    ]
+  },
+  {
+    "name": "the version is not asked for by name, so a lib/ with no version in it passes as a workspace",
+    "catches": "refuses a source with no version in it, saying which entry that is",
+    "edits": [
+      {
+        "file": "lib/payload.mjs",
+        "from": "const SHAPE = [...PAYLOAD, VERSION_FILE];",
+        "to": "const SHAPE = [...PAYLOAD];"
+      }
+    ]
+  },
+  {
+    "name": "customization/ is left for the first use to make",
+    "catches": "makes exactly the layout at the root: the product, the instance's own, the people, the User's material, Claude Code's",
+    "edits": [
+      {
+        "file": "lib/install.mjs",
+        "from": "const LAYOUT = [DESKS, ...USER_TREES, \".claude\", HOME, PLUGINS, CUSTOMIZATION];",
+        "to": "const LAYOUT = [DESKS, ...USER_TREES, \".claude\", HOME, PLUGINS];"
+      }
+    ]
+  },
+  {
+    "name": "the settings document is left for the first start to write",
+    "catches": "writes the list of what its sessions are not to read, at the root, absolute",
+    "edits": [
+      {
+        "file": "lib/install.mjs",
+        "from": "      ownInstructions(plan.root),\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the settings document goes back under Claude Code's directory",
+    "catches": "makes exactly the layout at the root: the product, the instance's own, the people, the User's material, Claude Code's",
+    "edits": [
+      {
+        "file": "lib/instructions.mjs",
+        "from": "const FILE = \"instructions.json\";",
+        "to": "const FILE = path.join(\".local\", \"instructions.json\");"
+      }
+    ]
+  },
+  {
+    "name": "the settings document is written relative, so an instance that moved keeps a list it cannot use",
+    "catches": "writes the list of what its sessions are not to read, at the root, absolute",
+    "edits": [
+      {
+        "file": "lib/instructions.mjs",
+        "from": "  return above(root).flatMap((directory) => PER_DIRECTORY.map((parts) => path.join(directory, ...parts)));",
+        "to": "  return above(root).flatMap((directory) => PER_DIRECTORY.map((parts) => path.join(path.relative(root, directory), ...parts)));"
       }
     ]
   }

@@ -1,7 +1,7 @@
 name: Release
 
 # Cutting a release is one click here and nothing on anybody's laptop. What it needs is already in
-# the repository — the version in VERSION, what changed in NOTES.md — so there is nothing to type
+# the repository — the version in lib/VERSION, what changed in NOTES.md — so there is nothing to type
 # in and nothing to paste, and the two ways a release goes wrong by hand (a tag that does not match
 # the version, notes that are not the ones in the file) cannot happen.
 #

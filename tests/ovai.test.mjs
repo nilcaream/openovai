@@ -144,7 +144,7 @@ describe("what configuration reports", () => {
   // What this instance is running. Read from the payload, so it names the code that is actually
   // here rather than whatever it was installed as.
   it("says which version this instance is on", () => {
-    assert.match(said, new RegExp(`version\\s+${fs.readFileSync(path.join(repo, "VERSION"), "utf8").trim()}`));
+    assert.match(said, new RegExp(`version\\s+${fs.readFileSync(path.join(repo, "lib", "VERSION"), "utf8").trim()}`));
   });
 
   it("names the User", () => {
@@ -228,7 +228,7 @@ describe("an instance with no version in it", () => {
   let said;
 
   before(() => {
-    const file = path.join(instance, "VERSION");
+    const file = path.join(instance, "lib", "VERSION");
     const kept = fs.readFileSync(file, "utf8");
     fs.rmSync(file);
     try {

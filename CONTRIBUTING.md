@@ -171,13 +171,13 @@ A release is a tag plus the source archive GitHub makes for it, and cutting one 
 Everything it needs is already in the repository, so there is nothing to type into that form and
 nothing to paste afterwards:
 
-1. Put the new version in `VERSION`.
+1. Put the new version in `lib/VERSION`.
 2. Add a `## <version>` section to `NOTES.md` saying what changed for the Leader of a workspace
    taking it. The file keeps the older sections; the workflow publishes only the new one.
 3. Merge both to `main`.
 4. Run the workflow.
 
-It reads `VERSION`, tags that commit with `v<version>`, and publishes a release named for the
+It reads `lib/VERSION`, tags that commit with `v<version>`, and publishes a release named for the
 version whose body is that section of `NOTES.md`. It refuses, loudly and before anything is
 tagged, when the version is not three numbers, when `v<version>` is already a tag, or when
 `NOTES.md` says nothing about that version. The token is the one GitHub gives the run and

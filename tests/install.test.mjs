@@ -82,6 +82,9 @@ function withoutVersion() {
     for (const entry of ["bin", "lib"]) {
       fs.cpSync(path.join(repo, entry), path.join(versionless, entry), { recursive: true });
     }
+    // The version comes in with lib/, so a copy of the payload is a source WITH a version until
+    // the file is taken out again.
+    fs.rmSync(path.join(versionless, "lib", "VERSION"));
   }
   return versionless;
 }
@@ -126,13 +129,13 @@ describe("what the installer made", () => {
   });
 
   it("copies the version in", () => {
-    assert.ok(fs.existsSync(inside("VERSION")));
+    assert.ok(fs.existsSync(inside("lib", "VERSION")));
   });
 
   // Read out of the source rather than compared with a literal. A version written into the check
   // as well as into the file would agree with itself on the day it was written and never again.
   it("carries the version the source is on", () => {
-    assert.equal(contentOf("VERSION").trim(), fs.readFileSync(path.join(repo, "VERSION"), "utf8").trim());
+    assert.equal(contentOf("lib", "VERSION").trim(), fs.readFileSync(path.join(repo, "lib", "VERSION"), "utf8").trim());
   });
 
   it("copies the desk template in", () => {
@@ -235,9 +238,10 @@ describe("what the installer made", () => {
     assert.deepEqual(fs.readdirSync(instance).sort(), [
       ".claude",
       ".local",
-      "VERSION",
       "bin",
+      "customization",
       "desks",
+      "instructions.json",
       "lib",
       "openovai.json",
       "plugins",
@@ -246,9 +250,18 @@ describe("what the installer made", () => {
       "store",
       "temp",
     ]);
-    for (const tree of ["reference", "projects", "temp"]) {
+    for (const tree of ["reference", "projects", "temp", "customization"]) {
       assert.deepEqual(fs.readdirSync(inside(tree)), [], tree);
     }
+  });
+
+  // The settings document every session is started with, written here so a fresh instance carries
+  // it from the start and the root is the whole layout. What is on it is the chat's business
+  // (tests/chat.test.mjs); here is only that it is the list, absolute, for where the instance sits.
+  it("writes the list of what its sessions are not to read, at the root, absolute", () => {
+    const excluded = JSON.parse(contentOf("instructions.json")).claudeMdExcludes;
+    assert.ok(excluded.includes(path.join(path.dirname(instance), "CLAUDE.md")), `nothing for the parent in ${JSON.stringify(excluded)}`);
+    assert.deepEqual(excluded.filter((pattern) => !path.isAbsolute(pattern)), []);
   });
 
   // What the person adds to a persona. Their file, at the root beside desks/, read as it is and put
@@ -570,7 +583,7 @@ describe("what the installer refuses", () => {
   // until this was anchored on the line the installer writes itself.
   it("refuses a source with no version in it, saying which entry that is", () => {
     const refused = install(options(`${instance}-noversion`, { "--source": withoutVersion() }));
-    const said = /^install: .*does not look like an OpenOv AI instance.*VERSION/m.test(refused.stderr);
+    const said = /^install: .*does not look like an OpenOv AI instance.*lib\/VERSION/m.test(refused.stderr);
     assert.equal([refused.status === 0, said].join(" "), "false true");
   });
 
@@ -659,7 +672,7 @@ describe("the instance runs", { skip: claudeIsInstalled() ? false : "Claude Code
 describe("the version the toolkit is on", () => {
   it("says the same thing in the payload and in the package", () => {
     const declared = JSON.parse(fs.readFileSync(path.join(repo, "package.json"), "utf8")).version;
-    assert.equal(fs.readFileSync(path.join(repo, "VERSION"), "utf8").trim(), declared);
+    assert.equal(fs.readFileSync(path.join(repo, "lib", "VERSION"), "utf8").trim(), declared);
   });
 });
 
@@ -672,7 +685,7 @@ describe("what a release says for itself", () => {
   });
 
   it("says something about the version being released", () => {
-    assert.match(fs.readFileSync(path.join(repo, RELEASE_NOTES), "utf8"), new RegExp(fs.readFileSync(path.join(repo, "VERSION"), "utf8").trim()));
+    assert.match(fs.readFileSync(path.join(repo, RELEASE_NOTES), "utf8"), new RegExp(fs.readFileSync(path.join(repo, "lib", "VERSION"), "utf8").trim()));
   });
 
   it("is not in the payload, since it describes a release rather than an instance", () => {

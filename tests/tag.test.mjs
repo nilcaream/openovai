@@ -43,7 +43,8 @@ function aRepository(name, { version = "1.2.0", notes = NOTES, tags = [] } = {})
   const tree = path.join(here, name);
   fs.mkdirSync(tree, { recursive: true });
   if (version !== null) {
-    fs.writeFileSync(path.join(tree, "VERSION"), `${version}\n`);
+    fs.mkdirSync(path.join(tree, "lib"), { recursive: true });
+    fs.writeFileSync(path.join(tree, "lib", "VERSION"), `${version}\n`);
   }
   if (notes !== null) {
     fs.writeFileSync(path.join(tree, "NOTES.md"), notes);
@@ -153,7 +154,7 @@ describe("a version that is already out", () => {
     const tree = aRepository("refuse-tagged", { tags: ["v1.2.0"] });
     const raised = refused(() => releaseOf(tree));
     assert.match(raised.message, /v1\.2\.0 is already a tag/);
-    assert.match(raised.message, /Bump VERSION/);
+    assert.match(raised.message, /Bump lib\/VERSION/);
   });
 });
 
@@ -177,7 +178,7 @@ describe("what a release of a tree would be", () => {
 
   it("refuses a tree with no version in it", () => {
     const tree = aRepository("no-version", { version: null });
-    assert.throws(() => releaseOf(tree), /no VERSION in it/);
+    assert.throws(() => releaseOf(tree), /no lib\/VERSION in it/);
   });
 
   it("refuses a tree with no notes in it", () => {

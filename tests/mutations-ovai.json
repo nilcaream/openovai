@@ -115,8 +115,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "export function start(instance, seat, { asked = nobodyToAsk, ended = nothing, turned = nothing, queue = [], gate = () => null, held = nothing, changed = nothing } = {}) {",
-        "to": "const CLAUDE_BIN = \"claude\";\n\nexport function start(instance, seat, { asked = nobodyToAsk, ended = nothing, turned = nothing, queue = [], gate = () => null, held = nothing, changed = nothing } = {}) {"
+        "from": "export function start(instance, seat, { asked = nobodyToAsk, ended = nothing, turned = nothing, queue = [], gate = () => null, held = nothing, changed = nothing, called = nothing, failed = nothing } = {}) {",
+        "to": "const CLAUDE_BIN = \"claude\";\n\nexport function start(instance, seat, { asked = nobodyToAsk, ended = nothing, turned = nothing, queue = [], gate = () => null, held = nothing, changed = nothing, called = nothing, failed = nothing } = {}) {"
       },
       {
         "file": "lib/chat/session.mjs",
@@ -166,6 +166,17 @@
         "file": "lib/ovai.mjs",
         "from": "const NOT_RUNNING = 3;",
         "to": "const NOT_RUNNING = 0;"
+      }
+    ]
+  },
+  {
+    "name": "the version is read from the root, where it no longer is",
+    "catches": "says which version this instance is on",
+    "edits": [
+      {
+        "file": "lib/version.mjs",
+        "from": "export const VERSION_FILE = path.join(\"lib\", \"VERSION\");",
+        "to": "export const VERSION_FILE = \"VERSION\";"
       }
     ]
   }

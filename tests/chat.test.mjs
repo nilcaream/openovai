@@ -474,7 +474,7 @@ describe("starting a seat", () => {
 
   it("hands the run the list of what is not to be read, as a settings document of its own", () => {
     const handed = callsIn(paul.log).at(-1).match(/--settings (\S+)/)[1];
-    assert.equal(handed, path.join(instance, ".local", "instructions.json"));
+    assert.equal(handed, path.join(instance, "instructions.json"));
     const excluded = JSON.parse(fs.readFileSync(handed, "utf8")).claudeMdExcludes;
     assert.ok(excluded.includes("/CLAUDE.md"), `nothing for the filesystem root in ${JSON.stringify(excluded)}`);
     assert.deepEqual(excluded.filter((pattern) => !path.isAbsolute(pattern)), []);

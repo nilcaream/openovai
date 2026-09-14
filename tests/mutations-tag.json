@@ -20,5 +20,16 @@
         "to": ""
       }
     ]
+  },
+  {
+    "name": "the version is read from the root, where it no longer is",
+    "catches": "refuses a tree with no version in it",
+    "edits": [
+      {
+        "file": "lib/version.mjs",
+        "from": "export const VERSION_FILE = path.join(\"lib\", \"VERSION\");",
+        "to": "export const VERSION_FILE = \"VERSION\";"
+      }
+    ]
   }
 ]

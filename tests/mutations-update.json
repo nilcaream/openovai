@@ -262,5 +262,16 @@
         "to": ""
       }
     ]
+  },
+  {
+    "name": "a release directory is asked its version before it is asked whether it is a workspace",
+    "catches": "refuses a package that is not an OpenOv AI instance, saying what it is missing",
+    "edits": [
+      {
+        "file": "lib/release.mjs",
+        "from": "    const wrong = notAWorkspace(from);\n    if (wrong !== null) {\n      throw new ReleaseError(wrong);\n    }\n    return { version: version(from), package: from, unpacked: true };",
+        "to": "    const said = version(from);\n    if (said === null) {\n      throw new ReleaseError(`${from} has no version in it`);\n    }\n    return { version: said, package: from, unpacked: true };"
+      }
+    ]
   }
 ]

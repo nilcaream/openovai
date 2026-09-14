@@ -1005,8 +1005,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "  import { applyEvent, composersEnabled, fresh, head, keyAction, place, prune, statusLine, stopEnabled, title } from \"./panels.mjs\";",
-        "to": "  import { applyEvent, composersEnabled, fresh, head, keyAction, prune, statusLine, stopEnabled, title } from \"./panels.mjs\";\n  const place = (seats, leader) => ({ left: seats.filter((s) => s !== leader), mid: leader, right: [] });"
+        "from": "  import { AMBER, CONNECTED, DISCONNECTED, GREEN, RED, STOPPING, applyEvent, composersEnabled, dot, fresh, head, keyAction, place, prune, quotaLine, quotaTitle, stopEnabled, title } from \"./panels.mjs\";",
+        "to": "  import { AMBER, CONNECTED, DISCONNECTED, GREEN, RED, STOPPING, applyEvent, composersEnabled, dot, fresh, head, keyAction, prune, quotaLine, quotaTitle, stopEnabled, title } from \"./panels.mjs\";\n  const place = (seats, leader) => ({ left: seats.filter((s) => s !== leader), mid: leader, right: [] });"
       }
     ]
   },
@@ -1056,7 +1056,7 @@
   },
   {
     "name": "the log masks the secret on the tool route only",
-    "catches": "prints no secret in the request log, wherever a path carries one",
+    "catches": "says nothing about a request, and never a secret where an answer names the path",
     "edits": [
       {
         "file": "lib/chat/server.mjs",
@@ -1238,6 +1238,17 @@
         "file": "lib/chat/server.mjs",
         "from": "    quota: usage.reading(),\n",
         "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the settings document goes back under Claude Code's directory",
+    "catches": "hands the run the list of what is not to be read, as a settings document of its own",
+    "edits": [
+      {
+        "file": "lib/instructions.mjs",
+        "from": "const FILE = \"instructions.json\";",
+        "to": "const FILE = path.join(\".local\", \"instructions.json\");"
       }
     ]
   }
