@@ -170,6 +170,14 @@ describe("what the installer made", () => {
     assert.ok(made.stdout.includes(inside(".local", "settings.json")));
   });
 
+  it("tells the person to start the server with the command that does", () => {
+    const lines = made.stdout.split("\n");
+    const hint = lines.indexOf("Start it with:");
+    assert.notEqual(hint, -1);
+    assert.equal(lines[hint + 1], `  ${inside("bin", "ovai")} start`);
+    assert.ok(!made.stdout.includes("ovai chat"));
+  });
+
   it("makes a directory for the settings", () => {
     assert.ok(fs.statSync(inside(".claude")).isDirectory());
   });

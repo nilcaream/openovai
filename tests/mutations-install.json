@@ -366,5 +366,16 @@
         "to": "      deny: OWN_ACCOUNT_RULES,"
       }
     ]
+  },
+  {
+    "name": "the installer's closing hint names a command that no longer exists",
+    "catches": "tells the person to start the server with the command that does",
+    "edits": [
+      {
+        "file": "lib/install.mjs",
+        "from": "  console.log(`  ${ovai} start`);",
+        "to": "  console.log(`  ${ovai} chat`);"
+      }
+    ]
   }
 ]
