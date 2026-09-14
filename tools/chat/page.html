@@ -44,14 +44,13 @@
     --shadow: rgba(0,0,0,.55);
     color-scheme: dark;
   }
-  * { box-sizing: border-box; }
+  * { box-sizing: border-box; scrollbar-width: none; }
   html, body { margin: 0; height: 100%; }
   html { font-size: 16px; }
   body {
     background: var(--bg); color: var(--fg); font: 1rem/1.5 var(--sans); -webkit-font-smoothing: antialiased;
     display: flex; flex-direction: column; height: 100vh;
   }
-  * { scrollbar-width: none; }
   *::-webkit-scrollbar { display: none; }
   a { color: var(--accent); }
   #stage {
@@ -76,8 +75,10 @@
   }
   .panel.asking .phead { border-color: var(--warn); }
   .phead .name { margin-right: 8px; flex: 0 0 auto; white-space: nowrap; font-weight: 700; font-size: 1rem; }
-  /* the dot before the name: red once the process is gone, pulsing while the panel asks */
+  /* the dot before the name: green while the panel listens, amber while its turn runs, red once the process is gone, pulsing while the panel asks */
   .phead .name::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--fg-faint); margin-right: 8px; vertical-align: 1px; }
+  .panel.idle .phead .name::before { background: var(--ok); }
+  .panel.busy .phead .name::before { background: var(--warn); }
   .panel.dimmed .phead .name::before { background: var(--bad); }
   .panel.asking .phead .name::before { animation: pulse 1.2s ease-in-out infinite; }
   @keyframes pulse { 50% { opacity: .25; } }
@@ -293,6 +294,8 @@
 
     const rows = document.createElement("div");
     rows.className = "rows";
+    // The stamps are measured again whenever the rows change width.
+    new ResizeObserver(() => fitStamps(rows.querySelectorAll(".t"))).observe(rows);
     // What a panel says until its first row: while the rows are still on their way, and while
     // there are none.
     const empty = document.createElement("div");
@@ -325,13 +328,16 @@
     composer.className = "composer";
     const box = document.createElement("textarea");
     box.rows = 1;
-    // The empty box says the whole sentence when it fits on one line, and whom a message reaches
-    // when the box is too narrow for it; measured again whenever the box changes width.
-    const whole = `Message ${name} — Enter sends, Shift+Enter for a new line`;
+    // The empty box says whom a message reaches and which key sends it; while a turn runs it says
+    // so, and that Enter still sends. The whole sentence when it fits on one line, its head when
+    // the box is too narrow for it; measured again whenever the box changes width, and by
+    // drawPanel() whenever the state changes.
     const fitPlaceholder = () => {
+      const busy = section.classList.contains("busy");
+      const whole = busy ? `${name} is working — Enter still sends` : `Message ${name} — Enter sends, Shift+Enter for a new line`;
       const style = getComputedStyle(box);
       const room = box.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
-      box.placeholder = textWidth(whole, box) <= room ? whole : `Message ${name}`;
+      box.placeholder = textWidth(whole, box) <= room ? whole : busy ? `${name} is working` : `Message ${name}`;
     };
     new ResizeObserver(fitPlaceholder).observe(box);
     // The box is one row until what is typed needs more, and stops growing at 40% of the window,
@@ -368,7 +374,7 @@
     });
 
     section.append(headLine, rows, asking, composer);
-    return { name, section, nameLine, info, word, fitHead, facts, stop, rows, empty, asking, jump, box, shown: 0, day: null, drawn: new Map(), loading: false };
+    return { name, section, nameLine, info, word, fitHead, fitPlaceholder, facts, stop, rows, empty, asking, jump, box, shown: 0, day: null, drawn: new Map(), loading: false };
   }
 
   // When a row was written, in the reader's own zone: `2026.09.13 Sunday 23:17:05` on the row, and
@@ -377,9 +383,21 @@
   const dayOf = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "2-digit", month: "short" });
 
   function stamp(at) {
-    if (at === undefined) return "";
+    if (at === undefined) return { whole: "", clock: "" };
     const part = Object.fromEntries(timeOf.formatToParts(new Date(at)).map((piece) => [piece.type, piece.value]));
-    return `${part.year}.${part.month}.${part.day} ${part.weekday} ${part.hour}:${part.minute}:${part.second}`;
+    const clock = `${part.hour}:${part.minute}:${part.second}`;
+    return { whole: `${part.year}.${part.month}.${part.day} ${part.weekday} ${clock}`, clock };
+  }
+
+  // A row's stamp is the whole day and time when it sits beside the whole label on one line, and
+  // the time alone when the label would be cut to make room for it — the pill above says the day.
+  // Every stamp is set whole first and all are measured after, so a change of width costs one
+  // layout and not one per row; the label is the one part of the line that trims, so it is the
+  // label that says whether the line fits.
+  function fitStamps(stamps) {
+    for (const time of stamps) time.textContent = time.dataset.whole;
+    const cut = [...stamps].filter((time) => { const label = time.parentElement.querySelector(".lbl"); return label.scrollWidth > label.clientWidth; });
+    for (const time of cut) time.textContent = time.dataset.clock;
   }
 
   function dayPill(day) {
@@ -409,7 +427,10 @@
     who.append(label);
     const time = document.createElement("span");
     time.className = "t";
-    time.textContent = stamp(entry.at);
+    const when = stamp(entry.at);
+    time.dataset.whole = when.whole;
+    time.dataset.clock = when.clock;
+    time.textContent = when.whole;
     meta.append(who, time);
     const body = document.createElement("div");
     if (shown.html !== undefined) {
@@ -526,8 +547,13 @@
     panel.section.title = about.title;
     panel.section.classList.toggle("dimmed", about.dimmed);
     panel.section.classList.toggle("asking", about.asking.length > 0);
+    // The dot: green between turns, amber while one runs; a gone process is red whatever its
+    // last turn was doing, by the order of the rules.
+    panel.section.classList.toggle("idle", about.busy === false);
+    panel.section.classList.toggle("busy", about.busy === true);
     panel.stop.disabled = !stopEnabled(state, panel.name);
     panel.box.disabled = !composersEnabled(state, panel.name);
+    panel.fitPlaceholder();
     if (panel.facts !== null) {
       const facts = statusParts(health, state, state.connection);
       panel.facts.version.textContent = facts.version;
@@ -557,14 +583,18 @@
       panel.empty.hidden = about.rows.length > 0;
       if (about.rows.length > panel.shown) {
         // A pill names the day before the first row written on it.
+        const added = [];
         for (const entry of about.rows.slice(panel.shown)) {
           const day = entry.at === undefined ? panel.day : dayOf.format(new Date(entry.at));
           if (day !== panel.day) {
             panel.day = day;
             panel.rows.append(dayPill(day));
           }
-          panel.rows.append(rowElement(entry));
+          const line = rowElement(entry);
+          panel.rows.append(line);
+          added.push(line.querySelector(".t"));
         }
+        fitStamps(added);
         panel.shown = about.rows.length;
         if (atTheNewest) {
           panel.rows.scrollTop = panel.rows.scrollHeight;

@@ -128,6 +128,31 @@ function readMutations(where) {
   return parsed;
 }
 
+// Every anchor is held against the tree before anything is built. A "from" that matches nothing
+// is a mutation the code has moved out from under — it edits nothing, so it proves nothing — and
+// one that matches twice would land somewhere nobody meant. Either is a fault of the list, and it
+// is refused here, as one, rather than reported as a HARNESS verdict among many at the end of a
+// sweep that took twenty minutes to say so. The edits of one mutation are applied in order to one
+// in-memory copy of each file, exactly as the sweep applies them, so an anchor that only exists
+// once an earlier edit has been made is read the same way here.
+function checkAnchors(mutations) {
+  for (const mutation of mutations) {
+    const texts = new Map();
+    for (const edit of mutation.edits) {
+      const target = path.join(repo, edit.file);
+      if (!texts.has(target)) {
+        if (!fs.existsSync(target)) throw new Error(`"${mutation.name}": ${edit.file} is not in the tree`);
+        texts.set(target, fs.readFileSync(target, "utf8"));
+      }
+      const hits = texts.get(target).split(edit.from).length - 1;
+      if (hits !== 1) {
+        throw new Error(`"${mutation.name}": ${edit.file}: "${edit.from.slice(0, 60).replace(/\n/g, "\\n")}" matched ${hits} times, not once`);
+      }
+      texts.set(target, texts.get(target).replace(edit.from, () => edit.to));
+    }
+  }
+}
+
 // ------------------------------------------------------------------------------------- the tree
 
 function git(argv, cwd = repo) {
@@ -323,6 +348,7 @@ async function main() {
     return 0;
   }
   const mutations = readMutations(chosen.list);
+  checkAnchors(mutations);
   const before = treeState();
   const scratch = path.join(repo, ".tmp", "mutate");
   fs.mkdirSync(scratch, { recursive: true });

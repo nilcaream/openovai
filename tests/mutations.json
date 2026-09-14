@@ -957,18 +957,18 @@
   },
   {
     "name": "a lifecycle button on the page",
-    "catches": "carries no lifecycle button and no lifecycle word, and STOP is its one button",
+    "catches": "carries no lifecycle button and no lifecycle word, and STOP is its one lifecycle button",
     "edits": [
       {
         "file": "tools/chat/page.html",
-        "from": "<p id=\"status\"></p>",
-        "to": "<p id=\"status\"></p>\n<button>Go online</button>"
+        "from": "<div id=\"stage\">",
+        "to": "<button>Go online</button>\n<div id=\"stage\">"
       }
     ]
   },
   {
     "name": "a second button label in the script",
-    "catches": "carries no lifecycle button and no lifecycle word, and STOP is its one button",
+    "catches": "carries no lifecycle button and no lifecycle word, and STOP is its one lifecycle button",
     "edits": [
       {
         "file": "tools/chat/page.html",

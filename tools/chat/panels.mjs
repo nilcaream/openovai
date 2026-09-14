@@ -201,7 +201,19 @@ export function stopEnabled(state, name) {
 
 // --------------------------------------------------------------------------------------- marks
 
+// The state word on a head: what the session is doing — listening between turns, working while
+// a turn runs, waiting for you while it asks. A dimmed panel gets no word: the fade and the red
+// dot are the mark.
+export const LISTENING = "listening";
+export const WORKING = "working";
 export const WAITING = "waiting for you";
+
+export function stateWord(state, name) {
+  const panel = state.panels[name];
+  if (panel.dimmed) return "";
+  if (asking(state, name)) return WAITING;
+  return panel.busy ? WORKING : LISTENING;
+}
 
 export function asking(state, name) {
   const panel = state.panels[name];
@@ -215,11 +227,11 @@ export function title(state) {
 }
 
 // The head of a panel, in parts: the name, the facts (the model, the context in k when known)
-// and the state word while it asks.
+// and the state word.
 export function head(state, name) {
   const panel = state.panels[name];
   const facts = [panel.model, panel.context === null ? "" : `${Math.round(panel.context / 1000)}k`];
-  return { name: panel.name, info: facts.filter((fact) => fact !== "").join(" "), state: asking(state, name) ? WAITING : "" };
+  return { name: panel.name, info: facts.filter((fact) => fact !== "").join(" "), state: stateWord(state, name) };
 }
 
 // ---------------------------------------------------------------------------------- status line

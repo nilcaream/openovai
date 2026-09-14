@@ -174,5 +174,27 @@
         "to": "  const stage = stages.includes(\"critical\") || stages.includes(\"warning\") ? \"warning\" : \"ok\";"
       }
     ]
+  },
+  {
+    "name": "a running turn says listening",
+    "catches": "the state word is listening between turns, working while one runs, waiting for you over both, and nothing on a dimmed panel",
+    "edits": [
+      {
+        "file": "tools/chat/panels.mjs",
+        "from": "  return panel.busy ? WORKING : LISTENING;",
+        "to": "  return LISTENING;"
+      }
+    ]
+  },
+  {
+    "name": "a dimmed panel keeps its state word",
+    "catches": "the state word is listening between turns, working while one runs, waiting for you over both, and nothing on a dimmed panel",
+    "edits": [
+      {
+        "file": "tools/chat/panels.mjs",
+        "from": "  if (panel.dimmed) return \"\";\n",
+        "to": ""
+      }
+    ]
   }
 ]

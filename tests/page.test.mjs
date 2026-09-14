@@ -1,6 +1,6 @@
 // The page's stylesheet, read as rules: the token table per theme, no colour outside it, no token
 // outside the table, a rule for every class the page emits, no rule for a class it never
-// does and no selector on an attribute the script never sets. The page is read as text
+// does, no selector on an attribute the script never sets, and no selector declared twice. The page is read as text
 // and never run here, and the stylesheet is parsed rather than grepped, so a check is about a rule
 // and its value rather than about a string being somewhere in the file. Every mutation in
 // tests/mutations-page.json names the check it was written to redden.
@@ -102,6 +102,15 @@ describe("the rules", () => {
     assert.equal(dot.declarations.background, "var(--bad)");
   });
 
+  // The three state rules share a specificity, so the order decides: a process gone mid-turn is
+  // red, never the amber of the turn it was on.
+  it("mark a panel whose turn is running with an amber dot, and let a gone process outrank it", () => {
+    const at = (selector) => rules.findIndex((rule) => rule.selector === `.panel.${selector} .phead .name::before`);
+    assert.equal(rules[at("busy")].declarations.background, "var(--warn)");
+    assert.equal(rules[at("idle")].declarations.background, "var(--ok)");
+    assert.ok(at("dimmed") > at("busy") && at("dimmed") > at("idle"), "the gone rule sits above a state rule, which then wins on a gone panel");
+  });
+
   it("draw what the User typed on the User's own ground", () => {
     const bubble = rules.find((rule) => rule.selector === ".msg.user .bubble");
     assert.equal(bubble.declarations.background, "var(--me)");
@@ -130,6 +139,18 @@ describe("the rules", () => {
     assert.equal(pill.declarations.position, "sticky");
     assert.equal(pill.declarations.bottom, "24px");
     assert.deepEqual(rules.find((rule) => rule.selector === "#jump.show").declarations, { display: "block" }, "showing the pill changes its display only, never its position");
+  });
+
+  // Every pin above reads the FIRST rule under a selector while the cascade takes the LAST, so a
+  // second rule under the same selector would change the page behind a green pin.
+  it("declare no selector twice", () => {
+    const seen = new Set();
+    for (const rule of rules) {
+      const key = `${rule.media ?? ""}|${rule.keyframes ?? ""}|${rule.selector}`;
+      assert.ok(!seen.has(key), `${rule.selector} is declared twice${rule.media === null ? "" : ` under @media ${rule.media}`}`);
+      seen.add(key);
+    }
+    assert.ok(seen.size >= 50, `the stylesheet has only ${seen.size} rules, so this check read almost nothing`);
   });
 
   it("carry no raw colour outside the token blocks", () => {
@@ -214,11 +235,12 @@ describe("the script", () => {
 
   // The placeholder is a property of the box, not a word of the page's own, so it is read here and
   // not in the literal list chat.test.mjs pins. The whole sentence when it fits the box on one line,
-  // whom a message reaches when the box is too narrow — measured in the box's own font, and again
-  // whenever the box changes width.
+  // its head when the box is too narrow — measured in the box's own font, and again whenever the
+  // box changes width; while a turn runs the sentence says so, and that Enter still sends.
   it("says in the empty box whom a message reaches and which key sends it, the whole sentence only where it fits", () => {
-    assert.match(script, /const whole = `Message \$\{name\} — Enter sends, Shift\+Enter for a new line`;/);
-    assert.match(script, /box\.placeholder = textWidth\(whole, box\) <= room \? whole : `Message \$\{name\}`;/);
+    assert.match(script, /const whole = busy \? `\$\{name\} is working — Enter still sends` : `Message \$\{name\} — Enter sends, Shift\+Enter for a new line`;/);
+    assert.match(script, /box\.placeholder = textWidth\(whole, box\) <= room \? whole : busy \? `\$\{name\} is working` : `Message \$\{name\}`;/);
+    assert.match(script, /const busy = section\.classList\.contains\("busy"\);/, "the sentence follows the panel's own busy mark");
     assert.match(script, /new ResizeObserver\(fitPlaceholder\)\.observe\(box\);/);
     assert.match(script, /gauge\.measureText\(text\)\.width/);
     assert.match(script, /gauge\.font = `\$\{style\.fontStyle\} \$\{style\.fontWeight\} \$\{style\.fontSize\} \$\{style\.fontFamily\}`;/, "the gauge measures in the box own font");
@@ -258,6 +280,26 @@ describe("the script", () => {
   it("hides the words of a head too narrow to show them whole, the state word before the model", () => {
     assert.match(script, /const fitHead = \(\) => \{\s*word\.hidden = false;\s*info\.hidden = false;\s*if \(headLine\.scrollWidth > headLine\.clientWidth\) word\.hidden = true;\s*if \(headLine\.scrollWidth > headLine\.clientWidth\) info\.hidden = true;\s*\};\s*new ResizeObserver\(fitHead\)\.observe\(headLine\);/);
     assert.match(script, /panel\.fitHead\(\);/);
+  });
+
+  // The dot and the placeholder follow what the server says of the panel's turn: the page reads
+  // `busy` from the panel and marks the panel with it on every draw, then refits the placeholder —
+  // a ResizeObserver alone would say the idle sentence on a busy box that never changed width.
+  it("marks a panel idle or busy from its turn on every draw, and refits the empty box then", () => {
+    assert.match(script, /panel\.section\.classList\.toggle\("idle", about\.busy === false\);\s*panel\.section\.classList\.toggle\("busy", about\.busy === true\);/);
+    assert.match(script, /panel\.box\.disabled = !composersEnabled\(state, panel\.name\);\s*panel\.fitPlaceholder\(\);/, "the refit comes after the marks, in the draw");
+  });
+
+  // A row's stamp: the whole day and time, or the time alone where the whole would cut the label —
+  // the label is the one part of the line that trims, so it is the label that says. All stamps
+  // are set whole first and measured after, so a change of width costs one layout, not one per
+  // row; measured for the rows a draw appends and for every row when the rows change width.
+  it("gives a row's stamp up to the time alone where the whole day would cut the label, on append and on every change of width", () => {
+    assert.match(script, /const clock = `\$\{part\.hour\}:\$\{part\.minute\}:\$\{part\.second\}`;\s*return \{ whole: `\$\{part\.year\}\.\$\{part\.month\}\.\$\{part\.day\} \$\{part\.weekday\} \$\{clock\}`, clock \};/);
+    assert.match(script, /time\.dataset\.whole = when\.whole;\s*time\.dataset\.clock = when\.clock;\s*time\.textContent = when\.whole;/);
+    assert.match(script, /function fitStamps\(stamps\) \{\s*for \(const time of stamps\) time\.textContent = time\.dataset\.whole;\s*const cut = \[\.\.\.stamps\]\.filter\(\(time\) => \{ const label = time\.parentElement\.querySelector\("\.lbl"\); return label\.scrollWidth > label\.clientWidth; \}\);\s*for \(const time of cut\) time\.textContent = time\.dataset\.clock;\s*\}/);
+    assert.match(script, /new ResizeObserver\(\(\) => fitStamps\(rows\.querySelectorAll\("\.t"\)\)\)\.observe\(rows\);/);
+    assert.match(script, /added\.push\(line\.querySelector\("\.t"\)\);\s*\}\s*fitStamps\(added\);\s*panel\.shown = about\.rows\.length;/, "the appended rows are fitted once, after the loop");
   });
 
   // The instance facts on the Leader's head, drawn from the parts panels.mjs makes: the connection

@@ -126,20 +126,39 @@ describe("marks and controls", () => {
     applyEvent(state, { name: "asking", data: { seat: "Paul", pending: [{ id: "r1", tool: "Bash", input: { command: "ls" } }] } }, 0);
     assert.equal(title(state), "● ovai");
     assert.equal(head(state, "Paul").state, "waiting for you");
-    assert.equal(head(state, LEADER).state, "");
+    assert.equal(head(state, LEADER).state, "listening");
     applyEvent(state, { name: "asking", data: { seat: LEADER, pending: [{ id: "u1", kind: "rule", rule: "Bash(git:*)", why: "w", from: LEADER }] } }, 0);
     assert.equal(head(state, LEADER).state, "waiting for you");
     applyEvent(state, { name: "asking", data: { seat: "Paul", pending: [] } }, 0);
     applyEvent(state, { name: "asking", data: { seat: LEADER, pending: [] } }, 0);
     assert.equal(title(state), "ovai");
-    assert.equal(head(state, "Paul").state, "");
+    assert.equal(head(state, "Paul").state, "listening");
   });
 
   it("the head is the name, the model and the context in k, in parts", () => {
     const state = fresh();
     applyEvent(state, snapshot([about(LEADER, { model: "opus", context: 41_200 }), about("Paul", { model: "" })]), 0);
-    assert.deepEqual(head(state, LEADER), { name: "Leader", info: "opus 41k", state: "" });
-    assert.deepEqual(head(state, "Paul"), { name: "Paul", info: "", state: "" });
+    assert.deepEqual(head(state, LEADER), { name: "Leader", info: "opus 41k", state: "listening" });
+    assert.deepEqual(head(state, "Paul"), { name: "Paul", info: "", state: "listening" });
+  });
+
+  // The word follows the turn: a seat event with busy flips it, an ask outranks it, and a dimmed
+  // panel says nothing — the fade and the red dot are its mark.
+  it("the state word is listening between turns, working while one runs, waiting for you over both, and nothing on a dimmed panel", () => {
+    const state = fresh();
+    applyEvent(state, snapshot([about(LEADER, { busy: true }), about("Paul")]), 0);
+    assert.equal(head(state, LEADER).state, "working");
+    assert.equal(head(state, "Paul").state, "listening");
+    applyEvent(state, seat("Paul", { busy: true }), 0);
+    assert.equal(head(state, "Paul").state, "working");
+    applyEvent(state, { name: "asking", data: { seat: "Paul", pending: [{ id: "r1", tool: "Bash", input: { command: "ls" } }] } }, 0);
+    assert.equal(head(state, "Paul").state, "waiting for you");
+    applyEvent(state, { name: "asking", data: { seat: "Paul", pending: [] } }, 0);
+    applyEvent(state, seat("Paul", { busy: false }), 0);
+    assert.equal(head(state, "Paul").state, "listening");
+    applyEvent(state, seat("Paul", { running: false, busy: true }), 0);
+    assert.equal(state.panels.Paul.dimmed, true);
+    assert.equal(head(state, "Paul").state, "");
   });
 
   it("STOP is enabled while a turn runs and nowhere else", () => {
