@@ -45,12 +45,12 @@
   },
   {
     "name": "the arrow label is dropped",
-    "catches": "a word typed to a Worker says where it went on the Leader's panel",
+    "catches": "a word typed to a Worker says where it went on the Leader's panel, on its own ground",
     "edits": [
       {
         "file": "lib/chat/render.mjs",
-        "from": "    const to = typeof entry.typedTo === \"string\" ? ` → ${entry.typedTo}` : \"\";",
-        "to": "    const to = \"\";"
+        "from": "      return { who: `${names.user} → ${entry.typedTo}`, kind: \"typed\", text: String(entry.text) };",
+        "to": "      return { who: `${names.user}`, kind: \"typed\", text: String(entry.text) };"
       }
     ]
   },
@@ -82,7 +82,7 @@
     "edits": [
       {
         "file": "lib/chat/render.mjs",
-        "from": "  if (typeof entry.line === \"string\") {\n    return { who: entry.from, kind: \"line\", text: entry.line, err: entry.err === true };\n  }\n",
+        "from": "  if (typeof entry.line === \"string\") {\n    return { who: entry.from, kind: \"line\", text: entry.line, err: entry.err === true, why: entry.why ?? \"\" };\n  }\n",
         "to": ""
       }
     ]
@@ -93,8 +93,8 @@
     "edits": [
       {
         "file": "lib/chat/render.mjs",
-        "from": "text: entry.line, err: entry.err === true };",
-        "to": "text: entry.line, err: false };"
+        "from": "text: entry.line, err: entry.err === true, why: entry.why ?? \"\" };",
+        "to": "text: entry.line, err: false, why: entry.why ?? \"\" };"
       }
     ]
   },
@@ -122,12 +122,100 @@
   },
   {
     "name": "a Worker's panel draws the whole message as a bubble",
-    "catches": "on a Worker's panel a message is a line, red when it did not go",
+    "catches": "on a Worker's panel a message is a line with the message's id, red with the reason when it did not go",
     "edits": [
       {
         "file": "lib/chat/render.mjs",
-        "from": "      return { who: entry.from, kind: \"line\", text: `Received a message from ${entry.from}`, err: false };",
+        "from": "      return { who: entry.from, kind: \"line\", text: `Received a message from ${entry.from}`, err: false, why: \"\", ...msg };",
+        "to": "      return { who: `From ${entry.from}`, kind: \"peer-in\", html: html(entry.text), tight: true, ...msg };"
+      }
+    ]
+  },
+  {
+    "name": "the User's rows say you",
+    "catches": "the User's own words carry the User's name, plain",
+    "edits": [
+      {
+        "file": "lib/chat/render.mjs",
+        "from": "    return { who: names.user, kind: \"user\", text: String(entry.text) };",
+        "to": "    return { who: \"you\", kind: \"user\", text: String(entry.text) };"
+      }
+    ]
+  },
+  {
+    "name": "a word typed to a Worker is on the User's ground on the Leader's panel",
+    "catches": "a word typed to a Worker says where it went on the Leader's panel, on its own ground",
+    "edits": [
+      {
+        "file": "lib/chat/render.mjs",
+        "from": "kind: \"typed\", text: String(entry.text) };",
+        "to": "kind: \"user\", text: String(entry.text) };"
+      }
+    ]
+  },
+  {
+    "name": "a failed call carries no reason",
+    "catches": "a tool call is a line: the summary as text, its kind line, red once the call failed",
+    "edits": [
+      {
+        "file": "lib/chat/render.mjs",
+        "from": "    return { who: entry.from, kind: \"line\", text: entry.line, err: entry.err === true, why: entry.why ?? \"\" };",
+        "to": "    return { who: entry.from, kind: \"line\", text: entry.line, err: entry.err === true, why: \"\" };"
+      }
+    ]
+  },
+  {
+    "name": "a message To a session carries no id",
+    "catches": "a message the Leader sent is To its addressee, compact, with its outcome",
+    "edits": [
+      {
+        "file": "lib/chat/render.mjs",
+        "from": "        return { who: `To ${entry.to}`, kind: \"peer-out\", html: html(entry.text), tight: true, ...status, ...msg };",
+        "to": "        return { who: `To ${entry.to}`, kind: \"peer-out\", html: html(entry.text), tight: true, ...status };"
+      }
+    ]
+  },
+  {
+    "name": "a message From a session carries no id",
+    "catches": "a message the Leader received is From its sender",
+    "edits": [
+      {
+        "file": "lib/chat/render.mjs",
+        "from": "      return { who: `From ${entry.from}`, kind: \"peer-in\", html: html(entry.text), tight: true, ...msg };",
         "to": "      return { who: `From ${entry.from}`, kind: \"peer-in\", html: html(entry.text), tight: true };"
+      }
+    ]
+  },
+  {
+    "name": "a Worker's call that went still says Writing",
+    "catches": "on a Worker's panel a message is a line with the message's id, red with the reason when it did not go",
+    "edits": [
+      {
+        "file": "lib/chat/render.mjs",
+        "from": "text: `Sent a message to ${entry.to}`, err: false, why: \"\", ...msg };",
+        "to": "text: `Writing a message to ${entry.to}`, err: false, why: \"\", ...msg };"
+      }
+    ]
+  },
+  {
+    "name": "a Worker's call that did not go carries no reason",
+    "catches": "on a Worker's panel a message is a line with the message's id, red with the reason when it did not go",
+    "edits": [
+      {
+        "file": "lib/chat/render.mjs",
+        "from": "      return { who: entry.from, kind: \"line\", text: `Writing a message to ${entry.to}`, err: true, why: entry.why ?? \"\" };",
+        "to": "      return { who: entry.from, kind: \"line\", text: `Writing a message to ${entry.to}`, err: true, why: \"\" };"
+      }
+    ]
+  },
+  {
+    "name": "a message a Worker received carries no id",
+    "catches": "on a Worker's panel a message is a line with the message's id, red with the reason when it did not go",
+    "edits": [
+      {
+        "file": "lib/chat/render.mjs",
+        "from": "text: `Received a message from ${entry.from}`, err: false, why: \"\", ...msg };",
+        "to": "text: `Received a message from ${entry.from}`, err: false, why: \"\" };"
       }
     ]
   }

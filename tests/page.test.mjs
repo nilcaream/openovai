@@ -158,6 +158,32 @@ describe("the rules", () => {
     assert.equal(bubble.declarations.background, "var(--to)");
   });
 
+  it("draw what the User typed to a Worker on a ground of its own on the Leader's panel, as the User's words", () => {
+    const bubble = rules.find((rule) => rule.selector === ".msg.typed .bubble");
+    assert.equal(bubble.declarations.background, "var(--typed)");
+    assert.equal(bubble.declarations["border-color"], "var(--typed-line)");
+    assert.equal(bubble.declarations["white-space"], "pre-wrap", "typed words keep their lines, as on the User's own ground");
+  });
+
+  it("mark the line of a message as a click, and light the message a click found", () => {
+    const line = rules.find((rule) => rule.selector === ".rows .line.peer");
+    assert.equal(line.declarations.cursor, "pointer");
+    assert.equal(line.declarations["border-left"], "3px solid var(--accent)");
+    const lit = rules.find((rule) => rule.selector === ".msg.focus .bubble");
+    assert.equal(lit.declarations.outline, "2px solid var(--accent)");
+  });
+
+  it("clip a folded message to three lines, faded at its edge, and draw the word that opens it as a link", () => {
+    const folded = rules.find((rule) => rule.selector === ".bubble .md.collapsed");
+    assert.equal(folded.declarations["max-height"], "4.5em", "three lines at the page's line height of 1.5");
+    assert.equal(folded.declarations.overflow, "hidden");
+    assert.equal(folded.declarations["mask-image"], "linear-gradient(currentcolor 80%, transparent)");
+    const more = rules.find((rule) => rule.selector === ".more");
+    assert.equal(more.declarations.color, "var(--accent)");
+    assert.equal(more.declarations.cursor, "pointer");
+    assert.equal(more.declarations.border, "0");
+  });
+
   it("draw a tool line in the dim mono of a machine word", () => {
     const line = rules.find((rule) => rule.selector === ".rows .line");
     assert.equal(line.declarations.color, "var(--fg-dim)");
@@ -301,7 +327,7 @@ describe("the script", () => {
   it("shows the pill when rows land below a reader who is not near the newest, and takes them there on a click", () => {
     assert.match(script, /const nearTheNewest = \(rows\) => rows\.scrollHeight - rows\.scrollTop - rows\.clientHeight < 80;/);
     assert.match(script, /\n      rows\.append\(jump\);\n/, "the pill is a child of the rows");
-    assert.match(script, /panel\.shown = about\.rows\.length;\n(?:[^\n]*\n){21}      if \(panel\.jump !== null && panel\.jump !== panel\.rows\.lastElementChild\) panel\.rows\.append\(panel\.jump\);\n    \}\n/, "the pill is put back last AFTER the rows are appended, as the last statement of the draw");
+    assert.match(script, /panel\.shown = about\.rows\.length;\n(?:[^\n]*\n){25}      if \(panel\.jump !== null && panel\.jump !== panel\.rows\.lastElementChild\) panel\.rows\.append\(panel\.jump\);\n    \}\n/, "the pill is put back last AFTER the rows are appended, as the last statement of the draw");
     assert.match(script, /\} else if \(panel\.jump !== null && !near\) \{\s*panel\.jump\.classList\.add\("show"\);/);
     assert.match(script, /rows\.addEventListener\("scroll", \(\) => \{\s*if \(nearTheNewest\(rows\)\) jump\.classList\.remove\("show"\);/);
     assert.match(script, /jump\.addEventListener\("click", \(\) => \{\s*rows\.scrollTop = rows\.scrollHeight;\s*jump\.classList\.remove\("show"\);/);
@@ -345,22 +371,46 @@ describe("the script", () => {
   // A tool call is a line, built by one function that always appends the counter span: the err
   // class from the shown row, never a ternary in the class name (the classes check reads
   // literals), and the text as text.
-  it("builds a tool line as a div with its summary as text, the err class from the row, and a counter span after it", () => {
-    assert.match(script, /function lineElement\(shown\) \{\s*const line = document\.createElement\("div"\);\s*line\.className = "line";\s*if \(shown\.err === true\) line\.classList\.add\("err"\);\s*line\.textContent = shown\.text;\s*const count = document\.createElement\("span"\);\s*count\.className = "n";\s*line\.append\(count\);\s*return line;/);
+  it("builds a tool line as a div with its summary as text, the err class and the reason from the row, and a counter span after it", () => {
+    assert.match(script, /function lineElement\(shown\) \{\s*const line = document\.createElement\("div"\);\s*line\.className = "line";\s*if \(shown\.err === true\) line\.classList\.add\("err"\);\s*line\.title = shown\.why;\s*line\.textContent = shown\.text;\s*const count = document\.createElement\("span"\);\s*count\.className = "n";\s*line\.append\(count\);/);
     assert.match(script, /if \(shown\.kind === "line"\) return lineElement\(shown\);/);
   });
 
-  // A call that failed after its line was drawn: the server writes the row again with err, the
-  // page lists its index under amended, and the draw marks the element of that index.
-  it("marks the line of a call that failed red, by its index", () => {
-    assert.match(script, /for \(const index of about\.amended\.splice\(0\)\) \{\s*const element = panel\.lines\.get\(index\);\s*if \(element !== undefined && about\.rows\[index\]\.err === true\) element\.classList\.add\("err"\);/);
+  // A line that is one end of a message between two sessions carries the message's id and is a
+  // click: the message is found on the Leader's panel by that id, brought into view and lit for a
+  // moment. A line that is nothing of the kind gets none of it.
+  it("marks the line of a message with its id and takes a click on it to the message on the Leader's panel", () => {
+    assert.match(script, /if \(shown\.msg !== undefined\) \{\s*line\.classList\.add\("peer"\);\s*line\.dataset\.msg = shown\.msg;\s*line\.onclick = \(\) => focusMessage\(shown\.msg\);\s*\}\s*return line;/);
+    assert.match(script, /if \(shown\.msg !== undefined\) line\.dataset\.msg = shown\.msg;/, "a bubble carries the id too, for the click to find");
+    assert.match(script, /function focusMessage\(id\) \{\s*const leader = sections\.get\(state\.leader\);\s*const found = leader === undefined \? null : leader\.rows\.querySelector\(`\.msg\[data-msg="\$\{id\}"\]`\);\s*if \(found === null\) return;\s*found\.scrollIntoView\(\{ block: "center" \}\);/);
+    assert.match(script, /found\.classList\.add\("focus"\);\s*setTimeout\(\(\) => found\.classList\.remove\("focus"\), FOCUS_FOR\);/);
+    assert.match(script, /const FOCUS_FOR = 1500;/);
+  });
+
+  // A message on the Leader's panel, to a session or from one, shows three lines of itself: the
+  // body is folded once it is on the page, and a body that fits is unfolded again and carries no
+  // word; one that does not gets the word under it that opens it and folds it again.
+  it("folds a message to a session or from one to three lines, once it is on the page, with a word that opens it", () => {
+    assert.match(script, /if \(shown\.kind === "peer-in" \|\| shown\.kind === "peer-out"\) collapsible\(line\.querySelector\("\.md"\)\);/);
+    assert.match(script, /panel\.rows\.append\(line\);(?:[^\n]*\n)+?[^\n]*collapsible\(line\.querySelector/, "folded after the row is on the page, never before");
+    assert.match(script, /function collapsible\(body\) \{\s*body\.classList\.add\("collapsed"\);\s*if \(body\.scrollHeight <= body\.clientHeight\) \{\s*body\.classList\.remove\("collapsed"\);\s*return;\s*\}/);
+    assert.match(script, /more\.className = "more";\s*more\.textContent = "show all";\s*more\.onclick = \(\) => \{\s*const folded = body\.classList\.toggle\("collapsed"\);\s*more\.textContent = folded \? "show all" : "collapse";\s*\};\s*body\.after\(more\);/);
+  });
+
+  // A call that failed after its line was drawn: the server writes the row again with err and
+  // the reason, the page lists its index under amended, and the draw marks the element of that
+  // index and gives it the reason.
+  it("marks the line of a call that failed red, by its index, with the reason for a tooltip", () => {
+    assert.match(script, /for \(const index of about\.amended\.splice\(0\)\) \{\s*const element = panel\.lines\.get\(index\);\s*if \(element !== undefined && about\.rows\[index\]\.err === true\) \{\s*element\.classList\.add\("err"\);\s*element\.title = about\.rows\[index\]\.why \?\? "";\s*\}/);
     assert.match(script, /panel\.lines\.set\(index, line\);/, "a drawn line is kept by its index");
   });
 
   // Identical neighbouring calls are one line with a counter: the repeated call writes ×N into
-  // the counter span of the line appended last and draws nothing; any other row ends the run.
-  it("merges a repeated call into one line with a counter", () => {
-    assert.match(script, /if \(shown\.kind === "line" && panel\.last !== null && panel\.last\.text === shown\.text\) \{\s*panel\.last\.count \+= 1;\s*panel\.last\.n\.textContent = ` ×\$\{panel\.last\.count\}`;\s*panel\.lines\.set\(index, panel\.last\.el\);\s*continue;/);
+  // the counter span of the line appended last and draws nothing; any other row ends the run —
+  // and so does a line that is one end of a message, which is never merged and never merged into.
+  it("merges a repeated call into one line with a counter, never a message's line", () => {
+    assert.match(script, /if \(shown\.kind === "line" && shown\.msg === undefined && panel\.last !== null && panel\.last\.text === shown\.text\) \{\s*panel\.last\.count \+= 1;\s*panel\.last\.n\.textContent = ` ×\$\{panel\.last\.count\}`;\s*panel\.lines\.set\(index, panel\.last\.el\);\s*continue;/);
+    assert.match(script, /panel\.last = shown\.msg === undefined \? \{ text: shown\.text, el: line, count: 1, n: line\.lastElementChild \} : null;/, "a message's line ends the run");
     assert.match(script, /\} else \{\s*panel\.last = null;\s*\}/, "a bubble ends the run");
     assert.match(script, /panel\.day = day;\s*panel\.last = null;/, "a pill ends the run");
   });
@@ -406,7 +456,7 @@ describe("the script", () => {
     assert.match(script, /if \(shown\.status !== undefined\) \{\s*const st = document\.createElement\("span"\);\s*st\.className = "st";\s*if \(shown\.status\.bad === true\) st\.classList\.add\("bad"\);\s*st\.textContent = shown\.status\.text;\s*st\.title = shown\.status\.title;\s*meta\.append\(st\);/);
     assert.match(script, /body\.innerHTML = shown\.html;\s*if \(shown\.tight === true\) body\.classList\.add\("tight"\);/);
     assert.match(script, /if \(shown\.err === true\) line\.classList\.add\("err"\);/);
-    assert.match(script, /rowOf\(entry, \{ chat: state\.chat, seat: panel\.name, leader: state\.leader \}\)/, "the renderer is told whose panel the row is on");
+    assert.match(script, /rowOf\(entry, \{ chat: state\.chat, seat: panel\.name, leader: state\.leader, user: state\.user \}\)/, "the renderer is told whose panel the row is on, and who the User is");
   });
 
   it("draws a reply's markdown as elements — a link, a code span — never as the words of the markup", () => {

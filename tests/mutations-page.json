@@ -713,8 +713,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "  .rows .line { display: block; width: 100%; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); font-family: var(--mono); font-size: .76rem; color: var(--fg-dim); padding: 3px 8px; margin: 3px 0; overflow-wrap: anywhere; }\n  .rows .line.err { color: var(--bad); }\n  .rows .line .n { color: var(--fg-faint); }\n",
-        "to": "  .rows .tool { display: block; width: 100%; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); font-family: var(--mono); font-size: .76rem; color: var(--fg-dim); padding: 3px 8px; margin: 3px 0; overflow-wrap: anywhere; }\n  .rows .tool.err { color: var(--bad); }\n  .rows .tool .n { color: var(--fg-faint); }\n"
+        "from": "  .rows .line { display: block; width: 100%; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); font-family: var(--mono); font-size: .76rem; color: var(--fg-dim); padding: 3px 8px; margin: 3px 0; overflow-wrap: anywhere; }\n  .rows .line.err { color: var(--bad); }\n  .rows .line .n { color: var(--fg-faint); }\n  /* a line that is one end of a message between two sessions: a click on it finds the message on the Leader's panel */\n  .rows .line.peer { cursor: pointer; border-left: 3px solid var(--accent); }\n",
+        "to": "  .rows .tool { display: block; width: 100%; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); font-family: var(--mono); font-size: .76rem; color: var(--fg-dim); padding: 3px 8px; margin: 3px 0; overflow-wrap: anywhere; }\n  .rows .tool.err { color: var(--bad); }\n  .rows .tool .n { color: var(--fg-faint); }\n  /* a line that is one end of a message between two sessions: a click on it finds the message on the Leader's panel */\n  .rows .tool.peer { cursor: pointer; border-left: 3px solid var(--accent); }\n"
       }
     ]
   },
@@ -731,22 +731,22 @@
   },
   {
     "name": "a failed call never turns its line red: the err mark is gone from the draw",
-    "catches": "marks the line of a call that failed red, by its index",
+    "catches": "marks the line of a call that failed red, by its index, with the reason for a tooltip",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "        if (element !== undefined && about.rows[index].err === true) element.classList.add(\"err\");\n",
-        "to": ""
+        "from": "          element.classList.add(\"err\");\n          element.title = about.rows[index].why ?? \"\";\n",
+        "to": "          element.title = about.rows[index].why ?? \"\";\n"
       }
     ]
   },
   {
     "name": "identical neighbouring calls are drawn one under the other: the merge is gone",
-    "catches": "merges a repeated call into one line with a counter",
+    "catches": "merges a repeated call into one line with a counter, never a message's line",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "          if (shown.kind === \"line\" && panel.last !== null && panel.last.text === shown.text) {\n            panel.last.count += 1;\n            panel.last.n.textContent = ` ×${panel.last.count}`;\n            panel.lines.set(index, panel.last.el);\n            continue;\n          }\n",
+        "from": "          if (shown.kind === \"line\" && shown.msg === undefined && panel.last !== null && panel.last.text === shown.text) {\n            panel.last.count += 1;\n            panel.last.n.textContent = ` ×${panel.last.count}`;\n            panel.lines.set(index, panel.last.el);\n            continue;\n          }\n",
         "to": ""
       }
     ]
@@ -1000,6 +1000,209 @@
         "file": "lib/chat/page.html",
         "from": "  const EVENTS = [\"snapshot\", \"rows\", \"row\", \"asking\", \"seat\", \"quota\", \"stopping\"];",
         "to": "  const EVENTS = [\"snapshot\", \"rows\", \"row\", \"asking\", \"seat\", \"stopping\"];"
+      }
+    ]
+  },
+  {
+    "name": "a message's line is merged into the line before it",
+    "catches": "merges a repeated call into one line with a counter, never a message's line",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "if (shown.kind === \"line\" && shown.msg === undefined && panel.last !== null",
+        "to": "if (shown.kind === \"line\" && panel.last !== null"
+      }
+    ]
+  },
+  {
+    "name": "a message's line starts a run the next line merges into",
+    "catches": "merges a repeated call into one line with a counter, never a message's line",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "            panel.last = shown.msg === undefined ? { text: shown.text, el: line, count: 1, n: line.lastElementChild } : null;",
+        "to": "            panel.last = { text: shown.text, el: line, count: 1, n: line.lastElementChild };"
+      }
+    ]
+  },
+  {
+    "name": "a failed line is marked red with no reason",
+    "catches": "marks the line of a call that failed red, by its index, with the reason for a tooltip",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "          element.classList.add(\"err\");\n          element.title = about.rows[index].why ?? \"\";\n",
+        "to": "          element.classList.add(\"err\");\n"
+      }
+    ]
+  },
+  {
+    "name": "a line carries no reason for a tooltip",
+    "catches": "builds a tool line as a div with its summary as text, the err class and the reason from the row, and a counter span after it",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    line.title = shown.why;\n    line.textContent = shown.text;",
+        "to": "    line.textContent = shown.text;"
+      }
+    ]
+  },
+  {
+    "name": "a message's line is no click",
+    "catches": "marks the line of a message with its id and takes a click on it to the message on the Leader's panel",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      line.onclick = () => focusMessage(shown.msg);\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a message's line is not marked as one",
+    "catches": "marks the line of a message with its id and takes a click on it to the message on the Leader's panel",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      line.classList.add(\"peer\");\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a bubble carries no id for the click to find",
+    "catches": "marks the line of a message with its id and takes a click on it to the message on the Leader's panel",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    if (shown.msg !== undefined) line.dataset.msg = shown.msg;\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the message a click found is brought to the top rather than into view",
+    "catches": "marks the line of a message with its id and takes a click on it to the message on the Leader's panel",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    found.scrollIntoView({ block: \"center\" });",
+        "to": "    found.scrollIntoView({ block: \"start\" });"
+      }
+    ]
+  },
+  {
+    "name": "the message a click found stays lit",
+    "catches": "marks the line of a message with its id and takes a click on it to the message on the Leader's panel",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    setTimeout(() => found.classList.remove(\"focus\"), FOCUS_FOR);\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a message is folded before it is on the page",
+    "catches": "folds a message to a session or from one to three lines, once it is on the page, with a word that opens it",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "          const line = rowElement(entry, shown);\n          panel.rows.append(line);\n",
+        "to": "          const line = rowElement(entry, shown);\n          if (shown.kind === \"peer-in\" || shown.kind === \"peer-out\") collapsible(line.querySelector(\".md\"));\n          panel.rows.append(line);\n"
+      },
+      {
+        "file": "lib/chat/page.html",
+        "from": "          if (shown.kind === \"peer-in\" || shown.kind === \"peer-out\") collapsible(line.querySelector(\".md\"));\n          const time",
+        "to": "          const time"
+      }
+    ]
+  },
+  {
+    "name": "a message that fits stays folded",
+    "catches": "folds a message to a session or from one to three lines, once it is on the page, with a word that opens it",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    if (body.scrollHeight <= body.clientHeight) {\n      body.classList.remove(\"collapsed\");\n      return;\n    }\n",
+        "to": "    if (body.scrollHeight <= body.clientHeight) {\n      return;\n    }\n"
+      }
+    ]
+  },
+  {
+    "name": "the word under a folded message opens it and never folds it again",
+    "catches": "folds a message to a session or from one to three lines, once it is on the page, with a word that opens it",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      const folded = body.classList.toggle(\"collapsed\");\n      more.textContent = folded ? \"show all\" : \"collapse\";",
+        "to": "      body.classList.remove(\"collapsed\");\n      more.textContent = \"collapse\";"
+      }
+    ]
+  },
+  {
+    "name": "only a message to a session is folded",
+    "catches": "folds a message to a session or from one to three lines, once it is on the page, with a word that opens it",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "if (shown.kind === \"peer-in\" || shown.kind === \"peer-out\") collapsible(",
+        "to": "if (shown.kind === \"peer-out\") collapsible("
+      }
+    ]
+  },
+  {
+    "name": "the renderer is not told who the User is",
+    "catches": "draws the glyph and a line with the renderer's words, and the compact markdown under its own class",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "rowOf(entry, { chat: state.chat, seat: panel.name, leader: state.leader, user: state.user })",
+        "to": "rowOf(entry, { chat: state.chat, seat: panel.name, leader: state.leader })"
+      }
+    ]
+  },
+  {
+    "name": "what the User typed to a Worker sits on the User's own ground",
+    "catches": "draw what the User typed to a Worker on a ground of its own on the Leader's panel, as the User's words",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "  .msg.typed .bubble { background: var(--typed); border-color: var(--typed-line); white-space: pre-wrap; overflow-wrap: anywhere; }",
+        "to": "  .msg.typed .bubble { background: var(--me); border-color: var(--me-line); white-space: pre-wrap; overflow-wrap: anywhere; }"
+      }
+    ]
+  },
+  {
+    "name": "a message's line looks like any other line",
+    "catches": "mark the line of a message as a click, and light the message a click found",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "  .rows .line.peer { cursor: pointer; border-left: 3px solid var(--accent); }",
+        "to": "  .rows .line.peer { cursor: pointer; }"
+      }
+    ]
+  },
+  {
+    "name": "a folded message shows more than three lines",
+    "catches": "clip a folded message to three lines, faded at its edge, and draw the word that opens it as a link",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": ".bubble .md.collapsed { max-height: 4.5em;",
+        "to": ".bubble .md.collapsed { max-height: 22em;"
+      }
+    ]
+  },
+  {
+    "name": "the word that opens a folded message looks like a button",
+    "catches": "clip a folded message to three lines, faded at its edge, and draw the word that opens it as a link",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "  .more { font-size: .78rem; color: var(--accent); cursor: pointer; margin-top: 4px; background: none; border: 0; padding: 0; font-family: var(--sans); }",
+        "to": "  .more { font-size: .78rem; color: var(--accent); cursor: pointer; margin-top: 4px; background: none; padding: 0; font-family: var(--sans); }"
       }
     ]
   }

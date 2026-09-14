@@ -93,8 +93,8 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "  if (who === null) {\n    sendJson(response, 401, UNKNOWN);\n    return;\n  }\n\n  if (request.method === \"POST\" && TOOL_ROUTE.test(url.pathname)) {",
-        "to": "  if (who === null && !TOOL_ROUTE.test(url.pathname)) {\n    sendJson(response, 401, UNKNOWN);\n    return;\n  }\n\n  if (who !== null && request.method === \"POST\" && TOOL_ROUTE.test(url.pathname)) {"
+        "from": "  if (who === null) {\n    sendJson(response, 401, UNKNOWN);\n    return;\n  }\n\n  if (TOOL_ROUTE.test(url.pathname)) {",
+        "to": "  if (who === null && !TOOL_ROUTE.test(url.pathname)) {\n    sendJson(response, 401, UNKNOWN);\n    return;\n  }\n\n  if (who !== null && TOOL_ROUTE.test(url.pathname)) {"
       }
     ]
   },
@@ -495,11 +495,11 @@
   },
   {
     "name": "the sender's side is not written on the panel",
-    "catches": "writes both sides onto the addressee's panel",
+    "catches": "writes both sides onto the addressee's panel, each under an id of its own",
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "        append(root, to, { from: caller.seat, to, text });\n",
+        "from": "        append(root, to, { from: caller.seat, to, text, msg });\n",
         "to": ""
       }
     ]
@@ -1078,23 +1078,23 @@
   },
   {
     "name": "a failed call leaves its line as it was: the amend is gone",
-    "catches": "marks the line of a call that failed, in the file and on the stream",
+    "catches": "marks the line of a call that failed, in the file and on the stream, with the first line its result said as the reason",
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "failed: ({ id }) => amend(instance.root, seat, id) }",
+        "from": "failed: ({ id, why }) => amend(instance.root, seat, id, why) }",
         "to": "failed: () => {} }"
       }
     ]
   },
   {
     "name": "the amend tells the page but keeps the old entry on disk",
-    "catches": "marks the line of a call that failed, in the file and on the stream",
+    "catches": "marks the line of a call that failed, in the file and on the stream, with the first line its result said as the reason",
     "edits": [
       {
         "file": "lib/chat/conversation.mjs",
-        "from": "  messages[index].err = true;\n  fs.writeFileSync(file(root, session), `${JSON.stringify(messages, null, 2)}\\n`);\n",
-        "to": "  messages[index].err = true;\n"
+        "from": "  if (why !== \"\") {\n    messages[index].why = why;\n  }\n  fs.writeFileSync(file(root, session), `${JSON.stringify(messages, null, 2)}\\n`);\n",
+        "to": "  if (why !== \"\") {\n    messages[index].why = why;\n  }\n"
       }
     ]
   },
@@ -1122,23 +1122,23 @@
   },
   {
     "name": "the caller's panel gets nothing for a message it sent",
-    "catches": "writes the call on the caller's panel with its outcome, and the answer beside it",
+    "catches": "writes the call on the caller's panel with its outcome, and the answer beside it, under the ids the addressee's rows carry",
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "        append(root, caller.seat, { from: caller.seat, to, text, outcome: \"sent\" });\n",
+        "from": "        append(root, caller.seat, { from: caller.seat, to, text, outcome: \"sent\", msg });\n",
         "to": ""
       }
     ]
   },
   {
     "name": "the Leader's panel gets no copy of the answer to its message",
-    "catches": "writes the call on the caller's panel with its outcome, and the answer beside it",
+    "catches": "writes the call on the caller's panel with its outcome, and the answer beside it, under the ids the addressee's rows carry",
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "        if (caller.role === LEADER) {\n          append(root, caller.seat, answer);\n        }\n",
-        "to": ""
+        "from": "        append(root, to, answer);\n        append(root, caller.seat, answer);\n",
+        "to": "        append(root, to, answer);\n"
       }
     ]
   },
@@ -1166,12 +1166,12 @@
   },
   {
     "name": "the receipt loses its addressee",
-    "catches": "writes both sides onto the addressee's panel",
+    "catches": "writes both sides onto the addressee's panel, each under an id of its own",
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "        append(root, to, { from: caller.seat, to, text });\n",
-        "to": "        append(root, to, { from: caller.seat, text });\n"
+        "from": "        append(root, to, { from: caller.seat, to, text, msg });\n",
+        "to": "        append(root, to, { from: caller.seat, text, msg });\n"
       }
     ]
   },
@@ -1198,13 +1198,13 @@
     ]
   },
   {
-    "name": "every caller's log gets a copy of the answer",
-    "catches": "records a Worker's call on its own log, the receipt on the Leader's, and copies no answer back",
+    "name": "only the Leader's log gets a copy of the answer",
+    "catches": "records a Worker's call on its own log, the receipt and the answer on the Leader's, and the answer on its own log too",
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "        if (caller.role === LEADER) {\n          append(root, caller.seat, answer);\n        }\n",
-        "to": "        append(root, caller.seat, answer);\n"
+        "from": "        append(root, to, answer);\n        append(root, caller.seat, answer);\n",
+        "to": "        append(root, to, answer);\n        if (caller.role === LEADER) {\n          append(root, caller.seat, answer);\n        }\n"
       }
     ]
   },
@@ -1249,6 +1249,61 @@
         "file": "lib/instructions.mjs",
         "from": "const FILE = \"instructions.json\";",
         "to": "const FILE = path.join(\".local\", \"instructions.json\");"
+      }
+    ]
+  },
+  {
+    "name": "the two ends of a message carry different ids",
+    "catches": "writes the call on the caller's panel with its outcome, and the answer beside it, under the ids the addressee's rows carry",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "        append(root, to, { from: caller.seat, to, text, msg });\n",
+        "to": "        append(root, to, { from: caller.seat, to, text, msg: crypto.randomUUID() });\n"
+      }
+    ]
+  },
+  {
+    "name": "the answer carries the id of the message it answers",
+    "catches": "writes both sides onto the addressee's panel, each under an id of its own",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "          msg: crypto.randomUUID(),\n          ...(reply.failed",
+        "to": "          msg,\n          ...(reply.failed"
+      }
+    ]
+  },
+  {
+    "name": "a Worker's answer lands on its log after the call has come back",
+    "catches": "records a Worker's call on its own log, the receipt and the answer on the Leader's, and the answer on its own log too",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "        append(root, to, answer);\n        append(root, caller.seat, answer);\n",
+        "to": "        append(root, to, answer);\n        setTimeout(() => append(root, caller.seat, answer), 300);\n"
+      }
+    ]
+  },
+  {
+    "name": "a failed call is marked with no reason",
+    "catches": "marks the line of a call that failed, in the file and on the stream, with the first line its result said as the reason",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "            failed({ id: block.tool_use_id, why: firstLineOf(block.content) });",
+        "to": "            failed({ id: block.tool_use_id, why: \"\" });"
+      }
+    ]
+  },
+  {
+    "name": "the reason is the whole result, blank lines and all",
+    "catches": "marks the line of a call that failed, in the file and on the stream, with the first line its result said as the reason",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "  const line = text.split(\"\\n\").map((one) => one.trim()).find((one) => one !== \"\") ?? \"\";",
+        "to": "  const line = text.split(\"\\n\")[0] ?? \"\";"
       }
     ]
   }

@@ -74,6 +74,19 @@ directory with
 `./install.sh --root <instance> --source <release> --user <name> …` and copy over by hand what
 should survive.
 
+**A message between two sessions is one thing on two panels.** What the Leader sends a Worker is
+`To <Worker>` on the Leader's panel, red, with the whole text, and `Received a message from
+<Leader>` on the Worker's — a line marked as a click: it brings that message into view on the
+Leader's panel and lights it for a moment. What a Worker sends the Leader is `From <Worker>` on
+the Leader's panel, blue, and `Sent a message to <Leader>` on the Worker's, the same click. The
+Leader's answer to a Worker's message is a message the other way and is drawn as one, so a Worker
+sees the answer land on its own panel and no longer only inside its call's result. What the User
+types on a Worker's panel is the User's prompt there, green, under the User's name, and on the
+Leader's panel `<User> → <Worker>`, orange, with the whole text — three cases and no others. A
+red line says why on hover: the exit code or the missing file the call's result named, the reason
+a message was refused. A `To` or `From` row longer than three lines shows three, faded at the
+edge, with `show all` under it.
+
 ## 0.10.0
 
 The page is a room you read at a glance. Three columns of panels, each a bare slot with a head

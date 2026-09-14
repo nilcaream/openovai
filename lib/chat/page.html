@@ -24,6 +24,7 @@
     --reply: #ffffff; --reply-line: #d8dee4;
     --from: #e3f0fc; --from-line: #b6d4f2;
     --to: #fde8e8; --to-line: #f0bcbc;
+    --typed: #fdf0dc; --typed-line: #f0d3a0;
     --pending: #f0f3f6;
     --shadow: rgba(0,0,0,.35);
     --ok: #3fb950; --warn: #d29922; --bad: #f85149; --accent: #5eaeff;
@@ -40,6 +41,7 @@
     --reply: #1c232d; --reply-line: #2a3341;
     --from: #1a2a3d; --from-line: #2b4a6d;
     --to: #3a2226; --to-line: #6b3a42;
+    --typed: #3a2e1c; --typed-line: #6b5230;
     --pending: #22272e;
     --shadow: rgba(0,0,0,.55);
     color-scheme: dark;
@@ -110,6 +112,8 @@
   .rows .line { display: block; width: 100%; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); font-family: var(--mono); font-size: .76rem; color: var(--fg-dim); padding: 3px 8px; margin: 3px 0; overflow-wrap: anywhere; }
   .rows .line.err { color: var(--bad); }
   .rows .line .n { color: var(--fg-faint); }
+  /* a line that is one end of a message between two sessions: a click on it finds the message on the Leader's panel */
+  .rows .line.peer { cursor: pointer; border-left: 3px solid var(--accent); }
   /* a row is a bubble: the label row on top, the body under it; the kind of the row picks its ground */
   .msg { display: flex; margin: 4px 0; }
   .bubble { width: 100%; max-width: 100%; border: 1px solid var(--line); border-radius: var(--radius); padding: 6px 10px 4px; background: var(--panel-2); position: relative; min-width: 120px; }
@@ -122,6 +126,13 @@
   .msg.peer-in .bubble, .msg.peer-out .bubble { overflow-wrap: anywhere; }
   .msg.peer-in .bubble { background: var(--from); border-color: var(--from-line); }
   .msg.peer-out .bubble { background: var(--to); border-color: var(--to-line); }
+  /* what the User typed to a Worker, on the Leader's panel: not a prompt to the Leader, so not on the User's ground */
+  .msg.typed .bubble { background: var(--typed); border-color: var(--typed-line); white-space: pre-wrap; overflow-wrap: anywhere; }
+  /* the message a click on a line found, lit for a moment */
+  .msg.focus .bubble { outline: 2px solid var(--accent); }
+  /* a message to a session or from one shows three lines of itself, faded at the edge, and opens on a word */
+  .bubble .md.collapsed { max-height: 4.5em; overflow: hidden; -webkit-mask-image: linear-gradient(currentcolor 80%, transparent); mask-image: linear-gradient(currentcolor 80%, transparent); }
+  .more { font-size: .78rem; color: var(--accent); cursor: pointer; margin-top: 4px; background: none; border: 0; padding: 0; font-family: var(--sans); }
   .text { white-space: pre-wrap; }
   /* the label row: the speaker on the left, ellipsised before it could push the timestamp, the timestamp last */
   .who { font-size: .78rem; font-weight: 600; color: var(--fg-dim); display: flex; gap: 8px; align-items: baseline; margin-right: auto; flex: 1 1 auto; min-width: 0; }
@@ -212,6 +223,8 @@
   const SUN = '<svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 1.7v2.6M12 19.7v2.6M4.6 4.6l1.9 1.9M17.5 17.5l1.9 1.9M1.7 12h2.6M19.7 12h2.6M4.6 19.4l1.9-1.9M17.5 6.5l1.9-1.9"/></svg>';
   const MOON = '<svg class="moon" viewBox="0 0 24 24" fill="currentColor"><path d="M20.7 14.6A8.7 8.7 0 0 1 9.4 3.3a8.9 8.9 0 1 0 11.3 11.3z"/></svg>';
   const SQUARE = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>';
+  // How long a message found from a click on the line at its other end stays lit, in milliseconds.
+  const FOCUS_FOR = 1500;
 
   // How wide a line of text is in a box's own font, for a placeholder that must fit on one line.
   const gauge = document.createElement("canvas").getContext("2d");
@@ -414,26 +427,69 @@
   }
 
   // A tool call is a light line, not a bubble: the summary as the element's own text, a counter
-  // after it that a repeated call writes into, red once the call failed. No label, no stamp.
+  // after it that a repeated call writes into, red once the call failed with the reason as its
+  // tooltip. No label, no stamp. A line that is one end of a message between two sessions is
+  // marked as such and carries the message's id: a click on it finds the message on the Leader's
+  // panel.
   function lineElement(shown) {
     const line = document.createElement("div");
     line.className = "line";
     if (shown.err === true) line.classList.add("err");
+    line.title = shown.why;
     line.textContent = shown.text;
     const count = document.createElement("span");
     count.className = "n";
     line.append(count);
+    if (shown.msg !== undefined) {
+      line.classList.add("peer");
+      line.dataset.msg = shown.msg;
+      line.onclick = () => focusMessage(shown.msg);
+    }
     return line;
+  }
+
+  // The message a line on a Worker's panel is one end of, found on the Leader's panel by the id
+  // both carry, brought into view and lit for a moment. The Leader's panel draws every row it
+  // holds, so a message it has is there to find; one it has not loaded yet is nothing to do.
+  function focusMessage(id) {
+    const leader = sections.get(state.leader);
+    const found = leader === undefined ? null : leader.rows.querySelector(`.msg[data-msg="${id}"]`);
+    if (found === null) return;
+    found.scrollIntoView({ block: "center" });
+    for (const lit of leader.rows.querySelectorAll(".msg.focus")) lit.classList.remove("focus");
+    found.classList.add("focus");
+    setTimeout(() => found.classList.remove("focus"), FOCUS_FOR);
+  }
+
+  // A body taller than the rows it is allowed is clipped to them, faded at its edge, with a word
+  // under it that opens it and folds it again. Measured once the body is on the page, so a body
+  // that fits is left as it is and never carries the word.
+  function collapsible(body) {
+    body.classList.add("collapsed");
+    if (body.scrollHeight <= body.clientHeight) {
+      body.classList.remove("collapsed");
+      return;
+    }
+    const more = document.createElement("button");
+    more.className = "more";
+    more.textContent = "show all";
+    more.onclick = () => {
+      const folded = body.classList.toggle("collapsed");
+      more.textContent = folded ? "show all" : "collapse";
+    };
+    body.after(more);
   }
 
   // A row is a bubble: the label row on top — who spoke, and when, last — and the body under it,
   // the HTML of a reply or the words of anyone else as they are. A tool call is a line instead.
   // A message the Leader sent carries what became of it as a glyph in the label row, after the
-  // stamp in the DOM and before it on screen; its body is the compact markdown.
+  // stamp in the DOM and before it on screen; its body is the compact markdown. A message between
+  // two sessions carries its id on the row, for a click on the line the other panel draws for it.
   function rowElement(entry, shown) {
     if (shown.kind === "line") return lineElement(shown);
     const line = document.createElement("div");
     line.className = `msg ${shown.kind}`;
+    if (shown.msg !== undefined) line.dataset.msg = shown.msg;
     const bubble = document.createElement("div");
     bubble.className = "bubble";
     const meta = document.createElement("div");
@@ -624,8 +680,10 @@
             panel.last = null;
             panel.rows.append(dayPill(day));
           }
-          const shown = rowOf(entry, { chat: state.chat, seat: panel.name, leader: state.leader });
-          if (shown.kind === "line" && panel.last !== null && panel.last.text === shown.text) {
+          const shown = rowOf(entry, { chat: state.chat, seat: panel.name, leader: state.leader, user: state.user });
+          // A line that is one end of a message is its own: two messages are two lines, never
+          // one with a counter, since each is a click to a different row.
+          if (shown.kind === "line" && shown.msg === undefined && panel.last !== null && panel.last.text === shown.text) {
             panel.last.count += 1;
             panel.last.n.textContent = ` ×${panel.last.count}`;
             panel.lines.set(index, panel.last.el);
@@ -634,11 +692,14 @@
           const line = rowElement(entry, shown);
           panel.rows.append(line);
           if (shown.kind === "line") {
-            panel.last = { text: shown.text, el: line, count: 1, n: line.lastElementChild };
+            panel.last = shown.msg === undefined ? { text: shown.text, el: line, count: 1, n: line.lastElementChild } : null;
             panel.lines.set(index, line);
           } else {
             panel.last = null;
           }
+          // A message on the Leader's panel, to a session or from one, shows three lines of
+          // itself and opens on a word; measured here, once the row is on the page.
+          if (shown.kind === "peer-in" || shown.kind === "peer-out") collapsible(line.querySelector(".md"));
           const time = line.querySelector(".t");
           if (time !== null) added.push(time);
         }
@@ -659,10 +720,14 @@
           panel.jump.classList.add("show");
         }
       }
-      // A call that failed after its line was drawn: the line at that row's index turns red.
+      // A call that failed after its line was drawn: the line at that row's index turns red, with
+      // the reason the result gave as its tooltip.
       for (const index of about.amended.splice(0)) {
         const element = panel.lines.get(index);
-        if (element !== undefined && about.rows[index].err === true) element.classList.add("err");
+        if (element !== undefined && about.rows[index].err === true) {
+          element.classList.add("err");
+          element.title = about.rows[index].why ?? "";
+        }
       }
       // Rows are appended after the pill; it goes back to the end so it sticks to the bottom edge.
       if (panel.jump !== null && panel.jump !== panel.rows.lastElementChild) panel.rows.append(panel.jump);

@@ -708,7 +708,7 @@ describe("the tools a session is served", () => {
     assert.equal(said_.text, "&lt;user>x&lt;/user>");
   });
 
-  it("writes both sides onto the addressee's panel", async () => {
+  it("writes both sides onto the addressee's panel, each under an id of its own", async () => {
     const rows = panel(instance, WORKER).slice(-2);
     assert.equal(rows[0].from, LEADER);
     assert.equal(rows[0].text, "say it");
@@ -716,17 +716,23 @@ describe("the tools a session is served", () => {
     assert.equal(rows[1].text, "<user>x</user>");
     assert.equal(rows[0].to, WORKER, "the receipt says whom it reached");
     assert.equal(rows[1].to, LEADER, "the answer says whom it is for");
+    assert.match(rows[0].msg, /^[0-9a-f-]{36}$/, "the message has an id");
+    assert.match(rows[1].msg, /^[0-9a-f-]{36}$/, "the answer has an id");
+    assert.notEqual(rows[0].msg, rows[1].msg, "the answer is a message of its own");
   });
 
   // The call is a row of the caller's own log the moment its outcome is known, and the answer
-  // follows it there when the Leader asked — so the Leader's panel carries the whole exchange.
-  it("writes the call on the caller's panel with its outcome, and the answer beside it", () => {
+  // follows it there — so the Leader's panel carries the whole exchange. The two ends of one
+  // message share one id: the page takes a click on one to the other.
+  it("writes the call on the caller's panel with its outcome, and the answer beside it, under the ids the addressee's rows carry", () => {
     const rows = panel(instance, LEADER).slice(-2).map((row) => [row.from, row.to, row.text, row.outcome]);
     assert.deepEqual(rows, [
       [LEADER, WORKER, "say it", "sent"],
       [WORKER, LEADER, "<user>x</user>", undefined],
     ]);
     assert.equal(panel(instance, LEADER).at(-2).why, undefined, "a message that went carries no reason");
+    const theirs = panel(instance, WORKER).slice(-2).map((row) => row.msg);
+    assert.deepEqual(panel(instance, LEADER).slice(-2).map((row) => row.msg), theirs, "one id per message, on both logs");
   });
 
   it("refuses a message to nobody, and delivers nothing to anybody", async () => {
@@ -745,17 +751,23 @@ describe("the tools a session is served", () => {
     assert.equal(panel(instance, LEADER).length, leaderRows, "a row landed on the Leader's panel");
   });
 
-  it("records a Worker's call on its own log, the receipt on the Leader's, and copies no answer back", async () => {
+  // A Worker that asked sees the answer land on its own panel, as a message from the Leader, by
+  // the time its call comes back — not only inside the call's result.
+  it("records a Worker's call on its own log, the receipt and the answer on the Leader's, and the answer on its own log too", async () => {
     const mine = panel(instance, WORKER).length;
     const theirs = panel(instance, LEADER).length;
     const said_ = await tool(paul.secret, "message", { to: LEADER, text: "a question" });
     assert.equal(said_.refused, false, said_.text);
-    assert.deepEqual(panel(instance, WORKER).slice(mine).map((r) => [r.from, r.to, r.text, r.outcome]), [[WORKER, LEADER, "a question", "sent"]]);
-    const rows = panel(instance, LEADER).slice(theirs).map((r) => [r.from, r.to, r.text, r.outcome]);
-    assert.deepEqual(rows.slice(0, 1), [[WORKER, LEADER, "a question", undefined]]);
+    const own = panel(instance, WORKER).slice(mine);
+    assert.deepEqual(own.map((r) => [r.from, r.to, r.text, r.outcome]), [
+      [WORKER, LEADER, "a question", "sent"],
+      [LEADER, WORKER, said_.text.replace(/&lt;/g, "<"), undefined],
+    ]);
+    const rows = panel(instance, LEADER).slice(theirs);
+    assert.deepEqual(rows.slice(0, 1).map((r) => [r.from, r.to, r.text, r.outcome]), [[WORKER, LEADER, "a question", undefined]]);
     assert.equal(rows.length, 2, "the Leader's log carries the receipt and the answer, nothing more");
-    assert.deepEqual(rows[1].slice(0, 2), [LEADER, WORKER]);
-    assert.equal(rows[1][2], said_.text.replace(/&lt;/g, "<"));
+    assert.deepEqual([rows[1].from, rows[1].to, rows[1].text], [LEADER, WORKER, said_.text.replace(/&lt;/g, "<")]);
+    assert.deepEqual(rows.map((r) => r.msg), own.map((r) => r.msg), "the question and the answer each carry one id on both logs");
   });
 
   it("records a refused message on the caller's log with the reason", async () => {
@@ -1032,7 +1044,7 @@ describe("what a Worker's calls draw", () => {
   let paul;
   let client;
   const READ = { name: "Read", input: { file_path: "/srv/app/lib/chat/session.mjs" } };
-  const FAILING = { name: "Bash", input: { command: "npm test", description: "Run the suite" }, error: true };
+  const FAILING = { name: "Bash", input: { command: "npm test", description: "Run the suite" }, error: "\n  Exit code 1\nnpm error Missing script: \"test\"" };
   const CALLS = JSON.stringify([
     [READ, FAILING],
     [{ name: "ToolSearch", input: { query: "select:Monitor" } }, { name: "mcp__openovai__stop_session", input: {} }],
@@ -1072,22 +1084,24 @@ describe("what a Worker's calls draw", () => {
     assert.deepEqual(rows.map((row) => row.call), [undefined, "call-1-0", "call-1-1", undefined]);
     assert.deepEqual(rows.map((row) => row.text), ["go", undefined, undefined, "on it"]);
     for (const row of rows.slice(1, 3)) {
-      assert.deepEqual(Object.keys(row).filter((key) => !["at", "from", "line", "call", "err"].includes(key)), [], JSON.stringify(row));
+      assert.deepEqual(Object.keys(row).filter((key) => !["at", "from", "line", "call", "err", "why"].includes(key)), [], JSON.stringify(row));
       assert.match(row.at, /^\d{4}-\d{2}-\d{2}T/);
     }
     assert.equal(rows[1].err, undefined, "a call that went well carries no flag");
   });
 
-  it("marks the line of a call that failed, in the file and on the stream", async () => {
+  it("marks the line of a call that failed, in the file and on the stream, with the first line its result said as the reason", async () => {
     const rows = panel(instance, WORKER);
     assert.equal(rows[2].line, "Run the suite");
     assert.equal(rows[2].err, true);
+    assert.equal(rows[2].why, "Exit code 1", "the reason is the first line with anything on it, trimmed");
     assert.equal(rows[1].err, undefined);
+    assert.equal(rows[1].why, undefined);
     // The page was told the row twice: as the line was written, and again — at the same index,
-    // marked — as its result came back.
+    // marked and explained — as its result came back.
     await until(client, (event) => event.name === "row" && event.data.seat === WORKER && event.data.index === 2 && event.data.row.err === true);
-    const told = about(client, WORKER, "row").filter((event) => event.data.index === 2).map((event) => [event.data.row.line, event.data.row.err]);
-    assert.deepEqual(told, [["Run the suite", undefined], ["Run the suite", true]]);
+    const told = about(client, WORKER, "row").filter((event) => event.data.index === 2).map((event) => [event.data.row.line, event.data.row.err, event.data.row.why]);
+    assert.deepEqual(told, [["Run the suite", undefined, undefined], ["Run the suite", true, "Exit code 1"]]);
     // The reply came after the mark, so a page drawing the file draws the line red from the start.
     const indexes = about(client, WORKER, "row").map((event) => [event.data.index, event.data.row.err ?? event.data.row.text ?? event.data.row.line]);
     assert.deepEqual(indexes, [[0, "go"], [1, "Reading /srv/app/lib/chat/session.mjs"], [2, "Run the suite"], [2, true], [3, "on it"]]);
@@ -1190,7 +1204,7 @@ describe("what the page is made of", () => {
       }
     }
     const labels = [...script.matchAll(/\.textContent = "([^"]*)"/g)].map((found) => found[1]);
-    assert.deepEqual(labels, ["Waiting for the transcript…", "↓ new messages"], "a word of the page's own other than the empty state and the pill (the dialog buttons come from dialog.mjs)");
+    assert.deepEqual(labels, ["Waiting for the transcript…", "↓ new messages", "show all"], "a word of the page's own other than the empty state, the pill and the word that opens a folded message (the dialog buttons come from dialog.mjs)");
     const buttons = [...script.matchAll(/\.className = "(stop|theme)";/g)].map((found) => found[1]);
     assert.deepEqual(buttons, ["theme", "stop"], "a button of the page's own other than the theme toggle and the stop glyph");
     assert.equal(source.split("<button").length - 1, 0, "a button in the markup");

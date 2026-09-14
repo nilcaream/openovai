@@ -118,8 +118,9 @@ export function claudeIsInstalled() {
 //                             it is using in that turn, each written before the answer as one
 //                             assistant frame with a tool_use block (id call-<turn>-<i>,
 //                             parent_tool_use_id from parent, else null) and one user frame
-//                             with its tool_result (is_error from error) — the shapes measured on
-//                             the real one, one frame per block
+//                             with its tool_result (is_error from error; error given as a
+//                             string is the words the failed result says) — the shapes measured
+//                             on the real one, one frame per block
 //   OPENOVAI_STAND_IN_IGNORES_INTERRUPT
 //                             carry on with the turn when told to interrupt it; without this an
 //                             interrupt ends the turn with an error result, as the real one does
@@ -450,7 +451,7 @@ for (;;) {
     const id = "call-" + turn + "-" + i;
     const parent = call.parent ?? null;
     frame({ type: "assistant", message: { role: "assistant", content: [{ type: "tool_use", id, name: call.name, input: call.input ?? {} }] }, parent_tool_use_id: parent, session_id: "test-thread" });
-    frame({ type: "user", message: { role: "user", content: [{ type: "tool_result", content: call.error === true ? "failed" : "done", is_error: call.error === true, tool_use_id: id }] }, parent_tool_use_id: parent, session_id: "test-thread" });
+    frame({ type: "user", message: { role: "user", content: [{ type: "tool_result", content: typeof call.error === "string" ? call.error : call.error === true ? "failed" : "done", is_error: call.error === true || typeof call.error === "string", tool_use_id: id }] }, parent_tool_use_id: parent, session_id: "test-thread" });
   }
 
   const slow = Number(process.env.OPENOVAI_STAND_IN_SLOW ?? 0);
