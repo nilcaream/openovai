@@ -4,6 +4,67 @@ For the Leader of a workspace taking this version. Short, and about what is diff
 working there — not a developer changelog. A section per release, newest first; a release page
 carries only its own.
 
+## 0.10.0
+
+The page is a room you read at a glance. Three columns of panels, each a bare slot with a head
+that says who sits there and what they are doing, rows drawn as bubbles under it, and one box
+that grows with what you type; a Worker's panel shows the calls it makes as it makes them, and a
+message between two sessions is on both panels with what became of it. Every colour, the radius
+and the type come from one table, light and dark, so the two themes are one page. The server
+changed only in what it writes to a panel; a workspace taking this version gets the new page with
+the update and keeps everything else.
+
+**One token table, light and dark.** Every colour the page uses, its radius and its two font
+stacks are declared once per theme and nowhere else; a dark-mode OS gets a dark page, and the
+installed app's colour is the light panel head. The suite reads the stylesheet as rules, so a
+colour outside the table, a token nobody declared or a class nobody styles fails a check.
+
+**The type is set once.** The page sets its type in rem on the sans stack and hides its scrollbars
+while everything still scrolls; a panel with no rows yet says "Waiting for the transcript…"
+instead of standing blank.
+
+**A panel is a bare slot with a head bubble.** The border and ground a panel had are gone. Its
+head is a bubble: a state dot before the name, the model and the context after it, the state
+word, and a small STOP; the rows scroll under it.
+
+**A row is a bubble.** Every row carries the speaker and the time on top and its body under them,
+the time in the reader's own zone. What you typed, a reply, a line the chat writes, an
+interrupted turn and a failed one each have their ground; a reply's markdown has its stylesheet,
+and a pill between two rows names the day when it changes.
+
+**A question is a card.** A call stop or a rule to settle is a card in the slot under the rows,
+drawn as the bubbles are: the words of the request in a raw block, the reason on a line of its
+own, and a button per decision.
+
+**The composer is one row.** It grows with what is typed and drops back to one row when a message
+is sent; there is no send button — Enter sends, Shift+Enter breaks a line — and while empty the
+box says whom a message reaches and which key sends it. A box that takes no input is dimmed.
+
+**The Leader's head carries the instance facts.** The line above the columns is gone: the
+version, the instance, the port, whether the page is connected and the quota standing sit in the
+Leader's head after the state word, with a toggle between light and dark; a pill on that panel
+says when rows land below where the reader is.
+
+**An icon for a mask.** The installed app has a third icon for a platform that cuts icons to its
+own shape, so the mark shows whole rather than cut or letterboxed.
+
+**A Worker's tool calls are lines in its panel.** Each call the Worker makes is one line the
+moment it is made — what it reads, what it searches, what it runs — and turns red once the call
+failed; never the input, never the result, and a subagent's calls are not read.
+
+**The dot and the empty box follow the turn.** The dot before a name is green between turns,
+amber while a turn runs and red once the process is gone; the state word reads listening, working
+or waiting for you; while a Worker works, its empty box says so and that Enter still sends. In a
+narrow column a row's stamp gives way to the label, the time alone staying, since the day pill
+above says the day.
+
+**A message between two sessions is a record on both panels.** A message one session sends
+another through the tool is a row on the sender's panel the moment its outcome is known — sent,
+not sent, or refused with why — and a row on the addressee's, as a message from the sender rather
+than the addressee's own words. The Leader's panel carries every message it is party to with its
+whole text, coloured by direction, so the whole exchange reads there; a Worker's panel stays slim,
+one line for a message received and one for a message written.
+
 ## 0.9.0
 
 The server frames every turn, owns every seat's lifecycle and gates every turn on the account's
@@ -75,10 +136,8 @@ process is gone and is removed thirty seconds later unless the process is back. 
 as markdown, raw HTML escaped, links kept only on `http(s)` and `mailto`, images shown as links.
 STOP interrupts the running turn of that seat and is the only button besides the permission
 buttons: nothing on the page starts or ends a seat. The room list is gone; the panels are the room.
-The Leader's head carries the version, the instance, the port, the quota standing and whether the
-page is connected, and a toggle between light and dark; a pill on that panel says when rows land
-below where the reader is. The page installs as a web app, with a manifest and three icons, one
-of them for a platform that masks icons to its own shape.
+The status line carries the version, the instance, the port, the Leader, the quota standing and
+whether the page is connected, and the page installs as a web app, with a manifest and two icons.
 
 ## 0.8.0
 
