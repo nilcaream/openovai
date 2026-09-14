@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { GONE_AFTER, applyEvent, composersEnabled, fresh, head, keyAction, place, prune, statusLine, stopEnabled, title } from "../tools/chat/panels.mjs";
+import { GONE_AFTER, applyEvent, composersEnabled, fresh, head, keyAction, place, prune, statusLine, statusParts, stopEnabled, title } from "../tools/chat/panels.mjs";
 
 const LEADER = "Leader";
 
@@ -173,5 +173,16 @@ describe("the status line", () => {
   it("says which window is at a stage and when it resets", () => {
     const standing = { five_hour: { key: "5h", stage: "critical", resets: "14:05" }, seven_day: { key: "7d", stage: null, resets: "09:00" } };
     assert.equal(statusLine(health, { leader: LEADER, standing }, "reconnecting…"), "OpenOv AI 0.8.0 · /home/u/inst · port 7719 · Leader Leader · quota 5h critical, resets 14:05 · reconnecting…");
+  });
+
+  // The Leader's head draws the same words in parts, the quota with the worst stage any window is at.
+  it("comes in parts for the Leader's head, the quota carrying the worst stage", () => {
+    assert.deepEqual(statusParts(health, { leader: LEADER, standing: {} }, "connected"), {
+      version: "OpenOv AI 0.8.0", instance: "/home/u/inst", port: "port 7719", quota: { text: "quota ok", stage: "ok" }, connection: "connected",
+    });
+    const standing = { five_hour: { key: "5h", stage: "warning", resets: "14:05" }, seven_day: { key: "7d", stage: "critical", resets: "09:00" } };
+    assert.deepEqual(statusParts(health, { leader: LEADER, standing }, "reconnecting…").quota, { text: "quota 5h warning, resets 14:05; 7d critical, resets 09:00", stage: "critical" });
+    assert.equal(statusParts(health, { leader: LEADER, standing: { five_hour: { key: "5h", stage: "warning" } } }, "connected").quota.stage, "warning");
+    assert.equal(statusParts(undefined, undefined, "connected").version, "OpenOv AI ?");
   });
 });

@@ -218,7 +218,8 @@ describe("what the chat serves", () => {
   // server restart mints a new page secret, and a page still holding the old one would otherwise
   // sit on 401 for good.
   it("reads its secret off the tag, sends it on every call, and reloads when it is no longer known", () => {
-    const script = answeredPage.slice(answeredPage.indexOf("<script"), answeredPage.indexOf("</script>"));
+    const opened = answeredPage.indexOf('<script type="module">');
+    const script = answeredPage.slice(opened, answeredPage.indexOf("</script>", opened));
     assert.match(script, /querySelector\('meta\[name="openovai-secret"\]'\)\.content/);
     assert.match(script, /authorization: `Bearer \$\{secret\}`/);
     assert.match(script, /status === 401[\s\S]{0,80}location\.reload\(\)/);
@@ -914,7 +915,8 @@ describe("what the User types", () => {
 // is read as text and never run here; what a browser alone can show is measured, not claimed.
 describe("what the page is made of", () => {
   const source = fs.readFileSync(path.join(repo, "tools", "chat", "page.html"), "utf8");
-  const script = source.slice(source.indexOf("<script"), source.indexOf("</script>"));
+  const opened = source.indexOf('<script type="module">');
+  const script = source.slice(opened, source.indexOf("</script>", opened));
   const modules = ["panels.mjs", "render.mjs"].map((name) => [name, fs.readFileSync(path.join(repo, "tools", "chat", name), "utf8")]);
 
   it("draws from the two tested modules and the dialog module", () => {
@@ -952,7 +954,7 @@ describe("what the page is made of", () => {
     assert.ok(!source.includes("serviceWorker"));
   });
 
-  it("carries no lifecycle button and no lifecycle word, and STOP is its one button", () => {
+  it("carries no lifecycle button and no lifecycle word, and STOP is its one lifecycle button", () => {
     const { words } = JSON.parse(fs.readFileSync(path.join(repo, "tests", "forbidden-words.json"), "utf8"));
     for (const [name, text] of [["page.html", source], ...modules]) {
       for (const word of words) {
@@ -961,7 +963,7 @@ describe("what the page is made of", () => {
       }
     }
     const labels = [...script.matchAll(/\.textContent = "([^"]*)"/g)].map((found) => found[1]);
-    assert.deepEqual(labels, ["STOP", "Waiting for the transcript…"], "a word of the page's own other than STOP and the empty state (the dialog buttons come from dialog.mjs)");
+    assert.deepEqual(labels, ["STOP", "Waiting for the transcript…", "↓ new messages"], "a word of the page's own other than STOP, the empty state and the pill (the dialog buttons come from dialog.mjs)");
     assert.equal(source.split("<button").length - 1, 0, "a button in the markup");
   });
 

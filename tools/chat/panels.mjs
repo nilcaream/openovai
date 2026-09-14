@@ -231,15 +231,23 @@ function quotaSaid(standing) {
   return said.length === 0 ? "ok" : said.join("; ");
 }
 
-// The one line at the top: the instance facts (`ovai` prints the address only), the Leader, the
-// quota when a window is at a stage, and how the page stands to the server.
-export function statusLine(health, snapshot, connection) {
-  return [
-    `${PRODUCT} ${health?.version ?? "?"}`,
-    health?.instance ?? "?",
-    `port ${health?.port ?? "?"}`,
-    `Leader ${snapshot?.leader ?? "?"}`,
-    `quota ${quotaSaid(snapshot?.standing)}`,
+// The instance facts, in parts, for the Leader's head: the product and its version, the instance
+// (`ovai` prints the address only), the port, the quota with the worst stage any window is at,
+// and how the page stands to the server.
+export function statusParts(health, snapshot, connection) {
+  const stages = Object.values(snapshot?.standing ?? {}).map((reading) => reading.stage);
+  const stage = stages.includes("critical") ? "critical" : stages.includes("warning") ? "warning" : "ok";
+  return {
+    version: `${PRODUCT} ${health?.version ?? "?"}`,
+    instance: health?.instance ?? "?",
+    port: `port ${health?.port ?? "?"}`,
+    quota: { text: `quota ${quotaSaid(snapshot?.standing)}`, stage },
     connection,
-  ].join(" · ");
+  };
+}
+
+// The same facts as one line, with the Leader named between the port and the quota.
+export function statusLine(health, snapshot, connection) {
+  const parts = statusParts(health, snapshot, connection);
+  return [parts.version, parts.instance, parts.port, `Leader ${snapshot?.leader ?? "?"}`, parts.quota.text, parts.connection].join(" · ");
 }

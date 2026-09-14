@@ -10,6 +10,12 @@
      nothing more. -->
 <meta name="openovai-secret" content="">
 <title>OpenOv AI</title>
+<script>
+  // The theme before the first paint, so a page kept dark never flashes light: the stored choice,
+  // light when there is none or when storage throws. It sits above the stylesheet on purpose.
+  try { document.documentElement.dataset.theme = localStorage.getItem("openovai-theme") === "dark" ? "dark" : "light"; }
+  catch (error) { document.documentElement.dataset.theme = "light"; }
+</script>
 <style>
   :root {
     --bg: #f8fafc; --panel: #ffffff; --panel-2: #eef1f5; --line: #d8dee4;
@@ -26,18 +32,17 @@
     --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
     color-scheme: light;
   }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #0e1116; --panel: #161b22; --panel-2: #1c232d; --line: #262d38;
-      --fg: #e6edf3; --fg-dim: #9aa7b4; --fg-faint: #6b7783;
-      --me: #1f4f3a; --me-line: #2d6b4f;
-      --reply: #1c232d; --reply-line: #2a3341;
-      --from: #1a2a3d; --from-line: #2b4a6d;
-      --to: #3a2226; --to-line: #6b3a42;
-      --pending: #22272e;
-      --shadow: rgba(0,0,0,.55);
-      color-scheme: dark;
-    }
+  /* dark is a choice made on the page and kept by it, never read off the system */
+  :root[data-theme="dark"] {
+    --bg: #0e1116; --panel: #161b22; --panel-2: #1c232d; --line: #262d38;
+    --fg: #e6edf3; --fg-dim: #9aa7b4; --fg-faint: #6b7783;
+    --me: #1f4f3a; --me-line: #2d6b4f;
+    --reply: #1c232d; --reply-line: #2a3341;
+    --from: #1a2a3d; --from-line: #2b4a6d;
+    --to: #3a2226; --to-line: #6b3a42;
+    --pending: #22272e;
+    --shadow: rgba(0,0,0,.55);
+    color-scheme: dark;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; }
@@ -49,7 +54,6 @@
   * { scrollbar-width: none; }
   *::-webkit-scrollbar { display: none; }
   a { color: var(--accent); }
-  #status { margin: 0; padding: 4px 8px; font-size: 12px; color: var(--fg-dim); border-bottom: 1px solid var(--line); }
   #stage {
     flex: 1 1 auto; min-height: 0;
     display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1092px) minmax(0, 1fr);
@@ -77,13 +81,35 @@
   .panel.dimmed .phead .name::before { background: var(--bad); }
   .panel.asking .phead .name::before { animation: pulse 1.2s ease-in-out infinite; }
   @keyframes pulse { 50% { opacity: .25; } }
-  /* the facts never shrink; the state word is the one part the row may trim */
+  /* The facts and the state word never shrink: a word the head cannot show whole is hidden by the
+     script instead (a fragment of it says nothing) — the state word first, then the model. The
+     one part that trims is the instance path on the Leader's head. */
   .phead .info { font-family: var(--mono); font-size: .78rem; color: var(--fg-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 0 auto; }
-  .phead .state { color: var(--fg-dim); font-size: .78rem; font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 0 1 auto; min-width: 0; }
-  .phead .info:not(:empty) + .state:not(:empty)::before { content: "\00a0·\00a0"; }
+  .phead .state { color: var(--fg-dim); font-size: .78rem; font-family: var(--mono); white-space: nowrap; flex: 0 0 auto; }
+  .phead .info:not(:empty):not([hidden]) + .state:not(:empty)::before { content: "\00a0·\00a0"; }
+  /* the instance facts, on the Leader's head only: the version and the port pinned, the path the
+     part that trims, the connection word red while the page has no stream, the quota in the
+     colour of its worst stage */
+  .phead .fact, .phead .where, .phead .conn, .phead .quota { font-family: var(--mono); font-size: .78rem; color: var(--fg-dim); white-space: nowrap; flex: 0 0 auto; }
+  .phead .where { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .phead .fact::before, .phead .where::before, .phead .conn::before, .phead .quota::before { content: "\00a0·\00a0"; }
+  .phead .conn.off { color: var(--bad); }
+  .phead .quota.warning { color: var(--warn); }
+  .phead .quota.critical { color: var(--bad); }
   .phead button { font: .74rem var(--mono); color: var(--bad); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 1px 8px; cursor: pointer; flex: 0 0 auto; margin-left: 10px; align-self: center; }
   .phead button:hover { color: var(--fg); border-color: var(--fg-faint); }
   .phead button:disabled { opacity: .45; cursor: default; }
+  /* the theme toggle, last on the Leader's head: one icon button showing the theme that is on;
+     both icons are in the DOM and the theme picks the one drawn */
+  .phead .theme { width: 22px; height: 22px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border: 0; color: var(--fg-dim); background: none; }
+  .phead .theme:hover { color: var(--fg); background: var(--line); }
+  .phead .theme svg { width: 15px; height: 15px; display: block; }
+  .phead .theme .moon { display: none; }
+  :root[data-theme="dark"] .phead .theme .sun { display: none; }
+  :root[data-theme="dark"] .phead .theme .moon { display: block; }
+  /* the pill that says rows arrived below where the reader is, on the Leader's panel */
+  #jump { position: sticky; left: 50%; transform: translateX(-50%); bottom: 24px; background: var(--panel); border: 1px solid var(--line); color: var(--fg); border-radius: 999px; padding: 6px 14px; font-size: .85rem; cursor: pointer; box-shadow: 0 4px 14px var(--shadow); display: none; }
+  #jump.show { display: block; }
   .rows { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 0; }
   .rows .empty { color: var(--fg-faint); font-size: .8rem; padding: 4px 0; }
   #mid .rows .empty { font-size: inherit; text-align: center; padding: 20px 0; }
@@ -139,7 +165,6 @@
   textarea:disabled { opacity: .55; }
 </style>
 
-<p id="status"></p>
 <div id="stage">
   <div class="col" id="left"></div>
   <div class="col" id="mid"></div>
@@ -152,10 +177,35 @@
   // draws it and carries what is typed and pressed to the server.
 
   import { dialogOf } from "./dialog.mjs";
-  import { applyEvent, composersEnabled, fresh, head, keyAction, place, prune, statusLine, stopEnabled, title } from "./panels.mjs";
+  import { applyEvent, composersEnabled, fresh, head, keyAction, place, prune, statusParts, stopEnabled, title } from "./panels.mjs";
   import { row as rowOf } from "./render.mjs";
 
   const secret = document.querySelector('meta[name="openovai-secret"]').content;
+
+  // The theme: the head script above <style> applied the stored choice before the first paint;
+  // this owns the click and keeps the rest in step — the choice stored under one key, the
+  // toggle's title, and the theme-color meta repainted from the head bubble's ground so an
+  // installed app's title bar follows. Storage can throw (blocked site data): then the theme is
+  // still applied, only not remembered.
+  const themeMeta = document.querySelector('meta[name="theme-color"]');
+  let themeToggle = null;
+  function applyTheme(theme) {
+    document.documentElement.dataset.theme = theme;
+    try { localStorage.setItem("openovai-theme", theme); } catch (error) {}
+    if (themeToggle !== null) themeToggle.title = theme === "dark" ? "Dark — click for light" : "Light — click for dark";
+    themeMeta.content = getComputedStyle(document.documentElement).getPropertyValue("--panel-2").trim() || themeMeta.content;
+  }
+  applyTheme(document.documentElement.dataset.theme === "dark" ? "dark" : "light");
+  const SUN = '<svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 1.7v2.6M12 19.7v2.6M4.6 4.6l1.9 1.9M17.5 17.5l1.9 1.9M1.7 12h2.6M19.7 12h2.6M4.6 19.4l1.9-1.9M17.5 6.5l1.9-1.9"/></svg>';
+  const MOON = '<svg class="moon" viewBox="0 0 24 24" fill="currentColor"><path d="M20.7 14.6A8.7 8.7 0 0 1 9.4 3.3a8.9 8.9 0 1 0 11.3 11.3z"/></svg>';
+
+  // How wide a line of text is in a box's own font, for a placeholder that must fit on one line.
+  const gauge = document.createElement("canvas").getContext("2d");
+  function textWidth(text, element) {
+    const style = getComputedStyle(element);
+    gauge.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+    return gauge.measureText(text).width;
+  }
 
   // Every call to the server, with the page's secret on it. The server refuses a call without it
   // with 401, and a page that got one has been outlived by its server: reload and it has the
@@ -178,12 +228,13 @@
 
   const state = fresh();
   const health = await call("/health").then((response) => response.json());
-  const status = document.getElementById("status");
   const columns = { left: document.getElementById("left"), mid: document.getElementById("mid"), right: document.getElementById("right") };
 
   // ------------------------------------------------------------------------------- one panel
 
   const sections = new Map();
+  // Within 80px of the newest row: close enough to count as reading the end.
+  const nearTheNewest = (rows) => rows.scrollHeight - rows.scrollTop - rows.clientHeight < 80;
 
   function build(name) {
     const section = document.createElement("section");
@@ -197,6 +248,16 @@
     info.className = "info";
     const word = document.createElement("span");
     word.className = "state";
+    // The words are shown whole or not at all: a head too narrow for them drops the state word
+    // first, then the model, so the name and STOP are never cut. Measured again whenever the head
+    // changes width, and by drawPanel() whenever the words change.
+    const fitHead = () => {
+      word.hidden = false;
+      info.hidden = false;
+      if (headLine.scrollWidth > headLine.clientWidth) word.hidden = true;
+      if (headLine.scrollWidth > headLine.clientWidth) info.hidden = true;
+    };
+    new ResizeObserver(fitHead).observe(headLine);
     const stop = document.createElement("button");
     stop.type = "button";
     stop.textContent = "STOP";
@@ -204,7 +265,31 @@
       stop.disabled = true;
       call(`/sessions/${encodeURIComponent(name)}/stop`, { method: "POST" }).catch(() => {});
     });
-    headLine.append(nameLine, info, word, stop);
+    headLine.append(nameLine, info, word);
+    // The Leader's head carries the instance facts after the state word, and the theme toggle
+    // last: the version and the port pinned, the path the part that trims, the connection and
+    // the quota pinned and coloured by drawPanel().
+    const lead = name === state.leader;
+    const facts = lead ? { version: document.createElement("span"), where: document.createElement("span"), port: document.createElement("span"), conn: document.createElement("span"), quota: document.createElement("span") } : null;
+    if (facts !== null) {
+      facts.version.className = "fact";
+      facts.where.className = "where";
+      facts.port.className = "fact";
+      facts.conn.className = "conn";
+      facts.quota.className = "quota";
+      headLine.append(facts.version, facts.where, facts.port, facts.conn, facts.quota);
+    }
+    headLine.append(stop);
+    if (lead) {
+      themeToggle = document.createElement("button");
+      themeToggle.type = "button";
+      themeToggle.className = "theme";
+      themeToggle.setAttribute("aria-label", "Light or dark");
+      themeToggle.innerHTML = SUN + MOON;
+      themeToggle.addEventListener("click", () => applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));
+      applyTheme(document.documentElement.dataset.theme);
+      headLine.append(themeToggle);
+    }
 
     const rows = document.createElement("div");
     rows.className = "rows";
@@ -216,12 +301,39 @@
     rows.append(empty);
     const asking = document.createElement("div");
     asking.className = "asking";
+    // On the Leader's panel, a pill for rows that arrived below where the reader is: shown when a
+    // row lands while the reader is more than 80px above the newest, gone once they are near it
+    // again or click it. It is the last child of the rows and sticks to their bottom edge, so it
+    // sits above whatever is open below the rows — a permission card, the composer — never on it.
+    let jump = null;
+    if (lead) {
+      jump = document.createElement("button");
+      jump.type = "button";
+      jump.id = "jump";
+      jump.textContent = "↓ new messages";
+      jump.addEventListener("click", () => {
+        rows.scrollTop = rows.scrollHeight;
+        jump.classList.remove("show");
+      });
+      rows.addEventListener("scroll", () => {
+        if (nearTheNewest(rows)) jump.classList.remove("show");
+      });
+      rows.append(jump);
+    }
 
     const composer = document.createElement("form");
     composer.className = "composer";
     const box = document.createElement("textarea");
     box.rows = 1;
-    box.placeholder = `Message ${name} — Enter sends, Shift+Enter for a new line`;
+    // The empty box says the whole sentence when it fits on one line, and whom a message reaches
+    // when the box is too narrow for it; measured again whenever the box changes width.
+    const whole = `Message ${name} — Enter sends, Shift+Enter for a new line`;
+    const fitPlaceholder = () => {
+      const style = getComputedStyle(box);
+      const room = box.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+      box.placeholder = textWidth(whole, box) <= room ? whole : `Message ${name}`;
+    };
+    new ResizeObserver(fitPlaceholder).observe(box);
     // The box is one row until what is typed needs more, and stops growing at 40% of the window,
     // where it scrolls instead.
     const autosize = () => {
@@ -256,7 +368,7 @@
     });
 
     section.append(headLine, rows, asking, composer);
-    return { name, section, nameLine, info, word, stop, rows, empty, asking, box, shown: 0, day: null, drawn: new Map(), loading: false };
+    return { name, section, nameLine, info, word, fitHead, facts, stop, rows, empty, asking, jump, box, shown: 0, day: null, drawn: new Map(), loading: false };
   }
 
   // When a row was written, in the reader's own zone: `2026.09.13 Sunday 23:17:05` on the row, and
@@ -343,7 +455,7 @@
     bubble.append(acts);
     const reason = dialog.kind === "call" ? document.createElement("input") : null;
     if (reason !== null) {
-      reason.placeholder = "why not (needed to deny)";
+      reason.placeholder = "why not";
     }
 
     const buttons = dialog.buttons.map(({ decision, label }) => {
@@ -416,6 +528,19 @@
     panel.section.classList.toggle("asking", about.asking.length > 0);
     panel.stop.disabled = !stopEnabled(state, panel.name);
     panel.box.disabled = !composersEnabled(state, panel.name);
+    if (panel.facts !== null) {
+      const facts = statusParts(health, state, state.connection);
+      panel.facts.version.textContent = facts.version;
+      panel.facts.where.textContent = facts.instance;
+      panel.facts.where.title = facts.instance;
+      panel.facts.port.textContent = facts.port;
+      panel.facts.conn.textContent = facts.connection;
+      panel.facts.conn.classList.toggle("off", facts.connection !== "connected");
+      panel.facts.quota.textContent = facts.quota.text;
+      panel.facts.quota.classList.toggle("warning", facts.quota.stage === "warning");
+      panel.facts.quota.classList.toggle("critical", facts.quota.stage === "critical");
+    }
+    panel.fitHead();
 
     if (about.rows === null) {
       load(panel);
@@ -423,6 +548,7 @@
       // At the newest line if that is where the reader already was, or on the first draw;
       // otherwise exactly where they left it.
       const atTheNewest = panel.shown === 0 || panel.rows.scrollHeight - panel.rows.scrollTop - panel.rows.clientHeight < 1;
+      const near = panel.shown === 0 || nearTheNewest(panel.rows);
       if (about.rows.length < panel.shown) {
         panel.rows.replaceChildren(panel.empty);
         panel.shown = 0;
@@ -442,8 +568,12 @@
         panel.shown = about.rows.length;
         if (atTheNewest) {
           panel.rows.scrollTop = panel.rows.scrollHeight;
+        } else if (panel.jump !== null && !near) {
+          panel.jump.classList.add("show");
         }
       }
+      // Rows are appended after the pill; it goes back to the end so it sticks to the bottom edge.
+      if (panel.jump !== null && panel.jump !== panel.rows.lastElementChild) panel.rows.append(panel.jump);
     }
 
     for (const [id, card] of panel.drawn) {
@@ -485,7 +615,6 @@
     for (const panel of sections.values()) {
       drawPanel(panel);
     }
-    status.textContent = statusLine(health, state, state.connection);
     document.title = title(state);
   }
 

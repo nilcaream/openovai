@@ -137,8 +137,8 @@
     "edits": [
       {
         "file": "tools/chat/panels.mjs",
-        "from": "    `${PRODUCT} ${health?.version ?? \"?\"}`,",
-        "to": "    PRODUCT,"
+        "from": "    version: `${PRODUCT} ${health?.version ?? \"?\"}`,",
+        "to": "    version: PRODUCT,"
       }
     ]
   },
@@ -161,6 +161,17 @@
         "file": "tools/chat/panels.mjs",
         "from": "  const facts = [panel.model, panel.context === null",
         "to": "  const facts = [\"\", panel.context === null"
+      }
+    ]
+  },
+  {
+    "name": "the quota stage is warning whatever the worst window says",
+    "catches": "comes in parts for the Leader's head, the quota carrying the worst stage",
+    "edits": [
+      {
+        "file": "tools/chat/panels.mjs",
+        "from": "  const stage = stages.includes(\"critical\") ? \"critical\" : stages.includes(\"warning\") ? \"warning\" : \"ok\";",
+        "to": "  const stage = stages.includes(\"critical\") || stages.includes(\"warning\") ? \"warning\" : \"ok\";"
       }
     ]
   }

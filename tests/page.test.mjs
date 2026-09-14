@@ -14,12 +14,14 @@ import { repo, styleRules } from "./helpers.mjs";
 import { row } from "../tools/chat/render.mjs";
 
 const source = fs.readFileSync(path.join(repo, "tools", "chat", "page.html"), "utf8");
-const script = source.slice(source.indexOf("<script"), source.indexOf("</script>"));
+// Two scripts: the head one that sets the theme before the first paint, and the page's own module.
+const opened = source.indexOf('<script type="module">');
+const script = source.slice(opened, source.indexOf("</script>", opened));
 const rules = styleRules(source);
 const tokens = JSON.parse(fs.readFileSync(path.join(repo, "tests", "page-tokens.json"), "utf8"));
 
 // A token block is a rule that declares custom properties. The light one is bare :root; the dark
-// one is the second, whatever selector or query it sits under.
+// one is the second, and sits under the theme attribute the page sets.
 const isToken = (property) => property.startsWith("--");
 const tokenBlocks = rules.filter((rule) => Object.keys(rule.declarations).some(isToken));
 const only = (declarations, keep) => Object.fromEntries(Object.entries(declarations).filter(([property]) => keep(property)));
@@ -70,13 +72,15 @@ const UNSTYLED = new Set([]);
 const named = (name) => new RegExp(`\\.${name}(?![\\w-])`);
 
 describe("the token table", () => {
-  it("declares the light tokens in bare :root and the dark ones in the second token block, each with its colour-scheme", () => {
+  it("declares the light tokens in bare :root and the dark ones under the theme attribute, each with its colour-scheme", () => {
     assert.equal(tokenBlocks.length, 2, "two token blocks, light then dark");
     const [light, dark] = tokenBlocks;
     assert.equal(light.selector, ":root");
     assert.equal(light.media, null);
     assert.deepEqual(only(light.declarations, isToken), tokens.light);
     assert.equal(light.declarations["color-scheme"], "light");
+    assert.equal(dark.selector, ':root[data-theme="dark"]', "dark is the page's own choice, never the system's");
+    assert.equal(dark.media, null);
     assert.deepEqual({ ...tokens.light, ...only(dark.declarations, isToken) }, tokens.dark);
     assert.equal(dark.declarations["color-scheme"], "dark");
   });
@@ -111,6 +115,21 @@ describe("the rules", () => {
   it("let the composer grow with what is typed and never by a drag", () => {
     const box = rules.find((rule) => rule.selector === "textarea");
     assert.equal(box.declarations.resize, "none");
+  });
+
+  it("draw the pill for rows that arrived below the reader as a pill", () => {
+    const pill = rules.find((rule) => rule.selector === "#jump");
+    assert.equal(pill.declarations["border-radius"], "999px");
+  });
+
+  // The pill sticks to the bottom edge of the rows it belongs to, not to the viewport: a pill fixed
+  // to the viewport sits over whatever is open below the rows — the reason input of a permission
+  // card, first of all — while a sticky last child of the rows sits above it, 24px up.
+  it("keep the pill inside the rows, stuck 24px above their bottom edge", () => {
+    const pill = rules.find((rule) => rule.selector === "#jump");
+    assert.equal(pill.declarations.position, "sticky");
+    assert.equal(pill.declarations.bottom, "24px");
+    assert.deepEqual(rules.find((rule) => rule.selector === "#jump.show").declarations, { display: "block" }, "showing the pill changes its display only, never its position");
   });
 
   it("carry no raw colour outside the token blocks", () => {
@@ -194,9 +213,61 @@ describe("the script", () => {
   });
 
   // The placeholder is a property of the box, not a word of the page's own, so it is read here and
-  // not in the literal list chat.test.mjs pins.
-  it("says in the empty box whom a message reaches and which key sends it", () => {
-    assert.match(script, /box\.placeholder = `Message \$\{name\} — Enter sends, Shift\+Enter for a new line`/);
+  // not in the literal list chat.test.mjs pins. The whole sentence when it fits the box on one line,
+  // whom a message reaches when the box is too narrow — measured in the box's own font, and again
+  // whenever the box changes width.
+  it("says in the empty box whom a message reaches and which key sends it, the whole sentence only where it fits", () => {
+    assert.match(script, /const whole = `Message \$\{name\} — Enter sends, Shift\+Enter for a new line`;/);
+    assert.match(script, /box\.placeholder = textWidth\(whole, box\) <= room \? whole : `Message \$\{name\}`;/);
+    assert.match(script, /new ResizeObserver\(fitPlaceholder\)\.observe\(box\);/);
+    assert.match(script, /gauge\.measureText\(text\)\.width/);
+    assert.match(script, /gauge\.font = `\$\{style\.fontStyle\} \$\{style\.fontWeight\} \$\{style\.fontSize\} \$\{style\.fontFamily\}`;/, "the gauge measures in the box own font");
+    assert.match(script, /const room = box\.clientWidth - parseFloat\(style\.paddingLeft\) - parseFloat\(style\.paddingRight\);/, "the room is the box inner width");
+  });
+
+  // The theme is the page's own choice: set before the first paint by a script that must sit above
+  // the stylesheet (below it, a page kept dark paints light first), flipped by the toggle, kept
+  // under one key, and carried to the theme-color meta so an installed app's title bar follows.
+  it("sets the stored theme above the stylesheet, flips it on the toggle, keeps it and repaints the title bar", () => {
+    const head = source.indexOf("<script>");
+    assert.ok(head !== -1, "no head script");
+    assert.ok(head < source.indexOf("<style>"), "the head script sits below the stylesheet");
+    const headScript = source.slice(head, source.indexOf("</script>", head));
+    assert.match(headScript, /document\.documentElement\.dataset\.theme = localStorage\.getItem\("openovai-theme"\) === "dark" \? "dark" : "light";/);
+    assert.match(headScript, /catch \(error\) \{ document\.documentElement\.dataset\.theme = "light"; \}/);
+    assert.match(script, /function applyTheme\(theme\) \{\s*document\.documentElement\.dataset\.theme = theme;\s*try \{ localStorage\.setItem\("openovai-theme", theme\); \} catch \(error\) \{\}/);
+    assert.match(script, /themeMeta\.content = getComputedStyle\(document\.documentElement\)\.getPropertyValue\("--panel-2"\)\.trim\(\)/);
+    assert.match(script, /themeToggle\.addEventListener\("click", \(\) => applyTheme\(document\.documentElement\.dataset\.theme === "dark" \? "light" : "dark"\)\);/);
+  });
+
+  // The pill: shown by a draw that appended rows while the reader was more than 80px above the
+  // newest, gone once a scroll brings them near it or a click takes them there. It is a child of
+  // the rows (sticky needs a scrolling ancestor) and their LAST child after every draw, or the
+  // rows appended after it would carry it up into the middle of the panel.
+  it("shows the pill when rows land below a reader who is not near the newest, and takes them there on a click", () => {
+    assert.match(script, /const nearTheNewest = \(rows\) => rows\.scrollHeight - rows\.scrollTop - rows\.clientHeight < 80;/);
+    assert.match(script, /\n      rows\.append\(jump\);\n/, "the pill is a child of the rows");
+    assert.match(script, /panel\.shown = about\.rows\.length;\n(?:[^\n]*\n){7}      if \(panel\.jump !== null && panel\.jump !== panel\.rows\.lastElementChild\) panel\.rows\.append\(panel\.jump\);\n    \}\n/, "the pill is put back last AFTER the rows are appended, as the last statement of the draw");
+    assert.match(script, /\} else if \(panel\.jump !== null && !near\) \{\s*panel\.jump\.classList\.add\("show"\);/);
+    assert.match(script, /rows\.addEventListener\("scroll", \(\) => \{\s*if \(nearTheNewest\(rows\)\) jump\.classList\.remove\("show"\);/);
+    assert.match(script, /jump\.addEventListener\("click", \(\) => \{\s*rows\.scrollTop = rows\.scrollHeight;\s*jump\.classList\.remove\("show"\);/);
+  });
+
+  // A word the head cannot show whole is hidden rather than cut to a fragment — the state word
+  // first, then the model: measured again on every change of the head's width, and on every draw.
+  it("hides the words of a head too narrow to show them whole, the state word before the model", () => {
+    assert.match(script, /const fitHead = \(\) => \{\s*word\.hidden = false;\s*info\.hidden = false;\s*if \(headLine\.scrollWidth > headLine\.clientWidth\) word\.hidden = true;\s*if \(headLine\.scrollWidth > headLine\.clientWidth\) info\.hidden = true;\s*\};\s*new ResizeObserver\(fitHead\)\.observe\(headLine\);/);
+    assert.match(script, /panel\.fitHead\(\);/);
+  });
+
+  // The instance facts on the Leader's head, drawn from the parts panels.mjs makes: the connection
+  // word marked while the page has no stream, the quota marked by its stage.
+  it("draws the instance facts on the Leader's head and marks a lost stream and a quota stage", () => {
+    assert.match(script, /const facts = statusParts\(health, state, state\.connection\);/);
+    for (const part of ["version", "instance", "port", "connection", "quota.text"]) assert.match(script, new RegExp(`textContent = facts\\.${part.replace(".", "\\.")};`), part);
+    assert.match(script, /panel\.facts\.conn\.classList\.toggle\("off", facts\.connection !== "connected"\);/);
+    assert.match(script, /panel\.facts\.quota\.classList\.toggle\("warning", facts\.quota\.stage === "warning"\);/);
+    assert.match(script, /panel\.facts\.quota\.classList\.toggle\("critical", facts\.quota\.stage === "critical"\);/);
   });
 
   // The page is never run here, so the proof is in two halves: the renderer turns a reply into
