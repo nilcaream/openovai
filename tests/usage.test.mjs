@@ -62,7 +62,7 @@ beforeEach(() => {
 
 describe("the token", () => {
   it("is the machine's when the instance inherits it, and nothing when the machine has none", () => {
-    assert.equal(token(root, "inherit", { [MACHINE_TOKEN]: "sk-ant-oat01-machine" }), "sk-ant-oat01-machine");
+    assert.equal(token(root, "inherit", { [MACHINE_TOKEN]: "token-machine" }), "token-machine");
     assert.equal(token(root, "inherit", {}), null);
     assert.equal(token(root, "inherit", { [MACHINE_TOKEN]: "" }), null);
   });
@@ -70,12 +70,12 @@ describe("the token", () => {
   it("is otherwise the one Claude Code keeps in the instance's home, skipped once expired, nothing when there is none", () => {
     remove(path.join(home(root), CREDENTIALS_FILE));
     assert.equal(token(root, "login", {}, T0), null, "no file");
-    assert.equal(token(root, "login", { [MACHINE_TOKEN]: "sk-ant-oat01-machine" }, T0), null, "no file, and the machine's token is not this instance's");
-    credentials({ claudeAiOauth: { accessToken: "sk-ant-oat01-own", expiresAt: T0 + 60_000 } });
-    assert.equal(token(root, "login", { [MACHINE_TOKEN]: "sk-ant-oat01-machine" }, T0), "sk-ant-oat01-own", "the instance's own, never the machine's");
+    assert.equal(token(root, "login", { [MACHINE_TOKEN]: "token-machine" }, T0), null, "no file, and the machine's token is not this instance's");
+    credentials({ claudeAiOauth: { accessToken: "token-own", expiresAt: T0 + 60_000 } });
+    assert.equal(token(root, "login", { [MACHINE_TOKEN]: "token-machine" }, T0), "token-own", "the instance's own, never the machine's");
     assert.equal(token(root, "login", {}, T0 + 60_000), null, "expired");
-    credentials({ claudeAiOauth: { accessToken: "sk-ant-oat01-fresh" } });
-    assert.equal(token(root, "login", {}, T0), "sk-ant-oat01-fresh", "no expiry given is not expired");
+    credentials({ claudeAiOauth: { accessToken: "token-fresh" } });
+    assert.equal(token(root, "login", {}, T0), "token-fresh", "no expiry given is not expired");
     credentials({ claudeAiOauth: {} });
     assert.equal(token(root, "login", {}, T0), null, "no token in the file");
     fs.writeFileSync(path.join(home(root), CREDENTIALS_FILE), "{");
@@ -87,7 +87,7 @@ describe("asking the endpoint", () => {
   const instance = { root, config: { auth: "login" } };
 
   before(() => {
-    credentials({ claudeAiOauth: { accessToken: "sk-ant-oat01-own" } });
+    credentials({ claudeAiOauth: { accessToken: "token-own" } });
   });
 
   it("sends the token as a bearer with the beta the endpoint wants, and keeps the answer with when it came", async () => {
@@ -95,7 +95,7 @@ describe("asking the endpoint", () => {
     await refresh(instance, { get, now: () => T0, version: "1.2.3" });
     assert.equal(get.asked.length, 1);
     assert.equal(get.asked[0].url, USAGE_URL);
-    assert.equal(get.asked[0].options.headers.authorization, "Bearer sk-ant-oat01-own");
+    assert.equal(get.asked[0].options.headers.authorization, "Bearer token-own");
     assert.equal(get.asked[0].options.headers["anthropic-beta"], "oauth-2025-04-20");
     assert.equal(get.asked[0].options.headers["user-agent"], "claude-code/1.2.3");
     assert.ok(get.asked[0].options.signal instanceof AbortSignal, "no timeout on the request");
@@ -108,7 +108,7 @@ describe("asking the endpoint", () => {
     const noToken = { root, config: { auth: "inherit" } };
     await refresh(noToken, { get, now: () => T0 });
     assert.equal(get.asked.length, 0);
-    credentials({ claudeAiOauth: { accessToken: "sk-ant-oat01-own" } });
+    credentials({ claudeAiOauth: { accessToken: "token-own" } });
     tick(instance, 1, { get, now: () => T0 + BACKOFF - 1 });
     assert.equal(get.asked.length, 0, "asked again before the backoff passed, though a token is there now");
     tick(instance, 1, { get, now: () => T0 + BACKOFF });
@@ -153,7 +153,7 @@ describe("asking the endpoint", () => {
     }
     assert.equal(said.length, 1, said.join("\n"));
     assert.match(said[0], /not reached/);
-    assert.ok(!said.some((line) => line.includes("sk-ant")), "the token was logged");
+    assert.ok(!said.some((line) => line.includes("token-own")), "the token was logged");
   });
 
   it("asks once at a time", async () => {
@@ -210,7 +210,7 @@ describe("the page", () => {
   let unsubscribe;
 
   before(() => {
-    credentials({ claudeAiOauth: { accessToken: "sk-ant-oat01-own" } });
+    credentials({ claudeAiOauth: { accessToken: "token-own" } });
   });
 
   beforeEach(() => {

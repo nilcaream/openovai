@@ -244,8 +244,8 @@ describe("the quota line", () => {
   });
 
   it("spells the same out for the tooltip, with when the reading was taken", () => {
-    assert.equal(quotaTitle(reading, (iso) => `at ${iso}`), "session 8%, resets in 3h · all models 86%, resets in 6d · fable 20%, resets in 6d\nread at at 2026-09-14T18:00:00.000Z");
-    assert.equal(quotaTitle({ ...reading, allReset: null, fableReset: null }), "session 8%, resets in 3h · all models 86% · fable 20%\nread at 2026-09-14T18:00:00.000Z");
+    assert.equal(quotaTitle(reading, (iso) => `at ${iso}`), "session 8%, resets in 3h · all models 86%, resets in 6d · Fable 20%, resets in 6d\nasked of the Anthropic usage API at at 2026-09-14T18:00:00.000Z");
+    assert.equal(quotaTitle({ ...reading, allReset: null, fableReset: null }), "session 8%, resets in 3h · all models 86% · Fable 20%\nasked of the Anthropic usage API at 2026-09-14T18:00:00.000Z");
     assert.equal(quotaTitle(null), "");
   });
 

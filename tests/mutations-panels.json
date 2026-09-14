@@ -313,7 +313,7 @@
     "edits": [
       {
         "file": "lib/chat/panels.mjs",
-        "from": "\\nread at ${when(quota.updated)}`;",
+        "from": "\\nasked of the Anthropic usage API at ${when(quota.updated)}`;",
         "to": "`;"
       }
     ]
