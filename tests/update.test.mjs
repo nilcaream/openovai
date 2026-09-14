@@ -15,9 +15,9 @@ import { spawn } from "node:child_process";
 import { after, before, describe, it } from "node:test";
 
 import { installed, remove, repo, runToolLater, scratch, serveRelease, waitFor } from "./helpers.mjs";
-import { PAYLOAD, RETIRED } from "../tools/payload.mjs";
-import { RELEASES } from "../tools/release.mjs";
-import { isOlderThan } from "../tools/version.mjs";
+import { PAYLOAD, RETIRED } from "../lib/payload.mjs";
+import { RELEASES } from "../lib/release.mjs";
+import { isOlderThan } from "../lib/version.mjs";
 
 const USER = "Mike";
 const LEADER = "Superman";
@@ -39,8 +39,8 @@ const MARKER = "OpenOv AI release marker";
 // One file in each of them, so a check can ask about every entry rather than about one of them.
 const MARKED = [
   ["bin", "ovai"],
-  ["tools", "ovai.mjs"],
-  ["templates", "leader.md"],
+  ["lib", "ovai.mjs"],
+  ["lib", "templates", "leader.md"],
 ];
 
 const here = scratch("update-test");
@@ -150,7 +150,7 @@ describe("taking a newer version from a directory", () => {
   before(async () => {
     // A file this version has and the next one has not, so a check can ask whether an update
     // replaces the payload or merely writes over it.
-    fs.writeFileSync(path.join(root, "tools", "left-behind.mjs"), "// dropped by the newer version\n");
+    fs.writeFileSync(path.join(root, "lib", "left-behind.mjs"), "// dropped by the newer version\n");
     // And a tool this instance serves itself, which is the opposite case and the reason the
     // directory it lives in is not part of the payload. An update replaces every payload entry
     // whole, so a tool kept under one of them would be taken away by the first update anybody ran
@@ -173,8 +173,8 @@ describe("taking a newer version from a directory", () => {
     // this version had, and what the person added to every persona of that kind. The templates are
     // replaced; neither of these is, which is the whole of how a conversation keeps what it was told
     // and an addition outlives the version it was written under.
-    fs.mkdirSync(path.join(root, "chat", "Superman"), { recursive: true });
-    fs.writeFileSync(path.join(root, "chat", "Superman", "persona.md"), "You are Superman, as this version put it.\n");
+    fs.mkdirSync(path.join(root, "desks", "Superman"), { recursive: true });
+    fs.writeFileSync(path.join(root, "desks", "Superman", "persona.md"), "You are Superman, as this version put it.\n");
     fs.mkdirSync(path.join(root, "customization"), { recursive: true });
     fs.writeFileSync(path.join(root, "customization", "leader.md"), "Always answer in French.\n");
     accumulated = whatTheInstanceAccumulated(root);
@@ -206,7 +206,7 @@ describe("taking a newer version from a directory", () => {
   // Replaced, not written over. A file the newer version dropped has to go, or an instance stops
   // being a copy of any version and becomes the union of two.
   it("takes away what the newer version does not have", () => {
-    assert.equal(fs.existsSync(path.join(root, "tools", "left-behind.mjs")), false);
+    assert.equal(fs.existsSync(path.join(root, "lib", "left-behind.mjs")), false);
   });
 
   // What an earlier version shipped and this one does not goes too, or the instance is the union
@@ -244,8 +244,8 @@ describe("taking a newer version into an instance that lacks a file of the perso
   let done;
 
   before(async () => {
-    fs.rmSync(path.join(root, ".claude-home", "settings.json"));
-    fs.rmSync(path.join(root, "work", LEADER, "STATE.md"));
+    fs.rmSync(path.join(root, ".local", "settings.json"));
+    fs.rmSync(path.join(root, "desks", LEADER, "STATE.md"));
     fs.appendFileSync(path.join(root, ".claude", "settings.json"), MARK);
     done = await update(root, tree);
   });
@@ -255,17 +255,17 @@ describe("taking a newer version into an instance that lacks a file of the perso
   });
 
   it("seeds the missing file as a fresh install would", () => {
-    const settings = JSON.parse(fs.readFileSync(path.join(root, ".claude-home", "settings.json"), "utf8"));
+    const settings = JSON.parse(fs.readFileSync(path.join(root, ".local", "settings.json"), "utf8"));
     assert.equal(settings.autoContinueAtUsageLimit, true);
   });
 
   it("seeds the Leader's desk from the templates it just put in place", () => {
-    assert.ok(fs.readFileSync(path.join(root, "work", LEADER, "STATE.md"), "utf8").includes(LEADER));
+    assert.ok(fs.readFileSync(path.join(root, "desks", LEADER, "STATE.md"), "utf8").includes(LEADER));
   });
 
   it("says what it seeded, and why", () => {
     assert.match(done.stdout, /Seeded, since this instance had none:/);
-    assert.ok(done.stdout.includes(path.join(root, ".claude-home", "settings.json")));
+    assert.ok(done.stdout.includes(path.join(root, ".local", "settings.json")));
   });
 
   it("leaves a file the person has exactly as it is", () => {
@@ -303,8 +303,8 @@ describe("what an update refuses", () => {
   const root = makeInstance("refusals");
 
   it("refuses a package that is not an OpenOv AI instance, saying what it is missing", async () => {
-    const refused = await update(root, makeRelease("not-a-workspace", { without: "templates" }));
-    const said = /^ovai: .*does not look like an OpenOv AI instance.*templates/m.test(refused.stderr);
+    const refused = await update(root, makeRelease("not-a-workspace", { without: "lib" }));
+    const said = /^ovai: .*does not look like an OpenOv AI instance.*lib/m.test(refused.stderr);
     assert.equal([refused.status === 0, said].join(" "), "false true");
   });
 
@@ -427,8 +427,8 @@ describe("an update while the chat is running", () => {
 
   before(async () => {
     chat = runToolLater(root, ["chat"], { ...process.env, PATH: process.env.PATH });
-    await waitFor(() => (fs.existsSync(path.join(root, "chat", "listening.json")) ? true : null));
-    const url = JSON.parse(fs.readFileSync(path.join(root, "chat", "listening.json"), "utf8")).url;
+    await waitFor(() => (fs.existsSync(path.join(root, "runtime.json")) ? true : null));
+    const url = JSON.parse(fs.readFileSync(path.join(root, "runtime.json"), "utf8")).url;
     await waitFor(async () => {
       try {
         return (await fetch(`${url}/health`)).ok ? true : null;
@@ -440,7 +440,7 @@ describe("an update while the chat is running", () => {
   });
 
   after(async () => {
-    const recorded = path.join(root, "chat", "listening.json");
+    const recorded = path.join(root, "runtime.json");
     if (fs.existsSync(recorded)) {
       process.kill(JSON.parse(fs.readFileSync(recorded, "utf8")).pid, "SIGTERM");
     }
@@ -484,9 +484,9 @@ describe("an update while a session of this instance is running", () => {
     return child;
   }
 
-  const one = idle({ CLAUDE_CONFIG_DIR: path.join(root, ".claude-home") });
-  const another = idle({ CLAUDE_CONFIG_DIR: path.join(root, ".claude-home") });
-  const elsewhere = idle({ CLAUDE_CONFIG_DIR: path.join(other, ".claude-home") });
+  const one = idle({ CLAUDE_CONFIG_DIR: path.join(root, ".local") });
+  const another = idle({ CLAUDE_CONFIG_DIR: path.join(root, ".local") });
+  const elsewhere = idle({ CLAUDE_CONFIG_DIR: path.join(other, ".local") });
 
   before(async () => {
     refused = await update(root, tree);
@@ -533,7 +533,7 @@ describe("an update while a session of this instance is running", () => {
     const again = makeRelease("while-running-release-again", { version: "9.9.10" });
     const done = await runToolLater(root, ["update", "--from", again], {
       ...process.env,
-      CLAUDE_CONFIG_DIR: path.join(root, ".claude-home"),
+      CLAUDE_CONFIG_DIR: path.join(root, ".local"),
     });
     assert.equal(done.status, 0, done.stderr);
   });

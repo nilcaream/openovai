@@ -1,6 +1,6 @@
 // What a release of this tree would be: the tag, the name, and the notes it carries.
 //
-// `tools/release.mjs` is the other side of this — where a release is taken — and it says what a
+// `lib/release.mjs` is the other side of this — where a release is taken — and it says what a
 // release is: a tag plus the source archive GitHub makes for it. Nothing is built and nothing is
 // uploaded, so cutting one is deciding a tag and finding some notes. That is all this does.
 //
@@ -10,7 +10,7 @@
 // runner, a token or a network. What is left in the workflow is git and gh, which nothing here
 // could check anyway.
 //
-// It sits here rather than in tools/ because tools/ is payload: it is copied into every instance
+// It sits here rather than in lib/ because lib/ is payload: it is copied into every instance
 // and replaced whole when one takes a newer version. Cutting a release is something this
 // repository does, not something an instance does, and nothing an instance installs should be
 // code it can never run.
@@ -25,8 +25,8 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
-import { RELEASE_NOTES } from "../tools/release.mjs";
-import { VERSION_FILE, version } from "../tools/version.mjs";
+import { RELEASE_NOTES } from "../lib/release.mjs";
+import { VERSION_FILE, version } from "../lib/version.mjs";
 
 // Where the notes go when nobody says. Inside the clone and disposable, like everything else the
 // toolkit writes while it is working.

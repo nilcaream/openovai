@@ -4,7 +4,7 @@
     "catches": "serves the page with its secret in the one tag that carries it",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "  const page = Buffer.from(template.replace(SECRET_TAG, `<meta name=\"openovai-secret\" content=\"${pageSecret()}\">`));",
         "to": "  const page = Buffer.from(template);"
       }
@@ -15,7 +15,7 @@
     "catches": "says in its health which instance it serves, on which port, at which version",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "    sendJson(response, 200, { instance: instance.root, port, version: version(instance.root) ?? \"unknown\" });",
         "to": "    sendJson(response, 200, { instance: instance.root, version: version(instance.root) ?? \"unknown\" });"
       }
@@ -26,7 +26,7 @@
     "catches": "records where it is listening, for whoever starts a session",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "      record(instance.root, port);\n",
         "to": ""
       }
@@ -37,7 +37,7 @@
     "catches": "tells the page who the User and the Leader are, and every seat with its role and model",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "    user: instance.config.user,\n    leader: instance.config.leader,\n    // Who a row",
         "to": "    user: \"User\",\n    leader: instance.config.leader,\n    // Who a row"
       }
@@ -48,7 +48,7 @@
     "catches": "puts the Leader first and the rest in name order",
     "edits": [
       {
-        "file": "tools/chat/session.mjs",
+        "file": "lib/chat/session.mjs",
         "from": "  return [leader, ...rest].map((name) => ({",
         "to": "  return [...rest, leader].map((name) => ({"
       }
@@ -59,18 +59,18 @@
     "catches": "will not open a panel for somebody who does not work here",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "    if (!isSeat(instance, seat)) {\n      sendJson(response, 404,",
         "to": "    if (false) {\n      sendJson(response, 404,"
       }
     ]
   },
   {
-    "name": "the roster takes any directory under work/, whatever it is called",
+    "name": "the roster takes any directory under desks/, whatever it is called",
     "catches": "is not on the roster",
     "edits": [
       {
-        "file": "tools/desks.mjs",
+        "file": "lib/desks.mjs",
         "from": "      .filter((entry) => entry.isDirectory() && isName(entry.name))",
         "to": "      .filter((entry) => entry.isDirectory())"
       }
@@ -81,7 +81,7 @@
     "catches": "answers an unknown secret with one body, whatever was tried",
     "edits": [
       {
-        "file": "tools/chat/secrets.mjs",
+        "file": "lib/chat/secrets.mjs",
         "from": "  return given.length === expected.length && crypto.timingSafeEqual(given, expected);",
         "to": "  return presented !== \"\";"
       }
@@ -92,7 +92,7 @@
     "catches": "answers an unknown secret with one body, whatever was tried",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "  if (who === null) {\n    sendJson(response, 401, UNKNOWN);\n    return;\n  }\n\n  if (request.method === \"POST\" && TOOL_ROUTE.test(url.pathname)) {",
         "to": "  if (who === null && !TOOL_ROUTE.test(url.pathname)) {\n    sendJson(response, 401, UNKNOWN);\n    return;\n  }\n\n  if (who !== null && request.method === \"POST\" && TOOL_ROUTE.test(url.pathname)) {"
       }
@@ -103,7 +103,7 @@
     "catches": "never lets one kind of secret open the other side",
     "edits": [
       {
-        "file": "tools/chat/secrets.mjs",
+        "file": "lib/chat/secrets.mjs",
         "from": "  const known = issued.get(secret);\n  return known === undefined ? null : { seat: known.seat, role: known.role };",
         "to": "  const known = issued.get(secret);\n  if (known === undefined && secret === page) {\n    return { seat: \"page\", role: \"Leader\" };\n  }\n  return known === undefined ? null : { seat: known.seat, role: known.role };"
       }
@@ -114,7 +114,7 @@
     "catches": "never lets one kind of secret open the other side",
     "edits": [
       {
-        "file": "tools/chat/secrets.mjs",
+        "file": "lib/chat/secrets.mjs",
         "from": "  if (typeof presented !== \"string\") {\n    return false;\n  }\n  const expected",
         "to": "  if (typeof presented !== \"string\") {\n    return false;\n  }\n  if (issued.has(presented)) {\n    return true;\n  }\n  const expected"
       }
@@ -125,7 +125,7 @@
     "catches": "forgets a secret when its process has gone, and the next process gets another",
     "edits": [
       {
-        "file": "tools/chat/session.mjs",
+        "file": "lib/chat/session.mjs",
         "from": "    revoke(secret);\n",
         "to": ""
       }
@@ -136,9 +136,9 @@
     "catches": "writes no secret anywhere under the instance",
     "edits": [
       {
-        "file": "tools/chat/session.mjs",
+        "file": "lib/chat/session.mjs",
         "from": "  const secret = issue(seat, role);\n",
-        "to": "  const secret = issue(seat, role);\n  fs.writeFileSync(path.join(instance.root, \"chat\", \"secret.txt\"), secret);\n"
+        "to": "  const secret = issue(seat, role);\n  fs.writeFileSync(path.join(instance.root, \"temp\", \"secret.txt\"), secret);\n"
       }
     ]
   },
@@ -147,7 +147,7 @@
     "catches": "mints one secret per process, 43 characters of base64url, and no two alike",
     "edits": [
       {
-        "file": "tools/chat/secrets.mjs",
+        "file": "lib/chat/secrets.mjs",
         "from": "  return crypto.randomBytes(32).toString(\"base64url\");",
         "to": "  return \"s\".repeat(43);"
       }
@@ -158,7 +158,7 @@
     "catches": "hands the process its secret in the environment and never on the command line",
     "edits": [
       {
-        "file": "tools/chat/session.mjs",
+        "file": "lib/chat/session.mjs",
         "from": "    args.push(\"--mcp-config\", tools);",
         "to": "    args.push(\"--mcp-config\", tools.replace(`\\${${SECRET_IN_ENVIRONMENT}}`, secret));"
       }
@@ -169,7 +169,7 @@
     "catches": "opens the door to the secret it issued",
     "edits": [
       {
-        "file": "tools/chat/session.mjs",
+        "file": "lib/chat/session.mjs",
         "from": "    env: { ...environment(instance.root, instance.config.auth), [SECRET_IN_ENVIRONMENT]: secret },",
         "to": "    env: { ...environment(instance.root, instance.config.auth) },"
       }
@@ -180,7 +180,7 @@
     "catches": "points the process at this chat, with a whole turn to wait on a colleague",
     "edits": [
       {
-        "file": "tools/chat/session.mjs",
+        "file": "lib/chat/session.mjs",
         "from": "        timeout: A_WHOLE_TURN,\n",
         "to": ""
       }
@@ -191,7 +191,7 @@
     "catches": "runs it in print mode over the streaming protocol, asking here before using a tool",
     "edits": [
       {
-        "file": "tools/chat/session.mjs",
+        "file": "lib/chat/session.mjs",
         "from": "    \"--verbose\",\n",
         "to": ""
       }
@@ -202,7 +202,7 @@
     "catches": "runs each seat on the model its desk resolves to",
     "edits": [
       {
-        "file": "tools/chat/session.mjs",
+        "file": "lib/chat/session.mjs",
         "from": "    modelFor(instance.root, seat, instance.config),",
         "to": "    instance.config.models.worker,"
       }
@@ -213,7 +213,7 @@
     "catches": "renders the persona at every start, with the hard rules after it",
     "edits": [
       {
-        "file": "tools/chat/session.mjs",
+        "file": "lib/chat/session.mjs",
         "from": "  const { text, version } = withHardRules(persona(instance.root, seat, instance.config), instance.root, roleOf(instance, seat));",
         "to": "  const { version } = withHardRules(persona(instance.root, seat, instance.config), instance.root, roleOf(instance, seat));\n  const text = persona(instance.root, seat, instance.config);"
       }
@@ -224,7 +224,7 @@
     "catches": "hands the run the list of what is not to be read, as a settings document of its own",
     "edits": [
       {
-        "file": "tools/chat/session.mjs",
+        "file": "lib/chat/session.mjs",
         "from": "  args.push(\"--settings\", ownInstructions(instance.root));\n",
         "to": ""
       }
@@ -235,7 +235,7 @@
     "catches": "starts the process in the instance, on the instance's own home",
     "edits": [
       {
-        "file": "tools/chat/session.mjs",
+        "file": "lib/chat/session.mjs",
         "from": "    cwd: instance.root,\n",
         "to": ""
       }
@@ -246,7 +246,7 @@
     "catches": "fixes the role at the start: who leads is read once, from the configuration then",
     "edits": [
       {
-        "file": "tools/chat/session.mjs",
+        "file": "lib/chat/session.mjs",
         "from": "  return processes.get(seat)?.role ?? roleOf(instance, seat);",
         "to": "  return roleOf(instance, seat);"
       }
@@ -257,7 +257,7 @@
     "catches": "refuses to start a seat that is already running, or one that does not exist",
     "edits": [
       {
-        "file": "tools/chat/session.mjs",
+        "file": "lib/chat/session.mjs",
         "from": "  if (processes.has(seat)) {\n    throw new Error(`${seat} is already running`);\n  }\n",
         "to": ""
       }
@@ -268,7 +268,7 @@
     "catches": "says so when Claude Code is not on the PATH, and the seat is not running",
     "edits": [
       {
-        "file": "tools/chat/session.mjs",
+        "file": "lib/chat/session.mjs",
         "from": "    gone(error.code === \"ENOENT\" ? \"Claude Code is not on the PATH of the process serving this page\" : error.message);",
         "to": "    gone(error.message);"
       }
@@ -279,7 +279,7 @@
     "catches": "takes frames from frames.mjs and nothing else, however much a string looks like one",
     "edits": [
       {
-        "file": "tools/chat/session.mjs",
+        "file": "lib/chat/session.mjs",
         "from": "export function tell(seat, frame, { ahead = false, ask = null } = {}) {\n  if (!isFrame(frame)) {",
         "to": "export function tell(seat, frame, { ahead = false, ask = null } = {}) {\n  if (false) {"
       }
@@ -290,7 +290,7 @@
     "catches": "writes the frame as one line and answers with what the turn came to",
     "edits": [
       {
-        "file": "tools/chat/session.mjs",
+        "file": "lib/chat/session.mjs",
         "from": ".map((frame) => frame.text).join(\"\\n\");",
         "to": ".map((frame) => frame.kind).join(\"\\n\");"
       }
@@ -301,7 +301,7 @@
     "catches": "writes one frame per turn, the next only once the last has answered",
     "edits": [
       {
-        "file": "tools/chat/session.mjs",
+        "file": "lib/chat/session.mjs",
         "from": "  if (record.turn !== null || record.queue.length === 0 || record.ending !== null) {",
         "to": "  if (record.queue.length === 0 || record.ending !== null) {"
       }
@@ -312,7 +312,7 @@
     "catches": "puts a frame told ahead in front of what is waiting, behind the turn under way",
     "edits": [
       {
-        "file": "tools/chat/session.mjs",
+        "file": "lib/chat/session.mjs",
         "from": "      record.queue.unshift(turn);",
         "to": "      record.queue.push(turn);"
       }
@@ -323,17 +323,17 @@
     "catches": "says when the seat itself has no process, on the panel too",
     "edits": [
       {
-        "file": "tools/chat/session.mjs",
+        "file": "lib/chat/session.mjs",
         "from": "    console.log(`no process: ${seat} (${frame.kind})`);\n    return { refused: \"no process\" };",
         "to": "    console.log(`no process: ${seat} (${frame.kind})`);\n    const pending = held.get(seat) ?? [];\n    held.set(seat, pending);\n    return { delivered: true, answered: new Promise((resolve) => pending.push({ frame, resolve })) };"
       },
       {
-        "file": "tools/chat/session.mjs",
+        "file": "lib/chat/session.mjs",
         "from": "const processes = new Map();",
         "to": "const processes = new Map();\nconst held = new Map();"
       },
       {
-        "file": "tools/chat/session.mjs",
+        "file": "lib/chat/session.mjs",
         "from": "    queue: [...queue],\n    turn: null,",
         "to": "    queue: [...queue, ...(held.get(seat) ?? [])],\n    turn: null,"
       }
@@ -344,7 +344,7 @@
     "catches": "refuses a seat with no process, queues nothing, and says so in the log",
     "edits": [
       {
-        "file": "tools/chat/session.mjs",
+        "file": "lib/chat/session.mjs",
         "from": "    console.log(`no process: ${seat} (${frame.kind})`);\n",
         "to": ""
       }
@@ -355,7 +355,7 @@
     "catches": "reads the answer among whatever else the run says",
     "edits": [
       {
-        "file": "tools/chat/session.mjs",
+        "file": "lib/chat/session.mjs",
         "from": "      if (frame.type === \"result\" && record.turn !== null) {",
         "to": "      if (record.turn !== null) {"
       }
@@ -366,7 +366,7 @@
     "catches": "says when a turn answered with nothing",
     "edits": [
       {
-        "file": "tools/chat/session.mjs",
+        "file": "lib/chat/session.mjs",
         "from": "  return { text, failed, silent: !failed && text.trim() === \"\" };",
         "to": "  return { text, failed, silent: false };"
       }
@@ -377,7 +377,7 @@
     "catches": "settles every waiting turn when the process ends mid-turn, and holds nobody past the exit",
     "edits": [
       {
-        "file": "tools/chat/session.mjs",
+        "file": "lib/chat/session.mjs",
         "from": "    for (const turn of left) {\n      turn.resolve({ ended: true, text: why });\n    }\n",
         "to": ""
       }
@@ -388,7 +388,7 @@
     "catches": "says what the process said on stderr when it fell over saying something",
     "edits": [
       {
-        "file": "tools/chat/session.mjs",
+        "file": "lib/chat/session.mjs",
         "from": "    gone(\n      record.ending === \"restart\"\n        ? `${seat} restarted`\n        : record.err.trim() === \"\"\n          ? `${seat} ended before answering`\n          : record.err.trim(),\n    );",
         "to": "    gone(record.ending === \"restart\" ? `${seat} restarted` : `${seat} ended before answering`);"
       }
@@ -399,7 +399,7 @@
     "catches": "closes the conversation, which ends a run between turns, and forgets the secret",
     "edits": [
       {
-        "file": "tools/chat/session.mjs",
+        "file": "lib/chat/session.mjs",
         "from": "  child.stdin.end();\n",
         "to": ""
       }
@@ -410,7 +410,7 @@
     "catches": "takes down a run that will not go once patience has run out",
     "edits": [
       {
-        "file": "tools/chat/session.mjs",
+        "file": "lib/chat/session.mjs",
         "from": "    child.kill(\"SIGKILL\");\n",
         "to": ""
       }
@@ -421,7 +421,7 @@
     "catches": "answers false for a seat with no process",
     "edits": [
       {
-        "file": "tools/chat/session.mjs",
+        "file": "lib/chat/session.mjs",
         "from": "  const record = processes.get(seat);\n  if (record === undefined) {\n    return false;\n  }\n  const { child } = record;",
         "to": "  const record = processes.get(seat);\n  if (record === undefined) {\n    return true;\n  }\n  const { child } = record;"
       }
@@ -432,7 +432,7 @@
     "catches": "ends every seat at once",
     "edits": [
       {
-        "file": "tools/chat/session.mjs",
+        "file": "lib/chat/session.mjs",
         "from": "  return Promise.all(runningSeats().map((seat) => end(seat, patience)));",
         "to": "  return Promise.all([]);"
       }
@@ -443,7 +443,7 @@
     "catches": "serves the Leader exactly what BUILT_IN names, and a Worker the same but park, hire and permission",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "  room: [LEADER, WORKER],",
         "to": "  room: [LEADER],"
       }
@@ -454,7 +454,7 @@
     "catches": "binds who is calling into every tool, so none of them reads it from an argument",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "      async run(args) {\n        if (!offered(\"message\")) {",
         "to": "      async run(args, caller_) {\n        if (!offered(\"message\")) {"
       }
@@ -465,7 +465,7 @@
     "catches": "says who a message is from by the secret it came over, whatever the arguments claim",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "        const told = deliver(instance, to, messageFrame(caller.seat, text));",
         "to": "        const told = deliver(instance, to, messageFrame(args?.from ?? caller.seat, text));"
       }
@@ -476,7 +476,7 @@
     "catches": "waits for the reply and hands it back",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "        const reply = await whileWaitingFor(caller.seat, to, () => told.answered);",
         "to": "        const reply = { text: \"\", failed: false, silent: true };"
       }
@@ -487,7 +487,7 @@
     "catches": "neutralises the reply like a body, so nobody poses as the User through a tool result",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "        return { text: neutralise(reply.text) };",
         "to": "        return { text: reply.text };"
       }
@@ -498,7 +498,7 @@
     "catches": "writes both sides onto the addressee's panel",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "        append(root, to, { from: caller.seat, to, text });\n",
         "to": ""
       }
@@ -509,7 +509,7 @@
     "catches": "refuses a message to nobody, and delivers nothing to anybody",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "        if (!isSeat(instance, to)) {",
         "to": "        if (false) {"
       }
@@ -520,7 +520,7 @@
     "catches": "refuses a message to yourself",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "        if (to === caller.seat) {",
         "to": "        if (false) {"
       }
@@ -531,7 +531,7 @@
     "catches": "refuses a message with nothing in it",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "        if (typeof text !== \"string\" || text.trim() === \"\") {",
         "to": "        if (typeof text !== \"string\") {"
       }
@@ -542,7 +542,7 @@
     "catches": "never starts a seat for a message: no process is a refusal",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "        const told = deliver(instance, to, messageFrame(caller.seat, text));",
         "to": "        if (!running(to)) {\n          startSeat(instance, to);\n        }\n        const told = deliver(instance, to, messageFrame(caller.seat, text));"
       }
@@ -553,7 +553,7 @@
     "catches": "refuses when the reply never comes because the process ended, and holds nobody past the exit",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "        if (reply.ended === true) {\n          append(root, to, { from: THE_CHAT, text: `${to} stopped before answering: ${reply.text}`, failed: true });\n          return { refused: `${to} stopped before answering` };\n        }\n",
         "to": ""
       }
@@ -564,7 +564,7 @@
     "catches": "refuses a message that would wait for the sender's own turn",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "        if (wouldWaitForItself(caller.seat, to)) {",
         "to": "        if (false) {"
       }
@@ -575,7 +575,7 @@
     "catches": "refuses a message that would wait for the sender further up the chain",
     "edits": [
       {
-        "file": "tools/chat/session.mjs",
+        "file": "lib/chat/session.mjs",
         "from": "  for (let step = 0; step <= waitingOn.size; step += 1) {",
         "to": "  for (let step = 0; step < 1; step += 1) {"
       }
@@ -586,7 +586,7 @@
     "catches": "tells a session who works here, who runs, and which one it is",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "you: seat.name === caller.seat })",
         "to": "you: false })"
       }
@@ -597,7 +597,7 @@
     "catches": "serves a tool of the instance's own after its own, handing it who is calling",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "        return answerFrom(plugin.name, await plugin.run(args, { seat: caller.seat, role: caller.role, root, config: instance.config }));",
         "to": "        return answerFrom(plugin.name, await plugin.run(args));"
       }
@@ -608,7 +608,7 @@
     "catches": "refuses for a tool of the instance's own that answers outside the shape",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "        return answerFrom(plugin.name, await plugin.run(args, { seat: caller.seat, role: caller.role, root, config: instance.config }));",
         "to": "        return await plugin.run(args, { seat: caller.seat, role: caller.role, root, config: instance.config });"
       }
@@ -619,7 +619,7 @@
     "catches": "reaches the seat as the User's own frame, and the Leader as a server event",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "  if (seat !== instance.config.leader) {\n    const leader = instance.config.leader;",
         "to": "  if (false) {\n    const leader = instance.config.leader;"
       }
@@ -630,7 +630,7 @@
     "catches": "reaches the seat as the User's own frame, and the Leader as a server event",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "  const told = deliver(instance, seat, userFrame(text));",
         "to": "  const told = deliver(instance, seat, messageFrame(\"User\", text));"
       }
@@ -641,7 +641,7 @@
     "catches": "lands on the seat's panel as the User's row, with the reply under it",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "  append(root, seat, { from: \"user\", text });\n",
         "to": ""
       }
@@ -652,7 +652,7 @@
     "catches": "lands on the seat's panel as the User's row, with the reply under it",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "    append(root, seat, {\n      from: seat,\n      text: reply.text,",
         "to": "    return;\n    append(root, seat, {\n      from: seat,\n      text: reply.text,"
       }
@@ -663,7 +663,7 @@
     "catches": "shows the Leader what was typed to whom, and what the Leader made of it",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "    append(root, leader, { from: \"user\", typedTo: seat, text });",
         "to": "    append(root, leader, { from: \"user\", text });"
       }
@@ -674,7 +674,7 @@
     "catches": "frames a word to the Leader as the User's own, and tells nobody else",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "  if (seat !== instance.config.leader) {\n    const leader = instance.config.leader;",
         "to": "  if (true) {\n    const leader = instance.config.leader;"
       }
@@ -685,7 +685,7 @@
     "catches": "says when the seat itself has no process, on the panel too",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "    append(root, seat, { from: THE_CHAT, text: `${seat} has no process`, failed: true });\n",
         "to": ""
       }
@@ -696,7 +696,7 @@
     "catches": "refuses a message with nothing in it, or nothing it can read",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "  if (typeof text !== \"string\" || text.trim() === \"\") {\n    sendJson(response, 400, { error: \"a message needs some text\" });",
         "to": "  if (typeof text !== \"string\") {\n    sendJson(response, 400, { error: \"a message needs some text\" });"
       }
@@ -707,7 +707,7 @@
     "catches": "is session.mjs, through the frame writer, the two permission answers and the interrupt, and nobody else",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "  sendJson(response, 200, typed(instance, seat, text));",
         "to": "  // running(seat) && processes.get(seat).child.stdin.write(text);\n  sendJson(response, 200, typed(instance, seat, text));"
       }
@@ -718,7 +718,7 @@
     "catches": "is session.mjs, through the frame writer, the two permission answers and the interrupt, and nobody else",
     "edits": [
       {
-        "file": "tools/chat/lifecycle.mjs",
+        "file": "lib/chat/lifecycle.mjs",
         "from": "  const told = tell(seat, frame, { ahead, ask });",
         "to": "  // recordOf(seat)?.child.stdin.write(frame.text);\n  const told = tell(seat, frame, { ahead, ask });"
       }
@@ -729,7 +729,7 @@
     "catches": "says at the start what instructions above it are not read, and where it listens",
     "edits": [
       {
-        "file": "tools/ovai.mjs",
+        "file": "lib/ovai.mjs",
         "from": "  console.log(describeInstructions(instructionsAbove(root).existing));\n",
         "to": ""
       }
@@ -740,7 +740,7 @@
     "catches": "logs the route and never a secret",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "  return TOOL_ROUTE.test(pathname) ? \"/mcp/<secret>\" : pathname;",
         "to": "  return pathname;"
       }
@@ -751,7 +751,7 @@
     "catches": "starts with nothing when started again: the old page secret opens nothing",
     "edits": [
       {
-        "file": "tools/chat/secrets.mjs",
+        "file": "lib/chat/secrets.mjs",
         "from": "    page = mint();",
         "to": "    page = \"p\".repeat(43);"
       }
@@ -762,7 +762,7 @@
     "catches": "reads its secret off the tag, sends it on every call, and reloads when it is no longer known",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "      headers: { ...(options.headers ?? {}), authorization: `Bearer ${secret}` },",
         "to": "      headers: { ...(options.headers ?? {}) },"
       }
@@ -773,7 +773,7 @@
     "catches": "reads its secret off the tag, sends it on every call, and reloads when it is no longer known",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "    if (answered.status === 401) {\n      location.reload();\n      throw new Error(\"the server no longer knows this page\");\n    }\n",
         "to": ""
       }
@@ -784,7 +784,7 @@
     "catches": "reads its secret off the tag, sends it on every call, and reloads when it is no longer known",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "call(\"/sessions\").then(",
         "to": "fetch(\"/sessions\").then("
       }
@@ -795,7 +795,7 @@
     "catches": "a new row reaches the page without a poll",
     "edits": [
       {
-        "file": "tools/chat/conversation.mjs",
+        "file": "lib/chat/conversation.mjs",
         "from": "  publish(\"row\", { seat: session, index: messages.length - 1, row: entry });\n",
         "to": ""
       }
@@ -806,7 +806,7 @@
     "catches": "a client connecting with counts gets only the rows after them",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "    const since = counts.get(name) ?? 0;",
         "to": "    const since = 0;"
       }
@@ -817,7 +817,7 @@
     "catches": "tells of a seat's process starting, a turn under way and over, and the process gone",
     "edits": [
       {
-        "file": "tools/chat/session.mjs",
+        "file": "lib/chat/session.mjs",
         "from": "  record.child.stdin.write(`${JSON.stringify({ type: \"user\", message: { role: \"user\", content } })}\\n`);\n  if (prefix.length > 0) {\n    record.rules = prefix.at(-1).version;\n    writeDeskHeader(record.root, record.seat, { rules: record.rules });\n  }\n  record.changed(record);\n}",
         "to": "  record.child.stdin.write(`${JSON.stringify({ type: \"user\", message: { role: \"user\", content } })}\\n`);\n  if (prefix.length > 0) {\n    record.rules = prefix.at(-1).version;\n    writeDeskHeader(record.root, record.seat, { rules: record.rules });\n  }\n}"
       }
@@ -828,7 +828,7 @@
     "catches": "tells of a seat's process starting, a turn under way and over, and the process gone",
     "edits": [
       {
-        "file": "tools/chat/lifecycle.mjs",
+        "file": "lib/chat/lifecycle.mjs",
         "from": "function afterClose(instance, { seat, role, ending, carried }) {\n  seatChanged(instance, seat);",
         "to": "function afterClose(instance, { seat, role, ending, carried }) {"
       }
@@ -839,7 +839,7 @@
     "catches": "the Leader's close is told like anybody's, and nothing follows it for the Leader",
     "edits": [
       {
-        "file": "tools/chat/lifecycle.mjs",
+        "file": "lib/chat/lifecycle.mjs",
         "from": "function afterClose(instance, { seat, role, ending, carried }) {\n  seatChanged(instance, seat);",
         "to": "function afterClose(instance, { seat, role, ending, carried }) {\n  if (role === WORKER) {\n    seatChanged(instance, seat);\n  }"
       }
@@ -850,7 +850,7 @@
     "catches": "the page's STOP interrupts the turn, and the row says so rather than the seat",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "      ...(reply.interrupted ? { interrupted: true } : {}),\n",
         "to": ""
       }
@@ -861,7 +861,7 @@
     "catches": "a call stop is pushed as it is parked, and taken down as it is answered",
     "edits": [
       {
-        "file": "tools/chat/permissions.mjs",
+        "file": "lib/chat/permissions.mjs",
         "from": "    forSession(name).set(request.id, { request, answer, parkedAt: now, told: false });\n    asking(name);",
         "to": "    forSession(name).set(request.id, { request, answer, parkedAt: now, told: false });"
       }
@@ -872,7 +872,7 @@
     "catches": "a call stop is pushed as it is parked, and taken down as it is answered",
     "edits": [
       {
-        "file": "tools/chat/permissions.mjs",
+        "file": "lib/chat/permissions.mjs",
         "from": "  held.answer(decision);\n  asking(name);\n  return true;",
         "to": "  held.answer(decision);\n  return true;"
       }
@@ -883,7 +883,7 @@
     "catches": "opens to the page secret on its query, and to nothing else — not even the bearer",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "  const carried = url.pathname === EVENTS_ROUTE ? url.searchParams.get(\"page\") : bearer(request.headers.authorization);",
         "to": "  const carried = (url.pathname === EVENTS_ROUTE ? url.searchParams.get(\"page\") : null) ?? bearer(request.headers.authorization);"
       }
@@ -894,7 +894,7 @@
     "catches": "logs the route and never a secret",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "      console.log(`${request.method} ${shownAs(new URL(request.url, `http://${HOST}`).pathname)} ${response.statusCode}`);",
         "to": "      console.log(`${request.method} ${request.url} ${response.statusCode}`);"
       }
@@ -905,7 +905,7 @@
     "catches": "installs as a standalone app: a manifest with three icons that are PNGs of the size they say, one of them maskable, and no service worker",
     "edits": [
       {
-        "file": "tools/chat/manifest.webmanifest",
+        "file": "lib/chat/manifest.webmanifest",
         "from": "  \"display\": \"standalone\",",
         "to": "  \"display\": \"browser\","
       }
@@ -916,7 +916,7 @@
     "catches": "installs as a standalone app: a manifest with three icons that are PNGs of the size they say, one of them maskable, and no service worker",
     "edits": [
       {
-        "file": "tools/chat/manifest.webmanifest",
+        "file": "lib/chat/manifest.webmanifest",
         "from": "{ \"src\": \"/icons/512-maskable.png\", \"sizes\": \"512x512\", \"type\": \"image/png\", \"purpose\": \"maskable\" }",
         "to": "{ \"src\": \"/icons/512-maskable.png\", \"sizes\": \"512x512\", \"type\": \"image/png\" }"
       }
@@ -927,7 +927,7 @@
     "catches": "installs as a standalone app: a manifest with three icons that are PNGs of the size they say, one of them maskable, and no service worker",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "  \"/icons/512-maskable.png\": { file: path.join(HERE, \"icons\", \"512-maskable.png\"), type: \"image/png\" },\n",
         "to": ""
       }
@@ -938,7 +938,7 @@
     "catches": "installs as a standalone app: a manifest with three icons that are PNGs of the size they say, one of them maskable, and no service worker",
     "edits": [
       {
-        "file": "tools/chat/manifest.webmanifest",
+        "file": "lib/chat/manifest.webmanifest",
         "from": "{ \"src\": \"/icons/512-maskable.png\", \"sizes\": \"512x512\"",
         "to": "{ \"src\": \"/icons/512-maskable.png\", \"sizes\": \"256x256\""
       }
@@ -949,7 +949,7 @@
     "catches": "installs as a standalone app: a manifest with three icons that are PNGs of the size they say, one of them maskable, and no service worker",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "  \"/icons/512-maskable.png\": { file: path.join(HERE, \"icons\", \"512-maskable.png\"), type: \"image/png\" },",
         "to": "  \"/icons/512-maskable.png\": { file: path.join(HERE, \"icons\", \"512-maskable.png\"), type: \"application/octet-stream\" },"
       }
@@ -960,7 +960,7 @@
     "catches": "carries no lifecycle button and no lifecycle word, and STOP is its one lifecycle button",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "<div id=\"stage\">",
         "to": "<button>Go online</button>\n<div id=\"stage\">"
       }
@@ -971,7 +971,7 @@
     "catches": "carries no lifecycle button and no lifecycle word, and STOP is its one lifecycle button",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "    composer.append(box);",
         "to": "    const send = document.createElement(\"button\");\n    send.type = \"submit\";\n    send.textContent = \"Send\";\n    composer.append(box, send);"
       }
@@ -982,7 +982,7 @@
     "catches": "never reads how a process is going: no ending on the page or in panels.mjs, no running read on the page",
     "edits": [
       {
-        "file": "tools/chat/panels.mjs",
+        "file": "lib/chat/panels.mjs",
         "from": "  panel.busy = about.busy === true;\n  panel.running",
         "to": "  panel.busy = about.busy === true;\n  panel.title = about.ending === null ? panel.title : `${about.ending}`;\n  panel.running"
       }
@@ -993,7 +993,7 @@
     "catches": "loads nothing from outside the server and prompts for nothing of its own",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "<title>OpenOv AI</title>",
         "to": "<title>OpenOv AI</title>\n<script src=\"https://cdn.jsdelivr.net/npm/marked\"></script>"
       }
@@ -1004,7 +1004,7 @@
     "catches": "loads nothing from outside the server and prompts for nothing of its own",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "  connect();\n  setInterval(",
         "to": "  connect();\n  Notification.requestPermission();\n  setInterval("
       }
@@ -1015,7 +1015,7 @@
     "catches": "draws from the two tested modules and the dialog module",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "  import { applyEvent, composersEnabled, fresh, head, keyAction, place, prune, statusLine, stopEnabled, title } from \"./panels.mjs\";",
         "to": "  import { applyEvent, composersEnabled, fresh, head, keyAction, prune, statusLine, stopEnabled, title } from \"./panels.mjs\";\n  const place = (seats, leader) => ({ left: seats.filter((s) => s !== leader), mid: leader, right: [] });"
       }
@@ -1026,7 +1026,7 @@
     "catches": "answers a panel's rows from an index on",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "  return Number.isInteger(from) && from > 0 ? rows.slice(from) : rows;",
         "to": "  return rows;"
       }
@@ -1037,7 +1037,7 @@
     "catches": "the page is told the instance is stopping, and every page route answers 503 from then on",
     "edits": [
       {
-        "file": "tools/chat/lifecycle.mjs",
+        "file": "lib/chat/lifecycle.mjs",
         "from": "  instance.stopping = true;\n  publish(\"stopping\", {});",
         "to": "  instance.stopping = true;"
       }
@@ -1048,7 +1048,7 @@
     "catches": "serves each module and the parser open, as the file, and nothing else on those routes",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "  \"/marked.mjs\": { file: path.join(HERE, \"marked.mjs\"), type: \"text/javascript; charset=utf-8\" },",
         "to": "  \"/marked.mjs\": { file: path.join(HERE, \"render.mjs\"), type: \"text/javascript; charset=utf-8\" },"
       }
@@ -1059,7 +1059,7 @@
     "catches": "answers GET on the door it issued with 405, and GET on an unknown one with the same 401",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "    sendJson(response, 405, { error: \"method not allowed\" }, { allow: \"POST\" });",
         "to": "    sendJson(response, 401, UNKNOWN);"
       }
@@ -1070,7 +1070,7 @@
     "catches": "prints no secret in the request log, wherever a path carries one",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "  return pathname.replace(SECRET_IN_PATH, \"/mcp/<secret>\");",
         "to": "  return TOOL_ROUTE.test(pathname) ? \"/mcp/<secret>\" : pathname;"
       }
@@ -1081,7 +1081,7 @@
     "catches": "writes no line for the Leader's own calls",
     "edits": [
       {
-        "file": "tools/chat/lifecycle.mjs",
+        "file": "lib/chat/lifecycle.mjs",
         "from": "    ...(roleOf(instance, seat) === WORKER ? { called:",
         "to": "    ...(true ? { called:"
       }
@@ -1092,7 +1092,7 @@
     "catches": "marks the line of a call that failed, in the file and on the stream",
     "edits": [
       {
-        "file": "tools/chat/lifecycle.mjs",
+        "file": "lib/chat/lifecycle.mjs",
         "from": "failed: ({ id }) => amend(instance.root, seat, id) }",
         "to": "failed: () => {} }"
       }
@@ -1103,7 +1103,7 @@
     "catches": "marks the line of a call that failed, in the file and on the stream",
     "edits": [
       {
-        "file": "tools/chat/conversation.mjs",
+        "file": "lib/chat/conversation.mjs",
         "from": "  messages[index].err = true;\n  fs.writeFileSync(file(root, session), `${JSON.stringify(messages, null, 2)}\\n`);\n",
         "to": "  messages[index].err = true;\n"
       }
@@ -1114,7 +1114,7 @@
     "catches": "draws nothing for a call made under another call",
     "edits": [
       {
-        "file": "tools/chat/session.mjs",
+        "file": "lib/chat/session.mjs",
         "from": "        if ((frame.parent_tool_use_id ?? null) === null) {",
         "to": "        {"
       }
@@ -1125,7 +1125,7 @@
     "catches": "draws nothing for a search of the tool list or a session's own stop",
     "edits": [
       {
-        "file": "tools/chat/lifecycle.mjs",
+        "file": "lib/chat/lifecycle.mjs",
         "from": "    if (text !== null) {\n      append(instance.root, seat, { from: seat, line: text, call: id });\n    }\n",
         "to": "    append(instance.root, seat, { from: seat, line: text, call: id });\n"
       }
@@ -1136,7 +1136,7 @@
     "catches": "writes the call on the caller's panel with its outcome, and the answer beside it",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "        append(root, caller.seat, { from: caller.seat, to, text, outcome: \"sent\" });\n",
         "to": ""
       }
@@ -1147,7 +1147,7 @@
     "catches": "writes the call on the caller's panel with its outcome, and the answer beside it",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "        if (caller.role === LEADER) {\n          append(root, caller.seat, answer);\n        }\n",
         "to": ""
       }
@@ -1158,7 +1158,7 @@
     "catches": "records a message nobody could take as not sent, on the caller's panel only",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "{ from: caller.seat, to, text, outcome: \"not sent\", why: `nobody called ${to} works here` }",
         "to": "{ from: caller.seat, to, text, outcome: \"sent\", why: `nobody called ${to} works here` }"
       }
@@ -1169,7 +1169,7 @@
     "catches": "a message to a seat without a process is not sent, and says so on the caller's panel",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "{ from: caller.seat, to, text, outcome: \"not sent\", why: `${to} has no process` }",
         "to": "{ from: caller.seat, to, text, outcome: \"sent\", why: `${to} has no process` }"
       }
@@ -1180,7 +1180,7 @@
     "catches": "writes both sides onto the addressee's panel",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "        append(root, to, { from: caller.seat, to, text });\n",
         "to": "        append(root, to, { from: caller.seat, text });\n"
       }
@@ -1191,7 +1191,7 @@
     "catches": "records a refused message on the caller's log with the reason",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "          append(root, caller.seat, { from: caller.seat, to, text, outcome: \"refused\", why: \"that is you\" });\n",
         "to": ""
       }
@@ -1202,7 +1202,7 @@
     "catches": "refuses a message that would wait for the sender's own turn",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "          append(root, caller.seat, { from: caller.seat, to, text, outcome: \"refused\", why });\n",
         "to": "          append(root, caller.seat, { from: caller.seat, to, text, outcome: \"sent\", why });\n"
       }
@@ -1213,7 +1213,7 @@
     "catches": "records a Worker's call on its own log, the receipt on the Leader's, and copies no answer back",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "        if (caller.role === LEADER) {\n          append(root, caller.seat, answer);\n        }\n",
         "to": "        append(root, caller.seat, answer);\n"
       }

@@ -10,7 +10,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { subscribe } from "../tools/chat/events.mjs";
+import { subscribe } from "../lib/chat/events.mjs";
 
 import {
   hhmm,
@@ -30,7 +30,7 @@ import {
   standing,
   thresholdsIn,
   windowsFor,
-} from "../tools/chat/quota.mjs";
+} from "../lib/chat/quota.mjs";
 
 const T0 = Date.parse("2026-09-12T20:00:00+02:00");
 const RESET_5H = Date.parse("2026-09-12T23:00:00+02:00");

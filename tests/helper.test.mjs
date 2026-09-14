@@ -10,7 +10,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
-import { ask } from "../tools/helper.mjs";
+import { ask } from "../lib/helper.mjs";
 import { alive, installed, readLog, remove, repo, scratch, writeStandIn } from "./helpers.mjs";
 
 const root = scratch("helper-test");
@@ -107,7 +107,7 @@ describe("how the helper is run", () => {
   });
 
   it("hands it the workspace's own home and auto-memory off", () => {
-    assert.equal(ran.home, path.join(root, ".claude-home"));
+    assert.equal(ran.home, path.join(root, ".local"));
     assert.equal(ran.noMemory, "1");
   });
 

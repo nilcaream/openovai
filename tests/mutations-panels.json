@@ -4,7 +4,7 @@
     "catches": "the Leader is the middle panel and the Workers alternate left and right in hire order",
     "edits": [
       {
-        "file": "tools/chat/panels.mjs",
+        "file": "lib/chat/panels.mjs",
         "from": "  return { left, mid: leader, right };",
         "to": "  return { left, mid: seats[0], right };"
       }
@@ -15,7 +15,7 @@
     "catches": "the order is the order the panels appeared, not the order of a later snapshot",
     "edits": [
       {
-        "file": "tools/chat/panels.mjs",
+        "file": "lib/chat/panels.mjs",
         "from": "      state.standing = data.standing ?? {};\n      const listed",
         "to": "      state.standing = data.standing ?? {};\n      state.order = data.sessions.map((about) => about.name);\n      const listed"
       }
@@ -26,7 +26,7 @@
     "catches": "Enter sends, Shift+Enter is a newline, anything else is nothing",
     "edits": [
       {
-        "file": "tools/chat/panels.mjs",
+        "file": "lib/chat/panels.mjs",
         "from": "  return shiftKey ? \"newline\" : \"send\";",
         "to": "  return \"send\";"
       }
@@ -37,7 +37,7 @@
     "catches": "a restart of seconds keeps the panel: dimmed while the process is gone, back when it is up, rows and all",
     "edits": [
       {
-        "file": "tools/chat/panels.mjs",
+        "file": "lib/chat/panels.mjs",
         "from": "    if (panel.name !== state.leader && panel.dimmed && panel.stoppedAt !== null && now - panel.stoppedAt >= GONE_AFTER) {",
         "to": "    if (panel.name !== state.leader && panel.dimmed) {"
       }
@@ -48,7 +48,7 @@
     "catches": "a restart of seconds keeps the panel: dimmed while the process is gone, back when it is up, rows and all",
     "edits": [
       {
-        "file": "tools/chat/panels.mjs",
+        "file": "lib/chat/panels.mjs",
         "from": "  return panel !== undefined && state.connection !== \"stopping\" && !panel.dimmed;",
         "to": "  return panel !== undefined && state.connection !== \"stopping\";"
       }
@@ -59,7 +59,7 @@
     "catches": "a process that stays gone takes its panel with it after a while",
     "edits": [
       {
-        "file": "tools/chat/panels.mjs",
+        "file": "lib/chat/panels.mjs",
         "from": "export const GONE_AFTER = 30_000;",
         "to": "export const GONE_AFTER = 30_000_000;"
       }
@@ -70,7 +70,7 @@
     "catches": "a Worker not running in the snapshot gets no panel; one started later does, without rows until asked",
     "edits": [
       {
-        "file": "tools/chat/panels.mjs",
+        "file": "lib/chat/panels.mjs",
         "from": "    if (about.running !== true && name !== state.leader) {\n      return;\n    }",
         "to": "    if (false) {\n      return;\n    }"
       }
@@ -81,7 +81,7 @@
     "catches": "a row lands at its index once; a row at a past index replaces the one there",
     "edits": [
       {
-        "file": "tools/chat/panels.mjs",
+        "file": "lib/chat/panels.mjs",
         "from": "      if (data.index === panel.rows.length) {\n        panel.rows.push(data.row);",
         "to": "      if (data.index <= panel.rows.length) {\n        panel.rows.push(data.row);"
       }
@@ -92,7 +92,7 @@
     "catches": "is there whether or not the Leader runs, never dimmed, never pruned, its composer open",
     "edits": [
       {
-        "file": "tools/chat/panels.mjs",
+        "file": "lib/chat/panels.mjs",
         "from": "  if (name === state.leader) {\n    return;\n  }\n  if (panel.running) {",
         "to": "  if (panel.running) {"
       }
@@ -103,7 +103,7 @@
     "catches": "the panel that asks carries the mark, the title carries it while any panel asks",
     "edits": [
       {
-        "file": "tools/chat/panels.mjs",
+        "file": "lib/chat/panels.mjs",
         "from": "  return any ? `● ${SHORT}` : SHORT;",
         "to": "  return SHORT;"
       }
@@ -114,7 +114,7 @@
     "catches": "STOP is enabled while a turn runs and nowhere else",
     "edits": [
       {
-        "file": "tools/chat/panels.mjs",
+        "file": "lib/chat/panels.mjs",
         "from": "  return composersEnabled(state, name) && panel.busy;",
         "to": "  return composersEnabled(state, name);"
       }
@@ -125,7 +125,7 @@
     "catches": "nothing is typed into an instance that is stopping",
     "edits": [
       {
-        "file": "tools/chat/panels.mjs",
+        "file": "lib/chat/panels.mjs",
         "from": "    case \"stopping\": {\n      state.connection = \"stopping\";\n      break;\n    }",
         "to": "    case \"stopping\": {\n      break;\n    }"
       }
@@ -136,7 +136,7 @@
     "catches": "names the version, the instance, the port, the Leader, the quota and the connection",
     "edits": [
       {
-        "file": "tools/chat/panels.mjs",
+        "file": "lib/chat/panels.mjs",
         "from": "    version: `${PRODUCT} ${health?.version ?? \"?\"}`,",
         "to": "    version: PRODUCT,"
       }
@@ -147,7 +147,7 @@
     "catches": "says which window is at a stage and when it resets",
     "edits": [
       {
-        "file": "tools/chat/panels.mjs",
+        "file": "lib/chat/panels.mjs",
         "from": "  return said.length === 0 ? \"ok\" : said.join(\"; \");",
         "to": "  return \"ok\";"
       }
@@ -158,7 +158,7 @@
     "catches": "the head is the name, the model and the context in k, in parts",
     "edits": [
       {
-        "file": "tools/chat/panels.mjs",
+        "file": "lib/chat/panels.mjs",
         "from": "  const facts = [panel.model, panel.context === null",
         "to": "  const facts = [\"\", panel.context === null"
       }
@@ -169,7 +169,7 @@
     "catches": "comes in parts for the Leader's head, the quota carrying the worst stage",
     "edits": [
       {
-        "file": "tools/chat/panels.mjs",
+        "file": "lib/chat/panels.mjs",
         "from": "  const stage = stages.includes(\"critical\") ? \"critical\" : stages.includes(\"warning\") ? \"warning\" : \"ok\";",
         "to": "  const stage = stages.includes(\"critical\") || stages.includes(\"warning\") ? \"warning\" : \"ok\";"
       }
@@ -180,7 +180,7 @@
     "catches": "the state word is listening between turns, working while one runs, waiting for you over both, and nothing on a dimmed panel",
     "edits": [
       {
-        "file": "tools/chat/panels.mjs",
+        "file": "lib/chat/panels.mjs",
         "from": "  return panel.busy ? WORKING : LISTENING;",
         "to": "  return LISTENING;"
       }
@@ -191,7 +191,7 @@
     "catches": "the state word is listening between turns, working while one runs, waiting for you over both, and nothing on a dimmed panel",
     "edits": [
       {
-        "file": "tools/chat/panels.mjs",
+        "file": "lib/chat/panels.mjs",
         "from": "  if (panel.dimmed) return \"\";\n",
         "to": ""
       }
@@ -202,7 +202,7 @@
     "catches": "a row lands at its index once; a row at a past index replaces the one there",
     "edits": [
       {
-        "file": "tools/chat/panels.mjs",
+        "file": "lib/chat/panels.mjs",
         "from": "      } else {\n        // A row the server wrote again, at an index the page holds: it replaces the one there.\n        panel.rows[data.index] = data.row;\n        panel.amended.push(data.index);\n      }\n",
         "to": "      }\n"
       }

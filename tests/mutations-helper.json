@@ -4,17 +4,17 @@
     "catches": "runs it in an empty directory outside the workspace that is gone afterwards",
     "edits": [
       {
-        "file": "tools/helper.mjs",
+        "file": "lib/helper.mjs",
         "from": "    const child = spawn(\"claude\", args, { cwd, env, stdio: [\"pipe\", \"pipe\", \"pipe\"] });",
         "to": "    const child = spawn(\"claude\", args, { cwd: instance.root, env, stdio: [\"pipe\", \"pipe\", \"pipe\"] });"
       },
       {
-        "file": "tools/helper.mjs",
+        "file": "lib/helper.mjs",
         "from": "function run(cwd, env, prompt, stdin, clock) {",
         "to": "function run(cwd, env, prompt, stdin, clock, instance) {"
       },
       {
-        "file": "tools/helper.mjs",
+        "file": "lib/helper.mjs",
         "from": "    const ran = await run(cwd, env, asked.prompt, JSON.stringify(request), clock);",
         "to": "    const ran = await run(cwd, env, asked.prompt, JSON.stringify(request), clock, instance);"
       }
@@ -25,7 +25,7 @@
     "catches": "runs it in an empty directory outside the workspace that is gone afterwards",
     "edits": [
       {
-        "file": "tools/helper.mjs",
+        "file": "lib/helper.mjs",
         "from": "    fs.rmSync(cwd, { recursive: true, force: true });",
         "to": "    // left"
       }
@@ -36,7 +36,7 @@
     "catches": "hands it the workspace's own home and auto-memory off",
     "edits": [
       {
-        "file": "tools/helper.mjs",
+        "file": "lib/helper.mjs",
         "from": "  const env = { ...environment(instance.root, instance.config.auth), [NO_MEMORY]: \"1\" };",
         "to": "  const env = { ...environment(instance.root, instance.config.auth) };"
       }
@@ -47,7 +47,7 @@
     "catches": "starts it in print mode with one JSON result, nothing persisted, in safe mode, no MCP server, no tools, sonnet at medium effort, and the question as the whole system prompt",
     "edits": [
       {
-        "file": "tools/helper.mjs",
+        "file": "lib/helper.mjs",
         "from": "      \"--tools\",\n      \"\",\n",
         "to": ""
       }
@@ -58,7 +58,7 @@
     "catches": "starts it in print mode with one JSON result, nothing persisted, in safe mode, no MCP server, no tools, sonnet at medium effort, and the question as the whole system prompt",
     "edits": [
       {
-        "file": "tools/helper.mjs",
+        "file": "lib/helper.mjs",
         "from": "      \"--strict-mcp-config\",\n",
         "to": ""
       }
@@ -69,7 +69,7 @@
     "catches": "starts it in print mode with one JSON result, nothing persisted, in safe mode, no MCP server, no tools, sonnet at medium effort, and the question as the whole system prompt",
     "edits": [
       {
-        "file": "tools/helper.mjs",
+        "file": "lib/helper.mjs",
         "from": "      \"--system-prompt\",\n      prompt,",
         "to": "      \"--append-system-prompt\",\n      prompt,"
       }
@@ -80,7 +80,7 @@
     "catches": "writes the request on stdin as JSON",
     "edits": [
       {
-        "file": "tools/helper.mjs",
+        "file": "lib/helper.mjs",
         "from": "    child.stdin.end(stdin);",
         "to": "    child.stdin.end(JSON.stringify({ question: \"select\" }));"
       }
@@ -91,7 +91,7 @@
     "catches": "refuses an answer outside the shape, in its own words",
     "edits": [
       {
-        "file": "tools/helper.mjs",
+        "file": "lib/helper.mjs",
         "from": "      if (!Array.isArray(answer?.ids) || !answer.ids.every((id) => typeof id === \"string\")) {\n        return null;\n      }\n      return { ids: answer.ids };",
         "to": "      return { ids: [].concat(answer?.ids ?? []) };"
       }
@@ -102,7 +102,7 @@
     "catches": "refuses a moment without an offset",
     "edits": [
       {
-        "file": "tools/helper.mjs",
+        "file": "lib/helper.mjs",
         "from": "      if (typeof answer.until !== \"string\" || !WITH_OFFSET.test(answer.until) || Number.isNaN(Date.parse(answer.until))) {",
         "to": "      if (typeof answer.until !== \"string\" || Number.isNaN(Date.parse(answer.until))) {"
       }
@@ -113,7 +113,7 @@
     "catches": "keeps the model's words in the chat's log and out of the answer",
     "edits": [
       {
-        "file": "tools/helper.mjs",
+        "file": "lib/helper.mjs",
         "from": "      log.warn(`the helper answered badly to ${question}: ${envelope.result}`);\n      return { refused: \"the helper answered badly\" };",
         "to": "      return { refused: `the helper answered badly: ${envelope.result}` };"
       }
@@ -124,7 +124,7 @@
     "catches": "refuses a process that was turned away by the service",
     "edits": [
       {
-        "file": "tools/helper.mjs",
+        "file": "lib/helper.mjs",
         "from": "    if (ran.status !== 0) {\n      log.warn(`the helper exited ${ran.status}${ran.stderr.trim() === \"\" ? \"\" : `: ${ran.stderr.trim()}`}`);\n      return { refused: \"the helper did not answer\" };\n    }\n",
         "to": ""
       }
@@ -135,7 +135,7 @@
     "catches": "refuses a process that fell over, logging why",
     "edits": [
       {
-        "file": "tools/helper.mjs",
+        "file": "lib/helper.mjs",
         "from": "    if (ran.status !== 0) {\n      log.warn(`the helper exited ${ran.status}${ran.stderr.trim() === \"\" ? \"\" : `: ${ran.stderr.trim()}`}`);\n      return { refused: \"the helper did not answer\" };\n    }\n",
         "to": ""
       }
@@ -146,7 +146,7 @@
     "catches": "is killed at the clock and the call refused",
     "edits": [
       {
-        "file": "tools/helper.mjs",
+        "file": "lib/helper.mjs",
         "from": "      timedOut = true;\n      child.kill(\"SIGKILL\");",
         "to": "      timedOut = true;"
       }
@@ -157,7 +157,7 @@
     "catches": "starts it in print mode with one JSON result, nothing persisted, in safe mode, no MCP server, no tools, sonnet at medium effort, and the question as the whole system prompt",
     "edits": [
       {
-        "file": "tools/helper.mjs",
+        "file": "lib/helper.mjs",
         "from": "      \"--safe-mode\",\n",
         "to": ""
       }

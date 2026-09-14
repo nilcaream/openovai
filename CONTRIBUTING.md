@@ -121,7 +121,7 @@ You write the list. It is JSON, and it lives beside the suite it is about:
     "name": "the dialog says what the call is for in the server's words",
     "catches": "carries the reason the session gave, verbatim, or none",
     "edits": [
-      { "file": "tools/chat/dialog.mjs", "from": "  const reason = input[REASON_FIELD];", "to": "  const reason = \"for the task\";" }
+      { "file": "lib/chat/dialog.mjs", "from": "  const reason = input[REASON_FIELD];", "to": "  const reason = \"for the task\";" }
     ]
   }
 ]
@@ -191,7 +191,7 @@ checked without a runner:
 node .github/tag.mjs            # what a release of this tree would be, or why there is not one
 ```
 
-It is beside the workflow rather than in `tools/` because `tools/` is payload: it is copied into
+It is beside the workflow rather than in `lib/` because `lib/` is payload: it is copied into
 every instance, and cutting a release is something this repository does rather than something an
 instance does.
 

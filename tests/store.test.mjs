@@ -1,7 +1,7 @@
 // The store: memory and knowledge behind `recall` and `remember`, and what every session is told
 // about the hard rules.
 //
-// The first half calls tools/store.mjs directly — a scratch root, a clock handed in, a helper that
+// The first half calls lib/store.mjs directly — a scratch root, a clock handed in, a helper that
 // answers what a check stages — because the rules of the store are rules of that module and the
 // question each check asks is answered there. The second half serves a chat in this process,
 // starts a Worker and the Leader on it, and calls the two tools over each one's own door — its
@@ -34,11 +34,11 @@ import {
   storeDirectory,
   withHardRules,
   withoutHardRules,
-} from "../tools/store.mjs";
-import { BUILT_IN } from "../tools/plugins.mjs";
-import { persona } from "../tools/desks.mjs";
-import { endSeat, serve, startSeat } from "../tools/chat/server.mjs";
-import { CONFIG_FILE } from "../tools/seed.mjs";
+} from "../lib/store.mjs";
+import { BUILT_IN } from "../lib/plugins.mjs";
+import { persona } from "../lib/desks.mjs";
+import { endSeat, serve, startSeat } from "../lib/chat/server.mjs";
+import { CONFIG_FILE } from "../lib/seed.mjs";
 import { installed, post, readLog, remove, repo, runTool, scratch, secretsIn, standInEnvironment, waitFor, writeStandIn } from "./helpers.mjs";
 
 const ZONE = "Europe/Warsaw";

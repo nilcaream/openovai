@@ -4,7 +4,7 @@
     "catches": "refuses a Worker's hard rule and writes no file",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "  if (kind === HARD_RULE && caller.role !== LEADER) {",
         "to": "  if (kind === HARD_RULE && false) {"
       }
@@ -15,7 +15,7 @@
     "catches": "refuses a Worker's source user",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "  if (caller.role !== LEADER && (source !== \"team\" || scope !== \"team\")) {",
         "to": "  if (caller.role !== LEADER && (false || scope !== \"team\")) {"
       }
@@ -26,7 +26,7 @@
     "catches": "refuses a Worker's scope leader",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "  if (caller.role !== LEADER && (source !== \"team\" || scope !== \"team\")) {",
         "to": "  if (caller.role !== LEADER && (source !== \"team\" || false)) {"
       }
@@ -37,7 +37,7 @@
     "catches": "refuses scope leader on a team rule",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "  if (scope === \"leader\" && !(kind === HARD_RULE && source === \"user\")) {",
         "to": "  if (false) {"
       }
@@ -48,7 +48,7 @@
     "catches": "refuses a hard rule in knowledge",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "knowledge: [\"fact\", \"trap\"] };",
         "to": "knowledge: [\"hard-rule\", \"fact\", \"trap\"] };"
       }
@@ -59,7 +59,7 @@
     "catches": "refuses a hard rule one character over the length and takes one at it",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "    if (text.length > limits.length) {",
         "to": "    if (text.length >= limits.length) {"
       }
@@ -70,7 +70,7 @@
     "catches": "refuses a hard rule one character over the length and takes one at it",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "    if (text.length > limits.length) {",
         "to": "    if (text.length > limits.length + 1) {"
       }
@@ -81,7 +81,7 @@
     "catches": "refuses a hard rule holding a newline",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "    if (/[\\r\\n]/.test(text)) {",
         "to": "    if (false) {"
       }
@@ -92,7 +92,7 @@
     "catches": "stores the helper's absolute moment for until given in words, never the words",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "  return { until: moment };\n}",
         "to": "  return { until: words };\n}"
       }
@@ -103,7 +103,7 @@
     "catches": "refuses until words the helper cannot place, quoting them, and writes nothing",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "  if (moment === null) {\n    return { refused: `until \"${words}\" could not be placed on the calendar; say when as a date or as plainer words` };\n  }",
         "to": "  if (moment === null) {\n    return { until: undefined };\n  }"
       }
@@ -114,7 +114,7 @@
     "catches": "refuses an absolute until that has passed",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "    if (moment <= now.getTime()) {\n      return { refused: `until \"${words}\" has passed; give a moment ahead, or now to retire` };\n    }",
         "to": "    if (false) {\n      return { refused: `until \"${words}\" has passed; give a moment ahead, or now to retire` };\n    }"
       }
@@ -125,7 +125,7 @@
     "catches": "takes until now from its own clock, asks the helper nothing, and so retires without a request on the account",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "  if (words === NOW) {",
         "to": "  if (false) {"
       }
@@ -136,7 +136,7 @@
     "catches": "retires a rule with until now and brings it back with a renew",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "  if (words === NOW) {\n    return { until: stamp(now, zone) };\n  }",
         "to": "  if (words === NOW) {\n    return { until: undefined };\n  }"
       }
@@ -147,7 +147,7 @@
     "catches": "retires a rule with until now and brings it back with a renew",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "    if (!current.includes(named)) {",
         "to": "    if (!current.includes(named) || expired(named, now)) {"
       }
@@ -158,7 +158,7 @@
     "catches": "refuses replaces naming a missing id or one of another store or kind",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "    if (named === undefined || named.kind !== kind) {",
         "to": "    if (named === undefined) {"
       }
@@ -169,7 +169,7 @@
     "catches": "refuses the rule over the cap with the count and the numbered set, and takes a replacement of a current one at the cap",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "retire or merge one with the User first. The set:\\n${set}`,",
         "to": "retire or merge one with the User first.`,"
       }
@@ -180,7 +180,7 @@
     "catches": "reads the cap and the length from the workspace configuration, with the defaults when absent",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "    count: positive(given.count) ?? HARD_RULES.count,",
         "to": "    count: HARD_RULES.count,"
       }
@@ -191,7 +191,7 @@
     "catches": "reads the cap and the length from the workspace configuration, with the defaults when absent",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "    length: positive(given.length) ?? HARD_RULES.length,",
         "to": "    length: HARD_RULES.length,"
       }
@@ -202,7 +202,7 @@
     "catches": "counts Leader-scoped rules toward the cap",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "    const held = sameKind.filter((record) => !expired(record, now));",
         "to": "    const held = sameKind.filter((record) => !expired(record, now) && record.scope !== \"leader\");"
       }
@@ -213,7 +213,7 @@
     "catches": "refuses a team write over the User's record, the Leader included",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "  if (replaces !== null && replaces.source === \"user\" && source !== \"user\") {",
         "to": "  if (replaces !== null && replaces.source === \"user\" && caller.role !== LEADER) {"
       }
@@ -224,7 +224,7 @@
     "catches": "refuses the rule over the cap with the count and the numbered set, and takes a replacement of a current one at the cap",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "    if (after > limits.count) {",
         "to": "    if (after >= limits.count) {"
       }
@@ -235,7 +235,7 @@
     "catches": "refuses the rule over the cap with the count and the numbered set, and takes a replacement of a current one at the cap",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "    const after = held.length + 1 - (replaces !== null && held.includes(replaces) ? 1 : 0);",
         "to": "    const after = held.length + 1;"
       }
@@ -246,7 +246,7 @@
     "catches": "leaves expired rules out of the count",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "    const held = sameKind.filter((record) => !expired(record, now));",
         "to": "    const held = sameKind;"
       }
@@ -257,7 +257,7 @@
     "catches": "numbers a new rule past every number ever given and hands a replacement the number it replaces",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "    record.number = replaces !== null ? replaces.number : nextNumber(sameKind);",
         "to": "    record.number = nextNumber(sameKind);"
       }
@@ -268,7 +268,7 @@
     "catches": "writes provenance: by, at, supersedes, the replaced text byte for byte, the reason",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "    record.replaced = replaces.text;\n",
         "to": ""
       }
@@ -279,7 +279,7 @@
     "catches": "writes provenance: by, at, supersedes, the replaced text byte for byte, the reason",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "    record.reason = reason;\n",
         "to": "    record.reason = TAG;\n"
       }
@@ -290,7 +290,7 @@
     "catches": "lists a replaced record under neither all nor the render, and marks it by id",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "    current: visible.filter((record) => !replaced.has(record.id)),",
         "to": "    current: visible,"
       }
@@ -301,7 +301,7 @@
     "catches": "names the current successor when replaces points at a replaced record",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "      return { refused: `${named.id} was replaced${to === undefined ? \"\" : ` by ${to}`}; replace the current record instead` };",
         "to": "      return { refused: `${named.id} was replaced; replace the current record instead` };"
       }
@@ -312,7 +312,7 @@
     "catches": "gives two rules remembered at once distinct numbers and holds the cap",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "  return serialized(root, shape.store, () => write(root, shape, context));",
         "to": "  return write(root, shape, context);"
       }
@@ -323,7 +323,7 @@
     "catches": "opens the file with wx: a file already at the next name fails the write and nothing is overwritten",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "serialise(record), { flag: \"wx\" });",
         "to": "serialise(record), { flag: \"w\" });"
       }
@@ -334,7 +334,7 @@
     "catches": "renders the User's rules first, then the team's, by number inside each",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "  for (const [source, heading] of [[\"user\", \"From the User:\"], [\"team\", \"From the team:\"]]) {",
         "to": "  for (const [source, heading] of [[\"team\", \"From the team:\"], [\"user\", \"From the User:\"]]) {"
       }
@@ -345,7 +345,7 @@
     "catches": "leaves expired rules out of the render and shows them marked on recall with expired",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "    .filter(isCurrentHardRule)\n    .filter((record) => !expired(record, now))\n    .filter((record) => role === LEADER || record.scope !== \"leader\")",
         "to": "    .filter(isCurrentHardRule)\n    .filter((record) => role === LEADER || record.scope !== \"leader\")"
       }
@@ -356,7 +356,7 @@
     "catches": "keeps a Leader-scoped rule from a Worker on every path",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "  const visible = role === LEADER ? every : every.filter((record) => record.scope !== \"leader\");",
         "to": "  const visible = every;"
       }
@@ -367,7 +367,7 @@
     "catches": "says until in the workspace zone with its label",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "  const parts = new Intl.DateTimeFormat(\"en-GB\", {\n    timeZone: zone,",
         "to": "  const parts = new Intl.DateTimeFormat(\"en-GB\", {\n    timeZone: \"UTC\","
       }
@@ -378,7 +378,7 @@
     "catches": "says until the same way on the recall line and in the render",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "    head.push(`until ${said(record.until, zone)}`);",
         "to": "    head.push(`until ${record.until.slice(0, 10)}`);"
       }
@@ -389,7 +389,7 @@
     "catches": "renders a rule's text byte for byte",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "      lines.push(`  ${record.number}. ${record.text}${untilSuffix(record, zone)}`);",
         "to": "      lines.push(`  ${record.number}. ${record.text.trim().replace(/\\s+/g, \" \")}${untilSuffix(record, zone)}`);"
       }
@@ -400,7 +400,7 @@
     "catches": "says none yet for an empty set and omits a heading with no rules",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "    if (group.length === 0) {\n      continue;\n    }\n",
         "to": ""
       }
@@ -411,7 +411,7 @@
     "catches": "versions the set by the newest current hard rule: a fact leaves it, a retire moves it",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "  const rules = current.filter(isCurrentHardRule);\n  return rules.length === 0 ? null : rules.reduce",
         "to": "  const rules = current;\n  return rules.length === 0 ? null : rules.reduce"
       }
@@ -422,7 +422,7 @@
     "catches": "says nothing to a Worker about a rule scoped to the Leader",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "  if (role !== LEADER && record.scope === \"leader\") {\n    return null;\n  }",
         "to": "  if (false) {\n    return null;\n  }"
       }
@@ -433,7 +433,7 @@
     "catches": "says the delta on an update: the rule, its old text, the version, never the set",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "    return `${opening} rule ${record.number} now reads ${text} (replaced \"${record.replaced}\").`;",
         "to": "    return `${opening} rule ${record.number} now reads ${text} (replaced \"${record.replaced}\"). rule 8 and the rest of the set follow`;"
       }
@@ -444,7 +444,7 @@
     "catches": "says new for a new rule and retired for a retire",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "    return `${opening} rule ${record.number} retired: \"${record.text}\".`;",
         "to": "    return `${opening} rule ${record.number} now reads ${text} (replaced \"${record.replaced}\").`;"
       }
@@ -455,7 +455,7 @@
     "catches": "replaces an identical text without asking the helper",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "    const same = sameKind.find((record) => collapse(record.text) === collapse(text));",
         "to": "    const same = undefined;"
       }
@@ -466,7 +466,7 @@
     "catches": "announces once per hard-rule write and never for a fact",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "  if (kind === HARD_RULE) {\n    for (const listener of listeners) {",
         "to": "  if (true) {\n    for (const listener of listeners) {"
       }
@@ -477,7 +477,7 @@
     "catches": "answers a hard-rule write with the record, the update line with the version, and what happens next",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "    lines.push(updateMessage(record, { role: LEADER, zone }));\n",
         "to": ""
       }
@@ -488,7 +488,7 @@
     "catches": "ends the persona with the render for that role and returns the version",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "  const rules = hardRulesFor(root, role, options);",
         "to": "  const rules = hardRulesFor(root, LEADER, options);"
       }
@@ -499,7 +499,7 @@
     "catches": "takes the render off a persona and leaves the rest",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "  const at = text.lastIndexOf(RENDER_BEGINS);\n  return at === -1 ? text : `${text.slice(0, at)}\\n`;",
         "to": "  return text;"
       }
@@ -510,7 +510,7 @@
     "catches": "refuses a recall with two of query, id and all, or none",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "  if (given.length === 1) {\n    by = given[0];",
         "to": "  if (given.length >= 1) {\n    by = given[0];"
       }
@@ -521,7 +521,7 @@
     "catches": "refuses kind hard-rule in knowledge on recall",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "  if (kind === HARD_RULE && store !== \"memory\") {",
         "to": "  if (false) {"
       }
@@ -532,7 +532,7 @@
     "catches": "lists recall and remember for a Worker and for the Leader",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "  recall: [LEADER, WORKER],",
         "to": "  recall: [LEADER],"
       }
@@ -543,7 +543,7 @@
     "catches": "serves the Leader exactly what BUILT_IN names, recall and remember among them",
     "edits": [
       {
-        "file": "tools/plugins.mjs",
+        "file": "lib/plugins.mjs",
         "from": "export const BUILT_IN = [\"message\", \"room\", \"recall\", \"remember\", \"write_desk\", \"restart_session\", \"stop_session\", \"park\", \"hire\", \"permission\"];",
         "to": "export const BUILT_IN = [\"message\", \"room\", \"recall\", \"write_desk\", \"restart_session\", \"stop_session\", \"park\", \"hire\", \"permission\"];"
       }
@@ -554,7 +554,7 @@
     "catches": "sends the helper exactly the current records of the store on a query and answers only ids it named",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "  const alive = current\n    .filter((record) => kind === undefined || record.kind === kind)",
         "to": "  const alive = records\n    .filter((record) => kind === undefined || record.kind === kind)"
       }
@@ -565,7 +565,7 @@
     "catches": "sends the helper exactly the current records of the store on a query and answers only ids it named",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "  const found = asked.answer.ids.filter((id) => known.has(id)).map((id) => known.get(id));",
         "to": "  const found = asked.answer.ids.map((id) => known.get(id) ?? { ...alive[0], id });"
       }
@@ -576,7 +576,7 @@
     "catches": "hands the helper nothing scoped to the Leader on a Worker's query",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "  const sent = alive.map((record) => ({ id: record.id, kind: record.kind, text: record.text }));",
         "to": "  const sent = recordsIn(root, store).map((record) => ({ id: record.id, kind: record.kind, text: record.text }));"
       }
@@ -587,7 +587,7 @@
     "catches": "asks the helper about the same store and kind only, and takes what it names",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "        records: sameKind.map((record) => ({ id: record.id, text: record.text })),",
         "to": "        records: recordsIn(root, store).filter((record) => record.kind === kind).map((record) => ({ id: record.id, text: record.text })),"
       }
@@ -598,7 +598,7 @@
     "catches": "asks the helper about the same store and kind only on a remember without replaces, and nothing when there is no record of that kind",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "        records: sameKind.map((record) => ({ id: record.id, text: record.text })),",
         "to": "        records: current.map((record) => ({ id: record.id, text: record.text })),"
       }
@@ -609,7 +609,7 @@
     "catches": "asks the helper about the same store and kind only on a remember without replaces, and nothing when there is no record of that kind",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "    } else if (sameKind.length > 0) {",
         "to": "    } else {"
       }
@@ -620,7 +620,7 @@
     "catches": "refuses a team write when the helper names the User's record, over the door",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "  if (replaces !== null && replaces.source === \"user\" && source !== \"user\") {",
         "to": "  if (shape.replaces !== undefined && replaces !== null && replaces.source === \"user\" && source !== \"user\") {"
       }
@@ -631,7 +631,7 @@
     "catches": "refuses a helper answer that is not JSON or names an unsent id, and writes nothing",
     "edits": [
       {
-        "file": "tools/helper.mjs",
+        "file": "lib/helper.mjs",
         "from": "      if (answer.replaces !== null && !sent.has(answer.replaces)) {\n        return null;\n      }\n",
         "to": ""
       }
@@ -642,7 +642,7 @@
     "catches": "refuses the call in its own words when the helper is turned away or falls over, writes nothing, and keeps the model's words out of the answer",
     "edits": [
       {
-        "file": "tools/helper.mjs",
+        "file": "lib/helper.mjs",
         "from": "      return { refused: \"the helper answered badly\" };",
         "to": "      return { refused: `the helper answered badly: ${envelope.result}` };"
       }
@@ -653,7 +653,7 @@
     "catches": "asks the helper nothing for id, all or the numbered set",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "  if (by === \"all\") {\n    return {",
         "to": "  if (by === \"all\") {\n    await helper(\"select\", { question: \"select\", query: \"\", records: [] });\n    return {"
       }
@@ -664,7 +664,7 @@
     "catches": "answers a Leader's hard-rule write with the version and the update line",
     "edits": [
       {
-        "file": "tools/store.mjs",
+        "file": "lib/store.mjs",
         "from": "  const opening = `Hard rules update (set ${record.id}):`;",
         "to": "  const opening = \"Hard rules update:\";"
       }

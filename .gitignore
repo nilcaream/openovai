@@ -3,10 +3,10 @@
 *.tmp
 
 # Per-instance Claude Code config: credentials, transcripts, memory.
-.claude-home/
+.local/
 
 # Desks. A machine's live work is never part of the toolkit.
-work/
+desks/
 
 # Editors and operating systems.
 .idea/

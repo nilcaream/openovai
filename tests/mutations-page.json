@@ -4,7 +4,7 @@
     "catches": "declares the light tokens in bare :root and the dark ones under the theme attribute, each with its colour-scheme",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "    --bg: #0e1116; --panel: #161b22;",
         "to": "    --bg: #161b22; --panel: #0e1116;"
       }
@@ -15,7 +15,7 @@
     "catches": "carry no raw colour outside the token blocks",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "border: 2px solid var(--line); border-radius: var(--radius); background: var(--panel-2);",
         "to": "border: 2px solid var(--line); border-radius: var(--radius); background: #eef1f5;"
       }
@@ -26,7 +26,7 @@
     "catches": "name no class the page never emits",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "  .bubble { width: 100%;",
         "to": "  .balloon { width: 100%;"
       }
@@ -37,7 +37,7 @@
     "catches": "name no class the page never emits",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "  .msg.chat .bubble, .msg.silent .bubble { color: var(--fg-dim); }",
         "to": "  .row.chat .bubble, .row.silent .bubble { color: var(--fg-dim); }"
       }
@@ -48,7 +48,7 @@
     "catches": "give every class the page emits at least one rule",
     "edits": [
       {
-        "file": "tools/chat/render.mjs",
+        "file": "lib/chat/render.mjs",
         "from": "kind: \"user\"",
         "to": "kind: \"person\""
       }
@@ -59,7 +59,7 @@
     "catches": "set the page's type in rem on the sans stack, one and a half lines high",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "font: 1rem/1.5 var(--sans);",
         "to": "font: 14px/1.4 var(--sans);"
       }
@@ -70,7 +70,7 @@
     "catches": "give every class the page emits at least one rule",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "  .rows .empty { color: var(--fg-faint); font-size: .8rem; padding: 4px 0; }\n  #mid .rows .empty { font-size: inherit; text-align: center; padding: 20px 0; }\n",
         "to": ""
       }
@@ -81,7 +81,7 @@
     "catches": "mark a panel whose process is gone with a red dot on its head",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "  .panel.dimmed .phead .name::before { background: var(--bad); }",
         "to": "  .panel.dimmed .phead .name::before { background: var(--warn); }"
       }
@@ -92,7 +92,7 @@
     "catches": "draw what the User typed on the User's own ground",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": ".msg.user .bubble { background: var(--me);",
         "to": ".msg.user .bubble { background: var(--reply);"
       }
@@ -103,7 +103,7 @@
     "catches": "name no token the table does not declare",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "border: 2px solid var(--line); border-radius: var(--radius); background: var(--panel-2);",
         "to": "border: 2px solid var(--line); border-radius: var(--radius); background: var(--panel-3);"
       }
@@ -114,7 +114,7 @@
     "catches": "stamps a row with the reader's own day and time, the weekday written out, on a 24-hour clock",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "day: \"2-digit\", weekday: \"long\", hour:",
         "to": "day: \"2-digit\", hour:"
       }
@@ -125,7 +125,7 @@
     "catches": "draws a reply's markdown as elements — a link, a code span — never as the words of the markup",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "      body.innerHTML = shown.html;",
         "to": "      body.textContent = shown.html;"
       }
@@ -136,7 +136,7 @@
     "catches": "carry no raw colour outside the token blocks",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": ".md a, .bubble a { color: var(--accent); }",
         "to": ".md a, .bubble a { color: #5eaeff; }"
       }
@@ -147,7 +147,7 @@
     "catches": "carry no raw colour outside the token blocks",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "background: rgba(127,127,127,.18); padding: .1em .35em;",
         "to": "background: rgba(0,0,0,.18); padding: .1em .35em;"
       }
@@ -158,7 +158,7 @@
     "catches": "stamps a row with the reader's own day and time, the weekday written out, on a 24-hour clock",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "new Intl.DateTimeFormat(\"en-GB\", { weekday: \"short\", day: \"2-digit\", month: \"short\" })",
         "to": "new Intl.DateTimeFormat(\"en-GB\", { timeZone: \"Europe/Warsaw\", weekday: \"short\", day: \"2-digit\", month: \"short\" })"
       }
@@ -169,7 +169,7 @@
     "catches": "draw the deny button of a question on the ground of what goes to the session",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": ".msg.perm .acts button[data-decision=deny] { background: var(--to); border-color: var(--to-line); }",
         "to": ".msg.perm .acts button[data-decision=deny] { background: var(--me); border-color: var(--to-line); }"
       }
@@ -180,7 +180,7 @@
     "catches": "give every class the page emits at least one rule",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "  .msg.perm .bubble { background: var(--panel-2); border-color: var(--warn); border-width: 2px; }\n  .msg.perm .desc { font-size: .92rem; margin: 2px 0 4px; overflow-wrap: anywhere; }\n  .msg.perm .reason { font-size: .78rem; color: var(--fg-dim); font-family: var(--mono); margin: 0 0 4px; }\n  .msg.perm .raw { font-family: var(--mono); font-size: .76rem; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; margin: 4px 0; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 18em; overflow: auto; }\n  .msg.perm .acts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0 2px; }\n  .msg.perm .acts button { font: 600 .82rem var(--sans); padding: 4px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); cursor: pointer; }\n  .msg.perm .acts button[data-decision=allow] { background: var(--me); border-color: var(--me-line); }\n  .msg.perm .acts button[data-decision=deny] { background: var(--to); border-color: var(--to-line); }\n  .msg.perm .acts input { flex: 1 1 200px; min-width: 120px; font: .82rem var(--sans); padding: 4px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); }\n",
         "to": "  .msg.card .bubble { background: var(--panel-2); border-color: var(--warn); border-width: 2px; }\n  .msg.card .desc { font-size: .92rem; margin: 2px 0 4px; overflow-wrap: anywhere; }\n  .msg.card .reason { font-size: .78rem; color: var(--fg-dim); font-family: var(--mono); margin: 0 0 4px; }\n  .msg.card .raw { font-family: var(--mono); font-size: .76rem; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; margin: 4px 0; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 18em; overflow: auto; }\n  .msg.card .acts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0 2px; }\n  .msg.card .acts button { font: 600 .82rem var(--sans); padding: 4px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); cursor: pointer; }\n  .msg.card .acts button[data-decision=allow] { background: var(--me); border-color: var(--me-line); }\n  .msg.card .acts button[data-decision=deny] { background: var(--to); border-color: var(--to-line); }\n  .msg.card .acts input { flex: 1 1 200px; min-width: 120px; font: .82rem var(--sans); padding: 4px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); }\n"
       }
@@ -191,7 +191,7 @@
     "catches": "name no class the page never emits",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "  .msg.perm .reason { font-size: .78rem;",
         "to": "  .msg.perm .why { font-size: .78rem;"
       }
@@ -202,7 +202,7 @@
     "catches": "select no attribute the script never sets",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "      button.dataset.decision = decision;\n",
         "to": ""
       }
@@ -213,7 +213,7 @@
     "catches": "let the composer grow with what is typed and never by a drag",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "  textarea { display: block; width: 100%; resize: none;",
         "to": "  textarea { display: block; width: 100%; resize: vertical;"
       }
@@ -224,7 +224,7 @@
     "catches": "says in the empty box whom a message reaches and which key sends it, the whole sentence only where it fits",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "      const whole = busy ? `${name} is working — Enter still sends` : `Message ${name} — Enter sends, Shift+Enter for a new line`;\n",
         "to": "      const whole = busy ? `${name} is working — Enter still sends` : `Message ${name}`;\n"
       }
@@ -235,7 +235,7 @@
     "catches": "sends on Enter through the form, and grows the box with what is typed, capped at 40vh",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "    box.addEventListener(\"keydown\", (event) => {\n      if (keyAction(event) === \"send\") {\n        event.preventDefault();\n        composer.requestSubmit();\n      }\n    });\n",
         "to": ""
       }
@@ -246,7 +246,7 @@
     "catches": "sends on Enter through the form, and grows the box with what is typed, capped at 40vh",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "    box.addEventListener(\"input\", autosize);\n",
         "to": ""
       }
@@ -257,7 +257,7 @@
     "catches": "sends on Enter through the form, and grows the box with what is typed, capped at 40vh",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "      box.style.height = `${Math.min(box.scrollHeight, max)}px`;",
         "to": "      box.style.height = `${box.scrollHeight}px`;"
       }
@@ -268,7 +268,7 @@
     "catches": "sends on Enter through the form, and grows the box with what is typed, capped at 40vh",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "      box.style.height = \"auto\";\n",
         "to": ""
       }
@@ -279,7 +279,7 @@
     "catches": "sets the stored theme above the stylesheet, flips it on the toggle, keeps it and repaints the title bar",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "<script>\n  // The theme before the first paint, so a page kept dark never flashes light: the stored choice,\n  // light when there is none or when storage throws. It sits above the stylesheet on purpose.\n  try { document.documentElement.dataset.theme = localStorage.getItem(\"openovai-theme\") === \"dark\" ? \"dark\" : \"light\"; }\n  catch (error) { document.documentElement.dataset.theme = \"light\"; }\n</script>\n",
         "to": ""
       }
@@ -290,12 +290,12 @@
     "catches": "sets the stored theme above the stylesheet, flips it on the toggle, keeps it and repaints the title bar",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "<script>\n  // The theme before the first paint, so a page kept dark never flashes light: the stored choice,\n  // light when there is none or when storage throws. It sits above the stylesheet on purpose.\n  try { document.documentElement.dataset.theme = localStorage.getItem(\"openovai-theme\") === \"dark\" ? \"dark\" : \"light\"; }\n  catch (error) { document.documentElement.dataset.theme = \"light\"; }\n</script>\n",
         "to": ""
       },
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "</style>\n",
         "to": "</style>\n<script>\n  // The theme before the first paint, so a page kept dark never flashes light: the stored choice,\n  // light when there is none or when storage throws. It sits above the stylesheet on purpose.\n  try { document.documentElement.dataset.theme = localStorage.getItem(\"openovai-theme\") === \"dark\" ? \"dark\" : \"light\"; }\n  catch (error) { document.documentElement.dataset.theme = \"light\"; }\n</script>\n"
       }
@@ -306,12 +306,12 @@
     "catches": "declares the light tokens in bare :root and the dark ones under the theme attribute, each with its colour-scheme",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "  :root[data-theme=\"dark\"] {\n",
         "to": "  @media (prefers-color-scheme: dark) { :root {\n"
       },
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "    color-scheme: dark;\n  }\n",
         "to": "    color-scheme: dark;\n  } }\n"
       }
@@ -322,7 +322,7 @@
     "catches": "sets the stored theme above the stylesheet, flips it on the toggle, keeps it and repaints the title bar",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "      themeToggle.addEventListener(\"click\", () => applyTheme(document.documentElement.dataset.theme === \"dark\" ? \"light\" : \"dark\"));\n",
         "to": ""
       }
@@ -333,7 +333,7 @@
     "catches": "sets the stored theme above the stylesheet, flips it on the toggle, keeps it and repaints the title bar",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "    try { localStorage.setItem(\"openovai-theme\", theme); } catch (error) {}\n",
         "to": ""
       }
@@ -344,7 +344,7 @@
     "catches": "sets the stored theme above the stylesheet, flips it on the toggle, keeps it and repaints the title bar",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "    themeMeta.content = getComputedStyle(document.documentElement).getPropertyValue(\"--panel-2\").trim() || themeMeta.content;\n",
         "to": ""
       }
@@ -355,7 +355,7 @@
     "catches": "shows the pill when rows land below a reader who is not near the newest, and takes them there on a click",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "        } else if (panel.jump !== null && !near) {\n          panel.jump.classList.add(\"show\");\n        }\n",
         "to": ""
       }
@@ -366,7 +366,7 @@
     "catches": "shows the pill when rows land below a reader who is not near the newest, and takes them there on a click",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "      rows.addEventListener(\"scroll\", () => {\n        if (nearTheNewest(rows)) jump.classList.remove(\"show\");\n      });\n",
         "to": ""
       }
@@ -377,7 +377,7 @@
     "catches": "shows the pill when rows land below a reader who is not near the newest, and takes them there on a click",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "        rows.scrollTop = rows.scrollHeight;\n        jump.classList.remove(\"show\");\n",
         "to": "        jump.classList.remove(\"show\");\n"
       }
@@ -388,7 +388,7 @@
     "catches": "shows the pill when rows land below a reader who is not near the newest, and takes them there on a click",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "  const nearTheNewest = (rows) => rows.scrollHeight - rows.scrollTop - rows.clientHeight < 80;\n",
         "to": "  const nearTheNewest = (rows) => true;\n"
       }
@@ -399,7 +399,7 @@
     "catches": "says in the empty box whom a message reaches and which key sends it, the whole sentence only where it fits",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "    new ResizeObserver(fitPlaceholder).observe(box);\n",
         "to": "    fitPlaceholder();\n"
       }
@@ -410,7 +410,7 @@
     "catches": "says in the empty box whom a message reaches and which key sends it, the whole sentence only where it fits",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "      box.placeholder = textWidth(whole, box) <= room ? whole : busy ? `${name} is working` : `Message ${name}`;\n",
         "to": "      box.placeholder = whole;\n"
       }
@@ -421,7 +421,7 @@
     "catches": "draws the instance facts on the Leader's head and marks a lost stream and a quota stage",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "      panel.facts.conn.classList.toggle(\"off\", facts.connection !== \"connected\");\n",
         "to": "      panel.facts.conn.classList.toggle(\"off\", facts.connection === \"connected\");\n"
       }
@@ -432,7 +432,7 @@
     "catches": "draws the instance facts on the Leader's head and marks a lost stream and a quota stage",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "      panel.facts.version.textContent = facts.version;\n",
         "to": ""
       }
@@ -443,7 +443,7 @@
     "catches": "draws the instance facts on the Leader's head and marks a lost stream and a quota stage",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "      panel.facts.quota.classList.toggle(\"critical\", facts.quota.stage === \"critical\");\n",
         "to": "      panel.facts.quota.classList.toggle(\"critical\", facts.quota.stage === \"warning\");\n"
       }
@@ -454,7 +454,7 @@
     "catches": "hides the words of a head too narrow to show them whole, the state word before the model",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "    new ResizeObserver(fitHead).observe(headLine);\n",
         "to": ""
       }
@@ -465,7 +465,7 @@
     "catches": "hides the words of a head too narrow to show them whole, the state word before the model",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "    panel.fitHead();\n",
         "to": ""
       }
@@ -476,7 +476,7 @@
     "catches": "hides the words of a head too narrow to show them whole, the state word before the model",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "      if (headLine.scrollWidth > headLine.clientWidth) word.hidden = true;\n      if (headLine.scrollWidth > headLine.clientWidth) info.hidden = true;\n",
         "to": "      if (headLine.scrollWidth > headLine.clientWidth) info.hidden = true;\n      if (headLine.scrollWidth > headLine.clientWidth) word.hidden = true;\n"
       }
@@ -487,7 +487,7 @@
     "catches": "says in the empty box whom a message reaches and which key sends it, the whole sentence only where it fits",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "gauge.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;",
         "to": "gauge.font = `${style.fontStyle} ${style.fontWeight} ${style.fontFamily}`;"
       }
@@ -498,7 +498,7 @@
     "catches": "says in the empty box whom a message reaches and which key sends it, the whole sentence only where it fits",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "const room = box.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);",
         "to": "const room = box.clientWidth;"
       }
@@ -509,7 +509,7 @@
     "catches": "keep the pill inside the rows, stuck 24px above their bottom edge",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "#jump { position: sticky; left: 50%;",
         "to": "#jump { position: fixed; left: 50%;"
       }
@@ -520,7 +520,7 @@
     "catches": "keep the pill inside the rows, stuck 24px above their bottom edge",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "transform: translateX(-50%); bottom: 24px; background: var(--panel);",
         "to": "transform: translateX(-50%); background: var(--panel);"
       }
@@ -531,7 +531,7 @@
     "catches": "shows the pill when rows land below a reader who is not near the newest, and takes them there on a click",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "      rows.append(jump);\n",
         "to": "      document.body.append(jump);\n"
       }
@@ -542,7 +542,7 @@
     "catches": "shows the pill when rows land below a reader who is not near the newest, and takes them there on a click",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "      // Rows are appended after the pill; it goes back to the end so it sticks to the bottom edge.\n      if (panel.jump !== null && panel.jump !== panel.rows.lastElementChild) panel.rows.append(panel.jump);\n",
         "to": ""
       }
@@ -553,12 +553,12 @@
     "catches": "shows the pill when rows land below a reader who is not near the newest, and takes them there on a click",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "      panel.empty.hidden = about.rows.length > 0;\n      if (about.rows.length > panel.shown) {\n",
         "to": "      panel.empty.hidden = about.rows.length > 0;\n      // Rows are appended after the pill; it goes back to the end so it sticks to the bottom edge.\n      if (panel.jump !== null && panel.jump !== panel.rows.lastElementChild) panel.rows.append(panel.jump);\n      if (about.rows.length > panel.shown) {\n"
       },
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "      }\n      // Rows are appended after the pill; it goes back to the end so it sticks to the bottom edge.\n      if (panel.jump !== null && panel.jump !== panel.rows.lastElementChild) panel.rows.append(panel.jump);\n    }\n",
         "to": "      }\n    }\n"
       }
@@ -569,7 +569,7 @@
     "catches": "keep the pill inside the rows, stuck 24px above their bottom edge",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "#jump.show { display: block; }",
         "to": "#jump.show { display: block; position: static; }"
       }
@@ -580,7 +580,7 @@
     "catches": "mark a panel whose turn is running with an amber dot, and let a gone process outrank it",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "  .panel.busy .phead .name::before { background: var(--warn); }",
         "to": "  .panel.busy .phead .name::before { background: var(--ok); }"
       }
@@ -591,7 +591,7 @@
     "catches": "mark a panel whose turn is running with an amber dot, and let a gone process outrank it",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "  .panel.idle .phead .name::before { background: var(--ok); }",
         "to": "  .panel.idle .phead .name::before { background: var(--warn); }"
       }
@@ -602,7 +602,7 @@
     "catches": "mark a panel whose turn is running with an amber dot, and let a gone process outrank it",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "  .panel.idle .phead .name::before { background: var(--ok); }\n  .panel.busy .phead .name::before { background: var(--warn); }\n  .panel.dimmed .phead .name::before { background: var(--bad); }",
         "to": "  .panel.dimmed .phead .name::before { background: var(--bad); }\n  .panel.idle .phead .name::before { background: var(--ok); }\n  .panel.busy .phead .name::before { background: var(--warn); }"
       }
@@ -613,7 +613,7 @@
     "catches": "declare no selector twice",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "  .panel.asking .phead .name::before { animation: pulse 1.2s ease-in-out infinite; }",
         "to": "  .panel.asking .phead .name::before { animation: pulse 1.2s ease-in-out infinite; }\n  .panel.busy .phead .name::before { background: var(--ok); }"
       }
@@ -624,7 +624,7 @@
     "catches": "marks a panel idle or busy from its turn on every draw, and refits the empty box then",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "    panel.section.classList.toggle(\"idle\", about.busy === false);\n    panel.section.classList.toggle(\"busy\", about.busy === true);\n",
         "to": ""
       }
@@ -635,7 +635,7 @@
     "catches": "marks a panel idle or busy from its turn on every draw, and refits the empty box then",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "    panel.box.disabled = !composersEnabled(state, panel.name);\n    panel.fitPlaceholder();",
         "to": "    panel.box.disabled = !composersEnabled(state, panel.name);"
       }
@@ -646,7 +646,7 @@
     "catches": "says in the empty box whom a message reaches and which key sends it, the whole sentence only where it fits",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "      const whole = busy ? `${name} is working — Enter still sends` : `Message ${name} — Enter sends, Shift+Enter for a new line`;",
         "to": "      const whole = `Message ${name} — Enter sends, Shift+Enter for a new line`;"
       }
@@ -657,7 +657,7 @@
     "catches": "gives a row's stamp up to the time alone where the whole day would cut the label, on append and on every change of width",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "const cut = [...stamps].filter((time) => { const label = time.parentElement.querySelector(\".lbl\"); return label.scrollWidth > label.clientWidth; });",
         "to": "const cut = [...stamps].filter((time) => { const meta = time.parentElement; return meta.scrollWidth > meta.clientWidth; });"
       }
@@ -668,7 +668,7 @@
     "catches": "gives a row's stamp up to the time alone where the whole day would cut the label, on append and on every change of width",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "        fitStamps(added);\n        panel.shown = about.rows.length;",
         "to": "        panel.shown = about.rows.length;"
       }
@@ -679,7 +679,7 @@
     "catches": "gives a row's stamp up to the time alone where the whole day would cut the label, on append and on every change of width",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "    new ResizeObserver(() => fitStamps(rows.querySelectorAll(\".t\"))).observe(rows);\n",
         "to": ""
       }
@@ -690,7 +690,7 @@
     "catches": "draw a tool line in the dim mono of a machine word",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "font-size: .76rem; color: var(--fg-dim); padding: 3px 8px;",
         "to": "font-size: .76rem; color: var(--fg); padding: 3px 8px;"
       }
@@ -701,7 +701,7 @@
     "catches": "give every class the page emits at least one rule",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "  .rows .line { display: block; width: 100%; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); font-family: var(--mono); font-size: .76rem; color: var(--fg-dim); padding: 3px 8px; margin: 3px 0; overflow-wrap: anywhere; }\n  .rows .line.err { color: var(--bad); }\n  .rows .line .n { color: var(--fg-faint); }\n",
         "to": "  .rows .tool { display: block; width: 100%; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); font-family: var(--mono); font-size: .76rem; color: var(--fg-dim); padding: 3px 8px; margin: 3px 0; overflow-wrap: anywhere; }\n  .rows .tool.err { color: var(--bad); }\n  .rows .tool .n { color: var(--fg-faint); }\n"
       }
@@ -712,7 +712,7 @@
     "catches": "name no class the page never emits",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "  .rows .line .n { color: var(--fg-faint); }\n",
         "to": "  .rows .line .count { color: var(--fg-faint); }\n"
       }
@@ -723,7 +723,7 @@
     "catches": "marks the line of a call that failed red, by its index",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "        if (element !== undefined && about.rows[index].err === true) element.classList.add(\"err\");\n",
         "to": ""
       }
@@ -734,7 +734,7 @@
     "catches": "merges a repeated call into one line with a counter",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "          if (shown.kind === \"line\" && panel.last !== null && panel.last.text === shown.text) {\n            panel.last.count += 1;\n            panel.last.n.textContent = ` ×${panel.last.count}`;\n            panel.lines.set(index, panel.last.el);\n            continue;\n          }\n",
         "to": ""
       }
@@ -745,7 +745,7 @@
     "catches": "keeps the last hundred rows of a Worker panel and every row of the Leader's",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "          while (drawn.length > 100) drawn.shift().remove();\n",
         "to": ""
       }
@@ -756,7 +756,7 @@
     "catches": "keeps the last hundred rows of a Worker panel and every row of the Leader's",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "Math.max(panel.shown, about.rows.length - 100)",
         "to": "panel.shown"
       }
@@ -767,7 +767,7 @@
     "catches": "pushes only a stamp it found to the fitter",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "          const time = line.querySelector(\".t\");\n          if (time !== null) added.push(time);\n",
         "to": "          added.push(line.querySelector(\".t\"));\n"
       }
@@ -778,7 +778,7 @@
     "catches": "draw a message the Leader sent on the ground of what goes to the session",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "  .msg.peer-out .bubble { background: var(--to); border-color: var(--to-line); }\n",
         "to": "  .msg.peer-out .bubble { background: var(--from); border-color: var(--from-line); }\n"
       }
@@ -789,17 +789,17 @@
     "catches": "give every class the page emits at least one rule",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "  .msg.peer-in .bubble, .msg.peer-out .bubble { overflow-wrap: anywhere; }\n",
         "to": ""
       },
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "  .msg.peer-in .bubble { background: var(--from); border-color: var(--from-line); }\n",
         "to": ""
       },
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "  .msg.peer-out .bubble { background: var(--to); border-color: var(--to-line); }\n",
         "to": ""
       }
@@ -810,7 +810,7 @@
     "catches": "name no class the page never emits",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "      if (shown.status.bad === true) st.classList.add(\"bad\");\n",
         "to": "      if (shown.status.bad === true) st.classList.add(\"st\");\n"
       }
@@ -821,7 +821,7 @@
     "catches": "name no class the page never emits",
     "edits": [
       {
-        "file": "tools/chat/page.html",
+        "file": "lib/chat/page.html",
         "from": "      if (shown.tight === true) body.classList.add(\"tight\");\n",
         "to": ""
       }

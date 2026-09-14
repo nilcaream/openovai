@@ -697,7 +697,7 @@ export function alive(pid) {
 // Start a chat server as a child, keeping whatever it prints. The output is where the address
 // comes from when the instance was installed with --port 0, which is the only way to learn it.
 export function startChat(root, environment) {
-  const child = spawn("node", [path.join(root, "tools", "ovai.mjs"), "--root", root, "chat"], {
+  const child = spawn("node", [path.join(root, "lib", "ovai.mjs"), "--root", root, "chat"], {
     env: environment,
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -729,7 +729,7 @@ export function runOvai(root, argv, environment) {
 // Run the tool directly rather than through bin/ovai, for the cases where the launcher's own
 // refusal — no Claude Code on the PATH — would stop a test that is about something else.
 export function runTool(root, argv, environment) {
-  return spawnSync("node", [path.join(root, "tools", "ovai.mjs"), "--root", root, ...argv], {
+  return spawnSync("node", [path.join(root, "lib", "ovai.mjs"), "--root", root, ...argv], {
     env: environment,
     encoding: "utf8",
   });
@@ -739,7 +739,7 @@ export function runTool(root, argv, environment) {
 // something served from here has to use this one: spawnSync blocks the event loop, so the server
 // cannot answer the child, the child cannot exit, and the two wait for each other forever.
 export function runToolLater(root, argv, environment) {
-  const child = spawn("node", [path.join(root, "tools", "ovai.mjs"), "--root", root, ...argv], {
+  const child = spawn("node", [path.join(root, "lib", "ovai.mjs"), "--root", root, ...argv], {
     env: environment,
     stdio: ["ignore", "pipe", "pipe"],
   });

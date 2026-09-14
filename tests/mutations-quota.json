@@ -4,7 +4,7 @@
     "catches": "keep the newest per window",
     "edits": [
       {
-        "file": "tools/chat/quota.mjs",
+        "file": "lib/chat/quota.mjs",
         "from": "      readings.set(window, {\n        utilization: entry.utilization,",
         "to": "      if (readings.has(window)) continue;\n      readings.set(window, {\n        utilization: entry.utilization,"
       }
@@ -15,7 +15,7 @@
     "catches": "take each window's own reset, never the outer one",
     "edits": [
       {
-        "file": "tools/chat/quota.mjs",
+        "file": "lib/chat/quota.mjs",
         "from": "        resetsAt: moment(entry.resetsAt),",
         "to": "        resetsAt: moment(info.resetsAt),"
       }
@@ -26,7 +26,7 @@
     "catches": "read the reset as seconds and say it as a moment",
     "edits": [
       {
-        "file": "tools/chat/quota.mjs",
+        "file": "lib/chat/quota.mjs",
         "from": "  return resetsAt < 1e12 ? resetsAt * 1000 : resetsAt;",
         "to": "  return resetsAt;"
       }
@@ -37,7 +37,7 @@
     "catches": "skip a window without a numeric utilization",
     "edits": [
       {
-        "file": "tools/chat/quota.mjs",
+        "file": "lib/chat/quota.mjs",
         "from": "      if (typeof entry?.utilization !== \"number\") {\n        continue;\n      }",
         "to": ""
       }
@@ -48,7 +48,7 @@
     "catches": "say who reported the reading and when",
     "edits": [
       {
-        "file": "tools/chat/quota.mjs",
+        "file": "lib/chat/quota.mjs",
         "from": "        at: now,\n        from: seat,\n        rejected: false,",
         "to": "        at: now,\n        from: null,\n        rejected: false,"
       }
@@ -59,7 +59,7 @@
     "catches": "expire once the window's reset has passed",
     "edits": [
       {
-        "file": "tools/chat/quota.mjs",
+        "file": "lib/chat/quota.mjs",
         "from": "  if (reading === undefined || reading.resetsAt === null || reading.resetsAt <= now) {",
         "to": "  if (reading === undefined || reading.resetsAt === null) {"
       }
@@ -70,7 +70,7 @@
     "catches": "apply per window: 0.91 is a warning on 5h and nothing on 7d",
     "edits": [
       {
-        "file": "tools/chat/quota.mjs",
+        "file": "lib/chat/quota.mjs",
         "from": "  const [warning, critical] = thresholds[key];",
         "to": "  const [warning, critical] = thresholds[\"5h\"];"
       }
@@ -81,12 +81,12 @@
     "catches": "are inclusive: exactly 0.90 on 5h is a warning and exactly 0.95 is critical",
     "edits": [
       {
-        "file": "tools/chat/quota.mjs",
+        "file": "lib/chat/quota.mjs",
         "from": "  if (percent >= critical) {",
         "to": "  if (percent > critical) {"
       },
       {
-        "file": "tools/chat/quota.mjs",
+        "file": "lib/chat/quota.mjs",
         "from": "  if (percent >= warning) {",
         "to": "  if (percent > warning) {"
       }
@@ -97,7 +97,7 @@
     "catches": "take the instance's own per window and keep the defaults for the rest",
     "edits": [
       {
-        "file": "tools/chat/quota.mjs",
+        "file": "lib/chat/quota.mjs",
         "from": "    const given = own[key];",
         "to": "    const given = undefined;"
       }
@@ -108,7 +108,7 @@
     "catches": "passes at stage one and holds at stage two",
     "edits": [
       {
-        "file": "tools/chat/quota.mjs",
+        "file": "lib/chat/quota.mjs",
         "from": "export function mayWrite(seat, model, now = clock()) {\n  return holdOn(model, CRITICAL, now);",
         "to": "export function mayWrite(seat, model, now = clock()) {\n  return holdOn(model, WARNING, now);"
       }
@@ -119,7 +119,7 @@
     "catches": "holds the helper and a start at stage two only",
     "edits": [
       {
-        "file": "tools/chat/quota.mjs",
+        "file": "lib/chat/quota.mjs",
         "from": "export function mayStart(model, now = clock()) {\n  return holdOn(model, CRITICAL, now);",
         "to": "export function mayStart(model, now = clock()) {\n  return holdOn(model, WARNING, now);"
       }
@@ -130,7 +130,7 @@
     "catches": "holds a hire from stage one",
     "edits": [
       {
-        "file": "tools/chat/quota.mjs",
+        "file": "lib/chat/quota.mjs",
         "from": "export function holdsHire(model, now = clock()) {\n  return holdOn(model, WARNING, now);",
         "to": "export function holdsHire(model, now = clock()) {\n  return holdOn(model, CRITICAL, now);"
       }
@@ -141,7 +141,7 @@
     "catches": "closes a window on rejected whatever the utilization",
     "edits": [
       {
-        "file": "tools/chat/quota.mjs",
+        "file": "lib/chat/quota.mjs",
         "from": "  if (info?.status === \"rejected\" && typeof info.rateLimitType === \"string\") {",
         "to": "  if (false) {"
       }
@@ -152,7 +152,7 @@
     "catches": "closes the window the rejection names and not another",
     "edits": [
       {
-        "file": "tools/chat/quota.mjs",
+        "file": "lib/chat/quota.mjs",
         "from": "    const window = info.rateLimitType;",
         "to": "    const window = \"five_hour\";"
       }
@@ -163,7 +163,7 @@
     "catches": "names the window with the earliest reset when two hold",
     "edits": [
       {
-        "file": "tools/chat/quota.mjs",
+        "file": "lib/chat/quota.mjs",
         "from": "    .sort((a, b) => a.resetsAt - b.resetsAt);",
         "to": "    .sort((a, b) => b.resetsAt - a.resetsAt);"
       }
@@ -174,7 +174,7 @@
     "catches": "is not on the wire, so it gates nothing until a name is given",
     "edits": [
       {
-        "file": "tools/chat/quota.mjs",
+        "file": "lib/chat/quota.mjs",
         "from": "  const applies = fableWire !== null && FABLE_WINDOW.models.test(String(model ?? \"\"));",
         "to": "  const applies = FABLE_WINDOW.models.test(String(model ?? \"\"));"
       }
@@ -185,7 +185,7 @@
     "catches": "with a name given, applies to fable models only",
     "edits": [
       {
-        "file": "tools/chat/quota.mjs",
+        "file": "lib/chat/quota.mjs",
         "from": "  const applies = fableWire !== null && FABLE_WINDOW.models.test(String(model ?? \"\"));",
         "to": "  const applies = fableWire !== null;"
       }
@@ -196,7 +196,7 @@
     "catches": "fires once per crossing upward",
     "edits": [
       {
-        "file": "tools/chat/quota.mjs",
+        "file": "lib/chat/quota.mjs",
         "from": "    if (STAGES.indexOf(stage) <= STAGES.indexOf(last)) {\n      continue;\n    }",
         "to": ""
       }
@@ -207,7 +207,7 @@
     "catches": "re-arms once the reset has passed",
     "edits": [
       {
-        "file": "tools/chat/quota.mjs",
+        "file": "lib/chat/quota.mjs",
         "from": "      announced.delete(key);",
         "to": ""
       }
@@ -218,7 +218,7 @@
     "catches": "a reading past its reset fires nothing",
     "edits": [
       {
-        "file": "tools/chat/quota.mjs",
+        "file": "lib/chat/quota.mjs",
         "from": "    const stage = stageOf(window, now);\n    if (stage === null) {\n      continue;\n    }",
         "to": "    const stage = stageOf(window, now) ?? (readings.has(window) ? CRITICAL : null);\n    if (stage === null) {\n      continue;\n    }"
       }
@@ -229,7 +229,7 @@
     "catches": "names the model for the per-model window",
     "edits": [
       {
-        "file": "tools/chat/quota.mjs",
+        "file": "lib/chat/quota.mjs",
         "from": "    const model = key === FABLE_WINDOW.key ? \"fable\" : null;",
         "to": "    const model = null;"
       }
@@ -240,7 +240,7 @@
     "catches": "can be unsubscribed",
     "edits": [
       {
-        "file": "tools/chat/quota.mjs",
+        "file": "lib/chat/quota.mjs",
         "from": "  return () => listeners.delete(listener);",
         "to": "  return () => {};"
       }
@@ -251,7 +251,7 @@
     "catches": "keeps frames per seat in arrival order and releases them once the window has reset",
     "edits": [
       {
-        "file": "tools/chat/quota.mjs",
+        "file": "lib/chat/quota.mjs",
         "from": "      if (stillHolding(entry.window, now)) {",
         "to": "      if (false) {"
       }
@@ -262,7 +262,7 @@
     "catches": "keeps frames per seat in arrival order and releases them once the window has reset",
     "edits": [
       {
-        "file": "tools/chat/quota.mjs",
+        "file": "lib/chat/quota.mjs",
         "from": "  return released.sort((a, b) => a.order - b.order);",
         "to": "  return released.sort((a, b) => b.order - a.order);"
       }
@@ -273,7 +273,7 @@
     "catches": "releases only what the passed window held",
     "edits": [
       {
-        "file": "tools/chat/quota.mjs",
+        "file": "lib/chat/quota.mjs",
         "from": "      if (stillHolding(entry.window, now)) {",
         "to": "      if (stillHolding(\"5h\", now)) {"
       }
@@ -284,7 +284,7 @@
     "catches": "tell the page the standing when a reading changed it, and not when it did not",
     "edits": [
       {
-        "file": "tools/chat/quota.mjs",
+        "file": "lib/chat/quota.mjs",
         "from": "  if (worth !== lastTold) {\n    lastTold = worth;\n    publish(\"standing\", said);\n  }",
         "to": "  lastTold = worth;"
       }
@@ -295,7 +295,7 @@
     "catches": "tell the page the standing when a reading changed it, and not when it did not",
     "edits": [
       {
-        "file": "tools/chat/quota.mjs",
+        "file": "lib/chat/quota.mjs",
         "from": "  if (worth !== lastTold) {\n    lastTold = worth;\n    publish(\"standing\", said);\n  }",
         "to": "  lastTold = worth;\n  publish(\"standing\", said);"
       }
@@ -306,7 +306,7 @@
     "catches": "say the reset as hh:mm on the server's clock too, and the window as configured",
     "edits": [
       {
-        "file": "tools/chat/quota.mjs",
+        "file": "lib/chat/quota.mjs",
         "from": "      resets: reading.resetsAt === null ? null : hhmm(reading.resetsAt),",
         "to": "      resets: reading.resetsAt === null ? null : new Date(reading.resetsAt).toISOString(),"
       }

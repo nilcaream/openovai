@@ -37,7 +37,7 @@ import { LEDGER, settingsProblems, trustProblems } from "./inspect.mjs";
 // The reader this suite asks directly. Everywhere else what a session runs on is seen by starting
 // one, which is right when the subject is a run — and no help at all with what a file holding
 // nothing means, which is a question about the reading rather than about the running.
-import { modelFor, persona as renderPersona } from "../tools/desks.mjs";
+import { modelFor, persona as renderPersona } from "../lib/desks.mjs";
 
 const USER = "Mike";
 const LEADER = "Superman";
@@ -111,7 +111,7 @@ install(inherited, "inherit");
 // Claude Code owns this file and writes its own things into it. Put something there first, so
 // the checks below can tell recording the trust apart from replacing the file.
 fs.writeFileSync(
-  path.join(inherited, ".claude-home", ".claude.json"),
+  path.join(inherited, ".local", ".claude.json"),
   `${JSON.stringify(
     { somethingClaudeCodeWrote: "keep-me", projects: { "/somewhere-else": { hasTrustDialogAccepted: true } } },
     null,
@@ -253,7 +253,7 @@ describe("the sign-in", () => {
 
 describe("what Claude Code is run as", () => {
   it("uses the instance's own Claude Code home", () => {
-    assert.match(readLog(log), new RegExp(`CLAUDE_CONFIG_DIR: ${instance}/.claude-home`));
+    assert.match(readLog(log), new RegExp(`CLAUDE_CONFIG_DIR: ${instance}/.local`));
   });
 
   it("keeps an account credential in the environment away from it", () => {
@@ -277,7 +277,7 @@ describe("what Claude Code is run as", () => {
 //
 // Assumed rather than smoothed over: `claude auth …` runs no turn, so it owns no background work
 // there is anything to lose. That is the whole reason the sign-in may hand over a real terminal —
-// tools/claude.mjs starts it with stdio "inherit", and on a terminal that child's stdout IS one —
+// lib/claude.mjs starts it with stdio "inherit", and on a terminal that child's stdout IS one —
 // and still be safe.
 //
 // The shell is the one way past all of that: this reads the child_process family, so a line in
@@ -287,10 +287,10 @@ describe("what Claude Code is run as", () => {
 // reaches Claude Code from a shell script at all, and the last check below is the tripwire on it.
 const CLAUDE = "claude";
 
-// Where the walk does not go. Scratch holds installed instances, which are copies of tools/, so
+// Where the walk does not go. Scratch holds installed instances, which are copies of lib/, so
 // reading those would report every finding twice; the suites themselves start a Node stand-in,
 // git and `claude --version`, none of which is a session being given a shape.
-const NOT_THE_TOOLKIT = new Set([".git", ".tmp", ".claude-home", "node_modules", "work", "tests"]);
+const NOT_THE_TOOLKIT = new Set([".git", ".tmp", ".local", "node_modules", "desks", "tests"]);
 
 // The child_process family, and nothing that merely ends in one of those names: `.exec(` belongs
 // to RegExp and there are a dozen of those in here.
@@ -436,7 +436,7 @@ function shellCode(source) {
 // on the PATH before they promise anything, and what they do about a missing one is stop.
 const ASKS_WHETHER_IT_IS_THERE = /(?:command\s+-v|which|type|hash)\s+$/;
 
-// The name on its own, so that claude.mjs, .claude-home and claude-code-anything are not it.
+// The name on its own, so that claude.mjs and claude-code-anything are not it.
 const NAMES_IT = /(?<![\w./-])claude(?![\w.-])/g;
 
 // Every place a shell script in the toolkit says the name for any reason other than probing the
@@ -460,7 +460,7 @@ describe("what the toolkit starts", () => {
   const claudes = starts.filter((one) => one.command === CLAUDE);
 
   // Without this the two checks below both pass on a walk that read nothing at all — a skip list
-  // that swallowed tools/, a pattern that stopped matching — and a vacuous check is worse than
+  // that swallowed lib/, a pattern that stopped matching — and a vacuous check is worse than
   // no check, because it reports that the question was asked.
   it("starts Claude Code somewhere, so that what follows is about something", () => {
     assert.ok(claudes.length > 0, `no run of Claude Code found under ${repo}: the walk is reading the wrong tree`);
@@ -536,16 +536,16 @@ describe("where an instance files what it knows", () => {
 
 describe("the instance trusts its own directory", () => {
   it("records its own directory as trusted", () => {
-    assert.deepEqual(trustProblems(path.join(instance, ".claude-home", ".claude.json"), instance), []);
+    assert.deepEqual(trustProblems(path.join(instance, ".local", ".claude.json"), instance), []);
   });
 
   it("keeps what Claude Code had already written there", () => {
-    assert.match(fs.readFileSync(path.join(inherited, ".claude-home", ".claude.json"), "utf8"), /keep-me/);
+    assert.match(fs.readFileSync(path.join(inherited, ".local", ".claude.json"), "utf8"), /keep-me/);
   });
 
   it("keeps another directory Claude Code had trusted", () => {
     assert.deepEqual(
-      trustProblems(path.join(inherited, ".claude-home", ".claude.json"), "/somewhere-else"),
+      trustProblems(path.join(inherited, ".local", ".claude.json"), "/somewhere-else"),
       [],
     );
   });
@@ -571,7 +571,7 @@ describe("an instance that inherits", () => {
   });
 
   it("still uses its own Claude Code home", () => {
-    assert.match(readLog(inheritedLog), new RegExp(`CLAUDE_CONFIG_DIR: ${inherited}/.claude-home`));
+    assert.match(readLog(inheritedLog), new RegExp(`CLAUDE_CONFIG_DIR: ${inherited}/.local`));
   });
 
   it("is refused a sign-in of its own", () => {
@@ -610,8 +610,9 @@ describe("the Node the command needs", () => {
   });
 });
 
-// Hiring is the whole of what it takes to add a person to an instance: a desk to keep state on and
-// a persona saying who they are. No rule: the desk is written through a tool.
+// Hiring is the whole of what it takes to add a person to an instance: a desk to keep state on,
+// and the pair of rules that makes that desk directory the worker's to write in. The desk file
+// itself is written through a tool, and stays refused to the file tools.
 describe("hiring a worker", () => {
   let said;
 
@@ -620,27 +621,43 @@ describe("hiring a worker", () => {
   });
 
   it("opens the worker a desk", () => {
-    assert.ok(fs.existsSync(path.join(instance, "work", WORKER, "STATE.md")));
+    assert.ok(fs.existsSync(path.join(instance, "desks", WORKER, "STATE.md")));
   });
 
   it("names the worker on that desk", () => {
-    const desk = fs.readFileSync(path.join(instance, "work", WORKER, "STATE.md"), "utf8");
+    const desk = fs.readFileSync(path.join(instance, "desks", WORKER, "STATE.md"), "utf8");
     assert.match(desk, new RegExp(`^# ${WORKER}$`, "m"));
   });
 
   // A desk opened by hiring is the same desk the installer opens: one line of header, holding the
   // one field anything outside the desk reads.
   it("opens that desk with a header holding the title and nothing else", () => {
-    const desk = fs.readFileSync(path.join(instance, "work", WORKER, "STATE.md"), "utf8");
+    const desk = fs.readFileSync(path.join(instance, "desks", WORKER, "STATE.md"), "utf8");
     assert.equal(desk.split("\n")[0], "<!-- DESK | title: | status: | rules: | updated: -->");
   });
 
   // Who the worker is gets rendered when its first conversation starts, from the templates the
   // instance has then — so hiring writes nothing that says so, and there is nothing for an update
   // to leave stale. What it would be told is read here the way the chat renders it.
-  it("writes the worker no persona", () => {
-    assert.equal(fs.existsSync(path.join(instance, "personas")), false);
-    assert.equal(fs.existsSync(path.join(instance, "chat", WORKER)), false);
+  it("writes the worker no persona: the directory is the desk alone", () => {
+    assert.deepEqual(fs.readdirSync(path.join(instance, "desks", WORKER)), ["STATE.md"]);
+  });
+
+  // A desk is a working directory: the worker keeps what the work produces beside its desk file,
+  // and a session stopped on a permission dialog to keep its own notes is a session stopped for
+  // doing its job. Both spellings, because a file made and a file changed are different tools.
+  it("grants the worker its own desk directory, edit and write", () => {
+    const allow = JSON.parse(fs.readFileSync(path.join(instance, ".claude", "settings.json"), "utf8")).permissions.allow;
+    assert.ok(allow.includes(`Edit(desks/${WORKER}/**)`), JSON.stringify(allow));
+    assert.ok(allow.includes(`Write(desks/${WORKER}/**)`), JSON.stringify(allow));
+  });
+
+  it("grants nothing wider than that pair, and the instance still accounts for every rule it holds", () => {
+    assert.deepEqual(settingsProblems(path.join(instance, ".claude", "settings.json")), []);
+  });
+
+  it("names the settings among what it wrote, since it changed them", () => {
+    assert.ok(said.stdout.includes(path.join(instance, ".claude", "settings.json")), said.stdout);
   });
 
   const workerPersona = () => renderPersona(instance, WORKER, { user: USER, leader: LEADER });
@@ -735,12 +752,23 @@ describe("what a workspace can account for", () => {
     return settingsProblems(settings);
   }
 
-  const standing = ["mcp__openovai", "Read(**)"];
+  // Spelled out rather than imported: a check that read the list it is checking would agree with
+  // itself the day somebody widened it.
+  const standing = [
+    "mcp__openovai",
+    "Read(**)",
+    "Edit(reference/**)",
+    "Write(reference/**)",
+    "Edit(projects/**)",
+    "Write(projects/**)",
+    "Edit(temp/**)",
+    "Write(temp/**)",
+  ];
 
   after(() => remove(accounting));
 
-  // The state every instance starts in, and the one the check has always held: the two rules it
-  // hands out itself, nothing wider, and nothing to account for.
+  // The state every instance starts in, and the one the check has always held: the rules it hands
+  // out itself, nothing wider, and nothing to account for.
   it("says nothing about an instance that holds only what it was born with", () => {
     assert.deepEqual(holding(standing, undefined), []);
   });
@@ -820,15 +848,15 @@ describe("hiring somebody onto a model of their own", () => {
   });
 
   it("opens the desk", () => {
-    assert.deepEqual([said.status, fs.existsSync(path.join(instance, "work", ON_A_MODEL, "STATE.md"))], [0, true]);
+    assert.deepEqual([said.status, fs.existsSync(path.join(instance, "desks", ON_A_MODEL, "STATE.md"))], [0, true]);
   });
 
   it("writes down the model they were hired onto and nothing else", () => {
-    assert.equal(fs.readFileSync(path.join(instance, "work", ON_A_MODEL, "MODEL"), "utf8").trim(), CHOSEN);
+    assert.equal(fs.readFileSync(path.join(instance, "desks", ON_A_MODEL, "MODEL"), "utf8").trim(), CHOSEN);
   });
 
   it("names that file among what it wrote", () => {
-    assert.match(said.stdout, new RegExp(`work.${ON_A_MODEL}.MODEL`));
+    assert.match(said.stdout, new RegExp(`desks.${ON_A_MODEL}.MODEL`));
   });
 });
 
@@ -839,11 +867,11 @@ describe("hiring somebody onto a model of their own", () => {
 // and no file at all resolve to the same word, and only one of them is this.
 describe("hiring somebody the usual way", () => {
   it("writes nothing down about a model", () => {
-    assert.equal(fs.existsSync(path.join(instance, "work", WORKER, "MODEL")), false);
+    assert.equal(fs.existsSync(path.join(instance, "desks", WORKER, "MODEL")), false);
   });
 
   it("leaves the desk directory holding the desk and nothing else", () => {
-    assert.deepEqual(fs.readdirSync(path.join(instance, "work", WORKER)).sort(), ["STATE.md"]);
+    assert.deepEqual(fs.readdirSync(path.join(instance, "desks", WORKER)).sort(), ["STATE.md"]);
   });
 });
 
@@ -853,7 +881,7 @@ describe("hiring somebody the usual way", () => {
 describe("what a desk is read as running on", () => {
   const config = { leader: LEADER, models: { leader: LEADER_MODEL, worker: WORKER_MODEL } };
   const READ_BACK = "Bo";
-  const file = path.join(instance, "work", READ_BACK, "MODEL");
+  const file = path.join(instance, "desks", READ_BACK, "MODEL");
 
   before(() => {
     ovai(["hire", READ_BACK, "opus"]);
@@ -903,7 +931,7 @@ describe("what the README says about hiring onto a model", () => {
   });
 
   it("says where a model that was named is written down", () => {
-    assert.match(section, /work\/<Name>\/MODEL/);
+    assert.match(section, /desks\/<Name>\/MODEL/);
   });
 
   // And names none. The models a workspace uses are chosen at install and live in
@@ -1012,11 +1040,11 @@ describe("what hiring refuses", () => {
     });
 
     it("leaves no desk behind", () => {
-      assert.equal(fs.existsSync(path.join(instance, "work", NOT_HIRED)), false);
+      assert.equal(fs.existsSync(path.join(instance, "desks", NOT_HIRED)), false);
     });
 
     it("leaves no conversation behind either", () => {
-      assert.equal(fs.existsSync(path.join(instance, "chat", NOT_HIRED)), false);
+      assert.equal(fs.existsSync(path.join(instance, "desks", NOT_HIRED)), false);
     });
   });
 
@@ -1059,7 +1087,7 @@ describe("what hiring refuses", () => {
     });
 
     it("writes nothing down about what the Leader runs on", () => {
-      assert.equal(fs.existsSync(path.join(instance, "work", LEADER, "MODEL")), false);
+      assert.equal(fs.existsSync(path.join(instance, "desks", LEADER, "MODEL")), false);
     });
   });
 
@@ -1072,9 +1100,9 @@ describe("what hiring refuses", () => {
 
     before(() => {
       ovai(["hire", CAME_BACK]);
-      fs.rmSync(path.join(instance, "work", CAME_BACK), { recursive: true, force: true });
-      fs.mkdirSync(path.join(instance, "chat", CAME_BACK), { recursive: true });
-      fs.writeFileSync(path.join(instance, "chat", CAME_BACK, "conversation.json"), "[]\n");
+      fs.rmSync(path.join(instance, "desks", CAME_BACK), { recursive: true, force: true });
+      fs.mkdirSync(path.join(instance, "desks", CAME_BACK), { recursive: true });
+      fs.writeFileSync(path.join(instance, "desks", CAME_BACK, "conversation.json"), "[]\n");
     });
 
     it("refuses", () => {
@@ -1082,12 +1110,12 @@ describe("what hiring refuses", () => {
     });
 
     it("says what is in the way and where it is", () => {
-      assert.match(ovai(["hire", CAME_BACK]).stderr, new RegExp(`conversation here.*chat/${CAME_BACK}`));
+      assert.match(ovai(["hire", CAME_BACK]).stderr, new RegExp(`conversation here.*desks/${CAME_BACK}`));
     });
 
     it("leaves that conversation alone", () => {
       ovai(["hire", CAME_BACK]);
-      assert.ok(fs.existsSync(path.join(instance, "chat", CAME_BACK, "conversation.json")));
+      assert.ok(fs.existsSync(path.join(instance, "desks", CAME_BACK, "conversation.json")));
     });
   });
 });

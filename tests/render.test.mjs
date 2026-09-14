@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { INTERRUPTED, SILENT, html, row } from "../tools/chat/render.mjs";
+import { INTERRUPTED, SILENT, html, row } from "../lib/chat/render.mjs";
 
 // The Leader's panel, and a Worker's: the same rows drawn from two seats.
 const names = { chat: "the chat", seat: "Leader", leader: "Leader" };

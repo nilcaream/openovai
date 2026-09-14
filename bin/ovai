@@ -50,7 +50,7 @@ main() {
     command -v claude >/dev/null 2>&1 ||
         die "Claude Code is required and is not on your PATH — install it, then run this again"
 
-    exec node "${root}/tools/ovai.mjs" --root "${root}" "$@"
+    exec node "${root}/lib/ovai.mjs" --root "${root}" "$@"
 }
 
 main "$@"

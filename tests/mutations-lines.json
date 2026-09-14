@@ -4,7 +4,7 @@
     "catches": "says what a command does when the call says it, else the command",
     "edits": [
       {
-        "file": "tools/chat/lines.mjs",
+        "file": "lib/chat/lines.mjs",
         "from": "      return i.description ? head(i.description, 120) : head(i.command, 80);",
         "to": "      return head(i.command, 80);"
       }
@@ -15,7 +15,7 @@
     "catches": "draws nothing for a search of the tool list or a session's own stop",
     "edits": [
       {
-        "file": "tools/chat/lines.mjs",
+        "file": "lib/chat/lines.mjs",
         "from": "    case \"restart_session\":\n    case \"stop_session\":\n    case \"park\":",
         "to": "    case \"stop_session\":\n      return \"Stopping the session\";\n    case \"restart_session\":\n    case \"park\":"
       }
@@ -26,7 +26,7 @@
     "catches": "carries no forbidden word in anything it can say",
     "edits": [
       {
-        "file": "tools/chat/lines.mjs",
+        "file": "lib/chat/lines.mjs",
         "from": "    case \"message\":\n    case \"restart_session\":\n",
         "to": "    case \"restart_session\":\n      return \"Restarting the session\";\n    case \"message\":\n"
       }
@@ -37,7 +37,7 @@
     "catches": "writes the home directory as a tilde",
     "edits": [
       {
-        "file": "tools/chat/lines.mjs",
+        "file": "lib/chat/lines.mjs",
         "from": "  return typeof value === \"string\" ? value.replace(HOME, \"~\") : \"?\";",
         "to": "  return typeof value === \"string\" ? value : \"?\";"
       }

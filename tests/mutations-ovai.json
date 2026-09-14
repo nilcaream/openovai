@@ -4,7 +4,7 @@
     "catches": "tells the worker how much a brief it writes may spend",
     "edits": [
       {
-        "file": "tools/desks.mjs",
+        "file": "lib/desks.mjs",
         "from": "- Answer in at most 15 tool calls; if you cannot, report what you have and say what is missing.",
         "to": "- Answer in at most 500 tool calls; if you cannot, report what you have and say what is missing."
       }
@@ -15,7 +15,7 @@
     "catches": "tells the worker the three rules that keep that budget",
     "edits": [
       {
-        "file": "tools/desks.mjs",
+        "file": "lib/desks.mjs",
         "from": "\n- When several are working at once, split the files between them; never let two read the same one.\n- Search first, then read the part that matched, rather than reading a whole file to find it.\n- What has been filed away is history, not a place to look things up. Read what is there now.",
         "to": ""
       }
@@ -26,7 +26,7 @@
     "catches": "tells the worker that only the brief carries it",
     "edits": [
       {
-        "file": "tools/desks.mjs",
+        "file": "lib/desks.mjs",
         "from": "What is not\nin the brief did not reach anybody: the cheapest kinds of agent arrive with none of what you are\nreading now, no workspace memory and no instructions, so a rule that lives anywhere but the text\nyou hand them is one they never see.",
         "to": "The workspace's instructions and its memory reach every agent it\nstarts, so a rule written in either of them is one they have all been given already."
       }
@@ -37,7 +37,7 @@
     "catches": "tells the worker to copy the budget into every brief it writes",
     "edits": [
       {
-        "file": "tools/desks.mjs",
+        "file": "lib/desks.mjs",
         "from": "So copy the four sentences below into every brief you write, word for word, before you send it —\nnot a summary of them, not the gist of them, and never left for the agent to work out.",
         "to": "So keep them in mind whenever you hand work on, and brief accordingly."
       }
@@ -48,7 +48,7 @@
     "catches": "never starts Claude Code in a shape its background reaper is armed for",
     "edits": [
       {
-        "file": "tools/chat/session.mjs",
+        "file": "lib/chat/session.mjs",
         "from": "    \"--print\",\n    \"--input-format\",",
         "to": "    \"--input-format\","
       }
@@ -59,7 +59,7 @@
     "catches": "never starts Claude Code in a shape its background reaper is armed for",
     "edits": [
       {
-        "file": "tools/claude.mjs",
+        "file": "lib/claude.mjs",
         "from": "// Hand the terminal to Claude Code so a person can sign this instance in.",
         "to": "export function pickUpWhereItLeftOff(root, auth) {\n  return spawnSync(\"claude\", [\"--resume\"], { cwd: root, env: environment(root, auth), stdio: \"inherit\" });\n}\n\n// Hand the terminal to Claude Code so a person can sign this instance in."
       }
@@ -82,8 +82,8 @@
     "edits": [
       {
         "file": "bin/ovai",
-        "from": "    exec node \"${root}/tools/ovai.mjs\" --root \"${root}\" \"$@\"",
-        "to": "    if [[ \"${1:-}\" == \"resume\" ]]; then\n        exec claude --resume\n    fi\n\n    exec node \"${root}/tools/ovai.mjs\" --root \"${root}\" \"$@\""
+        "from": "    exec node \"${root}/lib/ovai.mjs\" --root \"${root}\" \"$@\"",
+        "to": "    if [[ \"${1:-}\" == \"resume\" ]]; then\n        exec claude --resume\n    fi\n\n    exec node \"${root}/lib/ovai.mjs\" --root \"${root}\" \"$@\""
       }
     ]
   },
@@ -92,9 +92,9 @@
     "catches": "says where this instance keeps it",
     "edits": [
       {
-        "file": "tools/ovai.mjs",
+        "file": "lib/ovai.mjs",
         "from": "    [\"store\", path.join(root, STORE_DIRECTORY)],",
-        "to": "    [\"store\", path.join(root, \".claude-home\")],"
+        "to": "    [\"store\", path.join(root, \".local\")],"
       }
     ]
   },
@@ -103,7 +103,7 @@
     "catches": "says what command and what arguments every process it starts is given",
     "edits": [
       {
-        "file": "tools/chat/session.mjs",
+        "file": "lib/chat/session.mjs",
         "from": "  const child = spawn(\"claude\", args, {",
         "to": "  const child = spawn(\"claude\", args.slice(), {"
       }
@@ -114,12 +114,12 @@
     "catches": "says what command and what arguments every process it starts is given",
     "edits": [
       {
-        "file": "tools/chat/session.mjs",
+        "file": "lib/chat/session.mjs",
         "from": "export function start(instance, seat, { asked = nobodyToAsk, ended = nothing, turned = nothing, queue = [], gate = () => null, held = nothing, changed = nothing } = {}) {",
         "to": "const CLAUDE_BIN = \"claude\";\n\nexport function start(instance, seat, { asked = nobodyToAsk, ended = nothing, turned = nothing, queue = [], gate = () => null, held = nothing, changed = nothing } = {}) {"
       },
       {
-        "file": "tools/chat/session.mjs",
+        "file": "lib/chat/session.mjs",
         "from": "  const child = spawn(\"claude\", args, {",
         "to": "  const child = spawn(CLAUDE_BIN, args, {"
       }

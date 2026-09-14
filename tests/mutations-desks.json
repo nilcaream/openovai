@@ -1,0 +1,112 @@
+[
+  {
+    "name": "the archive name carries the day and the name but not the title",
+    "catches": "files the desk under the day, the name and the slug of the final title",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "  const base = `${today()}-${name}${said === \"\" ? \"\" : `-${said}`}`;",
+        "to": "  const base = `${today()}-${name}`;"
+      }
+    ]
+  },
+  {
+    "name": "retiring files the desk file alone and drops the rest of the directory",
+    "catches": "moves the whole directory: the desk, the model, the persona, the conversation, and what the session kept",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "  for (const entry of entries) {\n    const target = path.join(at, entry);",
+        "to": "  for (const entry of entries.filter((one) => one === DESK_FILE)) {\n    const target = path.join(at, entry);"
+      }
+    ]
+  },
+  {
+    "name": "retiring copies the directory and leaves the original in place",
+    "catches": "leaves nothing under desks/ for that name",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "  fs.rmSync(from, { recursive: true, force: true });\n  withdrawDesk(root, name);\n  return filed;",
+        "to": "  withdrawDesk(root, name);\n  return filed;"
+      }
+    ]
+  },
+  {
+    "name": "retiring leaves the desk pair in the settings",
+    "catches": "withdraws the pair that made the directory the worker's",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "  fs.rmSync(from, { recursive: true, force: true });\n  withdrawDesk(root, name);\n  return filed;",
+        "to": "  fs.rmSync(from, { recursive: true, force: true });\n  return filed;"
+      }
+    ]
+  },
+  {
+    "name": "retiring withdraws the edit rule and leaves the write rule",
+    "catches": "leaves the instance holding exactly the standing rules and the Leader's pair",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "  const rules = deskRules(name);\n  if (!rules.some((rule) => granted.includes(rule))) {",
+        "to": "  const rules = deskRules(name).slice(0, 1);\n  if (!rules.some((rule) => granted.includes(rule))) {"
+      }
+    ]
+  },
+  {
+    "name": "hiring grants the edit rule and not the write rule",
+    "catches": "frees the name: hiring it again opens a fresh desk",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "  const missing = deskRules(name).filter((rule) => !granted.includes(rule));",
+        "to": "  const missing = deskRules(name).slice(0, 1).filter((rule) => !granted.includes(rule));"
+      }
+    ]
+  },
+  {
+    "name": "a taken archive name is written into again",
+    "catches": "files a second leaving of the same name and title on the same day under a number",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "  for (let next = 2; fs.existsSync(at); next += 1) {",
+        "to": "  for (let next = 2; false; next += 1) {"
+      }
+    ]
+  },
+  {
+    "name": "an empty title is filed under a word of its own",
+    "catches": "is the day and the name alone, never a guess",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "  const base = `${today()}-${name}${said === \"\" ? \"\" : `-${said}`}`;",
+        "to": "  const base = `${today()}-${name}-${said === \"\" ? \"untitled\" : said}`;"
+      }
+    ]
+  },
+  {
+    "name": "the rule check expects nothing per desk",
+    "catches": "names a desk that was opened without its pair",
+    "edits": [
+      {
+        "file": "tests/inspect.mjs",
+        "from": "  const expected = [...STANDING, ...desks.flatMap(deskPair)];",
+        "to": "  const expected = [...STANDING];"
+      }
+    ]
+  },
+  {
+    "name": "the rule check accepts any desk pair whether or not the desk exists",
+    "catches": "names a pair held for a desk nobody has",
+    "edits": [
+      {
+        "file": "tests/inspect.mjs",
+        "from": "  const wider = allow.filter((rule) => !expected.includes(rule) && !inList(\"allow\").includes(rule));",
+        "to": "  const wider = allow.filter((rule) => !expected.includes(rule) && !/^(Edit|Write)\\(desks\\//.test(rule) && !inList(\"allow\").includes(rule));"
+      }
+    ]
+  }
+]

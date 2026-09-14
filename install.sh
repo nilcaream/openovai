@@ -52,7 +52,7 @@ main() {
         warn "Claude Code is not on your PATH; the instance will install, but no session can start until 'claude' is available"
 
     script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
-    installer="${script_dir}/tools/install.mjs"
+    installer="${script_dir}/lib/install.mjs"
     [[ -f "${installer}" ]] || die "the installer is missing at ${installer}"
 
     exec node "${installer}" "$@"

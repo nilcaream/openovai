@@ -14,14 +14,14 @@ import fs from "node:fs";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
-import { THE_CHAT, panelFile, read as panel } from "../tools/chat/conversation.mjs";
-import { serverEvent, userFrame } from "../tools/chat/frames.mjs";
-import { listening } from "../tools/chat/listening.mjs";
-import { pageSecret } from "../tools/chat/secrets.mjs";
-import { endSeat, serve, startSeat, toolsFor } from "../tools/chat/server.mjs";
-import { LEADER as LEADS, SECRET_IN_ENVIRONMENT, WORKER as WORKS, end, endEvery, running, runningSeats, start, tell, wouldWaitForItself, whileWaitingFor } from "../tools/chat/session.mjs";
-import { BUILT_IN } from "../tools/plugins.mjs";
-import { CONFIG_FILE } from "../tools/seed.mjs";
+import { THE_CHAT, panelFile, read as panel } from "../lib/chat/conversation.mjs";
+import { serverEvent, userFrame } from "../lib/chat/frames.mjs";
+import { listening } from "../lib/chat/runtime.mjs";
+import { pageSecret } from "../lib/chat/secrets.mjs";
+import { endSeat, serve, startSeat, toolsFor } from "../lib/chat/server.mjs";
+import { LEADER as LEADS, SECRET_IN_ENVIRONMENT, WORKER as WORKS, end, endEvery, running, runningSeats, start, tell, wouldWaitForItself, whileWaitingFor } from "../lib/chat/session.mjs";
+import { BUILT_IN } from "../lib/plugins.mjs";
+import { CONFIG_FILE } from "../lib/seed.mjs";
 import { alive, callsIn, get as fetchPlain, heardIn, installed, notesIn, post as postPlain, remove, repo, runTool, scratch, secretsIn, startChat, stopChat, waitFor, waitForAddress, writeStandIn } from "./helpers.mjs";
 
 const USER = "Mike";
@@ -275,10 +275,10 @@ describe("what the chat serves", () => {
   });
 });
 
-// A directory under work/ that no person could be called is not a seat: an editor's directory, a
+// A directory under desks/ that no person could be called is not a seat: an editor's directory, a
 // copy somebody made, something a tool dropped there.
-describe("a directory under work/ that is not a person", () => {
-  const stray = path.join(instance, "work", ".vscode");
+describe("a directory under desks/ that is not a person", () => {
+  const stray = path.join(instance, "desks", ".vscode");
 
   before(() => {
     fs.mkdirSync(stray, { recursive: true });
@@ -451,7 +451,7 @@ describe("starting a seat", () => {
 
   it("renders the persona at every start, with the hard rules after it", () => {
     const handed = callsIn(paul.log).at(-1).match(/--append-system-prompt-file (\S+)/)[1];
-    assert.equal(handed, path.join(instance, "chat", WORKER, "persona.md"));
+    assert.equal(handed, path.join(instance, "desks", WORKER, "persona.md"));
     const persona = fs.readFileSync(handed, "utf8");
     assert.ok(persona.includes(WORKER), "the persona does not name the seat");
     assert.match(persona, /\n\nHard rules \(set /);
@@ -459,7 +459,7 @@ describe("starting a seat", () => {
 
   it("hands the run the list of what is not to be read, as a settings document of its own", () => {
     const handed = callsIn(paul.log).at(-1).match(/--settings (\S+)/)[1];
-    assert.equal(handed, path.join(instance, "chat", "instructions.json"));
+    assert.equal(handed, path.join(instance, ".local", "instructions.json"));
     const excluded = JSON.parse(fs.readFileSync(handed, "utf8")).claudeMdExcludes;
     assert.ok(excluded.includes("/CLAUDE.md"), `nothing for the filesystem root in ${JSON.stringify(excluded)}`);
     assert.deepEqual(excluded.filter((pattern) => !path.isAbsolute(pattern)), []);
@@ -468,7 +468,7 @@ describe("starting a seat", () => {
   it("starts the process in the instance, on the instance's own home", () => {
     const lines = fs.readFileSync(paul.log, "utf8");
     assert.match(lines, new RegExp(`^cwd: ${instance}$`, "m"));
-    assert.match(lines, new RegExp(`^CLAUDE_CONFIG_DIR: ${path.join(instance, ".claude-home")}$`, "m"));
+    assert.match(lines, new RegExp(`^CLAUDE_CONFIG_DIR: ${path.join(instance, ".local")}$`, "m"));
   });
 
   it("fixes the role at the start: who leads is read once, from the configuration then", async () => {
@@ -1016,7 +1016,7 @@ describe("what a Worker's calls draw", () => {
   let superman;
   let paul;
   let client;
-  const READ = { name: "Read", input: { file_path: "/srv/app/tools/chat/session.mjs" } };
+  const READ = { name: "Read", input: { file_path: "/srv/app/lib/chat/session.mjs" } };
   const FAILING = { name: "Bash", input: { command: "npm test", description: "Run the suite" }, error: true };
   const CALLS = JSON.stringify([
     [READ, FAILING],
@@ -1053,7 +1053,7 @@ describe("what a Worker's calls draw", () => {
   it("writes one line per call on the Worker's panel as it is made, before the reply: the summary and the call, never the input", async () => {
     const rows = await turn(WORKER, 0, "go");
     assert.deepEqual(rows.map((row) => row.from), ["user", WORKER, WORKER, WORKER]);
-    assert.deepEqual(rows.map((row) => row.line), [undefined, "Reading /srv/app/tools/chat/session.mjs", "Run the suite", undefined]);
+    assert.deepEqual(rows.map((row) => row.line), [undefined, "Reading /srv/app/lib/chat/session.mjs", "Run the suite", undefined]);
     assert.deepEqual(rows.map((row) => row.call), [undefined, "call-1-0", "call-1-1", undefined]);
     assert.deepEqual(rows.map((row) => row.text), ["go", undefined, undefined, "on it"]);
     for (const row of rows.slice(1, 3)) {
@@ -1075,7 +1075,7 @@ describe("what a Worker's calls draw", () => {
     assert.deepEqual(told, [["Run the suite", undefined], ["Run the suite", true]]);
     // The reply came after the mark, so a page drawing the file draws the line red from the start.
     const indexes = about(client, WORKER, "row").map((event) => [event.data.index, event.data.row.err ?? event.data.row.text ?? event.data.row.line]);
-    assert.deepEqual(indexes, [[0, "go"], [1, "Reading /srv/app/tools/chat/session.mjs"], [2, "Run the suite"], [2, true], [3, "on it"]]);
+    assert.deepEqual(indexes, [[0, "go"], [1, "Reading /srv/app/lib/chat/session.mjs"], [2, "Run the suite"], [2, true], [3, "on it"]]);
   });
 
   it("writes no line for the Leader's own calls", async () => {
@@ -1100,7 +1100,7 @@ describe("what a Worker's calls draw", () => {
 
   it("writes two entries for two identical calls: the merge into one line is the page's", async () => {
     const rows = await turn(WORKER, panel(instance, WORKER).length, "twice");
-    assert.deepEqual(rows.map((row) => row.line), [undefined, "Reading /srv/app/tools/chat/session.mjs", "Reading /srv/app/tools/chat/session.mjs", undefined]);
+    assert.deepEqual(rows.map((row) => row.line), [undefined, "Reading /srv/app/lib/chat/session.mjs", "Reading /srv/app/lib/chat/session.mjs", undefined]);
     assert.deepEqual(rows.map((row) => row.call), [undefined, "call-4-0", "call-4-1", undefined]);
     const shown = JSON.parse((await page("GET", `/sessions/${WORKER}/messages?since=8`)).body).messages;
     assert.deepEqual(shown, rows, "the page is served the file as it is");
@@ -1117,10 +1117,10 @@ describe("what a Worker's calls draw", () => {
 // the manifest an installed page carries, and what the page never says or loads. The page script
 // is read as text and never run here; what a browser alone can show is measured, not claimed.
 describe("what the page is made of", () => {
-  const source = fs.readFileSync(path.join(repo, "tools", "chat", "page.html"), "utf8");
+  const source = fs.readFileSync(path.join(repo, "lib", "chat", "page.html"), "utf8");
   const opened = source.indexOf('<script type="module">');
   const script = source.slice(opened, source.indexOf("</script>", opened));
-  const modules = ["panels.mjs", "render.mjs"].map((name) => [name, fs.readFileSync(path.join(repo, "tools", "chat", name), "utf8")]);
+  const modules = ["panels.mjs", "render.mjs"].map((name) => [name, fs.readFileSync(path.join(repo, "lib", "chat", name), "utf8")]);
 
   it("draws from the two tested modules and the dialog module", () => {
     assert.match(script, /import \{[^}]*\bapplyEvent\b[^}]*\bplace\b[^}]*\} from "\.\/panels\.mjs"/);
@@ -1134,7 +1134,7 @@ describe("what the page is made of", () => {
     for (const name of ["dialog.mjs", "panels.mjs", "render.mjs", "marked.mjs"]) {
       const answered = await fetchPlain(`${url}/${name}`);
       assert.equal(answered.status, 200, name);
-      assert.equal(answered.body, fs.readFileSync(path.join(repo, "tools", "chat", name), "utf8"), name);
+      assert.equal(answered.body, fs.readFileSync(path.join(repo, "lib", "chat", name), "utf8"), name);
     }
     assert.equal((await fetchPlain(`${url}/server.mjs`)).status, 401);
     assert.equal((await fetchPlain(`${url}/icons/other.png`)).status, 401);
@@ -1194,7 +1194,7 @@ describe("what the page is made of", () => {
 
   it("answers a panel's rows from an index on", async () => {
     remove(panelFile(instance, OTHER));
-    const { append: appendRow } = await import("../tools/chat/conversation.mjs");
+    const { append: appendRow } = await import("../lib/chat/conversation.mjs");
     for (const text of ["one", "two", "three"]) {
       appendRow(instance, OTHER, { from: "user", text });
     }
@@ -1355,7 +1355,7 @@ describe("the stream", () => {
   it("the page is told the instance is stopping, and every page route answers 503 from then on", async () => {
     const client = await listen();
     await until(client, (event) => event.name === "asking");
-    const { stopping } = await import("../tools/chat/lifecycle.mjs");
+    const { stopping } = await import("../lib/chat/lifecycle.mjs");
     stopping(chat);
     await until(client, (event) => event.name === "stopping");
     assert.equal((await page("POST", `/sessions/${LEADER}/message`, { text: "x" })).status, 503);
@@ -1366,11 +1366,11 @@ describe("the stream", () => {
 
 describe("who writes to a session", () => {
   it("is session.mjs, through the frame writer, the two permission answers and the interrupt, and nobody else", () => {
-    const found = spawnSync("grep", ["-rn", "stdin.write", path.join(repo, "tools")], { encoding: "utf8" });
+    const found = spawnSync("grep", ["-rn", "stdin.write", path.join(repo, "lib")], { encoding: "utf8" });
     const lines = found.stdout.trim().split("\n");
     assert.equal(lines.length, 4, found.stdout);
     for (const line of lines) {
-      assert.match(line, /^.*tools\/chat\/session\.mjs:\d+:/, line);
+      assert.match(line, /^.*lib\/chat\/session\.mjs:\d+:/, line);
     }
   });
 });

@@ -4,7 +4,7 @@
     "catches": "composes the rule that governs writing, and never one that matches nothing",
     "edits": [
       {
-        "file": "tools/chat/permissions.mjs",
+        "file": "lib/chat/permissions.mjs",
         "from": "  return `Edit(${subtree})`;",
         "to": "  return `Write(${subtree})`;"
       }
@@ -15,7 +15,7 @@
     "catches": "composes a rule for the directory the write was in",
     "edits": [
       {
-        "file": "tools/chat/permissions.mjs",
+        "file": "lib/chat/permissions.mjs",
         "from": "  const held = path.posix.dirname(named);",
         "to": "  const held = named;"
       }
@@ -26,7 +26,7 @@
     "catches": "composes the spelling that says a subtree out loud",
     "edits": [
       {
-        "file": "tools/chat/permissions.mjs",
+        "file": "lib/chat/permissions.mjs",
         "from": "  const subtree = held === \".\" ? \"**\" : `${held}/**`;",
         "to": "  const subtree = held === \".\" ? \"**\" : held;"
       }
@@ -37,7 +37,7 @@
     "catches": "composes a rule at the root with no ./ in front of it",
     "edits": [
       {
-        "file": "tools/chat/permissions.mjs",
+        "file": "lib/chat/permissions.mjs",
         "from": "  const subtree = held === \".\" ? \"**\" : `${held}/**`;",
         "to": "  const subtree = `${held}/**`;"
       }
@@ -48,7 +48,7 @@
     "catches": "composes no rule for a write outside the instance",
     "edits": [
       {
-        "file": "tools/chat/permissions.mjs",
+        "file": "lib/chat/permissions.mjs",
         "from": "  return named === \"\" || named === \"..\" || named.startsWith(\"../\") || path.isAbsolute(named) ? null : named;",
         "to": "  return named;"
       }
@@ -59,12 +59,12 @@
     "catches": "names no place on this machine in the rule it composes",
     "edits": [
       {
-        "file": "tools/chat/permissions.mjs",
+        "file": "lib/chat/permissions.mjs",
         "from": "  const named = path.relative(root, path.resolve(root, where)).split(path.sep).join(\"/\");",
         "to": "  const named = path.resolve(root, where);"
       },
       {
-        "file": "tools/chat/permissions.mjs",
+        "file": "lib/chat/permissions.mjs",
         "from": "  return named === \"\" || named === \"..\" || named.startsWith(\"../\") || path.isAbsolute(named) ? null : named;",
         "to": "  return named === \"\" || named === \"..\" || named.startsWith(\"../\") ? null : named;"
       }
@@ -75,7 +75,7 @@
     "catches": "offers a button only where the request says what the class of calls is",
     "edits": [
       {
-        "file": "tools/chat/permissions.mjs",
+        "file": "lib/chat/permissions.mjs",
         "from": "  if (request.tool === \"Write\" || request.tool === \"Edit\") {",
         "to": "  if (typeof request.input?.file_path === \"string\") {"
       }
@@ -86,7 +86,7 @@
     "catches": "composes the rule that governs writing, and never one that matches nothing",
     "edits": [
       {
-        "file": "tools/chat/permissions.mjs",
+        "file": "lib/chat/permissions.mjs",
         "from": "  if (request.tool === \"Write\" || request.tool === \"Edit\") {",
         "to": "  if (request.tool === \"Edit\") {"
       }
@@ -97,7 +97,7 @@
     "catches": "composes a rule for the directory the write was in",
     "edits": [
       {
-        "file": "tools/chat/permissions.mjs",
+        "file": "lib/chat/permissions.mjs",
         "from": "  if (request.tool === \"Write\" || request.tool === \"Edit\") {",
         "to": "  if (request.tool === \"Write\") {"
       }
@@ -108,7 +108,7 @@
     "catches": "offers the directory the write was in, and grants it",
     "edits": [
       {
-        "file": "tools/chat/permissions.mjs",
+        "file": "lib/chat/permissions.mjs",
         "from": "    const shape = shapeOf(request, root);",
         "to": "    const shape = shapeOf(request, root)?.replace(\"/**\", \" and everything under it\") ?? null;"
       }
@@ -119,7 +119,7 @@
     "catches": "tells the page which rule would allow it",
     "edits": [
       {
-        "file": "tools/chat/permissions.mjs",
+        "file": "lib/chat/permissions.mjs",
         "from": "    return { parkedAt, shown: shape === null ? request : { ...request, shape } };",
         "to": "    return { parkedAt, shown: request };"
       }
@@ -130,7 +130,7 @@
     "catches": "pops the desktop once, saying who is stopped and on what",
     "edits": [
       {
-        "file": "tools/chat/lifecycle.mjs",
+        "file": "lib/chat/lifecycle.mjs",
         "from": "    popped(instance, { on: seat, why: `${seat} is stopped, waiting to be allowed to use ${request.tool}${command}` });\n",
         "to": ""
       }
@@ -141,7 +141,7 @@
     "catches": "is not popped, though the question is shown",
     "edits": [
       {
-        "file": "tools/chat/pop.mjs",
+        "file": "lib/chat/pop.mjs",
         "from": "  if (withinQuietHours(instance.config?.[QUIET_HOURS])) {",
         "to": "  if (false) {"
       }
@@ -152,7 +152,7 @@
     "catches": "is refused when the answer is not one of the three, or names no request",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "  if (decision !== \"allow\" && decision !== \"deny\" && decision !== \"always\") {\n    sendJson(response, 400, { error: \"a decision on a call is allow, deny or always\" });\n    return;\n  }\n",
         "to": ""
       }
@@ -163,7 +163,7 @@
     "catches": "is refused, with nothing to answer",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "  if (!settle(seat, id, said)) {\n    sendJson(response, 409, { error: \"nothing is waiting on that any more\" });\n    return;\n  }\n",
         "to": "  settle(seat, id, said);\n"
       }
@@ -174,7 +174,7 @@
     "catches": "gives the run the chat's own reason",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "      ? refuse(typeof why === \"string\" && why.trim() !== \"\" ? why.trim() : \"not allowed from the chat\")",
         "to": "      ? refuse(typeof why === \"string\" ? why.trim() : \"\")"
       }
@@ -185,7 +185,7 @@
     "catches": "grants exactly that rule and nothing else",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "    allowAsked(instance.root, {\n      rule: granted,\n      session: seat,\n      call: asked.input?.command ?? inside(asked.input?.file_path, instance.root),\n      day: new Date().toISOString().slice(0, 10),\n    });\n",
         "to": ""
       }
@@ -196,7 +196,7 @@
     "catches": "says which rule it granted",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "  sendJson(response, 200, { answered: id, decision, ...(granted === undefined ? {} : { granted }) });",
         "to": "  sendJson(response, 200, { answered: id, decision });"
       }
@@ -207,7 +207,7 @@
     "catches": "refuses to grant one, and leaves the call unanswered",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "    if (granted === null) {\n      sendJson(response, 400, { error: \"there is no rule that would allow that call\" });\n      return;\n    }\n",
         "to": "    if (granted === null) {\n      granted = \"Bash(*)\";\n    }\n"
       }
@@ -218,7 +218,7 @@
     "catches": "writes down which write it was for",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "      call: asked.input?.command ?? inside(asked.input?.file_path, instance.root),",
         "to": "      call: asked.input?.command ?? asked.input?.file_path,"
       }
@@ -229,7 +229,7 @@
     "catches": "takes the question down with it",
     "edits": [
       {
-        "file": "tools/chat/lifecycle.mjs",
+        "file": "lib/chat/lifecycle.mjs",
         "from": "      giveUp(seat);\n",
         "to": ""
       }
@@ -240,7 +240,7 @@
     "catches": "is half-open, and a window whose end is before its start wraps midnight",
     "edits": [
       {
-        "file": "tools/chat/pop.mjs",
+        "file": "lib/chat/pop.mjs",
         "from": "  return from < to ? now >= from && now < to : now >= from || now < to;",
         "to": "  return from < to && now >= from && now < to;"
       }
@@ -251,7 +251,7 @@
     "catches": "refuses a window it cannot read, naming the field",
     "edits": [
       {
-        "file": "tools/chat/pop.mjs",
+        "file": "lib/chat/pop.mjs",
         "from": "const WINDOW = /^([01]\\d|2[0-3]):([0-5]\\d)-([01]\\d|2[0-3]):([0-5]\\d)$/;",
         "to": "const WINDOW = /^.+-.+$/;"
       }
@@ -262,7 +262,7 @@
     "catches": "refuses a window it cannot read, naming the field",
     "edits": [
       {
-        "file": "tools/chat/pop.mjs",
+        "file": "lib/chat/pop.mjs",
         "from": "  if (from === to) {\n    return `${QUIET_HOURS} begins and ends at ${from}, which is no time at all — a window that says nothing is better left out`;\n  }\n",
         "to": ""
       }
@@ -273,7 +273,7 @@
     "catches": "pops the desktop once, saying who is stopped and on what",
     "edits": [
       {
-        "file": "tools/chat/lifecycle.mjs",
+        "file": "lib/chat/lifecycle.mjs",
         "from": "waiting to be allowed to use ${request.tool}${command}` });",
         "to": "waiting to be allowed to use ${request.tool}` });"
       }
@@ -284,7 +284,7 @@
     "catches": "refuses a Worker the permission tool",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "  permission: [LEADER],\n};",
         "to": "  permission: [LEADER, WORKER],\n};"
       }
@@ -295,7 +295,7 @@
     "catches": "accepts what shapeOf composes and nothing else",
     "edits": [
       {
-        "file": "tools/chat/permissions.mjs",
+        "file": "lib/chat/permissions.mjs",
         "from": "(?: [A-Za-z0-9_.=-]+)*):\\*\\)$/;",
         "to": "(?: [A-Za-z0-9_.=-]+)*):?\\*?\\)$/;"
       }
@@ -306,7 +306,7 @@
     "catches": "accepts what shapeOf composes and nothing else",
     "edits": [
       {
-        "file": "tools/chat/permissions.mjs",
+        "file": "lib/chat/permissions.mjs",
         "from": "  return named === edit[1] ? rule : null;",
         "to": "  return rule;"
       }
@@ -317,7 +317,7 @@
     "catches": "writes an ask decision to the ask list, and the ledger says so",
     "edits": [
       {
-        "file": "tools/desks.mjs",
+        "file": "lib/desks.mjs",
         "from": "  written[list] = held(list).includes(rule) ? held(list) : [...held(list), rule];",
         "to": "  written.allow = [...held(\"allow\"), rule];"
       }
@@ -328,7 +328,7 @@
     "catches": "moves a rule settled again into the new list and out of the old one",
     "edits": [
       {
-        "file": "tools/desks.mjs",
+        "file": "lib/desks.mjs",
         "from": "    if (other !== list && Array.isArray(permissions[other])) {\n      written[other] = permissions[other].filter((entry) => entry !== rule);\n    }\n",
         "to": ""
       }
@@ -339,7 +339,7 @@
     "catches": "tells the Leader what the User pressed, as an event with the rule in it",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "    const woken = deliver(instance, leader, serverEvent(\"permission\", { decision, who: seat }, asked.rule));\n    if (woken.refused === undefined) {\n      showTheReply(instance.root, leader, woken.answered);\n    }\n",
         "to": ""
       }
@@ -350,7 +350,7 @@
     "catches": "lists the rule request on the Leader's panel with the rule and the why",
     "edits": [
       {
-        "file": "tools/chat/permissions.mjs",
+        "file": "lib/chat/permissions.mjs",
         "from": "  return { id, kind, rule, why, from };",
         "to": "  return { id, kind, rule, from };"
       }
@@ -361,7 +361,7 @@
     "catches": "refuses a rule the instance already holds, naming how it is held",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "        if (held !== undefined) {\n          return { refused: `${accepted} is already ${SETTLED_AS[held]} - say it to the User` };\n        }\n",
         "to": ""
       }
@@ -372,7 +372,7 @@
     "catches": "answers the three lists and the pending dialogs when called with no rule",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "    LISTS.map((list) => [list, (Array.isArray(permissions[list])",
         "to": "    [\"allow\", \"ask\"].map((list) => [list, (Array.isArray(permissions[list])"
       }
@@ -383,7 +383,7 @@
     "catches": "pops the desktop once the rule dialog is listed, naming the rule",
     "edits": [
       {
-        "file": "tools/chat/lifecycle.mjs",
+        "file": "lib/chat/lifecycle.mjs",
         "from": "    popped(instance, { on: seat, why: `${seat} asks you to settle ${rule}` });\n",
         "to": ""
       }
@@ -394,7 +394,7 @@
     "catches": "lists a rule request only after the turn that raised it ended",
     "edits": [
       {
-        "file": "tools/chat/permissions.mjs",
+        "file": "lib/chat/permissions.mjs",
         "from": "  const asked = onTurn ? [] : [...rulesOf(name).values()]",
         "to": "  const asked = [...rulesOf(name).values()]"
       }
@@ -405,7 +405,7 @@
     "catches": "refuses a rule without a why, a rule already pending, and a shape it does not accept",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "        if (typeof why !== \"string\" || why.trim() === \"\") {\n          return { refused: \"say why: the User reads it on the button\" };\n        }\n",
         "to": ""
       }
@@ -416,7 +416,7 @@
     "catches": "refuses a rule without a why, a rule already pending, and a shape it does not accept",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "        if (rulesPending(caller.seat).some((pending) => pending.rule === accepted)) {\n          return { refused: `${accepted} is already asked on your panel` };\n        }\n",
         "to": ""
       }
@@ -427,7 +427,7 @@
     "catches": "refuses a decision that is not one of the three for that kind of question",
     "edits": [
       {
-        "file": "tools/chat/server.mjs",
+        "file": "lib/chat/server.mjs",
         "from": "    if (!LISTS.includes(decision)) {",
         "to": "    if (false) {"
       }
@@ -438,7 +438,7 @@
     "catches": "tells the page again once the turn has ended, so the dialog is drawn then",
     "edits": [
       {
-        "file": "tools/chat/lifecycle.mjs",
+        "file": "lib/chat/lifecycle.mjs",
         "from": "  if (rulesPending(seat).length > 0) {\n    publish(\"asking\", { seat });\n  }",
         "to": ""
       }

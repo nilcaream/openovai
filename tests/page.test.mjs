@@ -11,9 +11,9 @@ import path from "node:path";
 import { describe, it } from "node:test";
 
 import { repo, styleRules } from "./helpers.mjs";
-import { row } from "../tools/chat/render.mjs";
+import { row } from "../lib/chat/render.mjs";
 
-const source = fs.readFileSync(path.join(repo, "tools", "chat", "page.html"), "utf8");
+const source = fs.readFileSync(path.join(repo, "lib", "chat", "page.html"), "utf8");
 // Two scripts: the head one that sets the theme before the first paint, and the page's own module.
 const opened = source.indexOf('<script type="module">');
 const script = source.slice(opened, source.indexOf("</script>", opened));
@@ -58,7 +58,7 @@ function classes() {
   for (const found of script.matchAll(assigned)) add(found[1] ?? found[2] ?? found[3]);
   for (const [, list] of source.matchAll(/class="([^"]*)"/g)) add(list);
   assert.ok(emitted.size >= 10, `the page names only ${emitted.size} classes, so this check read almost nothing`);
-  const render = fs.readFileSync(path.join(repo, "tools", "chat", "render.mjs"), "utf8");
+  const render = fs.readFileSync(path.join(repo, "lib", "chat", "render.mjs"), "utf8");
   const kinds = [...render.matchAll(/\bkind: "([\w-]+)"/g)].map(([, kind]) => kind);
   assert.ok(kinds.length >= 5, `render.mjs names only ${kinds.length} row kinds, so this check read almost nothing`);
   kinds.forEach((kind) => emitted.add(kind));
@@ -86,7 +86,7 @@ describe("the token table", () => {
   });
 
   it("colours the installed app's title bar with the light panel head", () => {
-    const manifest = JSON.parse(fs.readFileSync(path.join(repo, "tools", "chat", "manifest.webmanifest"), "utf8"));
+    const manifest = JSON.parse(fs.readFileSync(path.join(repo, "lib", "chat", "manifest.webmanifest"), "utf8"));
     assert.equal(manifest.theme_color, tokens.light["--panel-2"]);
   });
 });

@@ -4,7 +4,7 @@
     "catches": "brings a refused session back by itself rather than leaving it on a dialog",
     "edits": [
       {
-        "file": "tools/seed.mjs",
+        "file": "lib/seed.mjs",
         "from": "  autoContinueAtUsageLimit: true,",
         "to": "  autoContinueAtUsageLimit: false,"
       }
@@ -15,7 +15,7 @@
     "catches": "says it wrote those settings",
     "edits": [
       {
-        "file": "tools/seed.mjs",
+        "file": "lib/seed.mjs",
         "from": "    ...seed(homeSettingsFile(root), () => asJson(HOME_SETTINGS)),",
         "to": "    ...seed(homeSettingsFile(root), () => asJson(HOME_SETTINGS)).slice(1),"
       }
@@ -26,9 +26,9 @@
     "catches": "closes its own account of what it allows to the tools that write files",
     "edits": [
       {
-        "file": "tools/desks.mjs",
-        "from": "  \"Edit(.claude-home/settings.json)\",\n  \"Edit(.claude-home/.claude.json)\",",
-        "to": "  \"Edit(.claude-home/settings.json)\","
+        "file": "lib/desks.mjs",
+        "from": "  \"Edit(.local/settings.json)\",\n  \"Edit(.local/.claude.json)\",",
+        "to": "  \"Edit(.local/settings.json)\","
       }
     ]
   },
@@ -37,9 +37,9 @@
     "catches": "leaves what the instance remembers alone",
     "edits": [
       {
-        "file": "tools/desks.mjs",
-        "from": "  \"Edit(.claude-home/.claude.json)\",\n];",
-        "to": "  \"Edit(.claude-home/.claude.json)\",\n  \"Edit(.claude-home/projects/**)\",\n];"
+        "file": "lib/desks.mjs",
+        "from": "  \"Edit(.local/.claude.json)\",\n];",
+        "to": "  \"Edit(.local/.claude.json)\",\n  \"Edit(.local/projects/**)\",\n];"
       }
     ]
   },
@@ -48,9 +48,9 @@
     "catches": "refuses nothing about anybody's work",
     "edits": [
       {
-        "file": "tools/desks.mjs",
+        "file": "lib/desks.mjs",
         "from": "export const OWN_ACCOUNT_RULES = [\n  \"Edit(.claude/**)\",",
-        "to": "export const OWN_ACCOUNT_RULES = [\n  \"Edit(work/**)\",\n  \"Edit(.claude/**)\","
+        "to": "export const OWN_ACCOUNT_RULES = [\n  \"Edit(desks/**)\",\n  \"Edit(.claude/**)\","
       }
     ]
   },
@@ -59,14 +59,14 @@
     "catches": "accounts for none of them, since a refusal is not something somebody asked for",
     "edits": [
       {
-        "file": "tools/seed.mjs",
-        "from": "import { DESK_DENY_RULES, DESK_TEMPLATE, OWN_ACCOUNT_RULES, READ_RULES, TOOL_RULES, deskFile, readTemplate, render } from \"./desks.mjs\";",
-        "to": "import { DESK_DENY_RULES, DESK_TEMPLATE, OWN_ACCOUNT_RULES, READ_RULES, TOOL_RULES, account, deskFile, readTemplate, render } from \"./desks.mjs\";"
+        "file": "lib/seed.mjs",
+        "from": "import { DESK_DENY_RULES, DESK_TEMPLATE, OWN_ACCOUNT_RULES, READ_RULES, TOOL_RULES, TREE_RULES, deskFile, deskRules, readTemplate, render } from \"./desks.mjs\";",
+        "to": "import { DESK_DENY_RULES, DESK_TEMPLATE, OWN_ACCOUNT_RULES, READ_RULES, TOOL_RULES, TREE_RULES, account, deskFile, deskRules, readTemplate, render } from \"./desks.mjs\";"
       },
       {
-        "file": "tools/seed.mjs",
-        "from": "    ...seed(settingsFile(root), () => asJson(settingsToStartWith())),",
-        "to": "    ...seed(settingsFile(root), () => asJson(settingsToStartWith())),\n    ...OWN_ACCOUNT_RULES.flatMap((rule) => account(root, { rule, session: \"the installer\", call: rule, day: \"2026-01-01\" })),"
+        "file": "lib/seed.mjs",
+        "from": "    ...seed(settingsFile(root), () => asJson(settingsToStartWith(leader))),",
+        "to": "    ...seed(settingsFile(root), () => asJson(settingsToStartWith(leader))),\n    ...OWN_ACCOUNT_RULES.flatMap((rule) => account(root, { rule, session: \"the installer\", call: rule, day: \"2026-01-01\" })),"
       }
     ]
   },
@@ -75,7 +75,7 @@
     "catches": "keeps .claude/settings.json as the person left it",
     "edits": [
       {
-        "file": "tools/seed.mjs",
+        "file": "lib/seed.mjs",
         "from": "  if (fs.existsSync(target)) {\n    return [];\n  }\n  fs.mkdirSync(path.dirname(target), { recursive: true });",
         "to": "  fs.mkdirSync(path.dirname(target), { recursive: true });"
       }
@@ -86,7 +86,7 @@
     "catches": "replaces the payload whole, taking away what the source has not got",
     "edits": [
       {
-        "file": "tools/release.mjs",
+        "file": "lib/release.mjs",
         "from": "    fs.rmSync(target, { recursive: true, force: true });\n    fs.renameSync(beside, target);",
         "to": "    fs.cpSync(beside, target, { recursive: true });\n    fs.rmSync(beside, { recursive: true, force: true });"
       }
@@ -97,31 +97,31 @@
     "catches": "names what it seeded and what it replaced, and nothing it kept",
     "edits": [
       {
-        "file": "tools/seed.mjs",
+        "file": "lib/seed.mjs",
         "from": "  if (fs.existsSync(target)) {\n    return [];\n  }",
         "to": "  if (fs.existsSync(target)) {\n    return [target];\n  }"
       }
     ]
   },
   {
-    "name": "the installer makes a directory for personas again",
-    "catches": "writes no persona, and makes no directory for one",
+    "name": "the installer makes a directory at the root that the layout does not name",
+    "catches": "makes exactly the layout at the root: the product, the instance's own, the people, the User's material, Claude Code's",
     "edits": [
       {
-        "file": "tools/install.mjs",
-        "from": "const LAYOUT = [\"work\", \".claude\", \".claude-home\", PLUGINS];",
-        "to": "const LAYOUT = [\"work\", \"personas\", \".claude\", \".claude-home\", PLUGINS];"
+        "file": "lib/install.mjs",
+        "from": "const LAYOUT = [DESKS, ...USER_TREES, \".claude\", HOME, PLUGINS];",
+        "to": "const LAYOUT = [DESKS, ...USER_TREES, \"personas\", \".claude\", HOME, PLUGINS];"
       }
     ]
   },
   {
-    "name": "installing over an instance takes away what an older toolkit rendered",
-    "catches": "leaves what an older toolkit rendered under personas/ exactly as it found it",
+    "name": "installing over an instance takes away what the person put beside the layout",
+    "catches": "leaves what the person put beside the layout exactly as it found it",
     "edits": [
       {
-        "file": "tools/install.mjs",
+        "file": "lib/install.mjs",
         "from": "    report(plan, [\n      ...createLayout(plan),",
-        "to": "    fs.rmSync(path.join(plan.root, \"personas\"), { recursive: true, force: true });\n    report(plan, [\n      ...createLayout(plan),"
+        "to": "    fs.rmSync(path.join(plan.root, \"notes\"), { recursive: true, force: true });\n    report(plan, [\n      ...createLayout(plan),"
       }
     ]
   },
@@ -130,7 +130,7 @@
     "catches": "comes after everything the toolkit puts in, the budget included",
     "edits": [
       {
-        "file": "tools/desks.mjs",
+        "file": "lib/desks.mjs",
         "from": "  const added = customization(root, what);\n  return added === null ? rendered",
         "to": "  const added = null;\n  return added === null ? rendered"
       }
@@ -141,7 +141,7 @@
     "catches": "comes after everything the toolkit puts in, the budget included",
     "edits": [
       {
-        "file": "tools/desks.mjs",
+        "file": "lib/desks.mjs",
         "from": "`${rendered.replace(/\\s*$/, \"\")}\\n\\n${added.replace(/\\s*$/, \"\")}\\n`",
         "to": "`${added.replace(/\\s*$/, \"\")}\\n\\n${rendered.replace(/\\s*$/, \"\")}\\n`"
       }
@@ -152,7 +152,7 @@
     "catches": "is read as it is, braces and all",
     "edits": [
       {
-        "file": "tools/desks.mjs",
+        "file": "lib/desks.mjs",
         "from": "  const added = customization(root, what);",
         "to": "  const raw = customization(root, what);\n  const added = raw === null ? null : render(what, raw, {});"
       }
@@ -163,7 +163,7 @@
     "catches": "comes after everything the toolkit puts in, the budget included",
     "edits": [
       {
-        "file": "tools/desks.mjs",
+        "file": "lib/desks.mjs",
         "from": "  const added = customization(root, what);",
         "to": "  const added = customization(root, \"worker\");"
       }
@@ -174,7 +174,7 @@
     "catches": "writes the answers given into the description the instance has, and keeps the rest of it",
     "edits": [
       {
-        "file": "tools/install.mjs",
+        "file": "lib/install.mjs",
         "from": "    for (const key of plan.given) {",
         "to": "    for (const key of []) {"
       }
@@ -185,7 +185,7 @@
     "catches": "writes the answers given into the description the instance has, and keeps the rest of it",
     "edits": [
       {
-        "file": "tools/install.mjs",
+        "file": "lib/install.mjs",
         "from": "    config = { ...plan.existing, models: { ...plan.existing.models } };",
         "to": "    config = { schema: plan.existing.schema, createdAt: plan.existing.createdAt, models: { ...plan.existing.models } };"
       }
@@ -196,7 +196,7 @@
     "catches": "takes an answer left off the command line from the description the instance has",
     "edits": [
       {
-        "file": "tools/install.mjs",
+        "file": "lib/install.mjs",
         "from": "    if (parsed[key] === undefined && existing !== null && IN_CONFIG[key] !== undefined) {",
         "to": "    if (false) {"
       }
@@ -207,7 +207,7 @@
     "catches": "takes an answer left off the command line from the description the instance has",
     "edits": [
       {
-        "file": "tools/install.mjs",
+        "file": "lib/install.mjs",
         "from": "    if (JSON.stringify(config) === JSON.stringify(plan.existing)) {\n      return [];\n    }",
         "to": "    if (JSON.stringify(config) === JSON.stringify(plan.existing)) {\n      return [target];\n    }"
       }
@@ -218,7 +218,7 @@
     "catches": "turns Claude Code's own memory off in the home settings",
     "edits": [
       {
-        "file": "tools/seed.mjs",
+        "file": "lib/seed.mjs",
         "from": "  autoMemoryEnabled: false,\n",
         "to": ""
       }
@@ -229,9 +229,9 @@
     "catches": "seeds no memory index into the Claude Code home",
     "edits": [
       {
-        "file": "tools/seed.mjs",
+        "file": "lib/seed.mjs",
         "from": "  return [\n    ...seed(homeSettingsFile(root), () => asJson(HOME_SETTINGS)),",
-        "to": "  return [\n    ...seed(path.join(root, \".claude-home\", \"projects\", \"workspace\", \"memory\", \"MEMORY.md\"), () => \"# Memory\\n\"),\n    ...seed(homeSettingsFile(root), () => asJson(HOME_SETTINGS)),"
+        "to": "  return [\n    ...seed(path.join(root, \".local\", \"projects\", \"workspace\", \"memory\", \"MEMORY.md\"), () => \"# Memory\\n\"),\n    ...seed(homeSettingsFile(root), () => asJson(HOME_SETTINGS)),"
       }
     ]
   },
@@ -240,7 +240,7 @@
     "catches": "makes the store's two directories, empty",
     "edits": [
       {
-        "file": "tools/seed.mjs",
+        "file": "lib/seed.mjs",
         "from": "  for (const store of STORES) {\n    fs.mkdirSync(storeDirectory(root, store), { recursive: true });\n  }\n",
         "to": ""
       }
@@ -251,40 +251,117 @@
     "catches": "ships no skill",
     "edits": [
       {
-        "file": "tools/install.mjs",
-        "from": "const LAYOUT = [\"work\", \".claude\", \".claude-home\", PLUGINS];",
-        "to": "const LAYOUT = [\"work\", \".claude\", \".claude-home\", PLUGINS, path.join(\".claude\", \"skills\", \"allowed\")];"
+        "file": "lib/install.mjs",
+        "from": "const LAYOUT = [DESKS, ...USER_TREES, \".claude\", HOME, PLUGINS];",
+        "to": "const LAYOUT = [DESKS, ...USER_TREES, \".claude\", HOME, PLUGINS, path.join(\".claude\", \"skills\", \"allowed\")];"
       }
     ]
   },
   {
     "name": "the seed grants nothing for reading",
-    "catches": "allows the tool server and the reads and nothing else",
+    "catches": "allows the tool server, the reads, the three trees, the Leader's desk directory, and nothing else",
     "edits": [
       {
-        "file": "tools/seed.mjs",
-        "from": "      allow: [...TOOL_RULES, ...READ_RULES],",
-        "to": "      allow: [...TOOL_RULES],"
+        "file": "lib/seed.mjs",
+        "from": "      allow: [...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...deskRules(leader)],",
+        "to": "      allow: [...TOOL_RULES, ...TREE_RULES, ...deskRules(leader)],"
       }
     ]
   },
   {
-    "name": "the seed grants a desk rule beside the tools",
-    "catches": "grants the tools and the reads, and nothing wider",
+    "name": "the seed grants the Leader no desk directory",
+    "catches": "allows the tool server, the reads, the three trees, the Leader's desk directory, and nothing else",
     "edits": [
       {
-        "file": "tools/seed.mjs",
-        "from": "      allow: [...TOOL_RULES, ...READ_RULES],",
-        "to": "      allow: [\"Edit(work/Superman/STATE.md)\", ...TOOL_RULES, ...READ_RULES],"
+        "file": "lib/seed.mjs",
+        "from": "      allow: [...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...deskRules(leader)],",
+        "to": "      allow: [...TOOL_RULES, ...READ_RULES, ...TREE_RULES],"
+      }
+    ]
+  },
+  {
+    "name": "the seed refuses the desk file to edits only",
+    "catches": "denies a desk file edit and write at install",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "export const DESK_DENY_RULES = [\"Edit(desks/*/STATE.md)\", \"Write(desks/*/STATE.md)\"];",
+        "to": "export const DESK_DENY_RULES = [\"Edit(desks/*/STATE.md)\"];"
+      }
+    ]
+  },
+  {
+    "name": "the seed refuses nothing about a desk file",
+    "catches": "denies a desk file edit and write at install",
+    "edits": [
+      {
+        "file": "lib/seed.mjs",
+        "from": "      deny: [...OWN_ACCOUNT_RULES, ...DESK_DENY_RULES],",
+        "to": "      deny: [...OWN_ACCOUNT_RULES],"
+      }
+    ]
+  },
+  {
+    "name": "the seed grants nothing for the three trees",
+    "catches": "allows the tool server, the reads, the three trees, the Leader's desk directory, and nothing else",
+    "edits": [
+      {
+        "file": "lib/seed.mjs",
+        "from": "      allow: [...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...deskRules(leader)],",
+        "to": "      allow: [...TOOL_RULES, ...READ_RULES, ...deskRules(leader)],"
+      }
+    ]
+  },
+  {
+    "name": "the seed grants a fourth tree",
+    "catches": "allows the tool server, the reads, the three trees, the Leader's desk directory, and nothing else",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "export const USER_TREES = [\"reference\", \"projects\", \"temp\"];",
+        "to": "export const USER_TREES = [\"reference\", \"projects\", \"temp\", \"store\"];"
+      }
+    ]
+  },
+  {
+    "name": "the seed grants the trees for edits only",
+    "catches": "allows the tool server, the reads, the three trees, the Leader's desk directory, and nothing else",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "export const TREE_RULES = USER_TREES.flatMap((tree) => [`Edit(${tree}/**)`, `Write(${tree}/**)`]);",
+        "to": "export const TREE_RULES = USER_TREES.map((tree) => `Edit(${tree}/**)`);"
+      }
+    ]
+  },
+  {
+    "name": "the installer leaves the three trees for the first session to make",
+    "catches": "makes exactly the layout at the root: the product, the instance's own, the people, the User's material, Claude Code's",
+    "edits": [
+      {
+        "file": "lib/install.mjs",
+        "from": "const LAYOUT = [DESKS, ...USER_TREES, \".claude\", HOME, PLUGINS];",
+        "to": "const LAYOUT = [DESKS, \".claude\", HOME, PLUGINS];"
+      }
+    ]
+  },
+  {
+    "name": "the seed grants a desk rule for somebody who is not the Leader",
+    "catches": "grants the tools, the reads, the three trees and the Leader its desk, and nothing wider",
+    "edits": [
+      {
+        "file": "lib/seed.mjs",
+        "from": "      allow: [...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...deskRules(leader)],",
+        "to": "      allow: [...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...deskRules(leader), ...deskRules(\"Paul\")],"
       }
     ]
   },
   {
     "name": "the seed denies nothing about a desk",
-    "catches": "denies a desk edit at install",
+    "catches": "denies a desk file edit and write at install",
     "edits": [
       {
-        "file": "tools/seed.mjs",
+        "file": "lib/seed.mjs",
         "from": "      deny: [...OWN_ACCOUNT_RULES, ...DESK_DENY_RULES],",
         "to": "      deny: OWN_ACCOUNT_RULES,"
       }

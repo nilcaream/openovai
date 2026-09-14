@@ -4,7 +4,7 @@
     "catches": "renders markdown and escapes raw HTML in it",
     "edits": [
       {
-        "file": "tools/chat/render.mjs",
+        "file": "lib/chat/render.mjs",
         "from": "    html(token) {\n      return escape(token.text);\n    },",
         "to": "    html(token) {\n      return token.text;\n    },"
       }
@@ -15,7 +15,7 @@
     "catches": "opens a link in a new tab, on a scheme a page can follow",
     "edits": [
       {
-        "file": "tools/chat/render.mjs",
+        "file": "lib/chat/render.mjs",
         "from": "const FOLLOWABLE = /^(https?:|mailto:)/i;",
         "to": "const FOLLOWABLE = /^(https?:|mailto:|javascript:)/i;"
       }
@@ -26,7 +26,7 @@
     "catches": "opens a link in a new tab, on a scheme a page can follow",
     "edits": [
       {
-        "file": "tools/chat/render.mjs",
+        "file": "lib/chat/render.mjs",
         "from": "    ? `<a href=\"${escape(href)}\" target=\"_blank\" rel=\"noopener\">${inner}</a>`",
         "to": "    ? `<a href=\"${escape(href)}\">${inner}</a>`"
       }
@@ -37,7 +37,7 @@
     "catches": "shows an image as a link, never as a fetch",
     "edits": [
       {
-        "file": "tools/chat/render.mjs",
+        "file": "lib/chat/render.mjs",
         "from": "    image({ href, text }) {\n      return anchor(href, escape(text));\n    },",
         "to": "    image({ href, text }) {\n      return `<img src=\"${escape(href)}\" alt=\"${escape(text)}\">`;\n    },"
       }
@@ -48,7 +48,7 @@
     "catches": "a word typed to a Worker says where it went on the Leader's panel",
     "edits": [
       {
-        "file": "tools/chat/render.mjs",
+        "file": "lib/chat/render.mjs",
         "from": "    const to = typeof entry.typedTo === \"string\" ? ` → ${entry.typedTo}` : \"\";",
         "to": "    const to = \"\";"
       }
@@ -59,7 +59,7 @@
     "catches": "a failed turn is shown failed",
     "edits": [
       {
-        "file": "tools/chat/render.mjs",
+        "file": "lib/chat/render.mjs",
         "from": "  if (entry.failed === true) {",
         "to": "  if (entry.failed === true && false) {"
       }
@@ -70,7 +70,7 @@
     "catches": "an interrupted turn is shown as interrupted, not as a reply",
     "edits": [
       {
-        "file": "tools/chat/render.mjs",
+        "file": "lib/chat/render.mjs",
         "from": "  if (entry.interrupted === true) {",
         "to": "  if (entry.interrupted === true && false) {"
       }
@@ -81,7 +81,7 @@
     "catches": "a tool call is a line: the summary as text, its kind line, red once the call failed",
     "edits": [
       {
-        "file": "tools/chat/render.mjs",
+        "file": "lib/chat/render.mjs",
         "from": "  if (typeof entry.line === \"string\") {\n    return { who: entry.from, kind: \"line\", text: entry.line, err: entry.err === true };\n  }\n",
         "to": ""
       }
@@ -92,7 +92,7 @@
     "catches": "a tool call is a line: the summary as text, its kind line, red once the call failed",
     "edits": [
       {
-        "file": "tools/chat/render.mjs",
+        "file": "lib/chat/render.mjs",
         "from": "text: entry.line, err: entry.err === true };",
         "to": "text: entry.line, err: false };"
       }
@@ -103,7 +103,7 @@
     "catches": "a message the Leader sent is To its addressee, compact, with its outcome",
     "edits": [
       {
-        "file": "tools/chat/render.mjs",
+        "file": "lib/chat/render.mjs",
         "from": "    if (names.seat === names.leader) {\n      if (entry.from === names.seat) {",
         "to": "    if (names.seat === names.leader) {\n      if (false) {"
       }
@@ -114,7 +114,7 @@
     "catches": "a message the Leader sent is To its addressee, compact, with its outcome",
     "edits": [
       {
-        "file": "tools/chat/render.mjs",
+        "file": "lib/chat/render.mjs",
         "from": "bad: entry.outcome !== \"sent\"",
         "to": "bad: false"
       }
@@ -125,7 +125,7 @@
     "catches": "on a Worker's panel a message is a line, red when it did not go",
     "edits": [
       {
-        "file": "tools/chat/render.mjs",
+        "file": "lib/chat/render.mjs",
         "from": "      return { who: entry.from, kind: \"line\", text: `Received a message from ${entry.from}`, err: false };",
         "to": "      return { who: `From ${entry.from}`, kind: \"peer-in\", html: html(entry.text), tight: true };"
       }

@@ -63,7 +63,7 @@ A mutations file is a JSON array:
     {
       "name": "the popup is awaited",
       "catches": "says nothing on the panel when the desktop is not reached",
-      "edits": [{ "file": "tools/chat/pop.mjs", "from": "  pop(", "to": "  await pop(" }]
+      "edits": [{ "file": "lib/chat/pop.mjs", "from": "  pop(", "to": "  await pop(" }]
     }
   ]
 

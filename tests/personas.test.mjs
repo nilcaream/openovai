@@ -11,18 +11,18 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
 
-import { EVENTS } from "../tools/chat/frames.mjs";
-import { toolsFor } from "../tools/chat/server.mjs";
-import { LEADER, WORKER } from "../tools/chat/session.mjs";
-import { persona } from "../tools/desks.mjs";
-import { BUILT_IN } from "../tools/plugins.mjs";
+import { EVENTS } from "../lib/chat/frames.mjs";
+import { toolsFor } from "../lib/chat/server.mjs";
+import { LEADER, WORKER } from "../lib/chat/session.mjs";
+import { persona } from "../lib/desks.mjs";
+import { BUILT_IN } from "../lib/plugins.mjs";
 import { repo } from "./helpers.mjs";
 
 const USER = "Mike";
 const LEAD = "Superman";
 const PAUL = "Paul";
 
-const template = (kind) => fs.readFileSync(path.join(repo, "templates", `${kind}.md`), "utf8");
+const template = (kind) => fs.readFileSync(path.join(repo, "lib", "templates", `${kind}.md`), "utf8");
 const leader = () => persona(repo, LEAD, { user: USER, leader: LEAD });
 const worker = () => persona(repo, PAUL, { user: USER, leader: LEAD });
 
@@ -95,7 +95,33 @@ describe("what both personas are held to", () => {
 describe("what the Leader is told", () => {
   it("says who the Leader is and whose workspace it leads", () => {
     assert.ok(leader().includes(`You are ${LEAD}, the Leader of ${USER}'s workspace`));
-    assert.ok(leader().includes(`work/${LEAD}/STATE.md`));
+    assert.ok(leader().includes(`desks/${LEAD}/STATE.md`));
+  });
+
+  // A desk is a working directory. The desk file stays the tool's; everything beside it is the
+  // session's to write with the file tools, and it is told so rather than left to find out on a
+  // permission dialog.
+  it("tells the Leader its desk directory is its working directory and the desk file is the tool's", () => {
+    assert.match(leader(), new RegExp(`Your desk is desks/${LEAD}/, and it is your working directory`));
+    assert.match(leader(), /write there with\s+the file tools without being asked/);
+    assert.match(leader(), /That one file is written with one tool and no other way: `write_desk`/);
+  });
+
+  // The three trees, and the one question that decides between two of them. The question is
+  // behaviour, not a grant: both are writable, so the persona is what keeps a reference from being
+  // worked on.
+  it("tells the Leader the three trees, and to ask on every clone whether it is for analysis or for modification", () => {
+    assert.match(leader(), /`reference\/` is what is kept to look at/);
+    assert.match(leader(), /`projects\/` is what is worked on/);
+    assert.match(leader(), /`temp\/` is scratch/);
+    assert.match(leader(), new RegExp(`Whenever a clone is asked for, ask ${USER} before you hire for it: for analysis, or for\\s+modification\\?`));
+    assert.match(leader(), /Analysis goes to `reference\/`; modification goes to\s+`projects\/`/);
+    assert.match(leader(), /cloned or copied fresh into\s+`projects\/` and worked on\s+there — never moved, never edited where it sits/);
+  });
+
+  it("tells the Leader that nothing lands in the root or the home directory, and that a Worker is it", () => {
+    assert.match(leader(), /not in the instance root, not in the home directory/);
+    assert.match(leader(), /a Worker is "it" when you speak of one/);
   });
 
   it("tells the Leader it does no project work and that a check is a hire", () => {
@@ -195,7 +221,22 @@ describe("what a Worker is told", () => {
   it("says who the Worker is and who it answers to", () => {
     assert.ok(worker().includes(`You are ${PAUL}, a Worker in ${USER}'s workspace`));
     assert.match(worker(), new RegExp(`${LEAD} is the Leader and is who you answer to`));
-    assert.ok(worker().includes(`work/${PAUL}/STATE.md`));
+    assert.ok(worker().includes(`desks/${PAUL}/STATE.md`));
+  });
+
+  it("tells the Worker its desk directory is its working directory and the desk file is the tool's", () => {
+    assert.match(worker(), new RegExp(`Your desk is desks/${PAUL}/, and it is your working directory`));
+    assert.match(worker(), /write there with\s+the file tools without being asked/);
+    assert.match(worker(), /That one file is written with one tool and no other way: `write_desk`/);
+  });
+
+  // Scratch has a named place, and it is not the root and not the home directory: a session with
+  // no named place for a rig leaves it wherever it was standing.
+  it("tells the Worker the three trees, and that scratch goes under temp/ and nowhere else", () => {
+    assert.match(worker(), /`reference\/`\s+is what is kept to look at and is never worked on/);
+    assert.match(worker(), /`projects\/` is what is worked on/);
+    assert.match(worker(), /Anything throwaway — a rig, a probe, a dump, a clone made for one test, a build — goes\s+under `temp\/`/);
+    assert.match(worker(), /Nothing of yours goes in the instance root,\s+and nothing in the home directory/);
   });
 
   it("tells the Worker what the store is and that two tools are the way to it", () => {

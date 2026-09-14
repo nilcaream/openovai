@@ -15,15 +15,15 @@ import fs from "node:fs";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
-import { read as panel } from "../tools/chat/conversation.mjs";
-import { messageFrame, serverEvent, userFrame } from "../tools/chat/frames.mjs";
-import { BODY_CONTEXT_FULL, BODY_CRITICAL, BODY_IDLE, BODY_PARK, IDLE_GRACE, deliver, parkRoom, tick } from "../tools/chat/lifecycle.mjs";
-import * as quota from "../tools/chat/quota.mjs";
-import { pageSecret } from "../tools/chat/secrets.mjs";
-import { serve, startSeat, toolsFor } from "../tools/chat/server.mjs";
-import { INTERRUPT_PATIENCE, end, endEvery, recordOf, running, runningSeats, tell } from "../tools/chat/session.mjs";
-import { deskFile, deskHeader, deskTitle } from "../tools/desks.mjs";
-import { CONFIG_FILE } from "../tools/seed.mjs";
+import { read as panel } from "../lib/chat/conversation.mjs";
+import { messageFrame, serverEvent, userFrame } from "../lib/chat/frames.mjs";
+import { BODY_CONTEXT_FULL, BODY_CRITICAL, BODY_IDLE, BODY_PARK, IDLE_GRACE, deliver, parkRoom, tick } from "../lib/chat/lifecycle.mjs";
+import * as quota from "../lib/chat/quota.mjs";
+import { pageSecret } from "../lib/chat/secrets.mjs";
+import { serve, startSeat, toolsFor } from "../lib/chat/server.mjs";
+import { INTERRUPT_PATIENCE, end, endEvery, recordOf, running, runningSeats, tell } from "../lib/chat/session.mjs";
+import { deskFile, deskHeader, deskTitle } from "../lib/desks.mjs";
+import { CONFIG_FILE } from "../lib/seed.mjs";
 import { alive, arrivalsIn, callsIn, heardIn, installed, notesIn, pidsIn, post as postPlain, readLog, remove, repo, runTool, runToolLater, scratch, secretsIn, startChat, stopChat, waitFor, waitForAddress, writeStandIn } from "./helpers.mjs";
 
 const USER = "Mike";
@@ -273,7 +273,7 @@ describe("starting a seat", () => {
   it("hire opens a desk once and starts; again is already running; after a stop it starts on the desk as it is", async () => {
     assert.equal(fs.existsSync(deskFile(instance, OTHER)), false);
     const ann = await spawnedBy(OTHER, () => tool(superman.secret, "hire", { name: OTHER }));
-    assert.deepEqual(ann.result, { text: `${OTHER} started on the desk work/${OTHER} (${WORKER_MODEL})`, refused: false, error: null });
+    assert.deepEqual(ann.result, { text: `${OTHER} started on the desk desks/${OTHER} (${WORKER_MODEL})`, refused: false, error: null });
     assert.ok(fs.existsSync(deskFile(instance, OTHER)));
     assert.equal(callsIn(ann.log).length, 1);
     assert.deepEqual(await tool(superman.secret, "hire", { name: OTHER }), { text: `${OTHER} is already running`, refused: true, error: null });
@@ -331,7 +331,7 @@ describe("write_desk", () => {
 
     const written = await tool(paul.secret, "write_desk", { title: "t", status: "s", body: "B\n" });
     assert.equal(written.refused, false, written.text);
-    assert.match(written.text, new RegExp(`^desk written: work/${WORKER}/STATE.md \\(\\d+ lines, rules m\\d+\\)$`));
+    assert.match(written.text, new RegExp(`^desk written: desks/${WORKER}/STATE.md \\(\\d+ lines, rules m\\d+\\)$`));
     const lines = deskOf(WORKER).split("\n");
     assert.match(lines[0], /^<!-- DESK \| title: t \| status: s \| rules: m\d+ \| updated: \d{4}-\d{2}-\d{2}T[0-9:.]+Z -->$/);
     assert.equal(lines[1], `# ${WORKER} - t`);
@@ -418,7 +418,7 @@ describe("restart_session and stop_session", () => {
     const argv = callsIn(successor.log)[0];
     const file = /--append-system-prompt-file (\S+)/.exec(argv)[1];
     const prompt = fs.readFileSync(file, "utf8");
-    assert.ok(prompt.includes(`Your desk, work/${WORKER}/STATE.md, as it stands at this start:`), prompt.slice(-400));
+    assert.ok(prompt.includes(`Your desk, desks/${WORKER}/STATE.md, as it stands at this start:`), prompt.slice(-400));
     assert.ok(prompt.includes("written by the stand-in"), prompt.slice(-400));
     // The predecessor's own turn was answered with its own result.
     const rows = panel(instance, WORKER).slice(-2);
@@ -852,7 +852,7 @@ describe("the quota gate", () => {
       quota.configure({ config, clock: chat.clock });
       quota.forget();
       for (const name of ["Zed", "Bo"]) {
-        remove(path.join(instance, "work", name), path.join(instance, "chat", name));
+        remove(path.join(instance, "desks", name), path.join(instance, "desks", name));
       }
     }
   });

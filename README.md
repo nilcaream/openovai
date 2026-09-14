@@ -93,19 +93,46 @@ An instance is a directory of its own. From a clone:
 Every option is required. The installer never prompts and never guesses, so one command line
 describes a whole instance and can be read back, repeated and tested.
 
-It creates `work/` for the desks, `.claude/` for the settings, `.claude-home/` for the instance's
-own Claude Code home (its account and its transcripts, so two instances on one machine share
-neither), `plugins/` for tools of your own and `store/` for what the workspace knows. It copies
-`bin/`, `tools/` and `templates/` in, so the instance never reaches back to where it was installed
-from, and writes `openovai.json` — who works here, on which models, on which port; no absolute
-path, so an instance can be moved and still be itself. It opens the Leader's desk at
-`work/<Leader>/STATE.md` from `templates/STATE.md`.
+The instance root is this, and nothing else ever lands in it:
+
+```
+<root>/
+  bin/ovai          the one command
+  lib/              everything else the release ships; replaced whole on update
+  openovai.json     the instance's description of itself
+  runtime.json      the running chat: url, pid, since
+  plugins/          tools the instance serves itself, one file each; yours, kept across updates
+  store/            what the workspace knows: memory/ and knowledge/, one file per record
+  customization/    what you add to the personas, one file per kind; yours, never touched
+  desks/<Name>/     one directory per person: STATE.md, persona.md, conversation.json, and
+                    whatever that person keeps there; the listing IS the roster
+  archive/          retired desks, moved whole: <day>-<Name>-<slug of the final title>/
+  reference/        kept to look at: documents, sources, clones for analysis; never worked on
+  projects/         worked on; a reference that needs edits is cloned fresh here, never moved
+  temp/             scratch, deletable by anyone at any time
+  .claude/          Claude Code's project settings for the instance; the name is Claude Code's
+  .local/           Claude Code's config dir for the instance: account, transcripts, memory
+```
+
+In groups: the product is `bin/` and `lib/`; the instance's own is `openovai.json`, `runtime.json`,
+`plugins/`, `store/` and `customization/`; the people are `desks/` and `archive/`; your material
+is `reference/`, `projects/` and `temp/`; Claude Code's is `.claude/` and `.local/`. The installer
+makes `desks/`, `reference/`, `projects/`, `temp/`, `plugins/`, `store/`, `.claude/` and `.local/`
+(two instances on one machine share neither account nor transcripts), copies `bin/` and `lib/` in
+so the instance never reaches back to where it was installed from, and writes `openovai.json` —
+who works here, on which models, on which port; no absolute path, so an instance can be moved and
+still be itself. It opens the Leader's desk at `desks/<Leader>/STATE.md` from
+`lib/templates/STATE.md`.
 
 Two settings files are seeded once and never touched again. `.claude/settings.json` allows the
-tool server (`mcp__openovai`) and reading any file (`Read(**)`), and denies an edit of any desk file
-(`Edit(work/*/STATE.md)`) and of the instance's own account files — a desk is written through a
-tool, and a stray `Write` on one is refused by the harness without a prompt. The instance's Claude
-Code home turns the built-in memory off, so the store is the only thing that outlives a
+tool server (`mcp__openovai`), reading any file (`Read(**)`), editing and writing under the three
+trees that are yours (`Edit(reference/**)` and `Write(reference/**)`, the same for `projects/` and
+`temp/`), and the Leader its own desk directory (`Edit(desks/<Leader>/**)`,
+`Write(desks/<Leader>/**)`) — a desk is a working directory, and everyone hired later gets the same
+pair for theirs. It denies an edit or a write of any desk file (`Edit(desks/*/STATE.md)`,
+`Write(desks/*/STATE.md)`) and of the instance's own account files — a desk file is written through
+a tool, and a stray `Write` on one is refused by the harness without a prompt. The instance's
+Claude Code home turns the built-in memory off, so the store is the only thing that outlives a
 conversation.
 
 Then use the instance's own command:
@@ -117,22 +144,23 @@ Then use the instance's own command:
 ~/my-workspace/bin/ovai chat
 ```
 
-`ovai hire <name>` opens a desk for a Worker: `work/<Name>/STATE.md` from the template, and
-nothing else — no session is started and no permission rule is granted. A chat already running
-reads `work/` each time it is asked, so the desk is in `room` from that moment, and the Leader's
+`ovai hire <name>` opens a desk for a Worker: `desks/<Name>/STATE.md` from the template, and the
+pair of rules that makes `desks/<Name>/` the Worker's to write in — nothing else; no session is
+started. A chat already running reads `desks/` each time it is asked, so the desk is in `room`
+from that moment, and the Leader's
 `hire` on that name starts a process on it. The tool is the usual way a Worker joins: it opens the
 desk and starts the process in one call.
 
 `ovai hire <name> [model]` takes a model beside the name, for somebody who should not run on what
 this workspace runs its Workers on. Leaving it out writes nothing down, so changing the installed
 model moves everybody who was never named one, from their next process. A model that was named is
-one word in `work/<Name>/MODEL`, beside the desk rather than inside it — the desk is the one file
-its session writes, and a model kept in there would be a model that session could raise for
+one word in `desks/<Name>/MODEL`, its own file rather than a line of the desk — the desk file is
+written by its session, and a model kept in there would be a model that session could raise for
 itself. It goes away with the desk. `ovai status` lists every desk with what it resolves to.
 
-It refuses a name already at a desk, and a name whose conversation is still under `chat/` — one
-whose desk was removed by hand. What is in there is a record somebody may want, so it is refused
-rather than cleared away, and the message says where the conversation is.
+It refuses a name already at a desk, and a name whose directory is still under `desks/` without
+a desk file in it — a conversation left behind. What is in there is a record somebody may want,
+so it is refused rather than cleared away, and the message says where it is.
 
 `ovai chat` serves the instance's page on the port it was installed with, on `127.0.0.1` only, and
 runs in the foreground until you stop it. It prints the whole address it is listening on. If the port is already taken it says which process holds it, with the pid.
@@ -140,7 +168,7 @@ It also prints, once, the instruction files it found above the instance: Claude 
 `CLAUDE.md` from every directory above a session's working directory, so every session is
 started with the list of what is not to be read — `CLAUDE.md`, `CLAUDE.local.md`,
 `.claude/CLAUDE.md` and `.claude/rules/**` from the instance's parent up to the root — written to
-`chat/instructions.json` per run and handed over with `--settings`. The instance's own
+`.local/instructions.json` per run and handed over with `--settings`. The instance's own
 instructions are never on the list, and a managed policy file (`/etc/claude-code/CLAUDE.md`) is
 the one thing no setting can exclude.
 
@@ -185,7 +213,7 @@ says when rows land below where you are reading. The page installs as a web app 
 three icons, one of them for a platform that masks icons to its own shape — which is what a fixed
 `--port` is for.
 
-What you write is kept in `chat/<Name>/conversation.json` inside the instance, one file per seat,
+What you write is kept in `desks/<Name>/conversation.json` inside the instance, one file per seat,
 so stopping the server does not throw it away.
 
 When you type on a Worker's panel, the words are that Worker's own `<user>` turn — your authority,
@@ -271,7 +299,7 @@ and the reason the session gave for it, or the path it was going to write. **All
 through once. **Deny** takes the sentence you type beside it, and the session is told to take that
 as an instruction rather than to look for another way round. Where the request says plainly what
 the whole class of calls is, a third button carries the rule — **Always allow `Bash(node:*)`**, a
-command by its first word, or **Always allow `Edit(work/Paul/**)`**, a write by the directory it
+command by its first word, or **Always allow `Edit(projects/app/**)`**, a write by the directory it
 was in — and pressing it lets the call through and leaves the instance allowing that shape. A
 command whose first word is a path or a variable gets no button, and neither does a write outside
 the instance, nor a tool the server serves, which is granted already.
@@ -402,7 +430,7 @@ file that cannot be served is named where the chat was started and the chat star
 it will not load, it is missing one of the three exports, its name is not one a tool can have — a
 letter, then letters, digits and hyphens — or its name is one the server already serves. A tool of
 yours runs inside the server process, so the permission system never sees it: writing the file is
-the deciding. `plugins/` sits at the root beside `work/`, outside everything an update replaces.
+the deciding. `plugins/` sits at the root beside `desks/`, outside everything an update replaces.
 
 ## Reaching you when you are not at the page
 
@@ -471,7 +499,7 @@ its own. `ovai update` is how it catches up:
 ```
 
 It asks GitHub for the latest release, and if that is newer than the version this instance is on
-it takes it: the payload — `bin/`, `tools/`, `templates/` and `VERSION` — is replaced whole,
+it takes it: the payload — `bin/`, `lib/` and `VERSION` — is replaced whole,
 nothing else is written, and a file of yours that a fresh install of this version would have seeded
 and this instance has not got is seeded once. What an earlier version put in an instance and this
 one does not ship is taken away. Desks, conversations, `customization/`, `plugins/`,
@@ -484,7 +512,7 @@ ends it. It refuses to go backwards by name; `--downgrade` takes an older releas
 `--from <url or directory>` takes one from somewhere other than GitHub.
 
 A persona is rendered once, when a seat's process starts, from the templates the instance has at
-that moment, and kept beside that seat's conversation under `chat/`. So an update changes nothing
+that moment, and kept beside that seat's conversation under `desks/<Name>/`. So an update changes nothing
 for a process already running; every process started after it is rendered from the new templates.
 What you add to a persona is yours: `customization/leader.md` or `customization/worker.md` at the
 instance root is appended, as it is, to every persona of that kind the instance renders.

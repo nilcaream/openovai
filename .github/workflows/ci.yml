@@ -263,6 +263,19 @@ jobs:
       - name: Read what every tool call is drawn as
         run: node --test tests/lines.test.mjs
 
+  desks:
+    name: Desks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+
+      - name: File a desk away and read what is left
+        run: node --test tests/desks.test.mjs
+
   release:
     name: Release
     runs-on: ubuntu-latest

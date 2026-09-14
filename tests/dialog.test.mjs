@@ -1,4 +1,4 @@
-// What a dialog on a panel shows, decided in tools/chat/dialog.mjs and drawn by the page: the
+// What a dialog on a panel shows, decided in lib/chat/dialog.mjs and drawn by the page: the
 // words of the request and nothing else, and the three buttons each kind of question has.
 //
 // Every mutation in tests/mutations-dialog.json names the check it was written to redden.
@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { dialogOf } from "../tools/chat/dialog.mjs";
+import { dialogOf } from "../lib/chat/dialog.mjs";
 
 const line = (dialog, kind) => dialog.lines.filter((held) => held.kind === kind).map((held) => held.text);
 const decisions = (dialog) => dialog.buttons.map((button) => button.decision);
@@ -32,8 +32,8 @@ describe("a call stop", () => {
   });
 
   it("shows the path of a write, and no reason line for it", () => {
-    const write = dialogOf({ id: "r4", tool: "Write", input: { file_path: "work/Paul/notes.md", content: "x" }, shape: "Edit(work/Paul/**)" }, "Paul");
-    assert.deepEqual(line(write, "path"), ["work/Paul/notes.md"]);
+    const write = dialogOf({ id: "r4", tool: "Write", input: { file_path: "projects/Paul/notes.md", content: "x" }, shape: "Edit(projects/Paul/**)" }, "Paul");
+    assert.deepEqual(line(write, "path"), ["projects/Paul/notes.md"]);
     assert.deepEqual(line(write, "reason"), []);
     assert.deepEqual(line(write, "input"), []);
   });

@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { GONE_AFTER, applyEvent, composersEnabled, fresh, head, keyAction, place, prune, statusLine, statusParts, stopEnabled, title } from "../tools/chat/panels.mjs";
+import { GONE_AFTER, applyEvent, composersEnabled, fresh, head, keyAction, place, prune, statusLine, statusParts, stopEnabled, title } from "../lib/chat/panels.mjs";
 
 const LEADER = "Leader";
 

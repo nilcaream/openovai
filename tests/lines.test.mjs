@@ -8,7 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
 
-import { line } from "../tools/chat/lines.mjs";
+import { line } from "../lib/chat/lines.mjs";
 import { repo } from "./helpers.mjs";
 
 const home = os.homedir();
@@ -17,7 +17,7 @@ const home = os.homedir();
 const CALLS = [
   ["Bash", { command: "npm test", description: "Run the suite" }],
   ["Bash", { command: "git status --porcelain" }],
-  ["Read", { file_path: `${home}/code/app/tools/chat/session.mjs` }],
+  ["Read", { file_path: `${home}/code/app/lib/chat/session.mjs` }],
   ["Write", { file_path: "/etc/hosts" }],
   ["Edit", { file_path: `${home}/notes.md` }],
   ["NotebookEdit", { notebook_path: `${home}/book.ipynb` }],
@@ -66,7 +66,7 @@ describe("what a tool call is drawn as", () => {
     assert.deepEqual(CALLS.map(([name, input]) => line(name, input)), [
       "Run the suite",
       "git status --porcelain",
-      "Reading ~/code/app/tools/chat/session.mjs",
+      "Reading ~/code/app/lib/chat/session.mjs",
       "Writing /etc/hosts",
       "Editing ~/notes.md",
       "Editing notebook ~/book.ipynb",

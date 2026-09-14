@@ -3,140 +3,140 @@
     "name": "a body is framed as typed",
     "catches": "neutralises the closing and the opening form inside the body",
     "edits": [
-      { "file": "tools/chat/frames.mjs", "from": "  return String(text).replace(FRAME_TAG, \"&lt;$1$2\");", "to": "  return String(text);" }
+      { "file": "lib/chat/frames.mjs", "from": "  return String(text).replace(FRAME_TAG, \"&lt;$1$2\");", "to": "  return String(text);" }
     ]
   },
   {
     "name": "only the exact letter case of a frame name is neutralised",
     "catches": "in any letter case",
     "edits": [
-      { "file": "tools/chat/frames.mjs", "from": "(?![A-Za-z0-9_])/gi;", "to": "(?![A-Za-z0-9_])/g;" }
+      { "file": "lib/chat/frames.mjs", "from": "(?![A-Za-z0-9_])/gi;", "to": "(?![A-Za-z0-9_])/g;" }
     ]
   },
   {
     "name": "whitespace around the slash is not tolerated",
     "catches": "with any whitespace around the slash",
     "edits": [
-      { "file": "tools/chat/frames.mjs", "from": "/<(\\s*\\/?\\s*)(user|message|server-event)", "to": "/<(\\/?)(user|message|server-event)" }
+      { "file": "lib/chat/frames.mjs", "from": "/<(\\s*\\/?\\s*)(user|message|server-event)", "to": "/<(\\/?)(user|message|server-event)" }
     ]
   },
   {
     "name": "a server event is not one of the names",
     "catches": "when it is a server event",
     "edits": [
-      { "file": "tools/chat/frames.mjs", "from": "(user|message|server-event)", "to": "(user|message)" }
+      { "file": "lib/chat/frames.mjs", "from": "(user|message|server-event)", "to": "(user|message)" }
     ]
   },
   {
     "name": "a message is not one of the names",
     "catches": "when it is a message",
     "edits": [
-      { "file": "tools/chat/frames.mjs", "from": "(user|message|server-event)", "to": "(user|server-event)" }
+      { "file": "lib/chat/frames.mjs", "from": "(user|message|server-event)", "to": "(user|server-event)" }
     ]
   },
   {
     "name": "the slash form is not caught",
     "catches": "with a slash form of every name",
     "edits": [
-      { "file": "tools/chat/frames.mjs", "from": "(?![A-Za-z0-9_])/gi;", "to": "(?![A-Za-z0-9_/])/gi;" }
+      { "file": "lib/chat/frames.mjs", "from": "(?![A-Za-z0-9_])/gi;", "to": "(?![A-Za-z0-9_/])/gi;" }
     ]
   },
   {
     "name": "every angle bracket is escaped",
     "catches": "leaves every other angle bracket as typed",
     "edits": [
-      { "file": "tools/chat/frames.mjs", "from": "  return String(text).replace(FRAME_TAG, \"&lt;$1$2\");", "to": "  return String(text).replace(/</g, \"&lt;\");" }
+      { "file": "lib/chat/frames.mjs", "from": "  return String(text).replace(FRAME_TAG, \"&lt;$1$2\");", "to": "  return String(text).replace(/</g, \"&lt;\");" }
     ]
   },
   {
     "name": "the look-ahead is dropped",
     "catches": "leaves every other angle bracket as typed",
     "edits": [
-      { "file": "tools/chat/frames.mjs", "from": "(user|message|server-event)(?![A-Za-z0-9_])/gi;", "to": "(user|message|server-event)/gi;" }
+      { "file": "lib/chat/frames.mjs", "from": "(user|message|server-event)(?![A-Za-z0-9_])/gi;", "to": "(user|message|server-event)/gi;" }
     ]
   },
   {
     "name": "an ampersand is escaped too",
     "catches": "leaves an ampersand as typed",
     "edits": [
-      { "file": "tools/chat/frames.mjs", "from": "  return String(text).replace(FRAME_TAG, \"&lt;$1$2\");", "to": "  return String(text).replace(/&/g, \"&amp;\").replace(FRAME_TAG, \"&lt;$1$2\");" }
+      { "file": "lib/chat/frames.mjs", "from": "  return String(text).replace(FRAME_TAG, \"&lt;$1$2\");", "to": "  return String(text).replace(/&/g, \"&amp;\").replace(FRAME_TAG, \"&lt;$1$2\");" }
     ]
   },
   {
     "name": "a message body is framed as typed",
     "catches": "neutralises the body of a message",
     "edits": [
-      { "file": "tools/chat/frames.mjs", "from": "\">${neutralise(text)}</message>`);", "to": "\">${text}</message>`);" }
+      { "file": "lib/chat/frames.mjs", "from": "\">${neutralise(text)}</message>`);", "to": "\">${text}</message>`);" }
     ]
   },
   {
     "name": "a server event body is framed as typed",
     "catches": "neutralises the body of a server event",
     "edits": [
-      { "file": "tools/chat/frames.mjs", "from": "`${opening}>${neutralise(body)}</server-event>`", "to": "`${opening}>${body}</server-event>`" }
+      { "file": "lib/chat/frames.mjs", "from": "`${opening}>${neutralise(body)}</server-event>`", "to": "`${opening}>${body}</server-event>`" }
     ]
   },
   {
     "name": "a server event with no body is not self-closing",
     "catches": "frames a server event without a body as one self-closing tag",
     "edits": [
-      { "file": "tools/chat/frames.mjs", "from": "body === undefined ? `${opening}/>` : ", "to": "" }
+      { "file": "lib/chat/frames.mjs", "from": "body === undefined ? `${opening}/>` : ", "to": "" }
     ]
   },
   {
     "name": "the sender is not framed",
     "catches": "frames a message with who it is from",
     "edits": [
-      { "file": "tools/chat/frames.mjs", "from": "`<message from=\"${token(\"from\", from)}\">", "to": "`<message>" }
+      { "file": "lib/chat/frames.mjs", "from": "`<message from=\"${token(\"from\", from)}\">", "to": "`<message>" }
     ]
   },
   {
     "name": "a frame does not say its kind",
     "catches": "says which kind of frame it is",
     "edits": [
-      { "file": "tools/chat/frames.mjs", "from": "    this.kind = kind;\n", "to": "" }
+      { "file": "lib/chat/frames.mjs", "from": "    this.kind = kind;\n", "to": "" }
     ]
   },
   {
     "name": "an attribute value is taken as free text",
     "catches": "refuses an attribute value that is not a plain token",
     "edits": [
-      { "file": "tools/chat/frames.mjs", "from": "  if (typeof value !== \"string\" || !TOKEN.test(value)) {", "to": "  if (typeof value !== \"string\") {" }
+      { "file": "lib/chat/frames.mjs", "from": "  if (typeof value !== \"string\" || !TOKEN.test(value)) {", "to": "  if (typeof value !== \"string\") {" }
     ]
   },
   {
     "name": "the sender is taken as free text",
     "catches": "refuses a sender that is not a plain token",
     "edits": [
-      { "file": "tools/chat/frames.mjs", "from": "`<message from=\"${token(\"from\", from)}\">", "to": "`<message from=\"${from}\">" }
+      { "file": "lib/chat/frames.mjs", "from": "`<message from=\"${token(\"from\", from)}\">", "to": "`<message from=\"${from}\">" }
     ]
   },
   {
     "name": "the event kind is taken as free text",
     "catches": "refuses an event kind that is not a plain token",
     "edits": [
-      { "file": "tools/chat/frames.mjs", "from": "`<server-event type=\"${token(\"type\", kind)}\"", "to": "`<server-event type=\"${kind}\"" }
+      { "file": "lib/chat/frames.mjs", "from": "`<server-event type=\"${token(\"type\", kind)}\"", "to": "`<server-event type=\"${kind}\"" }
     ]
   },
   {
     "name": "an attribute name is taken as free text",
     "catches": "refuses an attribute name that is not a plain lower-case word",
     "edits": [
-      { "file": "tools/chat/frames.mjs", "from": "      if (!ATTRIBUTE.test(key)) {", "to": "      if (false) {" }
+      { "file": "lib/chat/frames.mjs", "from": "      if (!ATTRIBUTE.test(key)) {", "to": "      if (false) {" }
     ]
   },
   {
     "name": "a frame is known by its shape",
     "catches": "refuses a string shaped like a frame",
     "edits": [
-      { "file": "tools/chat/frames.mjs", "from": "  return value instanceof Frame;", "to": "  return value instanceof Frame || (typeof value?.text === \"string\" ? /^<(user|message|server-event)[ >]/.test(value.text) : /^<(user|message|server-event)[ >]/.test(String(value)));" }
+      { "file": "lib/chat/frames.mjs", "from": "  return value instanceof Frame;", "to": "  return value instanceof Frame || (typeof value?.text === \"string\" ? /^<(user|message|server-event)[ >]/.test(value.text) : /^<(user|message|server-event)[ >]/.test(String(value)));" }
     ]
   },
   {
     "name": "the constructor takes anybody's frame",
     "catches": "cannot be built through the constructor of one it made",
     "edits": [
-      { "file": "tools/chat/frames.mjs", "from": "    if (key !== BUILT_HERE) {", "to": "    if (false) {" }
+      { "file": "lib/chat/frames.mjs", "from": "    if (key !== BUILT_HERE) {", "to": "    if (false) {" }
     ]
   }
 ]

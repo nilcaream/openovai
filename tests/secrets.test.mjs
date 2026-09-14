@@ -9,7 +9,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { isPageSecret, issue, mint, pageSecret, resolve, revoke } from "../tools/chat/secrets.mjs";
+import { isPageSecret, issue, mint, pageSecret, resolve, revoke } from "../lib/chat/secrets.mjs";
 
 const BASE64URL = /^[A-Za-z0-9_-]{43}$/;
 

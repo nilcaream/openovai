@@ -1,7 +1,7 @@
 // Being asked whether a session may use a tool: what the page is shown, what answering does, and
 // which rule a button could grant for good.
 //
-// The first half calls tools/chat/permissions.mjs directly for the rule a request composes; the
+// The first half calls lib/chat/permissions.mjs directly for the rule a request composes; the
 // second serves a chat in this process, starts a seat whose stand-in asks before every answer,
 // and drives the page's own routes. The desktop pop is checked here too, because a session
 // stopped on a question is what it is for.
@@ -13,14 +13,14 @@ import fs from "node:fs";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
-import { subscribe } from "../tools/chat/events.mjs";
-import { acceptRule, shapeOf } from "../tools/chat/permissions.mjs";
-import { QUIET_HOURS, quietHoursProblem, withinQuietHours } from "../tools/chat/pop.mjs";
-import { pageSecret } from "../tools/chat/secrets.mjs";
-import { endSeat, serve, startSeat, toolsFor } from "../tools/chat/server.mjs";
-import { LEADER as LEADS, WORKER, endEvery } from "../tools/chat/session.mjs";
-import { LEDGER, ruleAsked } from "../tools/desks.mjs";
-import { CONFIG_FILE } from "../tools/seed.mjs";
+import { subscribe } from "../lib/chat/events.mjs";
+import { acceptRule, shapeOf } from "../lib/chat/permissions.mjs";
+import { QUIET_HOURS, quietHoursProblem, withinQuietHours } from "../lib/chat/pop.mjs";
+import { pageSecret } from "../lib/chat/secrets.mjs";
+import { endSeat, serve, startSeat, toolsFor } from "../lib/chat/server.mjs";
+import { LEADER as LEADS, WORKER, endEvery } from "../lib/chat/session.mjs";
+import { LEDGER, ruleAsked } from "../lib/desks.mjs";
+import { CONFIG_FILE } from "../lib/seed.mjs";
 import { heardIn, installed, post, remove, repo, scratch, secretsIn, waitFor, writeStandIn } from "./helpers.mjs";
 import { settingsProblems } from "./inspect.mjs";
 
@@ -79,16 +79,16 @@ describe("the rule a write could be allowed by", () => {
   }
 
   it("composes the rule that governs writing, and never one that matches nothing", () => {
-    assert.match(forWriting("Write", `${AT}/work/Wren/notes.md`), /^Edit\(/);
+    assert.match(forWriting("Write", `${AT}/projects/Wren/notes.md`), /^Edit\(/);
   });
 
   it("composes a rule for the directory the write was in", () => {
-    assert.equal(forWriting("Edit", `${AT}/work/Wren/notes.md`), "Edit(work/Wren/**)");
+    assert.equal(forWriting("Edit", `${AT}/projects/Wren/notes.md`), "Edit(projects/Wren/**)");
   });
 
   it("composes the spelling that says a subtree out loud", () => {
-    const rule = forWriting("Write", `${AT}/work/Wren/sub/deep.md`);
-    assert.equal(rule, "Edit(work/Wren/sub/**)");
+    const rule = forWriting("Write", `${AT}/projects/Wren/sub/deep.md`);
+    assert.equal(rule, "Edit(projects/Wren/sub/**)");
     assert.ok(rule.endsWith("/**)"), rule);
   });
 
@@ -103,15 +103,15 @@ describe("the rule a write could be allowed by", () => {
   });
 
   it("names no place on this machine in the rule it composes", () => {
-    const rule = forWriting("Edit", `${AT}/work/Wren/notes.md`);
+    const rule = forWriting("Edit", `${AT}/projects/Wren/notes.md`);
     assert.ok(!rule.includes(AT), rule);
     assert.ok(!/\((\/|~|\/\/)/.test(rule), rule);
   });
 
   it("offers a button only where the request says what the class of calls is", () => {
-    assert.equal(forWriting("NotebookEdit", `${AT}/work/Wren/notes.ipynb`), null);
-    assert.equal(forWriting("MultiEdit", `${AT}/work/Wren/notes.md`), null);
-    assert.equal(forWriting("Read", `${AT}/work/Wren/notes.md`), null);
+    assert.equal(forWriting("NotebookEdit", `${AT}/projects/Wren/notes.ipynb`), null);
+    assert.equal(forWriting("MultiEdit", `${AT}/projects/Wren/notes.md`), null);
+    assert.equal(forWriting("Read", `${AT}/projects/Wren/notes.md`), null);
   });
 
   it("composes nothing for a write that names no path", () => {
@@ -127,15 +127,15 @@ describe("the rule a write could be allowed by", () => {
 // callers, so what a person can be asked to settle is exactly what an Always button could offer.
 describe("the rule a person may be asked to settle", () => {
   it("accepts what shapeOf composes and nothing else", () => {
-    for (const rule of ["Bash(git:*)", "Bash(git push:*)", "Bash(pip install:*)", "Edit(work/Paul/**)", "Edit(**)"]) {
+    for (const rule of ["Bash(git:*)", "Bash(git push:*)", "Bash(pip install:*)", "Edit(projects/Paul/**)", "Edit(**)"]) {
       assert.equal(acceptRule(rule, AT), rule);
     }
-    for (const rule of ["Bash(*)", "Bash(git push)", "Bash(git:*) ", "Edit(/etc/**)", "Edit(../**)", "Edit(./work/**)", "Edit(work/Paul/STATE.md)", "Read(**)", "mcp__openovai", "", null]) {
+    for (const rule of ["Bash(*)", "Bash(git push)", "Bash(git:*) ", "Edit(/etc/**)", "Edit(../**)", "Edit(./projects/**)", "Edit(projects/Paul/STATE.md)", "Read(**)", "mcp__openovai", "", null]) {
       assert.equal(acceptRule(rule, AT), null, String(rule));
     }
     for (const request of [
       { id: "r", tool: "Bash", input: { command: "git push origin main" } },
-      { id: "r", tool: "Write", input: { file_path: path.join(AT, "work", "Paul", "notes.md") } },
+      { id: "r", tool: "Write", input: { file_path: path.join(AT, "desks", "Paul", "notes.md") } },
     ]) {
       const composed = shapeOf(request, AT);
       assert.equal(acceptRule(composed, AT), composed);

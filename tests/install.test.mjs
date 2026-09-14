@@ -21,9 +21,9 @@ import {
   writeNodeStandIn,
 } from "./helpers.mjs";
 import { configProblems, settingsProblems } from "./inspect.mjs";
-import { CUSTOMIZATION, persona } from "../tools/desks.mjs";
-import { PAYLOAD } from "../tools/payload.mjs";
-import { RELEASE_NOTES } from "../tools/release.mjs";
+import { CUSTOMIZATION, persona } from "../lib/desks.mjs";
+import { PAYLOAD } from "../lib/payload.mjs";
+import { RELEASE_NOTES } from "../lib/release.mjs";
 
 const USER = "Mike";
 const LEADER = "Superman";
@@ -79,7 +79,7 @@ function rootFor(version) {
 // would say the same thing twice.
 function withoutVersion() {
   if (!fs.existsSync(versionless)) {
-    for (const entry of ["bin", "tools", "templates"]) {
+    for (const entry of ["bin", "lib"]) {
       fs.cpSync(path.join(repo, entry), path.join(versionless, entry), { recursive: true });
     }
   }
@@ -118,11 +118,11 @@ describe("what the installer made", () => {
   });
 
   it("copies the installer in", () => {
-    assert.ok(fs.existsSync(inside("tools", "install.mjs")));
+    assert.ok(fs.existsSync(inside("lib", "install.mjs")));
   });
 
   it("copies the instance command in", () => {
-    assert.ok(fs.existsSync(inside("tools", "ovai.mjs")));
+    assert.ok(fs.existsSync(inside("lib", "ovai.mjs")));
   });
 
   it("copies the version in", () => {
@@ -136,7 +136,7 @@ describe("what the installer made", () => {
   });
 
   it("copies the desk template in", () => {
-    assert.ok(fs.existsSync(inside("templates", "STATE.md")));
+    assert.ok(fs.existsSync(inside("lib", "templates", "STATE.md")));
   });
 
   // Where the workspace keeps what it knows: two empty directories, one per store, and nothing
@@ -150,24 +150,24 @@ describe("what the installer made", () => {
   // Claude Code's own memory is a second answer to what the workspace knows, read by the one
   // session that wrote it. The store is the only one. The key is honoured in the home's settings.
   it("turns Claude Code's own memory off in the home settings", () => {
-    const settings = JSON.parse(contentOf(".claude-home", "settings.json"));
+    const settings = JSON.parse(contentOf(".local", "settings.json"));
     assert.equal(settings.autoMemoryEnabled, false);
   });
 
   it("seeds no memory index into the Claude Code home", () => {
-    assert.equal(fs.existsSync(inside(".claude-home", "projects", "workspace", "memory", "MEMORY.md")), false);
+    assert.equal(fs.existsSync(inside(".local", "projects", "workspace", "memory", "MEMORY.md")), false);
   });
 
   // The path is spelled out rather than asked of the code. The key is only honoured in the home's
   // settings, so a check that followed the code would go on passing if the file moved to the
   // instance's own settings and stopped meaning anything.
   it("brings a refused session back by itself rather than leaving it on a dialog", () => {
-    const settings = JSON.parse(contentOf(".claude-home", "settings.json"));
+    const settings = JSON.parse(contentOf(".local", "settings.json"));
     assert.equal(settings.autoContinueAtUsageLimit, true);
   });
 
   it("says it wrote those settings", () => {
-    assert.ok(made.stdout.includes(inside(".claude-home", "settings.json")));
+    assert.ok(made.stdout.includes(inside(".local", "settings.json")));
   });
 
   it("makes a directory for the settings", () => {
@@ -175,34 +175,34 @@ describe("what the installer made", () => {
   });
 
   it("makes the instance its own Claude Code home", () => {
-    assert.ok(fs.statSync(inside(".claude-home")).isDirectory());
+    assert.ok(fs.statSync(inside(".local")).isDirectory());
   });
 
   it("gives the leader a desk", () => {
-    assert.ok(fs.existsSync(inside("work", LEADER, "STATE.md")));
+    assert.ok(fs.existsSync(inside("desks", LEADER, "STATE.md")));
   });
 
   it("names the leader on that desk", () => {
-    assert.match(contentOf("work", LEADER, "STATE.md"), new RegExp(`^# ${LEADER}$`, "m"));
+    assert.match(contentOf("desks", LEADER, "STATE.md"), new RegExp(`^# ${LEADER}$`, "m"));
   });
 
   // The header is one line holding one field, and that is the whole definition of it: the title is
   // what anything outside the desk reads, so it is what the header carries and there is nothing
   // else in there for a session to keep true for nobody.
   it("opens that desk with a header holding the title and nothing else", () => {
-    assert.equal(contentOf("work", LEADER, "STATE.md").split("\n")[0], "<!-- DESK | title: | status: | rules: | updated: -->");
+    assert.equal(contentOf("desks", LEADER, "STATE.md").split("\n")[0], "<!-- DESK | title: | status: | rules: | updated: -->");
   });
 
   it("leaves no unfilled placeholder on the desk", () => {
-    assert.ok(!contentOf("work", LEADER, "STATE.md").includes("{{"));
+    assert.ok(!contentOf("desks", LEADER, "STATE.md").includes("{{"));
   });
 
   it("copies the leader persona template in", () => {
-    assert.ok(fs.existsSync(inside("templates", "leader.md")));
+    assert.ok(fs.existsSync(inside("lib", "templates", "leader.md")));
   });
 
   it("copies the worker persona template in", () => {
-    assert.ok(fs.existsSync(inside("templates", "worker.md")));
+    assert.ok(fs.existsSync(inside("lib", "templates", "worker.md")));
   });
 
   // What the workspace allows is a tool's answer now — the Leader's `permission` tool, called with
@@ -216,13 +216,34 @@ describe("what the installer made", () => {
 
   // Who the Leader is gets rendered when its first conversation starts, from the templates just put
   // in place — so there is nothing here to say who anybody was, and nothing for an update to leave
-  // stale.
-  it("writes no persona, and makes no directory for one", () => {
-    assert.equal(fs.existsSync(inside("personas")), false);
-    assert.equal(fs.existsSync(inside("chat")), false);
+  // stale: the Leader's directory holds the desk and nothing else.
+  it("writes no persona: the Leader's directory is the desk alone", () => {
+    assert.deepEqual(fs.readdirSync(inside("desks", LEADER)), ["STATE.md"]);
   });
 
-  // What the person adds to a persona. Their file, at the root beside work/, read as it is and put
+  // The root is the layout and nothing else. Every directory a session may write in is made here,
+  // because the grants that name them are written here; and nothing lands in the root itself.
+  it("makes exactly the layout at the root: the product, the instance's own, the people, the User's material, Claude Code's", () => {
+    assert.deepEqual(fs.readdirSync(instance).sort(), [
+      ".claude",
+      ".local",
+      "VERSION",
+      "bin",
+      "desks",
+      "lib",
+      "openovai.json",
+      "plugins",
+      "projects",
+      "reference",
+      "store",
+      "temp",
+    ]);
+    for (const tree of ["reference", "projects", "temp"]) {
+      assert.deepEqual(fs.readdirSync(inside(tree)), [], tree);
+    }
+  });
+
+  // What the person adds to a persona. Their file, at the root beside desks/, read as it is and put
   // after everything the toolkit puts in — so it can add to what a session is told and cannot take
   // any of it away, and an update, which replaces the templates, never reaches it.
   describe("what the person adds to a persona", () => {
@@ -265,7 +286,7 @@ describe("what the installer made", () => {
     assert.doesNotThrow(() => JSON.parse(contentOf(".claude", "settings.json")));
   });
 
-  it("grants the tools and the reads, and nothing wider", () => {
+  it("grants the tools, the reads, the three trees and the Leader its desk, and nothing wider", () => {
     assert.deepEqual(settingsProblems(inside(".claude", "settings.json")), []);
   });
 
@@ -292,25 +313,39 @@ describe("what the installer made", () => {
   // these paths whatever the refusal says.
   it("closes its own account of what it allows to the tools that write files", () => {
     const deny = JSON.parse(contentOf(".claude", "settings.json")).permissions.deny;
-    assert.deepEqual(deny.filter((rule) => rule.startsWith("Edit(.claude")), [
+    assert.deepEqual(deny.filter((rule) => rule.startsWith("Edit(.claude") || rule.startsWith("Edit(.local")), [
       "Edit(.claude/**)",
-      "Edit(.claude-home/settings.json)",
-      "Edit(.claude-home/.claude.json)",
+      "Edit(.local/settings.json)",
+      "Edit(.local/.claude.json)",
     ]);
   });
 
-  // A desk is written through the write_desk tool and no other way. A session reaching for one
-  // with a file tool is refused on the spot — never a stop that asks the User to settle it.
-  it("denies a desk edit at install", () => {
+  // A desk file is written through the write_desk tool and no other way. A session reaching for
+  // one with a file tool is refused on the spot — never a stop that asks the User to settle it —
+  // and both spellings, because the directory around it is granted for both and a deny wins only
+  // for the tool it names.
+  it("denies a desk file edit and write at install", () => {
     const deny = JSON.parse(contentOf(".claude", "settings.json")).permissions.deny;
-    assert.ok(deny.includes("Edit(work/*/STATE.md)"), JSON.stringify(deny));
+    assert.deepEqual(deny.filter((rule) => rule.includes("desks/")), ["Edit(desks/*/STATE.md)", "Write(desks/*/STATE.md)"]);
   });
 
-  // The allow list, exactly: the tool server and the reads. No desk rule — the desk is the tool's —
-  // and nothing a persona no longer names.
-  it("allows the tool server and the reads and nothing else", () => {
+  // The allow list, exactly: the tool server, the reads, the edit and write rules for the three
+  // trees the User works in, and the Leader's own desk directory — a desk is a working directory.
+  // Spelled out rather than asked of the code, so a widened list is caught here.
+  it("allows the tool server, the reads, the three trees, the Leader's desk directory, and nothing else", () => {
     const permissions = JSON.parse(contentOf(".claude", "settings.json")).permissions;
-    assert.deepEqual(permissions.allow, ["mcp__openovai", "Read(**)"]);
+    assert.deepEqual(permissions.allow, [
+      "mcp__openovai",
+      "Read(**)",
+      "Edit(reference/**)",
+      "Write(reference/**)",
+      "Edit(projects/**)",
+      "Write(projects/**)",
+      "Edit(temp/**)",
+      "Write(temp/**)",
+      `Edit(desks/${LEADER}/**)`,
+      `Write(desks/${LEADER}/**)`,
+    ]);
   });
 
   // A refusal is absolute: no rule overrides it, the call never reaches a panel, and somebody who
@@ -318,7 +353,7 @@ describe("what the installer made", () => {
   // of itself and the one file a tool writes, and nothing anybody works on.
   it("refuses nothing about anybody's work", () => {
     const deny = JSON.parse(contentOf(".claude", "settings.json")).permissions.deny;
-    assert.deepEqual(deny.filter((rule) => !rule.startsWith("Edit(.claude") && rule !== "Edit(work/*/STATE.md)"), []);
+    assert.deepEqual(deny.filter((rule) => !rule.startsWith("Edit(.claude") && !rule.startsWith("Edit(.local") && !rule.endsWith("(desks/*/STATE.md)")), []);
   });
 
   // And the subtree deliberately left open, because the memory index and the transcripts live in
@@ -392,8 +427,8 @@ describe("installing over an instance", () => {
   const MARK = "kept by the person\n";
   const USER_FILES = [
     [".claude", "settings.json"],
-    [".claude-home", "settings.json"],
-    ["work", LEADER, "STATE.md"],
+    [".local", "settings.json"],
+    ["desks", LEADER, "STATE.md"],
   ];
   let again;
   let before_;
@@ -407,11 +442,11 @@ describe("installing over an instance", () => {
   // survive the answers being written in.
   before_ = JSON.parse(fs.readFileSync(path.join(root, "openovai.json"), "utf8"));
   fs.writeFileSync(path.join(root, "openovai.json"), `${JSON.stringify({ ...before_, quietHours: "22-07" }, null, 2)}\n`);
-  // What an older toolkit rendered, and what a person may have written into it: read by nothing
-  // now, and not the installer's to take away.
-  fs.mkdirSync(path.join(root, "personas"), { recursive: true });
-  fs.writeFileSync(path.join(root, "personas", `${LEADER}.md`), MARK);
-  fs.writeFileSync(path.join(root, "tools", "left-behind.mjs"), "// not in the source\n");
+  // Something the person put beside the layout: read by nothing, and not the installer's to take
+  // away.
+  fs.mkdirSync(path.join(root, "notes"), { recursive: true });
+  fs.writeFileSync(path.join(root, "notes", `${LEADER}.md`), MARK);
+  fs.writeFileSync(path.join(root, "lib", "left-behind.mjs"), "// not in the source\n");
   fs.rmSync(path.join(root, ".claude", "allowed.md"), { force: true });
   again = install(options(root, { "--force": true, "--port": 4242, "--leader-model": "haiku" }));
 
@@ -450,18 +485,18 @@ describe("installing over an instance", () => {
   });
 
   it("replaces the payload whole, taking away what the source has not got", () => {
-    assert.ok(!fs.existsSync(path.join(root, "tools", "left-behind.mjs")));
+    assert.ok(!fs.existsSync(path.join(root, "lib", "left-behind.mjs")));
   });
 
-  it("leaves what an older toolkit rendered under personas/ exactly as it found it", () => {
-    assert.equal(fs.readFileSync(path.join(root, "personas", `${LEADER}.md`), "utf8"), MARK);
+  it("leaves what the person put beside the layout exactly as it found it", () => {
+    assert.equal(fs.readFileSync(path.join(root, "notes", `${LEADER}.md`), "utf8"), MARK);
   });
 
   it("names what it seeded and what it replaced, and nothing it kept", () => {
-    assert.ok(again.stdout.includes(path.join(root, "tools")));
-    assert.ok(!again.stdout.includes(path.join(root, "personas")));
+    assert.ok(again.stdout.includes(path.join(root, "lib")));
+    assert.ok(!again.stdout.includes(path.join(root, "notes")));
     assert.ok(!again.stdout.includes(path.join(root, ".claude", "settings.json")));
-    assert.ok(!again.stdout.includes(path.join(root, ".claude-home", "settings.json")));
+    assert.ok(!again.stdout.includes(path.join(root, ".local", "settings.json")));
   });
 
   // A file the person has not got is placed as a fresh install places it — the case of an
@@ -470,20 +505,20 @@ describe("installing over an instance", () => {
     let seeded;
 
     before(() => {
-      fs.rmSync(path.join(root, ".claude-home", "settings.json"));
-      fs.rmSync(path.join(root, "work", LEADER, "STATE.md"));
+      fs.rmSync(path.join(root, ".local", "settings.json"));
+      fs.rmSync(path.join(root, "desks", LEADER, "STATE.md"));
       seeded = install(options(root, { "--force": true }));
     });
 
     it("is seeded as a fresh install would seed it", () => {
-      const settings = JSON.parse(fs.readFileSync(path.join(root, ".claude-home", "settings.json"), "utf8"));
+      const settings = JSON.parse(fs.readFileSync(path.join(root, ".local", "settings.json"), "utf8"));
       assert.equal(settings.autoContinueAtUsageLimit, true);
-      assert.ok(fs.readFileSync(path.join(root, "work", LEADER, "STATE.md"), "utf8").includes(LEADER));
+      assert.ok(fs.readFileSync(path.join(root, "desks", LEADER, "STATE.md"), "utf8").includes(LEADER));
     });
 
     it("is named among what was written", () => {
-      assert.ok(seeded.stdout.includes(path.join(root, ".claude-home", "settings.json")));
-      assert.ok(seeded.stdout.includes(path.join(root, "work", LEADER, "STATE.md")));
+      assert.ok(seeded.stdout.includes(path.join(root, ".local", "settings.json")));
+      assert.ok(seeded.stdout.includes(path.join(root, "desks", LEADER, "STATE.md")));
     });
 
     it("leaves the rest of the person's files as they were", () => {

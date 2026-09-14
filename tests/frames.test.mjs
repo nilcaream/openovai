@@ -8,7 +8,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { isFrame, messageFrame, neutralise, serverEvent, userFrame } from "../tools/chat/frames.mjs";
+import { isFrame, messageFrame, neutralise, serverEvent, userFrame } from "../lib/chat/frames.mjs";
 
 function occurrences(text, part) {
   return text.split(part).length - 1;
