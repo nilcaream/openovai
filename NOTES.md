@@ -75,8 +75,10 @@ process is gone and is removed thirty seconds later unless the process is back. 
 as markdown, raw HTML escaped, links kept only on `http(s)` and `mailto`, images shown as links.
 STOP interrupts the running turn of that seat and is the only button besides the permission
 buttons: nothing on the page starts or ends a seat. The room list is gone; the panels are the room.
-The status line carries the version, the instance, the port, the Leader, the quota standing and
-whether the page is connected, and the page installs as a web app, with a manifest and two icons.
+The Leader's head carries the version, the instance, the port, the quota standing and whether the
+page is connected, and a toggle between light and dark; a pill on that panel says when rows land
+below where the reader is. The page installs as a web app, with a manifest and three icons, one
+of them for a platform that masks icons to its own shape.
 
 ## 0.8.0
 

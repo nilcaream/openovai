@@ -59,6 +59,7 @@ const ASSETS = Object.freeze({
   "/manifest.webmanifest": { file: path.join(HERE, "manifest.webmanifest"), type: "application/manifest+json; charset=utf-8" },
   "/icons/192.png": { file: path.join(HERE, "icons", "192.png"), type: "image/png" },
   "/icons/512.png": { file: path.join(HERE, "icons", "512.png"), type: "image/png" },
+  "/icons/512-maskable.png": { file: path.join(HERE, "icons", "512-maskable.png"), type: "image/png" },
 });
 const SECRET_TAG = '<meta name="openovai-secret" content="">';
 

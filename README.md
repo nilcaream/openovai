@@ -178,9 +178,11 @@ The page draws from one stream. It opens an `EventSource` on `/events` and gets 
 User, the Leader, the seats, the quota standing — then the rows of every panel, then live: a row
 as it lands, a seat as it starts, ends, takes or finishes a turn, a question as it is asked, the
 quota standing when a window moves to another stage. The server keeps nothing for a page that is
-not there; a page that reconnects asks for what it missed by the counts it has. A status line says
-the version, the instance, the port, the Leader, the quota standing and whether the page is
-connected. The page installs as a web app — a manifest and two icons — which is what a fixed
+not there; a page that reconnects asks for what it missed by the counts it has. The head of the
+Leader's panel carries the instance facts — the version, the instance, the port, the quota standing
+and whether the page is connected — and a toggle between light and dark; a pill on that panel
+says when rows land below where you are reading. The page installs as a web app — a manifest and
+three icons, one of them for a platform that masks icons to its own shape — which is what a fixed
 `--port` is for.
 
 What you write is kept in `chat/<Name>/conversation.json` inside the instance, one file per seat,

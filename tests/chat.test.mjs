@@ -937,19 +937,28 @@ describe("what the page is made of", () => {
     assert.equal((await fetchPlain(`${url}/icons/other.png`)).status, 401);
   });
 
-  it("installs as a standalone app: a manifest with two icons that are PNGs, and no service worker", async () => {
+  it("installs as a standalone app: a manifest with three icons that are PNGs of the size they say, one of them maskable, and no service worker", async () => {
     const answered = await fetchPlain(`${url}/manifest.webmanifest`);
     assert.equal(answered.status, 200);
     const manifest = JSON.parse(answered.body);
     assert.equal(manifest.display, "standalone");
     assert.equal(manifest.name, "OpenOv AI");
-    assert.equal(manifest.icons.length, 2);
+    assert.equal(manifest.icons.length, 3);
     for (const icon of manifest.icons) {
       const image = await fetch(`${url}${icon.src}`);
       assert.equal(image.status, 200, icon.src);
-      assert.equal(image.headers.get("content-type"), "image/png");
-      assert.deepEqual([...new Uint8Array(await image.arrayBuffer()).slice(0, 8)], [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], icon.src);
+      assert.equal(image.headers.get("content-type"), "image/png", icon.src);
+      assert.equal(icon.type, "image/png", icon.src);
+      const bytes = new Uint8Array(await image.arrayBuffer());
+      assert.deepEqual([...bytes.slice(0, 8)], [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], icon.src);
+      // The IHDR chunk is always first: width and height are the big-endian words at 16 and 20.
+      const view = new DataView(bytes.buffer);
+      assert.equal(`${view.getUint32(16)}x${view.getUint32(20)}`, icon.sizes, icon.src);
     }
+    // One icon is for a mask: an installed app on a platform that cuts icons to its own shape
+    // uses it, full-bleed at 512, and is not letterboxed; the other two are for any use.
+    assert.deepEqual(manifest.icons.map((icon) => icon.purpose), ["any", "any", "maskable"]);
+    assert.equal(manifest.icons[2].sizes, "512x512");
     assert.match(source, /<link rel="manifest" href="\/manifest\.webmanifest">/);
     assert.ok(!source.includes("serviceWorker"));
   });

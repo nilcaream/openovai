@@ -902,12 +902,56 @@
   },
   {
     "name": "the page installs in a browser tab",
-    "catches": "installs as a standalone app: a manifest with two icons that are PNGs, and no service worker",
+    "catches": "installs as a standalone app: a manifest with three icons that are PNGs of the size they say, one of them maskable, and no service worker",
     "edits": [
       {
         "file": "tools/chat/manifest.webmanifest",
         "from": "  \"display\": \"standalone\",",
         "to": "  \"display\": \"browser\","
+      }
+    ]
+  },
+  {
+    "name": "the maskable icon loses its purpose",
+    "catches": "installs as a standalone app: a manifest with three icons that are PNGs of the size they say, one of them maskable, and no service worker",
+    "edits": [
+      {
+        "file": "tools/chat/manifest.webmanifest",
+        "from": "{ \"src\": \"/icons/512-maskable.png\", \"sizes\": \"512x512\", \"type\": \"image/png\", \"purpose\": \"maskable\" }",
+        "to": "{ \"src\": \"/icons/512-maskable.png\", \"sizes\": \"512x512\", \"type\": \"image/png\" }"
+      }
+    ]
+  },
+  {
+    "name": "the maskable icon is named but not served",
+    "catches": "installs as a standalone app: a manifest with three icons that are PNGs of the size they say, one of them maskable, and no service worker",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  \"/icons/512-maskable.png\": { file: path.join(HERE, \"icons\", \"512-maskable.png\"), type: \"image/png\" },\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the manifest says a size the icon is not",
+    "catches": "installs as a standalone app: a manifest with three icons that are PNGs of the size they say, one of them maskable, and no service worker",
+    "edits": [
+      {
+        "file": "tools/chat/manifest.webmanifest",
+        "from": "{ \"src\": \"/icons/512-maskable.png\", \"sizes\": \"512x512\"",
+        "to": "{ \"src\": \"/icons/512-maskable.png\", \"sizes\": \"256x256\""
+      }
+    ]
+  },
+  {
+    "name": "the maskable icon is served as the wrong type",
+    "catches": "installs as a standalone app: a manifest with three icons that are PNGs of the size they say, one of them maskable, and no service worker",
+    "edits": [
+      {
+        "file": "tools/chat/server.mjs",
+        "from": "  \"/icons/512-maskable.png\": { file: path.join(HERE, \"icons\", \"512-maskable.png\"), type: \"image/png\" },",
+        "to": "  \"/icons/512-maskable.png\": { file: path.join(HERE, \"icons\", \"512-maskable.png\"), type: \"application/octet-stream\" },"
       }
     ]
   },
