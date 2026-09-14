@@ -5,7 +5,7 @@ Licensed under the MIT License. See the LICENSE file for the full text.
 
 This distribution includes marked (https://github.com/markedjs/marked), Copyright (c)
 2018-2026 MarkedJS and Copyright (c) 2011-2018 Christopher Jeffrey, under the MIT License,
-as tools/chat/marked.mjs; its own license header is kept in the file.
+as lib/chat/marked.mjs; its own license header is kept in the file.
 
 marked:
 

@@ -4,6 +4,41 @@ For the Leader of a workspace taking this version. Short, and about what is diff
 working there — not a developer changelog. A section per release, newest first; a release page
 carries only its own.
 
+## 0.11.0
+
+**The instance root is laid out for what each thing is.** `bin/ovai` is the one command and `lib/`
+is everything else the release ships, replaced whole on update — what `tools/` and `templates/` held
+is in there now. `openovai.json` is the instance's description of itself and `runtime.json` the
+running chat: url, pid, since. `plugins/` holds the tools the instance serves itself, one file each,
+the User's and kept across updates. `desks/<Name>/` is one directory per person — the desk file, the
+persona the session was last started with, the conversation the chat kept for it, the model when one
+was named, and whatever that person keeps there — and the listing of `desks/` is the roster;
+`archive/` is where a retired desk goes, moved whole, as `<day>-<Name>-<slug of the final title>/`.
+`reference/`, `projects/` and `temp/` are the User's material: `reference/` is kept to look at and
+never worked on, `projects/` is worked on, `temp/` is scratch anyone may delete at any time.
+`.claude/` is Claude Code's project settings for the instance, a name that is Claude Code's, and
+`.local/` is Claude Code's config dir for it — account, transcripts, memory — with the settings
+document a run is started with beside them.
+
+**A desk is a working directory; the desk file stays the tool's.** Every seat may edit and write
+under its own `desks/<Name>/` without a prompt: the pair of rules is granted when the desk is opened
+and withdrawn when it is retired. The one exception is `STATE.md`, written through `write_desk` and
+no other way — an edit or a write of it with a file tool is refused by the harness on the spot, in
+both spellings. `reference/`, `projects/` and `temp/` are granted to every seat for edits and writes
+from install. Scratch goes under `temp/` and nowhere else — not the root, not the home directory —
+and no session puts a file in the root itself. Which of `reference/` and `projects/` a clone goes to is your
+question to the User on every clone, analysis or modification; a reference that later needs edits
+is cloned fresh into `projects/`, never moved. Both personas say the desk is the working directory
+and where scratch goes, and yours says a Worker is "it". `hire` refuses a name whose directory is
+still under `desks/`.
+
+**A 0.10.0 instance is installed again, not updated.** Nothing here reads the places the previous
+version used — `work/`, `personas/`, `chat/`, `tools/`, `templates/`, `.claude-home/` — and nothing
+moves what is in them. `ovai update` on a 0.10.0 instance refuses this release, since the release
+has no `tools/` and no `templates/` for it to take. Install into an empty directory with
+`./install.sh --root <instance> --source <release> --user <name> …` and copy over by hand what
+should survive.
+
 ## 0.10.0
 
 The page is a room you read at a glance. Three columns of panels, each a bare slot with a head

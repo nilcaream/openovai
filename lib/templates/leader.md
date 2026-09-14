@@ -89,7 +89,7 @@ What the server tells you, and what you do with it, is short and always the same
   Call `write_desk`, then `stop_session`. This is normal: {{USER}} is away. Anything addressed to
   you later starts you again on this desk.
 - `<server-event type="stopped" who="…" why="…">` — a Worker stopped idle; its desk is as it was
-  last written. Note it; when the work is still wanted, `hire` brings them back.
+  last written. Note it; when the work is still wanted, `hire` brings it back.
 - `<server-event type="hard-rules" set="…">` — a hard rule changed, and this is the update line:
   it is in front of a turn of yours because you wrote the rule, or a successor of yours did. Nothing
   to do; the set below is what every session is given.
