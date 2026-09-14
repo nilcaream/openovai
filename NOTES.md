@@ -6,6 +6,18 @@ carries only its own.
 
 ## 0.11.0
 
+**The head of a panel says what you asked of it.** The tab is titled `OpenOv AI ~/the/instance`. A
+head reads `<name> · opus/high · 22k · listening` — the dot, the name, the model with the instance's
+effort when `effortLevel` is set in `.claude/settings.json`, the context, the state word — and on
+the Leader's head after that `connected · 8% (3h) · all 86% (6d) · fable 20% (6d)`: the session
+window and the time to its reset, the weekly window over all models, the weekly window of the one
+model that has its own, read from the account's usage endpoint with the instance's own credential
+while a page is open. The theme toggle sits at the right edge. The version, the path and the port
+are no longer on the head, and the context is never hidden. `STOP` is gone from the heads: while a
+turn runs, a stop glyph sits at the right edge of that panel's text box, and only then. When the
+server is gone the page says so — every dot red, no state words, `disconnected` on the Leader's
+head — and comes back on its own when the server does.
+
 **The command is a daemon's.** `ovai start` starts the server in the background, prints the
 address and returns; `ovai stop` stops it, parking every session first as before; `ovai restart`
 is the two in a row. `ovai status` says `not running` (exit 3) or `running at <url> (pid, since)`,

@@ -97,8 +97,8 @@ describe("the rules", () => {
     assert.equal(body.declarations.font, "1rem/1.5 var(--sans)");
   });
 
-  it("mark a panel whose process is gone with a red dot on its head", () => {
-    const dot = rules.find((rule) => rule.selector === ".panel.dimmed .phead .name::before");
+  it("mark a panel whose process is gone, or whose page has no stream, with a red dot on its head", () => {
+    const dot = rules.find((rule) => rule.selector === ".panel.gone .phead .name::before");
     assert.equal(dot.declarations.background, "var(--bad)");
   });
 
@@ -108,7 +108,29 @@ describe("the rules", () => {
     const at = (selector) => rules.findIndex((rule) => rule.selector === `.panel.${selector} .phead .name::before`);
     assert.equal(rules[at("busy")].declarations.background, "var(--warn)");
     assert.equal(rules[at("idle")].declarations.background, "var(--ok)");
-    assert.ok(at("dimmed") > at("busy") && at("dimmed") > at("idle"), "the gone rule sits above a state rule, which then wins on a gone panel");
+    assert.ok(at("gone") > at("busy") && at("gone") > at("idle"), "the gone rule sits above a state rule, which then wins on a gone panel");
+  });
+
+  // Every word on a head is pinned and the head clips at its right edge: the context is never the
+  // part that goes, whatever the width. The theme toggle is pushed to that edge.
+  it("pin every word of a head, clip the head at its edge, and push the theme toggle to it", () => {
+    const declared = (selector) => rules.find((rule) => rule.selector === selector)?.declarations;
+    assert.equal(declared(".phead").overflow, "hidden");
+    assert.equal(declared(".phead")["white-space"], "nowrap");
+    for (const part of [".phead .info", ".phead .state", ".phead .conn, .phead .quota"]) assert.equal(declared(part).flex, "0 0 auto", part);
+    assert.equal(declared(".phead .info")["text-overflow"], undefined, "the model and the context are shown whole or clipped, never cut to a fragment");
+    assert.equal(declared(".phead .theme")["margin-left"], "auto");
+  });
+
+  // The stop glyph sits inside the box, at its right edge; the box keeps the room for it only
+  // while it is there. The glyph takes its default display, so the hidden attribute hides it.
+  it("put the stop glyph at the right edge of the box and keep the room for it while it is there", () => {
+    const glyph = rules.find((rule) => rule.selector === ".composer .stop").declarations;
+    assert.equal(glyph.position, "absolute");
+    assert.equal(glyph.right, "9px");
+    assert.equal(glyph.display, undefined, "a display of its own would outrank the hidden attribute");
+    assert.equal(rules.find((rule) => rule.selector === ".composer").declarations.position, "relative");
+    assert.equal(rules.find((rule) => rule.selector === ".composer.stoppable textarea").declarations["padding-right"], "36px");
   });
 
   it("draw what the User typed on the User's own ground", () => {
@@ -285,18 +307,20 @@ describe("the script", () => {
     assert.match(script, /jump\.addEventListener\("click", \(\) => \{\s*rows\.scrollTop = rows\.scrollHeight;\s*jump\.classList\.remove\("show"\);/);
   });
 
-  // A word the head cannot show whole is hidden rather than cut to a fragment — the state word
-  // first, then the model: measured again on every change of the head's width, and on every draw.
-  it("hides the words of a head too narrow to show them whole, the state word before the model", () => {
-    assert.match(script, /const fitHead = \(\) => \{\s*word\.hidden = false;\s*info\.hidden = false;\s*if \(headLine\.scrollWidth > headLine\.clientWidth\) word\.hidden = true;\s*if \(headLine\.scrollWidth > headLine\.clientWidth\) info\.hidden = true;\s*\};\s*new ResizeObserver\(fitHead\)\.observe\(headLine\);/);
-    assert.match(script, /panel\.fitHead\(\);/);
+  // The stop glyph: in the composer, after the box; there while the turn can be stopped, the box
+  // keeping the room for it then; a click hides it and asks the server to stop the turn.
+  it("puts the stop glyph in the box, shows it while the turn can be stopped, and stops the turn on a click", () => {
+    assert.match(script, /stop\.className = "stop";[\s\S]{0,400}composer\.append\(box, stop\);/);
+    assert.match(script, /const stoppable = stopEnabled\(state, panel\.name\);\s*panel\.stop\.hidden = !stoppable;\s*panel\.composer\.classList\.toggle\("stoppable", stoppable\);/);
+    assert.match(script, /stop\.addEventListener\("click", \(\) => \{\s*stop\.hidden = true;\s*call\(`\/sessions\/\$\{encodeURIComponent\(name\)\}\/stop`, \{ method: "POST" \}\)/);
+    assert.doesNotMatch(script, /headLine\.append\([^)]*stop/, "the glyph is in the box, not on the head");
   });
 
   // The dot and the placeholder follow what the server says of the panel's turn: the page reads
   // `busy` from the panel and marks the panel with it on every draw, then refits the placeholder —
   // a ResizeObserver alone would say the idle sentence on a busy box that never changed width.
-  it("marks a panel idle or busy from its turn on every draw, and refits the empty box then", () => {
-    assert.match(script, /panel\.section\.classList\.toggle\("idle", about\.busy === false\);\s*panel\.section\.classList\.toggle\("busy", about\.busy === true\);/);
+  it("marks a panel idle, busy or gone from its dot on every draw, and refits the empty box then", () => {
+    assert.match(script, /const colour = dot\(state, panel\.name\);\s*panel\.section\.classList\.toggle\("idle", colour === GREEN\);\s*panel\.section\.classList\.toggle\("busy", colour === AMBER\);\s*panel\.section\.classList\.toggle\("gone", colour === RED\);/);
     assert.match(script, /panel\.box\.disabled = !composersEnabled\(state, panel\.name\);\s*panel\.fitPlaceholder\(\);/, "the refit comes after the marks, in the draw");
   });
 
@@ -349,14 +373,26 @@ describe("the script", () => {
     assert.match(script, /if \(panel\.jump === null\) \{\s*const drawn = \[\.\.\.panel\.rows\.children\]\.filter\(\(child\) => child\.matches\("\.msg, \.line, \.divider"\)\);\s*while \(drawn\.length > 100\) drawn\.shift\(\)\.remove\(\);/);
   });
 
-  // The instance facts on the Leader's head, drawn from the parts panels.mjs makes: the connection
-  // word marked while the page has no stream, the quota marked by its stage.
-  it("draws the instance facts on the Leader's head and marks a lost stream and a quota stage", () => {
-    assert.match(script, /const facts = statusParts\(health, state, state\.connection\);/);
-    for (const part of ["version", "instance", "port", "connection", "quota.text"]) assert.match(script, new RegExp(`textContent = facts\\.${part.replace(".", "\\.")};`), part);
-    assert.match(script, /panel\.facts\.conn\.classList\.toggle\("off", facts\.connection !== "connected"\);/);
-    assert.match(script, /panel\.facts\.quota\.classList\.toggle\("warning", facts\.quota\.stage === "warning"\);/);
-    assert.match(script, /panel\.facts\.quota\.classList\.toggle\("critical", facts\.quota\.stage === "critical"\);/);
+  // The Leader's head, after the state word: the connection word, red while the page has no
+  // stream, and the quota line with its tooltip — drawn from the words panels.mjs makes, on
+  // every draw; the theme toggle after them.
+  it("draws the connection word and the quota line on the Leader's head, and marks a lost stream", () => {
+    assert.match(script, /headLine\.append\(facts\.conn, facts\.quota\);[\s\S]{0,600}headLine\.append\(themeToggle\);/);
+    assert.match(script, /panel\.facts\.conn\.textContent = state\.connection;\s*panel\.facts\.conn\.classList\.toggle\("off", state\.connection !== CONNECTED\);/);
+    assert.match(script, /panel\.facts\.quota\.textContent = quotaLine\(state\.quota\);\s*panel\.facts\.quota\.title = quotaTitle\(state\.quota, \(iso\) => stamp\(iso\)\.whole\);/);
+    assert.match(script, /document\.title = title\(state\);/);
+  });
+
+  // Without a stream the page says so and asks the server about it once a second: a 503 is the
+  // instance stopping (call() marks that), no answer is the server gone, anything else opens the
+  // stream again; a 401 reloads, in call(). The stream's own error says nothing while the server
+  // is stopping — the probe finds out which it is.
+  it("says disconnected when the stream drops, tells stopping from gone by asking, and connects again", () => {
+    assert.match(script, /stream\.addEventListener\("error", \(\) => \{\s*stream\.close\(\);\s*if \(state\.connection !== STOPPING\) lost\(\);\s*setTimeout\(probe, 1000\);/);
+    assert.match(script, /function lost\(\) \{\s*if \(state\.connection !== DISCONNECTED\) \{\s*state\.connection = DISCONNECTED;\s*draw\(\);/);
+    assert.match(script, /call\("\/sessions"\)\.then\(\s*\(answered\) => \(answered\.status === 503 \? setTimeout\(probe, 1000\) : connect\(\)\),\s*\(\) => \{\s*lost\(\);\s*setTimeout\(probe, 1000\);/);
+    assert.match(script, /stream\.addEventListener\("open", \(\) => \{\s*if \(state\.connection !== STOPPING\) \{\s*state\.connection = CONNECTED;/);
+    assert.match(script, /const EVENTS = \["snapshot", "rows", "row", "asking", "seat", "quota", "stopping"\];/);
   });
 
   // The page is never run here, so the proof is in two halves: the renderer turns a reply into

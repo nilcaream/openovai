@@ -78,12 +78,12 @@
   },
   {
     "name": "the dot of a panel whose process is gone takes the busy colour",
-    "catches": "mark a panel whose process is gone with a red dot on its head",
+    "catches": "mark a panel whose process is gone, or whose page has no stream, with a red dot on its head",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "  .panel.dimmed .phead .name::before { background: var(--bad); }",
-        "to": "  .panel.dimmed .phead .name::before { background: var(--warn); }"
+        "from": "  .panel.gone .phead .name::before { background: var(--bad); }",
+        "to": "  .panel.gone .phead .name::before { background: var(--warn); }"
       }
     ]
   },
@@ -418,67 +418,78 @@
   },
   {
     "name": "the connection word is marked while the page HAS a stream",
-    "catches": "draws the instance facts on the Leader's head and marks a lost stream and a quota stage",
+    "catches": "draws the connection word and the quota line on the Leader's head, and marks a lost stream",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      panel.facts.conn.classList.toggle(\"off\", facts.connection !== \"connected\");\n",
-        "to": "      panel.facts.conn.classList.toggle(\"off\", facts.connection === \"connected\");\n"
+        "from": "      panel.facts.conn.classList.toggle(\"off\", state.connection !== CONNECTED);\n",
+        "to": "      panel.facts.conn.classList.toggle(\"off\", state.connection === CONNECTED);\n"
       }
     ]
   },
   {
-    "name": "the version never reaches the head",
-    "catches": "draws the instance facts on the Leader's head and marks a lost stream and a quota stage",
+    "name": "the connection word never reaches the head",
+    "catches": "draws the connection word and the quota line on the Leader's head, and marks a lost stream",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      panel.facts.version.textContent = facts.version;\n",
+        "from": "      panel.facts.conn.textContent = state.connection;\n",
         "to": ""
       }
     ]
   },
   {
-    "name": "a critical quota is marked as a warning",
-    "catches": "draws the instance facts on the Leader's head and marks a lost stream and a quota stage",
+    "name": "the quota line is drawn without its tooltip",
+    "catches": "draws the connection word and the quota line on the Leader's head, and marks a lost stream",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      panel.facts.quota.classList.toggle(\"critical\", facts.quota.stage === \"critical\");\n",
-        "to": "      panel.facts.quota.classList.toggle(\"critical\", facts.quota.stage === \"warning\");\n"
-      }
-    ]
-  },
-  {
-    "name": "a head too narrow for its words shows a fragment of them: the measure is gone",
-    "catches": "hides the words of a head too narrow to show them whole, the state word before the model",
-    "edits": [
-      {
-        "file": "lib/chat/page.html",
-        "from": "    new ResizeObserver(fitHead).observe(headLine);\n",
+        "from": "      panel.facts.quota.title = quotaTitle(state.quota, (iso) => stamp(iso).whole);\n",
         "to": ""
       }
     ]
   },
   {
-    "name": "words that arrive into a narrow head are not measured: the draw no longer fits them",
-    "catches": "hides the words of a head too narrow to show them whole, the state word before the model",
+    "name": "the tooltip says the stamp object, not its words",
+    "catches": "draws the connection word and the quota line on the Leader's head, and marks a lost stream",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "    panel.fitHead();\n",
-        "to": ""
+        "from": "(iso) => stamp(iso).whole);\n",
+        "to": "(iso) => stamp(iso));\n"
       }
     ]
   },
   {
-    "name": "a narrow head drops the model before the state word",
-    "catches": "hides the words of a head too narrow to show them whole, the state word before the model",
+    "name": "the model and the context are cut to a fragment on a narrow head",
+    "catches": "pin every word of a head, clip the head at its edge, and push the theme toggle to it",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      if (headLine.scrollWidth > headLine.clientWidth) word.hidden = true;\n      if (headLine.scrollWidth > headLine.clientWidth) info.hidden = true;\n",
-        "to": "      if (headLine.scrollWidth > headLine.clientWidth) info.hidden = true;\n      if (headLine.scrollWidth > headLine.clientWidth) word.hidden = true;\n"
+        "from": "  .phead .info { font-family: var(--mono); font-size: .78rem; color: var(--fg-dim); white-space: nowrap; flex: 0 0 auto; }",
+        "to": "  .phead .info { font-family: var(--mono); font-size: .78rem; color: var(--fg-dim); white-space: nowrap; flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }"
+      }
+    ]
+  },
+  {
+    "name": "the theme toggle sits where the words end rather than at the edge",
+    "catches": "pin every word of a head, clip the head at its edge, and push the theme toggle to it",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "  .phead .theme { margin-left: auto; align-self: center;",
+        "to": "  .phead .theme { margin-left: 10px; align-self: center;"
+      }
+    ]
+  },
+  {
+    "name": "the quota gives way on a narrow head",
+    "catches": "pin every word of a head, clip the head at its edge, and push the theme toggle to it",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "  .phead .conn, .phead .quota { font-family: var(--mono); font-size: .78rem; color: var(--fg-dim); white-space: nowrap; flex: 0 0 auto; }",
+        "to": "  .phead .conn, .phead .quota { font-family: var(--mono); font-size: .78rem; color: var(--fg-dim); white-space: nowrap; flex: 0 1 auto; }"
       }
     ]
   },
@@ -603,8 +614,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "  .panel.idle .phead .name::before { background: var(--ok); }\n  .panel.busy .phead .name::before { background: var(--warn); }\n  .panel.dimmed .phead .name::before { background: var(--bad); }",
-        "to": "  .panel.dimmed .phead .name::before { background: var(--bad); }\n  .panel.idle .phead .name::before { background: var(--ok); }\n  .panel.busy .phead .name::before { background: var(--warn); }"
+        "from": "  .panel.idle .phead .name::before { background: var(--ok); }\n  .panel.busy .phead .name::before { background: var(--warn); }\n  .panel.gone .phead .name::before { background: var(--bad); }",
+        "to": "  .panel.gone .phead .name::before { background: var(--bad); }\n  .panel.idle .phead .name::before { background: var(--ok); }\n  .panel.busy .phead .name::before { background: var(--warn); }"
       }
     ]
   },
@@ -620,19 +631,19 @@
     ]
   },
   {
-    "name": "the page never reads busy: the idle and busy marks are gone from the draw",
-    "catches": "marks a panel idle or busy from its turn on every draw, and refits the empty box then",
+    "name": "the page never reads the dot: the idle, busy and gone marks are gone from the draw",
+    "catches": "marks a panel idle, busy or gone from its dot on every draw, and refits the empty box then",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "    panel.section.classList.toggle(\"idle\", about.busy === false);\n    panel.section.classList.toggle(\"busy\", about.busy === true);\n",
+        "from": "    const colour = dot(state, panel.name);\n    panel.section.classList.toggle(\"idle\", colour === GREEN);\n    panel.section.classList.toggle(\"busy\", colour === AMBER);\n    panel.section.classList.toggle(\"gone\", colour === RED);\n",
         "to": ""
       }
     ]
   },
   {
     "name": "the empty box is refit only on a change of width: the draw no longer refits it",
-    "catches": "marks a panel idle or busy from its turn on every draw, and refits the empty box then",
+    "catches": "marks a panel idle, busy or gone from its dot on every draw, and refits the empty box then",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -824,6 +835,171 @@
         "file": "lib/chat/page.html",
         "from": "      if (shown.tight === true) body.classList.add(\"tight\");\n",
         "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the stop glyph lands on the head",
+    "catches": "puts the stop glyph in the box, shows it while the turn can be stopped, and stops the turn on a click",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    composer.append(box, stop);",
+        "to": "    composer.append(box);\n    headLine.append(stop);"
+      }
+    ]
+  },
+  {
+    "name": "the stop glyph is always there",
+    "catches": "puts the stop glyph in the box, shows it while the turn can be stopped, and stops the turn on a click",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    panel.stop.hidden = !stoppable;\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the box never makes room for the glyph",
+    "catches": "puts the stop glyph in the box, shows it while the turn can be stopped, and stops the turn on a click",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    panel.composer.classList.toggle(\"stoppable\", stoppable);\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a click on the glyph stops nothing",
+    "catches": "puts the stop glyph in the box, shows it while the turn can be stopped, and stops the turn on a click",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      stop.hidden = true;\n      call(`/sessions/${encodeURIComponent(name)}/stop`, { method: \"POST\" }).catch(() => {});",
+        "to": "      stop.hidden = true;"
+      }
+    ]
+  },
+  {
+    "name": "the glyph sits in the flow of the composer, under the box",
+    "catches": "put the stop glyph at the right edge of the box and keep the room for it while it is there",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "  .composer .stop { position: absolute; right: 9px;",
+        "to": "  .composer .stop { position: static; right: 9px;"
+      }
+    ]
+  },
+  {
+    "name": "the glyph takes a display of its own, so the hidden attribute no longer hides it",
+    "catches": "put the stop glyph at the right edge of the box and keep the room for it while it is there",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "  .composer .stop { position: absolute; right: 9px; bottom: 9px; width: 22px; height: 22px; padding: 4px;",
+        "to": "  .composer .stop { position: absolute; right: 9px; bottom: 9px; width: 22px; height: 22px; padding: 4px; display: inline-flex;"
+      }
+    ]
+  },
+  {
+    "name": "the box keeps no room for the glyph",
+    "catches": "put the stop glyph at the right edge of the box and keep the room for it while it is there",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "  .composer.stoppable textarea { padding-right: 36px; }\n",
+        "to": "  .composer.stoppable textarea { padding-right: 10px; }\n"
+      }
+    ]
+  },
+  {
+    "name": "the head does not clip: its words overflow the panel",
+    "catches": "pin every word of a head, clip the head at its edge, and push the theme toggle to it",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    display: flex; align-items: baseline; gap: 0; min-width: 0; overflow: hidden; white-space: nowrap;",
+        "to": "    display: flex; align-items: baseline; gap: 0; min-width: 0; white-space: nowrap;"
+      }
+    ]
+  },
+  {
+    "name": "the quota line is drawn without the line panels.mjs makes",
+    "catches": "draws the connection word and the quota line on the Leader's head, and marks a lost stream",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      panel.facts.quota.textContent = quotaLine(state.quota);\n",
+        "to": "      panel.facts.quota.textContent = state.quota === null ? \"\" : state.quota.session;\n"
+      }
+    ]
+  },
+  {
+    "name": "the tab title is never drawn",
+    "catches": "draws the connection word and the quota line on the Leader's head, and marks a lost stream",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    document.title = title(state);\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a dropped stream says nothing",
+    "catches": "says disconnected when the stream drops, tells stopping from gone by asking, and connects again",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      stream.close();\n      if (state.connection !== STOPPING) lost();\n      setTimeout(probe, 1000);",
+        "to": "      stream.close();\n      setTimeout(probe, 1000);"
+      }
+    ]
+  },
+  {
+    "name": "a server that answers nothing is not called gone",
+    "catches": "says disconnected when the stream drops, tells stopping from gone by asking, and connects again",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      () => {\n        lost();\n        setTimeout(probe, 1000);\n      },",
+        "to": "      () => {\n        setTimeout(probe, 1000);\n      },"
+      }
+    ]
+  },
+  {
+    "name": "a stopping server is connected to again at once",
+    "catches": "says disconnected when the stream drops, tells stopping from gone by asking, and connects again",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      (answered) => (answered.status === 503 ? setTimeout(probe, 1000) : connect()),",
+        "to": "      () => connect(),"
+      }
+    ]
+  },
+  {
+    "name": "a stream that opens on a stopping server says connected",
+    "catches": "says disconnected when the stream drops, tells stopping from gone by asking, and connects again",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    stream.addEventListener(\"open\", () => {\n      if (state.connection !== STOPPING) {\n        state.connection = CONNECTED;",
+        "to": "    stream.addEventListener(\"open\", () => {\n      {\n        state.connection = CONNECTED;"
+      }
+    ]
+  },
+  {
+    "name": "the page never listens for the quota event",
+    "catches": "says disconnected when the stream drops, tells stopping from gone by asking, and connects again",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "  const EVENTS = [\"snapshot\", \"rows\", \"row\", \"asking\", \"seat\", \"quota\", \"stopping\"];",
+        "to": "  const EVENTS = [\"snapshot\", \"rows\", \"row\", \"asking\", \"seat\", \"stopping\"];"
       }
     ]
   }

@@ -1,11 +1,11 @@
 // What the page shows, decided without a document: where the panels go, when one appears, dims
-// and goes, what takes input, what the title and the status line carry.
+// and goes, what takes input, what the heads, the title and the quota line carry.
 // Every mutation in tests/mutations-panels.json names the check it was written to redden.
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { GONE_AFTER, applyEvent, composersEnabled, fresh, head, keyAction, place, prune, statusLine, statusParts, stopEnabled, title } from "../lib/chat/panels.mjs";
+import { AMBER, CONNECTED, DISCONNECTED, GONE_AFTER, GREEN, RED, STOPPING, applyEvent, composersEnabled, dot, fresh, head, keyAction, place, prune, quotaLine, quotaTitle, stopEnabled, title } from "../lib/chat/panels.mjs";
 
 const LEADER = "Leader";
 
@@ -126,27 +126,41 @@ describe("the Leader's panel", () => {
 });
 
 describe("marks and controls", () => {
+  it("the title is the product and the instance as the snapshot names it, marked while any panel asks", () => {
+    const state = fresh();
+    applyEvent(state, snapshot([about(LEADER)], { instance: "~/work/inst" }), 0);
+    assert.equal(title(state), "OpenOv AI ~/work/inst");
+    applyEvent(state, { name: "asking", data: { seat: LEADER, pending: [{ id: "r1", tool: "Bash", input: { command: "ls" } }] } }, 0);
+    assert.equal(title(state), "● OpenOv AI ~/work/inst");
+    assert.equal(title(fresh()), "OpenOv AI");
+  });
+
   it("the panel that asks carries the mark, the title carries it while any panel asks", () => {
     const state = fresh();
-    applyEvent(state, snapshot([about(LEADER), about("Paul")]), 0);
-    assert.equal(title(state), "ovai");
+    applyEvent(state, snapshot([about(LEADER), about("Paul")], { instance: "~/inst" }), 0);
+    assert.equal(title(state), "OpenOv AI ~/inst");
     applyEvent(state, { name: "asking", data: { seat: "Paul", pending: [{ id: "r1", tool: "Bash", input: { command: "ls" } }] } }, 0);
-    assert.equal(title(state), "● ovai");
+    assert.equal(title(state), "● OpenOv AI ~/inst");
     assert.equal(head(state, "Paul").state, "waiting for you");
     assert.equal(head(state, LEADER).state, "listening");
     applyEvent(state, { name: "asking", data: { seat: LEADER, pending: [{ id: "u1", kind: "rule", rule: "Bash(git:*)", why: "w", from: LEADER }] } }, 0);
     assert.equal(head(state, LEADER).state, "waiting for you");
     applyEvent(state, { name: "asking", data: { seat: "Paul", pending: [] } }, 0);
     applyEvent(state, { name: "asking", data: { seat: LEADER, pending: [] } }, 0);
-    assert.equal(title(state), "ovai");
+    assert.equal(title(state), "OpenOv AI ~/inst");
     assert.equal(head(state, "Paul").state, "listening");
   });
 
-  it("the head is the name, the model and the context in k, in parts", () => {
+  it("the head is the name, the model with its effort when one is set, and the context in k, in parts", () => {
     const state = fresh();
-    applyEvent(state, snapshot([about(LEADER, { model: "opus", context: 41_200 }), about("Paul", { model: "" })]), 0);
-    assert.deepEqual(head(state, LEADER), { name: "Leader", info: "opus 41k", state: "listening" });
+    applyEvent(state, snapshot([about(LEADER, { model: "opus", effort: "high", context: 41_200 }), about("Paul", { model: "" }), about("Ann", { model: "sonnet", effort: null })]), 0);
+    assert.deepEqual(head(state, LEADER), { name: "Leader", info: "opus/high 41k", state: "listening" });
     assert.deepEqual(head(state, "Paul"), { name: "Paul", info: "", state: "listening" });
+    assert.deepEqual(head(state, "Ann"), { name: "Ann", info: "sonnet", state: "listening" });
+    applyEvent(state, seat("Ann", { model: "sonnet", effort: "low", context: 2_600 }), 1);
+    assert.equal(head(state, "Ann").info, "sonnet/low 3k");
+    applyEvent(state, seat("Ann", { model: "sonnet", effort: null }), 2);
+    assert.equal(head(state, "Ann").info, "sonnet/low 3k", "a seat event without an effort keeps the one the head has");
   });
 
   // The word follows the turn: a seat event with busy flips it, an ask outranks it, and a dimmed
@@ -168,47 +182,84 @@ describe("marks and controls", () => {
     assert.equal(head(state, "Paul").state, "");
   });
 
-  it("STOP is enabled while a turn runs and nowhere else", () => {
+  // The dot follows the turn, and a gone process outranks it: red whatever its last turn was doing.
+  it("the dot is green between turns, amber while one runs, red once the process is gone", () => {
+    const state = fresh();
+    applyEvent(state, snapshot([about(LEADER, { busy: true }), about("Paul")]), 0);
+    assert.equal(dot(state, LEADER), AMBER);
+    assert.equal(dot(state, "Paul"), GREEN);
+    applyEvent(state, seat("Paul", { running: false, busy: true }), 0);
+    assert.equal(dot(state, "Paul"), RED);
+  });
+
+  it("the stop glyph is there while a turn runs and nowhere else", () => {
     const state = fresh();
     applyEvent(state, snapshot([about(LEADER), about("Paul", { busy: true })]), 0);
     assert.equal(stopEnabled(state, LEADER), false);
     assert.equal(stopEnabled(state, "Paul"), true);
     applyEvent(state, seat("Paul", { busy: false }), 0);
     assert.equal(stopEnabled(state, "Paul"), false);
+    applyEvent(state, seat("Paul", { running: false, busy: true }), 0);
+    assert.equal(stopEnabled(state, "Paul"), false, "a gone process has no turn to stop");
   });
 
   it("nothing is typed into an instance that is stopping", () => {
     const state = fresh();
     applyEvent(state, snapshot([about(LEADER), about("Paul", { busy: true })]), 0);
+    assert.equal(state.connection, CONNECTED);
     applyEvent(state, { name: "stopping", data: {} }, 0);
+    assert.equal(state.connection, STOPPING);
     assert.equal(composersEnabled(state, LEADER), false);
     assert.equal(composersEnabled(state, "Paul"), false);
     assert.equal(stopEnabled(state, "Paul"), false);
-    assert.equal(statusLine({ version: "1", instance: "/i", port: 1 }, state, state.connection).endsWith(" · stopping"), true);
+    assert.equal(head(state, LEADER).state, "listening", "a stopping server is still there: the word stays");
+  });
+
+  // Without a stream the page cannot know what any session is doing: every dot is red, no head
+  // carries a state word, nothing takes input — and it all comes back with the stream.
+  it("without a stream every dot is red, no head has a state word and nothing takes input", () => {
+    const state = fresh();
+    applyEvent(state, snapshot([about(LEADER, { busy: true }), about("Paul")]), 0);
+    state.connection = DISCONNECTED;
+    assert.equal(dot(state, LEADER), RED);
+    assert.equal(dot(state, "Paul"), RED);
+    assert.equal(head(state, LEADER).state, "");
+    assert.equal(head(state, "Paul").state, "");
+    assert.equal(composersEnabled(state, LEADER), false);
+    assert.equal(stopEnabled(state, LEADER), false);
+    state.connection = CONNECTED;
+    assert.equal(dot(state, LEADER), AMBER);
+    assert.equal(head(state, "Paul").state, "listening");
+    assert.equal(stopEnabled(state, LEADER), true);
   });
 });
 
-describe("the status line", () => {
-  const health = { version: "0.8.0", instance: "/home/u/inst", port: 7719 };
+describe("the quota line", () => {
+  const reading = { session: "8%", reset: "3h", all: "86%", allReset: "6d", fable: "20%", fableReset: "6d", updated: "2026-09-14T18:00:00.000Z" };
 
-  it("names the version, the instance, the port, the Leader, the quota and the connection", () => {
-    const line = statusLine(health, { leader: LEADER, standing: {} }, "connected");
-    assert.equal(line, "OpenOv AI 0.8.0 · /home/u/inst · port 7719 · Leader Leader · quota ok · connected");
+  it("is the session window with its reset, then all with its reset, then fable with its reset", () => {
+    assert.equal(quotaLine(reading), "8% (3h) · all 86% (6d) · fable 20% (6d)");
+    assert.equal(quotaLine({ ...reading, allReset: null, fable: "-", fableReset: null }), "8% (3h) · all 86% · fable -");
+    assert.equal(quotaLine(null), "");
   });
 
-  it("says which window is at a stage and when it resets", () => {
-    const standing = { five_hour: { key: "5h", stage: "critical", resets: "14:05" }, seven_day: { key: "7d", stage: null, resets: "09:00" } };
-    assert.equal(statusLine(health, { leader: LEADER, standing }, "reconnecting…"), "OpenOv AI 0.8.0 · /home/u/inst · port 7719 · Leader Leader · quota 5h critical, resets 14:05 · reconnecting…");
+  it("spells the same out for the tooltip, with when the reading was taken", () => {
+    assert.equal(quotaTitle(reading, (iso) => `at ${iso}`), "session 8%, resets in 3h · all models 86%, resets in 6d · fable 20%, resets in 6d\nread at at 2026-09-14T18:00:00.000Z");
+    assert.equal(quotaTitle({ ...reading, allReset: null, fableReset: null }), "session 8%, resets in 3h · all models 86% · fable 20%\nread at 2026-09-14T18:00:00.000Z");
+    assert.equal(quotaTitle(null), "");
   });
 
-  // The Leader's head draws the same words in parts, the quota with the worst stage any window is at.
-  it("comes in parts for the Leader's head, the quota carrying the worst stage", () => {
-    assert.deepEqual(statusParts(health, { leader: LEADER, standing: {} }, "connected"), {
-      version: "OpenOv AI 0.8.0", instance: "/home/u/inst", port: "port 7719", quota: { text: "quota ok", stage: "ok" }, connection: "connected",
-    });
-    const standing = { five_hour: { key: "5h", stage: "warning", resets: "14:05" }, seven_day: { key: "7d", stage: "critical", resets: "09:00" } };
-    assert.deepEqual(statusParts(health, { leader: LEADER, standing }, "reconnecting…").quota, { text: "quota 5h warning, resets 14:05; 7d critical, resets 09:00", stage: "critical" });
-    assert.equal(statusParts(health, { leader: LEADER, standing: { five_hour: { key: "5h", stage: "warning" } } }, "connected").quota.stage, "warning");
-    assert.equal(statusParts(undefined, undefined, "connected").version, "OpenOv AI ?");
+  it("comes with the snapshot and moves with the quota event", () => {
+    const state = fresh();
+    applyEvent(state, snapshot([about(LEADER)], { quota: reading }), 0);
+    assert.equal(quotaLine(state.quota), "8% (3h) · all 86% (6d) · fable 20% (6d)");
+    applyEvent(state, { name: "quota", data: { ...reading, reset: "2h" } }, 0);
+    assert.equal(state.quota.reset, "2h");
+    applyEvent(state, { name: "quota", data: null }, 0);
+    assert.equal(quotaLine(state.quota), "");
+    applyEvent(state, snapshot([about(LEADER)], { quota: reading }), 0);
+    assert.equal(state.quota.session, "8%");
+    applyEvent(state, snapshot([about(LEADER)]), 0);
+    assert.equal(state.quota, null, "a snapshot without a reading is a server that has none");
   });
 });

@@ -188,15 +188,18 @@ desk with what it runs on, where the store is), `ovai login`, `ovai plugin <name
 
 Three columns: the Leader's panel in the middle, the Workers' panels either side, alternating
 left and right in the order they appeared so a panel keeps its side. At 900 px and below it is one
-column, the Leader first. A panel is a head — the name, the model, the context in k once known, and
-a mark while it is waiting for you — a transcript, and a text box. Enter sends, Shift+Enter is a
-newline. Replies are rendered as markdown: raw HTML in a reply is escaped, a link is kept only on
+column, the Leader first. A panel is a head — a dot, the name, the model with the instance's effort
+when `effortLevel` is set in its `.claude/settings.json`, the context in k once known, and what the
+session is doing: listening, working, waiting for you — a transcript, and a text box. Enter sends,
+Shift+Enter is a newline. The dot is green between turns, amber while a turn runs, red once the
+process is gone. The tab is titled with the product and the instance root. Replies are rendered as markdown: raw HTML in a reply is escaped, a link is kept only on
 `http(s)` and `mailto` and opens in a new tab, an image is shown as a link, so nothing a session
 says makes the page fetch anything.
 
-There is no Send button and no button that starts or ends a seat. Each panel has **STOP**, enabled
-while a turn is running: it interrupts that turn, the process stays, and the panel shows the
-seat's own words for it. The permission buttons, below, are the only other buttons there are.
+There is no Send button and no button that starts or ends a seat. While a turn is running a stop
+glyph sits at the right edge of the text box: it interrupts that turn, the process stays, and the
+panel shows the seat's own words for it; at any other time there is no glyph. The permission
+buttons, below, are the only other buttons there are.
 
 The Leader's panel is always there. When the Leader is not running, the panel shows its history,
 and the next thing addressed to it — a line you type, a Worker's message, a server event — starts
@@ -205,15 +208,21 @@ Worker whose process has gone is dimmed with its text box closed and removed thi
 unless the process is back, and hired again on the same desk it is back with its rows.
 
 The page draws from one stream. It opens an `EventSource` on `/events` and gets a snapshot — the
-User, the Leader, the seats, the quota standing — then the rows of every panel, then live: a row
-as it lands, a seat as it starts, ends, takes or finishes a turn, a question as it is asked, the
-quota standing when a window moves to another stage. The server keeps nothing for a page that is
-not there; a page that reconnects asks for what it missed by the counts it has. The head of the
-Leader's panel carries the instance facts — the version, the instance, the port, the quota standing
-and whether the page is connected — and a toggle between light and dark; a pill on that panel
-says when rows land below where you are reading. The page installs as a web app — a manifest and
-three icons, one of them for a platform that masks icons to its own shape — which is what a fixed
-`--port` is for.
+User, the Leader, the instance, the seats, the account's usage — then the rows of every panel, then
+live: a row as it lands, a seat as it starts, ends, takes or finishes a turn, a question as it is
+asked, the usage as it changes. The server keeps nothing for a page that is not there; a page that
+reconnects asks for what it missed by the counts it has. The head of the Leader's panel carries,
+after the state word, whether the page is connected and the account's usage windows — the session
+window with the time to its reset, the weekly window over all models, the weekly window of the one
+model that has its own, e.g. `8% (3h) · all 86% (6d) · fable 20% (6d)` — and, at its right edge, a
+toggle between light and dark; a pill on that panel says when rows land below where you are
+reading. The usage is asked of the account's usage endpoint with the instance's own credential, at
+most once a minute and only while a page is open; an account without a per-model window shows a
+dash there. When the server is gone the stream drops: every dot goes red, the state words go, the
+Leader's head says `disconnected`, and the page asks once a second until the server is back (a
+server that is stopping says `stopping` until it is gone). The page installs as a web app — a
+manifest and three icons, one of them for a platform that masks icons to its own shape — which is
+what a fixed `--port` is for.
 
 What you write is kept in `desks/<Name>/conversation.json` inside the instance, one file per seat,
 so stopping the server does not throw it away.

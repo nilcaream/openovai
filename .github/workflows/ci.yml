@@ -159,6 +159,19 @@ jobs:
       - name: Read the windows, stage them, hold at the gate
         run: node --test tests/quota.test.mjs
 
+  usage:
+    name: Usage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+
+      - name: Ask the account how much of its windows is spent, say it in words
+        run: node --test tests/usage.test.mjs
+
   lifecycle:
     name: Lifecycle
     runs-on: ubuntu-latest

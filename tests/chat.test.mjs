@@ -19,10 +19,11 @@ import { serverEvent, userFrame } from "../lib/chat/frames.mjs";
 import { listening } from "../lib/chat/runtime.mjs";
 import { pageSecret } from "../lib/chat/secrets.mjs";
 import { hire } from "../lib/desks.mjs";
-import { endSeat, serve, startSeat, toolsFor } from "../lib/chat/server.mjs";
+import { endSeat, serve, shownRoot, startSeat, toolsFor } from "../lib/chat/server.mjs";
 import { LEADER as LEADS, SECRET_IN_ENVIRONMENT, WORKER as WORKS, end, endEvery, running, runningSeats, start, tell, wouldWaitForItself, whileWaitingFor } from "../lib/chat/session.mjs";
 import { BUILT_IN } from "../lib/plugins.mjs";
 import { CONFIG_FILE } from "../lib/seed.mjs";
+import { readSettings, writeSettings } from "../lib/settings.mjs";
 import { alive, callsIn, get as fetchPlain, heardIn, installed, notesIn, post as postPlain, remove, repo, scratch, secretsIn, startChat, stopChat, waitFor, waitForAddress, writeStandIn } from "./helpers.mjs";
 
 const USER = "Mike";
@@ -255,6 +256,34 @@ describe("what the chat serves", () => {
         [WORKER, WORKS, WORKER_MODEL, false],
       ],
     );
+  });
+
+  // The title names the instance by its root with the home directory as ~; the usage windows are
+  // null until the account has been asked, which it is only while a page holds a stream.
+  it("tells the page the instance as the title says it, and the usage windows as they stand", async () => {
+    const room = JSON.parse((await page("GET", "/sessions")).body);
+    assert.equal(room.instance, shownRoot(instance));
+    assert.equal(room.quota, null);
+    assert.equal(shownRoot("/home/u/inst", "/home/u"), "~/inst");
+    assert.equal(shownRoot("/home/u", "/home/u"), "~");
+    assert.equal(shownRoot("/home/user2/inst", "/home/u"), "/home/user2/inst");
+    assert.equal(shownRoot("/srv/inst", "/home/u"), "/srv/inst");
+  });
+
+  // The effort every seat runs at is the instance's own setting; a seat says it beside its model,
+  // and says nothing when none is set.
+  it("tells the page each seat's effort from the instance's settings, and none when none is set", async () => {
+    const before = readSettings(instance);
+    try {
+      writeSettings(instance, { ...before, effortLevel: "high" });
+      let { sessions } = JSON.parse((await page("GET", "/sessions")).body);
+      assert.deepEqual(sessions.map((seat) => seat.effort), ["high", "high", "high"]);
+      writeSettings(instance, before);
+      ({ sessions } = JSON.parse((await page("GET", "/sessions")).body));
+      assert.deepEqual(sessions.map((seat) => seat.effort), [null, null, null]);
+    } finally {
+      writeSettings(instance, before);
+    }
   });
 
   it("puts the Leader first and the rest in name order", async () => {
@@ -1169,7 +1198,7 @@ describe("what the page is made of", () => {
     assert.ok(!source.includes("serviceWorker"));
   });
 
-  it("carries no lifecycle button and no lifecycle word, and STOP is its one lifecycle button", () => {
+  it("carries no lifecycle button and no lifecycle word, and the stop glyph is its one lifecycle control", () => {
     const { words } = JSON.parse(fs.readFileSync(path.join(repo, "tests", "forbidden-words.json"), "utf8"));
     for (const [name, text] of [["page.html", source], ...modules]) {
       for (const word of words) {
@@ -1178,7 +1207,9 @@ describe("what the page is made of", () => {
       }
     }
     const labels = [...script.matchAll(/\.textContent = "([^"]*)"/g)].map((found) => found[1]);
-    assert.deepEqual(labels, ["STOP", "Waiting for the transcript…", "↓ new messages"], "a word of the page's own other than STOP, the empty state and the pill (the dialog buttons come from dialog.mjs)");
+    assert.deepEqual(labels, ["Waiting for the transcript…", "↓ new messages"], "a word of the page's own other than the empty state and the pill (the dialog buttons come from dialog.mjs)");
+    const buttons = [...script.matchAll(/\.className = "(stop|theme)";/g)].map((found) => found[1]);
+    assert.deepEqual(buttons, ["theme", "stop"], "a button of the page's own other than the theme toggle and the stop glyph");
     assert.equal(source.split("<button").length - 1, 0, "a button in the markup");
   });
 
@@ -1311,7 +1342,7 @@ describe("the stream", () => {
     await end(WORKER, 500);
   });
 
-  it("the page's STOP interrupts the turn, and the row says so rather than the seat", async () => {
+  it("the page's stop glyph interrupts the turn, and the row says so rather than the seat", async () => {
     const client = await listen();
     await until(client, (event) => event.name === "asking");
     paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_SLOW: "4000", OPENOVAI_STAND_IN_REPLY: "late" });

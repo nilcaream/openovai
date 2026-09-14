@@ -38,8 +38,8 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "    user: instance.config.user,\n    leader: instance.config.leader,\n    // Who a row",
-        "to": "    user: \"User\",\n    leader: instance.config.leader,\n    // Who a row"
+        "from": "    user: instance.config.user,\n    leader: instance.config.leader,\n    instance: shownRoot",
+        "to": "    user: \"User\",\n    leader: instance.config.leader,\n    instance: shownRoot"
       }
     ]
   },
@@ -847,7 +847,7 @@
   },
   {
     "name": "an interrupted turn is shown as a reply",
-    "catches": "the page's STOP interrupts the turn, and the row says so rather than the seat",
+    "catches": "the page's stop glyph interrupts the turn, and the row says so rather than the seat",
     "edits": [
       {
         "file": "lib/chat/server.mjs",
@@ -946,7 +946,7 @@
   },
   {
     "name": "a lifecycle button on the page",
-    "catches": "carries no lifecycle button and no lifecycle word, and STOP is its one lifecycle button",
+    "catches": "carries no lifecycle button and no lifecycle word, and the stop glyph is its one lifecycle control",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -957,12 +957,12 @@
   },
   {
     "name": "a second button label in the script",
-    "catches": "carries no lifecycle button and no lifecycle word, and STOP is its one lifecycle button",
+    "catches": "carries no lifecycle button and no lifecycle word, and the stop glyph is its one lifecycle control",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "    composer.append(box);",
-        "to": "    const send = document.createElement(\"button\");\n    send.type = \"submit\";\n    send.textContent = \"Send\";\n    composer.append(box, send);"
+        "from": "    composer.append(box, stop);",
+        "to": "    const send = document.createElement(\"button\");\n    send.type = \"submit\";\n    send.textContent = \"Send\";\n    composer.append(box, stop, send);"
       }
     ]
   },
@@ -1205,6 +1205,72 @@
         "file": "lib/chat/server.mjs",
         "from": "        if (caller.role === LEADER) {\n          append(root, caller.seat, answer);\n        }\n",
         "to": "        append(root, caller.seat, answer);\n"
+      }
+    ]
+  },
+  {
+    "name": "the title's instance is the root as it is",
+    "catches": "tells the page the instance as the title says it, and the usage windows as they stand",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "  return root === home || root.startsWith(`${home}${path.sep}`) ? `~${root.slice(home.length)}` : root;",
+        "to": "  return root;"
+      }
+    ]
+  },
+  {
+    "name": "a root that merely begins with the home's letters is shortened",
+    "catches": "tells the page the instance as the title says it, and the usage windows as they stand",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "  return root === home || root.startsWith(`${home}${path.sep}`) ? `~${root.slice(home.length)}` : root;",
+        "to": "  return root.startsWith(home) ? `~${root.slice(home.length)}` : root;"
+      }
+    ]
+  },
+  {
+    "name": "the snapshot carries no usage windows",
+    "catches": "tells the page the instance as the title says it, and the usage windows as they stand",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "    quota: usage.reading(),\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a seat says no effort",
+    "catches": "tells the page each seat's effort from the instance's settings, and none when none is set",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "    effort: effortOf(instance),\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the effort is read from the instance's own file and never from its settings",
+    "catches": "tells the page each seat's effort from the instance's settings, and none when none is set",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "  const level = readSettings(instance.root).effortLevel;",
+        "to": "  const level = instance.config.effortLevel;"
+      }
+    ]
+  },
+  {
+    "name": "an effort that is not set reads as the empty word",
+    "catches": "tells the page each seat's effort from the instance's settings, and none when none is set",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "  return typeof level === \"string\" && level !== \"\" ? level : null;",
+        "to": "  return typeof level === \"string\" ? level : \"\";"
       }
     ]
   }

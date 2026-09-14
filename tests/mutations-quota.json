@@ -280,28 +280,6 @@
     ]
   },
   {
-    "name": "the standing is read and the page is not told",
-    "catches": "tell the page the standing when a reading changed it, and not when it did not",
-    "edits": [
-      {
-        "file": "lib/chat/quota.mjs",
-        "from": "  if (worth !== lastTold) {\n    lastTold = worth;\n    publish(\"standing\", said);\n  }",
-        "to": "  lastTold = worth;"
-      }
-    ]
-  },
-  {
-    "name": "the page is told on every reading",
-    "catches": "tell the page the standing when a reading changed it, and not when it did not",
-    "edits": [
-      {
-        "file": "lib/chat/quota.mjs",
-        "from": "  if (worth !== lastTold) {\n    lastTold = worth;\n    publish(\"standing\", said);\n  }",
-        "to": "  lastTold = worth;\n  publish(\"standing\", said);"
-      }
-    ]
-  },
-  {
     "name": "the reset is said in ISO only",
     "catches": "say the reset as hh:mm on the server's clock too, and the window as configured",
     "edits": [

@@ -1,0 +1,299 @@
+[
+  {
+    "name": "an inheriting instance reads the file instead of the machine's token",
+    "catches": "is the machine's when the instance inherits it, and nothing when the machine has none",
+    "edits": [
+      {
+        "file": "lib/chat/usage.mjs",
+        "from": "  if (auth === \"inherit\") {\n    const value = env[MACHINE_TOKEN];\n    return typeof value === \"string\" && value !== \"\" ? value : null;\n  }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "an empty machine token is a token",
+    "catches": "is the machine's when the instance inherits it, and nothing when the machine has none",
+    "edits": [
+      {
+        "file": "lib/chat/usage.mjs",
+        "from": "    return typeof value === \"string\" && value !== \"\" ? value : null;",
+        "to": "    return typeof value === \"string\" ? value : null;"
+      }
+    ]
+  },
+  {
+    "name": "an expired token is still used",
+    "catches": "is otherwise the one Claude Code keeps in the instance's home, skipped once expired, nothing when there is none",
+    "edits": [
+      {
+        "file": "lib/chat/usage.mjs",
+        "from": "    return typeof kept.expiresAt === \"number\" && kept.expiresAt <= now ? null : kept.accessToken;",
+        "to": "    return kept.accessToken;"
+      }
+    ]
+  },
+  {
+    "name": "a signed-in instance falls back on the machine's token",
+    "catches": "is otherwise the one Claude Code keeps in the instance's home, skipped once expired, nothing when there is none",
+    "edits": [
+      {
+        "file": "lib/chat/usage.mjs",
+        "from": "  } catch {\n    return null;\n  }\n}\n\n// One request",
+        "to": "  } catch {\n    return env[MACHINE_TOKEN] ?? null;\n  }\n}\n\n// One request"
+      }
+    ]
+  },
+  {
+    "name": "the token goes as a plain header",
+    "catches": "sends the token as a bearer with the beta the endpoint wants, and keeps the answer with when it came",
+    "edits": [
+      {
+        "file": "lib/chat/usage.mjs",
+        "from": "        authorization: `Bearer ${bearer}`,",
+        "to": "        authorization: bearer,"
+      }
+    ]
+  },
+  {
+    "name": "the request has no timeout",
+    "catches": "sends the token as a bearer with the beta the endpoint wants, and keeps the answer with when it came",
+    "edits": [
+      {
+        "file": "lib/chat/usage.mjs",
+        "from": "      signal: AbortSignal.timeout(TIMEOUT),\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the answer is kept without when it came",
+    "catches": "sends the token as a bearer with the beta the endpoint wants, and keeps the answer with when it came",
+    "edits": [
+      {
+        "file": "lib/chat/usage.mjs",
+        "from": "    live = { data: await answered.json(), fetchedAt: now(), nextAt: 0, inFlight: false };",
+        "to": "    live = { data: await answered.json(), fetchedAt: 0, nextAt: 0, inFlight: false };"
+      }
+    ]
+  },
+  {
+    "name": "no token means asking again at the next tick",
+    "catches": "asks nothing without a token, and not again for the backoff",
+    "edits": [
+      {
+        "file": "lib/chat/usage.mjs",
+        "from": "  if (bearer === null) {\n    live.nextAt = now() + BACKOFF;\n    return;\n  }",
+        "to": "  if (bearer === null) {\n    return;\n  }"
+      }
+    ]
+  },
+  {
+    "name": "a refusal is asked again at the next tick",
+    "catches": "backs off after a refusal, for the backoff or the retry-after the answer names, and keeps the last reading",
+    "edits": [
+      {
+        "file": "lib/chat/usage.mjs",
+        "from": "      live.nextAt = now() + Math.max(BACKOFF, retry > 0 ? retry * 1000 : 0);",
+        "to": "      live.nextAt = 0;"
+      }
+    ]
+  },
+  {
+    "name": "a retry-after shorter than the backoff wins",
+    "catches": "backs off after a refusal, for the backoff or the retry-after the answer names, and keeps the last reading",
+    "edits": [
+      {
+        "file": "lib/chat/usage.mjs",
+        "from": "      live.nextAt = now() + Math.max(BACKOFF, retry > 0 ? retry * 1000 : 0);",
+        "to": "      live.nextAt = now() + (retry > 0 ? retry * 1000 : BACKOFF);"
+      }
+    ]
+  },
+  {
+    "name": "a refusal throws the reading away",
+    "catches": "backs off after a refusal, for the backoff or the retry-after the answer names, and keeps the last reading",
+    "edits": [
+      {
+        "file": "lib/chat/usage.mjs",
+        "from": "      console.log(`usage: the endpoint answered ${answered.status}, asked again in ${Math.round((live.nextAt - now()) / 1000)}s`);\n      return;",
+        "to": "      console.log(`usage: the endpoint answered ${answered.status}, asked again in ${Math.round((live.nextAt - now()) / 1000)}s`);\n      live.data = null;\n      return;"
+      }
+    ]
+  },
+  {
+    "name": "an endpoint not reached is asked again at the next tick",
+    "catches": "backs off when the endpoint is not reached, and never says the token",
+    "edits": [
+      {
+        "file": "lib/chat/usage.mjs",
+        "from": "    live.nextAt = now() + BACKOFF;\n    console.log(`usage: the endpoint was not reached — ${error.message}`);",
+        "to": "    console.log(`usage: the endpoint was not reached — ${error.message}`);"
+      }
+    ]
+  },
+  {
+    "name": "the line about an endpoint not reached carries the token",
+    "catches": "backs off when the endpoint is not reached, and never says the token",
+    "edits": [
+      {
+        "file": "lib/chat/usage.mjs",
+        "from": "    console.log(`usage: the endpoint was not reached — ${error.message}`);",
+        "to": "    console.log(`usage: the endpoint was not reached with ${bearer} — ${error.message}`);"
+      }
+    ]
+  },
+  {
+    "name": "two asks in flight at once",
+    "catches": "asks once at a time",
+    "edits": [
+      {
+        "file": "lib/chat/usage.mjs",
+        "from": "  if (live.inFlight) {\n    return;\n  }\n  const bearer",
+        "to": "  const bearer"
+      }
+    ]
+  },
+  {
+    "name": "the reset is said in hours from a day out",
+    "catches": "says the time to a reset in whole days from two days out, whole hours from two hours out, minutes under that",
+    "edits": [
+      {
+        "file": "lib/chat/usage.mjs",
+        "from": "  if (minutes >= 48 * 60) {",
+        "to": "  if (minutes >= 24 * 60) {"
+      }
+    ]
+  },
+  {
+    "name": "the reset is said in minutes up to a day",
+    "catches": "says the time to a reset in whole days from two days out, whole hours from two hours out, minutes under that",
+    "edits": [
+      {
+        "file": "lib/chat/usage.mjs",
+        "from": "  return minutes >= 120 ? `${Math.floor(minutes / 60)}h` : `${minutes}m`;",
+        "to": "  return minutes >= 24 * 60 ? `${Math.floor(minutes / 60)}h` : `${minutes}m`;"
+      }
+    ]
+  },
+  {
+    "name": "a reset that is now has not passed",
+    "catches": "says the time to a reset in whole days from two days out, whole hours from two hours out, minutes under that",
+    "edits": [
+      {
+        "file": "lib/chat/usage.mjs",
+        "from": "  if (!at || at <= now) {",
+        "to": "  if (!at || at < now) {"
+      }
+    ]
+  },
+  {
+    "name": "a percent is rounded whole at every level",
+    "catches": "is the three windows with their resets, the percent whole below 95 and to two decimals from there",
+    "edits": [
+      {
+        "file": "lib/chat/usage.mjs",
+        "from": "  return value < 95 ? `${Math.round(value)}%` : `${Math.round(value * 100) / 100}%`;",
+        "to": "  return `${Math.round(value)}%`;"
+      }
+    ]
+  },
+  {
+    "name": "a window the account has not got reads as nought",
+    "catches": "is the three windows with their resets, the percent whole below 95 and to two decimals from there",
+    "edits": [
+      {
+        "file": "lib/chat/usage.mjs",
+        "from": "  if (typeof value !== \"number\") {\n    return \"-\";\n  }",
+        "to": "  if (typeof value !== \"number\") {\n    return \"0%\";\n  }"
+      }
+    ]
+  },
+  {
+    "name": "the weekly window is read without its reset",
+    "catches": "is the three windows with their resets, the percent whole below 95 and to two decimals from there",
+    "edits": [
+      {
+        "file": "lib/chat/usage.mjs",
+        "from": "    allReset: until(week?.resets_at ?? data.seven_day?.resets_at, now),",
+        "to": "    allReset: null,"
+      }
+    ]
+  },
+  {
+    "name": "the flat keys are not read",
+    "catches": "falls back on the flat keys when the limits list is not there, and is nothing when the session window has passed",
+    "edits": [
+      {
+        "file": "lib/chat/usage.mjs",
+        "from": "    session: percent(session?.percent ?? data.five_hour?.utilization),",
+        "to": "    session: percent(session?.percent),"
+      }
+    ]
+  },
+  {
+    "name": "a reading that outlived its window is still shown",
+    "catches": "falls back on the flat keys when the limits list is not there, and is nothing when the session window has passed",
+    "edits": [
+      {
+        "file": "lib/chat/usage.mjs",
+        "from": "  if (reset === null) {\n    return null;\n  }\n  return {\n    session:",
+        "to": "  return {\n    session:"
+      }
+    ]
+  },
+  {
+    "name": "the endpoint is asked while nobody is looking",
+    "catches": "is asked for nothing while no page holds a stream",
+    "edits": [
+      {
+        "file": "lib/chat/usage.mjs",
+        "from": "  if (pages > 0 && now() >= live.nextAt && now() - live.fetchedAt >= TTL) {",
+        "to": "  if (now() >= live.nextAt && now() - live.fetchedAt >= TTL) {"
+      }
+    ]
+  },
+  {
+    "name": "the page is not told when the answer lands",
+    "catches": "is told the reading once it is in, again when its words change or a fresh one is taken, and not for a tick that says the same",
+    "edits": [
+      {
+        "file": "lib/chat/usage.mjs",
+        "from": "    refresh(instance, options).then(() => tell(now()), () => {});",
+        "to": "    refresh(instance, options).catch(() => {});"
+      }
+    ]
+  },
+  {
+    "name": "the page is told on every tick",
+    "catches": "is told the reading once it is in, again when its words change or a fresh one is taken, and not for a tick that says the same",
+    "edits": [
+      {
+        "file": "lib/chat/usage.mjs",
+        "from": "  if (words !== lastTold) {\n    lastTold = words;\n    publish(\"quota\", said);\n  }",
+        "to": "  lastTold = words;\n  publish(\"quota\", said);"
+      }
+    ]
+  },
+  {
+    "name": "the endpoint is asked on every tick",
+    "catches": "is told the reading once it is in, again when its words change or a fresh one is taken, and not for a tick that says the same",
+    "edits": [
+      {
+        "file": "lib/chat/usage.mjs",
+        "from": "  if (pages > 0 && now() >= live.nextAt && now() - live.fetchedAt >= TTL) {",
+        "to": "  if (pages > 0 && now() >= live.nextAt) {"
+      }
+    ]
+  },
+  {
+    "name": "a reading that outlived its window is never withdrawn from the page",
+    "catches": "is told nothing once the reading has outlived its window, once",
+    "edits": [
+      {
+        "file": "lib/chat/usage.mjs",
+        "from": "  const said = reading(now);\n  const words = JSON.stringify(said);\n  if (words !== lastTold) {",
+        "to": "  const said = reading(now);\n  const words = JSON.stringify(said);\n  if (said !== null && words !== lastTold) {"
+      }
+    ]
+  }
+]

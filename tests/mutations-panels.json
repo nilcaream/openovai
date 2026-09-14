@@ -16,8 +16,8 @@
     "edits": [
       {
         "file": "lib/chat/panels.mjs",
-        "from": "      state.standing = data.standing ?? {};\n      const listed",
-        "to": "      state.standing = data.standing ?? {};\n      state.order = data.sessions.map((about) => about.name);\n      const listed"
+        "from": "      state.quota = data.quota ?? null;\n      const listed",
+        "to": "      state.quota = data.quota ?? null;\n      state.order = data.sessions.map((about) => about.name);\n      const listed"
       }
     ]
   },
@@ -49,8 +49,8 @@
     "edits": [
       {
         "file": "lib/chat/panels.mjs",
-        "from": "  return panel !== undefined && state.connection !== \"stopping\" && !panel.dimmed;",
-        "to": "  return panel !== undefined && state.connection !== \"stopping\";"
+        "from": "  return panel !== undefined && state.connection === CONNECTED && !panel.dimmed;",
+        "to": "  return panel !== undefined && state.connection === CONNECTED;"
       }
     ]
   },
@@ -104,14 +104,14 @@
     "edits": [
       {
         "file": "lib/chat/panels.mjs",
-        "from": "  return any ? `● ${SHORT}` : SHORT;",
-        "to": "  return SHORT;"
+        "from": "  return any ? `● ${named}` : named;",
+        "to": "  return named;"
       }
     ]
   },
   {
     "name": "STOP is enabled on an idle seat",
-    "catches": "STOP is enabled while a turn runs and nowhere else",
+    "catches": "the stop glyph is there while a turn runs and nowhere else",
     "edits": [
       {
         "file": "lib/chat/panels.mjs",
@@ -126,52 +126,19 @@
     "edits": [
       {
         "file": "lib/chat/panels.mjs",
-        "from": "    case \"stopping\": {\n      state.connection = \"stopping\";\n      break;\n    }",
+        "from": "    case \"stopping\": {\n      state.connection = STOPPING;\n      break;\n    }",
         "to": "    case \"stopping\": {\n      break;\n    }"
       }
     ]
   },
   {
-    "name": "the status line drops the version",
-    "catches": "names the version, the instance, the port, the Leader, the quota and the connection",
-    "edits": [
-      {
-        "file": "lib/chat/panels.mjs",
-        "from": "    version: `${PRODUCT} ${health?.version ?? \"?\"}`,",
-        "to": "    version: PRODUCT,"
-      }
-    ]
-  },
-  {
-    "name": "the status line says ok at every stage",
-    "catches": "says which window is at a stage and when it resets",
-    "edits": [
-      {
-        "file": "lib/chat/panels.mjs",
-        "from": "  return said.length === 0 ? \"ok\" : said.join(\"; \");",
-        "to": "  return \"ok\";"
-      }
-    ]
-  },
-  {
     "name": "the head drops the model",
-    "catches": "the head is the name, the model and the context in k, in parts",
+    "catches": "the head is the name, the model with its effort when one is set, and the context in k, in parts",
     "edits": [
       {
         "file": "lib/chat/panels.mjs",
-        "from": "  const facts = [panel.model, panel.context === null",
+        "from": "  const facts = [model, panel.context === null",
         "to": "  const facts = [\"\", panel.context === null"
-      }
-    ]
-  },
-  {
-    "name": "the quota stage is warning whatever the worst window says",
-    "catches": "comes in parts for the Leader's head, the quota carrying the worst stage",
-    "edits": [
-      {
-        "file": "lib/chat/panels.mjs",
-        "from": "  const stage = stages.includes(\"critical\") ? \"critical\" : stages.includes(\"warning\") ? \"warning\" : \"ok\";",
-        "to": "  const stage = stages.includes(\"critical\") || stages.includes(\"warning\") ? \"warning\" : \"ok\";"
       }
     ]
   },
@@ -192,8 +159,8 @@
     "edits": [
       {
         "file": "lib/chat/panels.mjs",
-        "from": "  if (panel.dimmed) return \"\";\n",
-        "to": ""
+        "from": "  if (panel.dimmed || state.connection === DISCONNECTED) return \"\";\n",
+        "to": "  if (state.connection === DISCONNECTED) return \"\";\n"
       }
     ]
   },
@@ -205,6 +172,171 @@
         "file": "lib/chat/panels.mjs",
         "from": "      } else {\n        // A row the server wrote again, at an index the page holds: it replaces the one there.\n        panel.rows[data.index] = data.row;\n        panel.amended.push(data.index);\n      }\n",
         "to": "      }\n"
+      }
+    ]
+  },
+  {
+    "name": "the title drops the instance",
+    "catches": "the title is the product and the instance as the snapshot names it, marked while any panel asks",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  const named = [PRODUCT, state.instance].filter((part) => part !== \"\").join(\" \");",
+        "to": "  const named = PRODUCT;"
+      }
+    ]
+  },
+  {
+    "name": "the snapshot's instance is not read",
+    "catches": "the title is the product and the instance as the snapshot names it, marked while any panel asks",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "      state.instance = data.instance ?? \"\";\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the head names the model without its effort",
+    "catches": "the head is the name, the model with its effort when one is set, and the context in k, in parts",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  const model = panel.effort === \"\" ? panel.model : `${panel.model}/${panel.effort}`;",
+        "to": "  const model = panel.model;"
+      }
+    ]
+  },
+  {
+    "name": "a seat event without an effort drops the one the head has",
+    "catches": "the head is the name, the model with its effort when one is set, and the context in k, in parts",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  panel.effort = typeof about.effort === \"string\" ? about.effort : panel.effort;",
+        "to": "  panel.effort = typeof about.effort === \"string\" ? about.effort : \"\";"
+      }
+    ]
+  },
+  {
+    "name": "a gone process keeps the amber dot of its turn",
+    "catches": "the dot is green between turns, amber while one runs, red once the process is gone",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  if (panel.dimmed || state.connection === DISCONNECTED) return RED;\n  return panel.busy ? AMBER : GREEN;",
+        "to": "  if (panel.busy) return AMBER;\n  return panel.dimmed || state.connection === DISCONNECTED ? RED : GREEN;"
+      }
+    ]
+  },
+  {
+    "name": "the stop glyph is there on a panel that takes no input",
+    "catches": "the stop glyph is there while a turn runs and nowhere else",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  return composersEnabled(state, name) && panel.busy;",
+        "to": "  return panel !== undefined && panel.busy;"
+      }
+    ]
+  },
+  {
+    "name": "a stopping server drops the state word",
+    "catches": "nothing is typed into an instance that is stopping",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  if (panel.dimmed || state.connection === DISCONNECTED) return \"\";",
+        "to": "  if (panel.dimmed || state.connection !== CONNECTED) return \"\";"
+      }
+    ]
+  },
+  {
+    "name": "without a stream the dot keeps the colour of the turn",
+    "catches": "without a stream every dot is red, no head has a state word and nothing takes input",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  if (panel.dimmed || state.connection === DISCONNECTED) return RED;",
+        "to": "  if (panel.dimmed) return RED;"
+      }
+    ]
+  },
+  {
+    "name": "without a stream the head keeps its state word",
+    "catches": "without a stream every dot is red, no head has a state word and nothing takes input",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  if (panel.dimmed || state.connection === DISCONNECTED) return \"\";",
+        "to": "  if (panel.dimmed) return \"\";"
+      }
+    ]
+  },
+  {
+    "name": "without a stream the composers stay open",
+    "catches": "without a stream every dot is red, no head has a state word and nothing takes input",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  return panel !== undefined && state.connection === CONNECTED && !panel.dimmed;",
+        "to": "  return panel !== undefined && state.connection !== STOPPING && !panel.dimmed;"
+      }
+    ]
+  },
+  {
+    "name": "the quota line drops the resets",
+    "catches": "is the session window with its reset, then all with its reset, then fable with its reset",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  return reset === null ? named : `${named} (${reset})`;",
+        "to": "  return named;"
+      }
+    ]
+  },
+  {
+    "name": "the quota line labels the session window",
+    "catches": "is the session window with its reset, then all with its reset, then fable with its reset",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  const named = label === \"\" ? percent : `${label} ${percent}`;",
+        "to": "  const named = `${label} ${percent}`;"
+      }
+    ]
+  },
+  {
+    "name": "the tooltip drops when the reading was taken",
+    "catches": "spells the same out for the tooltip, with when the reading was taken",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "\\nread at ${when(quota.updated)}`;",
+        "to": "`;"
+      }
+    ]
+  },
+  {
+    "name": "the quota event is not applied",
+    "catches": "comes with the snapshot and moves with the quota event",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "    case \"quota\": {\n      state.quota = data;\n      break;\n    }",
+        "to": "    case \"quota\": {\n      break;\n    }"
+      }
+    ]
+  },
+  {
+    "name": "a snapshot without a quota keeps the old one",
+    "catches": "comes with the snapshot and moves with the quota event",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "      state.quota = data.quota ?? null;\n      const listed",
+        "to": "      state.quota = data.quota ?? state.quota;\n      const listed"
       }
     ]
   }
