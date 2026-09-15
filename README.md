@@ -371,7 +371,7 @@ A stop keeps the desk and the panel's rows; anything addressed to the Leader sta
 The server reads the usage windows Claude Code reports with every turn — **5h** and **7d** —
 and fable's own weekly window, which those reports do not carry, from the account's usage
 endpoint, at the pace the head reads it (once a minute while a page is open). Two threshold pairs
-cover the three: `quota: { "5h": [90, 95], "7d": [95, 97] }` in `openovai.json` — those are the
+cover the three: `quota: { "5h": [90, 95], "7d": [97, 99] }` in `openovai.json` — those are the
 defaults, and the `7d` pair holds every weekly window, the one over all models and fable's own
 alike; there is no separate pair to set for fable. One event, `quota-low`, is sent at both stages
 and carries `stage`, `window` (`5h`, `7d` or `7d-fable`) and `resets`; for fable's window it

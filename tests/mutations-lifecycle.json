@@ -220,7 +220,7 @@
   },
   {
     "name": "every window takes the frame's outer reset",
-    "catches": "applies the 7d thresholds to the 7d window: nothing at 0.91, warning at 0.96, interrupt and critical at 0.98",
+    "catches": "applies the 7d thresholds to the 7d window: nothing at 0.91, warning at 0.98, interrupt and critical at 0.99",
     "edits": [
       {
         "file": "lib/chat/quota.mjs",
@@ -703,7 +703,7 @@
   },
   {
     "name": "the 5h thresholds apply to every window",
-    "catches": "applies the 7d thresholds to the 7d window: nothing at 0.91, warning at 0.96, interrupt and critical at 0.98",
+    "catches": "applies the 7d thresholds to the 7d window: nothing at 0.91, warning at 0.98, interrupt and critical at 0.99",
     "edits": [
       {
         "file": "lib/chat/quota.mjs",

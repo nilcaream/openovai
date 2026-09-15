@@ -671,10 +671,10 @@ describe("the quota gate", () => {
     assert.equal((await told(superman.log, 2)).at(-1), "<user>rejected</user>");
   });
 
-  it("applies the 7d thresholds to the 7d window: nothing at 0.91, warning at 0.96, interrupt and critical at 0.98", async () => {
+  it("applies the 7d thresholds to the 7d window: nothing at 0.91, warning at 0.98, interrupt and critical at 0.99", async () => {
     // The 7d window's own reset, three days out — never the frame's outer one, which is the 5h's.
     const week = new Date(now + 3 * 24 * 60 * MINUTE).toISOString();
-    await fresh({ OPENOVAI_STAND_IN_SLOW: "400", ...readings(reading(0.5, { sevenDay: 0.91 }), reading(0.5, { sevenDay: 0.96 }), reading(0.5, { sevenDay: 0.98 })) });
+    await fresh({ OPENOVAI_STAND_IN_SLOW: "400", ...readings(reading(0.5, { sevenDay: 0.91 }), reading(0.5, { sevenDay: 0.98 }), reading(0.5, { sevenDay: 0.99 })) });
     await tell(WORKER, userFrame("one")).answered;
     assert.deepEqual(heardIn(superman.log), []);
     await tell(WORKER, userFrame("two")).answered;
@@ -830,7 +830,7 @@ describe("the quota gate", () => {
       assert.match(callsIn(zed.log)[0], /--model fable/);
       const busy = tell("Zed", userFrame("busy"));
       await told(zed.log, 1);
-      quota.saw("usage", null, { unifiedWindows: { [quota.FABLE_WINDOW]: { utilization: 0.98, resetsAt: resets } } }, now);
+      quota.saw("usage", null, { unifiedWindows: { [quota.FABLE_WINDOW]: { utilization: 0.99, resetsAt: resets } } }, now);
       assert.deepEqual(await busy.answered, { interrupted: true, text: "interrupted" });
       const frames = await told(zed.log, 2);
       assert.match(frames[1], /^<server-event type="quota-low" stage="critical" window="7d-fable" resets="[^"]+" model="fable" interrupted="true">/);

@@ -14,8 +14,9 @@ of the one model that has its own, read from the account's usage endpoint with t
 credential while a page is open. That third window is the quota gate's too, on a fresh instance with
 nothing set: it is held at the same `7d` thresholds as the window over all models — one pair for
 every weekly window, no key of fable's own in `openovai.json` — and when it reaches the second stage
-nothing more runs on fable until it resets, while every other model goes on. The theme toggle sits
-at the right edge. The version, the path and the port
+nothing more runs on fable until it resets, while every other model goes on. The weekly pair itself
+is higher now: the first stage at 97 per cent and the second at 99, where it was 95 and 97. The
+theme toggle sits at the right edge. The version, the path and the port
 are no longer on the head, and the context is never hidden. `STOP` is gone from the heads: while a
 turn runs, a stop glyph sits at the right edge of that panel's text box, and only then. When the
 server is gone the page says so — every dot red, no state words, `disconnected` on the Leader's
@@ -188,7 +189,7 @@ seat — `write_desk`, `restart_session`, `stop_session` — and two for the Lea
 and the panel; both refuse until the desk was written since the event that asked. The server owns
 the desk header and writes it. What the server has to say is a fixed set of events: context-full,
 quota-low, idle, park, hard-rules, stopped, and each asks one thing of the seat. The quota gate
-reads the windows Claude Code reports — 5h and 7d, two thresholds each, 90/95 and 95/97 by default
+reads the windows Claude Code reports — 5h and 7d, two thresholds each, 90/95 and 97/99 by default
 — and fires a stage once per crossing: the first holds hires and tells every seat, the second holds
 every write and interrupts the Workers, the Leader told once. A frame that would not pass waits in
 the server's queue and is released at the reset, the Leader's first. `park` waits for the Workers'

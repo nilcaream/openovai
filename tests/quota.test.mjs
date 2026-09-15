@@ -71,23 +71,23 @@ function fresh(config = {}) {
 }
 
 describe("the thresholds", () => {
-  it("default to 90/95 on 5h and 95/97 on 7d, and there are no others", () => {
+  it("default to 90/95 on 5h and 97/99 on 7d, and there are no others", () => {
     assert.deepEqual(thresholdsIn({}), DEFAULT_THRESHOLDS);
-    assert.deepEqual(thresholdsIn({}), { "5h": [90, 95], "7d": [95, 97] });
+    assert.deepEqual(thresholdsIn({}), { "5h": [90, 95], "7d": [97, 99] });
   });
 
   it("take the instance's own per window and keep the defaults for the rest", () => {
     const merged = thresholdsIn({ quota: { "5h": [50, 60] } });
     assert.deepEqual(merged["5h"], [50, 60]);
-    assert.deepEqual(merged["7d"], [95, 97]);
+    assert.deepEqual(merged["7d"], [97, 99]);
   });
 
   it("hold every weekly window against the one 7d pair: the account's and fable's own alike, the default and the instance's", () => {
     fresh();
-    saw("usage", null, reading(0.5, 0.5, fable(0.96)));
+    saw("usage", null, reading(0.5, 0.5, fable(0.98)));
     assert.equal(stageOf(FABLE_WINDOW), "warning");
     assert.equal(stageOf("seven_day"), null);
-    saw("usage", null, reading(0.5, 0.5, fable(0.97)));
+    saw("usage", null, reading(0.5, 0.5, fable(0.99)));
     assert.equal(stageOf(FABLE_WINDOW), "critical");
     fresh({ quota: { "7d": [50, 60], "7d-fable": [10, 20] } });
     saw("usage", null, reading(0.5, 0.55, fable(0.55)));
@@ -113,11 +113,11 @@ describe("the thresholds", () => {
     assert.equal(stageOf("five_hour"), "critical");
   });
 
-  it("7d reaches warning at 0.96 and critical at 0.98", () => {
+  it("7d reaches warning at 0.98 and critical at 0.99", () => {
     fresh();
-    saw("Paul", "opus", reading(0.5, 0.96));
-    assert.equal(stageOf("seven_day"), "warning");
     saw("Paul", "opus", reading(0.5, 0.98));
+    assert.equal(stageOf("seven_day"), "warning");
+    saw("Paul", "opus", reading(0.5, 0.99));
     assert.equal(stageOf("seven_day"), "critical");
   });
 });
@@ -220,7 +220,7 @@ describe("the gate", () => {
 
   it("names the window with the earliest reset when two hold", () => {
     fresh();
-    saw("Paul", "opus", reading(0.96, 0.98));
+    saw("Paul", "opus", reading(0.96, 0.99));
     assert.equal(mayWrite("Paul", "opus").window, "5h");
   });
 });
@@ -232,7 +232,7 @@ describe("fable's own window", () => {
     assert.deepEqual(windowsFor("fable"), ["five_hour", "seven_day", FABLE_WINDOW]);
     assert.deepEqual(windowsFor("Fable"), ["five_hour", "seven_day", FABLE_WINDOW]);
     assert.deepEqual(windowsFor("opus"), ["five_hour", "seven_day"]);
-    saw("usage", null, reading(0.5, 0.5, fable(0.98)));
+    saw("usage", null, reading(0.5, 0.5, fable(0.99)));
     assert.equal(mayWrite("Zed", "fable")?.window, "7d-fable");
     assert.equal(mayWrite("Paul", "opus"), null);
     assert.equal(holdsHire("fable")?.window, "7d-fable");
@@ -242,10 +242,10 @@ describe("fable's own window", () => {
 
   it("at the second stage nothing more runs on fable until it resets, and from the first no fable Worker is hired", () => {
     const clock = fresh();
-    saw("usage", null, reading(0.5, 0.5, fable(0.95)));
+    saw("usage", null, reading(0.5, 0.5, fable(0.97)));
     assert.equal(mayStart("fable"), null, "the first stage lets a fable start through");
     assert.equal(holdsHire("fable")?.window, "7d-fable");
-    saw("usage", null, reading(0.5, 0.5, fable(0.97)));
+    saw("usage", null, reading(0.5, 0.5, fable(0.99)));
     assert.deepEqual(mayStart("fable"), { window: "7d-fable", resets: new Date(RESET_7D).toISOString() });
     assert.deepEqual(mayWrite("Zed", "fable"), { window: "7d-fable", resets: new Date(RESET_7D).toISOString() });
     assert.equal(mayStart("opus"), null, "another model is not held by fable's window");
@@ -294,7 +294,7 @@ describe("a stage crossing", () => {
     fresh();
     const fired = [];
     onStage((window, stage, resets, model) => fired.push([window, stage, model]));
-    saw("usage", null, reading(0.5, 0.96, fable(0.96)));
+    saw("usage", null, reading(0.5, 0.98, fable(0.98)));
     assert.deepEqual(fired, [["7d", "warning", null], ["7d-fable", "warning", "fable"]]);
   });
 
@@ -329,7 +329,7 @@ describe("the held list", () => {
 
   it("releases only what the passed window held", () => {
     const clock = fresh();
-    saw("Paul", "opus", reading(0.96, 0.98));
+    saw("Paul", "opus", reading(0.96, 0.99));
     hold("Paul", { frame: "five", window: "5h" });
     hold("Paul", { frame: "seven", window: "7d" });
     clock.at(RESET_5H);
@@ -339,8 +339,8 @@ describe("the held list", () => {
 
   it("holds a fable frame by fable's own window, not by the account's weekly one", () => {
     const clock = fresh();
-    saw("usage", null, reading(0.5, 0.5, { [FABLE_WINDOW]: { utilization: 0.98, resetsAt: RESET_7D - 60_000 } }));
-    saw("Paul", "opus", reading(0.5, 0.98));
+    saw("usage", null, reading(0.5, 0.5, { [FABLE_WINDOW]: { utilization: 0.99, resetsAt: RESET_7D - 60_000 } }));
+    saw("Paul", "opus", reading(0.5, 0.99));
     assert.equal(mayWrite("Zed", "fable").window, "7d-fable");
     assert.equal(mayWrite("Paul", "opus").window, "7d");
     hold("Zed", { frame: "fable-turn", window: mayWrite("Zed", "fable").window });

@@ -292,12 +292,12 @@
   },
   {
     "name": "a second weekly pair is configurable",
-    "catches": "default to 90/95 on 5h and 95/97 on 7d, and there are no others",
+    "catches": "default to 90/95 on 5h and 97/99 on 7d, and there are no others",
     "edits": [
       {
         "file": "lib/chat/quota.mjs",
-        "from": "  \"7d\": [95, 97],\n});",
-        "to": "  \"7d\": [95, 97],\n  \"7d-fable\": [95, 97],\n});"
+        "from": "  \"7d\": [97, 99],\n});",
+        "to": "  \"7d\": [97, 99],\n  \"7d-fable\": [97, 99],\n});"
       }
     ]
   },

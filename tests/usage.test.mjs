@@ -113,9 +113,9 @@ describe("asking the endpoint", () => {
       seven_day_fable: { key: "7d-fable", utilization: 0.2, resetsAt: "2026-09-19T21:00:00.000Z", resets: quota.hhmm("2026-09-19T21:00:00.000Z"), at: new Date(T0).toISOString(), from: "usage", stage: null },
     });
     assert.equal(quota.mayStart("fable", T0), null);
-    await refresh(instance, { get: answering({ body: payload({ fable: 97.5 }) }), now: () => T0 + TTL });
-    assert.equal(quota.standing(T0 + TTL).seven_day_fable.utilization, 0.975);
-    assert.deepEqual(quota.mayStart("fable", T0 + TTL), { window: "7d-fable", resets: "2026-09-19T21:00:00.000Z" }, "held at the 7d pair, 95/97");
+    await refresh(instance, { get: answering({ body: payload({ fable: 99.5 }) }), now: () => T0 + TTL });
+    assert.equal(quota.standing(T0 + TTL).seven_day_fable.utilization, 0.995);
+    assert.deepEqual(quota.mayStart("fable", T0 + TTL), { window: "7d-fable", resets: "2026-09-19T21:00:00.000Z" }, "held at the 7d pair, 97/99");
     assert.equal(quota.mayStart("opus", T0 + TTL), null);
   });
 
