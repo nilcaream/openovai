@@ -185,25 +185,44 @@ function buildCopy(into) {
 
   for (const line of treeState().split("\n")) {
     if (line === "") continue;
-    // Porcelain is two status columns, a space, then the path; a rename carries "old -> new".
+    // Porcelain is two status columns, a space, then the path; a staged rename carries
+    // "old -> new", and both sides are the tree's business: the new side is copied over like any
+    // other change, and the old side, which the archive laid down because HEAD still has it, is
+    // taken away. Left standing, a renamed file would exist twice in the copy — and a check that
+    // the old place is empty, or a mutation that puts the file back there, would be measured
+    // against a tree nobody has. (Measured 2026-09-14: a mutation moving the version file back to
+    // the root reported BIT on a pre-commit copy that still carried the root file, and
+    // UNREPORTABLE once the rename was committed.)
     const shown = line.slice(3);
-    const where = shown.includes(" -> ") ? shown.slice(shown.indexOf(" -> ") + 4) : shown;
-    const name = where.replace(/^"|"$/g, "");
+    const moved = shown.indexOf(" -> ");
+    if (moved !== -1) removeFromCopy(into, unquoted(shown.slice(0, moved)));
+    const name = unquoted(moved !== -1 ? shown.slice(moved + 4) : shown);
     const from = path.join(repo, name);
     const to = path.join(into, name);
     if (fs.existsSync(from)) {
       fs.mkdirSync(path.dirname(to), { recursive: true });
       fs.cpSync(from, to, { recursive: true });
     } else {
-      fs.rmSync(to, { recursive: true, force: true });
-      // A directory whose last file was deleted is not in the tree either; the archive laid it
-      // down, and a check that a directory is gone would find it standing here, empty.
-      for (let dir = path.dirname(to); dir !== into && fs.readdirSync(dir).length === 0; dir = path.dirname(dir)) {
-        fs.rmdirSync(dir);
-      }
+      removeFromCopy(into, name);
     }
   }
   return into;
+}
+
+// Porcelain quotes a path that carries a space or anything unprintable.
+function unquoted(shown) {
+  return shown.replace(/^"|"$/g, "");
+}
+
+// Takes one path out of a copy, and every directory that is left empty above it: a directory whose
+// last file was deleted is not in the tree either, the archive laid it down, and a check that a
+// directory is gone would find it standing here, empty.
+function removeFromCopy(into, name) {
+  const to = path.join(into, name);
+  fs.rmSync(to, { recursive: true, force: true });
+  for (let dir = path.dirname(to); dir !== into && fs.existsSync(dir) && fs.readdirSync(dir).length === 0; dir = path.dirname(dir)) {
+    fs.rmdirSync(dir);
+  }
 }
 
 // -------------------------------------------------------------------------------- running a suite

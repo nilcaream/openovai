@@ -115,6 +115,7 @@
     "name": "the event kind is taken as free text",
     "catches": "refuses an event kind that is not a plain token",
     "edits": [
+      { "file": "lib/chat/frames.mjs", "from": "  if (!EVENTS.includes(kind)) {\n    throw new Error(`${JSON.stringify(kind)} is not an event the server says`);\n  }\n", "to": "" },
       { "file": "lib/chat/frames.mjs", "from": "`<server-event type=\"${token(\"type\", kind)}\"", "to": "`<server-event type=\"${kind}\"" }
     ]
   },
