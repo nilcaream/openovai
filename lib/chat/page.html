@@ -201,7 +201,7 @@
   // draws it and carries what is typed and pressed to the server.
 
   import { dialogOf } from "./dialog.mjs";
-  import { AMBER, CONNECTED, DISCONNECTED, GREEN, RED, STOPPING, applyEvent, composersEnabled, dot, fresh, head, keyAction, place, prune, quotaLine, quotaTitle, stopEnabled, title } from "./panels.mjs";
+  import { AMBER, CONNECTED, DISCONNECTED, GREEN, RED, applyEvent, composersEnabled, dot, fresh, head, keyAction, place, prune, quotaLine, quotaTitle, stopEnabled, title } from "./panels.mjs";
   import { row as rowOf } from "./render.mjs";
 
   const secret = document.querySelector('meta[name="openovai-secret"]').content;
@@ -417,13 +417,14 @@
     for (const time of cut) time.textContent = time.dataset.clock;
   }
 
-  function dayPill(day) {
-    const pill = document.createElement("div");
-    pill.className = "divider";
+  // The pill between two days, and the one between two sessions: the same pill, a word on it.
+  function pill(word) {
+    const element = document.createElement("div");
+    element.className = "divider";
     const text = document.createElement("span");
-    text.textContent = day;
-    pill.append(text);
-    return pill;
+    text.textContent = word;
+    element.append(text);
+    return element;
   }
 
   // A tool call is a light line, not a bubble: the summary as the element's own text, a counter
@@ -487,6 +488,7 @@
   // two sessions carries its id on the row, for a click on the line the other panel draws for it.
   function rowElement(entry, shown) {
     if (shown.kind === "line") return lineElement(shown);
+    if (shown.kind === "divider") return pill(shown.text);
     const line = document.createElement("div");
     line.className = `msg ${shown.kind}`;
     if (shown.msg !== undefined) line.dataset.msg = shown.msg;
@@ -678,7 +680,7 @@
           if (day !== panel.day) {
             panel.day = day;
             panel.last = null;
-            panel.rows.append(dayPill(day));
+            panel.rows.append(pill(day));
           }
           const shown = rowOf(entry, { chat: state.chat, seat: panel.name, leader: state.leader, user: state.user });
           // A line that is one end of a message is its own: two messages are two lines, never
@@ -795,22 +797,20 @@
       });
     }
     stream.addEventListener("open", () => {
-      if (state.connection !== STOPPING) {
-        state.connection = CONNECTED;
-        draw();
-      }
+      state.connection = CONNECTED;
+      draw();
     });
     stream.addEventListener("error", () => {
       stream.close();
-      if (state.connection !== STOPPING) lost();
+      lost();
       setTimeout(probe, 1000);
     });
   }
 
   // A stream that dropped: the server is gone, or stopping, or the line was cut — the page has no
   // stream either way, and says so. It asks the server about it once a second: a 401 is a new
-  // server and a new secret (reload, in call), a 503 the instance stopping (stopping, in call), no
-  // answer at all the server gone; anything else, the stream is opened again.
+  // server and a new secret (reload, in call), a 503 the instance still stopping, no answer at all
+  // the server gone; anything else, the stream is opened again.
   function lost() {
     if (state.connection !== DISCONNECTED) {
       state.connection = DISCONNECTED;

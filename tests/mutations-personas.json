@@ -166,12 +166,45 @@
   },
   {
     "name": "the Leader's persona sends every word to the User",
-    "catches": "tells the Leader that its answer reaches whoever spoke to it, and where the rest goes",
+    "catches": "tells the Leader that what it says lands on its own panel, and a Worker is reached through message",
     "edits": [
       {
         "file": "lib/templates/leader.md",
-        "from": "Say each thing to the one it is for, and\nkeep what {{USER}} has to know on your desk until {{USER}} next speaks to you.",
+        "from": "Say each thing to the one it is for — a Worker through `message`, {{USER}}\nin your words — and keep what {{USER}} has to know on your desk until {{USER}} next speaks to you.",
         "to": "Say everything to {{USER}}."
+      }
+    ]
+  },
+  {
+    "name": "the Leader's persona says a Worker reads the end of its turn",
+    "catches": "tells the Leader that what it says lands on its own panel, and a Worker is reached through message",
+    "edits": [
+      {
+        "file": "lib/templates/leader.md",
+        "from": "Nothing you say reaches a Worker on its own: a line you address\nto a Worker at the end of its message's turn lands on your panel, in front of {{USER}}, and the\nWorker never sees it.",
+        "to": "A line you address to a Worker at the end of its message's turn reaches the Worker."
+      }
+    ]
+  },
+  {
+    "name": "the Leader's persona says the message call waits for the answer",
+    "catches": "tells the Leader how to say something to somebody, and that the call comes back at once",
+    "edits": [
+      {
+        "file": "lib/templates/leader.md",
+        "from": "It comes back the moment they have it, and your\nturn goes on: answer {{USER}} now — who you asked, for what — and whatever they say back arrives\nlater as a `<message>` of its own, a turn of yours like any other.",
+        "to": "Their reply comes back as the answer, and you are held for their turn."
+      }
+    ]
+  },
+  {
+    "name": "the Worker's persona says the message call hands the answer back",
+    "catches": "tells the Worker that the call comes back at once and a report is a message, never its last line",
+    "edits": [
+      {
+        "file": "lib/templates/worker.md",
+        "from": "it comes back the moment they have it, whatever the message holds\narrives exactly as you wrote it, and whatever they say back arrives later as a `<message>` of its\nown. What you say in a turn lands on your own panel and nowhere else — a report {{LEADER}} is\nwaiting for is a `message` to {{LEADER}}, never the last line of your turn.",
+        "to": "it waits for their answer and hands it back, and whatever the message holds\narrives exactly as you wrote it."
       }
     ]
   },
@@ -199,7 +232,7 @@
   },
   {
     "name": "the Leader's persona names the tool for saying something by another name",
-    "catches": "tells the Leader how to say something to somebody",
+    "catches": "tells the Leader how to say something to somebody, and that the call comes back at once",
     "edits": [
       {
         "file": "lib/templates/leader.md",

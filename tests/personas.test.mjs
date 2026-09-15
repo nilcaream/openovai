@@ -158,9 +158,10 @@ describe("what the Leader is told", () => {
     assert.match(leader(), new RegExp(`do not answer ${USER} on their behalf`));
   });
 
-  it("tells the Leader that its answer reaches whoever spoke to it, and where the rest goes", () => {
-    assert.match(leader(), /goes back to whoever spoke to you in it, and to nobody else/);
-    assert.match(leader(), /Say each thing to the one it is for/);
+  it("tells the Leader that what it says lands on its own panel, and a Worker is reached through message", () => {
+    assert.match(leader(), /What you say in a turn lands on your own panel, as you say it/);
+    assert.match(leader(), /Nothing you say reaches a Worker on its own/);
+    assert.match(leader(), /Say each thing to the one it is for — a Worker through `message`/);
     assert.match(leader(), new RegExp(`keep what ${USER} has to know on your desk until ${USER} next speaks to you`));
   });
 
@@ -179,8 +180,10 @@ describe("what the Leader is told", () => {
     assert.match(leader(), new RegExp(`Never tell ${USER}\\s+what did or did not stop`));
   });
 
-  it("tells the Leader how to say something to somebody", () => {
+  it("tells the Leader how to say something to somebody, and that the call comes back at once", () => {
     assert.match(leader(), /The `message` tool says something\s+to one of them/);
+    assert.match(leader(), new RegExp(`It comes back the moment they have it, and your\\s+turn goes on: answer ${USER} now`));
+    assert.match(leader(), /whatever they say back arrives\s+later as a `<message>` of its own/);
   });
 
   it("tells the Leader how to see who works here", () => {
@@ -261,6 +264,11 @@ describe("what a Worker is told", () => {
   it("tells the Worker how to say something to somebody and how to see who is here", () => {
     assert.match(worker(), /The `message` tool is how you reach anybody else here/);
     assert.match(worker(), /the `room` tool says who that is/);
+  });
+
+  it("tells the Worker that the call comes back at once and a report is a message, never its last line", () => {
+    assert.match(worker(), /it comes back the moment they have it/);
+    assert.match(worker(), new RegExp(`a report ${LEAD} is\\s+waiting for is a \`message\` to ${LEAD}, never the last line of your turn`));
   });
 
   it("tells the Worker that the server passes on what the User typed, so it does not", () => {

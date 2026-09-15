@@ -121,12 +121,12 @@
     ]
   },
   {
-    "name": "composers stay open while stopping",
-    "catches": "nothing is typed into an instance that is stopping",
+    "name": "a stopping server changes nothing on the page",
+    "catches": "a server that is stopping is disconnected: nothing is typed, every dot is red, no head has a word",
     "edits": [
       {
         "file": "lib/chat/panels.mjs",
-        "from": "    case \"stopping\": {\n      state.connection = STOPPING;\n      break;\n    }",
+        "from": "    case \"stopping\": {\n      state.connection = DISCONNECTED;\n      break;\n    }",
         "to": "    case \"stopping\": {\n      break;\n    }"
       }
     ]
@@ -220,17 +220,6 @@
     ]
   },
   {
-    "name": "a stopping server drops the state word",
-    "catches": "nothing is typed into an instance that is stopping",
-    "edits": [
-      {
-        "file": "lib/chat/panels.mjs",
-        "from": "  if (panel.dimmed || state.connection === DISCONNECTED) return \"\";",
-        "to": "  if (panel.dimmed || state.connection !== CONNECTED) return \"\";"
-      }
-    ]
-  },
-  {
     "name": "without a stream the dot keeps the colour of the turn",
     "catches": "without a stream every dot is red, no head has a state word and nothing takes input",
     "edits": [
@@ -259,7 +248,7 @@
       {
         "file": "lib/chat/panels.mjs",
         "from": "  return panel !== undefined && state.connection === CONNECTED && !panel.dimmed;",
-        "to": "  return panel !== undefined && state.connection !== STOPPING && !panel.dimmed;"
+        "to": "  return panel !== undefined && !panel.dimmed;"
       }
     ]
   },

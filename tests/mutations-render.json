@@ -66,6 +66,17 @@
     ]
   },
   {
+    "name": "a divider is drawn as the chat's muted words",
+    "catches": "a word between two sessions is a divider, its words as text",
+    "edits": [
+      {
+        "file": "lib/chat/render.mjs",
+        "from": "  if (entry.divider === true) {",
+        "to": "  if (entry.divider === true && false) {"
+      }
+    ]
+  },
+  {
     "name": "an interrupted row is shown as the seat's words",
     "catches": "an interrupted turn is shown as interrupted, not as a reply",
     "edits": [

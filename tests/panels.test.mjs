@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { AMBER, CONNECTED, DISCONNECTED, GONE_AFTER, GREEN, RED, STOPPING, applyEvent, composersEnabled, dot, fresh, head, keyAction, place, prune, quotaLine, quotaTitle, stopEnabled, title } from "../lib/chat/panels.mjs";
+import { AMBER, CONNECTED, DISCONNECTED, GONE_AFTER, GREEN, RED, applyEvent, composersEnabled, dot, fresh, head, keyAction, place, prune, quotaLine, quotaTitle, stopEnabled, title } from "../lib/chat/panels.mjs";
 
 const LEADER = "Leader";
 
@@ -201,16 +201,21 @@ describe("marks and controls", () => {
     assert.equal(stopEnabled(state, "Paul"), false, "a gone process has no turn to stop");
   });
 
-  it("nothing is typed into an instance that is stopping", () => {
+  // A server that said it is stopping is as good as gone: the page has no server to type into,
+  // and says so the one way it says that — red dots, no state word, "disconnected" on the head.
+  it("a server that is stopping is disconnected: nothing is typed, every dot is red, no head has a word", () => {
     const state = fresh();
     applyEvent(state, snapshot([about(LEADER), about("Paul", { busy: true })]), 0);
     assert.equal(state.connection, CONNECTED);
     applyEvent(state, { name: "stopping", data: {} }, 0);
-    assert.equal(state.connection, STOPPING);
+    assert.equal(state.connection, DISCONNECTED);
     assert.equal(composersEnabled(state, LEADER), false);
     assert.equal(composersEnabled(state, "Paul"), false);
     assert.equal(stopEnabled(state, "Paul"), false);
-    assert.equal(head(state, LEADER).state, "listening", "a stopping server is still there: the word stays");
+    assert.equal(dot(state, LEADER), RED);
+    assert.equal(dot(state, "Paul"), RED);
+    assert.equal(head(state, LEADER).state, "");
+    assert.equal(head(state, "Paul").state, "");
   });
 
   // Without a stream the page cannot know what any session is doing: every dot is red, no head

@@ -486,6 +486,18 @@ for (;;) {
   }
 
   note("answered: " + asked);
+  // The answer the way the real one gives it: the text as an assistant frame of its own the
+  // moment it is said, then the result frame carrying the same text — as measured. A turn with
+  // nothing to say says no text and results in an empty string.
+  const answer =
+    (process.env.OPENOVAI_STAND_IN_EMPTY ?? "") !== ""
+      ? ""
+      : decided === null
+        ? (process.env.OPENOVAI_STAND_IN_REPLY ?? "a reply")
+        : \`I was told \${decided.behavior}\${decided.message === undefined ? "" : \`: \${decided.message}\`}\`;
+  if (answer !== "") {
+    frame({ type: "assistant", message: { role: "assistant", content: [{ type: "text", text: answer }] }, session_id: "test-thread" });
+  }
   frame({
     type: "result",
     subtype: "success",
@@ -493,12 +505,7 @@ for (;;) {
     num_turns: turn,
     session_id: "test-thread",
     ...(usage === null ? {} : { usage }),
-    result:
-      (process.env.OPENOVAI_STAND_IN_EMPTY ?? "") !== ""
-        ? ""
-        : decided === null
-          ? (process.env.OPENOVAI_STAND_IN_REPLY ?? "a reply")
-          : \`I was told \${decided.behavior}\${decided.message === undefined ? "" : \`: \${decided.message}\`}\`,
+    result: answer,
   });
 }
 

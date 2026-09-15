@@ -79,14 +79,31 @@ should survive.
 `To <Worker>` on the Leader's panel, red, with the whole text, and `Received a message from
 <Leader>` on the Worker's — a line marked as a click: it brings that message into view on the
 Leader's panel and lights it for a moment. What a Worker sends the Leader is `From <Worker>` on
-the Leader's panel, blue, and `Sent a message to <Leader>` on the Worker's, the same click. The
-Leader's answer to a Worker's message is a message the other way and is drawn as one, so a Worker
-sees the answer land on its own panel and no longer only inside its call's result. What the User
-types on a Worker's panel is the User's prompt there, green, under the User's name, and on the
+the Leader's panel, blue, and `Sent a message to <Leader>` on the Worker's, the same click. What
+the User types on a Worker's panel is the User's prompt there, green, under the User's name, and on the
 Leader's panel `<User> → <Worker>`, orange, with the whole text — three cases and no others. A
 red line says why on hover: the exit code or the missing file the call's result named, the reason
 a message was refused. A `To` or `From` row longer than three lines shows three, faded at the
 edge, with `show all` under it.
+
+**Nobody's turn is held for anybody else's.** A message comes back the moment the other session
+has it, and the sender's turn goes on: the Leader asked to hire somebody for a task answers you
+now — who it hired, for what — instead of going quiet for as long as the Worker takes, and the
+Worker's report arrives later, as a `From <Worker>` row of its own, when the Worker sends it.
+What a session says at the end of a turn is its own, on its own panel, and reaches nobody else;
+a reply to a message is a message the other way, made with the same tool. And what a session says
+is on its panel as it says it — every sentence the moment it is said, not the last one once the
+turn is over — so a Leader that says "hiring somebody for this" before a long call is read while
+the call runs. A message that would have waited for its sender's own turn used to be refused;
+nothing waits now, so nothing is.
+
+**A Leader that has left says so on its panel.** When the Leader's process is gone for good —
+it stopped itself after "go offline", the server was stopped, or it died — one row sits on its
+panel where the session ended, drawn like the day between two rows: `<Leader> has left — the next
+message starts a fresh session`. What is typed there next starts a new process with nothing of
+the old context; its desk is what it knows. A stopping server is a gone one on the page from the
+moment it says so: every dot red, no state words, `disconnected` on the Leader's head — never
+`stopping` — and it comes back on its own when the server does.
 
 ## 0.10.0
 

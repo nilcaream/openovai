@@ -376,6 +376,14 @@ describe("the script", () => {
     assert.match(script, /if \(shown\.kind === "line"\) return lineElement\(shown\);/);
   });
 
+  // A divider row — the Leader's process gone — is the same pill as the day between two rows:
+  // one function builds both, a div of the divider class with the word in a span.
+  it("draws a divider row as the pill between two days, built by the one pill function", () => {
+    assert.match(script, /function pill\(word\) \{\s*const element = document\.createElement\("div"\);\s*element\.className = "divider";\s*const text = document\.createElement\("span"\);\s*text\.textContent = word;\s*element\.append\(text\);\s*return element;/);
+    assert.match(script, /if \(shown\.kind === "divider"\) return pill\(shown\.text\);/);
+    assert.match(script, /panel\.rows\.append\(pill\(day\)\);/);
+  });
+
   // A line that is one end of a message between two sessions carries the message's id and is a
   // click: the message is found on the Leader's panel by that id, brought into view and lit for a
   // moment. A line that is nothing of the kind gets none of it.
@@ -434,15 +442,18 @@ describe("the script", () => {
   });
 
   // Without a stream the page says so and asks the server about it once a second: a 503 is the
-  // instance stopping (call() marks that), no answer is the server gone, anything else opens the
-  // stream again; a 401 reloads, in call(). The stream's own error says nothing while the server
-  // is stopping — the probe finds out which it is.
-  it("says disconnected when the stream drops, tells stopping from gone by asking, and connects again", () => {
-    assert.match(script, /stream\.addEventListener\("error", \(\) => \{\s*stream\.close\(\);\s*if \(state\.connection !== STOPPING\) lost\(\);\s*setTimeout\(probe, 1000\);/);
+  // instance still stopping (call() marks that, as disconnected), no answer is the server gone,
+  // anything else opens the stream again; a 401 reloads, in call(). The stream's own error and
+  // the server's word that it is stopping both say disconnected; only an open stream says
+  // connected.
+  it("says disconnected when the stream drops or the server is stopping, keeps asking, and connects again", () => {
+    assert.match(script, /stream\.addEventListener\("error", \(\) => \{\s*stream\.close\(\);\s*lost\(\);\s*setTimeout\(probe, 1000\);/);
     assert.match(script, /function lost\(\) \{\s*if \(state\.connection !== DISCONNECTED\) \{\s*state\.connection = DISCONNECTED;\s*draw\(\);/);
     assert.match(script, /call\("\/sessions"\)\.then\(\s*\(answered\) => \(answered\.status === 503 \? setTimeout\(probe, 1000\) : connect\(\)\),\s*\(\) => \{\s*lost\(\);\s*setTimeout\(probe, 1000\);/);
-    assert.match(script, /stream\.addEventListener\("open", \(\) => \{\s*if \(state\.connection !== STOPPING\) \{\s*state\.connection = CONNECTED;/);
+    assert.match(script, /if \(answered\.status === 503\) \{\s*applyEvent\(state, \{ name: "stopping", data: \{\} \}\);\s*draw\(\);/);
+    assert.match(script, /stream\.addEventListener\("open", \(\) => \{\s*state\.connection = CONNECTED;\s*draw\(\);/);
     assert.match(script, /const EVENTS = \["snapshot", "rows", "row", "asking", "seat", "quota", "stopping"\];/);
+    assert.ok(!script.includes("STOPPING"), "the page still carries a stopping word");
   });
 
   // The page is never run here, so the proof is in two halves: the renderer turns a reply into

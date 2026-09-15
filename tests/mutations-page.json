@@ -949,19 +949,30 @@
     ]
   },
   {
-    "name": "a dropped stream says nothing",
-    "catches": "says disconnected when the stream drops, tells stopping from gone by asking, and connects again",
+    "name": "a divider row is drawn as a bubble",
+    "catches": "draws a divider row as the pill between two days, built by the one pill function",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      stream.close();\n      if (state.connection !== STOPPING) lost();\n      setTimeout(probe, 1000);",
+        "from": "    if (shown.kind === \"divider\") return pill(shown.text);\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a dropped stream says nothing",
+    "catches": "says disconnected when the stream drops or the server is stopping, keeps asking, and connects again",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      stream.close();\n      lost();\n      setTimeout(probe, 1000);",
         "to": "      stream.close();\n      setTimeout(probe, 1000);"
       }
     ]
   },
   {
     "name": "a server that answers nothing is not called gone",
-    "catches": "says disconnected when the stream drops, tells stopping from gone by asking, and connects again",
+    "catches": "says disconnected when the stream drops or the server is stopping, keeps asking, and connects again",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -972,7 +983,7 @@
   },
   {
     "name": "a stopping server is connected to again at once",
-    "catches": "says disconnected when the stream drops, tells stopping from gone by asking, and connects again",
+    "catches": "says disconnected when the stream drops or the server is stopping, keeps asking, and connects again",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -982,19 +993,19 @@
     ]
   },
   {
-    "name": "a stream that opens on a stopping server says connected",
-    "catches": "says disconnected when the stream drops, tells stopping from gone by asking, and connects again",
+    "name": "a 503 leaves the page connected",
+    "catches": "says disconnected when the stream drops or the server is stopping, keeps asking, and connects again",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "    stream.addEventListener(\"open\", () => {\n      if (state.connection !== STOPPING) {\n        state.connection = CONNECTED;",
-        "to": "    stream.addEventListener(\"open\", () => {\n      {\n        state.connection = CONNECTED;"
+        "from": "    if (answered.status === 503) {\n      applyEvent(state, { name: \"stopping\", data: {} });\n      draw();\n    }",
+        "to": "    if (answered.status === 503) {\n      draw();\n    }"
       }
     ]
   },
   {
     "name": "the page never listens for the quota event",
-    "catches": "says disconnected when the stream drops, tells stopping from gone by asking, and connects again",
+    "catches": "says disconnected when the stream drops or the server is stopping, keeps asking, and connects again",
     "edits": [
       {
         "file": "lib/chat/page.html",

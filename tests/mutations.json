@@ -367,7 +367,7 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "  return { text, failed, silent: !failed && text.trim() === \"\" };",
+        "from": "  return { text, failed, silent: !failed && said === 0 };",
         "to": "  return { text, failed, silent: false };"
       }
     ]
@@ -472,35 +472,150 @@
     ]
   },
   {
-    "name": "message answers before the reply is in",
-    "catches": "waits for the reply and hands it back",
-    "edits": [
-      {
-        "file": "lib/chat/server.mjs",
-        "from": "        const reply = await whileWaitingFor(caller.seat, to, () => told.answered);",
-        "to": "        const reply = { text: \"\", failed: false, silent: true };"
-      }
-    ]
-  },
-  {
-    "name": "the reply is handed back as the session wrote it",
-    "catches": "neutralises the reply like a body, so nobody poses as the User through a tool result",
-    "edits": [
-      {
-        "file": "lib/chat/server.mjs",
-        "from": "        return { text: neutralise(reply.text) };",
-        "to": "        return { text: reply.text };"
-      }
-    ]
-  },
-  {
     "name": "the sender's side is not written on the panel",
-    "catches": "writes both sides onto the addressee's panel, each under an id of its own",
+    "catches": "comes back at once, with nothing of the reply in it",
     "edits": [
       {
         "file": "lib/chat/server.mjs",
         "from": "        append(root, to, { from: caller.seat, to, text, msg });\n",
         "to": ""
+      }
+    ]
+  },
+  {
+    "name": "message waits for the addressee's turn",
+    "catches": "comes back at once, with nothing of the reply in it",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "        showTheEnding(root, to, told.answered);\n        if (told.held !== undefined) {",
+        "to": "        showTheEnding(root, to, told.answered);\n        await told.answered;\n        if (told.held !== undefined) {"
+      }
+    ]
+  },
+  {
+    "name": "the reply is handed back in the call",
+    "catches": "comes back at once, with nothing of the reply in it",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "        return { text: `sent to ${to}` };",
+        "to": "        return { text: (await told.answered).text };"
+      }
+    ]
+  },
+  {
+    "name": "the addressee's answer is written as a message back",
+    "catches": "comes back at once, with nothing of the reply in it",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "    said: ({ text }) => append(instance.root, seat, { from: seat, text }),",
+        "to": "    said: ({ text }) => append(instance.root, seat, { from: seat, to: instance.config.leader, text, msg: crypto.randomUUID() }),"
+      },
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "import { publish } from \"./events.mjs\";",
+        "to": "import crypto from \"node:crypto\";\nimport { publish } from \"./events.mjs\";"
+      }
+    ]
+  },
+  {
+    "name": "a Worker's message to the Leader is refused",
+    "catches": "takes a message from the one it is itself messaging: nobody waits, so nothing can wait for itself",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "        if (to === caller.seat) {",
+        "to": "        if (to === caller.seat || to === instance.config.leader) {"
+      }
+    ]
+  },
+  {
+    "name": "a process gone before answering leaves no row",
+    "catches": "says on the addressee's panel when its process ended before answering; the call itself went",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "        showTheEnding(root, to, told.answered);\n        if (told.held !== undefined) {",
+        "to": "        if (told.held !== undefined) {"
+      }
+    ]
+  },
+  {
+    "name": "the Leader's answer to a Worker goes back to the Worker",
+    "catches": "records a Worker's call on its own log and the receipt on the Leader's, and hands nothing back",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "        showTheEnding(root, to, told.answered);\n        if (told.held !== undefined) {",
+        "to": "        showTheEnding(root, to, told.answered);\n        told.answered.then((reply) => append(root, caller.seat, { from: to, to: caller.seat, text: reply.text, msg: crypto.randomUUID() }));\n        if (told.held !== undefined) {"
+      }
+    ]
+  },
+  {
+    "name": "the Leader leaving leaves no row",
+    "catches": "leaves one row on the Leader's panel when its process is gone, and starts a fresh one for the event, the event its first line",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "  if (role === LEADER && ending !== \"restart\") {",
+        "to": "  if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "the row says something else",
+    "catches": "leaves one row on the Leader's panel when its process is gone, and starts a fresh one for the event, the event its first line",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "  return `${seat} has left — the next message starts a fresh session`;",
+        "to": "  return `${seat} has left`;"
+      }
+    ]
+  },
+  {
+    "name": "the row is a bubble, not a divider",
+    "catches": "leaves one row on the Leader's panel when its process is gone, and starts a fresh one for the event, the event its first line",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "    append(instance.root, seat, { from: THE_CHAT, divider: true, text: hasLeft(seat) });",
+        "to": "    append(instance.root, seat, { from: THE_CHAT, text: hasLeft(seat) });"
+      }
+    ]
+  },
+  {
+    "name": "the next Leader process resumes the old one",
+    "catches": "leaves one row on the Leader's panel when its process is gone, and starts a fresh one for the event, the event its first line",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "    \"--model\",\n    modelFor(instance.root, seat, instance.config),\n  ];",
+        "to": "    \"--model\",\n    modelFor(instance.root, seat, instance.config),\n    \"--continue\",\n  ];"
+      }
+    ]
+  },
+  {
+    "name": "what a seat says lands only later",
+    "catches": "lands on the panel as it is said, before the turn ends",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "              said({ text: block.text });",
+        "to": "              setTimeout(() => said({ text: block.text }), 1000);"
+      }
+    ]
+  },
+  {
+    "name": "silent is read off the last words, not the whole turn",
+    "catches": "is silent only when it said nothing in the whole turn, not when its last words were none",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "  return { text, failed, silent: !failed && said === 0 };",
+        "to": "  return { text, failed, silent: !failed && text.trim() === \"\" };"
       }
     ]
   },
@@ -545,39 +660,6 @@
         "file": "lib/chat/server.mjs",
         "from": "        const told = deliver(instance, to, messageFrame(caller.seat, text));",
         "to": "        if (!running(to)) {\n          startSeat(instance, to);\n        }\n        const told = deliver(instance, to, messageFrame(caller.seat, text));"
-      }
-    ]
-  },
-  {
-    "name": "a reply that never came is handed back as one",
-    "catches": "refuses when the reply never comes because the process ended, and holds nobody past the exit",
-    "edits": [
-      {
-        "file": "lib/chat/server.mjs",
-        "from": "        if (reply.ended === true) {\n          append(root, to, { from: THE_CHAT, text: `${to} stopped before answering: ${reply.text}`, failed: true });\n          return { refused: `${to} stopped before answering` };\n        }\n",
-        "to": ""
-      }
-    ]
-  },
-  {
-    "name": "a message that would wait for the sender's own turn is taken",
-    "catches": "refuses a message that would wait for the sender's own turn",
-    "edits": [
-      {
-        "file": "lib/chat/server.mjs",
-        "from": "        if (wouldWaitForItself(caller.seat, to)) {",
-        "to": "        if (false) {"
-      }
-    ]
-  },
-  {
-    "name": "the walk stops after one step",
-    "catches": "refuses a message that would wait for the sender further up the chain",
-    "edits": [
-      {
-        "file": "lib/chat/session.mjs",
-        "from": "  for (let step = 0; step <= waitingOn.size; step += 1) {",
-        "to": "  for (let step = 0; step < 1; step += 1) {"
       }
     ]
   },
@@ -652,9 +734,9 @@
     "catches": "lands on the seat's panel as the User's row, with the reply under it",
     "edits": [
       {
-        "file": "lib/chat/server.mjs",
-        "from": "    append(root, seat, {\n      from: seat,\n      text: reply.text,",
-        "to": "    return;\n    append(root, seat, {\n      from: seat,\n      text: reply.text,"
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "    said: ({ text }) => append(instance.root, seat, { from: seat, text }),\n",
+        "to": ""
       }
     ]
   },
@@ -851,8 +933,8 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "      ...(reply.interrupted ? { interrupted: true } : {}),\n",
-        "to": ""
+        "from": "      append(root, seat, { from: seat, text: reply.text, interrupted: true });",
+        "to": "      append(root, seat, { from: seat, text: reply.text });"
       }
     ]
   },
@@ -1005,8 +1087,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "  import { AMBER, CONNECTED, DISCONNECTED, GREEN, RED, STOPPING, applyEvent, composersEnabled, dot, fresh, head, keyAction, place, prune, quotaLine, quotaTitle, stopEnabled, title } from \"./panels.mjs\";",
-        "to": "  import { AMBER, CONNECTED, DISCONNECTED, GREEN, RED, STOPPING, applyEvent, composersEnabled, dot, fresh, head, keyAction, prune, quotaLine, quotaTitle, stopEnabled, title } from \"./panels.mjs\";\n  const place = (seats, leader) => ({ left: seats.filter((s) => s !== leader), mid: leader, right: [] });"
+        "from": "  import { AMBER, CONNECTED, DISCONNECTED, GREEN, RED, applyEvent, composersEnabled, dot, fresh, head, keyAction, place, prune, quotaLine, quotaTitle, stopEnabled, title } from \"./panels.mjs\";",
+        "to": "  import { AMBER, CONNECTED, DISCONNECTED, GREEN, RED, applyEvent, composersEnabled, dot, fresh, head, keyAction, prune, quotaLine, quotaTitle, stopEnabled, title } from \"./panels.mjs\";\n  const place = (seats, leader) => ({ left: seats.filter((s) => s !== leader), mid: leader, right: [] });"
       }
     ]
   },
@@ -1122,23 +1204,12 @@
   },
   {
     "name": "the caller's panel gets nothing for a message it sent",
-    "catches": "writes the call on the caller's panel with its outcome, and the answer beside it, under the ids the addressee's rows carry",
+    "catches": "writes the call on the caller's panel with its outcome, under the id the addressee's row carries",
     "edits": [
       {
         "file": "lib/chat/server.mjs",
         "from": "        append(root, caller.seat, { from: caller.seat, to, text, outcome: \"sent\", msg });\n",
         "to": ""
-      }
-    ]
-  },
-  {
-    "name": "the Leader's panel gets no copy of the answer to its message",
-    "catches": "writes the call on the caller's panel with its outcome, and the answer beside it, under the ids the addressee's rows carry",
-    "edits": [
-      {
-        "file": "lib/chat/server.mjs",
-        "from": "        append(root, to, answer);\n        append(root, caller.seat, answer);\n",
-        "to": "        append(root, to, answer);\n"
       }
     ]
   },
@@ -1166,7 +1237,7 @@
   },
   {
     "name": "the receipt loses its addressee",
-    "catches": "writes both sides onto the addressee's panel, each under an id of its own",
+    "catches": "comes back at once, with nothing of the reply in it",
     "edits": [
       {
         "file": "lib/chat/server.mjs",
@@ -1183,28 +1254,6 @@
         "file": "lib/chat/server.mjs",
         "from": "          append(root, caller.seat, { from: caller.seat, to, text, outcome: \"refused\", why: \"that is you\" });\n",
         "to": ""
-      }
-    ]
-  },
-  {
-    "name": "a message that would wait for the sender's own turn is recorded as sent",
-    "catches": "refuses a message that would wait for the sender's own turn",
-    "edits": [
-      {
-        "file": "lib/chat/server.mjs",
-        "from": "          append(root, caller.seat, { from: caller.seat, to, text, outcome: \"refused\", why });\n",
-        "to": "          append(root, caller.seat, { from: caller.seat, to, text, outcome: \"sent\", why });\n"
-      }
-    ]
-  },
-  {
-    "name": "only the Leader's log gets a copy of the answer",
-    "catches": "records a Worker's call on its own log, the receipt and the answer on the Leader's, and the answer on its own log too",
-    "edits": [
-      {
-        "file": "lib/chat/server.mjs",
-        "from": "        append(root, to, answer);\n        append(root, caller.seat, answer);\n",
-        "to": "        append(root, to, answer);\n        if (caller.role === LEADER) {\n          append(root, caller.seat, answer);\n        }\n"
       }
     ]
   },
@@ -1254,34 +1303,12 @@
   },
   {
     "name": "the two ends of a message carry different ids",
-    "catches": "writes the call on the caller's panel with its outcome, and the answer beside it, under the ids the addressee's rows carry",
+    "catches": "writes the call on the caller's panel with its outcome, under the id the addressee's row carries",
     "edits": [
       {
         "file": "lib/chat/server.mjs",
         "from": "        append(root, to, { from: caller.seat, to, text, msg });\n",
         "to": "        append(root, to, { from: caller.seat, to, text, msg: crypto.randomUUID() });\n"
-      }
-    ]
-  },
-  {
-    "name": "the answer carries the id of the message it answers",
-    "catches": "writes both sides onto the addressee's panel, each under an id of its own",
-    "edits": [
-      {
-        "file": "lib/chat/server.mjs",
-        "from": "          msg: crypto.randomUUID(),\n          ...(reply.failed",
-        "to": "          msg,\n          ...(reply.failed"
-      }
-    ]
-  },
-  {
-    "name": "a Worker's answer lands on its log after the call has come back",
-    "catches": "records a Worker's call on its own log, the receipt and the answer on the Leader's, and the answer on its own log too",
-    "edits": [
-      {
-        "file": "lib/chat/server.mjs",
-        "from": "        append(root, to, answer);\n        append(root, caller.seat, answer);\n",
-        "to": "        append(root, to, answer);\n        setTimeout(() => append(root, caller.seat, answer), 300);\n"
       }
     ]
   },

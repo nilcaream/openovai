@@ -120,6 +120,39 @@
     ]
   },
   {
+    "name": "a Worker gone for good leaves a row on its panel too",
+    "catches": "stop_session ends the process and its panel; the desk and the log stay; hire brings it back appending",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "  if (role === LEADER && ending !== \"restart\") {",
+        "to": "  if (ending !== \"restart\") {"
+      }
+    ]
+  },
+  {
+    "name": "a Leader's restart leaves a row on its panel",
+    "catches": "a Leader's restart leaves no row on its panel: the successor is the same session going on",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "  if (role === LEADER && ending !== \"restart\") {",
+        "to": "  if (role === LEADER) {"
+      }
+    ]
+  },
+  {
+    "name": "a message held by the gate is refused",
+    "catches": "fable's own window, read with nothing configured, touches seats on that model only",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "          return { text: `${to} has it; ${heldLine(told.held)}` };",
+        "to": "          return { refused: `${to} has it; ${heldLine(told.held)}` };"
+      }
+    ]
+  },
+  {
     "name": "a closing process answers its queue ended whatever it was ending as",
     "catches": "a restart is a new process on the same desk, the queue carried, the successor started from the desk",
     "edits": [
@@ -493,8 +526,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "        record.turn = null;\n        record.idleSince = clock();\n        record.idleTold = 0;",
-        "to": "        record.turn = null;\n        record.idleTold = 0;"
+        "from": "        record.said = 0;\n        record.idleSince = clock();\n        record.idleTold = 0;",
+        "to": "        record.said = 0;\n        record.idleTold = 0;"
       }
     ]
   },

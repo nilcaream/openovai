@@ -74,6 +74,17 @@ describe("every other row", () => {
     assert.deepEqual(row({ from: "Paul", text: "interrupted", interrupted: true }, names), { who: "the chat", kind: "interrupted", text: INTERRUPTED });
   });
 
+  // The row between two sessions on one panel — the Leader's process gone, the next row a fresh
+  // one's — is a divider with its words as text, whatever else the entry carries.
+  it("a word between two sessions is a divider, its words as text", () => {
+    assert.deepEqual(row({ from: "the chat", divider: true, text: "Superman has left — the next message starts a fresh session" }, names), {
+      who: "the chat",
+      kind: "divider",
+      text: "Superman has left — the next message starts a fresh session",
+    });
+    assert.equal(row({ from: "the chat", divider: true, text: "x", failed: true }, names).kind, "divider");
+  });
+
   // A tool call is what the server summarised it as, as text — never markdown, never a reply —
   // and stays a line whatever else the entry carries; red once its call failed, with the reason
   // the result gave, for a tooltip, and nothing where it gave none.
