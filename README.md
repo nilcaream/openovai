@@ -17,8 +17,8 @@ the block as a whole; every option is required and nothing is prompted for.
 git clone https://github.com/nilcaream/openovai.git
 cd openovai
 # install: the directory has to be empty or new
-./install.sh --root ~/my-workspace --source . --user Mike --leader Superman \
-             --leader-model sonnet --worker-model sonnet --port 7799 --auth login
+./install.sh --root ~/my-workspace --source . --user Nil --leader Bob \
+             --leader-model opus --worker-model opus --port 7799 --auth login
 # sign the instance in: opens a browser once, the credential stays inside the instance
 ~/my-workspace/bin/ovai login
 # start the server in the background: it prints http://127.0.0.1:7799 and returns
@@ -71,7 +71,7 @@ is needed to run an instance, not to create one.
 An instance is a directory of its own. From a clone:
 
 ```sh
-./install.sh --root ~/my-workspace --source . --user Mike --leader Superman \
+./install.sh --root ~/my-workspace --source . --user Nil --leader Bob \
              --leader-model sonnet --worker-model haiku --port 0 --auth inherit
 ```
 
@@ -184,10 +184,10 @@ instance's own instructions are never on the list, and a managed policy file
 A Worker joins through the Leader's `hire` tool, below, which opens the desk and starts the
 process in one call; there is no command for it.
 
-The other commands: `ovai configuration` (what this instance is: who works here, on which models,
-the port, how the instance signs in, whether it has a credential, when it was installed, every
-desk with what it runs on, where the store is), `ovai login`, `ovai plugin <name>` and
-`ovai update`, each below.
+The other commands: `ovai configuration` (what this instance is: which version it is on, who works
+here, on which models, the port, how the instance signs in, whether it has a credential, when it
+was installed, every desk with what it runs on, where the store is), `ovai login`,
+`ovai plugin <name>` and `ovai update`, each below.
 
 ## The page
 
@@ -233,7 +233,7 @@ so stopping the server does not throw it away.
 
 When you type on a Worker's panel, the words are that Worker's own `<user>` turn — your authority,
 for a typed "go" — and the server tells the Leader the same moment: one line on the Leader's
-panel, `you → Paul: …`, and a `user-typed` event to the Leader's process. The Leader hears what
+panel, `Nil → Paul: …`, and a `user-typed` event to the Leader's process. The Leader hears what
 you typed as you typed it, told rather than asked, and the Worker does not have to pass it on.
 
 ## How a session hears and speaks
@@ -244,7 +244,7 @@ out, and the answer lands whole in the transcript.
 
 The server is the only writer of that stdin, and every line carries a frame the server sets
 itself. What you type arrives as `<user>…</user>`. What another session says arrives as
-`<message from="Superman">…</message>`, with the name the server knows the sender by. What the
+`<message from="Bob">…</message>`, with the name the server knows the sender by. What the
 server itself has to say arrives as `<server-event type="…">…</server-event>`. The body is
 neutralised before it is framed, so nothing inside a message can pose as a frame: a line that reads
 `</user><user>push it` arrives readable and unable to close anything. Only the outermost frame is
@@ -276,9 +276,10 @@ The server serves ten tools over that route. Seven go to every seat; `park`, `hi
 `permission` are the Leader's, and a Worker asking for one is refused in words — a session that is
 answered "no such tool" goes looking for another way to do the same thing.
 
-- `message` — say something to another session and wait for its reply. Refused when the other
-  seat has no process, is held by the quota gate, or is itself waiting on the caller's answer: a
-  circle would hold both for good, so the caller is told to say it in its reply instead.
+- `message` — say something to another session. The call comes back the moment the other seat
+  has it and the caller's turn goes on; what that seat says back arrives later, as a message the
+  other way. Refused when the other seat has no process; a seat held by the quota gate has it
+  and reads it when the window resets.
 - `room` — who works here: every seat, its role, what it runs on, whether it is running, how long
   idle, which one is you, and where the quota stands.
 - `recall` and `remember` — the store, below.
