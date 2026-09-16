@@ -569,6 +569,27 @@ describe("telling a seat", () => {
     assert.deepEqual(order, ["<user>first</user>", "<user>urgent</user>", "<user>later</user>"]);
   });
 
+  // `written` is the one word a caller gets between the queue and the answer: it fires as the
+  // frame goes in — at once when nothing is under way, after the turn under way otherwise — and
+  // always before that turn's own answer.
+  it("says when a frame is written: at once on an idle seat, after the turn under way on a busy one, before the answer", async () => {
+    let atOnce = false;
+    const idle = tell(WORKER, userFrame("idle"), { written: () => { atOnce = true; } });
+    assert.equal(atOnce, true, "the write of a frame told to an idle seat waited for something");
+    await idle.answered;
+    const order = [];
+    const answeredOne = () => notesIn(paul.log).some(([label, text]) => label === "answered" && text === "<user>one</user>");
+    const one = tell(WORKER, userFrame("one"), { written: () => order.push("one written") });
+    const two = tell(WORKER, userFrame("two"), { written: () => order.push(`two written, one ${answeredOne() ? "answered" : "under way"}`) });
+    assert.deepEqual(order, ["one written"]);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    assert.deepEqual(order, ["one written"], "the second frame went in while the first turn was under way");
+    await one.answered;
+    assert.deepEqual(order, ["one written", "two written, one answered"]);
+    await two.answered;
+    assert.deepEqual(order, ["one written", "two written, one answered"], "written fired again, or for something else");
+  });
+
   it("refuses a seat with no process, queues nothing, and says so in the log", async () => {
     const before_ = said.length;
     const asked = tell(OTHER, serverEvent("user-typed", { who: WORKER }, "go"));
@@ -897,8 +918,10 @@ describe("what the User types", () => {
     const rows = panel(instance, WORKER);
     assert.equal(rows[0].from, "user");
     assert.equal(rows[0].text, "go");
+    assert.equal(rows[0].delivered, true, "the row is not marked delivered once its frame went in");
     assert.equal(rows[1].from, WORKER);
     assert.equal(rows[1].text, "on it");
+    assert.equal(rows[1].delivered, undefined, "a reply is nobody's delivery");
     const shown = JSON.parse((await page("GET", `/sessions/${WORKER}/messages`)).body).messages;
     assert.deepEqual(shown, rows);
   });
@@ -951,7 +974,7 @@ describe("what the User types", () => {
     const answered = await page("POST", `/sessions/${WORKER}/message`, { text: "anybody there" });
     assert.deepEqual(JSON.parse(answered.body), { delivered: false, leaderTold: true });
     const rows = panel(instance, WORKER).slice(-2);
-    assert.deepEqual([rows[0].from, rows[0].text], ["user", "anybody there"]);
+    assert.deepEqual([rows[0].from, rows[0].text, rows[0].delivered], ["user", "anybody there", undefined], "a row nobody took reads delivered");
     assert.deepEqual([rows[1].from, rows[1].text, rows[1].failed], [THE_CHAT, `${WORKER} has no process`, true]);
   });
 
@@ -1093,7 +1116,7 @@ describe("what a Worker's calls draw", () => {
     assert.deepEqual(told, [["Run the suite", undefined, undefined], ["Run the suite", true, "Exit code 1"]]);
     // The reply came after the mark, so a page drawing the file draws the line red from the start.
     const indexes = about(client, WORKER, "row").map((event) => [event.data.index, event.data.row.err ?? event.data.row.text ?? event.data.row.line]);
-    assert.deepEqual(indexes, [[0, "go"], [1, "Reading /srv/app/lib/chat/session.mjs"], [2, "Run the suite"], [2, true], [3, "on it"]]);
+    assert.deepEqual(indexes, [[0, "go"], [0, "go"], [1, "Reading /srv/app/lib/chat/session.mjs"], [2, "Run the suite"], [2, true], [3, "on it"]], "the User's row is told twice, typed and delivered, before anything the seat did");
   });
 
   it("writes no line for the Leader's own calls", async () => {
@@ -1315,8 +1338,10 @@ describe("the stream", () => {
     await page("POST", `/sessions/${LEADER}/message`, { text: "hello" });
     await until(client, (event) => event.name === "row" && event.data.seat === LEADER && event.data.row.from === LEADER);
     const rows = about(client, LEADER, "row");
-    assert.deepEqual(rows.map((event) => [event.data.index, event.data.row.from, event.data.row.text]), [[0, "user", "hello"], [1, LEADER, "noted"]]);
+    // The User's row twice at its index: once as it was typed, once more once its frame went in.
+    assert.deepEqual(rows.map((event) => [event.data.index, event.data.row.from, event.data.row.text, event.data.row.delivered]), [[0, "user", "hello", undefined], [0, "user", "hello", true], [1, LEADER, "noted", undefined]]);
   });
+
 
   it("a client connecting with counts gets only the rows after them", async () => {
     const client = await listen(`&since=${encodeURIComponent(`${LEADER}:1`)}`);
@@ -1379,6 +1404,24 @@ describe("the stream", () => {
     assert.equal(row.interrupted, true);
     assert.equal(row.text, "interrupted");
     await until(client, (event) => event.name === "seat" && event.data.name === WORKER && event.data.busy === false && about(client, WORKER).some((seen) => seen.data.busy === true));
+    await end(WORKER, 500);
+  });
+
+  // A row typed while a turn is under way waits: the stream says it is there, and says it is
+  // delivered only once the turn before it has answered and its frame has gone in.
+  it("a row typed behind a turn under way is told again as delivered only once that turn is over", async () => {
+    const client = await listen();
+    await until(client, (event) => event.name === "asking");
+    paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_SLOW: "600", OPENOVAI_STAND_IN_REPLY: "done" });
+    await page("POST", `/sessions/${WORKER}/message`, { text: "first" });
+    await page("POST", `/sessions/${WORKER}/message`, { text: "second" });
+    await until(client, (event) => event.name === "row" && event.data.seat === WORKER && event.data.row.text === "second");
+    const typed = () => about(client, WORKER, "row").filter((event) => event.data.row.from === "user").map((event) => [event.data.row.text, event.data.row.delivered]);
+    assert.deepEqual(typed(), [["first", undefined], ["first", true], ["second", undefined]], "the second row read delivered while the first turn was still under way");
+    await until(client, (event) => event.name === "row" && event.data.seat === WORKER && event.data.row.text === "second" && event.data.row.delivered === true);
+    const replies = about(client, WORKER, "row").filter((event) => event.data.row.from === WORKER).length;
+    assert.equal(replies, 1, "the second frame went in before the first turn had answered, or after the second had");
+    await until(client, (event) => event.name === "seat" && event.data.name === WORKER && event.data.busy === false && about(client, WORKER, "row").filter((event) => event.data.row.from === WORKER).length === 2);
     await end(WORKER, 500);
   });
 

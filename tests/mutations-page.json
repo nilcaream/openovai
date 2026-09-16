@@ -111,7 +111,7 @@
   },
   {
     "name": "the row's stamp drops the weekday",
-    "catches": "stamps a row with the reader's own day and time, the weekday written out, on a 24-hour clock",
+    "catches": "stamps a row with the reader's own day and time, the weekday written out, on a 24-hour clock, and the day pill with the same",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -154,13 +154,13 @@
     ]
   },
   {
-    "name": "the day pill is formatted in a zone of the page's own",
-    "catches": "stamps a row with the reader's own day and time, the weekday written out, on a 24-hour clock",
+    "name": "the stamp is formatted in a zone of the page's own",
+    "catches": "stamps a row with the reader's own day and time, the weekday written out, on a 24-hour clock, and the day pill with the same",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "new Intl.DateTimeFormat(\"en-GB\", { weekday: \"short\", day: \"2-digit\", month: \"short\" })",
-        "to": "new Intl.DateTimeFormat(\"en-GB\", { timeZone: \"Europe/Warsaw\", weekday: \"short\", day: \"2-digit\", month: \"short\" })"
+        "from": "new Intl.DateTimeFormat(\"en-GB\", { year: \"numeric\",",
+        "to": "new Intl.DateTimeFormat(\"en-GB\", { timeZone: \"Europe/Warsaw\", year: \"numeric\","
       }
     ]
   },
@@ -1119,8 +1119,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "          const line = rowElement(entry, shown);\n          panel.rows.append(line);\n",
-        "to": "          const line = rowElement(entry, shown);\n          if (shown.kind === \"peer-in\" || shown.kind === \"peer-out\") collapsible(line.querySelector(\".md\"));\n          panel.rows.append(line);\n"
+        "from": "          const line = rowElement(entry, shown, panel);\n          panel.rows.append(line);\n",
+        "to": "          const line = rowElement(entry, shown, panel);\n          if (shown.kind === \"peer-in\" || shown.kind === \"peer-out\") collapsible(line.querySelector(\".md\"));\n          panel.rows.append(line);\n"
       },
       {
         "file": "lib/chat/page.html",
@@ -1214,6 +1214,193 @@
         "file": "lib/chat/page.html",
         "from": "  .more { font-size: .78rem; color: var(--accent); cursor: pointer; margin-top: 4px; background: none; border: 0; padding: 0; font-family: var(--sans); }",
         "to": "  .more { font-size: .78rem; color: var(--accent); cursor: pointer; margin-top: 4px; background: none; padding: 0; font-family: var(--sans); }"
+      }
+    ]
+  },
+  {
+    "name": "a second formatter for the pill",
+    "catches": "stamps a row with the reader's own day and time, the weekday written out, on a 24-hour clock, and the day pill with the same",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "\n  function stamp(at) {",
+        "to": "\n  const dayOf = new Intl.DateTimeFormat(\"en-GB\", { weekday: \"short\", day: \"2-digit\", month: \"short\" });\n\n  function stamp(at) {"
+      }
+    ]
+  },
+  {
+    "name": "the month is a word cut short",
+    "catches": "stamps a row with the reader's own day and time, the weekday written out, on a 24-hour clock, and the day pill with the same",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "month: \"2-digit\", day: \"2-digit\", weekday: \"long\"",
+        "to": "month: \"short\", day: \"2-digit\", weekday: \"long\""
+      }
+    ]
+  },
+  {
+    "name": "a pill before the first row",
+    "catches": "puts the pill between two days only, with the whole stamp of the first row of the new day on it, and never first",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "            if (panel.day !== null) {\n              panel.last = null;\n              panel.rows.append(dayPill(when));\n            }",
+        "to": "            panel.last = null;\n            panel.rows.append(dayPill(when));"
+      }
+    ]
+  },
+  {
+    "name": "the pill carries the day alone",
+    "catches": "puts the pill between two days only, with the whole stamp of the first row of the new day on it, and never first",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    const element = pill(when.whole);",
+        "to": "    const element = pill(when.day);"
+      }
+    ]
+  },
+  {
+    "name": "a leading pill survives the trim",
+    "catches": "puts the pill between two days only, with the whole stamp of the first row of the new day on it, and never first",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "          while (drawn.length > 0 && drawn[0].dataset.day !== undefined) drawn.shift().remove();\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a waiting row keeps the User's ground",
+    "catches": "draws the User's row waiting on the dashed ground until the server says delivered, then changes the row it has",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "        st.classList.add(\"wait\");\n        line.classList.add(\"pending\");",
+        "to": "        st.classList.add(\"wait\");"
+      }
+    ]
+  },
+  {
+    "name": "the draw never says queued",
+    "catches": "draws the User's row waiting on the dashed ground until the server says delivered, then changes the row it has",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "delivery(shown.delivered, panel.section.classList.contains(\"busy\"), panel.name)",
+        "to": "delivery(shown.delivered, false, panel.name)"
+      }
+    ]
+  },
+  {
+    "name": "a delivered row keeps the waiting ground",
+    "catches": "draws the User's row waiting on the dashed ground until the server says delivered, then changes the row it has",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    element.classList.remove(\"pending\");\n    const st = element.querySelector(\".st\");",
+        "to": "    const st = element.querySelector(\".st\");"
+      }
+    ]
+  },
+  {
+    "name": "a row delivered after its draw stays waiting",
+    "catches": "draws the User's row waiting on the dashed ground until the server says delivered, then changes the row it has",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "        if (about.rows[index].delivered === true) deliveredRow(panel, index);\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the click reads the stamp off the screen",
+    "catches": "makes every stamp a click that puts a reference to its row into the composer, spelled out on send",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "reference(panel.refs, time.dataset.whole, who, body.textContent)",
+        "to": "reference(panel.refs, time.textContent, who, body.textContent)"
+      }
+    ]
+  },
+  {
+    "name": "what is sent carries the tokens unspelled",
+    "catches": "makes every stamp a click that puts a reference to its row into the composer, spelled out on send",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      const text = spellReferences(refs, box.value);",
+        "to": "      const text = box.value;"
+      }
+    ]
+  },
+  {
+    "name": "the stamp is no click",
+    "catches": "makes every stamp a click that puts a reference to its row into the composer, spelled out on send",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    time.addEventListener(\"click\", () => pointAt(panel, time, shown.who, body));\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the stamp does not look like a click",
+    "catches": "make the stamp a click, and say so under the pointer",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "  .meta .t { flex: 0 0 auto; order: 1; cursor: pointer; }",
+        "to": "  .meta .t { flex: 0 0 auto; order: 1; }"
+      }
+    ]
+  },
+  {
+    "name": "the waiting ground is not dashed",
+    "catches": "draw the User's row on the waiting ground, dashed, until it is delivered, and its word in amber while it waits",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "  .msg.pending .bubble { background: var(--pending); border-style: dashed; }",
+        "to": "  .msg.pending .bubble { background: var(--pending); }"
+      }
+    ]
+  },
+  {
+    "name": "the waiting word is green",
+    "catches": "draw the User's row on the waiting ground, dashed, until it is delivered, and its word in amber while it waits",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "  .meta .st.wait { color: var(--warn); }",
+        "to": "  .meta .st.wait { color: var(--ok); }"
+      }
+    ]
+  },
+  {
+    "name": "a code block one and a half lines high",
+    "catches": "set a code block at .85rem, 1.4 lines high, on the block itself, the code inside inheriting",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "overflow-x: auto; font-size: .85rem; line-height: 1.4; }",
+        "to": "overflow-x: auto; font-size: .85rem; line-height: 1.5; }"
+      }
+    ]
+  },
+  {
+    "name": "the code inside a block sets its own size",
+    "catches": "set a code block at .85rem, 1.4 lines high, on the block itself, the code inside inheriting",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "  .md pre code { background: none; padding: 0; font-size: inherit; }",
+        "to": "  .md pre code { background: none; padding: 0; font-size: .85rem; }"
       }
     ]
   }

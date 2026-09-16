@@ -746,6 +746,9 @@ describe("the quota gate", () => {
     ]) {
       assert.equal(JSON.parse((await page("POST", `/sessions/${seat}/message`, { text })).body).delivered, false);
     }
+    // A held row waits on its panel, and reads delivered only once the release wrote it.
+    const typedRows = () => [WORKER, LEADER, OTHER].map((seat) => panel(instance, seat).findLast((row) => row.from === "user" && row.typedTo === undefined).delivered);
+    assert.deepEqual(typedRows(), [undefined, undefined, undefined], "a held row reads delivered before its frame went in");
     now = resets + 1;
     const before_ = said.length;
     tick(chat);
@@ -759,6 +762,7 @@ describe("the quota gate", () => {
     assert.ok((await told(superman.log, 3)).includes("<user>to the leader</user>"));
     assert.equal((await told(paul.log, 2)).at(-1), "<user>to paul</user>");
     assert.equal((await told(ann.log, 1)).at(-1), "<user>to ann</user>");
+    assert.deepEqual(typedRows(), [true, true, true], "a released row is not marked delivered");
   });
 
   it("the interrupt patience bounds the wait: a run that ignores the interrupt still gets the critical frame", async () => {
@@ -783,6 +787,8 @@ describe("the quota gate", () => {
     await new Promise((resolve) => setTimeout(resolve, 200));
     assert.equal(running(LEADER), false);
     assert.equal(readLog(unexpected), spawns);
+    const woke = () => panel(instance, LEADER).findLast((row) => row.text === "wake up").delivered;
+    assert.equal(woke(), undefined, "a row held before the spawn reads delivered");
     now = resets + 1;
     superman = await spawnedBy(LEADER, async () => {
       tick(chat);
@@ -790,6 +796,7 @@ describe("the quota gate", () => {
     });
     assert.equal(callsIn(superman.log).length, 1);
     assert.deepEqual(await told(superman.log, 1), ["<user>wake up</user>"]);
+    assert.equal(woke(), true, "the row is not marked delivered once the spawn took its frame");
   });
 
   it("holds at the write what was queued behind a turn before the window closed, and releases it in arrival order", async () => {

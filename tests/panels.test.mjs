@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { AMBER, CONNECTED, DISCONNECTED, GONE_AFTER, GREEN, RED, applyEvent, composersEnabled, dot, fresh, head, keyAction, place, prune, quotaLine, quotaTitle, stopEnabled, title } from "../lib/chat/panels.mjs";
+import { AMBER, CONNECTED, DELIVERED, DISCONNECTED, GONE_AFTER, GREEN, RED, SENDING, applyEvent, composersEnabled, delivery, dot, fresh, head, keyAction, place, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title } from "../lib/chat/panels.mjs";
 
 const LEADER = "Leader";
 
@@ -264,5 +264,57 @@ describe("the quota line", () => {
     assert.equal(state.quota.session, "8%");
     applyEvent(state, snapshot([about(LEADER)]), 0);
     assert.equal(state.quota, null, "a snapshot without a reading is a server that has none");
+  });
+});
+
+describe("the User's own row", () => {
+  it("waits as sending on an idle seat, as queued behind the turn on a busy one, and reads delivered once the frame went in", () => {
+    assert.deepEqual(delivery(false, false, "Bob"), { text: "sending…", wait: true });
+    assert.deepEqual(delivery(false, true, "Bob"), { text: "queued — Bob gets it after the current turn", wait: true });
+    assert.deepEqual(delivery(true, false, "Bob"), { text: "delivered ✓", wait: false });
+    assert.deepEqual(delivery(true, true, "Bob"), { text: "delivered ✓", wait: false }, "delivered is delivered, busy or not");
+    assert.equal(SENDING, "sending…");
+    assert.equal(DELIVERED, "delivered ✓");
+  });
+});
+
+describe("a reference to a row", () => {
+  it("is the day and the clock of the stamp, the weekday dropped, spelled out as the clock, the speaker and the first line of the row", () => {
+    const refs = new Map();
+    assert.equal(reference(refs, "2026.09.14 Monday 14:39:14", "Paul", "  hello   there\nand more"), "(ref:2026.09.14-14:39:14)");
+    assert.deepEqual([...refs], [["(ref:2026.09.14-14:39:14)", '14:39:14 Paul — "hello there"']]);
+  });
+
+  it("cuts the quote at eighty characters with an ellipsis, and at eighty exactly keeps it whole", () => {
+    const refs = new Map();
+    const long = "x".repeat(81);
+    reference(refs, "2026.09.14 Monday 14:39:14", "Paul", long);
+    assert.equal(refs.get("(ref:2026.09.14-14:39:14)"), `14:39:14 Paul — "${"x".repeat(80)}…"`);
+    reference(refs, "2026.09.14 Monday 14:39:15", "Paul", "y".repeat(80));
+    assert.equal(refs.get("(ref:2026.09.14-14:39:15)"), `14:39:15 Paul — "${"y".repeat(80)}"`);
+  });
+
+  it("numbers a second row in the same second rather than pointing at the first, and gives the same row its token again", () => {
+    const refs = new Map();
+    assert.equal(reference(refs, "2026.09.14 Monday 14:39:14", "Paul", "one"), "(ref:2026.09.14-14:39:14)");
+    assert.equal(reference(refs, "2026.09.14 Monday 14:39:14", "Paul", "two"), "(ref:2026.09.14-14:39:14#2)");
+    assert.equal(reference(refs, "2026.09.14 Monday 14:39:14", "Paul", "three"), "(ref:2026.09.14-14:39:14#3)");
+    assert.equal(reference(refs, "2026.09.14 Monday 14:39:14", "Paul", "one"), "(ref:2026.09.14-14:39:14)", "the same row again is the same token");
+    assert.equal(refs.size, 3);
+  });
+
+  it("is nothing for a stamp with less than a day and a clock on it", () => {
+    const refs = new Map();
+    assert.equal(reference(refs, "14:39:14", "Paul", "one"), null);
+    assert.equal(reference(refs, "", "Paul", "one"), null);
+    assert.equal(refs.size, 0);
+  });
+
+  it("is spelled out on send from the table, and a token the table has not got goes as it is", () => {
+    const refs = new Map();
+    reference(refs, "2026.09.14 Monday 14:39:14", "Paul", "one");
+    reference(refs, "2026.09.14 Monday 14:39:14", "Paul", "two");
+    assert.equal(spellReferences(refs, "see (ref:2026.09.14-14:39:14) and (ref:2026.09.14-14:39:14#2), not (ref:2026.09.13-01:02:03)"), 'see (ref: 14:39:14 Paul — "one") and (ref: 14:39:14 Paul — "two"), not (ref:2026.09.13-01:02:03)');
+    assert.equal(spellReferences(refs, "nothing here"), "nothing here");
   });
 });

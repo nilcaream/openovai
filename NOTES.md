@@ -105,6 +105,16 @@ the old context; its desk is what it knows. A stopping server is a gone one on t
 moment it says so: every dot red, no state words, `disconnected` on the Leader's head — never
 `stopping` — and it comes back on its own when the server does.
 
+**A row says what became of it, and its stamp is a click.** What you type reads `sending…` on a
+dashed ground until the process has it, `queued — <name> gets it after the current turn` while a
+turn is under way, and `delivered ✓` the moment its frame went in — on the panel you typed it on,
+and again the same way after a reload. A click on any row's stamp puts `(ref:2026.09.14-14:39:14)`
+into that panel's box; what is sent carries it spelled out, `(ref: 14:39:14 Paul — "the first line
+of that row…")`, so the session can find what you point at. The pill between two days carries the
+whole stamp of the first row of the new day, `2026.09.14 Monday 00:00:49`, and sits only between
+a row of one day and a row of the next: never above the first row on a panel, never under the last.
+A code block is set at .85rem, 1.4 lines high, and the code inside it inherits that size.
+
 ## 0.10.0
 
 The page is a room you read at a glance. Three columns of panels, each a bare slot with a head

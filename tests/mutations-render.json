@@ -144,12 +144,12 @@
   },
   {
     "name": "the User's rows say you",
-    "catches": "the User's own words carry the User's name, plain",
+    "catches": "the User's own words carry the User's name, plain, and whether they have reached the process",
     "edits": [
       {
         "file": "lib/chat/render.mjs",
-        "from": "    return { who: names.user, kind: \"user\", text: String(entry.text) };",
-        "to": "    return { who: \"you\", kind: \"user\", text: String(entry.text) };"
+        "from": "    return { who: names.user, kind: \"user\", text: String(entry.text), delivered: entry.delivered === true };",
+        "to": "    return { who: \"you\", kind: \"user\", text: String(entry.text), delivered: entry.delivered === true };"
       }
     ]
   },
@@ -227,6 +227,28 @@
         "file": "lib/chat/render.mjs",
         "from": "text: `Received a message from ${entry.from}`, err: false, why: \"\", ...msg };",
         "to": "text: `Received a message from ${entry.from}`, err: false, why: \"\" };"
+      }
+    ]
+  },
+  {
+    "name": "the User's row never reads delivered",
+    "catches": "the User's own words carry the User's name, plain, and whether they have reached the process",
+    "edits": [
+      {
+        "file": "lib/chat/render.mjs",
+        "from": "delivered: entry.delivered === true",
+        "to": "delivered: false"
+      }
+    ]
+  },
+  {
+    "name": "any word in the mark's place reads delivered",
+    "catches": "the User's own words carry the User's name, plain, and whether they have reached the process",
+    "edits": [
+      {
+        "file": "lib/chat/render.mjs",
+        "from": "delivered: entry.delivered === true",
+        "to": "delivered: entry.delivered !== undefined"
       }
     ]
   }

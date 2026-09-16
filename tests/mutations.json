@@ -280,8 +280,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "export function tell(seat, frame, { ahead = false, ask = null } = {}) {\n  if (!isFrame(frame)) {",
-        "to": "export function tell(seat, frame, { ahead = false, ask = null } = {}) {\n  if (false) {"
+        "from": "export function tell(seat, frame, { ahead = false, ask = null, written = nothing } = {}) {\n  if (!isFrame(frame)) {",
+        "to": "export function tell(seat, frame, { ahead = false, ask = null, written = nothing } = {}) {\n  if (false) {"
       }
     ]
   },
@@ -713,8 +713,8 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "  const told = deliver(instance, seat, userFrame(text));",
-        "to": "  const told = deliver(instance, seat, messageFrame(\"User\", text));"
+        "from": "  const told = deliver(instance, seat, userFrame(text), { written: () => delivered(root, seat, index) });",
+        "to": "  const told = deliver(instance, seat, messageFrame(\"User\", text), { written: () => delivered(root, seat, index) });"
       }
     ]
   },
@@ -724,8 +724,8 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "  append(root, seat, { from: \"user\", text });\n",
-        "to": ""
+        "from": "  const index = append(root, seat, { from: \"user\", text });\n",
+        "to": "  const index = -1;\n"
       }
     ]
   },
@@ -801,8 +801,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "  const told = tell(seat, frame, { ahead, ask });",
-        "to": "  // recordOf(seat)?.child.stdin.write(frame.text);\n  const told = tell(seat, frame, { ahead, ask });"
+        "from": "  const told = tell(seat, frame, { ahead, ask, written });",
+        "to": "  // recordOf(seat)?.child.stdin.write(frame.text);\n  const told = tell(seat, frame, { ahead, ask, written });"
       }
     ]
   },
@@ -900,8 +900,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "  record.child.stdin.write(`${JSON.stringify({ type: \"user\", message: { role: \"user\", content } })}\\n`);\n  if (prefix.length > 0) {\n    record.rules = prefix.at(-1).version;\n    writeDeskHeader(record.root, record.seat, { rules: record.rules });\n  }\n  record.changed(record);\n}",
-        "to": "  record.child.stdin.write(`${JSON.stringify({ type: \"user\", message: { role: \"user\", content } })}\\n`);\n  if (prefix.length > 0) {\n    record.rules = prefix.at(-1).version;\n    writeDeskHeader(record.root, record.seat, { rules: record.rules });\n  }\n}"
+        "from": "  record.child.stdin.write(`${JSON.stringify({ type: \"user\", message: { role: \"user\", content } })}\\n`);\n  record.turn.written();\n  if (prefix.length > 0) {\n    record.rules = prefix.at(-1).version;\n    writeDeskHeader(record.root, record.seat, { rules: record.rules });\n  }\n  record.changed(record);\n}",
+        "to": "  record.child.stdin.write(`${JSON.stringify({ type: \"user\", message: { role: \"user\", content } })}\\n`);\n  record.turn.written();\n  if (prefix.length > 0) {\n    record.rules = prefix.at(-1).version;\n    writeDeskHeader(record.root, record.seat, { rules: record.rules });\n  }\n}"
       }
     ]
   },
@@ -1087,8 +1087,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "  import { AMBER, CONNECTED, DISCONNECTED, GREEN, RED, applyEvent, composersEnabled, dot, fresh, head, keyAction, place, prune, quotaLine, quotaTitle, stopEnabled, title } from \"./panels.mjs\";",
-        "to": "  import { AMBER, CONNECTED, DISCONNECTED, GREEN, RED, applyEvent, composersEnabled, dot, fresh, head, keyAction, prune, quotaLine, quotaTitle, stopEnabled, title } from \"./panels.mjs\";\n  const place = (seats, leader) => ({ left: seats.filter((s) => s !== leader), mid: leader, right: [] });"
+        "from": "  import { AMBER, CONNECTED, DISCONNECTED, GREEN, RED, applyEvent, composersEnabled, delivery, dot, fresh, head, keyAction, place, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title } from \"./panels.mjs\";",
+        "to": "  import { AMBER, CONNECTED, DISCONNECTED, GREEN, RED, applyEvent, composersEnabled, delivery, dot, fresh, head, keyAction, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title } from \"./panels.mjs\";\n  const place = (seats, leader) => ({ left: seats.filter((s) => s !== leader), mid: leader, right: [] });"
       }
     ]
   },
@@ -1331,6 +1331,72 @@
         "file": "lib/chat/session.mjs",
         "from": "  const line = text.split(\"\\n\").map((one) => one.trim()).find((one) => one !== \"\") ?? \"\";",
         "to": "  const line = text.split(\"\\n\")[0] ?? \"\";"
+      }
+    ]
+  },
+  {
+    "name": "the write says nothing",
+    "catches": "says when a frame is written: at once on an idle seat, after the turn under way on a busy one, before the answer",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "  record.turn.written();\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "written at the tell, before any write",
+    "catches": "says when a frame is written: at once on an idle seat, after the turn under way on a busy one, before the answer",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "    const turn = { frame, resolve, ahead, ask, written, order: arrival() };",
+        "to": "    const turn = { frame, resolve, ahead, ask, written, order: arrival() };\n    written();"
+      }
+    ]
+  },
+  {
+    "name": "the User's row is marked delivered as it is typed, before its frame went in",
+    "catches": "a row typed behind a turn under way is told again as delivered only once that turn is over",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "  const told = deliver(instance, seat, userFrame(text), { written: () => delivered(root, seat, index) });",
+        "to": "  delivered(root, seat, index);\n  const told = deliver(instance, seat, userFrame(text));"
+      }
+    ]
+  },
+  {
+    "name": "the User's row is never marked delivered",
+    "catches": "lands on the seat's panel as the User's row, with the reply under it",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "  const told = deliver(instance, seat, userFrame(text), { written: () => delivered(root, seat, index) });",
+        "to": "  const told = deliver(instance, seat, userFrame(text));"
+      }
+    ]
+  },
+  {
+    "name": "the delivered mark goes to the file and the page is not told",
+    "catches": "a new row reaches the page without a poll",
+    "edits": [
+      {
+        "file": "lib/chat/conversation.mjs",
+        "from": "  messages[index].delivered = true;\n  fs.writeFileSync(file(root, session), `${JSON.stringify(messages, null, 2)}\\n`);\n  publish(\"row\", { seat: session, index, row: messages[index] });",
+        "to": "  messages[index].delivered = true;\n  fs.writeFileSync(file(root, session), `${JSON.stringify(messages, null, 2)}\\n`);"
+      }
+    ]
+  },
+  {
+    "name": "a frame to a running seat goes without its word",
+    "catches": "lands on the seat's panel as the User's row, with the reply under it",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "  const told = tell(seat, frame, { ahead, ask, written });",
+        "to": "  const told = tell(seat, frame, { ahead, ask });"
       }
     ]
   }

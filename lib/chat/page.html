@@ -121,6 +121,8 @@
   .msg.reply .bubble { background: var(--reply); border-color: var(--reply-line); }
   .msg.chat .bubble, .msg.silent .bubble { color: var(--fg-dim); }
   .msg.interrupted .bubble { background: var(--pending); border-style: dashed; color: var(--fg-dim); }
+  /* what the User typed, until the process has it: a waiting ground, dashed */
+  .msg.pending .bubble { background: var(--pending); border-style: dashed; }
   .msg.failed .bubble { border-color: var(--bad); }
   /* a message between two sessions on the Leader's panel: one ground for what went to a session, another for what came from one */
   .msg.peer-in .bubble, .msg.peer-out .bubble { overflow-wrap: anywhere; }
@@ -138,10 +140,13 @@
   .who { font-size: .78rem; font-weight: 600; color: var(--fg-dim); display: flex; gap: 8px; align-items: baseline; margin-right: auto; flex: 1 1 auto; min-width: 0; }
   .who .lbl { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .meta { font-size: .72rem; color: var(--fg-faint); text-align: right; margin: 0 0 3px; font-family: var(--mono); display: flex; gap: 8px; justify-content: flex-end; align-items: baseline; }
-  .meta .t { flex: 0 0 auto; order: 1; }
-  /* what became of a message the Leader sent: a glyph before the stamp, red when it did not go */
+  /* the stamp is a click: it points at the row from the composer */
+  .meta .t { flex: 0 0 auto; order: 1; cursor: pointer; }
+  .meta .t:hover { color: var(--fg); text-decoration: underline dotted; }
+  /* what became of a message the Leader sent, or of the User's own: a glyph before the stamp, red when it did not go, amber while it waits */
   .meta .st { flex: 0 0 auto; color: var(--ok); }
   .meta .st.bad { color: var(--bad); }
+  .meta .st.wait { color: var(--warn); }
   /* the pill between two days */
   .divider { text-align: center; margin: 14px 0; color: var(--fg-faint); font-size: .78rem; font-family: var(--mono); }
   .divider span { background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 2px 12px; }
@@ -151,8 +156,8 @@
   .md h1, .md h2, .md h3, .md h4 { margin: .7em 0 .3em; line-height: 1.25; }
   .md h1 { font-size: 1.25rem; } .md h2 { font-size: 1.15rem; } .md h3 { font-size: 1.05rem; } .md h4 { font-size: 1rem; }
   .md code { font-family: var(--mono); font-size: .88em; background: rgba(127,127,127,.18); padding: .1em .35em; border-radius: 5px; }
-  .md pre { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; overflow-x: auto; }
-  .md pre code { background: none; padding: 0; font-size: .85rem; }
+  .md pre { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; overflow-x: auto; font-size: .85rem; line-height: 1.4; }
+  .md pre code { background: none; padding: 0; font-size: inherit; }
   .md table { border-collapse: collapse; display: block; overflow-x: auto; max-width: 100%; font-size: .92rem; }
   .md th, .md td { border: 1px solid var(--line); padding: 4px 9px; text-align: left; vertical-align: top; }
   .md th { background: var(--panel); }
@@ -201,7 +206,7 @@
   // draws it and carries what is typed and pressed to the server.
 
   import { dialogOf } from "./dialog.mjs";
-  import { AMBER, CONNECTED, DISCONNECTED, GREEN, RED, applyEvent, composersEnabled, dot, fresh, head, keyAction, place, prune, quotaLine, quotaTitle, stopEnabled, title } from "./panels.mjs";
+  import { AMBER, CONNECTED, DISCONNECTED, GREEN, RED, applyEvent, composersEnabled, delivery, dot, fresh, head, keyAction, place, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title } from "./panels.mjs";
   import { row as rowOf } from "./render.mjs";
 
   const secret = document.querySelector('meta[name="openovai-secret"]').content;
@@ -371,11 +376,13 @@
       call(`/sessions/${encodeURIComponent(name)}/stop`, { method: "POST" }).catch(() => {});
     });
     composer.append(box, stop);
+    // The rows a click on a stamp pointed at, token to spelling; what is sent carries the spelling.
+    const refs = new Map();
     // What is typed goes to the server as text and nothing else: the server knows it came from
     // this page by the secret on the call, and frames it as the User's own words.
     composer.addEventListener("submit", (event) => {
       event.preventDefault();
-      const text = box.value;
+      const text = spellReferences(refs, box.value);
       if (text.trim() === "") {
         return;
       }
@@ -390,20 +397,23 @@
 
     section.append(headLine, rows, asking, composer);
     // `last` is the tool line appended last, for a repeated call to count itself into; `lines` is
-    // the element of every tool line by the index of its row, for a failed call to find its line.
-    return { name, section, nameLine, info, word, fitPlaceholder, facts, composer, stop, rows, empty, asking, jump, box, shown: 0, day: null, drawn: new Map(), loading: false, last: null, lines: new Map() };
+    // the element of every tool line by the index of its row, for a failed call to find its line;
+    // `waiting` the element of every row of the User's not yet delivered, by its index, for the
+    // delivery to find its row; `day` the day of the row drawn last, for the pill between two days.
+    return { name, section, nameLine, info, word, fitPlaceholder, facts, composer, stop, rows, empty, asking, jump, box, refs, shown: 0, day: null, drawn: new Map(), loading: false, last: null, lines: new Map(), waiting: new Map() };
   }
 
-  // When a row was written, in the reader's own zone: `2026.09.13 Sunday 23:17:05` on the row, and
-  // `Sun 13 Sept` on the pill between two days.
+  // When a row was written, in the reader's own zone: `2026.09.13 Sunday 23:17:05` on the row, the
+  // same on the pill between two days, and the day alone — `2026.09.13` — to tell one day from the
+  // next.
   const timeOf = new Intl.DateTimeFormat("en-GB", { year: "numeric", month: "2-digit", day: "2-digit", weekday: "long", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" });
-  const dayOf = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "2-digit", month: "short" });
 
   function stamp(at) {
-    if (at === undefined) return { whole: "", clock: "" };
+    if (at === undefined) return { whole: "", clock: "", day: "" };
     const part = Object.fromEntries(timeOf.formatToParts(new Date(at)).map((piece) => [piece.type, piece.value]));
+    const day = `${part.year}.${part.month}.${part.day}`;
     const clock = `${part.hour}:${part.minute}:${part.second}`;
-    return { whole: `${part.year}.${part.month}.${part.day} ${part.weekday} ${clock}`, clock };
+    return { whole: `${day} ${part.weekday} ${clock}`, clock, day };
   }
 
   // A row's stamp is the whole day and time when it sits beside the whole label on one line, and
@@ -425,6 +435,28 @@
     text.textContent = word;
     element.append(text);
     return element;
+  }
+
+  // The pill between two days: the stamp of the first row of the new day, whole, marked as the
+  // day's so the trim can tell it from a row. It is never the first thing on a panel and never
+  // the last: it goes in only between a row of one day and a row of the next.
+  function dayPill(when) {
+    const element = pill(when.whole);
+    element.dataset.day = when.day;
+    return element;
+  }
+
+  // A click on a stamp points at its row from the panel's composer: the token goes into the box,
+  // after a space when the box has words already, and the box takes the next keystroke.
+  const REFERENCE = "click to reference this message in your reply";
+
+  function pointAt(panel, time, who, body) {
+    const token = reference(panel.refs, time.dataset.whole, who, body.textContent);
+    if (token === null) return;
+    const typed = panel.box.value;
+    panel.box.value = `${typed}${typed !== "" && !/\s$/.test(typed) ? " " : ""}${token} `;
+    panel.box.dispatchEvent(new Event("input"));
+    if (!panel.box.disabled) panel.box.focus();
   }
 
   // A tool call is a light line, not a bubble: the summary as the element's own text, a counter
@@ -486,7 +518,10 @@
   // A message the Leader sent carries what became of it as a glyph in the label row, after the
   // stamp in the DOM and before it on screen; its body is the compact markdown. A message between
   // two sessions carries its id on the row, for a click on the line the other panel draws for it.
-  function rowElement(entry, shown) {
+  // The User's own row carries what became of it the same way — waiting on a dashed ground, then
+  // delivered — read off the row and the panel's state at the draw, and every stamp is a click
+  // that points at its row from the panel's composer.
+  function rowElement(entry, shown, panel) {
     if (shown.kind === "line") return lineElement(shown);
     if (shown.kind === "divider") return pill(shown.text);
     const line = document.createElement("div");
@@ -517,6 +552,17 @@
       st.title = shown.status.title;
       meta.append(st);
     }
+    if (shown.kind === "user") {
+      const st = document.createElement("span");
+      st.className = "st";
+      const said = delivery(shown.delivered, panel.section.classList.contains("busy"), panel.name);
+      st.textContent = said.text;
+      if (said.wait) {
+        st.classList.add("wait");
+        line.classList.add("pending");
+      }
+      meta.append(st);
+    }
     const body = document.createElement("div");
     if (shown.html !== undefined) {
       body.className = "md";
@@ -528,7 +574,20 @@
     }
     bubble.append(meta, body);
     line.append(bubble);
+    time.title = REFERENCE;
+    time.addEventListener("click", () => pointAt(panel, time, shown.who, body));
     return line;
+  }
+
+  // The User's row at that index, delivered: the ground and the word change on the row it has.
+  function deliveredRow(panel, index) {
+    const element = panel.waiting.get(index);
+    if (element === undefined) return;
+    panel.waiting.delete(index);
+    element.classList.remove("pending");
+    const st = element.querySelector(".st");
+    st.classList.remove("wait");
+    st.textContent = delivery(true, false, panel.name).text;
   }
 
   // A question on this panel: a call the session is stopped on, or a rule the Leader asks the
@@ -664,23 +723,27 @@
         panel.day = null;
         panel.last = null;
         panel.lines.clear();
+        panel.waiting.clear();
       }
       panel.empty.hidden = about.rows.length > 0;
       if (about.rows.length > panel.shown) {
         // A Worker panel keeps its last hundred rows, so its first draw starts there: a long log
         // builds a hundred elements, not thousands. The Leader's panel draws every row it holds.
         const from = panel.jump === null && panel.shown === 0 ? Math.max(panel.shown, about.rows.length - 100) : panel.shown;
-        // A pill names the day before the first row written on it. A tool call that repeats the
-        // line appended last counts itself into that line rather than drawing a second one; any
-        // other row — a bubble, a pill — ends the run.
+        // A pill names the day between the last row of one day and the first row of the next —
+        // never before the first row drawn, whatever its day. A tool call that repeats the line
+        // appended last counts itself into that line rather than drawing a second one; any other
+        // row — a bubble, a pill — ends the run.
         const added = [];
         for (const [offset, entry] of about.rows.slice(from).entries()) {
           const index = from + offset;
-          const day = entry.at === undefined ? panel.day : dayOf.format(new Date(entry.at));
-          if (day !== panel.day) {
-            panel.day = day;
-            panel.last = null;
-            panel.rows.append(pill(day));
+          const when = stamp(entry.at);
+          if (entry.at !== undefined && when.day !== panel.day) {
+            if (panel.day !== null) {
+              panel.last = null;
+              panel.rows.append(dayPill(when));
+            }
+            panel.day = when.day;
           }
           const shown = rowOf(entry, { chat: state.chat, seat: panel.name, leader: state.leader, user: state.user });
           // A line that is one end of a message is its own: two messages are two lines, never
@@ -691,13 +754,14 @@
             panel.lines.set(index, panel.last.el);
             continue;
           }
-          const line = rowElement(entry, shown);
+          const line = rowElement(entry, shown, panel);
           panel.rows.append(line);
           if (shown.kind === "line") {
             panel.last = shown.msg === undefined ? { text: shown.text, el: line, count: 1, n: line.lastElementChild } : null;
             panel.lines.set(index, line);
           } else {
             panel.last = null;
+            if (shown.kind === "user" && !shown.delivered) panel.waiting.set(index, line);
           }
           // A message on the Leader's panel, to a session or from one, shows three lines of
           // itself and opens on a word; measured here, once the row is on the page.
@@ -712,8 +776,12 @@
         if (panel.jump === null) {
           const drawn = [...panel.rows.children].filter((child) => child.matches(".msg, .line, .divider"));
           while (drawn.length > 100) drawn.shift().remove();
-          for (const [index, element] of panel.lines) {
-            if (!element.isConnected) panel.lines.delete(index);
+          // The day pill goes with the rows before it: it is never the first thing on a panel.
+          while (drawn.length > 0 && drawn[0].dataset.day !== undefined) drawn.shift().remove();
+          for (const kept of [panel.lines, panel.waiting]) {
+            for (const [index, element] of kept) {
+              if (!element.isConnected) kept.delete(index);
+            }
           }
         }
         if (atTheNewest) {
@@ -723,13 +791,15 @@
         }
       }
       // A call that failed after its line was drawn: the line at that row's index turns red, with
-      // the reason the result gave as its tooltip.
+      // the reason the result gave as its tooltip. A row of the User's delivered after it was
+      // drawn: the row at that index reads so.
       for (const index of about.amended.splice(0)) {
         const element = panel.lines.get(index);
         if (element !== undefined && about.rows[index].err === true) {
           element.classList.add("err");
           element.title = about.rows[index].why ?? "";
         }
+        if (about.rows[index].delivered === true) deliveredRow(panel, index);
       }
       // Rows are appended after the pill; it goes back to the end so it sticks to the bottom edge.
       if (panel.jump !== null && panel.jump !== panel.rows.lastElementChild) panel.rows.append(panel.jump);

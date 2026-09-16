@@ -16,7 +16,7 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "    if (seat !== leaderOf(instance)) {\n      return tell(seat, frame, { ahead, ask });\n    }\n",
+        "from": "    if (seat !== leaderOf(instance)) {\n      // A Worker with no process refuses the frame: nothing is written, so nothing is said.\n      return tell(seat, frame, { ahead, ask });\n    }\n",
         "to": ""
       }
     ]
@@ -334,8 +334,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "resolve: turn.resolve, window: holding.window, order: turn.order });",
-        "to": "resolve: turn.resolve, window: holding.window });"
+        "from": "resolve: turn.resolve, written: turn.written, window: holding.window, order: turn.order });",
+        "to": "resolve: turn.resolve, written: turn.written, window: holding.window });"
       }
     ]
   },
@@ -830,6 +830,39 @@
         "file": "lib/chat/server.mjs",
         "from": "  return `limit exhausted (${held.window} window), reset at ${quota.hhmm(held.resets)}, your message is waiting`;",
         "to": "  return `limit exhausted (${held.window} window), reset at ${held.resets}, your message is waiting`;"
+      }
+    ]
+  },
+  {
+    "name": "a turn held at the write loses its word",
+    "catches": "releases held frames the Leader's first, then the Workers', each in arrival order",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "resolve: turn.resolve, written: turn.written, window: holding.window",
+        "to": "resolve: turn.resolve, window: holding.window"
+      }
+    ]
+  },
+  {
+    "name": "a Leader held before its spawn loses its word",
+    "catches": "holds a message to a stopped Leader before spawning it, and spawns once when the window resets",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "      holdTurn(seat, { frame, ahead, ask, resolve, written, order: arrival() }, holding);",
+        "to": "      holdTurn(seat, { frame, ahead, ask, resolve, order: arrival() }, holding);"
+      }
+    ]
+  },
+  {
+    "name": "the release drops the word",
+    "catches": "releases held frames the Leader's first, then the Workers', each in arrival order",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "{ ahead: entry.ahead, ask: entry.ask, written: entry.written }",
+        "to": "{ ahead: entry.ahead, ask: entry.ask }"
       }
     ]
   }

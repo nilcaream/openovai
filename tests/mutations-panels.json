@@ -306,5 +306,115 @@
         "to": "      state.quota = data.quota ?? state.quota;\n      const listed"
       }
     ]
+  },
+  {
+    "name": "the sending word loses its ellipsis",
+    "catches": "waits as sending on an idle seat, as queued behind the turn on a busy one, and reads delivered once the frame went in",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "export const SENDING = \"sending…\";",
+        "to": "export const SENDING = \"sending\";"
+      }
+    ]
+  },
+  {
+    "name": "the queued word says less",
+    "catches": "waits as sending on an idle seat, as queued behind the turn on a busy one, and reads delivered once the frame went in",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "`queued — ${name} gets it after the current turn`",
+        "to": "`queued — ${name} gets it later`"
+      }
+    ]
+  },
+  {
+    "name": "a delivered row on a busy seat reads queued",
+    "catches": "waits as sending on an idle seat, as queued behind the turn on a busy one, and reads delivered once the frame went in",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  if (delivered) return { text: DELIVERED, wait: false };",
+        "to": "  if (delivered && !busy) return { text: DELIVERED, wait: false };"
+      }
+    ]
+  },
+  {
+    "name": "a waiting row is not a wait",
+    "catches": "waits as sending on an idle seat, as queued behind the turn on a busy one, and reads delivered once the frame went in",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "SENDING, wait: true };",
+        "to": "SENDING, wait: false };"
+      }
+    ]
+  },
+  {
+    "name": "the token carries the weekday",
+    "catches": "is the day and the clock of the stamp, the weekday dropped, spelled out as the clock, the speaker and the first line of the row",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  const clock = parts.at(-1);",
+        "to": "  const clock = parts[1];"
+      }
+    ]
+  },
+  {
+    "name": "the same row gets a new number every click",
+    "catches": "numbers a second row in the same second rather than pointing at the first, and gives the same row its token again",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "refs.has(token) && refs.get(token) !== spelled;",
+        "to": "refs.has(token);"
+      }
+    ]
+  },
+  {
+    "name": "a second row in the same second takes the first row's token",
+    "catches": "numbers a second row in the same second rather than pointing at the first, and gives the same row its token again",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "refs.has(token) && refs.get(token) !== spelled;",
+        "to": "false;"
+      }
+    ]
+  },
+  {
+    "name": "a clock alone is a stamp",
+    "catches": "is nothing for a stamp with less than a day and a clock on it",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  if (parts.length < 2) return null;",
+        "to": "  if (parts.length < 1) return null;"
+      }
+    ]
+  },
+  {
+    "name": "eighty characters exactly are cut",
+    "catches": "cuts the quote at eighty characters with an ellipsis, and at eighty exactly keeps it whole",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "${first.length > 80 ? \"…\" : \"\"}",
+        "to": "${first.length >= 80 ? \"…\" : \"\"}"
+      }
+    ]
+  },
+  {
+    "name": "an unknown token is dropped on send",
+    "catches": "is spelled out on send from the table, and a token the table has not got goes as it is",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "`(ref: ${refs.get(token)})` : token",
+        "to": "`(ref: ${refs.get(token)})` : \"\""
+      }
+    ]
   }
 ]

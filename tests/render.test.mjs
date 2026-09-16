@@ -42,9 +42,11 @@ describe("a reply", () => {
 });
 
 describe("every other row", () => {
-  it("the User's own words carry the User's name, plain", () => {
-    assert.deepEqual(row({ from: "user", text: "**not** markdown" }, names), { who: "Mike", kind: "user", text: "**not** markdown" });
-    assert.deepEqual(row({ from: "user", text: "check the repo" }, worker), { who: "Mike", kind: "user", text: "check the repo" }, "typed to a Worker, it is a prompt on the Worker's panel");
+  it("the User's own words carry the User's name, plain, and whether they have reached the process", () => {
+    assert.deepEqual(row({ from: "user", text: "**not** markdown" }, names), { who: "Mike", kind: "user", text: "**not** markdown", delivered: false });
+    assert.deepEqual(row({ from: "user", text: "check the repo" }, worker), { who: "Mike", kind: "user", text: "check the repo", delivered: false }, "typed to a Worker, it is a prompt on the Worker's panel");
+    assert.deepEqual(row({ from: "user", text: "check the repo", delivered: true }, worker), { who: "Mike", kind: "user", text: "check the repo", delivered: true });
+    assert.equal(row({ from: "user", text: "x", delivered: "yes" }, names).delivered, false, "delivered is the mark itself, not any word in its place");
   });
 
   // What the User typed to a Worker is on the Leader's panel too, as the User's name, an arrow and
