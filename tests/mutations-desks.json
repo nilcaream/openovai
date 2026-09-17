@@ -34,7 +34,7 @@
   },
   {
     "name": "retiring leaves the desk pair in the settings",
-    "catches": "withdraws the pair that made the directory the worker's",
+    "catches": "withdraws the rule that made the directory the worker's",
     "edits": [
       {
         "file": "lib/desks.mjs",
@@ -44,24 +44,24 @@
     ]
   },
   {
-    "name": "retiring withdraws the edit rule and leaves the write rule",
-    "catches": "leaves the instance holding exactly the standing rules and the Leader's pair",
+    "name": "retiring withdraws nothing when the desk rule is the only one",
+    "catches": "leaves the instance holding exactly the standing rules and the Leader's rule",
     "edits": [
       {
         "file": "lib/desks.mjs",
         "from": "  const rules = deskRules(name);\n  if (!rules.some((rule) => granted.includes(rule))) {",
-        "to": "  const rules = deskRules(name).slice(0, 1);\n  if (!rules.some((rule) => granted.includes(rule))) {"
+        "to": "  const rules = deskRules(name).slice(0, 0);\n  if (!rules.some((rule) => granted.includes(rule))) {"
       }
     ]
   },
   {
-    "name": "hiring grants the edit rule and not the write rule",
+    "name": "hiring grants no rule for the desk",
     "catches": "frees the name: hiring it again opens a fresh desk",
     "edits": [
       {
         "file": "lib/desks.mjs",
         "from": "  const missing = deskRules(name).filter((rule) => !granted.includes(rule));",
-        "to": "  const missing = deskRules(name).slice(0, 1).filter((rule) => !granted.includes(rule));"
+        "to": "  const missing = deskRules(name).slice(0, 0).filter((rule) => !granted.includes(rule));"
       }
     ]
   },
@@ -89,7 +89,7 @@
   },
   {
     "name": "the rule check expects nothing per desk",
-    "catches": "names a desk that was opened without its pair",
+    "catches": "names a desk that was opened without its rule",
     "edits": [
       {
         "file": "tests/inspect.mjs",
@@ -99,13 +99,13 @@
     ]
   },
   {
-    "name": "the rule check accepts any desk pair whether or not the desk exists",
-    "catches": "names a pair held for a desk nobody has",
+    "name": "the rule check accepts any desk rule whether or not the desk exists",
+    "catches": "names a rule held for a desk nobody has",
     "edits": [
       {
         "file": "tests/inspect.mjs",
         "from": "  const wider = allow.filter((rule) => !expected.includes(rule) && !inList(\"allow\").includes(rule));",
-        "to": "  const wider = allow.filter((rule) => !expected.includes(rule) && !/^(Edit|Write)\\(desks\\//.test(rule) && !inList(\"allow\").includes(rule));"
+        "to": "  const wider = allow.filter((rule) => !expected.includes(rule) && !/^(Edit|Write)\\(\\/desks\\//.test(rule) && !inList(\"allow\").includes(rule));"
       }
     ]
   },
@@ -194,6 +194,28 @@
         "file": "lib/desks.mjs",
         "from": "  if (free.length > 0) return free[0].name;\n  for (let tries",
         "to": "  if (free.length >= 0) return (free[0] ?? { name: POOL[0] }).name;\n  for (let tries"
+      }
+    ]
+  },
+  {
+    "name": "the desk rule is read from the session's current directory rather than the instance root",
+    "catches": "names a desk that was opened without its rule",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "  return [`Edit(/${path.posix.join(DESKS, name)}/**)`];",
+        "to": "  return [`Edit(${path.posix.join(DESKS, name)}/**)`];"
+      }
+    ]
+  },
+  {
+    "name": "the desk is granted a Write twin that matches nothing",
+    "catches": "leaves the instance holding exactly the standing rules and the Leader's rule",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "  return [`Edit(/${path.posix.join(DESKS, name)}/**)`];",
+        "to": "  return [`Edit(/${path.posix.join(DESKS, name)}/**)`, `Write(/${path.posix.join(DESKS, name)}/**)`];"
       }
     ]
   }

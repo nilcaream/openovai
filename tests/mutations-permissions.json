@@ -5,8 +5,8 @@
     "edits": [
       {
         "file": "lib/chat/permissions.mjs",
-        "from": "  return `Edit(${subtree})`;",
-        "to": "  return `Write(${subtree})`;"
+        "from": "  return held === \".\" ? ROOT_RULE : `Edit(/${held}/**)`;",
+        "to": "  return held === \".\" ? \"Write(/**)\" : `Write(/${held}/**)`;"
       }
     ]
   },
@@ -27,8 +27,8 @@
     "edits": [
       {
         "file": "lib/chat/permissions.mjs",
-        "from": "  const subtree = held === \".\" ? \"**\" : `${held}/**`;",
-        "to": "  const subtree = held === \".\" ? \"**\" : held;"
+        "from": "  return held === \".\" ? ROOT_RULE : `Edit(/${held}/**)`;",
+        "to": "  return held === \".\" ? ROOT_RULE : `Edit(/${held})`;"
       }
     ]
   },
@@ -38,8 +38,41 @@
     "edits": [
       {
         "file": "lib/chat/permissions.mjs",
-        "from": "  const subtree = held === \".\" ? \"**\" : `${held}/**`;",
-        "to": "  const subtree = `${held}/**`;"
+        "from": "  return held === \".\" ? ROOT_RULE : `Edit(/${held}/**)`;",
+        "to": "  return `Edit(/${held}/**)`;"
+      }
+    ]
+  },
+  {
+    "name": "the rule composed for a write is read from the session's current directory rather than the instance root",
+    "catches": "composes a rule for the directory the write was in",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": "  return held === \".\" ? ROOT_RULE : `Edit(/${held}/**)`;",
+        "to": "  return held === \".\" ? \"Edit(**)\" : `Edit(${held}/**)`;"
+      }
+    ]
+  },
+  {
+    "name": "a bare directory rule is accepted as if it were the anchored one",
+    "catches": "accepts what shapeOf composes and nothing else",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": "const EDIT_RULE = /^Edit\\(\\/(.+)\\/\\*\\*\\)$/;",
+        "to": "const EDIT_RULE = /^Edit\\(\\/?(.+)\\/\\*\\*\\)$/;"
+      }
+    ]
+  },
+  {
+    "name": "the bare root rule is accepted beside the anchored one",
+    "catches": "accepts what shapeOf composes and nothing else",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": "  if (BASH_RULE.test(rule) || rule === ROOT_RULE) {",
+        "to": "  if (BASH_RULE.test(rule) || rule === ROOT_RULE || rule === \"Edit(**)\") {"
       }
     ]
   },
@@ -56,7 +89,7 @@
   },
   {
     "name": "the composed path is the one the request named, which is a place on this machine",
-    "catches": "names no place on this machine in the rule it composes",
+    "catches": "anchors the rule at the instance root and names no place on this machine",
     "edits": [
       {
         "file": "lib/chat/permissions.mjs",

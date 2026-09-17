@@ -626,7 +626,7 @@ describe("the Node the command needs", () => {
 });
 
 // Hiring is the whole of what it takes to add a person to an instance: a desk to keep state on,
-// and the pair of rules that makes that desk directory the worker's to write in. The desk file
+// and the rule that makes that desk directory the worker's to write in. The desk file
 // itself is written through a tool, and stays refused to the file tools.
 describe("hiring a worker", () => {
   let said;
@@ -660,14 +660,14 @@ describe("hiring a worker", () => {
 
   // A desk is a working directory: the worker keeps what the work produces beside its desk file,
   // and a session stopped on a permission dialog to keep its own notes is a session stopped for
-  // doing its job. Both spellings, because a file made and a file changed are different tools.
-  it("grants the worker its own desk directory, edit and write", () => {
+  // doing its job. One rule, anchored at the root: `Edit(...)` governs the Write tool too.
+  it("grants the worker its own desk directory, anchored at the root, and no Write twin that would match nothing", () => {
     const allow = JSON.parse(fs.readFileSync(path.join(instance, ".claude", "settings.json"), "utf8")).permissions.allow;
-    assert.ok(allow.includes(`Edit(desks/${WORKER}/**)`), JSON.stringify(allow));
-    assert.ok(allow.includes(`Write(desks/${WORKER}/**)`), JSON.stringify(allow));
+    assert.ok(allow.includes(`Edit(/desks/${WORKER}/**)`), JSON.stringify(allow));
+    assert.ok(!allow.some((rule) => rule.startsWith("Write(")), JSON.stringify(allow));
   });
 
-  it("grants nothing wider than that pair, and the instance still accounts for every rule it holds", () => {
+  it("grants nothing wider than that rule, and the instance still accounts for every rule it holds", () => {
     assert.deepEqual(settingsProblems(path.join(instance, ".claude", "settings.json")), []);
   });
 
@@ -767,13 +767,10 @@ describe("what a workspace can account for", () => {
   // itself the day somebody widened it.
   const standing = [
     "mcp__openovai",
-    "Read(**)",
-    "Edit(reference/**)",
-    "Write(reference/**)",
-    "Edit(projects/**)",
-    "Write(projects/**)",
-    "Edit(temp/**)",
-    "Write(temp/**)",
+    "Read(/**)",
+    "Edit(/reference/**)",
+    "Edit(/projects/**)",
+    "Edit(/temp/**)",
     "Bash(git clone:*)",
     "Bash(git checkout:*)",
     "Bash(git add:*)",

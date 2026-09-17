@@ -3,10 +3,10 @@
 // A person in an instance is `desks/<Name>/`: the desk file, the persona the session was last
 // started with, the conversation the chat kept for it, the model when one was named, and whatever
 // the session itself kept there. Retiring the desk moves that directory whole into
-// `archive/<day>-<Name>-<slug of the final title>/`, withdraws the pair of rules that made it the
+// `archive/<day>-<Name>-<slug of the final title>/`, withdraws the rule that made it the
 // person's to write in, and frees the name. This suite reads the directory before and after, and
-// the settings with it — the check `tests/inspect.mjs` makes is one rule pair per desk and nothing
-// wider, so a pair left behind is a failure here, not untidiness.
+// the settings with it — the check `tests/inspect.mjs` makes is one rule per desk and nothing
+// wider, so a rule left behind is a failure here, not untidiness.
 //
 // Every mutation in tests/mutations-desks.json names the check it was written to redden.
 
@@ -82,11 +82,11 @@ describe("retiring a desk", () => {
     assert.deepEqual(fs.readdirSync(path.join(instance, "desks")), [LEADER]);
   });
 
-  it("withdraws the pair that made the directory the worker's", () => {
+  it("withdraws the rule that made the directory the worker's", () => {
     assert.deepEqual(allow().filter((rule) => rule.includes(`desks/${WORKER}/`)), []);
   });
 
-  it("leaves the instance holding exactly the standing rules and the Leader's pair", () => {
+  it("leaves the instance holding exactly the standing rules and the Leader's rule", () => {
     assert.deepEqual(settingsProblems(settings()), []);
   });
 
@@ -119,18 +119,18 @@ describe("what a desk without a title is filed under", () => {
 describe("what the rule check says about desks", () => {
   const ODD = "Wren";
 
-  it("names a desk that was opened without its pair", () => {
+  it("names a desk that was opened without its rule", () => {
     fs.mkdirSync(path.join(instance, "desks", ODD), { recursive: true });
     fs.writeFileSync(path.join(instance, "desks", ODD, "STATE.md"), "<!-- DESK | title: -->\n");
     const problems = settingsProblems(settings());
     assert.equal(problems.length, 1, JSON.stringify(problems));
-    assert.match(problems[0], new RegExp(`Edit\\(desks/${ODD}/\\*\\*\\)`));
+    assert.match(problems[0], new RegExp(`Edit\\(/desks/${ODD}/\\*\\*\\)`));
     fs.rmSync(path.join(instance, "desks", ODD), { recursive: true, force: true });
   });
 
-  it("names a pair held for a desk nobody has", () => {
+  it("names a rule held for a desk nobody has", () => {
     const held = JSON.parse(fs.readFileSync(settings(), "utf8"));
-    const widened = { ...held, permissions: { ...held.permissions, allow: [...held.permissions.allow, `Edit(desks/${ODD}/**)`, `Write(desks/${ODD}/**)`] } };
+    const widened = { ...held, permissions: { ...held.permissions, allow: [...held.permissions.allow, `Edit(/desks/${ODD}/**)`] } };
     fs.writeFileSync(settings(), `${JSON.stringify(widened, null, 2)}\n`);
     const problems = settingsProblems(settings());
     assert.equal(problems.length, 1, JSON.stringify(problems));

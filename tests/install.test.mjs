@@ -334,23 +334,23 @@ describe("what the installer made", () => {
   // these paths whatever the refusal says.
   it("closes its own account of what it allows to the tools that write files", () => {
     const deny = JSON.parse(contentOf(".claude", "settings.json")).permissions.deny;
-    assert.deepEqual(deny.filter((rule) => rule.startsWith("Edit(.claude") || rule.startsWith("Edit(.local")), [
-      "Edit(.claude/**)",
-      "Edit(.local/settings.json)",
-      "Edit(.local/.claude.json)",
+    assert.deepEqual(deny.filter((rule) => rule.startsWith("Edit(/.claude") || rule.startsWith("Edit(/.local")), [
+      "Edit(/.claude/**)",
+      "Edit(/.local/settings.json)",
+      "Edit(/.local/.claude.json)",
     ]);
   });
 
   // A desk file is written through the write_desk tool and no other way. A session reaching for
   // one with a file tool is refused on the spot — never a stop that asks the User to settle it —
-  // and both spellings, because the directory around it is granted for both and a deny wins only
-  // for the tool it names.
+  // one `Edit(...)` rule, which refuses the Write tool too, anchored at the root so it refuses
+  // from wherever the run is standing.
   it("denies a desk file edit and write at install", () => {
     const deny = JSON.parse(contentOf(".claude", "settings.json")).permissions.deny;
-    assert.deepEqual(deny.filter((rule) => rule.includes("desks/")), ["Edit(desks/*/STATE.md)", "Write(desks/*/STATE.md)"]);
+    assert.deepEqual(deny.filter((rule) => rule.includes("desks/")), ["Edit(/desks/*/STATE.md)"]);
   });
 
-  // The allow list, exactly: the tool server, the reads, the edit and write rules for the three
+  // The allow list, exactly: the tool server, the reads, the edit rule for each of the three
   // trees the User works in, the shell commands a seat clones, branches and commits a repository
   // under projects/ with (and cd, mkdir; never push, never rm or mv, never npm), and the Leader's
   // own desk directory — a desk is a working directory. Spelled out rather than asked of the code,
@@ -359,13 +359,10 @@ describe("what the installer made", () => {
     const permissions = JSON.parse(contentOf(".claude", "settings.json")).permissions;
     assert.deepEqual(permissions.allow, [
       "mcp__openovai",
-      "Read(**)",
-      "Edit(reference/**)",
-      "Write(reference/**)",
-      "Edit(projects/**)",
-      "Write(projects/**)",
-      "Edit(temp/**)",
-      "Write(temp/**)",
+      "Read(/**)",
+      "Edit(/reference/**)",
+      "Edit(/projects/**)",
+      "Edit(/temp/**)",
       "Bash(git clone:*)",
       "Bash(git checkout:*)",
       "Bash(git add:*)",
@@ -375,8 +372,7 @@ describe("what the installer made", () => {
       "Bash(git log:*)",
       "Bash(mkdir:*)",
       "Bash(cd:*)",
-      `Edit(desks/${LEADER}/**)`,
-      `Write(desks/${LEADER}/**)`,
+      `Edit(/desks/${LEADER}/**)`,
     ]);
   });
 
@@ -385,7 +381,7 @@ describe("what the installer made", () => {
   // of itself and the one file a tool writes, and nothing anybody works on.
   it("refuses nothing about anybody's work", () => {
     const deny = JSON.parse(contentOf(".claude", "settings.json")).permissions.deny;
-    assert.deepEqual(deny.filter((rule) => !rule.startsWith("Edit(.claude") && !rule.startsWith("Edit(.local") && !rule.endsWith("(desks/*/STATE.md)")), []);
+    assert.deepEqual(deny.filter((rule) => !rule.startsWith("Edit(/.claude") && !rule.startsWith("Edit(/.local") && !rule.endsWith("(/desks/*/STATE.md)")), []);
   });
 
   // And the subtree deliberately left open, because the memory index and the transcripts live in

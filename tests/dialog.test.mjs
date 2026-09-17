@@ -32,7 +32,7 @@ describe("a call stop", () => {
   });
 
   it("shows the path of a write, and no reason line for it", () => {
-    const write = dialogOf({ id: "r4", tool: "Write", input: { file_path: "projects/Paul/notes.md", content: "x" }, shape: "Edit(projects/Paul/**)" }, "Paul");
+    const write = dialogOf({ id: "r4", tool: "Write", input: { file_path: "projects/Paul/notes.md", content: "x" }, shape: "Edit(/projects/Paul/**)" }, "Paul");
     assert.deepEqual(line(write, "path"), ["projects/Paul/notes.md"]);
     assert.deepEqual(line(write, "reason"), []);
     assert.deepEqual(line(write, "input"), []);

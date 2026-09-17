@@ -132,19 +132,22 @@ itself — and `instructions.json`. It opens the Leader's desk at `desks/<Leader
 `runtime.log` appear at the first start and `archive/` when the first desk is retired.
 
 Two settings files are seeded once and never touched again. `.claude/settings.json` allows the
-tool server (`mcp__openovai`), reading any file (`Read(**)`), editing and writing under the three
-trees that are yours (`Edit(reference/**)` and `Write(reference/**)`, the same for `projects/` and
-`temp/`), working a repository under `projects/` from inside it with plain `git clone`,
-`git checkout`, `git add`, `git commit`, `git status`, `git diff`, `git log`, `mkdir` and `cd` (a
-Bash rule is matched by the command, not by a directory, and from its first character: `git -C`
-spellings and `cd … &&` compounds ask; `git push`, `rm`, `mv`, `npm` and `node` are not in the list and
-ask), and the Leader its own desk directory (`Edit(desks/<Leader>/**)`,
-`Write(desks/<Leader>/**)`) — a desk is a working directory, and everyone hired later gets the same
-pair for theirs. It denies an edit or a write of any desk file (`Edit(desks/*/STATE.md)`,
-`Write(desks/*/STATE.md)`) and of the instance's own account files — a desk file is written through
-a tool, and a stray `Write` on one is refused by the harness without a prompt. The instance's
-Claude Code home turns the built-in memory off, so the store is the only thing that outlives a
-conversation.
+tool server (`mcp__openovai`), reading any file (`Read(/**)`), editing and writing under the three
+trees that are yours (`Edit(/reference/**)`, the same for `projects/` and `temp/` — one rule each:
+`Edit(...)` governs every tool that writes a file, the Write tool included, and a `Write(...)`
+rule matches nothing), working a repository under `projects/` from inside it with plain `git
+clone`, `git checkout`, `git add`, `git commit`, `git status`, `git diff`, `git log`, `mkdir` and
+`cd` (a Bash rule is matched by the command, not by a directory, and from its first character:
+`git -C` spellings and `cd … &&` compounds ask; `git push`, `rm`, `mv`, `npm` and `node` are not in
+the list and ask), and the Leader its own desk directory (`Edit(/desks/<Leader>/**)`) — a desk is
+a working directory, and everyone hired later gets the same rule for theirs. It denies an edit or
+a write of any desk file (`Edit(/desks/*/STATE.md)`) and of the instance's own account files — a
+desk file is written through a tool, and a stray `Write` on one is refused by the harness without
+a prompt. Every path rule starts with `/`, which anchors it at the instance root: a bare
+`temp/**` is read from wherever the session is standing, and a session that has stepped into a
+repository under `projects/` with `cd` would be asked again for a write under `temp/` that went
+through from the root. The instance's Claude Code home turns the built-in memory off, so the
+store is the only thing that outlives a conversation.
 
 Then use the instance's own command. `ovai` with no command prints the help; the commands are
 `help`, `status`, `configuration`, `start`, `stop`, `restart`, `plugin`, `login` and `update`.
@@ -335,7 +338,7 @@ and the reason the session gave for it, or the path it was going to write. **All
 through once. **Deny** takes the sentence you type beside it, and the session is told to take that
 as an instruction rather than to look for another way round. Where the request says plainly what
 the whole class of calls is, a third button carries the rule — **Always allow `Bash(node:*)`**, a
-command by its first word, or **Always allow `Edit(projects/app/**)`**, a write by the directory it
+command by its first word, or **Always allow `Edit(/projects/app/**)`**, a write by the directory it
 was in — and pressing it lets the call through and leaves the instance allowing that shape. A
 command whose first word is a path or a variable gets no button, and neither does a write outside
 the instance, nor a tool the server serves, which is granted already.
@@ -348,7 +351,7 @@ The rules the instance holds are also settled in words, and the words are the Us
 the Leader — "you will be autonomous, push without asking", "pip install is too much, ask me every
 time" — and the Leader answers in plain language first, then calls `permission` once per rule: a
 rule in Claude Code's shape, `Bash(git push:*)` for a command by its first word and prefix or
-`Edit(src/**)` for writes under a directory, and why, in words you read beside it. Each call is one
+`Edit(/src/**)` for writes under a directory, anchored at the instance root, and why, in words you read beside it. Each call is one
 dialog on the Leader's panel with **Allow**, **Deny** and **Ask every time**; the press writes the
 rule to that list in `.claude/settings.json`, takes it off the other two, and reaches the Leader as
 a `permission` event, so a Worker hired to push is hired after the push is allowed. Called with no

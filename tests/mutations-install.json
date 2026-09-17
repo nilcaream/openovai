@@ -27,8 +27,8 @@
     "edits": [
       {
         "file": "lib/desks.mjs",
-        "from": "  \"Edit(.local/settings.json)\",\n  \"Edit(.local/.claude.json)\",",
-        "to": "  \"Edit(.local/settings.json)\","
+        "from": "  \"Edit(/.local/settings.json)\",\n  \"Edit(/.local/.claude.json)\",",
+        "to": "  \"Edit(/.local/settings.json)\","
       }
     ]
   },
@@ -38,8 +38,8 @@
     "edits": [
       {
         "file": "lib/desks.mjs",
-        "from": "  \"Edit(.local/.claude.json)\",\n];",
-        "to": "  \"Edit(.local/.claude.json)\",\n  \"Edit(.local/projects/**)\",\n];"
+        "from": "  \"Edit(/.local/.claude.json)\",\n];",
+        "to": "  \"Edit(/.local/.claude.json)\",\n  \"Edit(/.local/projects/**)\",\n];"
       }
     ]
   },
@@ -49,8 +49,8 @@
     "edits": [
       {
         "file": "lib/desks.mjs",
-        "from": "export const OWN_ACCOUNT_RULES = [\n  \"Edit(.claude/**)\",",
-        "to": "export const OWN_ACCOUNT_RULES = [\n  \"Edit(desks/**)\",\n  \"Edit(.claude/**)\","
+        "from": "export const OWN_ACCOUNT_RULES = [\n  \"Edit(/.claude/**)\",",
+        "to": "export const OWN_ACCOUNT_RULES = [\n  \"Edit(/desks/**)\",\n  \"Edit(/.claude/**)\","
       }
     ]
   },
@@ -280,12 +280,12 @@
     ]
   },
   {
-    "name": "the seed refuses the desk file to edits only",
+    "name": "the seed refuses the desk file from wherever the session is standing rather than from the root",
     "catches": "denies a desk file edit and write at install",
     "edits": [
       {
         "file": "lib/desks.mjs",
-        "from": "export const DESK_DENY_RULES = [\"Edit(desks/*/STATE.md)\", \"Write(desks/*/STATE.md)\"];",
+        "from": "export const DESK_DENY_RULES = [\"Edit(/desks/*/STATE.md)\"];",
         "to": "export const DESK_DENY_RULES = [\"Edit(desks/*/STATE.md)\"];"
       }
     ]
@@ -324,13 +324,35 @@
     ]
   },
   {
-    "name": "the seed grants the trees for edits only",
+    "name": "the seed grants the trees from the session's current directory rather than the root",
     "catches": "allows the tool server, the reads, the three trees, the shell commands a seat works a repository with, the Leader's desk directory, and nothing else",
     "edits": [
       {
         "file": "lib/desks.mjs",
-        "from": "export const TREE_RULES = USER_TREES.flatMap((tree) => [`Edit(${tree}/**)`, `Write(${tree}/**)`]);",
+        "from": "export const TREE_RULES = USER_TREES.map((tree) => `Edit(/${tree}/**)`);",
         "to": "export const TREE_RULES = USER_TREES.map((tree) => `Edit(${tree}/**)`);"
+      }
+    ]
+  },
+  {
+    "name": "the seed grants each tree a Write twin that matches nothing",
+    "catches": "allows the tool server, the reads, the three trees, the shell commands a seat works a repository with, the Leader's desk directory, and nothing else",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "export const TREE_RULES = USER_TREES.map((tree) => `Edit(/${tree}/**)`);",
+        "to": "export const TREE_RULES = USER_TREES.flatMap((tree) => [`Edit(/${tree}/**)`, `Write(/${tree}/**)`]);"
+      }
+    ]
+  },
+  {
+    "name": "the read rule is read from the session's current directory rather than the root",
+    "catches": "allows the tool server, the reads, the three trees, the shell commands a seat works a repository with, the Leader's desk directory, and nothing else",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "export const READ_RULES = [\"Read(/**)\"];",
+        "to": "export const READ_RULES = [\"Read(**)\"];"
       }
     ]
   },

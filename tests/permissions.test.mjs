@@ -72,7 +72,9 @@ describe("the rule a call could be allowed by", () => {
 
 // The other shape, which names a path rather than a call. A rule naming a DIRECTORY is honoured as
 // the whole subtree under it, a rule naming one FILE is that file alone, and `Edit(...)` is what
-// governs a write whatever tool made it — a `Write(...)` rule matches nothing.
+// governs a write whatever tool made it — a `Write(...)` rule matches nothing. The path is
+// anchored with a leading `/`, which Claude Code reads as "from the instance root": a bare path
+// is read from the session's current directory, which moves with every `cd`.
 describe("the rule a write could be allowed by", () => {
   function forWriting(tool, file_path) {
     return shapeOf({ id: "request-1", tool, input: { file_path } }, AT);
@@ -83,17 +85,17 @@ describe("the rule a write could be allowed by", () => {
   });
 
   it("composes a rule for the directory the write was in", () => {
-    assert.equal(forWriting("Edit", `${AT}/projects/Wren/notes.md`), "Edit(projects/Wren/**)");
+    assert.equal(forWriting("Edit", `${AT}/projects/Wren/notes.md`), "Edit(/projects/Wren/**)");
   });
 
   it("composes the spelling that says a subtree out loud", () => {
     const rule = forWriting("Write", `${AT}/projects/Wren/sub/deep.md`);
-    assert.equal(rule, "Edit(projects/Wren/sub/**)");
+    assert.equal(rule, "Edit(/projects/Wren/sub/**)");
     assert.ok(rule.endsWith("/**)"), rule);
   });
 
   it("composes a rule at the root with no ./ in front of it", () => {
-    assert.equal(forWriting("Write", `${AT}/notes.md`), "Edit(**)");
+    assert.equal(forWriting("Write", `${AT}/notes.md`), "Edit(/**)");
   });
 
   it("composes no rule for a write outside the instance", () => {
@@ -102,10 +104,11 @@ describe("the rule a write could be allowed by", () => {
     assert.equal(forWriting("Write", AT), null);
   });
 
-  it("names no place on this machine in the rule it composes", () => {
+  it("anchors the rule at the instance root and names no place on this machine", () => {
     const rule = forWriting("Edit", `${AT}/projects/Wren/notes.md`);
     assert.ok(!rule.includes(AT), rule);
-    assert.ok(!/\((\/|~|\/\/)/.test(rule), rule);
+    assert.ok(rule.startsWith("Edit(/"), rule);
+    assert.ok(!/\((~|\/\/)/.test(rule), rule);
   });
 
   it("offers a button only where the request says what the class of calls is", () => {
@@ -127,10 +130,12 @@ describe("the rule a write could be allowed by", () => {
 // callers, so what a person can be asked to settle is exactly what an Always button could offer.
 describe("the rule a person may be asked to settle", () => {
   it("accepts what shapeOf composes and nothing else", () => {
-    for (const rule of ["Bash(git:*)", "Bash(git push:*)", "Bash(pip install:*)", "Edit(projects/Paul/**)", "Edit(**)"]) {
+    for (const rule of ["Bash(git:*)", "Bash(git push:*)", "Bash(pip install:*)", "Edit(/projects/Paul/**)", "Edit(/**)"]) {
       assert.equal(acceptRule(rule, AT), rule);
     }
-    for (const rule of ["Bash(*)", "Bash(git push)", "Bash(git:*) ", "Edit(/etc/**)", "Edit(../**)", "Edit(./projects/**)", "Edit(projects/Paul/STATE.md)", "Read(**)", "mcp__openovai", "", null]) {
+    // A bare path is read from the session's current directory rather than the instance root, so
+    // it is a wrong rule and not an older spelling of the right one.
+    for (const rule of ["Bash(*)", "Bash(git push)", "Bash(git:*) ", "Edit(projects/Paul/**)", "Edit(**)", "Edit(//etc/**)", "Edit(/../**)", "Edit(/./projects/**)", "Edit(/projects/Paul/STATE.md)", "Read(/**)", "mcp__openovai", "", null]) {
       assert.equal(acceptRule(rule, AT), null, String(rule));
     }
     for (const request of [
@@ -152,7 +157,7 @@ describe("settling a rule in the settings", () => {
   before(() => {
     remove(root);
     fs.mkdirSync(path.join(root, ".claude"), { recursive: true });
-    fs.writeFileSync(path.join(root, ".claude", "settings.json"), JSON.stringify({ permissions: { allow: ["mcp__openovai"], deny: ["Edit(.claude/**)"] } }));
+    fs.writeFileSync(path.join(root, ".claude", "settings.json"), JSON.stringify({ permissions: { allow: ["mcp__openovai"], deny: ["Edit(/.claude/**)"] } }));
   });
 
   after(() => remove(root));
@@ -164,7 +169,7 @@ describe("settling a rule in the settings", () => {
     ruleAsked(root, { rule: "Bash(pip:*)", list: "allow", session: LEADER, call: "pip install", day: "2026-09-13" });
     assert.deepEqual(settings().allow, ["mcp__openovai", "Bash(pip:*)"]);
     assert.deepEqual(settings().ask, []);
-    assert.deepEqual(settings().deny, ["Edit(.claude/**)"]);
+    assert.deepEqual(settings().deny, ["Edit(/.claude/**)"]);
     assert.deepEqual(ledger().map((line) => line.slice(0, line.indexOf(" — "))), ["- `Bash(pip:*)` (ask)", "- `Bash(pip:*)` (allow)"]);
     // The same thing again is one line and one entry.
     ruleAsked(root, { rule: "Bash(pip:*)", list: "allow", session: LEADER, call: "pip install", day: "2026-09-13" });
@@ -515,7 +520,7 @@ describe("asking to be allowed", () => {
   });
 
   describe("allowing a write, and not only the file it named", () => {
-    const RULE = "Edit(.tmp/onboarding/**)";
+    const RULE = "Edit(/.tmp/onboarding/**)";
     const settings = path.join(instance, ".claude", "settings.json");
     const ledger = path.join(instance, LEDGER);
     let shown;
@@ -639,7 +644,7 @@ describe("asking to be allowed", () => {
       assert.match(said.noWhy.text, /say why/);
       assert.equal(said.badShape.refused, true);
       assert.match(said.badShape.text, /Bash\(word:\*\)/);
-      assert.match(said.badShape.text, /Edit\(dir\/\*\*\)/);
+      assert.match(said.badShape.text, /Edit\(\/dir\/\*\*\)/);
       assert.equal(said.again.refused, true);
       assert.match(said.again.text, /already asked on your panel/);
     });
