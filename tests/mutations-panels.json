@@ -438,5 +438,27 @@
         "to": "`(ref: ${refs.get(token)})` : \"\""
       }
     ]
+  },
+  {
+    "name": "the state word never counts the questions",
+    "catches": "the state word counts the questions waiting when there is more than one",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  if (asking(state, name)) return panel.asking.length > 1 ? `${WAITING} · ${panel.asking.length} prompts` : WAITING;",
+        "to": "  if (asking(state, name)) return WAITING;"
+      }
+    ]
+  },
+  {
+    "name": "one question is counted too",
+    "catches": "the state word counts the questions waiting when there is more than one",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  if (asking(state, name)) return panel.asking.length > 1 ? `${WAITING} · ${panel.asking.length} prompts` : WAITING;",
+        "to": "  if (asking(state, name)) return `${WAITING} · ${panel.asking.length} prompts`;"
+      }
+    ]
   }
 ]

@@ -123,6 +123,12 @@ then the one whose holder left longest ago. The answer says who (`Jane started o
 desks/Jane`), and a name given to `hire` is for bringing somebody who stopped back on their own
 desk. With nobody in the list free, the name is Dev and three digits.
 
+**A question is a row on the panel.** A permission card — a call the session is stopped on, a rule
+the Leader asks you to settle — sits among the rows, where the newest row goes, and scrolls with
+them: seven at once are seven rows, the text box stays where it is, and the head reads `waiting
+for you · 7 prompts`. A card that lands while you are at the newest row comes into view like a
+row; away from it, the `↓ new messages` pill says something landed below.
+
 ## 0.10.0
 
 The page is a room you read at a glance. Three columns of panels, each a bare slot with a head

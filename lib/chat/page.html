@@ -311,12 +311,10 @@
     empty.className = "empty";
     empty.textContent = "Waiting for the transcript…";
     rows.append(empty);
-    const asking = document.createElement("div");
-    asking.className = "asking";
     // On the Leader's panel, a pill for rows that arrived below where the reader is: shown when a
     // row lands while the reader is more than 80px above the newest, gone once they are near it
     // again or click it. It is the last child of the rows and sticks to their bottom edge, so it
-    // sits above whatever is open below the rows — a permission card, the composer — never on it.
+    // sits above whatever is open below the rows — the composer — never on it.
     let jump = null;
     if (leads) {
       jump = document.createElement("button");
@@ -396,12 +394,13 @@
       }).catch(() => {});
     });
 
-    section.append(headLine, rows, asking, composer);
+    section.append(headLine, rows, composer);
     // `last` is the tool line appended last, for a repeated call to count itself into; `lines` is
     // the element of every tool line by the index of its row, for a failed call to find its line;
     // `waiting` the element of every row of the User's not yet delivered, by its index, for the
-    // delivery to find its row; `day` the day of the row drawn last, for the pill between two days.
-    return { name, section, nameLine, info, word, fitPlaceholder, facts, composer, stop, rows, empty, asking, jump, box, refs, shown: 0, day: null, drawn: new Map(), loading: false, last: null, lines: new Map(), waiting: new Map() };
+    // delivery to find its row; `day` the day of the row drawn last, for the pill between two days;
+    // `drawn` the card of every question on the panel, by the id of its request.
+    return { name, section, nameLine, info, word, fitPlaceholder, facts, composer, stop, rows, empty, jump, box, refs, shown: 0, day: null, drawn: new Map(), loading: false, last: null, lines: new Map(), waiting: new Map() };
   }
 
   // When a row was written, in the reader's own zone: `2026.09.13 Sunday 23:17:05` on the row, the
@@ -612,7 +611,9 @@
   }
 
   // A question on this panel: a call the session is stopped on, or a rule the Leader asks the
-  // User to settle. What it shows is decided by dialogOf() — the words of the request and
+  // User to settle. It is a card among the rows — appended where the newest row goes, in the
+  // scroll with everything before it, so seven at once scroll like seven rows and the composer
+  // stays where it is. What it shows is decided by dialogOf() — the words of the request and
   // nothing else — and drawn here with textContent as a card: the heading, then one block per
   // field the request carried (the words of a request in a raw block, a reason on a line of its
   // own), then the row of decisions, one button per decision that kind of question takes. A deny
@@ -745,8 +746,10 @@
         panel.last = null;
         panel.lines.clear();
         panel.waiting.clear();
+        panel.drawn.clear();
       }
       panel.empty.hidden = about.rows.length > 0;
+      const added = [];
       if (about.rows.length > panel.shown) {
         // A Worker panel keeps its last hundred rows, so its first draw starts there: a long log
         // builds a hundred elements, not thousands. The Leader's panel draws every row it holds.
@@ -755,7 +758,6 @@
         // never before the first row drawn, whatever its day. A tool call that repeats the line
         // appended last counts itself into that line rather than drawing a second one; any other
         // row — a bubble, a pill — ends the run.
-        const added = [];
         for (const [offset, entry] of about.rows.slice(from).entries()) {
           const index = from + offset;
           const when = stamp(entry.at);
@@ -795,7 +797,7 @@
         // A Worker panel keeps a hundred drawn rows — bubbles, lines and pills; the empty box is
         // not a row — and lets the oldest go, with the lines it no longer holds.
         if (panel.jump === null) {
-          const drawn = [...panel.rows.children].filter((child) => child.matches(".msg, .line, .divider"));
+          const drawn = [...panel.rows.children].filter((child) => child.matches(".msg:not(.perm), .line, .divider"));
           while (drawn.length > 100) drawn.shift().remove();
           // The day pill goes with the rows before it: it is never the first thing on a panel.
           while (drawn.length > 0 && drawn[0].dataset.day !== undefined) drawn.shift().remove();
@@ -804,11 +806,6 @@
               if (!element.isConnected) kept.delete(index);
             }
           }
-        }
-        if (atTheNewest) {
-          panel.rows.scrollTop = panel.rows.scrollHeight;
-        } else if (panel.jump !== null && !near) {
-          panel.jump.classList.add("show");
         }
       }
       // A call that failed after its line was drawn: the line at that row's index turns red, with
@@ -822,21 +819,35 @@
         }
         if (about.rows[index].delivered === true) deliveredRow(panel, index);
       }
-      // Rows are appended after the pill; it goes back to the end so it sticks to the bottom edge.
-      if (panel.jump !== null && panel.jump !== panel.rows.lastElementChild) panel.rows.append(panel.jump);
-    }
-
-    for (const [id, card] of panel.drawn) {
-      if (!about.asking.some((request) => request.id === id)) {
-        card.remove();
-        panel.drawn.delete(id);
+      // The questions, after the rows: a card answered or taken down leaves, a card not yet
+      // drawn goes where the newest row went and ends a run of tool lines.
+      let asked = false;
+      for (const [id, card] of panel.drawn) {
+        if (!about.asking.some((request) => request.id === id)) {
+          card.remove();
+          panel.drawn.delete(id);
+        }
       }
-    }
-    for (const request of about.asking) {
-      if (!panel.drawn.has(request.id)) {
-        const card = question(panel.name, request);
-        panel.drawn.set(request.id, card);
-        panel.asking.append(card);
+      for (const request of about.asking) {
+        if (!panel.drawn.has(request.id)) {
+          const card = question(panel.name, request);
+          panel.drawn.set(request.id, card);
+          panel.rows.append(card);
+          panel.last = null;
+          asked = true;
+        }
+      }
+      // Rows and cards are appended after the pill; it goes back to the end so it sticks to the
+      // bottom edge.
+      if (panel.jump !== null && panel.jump !== panel.rows.lastElementChild) panel.rows.append(panel.jump);
+      // A card scrolls into view as a row does: when the reader was at the newest, the newest
+      // is followed; otherwise the pill says something landed below.
+      if (added.length > 0 || asked) {
+        if (atTheNewest) {
+          panel.rows.scrollTop = panel.rows.scrollHeight;
+        } else if (panel.jump !== null && !near) {
+          panel.jump.classList.add("show");
+        }
       }
     }
   }

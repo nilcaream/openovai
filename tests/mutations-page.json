@@ -554,7 +554,7 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      // Rows are appended after the pill; it goes back to the end so it sticks to the bottom edge.\n      if (panel.jump !== null && panel.jump !== panel.rows.lastElementChild) panel.rows.append(panel.jump);\n",
+        "from": "      // Rows and cards are appended after the pill; it goes back to the end so it sticks to the\n      // bottom edge.\n      if (panel.jump !== null && panel.jump !== panel.rows.lastElementChild) panel.rows.append(panel.jump);\n",
         "to": ""
       }
     ]
@@ -565,13 +565,13 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      panel.empty.hidden = about.rows.length > 0;\n      if (about.rows.length > panel.shown) {\n",
-        "to": "      panel.empty.hidden = about.rows.length > 0;\n      // Rows are appended after the pill; it goes back to the end so it sticks to the bottom edge.\n      if (panel.jump !== null && panel.jump !== panel.rows.lastElementChild) panel.rows.append(panel.jump);\n      if (about.rows.length > panel.shown) {\n"
+        "from": "      panel.empty.hidden = about.rows.length > 0;\n      const added = [];\n      if (about.rows.length > panel.shown) {\n",
+        "to": "      panel.empty.hidden = about.rows.length > 0;\n      const added = [];\n      if (panel.jump !== null && panel.jump !== panel.rows.lastElementChild) panel.rows.append(panel.jump);\n      if (about.rows.length > panel.shown) {\n"
       },
       {
         "file": "lib/chat/page.html",
-        "from": "      }\n      // Rows are appended after the pill; it goes back to the end so it sticks to the bottom edge.\n      if (panel.jump !== null && panel.jump !== panel.rows.lastElementChild) panel.rows.append(panel.jump);\n    }\n",
-        "to": "      }\n    }\n"
+        "from": "      }\n      // Rows and cards are appended after the pill; it goes back to the end so it sticks to the\n      // bottom edge.\n      if (panel.jump !== null && panel.jump !== panel.rows.lastElementChild) panel.rows.append(panel.jump);\n",
+        "to": "      }\n"
       }
     ]
   },
@@ -1533,6 +1533,88 @@
         "file": "lib/chat/page.html",
         "from": "  .md pre code { background: none; padding: 0; font-size: inherit; }",
         "to": "  .md pre code { background: none; padding: 0; font-size: .85rem; }"
+      }
+    ]
+  },
+  {
+    "name": "the questions go back into a block of their own between the rows and the composer",
+    "catches": "draws a question as a card among the rows, never in a block of its own below them",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    section.append(headLine, rows, composer);",
+        "to": "    const asking = document.createElement(\"div\");\n    asking.className = \"asking\";\n    section.append(headLine, rows, asking, composer);"
+      },
+      {
+        "file": "lib/chat/page.html",
+        "from": "          panel.rows.append(card);\n          panel.last = null;\n          asked = true;",
+        "to": "          panel.section.lastElementChild.before(card);\n          panel.last = null;\n          asked = true;"
+      }
+    ]
+  },
+  {
+    "name": "a card does not end a run of tool lines: the next repeated call counts itself into a line above the card",
+    "catches": "draws a question as a card among the rows, never in a block of its own below them",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "          panel.rows.append(card);\n          panel.last = null;\n          asked = true;",
+        "to": "          panel.rows.append(card);\n          asked = true;"
+      }
+    ]
+  },
+  {
+    "name": "the scroll is decided before the cards are appended, so a card never comes into view and never shows the pill",
+    "catches": "draws a question as a card among the rows, never in a block of its own below them",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      // The questions, after the rows: a card answered or taken down leaves, a card not yet\n      // drawn goes where the newest row went and ends a run of tool lines.\n      let asked = false;\n      for (const [id, card] of panel.drawn) {\n        if (!about.asking.some((request) => request.id === id)) {\n          card.remove();\n          panel.drawn.delete(id);\n        }\n      }\n      for (const request of about.asking) {\n        if (!panel.drawn.has(request.id)) {\n          const card = question(panel.name, request);\n          panel.drawn.set(request.id, card);\n          panel.rows.append(card);\n          panel.last = null;\n          asked = true;\n        }\n      }\n      // Rows and cards are appended after the pill; it goes back to the end so it sticks to the\n      // bottom edge.\n      if (panel.jump !== null && panel.jump !== panel.rows.lastElementChild) panel.rows.append(panel.jump);\n      // A card scrolls into view as a row does: when the reader was at the newest, the newest\n      // is followed; otherwise the pill says something landed below.\n      if (added.length > 0 || asked) {\n        if (atTheNewest) {\n          panel.rows.scrollTop = panel.rows.scrollHeight;\n        } else if (panel.jump !== null && !near) {\n          panel.jump.classList.add(\"show\");\n        }\n      }\n",
+        "to": "      let asked = false;\n      // A card scrolls into view as a row does: when the reader was at the newest, the newest\n      // is followed; otherwise the pill says something landed below.\n      if (added.length > 0 || asked) {\n        if (atTheNewest) {\n          panel.rows.scrollTop = panel.rows.scrollHeight;\n        } else if (panel.jump !== null && !near) {\n          panel.jump.classList.add(\"show\");\n        }\n      }\n      // The questions, after the rows: a card answered or taken down leaves, a card not yet\n      // drawn goes where the newest row went and ends a run of tool lines.\n      for (const [id, card] of panel.drawn) {\n        if (!about.asking.some((request) => request.id === id)) {\n          card.remove();\n          panel.drawn.delete(id);\n        }\n      }\n      for (const request of about.asking) {\n        if (!panel.drawn.has(request.id)) {\n          const card = question(panel.name, request);\n          panel.drawn.set(request.id, card);\n          panel.rows.append(card);\n          panel.last = null;\n          asked = true;\n        }\n      }\n      // Rows and cards are appended after the pill; it goes back to the end so it sticks to the\n      // bottom edge.\n      if (panel.jump !== null && panel.jump !== panel.rows.lastElementChild) panel.rows.append(panel.jump);\n"
+      }
+    ]
+  },
+  {
+    "name": "the cards are appended after the pill is put back, so the pill sits above the newest card",
+    "catches": "draws a question as a card among the rows, never in a block of its own below them",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      // The questions, after the rows: a card answered or taken down leaves, a card not yet\n      // drawn goes where the newest row went and ends a run of tool lines.\n      let asked = false;\n      for (const [id, card] of panel.drawn) {\n        if (!about.asking.some((request) => request.id === id)) {\n          card.remove();\n          panel.drawn.delete(id);\n        }\n      }\n      for (const request of about.asking) {\n        if (!panel.drawn.has(request.id)) {\n          const card = question(panel.name, request);\n          panel.drawn.set(request.id, card);\n          panel.rows.append(card);\n          panel.last = null;\n          asked = true;\n        }\n      }\n      // Rows and cards are appended after the pill; it goes back to the end so it sticks to the\n      // bottom edge.\n      if (panel.jump !== null && panel.jump !== panel.rows.lastElementChild) panel.rows.append(panel.jump);\n",
+        "to": "      // Rows and cards are appended after the pill; it goes back to the end so it sticks to the\n      // bottom edge.\n      if (panel.jump !== null && panel.jump !== panel.rows.lastElementChild) panel.rows.append(panel.jump);\n      // The questions, after the rows: a card answered or taken down leaves, a card not yet\n      // drawn goes where the newest row went and ends a run of tool lines.\n      let asked = false;\n      for (const [id, card] of panel.drawn) {\n        if (!about.asking.some((request) => request.id === id)) {\n          card.remove();\n          panel.drawn.delete(id);\n        }\n      }\n      for (const request of about.asking) {\n        if (!panel.drawn.has(request.id)) {\n          const card = question(panel.name, request);\n          panel.drawn.set(request.id, card);\n          panel.rows.append(card);\n          panel.last = null;\n          asked = true;\n        }\n      }\n"
+      }
+    ]
+  },
+  {
+    "name": "the cards are drawn while the rows are still on their way, so the first draw puts them above the rows",
+    "catches": "draws a question as a card among the rows, never in a block of its own below them",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      // The questions, after the rows: a card answered or taken down leaves, a card not yet\n      // drawn goes where the newest row went and ends a run of tool lines.\n      let asked = false;\n      for (const [id, card] of panel.drawn) {\n        if (!about.asking.some((request) => request.id === id)) {\n          card.remove();\n          panel.drawn.delete(id);\n        }\n      }\n      for (const request of about.asking) {\n        if (!panel.drawn.has(request.id)) {\n          const card = question(panel.name, request);\n          panel.drawn.set(request.id, card);\n          panel.rows.append(card);\n          panel.last = null;\n          asked = true;\n        }\n      }\n      // Rows and cards are appended after the pill; it goes back to the end so it sticks to the\n      // bottom edge.\n      if (panel.jump !== null && panel.jump !== panel.rows.lastElementChild) panel.rows.append(panel.jump);\n      // A card scrolls into view as a row does: when the reader was at the newest, the newest\n      // is followed; otherwise the pill says something landed below.\n      if (added.length > 0 || asked) {\n        if (atTheNewest) {\n          panel.rows.scrollTop = panel.rows.scrollHeight;\n        } else if (panel.jump !== null && !near) {\n          panel.jump.classList.add(\"show\");\n        }\n      }\n    }\n  }\n",
+        "to": "      // Rows and cards are appended after the pill; it goes back to the end so it sticks to the\n      // bottom edge.\n      if (panel.jump !== null && panel.jump !== panel.rows.lastElementChild) panel.rows.append(panel.jump);\n      if (added.length > 0) {\n        if (atTheNewest) {\n          panel.rows.scrollTop = panel.rows.scrollHeight;\n        } else if (panel.jump !== null && !near) {\n          panel.jump.classList.add(\"show\");\n        }\n      }\n    }\n      // The questions, after the rows: a card answered or taken down leaves, a card not yet\n      // drawn goes where the newest row went and ends a run of tool lines.\n      for (const [id, card] of panel.drawn) {\n        if (!about.asking.some((request) => request.id === id)) {\n          card.remove();\n          panel.drawn.delete(id);\n        }\n      }\n      for (const request of about.asking) {\n        if (!panel.drawn.has(request.id)) {\n          const card = question(panel.name, request);\n          panel.drawn.set(request.id, card);\n          panel.rows.append(card);\n          panel.last = null;\n          asked = true;\n        }\n      }\n  }\n"
+      }
+    ]
+  },
+  {
+    "name": "rows drawn again from nothing keep the cards they no longer show",
+    "catches": "draws a question as a card among the rows, never in a block of its own below them",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "        panel.waiting.clear();\n        panel.drawn.clear();\n",
+        "to": "        panel.waiting.clear();\n"
+      }
+    ]
+  },
+  {
+    "name": "a question's card is one of the hundred rows a Worker panel lets go",
+    "catches": "keeps the last hundred rows of a Worker panel and every row of the Leader's",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "child.matches(\".msg:not(.perm), .line, .divider\")",
+        "to": "child.matches(\".msg, .line, .divider\")"
       }
     ]
   }

@@ -398,7 +398,7 @@ describe("the script", () => {
   it("shows the pill when rows land below a reader who is not near the newest, and takes them there on a click", () => {
     assert.match(script, /const nearTheNewest = \(rows\) => rows\.scrollHeight - rows\.scrollTop - rows\.clientHeight < 80;/);
     assert.match(script, /\n      rows\.append\(jump\);\n/, "the pill is a child of the rows");
-    assert.match(script, /panel\.shown = about\.rows\.length;\n(?:[^\n]*\n){31}      if \(panel\.jump !== null && panel\.jump !== panel\.rows\.lastElementChild\) panel\.rows\.append\(panel\.jump\);\n    \}\n/, "the pill is put back last AFTER the rows are appended, as the last statement of the draw");
+    assert.match(script, /panel\.shown = about\.rows\.length;\n(?:[^\n]*\n){45}      if \(panel\.jump !== null && panel\.jump !== panel\.rows\.lastElementChild\) panel\.rows\.append\(panel\.jump\);\n/, "the pill is put back last AFTER the rows and the cards are appended, before the scroll is decided");
     assert.match(script, /\} else if \(panel\.jump !== null && !near\) \{\s*panel\.jump\.classList\.add\("show"\);/);
     assert.match(script, /rows\.addEventListener\("scroll", \(\) => \{\s*if \(nearTheNewest\(rows\)\) jump\.classList\.remove\("show"\);/);
     assert.match(script, /jump\.addEventListener\("click", \(\) => \{\s*rows\.scrollTop = rows\.scrollHeight;\s*jump\.classList\.remove\("show"\);/);
@@ -500,7 +500,25 @@ describe("the script", () => {
   // oldest go past a hundred. The Leader's panel is the User's own conversation and keeps it all.
   it("keeps the last hundred rows of a Worker panel and every row of the Leader's", () => {
     assert.match(script, /const from = panel\.jump === null && panel\.shown === 0 \? Math\.max\(panel\.shown, about\.rows\.length - 100\) : panel\.shown;/);
-    assert.match(script, /if \(panel\.jump === null\) \{\s*const drawn = \[\.\.\.panel\.rows\.children\]\.filter\(\(child\) => child\.matches\("\.msg, \.line, \.divider"\)\);\s*while \(drawn\.length > 100\) drawn\.shift\(\)\.remove\(\);/);
+    assert.match(script, /if \(panel\.jump === null\) \{\s*const drawn = \[\.\.\.panel\.rows\.children\]\.filter\(\(child\) => child\.matches\("\.msg:not\(\.perm\), \.line, \.divider"\)\);\s*while \(drawn\.length > 100\) drawn\.shift\(\)\.remove\(\);/, "a question's card is never one of the hundred that go");
+  });
+
+  // A question is a card among the rows: appended where the newest row goes, in the scroll with
+  // everything before it, never in a block of its own between the rows and the composer — seven
+  // at once scroll like seven rows, and the composer stays where it is. A card ends a run of
+  // tool lines, the pill goes back to the bottom edge after it, and the scroll is decided after
+  // the cards: one that lands while the reader is at the newest row comes into view like a row,
+  // away from it the pill shows. Cards are drawn once the rows are, so the first draw of a
+  // panel puts them after its rows and not before them; a panel whose rows are drawn again
+  // from nothing draws its cards again too.
+  it("draws a question as a card among the rows, never in a block of its own below them", () => {
+    assert.match(script, /section\.append\(headLine, rows, composer\);/);
+    assert.doesNotMatch(script, /className = "asking"/, "a block of its own for the questions");
+    assert.match(script, /const card = question\(panel\.name, request\);\s*panel\.drawn\.set\(request\.id, card\);\s*panel\.rows\.append\(card\);\s*panel\.last = null;\s*asked = true;/);
+    assert.match(script, /asked = true;[\s\S]*?if \(panel\.jump !== null && panel\.jump !== panel\.rows\.lastElementChild\) panel\.rows\.append\(panel\.jump\);/, "the pill goes back to the end after a card");
+    assert.match(script, /asked = true;[\s\S]*?if \(added\.length > 0 \|\| asked\) \{\s*if \(atTheNewest\) \{\s*panel\.rows\.scrollTop = panel\.rows\.scrollHeight;\s*\} else if \(panel\.jump !== null && !near\) \{\s*panel\.jump\.classList\.add\("show"\);/, "the scroll is decided after the cards, for a card as for a row");
+    assert.match(script, /if \(about\.rows === null\) \{\s*load\(panel\);\s*\} else \{[\s\S]*?asked = true;[\s\S]*?\n    \}\n  \}\n/, "cards are drawn under the rows, once there are rows");
+    assert.match(script, /panel\.waiting\.clear\(\);\s*panel\.drawn\.clear\(\);/, "rows drawn again from nothing draw their cards again");
   });
 
   // The Leader's head, after the state word: the connection word, red while the page has no

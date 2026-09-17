@@ -161,6 +161,23 @@ describe("marks and controls", () => {
     assert.equal(head(state, "Ann").info, "sonnet 3k");
   });
 
+  // Several questions at once: the word counts them, so the head says how many cards are waiting
+  // below before the reader scrolls to them. One question is the word alone.
+  it("the state word counts the questions waiting when there is more than one", () => {
+    const state = fresh();
+    applyEvent(state, snapshot([about(LEADER), about("Paul")]), 0);
+    const ask = (id) => ({ id, tool: "Bash", input: { command: "ls" } });
+    applyEvent(state, { name: "asking", data: { seat: LEADER, pending: [ask("r1")] } }, 0);
+    assert.equal(head(state, LEADER).state, "waiting for you");
+    applyEvent(state, { name: "asking", data: { seat: LEADER, pending: [ask("r1"), ask("r2")] } }, 0);
+    assert.equal(head(state, LEADER).state, "waiting for you · 2 prompts");
+    applyEvent(state, { name: "asking", data: { seat: LEADER, pending: [ask("r1"), ask("r2"), ask("r3"), ask("r4"), ask("r5"), ask("r6"), ask("r7")] } }, 0);
+    assert.equal(head(state, LEADER).state, "waiting for you · 7 prompts");
+    assert.equal(head(state, "Paul").state, "listening");
+    applyEvent(state, { name: "asking", data: { seat: LEADER, pending: [] } }, 0);
+    assert.equal(head(state, LEADER).state, "listening");
+  });
+
   // The word follows the turn: a seat event with busy flips it, an ask outranks it, and a dimmed
   // panel says nothing — the fade and the red dot are its mark.
   it("the state word is listening between turns, working while one runs, waiting for you over both, and nothing on a dimmed panel", () => {
