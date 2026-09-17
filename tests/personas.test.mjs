@@ -305,10 +305,14 @@ describe("what a Worker is told", () => {
     assert.match(worker(), /`restart_session` and `stop_session` refuse until the\s+desk was written after the event that asked/);
   });
 
-  it("tells the Worker one command per call, an absolute path and git -C, never cd", () => {
+  // The install allows a seat plain git, mkdir and cd; a permission rule matches a command from its
+  // first character, so `cd x && git status` and `git -C x status` ask every time while
+  // `git status` from inside the repo does not.
+  it("tells the Worker one command per call, to work from inside the repository, and never cd-and or git -C", () => {
     assert.match(worker(), /one command per call/);
-    assert.match(worker(), /git -C/);
-    assert.match(worker(), /never `cd/);
+    assert.match(worker(), /Work from inside the\s+repository: `cd projects\/<repo>` once, alone, then plain git, mkdir and the file tools/);
+    assert.match(worker(), /never chain a\s+`cd …` with another command and never `git -C`/);
+    assert.match(worker(), /a permission rule matches a command from\s+its first character, and those spellings ask every time/);
   });
 
   it("tells the Worker to say why in the call, in words a person reads", () => {

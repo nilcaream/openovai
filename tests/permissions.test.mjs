@@ -439,6 +439,19 @@ describe("asking to be allowed", () => {
 
   describe("allowing the shape and not only the call", () => {
     const RULE = "Bash(node:*)";
+    // The shell rules an instance is born with, spelled out rather than imported so that a press
+    // which widened the list beyond its one rule is caught here and not agreed with.
+    const BORN_WITH = [
+      "Bash(git clone:*)",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(mkdir:*)",
+      "Bash(cd:*)",
+    ];
     const settings = path.join(instance, ".claude", "settings.json");
     const ledger = path.join(instance, LEDGER);
     let shown;
@@ -477,9 +490,9 @@ describe("asking to be allowed", () => {
       assert.deepEqual(JSON.parse(said.body), { answered: shown.id, decision: "always", granted: RULE });
     });
 
-    it("grants exactly that rule and nothing else", () => {
+    it("grants exactly that rule and nothing else beyond what the instance was born with", () => {
       assert.ok(allowed().includes(RULE), allowed().join(", "));
-      assert.deepEqual(allowed().filter((rule) => rule.startsWith("Bash(")), [RULE]);
+      assert.deepEqual(allowed().filter((rule) => rule.startsWith("Bash(")), [...BORN_WITH, RULE]);
     });
 
     it("writes down who asked for it, when, and what for", () => {

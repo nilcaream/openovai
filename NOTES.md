@@ -47,7 +47,9 @@ persona the session was last started with, the conversation the chat kept for it
 was named, and whatever that person keeps there — and the listing of `desks/` is the roster;
 `archive/` is where a retired desk goes, moved whole, as `<day>-<Name>-<slug of the final title>/`.
 `reference/`, `projects/` and `temp/` are the User's material: `reference/` is kept to look at and
-never worked on, `projects/` is worked on, `temp/` is scratch anyone may delete at any time.
+never worked on, `projects/` is worked on — every seat may write there with the file tools and work a
+repository from inside it with plain git (clone, checkout, add, commit, status, diff, log), mkdir and
+cd, never push — `temp/` is scratch anyone may delete at any time.
 `.claude/` is Claude Code's project settings for the instance, a name that is Claude Code's, and
 `.local/` is Claude Code's config dir for it — account, transcripts, memory, and nothing of the
 instance's own. A fresh instance's root is exactly `.claude/`, `.local/`, `bin/`, `customization/`,

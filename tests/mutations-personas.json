@@ -67,12 +67,12 @@
   },
   {
     "name": "the Worker's persona loses the one-command habit",
-    "catches": "tells the Worker one command per call, an absolute path and git -C, never cd",
+    "catches": "tells the Worker one command per call, to work from inside the repository, and never cd-and or git -C",
     "edits": [
       {
         "file": "lib/templates/worker.md",
-        "from": "one command per call, never `cd somewhere && …`",
-        "to": "one thing at a time, never two"
+        "from": "one command per call; and when a",
+        "to": "one thing at a time; and when a"
       }
     ]
   },
@@ -491,6 +491,39 @@
         "file": "lib/templates/leader.md",
         "from": "you never choose a name for somebody new.",
         "to": "you choose a name for somebody new."
+      }
+    ]
+  },
+  {
+    "name": "the Worker's persona sends it to git -C instead of into the repository",
+    "catches": "tells the Worker one command per call, to work from inside the repository, and never cd-and or git -C",
+    "edits": [
+      {
+        "file": "lib/templates/worker.md",
+        "from": "never chain a\n`cd …` with another command and never `git -C`",
+        "to": "never chain a\n`cd …` with another command; `git -C` for git"
+      }
+    ]
+  },
+  {
+    "name": "the Worker's persona drops the one cd into the repository",
+    "catches": "tells the Worker one command per call, to work from inside the repository, and never cd-and or git -C",
+    "edits": [
+      {
+        "file": "lib/templates/worker.md",
+        "from": "Work from inside the\nrepository: `cd projects/<repo>` once, alone, then plain git, mkdir and the file tools;",
+        "to": "Work from the instance root with\nplain git, mkdir and the file tools;"
+      }
+    ]
+  },
+  {
+    "name": "the Worker's persona drops why the spellings ask",
+    "catches": "tells the Worker one command per call, to work from inside the repository, and never cd-and or git -C",
+    "edits": [
+      {
+        "file": "lib/templates/worker.md",
+        "from": ", since a permission rule matches a command from\nits first character, and those spellings ask every time.",
+        "to": "."
       }
     ]
   }

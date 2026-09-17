@@ -134,7 +134,11 @@ itself — and `instructions.json`. It opens the Leader's desk at `desks/<Leader
 Two settings files are seeded once and never touched again. `.claude/settings.json` allows the
 tool server (`mcp__openovai`), reading any file (`Read(**)`), editing and writing under the three
 trees that are yours (`Edit(reference/**)` and `Write(reference/**)`, the same for `projects/` and
-`temp/`), and the Leader its own desk directory (`Edit(desks/<Leader>/**)`,
+`temp/`), working a repository under `projects/` from inside it with plain `git clone`,
+`git checkout`, `git add`, `git commit`, `git status`, `git diff`, `git log`, `mkdir` and `cd` (a
+Bash rule is matched by the command, not by a directory, and from its first character: `git -C`
+spellings and `cd … &&` compounds ask; `git push`, `rm`, `mv`, `npm` and `node` are not in the list and
+ask), and the Leader its own desk directory (`Edit(desks/<Leader>/**)`,
 `Write(desks/<Leader>/**)`) — a desk is a working directory, and everyone hired later gets the same
 pair for theirs. It denies an edit or a write of any desk file (`Edit(desks/*/STATE.md)`,
 `Write(desks/*/STATE.md)`) and of the instance's own account files — a desk file is written through

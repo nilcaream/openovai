@@ -774,6 +774,15 @@ describe("what a workspace can account for", () => {
     "Write(projects/**)",
     "Edit(temp/**)",
     "Write(temp/**)",
+    "Bash(git clone:*)",
+    "Bash(git checkout:*)",
+    "Bash(git add:*)",
+    "Bash(git commit:*)",
+    "Bash(git status:*)",
+    "Bash(git diff:*)",
+    "Bash(git log:*)",
+    "Bash(mkdir:*)",
+    "Bash(cd:*)",
   ];
 
   after(() => remove(accounting));

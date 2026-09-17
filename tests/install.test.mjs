@@ -351,9 +351,11 @@ describe("what the installer made", () => {
   });
 
   // The allow list, exactly: the tool server, the reads, the edit and write rules for the three
-  // trees the User works in, and the Leader's own desk directory — a desk is a working directory.
-  // Spelled out rather than asked of the code, so a widened list is caught here.
-  it("allows the tool server, the reads, the three trees, the Leader's desk directory, and nothing else", () => {
+  // trees the User works in, the shell commands a seat clones, branches and commits a repository
+  // under projects/ with (and cd, mkdir; never push, never rm or mv, never npm), and the Leader's
+  // own desk directory — a desk is a working directory. Spelled out rather than asked of the code,
+  // so a widened list is caught here.
+  it("allows the tool server, the reads, the three trees, the shell commands a seat works a repository with, the Leader's desk directory, and nothing else", () => {
     const permissions = JSON.parse(contentOf(".claude", "settings.json")).permissions;
     assert.deepEqual(permissions.allow, [
       "mcp__openovai",
@@ -364,6 +366,15 @@ describe("what the installer made", () => {
       "Write(projects/**)",
       "Edit(temp/**)",
       "Write(temp/**)",
+      "Bash(git clone:*)",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(mkdir:*)",
+      "Bash(cd:*)",
       `Edit(desks/${LEADER}/**)`,
       `Write(desks/${LEADER}/**)`,
     ]);

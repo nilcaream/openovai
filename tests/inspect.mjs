@@ -51,7 +51,7 @@ export function configProblems(file, expected) {
 // edit and write rules for the three trees the User works in — reference/, projects/, temp/ — and,
 // per person, the edit and write rules for their own desk directory.
 //
-// Eight for everybody and one pair per person. The list being exact in both directions is what
+// Seventeen for everybody and one pair per person. The list being exact in both directions is what
 // says that retiring a desk withdrew its pair with it, that no tree beyond the three was quietly
 // opened, and that no desk was opened without its pair.
 export const STANDING = [
@@ -63,6 +63,15 @@ export const STANDING = [
   "Write(projects/**)",
   "Edit(temp/**)",
   "Write(temp/**)",
+  "Bash(git clone:*)",
+  "Bash(git checkout:*)",
+  "Bash(git add:*)",
+  "Bash(git commit:*)",
+  "Bash(git status:*)",
+  "Bash(git diff:*)",
+  "Bash(git log:*)",
+  "Bash(mkdir:*)",
+  "Bash(cd:*)",
 ];
 
 // The pair a desk is granted, the same spelling desks.mjs grants: spelled here rather than

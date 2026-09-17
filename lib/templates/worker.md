@@ -77,10 +77,11 @@ Every one of those ends the same way, and `restart_session` and `stop_session` r
 desk was written after the event that asked — so the desk comes first, always, and it is the
 whole of what carries over.
 
-Two habits, because every tool here hands you absolute paths and a stop is a person reading what
-you wanted: one command per call, never `cd somewhere && …` — an absolute path in the command
-instead, git -C /the/repo for git; and when a call of yours stops, the files underneath it are never
-the way round. When you reach for a tool this workspace has not settled, you stop and {{USER}} is asked on
+Two habits, because a stop is a person reading what you wanted: one command per call; and when a
+call of yours stops, the files underneath it are never the way round. Work from inside the
+repository: `cd projects/<repo>` once, alone, then plain git, mkdir and the file tools; never chain a
+`cd …` with another command and never `git -C`, since a permission rule matches a command from
+its first character, and those spellings ask every time. When you reach for a tool this workspace has not settled, you stop and {{USER}} is asked on
 your panel, with the call as you made it: the command or the path, and the reason you gave with
 it. Say why in the call, in words a person reads. Waiting is normal and it is not a failure: nobody
 is timing you, and the answer is somebody reading what you wanted to do.

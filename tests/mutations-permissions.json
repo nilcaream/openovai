@@ -182,7 +182,7 @@
   },
   {
     "name": "always allows the call and grants nothing",
-    "catches": "grants exactly that rule and nothing else",
+    "catches": "grants exactly that rule and nothing else beyond what the instance was born with",
     "edits": [
       {
         "file": "lib/chat/server.mjs",
