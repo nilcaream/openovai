@@ -338,10 +338,15 @@ and the reason the session gave for it, or the path it was going to write. **All
 through once. **Deny** takes the sentence you type beside it, and the session is told to take that
 as an instruction rather than to look for another way round. Where the request says plainly what
 the whole class of calls is, a third button carries the rule — **Always allow `Bash(node:*)`**, a
-command by its first word, or **Always allow `Edit(/projects/app/**)`**, a write by the directory it
-was in — and pressing it lets the call through and leaves the instance allowing that shape. A
-command whose first word is a path or a variable gets no button, and neither does a write outside
-the instance, nor a tool the server serves, which is granted already.
+command by its first word (`git` by its subcommand: `Bash(git push:*)`), or **Always allow
+`Edit(/projects/app/**)`**, a write by the directory it was in — and pressing it lets the call
+through and leaves the instance allowing that shape. A compound command is allowed side by side,
+the way Claude Code matches it, so the button carries one rule per side that nothing allows yet
+— `cd app && npm test && make build` offers **Always allow `Bash(npm:*)` and `Bash(make:*)`**,
+`cd` being held from birth — and never one for the words Claude Code runs without asking (`ls`,
+`cat`, `grep`, `cd` and the rest of its built-in read-only set). A command whose first word is a
+path or a variable gets no button, and neither does a write outside the instance, nor a tool the
+server serves, which is granted already.
 
 Nothing on that path times out: the run waits for as long as you take. The server pops your
 desktop when a session stops to ask, and after ten minutes it tells the Leader once that somebody

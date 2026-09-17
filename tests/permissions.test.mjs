@@ -40,11 +40,11 @@ process.on("exit", () => {
 // The rule a request could be allowed by: composed from what was asked, never from what the page
 // says was asked.
 
-describe("the rule a call could be allowed by", () => {
+describe("the rules a call could be allowed by", () => {
   const composed = [
-    ["a command", "Bash", { command: "node --test tests" }, "Bash(node:*)"],
-    ["a command with nothing after it", "Bash", { command: "ls" }, "Bash(ls:*)"],
-    ["the same command, spaced oddly", "Bash", { command: "  node   --test tests " }, "Bash(node:*)"],
+    ["a command", "Bash", { command: "node --test tests" }, ["Bash(node:*)"]],
+    ["a command with nothing after it", "Bash", { command: "make" }, ["Bash(make:*)"]],
+    ["the same command, spaced oddly", "Bash", { command: "  node   --test tests " }, ["Bash(node:*)"]],
     // A rule is a literal prefix rather than a path or a command line, so a first word carrying a
     // slash, a tilde, a dollar or a quote makes a rule that matches something other than what the
     // person read on the button.
@@ -54,6 +54,24 @@ describe("the rule a call could be allowed by", () => {
     ["a quoted first word", "Bash", { command: '"a b" c' }, null],
     ["nothing at all", "Bash", { command: "   " }, null],
     ["a command that is not one", "Bash", { file_path: "notes.txt" }, null],
+    // A rule must match each side of a compound on its own, so one rule per side that nothing
+    // matches yet, in the order written, and the sides Claude Code runs without asking — its
+    // built-in read-only words — are not offered: a rule for one of those grants nothing.
+    ["a compound with two sides nothing matches", "Bash", { command: "npm test && make build" }, ["Bash(npm:*)", "Bash(make:*)"]],
+    ["a compound joined every way the shell joins", "Bash", { command: "npm test || make build; node x.mjs | sort" }, ["Bash(npm:*)", "Bash(make:*)", "Bash(node:*)", "Bash(sort:*)"]],
+    ["a compound whose first side is a read-only word", "Bash", { command: "cd packages/api && npm test" }, ["Bash(npm:*)"]],
+    ["a pipe into a read-only word", "Bash", { command: "npm ls | grep react" }, ["Bash(npm:*)"]],
+    ["the same word on two sides", "Bash", { command: "npm ci && npm test" }, ["Bash(npm:*)"]],
+    ["read-only words alone", "Bash", { command: "ls -la; cat notes.txt | head" }, null],
+    ["a compound one side of which is a script", "Bash", { command: "npm test && ./release.sh" }, null],
+    ["a compound with nothing after the operator", "Bash", { command: "npm test &&" }, null],
+    ["a redirect, which is not a separator", "Bash", { command: "node run.mjs 2>&1" }, ["Bash(node:*)"]],
+    ["a command put in the background", "Bash", { command: "node serve.mjs &" }, ["Bash(node:*)"]],
+    // git is granted by its subcommand, the way the instance is born granting it and the way the
+    // docs say to put the star: a rule for the bare word would reach git push through git status.
+    ["a git subcommand", "Bash", { command: "git push origin main" }, ["Bash(git push:*)"]],
+    ["git with an option before the subcommand", "Bash", { command: "git -C projects/app push" }, null],
+    ["git alone", "Bash", { command: "git" }, null],
     // Reading is never stopped, so a rule for it is a grant nobody was ever asked for; Glob and
     // Grep do not exist in the harness at all, and a session asking for either is told so.
     ["reading a file", "Read", { file_path: "notes.txt" }, null],
@@ -63,11 +81,51 @@ describe("the rule a call could be allowed by", () => {
     ["one of the chat's own tools", "mcp__openovai__message", { to: LEADER }, null],
   ];
 
-  for (const [what, tool, input, rule] of composed) {
-    it(rule === null ? `offers nothing for ${what}` : `offers ${rule} for ${what}`, () => {
-      assert.equal(shapeOf({ id: "request-1", tool, input }, AT), rule);
+  for (const [what, tool, input, rules] of composed) {
+    it(rules === null ? `offers nothing for ${what}` : `offers ${rules.join(" and ")} for ${what}`, () => {
+      assert.deepEqual(shapeOf({ id: "request-1", tool, input }, AT), rules);
     });
   }
+
+  // The sides the instance already allows are not offered again: what is held is read from the
+  // settings as they are now, whichever spelling of the trailing star they use, and a rule for an
+  // exact command is that command alone.
+  describe("against what the instance holds", () => {
+    const root = `${base}-holding`;
+
+    before(() => {
+      remove(root);
+      fs.mkdirSync(path.join(root, ".claude"), { recursive: true });
+      fs.writeFileSync(
+        path.join(root, ".claude", "settings.json"),
+        JSON.stringify({ permissions: { allow: ["mcp__openovai", "Bash(npm:*)", "Bash(git push *)", "Bash(make build)"] } }),
+      );
+    });
+
+    after(() => remove(root));
+
+    function forCommand(command) {
+      return shapeOf({ id: "request-1", tool: "Bash", input: { command } }, root);
+    }
+
+    it("offers only the sides nothing held matches", () => {
+      assert.deepEqual(forCommand("npm test && make build && node x.mjs"), ["Bash(node:*)"]);
+    });
+
+    it("offers nothing when every side is held or read-only", () => {
+      assert.equal(forCommand("cd app && npm test"), null);
+      assert.equal(forCommand("git push origin main"), null);
+    });
+
+    it("reads a rule for an exact command as that command alone", () => {
+      assert.deepEqual(forCommand("make build --jobs 4"), ["Bash(make:*)"]);
+      assert.equal(forCommand("make build"), null);
+    });
+
+    it("reads a held prefix by whole word, so npm does not hold npm-check", () => {
+      assert.deepEqual(forCommand("npm-check --update"), ["Bash(npm-check:*)"]);
+    });
+  });
 });
 
 // The other shape, which names a path rather than a call. A rule naming a DIRECTORY is honoured as
@@ -76,8 +134,14 @@ describe("the rule a call could be allowed by", () => {
 // anchored with a leading `/`, which Claude Code reads as "from the instance root": a bare path
 // is read from the session's current directory, which moves with every `cd`.
 describe("the rule a write could be allowed by", () => {
+  // A write composes one rule and never a list of them; the one, or nothing.
   function forWriting(tool, file_path) {
-    return shapeOf({ id: "request-1", tool, input: { file_path } }, AT);
+    const rules = shapeOf({ id: "request-1", tool, input: { file_path } }, AT);
+    if (rules === null) {
+      return null;
+    }
+    assert.equal(rules.length, 1, JSON.stringify(rules));
+    return rules[0];
   }
 
   it("composes the rule that governs writing, and never one that matches nothing", () => {
@@ -142,8 +206,9 @@ describe("the rule a person may be asked to settle", () => {
       { id: "r", tool: "Bash", input: { command: "git push origin main" } },
       { id: "r", tool: "Write", input: { file_path: path.join(AT, "desks", "Paul", "notes.md") } },
     ]) {
-      const composed = shapeOf(request, AT);
-      assert.equal(acceptRule(composed, AT), composed);
+      for (const composed of shapeOf(request, AT)) {
+        assert.equal(acceptRule(composed, AT), composed);
+      }
     }
   });
 });
@@ -443,7 +508,10 @@ describe("asking to be allowed", () => {
   });
 
   describe("allowing the shape and not only the call", () => {
-    const RULE = "Bash(node:*)";
+    // One rule per side of the command that nothing allows yet: the cd is held by the instance from
+    // birth, node and make are not, and the two rules land in the order they were written.
+    const RULES = ["Bash(node:*)", "Bash(make:*)"];
+    const CALL = "cd projects/app && node --test tests && make build";
     // The shell rules an instance is born with, spelled out rather than imported so that a press
     // which widened the list beyond its one rule is caught here and not agreed with.
     const BORN_WITH = [
@@ -472,7 +540,7 @@ describe("asking to be allowed", () => {
     }
 
     before(async () => {
-      await leaderAsking({ OPENOVAI_STAND_IN_ASKS: "Bash", OPENOVAI_STAND_IN_ASKS_INPUT: "node --test tests" });
+      await leaderAsking({ OPENOVAI_STAND_IN_ASKS: "Bash", OPENOVAI_STAND_IN_ASKS_INPUT: CALL });
       const reply = await say("this one is worth allowing for good");
       shown = (await waitingOn())[0];
       said = await page("POST", `/sessions/${LEADER}/permission`, { id: shown.id, decision: "always" });
@@ -483,38 +551,39 @@ describe("asking to be allowed", () => {
       await endSeat(LEADER, 500);
     });
 
-    it("tells the page which rule would allow it", () => {
-      assert.equal(shown.shape, RULE);
+    it("tells the page which rules would allow it, one per side nothing holds yet", () => {
+      assert.deepEqual(shown.shape, RULES);
     });
 
     it("lets the run finish, allowed", () => {
       assert.equal(replied.text, "I was told allow");
     });
 
-    it("says which rule it granted", () => {
-      assert.deepEqual(JSON.parse(said.body), { answered: shown.id, decision: "always", granted: RULE });
+    it("says which rules it granted", () => {
+      assert.deepEqual(JSON.parse(said.body), { answered: shown.id, decision: "always", granted: RULES });
     });
 
-    it("grants exactly that rule and nothing else beyond what the instance was born with", () => {
-      assert.ok(allowed().includes(RULE), allowed().join(", "));
-      assert.deepEqual(allowed().filter((rule) => rule.startsWith("Bash(")), [...BORN_WITH, RULE]);
+    it("grants exactly those rules and nothing else beyond what the instance was born with", () => {
+      assert.deepEqual(allowed().filter((rule) => rule.startsWith("Bash(")), [...BORN_WITH, ...RULES]);
     });
 
-    it("writes down who asked for it, when, and what for", () => {
+    it("writes down who asked for each, when, and what for", () => {
       const written = lines();
-      assert.equal(written.length, 1, written.join(" / "));
-      assert.ok(written[0].startsWith(`- \`${RULE}\` `), written[0]);
-      assert.match(written[0], new RegExp(LEADER));
-      assert.match(written[0], /node --test tests/);
-      assert.match(written[0], new RegExp(new Date().toISOString().slice(0, 10)));
+      assert.equal(written.length, 2, written.join(" / "));
+      for (const [at, rule] of RULES.entries()) {
+        assert.ok(written[at].startsWith(`- \`${rule}\` `), written[at]);
+        assert.match(written[at], new RegExp(LEADER));
+        assert.ok(written[at].includes(CALL), written[at]);
+        assert.match(written[at], new RegExp(new Date().toISOString().slice(0, 10)));
+      }
     });
 
     it("still adds up", () => {
       assert.ok(!settingsProblems(settings, [LEADER]).join(" ").includes("Bash("), "the rule it granted is not accounted for");
     });
 
-    it("grants it to the workspace and remembers who asked", () => {
-      assert.ok(!RULE.includes(LEADER));
+    it("grants them to the workspace and remembers who asked", () => {
+      assert.ok(RULES.every((rule) => !rule.includes(LEADER)));
       assert.match(lines()[0], new RegExp(LEADER));
     });
   });
@@ -539,8 +608,8 @@ describe("asking to be allowed", () => {
     });
 
     it("offers the directory the write was in, and grants it", () => {
-      assert.equal(shown.shape, RULE);
-      assert.deepEqual(JSON.parse(said.body), { answered: shown.id, decision: "always", granted: RULE });
+      assert.deepEqual(shown.shape, [RULE]);
+      assert.deepEqual(JSON.parse(said.body), { answered: shown.id, decision: "always", granted: [RULE] });
       assert.ok(JSON.parse(fs.readFileSync(settings, "utf8")).permissions.allow.includes(RULE));
     });
 

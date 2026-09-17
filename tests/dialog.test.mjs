@@ -12,7 +12,7 @@ const line = (dialog, kind) => dialog.lines.filter((held) => held.kind === kind)
 const decisions = (dialog) => dialog.buttons.map((button) => button.decision);
 
 describe("a call stop", () => {
-  const push = dialogOf({ id: "r1", tool: "Bash", input: { command: "git push", description: "push the branch" }, shape: "Bash(git:*)" }, "Paul");
+  const push = dialogOf({ id: "r1", tool: "Bash", input: { command: "git push", description: "push the branch" }, shape: ["Bash(git push:*)"] }, "Paul");
 
   it("heads a call stop with who wants which tool", () => {
     assert.equal(push.kind, "call");
@@ -32,7 +32,7 @@ describe("a call stop", () => {
   });
 
   it("shows the path of a write, and no reason line for it", () => {
-    const write = dialogOf({ id: "r4", tool: "Write", input: { file_path: "projects/Paul/notes.md", content: "x" }, shape: "Edit(/projects/Paul/**)" }, "Paul");
+    const write = dialogOf({ id: "r4", tool: "Write", input: { file_path: "projects/Paul/notes.md", content: "x" }, shape: ["Edit(/projects/Paul/**)"] }, "Paul");
     assert.deepEqual(line(write, "path"), ["projects/Paul/notes.md"]);
     assert.deepEqual(line(write, "reason"), []);
     assert.deepEqual(line(write, "input"), []);
@@ -47,7 +47,9 @@ describe("a call stop", () => {
 
   it("offers Always only where a rule was composed", () => {
     assert.deepEqual(decisions(push), ["allow", "always", "deny"]);
-    assert.equal(push.buttons[1].label, "Always allow Bash(git:*)");
+    assert.equal(push.buttons[1].label, "Always allow Bash(git push:*)");
+    const compound = dialogOf({ id: "r8", tool: "Bash", input: { command: "npm test && make build" }, shape: ["Bash(npm:*)", "Bash(make:*)"] }, "Paul");
+    assert.equal(compound.buttons[1].label, "Always allow Bash(npm:*) and Bash(make:*)");
     const bare = dialogOf({ id: "r6", tool: "WebFetch", input: { url: "https://x" } }, "Paul");
     assert.deepEqual(decisions(bare), ["allow", "deny"]);
   });
@@ -72,7 +74,7 @@ describe("a rule request", () => {
   it("gives a call stop and a rule request their own three buttons", () => {
     assert.deepEqual(decisions(rule), ["allow", "deny", "ask"]);
     assert.equal(rule.buttons[2].label, "Ask every time");
-    const call = dialogOf({ id: "r7", tool: "Bash", input: { command: "git push" }, shape: "Bash(git:*)" }, "Paul");
+    const call = dialogOf({ id: "r7", tool: "Bash", input: { command: "git push" }, shape: ["Bash(git push:*)"] }, "Paul");
     assert.deepEqual(decisions(call), ["allow", "always", "deny"]);
     assert.ok(!decisions(call).includes("ask"));
     assert.ok(!decisions(rule).includes("always"));

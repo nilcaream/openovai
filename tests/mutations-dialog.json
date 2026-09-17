@@ -3,42 +3,77 @@
     "name": "the dialog says what the call is for in the server's words",
     "catches": "carries the reason the session gave, verbatim, or none",
     "edits": [
-      { "file": "lib/chat/dialog.mjs", "from": "  const reason = input[REASON_FIELD];", "to": "  const reason = \"for the task\";" }
+      {
+        "file": "lib/chat/dialog.mjs",
+        "from": "  const reason = input[REASON_FIELD];",
+        "to": "  const reason = \"for the task\";"
+      }
     ]
   },
   {
     "name": "another tool's input is shown as a heading and nothing else",
     "catches": "shows another tool's input whole, as the request made it",
     "edits": [
-      { "file": "lib/chat/dialog.mjs", "from": "    lines.push({ kind: \"input\", text: JSON.stringify(input) });", "to": "    lines.push({ kind: \"input\", text: request.tool });" }
+      {
+        "file": "lib/chat/dialog.mjs",
+        "from": "    lines.push({ kind: \"input\", text: JSON.stringify(input) });",
+        "to": "    lines.push({ kind: \"input\", text: request.tool });"
+      }
     ]
   },
   {
     "name": "the Always button is offered whether or not there is a rule to put on it",
     "catches": "offers Always only where a rule was composed",
     "edits": [
-      { "file": "lib/chat/dialog.mjs", "from": "  if (typeof request.shape === \"string\") {", "to": "  if (true) {" }
+      {
+        "file": "lib/chat/dialog.mjs",
+        "from": "  if (Array.isArray(request.shape) && request.shape.length > 0) {",
+        "to": "  if (true) {"
+      }
     ]
   },
   {
     "name": "the rule dialog loses the line saying why the rule was asked",
     "catches": "shows why the rule was asked",
     "edits": [
-      { "file": "lib/chat/dialog.mjs", "from": "      { kind: \"why\", text: request.why },\n", "to": "" }
+      {
+        "file": "lib/chat/dialog.mjs",
+        "from": "      { kind: \"why\", text: request.why },\n",
+        "to": ""
+      }
     ]
   },
   {
     "name": "every dialog is drawn as a rule dialog",
     "catches": "gives a call stop and a rule request their own three buttons",
     "edits": [
-      { "file": "lib/chat/dialog.mjs", "from": "  return request?.kind === \"rule\" ? ruleDialog(request, who) : callDialog(request, who);", "to": "  return true ? ruleDialog(request, who) : callDialog(request, who);" }
+      {
+        "file": "lib/chat/dialog.mjs",
+        "from": "  return request?.kind === \"rule\" ? ruleDialog(request, who) : callDialog(request, who);",
+        "to": "  return true ? ruleDialog(request, who) : callDialog(request, who);"
+      }
     ]
   },
   {
     "name": "the heading says who is asking without saying which tool",
     "catches": "heads a call stop with who wants which tool",
     "edits": [
-      { "file": "lib/chat/dialog.mjs", "from": "heading: `${who} wants to use ${request.tool}`", "to": "heading: `${who} wants to use a tool`" }
+      {
+        "file": "lib/chat/dialog.mjs",
+        "from": "heading: `${who} wants to use ${request.tool}`",
+        "to": "heading: `${who} wants to use a tool`"
+      }
+    ]
+  },
+  {
+    "name": "the button carries the first rule and not the rest",
+    "catches": "offers Always only where a rule was composed",
+    "edits": [
+      {
+        "file": "lib/chat/dialog.mjs",
+        "from": "    buttons.push({ decision: \"always\", label: `Always allow ${request.shape.join(\" and \")}` });",
+        "to": "    buttons.push({ decision: \"always\", label: `Always allow ${request.shape[0]}` });"
+      }
     ]
   }
 ]

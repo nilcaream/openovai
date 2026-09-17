@@ -143,13 +143,13 @@
       {
         "file": "lib/chat/permissions.mjs",
         "from": "    const shape = shapeOf(request, root);",
-        "to": "    const shape = shapeOf(request, root)?.replace(\"/**\", \" and everything under it\") ?? null;"
+        "to": "    const shape = shapeOf(request, root)?.map((rule) => rule.replace(\"/**\", \" and everything under it\")) ?? null;"
       }
     ]
   },
   {
     "name": "the page is shown the request without the rule that would allow it",
-    "catches": "tells the page which rule would allow it",
+    "catches": "tells the page which rules would allow it, one per side nothing holds yet",
     "edits": [
       {
         "file": "lib/chat/permissions.mjs",
@@ -215,18 +215,18 @@
   },
   {
     "name": "always allows the call and grants nothing",
-    "catches": "grants exactly that rule and nothing else beyond what the instance was born with",
+    "catches": "grants exactly those rules and nothing else beyond what the instance was born with",
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "    allowAsked(instance.root, {\n      rule: granted,\n      session: seat,\n      call: asked.input?.command ?? inside(asked.input?.file_path, instance.root),\n      day: new Date().toISOString().slice(0, 10),\n    });\n",
+        "from": "    for (const rule of granted) {\n      allowAsked(instance.root, {\n        rule,\n        session: seat,\n        call: asked.input?.command ?? inside(asked.input?.file_path, instance.root),\n        day: new Date().toISOString().slice(0, 10),\n      });\n    }\n",
         "to": ""
       }
     ]
   },
   {
     "name": "the page is not told which rule was granted",
-    "catches": "says which rule it granted",
+    "catches": "says which rules it granted",
     "edits": [
       {
         "file": "lib/chat/server.mjs",
@@ -474,6 +474,127 @@
         "file": "lib/chat/lifecycle.mjs",
         "from": "  if (rulesPending(seat).length > 0) {\n    publish(\"asking\", { seat });\n  }",
         "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a compound command is composed from its first word alone",
+    "catches": "offers Bash(npm:*) and Bash(make:*) for a compound with two sides nothing matches",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": "const SEPARATOR = /\\s*(\\|\\||&&|\\|&|;|\\||(?<![<>])&(?!>)|\\n)\\s*/;",
+        "to": "const SEPARATOR = /\\u0000/;"
+      }
+    ]
+  },
+  {
+    "name": "the ampersand of a redirect splits the command",
+    "catches": "offers Bash(node:*) for a redirect, which is not a separator",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": "const SEPARATOR = /\\s*(\\|\\||&&|\\|&|;|\\||(?<![<>])&(?!>)|\\n)\\s*/;",
+        "to": "const SEPARATOR = /\\s*(\\|\\||&&|\\|&|;|\\||&|\\n)\\s*/;"
+      }
+    ]
+  },
+  {
+    "name": "the read-only words are offered a rule like any other",
+    "catches": "offers nothing for read-only words alone",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": "const READ_ONLY = new Set([\"ls\", \"cat\", \"echo\", \"pwd\", \"head\", \"tail\", \"grep\", \"find\", \"wc\", \"which\", \"diff\", \"stat\", \"du\", \"cd\"]);",
+        "to": "const READ_ONLY = new Set([]);"
+      }
+    ]
+  },
+  {
+    "name": "an empty side after && is skipped rather than refusing the whole",
+    "catches": "offers nothing for a compound with nothing after the operator",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": "      if (at === 0 || (before !== \";\" && before !== \"&\" && before !== \"\\n\")) {",
+        "to": "      if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "a side that is not a bare word is skipped rather than refusing the whole",
+    "catches": "offers nothing for a compound one side of which is a script",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": "    if (!BARE_WORD.test(words[0])) {\n      return null;\n    }",
+        "to": "    if (!BARE_WORD.test(words[0])) {\n      continue;\n    }"
+      }
+    ]
+  },
+  {
+    "name": "git is granted by its bare word",
+    "catches": "offers Bash(git push:*) for a git subcommand",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": "      prefix = `git ${words[1]}`;",
+        "to": "      prefix = \"git\";"
+      }
+    ]
+  },
+  {
+    "name": "the same rule is offered once per side",
+    "catches": "offers Bash(npm:*) for the same word on two sides",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": "    if (!rules.includes(rule)) {",
+        "to": "    if (true) {"
+      }
+    ]
+  },
+  {
+    "name": "what the instance already holds is offered again",
+    "catches": "offers only the sides nothing held matches",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": "    if (held.some((holds) => holds(spoken))) {",
+        "to": "    if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "a held prefix is matched as a string prefix rather than by whole word",
+    "catches": "reads a held prefix by whole word, so npm does not hold npm-check",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": "      return [(side) => side === prefix || side.startsWith(`${prefix} `)];",
+        "to": "      return [(side) => side.startsWith(prefix)];"
+      }
+    ]
+  },
+  {
+    "name": "a held rule for an exact command is read as a prefix",
+    "catches": "reads a rule for an exact command as that command alone",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": "    return [(side) => side === named];",
+        "to": "    return [(side) => side === named || side.startsWith(`${named} `)];"
+      }
+    ]
+  },
+  {
+    "name": "Always writes the first of the rules and drops the rest",
+    "catches": "grants exactly those rules and nothing else beyond what the instance was born with",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "    for (const rule of granted) {",
+        "to": "    for (const rule of granted.slice(0, 1)) {"
       }
     ]
   }
