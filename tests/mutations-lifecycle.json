@@ -865,5 +865,16 @@
         "to": "{ ahead: entry.ahead, ask: entry.ask }"
       }
     ]
+  },
+  {
+    "name": "hire without a name is refused as not a name",
+    "catches": "hire without a name takes the next free name of the roster",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "        if (name === undefined) {\n          try {\n            name = nextName(root);",
+        "to": "        if (false) {\n          try {\n            name = nextName(root);"
+      }
+    ]
   }
 ]

@@ -303,6 +303,18 @@ describe("starting a seat", () => {
     await end(OTHER, 500);
   });
 
+  // Named nobody, a hire is called from the roster: the first free name of the pool, least
+  // recently used first. Paul has a desk here, so the next is Jane. The Leader is told the name
+  // in the answer, the way it is told a name it chose.
+  it("hire without a name takes the next free name of the roster", async () => {
+    assert.equal(fs.existsSync(deskFile(instance, "Jane")), false);
+    assert.ok(fs.existsSync(deskFile(instance, WORKER)));
+    const jane = await spawnedBy("Jane", () => tool(superman.secret, "hire", {}));
+    assert.deepEqual(jane.result, { text: `Jane started on the desk desks/Jane (${WORKER_MODEL})`, refused: false, error: null });
+    assert.ok(fs.existsSync(deskFile(instance, "Jane")));
+    await end("Jane", 500);
+  });
+
   it("hire refuses a name that is not one, and the Leader's own", async () => {
     assert.deepEqual(await tool(superman.secret, "hire", { name: "not a name" }), { text: '"not a name" is not a name here', refused: true, error: null });
     assert.deepEqual(await tool(superman.secret, "hire", { name: LEADER }), { text: `${LEADER} is the Leader`, refused: true, error: null });

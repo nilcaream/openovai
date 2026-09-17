@@ -115,6 +115,14 @@ whole stamp of the first row of the new day, `2026.09.14 Monday 00:00:49`, and s
 a row of one day and a row of the next: never above the first row on a panel, never under the last.
 A code block is set at .85rem, 1.4 lines high, and the code inside it inherits that size.
 
+**A new Worker is called by the roster.** The Leader hires somebody new with no name, and the
+name comes from a fixed list of thirty first names — Paul, Jane, Jack, Pete, Anna, Mark, Lucy, Tom,
+Eva, Sam, Nora, Ben, Mia, Leo, Zoe, Max, Ivy, Finn, Ada, Noah, Ella, Owen, Ruby, Hugo, Iris, Otto,
+Lena, Axel, Nina, Theo — the least recently used free one: a name never used first, in that order,
+then the one whose holder left longest ago. The answer says who (`Jane started on the desk
+desks/Jane`), and a name given to `hire` is for bringing somebody who stopped back on their own
+desk. With nobody in the list free, the name is Dev and three digits.
+
 ## 0.10.0
 
 The page is a room you read at a glance. Three columns of panels, each a bare slot with a head

@@ -482,5 +482,16 @@
         "to": "Keep it tidy."
       }
     ]
+  },
+  {
+    "name": "the Leader is told to name a new Worker",
+    "catches": "tells the Leader that somebody new is hired with no name, the roster names them, and the answer says who",
+    "edits": [
+      {
+        "file": "lib/templates/leader.md",
+        "from": "you never choose a name for somebody new.",
+        "to": "you choose a name for somebody new."
+      }
+    ]
   }
 ]

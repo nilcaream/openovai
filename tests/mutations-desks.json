@@ -108,5 +108,93 @@
         "to": "  const wider = allow.filter((rule) => !expected.includes(rule) && !/^(Edit|Write)\\(desks\\//.test(rule) && !inList(\"allow\").includes(rule));"
       }
     ]
+  },
+  {
+    "name": "the pool loses its last name",
+    "catches": "is these thirty names, in this order",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "\"Lena\", \"Axel\", \"Nina\", \"Theo\",\n];",
+        "to": "\"Lena\", \"Axel\", \"Nina\",\n];"
+      }
+    ]
+  },
+  {
+    "name": "two pool names swap places",
+    "catches": "is these thirty names, in this order",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "  \"Paul\", \"Jane\", \"Jack\",",
+        "to": "  \"Jane\", \"Paul\", \"Jack\","
+      }
+    ]
+  },
+  {
+    "name": "a name with a desk is still free",
+    "catches": "starts at the first of the pool on a fresh instance, and skips a name that has a desk",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "  return fs.existsSync(deskDirectory(root, name));\n}",
+        "to": "  return fs.existsSync(deskFile(root, name));\n}"
+      }
+    ]
+  },
+  {
+    "name": "a used name ranks before one never used",
+    "catches": "ranks a name that was used after every name never used, and the oldest stint first among those",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "  free.sort((one, two) => one.ended - two.ended || one.place - two.place);",
+        "to": "  free.sort((one, two) => two.ended - one.ended || one.place - two.place);"
+      }
+    ]
+  },
+  {
+    "name": "the ranking ignores when a stint ended",
+    "catches": "ranks a name that was used after every name never used, and the oldest stint first among those",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "  free.sort((one, two) => one.ended - two.ended || one.place - two.place);",
+        "to": "  free.sort((one, two) => one.place - two.place);"
+      }
+    ]
+  },
+  {
+    "name": "the earliest stint of a name counts instead of the latest",
+    "catches": "reads the latest stint of a name that left more than once, and the day in the directory name when its desk file is gone",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "    if (!ended.has(name) || when > ended.get(name)) ended.set(name, when);",
+        "to": "    if (!ended.has(name) || when < ended.get(name)) ended.set(name, when);"
+      }
+    ]
+  },
+  {
+    "name": "a stint without a desk file is read as never ended",
+    "catches": "reads the latest stint of a name that left more than once, and the day in the directory name when its desk file is gone",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "      when = Date.parse(`${day}T12:00:00`);",
+        "to": "      when = 0;"
+      }
+    ]
+  },
+  {
+    "name": "an exhausted pool answers the first name again",
+    "catches": "falls back to Dev and three digits when nobody in the pool is free",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "  if (free.length > 0) return free[0].name;\n  for (let tries",
+        "to": "  if (free.length >= 0) return (free[0] ?? { name: POOL[0] }).name;\n  for (let tries"
+      }
+    ]
   }
 ]

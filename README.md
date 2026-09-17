@@ -293,10 +293,16 @@ answered "no such tool" goes looking for another way to do the same thing.
 - `park` (Leader) — every running Worker is told to write its desk and stop, interrupted first
   when asked, and the call waits for each `stop_session` or the deadline, ending at the deadline
   whoever has not. The Leader is told and not waited for.
-- `hire` (Leader) — start a Worker on a desk: a name, and a model when not the usual one. A name
-  without a desk gets one opened — `desks/<Name>/STATE.md` from the template, and the pair of
-  rules that makes `desks/<Name>/` the Worker's to write in; a name with a desk — somebody who
-  stopped — is started again on it, panel kept. Refused while the quota gate holds hires, for the
+- `hire` (Leader) — start a Worker on a desk: called with no name, the roster names the Worker;
+  a name is for somebody who has a desk — somebody who stopped — started again on it, panel
+  kept; and a model when not the usual one. The roster is a fixed list of thirty first names
+  (Paul, Jane, Jack, Pete, Anna, Mark, Lucy, Tom, Eva, Sam, Nora, Ben, Mia, Leo, Zoe, Max, Ivy,
+  Finn, Ada, Noah, Ella, Owen, Ruby, Hugo, Iris, Otto, Lena, Axel, Nina, Theo), and the next
+  name is the least recently used free one: never used first, in that order, then the one whose
+  holder left longest ago, read from the desk file of the stint under `archive/`; a name is
+  taken while `desks/<Name>/` exists. With nobody in the pool free, Dev and three digits. A new
+  name gets a desk opened — `desks/<Name>/STATE.md` from the template, and the pair of rules
+  that makes `desks/<Name>/` the Worker's to write in. Refused while the quota gate holds hires, for the
   Leader's own name, and for a name whose directory is still under `desks/` without a desk file
   in it — a conversation left behind, a record somebody may want, so it is named rather than
   cleared away. A model beside the name is for somebody who should not run on what this

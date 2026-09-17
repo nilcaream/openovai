@@ -124,6 +124,14 @@ describe("what the Leader is told", () => {
     assert.match(leader(), /a Worker is "it" when you speak of one/);
   });
 
+  // The name of somebody new is the roster's, never the Leader's: a hire with no name, the
+  // answer says who, and that name is used from then on.
+  it("tells the Leader that somebody new is hired with no name, the roster names them, and the answer says who", () => {
+    assert.match(leader(), /Somebody new is hired with no name: the roster names them/);
+    assert.match(leader(), /you never choose a name for somebody new/);
+    assert.match(leader(), /A\s+name is for somebody who has a desk — somebody who stopped — started again on it/);
+  });
+
   it("tells the Leader it does no project work and that a check is a hire", () => {
     assert.match(leader(), /You do no project work/);
     assert.match(leader(), /A check on the machine, a clone, a build, a test: each\s+of those is a hire, never a call of your own/);

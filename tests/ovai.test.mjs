@@ -38,7 +38,7 @@ import { LEDGER, settingsProblems, trustProblems } from "./inspect.mjs";
 // The reader this suite asks directly. Everywhere else what a session runs on is seen by starting
 // one, which is right when the subject is a run — and no help at all with what a file holding
 // nothing means, which is a question about the reading rather than about the running.
-import { DeskError, hire, modelFor, persona as renderPersona } from "../lib/desks.mjs";
+import { DeskError, POOL, hire, modelFor, persona as renderPersona } from "../lib/desks.mjs";
 
 // Open a desk the way the Leader's `hire` tool does, in this process, and answer the way a command
 // would: what was written, or the refusal. The command line has no hire — a Worker joins through
@@ -935,7 +935,15 @@ describe("what the README says about hiring onto a model", () => {
   const section = readme.slice(readme.indexOf("- `hire` (Leader)"), readme.indexOf("- `permission` (Leader)"));
 
   it("names the model as what a hire takes beside the name", () => {
-    assert.match(section, /a name, and a model when not the usual one/);
+    assert.match(section, /and a model when not the usual one/);
+  });
+
+  // The roster, as the README says it: the thirty names in the pool's own order, and the rule.
+  it("names the roster, in its order, and the rule that picks from it", () => {
+    assert.match(section, /called with no name, the roster names the Worker/);
+    assert.match(section, new RegExp(`\\(${POOL.join(",\\s+")}\\)`));
+    assert.match(section, /never used first, in that order, then the one whose\s+holder left longest ago/);
+    assert.match(section, /With nobody in the pool free, Dev and three digits/);
   });
 
   it("says where a model that was named is written down", () => {

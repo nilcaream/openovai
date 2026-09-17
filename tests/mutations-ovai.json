@@ -179,5 +179,16 @@
         "to": "    [\"version\", version(path.join(root, \"lib\")) ?? "
       }
     ]
+  },
+  {
+    "name": "the README's roster drops a name",
+    "catches": "names the roster, in its order, and the rule that picks from it",
+    "edits": [
+      {
+        "file": "README.md",
+        "from": "  Finn, Ada, Noah, Ella, Owen, Ruby, Hugo, Iris, Otto, Lena, Axel, Nina, Theo), and the next",
+        "to": "  Finn, Ada, Noah, Ella, Owen, Ruby, Hugo, Iris, Otto, Lena, Axel, Nina), and the next"
+      }
+    ]
   }
 ]
