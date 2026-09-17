@@ -232,7 +232,7 @@
   },
   {
     "name": "the running sessions are said out loud and the update goes on",
-    "catches": "leaves the instance on the version it was on",
+    "catches": "leaves the instance on the version it was on while the sessions run",
     "edits": [
       {
         "file": "lib/ovai.mjs",

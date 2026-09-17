@@ -506,7 +506,7 @@ describe("an update while a session of this instance is running", () => {
     assert.doesNotMatch(refused.stderr, new RegExp(`kill ${elsewhere.pid}`));
   });
 
-  it("leaves the instance on the version it was on", () => {
+  it("leaves the instance on the version it was on while the sessions run", () => {
     assert.equal(versionWhileRefused, INSTALLED);
   });
 

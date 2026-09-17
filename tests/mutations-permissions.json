@@ -340,8 +340,8 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "    const woken = deliver(instance, leader, serverEvent(\"permission\", { decision, who: seat }, asked.rule));\n    if (woken.refused === undefined) {\n      showTheReply(instance.root, leader, woken.answered);\n    }\n",
-        "to": ""
+        "from": "deliver(instance, leader, serverEvent(\"permission\", { decision, who: seat }, asked.rule))",
+        "to": "{ refused: \"the Leader is not told\" }"
       }
     ]
   },
