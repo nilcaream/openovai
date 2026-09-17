@@ -309,7 +309,7 @@
   },
   {
     "name": "the sending word loses its ellipsis",
-    "catches": "waits as sending on an idle seat, as queued behind the turn on a busy one, and reads delivered once the frame went in",
+    "catches": "waits as sending on an idle seat, as queued behind the turn on a busy one, and reads delivered once the frame went in, with the glyph alone for a narrow row",
     "edits": [
       {
         "file": "lib/chat/panels.mjs",
@@ -320,7 +320,7 @@
   },
   {
     "name": "the queued word says less",
-    "catches": "waits as sending on an idle seat, as queued behind the turn on a busy one, and reads delivered once the frame went in",
+    "catches": "waits as sending on an idle seat, as queued behind the turn on a busy one, and reads delivered once the frame went in, with the glyph alone for a narrow row",
     "edits": [
       {
         "file": "lib/chat/panels.mjs",
@@ -331,18 +331,40 @@
   },
   {
     "name": "a delivered row on a busy seat reads queued",
-    "catches": "waits as sending on an idle seat, as queued behind the turn on a busy one, and reads delivered once the frame went in",
+    "catches": "waits as sending on an idle seat, as queued behind the turn on a busy one, and reads delivered once the frame went in, with the glyph alone for a narrow row",
     "edits": [
       {
         "file": "lib/chat/panels.mjs",
-        "from": "  if (delivered) return { text: DELIVERED, wait: false };",
-        "to": "  if (delivered && !busy) return { text: DELIVERED, wait: false };"
+        "from": "  if (delivered) return { text: DELIVERED, glyph: DELIVERED_GLYPH, wait: false };",
+        "to": "  if (delivered && !busy) return { text: DELIVERED, glyph: DELIVERED_GLYPH, wait: false };"
+      }
+    ]
+  },
+  {
+    "name": "the delivered glyph is the whole word",
+    "catches": "waits as sending on an idle seat, as queued behind the turn on a busy one, and reads delivered once the frame went in, with the glyph alone for a narrow row",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "export const DELIVERED_GLYPH = \"✓\";",
+        "to": "export const DELIVERED_GLYPH = \"delivered ✓\";"
+      }
+    ]
+  },
+  {
+    "name": "a delivered row carries no glyph for a narrow row",
+    "catches": "waits as sending on an idle seat, as queued behind the turn on a busy one, and reads delivered once the frame went in, with the glyph alone for a narrow row",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  if (delivered) return { text: DELIVERED, glyph: DELIVERED_GLYPH, wait: false };",
+        "to": "  if (delivered) return { text: DELIVERED, wait: false };"
       }
     ]
   },
   {
     "name": "a waiting row is not a wait",
-    "catches": "waits as sending on an idle seat, as queued behind the turn on a busy one, and reads delivered once the frame went in",
+    "catches": "waits as sending on an idle seat, as queued behind the turn on a busy one, and reads delivered once the frame went in, with the glyph alone for a narrow row",
     "edits": [
       {
         "file": "lib/chat/panels.mjs",

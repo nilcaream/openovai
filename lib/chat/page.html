@@ -122,7 +122,7 @@
   .msg.chat .bubble, .msg.silent .bubble { color: var(--fg-dim); }
   .msg.interrupted .bubble { background: var(--pending); border-style: dashed; color: var(--fg-dim); }
   /* what the User typed, until the process has it: a waiting ground, dashed */
-  .msg.pending .bubble { background: var(--pending); border-style: dashed; }
+  .msg.pending .bubble { background: var(--pending); border-style: dashed; color: var(--fg-dim); }
   .msg.failed .bubble { border-color: var(--bad); }
   /* a message between two sessions on the Leader's panel: one ground for what went to a session, another for what came from one */
   .msg.peer-in .bubble, .msg.peer-out .bubble { overflow-wrap: anywhere; }
@@ -139,14 +139,15 @@
   /* the label row: the speaker on the left, ellipsised before it could push the timestamp, the timestamp last */
   .who { font-size: .78rem; font-weight: 600; color: var(--fg-dim); display: flex; gap: 8px; align-items: baseline; margin-right: auto; flex: 1 1 auto; min-width: 0; }
   .who .lbl { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* the words beside the label while the User's row waits: small, faint, in the mono of a machine word */
+  .who .tag { font-weight: 400; color: var(--fg-faint); font-family: var(--mono); font-size: .72rem; }
   .meta { font-size: .72rem; color: var(--fg-faint); text-align: right; margin: 0 0 3px; font-family: var(--mono); display: flex; gap: 8px; justify-content: flex-end; align-items: baseline; }
   /* the stamp is a click: it points at the row from the composer */
   .meta .t { flex: 0 0 auto; order: 1; cursor: pointer; }
   .meta .t:hover { color: var(--fg); text-decoration: underline dotted; }
-  /* what became of a message the Leader sent, or of the User's own: a glyph before the stamp, red when it did not go, amber while it waits */
+  /* what became of a message the Leader sent, or of the User's own once it went in: a glyph before the stamp, red when it did not go */
   .meta .st { flex: 0 0 auto; color: var(--ok); }
   .meta .st.bad { color: var(--bad); }
-  .meta .st.wait { color: var(--warn); }
   /* the pill between two days */
   .divider { text-align: center; margin: 14px 0; color: var(--fg-faint); font-size: .78rem; font-family: var(--mono); }
   .divider span { background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 2px 12px; }
@@ -418,13 +419,20 @@
 
   // A row's stamp is the whole day and time when it sits beside the whole label on one line, and
   // the time alone when the label would be cut to make room for it — the pill above says the day.
-  // Every stamp is set whole first and all are measured after, so a change of width costs one
-  // layout and not one per row; the label is the one part of the line that trims, so it is the
-  // label that says whether the line fits.
+  // A status beside the stamp that has a glyph goes with it: the whole word while the stamp is
+  // whole, the glyph alone while the stamp is the clock alone. Every stamp is set whole first and
+  // all are measured after, so a change of width costs one layout and not one per row; the label
+  // is the one part of the line that trims, so it is the label that says whether the line fits.
   function fitStamps(stamps) {
-    for (const time of stamps) time.textContent = time.dataset.whole;
+    for (const time of stamps) setStamp(time, false);
     const cut = [...stamps].filter((time) => { const label = time.parentElement.querySelector(".lbl"); return label.scrollWidth > label.clientWidth; });
-    for (const time of cut) time.textContent = time.dataset.clock;
+    for (const time of cut) setStamp(time, true);
+  }
+
+  function setStamp(time, short) {
+    time.textContent = short ? time.dataset.clock : time.dataset.whole;
+    const st = time.parentElement.querySelector(".st");
+    if (st !== null && st.dataset.glyph !== undefined) st.textContent = short ? st.dataset.glyph : st.dataset.whole;
   }
 
   // The pill between two days, and the one between two sessions: the same pill, a word on it.
@@ -518,9 +526,9 @@
   // A message the Leader sent carries what became of it as a glyph in the label row, after the
   // stamp in the DOM and before it on screen; its body is the compact markdown. A message between
   // two sessions carries its id on the row, for a click on the line the other panel draws for it.
-  // The User's own row carries what became of it the same way — waiting on a dashed ground, then
-  // delivered — read off the row and the panel's state at the draw, and every stamp is a click
-  // that points at its row from the panel's composer.
+  // The User's own row carries what became of it too — the waiting words beside the label, on a
+  // dashed ground, then the delivered glyph beside the stamp — read off the row and the panel's
+  // state at the draw, and every stamp is a click that points at its row from the panel's composer.
   function rowElement(entry, shown, panel) {
     if (shown.kind === "line") return lineElement(shown);
     if (shown.kind === "divider") return pill(shown.text);
@@ -553,15 +561,16 @@
       meta.append(st);
     }
     if (shown.kind === "user") {
-      const st = document.createElement("span");
-      st.className = "st";
       const said = delivery(shown.delivered, panel.section.classList.contains("busy"), panel.name);
-      st.textContent = said.text;
       if (said.wait) {
-        st.classList.add("wait");
+        const tag = document.createElement("span");
+        tag.className = "tag";
+        tag.textContent = said.text;
+        who.append(tag);
         line.classList.add("pending");
+      } else {
+        meta.append(deliveredElement(said));
       }
-      meta.append(st);
     }
     const body = document.createElement("div");
     if (shown.html !== undefined) {
@@ -579,15 +588,27 @@
     return line;
   }
 
-  // The User's row at that index, delivered: the ground and the word change on the row it has.
+  // The delivered glyph beside the stamp: the whole word on it, and the glyph alone for the fit.
+  function deliveredElement(said) {
+    const st = document.createElement("span");
+    st.className = "st";
+    st.dataset.whole = said.text;
+    st.dataset.glyph = said.glyph;
+    st.textContent = said.text;
+    return st;
+  }
+
+  // The User's row at that index, delivered: on the row it has, the ground changes, the waiting
+  // words leave the label and the glyph goes in beside the stamp, fitted with it.
   function deliveredRow(panel, index) {
     const element = panel.waiting.get(index);
     if (element === undefined) return;
     panel.waiting.delete(index);
     element.classList.remove("pending");
-    const st = element.querySelector(".st");
-    st.classList.remove("wait");
-    st.textContent = delivery(true, false, panel.name).text;
+    element.querySelector(".tag").remove();
+    const time = element.querySelector(".t");
+    time.parentElement.append(deliveredElement(delivery(true, false, panel.name)));
+    fitStamps([time]);
   }
 
   // A question on this panel: a call the session is stopped on, or a rule the Leader asks the

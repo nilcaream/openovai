@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { AMBER, CONNECTED, DELIVERED, DISCONNECTED, GONE_AFTER, GREEN, RED, SENDING, applyEvent, composersEnabled, delivery, dot, fresh, head, keyAction, place, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title } from "../lib/chat/panels.mjs";
+import { AMBER, CONNECTED, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, RED, SENDING, applyEvent, composersEnabled, delivery, dot, fresh, head, keyAction, place, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title } from "../lib/chat/panels.mjs";
 
 const LEADER = "Leader";
 
@@ -268,13 +268,14 @@ describe("the quota line", () => {
 });
 
 describe("the User's own row", () => {
-  it("waits as sending on an idle seat, as queued behind the turn on a busy one, and reads delivered once the frame went in", () => {
+  it("waits as sending on an idle seat, as queued behind the turn on a busy one, and reads delivered once the frame went in, with the glyph alone for a narrow row", () => {
     assert.deepEqual(delivery(false, false, "Bob"), { text: "sending…", wait: true });
     assert.deepEqual(delivery(false, true, "Bob"), { text: "queued — Bob gets it after the current turn", wait: true });
-    assert.deepEqual(delivery(true, false, "Bob"), { text: "delivered ✓", wait: false });
-    assert.deepEqual(delivery(true, true, "Bob"), { text: "delivered ✓", wait: false }, "delivered is delivered, busy or not");
+    assert.deepEqual(delivery(true, false, "Bob"), { text: "delivered ✓", glyph: "✓", wait: false });
+    assert.deepEqual(delivery(true, true, "Bob"), { text: "delivered ✓", glyph: "✓", wait: false }, "delivered is delivered, busy or not");
     assert.equal(SENDING, "sending…");
     assert.equal(DELIVERED, "delivered ✓");
+    assert.equal(DELIVERED_GLYPH, "✓");
   });
 });
 

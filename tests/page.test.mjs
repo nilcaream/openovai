@@ -192,12 +192,17 @@ describe("the rules", () => {
     assert.equal(under.declarations.color, "var(--fg)");
   });
 
-  it("draw the User's row on the waiting ground, dashed, until it is delivered, and its word in amber while it waits", () => {
+  it("draw the User's row on the waiting ground, dashed and dimmed, until it is delivered, and its waiting words small and faint beside the label", () => {
     const bubble = rules.find((rule) => rule.selector === ".msg.pending .bubble");
     assert.equal(bubble.declarations.background, "var(--pending)");
     assert.equal(bubble.declarations["border-style"], "dashed");
+    assert.equal(bubble.declarations.color, "var(--fg-dim)");
     assert.ok(rules.indexOf(bubble) > rules.indexOf(rules.find((rule) => rule.selector === ".msg.user .bubble")), "the waiting ground is declared after the User's, or it never shows on the User's row");
-    assert.equal(rules.find((rule) => rule.selector === ".meta .st.wait").declarations.color, "var(--warn)");
+    const tag = rules.find((rule) => rule.selector === ".who .tag");
+    assert.equal(tag.declarations.color, "var(--fg-faint)");
+    assert.equal(tag.declarations["font-family"], "var(--mono)");
+    assert.equal(tag.declarations["font-size"], ".72rem");
+    assert.equal(tag.declarations["font-weight"], "400");
   });
 
   // A code block is set at .85rem on the block itself, 1.4 lines high, and the code inside it
@@ -320,14 +325,16 @@ describe("the script", () => {
     assert.match(script, /panel\.shown = 0;\s*panel\.day = null;/, "a panel drawn afresh starts with no day, so its first row gets no pill");
   });
 
-  // The User's own row says what became of it beside its stamp, from the words panels.mjs picks:
-  // waiting — on the dashed ground, in amber — until the server writes the row again as delivered,
-  // when the row it has changes ground and word; the panel's state at the draw says whether the
-  // wait is a queue behind the turn under way.
+  // The User's own row says what became of it, from the words panels.mjs picks: waiting — the
+  // words beside the label, on the dashed ground — until the server writes the row again as
+  // delivered, when the row it has changes ground, the words leave the label and the glyph goes in
+  // beside the stamp, fitted with it; the panel's state at the draw says whether the wait is a
+  // queue behind the turn under way.
   it("draws the User's row waiting on the dashed ground until the server says delivered, then changes the row it has", () => {
-    assert.match(script, /if \(shown\.kind === "user"\) \{\s*const st = document\.createElement\("span"\);\s*st\.className = "st";\s*const said = delivery\(shown\.delivered, panel\.section\.classList\.contains\("busy"\), panel\.name\);\s*st\.textContent = said\.text;\s*if \(said\.wait\) \{\s*st\.classList\.add\("wait"\);\s*line\.classList\.add\("pending"\);\s*\}\s*meta\.append\(st\);\s*\}/);
+    assert.match(script, /if \(shown\.kind === "user"\) \{\s*const said = delivery\(shown\.delivered, panel\.section\.classList\.contains\("busy"\), panel\.name\);\s*if \(said\.wait\) \{\s*const tag = document\.createElement\("span"\);\s*tag\.className = "tag";\s*tag\.textContent = said\.text;\s*who\.append\(tag\);\s*line\.classList\.add\("pending"\);\s*\} else \{\s*meta\.append\(deliveredElement\(said\)\);\s*\}\s*\}/);
+    assert.match(script, /function deliveredElement\(said\) \{\s*const st = document\.createElement\("span"\);\s*st\.className = "st";\s*st\.dataset\.whole = said\.text;\s*st\.dataset\.glyph = said\.glyph;\s*st\.textContent = said\.text;\s*return st;\s*\}/);
     assert.match(script, /if \(shown\.kind === "user" && !shown\.delivered\) panel\.waiting\.set\(index, line\);/);
-    assert.match(script, /function deliveredRow\(panel, index\) \{\s*const element = panel\.waiting\.get\(index\);\s*if \(element === undefined\) return;\s*panel\.waiting\.delete\(index\);\s*element\.classList\.remove\("pending"\);\s*const st = element\.querySelector\("\.st"\);\s*st\.classList\.remove\("wait"\);\s*st\.textContent = delivery\(true, false, panel\.name\)\.text;\s*\}/);
+    assert.match(script, /function deliveredRow\(panel, index\) \{\s*const element = panel\.waiting\.get\(index\);\s*if \(element === undefined\) return;\s*panel\.waiting\.delete\(index\);\s*element\.classList\.remove\("pending"\);\s*element\.querySelector\("\.tag"\)\.remove\(\);\s*const time = element\.querySelector\("\.t"\);\s*time\.parentElement\.append\(deliveredElement\(delivery\(true, false, panel\.name\)\)\);\s*fitStamps\(\[time\]\);\s*\}/);
     assert.match(script, /for \(const index of about\.amended\.splice\(0\)\) \{[^}]*\}\s*if \(about\.rows\[index\]\.delivered === true\) deliveredRow\(panel, index\);\s*\}/);
     assert.match(script, /panel\.lines\.clear\(\);\s*panel\.waiting\.clear\(\);/, "a panel drawn afresh forgets whom it was waiting on");
     assert.match(script, /for \(const kept of \[panel\.lines, panel\.waiting\]\) \{\s*for \(const \[index, element\] of kept\) \{\s*if \(!element\.isConnected\) kept\.delete\(index\);/, "the trim lets go of a waiting row it no longer holds");
@@ -415,12 +422,14 @@ describe("the script", () => {
   });
 
   // A row's stamp: the whole day and time, or the time alone where the whole would cut the label —
-  // the label is the one part of the line that trims, so it is the label that says. All stamps
-  // are set whole first and measured after, so a change of width costs one layout, not one per
-  // row; measured for the rows a draw appends and for every row when the rows change width.
-  it("gives a row's stamp up to the time alone where the whole day would cut the label, on append and on every change of width", () => {
+  // the label is the one part of the line that trims, so it is the label that says — and a status
+  // beside it that has a glyph goes with it, the glyph alone where the stamp is the clock alone.
+  // All stamps are set whole first and measured after, so a change of width costs one layout, not
+  // one per row; measured for the rows a draw appends and for every row when the rows change width.
+  it("gives a row's stamp up to the time alone where the whole day would cut the label, on append and on every change of width, and the status beside it up to its glyph", () => {
     assert.match(script, /time\.dataset\.whole = when\.whole;\s*time\.dataset\.clock = when\.clock;\s*time\.textContent = when\.whole;/);
-    assert.match(script, /function fitStamps\(stamps\) \{\s*for \(const time of stamps\) time\.textContent = time\.dataset\.whole;\s*const cut = \[\.\.\.stamps\]\.filter\(\(time\) => \{ const label = time\.parentElement\.querySelector\("\.lbl"\); return label\.scrollWidth > label\.clientWidth; \}\);\s*for \(const time of cut\) time\.textContent = time\.dataset\.clock;\s*\}/);
+    assert.match(script, /function fitStamps\(stamps\) \{\s*for \(const time of stamps\) setStamp\(time, false\);\s*const cut = \[\.\.\.stamps\]\.filter\(\(time\) => \{ const label = time\.parentElement\.querySelector\("\.lbl"\); return label\.scrollWidth > label\.clientWidth; \}\);\s*for \(const time of cut\) setStamp\(time, true\);\s*\}/);
+    assert.match(script, /function setStamp\(time, short\) \{\s*time\.textContent = short \? time\.dataset\.clock : time\.dataset\.whole;\s*const st = time\.parentElement\.querySelector\("\.st"\);\s*if \(st !== null && st\.dataset\.glyph !== undefined\) st\.textContent = short \? st\.dataset\.glyph : st\.dataset\.whole;\s*\}/);
     assert.match(script, /new ResizeObserver\(\(\) => fitStamps\(rows\.querySelectorAll\("\.t"\)\)\)\.observe\(rows\);/);
     assert.match(script, /if \(time !== null\) added\.push\(time\);\s*\}\s*fitStamps\(added\);\s*panel\.shown = about\.rows\.length;/, "the appended rows are fitted once, after the loop");
   });

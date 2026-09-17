@@ -665,7 +665,7 @@
   },
   {
     "name": "the stamp is judged by the meta row, which never overflows on its left: the label check is gone",
-    "catches": "gives a row's stamp up to the time alone where the whole day would cut the label, on append and on every change of width",
+    "catches": "gives a row's stamp up to the time alone where the whole day would cut the label, on append and on every change of width, and the status beside it up to its glyph",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -676,7 +676,7 @@
   },
   {
     "name": "appended rows are never fitted: only a change of width measures the stamps",
-    "catches": "gives a row's stamp up to the time alone where the whole day would cut the label, on append and on every change of width",
+    "catches": "gives a row's stamp up to the time alone where the whole day would cut the label, on append and on every change of width, and the status beside it up to its glyph",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -686,8 +686,52 @@
     ]
   },
   {
+    "name": "the status never shortens with the stamp",
+    "catches": "gives a row's stamp up to the time alone where the whole day would cut the label, on append and on every change of width, and the status beside it up to its glyph",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "if (st !== null && st.dataset.glyph !== undefined) st.textContent = short ? st.dataset.glyph : st.dataset.whole;",
+        "to": "if (st !== null && st.dataset.glyph !== undefined) st.textContent = st.dataset.whole;"
+      }
+    ]
+  },
+  {
+    "name": "the status shortens on every row, the stamp on none",
+    "catches": "gives a row's stamp up to the time alone where the whole day would cut the label, on append and on every change of width, and the status beside it up to its glyph",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    time.textContent = short ? time.dataset.clock : time.dataset.whole;",
+        "to": "    time.textContent = time.dataset.whole;"
+      }
+    ]
+  },
+  {
+    "name": "the Leader's sent glyph is shortened to nothing",
+    "catches": "gives a row's stamp up to the time alone where the whole day would cut the label, on append and on every change of width, and the status beside it up to its glyph",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "if (st !== null && st.dataset.glyph !== undefined) st.textContent",
+        "to": "if (st !== null) st.textContent"
+      }
+    ]
+  },
+  {
+    "name": "the cut rows are set whole again",
+    "catches": "gives a row's stamp up to the time alone where the whole day would cut the label, on append and on every change of width, and the status beside it up to its glyph",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    for (const time of cut) setStamp(time, true);",
+        "to": "    for (const time of cut) setStamp(time, false);"
+      }
+    ]
+  },
+  {
     "name": "the stamps are never measured again when the rows change width: the observer is gone",
-    "catches": "gives a row's stamp up to the time alone where the whole day would cut the label, on append and on every change of width",
+    "catches": "gives a row's stamp up to the time alone where the whole day would cut the label, on append and on every change of width, and the status beside it up to its glyph",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -1278,8 +1322,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "        st.classList.add(\"wait\");\n        line.classList.add(\"pending\");",
-        "to": "        st.classList.add(\"wait\");"
+        "from": "        who.append(tag);\n        line.classList.add(\"pending\");",
+        "to": "        who.append(tag);"
       }
     ]
   },
@@ -1300,8 +1344,74 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "    element.classList.remove(\"pending\");\n    const st = element.querySelector(\".st\");",
-        "to": "    const st = element.querySelector(\".st\");"
+        "from": "    element.classList.remove(\"pending\");\n    element.querySelector(\".tag\").remove();",
+        "to": "    element.querySelector(\".tag\").remove();"
+      }
+    ]
+  },
+  {
+    "name": "the waiting words go in the meta beside the stamp",
+    "catches": "draws the User's row waiting on the dashed ground until the server says delivered, then changes the row it has",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "        who.append(tag);\n        line.classList.add(\"pending\");",
+        "to": "        meta.append(tag);\n        line.classList.add(\"pending\");"
+      }
+    ]
+  },
+  {
+    "name": "the delivered glyph goes in the label row",
+    "catches": "draws the User's row waiting on the dashed ground until the server says delivered, then changes the row it has",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "        meta.append(deliveredElement(said));",
+        "to": "        who.append(deliveredElement(said));"
+      }
+    ]
+  },
+  {
+    "name": "the waiting words stay beside the label once delivered",
+    "catches": "draws the User's row waiting on the dashed ground until the server says delivered, then changes the row it has",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    element.querySelector(\".tag\").remove();\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a row delivered after its draw gets the glyph in the label row",
+    "catches": "draws the User's row waiting on the dashed ground until the server says delivered, then changes the row it has",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    time.parentElement.append(deliveredElement(delivery(true, false, panel.name)));",
+        "to": "    element.querySelector(\".who\").append(deliveredElement(delivery(true, false, panel.name)));"
+      }
+    ]
+  },
+  {
+    "name": "a row delivered after its draw is not fitted",
+    "catches": "draws the User's row waiting on the dashed ground until the server says delivered, then changes the row it has",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    fitStamps([time]);\n  }",
+        "to": "  }"
+      }
+    ]
+  },
+  {
+    "name": "the delivered status carries no glyph for the fit",
+    "catches": "draws the User's row waiting on the dashed ground until the server says delivered, then changes the row it has",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    st.dataset.glyph = said.glyph;\n",
+        "to": ""
       }
     ]
   },
@@ -1362,23 +1472,45 @@
   },
   {
     "name": "the waiting ground is not dashed",
-    "catches": "draw the User's row on the waiting ground, dashed, until it is delivered, and its word in amber while it waits",
+    "catches": "draw the User's row on the waiting ground, dashed and dimmed, until it is delivered, and its waiting words small and faint beside the label",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "  .msg.pending .bubble { background: var(--pending); border-style: dashed; }",
-        "to": "  .msg.pending .bubble { background: var(--pending); }"
+        "from": "  .msg.pending .bubble { background: var(--pending); border-style: dashed; color: var(--fg-dim); }",
+        "to": "  .msg.pending .bubble { background: var(--pending); color: var(--fg-dim); }"
       }
     ]
   },
   {
-    "name": "the waiting word is green",
-    "catches": "draw the User's row on the waiting ground, dashed, until it is delivered, and its word in amber while it waits",
+    "name": "the waiting ground keeps the full ink",
+    "catches": "draw the User's row on the waiting ground, dashed and dimmed, until it is delivered, and its waiting words small and faint beside the label",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "  .meta .st.wait { color: var(--warn); }",
-        "to": "  .meta .st.wait { color: var(--ok); }"
+        "from": "  .msg.pending .bubble { background: var(--pending); border-style: dashed; color: var(--fg-dim); }",
+        "to": "  .msg.pending .bubble { background: var(--pending); border-style: dashed; }"
+      }
+    ]
+  },
+  {
+    "name": "the waiting words are as dark as the label",
+    "catches": "draw the User's row on the waiting ground, dashed and dimmed, until it is delivered, and its waiting words small and faint beside the label",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "  .who .tag { font-weight: 400; color: var(--fg-faint); font-family: var(--mono); font-size: .72rem; }",
+        "to": "  .who .tag { font-weight: 400; font-family: var(--mono); font-size: .72rem; }"
+      }
+    ]
+  },
+  {
+    "name": "the waiting words are as big and as bold as the label",
+    "catches": "draw the User's row on the waiting ground, dashed and dimmed, until it is delivered, and its waiting words small and faint beside the label",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "  .who .tag { font-weight: 400; color: var(--fg-faint); font-family: var(--mono); font-size: .72rem; }",
+        "to": "  .who .tag { color: var(--fg-faint); font-family: var(--mono); }"
       }
     ]
   },
