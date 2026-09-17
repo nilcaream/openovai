@@ -6,6 +6,17 @@ carries only its own.
 
 ## 0.11.0
 
+The command is a daemon's and the instance root is laid out for what each thing is. `ovai start`
+starts the server in the background and returns, `ovai stop` parks the room and stops it, `ovai
+status` says whether it runs and where; `ovai chat` and `ovai hire` are gone, and a Worker joins
+through the Leader's `hire` tool, named from a roster of thirty. The root holds `bin/`, `lib/` and
+the instance's own files — `openovai.json`, `desks/`, `plugins/`, `store/`, `projects/` — and every
+seat works under its own desk and under `projects/` without a prompt. On the page, a panel's head
+says the model, the context, the state and the account's usage, a message between two sessions is
+one thing on two panels, and nobody's turn waits for anybody else's. A workspace on 0.10.0 is
+installed again into an empty directory, not updated: this release has no `tools/`, no
+`templates/` and no `VERSION` at the root for `ovai update` to take.
+
 **The head of a panel says what you asked of it.** The tab is titled `OpenOv AI ~/the/instance`. A
 head reads `<name> · opus · 22k · listening` — the dot, the name, the model, the context, the state
 word — and on the Leader's head after that `connected · 8% (3h) · all 86% (6d) · fable 20% (6d)`:
@@ -110,7 +121,8 @@ moment it says so: every dot red, no state words, `disconnected` on the Leader's
 **A row says what became of it, and its stamp is a click.** What you type reads `sending…` on a
 dashed ground until the process has it, `queued — <name> gets it after the current turn` while a
 turn is under way, and `delivered ✓` the moment its frame went in — on the panel you typed it on,
-and again the same way after a reload. A click on any row's stamp puts `(ref:2026.09.14-14:39:14)`
+and again the same way after a reload; on a narrow panel the word gives way to its glyph alone, as the
+stamp gives way to its clock. A click on any row's stamp puts `(ref:2026.09.14-14:39:14)`
 into that panel's box; what is sent carries it spelled out, `(ref: 14:39:14 Paul — "the first line
 of that row…")`, so the session can find what you point at. The pill between two days carries the
 whole stamp of the first row of the new day, `2026.09.14 Monday 00:00:49`, and sits only between
