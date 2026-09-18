@@ -45,7 +45,7 @@
   },
   {
     "name": "a fresh instance refuses writes to everybody's work as well",
-    "catches": "refuses nothing about anybody's work",
+    "catches": "refuses nothing about anybody's work beyond the push, the root and the other hosts",
     "edits": [
       {
         "file": "lib/desks.mjs",
@@ -259,7 +259,7 @@
   },
   {
     "name": "the seed grants nothing for reading",
-    "catches": "allows the tool server, the reads, the three trees, the shell commands a seat works a repository with, the Leader's desk directory, and nothing else",
+    "catches": "allows the tool server, the reads, the three trees, the shell commands of a seat's day, the Leader's desk directory, and nothing else",
     "edits": [
       {
         "file": "lib/seed.mjs",
@@ -270,12 +270,12 @@
   },
   {
     "name": "the seed grants the Leader no desk directory",
-    "catches": "allows the tool server, the reads, the three trees, the shell commands a seat works a repository with, the Leader's desk directory, and nothing else",
+    "catches": "allows the tool server, the reads, the three trees, the shell commands of a seat's day, the Leader's desk directory, and nothing else",
     "edits": [
       {
         "file": "lib/seed.mjs",
         "from": "      allow: [...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...SHELL_RULES, ...deskRules(leader)],",
-        "to": "      allow: [...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...REPOSITORY_RULES],"
+        "to": "      allow: [...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...SHELL_RULES],"
       }
     ]
   },
@@ -303,7 +303,7 @@
   },
   {
     "name": "the seed grants nothing for the three trees",
-    "catches": "allows the tool server, the reads, the three trees, the shell commands a seat works a repository with, the Leader's desk directory, and nothing else",
+    "catches": "allows the tool server, the reads, the three trees, the shell commands of a seat's day, the Leader's desk directory, and nothing else",
     "edits": [
       {
         "file": "lib/seed.mjs",
@@ -314,7 +314,7 @@
   },
   {
     "name": "the seed grants a fourth tree",
-    "catches": "allows the tool server, the reads, the three trees, the shell commands a seat works a repository with, the Leader's desk directory, and nothing else",
+    "catches": "allows the tool server, the reads, the three trees, the shell commands of a seat's day, the Leader's desk directory, and nothing else",
     "edits": [
       {
         "file": "lib/desks.mjs",
@@ -325,7 +325,7 @@
   },
   {
     "name": "the seed grants the trees from the session's current directory rather than the root",
-    "catches": "allows the tool server, the reads, the three trees, the shell commands a seat works a repository with, the Leader's desk directory, and nothing else",
+    "catches": "allows the tool server, the reads, the three trees, the shell commands of a seat's day, the Leader's desk directory, and nothing else",
     "edits": [
       {
         "file": "lib/desks.mjs",
@@ -336,7 +336,7 @@
   },
   {
     "name": "the seed grants each tree a Write twin that matches nothing",
-    "catches": "allows the tool server, the reads, the three trees, the shell commands a seat works a repository with, the Leader's desk directory, and nothing else",
+    "catches": "allows the tool server, the reads, the three trees, the shell commands of a seat's day, the Leader's desk directory, and nothing else",
     "edits": [
       {
         "file": "lib/desks.mjs",
@@ -347,7 +347,7 @@
   },
   {
     "name": "the read rule is read from the session's current directory rather than the root",
-    "catches": "allows the tool server, the reads, the three trees, the shell commands a seat works a repository with, the Leader's desk directory, and nothing else",
+    "catches": "allows the tool server, the reads, the three trees, the shell commands of a seat's day, the Leader's desk directory, and nothing else",
     "edits": [
       {
         "file": "lib/desks.mjs",
@@ -457,7 +457,7 @@
   },
   {
     "name": "the seed grants no shell command for a repository",
-    "catches": "allows the tool server, the reads, the three trees, the shell commands a seat works a repository with, the Leader's desk directory, and nothing else",
+    "catches": "allows the tool server, the reads, the three trees, the shell commands of a seat's day, the Leader's desk directory, and nothing else",
     "edits": [
       {
         "file": "lib/seed.mjs",
@@ -467,85 +467,19 @@
     ]
   },
   {
-    "name": "the seed grants a repository everything but Bash(git clone:*)",
-    "catches": "allows the tool server, the reads, the three trees, the shell commands a seat works a repository with, the Leader's desk directory, and nothing else",
+    "name": "the seed grants a repository everything but Bash(git:*)",
+    "catches": "allows the tool server, the reads, the three trees, the shell commands of a seat's day, the Leader's desk directory, and nothing else",
     "edits": [
       {
         "file": "lib/desks.mjs",
-        "from": "  \"Bash(git clone:*)\",\n",
-        "to": ""
-      }
-    ]
-  },
-  {
-    "name": "the seed grants a repository everything but Bash(git checkout:*)",
-    "catches": "allows the tool server, the reads, the three trees, the shell commands a seat works a repository with, the Leader's desk directory, and nothing else",
-    "edits": [
-      {
-        "file": "lib/desks.mjs",
-        "from": "  \"Bash(git checkout:*)\",\n",
-        "to": ""
-      }
-    ]
-  },
-  {
-    "name": "the seed grants a repository everything but Bash(git add:*)",
-    "catches": "allows the tool server, the reads, the three trees, the shell commands a seat works a repository with, the Leader's desk directory, and nothing else",
-    "edits": [
-      {
-        "file": "lib/desks.mjs",
-        "from": "  \"Bash(git add:*)\",\n",
-        "to": ""
-      }
-    ]
-  },
-  {
-    "name": "the seed grants a repository everything but Bash(git commit:*)",
-    "catches": "allows the tool server, the reads, the three trees, the shell commands a seat works a repository with, the Leader's desk directory, and nothing else",
-    "edits": [
-      {
-        "file": "lib/desks.mjs",
-        "from": "  \"Bash(git commit:*)\",\n",
-        "to": ""
-      }
-    ]
-  },
-  {
-    "name": "the seed grants a repository everything but Bash(git status:*)",
-    "catches": "allows the tool server, the reads, the three trees, the shell commands a seat works a repository with, the Leader's desk directory, and nothing else",
-    "edits": [
-      {
-        "file": "lib/desks.mjs",
-        "from": "  \"Bash(git status:*)\",\n",
-        "to": ""
-      }
-    ]
-  },
-  {
-    "name": "the seed grants a repository everything but Bash(git diff:*)",
-    "catches": "allows the tool server, the reads, the three trees, the shell commands a seat works a repository with, the Leader's desk directory, and nothing else",
-    "edits": [
-      {
-        "file": "lib/desks.mjs",
-        "from": "  \"Bash(git diff:*)\",\n",
-        "to": ""
-      }
-    ]
-  },
-  {
-    "name": "the seed grants a repository everything but Bash(git log:*)",
-    "catches": "allows the tool server, the reads, the three trees, the shell commands a seat works a repository with, the Leader's desk directory, and nothing else",
-    "edits": [
-      {
-        "file": "lib/desks.mjs",
-        "from": "  \"Bash(git log:*)\",\n",
+        "from": "  \"Bash(git:*)\",\n",
         "to": ""
       }
     ]
   },
   {
     "name": "the seed grants a repository everything but Bash(mkdir:*)",
-    "catches": "allows the tool server, the reads, the three trees, the shell commands a seat works a repository with, the Leader's desk directory, and nothing else",
+    "catches": "allows the tool server, the reads, the three trees, the shell commands of a seat's day, the Leader's desk directory, and nothing else",
     "edits": [
       {
         "file": "lib/desks.mjs",
@@ -556,7 +490,7 @@
   },
   {
     "name": "the seed grants a repository everything but Bash(cd:*)",
-    "catches": "allows the tool server, the reads, the three trees, the shell commands a seat works a repository with, the Leader's desk directory, and nothing else",
+    "catches": "allows the tool server, the reads, the three trees, the shell commands of a seat's day, the Leader's desk directory, and nothing else",
     "edits": [
       {
         "file": "lib/desks.mjs",
@@ -566,24 +500,13 @@
     ]
   },
   {
-    "name": "the seed grants git push",
-    "catches": "allows the tool server, the reads, the three trees, the shell commands a seat works a repository with, the Leader's desk directory, and nothing else",
+    "name": "the seed refuses sudo and ssh but lets a push through the git rule",
+    "catches": "denies git push, sudo and ssh at install",
     "edits": [
       {
         "file": "lib/desks.mjs",
-        "from": "  \"Bash(git log:*)\",\n",
-        "to": "  \"Bash(git log:*)\",\n  \"Bash(git push:*)\",\n"
-      }
-    ]
-  },
-  {
-    "name": "the seed grants all of git instead of the seven commands",
-    "catches": "grants the tools, the reads, the three trees and the Leader its desk, and nothing wider",
-    "edits": [
-      {
-        "file": "lib/desks.mjs",
-        "from": "  \"Bash(git clone:*)\",\n  \"Bash(git checkout:*)\",\n  \"Bash(git add:*)\",\n  \"Bash(git commit:*)\",\n  \"Bash(git status:*)\",\n  \"Bash(git diff:*)\",\n  \"Bash(git log:*)\",\n",
-        "to": "  \"Bash(git:*)\",\n"
+        "from": "export const SHELL_DENY_RULES = [\"Bash(git push:*)\", \"Bash(sudo:*)\", \"Bash(ssh:*)\"];",
+        "to": "export const SHELL_DENY_RULES = [\"Bash(sudo:*)\", \"Bash(ssh:*)\"];"
       }
     ]
   }

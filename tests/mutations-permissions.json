@@ -482,9 +482,9 @@
     "catches": "offers Bash(npm:*) and Bash(make:*) for a compound with two sides nothing matches",
     "edits": [
       {
-        "file": "lib/chat/permissions.mjs",
-        "from": "const SEPARATOR = /\\s*(\\|\\||&&|\\|&|;|\\||(?<![<>])&(?!>)|\\n)\\s*/;",
-        "to": "const SEPARATOR = /\\u0000/;"
+        "file": "lib/shell.mjs",
+        "from": "const SEPARATORS = [\"||\", \"&&\", \"|&\", \";\", \"|\", \"\\n\", \"&\"];",
+        "to": "const SEPARATORS = [];"
       }
     ]
   },
@@ -493,9 +493,9 @@
     "catches": "offers Bash(node:*) for a redirect, which is not a separator",
     "edits": [
       {
-        "file": "lib/chat/permissions.mjs",
-        "from": "const SEPARATOR = /\\s*(\\|\\||&&|\\|&|;|\\||(?<![<>])&(?!>)|\\n)\\s*/;",
-        "to": "const SEPARATOR = /\\s*(\\|\\||&&|\\|&|;|\\||&|\\n)\\s*/;"
+        "file": "lib/shell.mjs",
+        "from": "    if (separator === \"&\" && (text[at + 1] === \">\" || text[at - 1] === \">\" || text[at - 1] === \"<\")) {",
+        "to": "    if (false) {"
       }
     ]
   },
@@ -515,8 +515,8 @@
     "catches": "offers nothing for a compound with nothing after the operator",
     "edits": [
       {
-        "file": "lib/chat/permissions.mjs",
-        "from": "      if (at === 0 || (before !== \";\" && before !== \"&\" && before !== \"\\n\")) {",
+        "file": "lib/shell.mjs",
+        "from": "      if (before !== \";\" && before !== \"&\" && before !== \"\\n\") {",
         "to": "      if (false) {"
       }
     ]
@@ -527,8 +527,8 @@
     "edits": [
       {
         "file": "lib/chat/permissions.mjs",
-        "from": "    if (!BARE_WORD.test(words[0])) {\n      return null;\n    }",
-        "to": "    if (!BARE_WORD.test(words[0])) {\n      continue;\n    }"
+        "from": "    if (RESERVED.has(words[0]) || !BARE_WORD.test(words[0])) {\n      return null;\n    }",
+        "to": "    if (RESERVED.has(words[0]) || !BARE_WORD.test(words[0])) {\n      continue;\n    }"
       }
     ]
   },
@@ -570,7 +570,7 @@
     "catches": "reads a held prefix by whole word, so npm does not hold npm-check",
     "edits": [
       {
-        "file": "lib/chat/permissions.mjs",
+        "file": "lib/shell.mjs",
         "from": "      return [(side) => side === prefix || side.startsWith(`${prefix} `)];",
         "to": "      return [(side) => side.startsWith(prefix)];"
       }
@@ -581,7 +581,7 @@
     "catches": "reads a rule for an exact command as that command alone",
     "edits": [
       {
-        "file": "lib/chat/permissions.mjs",
+        "file": "lib/shell.mjs",
         "from": "    return [(side) => side === named];",
         "to": "    return [(side) => side === named || side.startsWith(`${named} `)];"
       }
