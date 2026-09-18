@@ -1,0 +1,13 @@
+[
+  {
+    "name": "the trust is written and never read back, so a failed write starts the instance anyway",
+    "catches": "refuses with one sentence naming the file and the error when the record cannot be written",
+    "edits": [
+      {
+        "file": "lib/claude.mjs",
+        "from": "  const failure = trustOwnRoot(root);\n  const file = trustFile(root);\n\n  let state = null;\n  try {\n    state = JSON.parse(fs.readFileSync(file, \"utf8\"));\n  } catch (error) {\n    if (failure === null) {\n      return notTrusted(root, file, error);\n    }\n  }\n\n  if (failure === null && trusted(state, path.resolve(root))) {\n    return null;\n  }\n  return notTrusted(root, file, failure);",
+        "to": "  trustOwnRoot(root);\n  return null;"
+      }
+    ]
+  }
+]

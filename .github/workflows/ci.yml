@@ -302,6 +302,19 @@ jobs:
       - name: File a desk away and read what is left
         run: node --test tests/desks.test.mjs
 
+  start:
+    name: Start
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+
+      - name: Record the trust before serving, refuse when it is not on disk
+        run: node --test tests/start.test.mjs
+
   release:
     name: Release
     runs-on: ubuntu-latest
