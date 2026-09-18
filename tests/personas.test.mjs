@@ -329,6 +329,15 @@ describe("what a Worker is told", () => {
     assert.match(worker(), /a permission rule matches a command from\s+its first character, and those spellings ask every time/);
   });
 
+  it("tells both that the harness's own directories ask whatever the rules say, and that a Worker does not go round", () => {
+    assert.match(worker(), /Claude Code keeps a few directories for\s+itself — \.claude, \.git, \.idea, \.vscode and the like, wherever they are, under projects\/ too — and a\s+write there asks \S+ whatever the rules say; do not look for a way round it \(a script, a copy,\s+a rename\): ask, or leave it\./);
+    assert.match(leader(), /Claude\s+Code keeps a few directories for itself — \.claude, \.git, \.idea, \.vscode and the like, wherever they\s+are, under projects\/ too — and a write there asks \S+ whatever the rules say; a Worker does not\s+look for a way round it \(a script, a copy, a rename\), it asks or it leaves it\./);
+  });
+
+  it("tells the Worker that a compound of allowed commands runs without a stop, and one with a side nothing holds asks", () => {
+    assert.match(worker(), /A compound whose every side is a command this instance allows runs\s+without a stop; one that has a side nothing holds asks, so spell it plain or ask for the rule\./);
+  });
+
   it("tells the Worker to say why in the call, in words a person reads", () => {
     assert.match(worker(), /the command or the path, and the reason you gave with\s+it\. Say why in the call, in words a person reads\./);
   });

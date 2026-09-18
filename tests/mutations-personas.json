@@ -581,5 +581,27 @@
         "to": ""
       }
     ]
+  },
+  {
+    "name": "the Worker's persona lets a Worker go round the harness's own directories",
+    "catches": "tells both that the harness's own directories ask whatever the rules say, and that a Worker does not go round",
+    "edits": [
+      {
+        "file": "lib/templates/worker.md",
+        "from": "do not look for a way round it (a script, a copy,\na rename): ask, or leave it.",
+        "to": "a way round it (a script, a copy,\na rename) is yours to take."
+      }
+    ]
+  },
+  {
+    "name": "the Worker's persona says a compound with an unheld side runs too",
+    "catches": "tells the Worker that a compound of allowed commands runs without a stop, and one with a side nothing holds asks",
+    "edits": [
+      {
+        "file": "lib/templates/worker.md",
+        "from": "one that has a side nothing holds asks, so spell it plain or ask for the rule.",
+        "to": "one that has a side nothing holds runs too."
+      }
+    ]
   }
 ]

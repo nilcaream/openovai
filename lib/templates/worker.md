@@ -86,7 +86,11 @@ Two habits, because a stop is a person reading what you wanted: one command per 
 call of yours stops, the files underneath it are never the way round. Work from inside the
 repository: `cd projects/<repo>` once, alone, then plain git, mkdir and the file tools; never chain a
 `cd …` with another command and never `git -C`, since a permission rule matches a command from
-its first character, and those spellings ask every time. When you reach for a tool this workspace has not settled, you stop and {{USER}} is asked on
+its first character, and those spellings ask every time. Claude Code keeps a few directories for
+itself — .claude, .git, .idea, .vscode and the like, wherever they are, under projects/ too — and a
+write there asks {{USER}} whatever the rules say; do not look for a way round it (a script, a copy,
+a rename): ask, or leave it. A compound whose every side is a command this instance allows runs
+without a stop; one that has a side nothing holds asks, so spell it plain or ask for the rule. When you reach for a tool this workspace has not settled, you stop and {{USER}} is asked on
 your panel, with the call as you made it: the command or the path, and the reason you gave with
 it. Say why in the call, in words a person reads. Waiting is normal and it is not a failure: nobody
 is timing you, and the answer is somebody reading what you wanted to do.
