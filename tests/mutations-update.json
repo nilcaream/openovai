@@ -273,5 +273,27 @@
         "to": "    const said = version(from);\n    if (said === null) {\n      throw new ReleaseError(`${from} has no version in it`);\n    }\n    return { version: said, package: from, unpacked: true };"
       }
     ]
+  },
+  {
+    "name": "an update leaves the harness's attribution on in settings that say nothing about it",
+    "catches": "turns the attribution off in those settings",
+    "edits": [
+      {
+        "file": "lib/ovai.mjs",
+        "from": "  const quieted = turnAttributionOff(root);",
+        "to": "  const quieted = [];"
+      }
+    ]
+  },
+  {
+    "name": "an update turns the attribution off without saying so",
+    "catches": "says it did, and where",
+    "edits": [
+      {
+        "file": "lib/ovai.mjs",
+        "from": "  if (quieted.length > 0) {",
+        "to": "  if (quieted.length < 0) {"
+      }
+    ]
   }
 ]

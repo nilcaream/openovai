@@ -8,7 +8,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { before, describe, it } from "node:test";
+import { after, before, describe, it } from "node:test";
 
 import {
   claudeIsInstalled,
@@ -24,6 +24,8 @@ import { configProblems, settingsProblems } from "./inspect.mjs";
 import { CUSTOMIZATION, persona } from "../lib/desks.mjs";
 import { PAYLOAD } from "../lib/payload.mjs";
 import { RELEASE_NOTES } from "../lib/release.mjs";
+import { turnAttributionOff } from "../lib/seed.mjs";
+import { readSettings, settingsFile, writeSettings } from "../lib/settings.mjs";
 
 const USER = "Mike";
 const LEADER = "Superman";
@@ -409,6 +411,14 @@ describe("what the installer made", () => {
     assert.deepEqual(deny.filter((rule) => !rule.startsWith("Edit(/.claude") && !rule.startsWith("Edit(/.local") && !rule.endsWith("(/desks/*/STATE.md)")), ["Bash(git push:*)", "Bash(sudo:*)", "Bash(ssh:*)"]);
   });
 
+  // What the harness would add to every commit and pull request — a trailer naming the model, a
+  // "Generated with" line, a session link — is off from the first commit: a commit is the seat's,
+  // made as the User asked, and says what its message says. Spelled out rather than asked of the
+  // code, so a key left on is caught here.
+  it("turns the harness's commit and pull request attribution off", () => {
+    assert.deepEqual(JSON.parse(contentOf(".claude", "settings.json")).attribution, { commit: "", pr: "", sessionUrl: false });
+  });
+
   // And the subtree deliberately left open, because the memory index and the transcripts live in
   // it: refusing that one would break memory to protect nothing.
   it("leaves what the instance remembers alone", () => {
@@ -577,6 +587,49 @@ describe("installing over an instance", () => {
     it("leaves the rest of the person's files as they were", () => {
       assert.ok(fs.readFileSync(path.join(root, ".claude", "settings.json"), "utf8").endsWith(MARK));
     });
+  });
+});
+
+// An instance made before the attribution was off is brought up to date the way the hook is: an
+// update turns it off in settings that say nothing about it, and a settings file that says
+// something about it is the person's, whatever it says.
+describe("turning the attribution off at update", () => {
+  const root = scratch("install-attribution-instance");
+  const theirs = { permissions: { allow: ["mcp__openovai"] }, hooks: { PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: "theirs" }] }] } };
+  before(() => {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.mkdirSync(path.join(root, ".claude"), { recursive: true });
+  });
+  after(() => {
+    remove(root);
+  });
+
+  it("turns it off in settings that say nothing about it, and leaves the rest as it was", () => {
+    writeSettings(root, theirs);
+    assert.deepEqual(turnAttributionOff(root), [settingsFile(root)]);
+    const after = readSettings(root);
+    assert.deepEqual(after.attribution, { commit: "", pr: "", sessionUrl: false });
+    assert.deepEqual(after.permissions, theirs.permissions);
+    assert.deepEqual(after.hooks, theirs.hooks);
+  });
+
+  it("leaves an attribution the person set, whatever it says", () => {
+    writeSettings(root, { ...theirs, attribution: { commit: "Signed by the seat" } });
+    const text = fs.readFileSync(settingsFile(root), "utf8");
+    assert.deepEqual(turnAttributionOff(root), []);
+    assert.equal(fs.readFileSync(settingsFile(root), "utf8"), text);
+  });
+
+  it("leaves settings it cannot read exactly as they are", () => {
+    fs.writeFileSync(settingsFile(root), "{ not json\n");
+    assert.deepEqual(turnAttributionOff(root), []);
+    assert.equal(fs.readFileSync(settingsFile(root), "utf8"), "{ not json\n");
+  });
+
+  it("turns it off in settings that are not there at all, granting nothing", () => {
+    fs.rmSync(settingsFile(root), { force: true });
+    assert.deepEqual(turnAttributionOff(root), [settingsFile(root)]);
+    assert.deepEqual(readSettings(root), { attribution: { commit: "", pr: "", sessionUrl: false } });
   });
 });
 

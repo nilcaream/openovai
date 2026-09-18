@@ -509,5 +509,60 @@
         "to": "export const SHELL_DENY_RULES = [\"Bash(sudo:*)\", \"Bash(ssh:*)\"];"
       }
     ]
+  },
+  {
+    "name": "the seed leaves the harness's attribution on",
+    "catches": "turns the harness's commit and pull request attribution off",
+    "edits": [
+      {
+        "file": "lib/seed.mjs",
+        "from": "    hooks: { PreToolUse: [HOOK_ENTRY] },\n    attribution: ATTRIBUTION,\n",
+        "to": "    hooks: { PreToolUse: [HOOK_ENTRY] },\n"
+      }
+    ]
+  },
+  {
+    "name": "an update turns the attribution off and drops the rest of the settings",
+    "catches": "turns it off in settings that say nothing about it, and leaves the rest as it was",
+    "edits": [
+      {
+        "file": "lib/seed.mjs",
+        "from": "  return writeSettings(root, { ...settings, attribution: ATTRIBUTION });",
+        "to": "  return writeSettings(root, { attribution: ATTRIBUTION });"
+      }
+    ]
+  },
+  {
+    "name": "an update writes the attribution over one the person set",
+    "catches": "leaves an attribution the person set, whatever it says",
+    "edits": [
+      {
+        "file": "lib/seed.mjs",
+        "from": "  if (settings === null || attributionSet(settings)) {",
+        "to": "  if (settings === null) {"
+      }
+    ]
+  },
+  {
+    "name": "an update writes an attribution over settings it cannot read",
+    "catches": "leaves settings it cannot read exactly as they are",
+    "edits": [
+      {
+        "file": "lib/seed.mjs",
+        "from": "  if (settings === null || attributionSet(settings)) {",
+        "to": "  if (attributionSet(settings)) {"
+      }
+    ]
+  },
+  {
+    "name": "an update leaves settings that are not there at all without the attribution",
+    "catches": "turns it off in settings that are not there at all, granting nothing",
+    "edits": [
+      {
+        "file": "lib/seed.mjs",
+        "from": "export function turnAttributionOff(root) {\n  const settings = settingsReadable(root);",
+        "to": "export function turnAttributionOff(root) {\n  const settings = fs.existsSync(settingsFile(root)) ? settingsReadable(root) : null;"
+      }
+    ]
   }
 ]

@@ -273,6 +273,31 @@ describe("taking a newer version into an instance that lacks a file of the perso
   });
 });
 
+// An instance made before the harness's attribution was off: its settings say nothing about it,
+// and an update is what brings it up to date, the way it wires the hook.
+describe("taking a newer version into an instance from before the attribution was off", () => {
+  const root = makeInstance("attributing");
+  const tree = makeRelease("release-for-attributing");
+  const settings = path.join(root, ".claude", "settings.json");
+  let done;
+
+  before(async () => {
+    const { attribution, ...rest } = JSON.parse(fs.readFileSync(settings, "utf8"));
+    fs.writeFileSync(settings, `${JSON.stringify(rest, null, 2)}\n`);
+    done = await update(root, tree);
+  });
+
+  it("turns the attribution off in those settings", () => {
+    assert.equal(done.status, 0, done.stderr);
+    assert.deepEqual(JSON.parse(fs.readFileSync(settings, "utf8")).attribution, { commit: "", pr: "", sessionUrl: false });
+  });
+
+  it("says it did, and where", () => {
+    const said = `Turned the harness's commit and pull request attribution off, in:\n  ${settings}`;
+    assert.ok(done.stdout.includes(said), `nothing said ${JSON.stringify(said)}: ${done.stdout}`);
+  });
+});
+
 describe("taking a newer version from a release", () => {
   const root = makeInstance("from-release");
   let served;
