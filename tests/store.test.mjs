@@ -643,6 +643,10 @@ async function listed(as) {
   return JSON.parse((await call(as, "tools/list")).body).result.tools.map((tool) => tool.name);
 }
 
+async function described(as, name) {
+  return JSON.parse((await call(as, "tools/list")).body).result.tools.find((tool) => tool.name === name).description;
+}
+
 function stage(answer) {
   fs.writeFileSync(helperAnswer, JSON.stringify(answer));
 }
@@ -833,5 +837,56 @@ describe("the tools the chat serves for the store", () => {
     const said = await tool(CHAT_LEADER, "remember", { store: "memory", kind: HARD_RULE, text: "Push only once the release commit is on main" });
     assert.equal(said.refused, true);
     assert.match(said.text, /m2 is the User's hard-rule; only a write with source user can replace it/);
+  });
+
+  // The store chose: the writer named nothing, and may never have read what went, so the answer
+  // says whose choice it was. A replacement the writer named reads as it always has.
+  it("answers a store-chosen replacement as the store's judgement with the reason, marks the record judged store, and a caller-named one reads as before", async () => {
+    stage({ replaces: "m5", reason: "widens m5 to every fact of the team's" });
+    let said = await tool(CHAT_WORKER, "remember", { store: "memory", kind: "fact", text: "every fact of the team's" });
+    assert.equal(said.refused, false, said.text);
+    assert.match(said.text, /^\[m8\] fact, team - "every fact of the team's"\n\s+by Paul \(Worker\), [^\n]*; replaced m5 \("a fact of the team's"\) by the store's judgement — you named nothing: widens m5 to every fact of the team's$/);
+    assert.equal(readRecord(instance, "memory", 8).judged, "store");
+    said = await tool(CHAT_WORKER, "remember", { store: "memory", kind: "fact", text: "every fact of the team's, named", replaces: "m8", reason: "named" });
+    assert.equal(said.refused, false, said.text);
+    assert.match(said.text, /^\[m9\] fact, team - "every fact of the team's, named"\n\s+by Paul \(Worker\), [^\n]*; replaced m8 \("every fact of the team's"\) - named$/);
+    assert.doesNotMatch(said.text, /judgement|named nothing/);
+    assert.equal(readRecord(instance, "memory", 9).judged, undefined);
+  });
+
+  it("answers the same text again as the store's judgement too", async () => {
+    const calls = helperCalls();
+    const said = await tool(CHAT_WORKER, "remember", { store: "memory", kind: "fact", text: "every fact of the team's, named" });
+    assert.equal(said.refused, false, said.text);
+    assert.equal(helperCalls(), calls, "the same text again asked the helper");
+    assert.match(said.text, /; replaced m9 \("every fact of the team's, named"\) by the store's judgement — you named nothing: the same text, restated$/);
+  });
+
+  it("recalls a store-chosen replacement as the store's judgement, the writer named nothing", async () => {
+    let said = await tool(CHAT_LEADER, "recall", { store: "memory", id: "m10" });
+    assert.match(said.text, /; replaced m9 \("every fact of the team's, named"\) by the store's judgement — the writer named nothing: the same text, restated$/);
+    said = await tool(CHAT_LEADER, "recall", { store: "memory", id: "m9" });
+    assert.match(said.text, /; replaced m8 \("every fact of the team's"\) - named$/);
+  });
+
+  // What the tools say of themselves is the whole of what a session knows about the store before
+  // its first call: that a model manages it, and that a write without replaces is its choice.
+  it("describes remember as managed by a model, never a file, choosing on the model's judgement, blind without replaces, answering what it replaced and whether the store chose it", async () => {
+    const text = await described(CHAT_WORKER, "remember");
+    assert.match(text, /The store is managed by a model, not by you: it is not a file, and remember and recall are not create, read, update and delete over a MEMORY\.md you know from elsewhere\./);
+    assert.match(text, /restated, widened, narrowed or reversed, and the record it judges so is replaced, on the store's judgement alone;/);
+    assert.match(text, /there is no way to say the text is new, and only the answer tells you what happened/);
+    assert.match(text, /says whether you named it or the store chose it, and gives the reason/);
+    assert.match(text, /the model held for quota, not answering or answering badly when the store chooses/);
+    assert.match(text, /a team write over the User's record, the Leader included, whether you named it or the store chose it/);
+    assert.doesNotMatch(text, /asks whether the text restates a current record/);
+  });
+
+  it("describes recall as managed by a model, never a file, with a replaced record's line saying whether the store chose it and nobody told", async () => {
+    const text = await described(CHAT_WORKER, "recall");
+    assert.match(text, /The store is managed by a model, not by you: a write without replaces may have replaced a record its writer never named/);
+    assert.match(text, /recall and remember are not create, read, update and delete over a MEMORY\.md you know from elsewhere\./);
+    assert.match(text, /whether the writer named it or the store chose it, and the reason\./);
+    assert.match(text, /nobody is told when a fact or trap is replaced/);
   });
 });

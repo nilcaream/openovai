@@ -669,5 +669,82 @@
         "to": "  const opening = \"Hard rules update:\";"
       }
     ]
+  },
+  {
+    "name": "a store-chosen replacement is not marked on the record",
+    "catches": "answers a store-chosen replacement as the store's judgement with the reason, marks the record judged store, and a caller-named one reads as before",
+    "edits": [
+      {
+        "file": "lib/store.mjs",
+        "from": "      record.judged = STORE;",
+        "to": "      record.judged = undefined;"
+      }
+    ]
+  },
+  {
+    "name": "the same text again counts as a caller-named replacement",
+    "catches": "answers the same text again as the store's judgement too",
+    "edits": [
+      {
+        "file": "lib/store.mjs",
+        "from": "      reason = reason ?? \"the same text, restated\";\n      judged = true;",
+        "to": "      reason = reason ?? \"the same text, restated\";"
+      }
+    ]
+  },
+  {
+    "name": "the write's answer addresses the writer as anybody",
+    "catches": "answers a store-chosen replacement as the store's judgement with the reason, marks the record judged store, and a caller-named one reads as before",
+    "edits": [
+      {
+        "file": "lib/store.mjs",
+        "from": "  const lines = [recordLine(record, { now, zone, successor: new Map(), writer: \"you\" })];",
+        "to": "  const lines = [recordLine(record, { now, zone, successor: new Map() })];"
+      }
+    ]
+  },
+  {
+    "name": "a recall addresses the reader as the writer",
+    "catches": "recalls a store-chosen replacement as the store's judgement, the writer named nothing",
+    "edits": [
+      {
+        "file": "lib/store.mjs",
+        "from": "export function recordLine(record, { now, zone, successor, writer = \"the writer\" }) {",
+        "to": "export function recordLine(record, { now, zone, successor, writer = \"you\" }) {"
+      }
+    ]
+  },
+  {
+    "name": "remember's description drops that the store is managed by a model",
+    "catches": "describes remember as managed by a model, never a file, choosing on the model's judgement, blind without replaces, answering what it replaced and whether the store chose it",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "Write one record of what this workspace knows. The store is managed by a model, not by you: it is not a file, and remember and recall are not create, read, update and delete over a MEMORY.md you know from elsewhere. ",
+        "to": "Write one record of what this workspace knows. "
+      }
+    ]
+  },
+  {
+    "name": "remember's description says restates again",
+    "catches": "describes remember as managed by a model, never a file, choosing on the model's judgement, blind without replaces, answering what it replaced and whether the store chose it",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "Without replaces a model judges whether the text is one current record of the same store and kind restated, widened, narrowed or reversed, and the record it judges so is replaced, on the store's judgement alone; there is no way to say the text is new, and only the answer tells you what happened. ",
+        "to": "Without replaces the store asks whether the text restates a current record of the same store and kind and replaces that one. "
+      }
+    ]
+  },
+  {
+    "name": "recall's description drops that the store is managed by a model",
+    "catches": "describes recall as managed by a model, never a file, with a replaced record's line saying whether the store chose it and nobody told",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "Read what this workspace knows. The store is managed by a model, not by you: a write without replaces may have replaced a record its writer never named, and what you read is what stands after that — it is not a file, and recall and remember are not create, read, update and delete over a MEMORY.md you know from elsewhere. ",
+        "to": "Read what this workspace knows. "
+      }
+    ]
   }
 ]

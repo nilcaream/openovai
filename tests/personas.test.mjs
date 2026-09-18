@@ -144,6 +144,15 @@ describe("what the Leader is told", () => {
     assert.doesNotMatch(leader(), /store\//);
   });
 
+  it("tells the Leader the store is managed by a model, not a file, and that left to find it the store replaces on its own and tells only the writer", () => {
+    assert.match(leader(), /The store is managed by a model, not by you: it is not a file, and the two tools are not\s+create, read, update and delete over a MEMORY\.md you know from elsewhere\./);
+    assert.match(leader(), /Left to find it, the\s+store asks a model whether your text restates, widens, narrows or reverses a record it holds and\s+replaces that record on its own, and it tells only you, in the write's answer; read that answer\s+every time, and name what you replace whenever you know\./);
+  });
+
+  it("tells the Leader that a fact or trap the User adjudicated is written with source user and no team write replaces it", () => {
+    assert.match(leader(), /A fact or trap Mike has adjudicated\s+is written with source user, and no team write can then replace it, the store's choice included\./);
+  });
+
   it("tells the Leader that hard rules are its to write and that a Worker proposes one", () => {
     assert.match(leader(), /Hard rules are yours to\s+write and nobody else's/);
     assert.match(leader(), /A Worker proposes a rule to you and you write it/);
@@ -255,6 +264,11 @@ describe("what a Worker is told", () => {
     assert.match(worker(), /reached through two\s+tools: `recall` reads it/);
     assert.match(worker(), /`remember` writes one\s+record/);
     assert.doesNotMatch(worker(), /store\//);
+  });
+
+  it("tells the Worker the store is managed by a model, not a file, and that left to find it the store replaces on its own and tells only the writer", () => {
+    assert.match(worker(), /The store is managed by a model, not by you:\s+it is not a file, and the two tools are not create, read, update and delete over a MEMORY\.md you\s+know from elsewhere\./);
+    assert.match(worker(), /Left to find it, the store asks a model whether your text restates, widens, narrows\s+or reverses a record it holds and replaces that record on its own, and it tells only you, in the\s+write's answer; read that answer every time, and name what you replace whenever you know\./);
   });
 
   it("tells the Worker that a hard rule is the Leader's to write and is proposed", () => {

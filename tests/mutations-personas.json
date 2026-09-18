@@ -526,5 +526,60 @@
         "to": "."
       }
     ]
+  },
+  {
+    "name": "the Leader's persona says the store is a file of its own",
+    "catches": "tells the Leader the store is managed by a model, not a file, and that left to find it the store replaces on its own and tells only the writer",
+    "edits": [
+      {
+        "file": "lib/templates/leader.md",
+        "from": "The store is managed by a model, not by you: it is not a file, and the two tools are not\ncreate, read, update and delete over a MEMORY.md you know from elsewhere. ",
+        "to": "The store is a file of yours: the two tools are create, read, update and delete over it. "
+      }
+    ]
+  },
+  {
+    "name": "the Leader's persona drops what the store does when left to find it",
+    "catches": "tells the Leader the store is managed by a model, not a file, and that left to find it the store replaces on its own and tells only the writer",
+    "edits": [
+      {
+        "file": "lib/templates/leader.md",
+        "from": "Left to find it, the\nstore asks a model whether your text restates, widens, narrows or reverses a record it holds and\nreplaces that record on its own, and it tells only you, in the write's answer; read that answer\nevery time, and name what you replace whenever you know. ",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the Leader's persona drops source user as the shield for an adjudicated fact or trap",
+    "catches": "tells the Leader that a fact or trap the User adjudicated is written with source user and no team write replaces it",
+    "edits": [
+      {
+        "file": "lib/templates/leader.md",
+        "from": "A fact or trap {{USER}} has adjudicated\nis written with source user, and no team write can then replace it, the store's choice included.\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the Worker's persona says the store is a file of its own",
+    "catches": "tells the Worker the store is managed by a model, not a file, and that left to find it the store replaces on its own and tells only the writer",
+    "edits": [
+      {
+        "file": "lib/templates/worker.md",
+        "from": "The store is managed by a model, not by you:\nit is not a file, and the two tools are not create, read, update and delete over a MEMORY.md you\nknow from elsewhere. ",
+        "to": "The store is a file of yours: the two tools are create, read, update and delete over it. "
+      }
+    ]
+  },
+  {
+    "name": "the Worker's persona drops what the store does when left to find it",
+    "catches": "tells the Worker the store is managed by a model, not a file, and that left to find it the store replaces on its own and tells only the writer",
+    "edits": [
+      {
+        "file": "lib/templates/worker.md",
+        "from": "Left to find it, the store asks a model whether your text restates, widens, narrows\nor reverses a record it holds and replaces that record on its own, and it tells only you, in the\nwrite's answer; read that answer every time, and name what you replace whenever you know. ",
+        "to": ""
+      }
+    ]
   }
 ]
