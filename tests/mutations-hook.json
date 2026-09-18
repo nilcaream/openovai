@@ -1,0 +1,57 @@
+[
+  {
+    "name": "the hook stops holding a side against the refusals, so a compound with git push in it is let through",
+    "catches": "answers nothing for a side that is refused by rule",
+    "edits": [
+      {
+        "file": "lib/hooks/compound.mjs",
+        "from": "    if (refused.some((holds) => holds(spoken))) {",
+        "to": "    if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "the hook stops seeing a command substitution as hiding a program",
+    "catches": "answers nothing for a command that hides a program in a substitution",
+    "edits": [
+      {
+        "file": "lib/hooks/compound.mjs",
+        "from": "const HIDDEN = /\\$\\(|`|<<|<\\(|>\\(/;",
+        "to": "const HIDDEN = /`|<<|<\\(|>\\(/;"
+      }
+    ]
+  },
+  {
+    "name": "the hook answers for any tool that carries a command, not only Bash",
+    "catches": "is nothing for a call that is not Bash, whatever it carries",
+    "edits": [
+      {
+        "file": "lib/hooks/compound.mjs",
+        "from": "  if (input?.tool_name !== \"Bash\" || decide(",
+        "to": "  if (decide("
+      }
+    ]
+  },
+  {
+    "name": "the hook reads the sides without minding quotes, so a quoted separator cuts a command in two",
+    "catches": "allows a quoted argument with a separator in it",
+    "edits": [
+      {
+        "file": "lib/shell.mjs",
+        "from": "    if (char === '\"' || char === \"'\") {",
+        "to": "    if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "an update writes the hook again over settings that already carry it",
+    "catches": "writes nothing when the hook is there",
+    "edits": [
+      {
+        "file": "lib/seed.mjs",
+        "from": "  if (settings === null || hookWired(settings)) {",
+        "to": "  if (settings === null) {"
+      }
+    ]
+  }
+]

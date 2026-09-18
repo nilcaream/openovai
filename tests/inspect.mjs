@@ -8,6 +8,8 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import { hookWired } from "../lib/hooks/compound.mjs";
+
 // The workspace's own account of every rule it holds beyond a desk and the tools the chat serves.
 export const LEDGER = "allowed.md";
 
@@ -173,6 +175,12 @@ export function settingsProblems(file) {
     .map(([rule]) => rule);
   if (claimed.length > 0) {
     wrong.push(`accounted for but not held: ${JSON.stringify(claimed)}`);
+  }
+
+  // And the one hook an instance is born with: the compound of allowed commands that runs without
+  // a stop. Mechanism beside the rules, and an instance without it asks on every `cd … && …`.
+  if (!hookWired(settings)) {
+    wrong.push(`the hook that lets a compound of allowed commands through is not wired; hooks: ${JSON.stringify(settings?.hooks ?? null)}`);
   }
 
   return wrong;

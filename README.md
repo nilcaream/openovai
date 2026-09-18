@@ -131,19 +131,25 @@ itself — and `instructions.json`. It opens the Leader's desk at `desks/<Leader
 `lib/templates/STATE.md`. A fresh instance's root is exactly that list; `runtime.json` and
 `runtime.log` appear at the first start and `archive/` when the first desk is retired.
 
-Two settings files are seeded once and never touched again. `.claude/settings.json` allows the
+Two settings files are seeded once and never touched again, but for one thing: an update wires
+the hook named below into a `.claude/settings.json` that lacks it, adds no rule, and says which of
+the rules a fresh instance is born with the file has not got. `.claude/settings.json` allows the
 tool server (`mcp__openovai`), reading any file (`Read(/**)`), editing and writing under the three
 trees that are yours (`Edit(/reference/**)`, the same for `projects/` and `temp/` — one rule each:
 `Edit(...)` governs every tool that writes a file, the Write tool included, and a `Write(...)`
-rule matches nothing), working a repository under `projects/` from inside it with plain `git
-clone`, `git checkout`, `git add`, `git commit`, `git status`, `git diff`, `git log`, `mkdir` and
-`cd` (a Bash rule is matched by the command, not by a directory, and from its first character:
-`git -C` spellings and `cd … &&` compounds ask; `git push`, `rm`, `mv`, `npm` and `node` are not in
-the list and ask), and the Leader its own desk directory (`Edit(/desks/<Leader>/**)`) — a desk is
+rule matches nothing), a seat's ordinary shell commands — `git`, `mkdir`, `cd`, `node`, `bash`,
+`sh`, `cp`, `mv`, `rm`, `ls`, `cat`, `tar`, `diff`, `cmp`, `sha256sum`, `grep`, `find`, `sed`,
+`awk`, `head`, `tail`, `wc`, `echo`, `chmod`, `touch`, `curl` and `npm` (a Bash rule is matched by
+the command, not by a directory, and from its first character, so a `git -C` spelling asks; a
+`cd … && …` compound is let through by the one hook the same file wires, `lib/hooks/compound.mjs`,
+run before every Bash call, when every side of it is a command the file allows and none is one it
+denies — anything it cannot read that way it leaves to the harness, which asks as it always did),
+and the Leader its own desk directory (`Edit(/desks/<Leader>/**)`) — a desk is
 a working directory, and everyone hired later gets the same rule for theirs. It denies an edit or
 a write of any desk file (`Edit(/desks/*/STATE.md)`) and of the instance's own account files — a
 desk file is written through a tool, and a stray `Write` on one is refused by the harness without
-a prompt. Every path rule starts with `/`, which anchors it at the instance root: a bare
+a prompt — and it refuses `git push`, `sudo` and `ssh`: a push is yours, and a refusal wins over
+the `git` rule that would let it through, whatever the hook says. Every path rule starts with `/`, which anchors it at the instance root: a bare
 `temp/**` is read from wherever the session is standing, and a session that has stepped into a
 repository under `projects/` with `cd` would be asked again for a write under `temp/` that went
 through from the root. The instance's Claude Code home turns the built-in memory off, so the

@@ -198,6 +198,19 @@ jobs:
       - name: Ask to be allowed, and answer
         run: node --test tests/permissions.test.mjs
 
+  hook:
+    name: Hook
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+
+      - name: Let a compound of allowed commands through, and nothing else
+        run: node --test tests/hook.test.mjs
+
   dialog:
     name: Dialog
     runs-on: ubuntu-latest

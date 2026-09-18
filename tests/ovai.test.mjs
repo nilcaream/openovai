@@ -39,6 +39,7 @@ import { LEDGER, settingsProblems, trustProblems } from "./inspect.mjs";
 // one, which is right when the subject is a run — and no help at all with what a file holding
 // nothing means, which is a question about the reading rather than about the running.
 import { DeskError, POOL, hire, modelFor, persona as renderPersona } from "../lib/desks.mjs";
+import { HOOK_ENTRY } from "../lib/hooks/compound.mjs";
 
 // Open a desk the way the Leader's `hire` tool does, in this process, and answer the way a command
 // would: what was written, or the refusal. The command line has no hire — a Worker joins through
@@ -753,7 +754,7 @@ describe("what a workspace can account for", () => {
 
   function holding(allow, lines) {
     fs.mkdirSync(path.dirname(settings), { recursive: true });
-    fs.writeFileSync(settings, `${JSON.stringify({ permissions: { allow } }, null, 2)}\n`);
+    fs.writeFileSync(settings, `${JSON.stringify({ permissions: { allow }, hooks: { PreToolUse: [HOOK_ENTRY] } }, null, 2)}\n`);
     const written = path.join(path.dirname(settings), LEDGER);
     if (lines === undefined) {
       fs.rmSync(written, { force: true });
@@ -840,7 +841,7 @@ describe("what a workspace can account for", () => {
   // is accounted for by its (ask) line, and the stale (allow) line does not make it a claim.
   it("reads the last line for a rule as the one the settings hold", () => {
     fs.mkdirSync(path.dirname(settings), { recursive: true });
-    fs.writeFileSync(settings, `${JSON.stringify({ permissions: { allow: standing, ask: [WIDE] } }, null, 2)}\n`);
+    fs.writeFileSync(settings, `${JSON.stringify({ permissions: { allow: standing, ask: [WIDE] }, hooks: { PreToolUse: [HOOK_ENTRY] } }, null, 2)}\n`);
     fs.writeFileSync(path.join(path.dirname(settings), LEDGER), [`- \`${WIDE}\` (allow) — ${LEADER}, for x`, `- \`${WIDE}\` (ask) — ${LEADER}, for y`].join("\n"));
     assert.deepEqual(settingsProblems(settings), []);
   });
