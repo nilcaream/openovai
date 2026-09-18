@@ -749,7 +749,7 @@ describe("hiring a worker", () => {
 describe("what a workspace can account for", () => {
   const accounting = scratch("ovai-test-accounting");
   const settings = path.join(accounting, ".claude", "settings.json");
-  const WIDE = "Bash(node:*)";
+  const WIDE = "Bash(make:*)";
 
   function holding(allow, lines) {
     fs.mkdirSync(path.dirname(settings), { recursive: true });
@@ -771,15 +771,33 @@ describe("what a workspace can account for", () => {
     "Edit(/reference/**)",
     "Edit(/projects/**)",
     "Edit(/temp/**)",
-    "Bash(git clone:*)",
-    "Bash(git checkout:*)",
-    "Bash(git add:*)",
-    "Bash(git commit:*)",
-    "Bash(git status:*)",
-    "Bash(git diff:*)",
-    "Bash(git log:*)",
+    "Bash(git:*)",
     "Bash(mkdir:*)",
     "Bash(cd:*)",
+    "Bash(node:*)",
+    "Bash(bash:*)",
+    "Bash(sh:*)",
+    "Bash(cp:*)",
+    "Bash(mv:*)",
+    "Bash(rm:*)",
+    "Bash(ls:*)",
+    "Bash(cat:*)",
+    "Bash(tar:*)",
+    "Bash(diff:*)",
+    "Bash(cmp:*)",
+    "Bash(sha256sum:*)",
+    "Bash(grep:*)",
+    "Bash(find:*)",
+    "Bash(sed:*)",
+    "Bash(awk:*)",
+    "Bash(head:*)",
+    "Bash(tail:*)",
+    "Bash(wc:*)",
+    "Bash(echo:*)",
+    "Bash(chmod:*)",
+    "Bash(touch:*)",
+    "Bash(curl:*)",
+    "Bash(npm:*)",
   ];
 
   after(() => remove(accounting));
@@ -796,7 +814,7 @@ describe("what a workspace can account for", () => {
     const problems = holding([...standing, WIDE], undefined);
     assert.equal(problems.length, 1, JSON.stringify(problems));
     assert.match(problems[0], /nothing accounts for/);
-    assert.match(problems[0], /Bash\(node:\*\)/);
+    assert.match(problems[0], /Bash\(make:\*\)/);
   });
 
   // And says nothing about the same rule once somebody has. The line is the account: the rule
@@ -834,7 +852,7 @@ describe("what a workspace can account for", () => {
     const problems = holding(standing, [`- \`${WIDE}\` (allow) — ${LEADER}, for something that is not granted`]);
     assert.equal(problems.length, 1, JSON.stringify(problems));
     assert.match(problems[0], /accounted for but not held/);
-    assert.match(problems[0], /Bash\(node:\*\)/);
+    assert.match(problems[0], /Bash\(make:\*\)/);
   });
 
   // Prose in the file is prose. A person opening this writes a heading and a sentence about what it

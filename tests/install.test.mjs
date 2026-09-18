@@ -350,12 +350,18 @@ describe("what the installer made", () => {
     assert.deepEqual(deny.filter((rule) => rule.includes("desks/")), ["Edit(/desks/*/STATE.md)"]);
   });
 
+  // A push is the User's, and so are the machine's root and its other hosts: three shell rules
+  // refused at install, and the refusal wins over the `git` rule that would let a push through.
+  it("denies git push, sudo and ssh at install", () => {
+    const deny = JSON.parse(contentOf(".claude", "settings.json")).permissions.deny;
+    assert.deepEqual(deny.filter((rule) => rule.startsWith("Bash(")), ["Bash(git push:*)", "Bash(sudo:*)", "Bash(ssh:*)"]);
+  });
+
   // The allow list, exactly: the tool server, the reads, the edit rule for each of the three
-  // trees the User works in, the shell commands a seat clones, branches and commits a repository
-  // under projects/ with (and cd, mkdir; never push, never rm or mv, never npm), and the Leader's
-  // own desk directory — a desk is a working directory. Spelled out rather than asked of the code,
-  // so a widened list is caught here.
-  it("allows the tool server, the reads, the three trees, the shell commands a seat works a repository with, the Leader's desk directory, and nothing else", () => {
+  // trees the User works in, the shell commands of a seat's ordinary day, and the Leader's own
+  // desk directory — a desk is a working directory. Spelled out rather than asked of the code, so
+  // a widened list is caught here.
+  it("allows the tool server, the reads, the three trees, the shell commands of a seat's day, the Leader's desk directory, and nothing else", () => {
     const permissions = JSON.parse(contentOf(".claude", "settings.json")).permissions;
     assert.deepEqual(permissions.allow, [
       "mcp__openovai",
@@ -363,25 +369,44 @@ describe("what the installer made", () => {
       "Edit(/reference/**)",
       "Edit(/projects/**)",
       "Edit(/temp/**)",
-      "Bash(git clone:*)",
-      "Bash(git checkout:*)",
-      "Bash(git add:*)",
-      "Bash(git commit:*)",
-      "Bash(git status:*)",
-      "Bash(git diff:*)",
-      "Bash(git log:*)",
+      "Bash(git:*)",
       "Bash(mkdir:*)",
       "Bash(cd:*)",
+      "Bash(node:*)",
+      "Bash(bash:*)",
+      "Bash(sh:*)",
+      "Bash(cp:*)",
+      "Bash(mv:*)",
+      "Bash(rm:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(tar:*)",
+      "Bash(diff:*)",
+      "Bash(cmp:*)",
+      "Bash(sha256sum:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(sed:*)",
+      "Bash(awk:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(wc:*)",
+      "Bash(echo:*)",
+      "Bash(chmod:*)",
+      "Bash(touch:*)",
+      "Bash(curl:*)",
+      "Bash(npm:*)",
       `Edit(/desks/${LEADER}/**)`,
     ]);
   });
 
   // A refusal is absolute: no rule overrides it, the call never reaches a panel, and somebody who
   // works differently is blocked rather than defaulted away. So these name the workspace's account
-  // of itself and the one file a tool writes, and nothing anybody works on.
-  it("refuses nothing about anybody's work", () => {
+  // of itself, the one file a tool writes, and the three shell commands that are the User's —
+  // and nothing else anybody works on.
+  it("refuses nothing about anybody's work beyond the push, the root and the other hosts", () => {
     const deny = JSON.parse(contentOf(".claude", "settings.json")).permissions.deny;
-    assert.deepEqual(deny.filter((rule) => !rule.startsWith("Edit(/.claude") && !rule.startsWith("Edit(/.local") && !rule.endsWith("(/desks/*/STATE.md)")), []);
+    assert.deepEqual(deny.filter((rule) => !rule.startsWith("Edit(/.claude") && !rule.startsWith("Edit(/.local") && !rule.endsWith("(/desks/*/STATE.md)")), ["Bash(git push:*)", "Bash(sudo:*)", "Bash(ssh:*)"]);
   });
 
   // And the subtree deliberately left open, because the memory index and the transcripts live in

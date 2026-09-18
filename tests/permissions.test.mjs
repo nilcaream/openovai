@@ -509,21 +509,39 @@ describe("asking to be allowed", () => {
 
   describe("allowing the shape and not only the call", () => {
     // One rule per side of the command that nothing allows yet: the cd is held by the instance from
-    // birth, node and make are not, and the two rules land in the order they were written.
-    const RULES = ["Bash(node:*)", "Bash(make:*)"];
-    const CALL = "cd projects/app && node --test tests && make build";
+    // birth, make and cmake are not, and the two rules land in the order they were written.
+    const RULES = ["Bash(make:*)", "Bash(cmake:*)"];
+    const CALL = "cd projects/app && make build && cmake --build out";
     // The shell rules an instance is born with, spelled out rather than imported so that a press
     // which widened the list beyond its one rule is caught here and not agreed with.
     const BORN_WITH = [
-      "Bash(git clone:*)",
-      "Bash(git checkout:*)",
-      "Bash(git add:*)",
-      "Bash(git commit:*)",
-      "Bash(git status:*)",
-      "Bash(git diff:*)",
-      "Bash(git log:*)",
+      "Bash(git:*)",
       "Bash(mkdir:*)",
       "Bash(cd:*)",
+      "Bash(node:*)",
+      "Bash(bash:*)",
+      "Bash(sh:*)",
+      "Bash(cp:*)",
+      "Bash(mv:*)",
+      "Bash(rm:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(tar:*)",
+      "Bash(diff:*)",
+      "Bash(cmp:*)",
+      "Bash(sha256sum:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(sed:*)",
+      "Bash(awk:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(wc:*)",
+      "Bash(echo:*)",
+      "Bash(chmod:*)",
+      "Bash(touch:*)",
+      "Bash(curl:*)",
+      "Bash(npm:*)",
     ];
     const settings = path.join(instance, ".claude", "settings.json");
     const ledger = path.join(instance, LEDGER);
@@ -777,16 +795,16 @@ describe("asking to be allowed", () => {
     });
 
     it("refuses a decision that is not one of the three for that kind of question", async () => {
-      const asked = await permission({ rule: "Bash(npm:*)", why: "the User said npm is fine" });
+      const asked = await permission({ rule: "Bash(pip3:*)", why: "the User said pip3 is fine" });
       assert.equal(asked.refused, false, asked.text);
       const [request] = JSON.parse((await page("GET", `/sessions/${LEADER}/permissions`)).body).permissions;
-      assert.equal(request.rule, "Bash(npm:*)");
+      assert.equal(request.rule, "Bash(pip3:*)");
       const always = await page("POST", `/sessions/${LEADER}/permission`, { id: request.id, decision: "always" });
       assert.equal(always.status, 400, always.body);
       assert.match(always.body, /allow, deny or ask/);
       const denied = await page("POST", `/sessions/${LEADER}/permission`, { id: request.id, decision: "deny" });
       assert.equal(denied.status, 200, denied.body);
-      assert.ok(settings().deny.includes("Bash(npm:*)"));
+      assert.ok(settings().deny.includes("Bash(pip3:*)"));
     });
   });
 
