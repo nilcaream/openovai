@@ -4,6 +4,87 @@ For the Leader of a workspace taking this version. Short, and about what is diff
 working there — not a developer changelog. A section per release, newest first; a release page
 carries only its own.
 
+## 0.12.0
+
+A seat's ordinary shell commands are allowed from install, three are refused when spelled plain,
+a compound of allowed commands runs without a stop, the store says when it chose a replacement,
+and an instance whose trust cannot be recorded does not start. A fresh instance's
+`.claude/settings.json` grants `git`, `mkdir`, `cd`, `node`, `bash`, `sh`, `cp`, `mv`, `rm`, `ls`,
+`cat`, `tar`, `diff`, `cmp`, `sha256sum`, `grep`, `find`, `sed`, `awk`, `head`, `tail`, `wc`,
+`echo`, `chmod`, `touch`, `curl` and `npm`, and refuses `git push`, `sudo` and `ssh`; every path
+rule is anchored at the instance root and is an `Edit` rule alone; and `Always` on a dialog offers
+one rule per side of a compound command, none for a side that only reads, and nothing at all for a
+command with a side that starts with a shell reserved word.
+
+**The ordinary day raises no stop.** A repository cloned, branched, staged and committed, files
+copied, moved, removed and compared, a script run, an archive made, a page fetched — each of these
+is a command on the list above, and the list is in the settings from the moment the instance is
+made, for every seat. Three commands are refused when spelled plain rather than asked: `git push`
+is the User's, `sudo` and `ssh` are nobody's here, and a refusal wins over the `git` rule that
+would let a push through. A refusal reads a command the way an allowance does, from its first
+character and never by a directory, so it holds the plain spelling and no other: `bash -c 'git
+push'` is the `bash` rule's, and a push stays the User's by the rules of the room, not by the file
+alone. The same reading is why `git -C` asks, and why a compound — `cd projects/x && git status` —
+was asked for as a whole whatever its halves were, until the hook below. A workspace already
+installed keeps the rules it has: `ovai update` wires the hook into a `.claude/settings.json` that
+lacks it, adds no rule, and says which of the rules a fresh instance is born with the file has not
+got.
+
+**`Always` offers what is worth keeping.** A dialog for a compound command offers one rule per side —
+`git` by its subcommand, `git push` rather than `git`, the way the instance is born granting it —
+and none for a side that only reads: `ls`, `cat`, `echo`, `pwd`, `head`, `tail`, `grep`, `find`,
+`wc`, `which`, `diff`, `stat`, `du`, `cd` and the read-only forms of `git` are run by the harness
+without asking, so a rule for one of them settles nothing at a stop. The nine of those a rule can
+name — `ls`, `cat`, `diff`, `grep`, `find`, `head`, `tail`, `wc` and `echo` — are seeded all the
+same, so the list the hook reads is one list and a compound of them goes through like any other. A
+command with a side that starts with a shell reserved word — `for`, `do`, `done`, `if`, `while` and
+the rest — gets no `Always` at all: `for f in a b; do cmp x/$f $f; done` would offer `Bash(for:*)`,
+`Bash(do:*)`, `Bash(done:*)`, three rules that name no program and would let anything in inside a
+loop. What is offered is what a rule can say; what a rule cannot say is not offered.
+
+**Every path rule is anchored at the root.** The rules the installer seeds and the rules a desk
+brings with it — `Edit(/desks/<Name>/**)`, `Edit(/projects/**)`, `Edit(/reference/**)`,
+`Edit(/temp/**)` and the refusal `Edit(/desks/*/STATE.md)` — begin at the instance root, so they
+hold from wherever the session is standing, and each is an `Edit` rule alone: the harness reads an
+`Edit` rule for `Write` too, and a twin that said the same was one more line to keep in step.
+
+**A compound of allowed commands runs without a stop.** A Bash rule is matched from the command's
+first character, so a seat whose settings held `cd`, `git` and `npm` was still stopped on
+`cd projects/x && npm test`: no one rule held the whole. Now a hook the instance is born with —
+`lib/hooks/compound.mjs`, wired in `.claude/settings.json` to run before every shell command — cuts
+the command into its sides the way the dialog does, and when every side is a command the file's own
+`allow` holds and none is one its `deny` refuses, the command runs and nobody is asked. Anything
+else it answers nothing about, and the harness asks as it always did. It never refuses: refusing is
+the rules' job, and the harness reads a deny rule whatever a hook says. What it lets through is
+never wider than the rules — what a rule already lets through on its own, one side at a time — and
+it reads the settings at every call, so a rule the User settles later counts at the next command
+and one taken out stops counting. A command it cannot read as plain text — a substitution, a
+here-document, a quote left open, a `find` that runs what it finds — gets no answer, which is the
+stop the harness would have raised anyway.
+
+**The store is judged by a model.** A write's answer says what it replaced, and whether the writer
+named the record it supersedes or the store chose it: a replacement the writer named reads as
+before, and one the store chose says so, with the reason, to the writer — and says "the writer
+named nothing" to whoever recalls it later. The descriptions of `remember` and `recall` say what the
+store is — managed by a model, not a file, never a lookup over a memory file known from elsewhere —
+and both personas say the same, so nobody writes a record expecting it to be matched by its words.
+
+**The harness's own directories are not gone round.** `.claude`, `.git`, `.idea`, `.vscode` and the
+like are the harness's wherever they sit, `projects/` included: a write there asks the User whatever
+the rules say, and the Worker's persona says a script, a copy or a rename is not the way round it —
+ask, or leave it. The Worker is also told that a compound whose every side is allowed runs without a
+stop, and that one with a side nothing holds asks: spell it plain, or ask for the rule.
+
+**An instance whose trust cannot be recorded does not start.** Every session's rules hang on one
+record in the instance's own home, the trust the harness reads before it honours
+`.claude/settings.json`; a home that could not take it used to start every seat asking for
+everything it does, with a line on stderr nobody reads. Now `ovai start` records the trust once,
+before anything is served, reads it back, and refuses with one sentence naming the file and the
+error when it is not there, so no session runs with its rules off; a new CI job, `start`, watches
+exactly that.
+
+A fresh instance turns Claude Code's commit and pull request attribution off (`attribution`: empty `commit` and `pr`, `sessionUrl` false), and `ovai update` turns it off in settings that say nothing about it; a file that says something is the person's.
+
 ## 0.11.0
 
 The command is a daemon's and the instance root is laid out for what each thing is. `ovai start`
