@@ -845,6 +845,11 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
+        "from": "  .msg.peer-in, .msg.peer-out { cursor: pointer; }\n",
+        "to": ""
+      },
+      {
+        "file": "lib/chat/page.html",
         "from": "  .msg.peer-in .bubble, .msg.peer-out .bubble { overflow-wrap: anywhere; }\n",
         "to": ""
       },
@@ -1269,6 +1274,17 @@
         "file": "lib/chat/page.html",
         "from": "  .msg.collapsed .md { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }",
         "to": "  .msg.collapsed .md { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }"
+      }
+    ]
+  },
+  {
+    "name": "the rows that fold on a double click lose the pointer",
+    "catches": "carry the pointer over the rows that fold on a double click, and over no other row",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "  .msg.peer-in, .msg.peer-out { cursor: pointer; }",
+        "to": "  .msg.peer-in, .msg.peer-out { cursor: default; }"
       }
     ]
   },

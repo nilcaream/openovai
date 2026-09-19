@@ -238,6 +238,15 @@ describe("the rules", () => {
     assert.equal(folded.declarations.overflow, "hidden");
   });
 
+  // The rows that fold and unfold on a double click — a message to a Worker, a message from one —
+  // carry the pointer, folded or open, so the mouse says the row answers a click; no other row does.
+  it("carry the pointer over the rows that fold on a double click, and over no other row", () => {
+    const pointing = (selector) => rules.some((rule) => rule.selector.split(",").map((part) => part.trim()).includes(selector) && rule.declarations.cursor === "pointer");
+    assert.ok(pointing(".msg.peer-in"), "a message from a Worker carries the pointer");
+    assert.ok(pointing(".msg.peer-out"), "a message to a Worker carries the pointer");
+    for (const other of [".msg", ".msg.user", ".msg.typed", ".msg.overheard", ".msg.perm", ".msg.collapsed"]) assert.ok(!pointing(other), `${other} carries no pointer`);
+  });
+
   it("make the stamp a click, and say so under the pointer", () => {
     const stamp = rules.find((rule) => rule.selector === ".meta .t");
     assert.equal(stamp.declarations.cursor, "pointer");

@@ -128,6 +128,7 @@
   .msg.pending .bubble { background: var(--pending); border-style: dashed; color: var(--fg-dim); }
   .msg.failed .bubble { border-color: var(--bad); }
   /* a message between two sessions on the Leader's panel: one ground for what went to a session, another for what came from one */
+  .msg.peer-in, .msg.peer-out { cursor: pointer; }
   .msg.peer-in .bubble, .msg.peer-out .bubble { overflow-wrap: anywhere; }
   .msg.peer-in .bubble { background: var(--from); border-color: var(--from-line); }
   .msg.peer-out .bubble { background: var(--to); border-color: var(--to-line); }
