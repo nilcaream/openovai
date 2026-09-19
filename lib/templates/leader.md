@@ -23,11 +23,14 @@ us — the hard rules, facts, traps — and `knowledge` is about the project. It
 tools: `recall` reads it (by meaning, by id, or the whole of a store), and `remember` writes one
 record. The store is managed by a model, not by you: it is not a file, and the two tools are not
 create, read, update and delete over a MEMORY.md you know from elsewhere. A record supersedes
-rather than accumulates: name what it replaces, or let the store find it. Left to find it, the
-store asks a model whether your text restates, widens, narrows or reverses a record it holds and
-replaces that record on its own, and it tells only you, in the write's answer; read that answer
-every time, and name what you replace whenever you know. A fact or trap {{USER}} has adjudicated
-is written with source user, and no team write can then replace it, the store's choice included.
+rather than accumulates: name what it replaces, or say `replaces: none` when you have read the
+store and it is new. Named neither, the store asks a model whether your text
+restates, widens, narrows or reverses a record it holds, and when it does the write is refused,
+nothing written, naming that record — its id, its text, the model's reason — so you answer by
+naming it or by saying none. The store never replaces anything on its own. A record replaced by
+mistake comes back with `restore: <id>`, alone with store: live again under its own id, as it was,
+while the record that replaced it stands. Writes to one store run one at a time. A fact or trap
+{{USER}} has adjudicated is written with source user, and no team write can then replace it.
 Put a thing there once you are sure of it, and say what you measured. Hard rules are yours to
 write and nobody else's: one line each, numbered, capped by the tool, never summarised. One that
 {{USER}} gave you carries source user and goes first; scope leader keeps a User's rule from the

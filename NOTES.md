@@ -4,6 +4,38 @@ For the Leader of a workspace taking this version. Short, and about what is diff
 working there — not a developer changelog. A section per release, newest first; a release page
 carries only its own.
 
+## 0.14.0
+
+The store replaces nothing on its own judgement, a write says when it is new, and a record replaced
+by mistake comes back. Nothing is configured.
+
+**Nothing silent: a resemblance refuses, it does not replace.** A `remember` that named no
+`replaces` used to be matched by a model against the records of its kind, and the one the model
+judged restated, widened, narrowed or reversed was replaced there and then — the writer learned
+of it from the answer, or not at all, and a whole backlog record went that way once. The match
+still happens; what changed is what follows it. A text that reads as a record already held is
+refused, nothing written, and the refusal names the record — its id, its text, the model's reason
+— so the writer answers: `replaces: <that id>` if it agrees, `replaces: none` if the record is
+new. `none` is the word for "I have read the store and this replaces nothing": the model is not
+asked, and nothing is refused on a resemblance. A `reason` goes with `replaces` naming a record and
+is refused without one. What a recall shows is the same as before, minus one thing: no line says
+the store chose, because it never does.
+
+**A replaced record comes back.** `remember` with `restore: <id>`, alone with the store, brings a
+replaced record back live under its own id, as it was — the text, the source, the `until`, the
+provenance. The record that replaced it stands: a restore is not a swap, and a text somebody wrote
+over the lost one is theirs to replace or leave. The restored record's line says who restored it,
+when, and what had replaced it. On disk the restore is one more file, a marker naming the record,
+so the history stays what it was: nothing edited in place, nothing deleted. A hard rule is not
+restored this way — two live rules with one number would be a broken set — it is written again
+over the rule that holds its number; and the User's record is the Leader's to restore.
+
+**One write at a time.** Writes to one store run in the order they arrive, each one reading the
+files after the one before it has written — as they have since the store was made; said here
+because the two changes above lean on it. Nothing is merged and no two writers' records are
+reconciled: the second of two writes that both replace a record is refused, and its writer reads
+what stands and writes again.
+
 ## 0.13.0
 
 What the User types goes in ahead of a seat's backlog, a stop says what the seat goes on to, a

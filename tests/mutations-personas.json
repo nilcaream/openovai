@@ -529,7 +529,7 @@
   },
   {
     "name": "the Leader's persona says the store is a file of its own",
-    "catches": "tells the Leader the store is managed by a model, not a file, and that left to find it the store replaces on its own and tells only the writer",
+    "catches": "tells the Leader the store is managed by a model, not a file, that a resemblance is refused naming the record, none says new, and restore brings a record back",
     "edits": [
       {
         "file": "lib/templates/leader.md",
@@ -539,13 +539,35 @@
     ]
   },
   {
-    "name": "the Leader's persona drops what the store does when left to find it",
-    "catches": "tells the Leader the store is managed by a model, not a file, and that left to find it the store replaces on its own and tells only the writer",
+    "name": "the Leader's persona says the store replaces on its own again",
+    "catches": "tells the Leader the store is managed by a model, not a file, that a resemblance is refused naming the record, none says new, and restore brings a record back",
     "edits": [
       {
         "file": "lib/templates/leader.md",
-        "from": "Left to find it, the\nstore asks a model whether your text restates, widens, narrows or reverses a record it holds and\nreplaces that record on its own, and it tells only you, in the write's answer; read that answer\nevery time, and name what you replace whenever you know. ",
+        "from": "restates, widens, narrows or reverses a record it holds, and when it does the write is refused,\nnothing written, naming that record — its id, its text, the model's reason — so you answer by\nnaming it or by saying none. The store never replaces anything on its own. ",
+        "to": "restates, widens, narrows or reverses a record it holds and replaces that record on its own. "
+      }
+    ]
+  },
+  {
+    "name": "the Leader's persona drops restore",
+    "catches": "tells the Leader the store is managed by a model, not a file, that a resemblance is refused naming the record, none says new, and restore brings a record back",
+    "edits": [
+      {
+        "file": "lib/templates/leader.md",
+        "from": "A record replaced by\nmistake comes back with `restore: <id>`, alone with store: live again under its own id, as it was,\nwhile the record that replaced it stands. ",
         "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the Leader's persona drops none",
+    "catches": "tells the Leader the store is managed by a model, not a file, that a resemblance is refused naming the record, none says new, and restore brings a record back",
+    "edits": [
+      {
+        "file": "lib/templates/leader.md",
+        "from": "rather than accumulates: name what it replaces, or say `replaces: none` when you have read the\nstore and it is new. Named neither, ",
+        "to": "rather than accumulates: name what it replaces. Named neither, "
       }
     ]
   },
@@ -555,14 +577,14 @@
     "edits": [
       {
         "file": "lib/templates/leader.md",
-        "from": "A fact or trap {{USER}} has adjudicated\nis written with source user, and no team write can then replace it, the store's choice included.\n",
+        "from": "A fact or trap\n{{USER}} has adjudicated is written with source user, and no team write can then replace it.\n",
         "to": ""
       }
     ]
   },
   {
     "name": "the Worker's persona says the store is a file of its own",
-    "catches": "tells the Worker the store is managed by a model, not a file, and that left to find it the store replaces on its own and tells only the writer",
+    "catches": "tells the Worker the store is managed by a model, not a file, that a resemblance is refused naming the record, none says new, and restore brings a record back",
     "edits": [
       {
         "file": "lib/templates/worker.md",
@@ -572,12 +594,23 @@
     ]
   },
   {
-    "name": "the Worker's persona drops what the store does when left to find it",
-    "catches": "tells the Worker the store is managed by a model, not a file, and that left to find it the store replaces on its own and tells only the writer",
+    "name": "the Worker's persona says the store replaces on its own again",
+    "catches": "tells the Worker the store is managed by a model, not a file, that a resemblance is refused naming the record, none says new, and restore brings a record back",
     "edits": [
       {
         "file": "lib/templates/worker.md",
-        "from": "Left to find it, the store asks a model whether your text restates, widens, narrows\nor reverses a record it holds and replaces that record on its own, and it tells only you, in the\nwrite's answer; read that answer every time, and name what you replace whenever you know. ",
+        "from": "store asks a model whether your text restates, widens, narrows or reverses a record it holds, and\nwhen it does the write is refused, nothing written, naming that record — its id, its text, the\nmodel's reason — so you answer by naming it or by saying none. The store never replaces anything\non its own. ",
+        "to": "store asks a model whether your text restates, widens, narrows or reverses a record it holds and\nreplaces that record on its own. "
+      }
+    ]
+  },
+  {
+    "name": "the Worker's persona drops restore",
+    "catches": "tells the Worker the store is managed by a model, not a file, that a resemblance is refused naming the record, none says new, and restore brings a record back",
+    "edits": [
+      {
+        "file": "lib/templates/worker.md",
+        "from": "A record replaced by mistake comes back with `restore: <id>`, alone with store: live\nagain under its own id, as it was, while the record that replaced it stands. ",
         "to": ""
       }
     ]

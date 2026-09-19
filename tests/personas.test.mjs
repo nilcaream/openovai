@@ -144,13 +144,16 @@ describe("what the Leader is told", () => {
     assert.doesNotMatch(leader(), /store\//);
   });
 
-  it("tells the Leader the store is managed by a model, not a file, and that left to find it the store replaces on its own and tells only the writer", () => {
+  it("tells the Leader the store is managed by a model, not a file, that a resemblance is refused naming the record, none says new, and restore brings a record back", () => {
     assert.match(leader(), /The store is managed by a model, not by you: it is not a file, and the two tools are not\s+create, read, update and delete over a MEMORY\.md you know from elsewhere\./);
-    assert.match(leader(), /Left to find it, the\s+store asks a model whether your text restates, widens, narrows or reverses a record it holds and\s+replaces that record on its own, and it tells only you, in the write's answer; read that answer\s+every time, and name what you replace whenever you know\./);
+    assert.match(leader(), /name what it replaces, or say `replaces: none` when you have read the\s+store and it is new\./);
+    assert.match(leader(), /Named neither, the store asks a model whether your text\s+restates, widens, narrows or reverses a record it holds, and when it does the write is refused,\s+nothing written, naming that record — its id, its text, the model's reason — so you answer by\s+naming it or by saying none\. The store never replaces anything on its own\./);
+    assert.match(leader(), /A record replaced by\s+mistake comes back with `restore: <id>`, alone with store: live again under its own id, as it was,\s+while the record that replaced it stands\. Writes to one store run one at a time\./);
+    assert.doesNotMatch(leader(), /replaces that record on its own|the store's choice included/);
   });
 
   it("tells the Leader that a fact or trap the User adjudicated is written with source user and no team write replaces it", () => {
-    assert.match(leader(), /A fact or trap Mike has adjudicated\s+is written with source user, and no team write can then replace it, the store's choice included\./);
+    assert.match(leader(), /A fact or trap\s+Mike has adjudicated is written with source user, and no team write can then replace it\./);
   });
 
   it("tells the Leader that hard rules are its to write and that a Worker proposes one", () => {
@@ -266,9 +269,12 @@ describe("what a Worker is told", () => {
     assert.doesNotMatch(worker(), /store\//);
   });
 
-  it("tells the Worker the store is managed by a model, not a file, and that left to find it the store replaces on its own and tells only the writer", () => {
+  it("tells the Worker the store is managed by a model, not a file, that a resemblance is refused naming the record, none says new, and restore brings a record back", () => {
     assert.match(worker(), /The store is managed by a model, not by you:\s+it is not a file, and the two tools are not create, read, update and delete over a MEMORY\.md you\s+know from elsewhere\./);
-    assert.match(worker(), /Left to find it, the store asks a model whether your text restates, widens, narrows\s+or reverses a record it holds and replaces that record on its own, and it tells only you, in the\s+write's answer; read that answer every time, and name what you replace whenever you know\./);
+    assert.match(worker(), /name what it replaces, or say\s+`replaces: none` when you have read the store and it is new\./);
+    assert.match(worker(), /Named neither, the\s+store asks a model whether your text restates, widens, narrows or reverses a record it holds, and\s+when it does the write is refused, nothing written, naming that record — its id, its text, the\s+model's reason — so you answer by naming it or by saying none\. The store never replaces anything\s+on its own\./);
+    assert.match(worker(), /A record replaced by mistake comes back with `restore: <id>`, alone with store: live\s+again under its own id, as it was, while the record that replaced it stands\./);
+    assert.doesNotMatch(worker(), /replaces that record on its own/);
   });
 
   it("tells the Worker that a hard rule is the Leader's to write and is proposed", () => {

@@ -261,35 +261,62 @@ describe("replacing", () => {
     assert.match(said.refused ?? "", /m1 was replaced by m3; replace the current record instead/);
   });
 
-  it("replaces an identical text without asking the helper", async () => {
+  // The store never chooses. Without `replaces`, a text that is a record already held — byte for
+  // byte, or as the helper judges — is refused with that record, and the writer names it or says none.
+  it("refuses the same text again without asking the helper, naming the record, and writes nothing", async () => {
     const { helper, asked } = stubHelper();
     const said = await remember(root, { store: "memory", kind: "fact", text: "  the User prefers a   dark palette " }, context(root, { helper }));
-    assert.equal(said.refused, undefined, said.refused);
+    assert.equal(
+      said.refused,
+      'not written: this reads as [m2] "the User prefers a dark palette" restated, widened, narrowed or reversed — the same text; re-issue with replaces: m2 if so, or replaces: none for a new record',
+    );
     assert.deepEqual(asked, []);
-    assert.equal(readRecord(root, "memory", 5).supersedes, "m2");
+    assert.deepEqual(filesIn(root, "memory"), ["000001.md", "000002.md", "000003.md", "000004.md"]);
   });
 
-  it("asks the helper about the same store and kind only, and takes what it names", async () => {
+  it("asks the helper about the current records of the same store and kind only, and refuses with the record it names, its text and the reason, writing nothing", async () => {
+    const widened = await remember(root, { store: "memory", kind: "fact", text: "the User prefers a dark palette, on every panel", replaces: "m2", reason: "widened" }, context(root));
+    assert.equal(widened.refused, undefined, widened.refused);
     const { helper, asked, answers } = stubHelper();
     answers.push({ answer: { replaces: "m5", reason: "the same preference, reversed" } });
     const said = await remember(root, { store: "memory", kind: "fact", text: "the User prefers a light palette" }, context(root, { helper }));
-    assert.equal(said.refused, undefined, said.refused);
+    assert.equal(
+      said.refused,
+      'not written: this reads as [m5] "the User prefers a dark palette, on every panel" restated, widened, narrowed or reversed — the same preference, reversed; re-issue with replaces: m5 if so, or replaces: none for a new record',
+    );
     assert.equal(asked.length, 1);
     assert.equal(asked[0].question, "replaces");
     assert.deepEqual(
       asked[0].request.records.map((record) => record.id),
       ["m5"],
     );
-    const record = readRecord(root, "memory", 6);
-    assert.equal(record.supersedes, "m5");
-    assert.equal(record.reason, "the same preference, reversed");
+    assert.deepEqual(filesIn(root, "memory").length, 5);
+    // The User's record is named like any other: the refusal comes before the door on it.
+    const { helper: names, answers: staged } = stubHelper();
+    staged.push({ answer: { replaces: "m4", reason: "the same rule" } });
+    const rule_ = await rule(root, "Push only after the release commit is on main", {}, { helper: names });
+    assert.match(rule_.refused ?? "", /^not written: this reads as \[m4\] "Never push before the release commit is on main, ever" restated, widened, narrowed or reversed — the same rule;/);
+    assert.deepEqual(filesIn(root, "memory").length, 5);
   });
 
-  it("refuses a team write when the helper names the User's record", async () => {
-    const { helper, answers } = stubHelper();
-    answers.push({ answer: { replaces: "m4", reason: "the same rule" } });
-    const said = await rule(root, "Push only after the release commit is on main", {}, { helper });
-    assert.match(said.refused ?? "", /m4 is the User's hard-rule; only a write with source user can replace it/);
+  it("writes a new record on replaces none without asking the helper", async () => {
+    const { helper, asked, answers } = stubHelper();
+    answers.push({ answer: { replaces: "m5", reason: "the same preference, reversed" } });
+    const said = await remember(root, { store: "memory", kind: "fact", text: "the User prefers a light palette", replaces: "none" }, context(root, { helper }));
+    assert.equal(said.refused, undefined, said.refused);
+    assert.deepEqual(asked, []);
+    const record = readRecord(root, "memory", 6);
+    assert.equal(record.text, "the User prefers a light palette");
+    assert.equal(record.supersedes, undefined);
+    assert.equal(record.reason, undefined);
+    assert.match(said.text, /^\[m6\] fact, team - "the User prefers a light palette"\n\s+by Leader, 2026-09-12 19:04 CEST$/);
+  });
+
+  it("refuses a reason without replaces naming a record", async () => {
+    for (const replaces of [undefined, "none"]) {
+      const said = await remember(root, { store: "memory", kind: "fact", text: "a fact with a reason", replaces, reason: "because" }, context(root));
+      assert.equal(said.refused, "reason goes with replaces naming a record; leave it out or name what this replaces");
+    }
     assert.deepEqual(filesIn(root, "memory").length, 6);
   });
 
@@ -304,6 +331,79 @@ describe("replacing", () => {
     await assert.rejects(remember(root, { store: "memory", kind: "fact", text: "a seventh fact" }, context(root, { helper })), /EEXIST/);
     assert.equal(fs.readFileSync(recordFile(root, "memory", 7), "utf8"), planted);
     fs.rmSync(recordFile(root, "memory", 7));
+  });
+});
+
+describe("restoring", () => {
+  const root = freshRoot();
+  const asPaul = { caller: PAUL };
+
+  before(async () => {
+    await remember(root, { store: "knowledge", kind: "fact", text: "the backlog: A, B, C" }, context(root));
+    await remember(root, { store: "knowledge", kind: "fact", text: "the backlog: D", replaces: "k1", reason: "wrote over it" }, context(root));
+    await rule(root, "Never push on Fridays", { source: "user" });
+    await rule(root, "Never push on Fridays or Mondays", { source: "user", replaces: "m1" });
+    await remember(root, { store: "memory", kind: "fact", text: "the User's fact", source: "user" }, context(root));
+    await remember(root, { store: "memory", kind: "fact", text: "the User's fact, changed", source: "user", replaces: "m3" }, context(root));
+  });
+
+  it("brings a replaced record back live under its id by a marker file, the record that replaced it standing, and says so on its line", async () => {
+    const said = await remember(root, { store: "knowledge", restore: "k1" }, context(root, asPaul));
+    assert.equal(said.refused, undefined, said.refused);
+    assert.equal(
+      said.text,
+      '[k1] fact, team - "the backlog: A, B, C"\n      by Leader, 2026-09-12 19:04 CEST; restored by Paul (Worker), 2026-09-12 19:04 CEST (had been replaced by k2, which stands)',
+    );
+    assert.deepEqual(readRecord(root, "knowledge", 3), { id: "k3", store: "knowledge", by: "Paul (Worker)", at: "2026-09-12T19:04:11+02:00", restores: "k1", text: "" });
+    const all = await recall(root, { store: "knowledge", all: true }, context(root));
+    assert.match(all.text, /^\[k1\] fact, team - "the backlog: A, B, C"\n/);
+    assert.match(all.text, /\n\[k2\] fact, team - "the backlog: D"\n/);
+    assert.doesNotMatch(all.text, /k3/);
+    const one = await recall(root, { store: "knowledge", id: "k1" }, context(root));
+    assert.equal(one.text, said.text);
+    const marker = await recall(root, { store: "knowledge", id: "k3" }, context(root));
+    assert.equal(marker.text, "k3 is not a record: it restored k1 (by Paul (Worker), 2026-09-12 19:04 CEST)");
+  });
+
+  it("hands the helper the restored record with the rest, and a later replacement of it takes the restored line off", async () => {
+    const { helper, asked, answers } = stubHelper();
+    answers.push({ answer: { replaces: null, reason: "new" } });
+    const other = await remember(root, { store: "knowledge", kind: "fact", text: "something else entirely" }, context(root, { helper }));
+    assert.equal(other.refused, undefined, other.refused);
+    assert.deepEqual(asked[0].request.records.map((record) => record.id), ["k1", "k2"]);
+    const again = await remember(root, { store: "knowledge", kind: "fact", text: "the backlog: A, B, C, E", replaces: "k1" }, context(root));
+    assert.equal(again.refused, undefined, again.refused);
+    const one = await recall(root, { store: "knowledge", id: "k1" }, context(root));
+    assert.match(one.text, /^\[k1\] fact, team - "the backlog: A, B, C" \(replaced by k5\)\n\s+by Leader, 2026-09-12 19:04 CEST$/);
+  });
+
+  it("refuses restoring an unknown id, a marker, a current record, a hard rule, or the User's record from a Worker, and writes nothing", async () => {
+    const knowledge = filesIn(root, "knowledge").length;
+    const memory = filesIn(root, "memory").length;
+    const unknown = await remember(root, { store: "knowledge", restore: "k99" }, context(root));
+    assert.equal(unknown.refused, "k99 is not a record of knowledge; restore names a replaced record by its id");
+    const marker = await remember(root, { store: "knowledge", restore: "k3" }, context(root));
+    assert.equal(marker.refused, "k3 is not a record of knowledge; restore names a replaced record by its id");
+    const live = await remember(root, { store: "knowledge", restore: "k2" }, context(root));
+    assert.equal(live.refused, "k2 is current; nothing to restore");
+    const hardRule = await remember(root, { store: "memory", restore: "m1" }, context(root));
+    assert.equal(hardRule.refused, "m1 is a hard rule; a hard rule comes back by being written again with replaces naming the rule that holds number 1");
+    const users = await remember(root, { store: "memory", restore: "m3" }, context(root, asPaul));
+    assert.equal(users.refused, "m3 is the User's fact; the Leader restores it");
+    assert.equal(filesIn(root, "knowledge").length, knowledge);
+    assert.equal(filesIn(root, "memory").length, memory);
+    const leader = await remember(root, { store: "memory", restore: "m3" }, context(root));
+    assert.equal(leader.refused, undefined, leader.refused);
+    assert.equal(filesIn(root, "memory").length, memory + 1);
+  });
+
+  it("refuses a restore with anything beside store and restore, or one that is not an id", async () => {
+    const beside = await remember(root, { store: "knowledge", restore: "k1", kind: "fact", text: "a text" }, context(root));
+    assert.equal(beside.refused, "restore goes alone with store; take kind, text out");
+    const notAnId = await remember(root, { store: "knowledge", restore: 1 }, context(root));
+    assert.equal(notAnId.refused, "restore is a record id such as k47");
+    const noStore = await remember(root, { restore: "k1" }, context(root));
+    assert.equal(noStore.refused, "store is memory or knowledge");
   });
 });
 
@@ -845,62 +945,71 @@ describe("the tools the chat serves for the store", () => {
     assert.equal(fs.readdirSync(path.join(instance, "store", "memory")).length, before_);
   });
 
-  it("refuses a team write when the helper names the User's record, over the door", async () => {
+  // The store never chooses, whoever's record the helper names: the refusal names it, nothing lands.
+  it("refuses over the door with the record the helper named, its text and the reason, and writes nothing", async () => {
+    const before_ = fs.readdirSync(path.join(instance, "store", "memory")).length;
     stage({ replaces: "m2", reason: "the same rule" });
     const said = await tool(CHAT_LEADER, "remember", { store: "memory", kind: HARD_RULE, text: "Push only once the release commit is on main" });
     assert.equal(said.refused, true);
-    assert.match(said.text, /m2 is the User's hard-rule; only a write with source user can replace it/);
+    assert.equal(
+      said.text,
+      'not written: this reads as [m2] "Never push before the release commit is on main" restated, widened, narrowed or reversed — the same rule; re-issue with replaces: m2 if so, or replaces: none for a new record',
+    );
+    assert.equal(fs.readdirSync(path.join(instance, "store", "memory")).length, before_);
   });
 
-  // The store chose: the writer named nothing, and may never have read what went, so the answer
-  // says whose choice it was. A replacement the writer named reads as it always has.
-  it("answers a store-chosen replacement as the store's judgement with the reason, marks the record judged store, and a caller-named one reads unchanged", async () => {
-    stage({ replaces: "m5", reason: "widens m5 to every fact of the team's" });
-    let said = await tool(CHAT_WORKER, "remember", { store: "memory", kind: "fact", text: "every fact of the team's" });
-    assert.equal(said.refused, false, said.text);
-    assert.match(said.text, /^\[m8\] fact, team - "every fact of the team's"\n\s+by Paul \(Worker\), [^\n]*; replaced m5 \("a fact of the team's"\) by the store's judgement — you named nothing: widens m5 to every fact of the team's$/);
-    assert.equal(readRecord(instance, "memory", 8).judged, "store");
-    said = await tool(CHAT_WORKER, "remember", { store: "memory", kind: "fact", text: "every fact of the team's, named", replaces: "m8", reason: "named" });
-    assert.equal(said.refused, false, said.text);
-    assert.match(said.text, /^\[m9\] fact, team - "every fact of the team's, named"\n\s+by Paul \(Worker\), [^\n]*; replaced m8 \("every fact of the team's"\) - named$/);
-    assert.doesNotMatch(said.text, /judgement|named nothing/);
-    assert.equal(readRecord(instance, "memory", 9).judged, undefined);
-  });
-
-  it("answers the same text again as the store's judgement too", async () => {
+  it("refuses the same text again over the door without asking the helper, and writes it on replaces none", async () => {
     const calls = helperCalls();
-    const said = await tool(CHAT_WORKER, "remember", { store: "memory", kind: "fact", text: "every fact of the team's, named" });
+    let said = await tool(CHAT_WORKER, "remember", { store: "memory", kind: "fact", text: "a fact of the team's" });
+    assert.equal(said.refused, true);
+    assert.match(said.text, /^not written: this reads as \[m5\] "a fact of the team's" restated, widened, narrowed or reversed — the same text;/);
+    said = await tool(CHAT_WORKER, "remember", { store: "memory", kind: "fact", text: "a fact of the team's", replaces: "none" });
     assert.equal(said.refused, false, said.text);
-    assert.equal(helperCalls(), calls, "the same text again asked the helper");
-    assert.match(said.text, /; replaced m9 \("every fact of the team's, named"\) by the store's judgement — you named nothing: the same text, restated$/);
+    assert.match(said.text, /^\[m8\] fact, team - "a fact of the team's"\n\s+by Paul \(Worker\), [^\n]*$/);
+    assert.equal(helperCalls(), calls, "the helper was asked");
+    assert.equal(readRecord(instance, "memory", 8).supersedes, undefined);
   });
 
-  it("recalls a store-chosen replacement as the store's judgement, the writer named nothing", async () => {
-    let said = await tool(CHAT_LEADER, "recall", { store: "memory", id: "m10" });
-    assert.match(said.text, /; replaced m9 \("every fact of the team's, named"\) by the store's judgement — the writer named nothing: the same text, restated$/);
-    said = await tool(CHAT_LEADER, "recall", { store: "memory", id: "m9" });
-    assert.match(said.text, /; replaced m8 \("every fact of the team's"\) - named$/);
+  it("restores over the door: the record is live under its id, the replacer stands, and recall says who restored it", async () => {
+    let said = await tool(CHAT_WORKER, "remember", { store: "memory", kind: "fact", text: "every fact of the team's", replaces: "m8", reason: "widened" });
+    assert.equal(said.refused, false, said.text);
+    said = await tool(CHAT_WORKER, "remember", { store: "memory", restore: "m8" });
+    assert.equal(said.refused, false, said.text);
+    assert.match(said.text, /^\[m8\] fact, team - "a fact of the team's"\n\s+by Paul \(Worker\), [^\n]*; restored by Paul \(Worker\), [^\n]* \(had been replaced by m9, which stands\)$/);
+    assert.equal(readRecord(instance, "memory", 10).restores, "m8");
+    const all = await tool(CHAT_LEADER, "recall", { store: "memory", all: true });
+    assert.match(all.text, /\[m8\]/);
+    assert.match(all.text, /\[m9\]/);
+    assert.doesNotMatch(all.text, /m10/);
+    said = await tool(CHAT_LEADER, "recall", { store: "memory", id: "m10" });
+    assert.match(said.text, /^m10 is not a record: it restored m8 \(by Paul \(Worker\), /);
+    said = await tool(CHAT_WORKER, "remember", { store: "memory", restore: "m8" });
+    assert.equal(said.refused, true);
+    assert.equal(said.text, "m8 is current; nothing to restore");
   });
 
   // What the tools say of themselves is the whole of what a session knows about the store before
-  // its first call: that a model manages it, and that a write without replaces is its choice.
-  it("describes remember as managed by a model, never a file, choosing on the model's judgement, blind without replaces, answering what it replaced and whether the store chose it", async () => {
+  // its first call: that a model manages it, that it refuses rather than chooses, and the way back.
+  it("describes remember as managed by a model, never a file, refusing a resemblance with the record named, none for a new record, and restore as the way back", async () => {
     const text = await described(CHAT_WORKER, "remember");
     assert.match(text, /The store is managed by a model, not by you: it is not a file, and remember and recall are not create, read, update and delete over a MEMORY\.md you know from elsewhere\./);
-    assert.match(text, /restated, widened, narrowed or reversed, and the record it judges so is replaced, on the store's judgement alone;/);
-    assert.match(text, /there is no way to say the text is new, and only the answer tells you what happened/);
-    assert.match(text, /Replacing a record that replaced the wrong one does not bring the wrong one back: a replaced record stays replaced, reachable by its id through recall and by nothing else — to bring it back, write it again\./);
-    assert.match(text, /says whether you named it or the store chose it, and gives the reason/);
-    assert.match(text, /the model held for quota, not answering or answering badly when the store chooses/);
-    assert.match(text, /a team write over the User's record, the Leader included, whether you named it or the store chose it/);
-    assert.doesNotMatch(text, /asks whether the text restates a current record/);
+    assert.match(text, /or none, when you have read the store and this is a new record\./);
+    assert.match(text, /restated, widened, narrowed or reversed; when it is, nothing is written and the refusal names that record — its id, its text, the model's reason — and you re-issue with replaces naming it if you agree, or replaces none if you do not\./);
+    assert.match(text, /The store never replaces on its own judgement, and a write never lands unseen\./);
+    assert.match(text, /restore: the id of a replaced record, alone with store, brings it back live under its own id, as it was; the record that replaced it stands — a restore is not a swap — and nobody is told\./);
+    assert.match(text, /Writes to one store run one at a time\./);
+    assert.match(text, /reason without replaces naming a record;/);
+    assert.match(text, /a text that reads as a current record restated, widened, narrowed or reversed \(the refusal names it\)/);
+    assert.match(text, /A restore is refused with anything beside store and restore; naming what is not a record you can see; naming a current record; naming a hard rule \(write it again with replaces naming the rule that holds its number\); naming the User's record from a Worker\./);
+    assert.doesNotMatch(text, /store chose|store's judgement alone|write it again\./);
   });
 
-  it("describes recall as managed by a model, never a file, with a replaced record's line saying whether the store chose it and nobody told", async () => {
+  it("describes recall as managed by a model, never a file, every replacement named by its writer, a restored record's line, and nobody told", async () => {
     const text = await described(CHAT_WORKER, "recall");
-    assert.match(text, /The store is managed by a model, not by you: a write without replaces may have replaced a record its writer never named/);
-    assert.match(text, /recall and remember are not create, read, update and delete over a MEMORY\.md you know from elsewhere\./);
-    assert.match(text, /whether the writer named it or the store chose it, and the reason\./);
-    assert.match(text, /nobody is told when a fact or trap is replaced/);
+    assert.match(text, /The store is managed by a model, not by you: it is not a file, and recall and remember are not create, read, update and delete over a MEMORY\.md you know from elsewhere\./);
+    assert.match(text, /every replacement was named by its writer, the store replaces nothing on its own\./);
+    assert.match(text, /A record brought back by restore says who restored it, when, and what had replaced it, which still stands\./);
+    assert.match(text, /nobody is told when a fact or trap is replaced or restored/);
+    assert.doesNotMatch(text, /store chose/);
   });
 });

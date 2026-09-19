@@ -357,8 +357,8 @@
     "edits": [
       {
         "file": "lib/store.mjs",
-        "from": "  const visible = role === LEADER ? every : every.filter((record) => record.scope !== \"leader\");",
-        "to": "  const visible = every;"
+        "from": "  const visible = role === LEADER ? records : records.filter((record) => record.scope !== \"leader\");",
+        "to": "  const visible = records;"
       }
     ]
   },
@@ -452,7 +452,7 @@
   },
   {
     "name": "an identical text is put to the helper",
-    "catches": "replaces an identical text without asking the helper",
+    "catches": "refuses the same text again without asking the helper, naming the record, and writes nothing",
     "edits": [
       {
         "file": "lib/store.mjs",
@@ -551,7 +551,7 @@
   },
   {
     "name": "a query sends replaced records to the helper too",
-    "catches": "sends the helper exactly the current records of the store on a query and answers only ids it named",
+    "catches": "sends the helper exactly the current records of the store on a query and answers only ids it named, and the log times the round-trip",
     "edits": [
       {
         "file": "lib/store.mjs",
@@ -562,7 +562,7 @@
   },
   {
     "name": "an id the helper named and the store never sent is answered",
-    "catches": "sends the helper exactly the current records of the store on a query and answers only ids it named",
+    "catches": "sends the helper exactly the current records of the store on a query and answers only ids it named, and the log times the round-trip",
     "edits": [
       {
         "file": "lib/store.mjs",
@@ -584,7 +584,7 @@
   },
   {
     "name": "the helper's list for a replace is read from the files",
-    "catches": "asks the helper about the same store and kind only, and takes what it names",
+    "catches": "asks the helper about the current records of the same store and kind only, and refuses with the record it names, its text and the reason, writing nothing",
     "edits": [
       {
         "file": "lib/store.mjs",
@@ -610,19 +610,184 @@
     "edits": [
       {
         "file": "lib/store.mjs",
-        "from": "    } else if (sameKind.length > 0) {",
-        "to": "    } else {"
+        "from": "    if (sameKind.length > 0) {\n      const asked = await helper(\"replaces\", {",
+        "to": "    if (true) {\n      const asked = await helper(\"replaces\", {"
       }
     ]
   },
   {
-    "name": "the guard on the User's records is skipped when the helper found the record",
-    "catches": "refuses a team write when the helper names the User's record, over the door",
+    "name": "the same text again is replaced instead of refused",
+    "catches": "refuses the same text again without asking the helper, naming the record, and writes nothing",
     "edits": [
       {
         "file": "lib/store.mjs",
-        "from": "  if (replaces !== null && replaces.source === \"user\" && source !== \"user\") {",
-        "to": "  if (shape.replaces !== undefined && replaces !== null && replaces.source === \"user\" && source !== \"user\") {"
+        "from": "      return { refused: resembles(same, \"the same text\") };",
+        "to": "      replaces = same;\n      reason = \"the same text\";"
+      }
+    ]
+  },
+  {
+    "name": "the record the helper names is replaced instead of refused",
+    "catches": "asks the helper about the current records of the same store and kind only, and refuses with the record it names, its text and the reason, writing nothing",
+    "edits": [
+      {
+        "file": "lib/store.mjs",
+        "from": "        return { refused: resembles(found, asked.answer.reason) };",
+        "to": "        replaces = found;\n        reason = asked.answer.reason;"
+      }
+    ]
+  },
+  {
+    "name": "the refusal drops the text of the record it names",
+    "catches": "asks the helper about the current records of the same store and kind only, and refuses with the record it names, its text and the reason, writing nothing",
+    "edits": [
+      {
+        "file": "lib/store.mjs",
+        "from": "  return `not written: this reads as [${record.id}] \"${record.text}\" restated,",
+        "to": "  return `not written: this reads as [${record.id}] restated,"
+      }
+    ]
+  },
+  {
+    "name": "the refusal drops the reason",
+    "catches": "asks the helper about the current records of the same store and kind only, and refuses with the record it names, its text and the reason, writing nothing",
+    "edits": [
+      {
+        "file": "lib/store.mjs",
+        "from": "narrowed or reversed — ${why}; re-issue with",
+        "to": "narrowed or reversed; re-issue with"
+      }
+    ]
+  },
+  {
+    "name": "replaces none goes to the matcher",
+    "catches": "writes a new record on replaces none without asking the helper",
+    "edits": [
+      {
+        "file": "lib/store.mjs",
+        "from": "  } else if (shape.replaces === undefined) {\n    const same = sameKind.find",
+        "to": "  } else {\n    const same = sameKind.find"
+      }
+    ]
+  },
+  {
+    "name": "a reason without replaces is taken",
+    "catches": "refuses a reason without replaces naming a record",
+    "edits": [
+      {
+        "file": "lib/store.mjs",
+        "from": "  if (args.reason !== undefined && (args.replaces === undefined || args.replaces === NONE)) {",
+        "to": "  if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "a restore marker leaves the record replaced",
+    "catches": "brings a replaced record back live under its id by a marker file, the record that replaced it standing, and says so on its line",
+    "edits": [
+      {
+        "file": "lib/store.mjs",
+        "from": "      restored.set(one.restores, { marker: one, from: replaced.get(one.restores) });\n      replaced.delete(one.restores);",
+        "to": "      restored.set(one.restores, { marker: one, from: replaced.get(one.restores) });"
+      }
+    ]
+  },
+  {
+    "name": "a restore is a swap",
+    "catches": "brings a replaced record back live under its id by a marker file, the record that replaced it standing, and says so on its line",
+    "edits": [
+      {
+        "file": "lib/store.mjs",
+        "from": "    restores: id,\n    text: \"\",",
+        "to": "    restores: id,\n    supersedes: from,\n    replaced: \"\",\n    reason: \"restored\",\n    text: \"\","
+      }
+    ]
+  },
+  {
+    "name": "a marker is listed as a record",
+    "catches": "brings a replaced record back live under its id by a marker file, the record that replaced it standing, and says so on its line",
+    "edits": [
+      {
+        "file": "lib/store.mjs",
+        "from": "  const records = every.filter((one) => one.restores === undefined);",
+        "to": "  const records = every;"
+      }
+    ]
+  },
+  {
+    "name": "a marker asked for by id is no record",
+    "catches": "brings a replaced record back live under its id by a marker file, the record that replaced it standing, and says so on its line",
+    "edits": [
+      {
+        "file": "lib/store.mjs",
+        "from": "      return { text: marker === undefined ? `no record ${args.id} in ${store}` : markerLine(marker, zone) };",
+        "to": "      return { text: `no record ${args.id} in ${store}` };"
+      }
+    ]
+  },
+  {
+    "name": "the restored line says nothing of the restore",
+    "catches": "brings a replaced record back live under its id by a marker file, the record that replaced it standing, and says so on its line",
+    "edits": [
+      {
+        "file": "lib/store.mjs",
+        "from": "  return `${first}\\n      ${who}${replaced}${back}`;",
+        "to": "  return `${first}\\n      ${who}${replaced}`;"
+      }
+    ]
+  },
+  {
+    "name": "a later replacement keeps the restored line",
+    "catches": "hands the helper the restored record with the rest, and a later replacement of it takes the restored line off",
+    "edits": [
+      {
+        "file": "lib/store.mjs",
+        "from": "      replaced.set(one.supersedes, one.id);\n      restored.delete(one.supersedes);",
+        "to": "      replaced.set(one.supersedes, one.id);"
+      }
+    ]
+  },
+  {
+    "name": "a current record is restored",
+    "catches": "refuses restoring an unknown id, a marker, a current record, a hard rule, or the User's record from a Worker, and writes nothing",
+    "edits": [
+      {
+        "file": "lib/store.mjs",
+        "from": "  if (current.includes(record)) {\n    return { refused: `${id} is current; nothing to restore` };\n  }",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a hard rule is restored",
+    "catches": "refuses restoring an unknown id, a marker, a current record, a hard rule, or the User's record from a Worker, and writes nothing",
+    "edits": [
+      {
+        "file": "lib/store.mjs",
+        "from": "  if (record.kind === HARD_RULE) {\n    return { refused: `${id} is a hard rule;",
+        "to": "  if (false) {\n    return { refused: `${id} is a hard rule;"
+      }
+    ]
+  },
+  {
+    "name": "a Worker restores the User's record",
+    "catches": "refuses restoring an unknown id, a marker, a current record, a hard rule, or the User's record from a Worker, and writes nothing",
+    "edits": [
+      {
+        "file": "lib/store.mjs",
+        "from": "  if (record.source === \"user\" && caller.role !== LEADER) {",
+        "to": "  if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "a restore takes anything beside",
+    "catches": "refuses a restore with anything beside store and restore, or one that is not an id",
+    "edits": [
+      {
+        "file": "lib/store.mjs",
+        "from": "  if (beside.length > 0) {",
+        "to": "  if (false) {"
       }
     ]
   },
@@ -650,7 +815,7 @@
   },
   {
     "name": "all goes through the helper",
-    "catches": "asks the helper nothing for id, all or the numbered set",
+    "catches": "asks the helper nothing for id, all or the numbered set, and the log says no model each time",
     "edits": [
       {
         "file": "lib/store.mjs",
@@ -671,90 +836,68 @@
     ]
   },
   {
-    "name": "a store-chosen replacement is not marked on the record",
-    "catches": "answers a store-chosen replacement as the store's judgement with the reason, marks the record judged store, and a caller-named one reads unchanged",
-    "edits": [
-      {
-        "file": "lib/store.mjs",
-        "from": "      record.judged = STORE;",
-        "to": "      record.judged = undefined;"
-      }
-    ]
-  },
-  {
-    "name": "the same text again counts as a caller-named replacement",
-    "catches": "answers the same text again as the store's judgement too",
-    "edits": [
-      {
-        "file": "lib/store.mjs",
-        "from": "      reason = reason ?? \"the same text, restated\";\n      judged = true;",
-        "to": "      reason = reason ?? \"the same text, restated\";"
-      }
-    ]
-  },
-  {
-    "name": "the write's answer addresses the writer as anybody",
-    "catches": "answers a store-chosen replacement as the store's judgement with the reason, marks the record judged store, and a caller-named one reads unchanged",
-    "edits": [
-      {
-        "file": "lib/store.mjs",
-        "from": "  const lines = [recordLine(record, { now, zone, successor: new Map(), writer: \"you\" })];",
-        "to": "  const lines = [recordLine(record, { now, zone, successor: new Map() })];"
-      }
-    ]
-  },
-  {
-    "name": "a recall addresses the reader as the writer",
-    "catches": "recalls a store-chosen replacement as the store's judgement, the writer named nothing",
-    "edits": [
-      {
-        "file": "lib/store.mjs",
-        "from": "export function recordLine(record, { now, zone, successor, writer = \"the writer\" }) {",
-        "to": "export function recordLine(record, { now, zone, successor, writer = \"you\" }) {"
-      }
-    ]
-  },
-  {
     "name": "remember's description drops that the store is managed by a model",
-    "catches": "describes remember as managed by a model, never a file, choosing on the model's judgement, blind without replaces, answering what it replaced and whether the store chose it",
+    "catches": "describes remember as managed by a model, never a file, refusing a resemblance with the record named, none for a new record, and restore as the way back",
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "Write one record of what this workspace knows. The store is managed by a model, not by you: it is not a file, and remember and recall are not create, read, update and delete over a MEMORY.md you know from elsewhere. ",
-        "to": "Write one record of what this workspace knows. "
+        "from": "Write one record of what this workspace knows, or bring a replaced one back. The store is managed by a model, not by you: it is not a file, and remember and recall are not create, read, update and delete over a MEMORY.md you know from elsewhere. ",
+        "to": "Write one record of what this workspace knows, or bring a replaced one back. "
       }
     ]
   },
   {
-    "name": "remember's description says restates again",
-    "catches": "describes remember as managed by a model, never a file, choosing on the model's judgement, blind without replaces, answering what it replaced and whether the store chose it",
+    "name": "remember's description says the store replaces on its judgement again",
+    "catches": "describes remember as managed by a model, never a file, refusing a resemblance with the record named, none for a new record, and restore as the way back",
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "Without replaces a model judges whether the text is one current record of the same store and kind restated, widened, narrowed or reversed, and the record it judges so is replaced, on the store's judgement alone; there is no way to say the text is new, and only the answer tells you what happened. ",
-        "to": "Without replaces the store asks whether the text restates a current record of the same store and kind and replaces that one. "
+        "from": "restated, widened, narrowed or reversed; when it is, nothing is written and the refusal names that record — its id, its text, the model's reason — and you re-issue with replaces naming it if you agree, or replaces none if you do not. The store never replaces on its own judgement, and a write never lands unseen. ",
+        "to": "restated, widened, narrowed or reversed, and the record it judges so is replaced, on the store's judgement alone. "
       }
     ]
   },
   {
-    "name": "remember's description drops that replacing the replacer brings nothing back",
-    "catches": "describes remember as managed by a model, never a file, choosing on the model's judgement, blind without replaces, answering what it replaced and whether the store chose it",
+    "name": "remember's description drops restore",
+    "catches": "describes remember as managed by a model, never a file, refusing a resemblance with the record named, none for a new record, and restore as the way back",
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "Replacing a record that replaced the wrong one does not bring the wrong one back: a replaced record stays replaced, reachable by its id through recall and by nothing else — to bring it back, write it again. ",
-        "to": ""
+        "from": "restore: the id of a replaced record, alone with store, brings it back live under its own id, as it was; the record that replaced it stands — a restore is not a swap — and nobody is told. ",
+        "to": "A replaced record stays replaced — to bring it back, write it again. "
+      }
+    ]
+  },
+  {
+    "name": "remember's description drops none",
+    "catches": "describes remember as managed by a model, never a file, refusing a resemblance with the record named, none for a new record, and restore as the way back",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "replaces: the id of the current record this one supersedes, and reason says why; or none, when you have read the store and this is a new record. ",
+        "to": "replaces: the id of the current record this one supersedes, and reason says why. "
       }
     ]
   },
   {
     "name": "recall's description drops that the store is managed by a model",
-    "catches": "describes recall as managed by a model, never a file, with a replaced record's line saying whether the store chose it and nobody told",
+    "catches": "describes recall as managed by a model, never a file, every replacement named by its writer, a restored record's line, and nobody told",
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "Read what this workspace knows. The store is managed by a model, not by you: a write without replaces may have replaced a record its writer never named, and what you read is what stands after that — it is not a file, and recall and remember are not create, read, update and delete over a MEMORY.md you know from elsewhere. ",
+        "from": "Read what this workspace knows. The store is managed by a model, not by you: it is not a file, and recall and remember are not create, read, update and delete over a MEMORY.md you know from elsewhere. ",
         "to": "Read what this workspace knows. "
+      }
+    ]
+  },
+  {
+    "name": "recall's description drops the restored line",
+    "catches": "describes recall as managed by a model, never a file, every replacement named by its writer, a restored record's line, and nobody told",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "A record brought back by restore says who restored it, when, and what had replaced it, which still stands. ",
+        "to": ""
       }
     ]
   },

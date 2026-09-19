@@ -435,8 +435,14 @@ reaches it through two tools and no other way. `recall` reads: by meaning ("the 
 palette" — a model call, not a grep), by id, or the whole of a store; `remember` writes one record.
 Nothing is ever deleted or edited in place: a record that changes is superseded by a new one that
 names it, with who wrote it, when, and the text it replaced, so one file answers "what was here
-before". A record can carry an `until`, absolute; when that passes it leaves the render, stays
-visible to `recall`, and can be renewed. Retiring a record is a write with `until: now`.
+before". The writer names what a record replaces, or says `replaces: none` for a new one; named
+neither, a model is asked whether the text restates, widens, narrows or reverses a record already
+held, and when it does the write is refused naming that record — the store never replaces on its
+own judgement. A record replaced by mistake comes back with `restore: <id>`: live again under its
+own id, as it was, by one more file that names it, while the record that replaced it stands. Writes
+to one store run one at a time. A record can carry an `until`, absolute; when that passes it
+leaves the render, stays visible to `recall`, and can be renewed. Retiring a record is a write
+with `until: now`.
 
 Hard rules are the part of the store every session is given without asking. They are one-liners,
 numbered, and capped — 25 rules of 200 characters by default, `hardRules: { count, length }` in
@@ -448,7 +454,7 @@ replaced by a team write, the Leader included; a User's rule can be scoped to th
 and then no Worker sees it by any path.
 
 Where a request needs understanding rather than a grep — which records answer a query, whether a
-new text replaces an existing record, what moment "for today" is — the tool asks the helper: Claude
+new text restates an existing record, what moment "for today" is — the tool asks the helper: Claude
 Code run once, in print mode and safe mode, with no tools and no MCP server, nothing persisted, from
 an empty directory outside the instance, on the smaller model at medium effort, with the question
 as its whole system prompt and the request on stdin. It proposes; the tool checks the answer
