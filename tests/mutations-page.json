@@ -1652,13 +1652,13 @@
     ]
   },
   {
-    "name": "the following head takes the User's ground again",
-    "catches": "tint the head of a following panel faintly, from a token of its own, a small step off the plain head ground",
+    "name": "the following head's border is a width of its own, not the clickable line's",
+    "catches": "mark the head of a following panel with the clickable line's left border",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "  .phead.follow { background: var(--follow); }",
-        "to": "  .phead.follow { background: var(--me); }"
+        "from": "  .phead.follow { border-left: 3px solid var(--accent); padding-left: 9px; }",
+        "to": "  .phead.follow { border-left: 2px solid var(--accent); padding-left: 10px; }"
       }
     ]
   },

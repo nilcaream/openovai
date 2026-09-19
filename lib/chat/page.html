@@ -20,7 +20,7 @@
   :root {
     --bg: #f8fafc; --panel: #ffffff; --panel-2: #eef1f5; --line: #d8dee4;
     --fg: #1f2328; --fg-dim: #59636e; --fg-faint: #848d97;
-    --me: #d9fdd3; --me-line: #b7e8ae; --follow: #dbe8d9;
+    --me: #d9fdd3; --me-line: #b7e8ae;
     --reply: #ffffff; --reply-line: #d8dee4;
     --from: #e3f0fc; --from-line: #b6d4f2;
     --to: #fde8e8; --to-line: #f0bcbc;
@@ -37,7 +37,7 @@
   :root[data-theme="dark"] {
     --bg: #0e1116; --panel: #161b22; --panel-2: #1c232d; --line: #262d38;
     --fg: #e6edf3; --fg-dim: #9aa7b4; --fg-faint: #6b7783;
-    --me: #1f4f3a; --me-line: #2d6b4f; --follow: #1e2f2a;
+    --me: #1f4f3a; --me-line: #2d6b4f;
     --reply: #1c232d; --reply-line: #2a3341;
     --from: #203349; --from-line: #2b4a6d;
     --to: #3a2226; --to-line: #6b3a42;
@@ -78,7 +78,8 @@
     display: flex; align-items: baseline; gap: 0; min-width: 0; overflow: hidden; white-space: nowrap;
   }
   .panel.asking .phead { border-color: var(--warn); }
-  .phead.follow { background: var(--follow); }
+  /* a head that follows its newest row carries the left border of a clickable line; the padding gives back the border's extra px, so nothing moves */
+  .phead.follow { border-left: 3px solid var(--accent); padding-left: 9px; }
   .phead .name { margin-right: 8px; flex: 0 0 auto; white-space: nowrap; font-weight: 700; font-size: 1rem; }
   /* the dot before the name: green while the panel listens, amber while its turn runs, red once the process is gone or the page has no stream, pulsing while the panel asks */
   .phead .name::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--fg-faint); margin-right: 8px; vertical-align: 1px; }
