@@ -55,9 +55,11 @@
   }
   *::-webkit-scrollbar { display: none; }
   a { color: var(--accent); }
+  /* three columns: the Leader's in the middle, up to 1092px; the Workers' either side, 406px at
+     the least and sharing the rest — so a narrower window takes from the middle, not the sides */
   #stage {
     flex: 1 1 auto; min-height: 0;
-    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1092px) minmax(0, 1fr);
+    display: grid; grid-template-columns: minmax(406px, 1fr) minmax(0, 1092px) minmax(406px, 1fr);
   }
   .col { min-height: 0; display: flex; flex-direction: column; gap: 4px; padding: 4px; overflow-y: auto; }
   .col:empty { padding: 0; }
@@ -157,8 +159,16 @@
   .md h1, .md h2, .md h3, .md h4 { margin: .7em 0 .3em; line-height: 1.25; }
   .md h1 { font-size: 1.25rem; } .md h2 { font-size: 1.15rem; } .md h3 { font-size: 1.05rem; } .md h4 { font-size: 1rem; }
   .md code { font-family: var(--mono); font-size: .88em; background: rgba(127,127,127,.18); padding: .1em .35em; border-radius: 5px; }
-  .md pre { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; overflow-x: auto; font-size: .85rem; line-height: 1.4; }
+  .md pre { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; overflow-x: auto; font-size: .85rem; line-height: 1.4; position: relative; }
   .md pre code { background: none; padding: 0; font-size: inherit; }
+  /* the copy button in a code block's top-right corner: there on hover, on focus and while it
+     says copied — the tick in place of the clipboard, in the ok colour, for a moment */
+  .md pre .copy { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: var(--panel-2); color: var(--fg-dim); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; opacity: 0; transition: opacity .15s; }
+  .md pre:hover .copy, .md pre .copy:focus-visible, .md pre .copy.copied { opacity: 1; }
+  .md pre .copy.copied { color: var(--ok); }
+  .md pre .copy svg { width: 14px; height: 14px; }
+  .md pre .copy .tick, .md pre .copy.copied .clip { display: none; }
+  .md pre .copy.copied .tick { display: inline; }
   .md table { border-collapse: collapse; display: block; overflow-x: auto; max-width: 100%; font-size: .92rem; }
   .md th, .md td { border: 1px solid var(--line); padding: 4px 9px; text-align: left; vertical-align: top; }
   .md th { background: var(--panel); }
@@ -229,6 +239,11 @@
   const SUN = '<svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 1.7v2.6M12 19.7v2.6M4.6 4.6l1.9 1.9M17.5 17.5l1.9 1.9M1.7 12h2.6M19.7 12h2.6M4.6 19.4l1.9-1.9M17.5 6.5l1.9-1.9"/></svg>';
   const MOON = '<svg class="moon" viewBox="0 0 24 24" fill="currentColor"><path d="M20.7 14.6A8.7 8.7 0 0 1 9.4 3.3a8.9 8.9 0 1 0 11.3 11.3z"/></svg>';
   const SQUARE = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>';
+  // The copy button's icon: the clipboard, and the tick the stylesheet shows in its place while
+  // the button says copied.
+  const CLIPBOARD = '<svg class="clip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg><svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+  // How long the copy button says copied, in milliseconds.
+  const COPIED_FOR = 1200;
   // How long a message found from a click on the line at its other end stays lit, in milliseconds.
   const FOCUS_FOR = 1500;
 
@@ -305,6 +320,18 @@
     rows.className = "rows";
     // The stamps are measured again whenever the rows change width.
     new ResizeObserver(() => fitStamps(rows.querySelectorAll(".t"))).observe(rows);
+    // One click handler for every copy button the rows will hold: the code inside the button's
+    // block goes to the clipboard — the code element, never the button's own markup — and the
+    // button says copied for a moment.
+    rows.addEventListener("click", (event) => {
+      const copy = event.target.closest(".copy");
+      if (copy === null) return;
+      const block = copy.parentElement;
+      navigator.clipboard.writeText((block.querySelector("code") ?? block).textContent).then(() => {
+        copy.classList.add("copied");
+        setTimeout(() => copy.classList.remove("copied"), COPIED_FOR);
+      }, () => {});
+    });
     // What a panel says until its first row: while the rows are still on their way, and while
     // there are none.
     const empty = document.createElement("div");
@@ -576,6 +603,7 @@
       body.className = "md";
       body.innerHTML = shown.html;
       if (shown.tight === true) body.classList.add("tight");
+      for (const block of body.querySelectorAll("pre")) block.append(copyButton());
     } else {
       body.className = "text";
       body.textContent = shown.text;
@@ -585,6 +613,17 @@
     time.title = REFERENCE;
     time.addEventListener("click", () => pointAt(panel, time, shown.who, body));
     return line;
+  }
+
+  // The copy button a fenced code block carries in its corner; the rows' click handler does the
+  // copying, so this is the element and nothing else.
+  function copyButton() {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "copy";
+    button.setAttribute("aria-label", "Copy");
+    button.innerHTML = CLIPBOARD;
+    return button;
   }
 
   // The delivered glyph beside the stamp: the whole word on it, and the glyph alone for the fit.
@@ -711,7 +750,6 @@
     panel.nameLine.textContent = parts.name;
     panel.info.textContent = parts.info;
     panel.word.textContent = parts.state;
-    panel.section.title = about.title;
     panel.section.classList.toggle("dimmed", about.dimmed);
     panel.section.classList.toggle("asking", about.asking.length > 0);
     // The dot: green between turns, amber while one runs, red for a gone process and for every

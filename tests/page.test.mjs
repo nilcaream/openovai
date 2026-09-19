@@ -215,6 +215,31 @@ describe("the rules", () => {
     assert.equal(rules.find((rule) => rule.selector === ".md pre code").declarations["font-size"], "inherit");
   });
 
+  // The stage is three grid columns: the Leader's in the middle, capped at 1092px, the Workers'
+  // either side sharing what is left. A side column with a minimum of 0 is the first to go when
+  // the window narrows — DevTools docked right is enough — while the middle keeps its 1092px. So
+  // the side columns hold 406px each and it is the middle that gives way.
+  it("hold the side columns at 406px and let the Leader's column give way", () => {
+    const stage = rules.find((rule) => rule.selector === "#stage");
+    assert.equal(stage.declarations["grid-template-columns"], "minmax(406px, 1fr) minmax(0, 1092px) minmax(406px, 1fr)");
+  });
+
+  // The copy button sits in the top-right corner of a code block, so the block is what it is
+  // placed against; it is invisible until the block is hovered, or it has the focus, or it has
+  // just copied — that state is the icon's own colour, and the tick in place of the clipboard.
+  it("keep the copy button in a code block's corner, shown on hover and while it says copied", () => {
+    assert.equal(rules.find((rule) => rule.selector === ".md pre").declarations.position, "relative");
+    const copy = rules.find((rule) => rule.selector === ".md pre .copy");
+    assert.equal(copy.declarations.position, "absolute");
+    assert.equal(copy.declarations.top, "4px");
+    assert.equal(copy.declarations.right, "4px");
+    assert.equal(copy.declarations.opacity, "0");
+    assert.deepEqual(rules.find((rule) => rule.selector === ".md pre:hover .copy, .md pre .copy:focus-visible, .md pre .copy.copied").declarations, { opacity: "1" });
+    assert.equal(rules.find((rule) => rule.selector === ".md pre .copy.copied").declarations.color, "var(--ok)");
+    assert.deepEqual(rules.find((rule) => rule.selector === ".md pre .copy .tick, .md pre .copy.copied .clip").declarations, { display: "none" });
+    assert.deepEqual(rules.find((rule) => rule.selector === ".md pre .copy.copied .tick").declarations, { display: "inline" });
+  });
+
   it("draw a tool line in the dim mono of a machine word", () => {
     const line = rules.find((rule) => rule.selector === ".rows .line");
     assert.equal(line.declarations.color, "var(--fg-dim)");
@@ -560,8 +585,23 @@ describe("the script", () => {
     assert.match(script, /rowOf\(entry, \{ chat: state\.chat, seat: panel\.name, leader: state\.leader, user: state\.user \}\)/, "the renderer is told whose panel the row is on, and who the User is");
   });
 
+  // The desk title reaches the page in the seat's `about`, and the page used to hang it on the
+  // panel as a tooltip. Nothing on the page shows it now: no title on the panel's section.
+  it("hangs no tooltip on a panel", () => {
+    assert.doesNotMatch(script, /section\.title = /, "a panel carries a tooltip");
+  });
+
+  // A copy button on every fenced code block a reply draws, and one click handler on the rows
+  // for all of them: the click finds the button, copies the code inside its block — the code
+  // element, never the button's own markup — and says copied on the button for a moment.
+  it("puts a copy button on every code block and copies the block's code on one delegated click", () => {
+    assert.match(script, /body\.innerHTML = shown\.html;\s*if \(shown\.tight === true\) body\.classList\.add\("tight"\);\s*for \(const block of body\.querySelectorAll\("pre"\)\) block\.append\(copyButton\(\)\);/);
+    assert.match(script, /rows\.addEventListener\("click", \(event\) => \{\s*const copy = event\.target\.closest\(".copy"\);\s*if \(copy === null\) return;\s*const block = copy\.parentElement;\s*navigator\.clipboard\.writeText\(\(block\.querySelector\("code"\) \?\? block\)\.textContent\)\.then\(\(\) => \{\s*copy\.classList\.add\("copied"\);\s*setTimeout\(\(\) => copy\.classList\.remove\("copied"\), COPIED_FOR\);/);
+    assert.match(script, /function copyButton\(\) \{\s*const button = document\.createElement\("button"\);\s*button\.type = "button";\s*button\.className = "copy";/);
+  });
+
   it("draws a reply's markdown as elements — a link, a code span — never as the words of the markup", () => {
-    const shown = row({ from: "Ray", text: "see [it](https://x.y/z) in `code`" }, { chat: "the chat" });
+    const shown = row({ from: "Ray", text: "see [it](https://x.y/z) in `code`" }, { chat: "Server" });
     assert.match(shown.html, /<a href="https:\/\/x\.y\/z"[^>]*>it<\/a>/);
     assert.match(shown.html, /<code>code<\/code>/);
     assert.match(script, /body\.className = "md";\s*body\.innerHTML = shown\.html;/, "the reply body is not filled with its markup under .md");

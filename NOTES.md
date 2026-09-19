@@ -36,6 +36,20 @@ because the two changes above lean on it. Nothing is merged and no two writers' 
 reconciled: the second of two writes that both replace a record is refused, and its writer reads
 what stands and writes again.
 
+**The Worker panels keep their width.** A narrower window — DevTools docked at the side is enough
+— takes from the Leader's panel now; the columns either side never go under 406px.
+
+**The server signs as `Server`.** The rows the server itself writes on a panel — a wait for
+permission, a stopped turn, a process gone — and the refusal a session gets from a card with no
+reason on it used to be signed "the chat"; they read `Server` now.
+
+**No tooltip on a panel.** The desk title no longer pops up over a panel under the pointer; the
+desk file still has it.
+
+**Copy a code block.** Every fenced code block on a panel has a copy button in its corner, shown
+when the pointer is over the block; a click puts the block's text on the clipboard and the button
+says so for a moment.
+
 ## 0.13.0
 
 What the User types goes in ahead of a seat's backlog, a stop says what the seat goes on to, a

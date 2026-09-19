@@ -14,7 +14,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
-import { THE_CHAT, panelFile, read as panel } from "../lib/chat/conversation.mjs";
+import { SERVER, panelFile, read as panel } from "../lib/chat/conversation.mjs";
 import { messageFrame, serverEvent, userFrame } from "../lib/chat/frames.mjs";
 import { listening } from "../lib/chat/runtime.mjs";
 import { pageSecret } from "../lib/chat/secrets.mjs";
@@ -932,7 +932,7 @@ describe("the tools a session is served", () => {
     assert.equal(said_.text, `sent to ${OTHER}`);
     await waitFor(() => (panel(instance, OTHER).at(-1)?.failed === true ? true : null));
     const last = panel(instance, OTHER).at(-1);
-    assert.equal(last.from, THE_CHAT);
+    assert.equal(last.from, SERVER);
     assert.match(last.text, new RegExp(`^${OTHER} stopped before answering: `));
   });
 
@@ -1124,7 +1124,7 @@ describe("what the User types", () => {
     assert.equal(running(LEADER), false);
     await waitFor(() => (panel(instance, LEADER).length > rows ? true : null));
     const left = panel(instance, LEADER).slice(rows);
-    assert.deepEqual(left.map((row) => [row.from, row.divider, row.text]), [[THE_CHAT, true, hasLeft(LEADER)]]);
+    assert.deepEqual(left.map((row) => [row.from, row.divider, row.text]), [[SERVER, true, hasLeft(LEADER)]]);
     assert.equal(hasLeft(LEADER), `${LEADER} has left — the next message starts a fresh session`);
     const spawned = await spawnedBy(LEADER, () => page("POST", `/sessions/${WORKER}/message`, { text: "carry on" }));
     assert.deepEqual(JSON.parse(spawned.result.body), { delivered: true, leaderTold: true });
@@ -1142,7 +1142,7 @@ describe("what the User types", () => {
     assert.deepEqual(JSON.parse(answered.body), { delivered: false, leaderTold: true });
     const rows = panel(instance, WORKER).slice(-2);
     assert.deepEqual([rows[0].from, rows[0].text, rows[0].delivered], ["user", "anybody there", undefined], "a row nobody took reads delivered");
-    assert.deepEqual([rows[1].from, rows[1].text, rows[1].failed], [THE_CHAT, `${WORKER} has no process`, true]);
+    assert.deepEqual([rows[1].from, rows[1].text, rows[1].failed], [SERVER, `${WORKER} has no process`, true]);
   });
 
   it("refuses a message with nothing in it, or nothing it can read", async () => {
@@ -1509,7 +1509,7 @@ describe("the stream", () => {
     const { data } = client.events[0];
     assert.equal(data.user, USER);
     assert.equal(data.leader, LEADER);
-    assert.equal(data.chat, THE_CHAT);
+    assert.equal(data.chat, SERVER);
     assert.deepEqual(data.sessions.map((seat) => [seat.name, seat.running, seat.busy]), [[LEADER, true, false], [OTHER, false, false], [WORKER, false, false]]);
     assert.deepEqual(client.events[1].data, { seat: LEADER, since: 0, rows: [] });
     assert.ok(!said.some((line) => line.includes("page=")), "the stream's URL was logged");
@@ -1608,7 +1608,7 @@ describe("the stream", () => {
       const stopped = await page("POST", `/sessions/${WORKER}/stop`);
       assert.deepEqual(JSON.parse(stopped.body), { interrupted: true });
       const rows = panel(instance, WORKER).slice(from);
-      const said_ = rows.findIndex((row) => row.from === THE_CHAT && row.text.startsWith("stopped;"));
+      const said_ = rows.findIndex((row) => row.from === SERVER && row.text.startsWith("stopped;"));
       assert.notEqual(said_, -1, JSON.stringify(rows.map((row) => row.text)));
       assert.match(rows[said_].text, /^stopped; 2 waiting, next: line from the User \(\d{2}:\d{2}\)$/);
       assert.ok(rows.slice(0, said_).some((row) => row.interrupted === true), "the stop's own row is not above the line about the queue");
@@ -1626,7 +1626,7 @@ describe("the stream", () => {
       const stopped = await page("POST", `/sessions/${WORKER}/stop`);
       assert.deepEqual(JSON.parse(stopped.body), { interrupted: false });
       const row = panel(instance, WORKER).at(-1);
-      assert.deepEqual([row.from, row.text], [THE_CHAT, "no turn to stop"]);
+      assert.deepEqual([row.from, row.text], [SERVER, "no turn to stop"]);
       assert.ok(said.slice(before_).includes(`no turn to stop: ${WORKER}`), said.slice(before_).join("\n"));
     } finally {
       await end(WORKER, 500);
@@ -1691,7 +1691,7 @@ describe("the stream", () => {
       assert.match(answered ?? "", new RegExp(`^permission answered: ${OTHER} allow after \\d+ s$`));
       // The row, when there is one, is appended in the same step as the answered line — so once
       // that line is in the log, a missing row is missing for good.
-      assert.equal(panel(instance, OTHER).slice(from).find((one) => one.from === THE_CHAT && one.text.startsWith("waited ")), undefined, "a wait of no time drew a row");
+      assert.equal(panel(instance, OTHER).slice(from).find((one) => one.from === SERVER && one.text.startsWith("waited ")), undefined, "a wait of no time drew a row");
     } finally {
       await end(OTHER, 500);
     }

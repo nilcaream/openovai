@@ -581,8 +581,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "    append(instance.root, seat, { from: THE_CHAT, divider: true, text: hasLeft(seat) });",
-        "to": "    append(instance.root, seat, { from: THE_CHAT, text: hasLeft(seat) });"
+        "from": "    append(instance.root, seat, { from: SERVER, divider: true, text: hasLeft(seat) });",
+        "to": "    append(instance.root, seat, { from: SERVER, text: hasLeft(seat) });"
       }
     ]
   },
@@ -768,7 +768,7 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "    append(root, seat, { from: THE_CHAT, text: `${seat} has no process`, failed: true });\n",
+        "from": "    append(root, seat, { from: SERVER, text: `${seat} has no process`, failed: true });\n",
         "to": ""
       }
     ]
@@ -1483,8 +1483,8 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "        append(instance.root, seat, { from: THE_CHAT, text: stoppedLine(waiting(seat)) });",
-        "to": "        append(instance.root, seat, { from: THE_CHAT, text: stoppedLine({ count: 0, next: null }) });"
+        "from": "        append(instance.root, seat, { from: SERVER, text: stoppedLine(waiting(seat)) });",
+        "to": "        append(instance.root, seat, { from: SERVER, text: stoppedLine({ count: 0, next: null }) });"
       }
     ]
   },
@@ -1527,7 +1527,7 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "        append(instance.root, seat, { from: THE_CHAT, text: \"no turn to stop\" });\n",
+        "from": "        append(instance.root, seat, { from: SERVER, text: \"no turn to stop\" });\n",
         "to": ""
       }
     ]
@@ -1571,8 +1571,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "      if (seconds >= WAIT_SAID_FROM) append(instance.root, seat, { from: THE_CHAT, text: `waited ${seconds} s for permission: ${what}` });\n",
-        "to": "      append(instance.root, seat, { from: THE_CHAT, text: `waited ${seconds} s for permission: ${what}` });\n"
+        "from": "      if (seconds >= WAIT_SAID_FROM) append(instance.root, seat, { from: SERVER, text: `waited ${seconds} s for permission: ${what}` });\n",
+        "to": "      append(instance.root, seat, { from: SERVER, text: `waited ${seconds} s for permission: ${what}` });\n"
       }
     ]
   },

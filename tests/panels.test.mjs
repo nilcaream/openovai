@@ -14,7 +14,7 @@ function about(name, extra = {}) {
 }
 
 function snapshot(sessions, extra = {}) {
-  return { name: "snapshot", data: { user: "Mike", leader: LEADER, chat: "the chat", sessions, standing: {}, ...extra } };
+  return { name: "snapshot", data: { user: "Mike", leader: LEADER, chat: "Server", sessions, standing: {}, ...extra } };
 }
 
 function seat(name, extra = {}) {
@@ -39,6 +39,19 @@ describe("placement", () => {
     applyEvent(state, snapshot([about("Ann"), about(LEADER), about("Paul")]), 2);
     assert.deepEqual(state.order, [LEADER, "Paul", "Ann"]);
     assert.deepEqual(place(names(state), state.leader, state.order), { left: ["Paul"], mid: LEADER, right: ["Ann"] });
+  });
+});
+
+describe("the desk title", () => {
+  // The seat's `about` carries the desk title for whoever asks the server; the panel never
+  // showed it but as a tooltip, and a tooltip on a whole panel is in the way. So it is not
+  // carried onto the panel at all: nothing on the page has it to show.
+  it("is not carried onto the panel, from the snapshot or from a later seat event", () => {
+    const state = fresh();
+    applyEvent(state, snapshot([about(LEADER, { title: "On the release" }), about("Paul", { title: "Idle" })]), 0);
+    applyEvent(state, seat("Paul", { title: "On the tests" }), 1);
+    assert.equal("title" in state.panels[LEADER], false);
+    assert.equal("title" in state.panels.Paul, false);
   });
 });
 

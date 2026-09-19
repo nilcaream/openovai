@@ -1617,5 +1617,49 @@
         "to": "child.matches(\".msg, .line, .divider\")"
       }
     ]
+  },
+  {
+    "name": "the side columns may shrink to nothing again",
+    "catches": "hold the side columns at 406px and let the Leader's column give way",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "grid-template-columns: minmax(406px, 1fr) minmax(0, 1092px) minmax(406px, 1fr);",
+        "to": "grid-template-columns: minmax(0, 1fr) minmax(0, 1092px) minmax(0, 1fr);"
+      }
+    ]
+  },
+  {
+    "name": "the copy button is placed against the bubble, not its block",
+    "catches": "keep the copy button in a code block's corner, shown on hover and while it says copied",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "font-size: .85rem; line-height: 1.4; position: relative; }",
+        "to": "font-size: .85rem; line-height: 1.4; }"
+      }
+    ]
+  },
+  {
+    "name": "the desk title hangs on the panel again",
+    "catches": "hangs no tooltip on a panel",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    panel.word.textContent = parts.state;\n",
+        "to": "    panel.word.textContent = parts.state;\n    panel.section.title = about.name;\n"
+      }
+    ]
+  },
+  {
+    "name": "the copy click copies the block with the button's markup in it",
+    "catches": "puts a copy button on every code block and copies the block's code on one delegated click",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "navigator.clipboard.writeText((block.querySelector(\"code\") ?? block).textContent)",
+        "to": "navigator.clipboard.writeText(block.textContent)"
+      }
+    ]
   }
 ]

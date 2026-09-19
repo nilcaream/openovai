@@ -7,8 +7,8 @@ import { describe, it } from "node:test";
 import { INTERRUPTED, SILENT, html, row } from "../lib/chat/render.mjs";
 
 // The Leader's panel, and a Worker's: the same rows drawn from two seats, for one User.
-const names = { chat: "the chat", seat: "Leader", leader: "Leader", user: "Mike" };
-const worker = { chat: "the chat", seat: "Paul", leader: "Leader", user: "Mike" };
+const names = { chat: "Server", seat: "Leader", leader: "Leader", user: "Mike" };
+const worker = { chat: "Server", seat: "Paul", leader: "Leader", user: "Mike" };
 
 describe("a reply", () => {
   it("renders markdown and escapes raw HTML in it", () => {
@@ -56,12 +56,12 @@ describe("every other row", () => {
   });
 
   it("the chat's own lines are muted words", () => {
-    assert.deepEqual(row({ from: "the chat", text: "Paul has no process" }, names), { who: "the chat", kind: "chat", text: "Paul has no process" });
+    assert.deepEqual(row({ from: "Server", text: "Paul has no process" }, names), { who: "Server", kind: "chat", text: "Paul has no process" });
   });
 
   it("a failed turn is shown failed", () => {
-    assert.deepEqual(row({ from: "the chat", text: "Paul stopped before answering: x", failed: true }, names), {
-      who: "the chat",
+    assert.deepEqual(row({ from: "Server", text: "Paul stopped before answering: x", failed: true }, names), {
+      who: "Server",
       kind: "failed",
       text: "Paul stopped before answering: x",
     });
@@ -73,18 +73,18 @@ describe("every other row", () => {
   });
 
   it("an interrupted turn is shown as interrupted, not as a reply", () => {
-    assert.deepEqual(row({ from: "Paul", text: "interrupted", interrupted: true }, names), { who: "the chat", kind: "interrupted", text: INTERRUPTED });
+    assert.deepEqual(row({ from: "Paul", text: "interrupted", interrupted: true }, names), { who: "Server", kind: "interrupted", text: INTERRUPTED });
   });
 
   // The row between two sessions on one panel — the Leader's process gone, the next row a fresh
   // one's — is a divider with its words as text, whatever else the entry carries.
   it("a word between two sessions is a divider, its words as text", () => {
-    assert.deepEqual(row({ from: "the chat", divider: true, text: "Superman has left — the next message starts a fresh session" }, names), {
-      who: "the chat",
+    assert.deepEqual(row({ from: "Server", divider: true, text: "Superman has left — the next message starts a fresh session" }, names), {
+      who: "Server",
       kind: "divider",
       text: "Superman has left — the next message starts a fresh session",
     });
-    assert.equal(row({ from: "the chat", divider: true, text: "x", failed: true }, names).kind, "divider");
+    assert.equal(row({ from: "Server", divider: true, text: "x", failed: true }, names).kind, "divider");
   });
 
   // A tool call is what the server summarised it as, as text — never markdown, never a reply —

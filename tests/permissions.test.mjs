@@ -488,7 +488,7 @@ describe("asking to be allowed", () => {
     });
 
     it("gives the run the chat's own reason", () => {
-      assert.equal(replied.text, "I was told deny: not allowed from the chat");
+      assert.equal(replied.text, "I was told deny: not allowed by the Server");
     });
   });
 
@@ -665,7 +665,7 @@ describe("asking to be allowed", () => {
     it("refuses to grant one, and leaves the call unanswered", () => {
       assert.equal(refused.status, 400);
       assert.match(JSON.parse(refused.body).error, /no rule that would allow that/);
-      assert.equal(replied.text, "I was told deny: not allowed from the chat");
+      assert.equal(replied.text, "I was told deny: not allowed by the Server");
     });
   });
 

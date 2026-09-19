@@ -208,7 +208,7 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "      ? refuse(typeof why === \"string\" && why.trim() !== \"\" ? why.trim() : \"not allowed from the chat\")",
+        "from": "      ? refuse(typeof why === \"string\" && why.trim() !== \"\" ? why.trim() : \"not allowed by the Server\")",
         "to": "      ? refuse(typeof why === \"string\" ? why.trim() : \"\")"
       }
     ]

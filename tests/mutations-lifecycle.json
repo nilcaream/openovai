@@ -883,7 +883,7 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "  append(instance.root, seat, { from: THE_CHAT, text: heldLine(holding, whatWaits(turn.frame)) });\n",
+        "from": "  append(instance.root, seat, { from: SERVER, text: heldLine(holding, whatWaits(turn.frame)) });\n",
         "to": ""
       }
     ]
@@ -905,8 +905,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "      if (seconds >= WAIT_SAID_FROM) append(instance.root, seat, { from: THE_CHAT, text: `waited ${seconds} s for permission: ${what}` });\n",
-        "to": "      append(instance.root, seat, { from: THE_CHAT, text: `waited ${seconds} s for permission: ${what}` });\n"
+        "from": "      if (seconds >= WAIT_SAID_FROM) append(instance.root, seat, { from: SERVER, text: `waited ${seconds} s for permission: ${what}` });\n",
+        "to": "      append(instance.root, seat, { from: SERVER, text: `waited ${seconds} s for permission: ${what}` });\n"
       }
     ]
   },

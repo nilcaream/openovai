@@ -460,5 +460,16 @@
         "to": "  if (asking(state, name)) return `${WAITING} · ${panel.asking.length} prompts`;"
       }
     ]
+  },
+  {
+    "name": "the desk title is carried onto the panel again",
+    "catches": "is not carried onto the panel, from the snapshot or from a later seat event",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  panel.busy = about.busy === true;\n  panel.running = about.running === true;\n",
+        "to": "  panel.title = about.title ?? \"\";\n  panel.busy = about.busy === true;\n  panel.running = about.running === true;\n"
+      }
+    ]
   }
 ]

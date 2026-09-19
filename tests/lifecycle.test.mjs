@@ -15,7 +15,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
-import { THE_CHAT, read as panel } from "../lib/chat/conversation.mjs";
+import { SERVER, read as panel } from "../lib/chat/conversation.mjs";
 import { messageFrame, serverEvent, userFrame } from "../lib/chat/frames.mjs";
 import { BODY_CONTEXT_FULL, BODY_CRITICAL, BODY_IDLE, BODY_PARK, IDLE_GRACE, deliver, parkRoom, tick } from "../lib/chat/lifecycle.mjs";
 import * as quota from "../lib/chat/quota.mjs";
@@ -865,7 +865,7 @@ describe("the quota gate", () => {
     const heldOnLeader = () => quota.held(LEADER).filter((entry) => entry.frame.kind !== "server-event").length;
     assert.ok(await waitFor(() => (heldOnLeader() === 2 ? true : null)), "behind and the note were not held at the write");
     const since = panel(instance, LEADER).slice(rows);
-    const lines = since.filter((row) => row.from === THE_CHAT && row.text.startsWith("limit exhausted"));
+    const lines = since.filter((row) => row.from === SERVER && row.text.startsWith("limit exhausted"));
     assert.deepEqual(lines.map((row) => row.text), [
       `limit exhausted (5h window), reset at ${quota.hhmm(resets)}, your message is waiting`,
       `limit exhausted (5h window), reset at ${quota.hhmm(resets)}, the message from ${WORKER} is waiting`,
@@ -1211,7 +1211,7 @@ describe("a call stop that waits", () => {
     now = from + seconds * 1000;
     await page("POST", `/sessions/${WORKER}/permission`, { id: stop.id, decision: "deny", why: "not today" });
     await asking_.answered;
-    return () => panel(instance, WORKER).slice(rows).find((row) => row.from === THE_CHAT && row.text.startsWith("waited ")) ?? null;
+    return () => panel(instance, WORKER).slice(rows).find((row) => row.from === SERVER && row.text.startsWith("waited ")) ?? null;
   }
 
   it("a card answered at nine seconds leaves no row on the panel", async () => {
@@ -1266,7 +1266,7 @@ describe("a call of the instance's own tools", () => {
     return {
       answered,
       lines: said.slice(logged).filter((line) => line.startsWith("tool: ")),
-      row: panel(instance, WORKER).slice(rows).find((row) => row.from === THE_CHAT && row.text.startsWith("slow took ")) ?? null,
+      row: panel(instance, WORKER).slice(rows).find((row) => row.from === SERVER && row.text.startsWith("slow took ")) ?? null,
     };
   }
 
