@@ -7,7 +7,9 @@ carries only its own.
 ## 0.13.0
 
 What the User types goes in ahead of a seat's backlog, a stop says what the seat goes on to, a
-wait on a card is written down, a frame held at the write is said on the panel, and the log
+wait on a card is written down, a slow call of the instance's own tools is timed and said, a frame
+held at the write is said on the panel, a call whose arguments do not fit what the tool declared is
+refused before the tool sees it, a turn that fails in its own words lands once, and the log
 survives a restart and says what the queue did. Nothing is configured: every one of these is on
 from the moment the instance takes this version.
 
@@ -62,6 +64,22 @@ text is required`, `park: deadline is not a whole number`, `recall: store is not
 knowledge`) and the tool is never called. One level and no deeper. What an argument means — a name
 nobody has, a status too long, a moment that cannot be placed — stays the tool's own refusal,
 after the shape. A plugin can drop the checks it wrote for a missing or mistyped argument.
+
+**A turn that fails in its own words lands once.** A run that cannot go on — not logged in, a
+window spent — says why as text and then ends in the same words as an error. The panel holds one
+row for that: the words, marked failed, in the place they landed; a second row appears only when
+the failed words are not the last thing the seat said.
+
+**`remember` says the way back from a wrong replacement.** A write that names nothing it replaces
+leaves the choice to the store, and a corrected record written over the one that chose wrong does
+not bring the wrongly replaced record back: it stays reachable by its id and by nothing else. The
+tool's description says so, beside the sentence that says only the write's answer tells you what
+happened, and says the repair — write the lost record again.
+
+Every line of the notes, the README, the code's comments and the check names says what is there
+now, not what a thing had been; no check changes what it checks. And a tool of the instance's own
+is checked the whole way round, from its file under `plugins/` to the list a seat sees and the
+call it answers, against the real server.
 
 ## 0.12.0
 
