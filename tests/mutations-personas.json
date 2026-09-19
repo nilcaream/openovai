@@ -220,6 +220,17 @@
     ]
   },
   {
+    "name": "the Worker's panel gets the report a second time once it was sent",
+    "catches": "tells the Worker that a report once sent is one line on its own panel, never the report again",
+    "edits": [
+      {
+        "file": "lib/templates/worker.md",
+        "from": "your panel gets one line — `Reported to {{LEADER}}.` — and never the report again, since",
+        "to": "your panel gets one line — `Reported to {{LEADER}}.` — and the report under it, since"
+      }
+    ]
+  },
+  {
     "name": "the Leader's persona says there is a second channel to the User",
     "catches": "tells the Leader it has no channel to the User but the one",
     "edits": [

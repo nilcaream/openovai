@@ -304,6 +304,11 @@ describe("what a Worker is told", () => {
     assert.match(worker(), new RegExp(`a report ${LEAD} is\\s+waiting for is a \`message\` to ${LEAD}, never the last line of your turn`));
   });
 
+  it("tells the Worker that a report once sent is one line on its own panel, never the report again", () => {
+    assert.match(worker(), new RegExp(`your panel gets one line — \`Reported to ${LEAD}\\.\` — and never the report again`));
+    assert.match(worker(), new RegExp(`what you say on your own panel is for what\\s+${USER} typed there`));
+  });
+
   it("tells the Worker that the server passes on what the User typed, so it does not", () => {
     assert.match(worker(), new RegExp(`the server tells ${LEAD} what was said, in ${USER}'s own\\s+words`));
     assert.match(worker(), /You do not have to pass it on/);

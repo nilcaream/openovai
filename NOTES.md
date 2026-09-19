@@ -94,6 +94,11 @@ Leader's panel, and now opens it and brings it to the top of the rows, its label
 message reads from its start. What the User typed, on any panel or to a Worker, and what one
 Worker said to another are shown whole, as before.
 
+**A Worker's report is read once.** A Worker that had sent its report to the Leader used to say
+nearly the same thing again on its own panel, so the User read it twice. The Worker persona now
+says what its panel gets once a report is sent: one line — `Reported to <leader>.` — and never the
+report again; what a Worker says on its own panel is for what the User typed there.
+
 ## 0.13.0
 
 What the User types goes in ahead of a seat's backlog, a stop says what the seat goes on to, a
