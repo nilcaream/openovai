@@ -1582,9 +1582,10 @@ describe("the stream", () => {
   });
 
   // A card that was answered leaves no row of its own, so a turn that stood still on one reads,
-  // afterwards, as a run that took that long. The wait is written down at both ends in the log,
-  // and once on the panel with how long it was.
-  it("a permission wait is logged as asked and answered, and the panel says how long it waited", async () => {
+  // afterwards, as a run that took that long. The wait is written down at both ends in the log;
+  // the panel says how long it was only once it is a gap worth explaining (ten seconds, checked on
+  // the injected clock in lifecycle.test.mjs) — a card answered at once, as here, draws no row.
+  it("a permission wait is logged as asked and answered, and one answered at once draws no row", async () => {
     const client = await listen();
     await until(client, (event) => event.name === "asking");
     const jane = await seatUp(OTHER, { OPENOVAI_STAND_IN_ASKS: "Bash", OPENOVAI_STAND_IN_ASKS_INPUT: "git status", OPENOVAI_STAND_IN_ASKS_WAITS: "10000" });
@@ -1600,8 +1601,9 @@ describe("the stream", () => {
       await page("POST", `/sessions/${OTHER}/permission`, { id: asked.id, decision: "allow" });
       const answered = await waitFor(() => said.slice(logged).find((line) => line.startsWith("permission answered:")) ?? null);
       assert.match(answered ?? "", new RegExp(`^permission answered: ${OTHER} allow after \\d+ s$`));
-      const row = await waitFor(() => panel(instance, OTHER).slice(from).find((one) => one.from === THE_CHAT && one.text.startsWith("waited ")) ?? null);
-      assert.match(row?.text ?? "", /^waited \d+ s for permission: Bash: git status$/);
+      // The row, when there is one, is appended in the same step as the answered line — so once
+      // that line is in the log, a missing row is missing for good.
+      assert.equal(panel(instance, OTHER).slice(from).find((one) => one.from === THE_CHAT && one.text.startsWith("waited ")), undefined, "a wait of no time drew a row");
     } finally {
       await end(OTHER, 500);
     }

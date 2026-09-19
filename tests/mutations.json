@@ -1566,13 +1566,13 @@
     ]
   },
   {
-    "name": "the panel is told nothing of how long the run waited",
-    "catches": "a permission wait is logged as asked and answered, and the panel says how long it waited",
+    "name": "the panel is told of a wait that was no wait",
+    "catches": "a permission wait is logged as asked and answered, and one answered at once draws no row",
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "      append(instance.root, seat, { from: THE_CHAT, text: `waited ${seconds} s for permission: ${what}` });\n",
-        "to": ""
+        "from": "      if (seconds >= WAIT_SAID_FROM) append(instance.root, seat, { from: THE_CHAT, text: `waited ${seconds} s for permission: ${what}` });\n",
+        "to": "      append(instance.root, seat, { from: THE_CHAT, text: `waited ${seconds} s for permission: ${what}` });\n"
       }
     ]
   },

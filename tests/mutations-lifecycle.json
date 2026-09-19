@@ -898,5 +898,27 @@
         "to": "  return \"your message\";"
       }
     ]
+  },
+  {
+    "name": "a card answered under ten seconds draws a row",
+    "catches": "a card answered at nine seconds leaves no row on the panel",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "      if (seconds >= WAIT_SAID_FROM) append(instance.root, seat, { from: THE_CHAT, text: `waited ${seconds} s for permission: ${what}` });\n",
+        "to": "      append(instance.root, seat, { from: THE_CHAT, text: `waited ${seconds} s for permission: ${what}` });\n"
+      }
+    ]
+  },
+  {
+    "name": "a card answered at ten seconds draws no row",
+    "catches": "a card answered at ten seconds says so on the panel",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "      if (seconds >= WAIT_SAID_FROM) append(",
+        "to": "      if (seconds > WAIT_SAID_FROM) append("
+      }
+    ]
   }
 ]

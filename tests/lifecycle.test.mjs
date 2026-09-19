@@ -1198,6 +1198,33 @@ describe("a call stop that waits", () => {
     await settle();
     assert.ok(!heardIn(superman.log).some((frame) => frame.includes('type="permission"')), heardIn(superman.log).join("\n"));
   });
+
+  // The panel row is there to explain a gap, so a card answered inside ten seconds draws none;
+  // the log says both ends either way.
+  async function waitOnCard(seconds) {
+    ({ superman, paul } = await pair(KNOBS));
+    await awake(LEADER);
+    const from = now;
+    const rows = panel(instance, WORKER).length;
+    const asking_ = tell(WORKER, userFrame("push it"));
+    const stop = await stopParked();
+    now = from + seconds * 1000;
+    await page("POST", `/sessions/${WORKER}/permission`, { id: stop.id, decision: "deny", why: "not today" });
+    await asking_.answered;
+    return () => panel(instance, WORKER).slice(rows).find((row) => row.from === THE_CHAT && row.text.startsWith("waited ")) ?? null;
+  }
+
+  it("a card answered at nine seconds leaves no row on the panel", async () => {
+    const waited = await waitOnCard(9);
+    await settle();
+    assert.equal(waited(), null, "a wait under ten seconds drew a row");
+  });
+
+  it("a card answered at ten seconds says so on the panel", async () => {
+    const waited = await waitOnCard(10);
+    const row = await waitFor(waited);
+    assert.equal(row?.text, "waited 10 s for permission: Bash: git push");
+  });
 });
 
 // ---------------------------------------------------------------------------------------------
