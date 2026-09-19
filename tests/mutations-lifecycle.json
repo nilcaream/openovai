@@ -975,5 +975,27 @@
         "to": "`tool: ${seat} ${tool.name} in ${ms} ms`"
       }
     ]
+  },
+  {
+    "name": "the chat is started without the tools its files hold",
+    "catches": "is found at the start, listed to a seat and answered by its own code",
+    "edits": [
+      {
+        "file": "lib/serve.mjs",
+        "from": "  const instance = { root, config, plugins: plugins.tools, pop: pop.pop, stopping: false };",
+        "to": "  const instance = { root, config, plugins: [], pop: pop.pop, stopping: false };"
+      }
+    ]
+  },
+  {
+    "name": "a plugin file is read from the wrong place",
+    "catches": "is found at the start, listed to a seat and answered by its own code",
+    "edits": [
+      {
+        "file": "lib/plugins.mjs",
+        "from": "      written = await import(pathToFileURL(path.join(directory, entry.name)).href);",
+        "to": "      written = await import(pathToFileURL(path.join(directory, \"elsewhere\", entry.name)).href);"
+      }
+    ]
   }
 ]

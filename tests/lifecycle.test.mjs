@@ -1464,6 +1464,64 @@ describe("park", () => {
 
 // ---------------------------------------------------------------------------------------------
 
+// A tool of the instance's own is a file, plugins/<name>.mjs, read by the chat as it starts — so
+// this goes the whole way round through the very process `ovai start` runs: the file is found and
+// said in the log, listed to a seat, and answered by its own code with the caller named.
+describe("a tool of the instance's own, from its file", () => {
+  const own = `${base}-plugin`;
+  const ownStandIn = `${base}-plugin-stand-in`;
+  const ownLog = path.join(ownStandIn, "all.txt");
+  let child;
+
+  before(() => {
+    remove(own, ownStandIn);
+    writeStandIn(ownStandIn);
+    installed(options(own));
+    fs.mkdirSync(path.join(own, "plugins"), { recursive: true });
+    fs.writeFileSync(
+      path.join(own, "plugins", "echo.mjs"),
+      [
+        'export const description = "says back what it was given, and by whom";',
+        'export const inputSchema = { type: "object", properties: { what: { type: "string" } } };',
+        "export function run(args, caller) {",
+        "  return { text: `${args.what}, said ${caller.seat}` };",
+        "}",
+        "",
+      ].join("\n"),
+    );
+  });
+
+  after(async () => {
+    await stopChat(child);
+    remove(own, ownStandIn);
+  });
+
+  it("is found at the start, listed to a seat and answered by its own code", async () => {
+    child = startChat(own, { ...process.env, PATH: `${ownStandIn}${path.delimiter}${realPath}`, OPENOVAI_STAND_IN_LOG: ownLog });
+    const address = await waitForAddress(child);
+    assert.ok(address, `the chat never said where it was listening:\n${child.output}`);
+    assert.match(child.output, /^This instance serves a tool of its own: echo$/m);
+    const page_ = await fetch(`${address}/`).then((answered) => answered.text());
+    const pageSecret_ = /<meta name="openovai-secret" content="([^"]*)">/.exec(page_)[1];
+    const woken = await fetch(`${address}/sessions/${LEADER}/message`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${pageSecret_}`, "content-type": "application/json" },
+      body: JSON.stringify({ text: "hello" }),
+    });
+    assert.equal(woken.status, 200, await woken.text());
+    assert.ok(await waitFor(() => secretsIn(ownLog).length > 0), "the Leader was never started");
+    const leader = secretsIn(ownLog)[0];
+    const listed = await postPlain(`${address}/mcp/${leader}`, { jsonrpc: "2.0", id: 1, method: "tools/list" });
+    assert.ok(JSON.parse(listed.body).result.tools.some((tool) => tool.name === "echo"), listed.body);
+    const answered = await postPlain(`${address}/mcp/${leader}`, { jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "echo", arguments: { what: "hello" } } });
+    const result = JSON.parse(answered.body).result;
+    assert.equal(result.isError, undefined, answered.body);
+    assert.equal(result.content[0].text, `hello, said ${LEADER}`);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+
 // The chat as its own process, stopped the way a person stops it: every session is parked over
 // the very server that is going, and the process leaves once they have.
 describe("a signal to the chat", () => {
