@@ -86,6 +86,8 @@ export function claudeIsInstalled() {
 //                             system notice, an assistant turn, and a line that is not a frame
 //   OPENOVAI_STAND_IN_BROKEN        fall over before framing anything, saying why on stderr
 //   OPENOVAI_STAND_IN_EMPTY         answer every turn with an empty result
+//   OPENOVAI_STAND_IN_FAILS         say the answer, then result in it as an error — the shape of
+//                             a run that cannot go on (not logged in, a window spent)
 //   OPENOVAI_STAND_IN_DIES          exit without a result frame in the middle of the first turn it
 //                             is asked — a run that ended mid-turn
 //   OPENOVAI_STAND_IN_STUCK         ignore stdin being closed and never exit on its own
@@ -501,7 +503,7 @@ for (;;) {
   frame({
     type: "result",
     subtype: "success",
-    is_error: false,
+    is_error: (process.env.OPENOVAI_STAND_IN_FAILS ?? "") !== "",
     num_turns: turn,
     session_id: "test-thread",
     ...(usage === null ? {} : { usage }),

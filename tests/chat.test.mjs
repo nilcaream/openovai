@@ -1055,6 +1055,21 @@ describe("what the User types", () => {
     assert.deepEqual(heardIn(paul.log), ["<user>go</user>"]);
   });
 
+  // A run that cannot go on — not logged in, a window spent — says why as text and then results
+  // in the same words as an error: the words land once, as the failed row, not once plain and
+  // once failed.
+  it("shows a turn that failed in its own words as one failed row, not two", async () => {
+    await endSeat(WORKER, 500);
+    remove(panelFile(instance, WORKER));
+    paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_FAILS: "1", OPENOVAI_STAND_IN_REPLY: "Not logged in · Please run /login" });
+    const answered = await page("POST", `/sessions/${WORKER}/message`, { text: "go" });
+    assert.deepEqual(JSON.parse(answered.body), { delivered: true, leaderTold: true });
+    await waitFor(() => (panel(instance, WORKER).some((row) => row.failed === true) ? true : null));
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const said = panel(instance, WORKER).filter((row) => row.from === WORKER);
+    assert.deepEqual(said.map((row) => [row.text, row.failed]), [["Not logged in · Please run /login", true]], "the failed words landed twice, or not as failed");
+  });
+
   // A Leader whose process is gone leaves one row on its panel saying so — between what that
   // session said and what the next one will say — and the next one is a fresh run: no resume, no
   // continue, nothing of the old context; the desk is its only memory.
