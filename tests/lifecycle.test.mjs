@@ -1229,6 +1229,69 @@ describe("a call stop that waits", () => {
 
 // ---------------------------------------------------------------------------------------------
 
+// Every call of the instance's own tools is timed where it is dispatched: the log says how long
+// each took, and the panel says so once it was ten seconds — so a slow call and a stuck seat can
+// be told apart while watching. A plugin the suite holds open is the tool: it answers when told.
+describe("a call of the instance's own tools", () => {
+  let paul = null;
+  let open = null;
+
+  before(async () => {
+    chat.plugins.push({
+      name: "slow",
+      description: "answers when the suite lets it",
+      inputSchema: { type: "object", properties: {} },
+      run: () => open,
+    });
+    paul = await seatUp(WORKER);
+  });
+
+  after(async () => {
+    chat.plugins.length = 0;
+    await endEvery(500);
+  });
+
+  // A call held open for `seconds` on the clock, then answered — or thrown — as the suite says.
+  async function held(seconds, answer) {
+    const from = now;
+    const rows = panel(instance, WORKER).length;
+    const logged = said.length;
+    let settle_;
+    open = new Promise((resolve, reject) => { settle_ = { resolve, reject }; });
+    const calling = tool(paul.secret, "slow");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    now = from + seconds * 1000;
+    answer(settle_);
+    const answered = await calling;
+    return {
+      answered,
+      lines: said.slice(logged).filter((line) => line.startsWith("tool: ")),
+      row: panel(instance, WORKER).slice(rows).find((row) => row.from === THE_CHAT && row.text.startsWith("slow took ")) ?? null,
+    };
+  }
+
+  it("is logged with how long it took, and one of nine seconds draws no row", async () => {
+    const { answered, lines, row } = await held(9, ({ resolve }) => resolve({ text: "done" }));
+    assert.equal(answered.text, "done");
+    assert.deepEqual(lines, [`tool: ${WORKER} slow in 9000 ms`]);
+    assert.equal(row, null, "a call under ten seconds drew a row");
+  });
+
+  it("one of ten seconds says so on the panel", async () => {
+    const { row } = await held(10, ({ resolve }) => resolve({ text: "done" }));
+    assert.equal(row?.text, "slow took 10 s");
+  });
+
+  it("one that threw is logged failed, with the reason, and still timed", async () => {
+    const { answered, lines } = await held(1, ({ reject }) => reject(new Error("the wire broke")));
+    assert.equal(answered.refused, true);
+    assert.match(answered.text, /^slow could not be done: the wire broke$/);
+    assert.deepEqual(lines, [`tool: ${WORKER} slow failed in 1000 ms: the wire broke`]);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+
 describe("the hard-rule delta", () => {
   let superman = null;
   let paul = null;

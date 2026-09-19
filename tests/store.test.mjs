@@ -605,6 +605,7 @@ let server = null;
 let url = null;
 const doors = {};
 const warned = [];
+const served = [];
 let warn = null;
 let log_ = null;
 let environmentBefore = null;
@@ -685,9 +686,10 @@ describe("the tools the chat serves for the store", () => {
     Object.assign(process.env, standInEnvironment(standIn, log, { OPENOVAI_STAND_IN_HELPER: helperAnswer }));
     warn = console.warn;
     console.warn = (line) => warned.push(String(line));
-    // The server says every request on console.log; a suite is not its log.
+    // The server says every request on console.log; a suite is not its log, but the store's
+    // timing lines are read off it below.
     log_ = console.log;
-    console.log = () => {};
+    console.log = (line) => served.push(String(line));
     const config = JSON.parse(fs.readFileSync(path.join(instance, CONFIG_FILE), "utf8"));
     const chat = { root: instance, config, plugins: [], pop: () => {} };
     server = await serve(chat);
@@ -739,22 +741,33 @@ describe("the tools the chat serves for the store", () => {
     assert.equal(fs.existsSync(path.join(instance, "store", "memory", "000001.md")), true);
   });
 
-  it("asks the helper nothing for id, all or the numbered set", async () => {
+  // The log says, per call of the store's tools, whether a model was asked and how long that took
+  // — the round-trip is what makes a call slow, and a seat watching it can look stuck.
+  const stored = (from) => served.slice(from).filter((line) => line.startsWith("store: "));
+
+  it("asks the helper nothing for id, all or the numbered set, and the log says no model each time", async () => {
     const calls = helperCalls();
+    const logged = served.length;
     await tool(CHAT_LEADER, "recall", { store: "memory", id: "m1" });
     await tool(CHAT_LEADER, "recall", { store: "memory", all: true });
     const set = await tool(CHAT_WORKER, "recall", { store: "memory", kind: HARD_RULE });
     assert.match(set.text, /^Hard rules \(set m1\)\.[\s\S]*\n  1\. Never push on Fridays$/);
     assert.equal(helperCalls(), calls);
+    assert.deepEqual(stored(logged), [`store: ${CHAT_LEADER} recall no model`, `store: ${CHAT_LEADER} recall no model`, `store: ${CHAT_WORKER} recall no model`]);
   });
 
-  it("sends the helper exactly the current records of the store on a query and answers only ids it named", async () => {
+  it("sends the helper exactly the current records of the store on a query and answers only ids it named, and the log times the round-trip", async () => {
+    const logged = served.length;
     let said = await tool(CHAT_LEADER, "remember", { store: "memory", kind: HARD_RULE, text: "Never push before the release commit is on main", source: "user", replaces: "m1" });
     assert.equal(said.refused, false, said.text);
     said = await tool(CHAT_WORKER, "remember", { store: "memory", kind: "fact", text: "the User prefers a dark palette" });
     assert.equal(said.refused, false, said.text);
     stage({ ids: ["m3", "m1", "m99"] });
     const found = await tool(CHAT_WORKER, "recall", { store: "memory", query: "the User's preferred palette" });
+    assert.deepEqual(
+      stored(logged).map((line) => line.replace(/ in \d+ ms$/, " in N ms")),
+      [`store: ${CHAT_LEADER} remember no model`, `store: ${CHAT_WORKER} remember no model`, `store: ${CHAT_WORKER} recall model in N ms`],
+    );
     const request = helperRequests().at(-1);
     assert.equal(request.question, "select");
     assert.equal(request.query, "the User's preferred palette");

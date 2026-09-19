@@ -746,5 +746,27 @@
         "to": "Read what this workspace knows. "
       }
     ]
+  },
+  {
+    "name": "a store call that asked no model says nothing",
+    "catches": "asks the helper nothing for id, all or the numbered set, and the log says no model each time",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "    if (!modelled) {\n      console.log(`store: ${caller.seat} ${name} no model`);\n    }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the model round-trip is not timed",
+    "catches": "sends the helper exactly the current records of the store on a query and answers only ids it named, and the log times the round-trip",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "        console.log(`store: ${caller.seat} ${name} model in ${clock() - began} ms`);\n",
+        "to": ""
+      }
+    ]
   }
 ]

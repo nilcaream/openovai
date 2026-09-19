@@ -34,6 +34,15 @@ for permission: Bash: git push` once the wait was ten seconds or more; a card an
 draws no row, since there is no gap to explain. Every seat's tool calls reach the log the same way,
 the Leader's included, with a failed call and its reason.
 
+**A slow call of the instance's own tools is told apart from a stuck seat.** Every call of the
+tools the instance serves — `message`, `room`, `hire`, `write_desk`, `recall`, `remember`,
+`permission`, `park`, the plugins — is timed where it is dispatched: the log says `tool: <seat>
+<name> in N ms` (`failed in N ms: <why>` when it threw), and the panel says `<name> took N s` once
+a call was ten seconds or more, on the same threshold and in the same shape as the wait on a card.
+`recall` and `remember` go through a model when a judgement is needed, and that round-trip is what
+makes them slow: the log times it (`store: <seat> remember model in N ms`), and says `no model`
+for a call that needed none — a recall by id, a remember that named what it replaces.
+
 **A frame held at the write is said, once.** A message or a line the quota gate holds until a
 window resets is said on the panel where it was typed or sent, with when the window resets, in one
 place whichever door it came through.

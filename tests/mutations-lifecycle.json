@@ -920,5 +920,49 @@
         "to": "      if (seconds > WAIT_SAID_FROM) append("
       }
     ]
+  },
+  {
+    "name": "a call of nine seconds draws a row",
+    "catches": "is logged with how long it took, and one of nine seconds draws no row",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "export const SLOW_SAID_FROM = 10;",
+        "to": "export const SLOW_SAID_FROM = 9;"
+      }
+    ]
+  },
+  {
+    "name": "a call of ten seconds draws no row",
+    "catches": "one of ten seconds says so on the panel",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "        if (seconds >= SLOW_SAID_FROM) {",
+        "to": "        if (seconds > SLOW_SAID_FROM) {"
+      }
+    ]
+  },
+  {
+    "name": "a call's time is not logged",
+    "catches": "is logged with how long it took, and one of nine seconds draws no row",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "failed === null ? `tool: ${seat} ${tool.name} in ${ms} ms` : ",
+        "to": "failed === null ? `tool: ${seat} ${tool.name}` : "
+      }
+    ]
+  },
+  {
+    "name": "a call that threw is logged as if it had not",
+    "catches": "one that threw is logged failed, with the reason, and still timed",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "`tool: ${seat} ${tool.name} failed in ${ms} ms: ${failed.message}`",
+        "to": "`tool: ${seat} ${tool.name} in ${ms} ms`"
+      }
+    ]
   }
 ]
