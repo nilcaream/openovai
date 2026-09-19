@@ -816,9 +816,9 @@
     "catches": "passes a page message at stage one, holds it at stage two, and writes it once the window has reset",
     "edits": [
       {
-        "file": "lib/chat/server.mjs",
-        "from": "  return `limit exhausted (${held.window} window), reset at ${quota.hhmm(held.resets)}, your message is waiting`;",
-        "to": "  return `limit exhausted (${held.window} window), reset at ${quota.hhmm(held.resets)}`;"
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "  return `limit exhausted (${window} window), reset at ${quota.hhmm(resets)}, ${what} is waiting`;",
+        "to": "  return `limit exhausted (${window} window), reset at ${quota.hhmm(resets)}`;"
       }
     ]
   },
@@ -827,9 +827,9 @@
     "catches": "passes a page message at stage one, holds it at stage two, and writes it once the window has reset",
     "edits": [
       {
-        "file": "lib/chat/server.mjs",
-        "from": "  return `limit exhausted (${held.window} window), reset at ${quota.hhmm(held.resets)}, your message is waiting`;",
-        "to": "  return `limit exhausted (${held.window} window), reset at ${held.resets}, your message is waiting`;"
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "  return `limit exhausted (${window} window), reset at ${quota.hhmm(resets)}, ${what} is waiting`;",
+        "to": "  return `limit exhausted (${window} window), reset at ${resets}, ${what} is waiting`;"
       }
     ]
   },
@@ -850,8 +850,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "      holdTurn(seat, { frame, ahead, ask, resolve, written, order: arrival() }, holding);",
-        "to": "      holdTurn(seat, { frame, ahead, ask, resolve, order: arrival() }, holding);"
+        "from": "      holdTurn(instance, seat, { frame, ahead, ask, resolve, written, order: arrival() }, holding);",
+        "to": "      holdTurn(instance, seat, { frame, ahead, ask, resolve, order: arrival() }, holding);"
       }
     ]
   },
@@ -874,6 +874,28 @@
         "file": "lib/chat/server.mjs",
         "from": "        if (name === undefined) {\n          try {\n            name = nextName(root);",
         "to": "        if (false) {\n          try {\n            name = nextName(root);"
+      }
+    ]
+  },
+  {
+    "name": "a hold draws nothing on the panel, at the door or at the write",
+    "catches": "says on the panel what was held at the write, and what it is",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "  append(instance.root, seat, { from: THE_CHAT, text: heldLine(holding, whatWaits(turn.frame)) });\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a held message is said to be the User's own",
+    "catches": "says on the panel what was held at the write, and what it is",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "  return frame.kind === \"message\" ? `the message from ${frame.from}` : frame.kind === \"server-event\" ? `a ${frame.event.type} event` : \"your message\";",
+        "to": "  return \"your message\";"
       }
     ]
   }

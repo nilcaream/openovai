@@ -15,7 +15,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
-import { read as panel } from "../lib/chat/conversation.mjs";
+import { THE_CHAT, read as panel } from "../lib/chat/conversation.mjs";
 import { messageFrame, serverEvent, userFrame } from "../lib/chat/frames.mjs";
 import { BODY_CONTEXT_FULL, BODY_CRITICAL, BODY_IDLE, BODY_PARK, IDLE_GRACE, deliver, parkRoom, tick } from "../lib/chat/lifecycle.mjs";
 import * as quota from "../lib/chat/quota.mjs";
@@ -848,6 +848,32 @@ describe("the quota gate", () => {
     assert.equal((await told(paul.log, 3)).at(-1), "<user>to paul</user>");
     assert.equal((await told(ann.log, 2)).at(-1), "<user>to ann</user>");
     await end(OTHER, 500);
+  });
+
+  // A frame queued while the window was open drew nothing when it went in; held when its turn
+  // came, it is said on the panel then, with what it is — or the seat reads as busy or ignoring.
+  it("says on the panel what was held at the write, and what it is", async () => {
+    const resets = RESETS();
+    await fresh(readings(reading(0.96, { resets })), { OPENOVAI_STAND_IN_SLOW: "1500" });
+    const rows = panel(instance, LEADER).length;
+    const long = tell(LEADER, userFrame("long"));
+    assert.deepEqual(JSON.parse((await page("POST", `/sessions/${LEADER}/message`, { text: "behind" })).body), { delivered: true });
+    tell(LEADER, messageFrame(WORKER, "a note"));
+    tell(WORKER, userFrame("one"));
+    assert.equal((await told(paul.log, 2)).at(-1).startsWith('<server-event type="quota-low" stage="critical"'), true);
+    assert.equal((await long.answered).text, "a reply");
+    const heldOnLeader = () => quota.held(LEADER).filter((entry) => entry.frame.kind !== "server-event").length;
+    assert.ok(await waitFor(() => (heldOnLeader() === 2 ? true : null)), "behind and the note were not held at the write");
+    const since = panel(instance, LEADER).slice(rows);
+    const lines = since.filter((row) => row.from === THE_CHAT && row.text.startsWith("limit exhausted"));
+    assert.deepEqual(lines.map((row) => row.text), [
+      `limit exhausted (5h window), reset at ${quota.hhmm(resets)}, your message is waiting`,
+      `limit exhausted (5h window), reset at ${quota.hhmm(resets)}, the message from ${WORKER} is waiting`,
+    ]);
+    assert.ok(since.findIndex((row) => row.text === "behind") < since.indexOf(lines[0]), "the line came before the row it is about");
+    now = resets + 1;
+    tick(chat);
+    assert.equal((await told(superman.log, 4)).at(-1), `<message from="${WORKER}">a note</message>`);
   });
 
   it("a restart while the window is closed is a stop: no successor is queued, the carried turns are answered so, and the Leader hears of it after the reset", async () => {
