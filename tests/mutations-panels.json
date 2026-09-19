@@ -297,7 +297,7 @@
     ]
   },
   {
-    "name": "a snapshot without a quota keeps the old one",
+    "name": "a snapshot without a quota keeps the one it had",
     "catches": "comes with the snapshot and moves with the quota event",
     "edits": [
       {

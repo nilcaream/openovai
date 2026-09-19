@@ -44,7 +44,7 @@
     ]
   },
   {
-    "name": "a row kind is renamed in the renderer while the stylesheet keeps the old one",
+    "name": "a row kind is renamed in the renderer while the stylesheet keeps the name it had",
     "catches": "give every class the page emits at least one rule",
     "edits": [
       {

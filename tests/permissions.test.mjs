@@ -227,7 +227,7 @@ describe("settling a rule in the settings", () => {
 
   after(() => remove(root));
 
-  it("moves a rule settled again into the new list and out of the old one", () => {
+  it("moves a rule settled again into the new list and out of the one it was in", () => {
     ruleAsked(root, { rule: "Bash(pip:*)", list: "ask", session: LEADER, call: "pip is too much", day: "2026-09-13" });
     assert.deepEqual(settings().ask, ["Bash(pip:*)"]);
     assert.deepEqual(settings().allow, ["mcp__openovai"]);

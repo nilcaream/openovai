@@ -358,7 +358,7 @@
   },
   {
     "name": "a rule settled again stays in the list it was in",
-    "catches": "moves a rule settled again into the new list and out of the old one",
+    "catches": "moves a rule settled again into the new list and out of the one it was in",
     "edits": [
       {
         "file": "lib/desks.mjs",

@@ -19,7 +19,7 @@ waiting on that seat, behind the turn under way, on whichever panel they type on
 or a Worker's, one mechanism for both — and two lines typed keep their order. The trade-off is
 plain: a message a seat was sent earlier is answered after a line the User typed later, so a
 Worker's report can wait behind the User's word. The alternative, a stop that leaves the queue
-untouched until the User presses again, would keep the old order at the price of making the User
+untouched until the User presses again, would keep that order at the price of making the User
 drive every frame; the seat's own order stays first-come for everything the User did not type.
 
 **A stop says what happens next.** Stopping a seat with a queue makes it busy again at once — with
@@ -164,7 +164,7 @@ server is gone the page says so — every dot red, no state words, `disconnected
 head — and comes back on its own when the server does.
 
 **The command is a daemon's.** `ovai start` starts the server in the background, prints the
-address and returns; `ovai stop` stops it, parking every session first as before; `ovai restart`
+address and returns; `ovai stop` stops it, parking every session first; `ovai restart`
 is the two in a row. `ovai status` says `not running` (exit 3) or `running at <url> (pid, since)`,
 found out by trying the address rather than by trusting `runtime.json`. What `status` used to
 print — who works here, the models, the port, how the instance signs in, the desks, the store — is
@@ -244,7 +244,7 @@ nothing waits now, so nothing is.
 it stopped itself after "go offline", the server was stopped, or it died — one row sits on its
 panel where the session ended, drawn like the day between two rows: `<Leader> has left — the next
 message starts a fresh session`. What is typed there next starts a new process with nothing of
-the old context; its desk is what it knows. A stopping server is a gone one on the page from the
+the context it had; its desk is what it knows. A stopping server is a gone one on the page from the
 moment it says so: every dot red, no state words, `disconnected` on the Leader's head — never
 `stopping` — and it comes back on its own when the server does.
 
@@ -339,7 +339,7 @@ one line for a message received and one for a message written.
 The server frames every turn, owns every seat's lifecycle and gates every turn on the account's
 windows; the page draws it all from one stream, in three columns. A workspace taking this version
 starts every session afresh: the personas, the tools and the page are new, and nothing a session
-did on the previous version carries over except the desks.
+did on the version before carries over except the desks.
 
 **What the workspace knows is one store, reached through two tools.** `recall` and `remember`
 replace the memory file each session grew for itself. `memory` is about us — hard rules, facts,
@@ -364,9 +364,9 @@ environment and keys the tool route by it; the map lives in memory only and dies
 so nothing about identity is read from a name a session could claim. The actors are the User, the
 Leader and the Workers, in the config, the flags, the templates and the page alike: the option is
 `--user`, the key is `user`. Nothing rewrites a 0.8.0 workspace's `openovai.json`: it
-carries the User's name under the old key, `ovai status` prints `user undefined` until the
+carries the User's name under the former key, `ovai status` prints `user undefined` until the
 instance is installed again with `./install.sh --root <instance> --source <release> --user <name>
---force`, and the old key stays.
+--force`, and the former key stays.
 
 **Every seat has a lifecycle the server runs, and one gate on the account.** Three tools for every
 seat — `write_desk`, `restart_session`, `stop_session` — and two for the Leader, `hire` and
@@ -463,9 +463,9 @@ and go with it, which was right when the only thing that could start a run was a
 watch can start one now, on its own clock, and a chat restarted for an update came back on and its
 first pass parked and ended whatever it found in a room you had stopped. The word is a file beside
 the hold now, `chat/offline`, and a restarted chat reads it: the room says it is off, a message is
-turned away, and the first pass ends nobody. Bringing the room back removes it, as before.
+turned away, and the first pass ends nobody. Bringing the room back removes it.
 
-**The personas now say what the chat does by itself.** A Leader hired on the previous version was
+**The personas now say what the chat does by itself.** A Leader hired on the version before was
 told that handing a conversation over was yours to press, that the room watch did three things and
 that a crossing into a strong band was said once and left alone — while the chat had begun parking
 a conversation on that crossing, and before its hour, desk written first. Both templates say so
@@ -498,7 +498,7 @@ into whatever you have made of the file by then.
 
 **An update refuses while any session of this instance is running, and says which.** It used to ask
 only whether the chat was up; a run that outlived a chat killed with `-9`, or a session started by
-hand with the instance's Claude Code home, went on running the old version from memory under an
+hand with the instance's Claude Code home, went on running the superseded version from memory under an
 instance that said the new one was installed. Now every process carrying this instance's home in its
 environment is named — `kill <pid>  <seat>`, or `(no seat name)` for a sign-in — and nothing of
 another instance's is. Nothing is written down to find them by, so there is nothing to go stale.
@@ -518,7 +518,7 @@ writes `personas/` any more. Who a session is gets rendered from the toolkit's t
 it starts a conversation — a hire's first turn, the turn after a handover — and kept beside that
 conversation at `chat/<Name>/persona.md` for as long as it lasts, so a conversation already going
 keeps what it was told and the next one gets the templates the instance has by then. So taking a
-newer version no longer leaves everybody on the old instructions until they are hired again: a
+newer version no longer leaves everybody on the instructions they started with until they are hired again: a
 handover is enough. The `personas/` directory an older toolkit left is read by nothing now and can
 go — but before it does, look for anything you wrote into one of those files yourself, because that
 was the only way to add to a persona and it never survived a hire. It has a place now:
@@ -597,7 +597,7 @@ shows on `/health` as `watch`: how often, when it was armed, when the last pass 
 sessions it read, decided on and acted on — a watch that died and one that was never armed look the
 same from a quiet room, and this is how they are told apart.
 
-**Your Leader was told about the old watch, and an update does not tell it otherwise.** A Leader in a
+**Your Leader was told about the former watch, and an update does not tell it otherwise.** A Leader in a
 conversation started before this version was told that the watch gives it a turn and that nothing
 stops running because of it; both are now false, and the Leader will act on them until it is told
 otherwise. A handover is what tells it: the next conversation is rendered from the templates this
@@ -1162,7 +1162,7 @@ came from a fresh head.
 found it.** The permission rules are the workspace's own, so add `mcp__openovai` to
 `.claude/settings.json`: without it the first tool a session reaches for stops and asks you to
 allow it, on every message. And personas are not re-rendered, so everybody hired before the update
-goes on typing the old commands — which still work, and whose rules you can drop once nobody is
+goes on typing the commands it knows — which still work, and whose rules you can drop once nobody is
 running those instructions any more. Those same sessions have not been told that a conversation can
 end without being asked to hand over, so tell them yourself, or hand them over once and let the
 sessions that replace them read it.

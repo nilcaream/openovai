@@ -473,7 +473,7 @@ describe("an update while the server is running", () => {
 
 // A chat stopped is not every session ended. A run that outlived a chat killed with -9, or a session
 // somebody started by hand with this instance's Claude Code home, holds the code and the persona an
-// update replaces, in memory, and would go on running the old version under an instance that says
+// update replaces, in memory, and would go on running the superseded version under an instance that says
 // the new one is installed. What makes such a process ours is the home in its environment — the
 // chat puts it on every session it starts — so that is what is looked for, on the machine, and
 // nothing on disk is trusted to say who is running.

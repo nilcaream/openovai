@@ -440,7 +440,7 @@ describe("restart_session and stop_session", () => {
     assert.notEqual(successor.secret, paul.secret);
     assert.equal(callsIn(successor.log).length, 1);
     assert.deepEqual(await told(successor.log, 1), [`<message from="${LEADER}">after the restart</message>`]);
-    // The old secret is dead with the old process.
+    // The secret dies with the process that held it.
     assert.equal((await call(paul.secret, "tools/list")).status, 401);
     // The successor starts from the desk the predecessor wrote.
     const argv = callsIn(successor.log)[0];

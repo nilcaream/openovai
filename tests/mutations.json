@@ -587,7 +587,7 @@
     ]
   },
   {
-    "name": "the next Leader process resumes the old one",
+    "name": "the next Leader process resumes the one before it",
     "catches": "leaves one row on the Leader's panel when its process is gone, and starts a fresh one for the event, the event its first line",
     "edits": [
       {
@@ -830,7 +830,7 @@
   },
   {
     "name": "the page secret is the same every start",
-    "catches": "starts with nothing when started again: the old page secret opens nothing",
+    "catches": "starts with nothing when started again: the page secret of the last run opens nothing",
     "edits": [
       {
         "file": "lib/chat/secrets.mjs",
@@ -1170,7 +1170,7 @@
     ]
   },
   {
-    "name": "the amend tells the page but keeps the old entry on disk",
+    "name": "the amend tells the page but keeps the entry as it was on disk",
     "catches": "marks the line of a call that failed, in the file and on the stream, with the first line its result said as the reason",
     "edits": [
       {

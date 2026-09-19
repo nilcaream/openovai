@@ -35,7 +35,7 @@ const COPIES = Math.max(1, Math.min(4, os.cpus().length));
 // sweep for ever. With this, the hanging check goes red BY NAME and the rest of the file finishes.
 const CHECK_TIMEOUT = 30_000;
 
-// The outer net, for the case the runner itself wedges rather than a check. Derived from the
+// The outer net, for the case the runner itself wedges rather than a check. Read off the
 // measured baseline (below), never a constant: a number chosen when the suite took two minutes is
 // meaningless once it takes five.
 const BOUND_MULTIPLE = 3;
@@ -187,9 +187,9 @@ function buildCopy(into) {
     if (line === "") continue;
     // Porcelain is two status columns, a space, then the path; a staged rename carries
     // "old -> new", and both sides are the tree's business: the new side is copied over like any
-    // other change, and the old side, which the archive laid down because HEAD still has it, is
+    // other change, and the side it left, which the archive laid down because HEAD still has it, is
     // taken away. Left standing, a renamed file would exist twice in the copy — and a check that
-    // the old place is empty, or a mutation that puts the file back there, would be measured
+    // the place it left is empty, or a mutation that puts the file back there, would be measured
     // against a tree nobody has. (Measured 2026-09-14: a mutation moving the version file back to
     // the root reported BIT on a pre-commit copy that still carried the root file, and
     // UNREPORTABLE once the rename was committed.)
@@ -387,7 +387,7 @@ async function main() {
     process.stdout.write(`THE TREE IS NOT GREEN BEFORE ANY OF THIS — ${first.red.join(" | ") || "the baseline did not finish"}\n`);
     return 2;
   }
-  // The outer bound is derived from what the baseline actually took, so it stays honest as the
+  // The outer bound is read off what the baseline actually took, so it stays honest as the
   // suite grows.
   bounds.boundMs = Math.max(BOUND_FLOOR, first.tookMs * BOUND_MULTIPLE);
   process.stdout.write(`baseline green: ${first.leaves} checks in ${(first.tookMs / 1000).toFixed(1)}s (bound ${(bounds.boundMs / 1000).toFixed(0)}s)\n`);

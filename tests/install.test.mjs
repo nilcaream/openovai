@@ -484,7 +484,7 @@ describe("what the installer made", () => {
 // fresh install would have given them is seeded if it is missing. Each file is marked with a line
 // no template holds, so the check reads content rather than counting files. The one file that is
 // read rather than kept is the instance's own description: what the command line says is written
-// into it, what it leaves off is taken from it.
+// into it, what it leaves off is read off it.
 describe("installing over an instance", () => {
   const root = `${instance}-over`;
   const MARK = "kept by the person\n";

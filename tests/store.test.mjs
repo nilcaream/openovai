@@ -854,7 +854,7 @@ describe("the tools the chat serves for the store", () => {
 
   // The store chose: the writer named nothing, and may never have read what went, so the answer
   // says whose choice it was. A replacement the writer named reads as it always has.
-  it("answers a store-chosen replacement as the store's judgement with the reason, marks the record judged store, and a caller-named one reads as before", async () => {
+  it("answers a store-chosen replacement as the store's judgement with the reason, marks the record judged store, and a caller-named one reads unchanged", async () => {
     stage({ replaces: "m5", reason: "widens m5 to every fact of the team's" });
     let said = await tool(CHAT_WORKER, "remember", { store: "memory", kind: "fact", text: "every fact of the team's" });
     assert.equal(said.refused, false, said.text);

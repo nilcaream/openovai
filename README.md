@@ -76,8 +76,8 @@ An instance is a directory of its own. From a clone:
 ```
 
 - `--root` — where the instance lives. It has to be empty or new. Installing over a directory
-  that is not, an existing instance included, is refused unless you pass `--force`; with it, an
-  install over an existing instance is an update of it: the payload is replaced whole, every file
+  that is not, an instance already in place included, is refused unless you pass `--force`; with it, an
+  install over an instance already in place is an update of it: the payload is replaced whole, every file
   of yours is kept, and one you have not got is seeded as a fresh install would seed it. Its
   `openovai.json` answers for any option you leave off, and any option you do give is written
   into it.

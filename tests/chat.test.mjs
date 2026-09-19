@@ -217,7 +217,7 @@ describe("what the chat serves", () => {
 
   // The page's own script is not run here, so the two things it has to do with the secret are read
   // off the source: carry it on every call, and reload when the server no longer knows it — a
-  // server restart mints a new page secret, and a page still holding the old one would otherwise
+  // server restart mints a new page secret, and a page still holding the one before would otherwise
   // sit on 401 for good.
   it("reads its secret off the tag, sends it on every call, and reloads when it is no longer known", () => {
     const opened = answeredPage.indexOf('<script type="module">');
@@ -1072,7 +1072,7 @@ describe("what the User types", () => {
 
   // A Leader whose process is gone leaves one row on its panel saying so — between what that
   // session said and what the next one will say — and the next one is a fresh run: no resume, no
-  // continue, nothing of the old context; the desk is its only memory.
+  // continue, nothing of the context it had; the desk is its only memory.
   it("leaves one row on the Leader's panel when its process is gone, and starts a fresh one for the event, the event its first line", async () => {
     const rows = panel(instance, LEADER).length;
     await endSeat(LEADER, 500);
@@ -1733,7 +1733,7 @@ describe("the chat as a process", () => {
     assert.ok(!child.output.includes(firstPage), "the page secret is in the output");
   });
 
-  it("starts with nothing when started again: the old page secret opens nothing", async () => {
+  it("starts with nothing when started again: the page secret of the last run opens nothing", async () => {
     await stopChat(child);
     assert.equal(child.exitCode, 0, `the chat did not stop cleanly:\n${child.output}`);
     child = startChat(own, process.env);

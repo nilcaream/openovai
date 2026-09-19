@@ -22,7 +22,7 @@
     ]
   },
   {
-    "name": "retiring copies the directory and leaves the original in place",
+    "name": "retiring copies the directory and leaves the directory it copied in place",
     "catches": "leaves nothing under desks/ for that name",
     "edits": [
       {

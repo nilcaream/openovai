@@ -672,7 +672,7 @@
   },
   {
     "name": "a store-chosen replacement is not marked on the record",
-    "catches": "answers a store-chosen replacement as the store's judgement with the reason, marks the record judged store, and a caller-named one reads as before",
+    "catches": "answers a store-chosen replacement as the store's judgement with the reason, marks the record judged store, and a caller-named one reads unchanged",
     "edits": [
       {
         "file": "lib/store.mjs",
@@ -694,7 +694,7 @@
   },
   {
     "name": "the write's answer addresses the writer as anybody",
-    "catches": "answers a store-chosen replacement as the store's judgement with the reason, marks the record judged store, and a caller-named one reads as before",
+    "catches": "answers a store-chosen replacement as the store's judgement with the reason, marks the record judged store, and a caller-named one reads unchanged",
     "edits": [
       {
         "file": "lib/store.mjs",
