@@ -1399,5 +1399,82 @@
         "to": "  const told = tell(seat, frame, { ahead, ask });"
       }
     ]
+  },
+  {
+    "name": "a frame is queued without a word in the log",
+    "catches": "says in the log what was queued and what was written, by arrival, with how many wait",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "  console.log(`queued: ${seat} ${frame.kind} #${order}${ahead ? \" ahead\" : \"\"}, ${record.queue.length} waiting`);\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the write line counts the frame just written among the waiting",
+    "catches": "says in the log what was queued and what was written, by arrival, with how many wait",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "  console.log(`wrote: ${record.seat} ${record.turn.frame.kind} #${record.turn.order}, ${record.queue.length} waiting`);",
+        "to": "  console.log(`wrote: ${record.seat} ${record.turn.frame.kind} #${record.turn.order}, ${record.queue.length + 1} waiting`);"
+      }
+    ]
+  },
+  {
+    "name": "a frame behind an open turn is held without a word in the log",
+    "catches": "says in the log why a frame was not written: the turn open since when, and how many wait",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "    console.log(`not written: ${record.seat} turn open since ${new Date(record.turnBegan).toISOString()}, ${record.queue.length} waiting`);\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a seat on its way out takes no turn and says nothing",
+    "catches": "says in the log that a seat on its way out took no new turn, and what it was ending as",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "    console.log(`not written: ${record.seat} ending=${record.ending}, ${record.queue.length} waiting`);\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the interrupt goes in without a word in the log",
+    "catches": "says in the log that the interrupt was written, and how long the run took to answer it",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "  console.log(`interrupt: ${seat} written, turn ${turn.frame.kind} #${turn.order}`);\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "an answered interrupt is logged as one that was never answered",
+    "catches": "says in the log that the interrupt was written, and how long the run took to answer it",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "said.then(() => { heard = true; })",
+        "to": "said"
+      }
+    ]
+  },
+  {
+    "name": "an unanswered interrupt is logged as answered at the patience",
+    "catches": "says in the log when the run never answered the interrupt and the seat was freed anyway",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "`interrupt: ${seat} no result after ${patience} ms — seat freed`",
+        "to": "`interrupt: ${seat} result in ${patience} ms`"
+      }
+    ]
   }
 ]

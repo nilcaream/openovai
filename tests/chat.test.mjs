@@ -21,7 +21,7 @@ import { pageSecret } from "../lib/chat/secrets.mjs";
 import { hire } from "../lib/desks.mjs";
 import { endSeat, serve, shownRoot, startSeat, toolsFor } from "../lib/chat/server.mjs";
 import { hasLeft } from "../lib/chat/lifecycle.mjs";
-import { LEADER as LEADS, SECRET_IN_ENVIRONMENT, WORKER as WORKS, end, endEvery, running, runningSeats, start, tell } from "../lib/chat/session.mjs";
+import { LEADER as LEADS, SECRET_IN_ENVIRONMENT, WORKER as WORKS, end, endEvery, interrupt, running, runningSeats, start, tell } from "../lib/chat/session.mjs";
 import { BUILT_IN } from "../lib/plugins.mjs";
 import { CONFIG_FILE } from "../lib/seed.mjs";
 import { alive, callsIn, get as fetchPlain, heardIn, installed, notesIn, post as postPlain, remove, repo, scratch, secretsIn, startChat, stopChat, waitFor, waitForAddress, writeStandIn } from "./helpers.mjs";
@@ -588,6 +588,86 @@ describe("telling a seat", () => {
     assert.deepEqual(order, ["one written", "two written, one answered"]);
     await two.answered;
     assert.deepEqual(order, ["one written", "two written, one answered"], "written fired again, or for something else");
+  });
+
+  // The log is where a seat that stays busy is read afterwards: every frame told is a line as it
+  // is queued and a line as it goes in, each with its arrival number and how many wait behind it.
+  it("says in the log what was queued and what was written, by arrival, with how many wait", async () => {
+    const before_ = said.length;
+    await tell(WORKER, userFrame("logged")).answered;
+    const lines = said.slice(before_);
+    const queued = lines.find((line) => line.startsWith("queued: "));
+    const order = /^queued: (\S+) user #(\d+), 1 waiting$/.exec(queued ?? "");
+    assert.notEqual(order, null, lines.join("\n"));
+    assert.equal(order[1], WORKER);
+    assert.ok(lines.includes(`wrote: ${WORKER} user #${order[2]}, 0 waiting`), lines.join("\n"));
+  });
+
+  it("says in the log why a frame was not written: the turn open since when, and how many wait", async () => {
+    const before_ = said.length;
+    const one = tell(WORKER, userFrame("one"));
+    const two = tell(WORKER, userFrame("two"));
+    await Promise.all([one.answered, two.answered]);
+    const lines = said.slice(before_);
+    const held = lines.filter((line) => line.startsWith("not written: "));
+    assert.equal(held.length, 1, lines.join("\n"));
+    assert.match(held[0], new RegExp(`^not written: ${WORKER} turn open since \\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z, 1 waiting$`));
+    const after_ = lines.slice(lines.indexOf(held[0]) + 1);
+    assert.ok(after_.some((line) => new RegExp(`^wrote: ${WORKER} user #\\d+, \\d+ waiting$`).test(line)), lines.join("\n"));
+  });
+
+  it("says in the log that a seat on its way out took no new turn, and what it was ending as", async () => {
+    const spawned = secretsIn(unarranged).length;
+    await seatUp(OTHER, {
+      OPENOVAI_STAND_IN_TOOL: JSON.stringify([
+        { name: "write_desk", arguments: { title: "restart by the stand-in", status: "going", body: "## State\nx\n" } },
+        { name: "restart_session", arguments: {} },
+      ]),
+    });
+    const before_ = said.length;
+    try {
+      const going = tell(OTHER, userFrame("go"));
+      const after_ = tell(OTHER, userFrame("after"));
+      await going.answered;
+      const line = await waitFor(() => said.slice(before_).find((one) => one.startsWith(`not written: ${OTHER} ending=`)) ?? null);
+      assert.equal(line, `not written: ${OTHER} ending=restart, 1 waiting`);
+      await after_.answered;
+      assert.ok(await waitFor(() => secretsIn(unarranged).length > spawned), "no successor was started");
+    } finally {
+      await endSeat(OTHER, 500);
+    }
+  });
+
+  it("says in the log that the interrupt was written, and how long the run took to answer it", async () => {
+    await seatUp(OTHER, { OPENOVAI_STAND_IN_SLOW: "4000" });
+    const before_ = said.length;
+    try {
+      const slow = tell(OTHER, userFrame("slowly"));
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      assert.equal(await interrupt(OTHER), true);
+      assert.deepEqual(await slow.answered, { interrupted: true, text: "interrupted" });
+      const lines = said.slice(before_).filter((line) => line.startsWith("interrupt: "));
+      assert.equal(lines.length, 2, said.slice(before_).join("\n"));
+      assert.match(lines[0], new RegExp(`^interrupt: ${OTHER} written, turn user #\\d+$`));
+      assert.match(lines[1], new RegExp(`^interrupt: ${OTHER} result in \\d+ ms$`));
+    } finally {
+      await endSeat(OTHER, 500);
+    }
+  });
+
+  it("says in the log when the run never answered the interrupt and the seat was freed anyway", async () => {
+    await seatUp(OTHER, { OPENOVAI_STAND_IN_SLOW: "4000", OPENOVAI_STAND_IN_IGNORES_INTERRUPT: "1" });
+    const before_ = said.length;
+    try {
+      const deaf = tell(OTHER, userFrame("deaf"));
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      assert.equal(await interrupt(OTHER, { patience: 300 }), true);
+      assert.deepEqual(await deaf.answered, { interrupted: true, text: "interrupted" });
+      const lines = said.slice(before_).filter((line) => line.startsWith(`interrupt: ${OTHER} no result`));
+      assert.deepEqual(lines, [`interrupt: ${OTHER} no result after 300 ms — seat freed`]);
+    } finally {
+      await endSeat(OTHER, 500);
+    }
   });
 
   it("refuses a seat with no process, queues nothing, and says so in the log", async () => {
