@@ -58,8 +58,8 @@ describe("every other row", () => {
   // What one Worker said to another is on the Leader's panel too, sender, arrow, addressee, on the
   // same ground as the User's typed line — not a prompt to the Leader either — under the id both
   // Workers' lines carry.
-  it("a word one Worker said to another reads sender → addressee on the Leader's panel, on the typed ground, with its id", () => {
-    assert.deepEqual(row({ from: "Paul", to: "Sam", text: "**the** fixture", msg: "m-1", overheard: true }, names), { who: "Paul → Sam", kind: "typed", text: "**the** fixture", msg: "m-1" });
+  it("a word one Worker said to another reads sender → addressee on the Leader's panel, on the overheard ground, with its id", () => {
+    assert.deepEqual(row({ from: "Paul", to: "Sam", text: "**the** fixture", msg: "m-1", overheard: true }, names), { who: "Paul → Sam", kind: "overheard", text: "**the** fixture", msg: "m-1" });
   });
 
   it("the chat's own lines are muted words", () => {

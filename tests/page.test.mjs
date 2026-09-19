@@ -190,11 +190,18 @@ describe("the rules", () => {
     assert.equal(bubble.declarations.background, "var(--to)");
   });
 
-  it("draw what the User typed to a Worker on a ground of its own on the Leader's panel, as the User's words", () => {
+  // What the User typed to a Worker is the User's own prompt, so the Leader's panel draws it on
+  // the User's ground under its `<User> → <Worker>` label; what one Worker said to another is
+  // neither a prompt to the Leader nor the User's words, and has a ground of its own.
+  it("draw what the User typed to a Worker on the User's ground on the Leader's panel, and a Worker's words to a Worker on a ground of their own", () => {
     const bubble = rules.find((rule) => rule.selector === ".msg.typed .bubble");
-    assert.equal(bubble.declarations.background, "var(--typed)");
-    assert.equal(bubble.declarations["border-color"], "var(--typed-line)");
+    assert.equal(bubble.declarations.background, "var(--me)", "the User's own ground, as under the User's row");
+    assert.equal(bubble.declarations["border-color"], "var(--me-line)");
     assert.equal(bubble.declarations["white-space"], "pre-wrap", "typed words keep their lines, as on the User's own ground");
+    const heard = rules.find((rule) => rule.selector === ".msg.overheard .bubble");
+    assert.equal(heard.declarations.background, "var(--typed)");
+    assert.equal(heard.declarations["border-color"], "var(--typed-line)");
+    assert.equal(heard.declarations["white-space"], "pre-wrap", "a Worker's words to a Worker keep their lines too");
   });
 
   it("mark the line of a message as a click, and light the message a click found", () => {

@@ -1196,7 +1196,7 @@
     "edits": [
       {
         "file": "lib/chat/render.mjs",
-        "from": "      return { who: `${entry.from} → ${entry.to}`, kind: \"typed\", text: String(entry.text), ...msg };",
+        "from": "      return { who: `${entry.from} → ${entry.to}`, kind: \"overheard\", text: String(entry.text), ...msg };",
         "to": "      return { who: `${entry.from} → ${entry.to}`, kind: \"peer-in\", text: String(entry.text), ...msg };"
       }
     ]
@@ -1213,13 +1213,24 @@
     ]
   },
   {
-    "name": "what the User typed to a Worker sits on the User's own ground",
-    "catches": "draw what the User typed to a Worker on a ground of its own on the Leader's panel, as the User's words",
+    "name": "what the User typed to a Worker sits on the ground a Worker's words to a Worker have",
+    "catches": "draw what the User typed to a Worker on the User's ground on the Leader's panel, and a Worker's words to a Worker on a ground of their own",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "  .msg.typed .bubble { background: var(--typed); border-color: var(--typed-line); white-space: pre-wrap; overflow-wrap: anywhere; }",
-        "to": "  .msg.typed .bubble { background: var(--me); border-color: var(--me-line); white-space: pre-wrap; overflow-wrap: anywhere; }"
+        "from": "  .msg.typed .bubble { background: var(--me); border-color: var(--me-line); white-space: pre-wrap; overflow-wrap: anywhere; }",
+        "to": "  .msg.typed .bubble { background: var(--typed); border-color: var(--typed-line); white-space: pre-wrap; overflow-wrap: anywhere; }"
+      }
+    ]
+  },
+  {
+    "name": "what one Worker said to another sits on the User's ground",
+    "catches": "draw what the User typed to a Worker on the User's ground on the Leader's panel, and a Worker's words to a Worker on a ground of their own",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "  .msg.overheard .bubble { background: var(--typed); border-color: var(--typed-line); white-space: pre-wrap; overflow-wrap: anywhere; }",
+        "to": "  .msg.overheard .bubble { background: var(--me); border-color: var(--me-line); white-space: pre-wrap; overflow-wrap: anywhere; }"
       }
     ]
   },

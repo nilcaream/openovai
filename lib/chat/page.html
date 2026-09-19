@@ -131,8 +131,10 @@
   .msg.peer-in .bubble, .msg.peer-out .bubble { overflow-wrap: anywhere; }
   .msg.peer-in .bubble { background: var(--from); border-color: var(--from-line); }
   .msg.peer-out .bubble { background: var(--to); border-color: var(--to-line); }
-  /* what the User typed to a Worker, on the Leader's panel: not a prompt to the Leader, so not on the User's ground */
-  .msg.typed .bubble { background: var(--typed); border-color: var(--typed-line); white-space: pre-wrap; overflow-wrap: anywhere; }
+  /* what the User typed to a Worker, on the Leader's panel: the User's own prompt, so the User's ground under the `<User> → <Worker>` label */
+  .msg.typed .bubble { background: var(--me); border-color: var(--me-line); white-space: pre-wrap; overflow-wrap: anywhere; }
+  /* what one Worker said to another, on the Leader's panel: not a prompt to the Leader and not the User's words, so a ground of its own */
+  .msg.overheard .bubble { background: var(--typed); border-color: var(--typed-line); white-space: pre-wrap; overflow-wrap: anywhere; }
   /* the message a click on a line found, lit for a moment */
   .msg.focus .bubble { outline: 2px solid var(--accent); }
   /* a message to a session or from one is one line of itself, cut with an ellipsis, until a double click opens it */
