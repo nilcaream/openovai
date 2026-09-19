@@ -1476,5 +1476,71 @@
         "to": "`interrupt: ${seat} result in ${patience} ms`"
       }
     ]
+  },
+  {
+    "name": "the line after a stop says nothing waits, whatever does",
+    "catches": "a stop says on the panel how many wait and what goes in next, with when it was told",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "        append(instance.root, seat, { from: THE_CHAT, text: stoppedLine(waiting(seat)) });",
+        "to": "        append(instance.root, seat, { from: THE_CHAT, text: stoppedLine({ count: 0, next: null }) });"
+      }
+    ]
+  },
+  {
+    "name": "the queue is read only after the next frame has gone in",
+    "catches": "a stop says on the panel how many wait and what goes in next, with when it was told",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "      const interrupted = await interrupt(seat, { thenDrain: false });",
+        "to": "      const interrupted = await interrupt(seat);"
+      }
+    ]
+  },
+  {
+    "name": "a message frame forgets who it is from",
+    "catches": "a stop says on the panel how many wait and what goes in next, with when it was told",
+    "edits": [
+      {
+        "file": "lib/chat/frames.mjs",
+        "from": "`<message from=\"${token(\"from\", from)}\">${neutralise(text)}</message>`, null, from);",
+        "to": "`<message from=\"${token(\"from\", from)}\">${neutralise(text)}</message>`);"
+      }
+    ]
+  },
+  {
+    "name": "a turn is queued without the moment it was told",
+    "catches": "a stop says on the panel how many wait and what goes in next, with when it was told",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "    const turn = { frame, resolve, ahead, ask, written, order: arrival(), at: record.clock() };",
+        "to": "    const turn = { frame, resolve, ahead, ask, written, order: arrival() };"
+      }
+    ]
+  },
+  {
+    "name": "a stop with nothing to stop is silent on the panel",
+    "catches": "a stop with no turn under way says so on the panel and in the log, and answers interrupted false",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "        append(instance.root, seat, { from: THE_CHAT, text: \"no turn to stop\" });\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a stop with nothing to stop is silent in the log",
+    "catches": "a stop with no turn under way says so on the panel and in the log, and answers interrupted false",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "        console.log(`no turn to stop: ${seat}`);\n",
+        "to": ""
+      }
+    ]
   }
 ]

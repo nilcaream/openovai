@@ -15,7 +15,7 @@ import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
 import { THE_CHAT, panelFile, read as panel } from "../lib/chat/conversation.mjs";
-import { serverEvent, userFrame } from "../lib/chat/frames.mjs";
+import { messageFrame, serverEvent, userFrame } from "../lib/chat/frames.mjs";
 import { listening } from "../lib/chat/runtime.mjs";
 import { pageSecret } from "../lib/chat/secrets.mjs";
 import { hire } from "../lib/desks.mjs";
@@ -1480,11 +1480,53 @@ describe("the stream", () => {
     const stopped = await page("POST", `/sessions/${WORKER}/stop`);
     assert.deepEqual(JSON.parse(stopped.body), { interrupted: true });
     await until(client, (event) => event.name === "row" && event.data.seat === WORKER && event.data.row.from === WORKER);
-    const row = about(client, WORKER, "row").at(-1).data.row;
+    // The seat's own row; the chat's line about the queue follows it.
+    const row = about(client, WORKER, "row").findLast((event) => event.data.row.from === WORKER).data.row;
     assert.equal(row.interrupted, true);
     assert.equal(row.text, "interrupted");
+    await until(client, (event) => event.name === "row" && event.data.seat === WORKER && event.data.row.text === "stopped; nothing waiting");
     await until(client, (event) => event.name === "seat" && event.data.name === WORKER && event.data.busy === false && about(client, WORKER).some((seen) => seen.data.busy === true));
     await end(WORKER, 500);
+  });
+
+  // A seat with a queue is busy again the moment it is stopped — with the next frame, which may be
+  // older than the press. The panel says so under the stop: how many wait and which goes in next.
+  it("a stop says on the panel how many wait and what goes in next, with when it was told", async () => {
+    const client = await listen();
+    await until(client, (event) => event.name === "asking");
+    paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_SLOW: "4000", OPENOVAI_STAND_IN_REPLY: "late" });
+    const from = panel(instance, WORKER).length;
+    try {
+      await page("POST", `/sessions/${WORKER}/message`, { text: "slowly" });
+      await until(client, (event) => event.name === "seat" && event.data.name === WORKER && event.data.busy === true);
+      tell(WORKER, messageFrame(OTHER, "from a colleague"));
+      await page("POST", `/sessions/${WORKER}/message`, { text: "and this" });
+      const stopped = await page("POST", `/sessions/${WORKER}/stop`);
+      assert.deepEqual(JSON.parse(stopped.body), { interrupted: true });
+      const rows = panel(instance, WORKER).slice(from);
+      const said_ = rows.findIndex((row) => row.from === THE_CHAT && row.text.startsWith("stopped;"));
+      assert.notEqual(said_, -1, JSON.stringify(rows.map((row) => row.text)));
+      assert.match(rows[said_].text, new RegExp(`^stopped; 2 waiting, next: message from ${OTHER} \\(\\d{2}:\\d{2}\\)$`));
+      assert.ok(rows.slice(0, said_).some((row) => row.interrupted === true), "the stop's own row is not above the line about the queue");
+    } finally {
+      await end(WORKER, 500);
+    }
+  });
+
+  it("a stop with no turn under way says so on the panel and in the log, and answers interrupted false", async () => {
+    const client = await listen();
+    await until(client, (event) => event.name === "asking");
+    paul = await seatUp(WORKER);
+    try {
+      const before_ = said.length;
+      const stopped = await page("POST", `/sessions/${WORKER}/stop`);
+      assert.deepEqual(JSON.parse(stopped.body), { interrupted: false });
+      const row = panel(instance, WORKER).at(-1);
+      assert.deepEqual([row.from, row.text], [THE_CHAT, "no turn to stop"]);
+      assert.ok(said.slice(before_).includes(`no turn to stop: ${WORKER}`), said.slice(before_).join("\n"));
+    } finally {
+      await end(WORKER, 500);
+    }
   });
 
   // A row typed while a turn is under way waits: the stream says it is there, and says it is
