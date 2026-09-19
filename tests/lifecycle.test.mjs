@@ -1149,9 +1149,9 @@ describe("a call stop that waits", () => {
     await endEvery(500);
   });
 
-  async function stopParked() {
+  async function stopParked(seat = WORKER) {
     const stops = await waitFor(async () => {
-      const { permissions } = JSON.parse((await page("GET", `/sessions/${WORKER}/permissions`)).body);
+      const { permissions } = JSON.parse((await page("GET", `/sessions/${seat}/permissions`)).body);
       return permissions.length > 0 ? permissions : null;
     });
     assert.ok(stops !== null, "no call stop was parked");
@@ -1224,6 +1224,25 @@ describe("a call stop that waits", () => {
     const waited = await waitOnCard(10);
     const row = await waitFor(waited);
     assert.equal(row?.text, "waited 10 s for permission: Bash: git push");
+  });
+
+  // The Leader's panel says the wait the same way — the one row about a call it ever draws. Its
+  // own calls are never lines there, the call it stood still on included: the wait is the gap to
+  // explain, the call is the log's.
+  it("says the wait on the Leader's panel too, and draws no line for the call it waited on", async () => {
+    ({ superman, paul } = await pair({}, { ...KNOBS, OPENOVAI_STAND_IN_CALLS: JSON.stringify([[{ name: "Bash", input: { command: "git push" } }]]) }));
+    const from = now;
+    const rows = panel(instance, LEADER).length;
+    const asking_ = tell(LEADER, userFrame("push it"));
+    const stop = await stopParked(LEADER);
+    now = from + 10 * 1000;
+    await page("POST", `/sessions/${LEADER}/permission`, { id: stop.id, decision: "deny", why: "not today" });
+    await asking_.answered;
+    const waited = await waitFor(() => panel(instance, LEADER).slice(rows).find((row) => row.from === SERVER && row.text.startsWith("waited ")) ?? null);
+    assert.equal(waited?.text, "waited 10 s for permission: Bash: git push");
+    await settle();
+    const drawn = panel(instance, LEADER).slice(rows);
+    assert.ok(drawn.every((row) => row.line === undefined), `a line on the Leader's panel: ${JSON.stringify(drawn)}`);
   });
 });
 

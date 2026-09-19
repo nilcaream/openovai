@@ -122,15 +122,47 @@ describe("the rules", () => {
     assert.equal(declared(".phead .theme")["margin-left"], "auto");
   });
 
-  // The stop glyph sits inside the box, at its right edge; the box keeps the room for it only
-  // while it is there. The glyph takes its default display, so the hidden attribute hides it.
-  it("put the stop glyph at the right edge of the box and keep the room for it while it is there", () => {
+  // The stop glyph is out of the flow, over the box at its right edge: the box and the room for
+  // what is typed are the same width with the glyph and without it — no rule on the box changes
+  // under any class — and the glyph sits on the box's own ground with a 2px ring of it, so it
+  // reads over letters under it. It takes its default display, so the hidden attribute hides it.
+  it("keep the stop glyph out of the flow, over the box on its own ground, the box the same width with it and without it", () => {
     const glyph = rules.find((rule) => rule.selector === ".composer .stop").declarations;
     assert.equal(glyph.position, "absolute");
     assert.equal(glyph.right, "9px");
     assert.equal(glyph.display, undefined, "a display of its own would outrank the hidden attribute");
+    assert.equal(glyph.background, "var(--bg)");
+    assert.equal(glyph["box-shadow"], "0 0 0 2px var(--bg)");
     assert.equal(rules.find((rule) => rule.selector === ".composer").declarations.position, "relative");
-    assert.equal(rules.find((rule) => rule.selector === ".composer.stoppable textarea").declarations["padding-right"], "36px");
+    const box = rules.find((rule) => rule.selector === "textarea").declarations;
+    assert.equal(box.width, "100%");
+    assert.equal(box.padding, "8px 10px");
+    for (const rule of rules) {
+      if (rule.selector === "textarea" || !/textarea/.test(rule.selector)) continue;
+      for (const property of Object.keys(rule.declarations)) assert.doesNotMatch(property, /^(padding|width|margin|box-sizing)/, `${rule.selector} sizes the box: ${property}`);
+    }
+    assert.doesNotMatch(script, /stoppable/, "the composer is marked while the glyph is there: a rule under that mark would size the box");
+  });
+
+  // The bottom area — the cards of the panel's questions, then the composer — is in the panel's
+  // column under the rows, never over them: the rows give it its room and shrink. It takes no
+  // more than most of the panel, and the cards scroll inside it, so a stack of cards leaves the
+  // rows and the composer in sight.
+  it("keep the bottom area in the panel's column under the rows, taking its room from them", () => {
+    const bottom = rules.find((rule) => rule.selector === ".bottom").declarations;
+    assert.equal(bottom.position, undefined, "a position of its own takes the bottom area out of the column and over the rows");
+    assert.equal(bottom.flex, "0 0 auto", "a bottom area that shrinks clips its cards under the composer");
+    assert.equal(bottom["max-height"], "75%");
+    assert.equal(bottom.display, "flex");
+    assert.equal(bottom["flex-direction"], "column");
+    const cards = rules.find((rule) => rule.selector === ".cards").declarations;
+    assert.equal(cards["overflow-y"], "auto");
+    assert.equal(cards["min-height"], "0");
+    const rows = rules.find((rule) => rule.selector === ".rows").declarations;
+    assert.equal(rows.flex, "1 1 auto");
+    assert.equal(rows["min-height"], "0", "rows that cannot shrink push the bottom area out of the panel");
+    assert.equal(rules.find((rule) => rule.selector === ".composer").declarations.flex, "0 0 auto");
+    assert.match(script, /bottom\.append\(cards, composer\);\s*section\.append\(headLine, rows, bottom\);/, "the bottom area is the panel's last child, the cards then the composer in it");
   });
 
   it("draw what the User typed on the User's own ground", () => {
@@ -423,7 +455,7 @@ describe("the script", () => {
   it("shows the pill when rows land below a reader who is not near the newest, and takes them there on a click", () => {
     assert.match(script, /const nearTheNewest = \(rows\) => rows\.scrollHeight - rows\.scrollTop - rows\.clientHeight < 80;/);
     assert.match(script, /\n      rows\.append\(jump\);\n/, "the pill is a child of the rows");
-    assert.match(script, /panel\.shown = about\.rows\.length;\n(?:[^\n]*\n){45}      if \(panel\.jump !== null && panel\.jump !== panel\.rows\.lastElementChild\) panel\.rows\.append\(panel\.jump\);\n/, "the pill is put back last AFTER the rows and the cards are appended, before the scroll is decided");
+    assert.match(script, /panel\.shown = about\.rows\.length;\n(?:[^\n]*\n){42}      if \(panel\.jump !== null && panel\.jump !== panel\.rows\.lastElementChild\) panel\.rows\.append\(panel\.jump\);\n/, "the pill is put back last AFTER the rows are appended, before the scroll is decided");
     assert.match(script, /\} else if \(panel\.jump !== null && !near\) \{\s*panel\.jump\.classList\.add\("show"\);/);
     assert.match(script, /rows\.addEventListener\("scroll", \(\) => \{\s*if \(nearTheNewest\(rows\)\) jump\.classList\.remove\("show"\);/);
     assert.match(script, /jump\.addEventListener\("click", \(\) => \{\s*rows\.scrollTop = rows\.scrollHeight;\s*jump\.classList\.remove\("show"\);/);
@@ -451,17 +483,18 @@ describe("the script", () => {
     assert.match(script, /return \{ name, section, [^}]*\bview\b[^}]*\};/, "the draw reads the same word the scroll sets");
   });
 
-  // Typing never scrolls a panel that does not follow, and never engages it: nothing in the box's
-  // key, input and submit handlers touches the rows' scroll position, and the one place the box
-  // reaches the rows — a taller box takes room from them — pins a panel to its newest only while
-  // it follows. The scroll writes of the whole script are counted, so a new one is a new sentence
-  // here.
-  it("never scrolls a panel that does not follow on a key, a typed line or a send", () => {
-    const composer = script.slice(script.indexOf("const composer = document.createElement(\"form\");"), script.indexOf("section.append(headLine, rows, composer);"));
-    assert.match(composer, /box\.style\.overflowY = box\.scrollHeight > max \? "auto" : "hidden";\s*(?:\/\/[^\n]*\n\s*)*if \(view\.follow\) rows\.scrollTop = rows\.scrollHeight;\s*\};/, "a taller box pins the rows only on a panel that follows");
-    const handlers = composer.replace(/const autosize = \(\) => \{[\s\S]*?\n    \};/, "");
-    assert.doesNotMatch(handlers, /scrollTop|scrollIntoView|view\.follow =/, "the key, input and submit handlers neither scroll the rows nor set the word");
-    assert.equal(script.match(/\.scrollTop = /g).length, 3, "three scroll writes: the pill's click, the taller box on a following panel, the draw on a following panel");
+  // Typing never scrolls a panel that does not follow, and never engages it: nothing in the
+  // composer — the box's key, input and submit handlers, the autosize — touches the rows' scroll
+  // position. The one place the bottom area reaches the rows is the rows' own observer: whenever
+  // they change size — a taller box, a card, a resized window — a panel that follows is pinned to
+  // its newest, and one that does not is left where the reader has it. The scroll writes of the
+  // whole script are counted, so a new one is a new sentence here.
+  it("never scrolls a panel that does not follow on a key, a typed line, a send or a taller box", () => {
+    const composer = script.slice(script.indexOf("const composer = document.createElement(\"form\");"), script.indexOf("const bottom = document.createElement(\"div\");"));
+    assert.ok(composer.length > 500, "the composer was not found");
+    assert.doesNotMatch(composer, /scrollTop|scrollIntoView|view\.follow =/, "the composer neither scrolls the rows nor sets the word");
+    assert.match(script, /new ResizeObserver\(\(\) => \{[^}]*\n\s*if \(view\.follow\) rows\.scrollTop = rows\.scrollHeight;\s*\}\)\.observe\(rows\);/, "rows that changed size pin a panel to its newest only while it follows");
+    assert.equal(script.match(/\.scrollTop = /g).length, 3, "three scroll writes: the pill's click, the rows' observer on a following panel, the draw on a following panel");
   });
 
   // TEMP indicator (A1): while a panel follows, its head carries the follow class and one rule
@@ -476,11 +509,11 @@ describe("the script", () => {
     assert.ok(following.background !== undefined && following.background !== head.background, "a following head has a ground of its own");
   });
 
-  // The stop glyph: in the composer, after the box; there while the turn can be stopped, the box
-  // keeping the room for it then; a click hides it and asks the server to stop the turn.
+  // The stop glyph: in the composer, after the box; there while the turn can be stopped; a click
+  // hides it and asks the server to stop the turn.
   it("puts the stop glyph in the box, shows it while the turn can be stopped, and stops the turn on a click", () => {
     assert.match(script, /stop\.className = "stop";[\s\S]{0,400}composer\.append\(box, stop\);/);
-    assert.match(script, /const stoppable = stopEnabled\(state, panel\.name\);\s*panel\.stop\.hidden = !stoppable;\s*panel\.composer\.classList\.toggle\("stoppable", stoppable\);/);
+    assert.match(script, /panel\.stop\.hidden = !stopEnabled\(state, panel\.name\);/);
     assert.match(script, /stop\.addEventListener\("click", \(\) => \{\s*stop\.hidden = true;\s*call\(`\/sessions\/\$\{encodeURIComponent\(name\)\}\/stop`, \{ method: "POST" \}\)/);
     assert.doesNotMatch(script, /headLine\.append\([^)]*stop/, "the glyph is in the box, not on the head");
   });
@@ -502,7 +535,7 @@ describe("the script", () => {
     assert.match(script, /time\.dataset\.whole = when\.whole;\s*time\.dataset\.clock = when\.clock;\s*time\.textContent = when\.whole;/);
     assert.match(script, /function fitStamps\(stamps\) \{\s*for \(const time of stamps\) setStamp\(time, false\);\s*const cut = \[\.\.\.stamps\]\.filter\(\(time\) => \{ const label = time\.parentElement\.querySelector\("\.lbl"\); return label\.scrollWidth > label\.clientWidth; \}\);\s*for \(const time of cut\) setStamp\(time, true\);\s*\}/);
     assert.match(script, /function setStamp\(time, short\) \{\s*time\.textContent = short \? time\.dataset\.clock : time\.dataset\.whole;\s*const st = time\.parentElement\.querySelector\("\.st"\);\s*if \(st !== null && st\.dataset\.glyph !== undefined\) st\.textContent = short \? st\.dataset\.glyph : st\.dataset\.whole;\s*\}/);
-    assert.match(script, /new ResizeObserver\(\(\) => fitStamps\(rows\.querySelectorAll\("\.t"\)\)\)\.observe\(rows\);/);
+    assert.match(script, /new ResizeObserver\(\(\) => \{\s*fitStamps\(rows\.querySelectorAll\("\.t"\)\);/);
     assert.match(script, /if \(time !== null\) added\.push\(time\);\s*\}\s*fitStamps\(added\);\s*panel\.shown = about\.rows\.length;/, "the appended rows are fitted once, after the loop");
   });
 
@@ -572,25 +605,23 @@ describe("the script", () => {
   // oldest go past a hundred. The Leader's panel is the User's own conversation and keeps it all.
   it("keeps the last hundred rows of a Worker panel and every row of the Leader's", () => {
     assert.match(script, /const from = panel\.jump === null && panel\.shown === 0 \? Math\.max\(panel\.shown, about\.rows\.length - 100\) : panel\.shown;/);
-    assert.match(script, /if \(panel\.jump === null\) \{\s*const drawn = \[\.\.\.panel\.rows\.children\]\.filter\(\(child\) => child\.matches\("\.msg:not\(\.perm\), \.line, \.divider"\)\);\s*while \(drawn\.length > 100\) drawn\.shift\(\)\.remove\(\);/, "a question's card is never one of the hundred that go");
+    assert.match(script, /if \(panel\.jump === null\) \{\s*const drawn = \[\.\.\.panel\.rows\.children\]\.filter\(\(child\) => child\.matches\("\.msg, \.line, \.divider"\)\);\s*while \(drawn\.length > 100\) drawn\.shift\(\)\.remove\(\);/);
   });
 
-  // A question is a card among the rows: appended where the newest row goes, in the scroll with
-  // everything before it, never in a block of its own between the rows and the composer — seven
-  // at once scroll like seven rows, and the composer stays where it is. A card ends a run of
-  // tool lines, the pill goes back to the bottom edge after it, and the scroll is decided after
-  // the cards: one that lands while the reader is at the newest row comes into view like a row,
-  // away from it the pill shows. Cards are drawn once the rows are, so the first draw of a
-  // panel puts them after its rows and not before them; a panel whose rows are drawn again
-  // from nothing draws its cards again too.
-  it("draws a question as a card among the rows, never in a block of its own below them", () => {
-    assert.match(script, /section\.append\(headLine, rows, composer\);/);
-    assert.doesNotMatch(script, /className = "asking"/, "a block of its own for the questions");
-    assert.match(script, /const card = question\(panel\.name, request\);\s*panel\.drawn\.set\(request\.id, card\);\s*panel\.rows\.append\(card\);\s*panel\.last = null;\s*asked = true;/);
-    assert.match(script, /asked = true;[\s\S]*?if \(panel\.jump !== null && panel\.jump !== panel\.rows\.lastElementChild\) panel\.rows\.append\(panel\.jump\);/, "the pill goes back to the end after a card");
-    assert.match(script, /asked = true;[\s\S]*?if \(added\.length > 0 \|\| asked\) \{\s*if \(follows\) \{\s*panel\.rows\.scrollTop = panel\.rows\.scrollHeight;\s*\} else if \(panel\.jump !== null && !near\) \{\s*panel\.jump\.classList\.add\("show"\);/, "the scroll is decided after the cards, for a card as for a row");
-    assert.match(script, /if \(about\.rows === null\) \{\s*load\(panel\);\s*\} else \{[\s\S]*?asked = true;[\s\S]*?\n    \}\n  \}\n/, "cards are drawn under the rows, once there are rows");
-    assert.match(script, /panel\.waiting\.clear\(\);\s*panel\.drawn\.clear\(\);/, "rows drawn again from nothing draw their cards again");
+  // A question is a card in the panel's bottom area, right above the composer — always in sight,
+  // on the Leader's panel and a Worker's alike — and never among the rows: its coming is no
+  // reason to scroll them, on a panel that follows or one that does not. The draw decides the
+  // scroll on the rows it appended and on nothing else; what a taller bottom area does to a
+  // following panel is the rows' observer's business. A card stands while its question does:
+  // rows drawn again from nothing leave it where it is, since it was never one of them.
+  it("draws a question as a card in the bottom area above the composer, and never scrolls the rows for it", () => {
+    assert.match(script, /const card = question\(panel\.name, request\);\s*panel\.drawn\.set\(request\.id, card\);\s*panel\.cards\.append\(card\);/);
+    assert.doesNotMatch(script, /panel\.rows\.append\(card\)/, "a card among the rows");
+    const draw = script.slice(script.indexOf("function drawPanel(panel)"), script.indexOf("// ------------------------------------------------------------------------------- the page"));
+    assert.match(draw, /if \(added\.length > 0\) \{\s*if \(follows\) \{\s*panel\.rows\.scrollTop = panel\.rows\.scrollHeight;\s*\} else if \(panel\.jump !== null && !near\) \{\s*panel\.jump\.classList\.add\("show"\);/, "the scroll is decided on the rows appended, and on nothing else");
+    assert.doesNotMatch(draw, /asked/, "a card is counted as something that landed in the rows");
+    assert.doesNotMatch(script, /panel\.drawn\.clear\(\)/, "rows drawn again from nothing forget their cards, which stand in the bottom area and would be drawn twice");
+    assert.equal(rules.find((rule) => rule.selector === ".cards").declarations["overflow-y"], "auto", "a stack of cards scrolls inside the bottom area");
   });
 
   // The Leader's head, after the state word: the connection word, red while the page has no

@@ -65,6 +65,24 @@ a panel that is not following, and makes no panel follow: only being at the end 
 opens with every panel at its end. A panel used to measure itself at every draw, and a box that
 had grown by a line hid the end and made it stop following.
 
+**The bottom of a panel is one area: the cards, then the box.** A permission card used to be a row
+among the rows — it scrolled with them, and one that landed while the reader was at the end
+scrolled the panel to it. It now sits right above the box, on the Leader's panel and a Worker's
+alike, always in sight, and its coming scrolls nothing: a panel that follows its newest row keeps
+that row in view above the card, one that does not stays exactly where it was. A stack of cards
+scrolls inside that area and never pushes the box out of the panel. The same holds for a box that
+grows as a long line is typed: the rows give it its room, and a following panel keeps its newest
+row above the box whatever the box's height. A card still leaves on a press, and the User is still
+told on the Leader's panel once a Worker has waited ten minutes on one. The wait itself —
+`waited 40 s for permission: …` — is said on every panel, the Leader's included; it is the one
+row about a call the Leader's panel ever draws.
+
+**The stop glyph never narrows the box.** The square at the right edge of the box, there while a
+turn can be stopped, used to take its room from the text: a long line wrapped differently the
+moment a turn began, and the empty box's sentence could switch to its short form. The glyph now
+lies over the box on the box's own ground, with a thin ring of it, so the letters under it stay
+readable and nothing in the box moves.
+
 ## 0.13.0
 
 What the User types goes in ahead of a seat's backlog, a stop says what the seat goes on to, a

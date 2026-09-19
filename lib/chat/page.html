@@ -69,7 +69,7 @@
     #left { order: 1; }
     #right { order: 2; }
   }
-  /* a panel is a bare slot: the head bubble first, then the rows */
+  /* a panel is a bare slot: the head bubble first, then the rows, then the bottom area */
   .panel { flex: 1 1 0; min-height: 160px; display: flex; flex-direction: column; gap: 3px; overflow: hidden; font-size: .9rem; transition: opacity .4s; }
   #mid .panel { flex: 1 1 auto; }
   .panel.dimmed { opacity: .45; }
@@ -183,7 +183,12 @@
   .md.tight ul, .md.tight ol { padding-left: 1.1em; }
   .md hr { border: 0; border-top: 1px solid var(--line); }
   .md img { max-width: 100%; }
-  /* a question is a card in the slot under the rows: the heading, the raw words of the request, the reason, then the decisions */
+  /* the bottom area of a panel: the cards of its questions, then the composer. It takes its room
+     from the rows in the panel's column — never over them — and no more than most of the panel,
+     so a stack of cards scrolls inside it while the composer stays in sight */
+  .bottom { flex: 0 0 auto; max-height: 75%; display: flex; flex-direction: column; gap: 3px; }
+  .cards { flex: 0 1 auto; min-height: 0; overflow-y: auto; }
+  /* a question is a card in the bottom area, right above the composer: the heading, the raw words of the request, the reason, then the decisions */
   .msg.perm .bubble { background: var(--panel-2); border-color: var(--warn); border-width: 2px; }
   .msg.perm .desc { font-size: .92rem; margin: 2px 0 4px; overflow-wrap: anywhere; }
   .msg.perm .reason { font-size: .78rem; color: var(--fg-dim); font-family: var(--mono); margin: 0 0 4px; }
@@ -198,10 +203,10 @@
   textarea { display: block; width: 100%; resize: none; min-height: 40px; max-height: 40vh; padding: 8px 10px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--bg); color: var(--fg); font: inherit; line-height: 1.5; outline: none; overflow-y: hidden; }
   textarea:focus { border-color: var(--accent); }
   textarea:disabled { opacity: .55; }
-  /* the stop glyph, at the right edge of the box while a turn can be stopped and gone otherwise;
-     the box keeps the room for it then, so what is typed never runs under it */
-  .composer.stoppable textarea { padding-right: 36px; }
-  .composer .stop { position: absolute; right: 9px; bottom: 9px; width: 22px; height: 22px; padding: 4px; border: 0; border-radius: 6px; background: none; color: var(--fg-dim); cursor: pointer; }
+  /* the stop glyph, over the right edge of the box while a turn can be stopped and gone otherwise:
+     out of the flow, so the box and the room for what is typed are the same width with it and
+     without it; on the box's own ground with a 2px ring of it, so it reads over letters under it */
+  .composer .stop { position: absolute; right: 9px; bottom: 9px; width: 22px; height: 22px; padding: 4px; border: 0; border-radius: 6px; background: var(--bg); box-shadow: 0 0 0 2px var(--bg); color: var(--fg-dim); cursor: pointer; }
   .composer .stop:hover { color: var(--fg); background: var(--line); }
   .composer .stop svg { width: 14px; height: 14px; display: block; }
 </style>
@@ -336,8 +341,15 @@
       showFollow(); // TEMP indicator (A1)
     });
     showFollow(); // TEMP indicator (A1)
-    // The stamps are measured again whenever the rows change width.
-    new ResizeObserver(() => fitStamps(rows.querySelectorAll(".t"))).observe(rows);
+    // Whenever the rows change size: the stamps are measured again for the width, and for the
+    // height a panel that follows is pinned to its newest row again — the bottom area under the
+    // rows grows with a taller box or a card, the window is resized, and the rows keep their
+    // scroll position and would lose their last lines under the bottom area otherwise. One that
+    // does not follow is left exactly where the reader has it.
+    new ResizeObserver(() => {
+      fitStamps(rows.querySelectorAll(".t"));
+      if (view.follow) rows.scrollTop = rows.scrollHeight;
+    }).observe(rows);
     // One click handler for every copy button the rows will hold: the code inside the button's
     // block goes to the clipboard — the code element, never the button's own markup — and the
     // button says copied for a moment.
@@ -359,7 +371,7 @@
     // On the Leader's panel, a pill for rows that arrived below where the reader is: shown when a
     // row lands while the reader is more than 80px above the newest, gone once they are near it
     // again or click it. It is the last child of the rows and sticks to their bottom edge, so it
-    // sits above whatever is open below the rows — the composer — never on it.
+    // sits above the bottom area — a card, the composer — never on it.
     let jump = null;
     if (leads) {
       jump = document.createElement("button");
@@ -393,16 +405,13 @@
     };
     new ResizeObserver(fitPlaceholder).observe(box);
     // The box is one row until what is typed needs more, and stops growing at 40% of the window,
-    // where it scrolls instead.
+    // where it scrolls instead. A taller box takes its room from the rows; what that does to
+    // their scroll position is the rows' own observer's business, never this one's.
     const autosize = () => {
       box.style.height = "auto";
       const max = window.innerHeight * 0.4;
       box.style.height = `${Math.min(box.scrollHeight, max)}px`;
       box.style.overflowY = box.scrollHeight > max ? "auto" : "hidden";
-      // A taller box takes its room from the rows, which keep their scroll position and so lose
-      // their last lines under the box: a panel that follows is pinned to its newest again; one
-      // that does not is left exactly where the reader has it.
-      if (view.follow) rows.scrollTop = rows.scrollHeight;
     };
     box.addEventListener("input", autosize);
     box.addEventListener("keydown", (event) => {
@@ -411,7 +420,7 @@
         composer.requestSubmit();
       }
     });
-    // The stop glyph, inside the box at its right edge: there while the turn can be stopped, gone
+    // The stop glyph, over the box at its right edge: there while the turn can be stopped, gone
     // otherwise. A click interrupts the turn and nothing else — the process stays.
     const stop = document.createElement("button");
     stop.type = "button";
@@ -443,13 +452,21 @@
       }).catch(() => {});
     });
 
-    section.append(headLine, rows, composer);
+    // The bottom area, under the rows: the cards of the panel's questions, then the composer. It
+    // takes its room from the rows in the panel's column, so a card or a taller box never covers
+    // a row — the rows get shorter, and the observer above keeps a following panel at its newest.
+    const bottom = document.createElement("div");
+    bottom.className = "bottom";
+    const cards = document.createElement("div");
+    cards.className = "cards";
+    bottom.append(cards, composer);
+    section.append(headLine, rows, bottom);
     // `last` is the tool line appended last, for a repeated call to count itself into; `lines` is
     // the element of every tool line by the index of its row, for a failed call to find its line;
     // `waiting` the element of every row of the User's not yet delivered, by its index, for the
     // delivery to find its row; `day` the day of the row drawn last, for the pill between two days;
     // `drawn` the card of every question on the panel, by the id of its request.
-    return { name, section, nameLine, info, word, fitPlaceholder, facts, composer, stop, rows, empty, jump, box, refs, view, shown: 0, day: null, drawn: new Map(), loading: false, last: null, lines: new Map(), waiting: new Map() };
+    return { name, section, nameLine, info, word, fitPlaceholder, facts, composer, stop, rows, cards, empty, jump, box, refs, view, shown: 0, day: null, drawn: new Map(), loading: false, last: null, lines: new Map(), waiting: new Map() };
   }
 
   // When a row was written, in the reader's own zone: `2026.09.13 Sunday 23:17:05` on the row, the
@@ -672,14 +689,13 @@
   }
 
   // A question on this panel: a call the session is stopped on, or a rule the Leader asks the
-  // User to settle. It is a card among the rows — appended where the newest row goes, in the
-  // scroll with everything before it, so seven at once scroll like seven rows and the composer
-  // stays where it is. What it shows is decided by dialogOf() — the words of the request and
-  // nothing else — and drawn here with textContent as a card: the heading, then one block per
-  // field the request carried (the words of a request in a raw block, a reason on a line of its
-  // own), then the row of decisions, one button per decision that kind of question takes. A deny
-  // on a call stop needs a word from the person, since the run is told why; a rule dialog
-  // carries the Leader's why already.
+  // User to settle. It is a card in the panel's bottom area, right above the composer — always in
+  // sight, never in the scroll of the rows, and never a reason to scroll them. What it shows is
+  // decided by dialogOf() — the words of the request and nothing else — and drawn here with
+  // textContent as a card: the heading, then one block per field the request carried (the words
+  // of a request in a raw block, a reason on a line of its own), then the row of decisions, one
+  // button per decision that kind of question takes. A deny on a call stop needs a word from the
+  // person, since the run is told why; a rule dialog carries the Leader's why already.
   function question(name, request) {
     const dialog = dialogOf(request, name);
     const card = document.createElement("div");
@@ -780,9 +796,7 @@
     panel.section.classList.toggle("idle", colour === GREEN);
     panel.section.classList.toggle("busy", colour === AMBER);
     panel.section.classList.toggle("gone", colour === RED);
-    const stoppable = stopEnabled(state, panel.name);
-    panel.stop.hidden = !stoppable;
-    panel.composer.classList.toggle("stoppable", stoppable);
+    panel.stop.hidden = !stopEnabled(state, panel.name);
     panel.box.disabled = !composersEnabled(state, panel.name);
     panel.fitPlaceholder();
     if (panel.facts !== null) {
@@ -806,7 +820,7 @@
         panel.last = null;
         panel.lines.clear();
         panel.waiting.clear();
-        panel.drawn.clear();
+        // The cards are not among the rows: they stand, and leave when their question does.
       }
       panel.empty.hidden = about.rows.length > 0;
       const added = [];
@@ -857,7 +871,7 @@
         // A Worker panel keeps a hundred drawn rows — bubbles, lines and pills; the empty box is
         // not a row — and lets the oldest go, with the lines it no longer holds.
         if (panel.jump === null) {
-          const drawn = [...panel.rows.children].filter((child) => child.matches(".msg:not(.perm), .line, .divider"));
+          const drawn = [...panel.rows.children].filter((child) => child.matches(".msg, .line, .divider"));
           while (drawn.length > 100) drawn.shift().remove();
           // The day pill goes with the rows before it: it is never the first thing on a panel.
           while (drawn.length > 0 && drawn[0].dataset.day !== undefined) drawn.shift().remove();
@@ -879,9 +893,9 @@
         }
         if (about.rows[index].delivered === true) deliveredRow(panel, index);
       }
-      // The questions, after the rows: a card answered or taken down leaves, a card not yet
-      // drawn goes where the newest row went and ends a run of tool lines.
-      let asked = false;
+      // The questions, in the bottom area: a card answered or taken down leaves, a card not yet
+      // drawn goes in after the cards there. Nothing here scrolls the rows for a card: it is not
+      // in them, and a taller bottom area is the rows' observer's business.
       for (const [id, card] of panel.drawn) {
         if (!about.asking.some((request) => request.id === id)) {
           card.remove();
@@ -892,17 +906,14 @@
         if (!panel.drawn.has(request.id)) {
           const card = question(panel.name, request);
           panel.drawn.set(request.id, card);
-          panel.rows.append(card);
-          panel.last = null;
-          asked = true;
+          panel.cards.append(card);
         }
       }
-      // Rows and cards are appended after the pill; it goes back to the end so it sticks to the
-      // bottom edge.
+      // Rows are appended after the pill; it goes back to the end so it sticks to the bottom edge.
       if (panel.jump !== null && panel.jump !== panel.rows.lastElementChild) panel.rows.append(panel.jump);
-      // A card scrolls into view as a row does: a panel that follows is pinned to the newest;
-      // otherwise the pill says something landed below.
-      if (added.length > 0 || asked) {
+      // A row that landed: a panel that follows is pinned to the newest; otherwise the pill says
+      // something landed below.
+      if (added.length > 0) {
         if (follows) {
           panel.rows.scrollTop = panel.rows.scrollHeight;
         } else if (panel.jump !== null && !near) {

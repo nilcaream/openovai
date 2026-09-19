@@ -997,5 +997,27 @@
         "to": "      written = await import(pathToFileURL(path.join(directory, \"elsewhere\", entry.name)).href);"
       }
     ]
+  },
+  {
+    "name": "the wait on a card is written on a Worker's panel alone",
+    "catches": "says the wait on the Leader's panel too, and draws no line for the call it waited on",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "      if (seconds >= WAIT_SAID_FROM) append(instance.root, seat, { from: SERVER, text: `waited ${seconds} s for permission: ${what}` });",
+        "to": "      if (seconds >= WAIT_SAID_FROM && roleOf(instance, seat) === WORKER) append(instance.root, seat, { from: SERVER, text: `waited ${seconds} s for permission: ${what}` });"
+      }
+    ]
+  },
+  {
+    "name": "the Leader's own calls are drawn as lines on its panel, the call it waited on first of all",
+    "catches": "says the wait on the Leader's panel too, and draws no line for the call it waited on",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "    called: logged(instance, seat, roleOf(instance, seat) === WORKER ? calledBy(instance, seat) : () => {}),",
+        "to": "    called: logged(instance, seat, calledBy(instance, seat)),"
+      }
+    ]
   }
 ]
