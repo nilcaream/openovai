@@ -1000,7 +1000,7 @@
   },
   {
     "name": "the wait on a card is written on a Worker's panel alone",
-    "catches": "says the wait on the Leader's panel too, and draws no line for the call it waited on",
+    "catches": "says the wait on the Leader's panel too, and draws one line, the call it waited on, where the card came",
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
@@ -1011,12 +1011,23 @@
   },
   {
     "name": "the Leader's own calls are drawn as lines on its panel, the call it waited on first of all",
-    "catches": "says the wait on the Leader's panel too, and draws no line for the call it waited on",
+    "catches": "says the wait on the Leader's panel too, and draws one line, the call it waited on, where the card came",
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
         "from": "    called: logged(instance, seat, roleOf(instance, seat) === WORKER ? calledBy(instance, seat) : () => {}),",
         "to": "    called: logged(instance, seat, calledBy(instance, seat)),"
+      }
+    ]
+  },
+  {
+    "name": "the Leader's panel draws no line for the call that stopped on a card",
+    "catches": "says the wait on the Leader's panel too, and draws one line, the call it waited on, where the card came",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "    if (roleOf(instance, seat) !== WORKER) {\n      calledBy(instance, seat)({ name: request.tool, input: request.input });\n    }",
+        "to": ""
       }
     ]
   }

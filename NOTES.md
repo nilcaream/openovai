@@ -74,8 +74,9 @@ scrolls inside that area and never pushes the box out of the panel. The same hol
 grows as a long line is typed: the rows give it its room, and a following panel keeps its newest
 row above the box whatever the box's height. A card still leaves on a press, and the User is still
 told on the Leader's panel once a Worker has waited ten minutes on one. The wait itself —
-`waited 40 s for permission: …` — is said on every panel, the Leader's included; it is the one
-row about a call the Leader's panel ever draws.
+`waited 40 s for permission: …` — is said on every panel, the Leader's included. And the Leader's
+panel, which draws none of its own calls as lines, draws the one that stopped on a card — `git
+push`, say — where the card came, so the card is never about a call the panel does not show.
 
 **The stop glyph never narrows the box.** The square at the right edge of the box, there while a
 turn can be stopped, used to take its room from the text: a long line wrapped differently the

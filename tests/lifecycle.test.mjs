@@ -1226,10 +1226,9 @@ describe("a call stop that waits", () => {
     assert.equal(row?.text, "waited 10 s for permission: Bash: git push");
   });
 
-  // The Leader's panel says the wait the same way — the one row about a call it ever draws. Its
-  // own calls are never lines there, the call it stood still on included: the wait is the gap to
-  // explain, the call is the log's.
-  it("says the wait on the Leader's panel too, and draws no line for the call it waited on", async () => {
+  // The Leader's panel says the wait the same way, and draws the one line it ever draws: the call
+  // it stood still on, where the card came, and once — every other call of its is the log's.
+  it("says the wait on the Leader's panel too, and draws one line, the call it waited on, where the card came", async () => {
     ({ superman, paul } = await pair({}, { ...KNOBS, OPENOVAI_STAND_IN_CALLS: JSON.stringify([[{ name: "Bash", input: { command: "git push" } }]]) }));
     const from = now;
     const rows = panel(instance, LEADER).length;
@@ -1242,7 +1241,9 @@ describe("a call stop that waits", () => {
     assert.equal(waited?.text, "waited 10 s for permission: Bash: git push");
     await settle();
     const drawn = panel(instance, LEADER).slice(rows);
-    assert.ok(drawn.every((row) => row.line === undefined), `a line on the Leader's panel: ${JSON.stringify(drawn)}`);
+    const lines = drawn.filter((row) => row.line !== undefined);
+    assert.deepEqual(lines.map((row) => [row.from, row.line]), [[LEADER, "git push"]], `the lines on the Leader's panel: ${JSON.stringify(drawn)}`);
+    assert.ok(drawn.indexOf(lines[0]) < drawn.findIndex((row) => row.text === waited.text), `the line came after the wait: ${JSON.stringify(drawn)}`);
   });
 });
 
