@@ -927,8 +927,8 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "export const SLOW_SAID_FROM = 10;",
-        "to": "export const SLOW_SAID_FROM = 9;"
+        "from": "export const SLOW_SAID_FROM = 10000;",
+        "to": "export const SLOW_SAID_FROM = 9000;"
       }
     ]
   },
@@ -938,8 +938,19 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "        if (seconds >= SLOW_SAID_FROM) {",
-        "to": "        if (seconds > SLOW_SAID_FROM) {"
+        "from": "        if (ms >= SLOW_SAID_FROM) {",
+        "to": "        if (ms > SLOW_SAID_FROM) {"
+      }
+    ]
+  },
+  {
+    "name": "the slow row is said in seconds",
+    "catches": "one of ten seconds says so on the panel",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "text: `${tool.name} took ${ms} ms`",
+        "to": "text: `${tool.name} took ${Math.round(ms / 1000)} s`"
       }
     ]
   },

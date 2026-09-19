@@ -37,8 +37,9 @@ the Leader's included, with a failed call and its reason.
 **A slow call of the instance's own tools is told apart from a stuck seat.** Every call of the
 tools the instance serves — `message`, `room`, `hire`, `write_desk`, `recall`, `remember`,
 `permission`, `park`, the plugins — is timed where it is dispatched: the log says `tool: <seat>
-<name> in N ms` (`failed in N ms: <why>` when it threw), and the panel says `<name> took N s` once
-a call was ten seconds or more, on the same threshold and in the same shape as the wait on a card.
+<name> in N ms` (`failed in N ms: <why>` when it threw), and the panel says `<name> took N ms` once
+a call was ten seconds or more, on the same threshold as the wait on a card, and in the
+milliseconds the log counts in.
 `recall` and `remember` go through a model when a judgement is needed, and that round-trip is what
 makes them slow: the log times it (`store: <seat> remember model in N ms`), and says `no model`
 for a call that needed none — a recall by id, a remember that named what it replaces.

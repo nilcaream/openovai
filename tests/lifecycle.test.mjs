@@ -1279,7 +1279,7 @@ describe("a call of the instance's own tools", () => {
 
   it("one of ten seconds says so on the panel", async () => {
     const { row } = await held(10, ({ resolve }) => resolve({ text: "done" }));
-    assert.equal(row?.text, "slow took 10 s");
+    assert.equal(row?.text, "slow took 10000 ms");
   });
 
   it("one that threw is logged failed, with the reason, and still timed", async () => {
