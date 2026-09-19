@@ -165,6 +165,17 @@
     ]
   },
   {
+    "name": "the Leader's persona asks for an answer to what one Worker said to another",
+    "catches": "tells the Leader that a word between two Workers is heard, not asked",
+    "edits": [
+      {
+        "file": "lib/templates/leader.md",
+        "from": "It is heard, not asked: nothing to answer, nobody waiting on you.",
+        "to": "Answer the addressee on the sender's behalf."
+      }
+    ]
+  },
+  {
     "name": "the Leader's persona sends every word to the User",
     "catches": "tells the Leader that what it says lands on its own panel, and a Worker is reached through message",
     "edits": [

@@ -50,6 +50,13 @@ desk file still has it.
 when the pointer is over the block; a click puts the block's text on the clipboard and the button
 says so for a moment.
 
+**The Leader hears what one Worker says to another.** A message from one Worker to another used to
+reach the two of them and nobody else — the Leader's panel showed nothing, and the User could not
+see what was said. It now lands on the Leader's panel as `<sender> → <addressee>` with the words, on
+the ground a line typed on a Worker's panel has, and the Leader's next turn carries it as
+`<server-event type="overheard" from="…" to="…">` — heard, not asked; nothing waits on the Leader,
+and the addressee gets the message as before.
+
 ## 0.13.0
 
 What the User types goes in ahead of a seat's backlog, a stop says what the seat goes on to, a

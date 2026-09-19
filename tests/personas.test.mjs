@@ -178,6 +178,11 @@ describe("what the Leader is told", () => {
     assert.match(leader(), new RegExp(`do not answer ${USER} on their behalf`));
   });
 
+  it("tells the Leader that a word between two Workers is heard, not asked", () => {
+    assert.match(leader(), /<server-event type="overheard" from="…" to="…">/);
+    assert.match(leader(), /It is heard, not asked: nothing to answer, nobody waiting on you\./);
+  });
+
   it("tells the Leader that what it says lands on its own panel, and a Worker is reached through message", () => {
     assert.match(leader(), /What you say in a turn lands on your own panel, as you say it/);
     assert.match(leader(), /Nothing you say reaches a Worker on its own/);
@@ -222,7 +227,7 @@ describe("what the Leader is told", () => {
   });
 
   it("tells the Leader what each event asks of it", () => {
-    for (const event of ["quota-low", "idle", "stopped", "hard-rules", "permission"]) {
+    for (const event of ["overheard", "quota-low", "idle", "stopped", "hard-rules", "permission"]) {
       assert.match(leader(), new RegExp(`<server-event type="${event}"`), event);
     }
     assert.match(leader(), /call `park`/);

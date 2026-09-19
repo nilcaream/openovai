@@ -1042,6 +1042,61 @@ describe("the tools a session is served", () => {
 
 // ---------------------------------------------------------------------------------------------
 
+// A message from one Worker to another is heard by the Leader the way a line the User types on a
+// Worker's panel is: a row on the Leader's panel, `<sender> → <addressee>` with the words, and a
+// server event on its next turn. Told, not asked; nothing waits on it; the addressee's delivery is
+// what it was. A message to or from the Leader is heard already and gets nothing more.
+describe("what one Worker says to another", () => {
+  let superman;
+  let paul;
+  let sam;
+
+  before(async () => {
+    remove(panelFile(instance, LEADER), panelFile(instance, WORKER), panelFile(instance, OTHER));
+    superman = await seatUp(LEADER, { OPENOVAI_STAND_IN_REPLY: "heard" });
+    paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_REPLY: "on it" });
+    sam = await seatUp(OTHER, { OPENOVAI_STAND_IN_REPLY: "got it" });
+  });
+
+  after(async () => {
+    await endEvery(500);
+  });
+
+  it("reaches the addressee as the message it is, and the Leader as an overheard event with the words", async () => {
+    const said_ = await tool(paul.secret, "message", { to: OTHER, text: "the fixture is yours" });
+    assert.equal(said_.refused, false, said_.text);
+    assert.equal(said_.text, `sent to ${OTHER}`);
+    assert.deepEqual(await told(sam.log, 1), [`<message from="${WORKER}">the fixture is yours</message>`]);
+    assert.deepEqual(await told(superman.log, 1), [`<server-event type="overheard" from="${WORKER}" to="${OTHER}">the fixture is yours</server-event>`]);
+  });
+
+  it("lands on the Leader's panel as a row from the sender to the addressee, under the id both ends carry", async () => {
+    await waitFor(() => (panel(instance, LEADER).length >= 2 ? true : null));
+    const rows = panel(instance, LEADER);
+    assert.deepEqual([rows[0].from, rows[0].to, rows[0].text, rows[0].overheard, rows[0].outcome], [WORKER, OTHER, "the fixture is yours", true, undefined]);
+    assert.equal(rows[0].msg, panel(instance, WORKER).at(-1).msg, "the sender's row and the Leader's carry one id");
+    assert.equal(rows[0].msg, panel(instance, OTHER)[0].msg, "the addressee's row and the Leader's carry one id");
+    assert.deepEqual([rows[1].from, rows[1].text], [LEADER, "heard"]);
+    const shown = JSON.parse((await page("GET", `/sessions/${LEADER}/messages`)).body).messages;
+    assert.deepEqual(shown, rows);
+  });
+
+  it("hears nothing more for a message to or from the Leader", async () => {
+    const heard = heardIn(superman.log).length;
+    const rows = panel(instance, LEADER).length;
+    assert.equal((await tool(superman.secret, "message", { to: WORKER, text: "ping" })).text, `sent to ${WORKER}`);
+    assert.equal((await tool(paul.secret, "message", { to: LEADER, text: "a question" })).text, `sent to ${LEADER}`);
+    await waitFor(() => (panel(instance, LEADER).length >= rows + 3 ? true : null));
+    assert.deepEqual(heardIn(superman.log).slice(heard), [`<message from="${WORKER}">a question</message>`]);
+    assert.deepEqual(
+      panel(instance, LEADER).slice(rows).map((row) => [row.from, row.to, row.overheard, row.outcome]),
+      [[LEADER, WORKER, undefined, "sent"], [WORKER, LEADER, undefined, undefined], [LEADER, undefined, undefined, undefined]],
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+
 describe("what the User types", () => {
   let superman;
   let paul;

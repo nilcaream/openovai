@@ -55,6 +55,17 @@
     ]
   },
   {
+    "name": "an overheard message is drawn as one from the Worker to the Leader",
+    "catches": "a word one Worker said to another reads sender → addressee on the Leader's panel, on the typed ground, with its id",
+    "edits": [
+      {
+        "file": "lib/chat/render.mjs",
+        "from": "    if (entry.overheard === true) {\n      return { who: `${entry.from} → ${entry.to}`, kind: \"typed\", text: String(entry.text), ...msg };\n    }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
     "name": "a failed row is a plain reply",
     "catches": "a failed turn is shown failed",
     "edits": [
