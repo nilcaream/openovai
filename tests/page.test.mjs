@@ -205,15 +205,15 @@ describe("the rules", () => {
     assert.equal(lit.declarations.outline, "2px solid var(--accent)");
   });
 
-  it("clip a folded message to three lines, faded at its edge, and draw the word that opens it as a link", () => {
-    const folded = rules.find((rule) => rule.selector === ".bubble .md.collapsed");
-    assert.equal(folded.declarations["max-height"], "4.5em", "three lines at the page's line height of 1.5");
+  // A folded message is one line of its body, cut with an ellipsis: the line clamp, which cuts
+  // across the blocks of the markdown where a nowrap would only cut the first, and it needs the
+  // box display and the vertical orient to take.
+  it("clip a folded message to one line of its body, cut with an ellipsis", () => {
+    const folded = rules.find((rule) => rule.selector === ".msg.collapsed .md");
+    assert.equal(folded.declarations["-webkit-line-clamp"], "1", "one line, and an ellipsis where it is cut");
+    assert.equal(folded.declarations.display, "-webkit-box");
+    assert.equal(folded.declarations["-webkit-box-orient"], "vertical");
     assert.equal(folded.declarations.overflow, "hidden");
-    assert.equal(folded.declarations["mask-image"], "linear-gradient(currentcolor 80%, transparent)");
-    const more = rules.find((rule) => rule.selector === ".more");
-    assert.equal(more.declarations.color, "var(--accent)");
-    assert.equal(more.declarations.cursor, "pointer");
-    assert.equal(more.declarations.border, "0");
   });
 
   it("make the stamp a click, and say so under the pointer", () => {
@@ -562,24 +562,48 @@ describe("the script", () => {
   });
 
   // A line that is one end of a message between two sessions carries the message's id and is a
-  // click: the message is found on the Leader's panel by that id, brought into view and lit for a
-  // moment. A line that is nothing of the kind gets none of it.
-  it("marks the line of a message with its id and takes a click on it to the message on the Leader's panel", () => {
+  // click: the message is found on the Leader's panel by that id, opened, brought into view with
+  // its label at the top — a message opened whole can be taller than the rows, and centred it
+  // would start off-screen — and lit for a moment. A line that is nothing of the kind gets none of
+  // it.
+  it("marks the line of a message with its id and takes a click on it to the message on the Leader's panel, opened", () => {
     assert.match(script, /if \(shown\.msg !== undefined\) \{\s*line\.classList\.add\("peer"\);\s*line\.dataset\.msg = shown\.msg;\s*line\.onclick = \(\) => focusMessage\(shown\.msg\);\s*\}\s*return line;/);
     assert.match(script, /if \(shown\.msg !== undefined\) line\.dataset\.msg = shown\.msg;/, "a bubble carries the id too, for the click to find");
-    assert.match(script, /function focusMessage\(id\) \{\s*const leader = sections\.get\(state\.leader\);\s*const found = leader === undefined \? null : leader\.rows\.querySelector\(`\.msg\[data-msg="\$\{id\}"\]`\);\s*if \(found === null\) return;\s*found\.scrollIntoView\(\{ block: "center" \}\);/);
+    assert.match(script, /function focusMessage\(id\) \{\s*const leader = sections\.get\(state\.leader\);\s*const found = leader === undefined \? null : leader\.rows\.querySelector\(`\.msg\[data-msg="\$\{id\}"\]`\);\s*if \(found === null\) return;\s*found\.classList\.remove\("collapsed"\);\s*found\.scrollIntoView\(\{ block: "start" \}\);/, "opened before it is brought into view, so the scroll is to the row as it will stand");
     assert.match(script, /found\.classList\.add\("focus"\);\s*setTimeout\(\(\) => found\.classList\.remove\("focus"\), FOCUS_FOR\);/);
     assert.match(script, /const FOCUS_FOR = 1500;/);
   });
 
-  // A message on the Leader's panel, to a session or from one, shows three lines of itself: the
-  // body is folded once it is on the page, and a body that fits is unfolded again and carries no
-  // word; one that does not gets the word under it that opens it and folds it again.
-  it("folds a message to a session or from one to three lines, once it is on the page, with a word that opens it", () => {
-    assert.match(script, /if \(shown\.kind === "peer-in" \|\| shown\.kind === "peer-out"\) collapsible\(line\.querySelector\("\.md"\)\);/);
-    assert.match(script, /panel\.rows\.append\(line\);(?:[^\n]*\n)+?[^\n]*collapsible\(line\.querySelector/, "folded after the row is on the page, never before");
-    assert.match(script, /function collapsible\(body\) \{\s*body\.classList\.add\("collapsed"\);\s*if \(body\.scrollHeight <= body\.clientHeight\) \{\s*body\.classList\.remove\("collapsed"\);\s*return;\s*\}/);
-    assert.match(script, /more\.className = "more";\s*more\.textContent = "show all";\s*more\.onclick = \(\) => \{\s*const folded = body\.classList\.toggle\("collapsed"\);\s*more\.textContent = folded \? "show all" : "collapse";\s*\};\s*body\.after\(more\);/);
+  // A message on the Leader's panel, to a session or from one, is folded as its row is built —
+  // a class on the row, nothing measured, nothing stored, so a fresh page folds every one.
+  it("folds a message to a session or from one as its row is built", () => {
+    assert.match(script, /\n      line\.classList\.add\("collapsed"\);\n/, "the fold is a class on the row");
+    assert.match(script, /line\.classList\.add\("collapsed"\);(?:[^\n]*\n)+?\s*return line;\s*\}\s*\n\s*\/\/ The copy button/, "set in rowElement, on the row before it is returned");
+    assert.doesNotMatch(script, /localStorage[^\n]*collapsed|collapsed[^\n]*localStorage/, "nothing about the fold is stored");
+  });
+
+  // A double click on the row opens it, and the next folds it again; a single click does nothing
+  // to it — it is what selects a word, and the stamp's click points at the row — and there is no
+  // word under the row that opens it.
+  it("opens a folded message on a double click, folds it again on the next, and on nothing else", () => {
+    assert.match(script, /line\.addEventListener\("dblclick", \(\) => line\.classList\.toggle\("collapsed"\)\);/);
+    assert.doesNotMatch(script, /(?:addEventListener\("click"|onclick)[^\n]*collapsed/, "a single click never folds or opens a row");
+    assert.doesNotMatch(script, /show all|collapsible\(|"more"/, "no word under the row opens it");
+  });
+
+  // Only a message to a session or from one is folded. What the User typed on a panel, what the
+  // User typed to a Worker, and what one Worker said to another — the typed ground — are shown
+  // whole: the renderer gives them other kinds, and the fold is under the two kinds alone.
+  it("shows the User's words, and a Worker's to a Worker, whole — never folded", () => {
+    assert.match(script, /line\.append\(bubble\);\n    if \(shown\.kind === "peer-in" \|\| shown\.kind === "peer-out"\) \{\n/, "the fold is under the two kinds of a message to a session or from one, and nothing else");
+    const names = { chat: "Server", seat: "Bobby", leader: "Bobby", user: "Copter" };
+    const folded = new Set(["peer-in", "peer-out"]);
+    assert.equal(row({ from: "Bobby", to: "Tom", msg: "m1", text: "go" }, names).kind, "peer-out");
+    assert.equal(row({ from: "Tom", to: "Bobby", msg: "m2", text: "done" }, names).kind, "peer-in");
+    for (const entry of [{ from: "user", text: "hi" }, { from: "user", typedTo: "Tom", text: "hi" }, { from: "Eva", to: "Sam", overheard: true, msg: "m3", text: "hi" }]) {
+      const shown = row(entry, names);
+      assert.ok(!folded.has(shown.kind), `${shown.who} is drawn as ${shown.kind}, a kind the page folds`);
+    }
   });
 
   // A call that failed after its line was drawn: the server writes the row again with err and

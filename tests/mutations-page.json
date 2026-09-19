@@ -1082,7 +1082,7 @@
   },
   {
     "name": "a message's line is no click",
-    "catches": "marks the line of a message with its id and takes a click on it to the message on the Leader's panel",
+    "catches": "marks the line of a message with its id and takes a click on it to the message on the Leader's panel, opened",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -1093,7 +1093,7 @@
   },
   {
     "name": "a message's line is not marked as one",
-    "catches": "marks the line of a message with its id and takes a click on it to the message on the Leader's panel",
+    "catches": "marks the line of a message with its id and takes a click on it to the message on the Leader's panel, opened",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -1104,7 +1104,7 @@
   },
   {
     "name": "a bubble carries no id for the click to find",
-    "catches": "marks the line of a message with its id and takes a click on it to the message on the Leader's panel",
+    "catches": "marks the line of a message with its id and takes a click on it to the message on the Leader's panel, opened",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -1114,19 +1114,30 @@
     ]
   },
   {
-    "name": "the message a click found is brought to the top rather than into view",
-    "catches": "marks the line of a message with its id and takes a click on it to the message on the Leader's panel",
+    "name": "the message a click found is centred rather than opened at its label",
+    "catches": "marks the line of a message with its id and takes a click on it to the message on the Leader's panel, opened",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "    found.scrollIntoView({ block: \"center\" });",
-        "to": "    found.scrollIntoView({ block: \"start\" });"
+        "from": "    found.scrollIntoView({ block: \"start\" });",
+        "to": "    found.scrollIntoView({ block: \"center\" });"
+      }
+    ]
+  },
+  {
+    "name": "the message a click found is brought into view but stays folded",
+    "catches": "marks the line of a message with its id and takes a click on it to the message on the Leader's panel, opened",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    found.classList.remove(\"collapsed\");\n",
+        "to": ""
       }
     ]
   },
   {
     "name": "the message a click found stays lit",
-    "catches": "marks the line of a message with its id and takes a click on it to the message on the Leader's panel",
+    "catches": "marks the line of a message with its id and takes a click on it to the message on the Leader's panel, opened",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -1136,51 +1147,57 @@
     ]
   },
   {
-    "name": "a message is folded before it is on the page",
-    "catches": "folds a message to a session or from one to three lines, once it is on the page, with a word that opens it",
+    "name": "a message to a session or from one is built open",
+    "catches": "folds a message to a session or from one as its row is built",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "          const line = rowElement(entry, shown, panel);\n          panel.rows.append(line);\n",
-        "to": "          const line = rowElement(entry, shown, panel);\n          if (shown.kind === \"peer-in\" || shown.kind === \"peer-out\") collapsible(line.querySelector(\".md\"));\n          panel.rows.append(line);\n"
-      },
-      {
-        "file": "lib/chat/page.html",
-        "from": "          if (shown.kind === \"peer-in\" || shown.kind === \"peer-out\") collapsible(line.querySelector(\".md\"));\n          const time",
-        "to": "          const time"
+        "from": "      line.classList.add(\"collapsed\");\n      line.addEventListener(\"dblclick\"",
+        "to": "      line.addEventListener(\"dblclick\""
       }
     ]
   },
   {
-    "name": "a message that fits stays folded",
-    "catches": "folds a message to a session or from one to three lines, once it is on the page, with a word that opens it",
+    "name": "a single click opens a folded message",
+    "catches": "opens a folded message on a double click, folds it again on the next, and on nothing else",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "    if (body.scrollHeight <= body.clientHeight) {\n      body.classList.remove(\"collapsed\");\n      return;\n    }\n",
-        "to": "    if (body.scrollHeight <= body.clientHeight) {\n      return;\n    }\n"
+        "from": "      line.addEventListener(\"dblclick\", () => line.classList.toggle(\"collapsed\"));",
+        "to": "      line.addEventListener(\"click\", () => line.classList.toggle(\"collapsed\"));"
       }
     ]
   },
   {
-    "name": "the word under a folded message opens it and never folds it again",
-    "catches": "folds a message to a session or from one to three lines, once it is on the page, with a word that opens it",
+    "name": "a double click opens a folded message and never folds it again",
+    "catches": "opens a folded message on a double click, folds it again on the next, and on nothing else",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      const folded = body.classList.toggle(\"collapsed\");\n      more.textContent = folded ? \"show all\" : \"collapse\";",
-        "to": "      body.classList.remove(\"collapsed\");\n      more.textContent = \"collapse\";"
+        "from": "      line.addEventListener(\"dblclick\", () => line.classList.toggle(\"collapsed\"));",
+        "to": "      line.addEventListener(\"dblclick\", () => line.classList.remove(\"collapsed\"));"
       }
     ]
   },
   {
-    "name": "only a message to a session is folded",
-    "catches": "folds a message to a session or from one to three lines, once it is on the page, with a word that opens it",
+    "name": "what a Worker said to another Worker is folded too",
+    "catches": "shows the User's words, and a Worker's to a Worker, whole — never folded",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "if (shown.kind === \"peer-in\" || shown.kind === \"peer-out\") collapsible(",
-        "to": "if (shown.kind === \"peer-out\") collapsible("
+        "from": "    if (shown.kind === \"peer-in\" || shown.kind === \"peer-out\") {\n      line.classList.add(\"collapsed\");",
+        "to": "    if (shown.kind === \"peer-in\" || shown.kind === \"peer-out\" || shown.kind === \"typed\") {\n      line.classList.add(\"collapsed\");"
+      }
+    ]
+  },
+  {
+    "name": "what one Worker said to another is drawn as a message from a session, and folded with it",
+    "catches": "shows the User's words, and a Worker's to a Worker, whole — never folded",
+    "edits": [
+      {
+        "file": "lib/chat/render.mjs",
+        "from": "      return { who: `${entry.from} → ${entry.to}`, kind: \"typed\", text: String(entry.text), ...msg };",
+        "to": "      return { who: `${entry.from} → ${entry.to}`, kind: \"peer-in\", text: String(entry.text), ...msg };"
       }
     ]
   },
@@ -1218,24 +1235,24 @@
     ]
   },
   {
-    "name": "a folded message shows more than three lines",
-    "catches": "clip a folded message to three lines, faded at its edge, and draw the word that opens it as a link",
+    "name": "a folded message shows three lines",
+    "catches": "clip a folded message to one line of its body, cut with an ellipsis",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": ".bubble .md.collapsed { max-height: 4.5em;",
-        "to": ".bubble .md.collapsed { max-height: 22em;"
+        "from": "  .msg.collapsed .md { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }",
+        "to": "  .msg.collapsed .md { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }"
       }
     ]
   },
   {
-    "name": "the word that opens a folded message looks like a button",
-    "catches": "clip a folded message to three lines, faded at its edge, and draw the word that opens it as a link",
+    "name": "a folded message is clamped without the box display the clamp needs",
+    "catches": "clip a folded message to one line of its body, cut with an ellipsis",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "  .more { font-size: .78rem; color: var(--accent); cursor: pointer; margin-top: 4px; background: none; border: 0; padding: 0; font-family: var(--sans); }",
-        "to": "  .more { font-size: .78rem; color: var(--accent); cursor: pointer; margin-top: 4px; background: none; padding: 0; font-family: var(--sans); }"
+        "from": "  .msg.collapsed .md { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }",
+        "to": "  .msg.collapsed .md { -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }"
       }
     ]
   },

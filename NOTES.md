@@ -83,6 +83,16 @@ moment a turn began, and the empty box's sentence could switch to its short form
 lies over the box on the box's own ground, with a thin ring of it, so the letters under it stay
 readable and nothing in the box moves.
 
+**A message between the Leader and a Worker is one line on the Leader's panel.** A `To <name>`
+or `From <name>` row used to show three lines of itself, faded at the edge, with `show all` under
+it, and a short one stood whole. Every one is now one line, cut with an ellipsis; a double click
+on the row opens it whole, and the next folds it again — nothing folds by itself, nothing is
+remembered, and a page opened again shows every one folded. The click on a Worker's line —
+`Sent a message to <leader>`, `Received a message from <leader>` — still finds the row on the
+Leader's panel, and now opens it and brings it to the top of the rows, its label first, so a long
+message reads from its start. What the User typed, on any panel or to a Worker, and what one
+Worker said to another are shown whole, as before.
+
 ## 0.13.0
 
 What the User types goes in ahead of a seat's backlog, a stop says what the seat goes on to, a

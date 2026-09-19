@@ -135,9 +135,8 @@
   .msg.typed .bubble { background: var(--typed); border-color: var(--typed-line); white-space: pre-wrap; overflow-wrap: anywhere; }
   /* the message a click on a line found, lit for a moment */
   .msg.focus .bubble { outline: 2px solid var(--accent); }
-  /* a message to a session or from one shows three lines of itself, faded at the edge, and opens on a word */
-  .bubble .md.collapsed { max-height: 4.5em; overflow: hidden; -webkit-mask-image: linear-gradient(currentcolor 80%, transparent); mask-image: linear-gradient(currentcolor 80%, transparent); }
-  .more { font-size: .78rem; color: var(--accent); cursor: pointer; margin-top: 4px; background: none; border: 0; padding: 0; font-family: var(--sans); }
+  /* a message to a session or from one is one line of itself, cut with an ellipsis, until a double click opens it */
+  .msg.collapsed .md { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }
   .text { white-space: pre-wrap; }
   /* the label row: the speaker on the left, ellipsised before it could push the timestamp, the timestamp last */
   .who { font-size: .78rem; font-weight: 600; color: var(--fg-dim); display: flex; gap: 8px; align-items: baseline; margin-right: auto; flex: 1 1 auto; min-width: 0; }
@@ -555,45 +554,31 @@
   }
 
   // The message a line on a Worker's panel is one end of, found on the Leader's panel by the id
-  // both carry, brought into view and lit for a moment. The Leader's panel draws every row it
-  // holds, so a message it has is there to find; one it has not loaded yet is nothing to do.
+  // both carry, opened, brought into view with its label at the top, and lit for a moment. The
+  // Leader's panel draws every row it holds, so a message it has is there to find; one it has not
+  // loaded yet is nothing to do.
   function focusMessage(id) {
     const leader = sections.get(state.leader);
     const found = leader === undefined ? null : leader.rows.querySelector(`.msg[data-msg="${id}"]`);
     if (found === null) return;
-    found.scrollIntoView({ block: "center" });
+    found.classList.remove("collapsed");
+    found.scrollIntoView({ block: "start" });
     for (const lit of leader.rows.querySelectorAll(".msg.focus")) lit.classList.remove("focus");
     found.classList.add("focus");
     setTimeout(() => found.classList.remove("focus"), FOCUS_FOR);
   }
 
-  // A body taller than the rows it is allowed is clipped to them, faded at its edge, with a word
-  // under it that opens it and folds it again. Measured once the body is on the page, so a body
-  // that fits is left as it is and never carries the word.
-  function collapsible(body) {
-    body.classList.add("collapsed");
-    if (body.scrollHeight <= body.clientHeight) {
-      body.classList.remove("collapsed");
-      return;
-    }
-    const more = document.createElement("button");
-    more.className = "more";
-    more.textContent = "show all";
-    more.onclick = () => {
-      const folded = body.classList.toggle("collapsed");
-      more.textContent = folded ? "show all" : "collapse";
-    };
-    body.after(more);
-  }
-
   // A row is a bubble: the label row on top — who spoke, and when, last — and the body under it,
   // the HTML of a reply or the words of anyone else as they are. A tool call is a line instead.
   // A message the Leader sent carries what became of it as a glyph in the label row, after the
-  // stamp in the DOM and before it on screen; its body is the compact markdown. A message between
-  // two sessions carries its id on the row, for a click on the line the other panel draws for it.
-  // The User's own row carries what became of it too — the waiting words beside the label, on a
-  // dashed ground, then the delivered glyph beside the stamp — read off the row and the panel's
-  // state at the draw, and every stamp is a click that points at its row from the panel's composer.
+  // stamp in the DOM and before it on screen; its body is the compact markdown, one line of it
+  // until a double click opens the row and a second one folds it again — nothing is stored, so a
+  // fresh page folds every one. A message between two sessions carries its id on the row, for a
+  // click on the line the other panel draws for it. The User's words — typed on a panel, or to a
+  // Worker — and a Worker's to a Worker are shown whole. The User's own row carries what became of
+  // it too — the waiting words beside the label, on a dashed ground, then the delivered glyph
+  // beside the stamp — read off the row and the panel's state at the draw, and every stamp is a
+  // click that points at its row from the panel's composer.
   function rowElement(entry, shown, panel) {
     if (shown.kind === "line") return lineElement(shown);
     if (shown.kind === "divider") return pill(shown.text);
@@ -649,6 +634,10 @@
     }
     bubble.append(meta, body);
     line.append(bubble);
+    if (shown.kind === "peer-in" || shown.kind === "peer-out") {
+      line.classList.add("collapsed");
+      line.addEventListener("dblclick", () => line.classList.toggle("collapsed"));
+    }
     time.title = REFERENCE;
     time.addEventListener("click", () => pointAt(panel, time, shown.who, body));
     return line;
@@ -860,9 +849,6 @@
             panel.last = null;
             if (shown.kind === "user" && !shown.delivered) panel.waiting.set(index, line);
           }
-          // A message on the Leader's panel, to a session or from one, shows three lines of
-          // itself and opens on a word; measured here, once the row is on the page.
-          if (shown.kind === "peer-in" || shown.kind === "peer-out") collapsible(line.querySelector(".md"));
           const time = line.querySelector(".t");
           if (time !== null) added.push(time);
         }
