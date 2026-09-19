@@ -1224,6 +1224,22 @@
     ]
   },
   {
+    "name": "the dark ground of a message from a Worker goes back to one step off the reply ground",
+    "catches": "keep the dark ground of a message from a Worker a visible step off the Leader's reply ground",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    --from: #203349; --from-line: #2b4a6d;",
+        "to": "    --from: #1a2a3d; --from-line: #2b4a6d;"
+      },
+      {
+        "file": "tests/page-tokens.json",
+        "from": "    \"--from\": \"#203349\",",
+        "to": "    \"--from\": \"#1a2a3d\","
+      }
+    ]
+  },
+  {
     "name": "what one Worker said to another sits on the User's ground",
     "catches": "draw what the User typed to a Worker on the User's ground on the Leader's panel, and a Worker's words to a Worker on a ground of their own",
     "edits": [

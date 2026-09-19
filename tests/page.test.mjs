@@ -204,6 +204,21 @@ describe("the rules", () => {
     assert.equal(heard.declarations["white-space"], "pre-wrap", "a Worker's words to a Worker keep their lines too");
   });
 
+  // On the dark theme the ground of a message from a Worker used to sit one step off the Leader's
+  // reply ground beside it — #1a2a3d against #1c232d, a contrast of 1.09 — and the two rows read
+  // as one. The ground is held a visible step lighter: a contrast of 1.2 or more against the
+  // reply ground, the WCAG ratio of the two relative luminances, read off the page's own dark
+  // block. The light pair (#e3f0fc on #ffffff, 1.16) is a blue tint on white and reads apart;
+  // it is not held here.
+  it("keep the dark ground of a message from a Worker a visible step off the Leader's reply ground", () => {
+    const channel = (hex) => { const c = parseInt(hex, 16) / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+    const luminance = (hex) => 0.2126 * channel(hex.slice(1, 3)) + 0.7152 * channel(hex.slice(3, 5)) + 0.0722 * channel(hex.slice(5, 7));
+    const contrast = (a, b) => { const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x); return (hi + 0.05) / (lo + 0.05); };
+    const dark = tokenBlocks[1].declarations;
+    const ratio = contrast(dark["--from"], dark["--reply"]);
+    assert.ok(ratio >= 1.2, `dark: --from ${dark["--from"]} against --reply ${dark["--reply"]} is a contrast of ${ratio.toFixed(2)}, under 1.2`);
+  });
+
   it("mark the line of a message as a click, and light the message a click found", () => {
     const line = rules.find((rule) => rule.selector === ".rows .line.peer");
     assert.equal(line.declarations.cursor, "pointer");
