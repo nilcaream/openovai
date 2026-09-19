@@ -181,6 +181,39 @@
     ]
   },
   {
+    "name": "the log is written over at every start",
+    "catches": "keeps the replaced run's account in the log under the new run's header",
+    "edits": [
+      {
+        "file": "lib/ovai.mjs",
+        "from": "  const log = fs.openSync(where, \"a\");",
+        "to": "  const log = fs.openSync(where, \"w\");"
+      }
+    ]
+  },
+  {
+    "name": "the header names no process",
+    "catches": "heads the log with the pid of the server it started and the moment, with the offset",
+    "edits": [
+      {
+        "file": "lib/ovai.mjs",
+        "from": "`--- ovai start: server pid ${child.pid} at ",
+        "to": "`--- ovai start at "
+      }
+    ]
+  },
+  {
+    "name": "a failed start quotes the whole log rather than this run's part of it",
+    "catches": "quotes only this run's output when the server exits before it is up",
+    "edits": [
+      {
+        "file": "lib/ovai.mjs",
+        "from": "fs.readFileSync(where).subarray(from)",
+        "to": "fs.readFileSync(where).subarray(0)"
+      }
+    ]
+  },
+  {
     "name": "the README's roster drops a name",
     "catches": "names the roster, in its order, and the rule that picks from it",
     "edits": [

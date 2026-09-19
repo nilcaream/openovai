@@ -1317,6 +1317,14 @@ describe("the server commands", () => {
     assert.deepEqual(lines.filter((line) => /^(GET|POST) /.test(line)), []);
   });
 
+  // The header is the start's, not the server's: the process it names and the moment it was
+  // started, with the offset, so a run's account can be found by the pid in runtime.json and its
+  // times read beside the desks' and the store's.
+  it("heads the log with the pid of the server it started and the moment, with the offset", () => {
+    const lines = fs.readFileSync(path.join(served, "runtime.log"), "utf8").split("\n").filter((line) => line !== "");
+    assert.match(lines[0], new RegExp(`^--- ovai start: server pid ${pidRecorded()} at \\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}[+-]\\d{2}:\\d{2}$`));
+  });
+
   it("says where it runs, with the pid the server recorded", () => {
     const asked = ovai(["status"]);
     assert.equal(asked.status, 0);
@@ -1341,6 +1349,15 @@ describe("the server commands", () => {
     assert.ok(await settled(true));
   });
 
+  // The run that was replaced is the one somebody reads the log about, so the restart appends
+  // under a header of its own rather than writing over it.
+  it("keeps the replaced run's account in the log under the new run's header", () => {
+    const lines = fs.readFileSync(path.join(served, "runtime.log"), "utf8").split("\n").filter((line) => line !== "");
+    assert.equal(lines.filter((line) => line.startsWith("--- ovai start")).length, 2);
+    assert.equal(lines.filter((line) => line.startsWith(`Serving ${served} at `)).length, 2);
+    assert.equal(lines.at(-1), `Serving ${served} at ${url}`);
+  });
+
   it("stops it, and status says so after", async () => {
     const pid = pidRecorded();
     const stopped = ovai(["stop"]);
@@ -1348,6 +1365,22 @@ describe("the server commands", () => {
     assert.equal(stopped.stdout, `Stopping the server at ${url} (pid ${pid}).\nStopped.\n`);
     assert.ok(await settled(false), "still answering after stop");
     assert.equal(ovai(["status"]).status, 3);
+  });
+
+  // A start that fails quotes what the server said — this run's, not every run the log holds.
+  // The failure is made the way it happens: a configuration the server refuses before it serves.
+  it("quotes only this run's output when the server exits before it is up", () => {
+    const configuration = path.join(served, "openovai.json");
+    const kept = fs.readFileSync(configuration, "utf8");
+    fs.writeFileSync(configuration, JSON.stringify({ ...JSON.parse(kept), quietHours: "nonsense" }));
+    try {
+      const failed = ovai(["start"]);
+      assert.notEqual(failed.status, 0);
+      assert.match(failed.stderr, /^ovai: the server exited \(1\) before it was up:\n[^\n]*quietHours is "nonsense"/);
+      assert.doesNotMatch(failed.stderr, /Serving /);
+    } finally {
+      fs.writeFileSync(configuration, kept);
+    }
   });
 
   // The record outlives the process on purpose; a status that read it without trying would say
