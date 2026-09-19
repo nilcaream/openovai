@@ -1520,8 +1520,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "overflow-x: auto; font-size: .85rem; line-height: 1.4; }",
-        "to": "overflow-x: auto; font-size: .85rem; line-height: 1.5; }"
+        "from": "overflow-x: auto; font-size: .85rem; line-height: 1.4; position: relative; }",
+        "to": "overflow-x: auto; font-size: .85rem; line-height: 1.5; position: relative; }"
       }
     ]
   },
