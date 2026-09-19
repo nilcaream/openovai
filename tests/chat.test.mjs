@@ -1144,8 +1144,11 @@ describe("what a Worker's calls draw", () => {
     [READ, READ],
   ]);
 
+  let logged;
+
   before(async () => {
     remove(panelFile(instance, LEADER), panelFile(instance, WORKER));
+    logged = said.length;
     superman = await seatUp(LEADER, { OPENOVAI_STAND_IN_REPLY: "noted", OPENOVAI_STAND_IN_CALLS: CALLS });
     paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_REPLY: "on it", OPENOVAI_STAND_IN_CALLS: CALLS });
     client = await listen();
@@ -1204,6 +1207,19 @@ describe("what a Worker's calls draw", () => {
     const rows = await turn(LEADER, panel(instance, LEADER).length, "go");
     assert.deepEqual(rows.map((row) => [row.from, row.text]), [["user", "go"], [LEADER, "noted"]]);
     assert.ok(rows.every((row) => row.line === undefined && row.call === undefined), JSON.stringify(rows));
+  });
+
+  // The log takes every seat's calls, the Leader's included — with the path or the command whole,
+  // which the panel never shows — and a call that failed with the reason its result gave.
+  it("logs every seat's calls, the Leader's included, and a failed one with its reason", async () => {
+    const lines = said.slice(logged).filter((line) => line.startsWith(`called: ${LEADER} `) || line.startsWith(`failed: ${LEADER} `));
+    // The Leader's second turn: its first was the event that the Worker had been typed to.
+    assert.deepEqual(lines, [
+      `called: ${LEADER} Read /srv/app/lib/chat/session.mjs (call-2-0)`,
+      `called: ${LEADER} Bash: npm test (call-2-1)`,
+      `failed: ${LEADER} call-2-1: Exit code 1`,
+    ]);
+    assert.ok(said.slice(logged).includes(`called: ${WORKER} Read /srv/app/lib/chat/session.mjs (call-1-0)`), "the Worker's call is drawn but not logged");
   });
 
   it("draws nothing for a search of the tool list or a session's own stop", async () => {
@@ -1563,6 +1579,32 @@ describe("the stream", () => {
     await page("POST", `/sessions/${OTHER}/permission`, { id: asked.id, decision: "allow" });
     await until(client, () => about(client, OTHER, "asking").length > listed && about(client, OTHER, "asking").at(-1).data.pending.length === 0);
     await end(OTHER, 500);
+  });
+
+  // A card that was answered leaves no row of its own, so a turn that stood still on one reads,
+  // afterwards, as a run that took that long. The wait is written down at both ends in the log,
+  // and once on the panel with how long it was.
+  it("a permission wait is logged as asked and answered, and the panel says how long it waited", async () => {
+    const client = await listen();
+    await until(client, (event) => event.name === "asking");
+    const jane = await seatUp(OTHER, { OPENOVAI_STAND_IN_ASKS: "Bash", OPENOVAI_STAND_IN_ASKS_INPUT: "git status", OPENOVAI_STAND_IN_ASKS_WAITS: "10000" });
+    assert.notEqual(jane.secret, undefined);
+    const logged = said.length;
+    const from = panel(instance, OTHER).length;
+    try {
+      await page("POST", `/sessions/${OTHER}/message`, { text: "look" });
+      await until(client, (event) => event.name === "asking" && event.data.seat === OTHER && event.data.pending.length === 1);
+      assert.ok(said.slice(logged).includes(`permission asked: ${OTHER} Bash: git status`), said.slice(logged).join("\n"));
+      assert.ok(!said.slice(logged).some((line) => line.startsWith("permission answered:")), "answered before anybody did");
+      const asked = about(client, OTHER, "asking").at(-1).data.pending[0];
+      await page("POST", `/sessions/${OTHER}/permission`, { id: asked.id, decision: "allow" });
+      const answered = await waitFor(() => said.slice(logged).find((line) => line.startsWith("permission answered:")) ?? null);
+      assert.match(answered ?? "", new RegExp(`^permission answered: ${OTHER} allow after \\d+ s$`));
+      const row = await waitFor(() => panel(instance, OTHER).slice(from).find((one) => one.from === THE_CHAT && one.text.startsWith("waited ")) ?? null);
+      assert.match(row?.text ?? "", /^waited \d+ s for permission: Bash: git status$/);
+    } finally {
+      await end(OTHER, 500);
+    }
   });
 
   it("the Leader's close is told like anybody's, and nothing follows it for the Leader", async () => {

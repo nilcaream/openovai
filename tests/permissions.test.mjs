@@ -329,7 +329,8 @@ async function leaderAsking(knobs) {
   return { ...started, log };
 }
 
-// Type to the Leader and answer with the row its reply lands in.
+// Type to the Leader and answer with the row its reply lands in: the first row of the Leader's
+// after the line typed — a wait on a card puts a line of the chat's between the two.
 async function say(text) {
   const rows = JSON.parse((await page("GET", `/sessions/${LEADER}/messages`)).body).messages.length;
   const answered = await page("POST", `/sessions/${LEADER}/message`, { text });
@@ -337,7 +338,7 @@ async function say(text) {
   return async () => {
     const reply = await waitFor(async () => {
       const { messages } = JSON.parse((await page("GET", `/sessions/${LEADER}/messages`)).body);
-      return messages.length >= rows + 2 ? messages[rows + 1] : null;
+      return messages.slice(rows + 1).find((row) => row.from === LEADER && typeof row.text === "string") ?? null;
     });
     assert.ok(reply !== null, "the Leader never answered");
     return reply;

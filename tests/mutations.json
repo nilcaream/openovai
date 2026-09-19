@@ -1542,5 +1542,60 @@
         "to": ""
       }
     ]
+  },
+  {
+    "name": "a permission request is parked without a word in the log",
+    "catches": "a permission wait is logged as asked and answered, and the panel says how long it waited",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "    console.log(`permission asked: ${seat} ${what}`);\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the answer to a permission request is logged before anybody gave it",
+    "catches": "a permission wait is logged as asked and answered, and the panel says how long it waited",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "    waiting.then((decision) => {\n      const seconds = Math.round((clock() - began) / 1000);\n      console.log(`permission answered: ${seat} ${decision.behavior} after ${seconds} s`);",
+        "to": "    console.log(`permission answered: ${seat} allow after 0 s`);\n    waiting.then((decision) => {\n      const seconds = Math.round((clock() - began) / 1000);"
+      }
+    ]
+  },
+  {
+    "name": "the panel is told nothing of how long the run waited",
+    "catches": "a permission wait is logged as asked and answered, and the panel says how long it waited",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "      append(instance.root, seat, { from: THE_CHAT, text: `waited ${seconds} s for permission: ${what}` });\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "only a Worker's calls reach the log",
+    "catches": "logs every seat's calls, the Leader's included, and a failed one with its reason",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "    called: logged(instance, seat, roleOf(instance, seat) === WORKER ? calledBy(instance, seat) : () => {}),",
+        "to": "    called: roleOf(instance, seat) === WORKER ? logged(instance, seat, calledBy(instance, seat)) : () => {},"
+      }
+    ]
+  },
+  {
+    "name": "a failed call is marked on the panel and said nowhere else",
+    "catches": "logs every seat's calls, the Leader's included, and a failed one with its reason",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "      console.log(`failed: ${seat} ${id}: ${why}`);\n",
+        "to": ""
+      }
+    ]
   }
 ]
