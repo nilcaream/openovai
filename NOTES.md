@@ -57,6 +57,14 @@ the ground a line typed on a Worker's panel has, and the Leader's next turn carr
 `<server-event type="overheard" from="…" to="…">` — heard, not asked; nothing waits on the Leader,
 and the addressee gets the message as before.
 
+**Every panel follows its newest row, or not, on its own.** A panel scrolled to its end follows
+what lands there — rows, tool lines, cards; scrolling away from the end, by wheel, bar or key,
+stops that panel and no other, and it stays exactly where it was put; scrolling back to the end
+makes it follow again, with nothing pressed. Typing in a panel's box, or sending, moves nothing on
+a panel that is not following, and makes no panel follow: only being at the end does. The page
+opens with every panel at its end. A panel used to measure itself at every draw, and a box that
+had grown by a line hid the end and made it stop following.
+
 ## 0.13.0
 
 What the User types goes in ahead of a seat's backlog, a stop says what the seat goes on to, a

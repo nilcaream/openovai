@@ -429,6 +429,53 @@ describe("the script", () => {
     assert.match(script, /jump\.addEventListener\("click", \(\) => \{\s*rows\.scrollTop = rows\.scrollHeight;\s*jump\.classList\.remove\("show"\);/);
   });
 
+  // Every panel follows its newest row or not, on its own: a word of the panel's, set from where
+  // its rows stand on every scroll of them and nowhere else, true from the start. The draw pins a
+  // panel to its newest when it follows and on its first draw; a panel that does not follow is
+  // left exactly where the reader has it, whatever lands.
+  it("leaves a panel that does not follow exactly where the reader has it when rows land", () => {
+    assert.match(script, /const follows = panel\.shown === 0 \|\| panel\.view\.follow;/, "the draw asks the panel's own word, and pins on the first draw");
+    const draw = script.slice(script.indexOf("function drawPanel(panel)"), script.indexOf("// ------------------------------------------------------------------------------- the page"));
+    assert.equal(draw.match(/scrollTop =/g).length, 1, "the draw writes the scroll position in one place");
+    assert.match(draw, /if \(follows\) \{\s*panel\.rows\.scrollTop = panel\.rows\.scrollHeight;\s*\}/, "and that place is under the panel's word");
+    assert.doesNotMatch(draw, /panel\.rows\.scrollHeight - panel\.rows\.scrollTop - panel\.rows\.clientHeight < \d/, "the draw measures nothing itself: a box that grew hides the last lines, and a measure here would call a following panel gone");
+  });
+
+  // A scroll of the rows — a wheel, the bar, a key, the page pinning the newest — sets the word
+  // from where the rows stand: at the newest row, within a few px, the panel follows; away from
+  // it, it does not; back at it, it follows again, with nothing pressed.
+  it("follows the newest row while the reader is at it, and lets go when they scroll away", () => {
+    assert.match(script, /const atTheNewest = \(rows\) => rows\.scrollHeight - rows\.scrollTop - rows\.clientHeight < 4;/);
+    assert.match(script, /const view = \{ follow: true \};/, "a panel follows from the start");
+    assert.match(script, /rows\.addEventListener\("scroll", \(\) => \{\s*view\.follow = atTheNewest\(rows\);/, "every scroll of the rows sets the word from where they stand");
+    assert.match(script, /return \{ name, section, [^}]*\bview\b[^}]*\};/, "the draw reads the same word the scroll sets");
+  });
+
+  // Typing never scrolls a panel that does not follow, and never engages it: nothing in the box's
+  // key, input and submit handlers touches the rows' scroll position, and the one place the box
+  // reaches the rows — a taller box takes room from them — pins a panel to its newest only while
+  // it follows. The scroll writes of the whole script are counted, so a new one is a new sentence
+  // here.
+  it("never scrolls a panel that does not follow on a key, a typed line or a send", () => {
+    const composer = script.slice(script.indexOf("const composer = document.createElement(\"form\");"), script.indexOf("section.append(headLine, rows, composer);"));
+    assert.match(composer, /box\.style\.overflowY = box\.scrollHeight > max \? "auto" : "hidden";\s*(?:\/\/[^\n]*\n\s*)*if \(view\.follow\) rows\.scrollTop = rows\.scrollHeight;\s*\};/, "a taller box pins the rows only on a panel that follows");
+    const handlers = composer.replace(/const autosize = \(\) => \{[\s\S]*?\n    \};/, "");
+    assert.doesNotMatch(handlers, /scrollTop|scrollIntoView|view\.follow =/, "the key, input and submit handlers neither scroll the rows nor set the word");
+    assert.equal(script.match(/\.scrollTop = /g).length, 3, "three scroll writes: the pill's click, the taller box on a following panel, the draw on a following panel");
+  });
+
+  // TEMP indicator (A1): while a panel follows, its head carries the follow class and one rule
+  // gives it the User's own ground; the class is set from the word whenever the word is, and once
+  // at the start.
+  it("marks the head of a panel that follows, and only then", () => {
+    assert.match(script, /const showFollow = \(\) => headLine\.classList\.toggle\("follow", view\.follow\);/, "the class is the word, set or cleared with it");
+    assert.match(script, /view\.follow = [^\n]*;\s*showFollow\(\);/, "set right after every scroll sets the word");
+    assert.match(script, /\n    showFollow\(\); \/\/ TEMP indicator \(A1\)\n/, "and once at the start, when the panel follows before its first scroll");
+    const head = rules.find((rule) => rule.selector === ".phead").declarations;
+    const following = rules.find((rule) => rule.selector === ".phead.follow").declarations;
+    assert.ok(following.background !== undefined && following.background !== head.background, "a following head has a ground of its own");
+  });
+
   // The stop glyph: in the composer, after the box; there while the turn can be stopped, the box
   // keeping the room for it then; a click hides it and asks the server to stop the turn.
   it("puts the stop glyph in the box, shows it while the turn can be stopped, and stops the turn on a click", () => {
@@ -541,7 +588,7 @@ describe("the script", () => {
     assert.doesNotMatch(script, /className = "asking"/, "a block of its own for the questions");
     assert.match(script, /const card = question\(panel\.name, request\);\s*panel\.drawn\.set\(request\.id, card\);\s*panel\.rows\.append\(card\);\s*panel\.last = null;\s*asked = true;/);
     assert.match(script, /asked = true;[\s\S]*?if \(panel\.jump !== null && panel\.jump !== panel\.rows\.lastElementChild\) panel\.rows\.append\(panel\.jump\);/, "the pill goes back to the end after a card");
-    assert.match(script, /asked = true;[\s\S]*?if \(added\.length > 0 \|\| asked\) \{\s*if \(atTheNewest\) \{\s*panel\.rows\.scrollTop = panel\.rows\.scrollHeight;\s*\} else if \(panel\.jump !== null && !near\) \{\s*panel\.jump\.classList\.add\("show"\);/, "the scroll is decided after the cards, for a card as for a row");
+    assert.match(script, /asked = true;[\s\S]*?if \(added\.length > 0 \|\| asked\) \{\s*if \(follows\) \{\s*panel\.rows\.scrollTop = panel\.rows\.scrollHeight;\s*\} else if \(panel\.jump !== null && !near\) \{\s*panel\.jump\.classList\.add\("show"\);/, "the scroll is decided after the cards, for a card as for a row");
     assert.match(script, /if \(about\.rows === null\) \{\s*load\(panel\);\s*\} else \{[\s\S]*?asked = true;[\s\S]*?\n    \}\n  \}\n/, "cards are drawn under the rows, once there are rows");
     assert.match(script, /panel\.waiting\.clear\(\);\s*panel\.drawn\.clear\(\);/, "rows drawn again from nothing draw their cards again");
   });

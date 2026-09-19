@@ -78,6 +78,7 @@
     display: flex; align-items: baseline; gap: 0; min-width: 0; overflow: hidden; white-space: nowrap;
   }
   .panel.asking .phead { border-color: var(--warn); }
+  .phead.follow { background: var(--me); } /* TEMP indicator (A1) */
   .phead .name { margin-right: 8px; flex: 0 0 auto; white-space: nowrap; font-weight: 700; font-size: 1rem; }
   /* the dot before the name: green while the panel listens, amber while its turn runs, red once the process is gone or the page has no stream, pulsing while the panel asks */
   .phead .name::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--fg-faint); margin-right: 8px; vertical-align: 1px; }
@@ -282,6 +283,9 @@
   const sections = new Map();
   // Within 80px of the newest row: close enough to count as reading the end.
   const nearTheNewest = (rows) => rows.scrollHeight - rows.scrollTop - rows.clientHeight < 80;
+  // At the newest row, give or take the few px a zoomed scroll lands off by: the reader is at
+  // the end of the rows, and the panel follows what lands there.
+  const atTheNewest = (rows) => rows.scrollHeight - rows.scrollTop - rows.clientHeight < 4;
 
   function build(name) {
     const section = document.createElement("section");
@@ -318,6 +322,20 @@
 
     const rows = document.createElement("div");
     rows.className = "rows";
+    // Whether this panel follows its newest row: true while the reader is at the end of the rows,
+    // read off where the rows stand on every scroll — a wheel, the bar, a key, or the page itself
+    // pinning the newest — and nowhere else. True from the start, since a panel is first drawn at
+    // its newest row; a scroll away from the end sets it false, a scroll back sets it true again.
+    // Nothing but a scroll of the rows changes it: typing in the box never scrolls the rows, so
+    // it neither engages a panel nor lets one go. Every panel has its own.
+    const view = { follow: true };
+    // TEMP indicator (A1): the head shows whether the panel follows its newest row.
+    const showFollow = () => headLine.classList.toggle("follow", view.follow);
+    rows.addEventListener("scroll", () => {
+      view.follow = atTheNewest(rows);
+      showFollow(); // TEMP indicator (A1)
+    });
+    showFollow(); // TEMP indicator (A1)
     // The stamps are measured again whenever the rows change width.
     new ResizeObserver(() => fitStamps(rows.querySelectorAll(".t"))).observe(rows);
     // One click handler for every copy button the rows will hold: the code inside the button's
@@ -381,6 +399,10 @@
       const max = window.innerHeight * 0.4;
       box.style.height = `${Math.min(box.scrollHeight, max)}px`;
       box.style.overflowY = box.scrollHeight > max ? "auto" : "hidden";
+      // A taller box takes its room from the rows, which keep their scroll position and so lose
+      // their last lines under the box: a panel that follows is pinned to its newest again; one
+      // that does not is left exactly where the reader has it.
+      if (view.follow) rows.scrollTop = rows.scrollHeight;
     };
     box.addEventListener("input", autosize);
     box.addEventListener("keydown", (event) => {
@@ -427,7 +449,7 @@
     // `waiting` the element of every row of the User's not yet delivered, by its index, for the
     // delivery to find its row; `day` the day of the row drawn last, for the pill between two days;
     // `drawn` the card of every question on the panel, by the id of its request.
-    return { name, section, nameLine, info, word, fitPlaceholder, facts, composer, stop, rows, empty, jump, box, refs, shown: 0, day: null, drawn: new Map(), loading: false, last: null, lines: new Map(), waiting: new Map() };
+    return { name, section, nameLine, info, word, fitPlaceholder, facts, composer, stop, rows, empty, jump, box, refs, view, shown: 0, day: null, drawn: new Map(), loading: false, last: null, lines: new Map(), waiting: new Map() };
   }
 
   // When a row was written, in the reader's own zone: `2026.09.13 Sunday 23:17:05` on the row, the
@@ -773,9 +795,9 @@
     if (about.rows === null) {
       load(panel);
     } else {
-      // At the newest line if that is where the reader already was, or on the first draw;
-      // otherwise exactly where they left it.
-      const atTheNewest = panel.shown === 0 || panel.rows.scrollHeight - panel.rows.scrollTop - panel.rows.clientHeight < 1;
+      // At the newest row on the first draw and while the panel follows it — the panel's own word,
+      // set by its scrolls, never a measure taken here; otherwise exactly where the reader left it.
+      const follows = panel.shown === 0 || panel.view.follow;
       const near = panel.shown === 0 || nearTheNewest(panel.rows);
       if (about.rows.length < panel.shown) {
         panel.rows.replaceChildren(panel.empty);
@@ -878,10 +900,10 @@
       // Rows and cards are appended after the pill; it goes back to the end so it sticks to the
       // bottom edge.
       if (panel.jump !== null && panel.jump !== panel.rows.lastElementChild) panel.rows.append(panel.jump);
-      // A card scrolls into view as a row does: when the reader was at the newest, the newest
-      // is followed; otherwise the pill says something landed below.
+      // A card scrolls into view as a row does: a panel that follows is pinned to the newest;
+      // otherwise the pill says something landed below.
       if (added.length > 0 || asked) {
-        if (atTheNewest) {
+        if (follows) {
           panel.rows.scrollTop = panel.rows.scrollHeight;
         } else if (panel.jump !== null && !near) {
           panel.jump.classList.add("show");
