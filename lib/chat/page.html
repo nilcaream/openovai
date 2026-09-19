@@ -20,7 +20,7 @@
   :root {
     --bg: #f8fafc; --panel: #ffffff; --panel-2: #eef1f5; --line: #d8dee4;
     --fg: #1f2328; --fg-dim: #59636e; --fg-faint: #848d97;
-    --me: #d9fdd3; --me-line: #b7e8ae;
+    --me: #d9fdd3; --me-line: #b7e8ae; --follow: #dbe8d9;
     --reply: #ffffff; --reply-line: #d8dee4;
     --from: #e3f0fc; --from-line: #b6d4f2;
     --to: #fde8e8; --to-line: #f0bcbc;
@@ -37,7 +37,7 @@
   :root[data-theme="dark"] {
     --bg: #0e1116; --panel: #161b22; --panel-2: #1c232d; --line: #262d38;
     --fg: #e6edf3; --fg-dim: #9aa7b4; --fg-faint: #6b7783;
-    --me: #1f4f3a; --me-line: #2d6b4f;
+    --me: #1f4f3a; --me-line: #2d6b4f; --follow: #1e2f2a;
     --reply: #1c232d; --reply-line: #2a3341;
     --from: #203349; --from-line: #2b4a6d;
     --to: #3a2226; --to-line: #6b3a42;
@@ -78,7 +78,7 @@
     display: flex; align-items: baseline; gap: 0; min-width: 0; overflow: hidden; white-space: nowrap;
   }
   .panel.asking .phead { border-color: var(--warn); }
-  .phead.follow { background: var(--me); } /* TEMP indicator (A1) */
+  .phead.follow { background: var(--follow); }
   .phead .name { margin-right: 8px; flex: 0 0 auto; white-space: nowrap; font-weight: 700; font-size: 1rem; }
   /* the dot before the name: green while the panel listens, amber while its turn runs, red once the process is gone or the page has no stream, pulsing while the panel asks */
   .phead .name::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--fg-faint); margin-right: 8px; vertical-align: 1px; }
@@ -336,13 +336,13 @@
     // Nothing but a scroll of the rows changes it: typing in the box never scrolls the rows, so
     // it neither engages a panel nor lets one go. Every panel has its own.
     const view = { follow: true };
-    // TEMP indicator (A1): the head shows whether the panel follows its newest row.
+    // the head shows whether the panel follows its newest row
     const showFollow = () => headLine.classList.toggle("follow", view.follow);
     rows.addEventListener("scroll", () => {
       view.follow = atTheNewest(rows);
-      showFollow(); // TEMP indicator (A1)
+      showFollow();
     });
-    showFollow(); // TEMP indicator (A1)
+    showFollow();
     // Whenever the rows change size: the stamps are measured again for the width, and for the
     // height a panel that follows is pinned to its newest row again — the bottom area under the
     // rows grows with a taller box or a card, the window is resized, and the rows keep their

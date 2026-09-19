@@ -63,7 +63,9 @@ stops that panel and no other, and it stays exactly where it was put; scrolling 
 makes it follow again, with nothing pressed. Typing in a panel's box, or sending, moves nothing on
 a panel that is not following, and makes no panel follow: only being at the end does. The page
 opens with every panel at its end. A panel used to measure itself at every draw, and a box that
-had grown by a line hid the end and made it stop following.
+had grown by a line hid the end and made it stop following. **The head shows when a panel
+follows:** while a panel follows its newest row its head sits on a faint tint of its own, on either
+theme, and is plain again the moment it does not.
 
 **The bottom of a panel is one area: the cards, then the box.** A permission card used to be a row
 among the rows — it scrolled with them, and one that landed while the reader was at the end

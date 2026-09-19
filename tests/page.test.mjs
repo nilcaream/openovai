@@ -528,16 +528,31 @@ describe("the script", () => {
     assert.equal(script.match(/\.scrollTop = /g).length, 3, "three scroll writes: the pill's click, the rows' observer on a following panel, the draw on a following panel");
   });
 
-  // TEMP indicator (A1): while a panel follows, its head carries the follow class and one rule
-  // gives it the User's own ground; the class is set from the word whenever the word is, and once
-  // at the start.
+  // While a panel follows, its head carries the follow class and one rule gives it a ground of
+  // its own; the class is set from the word whenever the word is, and once at the start.
   it("marks the head of a panel that follows, and only then", () => {
     assert.match(script, /const showFollow = \(\) => headLine\.classList\.toggle\("follow", view\.follow\);/, "the class is the word, set or cleared with it");
     assert.match(script, /view\.follow = [^\n]*;\s*showFollow\(\);/, "set right after every scroll sets the word");
-    assert.match(script, /\n    showFollow\(\); \/\/ TEMP indicator \(A1\)\n/, "and once at the start, when the panel follows before its first scroll");
+    assert.match(script, /\n    showFollow\(\);\n/, "and once at the start, when the panel follows before its first scroll");
     const head = rules.find((rule) => rule.selector === ".phead").declarations;
     const following = rules.find((rule) => rule.selector === ".phead.follow").declarations;
     assert.ok(following.background !== undefined && following.background !== head.background, "a following head has a ground of its own");
+  });
+
+  // The ground of a following head is a faint tint, not a signal: a token of its own per theme,
+  // held a small step off the plain head ground (--panel-2) — a WCAG contrast between 1.08 and
+  // 1.2, read off the page's own token blocks. The User's --me, which the head used to take, is
+  // 1.69 off the dark head ground, and on light a saturated green at 1.02 by luminance alone.
+  it("tint the head of a following panel faintly, from a token of its own, a small step off the plain head ground", () => {
+    const channel = (hex) => { const c = parseInt(hex, 16) / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+    const luminance = (hex) => 0.2126 * channel(hex.slice(1, 3)) + 0.7152 * channel(hex.slice(3, 5)) + 0.0722 * channel(hex.slice(5, 7));
+    const contrast = (a, b) => { const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x); return (hi + 0.05) / (lo + 0.05); };
+    const following = rules.find((rule) => rule.selector === ".phead.follow").declarations;
+    assert.equal(following.background, "var(--follow)", "the following head takes its own token, not the User's ground");
+    for (const [theme, block] of [["light", tokenBlocks[0]], ["dark", tokenBlocks[1]]]) {
+      const ratio = contrast(block.declarations["--follow"], block.declarations["--panel-2"]);
+      assert.ok(ratio >= 1.08 && ratio <= 1.2, `${theme}: --follow ${block.declarations["--follow"]} against --panel-2 ${block.declarations["--panel-2"]} is a contrast of ${ratio.toFixed(2)}, outside 1.08..1.2`);
+    }
   });
 
   // The stop glyph: in the composer, after the box; there while the turn can be stopped; a click

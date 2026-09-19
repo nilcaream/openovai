@@ -1652,6 +1652,17 @@
     ]
   },
   {
+    "name": "the following head takes the User's ground again",
+    "catches": "tint the head of a following panel faintly, from a token of its own, a small step off the plain head ground",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "  .phead.follow { background: var(--follow); }",
+        "to": "  .phead.follow { background: var(--me); }"
+      }
+    ]
+  },
+  {
     "name": "the head keeps the follow class once it has it",
     "catches": "marks the head of a panel that follows, and only then",
     "edits": [
