@@ -4,6 +4,45 @@ For the Leader of a workspace taking this version. Short, and about what is diff
 working there — not a developer changelog. A section per release, newest first; a release page
 carries only its own.
 
+## 0.13.0
+
+What the User types goes in ahead of a seat's backlog, a stop says what the seat goes on to, a
+wait on a card is written down, a frame held at the write is said on the panel, and the log
+survives a restart and says what the queue did. Nothing is configured: every one of these is on
+from the moment the instance takes this version.
+
+**The User steers, on any panel.** A seat with a backlog — messages from colleagues, events from
+the chat — used to work through every one of them before reading a word the User typed after
+them; a Leader with several Workers reporting in could be minutes behind the panel, and a stop
+only made it pick up the next old frame. A line the User types now goes ahead of everything
+waiting on that seat, behind the turn under way, on whichever panel they type on — the Leader's
+or a Worker's, one mechanism for both — and two lines typed keep their order. The trade-off is
+plain: a message a seat was sent earlier is answered after a line the User typed later, so a
+Worker's report can wait behind the User's word. The alternative, a stop that leaves the queue
+untouched until the User presses again, would keep the old order at the price of making the User
+drive every frame; the seat's own order stays first-come for everything the User did not type.
+
+**A stop says what happens next.** Stopping a seat with a queue makes it busy again at once — with
+the next frame, which may be older than the press. The panel now says so under the stop: how many
+wait and which goes in next, with when it was told (`stopped; 2 waiting, next: line from the User
+(14:02)`). A stop on a seat with no turn under way says `no turn to stop` instead of pretending.
+
+**A wait on a card is written down.** A card that was answered leaves no row of its own, so a turn
+that stood still on one read, afterwards, as a run that took that long. The log now has both
+ends — what was asked, what the answer was and how long it took — and the panel says `waited 40 s
+for permission: Bash: git push` once the wait was ten seconds or more; a card answered at once
+draws no row, since there is no gap to explain. Every seat's tool calls reach the log the same way,
+the Leader's included, with a failed call and its reason.
+
+**A frame held at the write is said, once.** A message or a line the quota gate holds until a
+window resets is said on the panel where it was typed or sent, with when the window resets, in one
+place whichever door it came through.
+
+**The log survives a restart.** Each run of the server appends under a header naming its process
+and when it started, so the run before is still there to read. The queue and the interrupt say what
+they did: what was queued and where it went, what was written and how many still wait, why a frame
+was not written, and whether a stop was answered and how long that took.
+
 ## 0.12.0
 
 A seat's ordinary shell commands are allowed from install, three are refused when spelled plain,

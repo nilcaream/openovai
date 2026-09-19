@@ -1597,5 +1597,27 @@
         "to": ""
       }
     ]
+  },
+  {
+    "name": "a frame told ahead goes in front of the one told ahead before it",
+    "catches": "keeps two frames told ahead in the order they were told, both in front of what was waiting",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "      record.queue.splice(record.queue.findLastIndex((one) => one.ahead) + 1, 0, turn);",
+        "to": "      record.queue.unshift(turn);"
+      }
+    ]
+  },
+  {
+    "name": "what the User types waits its turn behind the messages",
+    "catches": "puts what the User types ahead of a message waiting on the seat, in the order typed",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "  const told = deliver(instance, seat, userFrame(text), { ahead: true, written: () => delivered(root, seat, index) });",
+        "to": "  const told = deliver(instance, seat, userFrame(text), { written: () => delivered(root, seat, index) });"
+      }
+    ]
   }
 ]

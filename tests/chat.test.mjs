@@ -569,6 +569,33 @@ describe("telling a seat", () => {
     assert.deepEqual(order, ["<user>first</user>", "<user>urgent</user>", "<user>later</user>"]);
   });
 
+  it("keeps two frames told ahead in the order they were told, both in front of what was waiting", async () => {
+    const from = heardIn(paul.log).length;
+    const first = tell(WORKER, userFrame("first"));
+    const later = tell(WORKER, userFrame("later"));
+    const one = tell(WORKER, userFrame("ahead one"), { ahead: true });
+    const two = tell(WORKER, userFrame("ahead two"), { ahead: true });
+    await Promise.all([first.answered, later.answered, one.answered, two.answered]);
+    const order = heardIn(paul.log).slice(from).filter((text) => /<user>(first|later|ahead one|ahead two)<\/user>/.test(text));
+    assert.deepEqual(order, ["<user>first</user>", "<user>ahead one</user>", "<user>ahead two</user>", "<user>later</user>"]);
+  });
+
+  // The User steers wherever they type: a line typed onto a panel goes in front of the messages
+  // and events waiting on that seat, and two lines typed keep their order.
+  it("puts what the User types ahead of a message waiting on the seat, in the order typed", async () => {
+    const busy = tell(WORKER, userFrame("busy"));
+    const message = tell(WORKER, messageFrame(LEADER, "from the Leader"));
+    await page("POST", `/sessions/${WORKER}/message`, { text: "typed one" });
+    await page("POST", `/sessions/${WORKER}/message`, { text: "typed two" });
+    await Promise.all([busy.answered, message.answered]);
+    // Every turn answered before the next check, whichever went in last.
+    for (const text of ["typed one", "typed two"]) {
+      await waitFor(() => (notesIn(paul.log).some(([label, note]) => label === "answered" && note === `<user>${text}</user>`) ? true : null));
+    }
+    const order = heardIn(paul.log).filter((text) => /<user>(busy|typed one|typed two)<\/user>|<message from="/.test(text));
+    assert.deepEqual(order, ["<user>busy</user>", "<user>typed one</user>", "<user>typed two</user>", `<message from="${LEADER}">from the Leader</message>`]);
+  });
+
   // `written` is the one word a caller gets between the queue and the answer: it fires as the
   // frame goes in — at once when nothing is under way, after the turn under way otherwise — and
   // always before that turn's own answer.
@@ -1506,7 +1533,8 @@ describe("the stream", () => {
   });
 
   // A seat with a queue is busy again the moment it is stopped — with the next frame, which may be
-  // older than the press. The panel says so under the stop: how many wait and which goes in next.
+  // older than the press. The panel says so under the stop: how many wait and which goes in next —
+  // here the User's own line, typed after a colleague's message and ahead of it.
   it("a stop says on the panel how many wait and what goes in next, with when it was told", async () => {
     const client = await listen();
     await until(client, (event) => event.name === "asking");
@@ -1522,7 +1550,7 @@ describe("the stream", () => {
       const rows = panel(instance, WORKER).slice(from);
       const said_ = rows.findIndex((row) => row.from === THE_CHAT && row.text.startsWith("stopped;"));
       assert.notEqual(said_, -1, JSON.stringify(rows.map((row) => row.text)));
-      assert.match(rows[said_].text, new RegExp(`^stopped; 2 waiting, next: message from ${OTHER} \\(\\d{2}:\\d{2}\\)$`));
+      assert.match(rows[said_].text, /^stopped; 2 waiting, next: line from the User \(\d{2}:\d{2}\)$/);
       assert.ok(rows.slice(0, said_).some((row) => row.interrupted === true), "the stop's own row is not above the line about the queue");
     } finally {
       await end(WORKER, 500);
