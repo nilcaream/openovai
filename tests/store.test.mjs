@@ -889,6 +889,7 @@ describe("the tools the chat serves for the store", () => {
     assert.match(text, /The store is managed by a model, not by you: it is not a file, and remember and recall are not create, read, update and delete over a MEMORY\.md you know from elsewhere\./);
     assert.match(text, /restated, widened, narrowed or reversed, and the record it judges so is replaced, on the store's judgement alone;/);
     assert.match(text, /there is no way to say the text is new, and only the answer tells you what happened/);
+    assert.match(text, /Replacing a record that replaced the wrong one does not bring the wrong one back: a replaced record stays replaced, reachable by its id through recall and by nothing else — to bring it back, write it again\./);
     assert.match(text, /says whether you named it or the store chose it, and gives the reason/);
     assert.match(text, /the model held for quota, not answering or answering badly when the store chooses/);
     assert.match(text, /a team write over the User's record, the Leader included, whether you named it or the store chose it/);

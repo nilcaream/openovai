@@ -737,6 +737,17 @@
     ]
   },
   {
+    "name": "remember's description drops that replacing the replacer brings nothing back",
+    "catches": "describes remember as managed by a model, never a file, choosing on the model's judgement, blind without replaces, answering what it replaced and whether the store chose it",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "Replacing a record that replaced the wrong one does not bring the wrong one back: a replaced record stays replaced, reachable by its id through recall and by nothing else — to bring it back, write it again. ",
+        "to": ""
+      }
+    ]
+  },
+  {
     "name": "recall's description drops that the store is managed by a model",
     "catches": "describes recall as managed by a model, never a file, with a replaced record's line saying whether the store chose it and nobody told",
     "edits": [
