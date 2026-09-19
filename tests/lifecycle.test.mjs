@@ -1635,6 +1635,9 @@ describe("a signal to the chat", () => {
     const stopped = await runToolLater(own, ["stop"], ownEnvironment());
     assert.equal(stopped.status, 0, stopped.stderr);
     assert.match(stopped.stdout, new RegExp(`^Stopping the server at ${address.replace(/[.]/g, "\\.")} \\(pid ${child.pid}\\)\\.$`, "m"));
+    // Whether the sessions were still there when the port went dark is a race the server wins
+    // more often than not; when it did not, the line says how long they took.
+    assert.match(stopped.stdout, /^Stopped( \(sessions gone after \d+ ms\))?\.$/m);
     assert.equal(await closed, 0, child.output);
     assert.match(child.output, /^Parking 3 sessions\.$/m);
     assert.equal(notesIn(ownLog).filter(([label]) => label === "left").length, 3);

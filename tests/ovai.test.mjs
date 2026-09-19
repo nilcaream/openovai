@@ -15,6 +15,7 @@
 // Run it with: node --test tests/ovai.test.mjs
 
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
@@ -38,6 +39,7 @@ import { LEDGER, settingsProblems, trustProblems } from "./inspect.mjs";
 // The reader this suite asks directly. Everywhere else what a session runs on is seen by starting
 // one, which is right when the subject is a run — and no help at all with what a file holding
 // nothing means, which is a question about the reading rather than about the running.
+import { home } from "../lib/claude.mjs";
 import { DeskError, POOL, hire, modelFor, persona as renderPersona } from "../lib/desks.mjs";
 import { HOOK_ENTRY } from "../lib/hooks/compound.mjs";
 
@@ -1365,6 +1367,73 @@ describe("the server commands", () => {
     assert.equal(stopped.stdout, `Stopping the server at ${url} (pid ${pid}).\nStopped.\n`);
     assert.ok(await settled(false), "still answering after stop");
     assert.equal(ovai(["status"]).status, 3);
+  });
+
+  // A session of this instance, as the machine sees one: a process with the instance's Claude
+  // Code home in its environment (lib/running.mjs). Made the way one is left behind — a process
+  // the server did not start and cannot end — living for the milliseconds given.
+  const sessionLiving = (ms) =>
+    spawn(process.execPath, ["-e", `setTimeout(() => {}, ${ms})`], {
+      env: { ...process.env, CLAUDE_CONFIG_DIR: path.resolve(home(served)) },
+      stdio: "ignore",
+    });
+  const alive = (pid) => {
+    try {
+      process.kill(pid, 0);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  // The port going dark is not the sessions being gone: the server closes the one before it ends
+  // the others. A stop that returned then handed the next command — an update, as likely as not —
+  // an instance whose sessions were still running what it was about to replace. So stop waits
+  // for them, and says how long it waited when it waited at all.
+  it("returns only once every session of the instance is gone, and says how long that took", async () => {
+    const started = ovai(["start"]);
+    assert.equal(started.status, 0, started.stderr);
+    url = started.stdout.trim();
+    assert.ok(await settled(true));
+    const pid = pidRecorded();
+    const session = sessionLiving(1500);
+    const began = Date.now();
+    const stopped = ovai(["stop"]);
+    const took = Date.now() - began;
+    assert.equal(stopped.status, 0, stopped.stderr);
+    assert.match(stopped.stdout, new RegExp(`^Stopping the server at ${url} \\(pid ${pid}\\)\\.\nStopped \\(sessions gone after (\\d+) ms\\)\\.\n$`));
+    const said = Number(stopped.stdout.match(/after (\d+) ms/)[1]);
+    assert.ok(said > 0 && said <= took, `said ${said} ms, took ${took} ms`);
+    assert.ok(took >= 1500, `stop returned after ${took} ms, before the session was gone`);
+    assert.equal(alive(pid), false, "the server is still running after stop returned");
+    // That the session was gone is what `took` says: it lived 1500 ms and stop did not return
+    // before. It is this process's child, reaped only once this loop runs again, so it is not
+    // asked whether it is there — a zombie still is — but waited for, so nothing is left behind.
+    await new Promise((resolve) => session.once("exit", resolve));
+  });
+
+  // What stop cannot end it names, the way an update names it: one line per process with the
+  // command that ends it, and a status that is not 0. On the one budget, the park's timeout and
+  // a margin; the timeout is set to nothing so the check waits for the margin alone.
+  it("fails at the deadline naming what is still running", async () => {
+    const configuration = path.join(served, "openovai.json");
+    const kept = fs.readFileSync(configuration, "utf8");
+    fs.writeFileSync(configuration, JSON.stringify({ ...JSON.parse(kept), park: { timeout: 0 } }));
+    const session = sessionLiving(60_000);
+    try {
+      const started = ovai(["start"]);
+      assert.equal(started.status, 0, started.stderr);
+      url = started.stdout.trim();
+      assert.ok(await settled(true));
+      const stopped = ovai(["stop"]);
+      assert.notEqual(stopped.status, 0);
+      assert.match(stopped.stderr, new RegExp(`^ovai: 15s after asking the server to stop, a session of this instance is running[^\n]*\n  kill ${session.pid}\nEnd them, or let them finish, and run this again\\.$`, "m"));
+      assert.equal(stopped.stdout, `Stopping the server at ${url} (pid ${pidRecorded()}).\n`);
+      assert.ok(await settled(false));
+    } finally {
+      session.kill("SIGKILL");
+      fs.writeFileSync(configuration, kept);
+    }
   });
 
   // A start that fails quotes what the server said — this run's, not every run the log holds.
