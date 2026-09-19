@@ -53,6 +53,16 @@ and when it started, so the run before is still there to read. The queue and the
 they did: what was queued and where it went, what was written and how many still wait, why a frame
 was not written, and whether a stop was answered and how long that took.
 
+**A call that does not fit what the tool declared is refused before the tool sees it.** Every tool
+served — the chat's own and the instance's own alike — declares its arguments, and a call is now
+held to that declaration where it arrives: an argument the schema requires and the call left out,
+one of another type than declared, one outside the values listed, or one the tool does not take at
+all is answered in one line naming it (`write_desk: name is not an argument it takes`, `message:
+text is required`, `park: deadline is not a whole number`, `recall: store is not one of memory,
+knowledge`) and the tool is never called. One level and no deeper. What an argument means — a name
+nobody has, a status too long, a moment that cannot be placed — stays the tool's own refusal,
+after the shape. A plugin can drop the checks it wrote for a missing or mistyped argument.
+
 ## 0.12.0
 
 A seat's ordinary shell commands are allowed from install, three are refused when spelled plain,

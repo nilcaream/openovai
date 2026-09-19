@@ -354,7 +354,7 @@ describe("write_desk", () => {
     const leaderDesk = deskOf(LEADER);
     const refused = await tool(paul.secret, "write_desk", { name: LEADER, title: "t", status: "s", body: "B" });
     assert.equal(refused.refused, true);
-    assert.match(refused.text, /not name/);
+    assert.equal(refused.text, "write_desk: name is not an argument it takes");
     assert.equal(deskOf(LEADER), leaderDesk);
 
     const written = await tool(paul.secret, "write_desk", { title: "t", status: "s", body: "B\n" });

@@ -983,6 +983,51 @@ describe("the tools a session is served", () => {
     }
   });
 
+  it("refuses a call whose arguments do not fit what the tool declared, in one line naming the argument, before the tool sees it", async () => {
+    const seen = [];
+    chat.plugins = [
+      {
+        name: "brew",
+        description: "makes a drink",
+        inputSchema: {
+          type: "object",
+          properties: {
+            what: { type: "string" },
+            how: { type: "string", enum: ["hot", "cold"] },
+            cups: { type: "integer" },
+          },
+          required: ["what"],
+          additionalProperties: false,
+        },
+        run(args) {
+          seen.push(args);
+          return { text: `${args.what}, ${args.how ?? "as it comes"}` };
+        },
+      },
+    ];
+    try {
+      const unfit = async (args) => {
+        const said_ = await tool(paul.secret, "brew", args);
+        assert.equal(said_.refused, true, JSON.stringify(said_));
+        return said_.text;
+      };
+      assert.equal(await unfit({}), "brew: what is required");
+      assert.equal(await unfit({ what: 3 }), "brew: what is not a string");
+      assert.equal(await unfit({ what: "tea", how: "warm" }), "brew: how is not one of hot, cold");
+      assert.equal(await unfit({ what: "tea", cups: 1.5 }), "brew: cups is not a whole number");
+      assert.equal(await unfit({ what: "tea", milk: true }), "brew: milk is not an argument it takes");
+      assert.deepEqual(seen, [], "a call that did not fit reached the tool");
+      assert.equal((await tool(paul.secret, "brew", { what: "tea", how: "hot", cups: 2 })).text, "tea, hot");
+      assert.deepEqual(seen, [{ what: "tea", how: "hot", cups: 2 }]);
+      // The chat's own tools are held to the same line, and a refusal about what an argument
+      // means stays theirs, after it.
+      assert.equal((await tool(paul.secret, "message", { to: LEADER })).text, "message: text is required");
+      assert.equal((await tool(paul.secret, "message", { to: LEADER, text: " " })).text, "a message needs some text");
+    } finally {
+      chat.plugins = [];
+    }
+  });
+
   it("refuses for a tool of the instance's own that answers outside the shape", async () => {
     chat.plugins = [{ name: "odd", description: "answers wrongly", inputSchema: { type: "object", properties: {} }, run: () => 42 }];
     try {

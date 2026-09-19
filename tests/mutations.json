@@ -1619,5 +1619,16 @@
         "to": "  const told = deliver(instance, seat, userFrame(text), { written: () => delivered(root, seat, index) });"
       }
     ]
+  },
+  {
+    "name": "a call reaches the tool whatever its arguments are",
+    "catches": "refuses a call whose arguments do not fit what the tool declared, in one line naming the argument, before the tool sees it",
+    "edits": [
+      {
+        "file": "lib/chat/mcp.mjs",
+        "from": "    const unfit = misfit(wanted.inputSchema, args);",
+        "to": "    const unfit = null;"
+      }
+    ]
   }
 ]

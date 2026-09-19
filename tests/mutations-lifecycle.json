@@ -64,9 +64,9 @@
     "catches": "writes its own desk only, the server owning the header",
     "edits": [
       {
-        "file": "lib/chat/server.mjs",
-        "from": "        const unknown = keys.filter((key) => ![\"title\", \"status\", \"body\"].includes(key));\n        if (unknown.length > 0) {\n          return { refused: `write_desk takes title, status and body, not ${unknown.join(\", \")}` };\n        }\n",
-        "to": ""
+        "file": "lib/chat/mcp.mjs",
+        "from": "    const unfit = misfit(wanted.inputSchema, args);",
+        "to": "    const unfit = null;"
       },
       {
         "file": "lib/chat/server.mjs",
