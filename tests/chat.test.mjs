@@ -264,10 +264,10 @@ describe("what the chat serves", () => {
     const room = JSON.parse((await page("GET", "/sessions")).body);
     assert.equal(room.instance, shownRoot(instance));
     assert.equal(room.quota, null);
-    assert.equal(shownRoot("/home/u/inst", "/home/u"), "~/inst");
-    assert.equal(shownRoot("/home/u", "/home/u"), "~");
-    assert.equal(shownRoot("/home/user2/inst", "/home/u"), "/home/user2/inst");
-    assert.equal(shownRoot("/srv/inst", "/home/u"), "/srv/inst");
+    assert.equal(shownRoot("/home/a/inst", "/home/a"), "~/inst");
+    assert.equal(shownRoot("/home/a", "/home/a"), "~");
+    assert.equal(shownRoot("/home/alice/inst", "/home/a"), "/home/alice/inst");
+    assert.equal(shownRoot("/srv/inst", "/home/a"), "/srv/inst");
   });
 
   it("puts the Leader first and the rest in name order", async () => {
