@@ -4,6 +4,76 @@ For the Leader of a workspace taking this version. Short, and about what is diff
 working there — not a developer changelog. A section per release, newest first; a release page
 carries only its own.
 
+## 0.15.0
+
+The browser tells you when a page you are not looking at needs you, the desktop pop is gone, the
+log is one writer in fixed columns, the Leader files a stopped Worker's desk away, and an update
+no longer pulls bin/ out from under the shell that ran it.
+
+**The browser notifies you while the page is not visible.** A card appearing on any panel and the
+Leader's reply arriving each reach you through the browser's own notifications — never while the
+page is visible, never without the browser's permission. Two icon buttons on the Leader's head
+beside the theme toggle switch them: an exclamation mark in a circle for `<name> requires your
+action`, a bell for `<name> finished their turn`, lit while on and slashed while off, each with a
+tooltip saying which way it is and what a click does. Both start off; a click that turns one on
+asks the browser from the click and lights the switch only once the browser granted — refused or
+dismissed leaves it off, so a switch never claims what the browser will not do. The notification's
+tag is the seat, so a burst on one panel replaces its own rather than stacking; a click brings the
+page to the front and the panel into view. No sound of the page's own.
+
+**The desktop pop is gone.** The server no longer pops a notification of its own on the machine,
+and the `quietHours` setting in openovai.json goes with it. The browser notification above is
+what reaches you away from the page.
+
+**The tab says what is asking with its icon, not its title.** The tab title is the product and the
+instance, whatever is asking; the mark in front of it is gone. While any panel asks, the tab's
+icon is the same mark with a ring in the page's warn colour, and the plain one otherwise. The
+icons' ground is brighter, and an installed app's icon does not blink: the manifest lists the
+plain icons alone.
+
+**The Leader's panel says what it is at.** While the Leader's turn runs, one line above the pill
+reads "Thinking…", then the call it has out, worded as a Worker's line would be, then "Thinking…"
+again once the result is back; it is gone when the turn ends. One element changed in place, held
+to one line, so the rows never jump for it. A page opened mid-turn draws it too.
+
+**The Leader files a stopped Worker's desk away.** A `retire` tool beside `hire`, the Leader's
+alone: desks/<Name>/ goes whole under archive/<day>-<Name>-<slug of the final title>/, the rules
+that made the directory the Worker's are withdrawn, and the name is free to hire again. Refused: a
+name that is not one, the Leader's own, a name with no desk, a Worker still running (stop it
+first), the server stopping. The seat leaves the room and the page by itself, no reload.
+
+**runtime.log has fixed columns and one writer.** Every row is the local time with milliseconds
+and offset, the event, the seat or `-`, the tool call id or `-`, and the text; a text of several
+lines is that many rows with the same columns. The pid, host, user and version are on the started
+row, once; no row carries a level. The called, tool and failed rows of one call share its full
+tool name and id, and a failure is on the log before the call is closed. A seat's process closing
+is one row, `stopped <seat> - <why>` — stop, restart, idle, park, idle-forced, park-deadline, or
+the exit it ended on (`exit 1`, `SIGKILL`) — and the last row of a run parked by signal is
+`stopped - - SIGTERM`. Nothing is written through the console any more.
+
+**A message that opens with a block folds.** A message between sessions whose markdown opens with
+a table, a list, a code block, a heading, a quote or a rule used to draw whole and would not fold;
+it now folds behind `(double-click to see the whole message)`, and a double click opens the whole
+rendered markdown and folds it back. A folded message carries the pointer and answers a double
+click only where there is more than its one line. What one Worker says to another is drawn and
+folded like any message to or from a session.
+
+**A following panel stays pinned on a tool line.** A panel that follows its newest row is pinned on
+any row that lands — a bubble, a pill, a tool line, a counter that grew. A draw that brought tool
+lines alone used to leave a following panel short of its end and drop the head's mark.
+
+**An update copies bin/ in place.** An update used to remove bin/ and put a new one in its place,
+which left a shell standing inside it in a directory that no longer existed, and `./ovai start`
+failing with the file right there. The files of bin/ are now copied over the old ones; the
+directory itself is never touched.
+
+**A refusal over a running session says what the session is.** Each `kill <pid>` line of an
+update or stop that refuses carries the command line of the process as a comment after it, so a
+session of yours can be told from a process that merely carried the instance's home; the line
+still pastes. And a server started from inside a session of another instance is a session of its
+own instance now: `ovai start` sets the instance's home on the server it spawns, so the other
+instance's update and stop no longer refuse over it, and a stop lists the server once.
+
 ## 0.14.0
 
 The store replaces nothing on its own judgement, a write says when it is new, and a record replaced
