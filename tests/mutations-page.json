@@ -1212,8 +1212,8 @@
     "edits": [
       {
         "file": "lib/chat/render.mjs",
-        "from": "      return { who: `${entry.from} → ${entry.to}`, kind: \"overheard\", text: String(entry.text), ...msg };",
-        "to": "      return { who: `${entry.from} → ${entry.to}`, kind: \"peer-in\", text: String(entry.text), ...msg };"
+        "from": "      return { who: `${entry.from} → ${entry.to}`, kind: \"overheard\", html: html(entry.text), tight: true, ...msg };",
+        "to": "      return { who: `${entry.from} → ${entry.to}`, kind: \"peer-in\", html: html(entry.text), tight: true, ...msg };"
       }
     ]
   },
@@ -1261,8 +1261,19 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "  .msg.overheard .bubble { background: var(--typed); border-color: var(--typed-line); white-space: pre-wrap; overflow-wrap: anywhere; }",
-        "to": "  .msg.overheard .bubble { background: var(--me); border-color: var(--me-line); white-space: pre-wrap; overflow-wrap: anywhere; }"
+        "from": "  .msg.overheard .bubble { background: var(--typed); border-color: var(--typed-line); overflow-wrap: anywhere; }",
+        "to": "  .msg.overheard .bubble { background: var(--me); border-color: var(--me-line); overflow-wrap: anywhere; }"
+      }
+    ]
+  },
+  {
+    "name": "what one Worker said to another keeps pre-wrap on its bubble, so the markup's newlines draw as blank lines",
+    "catches": "draw what the User typed to a Worker on the User's ground on the Leader's panel, and a Worker's words to a Worker on a ground of their own",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "  .msg.overheard .bubble { background: var(--typed); border-color: var(--typed-line); overflow-wrap: anywhere; }",
+        "to": "  .msg.overheard .bubble { background: var(--typed); border-color: var(--typed-line); white-space: pre-wrap; overflow-wrap: anywhere; }"
       }
     ]
   },
@@ -1279,23 +1290,23 @@
   },
   {
     "name": "a folded message shows three lines",
-    "catches": "clip a folded message to one line of its body, cut with an ellipsis, whether the body is markdown or words as they are",
+    "catches": "clip a folded message to one line of its body, cut with an ellipsis",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "  .msg.collapsed .md, .msg.collapsed .text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }",
-        "to": "  .msg.collapsed .md, .msg.collapsed .text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }"
+        "from": "  .msg.collapsed .md { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }",
+        "to": "  .msg.collapsed .md { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }"
       }
     ]
   },
   {
-    "name": "the clamp is on the markdown body alone, and a folded Worker's words to a Worker show whole",
-    "catches": "clip a folded message to one line of its body, cut with an ellipsis, whether the body is markdown or words as they are",
+    "name": "the clamp grows a second selector for a body no folded row has",
+    "catches": "clip a folded message to one line of its body, cut with an ellipsis",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "  .msg.collapsed .md, .msg.collapsed .text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }",
-        "to": "  .msg.collapsed .md { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }"
+        "from": "  .msg.collapsed .md { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }",
+        "to": "  .msg.collapsed .md, .msg.collapsed .text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }"
       }
     ]
   },
@@ -1323,12 +1334,12 @@
   },
   {
     "name": "a folded message is clamped without the box display the clamp needs",
-    "catches": "clip a folded message to one line of its body, cut with an ellipsis, whether the body is markdown or words as they are",
+    "catches": "clip a folded message to one line of its body, cut with an ellipsis",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "  .msg.collapsed .md, .msg.collapsed .text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }",
-        "to": "  .msg.collapsed .md, .msg.collapsed .text { -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }"
+        "from": "  .msg.collapsed .md { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }",
+        "to": "  .msg.collapsed .md { -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }"
       }
     ]
   },

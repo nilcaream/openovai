@@ -201,7 +201,8 @@ describe("the rules", () => {
     const heard = rules.find((rule) => rule.selector === ".msg.overheard .bubble");
     assert.equal(heard.declarations.background, "var(--typed)");
     assert.equal(heard.declarations["border-color"], "var(--typed-line)");
-    assert.equal(heard.declarations["white-space"], "pre-wrap", "a Worker's words to a Worker keep their lines too");
+    assert.equal(heard.declarations["white-space"], undefined, "a Worker's words to a Worker are markdown, like a message to a session or from one: pre-wrap on the bubble would draw the markup's own newlines as blank lines");
+    assert.equal(heard.declarations["overflow-wrap"], "anywhere");
   });
 
   // On the dark theme the ground of a message from a Worker used to sit one step off the Leader's
@@ -229,14 +230,11 @@ describe("the rules", () => {
 
   // A folded message is one line of its body, cut with an ellipsis: the line clamp, which cuts
   // across the blocks of the markdown where a nowrap would only cut the first, and it needs the
-  // box display and the vertical orient to take. The body is the markdown of a message the
-  // Leader sent or received, and the words as they are of one a Worker said to another — the
-  // clamp is on both, under the one fold class, and the clamp holds a pre-wrap body to its first
-  // line as it does a block: a forced break is a line like a soft one.
-  it("clip a folded message to one line of its body, cut with an ellipsis, whether the body is markdown or words as they are", () => {
-    const folded = rules.find((rule) => rule.selector.split(",").map((part) => part.trim()).includes(".msg.collapsed .md"));
-    assert.ok(folded !== undefined, "the clamp is under the fold class, on the markdown body");
-    assert.ok(folded.selector.split(",").map((part) => part.trim()).includes(".msg.collapsed .text"), "and on the body of words as they are, in the same rule");
+  // box display and the vertical orient to take. Every row that folds — to a session, from one,
+  // or between two Workers — has a markdown body, so the one rule on `.md` is the whole clamp.
+  it("clip a folded message to one line of its body, cut with an ellipsis", () => {
+    const folded = rules.find((rule) => rule.selector === ".msg.collapsed .md");
+    assert.ok(folded !== undefined, "the clamp is under the fold class, on the markdown body, and on nothing else");
     assert.equal(folded.declarations["-webkit-line-clamp"], "1", "one line, and an ellipsis where it is cut");
     assert.equal(folded.declarations.display, "-webkit-box");
     assert.equal(folded.declarations["-webkit-box-orient"], "vertical");

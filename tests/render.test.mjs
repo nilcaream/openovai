@@ -55,11 +55,12 @@ describe("every other row", () => {
     assert.deepEqual(row({ from: "user", typedTo: "Paul", text: "check the repo" }, names), { who: "Mike → Paul", kind: "typed", text: "check the repo" });
   });
 
-  // What one Worker said to another is on the Leader's panel too, sender, arrow, addressee, on the
-  // same ground as the User's typed line — not a prompt to the Leader either — under the id both
-  // Workers' lines carry.
-  it("a word one Worker said to another reads sender → addressee on the Leader's panel, on the overheard ground, with its id", () => {
-    assert.deepEqual(row({ from: "Paul", to: "Sam", text: "**the** fixture", msg: "m-1", overheard: true }, names), { who: "Paul → Sam", kind: "overheard", text: "**the** fixture", msg: "m-1" });
+  // What one Worker said to another is on the Leader's panel too, sender, arrow, addressee, on a
+  // ground of its own — not a prompt to the Leader either — under the id both Workers' lines
+  // carry, and as compact markdown like a message to the Leader or from one, never the words as
+  // they are.
+  it("a word one Worker said to another reads sender → addressee on the Leader's panel, on the overheard ground, with its id, as compact markdown", () => {
+    assert.deepEqual(row({ from: "Paul", to: "Sam", text: "**the** fixture", msg: "m-1", overheard: true }, names), { who: "Paul → Sam", kind: "overheard", html: "<p><strong>the</strong> fixture</p>\n", tight: true, msg: "m-1" });
   });
 
   it("the chat's own lines are muted words", () => {
