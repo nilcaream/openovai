@@ -190,6 +190,8 @@ Every row of `runtime.log` has the same four columns, single spaces, then the te
 2026-09-20T02:15:41.530+02:00 called Bob toolu_01HMVftEemFhWAccN3xSqn7a mcp__openovai__write_desk
 2026-09-20T02:15:41.532+02:00 tool Bob toolu_01HMVftEemFhWAccN3xSqn7a mcp__openovai__write_desk in 1 ms
 2026-09-20T02:15:44.210+02:00 queued Paul - message #54, 1 waiting
+2026-09-20T03:02:10.884+02:00 stopped Paul - idle
+2026-09-20T03:40:00.117+02:00 stopped - - SIGTERM
 ```
 
 The moment is ISO 8601 to the millisecond with the offset of the machine's zone — the clock the
@@ -200,7 +202,11 @@ when the row is one call's — on `called`, on the `tool` row the server writes 
 its own tools, and on `failed` — else `-`; so `grep toolu_01HMVftEemFhWAccN3xSqn7a runtime.log`
 is a call's whole life, and the three rows of one call name the tool the same way, in full, as
 Claude Code does (`mcp__openovai__write_desk`, never `write_desk`). The pid, the host, the user
-and the version are on the `started` row and on no other.
+and the version are on the `started` row and on no other. A session's process gone is one
+`stopped` row, after the last row of its calls, saying what it ended as — `stop`, `restart`,
+`idle`, `park`, `idle-forced`, `park-deadline` — or, for one that ended on its own, how: `exit 1`,
+`SIGKILL`. The server's own going out is the last row of its run, `stopped - - SIGTERM`, naming
+the signal that stopped it.
 
 `ovai status` is the daemon's answer: `not running` (exit 3), or `running at <url> (pid, since)`.
 It reads `runtime.json` and then tries the address: a record a killed server left behind is found

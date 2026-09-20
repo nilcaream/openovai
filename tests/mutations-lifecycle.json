@@ -1140,5 +1140,43 @@
         "to": ""
       }
     ]
+  },
+  {
+    "name": "the stopped row of a seat says how the process exited, never what it was ending as",
+    "catches": "stop_session ends the process and its panel; the desk and the log stay; hire brings it back appending",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "      log.ended(seat, closed.ending ?? closed.exit);",
+        "to": "      log.ended(seat, closed.exit);"
+      }
+    ]
+  },
+  {
+    "name": "the stopped row of a seat is written before its calls' rows, at the ending's mark and not at the close",
+    "catches": "stop_session ends the process and its panel; the desk and the log stay; hire brings it back appending",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "  record.ending = ending === \"stop\" ? (record.askedWhy === \"restart\" ? \"stop\" : (record.askedWhy ?? \"stop\")) : ending;",
+        "to": "  record.ending = ending === \"stop\" ? (record.askedWhy === \"restart\" ? \"stop\" : (record.askedWhy ?? \"stop\")) : ending;\n  log(\"stopped\", caller.seat, null, record.ending);"
+      },
+      {
+        "file": "lib/chat/log.mjs",
+        "from": "  log(\"stopped\", seat, null, why);\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the server goes out without its own stopped row",
+    "catches": "SIGTERM parks the room, the Leader too, over a server that keeps answering the tools, then exits 0",
+    "edits": [
+      {
+        "file": "lib/serve.mjs",
+        "from": "    log(\"stopped\", null, null, signal);\n",
+        "to": ""
+      }
+    ]
   }
 ]

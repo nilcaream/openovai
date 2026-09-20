@@ -107,7 +107,7 @@ describe("the log", () => {
     tool("Paul", message, 2, null);
     tool("Jane", message, 3, new Error("the wire broke"));
     tool("Paul", message, 4, null);
-    ended("Jane");
+    ended("Jane", "stop");
     tool("Jane", message, 5, null);
     tool("Paul", desk, 6, null);
     const said = rows.slice(from).map((one) => one.split(" ").slice(1).join(" "));
@@ -116,8 +116,25 @@ describe("the log", () => {
       `tool Paul toolu_01C ${message} in 2 ms`,
       `tool Jane toolu_01F ${message} failed in 3 ms: the wire broke`,
       `tool Paul - ${message} in 4 ms`,
+      "stopped Jane - stop",
       `tool Jane - ${message} in 5 ms`,
       `tool Paul toolu_01E ${desk} in 6 ms`,
     ]);
+  });
+
+  // A process gone is one row, `stopped`, with what it ended as — the record's own word, or the
+  // exit of one that ended on its own — no id, and after the seat's last call rows: the calls it
+  // took out with it were already written, the row is what closes them.
+  it("writes one stopped row for a seat gone, with why in the text and no id, after its calls are dropped", () => {
+    const name = fullName("openovai", "stop_session");
+    called("Paul", { id: "toolu_01S", name, what: name });
+    tool("Paul", name, 2, null);
+    const from = rows.length;
+    ended("Paul", "idle-forced");
+    ended("Jane", "exit 1");
+    tool("Paul", name, 3, null);
+    const said = rows.slice(from).map((one) => one.split(" ").slice(1).join(" "));
+    assert.deepEqual(said, ["stopped Paul - idle-forced", "stopped Jane - exit 1", `tool Paul - ${name} in 3 ms`]);
+    assert.ok(EVENTS.has("stopped"));
   });
 });

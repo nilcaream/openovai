@@ -163,5 +163,38 @@
         "to": "    if (call.seat === seat) {\n      call.served = call.served;\n    }"
       }
     ]
+  },
+  {
+    "name": "a seat gone writes no stopped row",
+    "catches": "writes one stopped row for a seat gone, with why in the text and no id, after its calls are dropped",
+    "edits": [
+      {
+        "file": "lib/chat/log.mjs",
+        "from": "  log(\"stopped\", seat, null, why);\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the stopped row says nothing of why",
+    "catches": "writes one stopped row for a seat gone, with why in the text and no id, after its calls are dropped",
+    "edits": [
+      {
+        "file": "lib/chat/log.mjs",
+        "from": "  log(\"stopped\", seat, null, why);",
+        "to": "  log(\"stopped\", seat, null, \"gone\");"
+      }
+    ]
+  },
+  {
+    "name": "the stopped row puts why in the id column",
+    "catches": "writes one stopped row for a seat gone, with why in the text and no id, after its calls are dropped",
+    "edits": [
+      {
+        "file": "lib/chat/log.mjs",
+        "from": "  log(\"stopped\", seat, null, why);",
+        "to": "  log(\"stopped\", seat, why, \"-\");"
+      }
+    ]
   }
 ]

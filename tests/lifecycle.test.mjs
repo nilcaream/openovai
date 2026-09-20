@@ -483,9 +483,14 @@ describe("restart_session and stop_session", () => {
     const rows = panel(instance, WORKER).length;
     assert.equal((await tool(paul.secret, "write_desk", { title: "stopping", status: "s", body: "B" })).refused, false);
     const spawns = readLog(unexpected);
+    const logged = said.length;
     assert.deepEqual(await tool(paul.secret, "stop_session", {}), { text: "stopping; your desk stays", refused: false, error: null });
     assert.ok(await gone(WORKER));
     assert.equal(readLog(unexpected), spawns);
+    // One `stopped` row in the log, the ending word the record holds, after the seat's own tool row.
+    const since = said.slice(logged);
+    assert.deepEqual(since.filter((line) => line.startsWith("stopped ")), [`stopped ${WORKER} - stop`]);
+    assert.ok(since.findIndex((line) => line.startsWith("stopped ")) > since.findIndex((line) => line.startsWith(`tool ${WORKER} `) && line.includes("mcp__openovai__stop_session ")), since.join("\n"));
     const listed = (await sessionsListed()).sessions.find((seat) => seat.name === WORKER);
     assert.equal(listed.running, false);
     assert.equal(listed.title, "stopping");
@@ -999,6 +1004,7 @@ describe("idle", () => {
     assert.ok(await gone(WORKER), `${WORKER} was not ended`);
     assert.ok(await waitFor(() => !alive(pidsIn(paul.log)[0])), "the process is still alive");
     assert.equal((await told(superman.log, 3)).at(-1), `<server-event type="stopped" who="${WORKER}" why="idle-forced"/>`);
+    assert.ok(said.includes(`stopped ${WORKER} - idle-forced`), said.slice(-6).join("\n"));
   });
 
   it("the stopped FYI follows a voluntary idle stop too", async () => {
@@ -1752,6 +1758,12 @@ describe("a signal to the chat", () => {
     assert.match(child.output, new RegExp(`^\\S+ parked - - (?!parked: ).*${WORKER} stopped \\(desk \\d\\d:\\d\\d\\).*$`, "m"));
     assert.match(child.output, new RegExp(`^\\S+ parked - - .*${OTHER} stopped \\(desk \\d\\d:\\d\\d\\).*$`, "m"));
     assert.ok(!child.output.includes("ended at the deadline"), child.output);
+    // Every seat's process gone is one `stopped` row saying what it ended as, and the server's own
+    // going out, naming the signal, is the last row of the run.
+    const stoppedRows = child.output.split("\n").filter((line) => line.split(" ")[1] === "stopped").map((line) => line.slice(line.indexOf(" ") + 1));
+    assert.deepEqual(stoppedRows.slice(0, 3).sort(), [LEADER, OTHER, WORKER].map((seat) => `stopped ${seat} - park`).sort(), child.output);
+    assert.deepEqual(stoppedRows.slice(3), ["stopped - - SIGTERM"], child.output);
+    assert.equal(child.output.trimEnd().split("\n").at(-1).slice(-"stopped - - SIGTERM".length), "stopped - - SIGTERM", child.output);
     const notes = notesIn(ownLog);
     const parkFrames = notes.filter(([label, rest]) => label === "heard" && rest.startsWith('<server-event type="park" interrupted="true"'));
     assert.equal(parkFrames.length, 3, "not every session was told the park");
