@@ -290,9 +290,9 @@ route.
 
 ## The tools
 
-The server serves ten tools over that route. Seven go to every seat; `park`, `hire` and
-`permission` are the Leader's, and a Worker asking for one is refused in words — a session that is
-answered "no such tool" goes looking for another way to do the same thing.
+The server serves eleven tools over that route. Seven go to every seat; `park`, `hire`, `retire`
+and `permission` are the Leader's, and a Worker asking for one is refused in words — a session that
+is answered "no such tool" goes looking for another way to do the same thing.
 
 - `message` — say something to another session. The call comes back the moment the other seat
   has it and the caller's turn goes on; what that seat says back arrives later, as a message the
@@ -330,6 +330,15 @@ answered "no such tool" goes looking for another way to do the same thing.
   is written by its session, and a model kept in there would be a model that session could raise
   for itself. It goes away with the desk. `ovai configuration` lists every desk with what it
   resolves to.
+- `retire` (Leader) — file a stopped Worker's desk away: `desks/<Name>/` is moved whole — the
+  desk, the conversation, the persona, the model when one was named — under
+  `archive/<day>-<Name>-<slug of the final title>/` (a number after it when that directory is
+  taken), the pair of rules that made the directory the Worker's is withdrawn, the seat leaves the
+  room and the page, and the name is the roster's again. Filed, never deleted: the archive is
+  what `hire` reads to know whose holder left longest ago. For a Worker whose round is done; one
+  that may be wanted back on the same desk is stopped, not retired. Refused for a name that is
+  not one, the Leader's own, a name with no desk, a Worker still running — stop it first, with
+  `park` or its own `stop_session`; nothing is ended for it — and while the server is stopping.
 - `permission` (Leader) — settle one rule for the whole instance, below.
 
 The whole of it costs one permission rule, `mcp__openovai`, seeded at install. A rule can name a

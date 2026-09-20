@@ -1030,5 +1030,104 @@
         "to": ""
       }
     ]
+  },
+  {
+    "name": "retire takes any string as a name",
+    "catches": "retire refuses a name that is not one, and the Leader's own",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "\n        if (!isName(name)) {\n          return { refused: `${JSON.stringify(name)} is not a name here` };\n        }\n        if (name === instance.config.leader) {",
+        "to": "\n        if (name === instance.config.leader) {"
+      }
+    ]
+  },
+  {
+    "name": "retire files the Leader's own desk",
+    "catches": "retire refuses a name that is not one, and the Leader's own",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "        if (name === instance.config.leader) {\n          return { refused: `${name} is the Leader` };\n        }\n        if (!fs.existsSync(deskFile(root, name))) {\n          return { refused: `${name} has no desk here` };",
+        "to": "        if (!fs.existsSync(deskFile(root, name))) {\n          return { refused: `${name} has no desk here` };"
+      }
+    ]
+  },
+  {
+    "name": "retire goes ahead on a name with no desk",
+    "catches": "retire refuses a name with no desk, and files nothing for it",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "        if (!fs.existsSync(deskFile(root, name))) {\n          return { refused: `${name} has no desk here` };\n        }",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "retire files a running Worker's desk from under it",
+    "catches": "retire refuses a running Worker and ends nothing",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "        if (running(name)) {\n          return { refused: `${name} is running; stop it first` };\n        }",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "retire goes ahead while the server is stopping",
+    "catches": "retire refuses while the server is stopping",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "        if (instance.stopping === true) {\n          return { refused: \"the server is stopping\" };\n        }\n        const { at, where } = archiveFor(root, name);",
+        "to": "        const { at, where } = archiveFor(root, name);"
+      }
+    ]
+  },
+  {
+    "name": "retire is offered to a Worker",
+    "catches": "retire is the Leader's: a Worker is refused and nothing is filed",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "  retire: [LEADER],",
+        "to": "  retire: [LEADER, WORKER],"
+      }
+    ]
+  },
+  {
+    "name": "retire makes the archive directory and leaves the desk where it is",
+    "catches": "retire files a stopped Worker's desk under archive/, the seat leaves the room and the page, and the name is free again",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "        closeDesk(root, name, at);",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "retire tells the page nothing",
+    "catches": "retire files a stopped Worker's desk under archive/, the seat leaves the room and the page, and the name is free again",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "        publish(\"snapshot\", snapshot(instance));",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "retire leaves the frames the gate held for the seat on the held list",
+    "catches": "retire drops what the quota gate held for the seat",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "        quota.drop(name);",
+        "to": ""
+      }
+    ]
   }
 ]

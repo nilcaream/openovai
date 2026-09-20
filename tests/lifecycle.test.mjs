@@ -16,6 +16,7 @@ import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
 import { SERVER, read as panel } from "../lib/chat/conversation.mjs";
+import { subscribe } from "../lib/chat/events.mjs";
 import { messageFrame, serverEvent, userFrame } from "../lib/chat/frames.mjs";
 import { BODY_CONTEXT_FULL, BODY_CRITICAL, BODY_IDLE, BODY_PARK, IDLE_GRACE, deliver, parkRoom, tick } from "../lib/chat/lifecycle.mjs";
 import * as quota from "../lib/chat/quota.mjs";
@@ -1479,6 +1480,122 @@ describe("park", () => {
       /the settings blew up/,
     );
     assert.deepEqual(await tool(superman.secret, "park", {}), { text: "parked: nobody was running", refused: false, error: null });
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+
+// The other end of a hire: a Worker whose round is done is retired by the Leader, and its
+// directory goes under archive/ whole. Refused as values, in the order the tool says; nothing is
+// ended for it — a running Worker is stopped first, by park or by itself.
+describe("retire", () => {
+  let superman = null;
+  let paul = null;
+
+  after(async () => {
+    await endEvery(500);
+  });
+
+  function archived(name, title) {
+    return path.join(instance, "archive", `${new Date().toISOString().slice(0, 10)}-${name}-${title}`);
+  }
+
+  it("retire refuses a name that is not one, and the Leader's own", async () => {
+    ({ superman, paul } = await pair());
+    assert.deepEqual(await tool(superman.secret, "retire", { name: "not a name" }), { text: '"not a name" is not a name here', refused: true, error: null });
+    assert.deepEqual(await tool(superman.secret, "retire", {}), { text: "retire: name is required", refused: true, error: null });
+    assert.deepEqual(await tool(superman.secret, "retire", { name: LEADER }), { text: `${LEADER} is the Leader`, refused: true, error: null });
+    assert.ok(fs.existsSync(deskFile(instance, LEADER)));
+  });
+
+  it("retire refuses a name with no desk, and files nothing for it", async () => {
+    assert.equal(fs.existsSync(deskFile(instance, "Zed")), false);
+    assert.deepEqual(await tool(superman.secret, "retire", { name: "Zed" }), { text: "Zed has no desk here", refused: true, error: null });
+    assert.equal(fs.existsSync(archived("Zed", "")), false);
+    assert.equal(fs.existsSync(path.join(instance, "archive", `${new Date().toISOString().slice(0, 10)}-Zed`)), false);
+  });
+
+  it("retire refuses a running Worker and ends nothing", async () => {
+    assert.equal(running(WORKER), true);
+    assert.deepEqual(await tool(superman.secret, "retire", { name: WORKER }), { text: `${WORKER} is running; stop it first`, refused: true, error: null });
+    await settle(200);
+    assert.equal(running(WORKER), true);
+    assert.ok(fs.existsSync(deskFile(instance, WORKER)));
+  });
+
+  it("retire refuses while the server is stopping", async () => {
+    await end(WORKER, 500);
+    chat.stopping = true;
+    try {
+      assert.deepEqual(await tool(superman.secret, "retire", { name: WORKER }), { text: "the server is stopping", refused: true, error: null });
+    } finally {
+      chat.stopping = false;
+    }
+    assert.ok(fs.existsSync(deskFile(instance, WORKER)));
+  });
+
+  it("retire is the Leader's: a Worker is refused and nothing is filed", async () => {
+    paul = await seatUp(WORKER);
+    const ann = await spawnedBy(OTHER, () => tool(superman.secret, "hire", { name: OTHER }));
+    assert.equal(ann.result.refused, false, ann.result.text);
+    await end(OTHER, 500);
+    assert.deepEqual(await tool(paul.secret, "retire", { name: OTHER }), { text: "retire is not offered to you", refused: true, error: null });
+    assert.ok(fs.existsSync(deskFile(instance, OTHER)));
+  });
+
+  it("retire files a stopped Worker's desk under archive/, the seat leaves the room and the page, and the name is free again", async () => {
+    const ann = await spawnedBy(OTHER, () => tool(superman.secret, "hire", { name: OTHER }));
+    assert.equal(ann.result.refused, false, ann.result.text);
+    const written = await tool(ann.secret, "write_desk", { title: "Ann by the stand-in", status: "done", body: "## State\nround done\n" });
+    assert.equal(written.refused, false, written.text);
+    // A row on the panel, so there is a conversation to file with the desk.
+    const typed = await page("POST", `/sessions/${OTHER}/message`, { text: "well done" });
+    assert.equal(typed.status, 200, typed.body);
+    await end(OTHER, 500);
+    assert.ok((await sessionsListed()).sessions.some((seat) => seat.name === OTHER));
+    const rows = panel(instance, OTHER);
+    assert.ok(rows.some((row) => row.text === "well done"), "nothing on the panel to file");
+
+    const seen = [];
+    const unsubscribe = subscribe((event) => seen.push(event));
+    let filed;
+    try {
+      filed = await tool(superman.secret, "retire", { name: OTHER });
+    } finally {
+      unsubscribe();
+    }
+    const where = archived(OTHER, "ann-by-the-stand-in");
+    assert.deepEqual(filed, { text: `${OTHER} filed under archive/${path.basename(where)}`, refused: false, error: null });
+    assert.equal(fs.existsSync(path.join(instance, "desks", OTHER)), false);
+    assert.ok(fs.existsSync(path.join(where, "STATE.md")), "the desk was not filed");
+    assert.match(fs.readFileSync(path.join(where, "STATE.md"), "utf8"), /round done/);
+    // The conversation goes with it, as it was.
+    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(where, "conversation.json"), "utf8")), rows);
+    // The room and the page no longer list the seat, and the page was told without a reload.
+    assert.equal((await sessionsListed()).sessions.some((seat) => seat.name === OTHER), false);
+    const room = JSON.parse((await tool(superman.secret, "room", {})).text);
+    assert.equal(room.seats.some((seat) => seat.name === OTHER), false, JSON.stringify(room));
+    const snapshots = seen.filter((event) => event.name === "snapshot");
+    assert.equal(snapshots.length, 1, seen.map((event) => event.name).join(","));
+    assert.equal(snapshots[0].data.sessions.some((seat) => seat.name === OTHER), false);
+    // The name is the roster's again: a hire opens a fresh desk, the filed one untouched.
+    const again = await spawnedBy(OTHER, () => tool(superman.secret, "hire", { name: OTHER }));
+    assert.deepEqual(again.result, { text: `${OTHER} started on the desk desks/${OTHER} (${WORKER_MODEL})`, refused: false, error: null });
+    assert.doesNotMatch(deskOf(OTHER), /round done/);
+    assert.match(fs.readFileSync(path.join(where, "STATE.md"), "utf8"), /round done/);
+    await end(OTHER, 500);
+  });
+
+  it("retire drops what the quota gate held for the seat", async () => {
+    const ann = await spawnedBy(OTHER, () => tool(superman.secret, "hire", { name: OTHER }));
+    assert.equal(ann.result.refused, false, ann.result.text);
+    await end(OTHER, 500);
+    quota.hold(OTHER, { frame: userFrame("held"), window: "5h", resolve: () => {} });
+    assert.equal(quota.held(OTHER).length, 1);
+    const filed = await tool(superman.secret, "retire", { name: OTHER });
+    assert.equal(filed.refused, false, filed.text);
+    assert.deepEqual(quota.held(OTHER), []);
+    assert.deepEqual(quota.heldSeats(), []);
   });
 });
 
