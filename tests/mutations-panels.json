@@ -471,5 +471,27 @@
         "to": "  panel.title = about.title ?? \"\";\n  panel.busy = about.busy === true;\n  panel.running = about.running === true;\n"
       }
     ]
+  },
+  {
+    "name": "the snapshot's seat carries no word onto its panel",
+    "catches": "what a seat is at comes with the snapshot and every seat event, and is null once the word is gone",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "    doing: typeof about.doing === \"string\" ? about.doing : null,",
+        "to": "    doing: null,"
+      }
+    ]
+  },
+  {
+    "name": "a seat event leaves the word as it was",
+    "catches": "what a seat is at comes with the snapshot and every seat event, and is null once the word is gone",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  panel.doing = typeof about.doing === \"string\" ? about.doing : null;",
+        "to": "  panel.doing = panel.doing;"
+      }
+    ]
   }
 ]

@@ -220,6 +220,22 @@ describe("marks and controls", () => {
     assert.equal(dot(state, "Paul"), RED);
   });
 
+  // What a seat is at is the server's word on the seat, carried as it comes — from the snapshot,
+  // for a page opened mid-turn, and from every seat event after — and null the moment a seat
+  // event comes without it, since the server says it only while there is one.
+  it("what a seat is at comes with the snapshot and every seat event, and is null once the word is gone", () => {
+    const state = fresh();
+    applyEvent(state, snapshot([about(LEADER, { busy: true, doing: "Thinking…" }), about("Paul", { busy: true })]), 0);
+    assert.equal(state.panels[LEADER].doing, "Thinking…");
+    assert.equal(state.panels.Paul.doing, null);
+    applyEvent(state, seat(LEADER, { busy: true, doing: "Reading lib/chat/page.html" }), 0);
+    assert.equal(state.panels[LEADER].doing, "Reading lib/chat/page.html");
+    applyEvent(state, seat(LEADER, { busy: false }), 0);
+    assert.equal(state.panels[LEADER].doing, null);
+    applyEvent(state, seat(LEADER, { busy: true, doing: 7 }), 0);
+    assert.equal(state.panels[LEADER].doing, null, "a word that is not a string is no word");
+  });
+
   it("the stop glyph is there while a turn runs and nowhere else", () => {
     const state = fresh();
     applyEvent(state, snapshot([about(LEADER), about("Paul", { busy: true })]), 0);

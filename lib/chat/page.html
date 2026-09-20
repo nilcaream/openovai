@@ -118,6 +118,8 @@
   .rows .line .n { color: var(--fg-faint); }
   /* a line that is one end of a message between two sessions: a click on it finds the message on the Leader's panel */
   .rows .line.peer { cursor: pointer; border-left: 3px solid var(--accent); }
+  /* the one line that says what the seat is at: always exactly one line, cut with an ellipsis */
+  .rows .line.doing { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   /* a row is a bubble: the label row on top, the body under it; the kind of the row picks its ground */
   .msg { display: flex; margin: 4px 0; }
   .bubble { width: 100%; max-width: 100%; border: 1px solid var(--line); border-radius: var(--radius); padding: 6px 10px 4px; background: var(--panel-2); position: relative; min-width: 120px; }
@@ -468,8 +470,9 @@
     // the element of every tool line by the index of its row, for a failed call to find its line;
     // `waiting` the element of every row of the User's not yet delivered, by its index, for the
     // delivery to find its row; `day` the day of the row drawn last, for the pill between two days;
-    // `drawn` the card of every question on the panel, by the id of its request.
-    return { name, section, nameLine, info, word, fitPlaceholder, facts, composer, stop, rows, cards, empty, jump, box, refs, view, shown: 0, day: null, drawn: new Map(), loading: false, last: null, lines: new Map(), waiting: new Map() };
+    // `drawn` the card of every question on the panel, by the id of its request; `doing` the one
+    // line that says what the seat is at, while there is one.
+    return { name, section, nameLine, info, word, fitPlaceholder, facts, composer, stop, rows, cards, empty, jump, box, refs, view, shown: 0, day: null, drawn: new Map(), loading: false, last: null, lines: new Map(), waiting: new Map(), doing: null };
   }
 
   // When a row was written, in the reader's own zone: `2026.09.13 Sunday 23:17:05` on the row, the
@@ -813,6 +816,7 @@
         panel.last = null;
         panel.lines.clear();
         panel.waiting.clear();
+        panel.doing = null;
         // The cards are not among the rows: they stand, and leave when their question does.
       }
       panel.empty.hidden = about.rows.length > 0;
@@ -899,11 +903,31 @@
           panel.cards.append(card);
         }
       }
+      // The one line that says what the seat is at, while the server says it: put in once when the
+      // word comes, its text changed in place at every change, taken out once the word is gone —
+      // never taken out and put back within a turn, so the rows never jump for it. It is the last
+      // row, after whatever landed: its coming counts as a row landing, a change of its words does
+      // not, since it is one line high whatever they say.
+      let landed = added.length > 0;
+      if (about.doing === null) {
+        if (panel.doing !== null) {
+          panel.doing.remove();
+          panel.doing = null;
+        }
+      } else {
+        if (panel.doing === null) {
+          panel.doing = document.createElement("div");
+          panel.doing.className = "line doing";
+          landed = true;
+        }
+        panel.doing.textContent = about.doing;
+        if (landed) panel.rows.append(panel.doing);
+      }
       // Rows are appended after the pill; it goes back to the end so it sticks to the bottom edge.
       if (panel.jump !== null && panel.jump !== panel.rows.lastElementChild) panel.rows.append(panel.jump);
       // A row that landed: a panel that follows is pinned to the newest; otherwise the pill says
       // something landed below.
-      if (added.length > 0) {
+      if (landed) {
         if (follows) {
           panel.rows.scrollTop = panel.rows.scrollHeight;
         } else if (panel.jump !== null && !near) {

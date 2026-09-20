@@ -1582,8 +1582,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "    called: logged(instance, seat, roleOf(instance, seat) === WORKER ? calledBy(instance, seat) : () => {}),",
-        "to": "    called: roleOf(instance, seat) === WORKER ? logged(instance, seat, calledBy(instance, seat)) : () => {},"
+        "from": "    called: logged(instance, seat, roleOf(instance, seat) === WORKER ? calledBy(instance, seat) : doingBy(instance, seat)),",
+        "to": "    called: roleOf(instance, seat) === WORKER ? logged(instance, seat, calledBy(instance, seat)) : doingBy(instance, seat),"
       }
     ]
   },
@@ -1628,6 +1628,72 @@
         "file": "lib/chat/mcp.mjs",
         "from": "    const unfit = misfit(wanted.inputSchema, args);",
         "to": "    const unfit = null;"
+      }
+    ]
+  },
+  {
+    "name": "the Leader's turn starts with no word: nothing is said until its first call",
+    "catches": "is told on the seat at the turn, at each call and at each result, and gone with the turn — a search the line says nothing about leaves it as it was",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "  } else if (record.doing === null) {\n    record.doing = THINKING;",
+        "to": "  } else if (false) {\n    record.doing = THINKING;"
+      }
+    ]
+  },
+  {
+    "name": "the word outlives the turn",
+    "catches": "is told on the seat at the turn, at each call and at each result, and gone with the turn — a search the line says nothing about leaves it as it was",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "  if (record.turn === null) {\n    record.doing = null;",
+        "to": "  if (false) {\n    record.doing = null;"
+      }
+    ]
+  },
+  {
+    "name": "a call's result leaves the word as the call",
+    "catches": "is told on the seat at the turn, at each call and at each result, and gone with the turn — a search the line says nothing about leaves it as it was",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "    if (record !== undefined && record.lastCall === id && record.doing !== THINKING) {",
+        "to": "    if (record !== undefined && record.lastCall === null && record.doing !== THINKING) {"
+      }
+    ]
+  },
+  {
+    "name": "a call the line says nothing about clears the word",
+    "catches": "is told on the seat at the turn, at each call and at each result, and gone with the turn — a search the line says nothing about leaves it as it was",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "    const text = line(name, input);\n    if (text !== null) {\n      record.doing = text;",
+        "to": "    const text = line(name, input);\n    if (true) {\n      record.doing = text;"
+      }
+    ]
+  },
+  {
+    "name": "a Worker's seat says what it is at too",
+    "catches": "is on the snapshot of a page opened mid-turn, and the Worker's seat never carries it",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "      if (roleOf(instance, seat) !== WORKER) {\n        atTurn(record);",
+        "to": "      if (true) {\n        atTurn(record);"
+      }
+    ]
+  },
+  {
+    "name": "a result comes back without the id of its call",
+    "catches": "is told on the seat at the turn, at each call and at each result, and gone with the turn — a search the line says nothing about leaves it as it was",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "            returned({ id: block.tool_use_id });",
+        "to": "            returned({ id: null });"
       }
     ]
   }

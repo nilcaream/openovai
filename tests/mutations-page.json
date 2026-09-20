@@ -1786,5 +1786,60 @@
         "to": "        panel.waiting.clear();\n        panel.drawn.clear();\n"
       }
     ]
+  },
+  {
+    "name": "the line that says what a seat is at wraps",
+    "catches": "hold the line that says what a seat is at to exactly one line, cut with an ellipsis",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "  .rows .line.doing { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }",
+        "to": "  .rows .line.doing { white-space: normal; overflow: hidden; text-overflow: ellipsis; }"
+      }
+    ]
+  },
+  {
+    "name": "the line is made again at every draw",
+    "catches": "draws what a seat is at as one line, made once, changed in place, last among the rows, gone with the word",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "        if (panel.doing === null) {\n          panel.doing = document.createElement(\"div\");",
+        "to": "        if (true) {\n          panel.doing = document.createElement(\"div\");"
+      }
+    ]
+  },
+  {
+    "name": "the line stays once the word is gone",
+    "catches": "draws what a seat is at as one line, made once, changed in place, last among the rows, gone with the word",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "        if (panel.doing !== null) {\n          panel.doing.remove();\n          panel.doing = null;\n        }",
+        "to": "        if (panel.doing !== null) {\n          panel.doing.title = \"\";\n          panel.doing = null;\n        }"
+      }
+    ]
+  },
+  {
+    "name": "a change of the word counts as a row landing",
+    "catches": "draws what a seat is at as one line, made once, changed in place, last among the rows, gone with the word",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "        panel.doing.textContent = about.doing;\n        if (landed) panel.rows.append(panel.doing);",
+        "to": "        panel.doing.textContent = about.doing;\n        if ((landed = true)) panel.rows.append(panel.doing);"
+      }
+    ]
+  },
+  {
+    "name": "the line's coming scrolls nothing",
+    "catches": "draws a question as a card in the bottom area above the composer, and never scrolls the rows for it",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      if (landed) {\n        if (follows) {",
+        "to": "      if (added.length > 0) {\n        if (follows) {"
+      }
+    ]
   }
 ]

@@ -1388,6 +1388,80 @@ describe("what a Worker's calls draw", () => {
 
 // ---------------------------------------------------------------------------------------------
 
+// What the Leader is at, while it is on a turn, is a word on its seat and never a row: the page
+// is told the seat at each change — "Thinking…" as the turn is taken, the call as a Worker's line
+// would say it as the call is made, "Thinking…" again as its result comes back — and the word is
+// gone from the seat with the turn. A page opened mid-turn reads it off the snapshot. A Worker's
+// seat never carries one: its calls are rows.
+describe("what the Leader is at", () => {
+  let superman;
+  let paul;
+  let client;
+  const READ = { name: "Read", input: { file_path: "/srv/app/lib/chat/session.mjs" } };
+  const FAILING = { name: "Bash", input: { command: "npm test", description: "Run the suite" }, error: "\n  Exit code 1\nnpm error Missing script: \"test\"" };
+  const SEARCH = { name: "ToolSearch", input: { query: "select:Monitor" } };
+  const CALLS = JSON.stringify([[READ, SEARCH, FAILING], [READ, SEARCH, FAILING]]);
+
+  before(async () => {
+    remove(panelFile(instance, LEADER), panelFile(instance, WORKER));
+    superman = await seatUp(LEADER, { OPENOVAI_STAND_IN_REPLY: "noted", OPENOVAI_STAND_IN_CALLS: CALLS, OPENOVAI_STAND_IN_SLOW: "1500" });
+    paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_REPLY: "on it", OPENOVAI_STAND_IN_CALLS: CALLS });
+    client = await listen();
+    await until(client, (event) => event.name === "asking");
+  });
+
+  after(async () => {
+    for (const opened of open.splice(0)) {
+      opened.close();
+    }
+    await endEvery(500);
+  });
+
+  const words = (events) => events.map((event) => [event.data.busy, event.data.doing]);
+  // The seat events of `name` since the `heard`th, once one of them says what `saying` asks.
+  async function seatsSince(name, heard, saying) {
+    await until(client, () => about(client, name).slice(heard).some(saying));
+    return about(client, name).slice(heard);
+  }
+
+  it("is told on the seat at the turn, at each call and at each result, and gone with the turn — a search the line says nothing about leaves it as it was", async () => {
+    const heard = about(client, LEADER).length;
+    const rows = panel(instance, LEADER).length;
+    await page("POST", `/sessions/${LEADER}/message`, { text: "go" });
+    const told = await seatsSince(LEADER, heard, (event) => event.data.busy === false);
+    assert.deepEqual(words(told), [
+      [true, "Thinking…"],
+      [true, "Reading /srv/app/lib/chat/session.mjs"],
+      [true, "Thinking…"],
+      [true, "Run the suite"],
+      [true, "Thinking…"],
+      [false, undefined],
+    ]);
+    assert.ok(panel(instance, LEADER).slice(rows).every((row) => row.line === undefined), `a row for what the Leader was at: ${JSON.stringify(panel(instance, LEADER).slice(rows))}`);
+  });
+
+  it("is on the snapshot of a page opened mid-turn, and the Worker's seat never carries it", async () => {
+    const heard = about(client, LEADER).length;
+    await page("POST", `/sessions/${LEADER}/message`, { text: "again" });
+    await seatsSince(LEADER, heard, (event) => event.data.doing === "Run the suite");
+    const opened = await listen();
+    await until(opened, (event) => event.name === "snapshot");
+    const listed = opened.events.find((event) => event.name === "snapshot").data.sessions;
+    // Between its last result and its answer, the Leader is at whatever the stream said last.
+    const said_ = about(client, LEADER).at(-1).data.doing;
+    assert.equal(typeof said_, "string", "the stream said nothing of what the Leader is at");
+    assert.equal(listed.find((seat) => seat.name === LEADER).doing, said_, "the snapshot says what the Leader is at, as the stream said it last");
+    assert.equal("doing" in listed.find((seat) => seat.name === WORKER), false);
+    await seatsSince(LEADER, heard, (event) => event.data.busy === false);
+    const heardOf = about(client, WORKER).length;
+    await page("POST", `/sessions/${WORKER}/message`, { text: "go" });
+    const told = await seatsSince(WORKER, heardOf, (event) => event.data.busy === false);
+    assert.deepEqual(words(told), [[true, undefined], [false, undefined]]);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+
 // What a seat says is on its panel as it says it — every text block of a turn, the moment the
 // process says it, and not once the turn is over: a Leader that says "hiring somebody for this"
 // before a long call is read while the call runs. What is left for the end of the turn is how it
