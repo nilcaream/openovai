@@ -236,13 +236,13 @@
     ]
   },
   {
-    "name": "the README's roster drops a name",
-    "catches": "names the roster, in its order, and the rule that picks from it",
+    "name": "the README names a model",
+    "catches": "names no model of its own",
     "edits": [
       {
         "file": "README.md",
-        "from": "  Finn, Ada, Noah, Ella, Owen, Ruby, Hugo, Iris, Otto, Lena, Axel, Nina, Theo), and the next",
-        "to": "  Finn, Ada, Noah, Ella, Owen, Ruby, Hugo, Iris, Otto, Lena, Axel, Nina), and the next"
+        "from": "## Requirements\n",
+        "to": "## Requirements\n\nThe Leader runs on Opus.\n"
       }
     ]
   }

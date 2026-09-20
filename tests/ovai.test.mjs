@@ -40,7 +40,7 @@ import { LEDGER, settingsProblems, trustProblems } from "./inspect.mjs";
 // one, which is right when the subject is a run — and no help at all with what a file holding
 // nothing means, which is a question about the reading rather than about the running.
 import { home } from "../lib/claude.mjs";
-import { DeskError, POOL, hire, modelFor, persona as renderPersona } from "../lib/desks.mjs";
+import { DeskError, hire, modelFor, persona as renderPersona } from "../lib/desks.mjs";
 import { HOOK_ENTRY } from "../lib/hooks/compound.mjs";
 
 // Open a desk the way the Leader's `hire` tool does, in this process, and answer the way a command
@@ -954,34 +954,18 @@ describe("what a desk is read as running on", () => {
   });
 });
 
-// The one place somebody reading the repo is told that a hire can name a model at all. Read as
-// text, because a README is not run: what is asserted is that the section says the two halves of
-// it — the argument, and where a named model is written down.
-describe("what the README says about hiring onto a model", () => {
-  const readme = fs.readFileSync(path.join(repo, "README.md"), "utf8");
-  const section = readme.slice(readme.indexOf("- `hire` (Leader)"), readme.indexOf("- `permission` (Leader)"));
-
-  it("names the model as what a hire takes beside the name", () => {
-    assert.match(section, /and a model when not the usual one/);
-  });
-
-  // The roster, as the README says it: the thirty names in the pool's own order, and the rule.
-  it("names the roster, in its order, and the rule that picks from it", () => {
-    assert.match(section, /called with no name, the roster names the Worker/);
-    assert.match(section, new RegExp(`\\(${POOL.join(",\\s+")}\\)`));
-    assert.match(section, /never used first, in that order, then the one whose\s+holder left longest ago/);
-    assert.match(section, /With nobody in the pool free, Dev and three digits/);
-  });
-
-  it("says where a model that was named is written down", () => {
-    assert.match(section, /desks\/<Name>\/MODEL/);
-  });
-
-  // And names none. The models a workspace uses are chosen at install and live in
-  // `openovai.json`; a README that named one would be this workspace's answer written into the
-  // documentation of everybody's, and it would go stale the week the service renames something.
+// The tool reference — what a hire takes, the roster, where a named model is written down —
+// lives on the site, not in the README. What the README must still hold to, read as text
+// because a README is not run: its prose names no model. The models a workspace uses are chosen
+// at install and live in `openovai.json`; a README that named one would be this workspace's
+// answer written into the documentation of everybody's, and it would go stale the week the
+// service renames something. The fenced command lines are the install example, and an example
+// names what it passes: they are not the README's word.
+describe("what the README says about models", () => {
   it("names no model of its own", () => {
-    assert.doesNotMatch(section, /\b(opus|sonnet|haiku)\b/i);
+    const readme = fs.readFileSync(path.join(repo, "README.md"), "utf8");
+    const prose = readme.replace(/^```[\s\S]*?^```$/gm, "");
+    assert.doesNotMatch(prose, /\b(opus|sonnet|haiku)\b/i);
   });
 });
 
