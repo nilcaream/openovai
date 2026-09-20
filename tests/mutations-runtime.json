@@ -1,0 +1,82 @@
+[
+  {
+    "name": "the checksum is never compared: the archive is taken as it came",
+    "catches": "refuses an archive whose checksum does not match",
+    "edits": [{ "file": "lib/runtime.sh", "from": "sha256sum -c --status -)", "to": "cat >/dev/null)" }]
+  },
+  {
+    "name": "a checksum file that names the archive on no line is not refused",
+    "catches": "refuses a checksum file that does not name the archive",
+    "edits": [{ "file": "lib/runtime.sh", "from": "    [ \"${lines}\" = \"1\" ] || die \"${sums} has ${lines} lines naming ${archive_name}, not one; nothing was verified\"\n", "to": "" }]
+  },
+  {
+    "name": "any operating system is taken for Linux",
+    "catches": "refuses anything but Linux in one line",
+    "edits": [{ "file": "lib/runtime.sh", "from": "    [ \"${system}\" = \"Linux\" ] || die \"only Linux is supported, and this is ${system}\"\n", "to": "" }]
+  },
+  {
+    "name": "the shell keeps the runtimes under ~/.local rather than ~/.local/share",
+    "catches": "is ~/.local/share/openovai when the variable is unset",
+    "edits": [{ "file": "lib/runtime.sh", "from": "${HOME}/.local/share}", "to": "${HOME}/.local}" }]
+  },
+  {
+    "name": "the module reads an empty XDG_DATA_HOME as a directory",
+    "catches": "reads an empty variable as unset",
+    "edits": [{ "file": "lib/runtime.mjs", "from": "env.XDG_DATA_HOME !== undefined && env.XDG_DATA_HOME !== \"\"", "to": "env.XDG_DATA_HOME !== undefined" }]
+  },
+  {
+    "name": "the module does not miss a name the file never pins",
+    "catches": "refuses a file that does not pin every name",
+    "edits": [{ "file": "lib/runtime.mjs", "from": "    if (found[name] === undefined) {\n      throw new RuntimeError(`${file} does not pin ${name}`);\n    }\n", "to": "" }]
+  },
+  {
+    "name": "the shell takes any version that starts with a digit",
+    "catches": "is refused by the shell when a version is not three numbers",
+    "edits": [{ "file": "lib/runtime.sh", "from": "grep -Eq '^[0-9]+\\.[0-9]+\\.[0-9]+$'", "to": "grep -Eq '^[0-9]'" }]
+  },
+  {
+    "name": "the claude command is answered without its bin directory",
+    "catches": "are answered the same by the shell",
+    "edits": [{ "file": "lib/runtime.sh", "from": "claude_path() { printf '%s/bin/claude\\n'", "to": "claude_path() { printf '%s/claude\\n'" }]
+  },
+  {
+    "name": "a node that is already there is fetched again",
+    "catches": "reuses a node that is already there and asks the archive for nothing",
+    "edits": [{ "file": "lib/runtime.sh", "from": "            say \"Node.js ${version} already in ${target}\"\n            return 0\n", "to": "            rm -rf \"${target}\"\n" }]
+  },
+  {
+    "name": "the working directory is left behind after a fetch",
+    "catches": "leaves nothing under tmp once the runtime is in place",
+    "edits": [{ "file": "lib/runtime.sh", "from": "    rm -rf \"${target}/${finished##*/}\"\n    rm -rf \"${work}\"\n", "to": "    rm -rf \"${target}/${finished##*/}\"\n    work=\"\"\n" }]
+  },
+  {
+    "name": "a fetch that fails leaves its working directory behind",
+    "catches": "refuses a download that does not match its checksum and leaves nothing behind",
+    "edits": [{ "file": "lib/runtime.sh", "from": "trap cleanup EXIT\n", "to": "" }]
+  },
+  {
+    "name": "a node directory that does not run is taken as the pinned version",
+    "catches": "refuses a node directory that is there but does not run as the pinned version",
+    "edits": [{ "file": "lib/runtime.sh", "from": "&& [ \"$(\"${binary}\" --version 2>/dev/null || true)\" = \"v${version}\" ]", "to": "" }]
+  },
+  {
+    "name": "a claude directory without its command is reused",
+    "catches": "refuses a claude directory that is there without its command",
+    "edits": [{ "file": "lib/runtime.sh", "from": "        [ -x \"${command_path}\" ] ||\n            die \"${target} is there but ${command_path} is not runnable; remove the directory and run this again\"\n", "to": "" }]
+  },
+  {
+    "name": "claude is installed without checking that the toolkit's own npm is there",
+    "catches": "installs claude with the npm that came with node, and says so when there is none",
+    "edits": [{ "file": "lib/runtime.sh", "from": "    [ -x \"${node_bin}/npm\" ] || die \"${node_bin}/npm is missing; Node.js has to be fetched before Claude Code\"\n", "to": "" }]
+  },
+  {
+    "name": "the platform is named with the machine word rather than nodejs.org's",
+    "catches": "is this machine, in the words nodejs.org uses",
+    "edits": [{ "file": "lib/runtime.sh", "from": "x86_64) printf 'linux-x64\\n' ;;", "to": "x86_64) printf 'linux-x86_64\\n' ;;" }]
+  },
+  {
+    "name": "the module skips a line it cannot read rather than refusing it",
+    "catches": "refuses a line that is not a name and a version",
+    "edits": [{ "file": "lib/runtime.mjs", "from": "      throw new RuntimeError(`${file} has a line that is not", "to": "      continue; throw new RuntimeError(`${file} has a line that is not" }]
+  }
+]

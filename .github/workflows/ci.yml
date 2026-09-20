@@ -328,6 +328,19 @@ jobs:
       - name: Write every event as one row of four columns, paired to its call
         run: node --test tests/log.test.mjs
 
+  runtime:
+    name: Runtime
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+
+      - name: Read the pin, fetch a node from a served archive, verify it, reuse it, refuse it
+        run: node --test tests/runtime.test.mjs
+
   release:
     name: Release
     runs-on: ubuntu-latest

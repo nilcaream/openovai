@@ -1,0 +1,6 @@
+# The runtimes this version of the toolkit runs on: one name and one exact version per line.
+# The pair is chosen and tested when a release is cut, and a fix in either reaches an instance
+# through the next release — never through a range resolved at install time. Read by
+# lib/runtime.sh (before any node exists) and by lib/runtime.mjs; lines starting with # are notes.
+node 24.21.0
+claude 2.1.278
