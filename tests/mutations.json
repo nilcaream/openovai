@@ -1005,6 +1005,28 @@
     ]
   },
   {
+    "name": "the asking icon is not served",
+    "catches": "serves the asking icon the tab shows while a panel asks, a 192 PNG",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "  \"/icons/192-asking.png\": { file: path.join(HERE, \"icons\", \"192-asking.png\"), type: \"image/png\" },\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the asking icon is served as the wrong type",
+    "catches": "serves the asking icon the tab shows while a panel asks, a 192 PNG",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "  \"/icons/192-asking.png\": { file: path.join(HERE, \"icons\", \"192-asking.png\"), type: \"image/png\" },",
+        "to": "  \"/icons/192-asking.png\": { file: path.join(HERE, \"icons\", \"192-asking.png\"), type: \"application/octet-stream\" },"
+      }
+    ]
+  },
+  {
     "name": "the manifest says a size the icon is not",
     "catches": "installs as a standalone app: a manifest with three icons that are PNGs of the size they say, one of them maskable, and no service worker",
     "edits": [
@@ -1087,8 +1109,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, applyEvent, composersEnabled, delivery, dot, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title } from \"./panels.mjs\";",
-        "to": "  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, applyEvent, composersEnabled, delivery, dot, fresh, head, keyAction, noticed, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title } from \"./panels.mjs\";\n  const place = (seats, leader) => ({ left: seats.filter((s) => s !== leader), mid: leader, right: [] });"
+        "from": "  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, anyAsking, applyEvent, composersEnabled, delivery, dot, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title } from \"./panels.mjs\";",
+        "to": "  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, anyAsking, applyEvent, composersEnabled, delivery, dot, fresh, head, keyAction, noticed, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title } from \"./panels.mjs\";\n  const place = (seats, leader) => ({ left: seats.filter((s) => s !== leader), mid: leader, right: [] });"
       }
     ]
   },

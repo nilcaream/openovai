@@ -99,13 +99,35 @@
     ]
   },
   {
-    "name": "the title never carries the mark",
-    "catches": "the panel that asks carries the mark, the title carries it while any panel asks",
+    "name": "the title carries a mark while any panel asks",
+    "catches": "the title is the product and the instance as the snapshot names it, and never changes with asking",
     "edits": [
       {
         "file": "lib/chat/panels.mjs",
-        "from": "  return any ? `● ${named}` : named;",
-        "to": "  return named;"
+        "from": "  return [PRODUCT, state.instance].filter((part) => part !== \"\").join(\" \");\n}",
+        "to": "  const named = [PRODUCT, state.instance].filter((part) => part !== \"\").join(\" \");\n  return anyAsking(state) ? `● ${named}` : named;\n}"
+      }
+    ]
+  },
+  {
+    "name": "anyAsking says a panel asks only when every panel does",
+    "catches": "the panel that asks carries the mark, and anyAsking says whether any panel does",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  return Object.keys(state.panels).some((name) => asking(state, name));",
+        "to": "  return Object.keys(state.panels).length > 0 && Object.keys(state.panels).every((name) => asking(state, name));"
+      }
+    ]
+  },
+  {
+    "name": "anyAsking never says a panel asks",
+    "catches": "the panel that asks carries the mark, and anyAsking says whether any panel does",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  return Object.keys(state.panels).some((name) => asking(state, name));",
+        "to": "  return false;"
       }
     ]
   },
@@ -177,18 +199,18 @@
   },
   {
     "name": "the title drops the instance",
-    "catches": "the title is the product and the instance as the snapshot names it, marked while any panel asks",
+    "catches": "the title is the product and the instance as the snapshot names it, and never changes with asking",
     "edits": [
       {
         "file": "lib/chat/panels.mjs",
-        "from": "  const named = [PRODUCT, state.instance].filter((part) => part !== \"\").join(\" \");",
-        "to": "  const named = PRODUCT;"
+        "from": "  return [PRODUCT, state.instance].filter((part) => part !== \"\").join(\" \");",
+        "to": "  return PRODUCT;"
       }
     ]
   },
   {
     "name": "the snapshot's instance is not read",
-    "catches": "the title is the product and the instance as the snapshot names it, marked while any panel asks",
+    "catches": "the title is the product and the instance as the snapshot names it, and never changes with asking",
     "edits": [
       {
         "file": "lib/chat/panels.mjs",

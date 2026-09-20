@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { AMBER, CARD, CONNECTED, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, RED, REPLY, SENDING, applyEvent, composersEnabled, delivery, dot, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title } from "../lib/chat/panels.mjs";
+import { AMBER, CARD, CONNECTED, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, RED, REPLY, SENDING, anyAsking, applyEvent, composersEnabled, delivery, dot, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title } from "../lib/chat/panels.mjs";
 
 const LEADER = "Leader";
 
@@ -139,29 +139,31 @@ describe("the Leader's panel", () => {
 });
 
 describe("marks and controls", () => {
-  it("the title is the product and the instance as the snapshot names it, marked while any panel asks", () => {
+  it("the title is the product and the instance as the snapshot names it, and never changes with asking", () => {
     const state = fresh();
     applyEvent(state, snapshot([about(LEADER)], { instance: "~/work/inst" }), 0);
     assert.equal(title(state), "OpenOv AI ~/work/inst");
     applyEvent(state, { name: "asking", data: { seat: LEADER, pending: [{ id: "r1", tool: "Bash", input: { command: "ls" } }] } }, 0);
-    assert.equal(title(state), "● OpenOv AI ~/work/inst");
+    assert.equal(title(state), "OpenOv AI ~/work/inst", "the title is the same while a panel asks");
     assert.equal(title(fresh()), "OpenOv AI");
   });
 
-  it("the panel that asks carries the mark, the title carries it while any panel asks", () => {
+  it("the panel that asks carries the mark, and anyAsking says whether any panel does", () => {
     const state = fresh();
     applyEvent(state, snapshot([about(LEADER), about("Paul")], { instance: "~/inst" }), 0);
-    assert.equal(title(state), "OpenOv AI ~/inst");
+    assert.equal(anyAsking(state), false);
     applyEvent(state, { name: "asking", data: { seat: "Paul", pending: [{ id: "r1", tool: "Bash", input: { command: "ls" } }] } }, 0);
-    assert.equal(title(state), "● OpenOv AI ~/inst");
+    assert.equal(anyAsking(state), true);
     assert.equal(head(state, "Paul").state, "waiting for you");
     assert.equal(head(state, LEADER).state, "listening");
     applyEvent(state, { name: "asking", data: { seat: LEADER, pending: [{ id: "u1", kind: "rule", rule: "Bash(git:*)", why: "w", from: LEADER }] } }, 0);
     assert.equal(head(state, LEADER).state, "waiting for you");
     applyEvent(state, { name: "asking", data: { seat: "Paul", pending: [] } }, 0);
+    assert.equal(anyAsking(state), true, "one panel still asks");
     applyEvent(state, { name: "asking", data: { seat: LEADER, pending: [] } }, 0);
-    assert.equal(title(state), "OpenOv AI ~/inst");
+    assert.equal(anyAsking(state), false);
     assert.equal(head(state, "Paul").state, "listening");
+    assert.equal(anyAsking(fresh()), false);
   });
 
   it("the head is the name, the model and the context in k, in parts", () => {

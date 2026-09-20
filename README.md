@@ -236,7 +236,10 @@ left and right in the order they appeared so a panel keeps its side. At 900 px a
 column, the Leader first. A panel is a head — a dot, the name, the model, the context in k once
 known, and what the session is doing: listening, working, waiting for you — a transcript, and a
 text box. Enter sends, Shift+Enter is a newline. The dot is green between turns, amber while a
-turn runs, red once the process is gone. The tab is titled with the product and the instance root. Replies are rendered as markdown: raw HTML in a reply is escaped, a link is kept only on
+turn runs, red once the process is gone. The tab is titled with the product and the instance root,
+and the title never changes; the tab's icon carries the one state worth a glance from another tab:
+its ring turns amber while any panel is waiting for you, and back while none is. Replies are
+rendered as markdown: raw HTML in a reply is escaped, a link is kept only on
 `http(s)` and `mailto` and opens in a new tab, an image is shown as a link, so nothing a session
 says makes the page fetch anything.
 

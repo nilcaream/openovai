@@ -89,6 +89,29 @@ describe("the token table", () => {
     const manifest = JSON.parse(fs.readFileSync(path.join(repo, "lib", "chat", "manifest.webmanifest"), "utf8"));
     assert.equal(manifest.theme_color, tokens.light["--panel-2"]);
   });
+
+  // The icons: one mark, a ring on a ground of its own colour, drawn from three SVG sources the
+  // script renders to the PNGs the server serves. The asking icon is the plain one with the ring
+  // in the page's warn colour — the colour an asking panel's name already gets — and nothing else
+  // changed; the maskable one keeps the ground full-bleed with no corner cut.
+  it("draws the icons from SVG sources on the one ground, the asking one differing in its ring alone", () => {
+    const icons = path.join(repo, "lib", "chat", "icons");
+    const read = (name) => fs.readFileSync(path.join(icons, name), "utf8");
+    const plain = read("icon.svg");
+    const asking = read("icon-asking.svg");
+    const maskable = read("maskable.svg");
+    for (const [name, svg] of [["icon.svg", plain], ["icon-asking.svg", asking], ["maskable.svg", maskable]]) {
+      assert.match(svg, /<rect width="512" height="512"[^>]* fill="#26404b"\/>/, `${name} is on the one ground`);
+    }
+    assert.match(plain, /<rect width="512" height="512" rx="102" fill="#26404b"\/>/, "the plain icon's corners are rounded");
+    assert.match(maskable, /<rect width="512" height="512" fill="#26404b"\/>/, "the maskable icon's ground is full-bleed");
+    assert.match(plain, /<circle cx="256" cy="256" r="125" fill="none" stroke="#f8fafc" stroke-width="58"\/>/, "a ring in the light page colour");
+    assert.equal(asking, plain.replace('stroke="#f8fafc"', `stroke="${tokens.light["--warn"]}"`), "the asking icon is the plain one with the ring in the warn colour");
+    for (const svg of [plain, asking]) assert.doesNotMatch(svg, /<svg[^>]* (width|height)=/, "a source drawn at more than one size carries no size of its own");
+    const script = read("make-icons.sh");
+    assert.match(script, /--default-background-color=00000000/, "the corners come out transparent");
+    assert.match(script, /^render icon\.svg 192 192\.png\nrender icon\.svg 512 512\.png\nrender icon-asking\.svg 192 192-asking\.png\nrender maskable\.svg 512 512-maskable\.png\n$/m);
+  });
 });
 
 describe("the rules", () => {
@@ -835,6 +858,19 @@ describe("the script", () => {
     assert.match(script, /panel\.facts\.conn\.textContent = state\.connection;\s*panel\.facts\.conn\.classList\.toggle\("off", state\.connection !== CONNECTED\);/);
     assert.match(script, /panel\.facts\.quota\.textContent = quotaLine\(state\.quota\);\s*panel\.facts\.quota\.title = quotaTitle\(state\.quota, \(iso\) => stamp\(iso\)\.whole\);/);
     assert.match(script, /document\.title = title\(state\);/);
+  });
+
+  // The tab's icon carries the asking state, the title never: on every draw the icon link points
+  // at the amber-ringed mark while any panel asks and at the plain one otherwise, set only when it
+  // changes so a draw that changes nothing does not fetch the icon again. The manifest's icons
+  // stay the plain ones: an installed app's icon does not blink.
+  it("swaps the tab's icon for the asking one while any panel asks, and back, on every draw", () => {
+    assert.match(script, /import \{[^}]*\banyAsking\b[^}]*\} from "\.\/panels\.mjs"/);
+    assert.match(script, /const favicon = document\.querySelector\('link\[rel="icon"\]'\);/);
+    assert.match(script, /document\.title = title\(state\);\s*(?:\/\/[^\n]*\n\s*)*const icon = anyAsking\(state\) \? "\/icons\/192-asking\.png" : "\/icons\/192\.png";\s*if \(favicon\.getAttribute\("href"\) !== icon\) favicon\.setAttribute\("href", icon\);\s*\}/, "the icon follows the title on every draw, set only when it changes");
+    assert.match(source, /<link rel="icon" href="\/icons\/192\.png">/, "the page starts on the plain icon");
+    const manifest = JSON.parse(fs.readFileSync(path.join(repo, "lib", "chat", "manifest.webmanifest"), "utf8"));
+    assert.deepEqual(manifest.icons.map((icon) => icon.src), ["/icons/192.png", "/icons/512.png", "/icons/512-maskable.png"], "the manifest lists the plain icons only");
   });
 
   // Without a stream the page says so and asks the server about it once a second: a 503 is the

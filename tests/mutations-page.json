@@ -971,6 +971,127 @@
     ]
   },
   {
+    "name": "the maskable icon's ground is the old colour",
+    "catches": "draws the icons from SVG sources on the one ground, the asking one differing in its ring alone",
+    "edits": [
+      {
+        "file": "lib/chat/icons/maskable.svg",
+        "from": "fill=\"#26404b\"",
+        "to": "fill=\"#1e293b\""
+      }
+    ]
+  },
+  {
+    "name": "the asking icon's ring is not the warn colour",
+    "catches": "draws the icons from SVG sources on the one ground, the asking one differing in its ring alone",
+    "edits": [
+      {
+        "file": "lib/chat/icons/icon-asking.svg",
+        "from": "stroke=\"#d29922\"",
+        "to": "stroke=\"#f85149\""
+      }
+    ]
+  },
+  {
+    "name": "the asking icon's ground differs from the plain one's",
+    "catches": "draws the icons from SVG sources on the one ground, the asking one differing in its ring alone",
+    "edits": [
+      {
+        "file": "lib/chat/icons/icon-asking.svg",
+        "from": "rx=\"102\"",
+        "to": "rx=\"96\""
+      }
+    ]
+  },
+  {
+    "name": "the plain icon carries a size of its own, so a 192 render is a cut 512",
+    "catches": "draws the icons from SVG sources on the one ground, the asking one differing in its ring alone",
+    "edits": [
+      {
+        "file": "lib/chat/icons/icon.svg",
+        "from": "viewBox=\"0 0 512 512\">",
+        "to": "viewBox=\"0 0 512 512\" width=\"512\" height=\"512\">"
+      }
+    ]
+  },
+  {
+    "name": "the script renders on a white ground, so the corners are white",
+    "catches": "draws the icons from SVG sources on the one ground, the asking one differing in its ring alone",
+    "edits": [
+      {
+        "file": "lib/chat/icons/make-icons.sh",
+        "from": "        --default-background-color=00000000 \\\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the script no longer renders the asking icon",
+    "catches": "draws the icons from SVG sources on the one ground, the asking one differing in its ring alone",
+    "edits": [
+      {
+        "file": "lib/chat/icons/make-icons.sh",
+        "from": "render icon-asking.svg 192 192-asking.png\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the tab's icon never changes",
+    "catches": "swaps the tab's icon for the asking one while any panel asks, and back, on every draw",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    const icon = anyAsking(state) ? \"/icons/192-asking.png\" : \"/icons/192.png\";\n    if (favicon.getAttribute(\"href\") !== icon) favicon.setAttribute(\"href\", icon);\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the tab's icon is the asking one while nobody asks",
+    "catches": "swaps the tab's icon for the asking one while any panel asks, and back, on every draw",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    const icon = anyAsking(state) ? \"/icons/192-asking.png\" : \"/icons/192.png\";\n",
+        "to": "    const icon = anyAsking(state) ? \"/icons/192.png\" : \"/icons/192-asking.png\";\n"
+      }
+    ]
+  },
+  {
+    "name": "the tab's icon is set on every draw, changed or not",
+    "catches": "swaps the tab's icon for the asking one while any panel asks, and back, on every draw",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    if (favicon.getAttribute(\"href\") !== icon) favicon.setAttribute(\"href\", icon);\n",
+        "to": "    favicon.setAttribute(\"href\", icon);\n"
+      }
+    ]
+  },
+  {
+    "name": "the manifest lists the asking icon, so an installed app's icon blinks",
+    "catches": "swaps the tab's icon for the asking one while any panel asks, and back, on every draw",
+    "edits": [
+      {
+        "file": "lib/chat/manifest.webmanifest",
+        "from": "    { \"src\": \"/icons/192.png\", \"sizes\": \"192x192\", \"type\": \"image/png\", \"purpose\": \"any\" },\n",
+        "to": "    { \"src\": \"/icons/192.png\", \"sizes\": \"192x192\", \"type\": \"image/png\", \"purpose\": \"any\" },\n    { \"src\": \"/icons/192-asking.png\", \"sizes\": \"192x192\", \"type\": \"image/png\", \"purpose\": \"any\" },\n"
+      }
+    ]
+  },
+  {
+    "name": "the page starts on the asking icon",
+    "catches": "swaps the tab's icon for the asking one while any panel asks, and back, on every draw",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "<link rel=\"icon\" href=\"/icons/192.png\">",
+        "to": "<link rel=\"icon\" href=\"/icons/192-asking.png\">"
+      }
+    ]
+  },
+  {
     "name": "a divider row is drawn as a bubble",
     "catches": "draws a divider row as the pill between two days, built by the one pill function",
     "edits": [

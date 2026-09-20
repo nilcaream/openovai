@@ -1556,6 +1556,19 @@ describe("what the page is made of", () => {
     assert.ok(!source.includes("serviceWorker"));
   });
 
+  // The tab's icon while a panel asks: the same mark with its ring in the warn colour, a fourth
+  // PNG the page swaps in; the manifest's three above are the installed app's, which never blink.
+  it("serves the asking icon the tab shows while a panel asks, a 192 PNG", async () => {
+    const image = await fetch(`${url}/icons/192-asking.png`);
+    assert.equal(image.status, 200);
+    assert.equal(image.headers.get("content-type"), "image/png");
+    const bytes = new Uint8Array(await image.arrayBuffer());
+    assert.deepEqual([...bytes.slice(0, 8)], [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    const view = new DataView(bytes.buffer);
+    assert.equal(`${view.getUint32(16)}x${view.getUint32(20)}`, "192x192");
+    assert.match(source, /<link rel="icon" href="\/icons\/192\.png">/, "the page starts on the plain icon");
+  });
+
   it("carries no lifecycle button and no lifecycle word, and the stop glyph is its one lifecycle control", () => {
     const { words } = JSON.parse(fs.readFileSync(path.join(repo, "tests", "forbidden-words.json"), "utf8"));
     for (const [name, text] of [["page.html", source], ...modules]) {
