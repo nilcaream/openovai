@@ -131,8 +131,8 @@
   .msg.pending .bubble { background: var(--pending); border-style: dashed; color: var(--fg-dim); }
   .msg.failed .bubble { border-color: var(--bad); }
   /* a message between two sessions on the Leader's panel: one ground for what went to a session, another for what came from one;
-     the rows that fold — these two and what one Worker said to another — carry the pointer */
-  .msg.peer-in, .msg.peer-out, .msg.overheard { cursor: pointer; }
+     a folded row with something under its fold — marked so once it is measured on the page — carries the pointer */
+  .msg.foldable { cursor: pointer; }
   .msg.peer-in .bubble, .msg.peer-out .bubble { overflow-wrap: anywhere; }
   .msg.peer-in .bubble { background: var(--from); border-color: var(--from-line); }
   .msg.peer-out .bubble { background: var(--to); border-color: var(--to-line); }
@@ -348,13 +348,14 @@
       showFollow();
     });
     showFollow();
-    // Whenever the rows change size: the stamps are measured again for the width, and for the
-    // height a panel that follows is pinned to its newest row again — the bottom area under the
+    // Whenever the rows change size: the stamps and the folds are measured again for the width, and
+    // for the height a panel that follows is pinned to its newest row again — the bottom area under the
     // rows grows with a taller box or a card, the window is resized, and the rows keep their
     // scroll position and would lose their last lines under the bottom area otherwise. One that
     // does not follow is left exactly where the reader has it.
     new ResizeObserver(() => {
       fitStamps(rows.querySelectorAll(".t"));
+      fitFolds(rows.querySelectorAll(".msg.collapsed"));
       if (view.follow) rows.scrollTop = rows.scrollHeight;
     }).observe(rows);
     // One click handler for every copy button the rows will hold: the code inside the button's
@@ -508,6 +509,20 @@
     if (st !== null && st.dataset.glyph !== undefined) st.textContent = short ? st.dataset.glyph : st.dataset.whole;
   }
 
+  // Whether a folded row has anything under its fold: its body, clamped to one line, is taller
+  // inside than it shows, or it is not. Measured once the row is on the page, for the rows a draw
+  // appended, and again for every folded row when the rows change size, since a body that fit one
+  // width may not fit another. The mark is a class on the row — the pointer rule is under it, and
+  // the double click answers only there. A row already open is left with the mark it was opened
+  // with: unclamped, its body has nothing to measure.
+  function fitFolds(folded) {
+    for (const row of folded) {
+      if (!row.classList.contains("collapsed")) continue;
+      const body = row.querySelector(".md");
+      row.classList.toggle("foldable", body.scrollHeight > body.clientHeight);
+    }
+  }
+
   // The pill between two days, and the one between two sessions: the same pill, a word on it.
   function pill(word) {
     const element = document.createElement("div");
@@ -581,7 +596,8 @@
   // the HTML of a reply or the words of anyone else as they are. A tool call is a line instead.
   // A message the Leader sent carries what became of it as a glyph in the label row, after the
   // stamp in the DOM and before it on screen; its body is the compact markdown, one line of it
-  // until a double click opens the row and a second one folds it again — nothing is stored, so a
+  // until a double click opens the row and a second one folds it again — where there is more than
+  // the line, which the draw measures once the row is on the page; nothing is stored, so a
   // fresh page folds every one. A message between two sessions carries its id on the row, for a
   // click on the line the other panel draws for it, and what one Worker said to another is drawn
   // and folded the same way. The User's words — typed on a panel, or to a Worker — are shown
@@ -646,7 +662,9 @@
     line.append(bubble);
     if (shown.kind === "peer-in" || shown.kind === "peer-out" || shown.kind === "overheard") {
       line.classList.add("collapsed");
-      line.addEventListener("dblclick", () => line.classList.toggle("collapsed"));
+      line.addEventListener("dblclick", () => {
+        if (line.classList.contains("foldable")) line.classList.toggle("collapsed");
+      });
     }
     time.title = REFERENCE;
     time.addEventListener("click", () => pointAt(panel, time, shown.who, body));
@@ -824,10 +842,11 @@
       }
       // Whether any row landed — a bubble, a pill, a tool line, or a repeated call that only grew
       // its counter — is what decides the scroll; the stamps appended are for the fitter alone,
-      // since a tool line carries no stamp.
+      // since a tool line carries no stamp, and the rows appended folded are for the fold's measure.
       let landed = false;
       panel.empty.hidden = about.rows.length > 0;
       const added = [];
+      const folded = [];
       if (about.rows.length > panel.shown) {
         // A Worker panel keeps its last hundred rows, so its first draw starts there: a long log
         // builds a hundred elements, not thousands. The Leader's panel draws every row it holds.
@@ -868,8 +887,10 @@
           }
           const time = line.querySelector(".t");
           if (time !== null) added.push(time);
+          if (line.classList.contains("collapsed")) folded.push(line);
         }
         fitStamps(added);
+        fitFolds(folded);
         panel.shown = about.rows.length;
         // A Worker panel keeps a hundred drawn rows — bubbles, lines and pills; the empty box is
         // not a row — and lets the oldest go, with the lines it no longer holds.

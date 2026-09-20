@@ -241,15 +241,13 @@ describe("the rules", () => {
     assert.equal(folded.declarations.overflow, "hidden");
   });
 
-  // The rows that fold and unfold on a double click — a message to a Worker, a message from one,
-  // and what one Worker said to another — carry the pointer, folded or open, so the mouse says
-  // the row answers a click; no other row does.
-  it("carry the pointer over the rows that fold on a double click, and over no other row", () => {
+  // The pointer is over a row with something under its fold — the mark the page sets once the
+  // row is measured — folded or open, so the mouse says the row answers a click. A row of a fold
+  // kind whose body fits its one line carries none: a double click would change nothing there.
+  it("carry the pointer over the rows marked as having something to fold, and over no other row", () => {
     const pointing = (selector) => rules.some((rule) => rule.selector.split(",").map((part) => part.trim()).includes(selector) && rule.declarations.cursor === "pointer");
-    assert.ok(pointing(".msg.peer-in"), "a message from a Worker carries the pointer");
-    assert.ok(pointing(".msg.peer-out"), "a message to a Worker carries the pointer");
-    assert.ok(pointing(".msg.overheard"), "what one Worker said to another carries the pointer");
-    for (const other of [".msg", ".msg.user", ".msg.typed", ".msg.perm", ".msg.collapsed"]) assert.ok(!pointing(other), `${other} carries no pointer`);
+    assert.ok(pointing(".msg.foldable"), "a row with something under its fold carries the pointer");
+    for (const other of [".msg", ".msg.user", ".msg.typed", ".msg.peer-in", ".msg.peer-out", ".msg.overheard", ".msg.perm", ".msg.collapsed"]) assert.ok(!pointing(other), `${other} carries no pointer of itself`);
   });
 
   it("make the stamp a click, and say so under the pointer", () => {
@@ -606,7 +604,7 @@ describe("the script", () => {
     assert.match(script, /function fitStamps\(stamps\) \{\s*for \(const time of stamps\) setStamp\(time, false\);\s*const cut = \[\.\.\.stamps\]\.filter\(\(time\) => \{ const label = time\.parentElement\.querySelector\("\.lbl"\); return label\.scrollWidth > label\.clientWidth; \}\);\s*for \(const time of cut\) setStamp\(time, true\);\s*\}/);
     assert.match(script, /function setStamp\(time, short\) \{\s*time\.textContent = short \? time\.dataset\.clock : time\.dataset\.whole;\s*const st = time\.parentElement\.querySelector\("\.st"\);\s*if \(st !== null && st\.dataset\.glyph !== undefined\) st\.textContent = short \? st\.dataset\.glyph : st\.dataset\.whole;\s*\}/);
     assert.match(script, /new ResizeObserver\(\(\) => \{\s*fitStamps\(rows\.querySelectorAll\("\.t"\)\);/);
-    assert.match(script, /if \(time !== null\) added\.push\(time\);\s*\}\s*fitStamps\(added\);\s*panel\.shown = about\.rows\.length;/, "the appended rows are fitted once, after the loop");
+    assert.match(script, /if \(time !== null\) added\.push\(time\);\s*(?:[^\n]*\n)?\s*\}\s*fitStamps\(added\);\s*(?:fitFolds\(folded\);\s*)?panel\.shown = about\.rows\.length;/, "the appended rows are fitted once, after the loop");
   });
 
   // A tool line has no stamp: what the loop pushes to the fitter is the stamp it found, never a
@@ -652,13 +650,25 @@ describe("the script", () => {
     assert.doesNotMatch(script, /localStorage[^\n]*collapsed|collapsed[^\n]*localStorage/, "nothing about the fold is stored");
   });
 
-  // A double click on the row opens it, and the next folds it again; a single click does nothing
-  // to it — it is what selects a word, and the stamp's click points at the row — and there is no
-  // word under the row that opens it.
+  // A double click on a row with something under its fold opens it, and the next folds it again;
+  // a row whose body fits answers no double click, since there is nothing to open. A single click
+  // does nothing to a row — it is what selects a word, and the stamp's click points at the row —
+  // and there is no word under the row that opens it.
   it("opens a folded message on a double click, folds it again on the next, and on nothing else", () => {
-    assert.match(script, /line\.addEventListener\("dblclick", \(\) => line\.classList\.toggle\("collapsed"\)\);/);
+    assert.match(script, /line\.addEventListener\("dblclick", \(\) => \{\n\s*if \(line\.classList\.contains\("foldable"\)\) line\.classList\.toggle\("collapsed"\);\n\s*\}\);/, "the toggle, under the mark of something to fold");
     assert.doesNotMatch(script, /(?:addEventListener\("click"|onclick)[^\n]*collapsed/, "a single click never folds or opens a row");
     assert.doesNotMatch(script, /show all|collapsible\(|"more"/, "no word under the row opens it");
+  });
+
+  // Whether a folded row has anything under its fold is measured once the row is on the page —
+  // its body taller than the one line it is clamped to, or not — for the rows a draw appended,
+  // and again for every folded row at each change of the rows' size, as the stamps are: a body
+  // that fit one width may not fit another. The mark is a class on the row, the one the pointer
+  // rule is under; a row already open keeps the mark it was opened with.
+  it("marks a folded row as having something to fold by its clamped body's overflow, once it is on the page and at every change of the rows' size", () => {
+    assert.match(script, /function fitFolds\(folded\) \{\n\s*for \(const row of folded\) \{\n\s*if \(!row\.classList\.contains\("collapsed"\)\) continue;\n\s*const body = row\.querySelector\("\.md"\);\n\s*row\.classList\.toggle\("foldable", body\.scrollHeight > body\.clientHeight\);/, "the clamped body's scroll height against its client height, on the folded rows alone");
+    assert.match(script, /if \(line\.classList\.contains\("collapsed"\)\) folded\.push\(line\);\n(?:[^\n]*\n)*?\s*fitFolds\(folded\);\n\s*panel\.shown = about\.rows\.length;/, "the rows a draw appended are measured after they are on the page, once, after the loop");
+    assert.match(script, /new ResizeObserver\(\(\) => \{\n(?:[^\n]*\n)*?\s*fitFolds\(rows\.querySelectorAll\("\.msg\.collapsed"\)\);/, "and every folded row again when the rows change size");
   });
 
   // A message between sessions is folded — to the Leader, from the Leader, or between two Workers
@@ -709,7 +719,7 @@ describe("the script", () => {
   // panel short of its end, where the next scroll of the rows would let it go.
   it("pins a following panel on any row that landed, a tool line and a counter too, never on the stamps alone", () => {
     const draw = script.slice(script.indexOf("function drawPanel(panel)"), script.indexOf("// ------------------------------------------------------------------------------- the page"));
-    assert.match(draw, /let landed = false;\s*panel\.empty\.hidden = about\.rows\.length > 0;\s*const added = \[\];\s*if \(about\.rows\.length > panel\.shown\) \{/, "the word is set before any row is drawn, beside the stamps list");
+    assert.match(draw, /let landed = false;\s*panel\.empty\.hidden = about\.rows\.length > 0;\s*const added = \[\];\s*const folded = \[\];\s*if \(about\.rows\.length > panel\.shown\) \{/, "the word is set before any row is drawn, beside the stamps list and the folded list");
     assert.match(draw, /panel\.last\.n\.textContent = ` ×\$\{panel\.last\.count\}`;\s*landed = true;/, "a counter that grew is a row that landed");
     assert.match(draw, /panel\.rows\.append\(line\);\s*landed = true;/, "an element appended is a row that landed");
     assert.match(draw, /if \(landed\) \{\s*if \(follows\) \{\s*panel\.rows\.scrollTop = panel\.rows\.scrollHeight;/, "the pin hangs on the word");

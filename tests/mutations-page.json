@@ -565,8 +565,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      panel.empty.hidden = about.rows.length > 0;\n      const added = [];\n      if (about.rows.length > panel.shown) {\n",
-        "to": "      panel.empty.hidden = about.rows.length > 0;\n      const added = [];\n      if (panel.jump !== null && panel.jump !== panel.rows.lastElementChild) panel.rows.append(panel.jump);\n      if (about.rows.length > panel.shown) {\n"
+        "from": "      panel.empty.hidden = about.rows.length > 0;\n      const added = [];\n      const folded = [];\n      if (about.rows.length > panel.shown) {\n",
+        "to": "      panel.empty.hidden = about.rows.length > 0;\n      const added = [];\n      const folded = [];\n      if (panel.jump !== null && panel.jump !== panel.rows.lastElementChild) panel.rows.append(panel.jump);\n      if (about.rows.length > panel.shown) {\n"
       },
       {
         "file": "lib/chat/page.html",
@@ -680,8 +680,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "        fitStamps(added);\n        panel.shown = about.rows.length;",
-        "to": "        panel.shown = about.rows.length;"
+        "from": "        fitStamps(added);\n        fitFolds(folded);\n        panel.shown = about.rows.length;",
+        "to": "        fitFolds(folded);\n        panel.shown = about.rows.length;"
       }
     ]
   },
@@ -843,11 +843,6 @@
     "name": "the peer kinds are emitted while their rules are gone",
     "catches": "give every class the page emits at least one rule",
     "edits": [
-      {
-        "file": "lib/chat/page.html",
-        "from": "  .msg.peer-in, .msg.peer-out, .msg.overheard { cursor: pointer; }\n",
-        "to": ""
-      },
       {
         "file": "lib/chat/page.html",
         "from": "  .msg.peer-in .bubble, .msg.peer-out .bubble { overflow-wrap: anywhere; }\n",
@@ -1168,8 +1163,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      line.addEventListener(\"dblclick\", () => line.classList.toggle(\"collapsed\"));",
-        "to": "      line.addEventListener(\"click\", () => line.classList.toggle(\"collapsed\"));"
+        "from": "      line.addEventListener(\"dblclick\", () => {\n        if (line.classList.contains(\"foldable\")) line.classList.toggle(\"collapsed\");\n      });",
+        "to": "      line.addEventListener(\"click\", () => {\n        if (line.classList.contains(\"foldable\")) line.classList.toggle(\"collapsed\");\n      });"
       }
     ]
   },
@@ -1179,8 +1174,63 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      line.addEventListener(\"dblclick\", () => line.classList.toggle(\"collapsed\"));",
-        "to": "      line.addEventListener(\"dblclick\", () => line.classList.remove(\"collapsed\"));"
+        "from": "      line.addEventListener(\"dblclick\", () => {\n        if (line.classList.contains(\"foldable\")) line.classList.toggle(\"collapsed\");\n      });",
+        "to": "      line.addEventListener(\"dblclick\", () => {\n        if (line.classList.contains(\"foldable\")) line.classList.remove(\"collapsed\");\n      });"
+      }
+    ]
+  },
+  {
+    "name": "a double click toggles a folded row whether or not there is anything under its fold",
+    "catches": "opens a folded message on a double click, folds it again on the next, and on nothing else",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      line.addEventListener(\"dblclick\", () => {\n        if (line.classList.contains(\"foldable\")) line.classList.toggle(\"collapsed\");\n      });",
+        "to": "      line.addEventListener(\"dblclick\", () => {\n        line.classList.toggle(\"collapsed\");\n      });"
+      }
+    ]
+  },
+  {
+    "name": "a body exactly as tall as its clamped line counts as something to fold",
+    "catches": "marks a folded row as having something to fold by its clamped body's overflow, once it is on the page and at every change of the rows' size",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      row.classList.toggle(\"foldable\", body.scrollHeight > body.clientHeight);",
+        "to": "      row.classList.toggle(\"foldable\", body.scrollHeight >= body.clientHeight);"
+      }
+    ]
+  },
+  {
+    "name": "an open row is measured too, and loses its mark since nothing is clamped",
+    "catches": "marks a folded row as having something to fold by its clamped body's overflow, once it is on the page and at every change of the rows' size",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      if (!row.classList.contains(\"collapsed\")) continue;\n      const body = row.querySelector(\".md\");",
+        "to": "      const body = row.querySelector(\".md\");"
+      }
+    ]
+  },
+  {
+    "name": "the rows a draw appended are never measured for their folds",
+    "catches": "marks a folded row as having something to fold by its clamped body's overflow, once it is on the page and at every change of the rows' size",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "        fitStamps(added);\n        fitFolds(folded);\n",
+        "to": "        fitStamps(added);\n"
+      }
+    ]
+  },
+  {
+    "name": "a change of the rows' size measures the stamps again but not the folds",
+    "catches": "marks a folded row as having something to fold by its clamped body's overflow, once it is on the page and at every change of the rows' size",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      fitStamps(rows.querySelectorAll(\".t\"));\n      fitFolds(rows.querySelectorAll(\".msg.collapsed\"));\n",
+        "to": "      fitStamps(rows.querySelectorAll(\".t\"));\n"
       }
     ]
   },
@@ -1311,24 +1361,24 @@
     ]
   },
   {
-    "name": "the rows that fold on a double click lose the pointer",
-    "catches": "carry the pointer over the rows that fold on a double click, and over no other row",
+    "name": "the rows marked as having something to fold lose the pointer",
+    "catches": "carry the pointer over the rows marked as having something to fold, and over no other row",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "  .msg.peer-in, .msg.peer-out, .msg.overheard { cursor: pointer; }",
-        "to": "  .msg.peer-in, .msg.peer-out, .msg.overheard { cursor: default; }"
+        "from": "  .msg.foldable { cursor: pointer; }",
+        "to": "  .msg.foldable { cursor: default; }"
       }
     ]
   },
   {
-    "name": "what one Worker said to another folds but carries no pointer",
-    "catches": "carry the pointer over the rows that fold on a double click, and over no other row",
+    "name": "every row of a fold kind carries the pointer, whether or not there is anything under its fold",
+    "catches": "carry the pointer over the rows marked as having something to fold, and over no other row",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "  .msg.peer-in, .msg.peer-out, .msg.overheard { cursor: pointer; }",
-        "to": "  .msg.peer-in, .msg.peer-out { cursor: pointer; }"
+        "from": "  .msg.foldable { cursor: pointer; }",
+        "to": "  .msg.foldable, .msg.peer-in, .msg.peer-out, .msg.overheard { cursor: pointer; }"
       }
     ]
   },
