@@ -1,0 +1,222 @@
+#!/bin/sh
+#
+# openovai — the command that installs an OpenOv AI instance.
+#
+# One file, two modes.
+#
+# Read from a pipe — `curl -fsSL https://raw.githubusercontent.com/nilcaream/openovai/main/openovai | sh`
+# — it installs itself: a copy at $XDG_DATA_HOME/openovai/openovai (~/.local/share when the
+# variable is unset), linked as ~/.local/bin/openovai, and one line saying each. When ~/.local/bin
+# is not on the PATH it prints the one line to add to the shell profile; it never edits a file of
+# yours. A shell reading a script from a pipe keeps none of the text for the script to copy, so
+# the copy is fetched from the same address the pipe came from, and refused unless it is this
+# script.
+#
+# Run from that place it does its job:
+#
+#   openovai [X.Y.Z | --version X.Y.Z] [arguments for the installer...]
+#
+# The version is the one option of its own. Absent, it is the newest release, read from where
+# github.com/nilcaream/openovai/releases/latest redirects to. It says which version it took before
+# doing anything else, fetches that release into <data>/releases/<version>/ unless it is already
+# there, and hands over to the release's own install.sh with `--source <that directory>` and every
+# other argument passed on unchanged. With no arguments at all the installer asks its own
+# questions; the version is the only one asked here, and only when there is a terminal to ask on.
+# Nothing is remembered between runs: the next instance simply gets the newest release, said out
+# loud, and how a version installs itself is that version's business.
+#
+# Needs sh, curl or wget, and tar. OPENOVAI_RELEASES points everything at another base — a mirror,
+# or a directory served for a test — in place of github.com/nilcaream/openovai.
+
+set -eu
+
+say() { printf '%s\n' "$*"; }
+die() { printf 'openovai: %s\n' "$*" >&2; exit 1; }
+
+# The line by which this script knows a file to be itself: the file at $0 when run from its place,
+# the copy fetched when installing.
+marker="the command that installs an OpenOv AI instance"
+
+if [ -n "${OPENOVAI_RELEASES:-}" ]; then
+    origin="${OPENOVAI_RELEASES}"
+    self_url="${OPENOVAI_RELEASES}/openovai"
+else
+    origin="https://github.com/nilcaream/openovai"
+    self_url="https://raw.githubusercontent.com/nilcaream/openovai/main/openovai"
+fi
+
+# The XDG data directory: $XDG_DATA_HOME, and ~/.local/share when it is unset or empty.
+data_dir() {
+    printf '%s/openovai\n' "${XDG_DATA_HOME:-${HOME}/.local/share}"
+}
+
+is_version() {
+    printf '%s\n' "$1" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'
+}
+
+# curl or wget, whichever is there. Quiet either way: on failure the one line said here names the
+# URL, which is what there is to act on.
+fetch() {
+    url="$1"
+    into="$2"
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsL -o "${into}" "${url}" || die "could not download ${url}"
+    elif command -v wget >/dev/null 2>&1; then
+        wget -q -O "${into}" "${url}" || die "could not download ${url}"
+    else
+        die "curl or wget is required to download ${url}, and neither is on your PATH"
+    fi
+}
+
+# Where URL redirects to, without following it; nothing when it does not redirect or cannot be
+# reached, which the caller refuses in its own words.
+redirect_of() {
+    url="$1"
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsS -o /dev/null -w '%{redirect_url}' "${url}" 2>/dev/null || true
+    elif command -v wget >/dev/null 2>&1; then
+        wget --max-redirect=0 -S -O /dev/null "${url}" 2>&1 | sed -n 's/^ *Location: *//p' | sed 's/ \[following\]$//' | head -n 1
+    else
+        die "curl or wget is required to read ${url}, and neither is on your PATH"
+    fi
+}
+
+# The newest release: the tag that releases/latest redirects to, without its v.
+latest_version() {
+    url="${origin}/releases/latest"
+    found="$(redirect_of "${url}")"
+    found="${found##*/}"
+    found="${found#v}"
+    is_version "${found}" || die "could not tell the latest release from ${url}: it did not redirect to a tag like v1.2.3"
+    printf '%s\n' "${found}"
+}
+
+# The one question asked here, when nothing was said and there is a terminal to ask on: latest, or
+# one of the versions already fetched. Empty means latest.
+ask_version() {
+    fetched=""
+    for one in "$(data_dir)/releases"/*/; do
+        one="${one%/}"
+        one="${one##*/}"
+        if is_version "${one}"; then
+            fetched="${fetched}${one} "
+        fi
+    done
+    printf 'Which version? latest %s[latest]: ' "${fetched}" >&2
+    read -r answer || answer=""
+    case "${answer}" in
+        "" | latest) ;;
+        *)
+            is_version "${answer}" || die "\"${answer}\" is not a version like 1.2.3"
+            printf '%s\n' "${answer}"
+            ;;
+    esac
+}
+
+cleanup() {
+    rm -rf "${work-}"
+}
+trap cleanup EXIT
+
+# The release's source archive, unpacked into <data>/releases/<version>/ with one rename at the end,
+# so a run that stops halfway leaves nothing at the place the next run looks.
+ensure_release() {
+    version="$1"
+    target="$(data_dir)/releases/${version}"
+    if [ -e "${target}" ]; then
+        [ -f "${target}/install.sh" ] || die "${target} is there but has no install.sh; remove the directory and run this again"
+        say "Release ${version} already in ${target}"
+        return 0
+    fi
+
+    url="${origin}/archive/refs/tags/v${version}.tar.gz"
+    work="$(data_dir)/tmp/release-${version}.$$"
+    rm -rf "${work}"
+    mkdir -p "${work}/unpacked"
+
+    say "Fetching release ${version} from ${url} into ${target}"
+    fetch "${url}" "${work}/release.tar.gz"
+    tar -xzf "${work}/release.tar.gz" -C "${work}/unpacked" --strip-components=1 || die "v${version}.tar.gz could not be opened"
+    [ -f "${work}/unpacked/install.sh" ] || die "release ${version} has no install.sh; there is nothing to hand over to"
+
+    mkdir -p "$(data_dir)/releases"
+    [ -e "${target}" ] || mv "${work}/unpacked" "${target}"
+    rm -rf "${work}"
+    say "Release ${version} in ${target}"
+}
+
+main() {
+    command -v tar >/dev/null 2>&1 || die "tar is required to unpack a release, and it is not on your PATH"
+    command -v curl >/dev/null 2>&1 || command -v wget >/dev/null 2>&1 ||
+        die "curl or wget is required to download a release, and neither is on your PATH"
+
+    version=""
+    if [ $# -gt 0 ] && is_version "$1"; then
+        version="$1"
+        shift
+    elif [ "${1-}" = "--version" ]; then
+        if [ $# -lt 2 ] || ! is_version "$2"; then
+            die "--version takes a version like 1.2.3"
+        fi
+        version="$2"
+        shift 2
+    fi
+
+    if [ -z "${version}" ] && [ $# -eq 0 ] && [ -t 0 ]; then
+        version="$(ask_version)"
+    fi
+
+    if [ -z "${version}" ]; then
+        version="$(latest_version)"
+        say "openovai ${version} (latest)"
+    else
+        say "openovai ${version}"
+    fi
+
+    ensure_release "${version}"
+    release="$(data_dir)/releases/${version}"
+    [ -x "${release}/install.sh" ] || die "${release}/install.sh is not runnable"
+    say "Handing over to ${release}/install.sh"
+    exec "${release}/install.sh" --source "${release}" "$@"
+}
+
+# Read from a pipe: this script is not at $0 and stdin is not a terminal. The copy comes from the
+# address the pipe came from, and is refused unless it is this script.
+install_self() {
+    data="$(data_dir)"
+    target="${data}/openovai"
+    bin="${HOME}/.local/bin"
+    mkdir -p "${data}" "${bin}"
+    work="${data}/openovai.download"
+    fetch "${self_url}" "${work}"
+    grep -qF -- "${marker}" "${work}" || die "what ${self_url} served is not the openovai command"
+    chmod 755 "${work}"
+    mv "${work}" "${target}"
+    say "Installed openovai at ${target}"
+    ln -sf "${target}" "${bin}/openovai"
+    say "Linked ${bin}/openovai"
+    case ":${PATH}:" in
+        *":${bin}:"*)
+            say "Now run: openovai"
+            ;;
+        *)
+            say "${bin} is not on your PATH. Add this line to your shell profile (~/.profile, ~/.bashrc or ~/.zshrc), then open a new terminal:"
+            # The line is printed for the profile to expand, not expanded here.
+            # shellcheck disable=SC2016
+            say '  export PATH="$HOME/.local/bin:$PATH"'
+            say "Then run: openovai"
+            ;;
+    esac
+}
+
+[ -n "${HOME:-}" ] || die "HOME is not set"
+system="$(uname -s)"
+[ "${system}" = "Linux" ] || die "only Linux is supported, and this is ${system}"
+
+if [ -f "$0" ] && grep -qF -- "${marker}" "$0"; then
+    main "$@"
+elif [ -t 0 ]; then
+    die "run this from a pipe (curl -fsSL ${self_url} | sh) or from where it is installed"
+else
+    install_self
+fi

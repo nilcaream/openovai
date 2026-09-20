@@ -1,0 +1,127 @@
+[
+  {
+    "name": "any argument starting with a digit is taken for a version",
+    "catches": "refuses --version without a version like 1.2.3",
+    "edits": [{ "file": "openovai", "from": "grep -Eq '^[0-9]+\\.[0-9]+\\.[0-9]+$'", "to": "grep -Eq '^[0-9]'" }]
+  },
+  {
+    "name": "the newest release is not said to be the latest",
+    "catches": "takes the newest release from where releases/latest redirects, and says so first",
+    "edits": [{ "file": "openovai", "from": "say \"openovai ${version} (latest)\"", "to": "say \"openovai ${version}\"" }]
+  },
+  {
+    "name": "the tag's v is kept, so the latest is never a version",
+    "catches": "takes the newest release from where releases/latest redirects, and says so first",
+    "edits": [{ "file": "openovai", "from": "    found=\"${found#v}\"\n", "to": "" }]
+  },
+  {
+    "name": "the redirect is not read through wget",
+    "catches": "resolves the latest through wget when there is no curl",
+    "edits": [{ "file": "openovai", "from": "wget --max-redirect=0 -S -O /dev/null \"${url}\" 2>&1 | sed -n 's/^ *Location: *//p' | sed 's/ \\[following\\]$//' | head -n 1", "to": "printf ''" }]
+  },
+  {
+    "name": "a page at releases/latest is read as a redirect to nothing and taken",
+    "catches": "refuses a releases/latest that does not redirect to a tag",
+    "edits": [{ "file": "openovai", "from": "    is_version \"${found}\" || die \"could not tell the latest release from ${url}: it did not redirect to a tag like v1.2.3\"\n", "to": "    is_version \"${found}\" || found=\"9.9.9\"\n" }]
+  },
+  {
+    "name": "a release that is already there is fetched again",
+    "catches": "fetches a release once and reuses it",
+    "edits": [{ "file": "openovai", "from": "        say \"Release ${version} already in ${target}\"\n        return 0\n", "to": "        rm -rf \"${target}\"\n" }]
+  },
+  {
+    "name": "the installer is handed nothing but --source",
+    "catches": "passes every other argument through unchanged",
+    "edits": [{ "file": "openovai", "from": "exec \"${release}/install.sh\" --source \"${release}\" \"$@\"", "to": "exec \"${release}/install.sh\" --source \"${release}\"" }]
+  },
+  {
+    "name": "the installer is not told where its release is",
+    "catches": "hands the installer its own release directory as --source",
+    "edits": [{ "file": "openovai", "from": "exec \"${release}/install.sh\" --source \"${release}\" \"$@\"", "to": "exec \"${release}/install.sh\" \"$@\"" }]
+  },
+  {
+    "name": "a release without install.sh is put in place and handed over to",
+    "catches": "refuses a release without install.sh, and leaves nothing behind",
+    "edits": [{ "file": "openovai", "from": "    [ -f \"${work}/unpacked/install.sh\" ] || die \"release ${version} has no install.sh; there is nothing to hand over to\"\n", "to": "" }]
+  },
+  {
+    "name": "a fetch that fails leaves its working directory behind",
+    "catches": "refuses a release without install.sh, and leaves nothing behind",
+    "edits": [{ "file": "openovai", "from": "trap cleanup EXIT\n", "to": "" }]
+  },
+  {
+    "name": "a 404 is downloaded as if it were the archive",
+    "catches": "refuses a download that fails, in one line",
+    "edits": [{ "file": "openovai", "from": "curl -fsL -o \"${into}\"", "to": "curl -sL -o \"${into}\"" }]
+  },
+  {
+    "name": "a release directory without install.sh is reused",
+    "catches": "refuses a release directory that is there without install.sh",
+    "edits": [{ "file": "openovai", "from": "        [ -f \"${target}/install.sh\" ] || die \"${target} is there but has no install.sh; remove the directory and run this again\"\n", "to": "" }]
+  },
+  {
+    "name": "any operating system is taken for Linux",
+    "catches": "refuses anything but Linux in one line",
+    "edits": [{ "file": "openovai", "from": "[ \"${system}\" = \"Linux\" ] || die \"only Linux is supported, and this is ${system}\"\n", "to": "" }]
+  },
+  {
+    "name": "tar is not looked for before the download",
+    "catches": "refuses to run without tar",
+    "edits": [{ "file": "openovai", "from": "    command -v tar >/dev/null 2>&1 || die \"tar is required to unpack a release, and it is not on your PATH\"\n", "to": "" }]
+  },
+  {
+    "name": "curl and wget are not looked for before the download",
+    "catches": "refuses to run without curl or wget",
+    "edits": [{ "file": "openovai", "from": "    command -v curl >/dev/null 2>&1 || command -v wget >/dev/null 2>&1 ||\n        die \"curl or wget is required to download a release, and neither is on your PATH\"\n", "to": "" }]
+  },
+  {
+    "name": "the question is asked with no terminal to ask on",
+    "catches": "asks nothing when there is no terminal, or when anything was said",
+    "edits": [{ "file": "openovai", "from": "[ $# -eq 0 ] && [ -t 0 ]; then", "to": "[ $# -eq 0 ]; then" }]
+  },
+  {
+    "name": "the question is never asked",
+    "catches": "asks which version when nothing was said and there is a terminal to ask on",
+    "edits": [{ "file": "openovai", "from": "    if [ -z \"${version}\" ] && [ $# -eq 0 ] && [ -t 0 ]; then\n        version=\"$(ask_version)\"\n    fi\n", "to": "" }]
+  },
+  {
+    "name": "an empty answer is refused rather than taken as the latest",
+    "catches": "takes an empty answer as the latest",
+    "edits": [{ "file": "openovai", "from": "        \"\" | latest) ;;", "to": "        latest) ;;" }]
+  },
+  {
+    "name": "the copy is not made runnable",
+    "catches": "installs itself, links it into ~/.local/bin, and says how to put that on the PATH",
+    "edits": [{ "file": "openovai", "from": "    chmod 755 \"${work}\"\n", "to": "" }]
+  },
+  {
+    "name": "the copy is not linked into ~/.local/bin",
+    "catches": "runs from its place once installed",
+    "edits": [{ "file": "openovai", "from": "    ln -sf \"${target}\" \"${bin}/openovai\"\n", "to": "" }]
+  },
+  {
+    "name": "the PATH line is printed whether or not ~/.local/bin is on it",
+    "catches": "says nothing about the PATH when ~/.local/bin is on it",
+    "edits": [{ "file": "openovai", "from": "        *\":${bin}:\"*)\n            say \"Now run: openovai\"", "to": "        \"\")\n            say \"Now run: openovai\"" }]
+  },
+  {
+    "name": "the copy goes under ~/.local/share whatever XDG_DATA_HOME says",
+    "catches": "keeps the copy under $XDG_DATA_HOME when the variable is set",
+    "edits": [{ "file": "openovai", "from": "${XDG_DATA_HOME:-${HOME}/.local/share}", "to": "${HOME}/.local/share" }]
+  },
+  {
+    "name": "whatever the address serves is installed as the command",
+    "catches": "refuses a copy that is not this script, and installs nothing",
+    "edits": [{ "file": "openovai", "from": "    grep -qF -- \"${marker}\" \"${work}\" || die \"what ${self_url} served is not the openovai command\"\n", "to": "" }]
+  },
+  {
+    "name": "a piped run is taken for a run from its place",
+    "catches": "installs itself through every sh on this machine alike",
+    "edits": [{ "file": "openovai", "from": "if [ -f \"$0\" ] && grep -qF -- \"${marker}\" \"$0\"; then", "to": "if true; then" }]
+  },
+  {
+    "name": "a terminal with no script at $0 installs the command rather than refusing",
+    "catches": "refuses a terminal with no script at $0, in one line",
+    "edits": [{ "file": "openovai", "from": "elif [ -t 0 ]; then\n    die \"run this from a pipe (curl -fsSL ${self_url} | sh) or from where it is installed\"\n", "to": "" }]
+  }
+]
