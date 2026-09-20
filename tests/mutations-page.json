@@ -2113,19 +2113,52 @@
     ]
   },
   {
-    "name": "the switches are off until the store says on",
-    "catches": "keeps the two switches on the Leader's head, on by default, in storage, and asks the browser only from a switch turned on",
+    "name": "the switches are on unless the store says off",
+    "catches": "keeps the two switches on the Leader's head, off by default, in storage, asks the browser only from a switch turned on, and lights only once granted",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "    try { return localStorage.getItem(NOTIFY[kind].key) !== \"off\"; } catch (error) { return true; }\n",
+        "from": "    try { return localStorage.getItem(NOTIFY[kind].key) === \"on\"; } catch (error) { return false; }\n",
+        "to": "    try { return localStorage.getItem(NOTIFY[kind].key) !== \"off\"; } catch (error) { return false; }\n"
+      }
+    ]
+  },
+  {
+    "name": "the switches are on when there is no store to ask",
+    "catches": "keeps the two switches on the Leader's head, off by default, in storage, asks the browser only from a switch turned on, and lights only once granted",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    try { return localStorage.getItem(NOTIFY[kind].key) === \"on\"; } catch (error) { return false; }\n",
         "to": "    try { return localStorage.getItem(NOTIFY[kind].key) === \"on\"; } catch (error) { return true; }\n"
       }
     ]
   },
   {
+    "name": "the switch lights whatever the browser answered",
+    "catches": "keeps the two switches on the Leader's head, off by default, in storage, asks the browser only from a switch turned on, and lights only once granted",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      if (on && (!(\"Notification\" in window) || Notification.permission !== \"granted\")) on = false;\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the switch lights before the browser has answered",
+    "catches": "keeps the two switches on the Leader's head, off by default, in storage, asks the browser only from a switch turned on, and lights only once granted",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      if (on && \"Notification\" in window && Notification.permission === \"default\") await Notification.requestPermission();\n",
+        "to": "      if (on && \"Notification\" in window && Notification.permission === \"default\") Notification.requestPermission();\n"
+      }
+    ]
+  },
+  {
     "name": "the browser is asked for its permission at load",
-    "catches": "keeps the two switches on the Leader's head, on by default, in storage, and asks the browser only from a switch turned on",
+    "catches": "keeps the two switches on the Leader's head, off by default, in storage, asks the browser only from a switch turned on, and lights only once granted",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -2158,7 +2191,7 @@
   },
   {
     "name": "the two switches share one storage key",
-    "catches": "keeps the two switches on the Leader's head, on by default, in storage, and asks the browser only from a switch turned on",
+    "catches": "keeps the two switches on the Leader's head, off by default, in storage, asks the browser only from a switch turned on, and lights only once granted",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -2169,7 +2202,7 @@
   },
   {
     "name": "the end-of-turn switch's tooltip says it notifies while it is off",
-    "catches": "keeps the two switches on the Leader's head, on by default, in storage, and asks the browser only from a switch turned on",
+    "catches": "keeps the two switches on the Leader's head, off by default, in storage, asks the browser only from a switch turned on, and lights only once granted",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -2180,7 +2213,7 @@
   },
   {
     "name": "the tooltip is the same whichever way the switch is",
-    "catches": "keeps the two switches on the Leader's head, on by default, in storage, and asks the browser only from a switch turned on",
+    "catches": "keeps the two switches on the Leader's head, off by default, in storage, asks the browser only from a switch turned on, and lights only once granted",
     "edits": [
       {
         "file": "lib/chat/page.html",

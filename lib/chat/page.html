@@ -276,12 +276,15 @@
   // do with a notification.
   //
   // Two switches, on the Leader's head after the theme toggle, are the whole of the configuration:
-  // one for the action-needed notification, one for the end-of-turn notification, each on unless
-  // the browser's storage says off — and on when there is no storage to ask, the way the theme is
-  // light then. Each is an icon button in the theme toggle's style: an exclamation mark in a
-  // circle for the first, a bell for the second, lit while on and slashed across while off, the
+  // one for the action-needed notification, one for the end-of-turn notification, each off until
+  // the browser's storage says on — off when the storage says anything else, and off when there is
+  // no storage to ask. Each is an icon button in the theme toggle's style: an exclamation mark in
+  // a circle for the first, a bell for the second, lit while on and slashed across while off, the
   // tooltip saying which. The browser's own permission is asked from the click that turns a switch
-  // on, as browsers require, and from nowhere else.
+  // on, as browsers require, and from nowhere else; and the switch lights only once the browser
+  // has granted it — a prompt refused or dismissed, a browser that refused before, or a browser
+  // with no notifications at all leaves the switch off, so the icon never claims what the browser
+  // will not do.
   const ALERT = '<svg class="lit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 7.5v5.5M12 16.5h.01"/></svg>';
   const ALERT_SLASHED = '<svg class="slashed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5.3 5.3A9.5 9.5 0 0 0 18.7 18.7M8.3 3.2a9.5 9.5 0 0 1 12.5 12.5M12 7.5v5.5M12 16.5h.01M3 3l18 18"/></svg>';
   const BELL = '<svg class="lit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/></svg>';
@@ -291,7 +294,7 @@
     [REPLY]: { key: "openovai-notify-turn", label: "End-of-turn notifications", icons: BELL + BELL_SLASHED, on: "Notifying when the Leader finishes a turn while this page is not visible — click to stop", off: "Not notifying when the Leader finishes a turn — click to start" },
   };
   function notifyOn(kind) {
-    try { return localStorage.getItem(NOTIFY[kind].key) !== "off"; } catch (error) { return true; }
+    try { return localStorage.getItem(NOTIFY[kind].key) === "on"; } catch (error) { return false; }
   }
   function notifySwitch(kind) {
     const button = document.createElement("button");
@@ -304,10 +307,11 @@
       button.classList.toggle("on", on);
       button.title = on ? NOTIFY[kind].on : NOTIFY[kind].off;
     };
-    button.addEventListener("click", () => {
-      const on = !notifyOn(kind);
+    button.addEventListener("click", async () => {
+      let on = !notifyOn(kind);
+      if (on && "Notification" in window && Notification.permission === "default") await Notification.requestPermission();
+      if (on && (!("Notification" in window) || Notification.permission !== "granted")) on = false;
       try { localStorage.setItem(NOTIFY[kind].key, on ? "on" : "off"); } catch (error) {}
-      if (on && "Notification" in window && Notification.permission === "default") Notification.requestPermission();
       show();
     });
     show();

@@ -1581,7 +1581,7 @@ describe("what the page is made of", () => {
     assert.doesNotMatch(source, /(src|href)="https?:\/\//);
     // The browser's notification permission is asked from a click on a switch, and nowhere else.
     assert.equal(source.match(/Notification\.requestPermission/g).length, 1);
-    assert.match(source, /button\.addEventListener\("click", \(\) => \{[\s\S]{0,300}?Notification\.requestPermission\(\);/);
+    assert.match(source, /button\.addEventListener\("click", async \(\) => \{[\s\S]{0,300}?await Notification\.requestPermission\(\);/);
     assert.doesNotMatch(source, /serviceWorker/);
     assert.doesNotMatch(source, /import\s*\(|from "https?:/);
   });

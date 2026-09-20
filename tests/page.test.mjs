@@ -507,17 +507,18 @@ describe("the script", () => {
   });
 
   // The two switches, on the Leader's head after the theme toggle: the action-needed notification
-  // and the end-of-turn notification, each on unless the browser's storage says off — and on when
-  // there is no storage to ask. The browser's own permission is asked from the click that turns a
-  // switch on, as browsers require, and from nowhere else: a page that asked at load would be a
-  // page that asks on every visit.
-  it("keeps the two switches on the Leader's head, on by default, in storage, and asks the browser only from a switch turned on", () => {
+  // and the end-of-turn notification, each off until the browser's storage says on — off on any
+  // other value, and off when there is no storage to ask. The browser's own permission is asked
+  // from the click that turns a switch on, as browsers require, and from nowhere else: a page that
+  // asked at load would be a page that asks on every visit. And the switch lights only once the
+  // browser has granted: the click waits for the prompt, and a refusal, a dismissal, an earlier
+  // refusal or a browser without notifications leaves the switch off, in storage too.
+  it("keeps the two switches on the Leader's head, off by default, in storage, asks the browser only from a switch turned on, and lights only once granted", () => {
     assert.match(script, /headLine\.append\(themeToggle\);\s*headLine\.append\(notifySwitch\(CARD\), notifySwitch\(REPLY\)\);/);
     assert.match(script, /\[CARD\]: \{ key: "openovai-notify-action", label: "Action-needed notifications", icons: ALERT \+ ALERT_SLASHED, on: "Notifying when someone requires your action while this page is not visible — click to stop", off: "Not notifying when someone requires your action — click to start" \},/);
     assert.match(script, /\[REPLY\]: \{ key: "openovai-notify-turn", label: "End-of-turn notifications", icons: BELL \+ BELL_SLASHED, on: "Notifying when the Leader finishes a turn while this page is not visible — click to stop", off: "Not notifying when the Leader finishes a turn — click to start" \},/);
-    assert.match(script, /function notifyOn\(kind\) \{\s*try \{ return localStorage\.getItem\(NOTIFY\[kind\]\.key\) !== "off"; \} catch \(error\) \{ return true; \}/, "on unless the store says off, and on when there is no store");
-    assert.match(script, /try \{ localStorage\.setItem\(NOTIFY\[kind\]\.key, on \? "on" : "off"\); \} catch \(error\) \{\}/);
-    assert.match(script, /if \(on && "Notification" in window && Notification\.permission === "default"\) Notification\.requestPermission\(\);/);
+    assert.match(script, /function notifyOn\(kind\) \{\s*try \{ return localStorage\.getItem\(NOTIFY\[kind\]\.key\) === "on"; \} catch \(error\) \{ return false; \}/, "off until the store says on, and off when there is no store");
+    assert.match(script, /button\.addEventListener\("click", async \(\) => \{\s*let on = !notifyOn\(kind\);\s*if \(on && "Notification" in window && Notification\.permission === "default"\) await Notification\.requestPermission\(\);\s*if \(on && \(!\("Notification" in window\) \|\| Notification\.permission !== "granted"\)\) on = false;\s*try \{ localStorage\.setItem\(NOTIFY\[kind\]\.key, on \? "on" : "off"\); \} catch \(error\) \{\}\s*show\(\);/, "the click waits for the prompt and stays off unless the browser granted");
     assert.equal(script.match(/requestPermission/g).length, 1, "the browser is asked from the switch and nowhere else");
     assert.match(script, /button\.classList\.toggle\("on", on\);\s*button\.title = on \? NOTIFY\[kind\]\.on : NOTIFY\[kind\]\.off;/, "the tooltip says which way the switch is");
   });

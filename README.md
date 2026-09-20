@@ -541,8 +541,9 @@ is read when you read it.
 Two icon buttons on the Leader's head, beside the theme toggle, are the whole of the configuration:
 an exclamation mark for the action-needed notification (`<name> requires your action`) and a bell
 for the end-of-turn notification (`<name> finished their turn`), each lit while on and slashed
-across while off, both on to begin with, kept by the browser for that page. The first switch you
-turn on asks the browser for its permission, the way any site does; a browser that
+across while off, both off to begin with, kept by the browser for that page. The first switch you
+turn on asks the browser for its permission, the way any site does, and lights only once the
+browser has granted it: a prompt refused or dismissed leaves the switch off, and a browser that
 refused notifies nothing until you allow it in the browser's own settings. A click on a notification
 brings the page to the front and the panel it came from into view. One notification per panel at a
 time: a burst on one panel replaces its own, never stacks. Sound, and whether anything shows while
