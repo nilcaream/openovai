@@ -811,6 +811,12 @@ export async function waitForHealth(url) {
 }
 
 // The address the server printed for itself.
+// A row of the server's log as a check reads it: without its moment, since a check is about what
+// was said — the moment's shape is checked once, where the row's is.
+export function sansMoment(row) {
+  return row.slice(row.indexOf(" ") + 1);
+}
+
 export async function waitForAddress(child) {
   return waitFor(() => /http:\/\/127\.0\.0\.1:\d+/.exec(child.output)?.[0] ?? null);
 }

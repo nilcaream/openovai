@@ -19,13 +19,14 @@ import { SERVER, read as panel } from "../lib/chat/conversation.mjs";
 import { subscribe } from "../lib/chat/events.mjs";
 import { messageFrame, serverEvent, userFrame } from "../lib/chat/frames.mjs";
 import { BODY_CONTEXT_FULL, BODY_CRITICAL, BODY_IDLE, BODY_PARK, IDLE_GRACE, deliver, parkRoom, tick } from "../lib/chat/lifecycle.mjs";
+import { sink } from "../lib/chat/log.mjs";
 import * as quota from "../lib/chat/quota.mjs";
 import { pageSecret } from "../lib/chat/secrets.mjs";
 import { serve, startSeat, toolsFor } from "../lib/chat/server.mjs";
 import { INTERRUPT_PATIENCE, end, endEvery, recordOf, running, runningSeats, tell } from "../lib/chat/session.mjs";
 import { deskFile, deskHeader, deskTitle, hire } from "../lib/desks.mjs";
 import { CONFIG_FILE } from "../lib/seed.mjs";
-import { alive, arrivalsIn, callsIn, heardIn, installed, notesIn, pidsIn, post as postPlain, readLog, remove, repo, runToolLater, scratch, secretsIn, startChat, stopChat, waitFor, waitForAddress, writeStandIn } from "./helpers.mjs";
+import { alive, arrivalsIn, callsIn, heardIn, installed, notesIn, pidsIn, post as postPlain, readLog, remove, repo, runToolLater, sansMoment, scratch, secretsIn, startChat, stopChat, waitFor, waitForAddress, writeStandIn } from "./helpers.mjs";
 
 const USER = "Mike";
 const LEADER = "Superman";
@@ -85,7 +86,6 @@ const said = [];
 let chat = null;
 let server = null;
 let url = null;
-let log_ = null;
 let now = Date.now();
 const realPath = process.env.PATH;
 
@@ -96,8 +96,7 @@ hire(instance, WORKER);
 
 before(async () => {
   chat = { root: instance, config: configOf(instance), plugins: [], clock: () => now };
-  log_ = console.log;
-  console.log = (line) => said.push(String(line));
+  sink((row) => said.push(sansMoment(row)));
   // Any spawn the chat makes on its own finds the stand-in, and one nobody arranged a log for
   // writes to the one every "no spawn" check reads.
   process.env.PATH = `${standIn}${path.delimiter}${realPath}`;
@@ -111,7 +110,7 @@ before(async () => {
 after(async () => {
   await endEvery(500);
   await new Promise((resolve) => server.close(resolve));
-  console.log = log_;
+  sink(null);
   process.env.PATH = realPath;
   delete process.env.OPENOVAI_STAND_IN_LOG;
   delete process.env.OPENOVAI_STAND_IN_HELPER;
@@ -253,7 +252,8 @@ describe("serving", () => {
   // Every window has a default threshold pair, the per-model one included, so an instance that
   // names none has nothing to be told about at start.
   it("says nothing about the quota windows at the start", () => {
-    assert.deepEqual(said.filter((line) => /^(5h|7d|7d-fable)\b/.test(line)), []);
+    // A row about a window would name it first in its text, after the three columns.
+    assert.deepEqual(said.filter((line) => /^\S+ \S+ \S+ (5h|7d|7d-fable)\b/.test(line)), []);
   });
 });
 
@@ -769,8 +769,8 @@ describe("the quota gate", () => {
     // processes reading three pipes cannot be ordered by their own clocks at this distance.
     assert.deepEqual(
       // The user-typed events to the Leader were held beside the messages; the messages are the order asked about.
-      said.slice(before_).filter((line) => line.startsWith("released: ") && line.endsWith("(user)")),
-      [`released: ${LEADER} (user)`, `released: ${WORKER} (user)`, `released: ${OTHER} (user)`],
+      said.slice(before_).filter((line) => line.startsWith("released ") && line.endsWith(" - user")),
+      [`released ${LEADER} - user`, `released ${WORKER} - user`, `released ${OTHER} - user`],
     );
     assert.ok((await told(superman.log, 3)).includes("<user>to the leader</user>"));
     assert.equal((await told(paul.log, 2)).at(-1), "<user>to paul</user>");
@@ -842,8 +842,8 @@ describe("the quota gate", () => {
     // Arrival order, not the order the gate got to them: "to paul" was told before "to ann" and
     // held after it, behind a turn.
     assert.deepEqual(
-      said.slice(before_).filter((line) => line.startsWith("released: ") && line.endsWith("(user)")),
-      [`released: ${LEADER} (user)`, `released: ${WORKER} (user)`, `released: ${OTHER} (user)`],
+      said.slice(before_).filter((line) => line.startsWith("released ") && line.endsWith(" - user")),
+      [`released ${LEADER} - user`, `released ${WORKER} - user`, `released ${OTHER} - user`],
     );
     assert.equal((await told(superman.log, 3)).at(-1), "<user>behind</user>");
     assert.equal((await told(paul.log, 3)).at(-1), "<user>to paul</user>");
@@ -888,7 +888,7 @@ describe("the quota gate", () => {
     await settle();
     assert.equal(running(WORKER), false);
     assert.equal(readLog(unexpected), spawns, "a successor was started through the closed gate");
-    assert.ok(said.includes(`no successor: ${WORKER} stopped, 5h exhausted until ${new Date(resets).toISOString()}`), said.slice(-8).join("\n"));
+    assert.ok(said.includes(`restart ${WORKER} - no successor: stopped, 5h exhausted until ${new Date(resets).toISOString()}`), said.slice(-8).join("\n"));
     assert.deepEqual(await carried.answered, { ended: true, text: `${WORKER} stopped: the 5h window is exhausted, reset at ${quota.hhmm(resets)}` });
     assert.ok(!heardIn(superman.log).some((frame) => frame.startsWith('<server-event type="stopped"')), "the Leader was told through a closed gate");
     now = resets + 1;
@@ -1286,15 +1286,17 @@ describe("a call of the instance's own tools", () => {
     const answered = await calling;
     return {
       answered,
-      lines: said.slice(logged).filter((line) => line.startsWith("tool: ")),
+      lines: said.slice(logged).filter((line) => line.startsWith("tool ")),
       row: panel(instance, WORKER).slice(rows).find((row) => row.from === SERVER && row.text.startsWith("slow took ")) ?? null,
     };
   }
 
-  it("is logged with how long it took, and one of nine seconds draws no row", async () => {
+  // Under the tool's full name, as Claude Code says it — and with no id, since this call came over
+  // the MCP door alone, with no session stream announcing it first.
+  it("is logged with how long it took under the tool's full name, and one of nine seconds draws no row", async () => {
     const { answered, lines, row } = await held(9, ({ resolve }) => resolve({ text: "done" }));
     assert.equal(answered.text, "done");
-    assert.deepEqual(lines, [`tool: ${WORKER} slow in 9000 ms`]);
+    assert.deepEqual(lines, [`tool ${WORKER} - mcp__openovai__slow in 9000 ms`]);
     assert.equal(row, null, "a call under ten seconds drew a row");
   });
 
@@ -1307,7 +1309,7 @@ describe("a call of the instance's own tools", () => {
     const { answered, lines } = await held(1, ({ reject }) => reject(new Error("the wire broke")));
     assert.equal(answered.refused, true);
     assert.match(answered.text, /^slow could not be done: the wire broke$/);
-    assert.deepEqual(lines, [`tool: ${WORKER} slow failed in 1000 ms: the wire broke`]);
+    assert.deepEqual(lines, [`tool ${WORKER} - mcp__openovai__slow failed in 1000 ms: the wire broke`]);
   });
 });
 
@@ -1459,8 +1461,8 @@ describe("park", () => {
     const result = await parked;
     assert.deepEqual(result, { text: `parked: ${OTHER} ended at the deadline (no desk written)`, refused: false, error: null });
     assert.deepEqual(
-      said.slice(before_).filter((line) => line.startsWith("parked at the deadline")),
-      [`parked at the deadline: ${OTHER}, no desk written`],
+      said.slice(before_).filter((line) => line.startsWith("parked ")),
+      [`parked ${OTHER} - at the deadline, no desk written`],
     );
     // Right after: not "already parking".
     assert.deepEqual(await tool(superman.secret, "park", {}), { text: "parked: nobody was running", refused: false, error: null });
@@ -1637,7 +1639,7 @@ describe("a tool of the instance's own, from its file", () => {
     child = startChat(own, { ...process.env, PATH: `${ownStandIn}${path.delimiter}${realPath}`, OPENOVAI_STAND_IN_LOG: ownLog });
     const address = await waitForAddress(child);
     assert.ok(address, `the chat never said where it was listening:\n${child.output}`);
-    assert.match(child.output, /^This instance serves a tool of its own: echo$/m);
+    assert.match(child.output, /^\S+ plugins - - This instance serves a tool of its own: echo$/m);
     const page_ = await fetch(`${address}/`).then((answered) => answered.text());
     const pageSecret_ = /<meta name="openovai-secret" content="([^"]*)">/.exec(page_)[1];
     const woken = await fetch(`${address}/sessions/${LEADER}/message`, {
@@ -1746,9 +1748,9 @@ describe("a signal to the chat", () => {
     const took = Date.now() - began;
     assert.equal(status, 0, child.output);
     assert.ok(took < (3 + INTERRUPT_PATIENCE / 1000 + 3) * 1000, `took ${took} ms`);
-    assert.match(child.output, /^Parking 3 sessions\.$/m);
-    assert.match(child.output, new RegExp(`^parked: .*${WORKER} stopped \\(desk \\d\\d:\\d\\d\\).*$`, "m"));
-    assert.match(child.output, new RegExp(`^parked: .*${OTHER} stopped \\(desk \\d\\d:\\d\\d\\).*$`, "m"));
+    assert.match(child.output, /^\S+ parking - - 3 sessions$/m);
+    assert.match(child.output, new RegExp(`^\\S+ parked - - (?!parked: ).*${WORKER} stopped \\(desk \\d\\d:\\d\\d\\).*$`, "m"));
+    assert.match(child.output, new RegExp(`^\\S+ parked - - .*${OTHER} stopped \\(desk \\d\\d:\\d\\d\\).*$`, "m"));
     assert.ok(!child.output.includes("ended at the deadline"), child.output);
     const notes = notesIn(ownLog);
     const parkFrames = notes.filter(([label, rest]) => label === "heard" && rest.startsWith('<server-event type="park" interrupted="true"'));
@@ -1776,7 +1778,7 @@ describe("a signal to the chat", () => {
     // more often than not; when it did not, the line says how long they took.
     assert.match(stopped.stdout, /^Stopped( \(sessions gone after \d+ ms\))?\.$/m);
     assert.equal(await closed, 0, child.output);
-    assert.match(child.output, /^Parking 3 sessions\.$/m);
+    assert.match(child.output, /^\S+ parking - - 3 sessions$/m);
     assert.equal(notesIn(ownLog).filter(([label]) => label === "left").length, 3);
     await assert.rejects(fetch(`${address}/health`));
   });

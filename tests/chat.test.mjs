@@ -21,10 +21,11 @@ import { pageSecret } from "../lib/chat/secrets.mjs";
 import { hire } from "../lib/desks.mjs";
 import { endSeat, serve, shownRoot, startSeat, toolsFor } from "../lib/chat/server.mjs";
 import { hasLeft } from "../lib/chat/lifecycle.mjs";
+import { sink } from "../lib/chat/log.mjs";
 import { LEADER as LEADS, SECRET_IN_ENVIRONMENT, WORKER as WORKS, end, endEvery, interrupt, running, runningSeats, start, tell } from "../lib/chat/session.mjs";
 import { BUILT_IN } from "../lib/plugins.mjs";
 import { CONFIG_FILE } from "../lib/seed.mjs";
-import { alive, callsIn, get as fetchPlain, heardIn, installed, notesIn, post as postPlain, remove, repo, scratch, secretsIn, startChat, stopChat, waitFor, waitForAddress, writeStandIn } from "./helpers.mjs";
+import { alive, callsIn, get as fetchPlain, heardIn, installed, notesIn, post as postPlain, remove, repo, sansMoment, scratch, secretsIn, startChat, stopChat, waitFor, waitForAddress, writeStandIn } from "./helpers.mjs";
 
 const USER = "Mike";
 const LEADER = "Superman";
@@ -72,7 +73,6 @@ const said = [];
 let chat = null;
 let server = null;
 let url = null;
-let log_ = null;
 
 remove(instance, standIn, nowhere);
 writeStandIn(standIn);
@@ -83,10 +83,9 @@ hire(instance, OTHER);
 
 before(async () => {
   chat = { root: instance, config: configOf(instance), plugins: [] };
-  // The chat says every request and every refusal to tell on console.log; a check reads them
-  // from here rather than from the suite's output.
-  log_ = console.log;
-  console.log = (line) => said.push(String(line));
+  // The chat says every request and every refusal to tell as a row of its log; a check reads
+  // them from here rather than from the suite's output, without the moment.
+  sink((row) => said.push(sansMoment(row)));
   // A seat is started with the stand-in on the PATH for that spawn only (seatUp); a spawn the
   // chat makes later on its own gets the environment of that moment, so the stand-in is on the
   // PATH for the whole suite and a spawn nobody arranged a log for writes to the one place.
@@ -99,7 +98,7 @@ before(async () => {
 after(async () => {
   await endEvery(500);
   await new Promise((resolve) => server.close(resolve));
-  console.log = log_;
+  sink(null);
   process.env.PATH = realPath;
   delete process.env.OPENOVAI_STAND_IN_LOG;
 });
@@ -622,11 +621,11 @@ describe("telling a seat", () => {
     const before_ = said.length;
     await tell(WORKER, userFrame("logged")).answered;
     const lines = said.slice(before_);
-    const queued = lines.find((line) => line.startsWith("queued: "));
-    const order = /^queued: (\S+) user #(\d+), 1 waiting$/.exec(queued ?? "");
+    const queued = lines.find((line) => line.startsWith("queued "));
+    const order = /^queued (\S+) - user #(\d+), 1 waiting$/.exec(queued ?? "");
     assert.notEqual(order, null, lines.join("\n"));
     assert.equal(order[1], WORKER);
-    assert.ok(lines.includes(`wrote: ${WORKER} user #${order[2]}, 0 waiting`), lines.join("\n"));
+    assert.ok(lines.includes(`wrote ${WORKER} - user #${order[2]}, 0 waiting`), lines.join("\n"));
   });
 
   it("says in the log why a frame was not written: the turn open since when, and how many wait", async () => {
@@ -635,11 +634,11 @@ describe("telling a seat", () => {
     const two = tell(WORKER, userFrame("two"));
     await Promise.all([one.answered, two.answered]);
     const lines = said.slice(before_);
-    const held = lines.filter((line) => line.startsWith("not written: "));
+    const held = lines.filter((line) => line.startsWith("unwritten "));
     assert.equal(held.length, 1, lines.join("\n"));
-    assert.match(held[0], new RegExp(`^not written: ${WORKER} turn open since \\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z, 1 waiting$`));
+    assert.match(held[0], new RegExp(`^unwritten ${WORKER} - turn open since \\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z, 1 waiting$`));
     const after_ = lines.slice(lines.indexOf(held[0]) + 1);
-    assert.ok(after_.some((line) => new RegExp(`^wrote: ${WORKER} user #\\d+, \\d+ waiting$`).test(line)), lines.join("\n"));
+    assert.ok(after_.some((line) => new RegExp(`^wrote ${WORKER} - user #\\d+, \\d+ waiting$`).test(line)), lines.join("\n"));
   });
 
   it("says in the log that a seat on its way out took no new turn, and what it was ending as", async () => {
@@ -655,8 +654,8 @@ describe("telling a seat", () => {
       const going = tell(OTHER, userFrame("go"));
       const after_ = tell(OTHER, userFrame("after"));
       await going.answered;
-      const line = await waitFor(() => said.slice(before_).find((one) => one.startsWith(`not written: ${OTHER} ending=`)) ?? null);
-      assert.equal(line, `not written: ${OTHER} ending=restart, 1 waiting`);
+      const line = await waitFor(() => said.slice(before_).find((one) => one.startsWith(`unwritten ${OTHER} - ending=`)) ?? null);
+      assert.equal(line, `unwritten ${OTHER} - ending=restart, 1 waiting`);
       await after_.answered;
       assert.ok(await waitFor(() => secretsIn(unarranged).length > spawned), "no successor was started");
     } finally {
@@ -672,10 +671,10 @@ describe("telling a seat", () => {
       await new Promise((resolve) => setTimeout(resolve, 100));
       assert.equal(await interrupt(OTHER), true);
       assert.deepEqual(await slow.answered, { interrupted: true, text: "interrupted" });
-      const lines = said.slice(before_).filter((line) => line.startsWith("interrupt: "));
+      const lines = said.slice(before_).filter((line) => line.startsWith("interrupt "));
       assert.equal(lines.length, 2, said.slice(before_).join("\n"));
-      assert.match(lines[0], new RegExp(`^interrupt: ${OTHER} written, turn user #\\d+$`));
-      assert.match(lines[1], new RegExp(`^interrupt: ${OTHER} result in \\d+ ms$`));
+      assert.match(lines[0], new RegExp(`^interrupt ${OTHER} - written, turn user #\\d+$`));
+      assert.match(lines[1], new RegExp(`^interrupt ${OTHER} - result in \\d+ ms$`));
     } finally {
       await endSeat(OTHER, 500);
     }
@@ -689,8 +688,8 @@ describe("telling a seat", () => {
       await new Promise((resolve) => setTimeout(resolve, 100));
       assert.equal(await interrupt(OTHER, { patience: 300 }), true);
       assert.deepEqual(await deaf.answered, { interrupted: true, text: "interrupted" });
-      const lines = said.slice(before_).filter((line) => line.startsWith(`interrupt: ${OTHER} no result`));
-      assert.deepEqual(lines, [`interrupt: ${OTHER} no result after 300 ms — seat freed`]);
+      const lines = said.slice(before_).filter((line) => line.startsWith(`interrupt ${OTHER} - no result`));
+      assert.deepEqual(lines, [`interrupt ${OTHER} - no result after 300 ms — seat freed`]);
     } finally {
       await endSeat(OTHER, 500);
     }
@@ -700,7 +699,7 @@ describe("telling a seat", () => {
     const before_ = said.length;
     const asked = tell(OTHER, serverEvent("user-typed", { who: WORKER }, "go"));
     assert.deepEqual(asked, { refused: "no process" });
-    assert.ok(said.slice(before_).includes(`no process: ${OTHER} (server-event)`), said.slice(before_).join("\n"));
+    assert.ok(said.slice(before_).includes(`dropped ${OTHER} - server-event, no process`), said.slice(before_).join("\n"));
     const jane = await seatUp(OTHER);
     const first = tell(OTHER, userFrame("hello"));
     await first.answered;
@@ -1351,16 +1350,17 @@ describe("what a Worker's calls draw", () => {
   });
 
   // The log takes every seat's calls, the Leader's included — with the path or the command whole,
-  // which the panel never shows — and a call that failed with the reason its result gave.
-  it("logs every seat's calls, the Leader's included, and a failed one with its reason", async () => {
-    const lines = said.slice(logged).filter((line) => line.startsWith(`called: ${LEADER} `) || line.startsWith(`failed: ${LEADER} `));
+  // which the panel never shows — and a call that failed with the reason its result gave, under
+  // the id and the name of the call it is, so the two rows read as one call.
+  it("logs every seat's calls, the Leader's included, and a failed one with its reason under the call's id and name", async () => {
+    const lines = said.slice(logged).filter((line) => line.startsWith(`called ${LEADER} `) || line.startsWith(`failed ${LEADER} `));
     // The Leader's second turn: its first was the event that the Worker had been typed to.
     assert.deepEqual(lines, [
-      `called: ${LEADER} Read /srv/app/lib/chat/session.mjs (call-2-0)`,
-      `called: ${LEADER} Bash: npm test (call-2-1)`,
-      `failed: ${LEADER} call-2-1: Exit code 1`,
+      `called ${LEADER} call-2-0 Read /srv/app/lib/chat/session.mjs`,
+      `called ${LEADER} call-2-1 Bash: npm test`,
+      `failed ${LEADER} call-2-1 Bash: Exit code 1`,
     ]);
-    assert.ok(said.slice(logged).includes(`called: ${WORKER} Read /srv/app/lib/chat/session.mjs (call-1-0)`), "the Worker's call is drawn but not logged");
+    assert.ok(said.slice(logged).includes(`called ${WORKER} call-1-0 Read /srv/app/lib/chat/session.mjs`), "the Worker's call is drawn but not logged");
   });
 
   it("draws nothing for a search of the tool list or a session's own stop", async () => {
@@ -1742,6 +1742,12 @@ describe("the stream", () => {
       assert.notEqual(said_, -1, JSON.stringify(rows.map((row) => row.text)));
       assert.match(rows[said_].text, /^stopped; 2 waiting, next: line from the User \(\d{2}:\d{2}\)$/);
       assert.ok(rows.slice(0, said_).some((row) => row.interrupted === true), "the stop's own row is not above the line about the queue");
+      // The User's line went in at the stop, so the seat is busy again; a second stop finds the
+      // colleague's message next, named by who it is from.
+      const again = await page("POST", `/sessions/${WORKER}/stop`);
+      assert.deepEqual(JSON.parse(again.body), { interrupted: true });
+      const line = panel(instance, WORKER).slice(from + rows.length).find((row) => row.from === SERVER && row.text.startsWith("stopped;"));
+      assert.match(line?.text ?? "", new RegExp(`^stopped; 1 waiting, next: message from ${OTHER} \\(\\d{2}:\\d{2}\\)$`));
     } finally {
       await end(WORKER, 500);
     }
@@ -1757,7 +1763,7 @@ describe("the stream", () => {
       assert.deepEqual(JSON.parse(stopped.body), { interrupted: false });
       const row = panel(instance, WORKER).at(-1);
       assert.deepEqual([row.from, row.text], [SERVER, "no turn to stop"]);
-      assert.ok(said.slice(before_).includes(`no turn to stop: ${WORKER}`), said.slice(before_).join("\n"));
+      assert.ok(said.slice(before_).includes(`stop ${WORKER} - no turn to stop`), said.slice(before_).join("\n"));
     } finally {
       await end(WORKER, 500);
     }
@@ -1813,12 +1819,12 @@ describe("the stream", () => {
     try {
       await page("POST", `/sessions/${OTHER}/message`, { text: "look" });
       await until(client, (event) => event.name === "asking" && event.data.seat === OTHER && event.data.pending.length === 1);
-      assert.ok(said.slice(logged).includes(`permission asked: ${OTHER} Bash: git status`), said.slice(logged).join("\n"));
-      assert.ok(!said.slice(logged).some((line) => line.startsWith("permission answered:")), "answered before anybody did");
+      assert.ok(said.slice(logged).includes(`asked ${OTHER} - Bash: git status`), said.slice(logged).join("\n"));
+      assert.ok(!said.slice(logged).some((line) => line.startsWith("answered ")), "answered before anybody did");
       const asked = about(client, OTHER, "asking").at(-1).data.pending[0];
       await page("POST", `/sessions/${OTHER}/permission`, { id: asked.id, decision: "allow" });
-      const answered = await waitFor(() => said.slice(logged).find((line) => line.startsWith("permission answered:")) ?? null);
-      assert.match(answered ?? "", new RegExp(`^permission answered: ${OTHER} allow after \\d+ s$`));
+      const answered = await waitFor(() => said.slice(logged).find((line) => line.startsWith("answered ")) ?? null);
+      assert.match(answered ?? "", new RegExp(`^answered ${OTHER} - allow after \\d+ s$`));
       // The row, when there is one, is appended in the same step as the answered line — so once
       // that line is in the log, a missing row is missing for good.
       assert.equal(panel(instance, OTHER).slice(from).find((one) => one.from === SERVER && one.text.startsWith("waited ")), undefined, "a wait of no time drew a row");
@@ -1886,11 +1892,16 @@ describe("the chat as a process", () => {
     return /<meta name="openovai-secret" content="([^"]*)">/.exec(pageText)[1];
   }
 
-  // The one line a start says: the address. Not the instruction files above the instance — every
-  // session is started with that list whether or not anybody read it here — and not the quota
-  // windows, which have a default each.
-  it("says where it listens, and nothing else", () => {
-    assert.equal(child.output.trim(), `Serving ${own} at ${address}`);
+  // The one row a start says: `started`, with the address and — once, here and on no other row —
+  // the process's pid, host, user and version, under the moment to the millisecond with the zone's
+  // offset. Not the instruction files above the instance — every session is started with that
+  // list whether or not anybody read it here — and not the quota windows, which have a default
+  // each.
+  it("says where it listens, and nothing else: one started row naming the process", () => {
+    assert.match(
+      child.output.trim(),
+      new RegExp(`^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}[+-]\\d{2}:\\d{2} started - - serving ${own} at ${address} pid ${child.pid} host \\S+ user \\S+ version \\S+$`),
+    );
   });
 
   it("hands the page a secret that opens the page routes", async () => {

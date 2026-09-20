@@ -115,8 +115,8 @@
     "edits": [
       {
         "file": "lib/chat/usage.mjs",
-        "from": "      console.log(`usage: the endpoint answered ${answered.status}, asked again in ${Math.round((live.nextAt - now()) / 1000)}s`);\n      return;",
-        "to": "      console.log(`usage: the endpoint answered ${answered.status}, asked again in ${Math.round((live.nextAt - now()) / 1000)}s`);\n      live.data = null;\n      return;"
+        "from": "      log(\"usage\", null, null, `the endpoint answered ${answered.status}, asked again in ${Math.round((live.nextAt - now()) / 1000)}s`);\n      return;",
+        "to": "      log(\"usage\", null, null, `the endpoint answered ${answered.status}, asked again in ${Math.round((live.nextAt - now()) / 1000)}s`);\n      live.data = null;\n      return;"
       }
     ]
   },
@@ -126,8 +126,8 @@
     "edits": [
       {
         "file": "lib/chat/usage.mjs",
-        "from": "    live.nextAt = now() + BACKOFF;\n    console.log(`usage: the endpoint was not reached — ${error.message}`);",
-        "to": "    console.log(`usage: the endpoint was not reached — ${error.message}`);"
+        "from": "    live.nextAt = now() + BACKOFF;\n    log(\"usage\", null, null, `the endpoint was not reached — ${error.message}`);",
+        "to": "    log(\"usage\", null, null, `the endpoint was not reached — ${error.message}`);"
       }
     ]
   },
@@ -137,8 +137,8 @@
     "edits": [
       {
         "file": "lib/chat/usage.mjs",
-        "from": "    console.log(`usage: the endpoint was not reached — ${error.message}`);",
-        "to": "    console.log(`usage: the endpoint was not reached with ${bearer} — ${error.message}`);"
+        "from": "    log(\"usage\", null, null, `the endpoint was not reached — ${error.message}`);",
+        "to": "    log(\"usage\", null, null, `the endpoint was not reached with ${bearer} — ${error.message}`);"
       }
     ]
   },

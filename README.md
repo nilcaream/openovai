@@ -105,7 +105,7 @@ The instance root is this, and nothing else ever lands in it:
   instructions.json the settings document every session is started with: the instruction
                     files above the instance it is not to read; written at every start
   runtime.json      the running server: url, pid, since
-  runtime.log       what the server said, this run; written over at the next start
+  runtime.log       what the server said, one row per line, every run appended
   plugins/          tools the instance serves itself, one file each; yours, kept across updates
   store/            what the workspace knows: memory/ and knowledge/, one file per record
   customization/    what you add to the personas, one file per kind; yours, never touched
@@ -175,10 +175,32 @@ Then use the instance's own command. `ovai` with no command prints the help; the
 the instance's page, on the port it was installed with, on `127.0.0.1` only. The terminal is yours
 again the moment the address is printed; nothing is left to press ctrl-c on. The server's own
 process writes `runtime.json` at the root — url, pid, since — and whatever it has to say goes to
-`runtime.log` beside it, one file per run, written over at the next start: a plugin file it could
-not serve, a session held by the quota gate or released, a park that reached its deadline. No
-request is ever logged. If the port is already taken it says which process holds it, with the
-pid; a server already running is reported with its address and left alone.
+`runtime.log` beside it, every run appended under its own `started` row: a plugin file it could
+not serve, every call a session makes, a session held by the quota gate or released, a park that
+reached its deadline. No request is ever logged. If the port is already taken it says which
+process holds it, with the pid; a server already running is reported with its address and left
+alone.
+
+Every row of `runtime.log` has the same four columns, single spaces, then the text:
+
+```
+<moment> <event> <seat> <id> <text…>
+2026-09-20T02:15:33.123+02:00 started - - serving /home/me/my-workspace at http://127.0.0.1:7357 pid 41200 host box user me version 0.15.0
+2026-09-20T02:15:41.008+02:00 called Bob toolu_01GFHRkEQuMCjA5AvqQUSdHM Read /home/me/my-workspace/desks/Bob/STATE.md
+2026-09-20T02:15:41.530+02:00 called Bob toolu_01HMVftEemFhWAccN3xSqn7a mcp__openovai__write_desk
+2026-09-20T02:15:41.532+02:00 tool Bob toolu_01HMVftEemFhWAccN3xSqn7a mcp__openovai__write_desk in 1 ms
+2026-09-20T02:15:44.210+02:00 queued Paul - message #54, 1 waiting
+```
+
+The moment is ISO 8601 to the millisecond with the offset of the machine's zone — the clock the
+page, the desks and the store keep. The event is one word: `started`, `called`, `tool`, `failed`,
+`queued`, `wrote`, `held`, `released`, `parked`, … — there are no levels, the event is the level.
+The seat is the session the row is about, `-` for the server itself. The id is the tool-use id
+when the row is one call's — on `called`, on the `tool` row the server writes when it ran one of
+its own tools, and on `failed` — else `-`; so `grep toolu_01HMVftEemFhWAccN3xSqn7a runtime.log`
+is a call's whole life, and the three rows of one call name the tool the same way, in full, as
+Claude Code does (`mcp__openovai__write_desk`, never `write_desk`). The pid, the host, the user
+and the version are on the `started` row and on no other.
 
 `ovai status` is the daemon's answer: `not running` (exit 3), or `running at <url> (pid, since)`.
 It reads `runtime.json` and then tries the address: a record a killed server left behind is found

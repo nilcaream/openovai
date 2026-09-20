@@ -10,6 +10,7 @@ import { after, afterEach, before, beforeEach, describe, it } from "node:test";
 
 import { home } from "../lib/claude.mjs";
 import { subscribe } from "../lib/chat/events.mjs";
+import { sink } from "../lib/chat/log.mjs";
 import * as quota from "../lib/chat/quota.mjs";
 import { BACKOFF, CREDENTIALS_FILE, MACHINE_TOKEN, TTL, USAGE_URL, format, reading, refresh, reset, tick, token, until } from "../lib/chat/usage.mjs";
 import { remove, scratch } from "./helpers.mjs";
@@ -162,8 +163,7 @@ describe("asking the endpoint", () => {
 
   it("backs off when the endpoint is not reached, and never says the token", async () => {
     const said = [];
-    const log = console.log;
-    console.log = (...words) => said.push(words.join(" "));
+    sink((row) => said.push(row));
     try {
       const down = answering({ fails: "fetch failed" });
       await refresh(instance, { get: down, now: () => T0 });
@@ -171,7 +171,7 @@ describe("asking the endpoint", () => {
       assert.equal(down.asked.length, 1, "asked again before the backoff passed");
       assert.equal(reading(T0), null);
     } finally {
-      console.log = log;
+      sink(null);
     }
     assert.equal(said.length, 1, said.join("\n"));
     assert.match(said[0], /not reached/);

@@ -37,9 +37,10 @@ import {
 } from "../lib/store.mjs";
 import { BUILT_IN } from "../lib/plugins.mjs";
 import { hire, persona } from "../lib/desks.mjs";
+import { sink } from "../lib/chat/log.mjs";
 import { endSeat, serve, startSeat } from "../lib/chat/server.mjs";
 import { CONFIG_FILE } from "../lib/seed.mjs";
-import { installed, post, readLog, remove, repo, scratch, secretsIn, standInEnvironment, waitFor, writeStandIn } from "./helpers.mjs";
+import { installed, post, readLog, remove, repo, sansMoment, scratch, secretsIn, standInEnvironment, waitFor, writeStandIn } from "./helpers.mjs";
 
 const ZONE = "Europe/Warsaw";
 const NOW = new Date("2026-09-12T19:04:11+02:00");
@@ -707,7 +708,6 @@ const doors = {};
 const warned = [];
 const served = [];
 let warn = null;
-let log_ = null;
 let environmentBefore = null;
 
 process.on("exit", () => {
@@ -786,10 +786,9 @@ describe("the tools the chat serves for the store", () => {
     Object.assign(process.env, standInEnvironment(standIn, log, { OPENOVAI_STAND_IN_HELPER: helperAnswer }));
     warn = console.warn;
     console.warn = (line) => warned.push(String(line));
-    // The server says every request on console.log; a suite is not its log, but the store's
-    // timing lines are read off it below.
-    log_ = console.log;
-    console.log = (line) => served.push(String(line));
+    // The server says every request as a row of its log; a suite is not its log, but the store's
+    // timing rows are read off it below, without their moments.
+    sink((row) => served.push(sansMoment(row)));
     const config = JSON.parse(fs.readFileSync(path.join(instance, CONFIG_FILE), "utf8"));
     const chat = { root: instance, config, plugins: [] };
     server = await serve(chat);
@@ -806,7 +805,7 @@ describe("the tools the chat serves for the store", () => {
     await Promise.all([endSeat(CHAT_LEADER), endSeat(CHAT_WORKER)]);
     await new Promise((resolve) => server.close(resolve));
     console.warn = warn;
-    console.log = log_;
+    sink(null);
     for (const name of Object.keys(process.env)) {
       if (!(name in environmentBefore)) {
         delete process.env[name];
@@ -843,7 +842,7 @@ describe("the tools the chat serves for the store", () => {
 
   // The log says, per call of the store's tools, whether a model was asked and how long that took
   // — the round-trip is what makes a call slow, and a seat watching it can look stuck.
-  const stored = (from) => served.slice(from).filter((line) => line.startsWith("store: "));
+  const stored = (from) => served.slice(from).filter((line) => line.startsWith("store "));
 
   it("asks the helper nothing for id, all or the numbered set, and the log says no model each time", async () => {
     const calls = helperCalls();
@@ -853,7 +852,7 @@ describe("the tools the chat serves for the store", () => {
     const set = await tool(CHAT_WORKER, "recall", { store: "memory", kind: HARD_RULE });
     assert.match(set.text, /^Hard rules \(set m1\)\.[\s\S]*\n  1\. Never push on Fridays$/);
     assert.equal(helperCalls(), calls);
-    assert.deepEqual(stored(logged), [`store: ${CHAT_LEADER} recall no model`, `store: ${CHAT_LEADER} recall no model`, `store: ${CHAT_WORKER} recall no model`]);
+    assert.deepEqual(stored(logged), [`store ${CHAT_LEADER} - recall no model`, `store ${CHAT_LEADER} - recall no model`, `store ${CHAT_WORKER} - recall no model`]);
   });
 
   it("sends the helper exactly the current records of the store on a query and answers only ids it named, and the log times the round-trip", async () => {
@@ -866,7 +865,7 @@ describe("the tools the chat serves for the store", () => {
     const found = await tool(CHAT_WORKER, "recall", { store: "memory", query: "the User's preferred palette" });
     assert.deepEqual(
       stored(logged).map((line) => line.replace(/ in \d+ ms$/, " in N ms")),
-      [`store: ${CHAT_LEADER} remember no model`, `store: ${CHAT_WORKER} remember no model`, `store: ${CHAT_WORKER} recall model in N ms`],
+      [`store ${CHAT_LEADER} - remember no model`, `store ${CHAT_WORKER} - remember no model`, `store ${CHAT_WORKER} - recall model in N ms`],
     );
     const request = helperRequests().at(-1);
     assert.equal(request.question, "select");

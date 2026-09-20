@@ -153,8 +153,8 @@
     "edits": [
       {
         "file": "lib/ovai.mjs",
-        "from": "  const running = await serving(root);\n  if (running !== null) {\n    console.log(`already running at ${running.url}`);\n    return;\n  }\n\n  // \"node\" by name",
-        "to": "  // \"node\" by name"
+        "from": "  const running = await serving(root);\n  if (running !== null) {\n    console.log(`already running at ${running.url}`);\n    return;\n  }\n\n  // Appended, never written over",
+        "to": "  // Appended, never written over"
       }
     ]
   },
@@ -182,7 +182,7 @@
   },
   {
     "name": "the log is written over at every start",
-    "catches": "keeps the replaced run's account in the log under the new run's header",
+    "catches": "keeps the replaced run's account in the log under the new run's started row",
     "edits": [
       {
         "file": "lib/ovai.mjs",
@@ -192,13 +192,35 @@
     ]
   },
   {
-    "name": "the header names no process",
-    "catches": "heads the log with the pid of the server it started and the moment, with the offset",
+    "name": "the started row names no process",
+    "catches": "begins the run with the started row: the moment with its offset, the pid the server recorded, and nothing of the start's",
+    "edits": [
+      {
+        "file": "lib/chat/log.mjs",
+        "from": "pid ${process.pid} host",
+        "to": "host"
+      }
+    ]
+  },
+  {
+    "name": "the start writes a header of its own into the log",
+    "catches": "begins the run with the started row: the moment with its offset, the pid the server recorded, and nothing of the start's",
     "edits": [
       {
         "file": "lib/ovai.mjs",
-        "from": "`--- ovai start: server pid ${child.pid} at ",
-        "to": "`--- ovai start at "
+        "from": "  fs.closeSync(log);\n  child.unref();",
+        "to": "  fs.writeSync(log, `--- ovai start: server pid ${child.pid}\\n`);\n  fs.closeSync(log);\n  child.unref();"
+      }
+    ]
+  },
+  {
+    "name": "the moment of a row has no milliseconds",
+    "catches": "begins the run with the started row: the moment with its offset, the pid the server recorded, and nothing of the start's",
+    "edits": [
+      {
+        "file": "lib/chat/log.mjs",
+        "from": "  return `${whole.slice(0, 19)}.${String(date.getMilliseconds()).padStart(3, \"0\")}${whole.slice(19)}`;",
+        "to": "  return whole;"
       }
     ]
   },

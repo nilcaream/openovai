@@ -544,8 +544,8 @@
     "edits": [
       {
         "file": "lib/plugins.mjs",
-        "from": "export const BUILT_IN = [\"message\", \"room\", \"recall\", \"remember\", \"write_desk\", \"restart_session\", \"stop_session\", \"park\", \"hire\", \"permission\"];",
-        "to": "export const BUILT_IN = [\"message\", \"room\", \"recall\", \"write_desk\", \"restart_session\", \"stop_session\", \"park\", \"hire\", \"permission\"];"
+        "from": "export const BUILT_IN = [\"message\", \"room\", \"recall\", \"remember\", \"write_desk\", \"restart_session\", \"stop_session\", \"park\", \"hire\", \"retire\", \"permission\"];",
+        "to": "export const BUILT_IN = [\"message\", \"room\", \"recall\", \"write_desk\", \"restart_session\", \"stop_session\", \"park\", \"hire\", \"retire\", \"permission\"];"
       }
     ]
   },
@@ -907,7 +907,7 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "    if (!modelled) {\n      console.log(`store: ${caller.seat} ${name} no model`);\n    }\n",
+        "from": "    if (!modelled) {\n      log(\"store\", caller.seat, null, `${name} no model`);\n    }\n",
         "to": ""
       }
     ]
@@ -918,7 +918,7 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "        console.log(`store: ${caller.seat} ${name} model in ${clock() - began} ms`);\n",
+        "from": "        log(\"store\", caller.seat, null, `${name} model in ${clock() - began} ms`);\n",
         "to": ""
       }
     ]

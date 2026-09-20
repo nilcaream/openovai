@@ -302,8 +302,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "  if (record.turn !== null || record.queue.length === 0 || record.ending !== null) {",
-        "to": "  if (record.queue.length === 0 || record.ending !== null) {"
+        "from": "  if (record.turn !== null) {\n    log(\"unwritten\", record.seat, null, `turn open since ${new Date(record.turnBegan).toISOString()}, ${record.queue.length} waiting`);\n    return;\n  }\n",
+        "to": ""
       }
     ]
   },
@@ -313,7 +313,7 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "      record.queue.unshift(turn);",
+        "from": "      record.queue.splice(record.queue.findLastIndex((one) => one.ahead) + 1, 0, turn);",
         "to": "      record.queue.push(turn);"
       }
     ]
@@ -324,8 +324,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "    console.log(`no process: ${seat} (${frame.kind})`);\n    return { refused: \"no process\" };",
-        "to": "    console.log(`no process: ${seat} (${frame.kind})`);\n    const pending = held.get(seat) ?? [];\n    held.set(seat, pending);\n    return { delivered: true, answered: new Promise((resolve) => pending.push({ frame, resolve })) };"
+        "from": "    log(\"dropped\", seat, null, `${frame.kind}, no process`);\n    return { refused: \"no process\" };",
+        "to": "    log(\"dropped\", seat, null, `${frame.kind}, no process`);\n    const pending = held.get(seat) ?? [];\n    held.set(seat, pending);\n    return { delivered: true, answered: new Promise((resolve) => pending.push({ frame, resolve })) };"
       },
       {
         "file": "lib/chat/session.mjs",
@@ -345,7 +345,7 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "    console.log(`no process: ${seat} (${frame.kind})`);\n",
+        "from": "    log(\"dropped\", seat, null, `${frame.kind}, no process`);\n",
         "to": ""
       }
     ]
@@ -440,7 +440,7 @@
   },
   {
     "name": "room is the Leader's alone",
-    "catches": "serves the Leader exactly what BUILT_IN names, and a Worker the same but park, hire and permission",
+    "catches": "serves the Leader exactly what BUILT_IN names, and a Worker the same but park, hire, retire and permission",
     "edits": [
       {
         "file": "lib/chat/server.mjs",
@@ -713,8 +713,8 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "  const told = deliver(instance, seat, userFrame(text), { written: () => delivered(root, seat, index) });",
-        "to": "  const told = deliver(instance, seat, messageFrame(\"User\", text), { written: () => delivered(root, seat, index) });"
+        "from": "  const told = deliver(instance, seat, userFrame(text), { ahead: true, written: () => delivered(root, seat, index) });",
+        "to": "  const told = deliver(instance, seat, messageFrame(\"User\", text), { ahead: true, written: () => delivered(root, seat, index) });"
       }
     ]
   },
@@ -824,7 +824,7 @@
       {
         "file": "lib/chat/server.mjs",
         "from": "  const server = http.createServer((request, response) => {\n    handle(",
-        "to": "  const server = http.createServer((request, response) => {\n    response.once(\"finish\", () => console.log(`${request.method} ${shownAs(new URL(request.url, `http://${HOST}`).pathname)} ${response.statusCode}`));\n    handle("
+        "to": "  const server = http.createServer((request, response) => {\n    response.once(\"finish\", () => log(\"stop\", null, null, `${request.method} ${shownAs(new URL(request.url, `http://${HOST}`).pathname)} ${response.statusCode}`));\n    handle("
       }
     ]
   },
@@ -900,8 +900,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "  record.child.stdin.write(`${JSON.stringify({ type: \"user\", message: { role: \"user\", content } })}\\n`);\n  record.turn.written();\n  if (prefix.length > 0) {\n    record.rules = prefix.at(-1).version;\n    writeDeskHeader(record.root, record.seat, { rules: record.rules });\n  }\n  record.changed(record);\n}",
-        "to": "  record.child.stdin.write(`${JSON.stringify({ type: \"user\", message: { role: \"user\", content } })}\\n`);\n  record.turn.written();\n  if (prefix.length > 0) {\n    record.rules = prefix.at(-1).version;\n    writeDeskHeader(record.root, record.seat, { rules: record.rules });\n  }\n}"
+        "from": "  record.turn.written();\n  if (prefix.length > 0) {\n    record.rules = prefix.at(-1).version;\n    writeDeskHeader(record.root, record.seat, { rules: record.rules });\n  }\n  record.changed(record);\n}",
+        "to": "  record.turn.written();\n  if (prefix.length > 0) {\n    record.rules = prefix.at(-1).version;\n    writeDeskHeader(record.root, record.seat, { rules: record.rules });\n  }\n}"
       }
     ]
   },
@@ -1087,8 +1087,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "  import { AMBER, CONNECTED, DISCONNECTED, GREEN, RED, applyEvent, composersEnabled, delivery, dot, fresh, head, keyAction, place, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title } from \"./panels.mjs\";",
-        "to": "  import { AMBER, CONNECTED, DISCONNECTED, GREEN, RED, applyEvent, composersEnabled, delivery, dot, fresh, head, keyAction, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title } from \"./panels.mjs\";\n  const place = (seats, leader) => ({ left: seats.filter((s) => s !== leader), mid: leader, right: [] });"
+        "from": "  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, applyEvent, composersEnabled, delivery, dot, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title } from \"./panels.mjs\";",
+        "to": "  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, applyEvent, composersEnabled, delivery, dot, fresh, head, keyAction, noticed, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title } from \"./panels.mjs\";\n  const place = (seats, leader) => ({ left: seats.filter((s) => s !== leader), mid: leader, right: [] });"
       }
     ]
   },
@@ -1153,8 +1153,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "    ...(roleOf(instance, seat) === WORKER ? { called:",
-        "to": "    ...(true ? { called:"
+        "from": "    called: logged(instance, seat, roleOf(instance, seat) === WORKER ? calledBy(instance, seat) : doingBy(instance, seat)),",
+        "to": "    called: logged(instance, seat, calledBy(instance, seat)),"
       }
     ]
   },
@@ -1164,8 +1164,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "failed: ({ id, why }) => amend(instance.root, seat, id, why) }",
-        "to": "failed: () => {} }"
+        "from": "      if (roleOf(instance, seat) === WORKER) {\n        amend(instance.root, seat, id, why);\n      }\n",
+        "to": ""
       }
     ]
   },
@@ -1351,8 +1351,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "    const turn = { frame, resolve, ahead, ask, written, order: arrival() };",
-        "to": "    const turn = { frame, resolve, ahead, ask, written, order: arrival() };\n    written();"
+        "from": "    const turn = { frame, resolve, ahead, ask, written, order: arrival(), at: record.clock() };",
+        "to": "    const turn = { frame, resolve, ahead, ask, written, order: arrival(), at: record.clock() };\n    written();"
       }
     ]
   },
@@ -1362,8 +1362,8 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "  const told = deliver(instance, seat, userFrame(text), { written: () => delivered(root, seat, index) });",
-        "to": "  delivered(root, seat, index);\n  const told = deliver(instance, seat, userFrame(text));"
+        "from": "  const told = deliver(instance, seat, userFrame(text), { ahead: true, written: () => delivered(root, seat, index) });",
+        "to": "  delivered(root, seat, index);\n  const told = deliver(instance, seat, userFrame(text), { ahead: true });"
       }
     ]
   },
@@ -1373,8 +1373,8 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "  const told = deliver(instance, seat, userFrame(text), { written: () => delivered(root, seat, index) });",
-        "to": "  const told = deliver(instance, seat, userFrame(text));"
+        "from": "  const told = deliver(instance, seat, userFrame(text), { ahead: true, written: () => delivered(root, seat, index) });",
+        "to": "  const told = deliver(instance, seat, userFrame(text), { ahead: true });"
       }
     ]
   },
@@ -1406,7 +1406,7 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "  console.log(`queued: ${seat} ${frame.kind} #${order}${ahead ? \" ahead\" : \"\"}, ${record.queue.length} waiting`);\n",
+        "from": "  log(\"queued\", seat, null, `${frame.kind} #${order}${ahead ? \" ahead\" : \"\"}, ${record.queue.length} waiting`);\n",
         "to": ""
       }
     ]
@@ -1417,8 +1417,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "  console.log(`wrote: ${record.seat} ${record.turn.frame.kind} #${record.turn.order}, ${record.queue.length} waiting`);",
-        "to": "  console.log(`wrote: ${record.seat} ${record.turn.frame.kind} #${record.turn.order}, ${record.queue.length + 1} waiting`);"
+        "from": "  log(\"wrote\", record.seat, null, `${record.turn.frame.kind} #${record.turn.order}, ${record.queue.length} waiting`);",
+        "to": "  log(\"wrote\", record.seat, null, `${record.turn.frame.kind} #${record.turn.order}, ${record.queue.length + 1} waiting`);"
       }
     ]
   },
@@ -1428,7 +1428,7 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "    console.log(`not written: ${record.seat} turn open since ${new Date(record.turnBegan).toISOString()}, ${record.queue.length} waiting`);\n",
+        "from": "    log(\"unwritten\", record.seat, null, `turn open since ${new Date(record.turnBegan).toISOString()}, ${record.queue.length} waiting`);\n",
         "to": ""
       }
     ]
@@ -1439,7 +1439,7 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "    console.log(`not written: ${record.seat} ending=${record.ending}, ${record.queue.length} waiting`);\n",
+        "from": "    log(\"unwritten\", record.seat, null, `ending=${record.ending}, ${record.queue.length} waiting`);\n",
         "to": ""
       }
     ]
@@ -1450,7 +1450,7 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "  console.log(`interrupt: ${seat} written, turn ${turn.frame.kind} #${turn.order}`);\n",
+        "from": "  log(\"interrupt\", seat, null, `written, turn ${turn.frame.kind} #${turn.order}`);\n",
         "to": ""
       }
     ]
@@ -1472,8 +1472,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "`interrupt: ${seat} no result after ${patience} ms — seat freed`",
-        "to": "`interrupt: ${seat} result in ${patience} ms`"
+        "from": "`no result after ${patience} ms — seat freed`",
+        "to": "`result in ${patience} ms`"
       }
     ]
   },
@@ -1538,30 +1538,30 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "        console.log(`no turn to stop: ${seat}`);\n",
+        "from": "        log(\"stop\", seat, null, \"no turn to stop\");\n",
         "to": ""
       }
     ]
   },
   {
     "name": "a permission request is parked without a word in the log",
-    "catches": "a permission wait is logged as asked and answered, and the panel says how long it waited",
+    "catches": "a permission wait is logged as asked and answered, and one answered at once draws no row",
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "    console.log(`permission asked: ${seat} ${what}`);\n",
+        "from": "    log.log(\"asked\", seat, null, what);\n",
         "to": ""
       }
     ]
   },
   {
     "name": "the answer to a permission request is logged before anybody gave it",
-    "catches": "a permission wait is logged as asked and answered, and the panel says how long it waited",
+    "catches": "a permission wait is logged as asked and answered, and one answered at once draws no row",
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "    waiting.then((decision) => {\n      const seconds = Math.round((clock() - began) / 1000);\n      console.log(`permission answered: ${seat} ${decision.behavior} after ${seconds} s`);",
-        "to": "    console.log(`permission answered: ${seat} allow after 0 s`);\n    waiting.then((decision) => {\n      const seconds = Math.round((clock() - began) / 1000);"
+        "from": "    waiting.then((decision) => {\n      const seconds = Math.round((clock() - began) / 1000);\n      log.log(\"answered\", seat, null, `${decision.behavior} after ${seconds} s`);",
+        "to": "    log.log(\"answered\", seat, null, \"allow after 0 s\");\n    waiting.then((decision) => {\n      const seconds = Math.round((clock() - began) / 1000);"
       }
     ]
   },
@@ -1578,7 +1578,7 @@
   },
   {
     "name": "only a Worker's calls reach the log",
-    "catches": "logs every seat's calls, the Leader's included, and a failed one with its reason",
+    "catches": "logs every seat's calls, the Leader's included, and a failed one with its reason under the call's id and name",
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
@@ -1589,12 +1589,28 @@
   },
   {
     "name": "a failed call is marked on the panel and said nowhere else",
-    "catches": "logs every seat's calls, the Leader's included, and a failed one with its reason",
+    "catches": "logs every seat's calls, the Leader's included, and a failed one with its reason under the call's id and name",
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "      console.log(`failed: ${seat} ${id}: ${why}`);\n",
+        "from": "      log.failed(seat, { id, why });\n",
         "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a call that came back is never told to the log, so a failed one carries no name",
+    "catches": "logs every seat's calls, the Leader's included, and a failed one with its reason under the call's id and name",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "    returned: backFrom(seat, roleOf(instance, seat) === WORKER ? () => {} : returnedBy(instance, seat)),",
+        "to": "    returned: roleOf(instance, seat) === WORKER ? () => {} : returnedBy(instance, seat),"
+      },
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "    log.called(seat, { id: call.id, name: call.name, what: named(call.name, call.input) });",
+        "to": "    log.log(\"called\", seat, call.id, named(call.name, call.input));"
       }
     ]
   },

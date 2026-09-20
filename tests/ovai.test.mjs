@@ -1309,22 +1309,24 @@ describe("the server commands", () => {
     assert.ok(await settled(true), "the server is not answering after start returned");
   });
 
-  // The last line, not the whole: what the server found on its way up — a plugin file it could not
+  // The last row, not the whole: what the server found on its way up — a plugin file it could not
   // serve, say — is written above it, and that is what the log is for.
   it("writes what the server says to runtime.log at the root, and no request lines", async () => {
     await fetch(`${url}/`);
     await fetch(`${url}/health`);
     const lines = fs.readFileSync(path.join(served, "runtime.log"), "utf8").split("\n").filter((line) => line !== "");
-    assert.equal(lines.at(-1), `Serving ${served} at ${url}`);
+    assert.match(lines.at(-1), new RegExp(` started - - serving ${served} at ${url} `));
     assert.deepEqual(lines.filter((line) => /^(GET|POST) /.test(line)), []);
   });
 
-  // The header is the start's, not the server's: the process it names and the moment it was
-  // started, with the offset, so a run's account can be found by the pid in runtime.json and its
-  // times read beside the desks' and the store's.
-  it("heads the log with the pid of the server it started and the moment, with the offset", () => {
+  // Every row is the server's, in one shape, and the first of a run names the process — its pid,
+  // once, so a run's account can be found by the pid in runtime.json — under a moment with the
+  // zone's offset, so its times read beside the desks' and the store's. Nothing is written by the
+  // start itself.
+  it("begins the run with the started row: the moment with its offset, the pid the server recorded, and nothing of the start's", () => {
     const lines = fs.readFileSync(path.join(served, "runtime.log"), "utf8").split("\n").filter((line) => line !== "");
-    assert.match(lines[0], new RegExp(`^--- ovai start: server pid ${pidRecorded()} at \\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}[+-]\\d{2}:\\d{2}$`));
+    assert.match(lines[0], new RegExp(`^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}[+-]\\d{2}:\\d{2} started - - serving ${served} at ${url} pid ${pidRecorded()} host \\S+ user \\S+ version \\S+$`));
+    assert.ok(lines.every((line) => /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}[+-]\d{2}:\d{2} \S+ \S+ \S+ /.test(line)), lines.join("\n"));
   });
 
   it("says where it runs, with the pid the server recorded", () => {
@@ -1352,12 +1354,11 @@ describe("the server commands", () => {
   });
 
   // The run that was replaced is the one somebody reads the log about, so the restart appends
-  // under a header of its own rather than writing over it.
-  it("keeps the replaced run's account in the log under the new run's header", () => {
+  // under a started row of its own rather than writing over it.
+  it("keeps the replaced run's account in the log under the new run's started row", () => {
     const lines = fs.readFileSync(path.join(served, "runtime.log"), "utf8").split("\n").filter((line) => line !== "");
-    assert.equal(lines.filter((line) => line.startsWith("--- ovai start")).length, 2);
-    assert.equal(lines.filter((line) => line.startsWith(`Serving ${served} at `)).length, 2);
-    assert.equal(lines.at(-1), `Serving ${served} at ${url}`);
+    assert.equal(lines.filter((line) => line.includes(` started - - serving ${served} at `)).length, 2);
+    assert.match(lines.at(-1), new RegExp(` started - - serving ${served} at ${url} `));
   });
 
   it("stops it, and status says so after", async () => {

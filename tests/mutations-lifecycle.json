@@ -647,7 +647,7 @@
     "edits": [
       {
         "file": "lib/serve.mjs",
-        "from": "    if (going > 0) {\n      console.log(`Parking ${going} ${going === 1 ? \"session\" : \"sessions\"}.`);\n      const parked = await parkRoom(instance, { interrupt: true, deadline: settingsIn(config).park.timeout, leaderToo: true });\n      console.log(parked.text ?? parked.refused);\n    }\n",
+        "from": "    if (going > 0) {\n      log(\"parking\", null, null, `${going} ${going === 1 ? \"session\" : \"sessions\"}`);\n      const parked = await parkRoom(instance, { interrupt: true, deadline: settingsIn(config).park.timeout, leaderToo: true });\n      // The tool's answer says \"parked: \" first; the row's event already does.\n      log(\"parked\", null, null, parked.refused ?? parked.text.replace(/^parked: /, \"\"));\n    }\n",
         "to": ""
       }
     ]
@@ -697,7 +697,7 @@
       {
         "file": "lib/chat/lifecycle.mjs",
         "from": "  quota.configure({ config: instance.config, clock: clockOf(instance) });\n",
-        "to": "  quota.configure({ config: instance.config, clock: clockOf(instance) });\n  console.log(`7d-fable: read from the usage endpoint while a page is open`);\n"
+        "to": "  quota.configure({ config: instance.config, clock: clockOf(instance) });\n  log.log(\"quota\", null, null, \"7d-fable: read from the usage endpoint while a page is open\");\n"
       }
     ]
   },
@@ -707,8 +707,8 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "      const interrupted = await interrupt(seat);\n      sendJson(response, 200, { interrupted });",
-        "to": "      const interrupted = await interrupt(seat);\n      end(seat);\n      sendJson(response, 200, { interrupted });"
+        "from": "      const interrupted = await interrupt(seat, { thenDrain: false });\n      if (interrupted) {",
+        "to": "      const interrupted = await interrupt(seat, { thenDrain: false });\n      end(seat);\n      if (interrupted) {"
       }
     ]
   },
@@ -718,8 +718,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "  await Promise.race([said, new Promise((resolve) => { waited = setTimeout(resolve, patience); })]);",
-        "to": "  await said;"
+        "from": "  await Promise.race([said.then(() => { heard = true; }), new Promise((resolve) => { waited = setTimeout(resolve, patience); })]);",
+        "to": "  await said.then(() => { heard = true; });"
       }
     ]
   },
@@ -923,7 +923,7 @@
   },
   {
     "name": "a call of nine seconds draws a row",
-    "catches": "is logged with how long it took, and one of nine seconds draws no row",
+    "catches": "is logged with how long it took under the tool's full name, and one of nine seconds draws no row",
     "edits": [
       {
         "file": "lib/chat/server.mjs",
@@ -956,12 +956,23 @@
   },
   {
     "name": "a call's time is not logged",
-    "catches": "is logged with how long it took, and one of nine seconds draws no row",
+    "catches": "is logged with how long it took under the tool's full name, and one of nine seconds draws no row",
+    "edits": [
+      {
+        "file": "lib/chat/log.mjs",
+        "from": "error === null ? `${name} in ${ms} ms` : ",
+        "to": "error === null ? name : "
+      }
+    ]
+  },
+  {
+    "name": "the tool row says the bare name the MCP request carried",
+    "catches": "is logged with how long it took under the tool's full name, and one of nine seconds draws no row",
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "failed === null ? `tool: ${seat} ${tool.name} in ${ms} ms` : ",
-        "to": "failed === null ? `tool: ${seat} ${tool.name}` : "
+        "from": "        toolRow(seat, fullName(TOOLKIT, tool.name), ms, failed);",
+        "to": "        toolRow(seat, tool.name, ms, failed);"
       }
     ]
   },
@@ -970,9 +981,9 @@
     "catches": "one that threw is logged failed, with the reason, and still timed",
     "edits": [
       {
-        "file": "lib/chat/server.mjs",
-        "from": "`tool: ${seat} ${tool.name} failed in ${ms} ms: ${failed.message}`",
-        "to": "`tool: ${seat} ${tool.name} in ${ms} ms`"
+        "file": "lib/chat/log.mjs",
+        "from": "`${name} failed in ${ms} ms: ${error.message}`",
+        "to": "`${name} in ${ms} ms`"
       }
     ]
   },
@@ -1015,7 +1026,7 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "    called: logged(instance, seat, roleOf(instance, seat) === WORKER ? calledBy(instance, seat) : () => {}),",
+        "from": "    called: logged(instance, seat, roleOf(instance, seat) === WORKER ? calledBy(instance, seat) : doingBy(instance, seat)),",
         "to": "    called: logged(instance, seat, calledBy(instance, seat)),"
       }
     ]

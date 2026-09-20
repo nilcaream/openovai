@@ -13,6 +13,7 @@ import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
 import { subscribe } from "../lib/chat/events.mjs";
+import { sink } from "../lib/chat/log.mjs";
 import { acceptRule, shapeOf } from "../lib/chat/permissions.mjs";
 import { pageSecret } from "../lib/chat/secrets.mjs";
 import { endSeat, serve, startSeat, toolsFor } from "../lib/chat/server.mjs";
@@ -261,7 +262,6 @@ function options(root) {
 let chat = null;
 let server = null;
 let url = null;
-let log_ = null;
 
 function page(method, route, body) {
   return fetch(`${url}${route}`, {
@@ -323,8 +323,7 @@ describe("asking to be allowed", () => {
     writeStandIn(standIn);
     installed(options(instance));
     chat = { root: instance, config: JSON.parse(fs.readFileSync(path.join(instance, CONFIG_FILE), "utf8")), plugins: [] };
-    log_ = console.log;
-    console.log = () => {};
+    sink(() => {});
     server = await serve(chat);
     url = `http://127.0.0.1:${server.address().port}`;
   });
@@ -332,7 +331,7 @@ describe("asking to be allowed", () => {
   after(async () => {
     await endEvery(500);
     await new Promise((resolve) => server.close(resolve));
-    console.log = log_;
+    sink(null);
   });
 
   describe("what the page is shown", () => {

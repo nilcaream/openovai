@@ -1,0 +1,167 @@
+[
+  {
+    "name": "a console.log is put back in the chat server",
+    "catches": "writes nothing through console: every server file says what it says as a row",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "  log(\"queued\", seat, null, `${frame.kind} #${order}${ahead ? \" ahead\" : \"\"}, ${record.queue.length} waiting`);",
+        "to": "  console.log(`queued: ${seat} ${frame.kind} #${order}${ahead ? \" ahead\" : \"\"}, ${record.queue.length} waiting`);"
+      }
+    ]
+  },
+  {
+    "name": "a console.error is put back in the server process",
+    "catches": "writes nothing through console: every server file says what it says as a row",
+    "edits": [
+      {
+        "file": "lib/serve.mjs",
+        "from": "  log(\"error\", null, null, error.message);",
+        "to": "  console.error(error.message);"
+      }
+    ]
+  },
+  {
+    "name": "the moment has no milliseconds",
+    "catches": "stamps a row with the moment to the millisecond and the zone's offset",
+    "edits": [
+      {
+        "file": "lib/chat/log.mjs",
+        "from": "  return `${whole.slice(0, 19)}.${String(date.getMilliseconds()).padStart(3, \"0\")}${whole.slice(19)}`;",
+        "to": "  return whole;"
+      }
+    ]
+  },
+  {
+    "name": "the moment is UTC, with no offset",
+    "catches": "stamps a row with the moment to the millisecond and the zone's offset",
+    "edits": [
+      {
+        "file": "lib/chat/log.mjs",
+        "from": "  const whole = stamp(date, zoneOf());\n  return `${whole.slice(0, 19)}.${String(date.getMilliseconds()).padStart(3, \"0\")}${whole.slice(19)}`;",
+        "to": "  return date.toISOString();"
+      }
+    ]
+  },
+  {
+    "name": "a seat the row has not got is an empty column",
+    "catches": "is four columns and the text, single spaces, a dash for a column the row has not got",
+    "edits": [
+      {
+        "file": "lib/chat/log.mjs",
+        "from": "  return `${moment(date)} ${event} ${seat ?? \"-\"} ${id ?? \"-\"} ${text}`;",
+        "to": "  return `${moment(date)} ${event} ${seat ?? \"\"} ${id ?? \"-\"} ${text}`;"
+      }
+    ]
+  },
+  {
+    "name": "the id column is left out",
+    "catches": "is four columns and the text, single spaces, a dash for a column the row has not got",
+    "edits": [
+      {
+        "file": "lib/chat/log.mjs",
+        "from": "  return `${moment(date)} ${event} ${seat ?? \"-\"} ${id ?? \"-\"} ${text}`;",
+        "to": "  return `${moment(date)} ${event} ${seat ?? \"-\"} ${text}`;"
+      }
+    ]
+  },
+  {
+    "name": "any word is an event",
+    "catches": "refuses an event outside the set, which is named once",
+    "edits": [
+      {
+        "file": "lib/chat/log.mjs",
+        "from": "  if (!EVENTS.has(event)) {\n    throw new Error(`not a log event: ${event}`);\n  }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a text of several lines is one row",
+    "catches": "writes a text of several lines as that many rows, each with the same columns",
+    "edits": [
+      {
+        "file": "lib/chat/log.mjs",
+        "from": "  for (const line of String(text).split(\"\\n\")) {",
+        "to": "  for (const line of [String(text)]) {"
+      }
+    ]
+  },
+  {
+    "name": "the failed row drops the call's name",
+    "catches": "gives the called, tool and failed rows of one call the same full name and the same id",
+    "edits": [
+      {
+        "file": "lib/chat/log.mjs",
+        "from": "  log(\"failed\", seat, id, `${call?.name ?? \"-\"}: ${why}`);",
+        "to": "  log(\"failed\", seat, id, why);"
+      }
+    ]
+  },
+  {
+    "name": "the tool row carries no id",
+    "catches": "gives the called, tool and failed rows of one call the same full name and the same id",
+    "edits": [
+      {
+        "file": "lib/chat/log.mjs",
+        "from": "  log(\"tool\", seat, id, error === null",
+        "to": "  log(\"tool\", seat, null, error === null"
+      }
+    ]
+  },
+  {
+    "name": "the tool row is paired by seat alone",
+    "catches": "pairs a tool row with the oldest call of that seat and name not yet served, and with nothing once the call is back or the seat is gone",
+    "edits": [
+      {
+        "file": "lib/chat/log.mjs",
+        "from": "    if (call.seat === seat && call.name === name && !call.served) {",
+        "to": "    if (call.seat === seat && !call.served) {"
+      }
+    ]
+  },
+  {
+    "name": "the tool row is paired by name alone",
+    "catches": "pairs a tool row with the oldest call of that seat and name not yet served, and with nothing once the call is back or the seat is gone",
+    "edits": [
+      {
+        "file": "lib/chat/log.mjs",
+        "from": "    if (call.seat === seat && call.name === name && !call.served) {",
+        "to": "    if (call.name === name && !call.served) {"
+      }
+    ]
+  },
+  {
+    "name": "a call served is not marked so",
+    "catches": "pairs a tool row with the oldest call of that seat and name not yet served, and with nothing once the call is back or the seat is gone",
+    "edits": [
+      {
+        "file": "lib/chat/log.mjs",
+        "from": "      id = each;\n      call.served = true;",
+        "to": "      id = each;"
+      }
+    ]
+  },
+  {
+    "name": "a call that came back is kept",
+    "catches": "pairs a tool row with the oldest call of that seat and name not yet served, and with nothing once the call is back or the seat is gone",
+    "edits": [
+      {
+        "file": "lib/chat/log.mjs",
+        "from": "export function returned(id) {\n  out.delete(id);\n}",
+        "to": "export function returned(id) {}"
+      }
+    ]
+  },
+  {
+    "name": "a seat gone leaves its calls out",
+    "catches": "pairs a tool row with the oldest call of that seat and name not yet served, and with nothing once the call is back or the seat is gone",
+    "edits": [
+      {
+        "file": "lib/chat/log.mjs",
+        "from": "    if (call.seat === seat) {\n      out.delete(id);\n    }",
+        "to": "    if (call.seat === seat) {\n      call.served = call.served;\n    }"
+      }
+    ]
+  }
+]
