@@ -976,7 +976,7 @@
     "edits": [
       {
         "file": "lib/chat/icons/maskable.svg",
-        "from": "fill=\"#26404b\"",
+        "from": "fill=\"#2c4c59\"",
         "to": "fill=\"#1e293b\""
       }
     ]

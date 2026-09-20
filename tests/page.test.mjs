@@ -101,10 +101,10 @@ describe("the token table", () => {
     const asking = read("icon-asking.svg");
     const maskable = read("maskable.svg");
     for (const [name, svg] of [["icon.svg", plain], ["icon-asking.svg", asking], ["maskable.svg", maskable]]) {
-      assert.match(svg, /<rect width="512" height="512"[^>]* fill="#26404b"\/>/, `${name} is on the one ground`);
+      assert.match(svg, /<rect width="512" height="512"[^>]* fill="#2c4c59"\/>/, `${name} is on the one ground`);
     }
-    assert.match(plain, /<rect width="512" height="512" rx="102" fill="#26404b"\/>/, "the plain icon's corners are rounded");
-    assert.match(maskable, /<rect width="512" height="512" fill="#26404b"\/>/, "the maskable icon's ground is full-bleed");
+    assert.match(plain, /<rect width="512" height="512" rx="102" fill="#2c4c59"\/>/, "the plain icon's corners are rounded");
+    assert.match(maskable, /<rect width="512" height="512" fill="#2c4c59"\/>/, "the maskable icon's ground is full-bleed");
     assert.match(plain, /<circle cx="256" cy="256" r="125" fill="none" stroke="#f8fafc" stroke-width="58"\/>/, "a ring in the light page colour");
     assert.equal(asking, plain.replace('stroke="#f8fafc"', `stroke="${tokens.light["--warn"]}"`), "the asking icon is the plain one with the ring in the warn colour");
     for (const svg of [plain, asking]) assert.doesNotMatch(svg, /<svg[^>]* (width|height)=/, "a source drawn at more than one size carries no size of its own");
