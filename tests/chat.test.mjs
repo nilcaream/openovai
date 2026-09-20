@@ -1565,7 +1565,7 @@ describe("what the page is made of", () => {
       }
     }
     const labels = [...script.matchAll(/\.textContent = "([^"]*)"/g)].map((found) => found[1]);
-    assert.deepEqual(labels, ["Waiting for the transcript…", "↓ new messages"], "a word of the page's own other than the empty state and the pill (the dialog buttons come from dialog.mjs)");
+    assert.deepEqual(labels, ["Waiting for the transcript…", "↓ new messages", "(double-click to see the whole message)"], "a word of the page's own other than the empty state, the pill and the fold's placeholder (the dialog buttons come from dialog.mjs)");
     const buttons = [...script.matchAll(/\.className = "(stop|theme)";/g)].map((found) => found[1]);
     assert.deepEqual(buttons, ["theme", "stop"], "a button of the page's own other than the theme toggle and the stop glyph");
     assert.equal(source.split("<button").length - 1, 0, "a button in the markup");

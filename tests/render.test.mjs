@@ -60,7 +60,7 @@ describe("every other row", () => {
   // carry, and as compact markdown like a message to the Leader or from one, never the words as
   // they are.
   it("a word one Worker said to another reads sender → addressee on the Leader's panel, on the overheard ground, with its id, as compact markdown", () => {
-    assert.deepEqual(row({ from: "Paul", to: "Sam", text: "**the** fixture", msg: "m-1", overheard: true }, names), { who: "Paul → Sam", kind: "overheard", html: "<p><strong>the</strong> fixture</p>\n", tight: true, msg: "m-1" });
+    assert.deepEqual(row({ from: "Paul", to: "Sam", text: "**the** fixture", msg: "m-1", overheard: true }, names), { who: "Paul → Sam", kind: "overheard", html: "<p><strong>the</strong> fixture</p>\n", tight: true, placeholder: false, msg: "m-1" });
   });
 
   it("the chat's own lines are muted words", () => {
@@ -118,6 +118,7 @@ describe("a message between two sessions", () => {
       kind: "peer-out",
       html: "<p>go</p>\n",
       tight: true,
+      placeholder: false,
       status: { text: "sent ✓", bad: false, title: "" },
       msg: "m-1",
     });
@@ -131,16 +132,19 @@ describe("a message between two sessions", () => {
       bad: true,
       title: "that is you",
     });
-    assert.deepEqual(row({ from: "Leader", to: "Paul", text: "the answer", msg: "m-2" }, names), { who: "To Paul", kind: "peer-out", html: "<p>the answer</p>\n", tight: true, msg: "m-2" });
+    assert.deepEqual(row({ from: "Leader", to: "Paul", text: "the answer", msg: "m-2" }, names), { who: "To Paul", kind: "peer-out", html: "<p>the answer</p>\n", tight: true, placeholder: false, msg: "m-2" });
     assert.deepEqual(row({ from: "Leader", to: "Paul", text: "go", outcome: "refused", why: "that is you" }, names).msg, undefined, "a message that did not go is one end of nothing");
   });
 
+  // One that opens with a list rather than a paragraph says so — `placeholder` — for the page to
+  // fold it behind a placeholder rather than a first line it has not got.
   it("a message the Leader received is From its sender", () => {
     assert.deepEqual(row({ from: "Paul", to: "Leader", text: "- one\n- two", msg: "m-3" }, names), {
       who: "From Paul",
       kind: "peer-in",
       html: "<ul>\n<li>one</li>\n<li>two</li>\n</ul>\n",
       tight: true,
+      placeholder: true,
       msg: "m-3",
     });
   });

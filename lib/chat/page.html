@@ -106,10 +106,16 @@
   .phead .theme .moon { display: none; }
   :root[data-theme="dark"] .phead .theme .sun { display: none; }
   :root[data-theme="dark"] .phead .theme .moon { display: block; }
-  /* the two notification switches after the theme toggle: a word each, lit while on */
-  .phead .notify { margin-left: 6px; align-self: center; flex: 0 0 auto; padding: 1px 7px; border: 1px solid var(--line); border-radius: 999px; font-family: var(--mono); font-size: .72rem; line-height: 1.4; color: var(--fg-faint); background: none; cursor: pointer; }
+  /* the two notification switches after the theme toggle, in its style: one icon button each, lit
+     while on, the same icon with a slash across it while off; both drawings are in the DOM and the
+     switch's state picks the one drawn */
+  .phead .notify { margin-left: 4px; align-self: center; flex: 0 0 auto; width: 22px; height: 22px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 6px; color: var(--fg-faint); background: none; cursor: pointer; }
   .phead .notify:hover { color: var(--fg); background: var(--line); }
-  .phead .notify.on { color: var(--fg); border-color: var(--accent); }
+  .phead .notify.on { color: var(--fg); }
+  .phead .notify svg { width: 15px; height: 15px; display: block; }
+  .phead .notify .lit { display: none; }
+  .phead .notify.on .lit { display: block; }
+  .phead .notify.on .slashed { display: none; }
   /* the pill that says rows arrived below where the reader is, on the Leader's panel */
   #jump { position: sticky; left: 50%; transform: translateX(-50%); bottom: 24px; background: var(--panel); border: 1px solid var(--line); color: var(--fg); border-radius: 999px; padding: 6px 14px; font-size: .85rem; cursor: pointer; box-shadow: 0 4px 14px var(--shadow); display: none; }
   #jump.show { display: block; }
@@ -149,6 +155,12 @@
   .msg.focus .bubble { outline: 2px solid var(--accent); }
   /* a message between sessions — to one, from one, or between two Workers — is one line of its markdown, cut with an ellipsis, until a double click opens it */
   .msg.collapsed .md { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }
+  /* a folded message whose markdown opens with something other than a paragraph — a table, a list, a code block, a heading,
+     a quote, a rule — has no first line the clamp could show (a table clamped drew whole): its fold shows a placeholder in
+     the meta's style in place of the body, and a double click opens the whole rendered markdown as on any other row */
+  .msg .fold { display: none; font-size: .72rem; color: var(--fg-faint); font-family: var(--mono); }
+  .msg.collapsed.placeholder .md { display: none; }
+  .msg.collapsed.placeholder .fold { display: block; }
   .text { white-space: pre-wrap; }
   /* the label row: the speaker on the left, ellipsised before it could push the timestamp, the timestamp last */
   .who { font-size: .78rem; font-weight: 600; color: var(--fg-dim); display: flex; gap: 8px; align-items: baseline; margin-right: auto; flex: 1 1 auto; min-width: 0; }
@@ -264,11 +276,20 @@
   // do with a notification.
   //
   // Two switches, on the Leader's head after the theme toggle, are the whole of the configuration:
-  // one for cards, one for the Leader's replies, each on unless the browser's storage says off —
-  // and on when there is no storage to ask, the way the theme is light then. The browser's own
-  // permission is asked from the click that turns a switch on, as browsers require, and from
-  // nowhere else.
-  const NOTIFY = { [CARD]: { key: "openovai-notify-cards", word: "cards" }, [REPLY]: { key: "openovai-notify-replies", word: "Leader replies" } };
+  // one for the action-needed notification, one for the end-of-turn notification, each on unless
+  // the browser's storage says off — and on when there is no storage to ask, the way the theme is
+  // light then. Each is an icon button in the theme toggle's style: an exclamation mark in a
+  // circle for the first, a bell for the second, lit while on and slashed across while off, the
+  // tooltip saying which. The browser's own permission is asked from the click that turns a switch
+  // on, as browsers require, and from nowhere else.
+  const ALERT = '<svg class="lit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 7.5v5.5M12 16.5h.01"/></svg>';
+  const ALERT_SLASHED = '<svg class="slashed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5.3 5.3A9.5 9.5 0 0 0 18.7 18.7M8.3 3.2a9.5 9.5 0 0 1 12.5 12.5M12 7.5v5.5M12 16.5h.01M3 3l18 18"/></svg>';
+  const BELL = '<svg class="lit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/></svg>';
+  const BELL_SLASHED = '<svg class="slashed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.73 21a2 2 0 0 1-3.46 0M18.63 13A17.89 17.89 0 0 1 18 8M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14M18 8a6 6 0 0 0-9.33-5M1 1l22 22"/></svg>';
+  const NOTIFY = {
+    [CARD]: { key: "openovai-notify-action", label: "Action-needed notifications", icons: ALERT + ALERT_SLASHED, on: "Notifying when someone requires your action while this page is not visible — click to stop", off: "Not notifying when someone requires your action — click to start" },
+    [REPLY]: { key: "openovai-notify-turn", label: "End-of-turn notifications", icons: BELL + BELL_SLASHED, on: "Notifying when the Leader finishes a turn while this page is not visible — click to stop", off: "Not notifying when the Leader finishes a turn — click to start" },
+  };
   function notifyOn(kind) {
     try { return localStorage.getItem(NOTIFY[kind].key) !== "off"; } catch (error) { return true; }
   }
@@ -276,11 +297,12 @@
     const button = document.createElement("button");
     button.type = "button";
     button.className = "notify";
-    button.textContent = NOTIFY[kind].word;
+    button.setAttribute("aria-label", NOTIFY[kind].label);
+    button.innerHTML = NOTIFY[kind].icons;
     const show = () => {
       const on = notifyOn(kind);
       button.classList.toggle("on", on);
-      button.title = on ? `Notifying about ${NOTIFY[kind].word} while the page is not visible — click to stop` : `Not notifying about ${NOTIFY[kind].word} — click to notify`;
+      button.title = on ? NOTIFY[kind].on : NOTIFY[kind].off;
     };
     button.addEventListener("click", () => {
       const on = !notifyOn(kind);
@@ -294,7 +316,7 @@
   function notified({ seat, kind }) {
     if (document.visibilityState === "visible" || !notifyOn(kind)) return;
     if (!("Notification" in window) || Notification.permission !== "granted") return;
-    const body = kind === CARD ? `${seat} is waiting for you` : `${seat} has replied`;
+    const body = kind === CARD ? `${seat} requires your action` : `${seat} finished their turn`;
     const shown = new Notification(title(state), { body, tag: seat });
     shown.addEventListener("click", () => {
       window.focus();
@@ -569,12 +591,13 @@
   // appended, and again for every folded row when the rows change size, since a body that fit one
   // width may not fit another. The mark is a class on the row — the pointer rule is under it, and
   // the double click answers only there. A row already open is left with the mark it was opened
-  // with: unclamped, its body has nothing to measure.
+  // with: unclamped, its body has nothing to measure. A row folded behind a placeholder has the
+  // whole message under its fold by construction — its body is not drawn, so it measures nothing.
   function fitFolds(folded) {
     for (const row of folded) {
       if (!row.classList.contains("collapsed")) continue;
       const body = row.querySelector(".md");
-      row.classList.toggle("foldable", body.scrollHeight > body.clientHeight);
+      row.classList.toggle("foldable", row.classList.contains("placeholder") || body.scrollHeight > body.clientHeight);
     }
   }
 
@@ -720,6 +743,14 @@
       line.addEventListener("dblclick", () => {
         if (line.classList.contains("foldable")) line.classList.toggle("collapsed");
       });
+      // No first line to show, the renderer says: the fold is a placeholder in place of the body
+      if (shown.placeholder === true) {
+        line.classList.add("placeholder");
+        const fold = document.createElement("div");
+        fold.className = "fold";
+        fold.textContent = "(double-click to see the whole message)";
+        bubble.append(fold);
+      }
     }
     time.title = REFERENCE;
     time.addEventListener("click", () => pointAt(panel, time, shown.who, body));

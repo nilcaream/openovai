@@ -1196,8 +1196,118 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      row.classList.toggle(\"foldable\", body.scrollHeight > body.clientHeight);",
-        "to": "      row.classList.toggle(\"foldable\", body.scrollHeight >= body.clientHeight);"
+        "from": "      row.classList.toggle(\"foldable\", row.classList.contains(\"placeholder\") || body.scrollHeight > body.clientHeight);",
+        "to": "      row.classList.toggle(\"foldable\", row.classList.contains(\"placeholder\") || body.scrollHeight >= body.clientHeight);"
+      }
+    ]
+  },
+  {
+    "name": "a row folded behind a placeholder is measured like any other, and its undrawn body says there is nothing to fold",
+    "catches": "marks a folded row as having something to fold by its clamped body's overflow, once it is on the page and at every change of the rows' size",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      row.classList.toggle(\"foldable\", row.classList.contains(\"placeholder\") || body.scrollHeight > body.clientHeight);",
+        "to": "      row.classList.toggle(\"foldable\", body.scrollHeight > body.clientHeight);"
+      }
+    ]
+  },
+  {
+    "name": "a table opens the fold like a paragraph, and the clamp shows it whole",
+    "catches": "folds a message that opens with a table, a list, a code block, a heading, a quote or a rule behind a placeholder, and keeps it foldable",
+    "edits": [
+      {
+        "file": "lib/chat/render.mjs",
+        "from": "const OPENS_A_BLOCK = /^(?:\\||[-*+] |",
+        "to": "const OPENS_A_BLOCK = /^(?:[-*+] |"
+      }
+    ]
+  },
+  {
+    "name": "the placeholder is decided on the first line, blank or not",
+    "catches": "folds a message that opens with a table, a list, a code block, a heading, a quote or a rule behind a placeholder, and keeps it foldable",
+    "edits": [
+      {
+        "file": "lib/chat/render.mjs",
+        "from": "  const first = String(text).split(\"\\n\").find((line) => line.trim() !== \"\");",
+        "to": "  const first = String(text).split(\"\\n\")[0];"
+      }
+    ]
+  },
+  {
+    "name": "a paragraph opening with a bold word, or with a hashtag, is a block",
+    "catches": "folds a message that opens with a table, a list, a code block, a heading, a quote or a rule behind a placeholder, and keeps it foldable",
+    "edits": [
+      {
+        "file": "lib/chat/render.mjs",
+        "from": "const OPENS_A_BLOCK = /^(?:\\||[-*+] |\\d+[.)] |#{1,6} |>|",
+        "to": "const OPENS_A_BLOCK = /^(?:\\||[-*+]|\\d+[.)] |#|>|"
+      }
+    ]
+  },
+  {
+    "name": "a reply that opens with a table carries the placeholder too",
+    "catches": "folds a message that opens with a table, a list, a code block, a heading, a quote or a rule behind a placeholder, and keeps it foldable",
+    "edits": [
+      {
+        "file": "lib/chat/render.mjs",
+        "from": "  return { who: entry.from, kind: \"reply\", html: html(entry.text) };",
+        "to": "  return { who: entry.from, kind: \"reply\", ...folded(entry.text) };"
+      }
+    ]
+  },
+  {
+    "name": "the row behind a placeholder is never marked, so the fold never draws the placeholder",
+    "catches": "folds a message that opens with a table, a list, a code block, a heading, a quote or a rule behind a placeholder, and keeps it foldable",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      if (shown.placeholder === true) {\n        line.classList.add(\"placeholder\");\n",
+        "to": "      if (shown.placeholder === true) {\n"
+      }
+    ]
+  },
+  {
+    "name": "the placeholder says something else",
+    "catches": "folds a message that opens with a table, a list, a code block, a heading, a quote or a rule behind a placeholder, and keeps it foldable",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "        fold.textContent = \"(double-click to see the whole message)\";\n",
+        "to": "        fold.textContent = \"(double-click to open)\";\n"
+      }
+    ]
+  },
+  {
+    "name": "the body stays drawn under the placeholder, so the table shows whole again",
+    "catches": "folds a message that opens with a table, a list, a code block, a heading, a quote or a rule behind a placeholder, and keeps it foldable",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "  .msg.collapsed.placeholder .md { display: none; }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the placeholder is drawn on every folded row",
+    "catches": "folds a message that opens with a table, a list, a code block, a heading, a quote or a rule behind a placeholder, and keeps it foldable",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "  .msg.collapsed.placeholder .fold { display: block; }\n",
+        "to": "  .msg.collapsed .fold { display: block; }\n"
+      }
+    ]
+  },
+  {
+    "name": "the placeholder is in the body's type, not the meta's",
+    "catches": "folds a message that opens with a table, a list, a code block, a heading, a quote or a rule behind a placeholder, and keeps it foldable",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "  .msg .fold { display: none; font-size: .72rem; color: var(--fg-faint); font-family: var(--mono); }\n",
+        "to": "  .msg .fold { display: none; color: var(--fg-faint); }\n"
       }
     ]
   },
@@ -1262,8 +1372,8 @@
     "edits": [
       {
         "file": "lib/chat/render.mjs",
-        "from": "      return { who: `${entry.from} → ${entry.to}`, kind: \"overheard\", html: html(entry.text), tight: true, ...msg };",
-        "to": "      return { who: `${entry.from} → ${entry.to}`, kind: \"peer-in\", html: html(entry.text), tight: true, ...msg };"
+        "from": "      return { who: `${entry.from} → ${entry.to}`, kind: \"overheard\", ...folded(entry.text), ...msg };",
+        "to": "      return { who: `${entry.from} → ${entry.to}`, kind: \"peer-in\", ...folded(entry.text), ...msg };"
       }
     ]
   },
@@ -2026,12 +2136,111 @@
   },
   {
     "name": "the switch on the Leader's head is not a click",
+    "catches": "draws each switch as an icon button in the theme toggle's style, lit while on and slashed while off",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "  .phead .notify { margin-left: 4px; align-self: center; flex: 0 0 auto; width: 22px; height: 22px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 6px; color: var(--fg-faint); background: none; cursor: pointer; }\n",
+        "to": "  .phead .notify { margin-left: 4px; align-self: center; flex: 0 0 auto; width: 22px; height: 22px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 6px; color: var(--fg-faint); background: none; }\n"
+      }
+    ]
+  },
+  {
+    "name": "the action-needed notification says the old words",
+    "catches": "notifies through the browser on a card and on the Leader's reply, only while the page is not visible and the switch is on",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    const body = kind === CARD ? `${seat} requires your action` : `${seat} finished their turn`;\n",
+        "to": "    const body = kind === CARD ? `${seat} is waiting for you` : `${seat} finished their turn`;\n"
+      }
+    ]
+  },
+  {
+    "name": "the two switches share one storage key",
     "catches": "keeps the two switches on the Leader's head, on by default, in storage, and asks the browser only from a switch turned on",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "  .phead .notify { margin-left: 6px; align-self: center; flex: 0 0 auto; padding: 1px 7px; border: 1px solid var(--line); border-radius: 999px; font-family: var(--mono); font-size: .72rem; line-height: 1.4; color: var(--fg-faint); background: none; cursor: pointer; }\n",
-        "to": "  .phead .notify { margin-left: 6px; align-self: center; flex: 0 0 auto; padding: 1px 7px; border: 1px solid var(--line); border-radius: 999px; font-family: var(--mono); font-size: .72rem; line-height: 1.4; color: var(--fg-faint); background: none; }\n"
+        "from": "    [REPLY]: { key: \"openovai-notify-turn\", ",
+        "to": "    [REPLY]: { key: \"openovai-notify-action\", "
+      }
+    ]
+  },
+  {
+    "name": "the end-of-turn switch's tooltip says it notifies while it is off",
+    "catches": "keeps the two switches on the Leader's head, on by default, in storage, and asks the browser only from a switch turned on",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "off: \"Not notifying when the Leader finishes a turn — click to start\" },",
+        "to": "off: \"Notifying when the Leader finishes a turn — click to start\" },"
+      }
+    ]
+  },
+  {
+    "name": "the tooltip is the same whichever way the switch is",
+    "catches": "keeps the two switches on the Leader's head, on by default, in storage, and asks the browser only from a switch turned on",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      button.title = on ? NOTIFY[kind].on : NOTIFY[kind].off;\n",
+        "to": "      button.title = NOTIFY[kind].on;\n"
+      }
+    ]
+  },
+  {
+    "name": "the switch is its name as a word, not an icon",
+    "catches": "draws each switch as an icon button in the theme toggle's style, lit while on and slashed while off",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    button.setAttribute(\"aria-label\", NOTIFY[kind].label);\n    button.innerHTML = NOTIFY[kind].icons;\n",
+        "to": "    button.textContent = NOTIFY[kind].label;\n"
+      }
+    ]
+  },
+  {
+    "name": "the slashed bell is drawn while the switch is on, beside the lit one",
+    "catches": "draws each switch as an icon button in the theme toggle's style, lit while on and slashed while off",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "  .phead .notify.on .slashed { display: none; }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the lit icon is drawn while the switch is off too",
+    "catches": "draws each switch as an icon button in the theme toggle's style, lit while on and slashed while off",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "  .phead .notify .lit { display: none; }\n  .phead .notify.on .lit { display: block; }\n",
+        "to": "  .phead .notify.on .lit { display: block; }\n"
+      }
+    ]
+  },
+  {
+    "name": "the slashed alert has no slash",
+    "catches": "draws each switch as an icon button in the theme toggle's style, lit while on and slashed while off",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "M12 7.5v5.5M12 16.5h.01M3 3l18 18\"/></svg>';",
+        "to": "M12 7.5v5.5M12 16.5h.01\"/></svg>';"
+      }
+    ]
+  },
+  {
+    "name": "a switch that is on stays as faint as one that is off",
+    "catches": "draws each switch as an icon button in the theme toggle's style, lit while on and slashed while off",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "  .phead .notify.on { color: var(--fg); }\n",
+        "to": "  .phead .notify.on { color: var(--fg-faint); }\n"
       }
     ]
   }

@@ -500,27 +500,51 @@ describe("the script", () => {
     assert.match(script, /import \{[^}]*\bCARD\b[^}]*\bREPLY\b[^}]*\bnoticed\b[^}]*\} from "\.\/panels\.mjs"/);
     assert.match(script, /const data = JSON\.parse\(event\.data\);\s*(?:\/\/[^\n]*\n\s*)*const notice = noticed\(state, \{ name, data \}\);\s*applyEvent\(state, \{ name, data \}\);\s*draw\(\);\s*if \(notice !== null\) notified\(notice\);/, "read against the state before the event is applied, told after the draw");
     assert.match(script, /function notified\(\{ seat, kind \}\) \{\s*if \(document\.visibilityState === "visible" \|\| !notifyOn\(kind\)\) return;\s*if \(!\("Notification" in window\) \|\| Notification\.permission !== "granted"\) return;/);
+    assert.match(script, /const body = kind === CARD \? `\$\{seat\} requires your action` : `\$\{seat\} finished their turn`;/, "the body names the seat and says which of the two it is");
     assert.match(script, /new Notification\(title\(state\), \{ body, tag: seat \}\)/, "one per panel at a time: the tag is the seat");
     assert.match(script, /shown\.addEventListener\("click", \(\) => \{\s*window\.focus\(\);\s*sections\.get\(seat\)\?\.section\.scrollIntoView\(\{ block: "nearest" \}\);\s*shown\.close\(\);/);
     assert.doesNotMatch(script, /new Audio\(|<audio|\.play\(\)/, "a sound of the page's own");
   });
 
-  // The two switches, on the Leader's head after the theme toggle: cards and Leader replies, on
-  // unless the browser's storage says off — and on when there is no storage to ask. The browser's
-  // own permission is asked from the click that turns a switch on, as browsers require, and from
-  // nowhere else: a page that asked at load would be a page that asks on every visit.
+  // The two switches, on the Leader's head after the theme toggle: the action-needed notification
+  // and the end-of-turn notification, each on unless the browser's storage says off — and on when
+  // there is no storage to ask. The browser's own permission is asked from the click that turns a
+  // switch on, as browsers require, and from nowhere else: a page that asked at load would be a
+  // page that asks on every visit.
   it("keeps the two switches on the Leader's head, on by default, in storage, and asks the browser only from a switch turned on", () => {
     assert.match(script, /headLine\.append\(themeToggle\);\s*headLine\.append\(notifySwitch\(CARD\), notifySwitch\(REPLY\)\);/);
-    assert.match(script, /\[CARD\]: \{ key: "openovai-notify-cards", word: "cards" \}, \[REPLY\]: \{ key: "openovai-notify-replies", word: "Leader replies" \}/);
+    assert.match(script, /\[CARD\]: \{ key: "openovai-notify-action", label: "Action-needed notifications", icons: ALERT \+ ALERT_SLASHED, on: "Notifying when someone requires your action while this page is not visible — click to stop", off: "Not notifying when someone requires your action — click to start" \},/);
+    assert.match(script, /\[REPLY\]: \{ key: "openovai-notify-turn", label: "End-of-turn notifications", icons: BELL \+ BELL_SLASHED, on: "Notifying when the Leader finishes a turn while this page is not visible — click to stop", off: "Not notifying when the Leader finishes a turn — click to start" \},/);
     assert.match(script, /function notifyOn\(kind\) \{\s*try \{ return localStorage\.getItem\(NOTIFY\[kind\]\.key\) !== "off"; \} catch \(error\) \{ return true; \}/, "on unless the store says off, and on when there is no store");
     assert.match(script, /try \{ localStorage\.setItem\(NOTIFY\[kind\]\.key, on \? "on" : "off"\); \} catch \(error\) \{\}/);
     assert.match(script, /if \(on && "Notification" in window && Notification\.permission === "default"\) Notification\.requestPermission\(\);/);
     assert.equal(script.match(/requestPermission/g).length, 1, "the browser is asked from the switch and nowhere else");
-    assert.match(script, /button\.classList\.toggle\("on", on\)/);
+    assert.match(script, /button\.classList\.toggle\("on", on\);\s*button\.title = on \? NOTIFY\[kind\]\.on : NOTIFY\[kind\]\.off;/, "the tooltip says which way the switch is");
+  });
+
+  // Each switch is an icon button in the theme toggle's style — no word, an aria-label for the
+  // name, 15px stroke icons — lit while on, and the same icon with a slash across it while off:
+  // both drawings are in the DOM and the switch's state picks the one drawn, as the theme does
+  // with the sun and the moon.
+  it("draws each switch as an icon button in the theme toggle's style, lit while on and slashed while off", () => {
+    assert.match(script, /button\.className = "notify";\s*button\.setAttribute\("aria-label", NOTIFY\[kind\]\.label\);\s*button\.innerHTML = NOTIFY\[kind\]\.icons;/, "an icon and a name, no word");
+    for (const [name, cls] of [["ALERT", "lit"], ["ALERT_SLASHED", "slashed"], ["BELL", "lit"], ["BELL_SLASHED", "slashed"]]) {
+      assert.match(script, new RegExp(`const ${name} = '<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">`), `${name} is a stroke icon under the ${cls} class`);
+    }
+    assert.match(script, /const ALERT = '<svg[^']*<circle cx="12" cy="12" r="9\.5"\/><path d="M12 7\.5v5\.5M12 16\.5h\.01"\/>/, "an exclamation mark in a circle");
+    assert.match(script, /const ALERT_SLASHED = '<svg[^']*M3 3l18 18"\/>/, "the same, with a slash across it");
+    assert.match(script, /const BELL_SLASHED = '<svg[^']*M1 1l22 22"\/>/, "the bell, with a slash across it");
     const notify = rules.find((rule) => rule.selector === ".phead .notify");
     assert.ok(notify !== undefined, "no rule for the switch");
     assert.equal(notify.declarations.cursor, "pointer");
-    assert.ok(rules.some((rule) => rule.selector === ".phead .notify.on"), "no rule for a switch that is on");
+    assert.equal(notify.declarations.border, "0");
+    assert.equal(notify.declarations.width, "22px");
+    assert.equal(notify.declarations.color, "var(--fg-faint)");
+    assert.equal(rules.find((rule) => rule.selector === ".phead .notify.on")?.declarations.color, "var(--fg)", "lit while on");
+    assert.equal(rules.find((rule) => rule.selector === ".phead .notify svg")?.declarations.width, "15px");
+    assert.equal(rules.find((rule) => rule.selector === ".phead .notify .lit")?.declarations.display, "none", "the lit icon is not drawn while off");
+    assert.equal(rules.find((rule) => rule.selector === ".phead .notify.on .lit")?.declarations.display, "block", "and is while on");
+    assert.equal(rules.find((rule) => rule.selector === ".phead .notify.on .slashed")?.declarations.display, "none", "the slashed icon is not drawn while on");
   });
 
   // The pill: shown by a draw that appended rows while the reader was more than 80px above the
@@ -697,9 +721,11 @@ describe("the script", () => {
   // its body taller than the one line it is clamped to, or not — for the rows a draw appended,
   // and again for every folded row at each change of the rows' size, as the stamps are: a body
   // that fit one width may not fit another. The mark is a class on the row, the one the pointer
-  // rule is under; a row already open keeps the mark it was opened with.
+  // rule is under; a row already open keeps the mark it was opened with. A row folded behind a
+  // placeholder has the whole message under its fold by construction: its body is not drawn, so
+  // it measures nothing, and the mark is by the class.
   it("marks a folded row as having something to fold by its clamped body's overflow, once it is on the page and at every change of the rows' size", () => {
-    assert.match(script, /function fitFolds\(folded\) \{\n\s*for \(const row of folded\) \{\n\s*if \(!row\.classList\.contains\("collapsed"\)\) continue;\n\s*const body = row\.querySelector\("\.md"\);\n\s*row\.classList\.toggle\("foldable", body\.scrollHeight > body\.clientHeight\);/, "the clamped body's scroll height against its client height, on the folded rows alone");
+    assert.match(script, /function fitFolds\(folded\) \{\n\s*for \(const row of folded\) \{\n\s*if \(!row\.classList\.contains\("collapsed"\)\) continue;\n\s*const body = row\.querySelector\("\.md"\);\n\s*row\.classList\.toggle\("foldable", row\.classList\.contains\("placeholder"\) \|\| body\.scrollHeight > body\.clientHeight\);/, "the clamped body's scroll height against its client height, on the folded rows alone — and a row behind a placeholder by its class");
     assert.match(script, /if \(line\.classList\.contains\("collapsed"\)\) folded\.push\(line\);\n(?:[^\n]*\n)*?\s*fitFolds\(folded\);\n\s*panel\.shown = about\.rows\.length;/, "the rows a draw appended are measured after they are on the page, once, after the loop");
     assert.match(script, /new ResizeObserver\(\(\) => \{\n(?:[^\n]*\n)*?\s*fitFolds\(rows\.querySelectorAll\("\.msg\.collapsed"\)\);/, "and every folded row again when the rows change size");
   });
@@ -718,6 +744,31 @@ describe("the script", () => {
       const shown = row(entry, names);
       assert.ok(!folded.has(shown.kind), `${shown.who} is drawn as ${shown.kind}, a kind the page folds`);
     }
+  });
+
+  // A message whose markdown opens with something other than a paragraph — a table, a list, a
+  // code block, a heading, a quote, a rule — has no first line the clamp could show: a table
+  // clamped to one line drew whole and would not fold. The renderer decides it on the markdown
+  // source, by the first non-blank line, and the page folds such a row behind a placeholder in the
+  // meta's style in place of the body; the row is foldable by construction, and a double click
+  // opens the whole rendered markdown as on any other row. Nothing is stripped, nothing cut.
+  it("folds a message that opens with a table, a list, a code block, a heading, a quote or a rule behind a placeholder, and keeps it foldable", () => {
+    const names = { chat: "Server", seat: "Bobby", leader: "Bobby", user: "Copter" };
+    const table = "| a | b |\n|---|---|\n| 1 | 2 |";
+    for (const text of [table, "- one\n- two", "* one", "+ one", "1. one", "12) twelve", "# Title", "###### Small", "> quoted", "```js\nx\n```", "~~~\nx\n~~~", "---", "***", "___", `\n\n  ${table}`]) {
+      assert.equal(row({ from: "Tom", to: "Bobby", msg: "m2", text }, names).placeholder, true, `${JSON.stringify(text)} opens with a block, not a paragraph`);
+    }
+    for (const text of ["go", "**bold** first", "*em* first", "#tag", "-dash", "2024 was the year", "hi\n\n| a |\n|---|", "", "\n\n"]) {
+      assert.equal(row({ from: "Tom", to: "Bobby", msg: "m2", text }, names).placeholder, false, `${JSON.stringify(text)} opens with a paragraph, or nothing`);
+    }
+    assert.equal(row({ from: "Bobby", to: "Tom", msg: "m1", text: table }, names).placeholder, true, "a message the Leader sent");
+    assert.equal(row({ from: "Eva", to: "Sam", overheard: true, msg: "m3", text: table }, names).placeholder, true, "one overheard");
+    assert.equal(row({ from: "Bobby", text: table }, names).placeholder, undefined, "a reply is never folded, so it carries no placeholder");
+    assert.equal(row({ from: "user", text: table }, names).placeholder, undefined);
+    assert.match(script, /line\.addEventListener\("dblclick", \(\) => \{\n(?:[^\n]*\n)*?\s*\}\);\n\s*(?:\/\/[^\n]*\n\s*)*if \(shown\.placeholder === true\) \{\n\s*line\.classList\.add\("placeholder"\);\n\s*const fold = document\.createElement\("div"\);\n\s*fold\.className = "fold";\n\s*fold\.textContent = "\(double-click to see the whole message\)";\n\s*bubble\.append\(fold\);\n\s*\}\n\s*\}/, "under the fold of a message between sessions: the mark on the row, the placeholder after the body");
+    assert.deepEqual(rules.find((rule) => rule.selector === ".msg .fold")?.declarations, { display: "none", "font-size": ".72rem", color: "var(--fg-faint)", "font-family": "var(--mono)" }, "the meta's style, and not drawn on a row that shows its first line");
+    assert.deepEqual(rules.find((rule) => rule.selector === ".msg.collapsed.placeholder .md")?.declarations, { display: "none" }, "the body is not drawn while the row is folded");
+    assert.deepEqual(rules.find((rule) => rule.selector === ".msg.collapsed.placeholder .fold")?.declarations, { display: "block" }, "the placeholder is, and only then");
   });
 
   // A call that failed after its line was drawn: the server writes the row again with err and

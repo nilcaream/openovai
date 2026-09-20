@@ -60,7 +60,7 @@
     "edits": [
       {
         "file": "lib/chat/render.mjs",
-        "from": "    if (entry.overheard === true) {\n      return { who: `${entry.from} → ${entry.to}`, kind: \"overheard\", html: html(entry.text), tight: true, ...msg };\n    }\n",
+        "from": "    if (entry.overheard === true) {\n      return { who: `${entry.from} → ${entry.to}`, kind: \"overheard\", ...folded(entry.text), ...msg };\n    }\n",
         "to": ""
       }
     ]
@@ -71,7 +71,7 @@
     "edits": [
       {
         "file": "lib/chat/render.mjs",
-        "from": "      return { who: `${entry.from} → ${entry.to}`, kind: \"overheard\", html: html(entry.text), tight: true, ...msg };",
+        "from": "      return { who: `${entry.from} → ${entry.to}`, kind: \"overheard\", ...folded(entry.text), ...msg };",
         "to": "      return { who: `${entry.from} → ${entry.to}`, kind: \"overheard\", text: String(entry.text), ...msg };"
       }
     ]
@@ -82,8 +82,8 @@
     "edits": [
       {
         "file": "lib/chat/render.mjs",
-        "from": "      return { who: `${entry.from} → ${entry.to}`, kind: \"overheard\", html: html(entry.text), tight: true, ...msg };",
-        "to": "      return { who: `${entry.from} → ${entry.to}`, kind: \"overheard\", html: html(entry.text), ...msg };"
+        "from": "      return { who: `${entry.from} → ${entry.to}`, kind: \"overheard\", ...folded(entry.text), ...msg };",
+        "to": "      return { who: `${entry.from} → ${entry.to}`, kind: \"overheard\", html: html(entry.text), placeholder: !opensWithProse(entry.text), ...msg };"
       }
     ]
   },
@@ -214,8 +214,8 @@
     "edits": [
       {
         "file": "lib/chat/render.mjs",
-        "from": "        return { who: `To ${entry.to}`, kind: \"peer-out\", html: html(entry.text), tight: true, ...status, ...msg };",
-        "to": "        return { who: `To ${entry.to}`, kind: \"peer-out\", html: html(entry.text), tight: true, ...status };"
+        "from": "        return { who: `To ${entry.to}`, kind: \"peer-out\", ...folded(entry.text), ...status, ...msg };",
+        "to": "        return { who: `To ${entry.to}`, kind: \"peer-out\", ...folded(entry.text), ...status };"
       }
     ]
   },
@@ -225,8 +225,8 @@
     "edits": [
       {
         "file": "lib/chat/render.mjs",
-        "from": "      return { who: `From ${entry.from}`, kind: \"peer-in\", html: html(entry.text), tight: true, ...msg };",
-        "to": "      return { who: `From ${entry.from}`, kind: \"peer-in\", html: html(entry.text), tight: true };"
+        "from": "      return { who: `From ${entry.from}`, kind: \"peer-in\", ...folded(entry.text), ...msg };",
+        "to": "      return { who: `From ${entry.from}`, kind: \"peer-in\", ...folded(entry.text) };"
       }
     ]
   },

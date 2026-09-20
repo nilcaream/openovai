@@ -538,9 +538,11 @@ ended. Only while the page is not visible: a tab you are looking at tells you it
 turn ending, a seat starting or stopping, a message between seats: those are a record, and a record
 is read when you read it.
 
-Two switches on the Leader's head, beside the theme toggle, are the whole of the configuration:
-**cards** and **Leader replies**, both on to begin with, kept by the browser for that page. The
-first switch you turn on asks the browser for its permission, the way any site does; a browser that
+Two icon buttons on the Leader's head, beside the theme toggle, are the whole of the configuration:
+an exclamation mark for the action-needed notification (`<name> requires your action`) and a bell
+for the end-of-turn notification (`<name> finished their turn`), each lit while on and slashed
+across while off, both on to begin with, kept by the browser for that page. The first switch you
+turn on asks the browser for its permission, the way any site does; a browser that
 refused notifies nothing until you allow it in the browser's own settings. A click on a notification
 brings the page to the front and the panel it came from into view. One notification per panel at a
 time: a burst on one panel replaces its own, never stacks. Sound, and whether anything shows while
