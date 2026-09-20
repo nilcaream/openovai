@@ -511,8 +511,8 @@
     "edits": [
       {
         "file": "lib/chat/panels.mjs",
-        "from": "  panel.doing = typeof about.doing === \"string\" ? about.doing : null;",
-        "to": "  panel.doing = panel.doing;"
+        "from": "  said(panel, typeof about.doing === \"string\" ? about.doing : null, now);",
+        "to": ""
       }
     ]
   },
@@ -546,6 +546,116 @@
         "file": "lib/chat/panels.mjs",
         "from": "  if (name === \"seat\" && panel.name === state.leader && panel.busy && data.busy !== true) {\n",
         "to": "  if (name === \"seat\" && panel.name === state.leader && data.busy !== true) {\n"
+      }
+    ]
+  },
+  {
+    "name": "a word goes up the moment it is said",
+    "catches": "a word said while the one showing is younger than SHOWN_FOR waits, and goes up when it is due",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  while (panel.waiting.length > 0 && (panel.doing === null || now - panel.doingSince >= SHOWN_FOR)) {",
+        "to": "  while (panel.waiting.length > 0) {"
+      }
+    ]
+  },
+  {
+    "name": "a word due is not up until the next one is said",
+    "catches": "a word said while the one showing is younger than SHOWN_FOR waits, and goes up when it is due",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  while (panel.waiting.length > 0 && (panel.doing === null || now - panel.doingSince >= SHOWN_FOR)) {",
+        "to": "  while (panel.waiting.length > 0 && (panel.doing === null || now - panel.doingSince > SHOWN_FOR)) {"
+      }
+    ]
+  },
+  {
+    "name": "a word that repeats the one showing is queued again",
+    "catches": "a word that repeats the newest one known is not queued",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  const newest = panel.waiting.length > 0 ? panel.waiting.at(-1) : panel.doing;",
+        "to": "  const newest = panel.waiting.length > 0 ? panel.waiting.at(-1) : undefined;"
+      }
+    ]
+  },
+  {
+    "name": "a word that repeats the last waiting one is queued again",
+    "catches": "a word that repeats the newest one known is not queued",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  const newest = panel.waiting.length > 0 ? panel.waiting.at(-1) : panel.doing;",
+        "to": "  const newest = panel.doing;"
+      }
+    ]
+  },
+  {
+    "name": "the turn's end takes the line down at once, whatever waits",
+    "catches": "the turn's end drains the line at its pace and only then takes it down",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  panel.waiting.push(word);\n  if (panel.waiting.length > LINE_QUEUE) {",
+        "to": "  if (word === null) {\n    panel.waiting.length = 0;\n    panel.doing = null;\n    return;\n  }\n  panel.waiting.push(word);\n  if (panel.waiting.length > LINE_QUEUE) {"
+      }
+    ]
+  },
+  {
+    "name": "an empty line makes the next word wait its SHOWN_FOR too",
+    "catches": "the turn's end drains the line at its pace and only then takes it down",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  while (panel.waiting.length > 0 && (panel.doing === null || now - panel.doingSince >= SHOWN_FOR)) {",
+        "to": "  while (panel.waiting.length > 0 && now - panel.doingSince >= SHOWN_FOR) {"
+      }
+    ]
+  },
+  {
+    "name": "the queue is unbounded",
+    "catches": "no more than LINE_QUEUE words wait, the oldest dropped first",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  if (panel.waiting.length > LINE_QUEUE) {\n    panel.waiting.shift();\n  }",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the queue drops the newest word, not the oldest",
+    "catches": "no more than LINE_QUEUE words wait, the oldest dropped first",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  if (panel.waiting.length > LINE_QUEUE) {\n    panel.waiting.shift();\n  }",
+        "to": "  if (panel.waiting.length > LINE_QUEUE) {\n    panel.waiting.pop();\n  }"
+      }
+    ]
+  },
+  {
+    "name": "advance answers the last panel's due moment, not the soonest",
+    "catches": "advance answers the soonest due moment over every panel",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "    if (at !== null && (due === null || at < due)) {",
+        "to": "    if (at !== null) {"
+      }
+    ]
+  },
+  {
+    "name": "advance answers the due moment of the word just put up",
+    "catches": "advance answers the soonest due moment over every panel",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  return panel.waiting.length > 0 ? panel.doingSince + SHOWN_FOR : null;",
+        "to": "  return panel.doingSince + SHOWN_FOR;"
       }
     ]
   }

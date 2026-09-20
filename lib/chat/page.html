@@ -246,7 +246,7 @@
   // draws it and carries what is typed and pressed to the server.
 
   import { dialogOf } from "./dialog.mjs";
-  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, anyAsking, applyEvent, composersEnabled, delivery, dot, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title } from "./panels.mjs";
+  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title } from "./panels.mjs";
   import { row as rowOf } from "./render.mjs";
 
   const secret = document.querySelector('meta[name="openovai-secret"]').content;
@@ -1108,6 +1108,7 @@
         // What the event is worth telling a reader who is not here, read before it is applied.
         const notice = noticed(state, { name, data });
         applyEvent(state, { name, data });
+        keepLines();
         draw();
         if (notice !== null) notified(notice);
       });
@@ -1142,6 +1143,20 @@
         setTimeout(probe, 1000);
       },
     );
+  }
+
+  // The tool lines move on their own once a word has had its time: one timer, set for the soonest
+  // word due on any panel after every event and every firing, and none while nothing waits.
+  let lineTimer = null;
+  function keepLines() {
+    clearTimeout(lineTimer);
+    const due = advance(state, Date.now());
+    if (due !== null) {
+      lineTimer = setTimeout(() => {
+        keepLines();
+        draw();
+      }, Math.max(0, due - Date.now()));
+    }
   }
 
   connect();

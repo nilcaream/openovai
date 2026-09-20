@@ -2397,5 +2397,27 @@
         "to": "  .phead .notify.on { color: var(--fg-faint); }\n"
       }
     ]
+  },
+  {
+    "name": "every event sets another timer for the tool lines without clearing the last",
+    "catches": "keeps one timer for the next word due on any tool line, set from advance after every event and every firing",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "  function keepLines() {\n    clearTimeout(lineTimer);\n",
+        "to": "  function keepLines() {\n"
+      }
+    ]
+  },
+  {
+    "name": "the timer's firing draws but never sets the next timer",
+    "catches": "keeps one timer for the next word due on any tool line, set from advance after every event and every firing",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      lineTimer = setTimeout(() => {\n        keepLines();\n        draw();\n      }, Math.max(0, due - Date.now()));",
+        "to": "      lineTimer = setTimeout(() => {\n        advance(state, Date.now());\n        draw();\n      }, Math.max(0, due - Date.now()));"
+      }
+    ]
   }
 ]

@@ -521,7 +521,7 @@ describe("the script", () => {
   // the page's own.
   it("notifies through the browser on a card and on the Leader's reply, only while the page is not visible and the switch is on", () => {
     assert.match(script, /import \{[^}]*\bCARD\b[^}]*\bREPLY\b[^}]*\bnoticed\b[^}]*\} from "\.\/panels\.mjs"/);
-    assert.match(script, /const data = JSON\.parse\(event\.data\);\s*(?:\/\/[^\n]*\n\s*)*const notice = noticed\(state, \{ name, data \}\);\s*applyEvent\(state, \{ name, data \}\);\s*draw\(\);\s*if \(notice !== null\) notified\(notice\);/, "read against the state before the event is applied, told after the draw");
+    assert.match(script, /const data = JSON\.parse\(event\.data\);\s*(?:\/\/[^\n]*\n\s*)*const notice = noticed\(state, \{ name, data \}\);\s*applyEvent\(state, \{ name, data \}\);\s*keepLines\(\);\s*draw\(\);\s*if \(notice !== null\) notified\(notice\);/, "read against the state before the event is applied, told after the draw");
     assert.match(script, /function notified\(\{ seat, kind \}\) \{\s*if \(document\.visibilityState === "visible" \|\| !notifyOn\(kind\)\) return;\s*if \(!\("Notification" in window\) \|\| Notification\.permission !== "granted"\) return;/);
     assert.match(script, /const body = kind === CARD \? `\$\{seat\} requires your action` : `\$\{seat\} finished their turn`;/, "the body names the seat and says which of the two it is");
     assert.match(script, /new Notification\(title\(state\), \{ body, tag: seat \}\)/, "one per panel at a time: the tag is the seat");
@@ -594,6 +594,16 @@ describe("the script", () => {
     assert.equal(draw.match(/createElement\("div"\)/g).length, 1, "the draw makes the one element for what a seat is at, and no other");
     assert.match(script, /panel\.waiting\.clear\(\);\s*panel\.doing = null;/, "a panel drawn afresh forgets the line, which its rows no longer hold");
     assert.match(script, /waiting: new Map\(\), doing: null \};/, "a panel starts with no such line");
+  });
+
+  // The words on that line move at panels.mjs's pace, not the server's: after every event the
+  // page asks `advance` when the next word is due and keeps one timer for that moment — cleared
+  // and set again on every event and every firing, none while nothing waits — and draws when it
+  // fires. No polling: nothing runs while no word waits.
+  it("keeps one timer for the next word due on any tool line, set from advance after every event and every firing", () => {
+    assert.match(script, /import \{[^}]*\badvance\b[^}]*\} from "\.\/panels\.mjs"/);
+    assert.match(script, /let lineTimer = null;\s*function keepLines\(\) \{\s*clearTimeout\(lineTimer\);\s*const due = advance\(state, Date\.now\(\)\);\s*if \(due !== null\) \{\s*lineTimer = setTimeout\(\(\) => \{\s*keepLines\(\);\s*draw\(\);\s*\}, Math\.max\(0, due - Date\.now\(\)\)\);\s*\}\s*\}/);
+    assert.equal(script.match(/keepLines\(\);/g).length, 2, "called from the stream's handler and from its own firing, nowhere else");
   });
 
   // Every panel follows its newest row or not, on its own: a word of the panel's, set from where

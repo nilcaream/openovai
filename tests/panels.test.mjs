@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { AMBER, CARD, CONNECTED, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, RED, REPLY, SENDING, anyAsking, applyEvent, composersEnabled, delivery, dot, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title } from "../lib/chat/panels.mjs";
+import { AMBER, CARD, CONNECTED, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, RED, REPLY, LINE_QUEUE, SENDING, SHOWN_FOR, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title } from "../lib/chat/panels.mjs";
 
 const LEADER = "Leader";
 
@@ -222,20 +222,90 @@ describe("marks and controls", () => {
     assert.equal(dot(state, "Paul"), RED);
   });
 
-  // What a seat is at is the server's word on the seat, carried as it comes — from the snapshot,
-  // for a page opened mid-turn, and from every seat event after — and null the moment a seat
-  // event comes without it, since the server says it only while there is one.
+  // What a seat is at is the server's word on the seat — from the snapshot, for a page opened
+  // mid-turn, and from every seat event after — and null once a seat event comes without it,
+  // since the server says it only while there is one. Each word, once up, has SHOWN_FOR.
   it("what a seat is at comes with the snapshot and every seat event, and is null once the word is gone", () => {
     const state = fresh();
     applyEvent(state, snapshot([about(LEADER, { busy: true, doing: "Thinking…" }), about("Paul", { busy: true })]), 0);
     assert.equal(state.panels[LEADER].doing, "Thinking…");
     assert.equal(state.panels.Paul.doing, null);
-    applyEvent(state, seat(LEADER, { busy: true, doing: "Reading lib/chat/page.html" }), 0);
+    applyEvent(state, seat(LEADER, { busy: true, doing: "Reading lib/chat/page.html" }), SHOWN_FOR);
     assert.equal(state.panels[LEADER].doing, "Reading lib/chat/page.html");
-    applyEvent(state, seat(LEADER, { busy: false }), 0);
+    applyEvent(state, seat(LEADER, { busy: false }), 2 * SHOWN_FOR);
     assert.equal(state.panels[LEADER].doing, null);
-    applyEvent(state, seat(LEADER, { busy: true, doing: 7 }), 0);
+    applyEvent(state, seat(LEADER, { busy: true, doing: 7 }), 3 * SHOWN_FOR);
     assert.equal(state.panels[LEADER].doing, null, "a word that is not a string is no word");
+  });
+
+  // The tool line, at the pace a reader can follow: a word up stays SHOWN_FOR; a word said while
+  // the one showing is younger waits, and goes up the moment it is due — from the event that
+  // finds it due, or from `advance`, which says when to come back.
+  describe("the tool line", () => {
+    const at = (state, now, doing) => applyEvent(state, seat(LEADER, { busy: true, doing }), now);
+    const shows = (state) => state.panels[LEADER].doing;
+    const opened = () => {
+      const state = fresh();
+      applyEvent(state, snapshot([about(LEADER, { busy: true, doing: "Thinking…" })]), 0);
+      return state;
+    };
+
+    it("a word said while the one showing is younger than SHOWN_FOR waits, and goes up when it is due", () => {
+      const state = opened();
+      at(state, 10, "Reading a");
+      assert.equal(shows(state), "Thinking…", "Thinking… has had 10 ms of its 500");
+      assert.equal(advance(state, 499), SHOWN_FOR, "not due yet, and the page is told when it is");
+      assert.equal(shows(state), "Thinking…");
+      assert.equal(advance(state, SHOWN_FOR), null, "due, up, and nothing waits behind it");
+      assert.equal(shows(state), "Reading a");
+      at(state, 2 * SHOWN_FOR, "Reading b");
+      assert.equal(shows(state), "Reading b", "a word said once the one showing has had its time goes up at once");
+    });
+
+    it("a word that repeats the newest one known is not queued", () => {
+      const state = opened();
+      at(state, 10, "Thinking…");
+      assert.deepEqual(state.panels[LEADER].waiting, [], "Thinking… again is the Thinking… showing");
+      at(state, 20, "Reading a");
+      at(state, 30, "Reading a");
+      assert.deepEqual(state.panels[LEADER].waiting, ["Reading a"], "said twice, waits once");
+      at(state, 40, "Thinking…");
+      assert.deepEqual(state.panels[LEADER].waiting, ["Reading a", "Thinking…"], "not the newest known: queued, whatever the line shows");
+    });
+
+    it("the turn's end drains the line at its pace and only then takes it down", () => {
+      const state = opened();
+      at(state, 10, "Reading a");
+      at(state, 20, null);
+      assert.equal(shows(state), "Thinking…");
+      assert.equal(advance(state, SHOWN_FOR), 2 * SHOWN_FOR);
+      assert.equal(shows(state), "Reading a", "the call goes up though the turn is over");
+      assert.equal(advance(state, 2 * SHOWN_FOR), null);
+      assert.equal(shows(state), null, "and the line goes once it has had its time");
+      assert.deepEqual(state.panels[LEADER].waiting, [], "nothing stale behind it");
+      at(state, 2 * SHOWN_FOR + 10, "Thinking…");
+      assert.equal(shows(state), "Thinking…", "an empty line has nothing to read: the next turn's word goes up at once");
+    });
+
+    it("no more than LINE_QUEUE words wait, the oldest dropped first", () => {
+      const state = opened();
+      for (const word of ["a", "b", "c", "d", "e"]) at(state, 10, word);
+      assert.deepEqual(state.panels[LEADER].waiting, ["c", "d", "e"]);
+      assert.equal(state.panels[LEADER].waiting.length, LINE_QUEUE);
+      assert.equal(shows(state), "Thinking…");
+      assert.equal(advance(state, SHOWN_FOR), 2 * SHOWN_FOR);
+      assert.equal(shows(state), "c");
+    });
+
+    it("advance answers the soonest due moment over every panel", () => {
+      const state = opened();
+      at(state, 10, "Reading a");
+      applyEvent(state, seat("Paul", { busy: true, doing: "Thinking…" }), 200);
+      applyEvent(state, seat("Paul", { busy: true, doing: "Reading b" }), 300);
+      assert.equal(advance(state, 300), 500, "Paul's is due at 700, the Leader's at 500");
+      assert.equal(advance(state, 500), 700);
+      assert.equal(advance(state, 700), null);
+    });
   });
 
   it("the stop glyph is there while a turn runs and nowhere else", () => {
