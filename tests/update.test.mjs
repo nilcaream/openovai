@@ -17,6 +17,7 @@ import { after, before, describe, it } from "node:test";
 import { installed, remove, repo, runToolLater, scratch, serveRelease } from "./helpers.mjs";
 import { PAYLOAD, RETIRED } from "../lib/payload.mjs";
 import { RELEASES } from "../lib/release.mjs";
+import { describeRunning } from "../lib/running.mjs";
 import { isOlderThan } from "../lib/version.mjs";
 
 const USER = "Mike";
@@ -489,8 +490,9 @@ describe("an update while a session of this instance is running", () => {
   // A process that carries what a session of this instance carries — the instance's own home in
   // its environment — and nothing else of one: it is the environment that says whose it is, not
   // what it runs.
+  const IDLING = ["node", "-e", "setInterval(() => {}, 1000)"];
   function idle(environment) {
-    const child = spawn("node", ["-e", "setInterval(() => {}, 1000)"], {
+    const child = spawn(IDLING[0], IDLING.slice(1), {
       env: { ...process.env, ...environment },
       stdio: "ignore",
     });
@@ -522,9 +524,14 @@ describe("an update while a session of this instance is running", () => {
     assert.notEqual(refused.status, 0);
   });
 
-  it("names each session with the command that ends it", () => {
-    assert.match(refused.stderr, new RegExp(`^  kill ${one.pid}$`, "m"));
-    assert.match(refused.stderr, new RegExp(`^  kill ${another.pid}$`, "m"));
+  // And with what it is: a pid alone leaves the person to look each one up before ending it,
+  // and the process that is not a session of theirs at all — a server of another instance
+  // started from inside one of this instance's sessions, say — is told apart by its command.
+  it("names each session with the command that ends it, and the command it is running", () => {
+    for (const child of [one, another]) {
+      const line = `\n  kill ${child.pid}   # ${IDLING.join(" ")}\n`;
+      assert.ok(refused.stderr.includes(line), `nothing said ${JSON.stringify(line)}: ${refused.stderr}`);
+    }
   });
 
   it("names nothing of another instance's", () => {
@@ -550,6 +557,17 @@ describe("an update while a session of this instance is running", () => {
       CLAUDE_CONFIG_DIR: path.join(root, ".local"),
     });
     assert.equal(done.status, 0, done.stderr);
+  });
+});
+
+// A process that cannot be named is still ended by its pid: the line stands, with a "?" where
+// the command would be, rather than the whole refusal falling over a process that went away
+// between being found and being described.
+describe("how a running session is described", () => {
+  it("says ? for a command that cannot be read", async () => {
+    const gone = spawn("node", ["-e", ""], { stdio: "ignore" });
+    await new Promise((resolve) => gone.once("exit", resolve));
+    assert.ok(describeRunning([{ pid: gone.pid }]).includes(`\n  kill ${gone.pid}   # ?\n`));
   });
 });
 

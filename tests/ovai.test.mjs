@@ -1427,7 +1427,7 @@ describe("the server commands", () => {
       assert.ok(await settled(true));
       const stopped = ovai(["stop"]);
       assert.notEqual(stopped.status, 0);
-      assert.match(stopped.stderr, new RegExp(`^ovai: 15s after asking the server to stop, a session of this instance is running[^\n]*\n  kill ${session.pid}\nEnd them, or let them finish, and run this again\\.$`, "m"));
+      assert.match(stopped.stderr, new RegExp(`^ovai: 15s after asking the server to stop, a session of this instance is running[^\n]*\n  kill ${session.pid}   # [^\n]*setTimeout[^\n]*\nEnd them, or let them finish, and run this again\\.$`, "m"));
       assert.equal(stopped.stdout, `Stopping the server at ${url} (pid ${pidRecorded()}).\n`);
       assert.ok(await settled(false));
     } finally {

@@ -210,12 +210,34 @@
   },
   {
     "name": "the refusal names the session but not what ends it",
-    "catches": "names each session with the command that ends it",
+    "catches": "names each session with the command that ends it, and the command it is running",
     "edits": [
       {
         "file": "lib/running.mjs",
-        "from": "    ...running.map(({ pid }) => `  kill ${pid}`),",
-        "to": "    ...running.map(({ pid }) => `  ${pid}`),"
+        "from": "    ...running.map(({ pid }) => `  kill ${pid}   # ${commandOf(pid)}`),",
+        "to": "    ...running.map(({ pid }) => `  ${pid}   # ${commandOf(pid)}`),"
+      }
+    ]
+  },
+  {
+    "name": "the refusal names what ends the session but not what it is running",
+    "catches": "names each session with the command that ends it, and the command it is running",
+    "edits": [
+      {
+        "file": "lib/running.mjs",
+        "from": "    ...running.map(({ pid }) => `  kill ${pid}   # ${commandOf(pid)}`),",
+        "to": "    ...running.map(({ pid }) => `  kill ${pid}`),"
+      }
+    ]
+  },
+  {
+    "name": "a command that cannot be read is left blank",
+    "catches": "says ? for a command that cannot be read",
+    "edits": [
+      {
+        "file": "lib/running.mjs",
+        "from": "  } catch {\n    return \"?\";\n  }",
+        "to": "  } catch {\n    return \"\";\n  }"
       }
     ]
   },
