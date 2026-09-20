@@ -552,3 +552,32 @@ describe("an update while a session of this instance is running", () => {
     assert.equal(done.status, 0, done.stderr);
   });
 });
+
+// A server of another instance, started from inside a session of this one — a Worker starting a
+// lab instance's server from its own session — inherits that session's environment, and with it
+// this instance's home. Read from the machine, it was a session of this instance, and an update
+// here was refused naming a process that was nothing of the kind. A server carries its own
+// instance's home, whatever it was started from.
+describe("an update while another instance's server, started from inside a session of this one, runs", () => {
+  const root = makeInstance("beside-a-server");
+  const other = makeInstance("beside-a-server-elsewhere");
+  const tree = makeRelease("beside-a-server-release");
+  let done;
+
+  before(async () => {
+    const started = await runToolLater(other, ["start"], {
+      ...process.env,
+      CLAUDE_CONFIG_DIR: path.join(root, ".local"),
+    });
+    assert.equal(started.status, 0, started.stderr);
+    done = await update(root, tree);
+  });
+
+  after(async () => {
+    await runToolLater(other, ["stop"], process.env);
+  });
+
+  it("goes through: that server is a session of its own instance, not of this one", () => {
+    assert.equal(done.status, 0, done.stderr);
+  });
+});
