@@ -757,8 +757,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "  .rows .line { display: block; width: 100%; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); font-family: var(--mono); font-size: .76rem; color: var(--fg-dim); padding: 3px 8px; margin: 3px 0; overflow-wrap: anywhere; }\n  .rows .line.err { color: var(--bad); }\n  .rows .line .n { color: var(--fg-faint); }\n  /* a line that is one end of a message between two sessions: a click on it finds the message on the Leader's panel */\n  .rows .line.peer { cursor: pointer; border-left: 3px solid var(--accent); }\n",
-        "to": "  .rows .tool { display: block; width: 100%; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); font-family: var(--mono); font-size: .76rem; color: var(--fg-dim); padding: 3px 8px; margin: 3px 0; overflow-wrap: anywhere; }\n  .rows .tool.err { color: var(--bad); }\n  .rows .tool .n { color: var(--fg-faint); }\n  /* a line that is one end of a message between two sessions: a click on it finds the message on the Leader's panel */\n  .rows .tool.peer { cursor: pointer; border-left: 3px solid var(--accent); }\n"
+        "from": "  .rows .line { display: block; width: 100%; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); font-family: var(--mono); font-size: .76rem; color: var(--fg-dim); padding: 3px 8px; margin: 3px 0; overflow-wrap: anywhere; }\n  .rows .line.err { color: var(--bad); }\n  .rows .line .n { color: var(--fg-faint); }\n  /* a line that is one end of a message between two sessions: a click on it finds the message on the Leader's panel */\n  .rows .line.peer { cursor: pointer; border-left: 3px solid var(--accent); }\n  /* the one line that says what the seat is at: always exactly one line, cut with an ellipsis */\n  .rows .line.doing { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }\n",
+        "to": "  .rows .tool { display: block; width: 100%; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); font-family: var(--mono); font-size: .76rem; color: var(--fg-dim); padding: 3px 8px; margin: 3px 0; overflow-wrap: anywhere; }\n  .rows .tool.err { color: var(--bad); }\n  .rows .tool .n { color: var(--fg-faint); }\n  /* a line that is one end of a message between two sessions: a click on it finds the message on the Leader's panel */\n  .rows .tool.peer { cursor: pointer; border-left: 3px solid var(--accent); }\n  /* the one line that says what the seat is at: always exactly one line, cut with an ellipsis */\n  .rows .tool.doing { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }\n"
       }
     ]
   },
@@ -790,7 +790,7 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "          if (shown.kind === \"line\" && shown.msg === undefined && panel.last !== null && panel.last.text === shown.text) {\n            panel.last.count += 1;\n            panel.last.n.textContent = ` ×${panel.last.count}`;\n            panel.lines.set(index, panel.last.el);\n            continue;\n          }\n",
+        "from": "          if (shown.kind === \"line\" && shown.msg === undefined && panel.last !== null && panel.last.text === shown.text) {\n            panel.last.count += 1;\n            panel.last.n.textContent = ` ×${panel.last.count}`;\n            landed = true;\n            panel.lines.set(index, panel.last.el);\n            continue;\n          }\n",
         "to": ""
       }
     ]
@@ -1771,8 +1771,30 @@
       },
       {
         "file": "lib/chat/page.html",
-        "from": "      if (added.length > 0) {\n        if (follows) {",
-        "to": "      if (added.length > 0 || asked) {\n        if (follows) {"
+        "from": "      if (landed) {\n        if (follows) {",
+        "to": "      if (landed || asked) {\n        if (follows) {"
+      }
+    ]
+  },
+  {
+    "name": "a tool line lands without pinning the panel that follows",
+    "catches": "pins a following panel on any row that landed, a tool line and a counter too, never on the stamps alone",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "          panel.rows.append(line);\n          landed = true;\n",
+        "to": "          panel.rows.append(line);\n          if (line.querySelector(\".t\") !== null) landed = true;\n"
+      }
+    ]
+  },
+  {
+    "name": "a repeated call that grew its counter lands without pinning the panel that follows",
+    "catches": "pins a following panel on any row that landed, a tool line and a counter too, never on the stamps alone",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "            panel.last.n.textContent = ` ×${panel.last.count}`;\n            landed = true;\n",
+        "to": "            panel.last.n.textContent = ` ×${panel.last.count}`;\n"
       }
     ]
   },
@@ -1782,8 +1804,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "        panel.waiting.clear();\n        // The cards are not among the rows: they stand, and leave when their question does.\n",
-        "to": "        panel.waiting.clear();\n        panel.drawn.clear();\n"
+        "from": "        panel.waiting.clear();\n        panel.doing = null;\n        // The cards are not among the rows: they stand, and leave when their question does.\n",
+        "to": "        panel.waiting.clear();\n        panel.doing = null;\n        panel.drawn.clear();\n"
       }
     ]
   },

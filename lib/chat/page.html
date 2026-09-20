@@ -819,6 +819,10 @@
         panel.doing = null;
         // The cards are not among the rows: they stand, and leave when their question does.
       }
+      // Whether any row landed — a bubble, a pill, a tool line, or a repeated call that only grew
+      // its counter — is what decides the scroll; the stamps appended are for the fitter alone,
+      // since a tool line carries no stamp.
+      let landed = false;
       panel.empty.hidden = about.rows.length > 0;
       const added = [];
       if (about.rows.length > panel.shown) {
@@ -845,11 +849,13 @@
           if (shown.kind === "line" && shown.msg === undefined && panel.last !== null && panel.last.text === shown.text) {
             panel.last.count += 1;
             panel.last.n.textContent = ` ×${panel.last.count}`;
+            landed = true;
             panel.lines.set(index, panel.last.el);
             continue;
           }
           const line = rowElement(entry, shown, panel);
           panel.rows.append(line);
+          landed = true;
           if (shown.kind === "line") {
             panel.last = shown.msg === undefined ? { text: shown.text, el: line, count: 1, n: line.lastElementChild } : null;
             panel.lines.set(index, line);
@@ -908,7 +914,6 @@
       // never taken out and put back within a turn, so the rows never jump for it. It is the last
       // row, after whatever landed: its coming counts as a row landing, a change of its words does
       // not, since it is one line high whatever they say.
-      let landed = added.length > 0;
       if (about.doing === null) {
         if (panel.doing !== null) {
           panel.doing.remove();
