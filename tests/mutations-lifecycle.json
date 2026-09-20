@@ -982,8 +982,8 @@
     "edits": [
       {
         "file": "lib/serve.mjs",
-        "from": "  const instance = { root, config, plugins: plugins.tools, pop: pop.pop, stopping: false };",
-        "to": "  const instance = { root, config, plugins: [], pop: pop.pop, stopping: false };"
+        "from": "  const instance = { root, config, plugins: plugins.tools, stopping: false };",
+        "to": "  const instance = { root, config, plugins: [], stopping: false };"
       }
     ]
   },

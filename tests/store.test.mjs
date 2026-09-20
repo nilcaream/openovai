@@ -791,7 +791,7 @@ describe("the tools the chat serves for the store", () => {
     log_ = console.log;
     console.log = (line) => served.push(String(line));
     const config = JSON.parse(fs.readFileSync(path.join(instance, CONFIG_FILE), "utf8"));
-    const chat = { root: instance, config, plugins: [], pop: () => {} };
+    const chat = { root: instance, config, plugins: [] };
     server = await serve(chat);
     url = `http://127.0.0.1:${server.address().port}`;
     for (const seat of [CHAT_LEADER, CHAT_WORKER]) {

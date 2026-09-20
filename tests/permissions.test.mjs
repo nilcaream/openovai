@@ -3,8 +3,7 @@
 //
 // The first half calls lib/chat/permissions.mjs directly for the rule a request composes; the
 // second serves a chat in this process, starts a seat whose stand-in asks before every answer,
-// and drives the page's own routes. The desktop pop is checked here too, because a session
-// stopped on a question is what it is for.
+// and drives the page's own routes.
 //
 // Every mutation in tests/mutations-permissions.json names the check it was written to redden.
 
@@ -15,7 +14,6 @@ import { after, before, describe, it } from "node:test";
 
 import { subscribe } from "../lib/chat/events.mjs";
 import { acceptRule, shapeOf } from "../lib/chat/permissions.mjs";
-import { QUIET_HOURS, quietHoursProblem, withinQuietHours } from "../lib/chat/pop.mjs";
 import { pageSecret } from "../lib/chat/secrets.mjs";
 import { endSeat, serve, startSeat, toolsFor } from "../lib/chat/server.mjs";
 import { LEADER as LEADS, WORKER, endEvery } from "../lib/chat/session.mjs";
@@ -187,9 +185,6 @@ describe("the rule a write could be allowed by", () => {
   });
 });
 
-// ---------------------------------------------------------------------------------------------
-// The window in which nobody's desktop is disturbed.
-
 // The inverse: a rule written by hand, for the Leader's permission tool. One checker for both
 // callers, so what a person can be asked to settle is exactly what an Always button could offer.
 describe("the rule a person may be asked to settle", () => {
@@ -247,37 +242,6 @@ describe("settling a rule in the settings", () => {
   });
 });
 
-describe("the hours a workspace is not to be woken", () => {
-  // The machine's own clock: a moment is built from local hours, the way the window reads them.
-  function at(hours, minutes) {
-    const moment = new Date();
-    moment.setHours(hours, minutes, 0, 0);
-    return moment;
-  }
-
-  it("takes a window as two times of day and a hyphen, or nothing at all", () => {
-    assert.equal(quietHoursProblem("22:00-08:00"), null);
-    assert.equal(quietHoursProblem(undefined), null);
-  });
-
-  it("refuses a window it cannot read, naming the field", () => {
-    assert.match(quietHoursProblem("22-08"), new RegExp(`^${QUIET_HOURS} is "22-08", which is not a window`));
-    assert.match(quietHoursProblem({ from: "22:00", to: "08:00" }), new RegExp(`^${QUIET_HOURS} is `));
-    assert.match(quietHoursProblem("22:00-22:00"), /no time at all/);
-  });
-
-  it("is half-open, and a window whose end is before its start wraps midnight", () => {
-    assert.equal(withinQuietHours("22:00-08:00", at(23, 30)), true);
-    assert.equal(withinQuietHours("22:00-08:00", at(3, 0)), true);
-    assert.equal(withinQuietHours("22:00-08:00", at(22, 0)), true);
-    assert.equal(withinQuietHours("22:00-08:00", at(8, 0)), false);
-    assert.equal(withinQuietHours("22:00-08:00", at(12, 0)), false);
-    assert.equal(withinQuietHours("13:00-14:00", at(13, 30)), true);
-    assert.equal(withinQuietHours("13:00-14:00", at(14, 0)), false);
-    assert.equal(withinQuietHours(undefined, at(23, 30)), false);
-  });
-});
-
 // ---------------------------------------------------------------------------------------------
 // Over the chat.
 
@@ -294,7 +258,6 @@ function options(root) {
   };
 }
 
-const pops = [];
 let chat = null;
 let server = null;
 let url = null;
@@ -359,7 +322,7 @@ describe("asking to be allowed", () => {
     remove(instance, standIn);
     writeStandIn(standIn);
     installed(options(instance));
-    chat = { root: instance, config: JSON.parse(fs.readFileSync(path.join(instance, CONFIG_FILE), "utf8")), plugins: [], pop: (asked) => pops.push(asked) };
+    chat = { root: instance, config: JSON.parse(fs.readFileSync(path.join(instance, CONFIG_FILE), "utf8")), plugins: [] };
     log_ = console.log;
     console.log = () => {};
     server = await serve(chat);
@@ -394,12 +357,6 @@ describe("asking to be allowed", () => {
       assert.deepEqual(asking[0].input, { command: "the one it wanted to run" });
       const still = JSON.parse((await page("GET", `/sessions/${LEADER}/permissions`)).body).permissions;
       assert.equal(still.length, 1, "something answered it that was not a person");
-    });
-
-    it("pops the desktop once, saying who is stopped and on what", () => {
-      assert.equal(pops.length, 1);
-      assert.equal(pops[0].on, LEADER);
-      assert.equal(pops[0].why, `${LEADER} is stopped, waiting to be allowed to use Bash: the one it wanted to run`);
     });
   });
 
@@ -701,7 +658,6 @@ describe("asking to be allowed", () => {
     before(async () => {
       leader = await leaderAsking({});
       leader.secret = secretsIn(leader.log)[0];
-      pops.length = 0;
       ruleAsked(instance, { rule: "Bash(git:*)", list: "deny", session: LEADER, call: "settled by hand for the check", day: "2026-09-13" });
       said.noWhy = await permission({ rule: "Bash(pip:*)" });
       said.badShape = await permission({ rule: "Bash(*)", why: "anything" });
@@ -757,12 +713,6 @@ describe("asking to be allowed", () => {
       assert.ok(said.asked.text.includes(request.id));
     });
 
-    it("pops the desktop once the rule dialog is listed, naming the rule", () => {
-      assert.equal(pops.length, 1, JSON.stringify(pops));
-      assert.equal(pops[0].on, LEADER);
-      assert.equal(pops[0].why, `${LEADER} asks you to settle Bash(pip:*)`);
-    });
-
     it("answers the three lists and the pending dialogs when called with no rule", () => {
       assert.equal(said.listing.refused, false, said.listing.text);
       const listing = JSON.parse(said.listing.text);
@@ -809,12 +759,10 @@ describe("asking to be allowed", () => {
     });
   });
 
-  // The reply goes first: a rule asked in the middle of a turn is listed, and popped, once the turn
-  // has ended.
+  // The reply goes first: a rule asked in the middle of a turn is listed once the turn has ended.
   describe("a rule asked in the middle of a turn", () => {
     let leader;
     let during;
-    let popsDuring;
     let after_;
     let reply;
     // The page is told when what the Leader's panel asks has changed: once at the park, and again
@@ -831,7 +779,6 @@ describe("asking to be allowed", () => {
     before(async () => {
       leader = await leaderAsking({ OPENOVAI_STAND_IN_SLOW: "1500" });
       leader.secret = secretsIn(leader.log)[0];
-      pops.length = 0;
       unsubscribe = subscribe((event) => {
         if (event.name === "asking" && event.data.seat === LEADER) {
           told.push(event);
@@ -841,7 +788,6 @@ describe("asking to be allowed", () => {
       await waitFor(() => (heardIn(leader.log).length > 0 ? true : null));
       assert.match(await permission({ rule: "Bash(cargo:*)", why: "the build is cargo" }), /^asked on your panel/);
       during = JSON.parse((await page("GET", `/sessions/${LEADER}/permissions`)).body).permissions;
-      popsDuring = pops.length;
       toldDuring = told.length;
       await reply();
       after_ = await waitFor(async () => {
@@ -867,39 +813,5 @@ describe("asking to be allowed", () => {
       assert.equal(after_[0].rule, "Bash(cargo:*)");
     });
 
-    it("pops the desktop after the turn, not during it", () => {
-      assert.equal(popsDuring, 0);
-      assert.equal(pops.length, 1);
-      assert.equal(pops[0].why, `${LEADER} asks you to settle Bash(cargo:*)`);
-    });
-  });
-
-  describe("a desktop inside its quiet hours", () => {
-    let asking;
-    let reply;
-
-    before(async () => {
-      // A window covering this minute whatever the clock says: from now to the minute before now.
-      const now = new Date();
-      const before_ = new Date(now.getTime() - 60 * 1000);
-      const clock = (moment) => `${String(moment.getHours()).padStart(2, "0")}:${String(moment.getMinutes()).padStart(2, "0")}`;
-      chat.config = { ...chat.config, [QUIET_HOURS]: `${clock(now)}-${clock(before_)}` };
-      pops.length = 0;
-      await leaderAsking({ OPENOVAI_STAND_IN_ASKS: "Bash" });
-      reply = await say("quietly");
-      asking = await waitingOn();
-    });
-
-    after(async () => {
-      await page("POST", `/sessions/${LEADER}/permission`, { id: asking[0].id, decision: "deny" });
-      await reply();
-      await endSeat(LEADER, 500);
-      delete chat.config[QUIET_HOURS];
-    });
-
-    it("is not popped, though the question is shown", () => {
-      assert.equal(asking.length, 1);
-      assert.deepEqual(pops, []);
-    });
   });
 });

@@ -1957,5 +1957,82 @@
         "to": "      if (added.length > 0) {\n        if (follows) {"
       }
     ]
+  },
+  {
+    "name": "the page notifies while it is visible",
+    "catches": "notifies through the browser on a card and on the Leader's reply, only while the page is not visible and the switch is on",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    if (document.visibilityState === \"visible\" || !notifyOn(kind)) return;\n",
+        "to": "    if (!notifyOn(kind)) return;\n"
+      }
+    ]
+  },
+  {
+    "name": "the notification carries no tag, so a burst on one panel stacks",
+    "catches": "notifies through the browser on a card and on the Leader's reply, only while the page is not visible and the switch is on",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    const shown = new Notification(title(state), { body, tag: seat });\n",
+        "to": "    const shown = new Notification(title(state), { body });\n"
+      }
+    ]
+  },
+  {
+    "name": "the event is read after it is applied, so a card already on the panel is never new",
+    "catches": "notifies through the browser on a card and on the Leader's reply, only while the page is not visible and the switch is on",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "        const notice = noticed(state, { name, data });\n        applyEvent(state, { name, data });\n",
+        "to": "        applyEvent(state, { name, data });\n        const notice = noticed(state, { name, data });\n"
+      }
+    ]
+  },
+  {
+    "name": "a click on the notification leaves the page where it is",
+    "catches": "notifies through the browser on a card and on the Leader's reply, only while the page is not visible and the switch is on",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    shown.addEventListener(\"click\", () => {\n      window.focus();\n",
+        "to": "    shown.addEventListener(\"click\", () => {\n"
+      }
+    ]
+  },
+  {
+    "name": "the switches are off until the store says on",
+    "catches": "keeps the two switches on the Leader's head, on by default, in storage, and asks the browser only from a switch turned on",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    try { return localStorage.getItem(NOTIFY[kind].key) !== \"off\"; } catch (error) { return true; }\n",
+        "to": "    try { return localStorage.getItem(NOTIFY[kind].key) === \"on\"; } catch (error) { return true; }\n"
+      }
+    ]
+  },
+  {
+    "name": "the browser is asked for its permission at load",
+    "catches": "keeps the two switches on the Leader's head, on by default, in storage, and asks the browser only from a switch turned on",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "  connect();\n  setInterval(",
+        "to": "  connect();\n  if (\"Notification\" in window) Notification.requestPermission();\n  setInterval("
+      }
+    ]
+  },
+  {
+    "name": "the switch on the Leader's head is not a click",
+    "catches": "keeps the two switches on the Leader's head, on by default, in storage, and asks the browser only from a switch turned on",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "  .phead .notify { margin-left: 6px; align-self: center; flex: 0 0 auto; padding: 1px 7px; border: 1px solid var(--line); border-radius: 999px; font-family: var(--mono); font-size: .72rem; line-height: 1.4; color: var(--fg-faint); background: none; cursor: pointer; }\n",
+        "to": "  .phead .notify { margin-left: 6px; align-self: center; flex: 0 0 auto; padding: 1px 7px; border: 1px solid var(--line); border-radius: 999px; font-family: var(--mono); font-size: .72rem; line-height: 1.4; color: var(--fg-faint); background: none; }\n"
+      }
+    ]
   }
 ]

@@ -493,5 +493,38 @@
         "to": "  panel.doing = panel.doing;"
       }
     ]
+  },
+  {
+    "name": "a card listed again is noticed again",
+    "catches": "a card that was not on its panel, on any panel, once",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "    return data.pending.some((request) => !shown.has(request.id)) ? { seat: panel.name, kind: CARD } : null;\n",
+        "to": "    return data.pending.length > 0 ? { seat: panel.name, kind: CARD } : null;\n"
+      }
+    ]
+  },
+  {
+    "name": "a Worker's turn ending is noticed like the Leader's",
+    "catches": "the end of the Leader's turn, however it ended, and no Worker's",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  if (name === \"seat\" && panel.name === state.leader && panel.busy && data.busy !== true) {\n",
+        "to": "  if (name === \"seat\" && panel.busy && data.busy !== true) {\n"
+      }
+    ]
+  },
+  {
+    "name": "a Leader already listening is noticed on every seat event",
+    "catches": "the end of the Leader's turn, however it ended, and no Worker's",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  if (name === \"seat\" && panel.name === state.leader && panel.busy && data.busy !== true) {\n",
+        "to": "  if (name === \"seat\" && panel.name === state.leader && data.busy !== true) {\n"
+      }
+    ]
   }
 ]

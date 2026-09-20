@@ -159,28 +159,6 @@
     ]
   },
   {
-    "name": "the desktop is not told that somebody is stopped",
-    "catches": "pops the desktop once, saying who is stopped and on what",
-    "edits": [
-      {
-        "file": "lib/chat/lifecycle.mjs",
-        "from": "    popped(instance, { on: seat, why: `${seat} is stopped, waiting to be allowed to use ${request.tool}${command}` });\n",
-        "to": ""
-      }
-    ]
-  },
-  {
-    "name": "the desktop is popped inside its quiet hours",
-    "catches": "is not popped, though the question is shown",
-    "edits": [
-      {
-        "file": "lib/chat/pop.mjs",
-        "from": "  if (withinQuietHours(instance.config?.[QUIET_HOURS])) {",
-        "to": "  if (false) {"
-      }
-    ]
-  },
-  {
     "name": "any word at all is taken as a decision",
     "catches": "is refused when the answer is not one of the three, or names no request",
     "edits": [
@@ -265,50 +243,6 @@
         "file": "lib/chat/lifecycle.mjs",
         "from": "      giveUp(seat);\n",
         "to": ""
-      }
-    ]
-  },
-  {
-    "name": "a window whose end is before its start is never quiet",
-    "catches": "is half-open, and a window whose end is before its start wraps midnight",
-    "edits": [
-      {
-        "file": "lib/chat/pop.mjs",
-        "from": "  return from < to ? now >= from && now < to : now >= from || now < to;",
-        "to": "  return from < to && now >= from && now < to;"
-      }
-    ]
-  },
-  {
-    "name": "a window is anything with a hyphen in it",
-    "catches": "refuses a window it cannot read, naming the field",
-    "edits": [
-      {
-        "file": "lib/chat/pop.mjs",
-        "from": "const WINDOW = /^([01]\\d|2[0-3]):([0-5]\\d)-([01]\\d|2[0-3]):([0-5]\\d)$/;",
-        "to": "const WINDOW = /^.+-.+$/;"
-      }
-    ]
-  },
-  {
-    "name": "a window that begins where it ends is taken as a window",
-    "catches": "refuses a window it cannot read, naming the field",
-    "edits": [
-      {
-        "file": "lib/chat/pop.mjs",
-        "from": "  if (from === to) {\n    return `${QUIET_HOURS} begins and ends at ${from}, which is no time at all — a window that says nothing is better left out`;\n  }\n",
-        "to": ""
-      }
-    ]
-  },
-  {
-    "name": "the desktop is told the tool and not the command",
-    "catches": "pops the desktop once, saying who is stopped and on what",
-    "edits": [
-      {
-        "file": "lib/chat/lifecycle.mjs",
-        "from": "waiting to be allowed to use ${request.tool}${command}` });",
-        "to": "waiting to be allowed to use ${request.tool}` });"
       }
     ]
   },
@@ -408,17 +342,6 @@
         "file": "lib/chat/server.mjs",
         "from": "    LISTS.map((list) => [list, (Array.isArray(permissions[list])",
         "to": "    [\"allow\", \"ask\"].map((list) => [list, (Array.isArray(permissions[list])"
-      }
-    ]
-  },
-  {
-    "name": "the rule dialog does not pop the desktop",
-    "catches": "pops the desktop once the rule dialog is listed, naming the rule",
-    "edits": [
-      {
-        "file": "lib/chat/lifecycle.mjs",
-        "from": "    popped(instance, { on: seat, why: `${seat} asks you to settle ${rule}` });\n",
-        "to": ""
       }
     ]
   },

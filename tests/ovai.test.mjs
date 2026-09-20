@@ -1437,15 +1437,15 @@ describe("the server commands", () => {
   });
 
   // A start that fails quotes what the server said — this run's, not every run the log holds.
-  // The failure is made the way it happens: a configuration the server refuses before it serves.
+  // The failure is made the way it happens: a configuration the server cannot read before it serves.
   it("quotes only this run's output when the server exits before it is up", () => {
     const configuration = path.join(served, "openovai.json");
     const kept = fs.readFileSync(configuration, "utf8");
-    fs.writeFileSync(configuration, JSON.stringify({ ...JSON.parse(kept), quietHours: "nonsense" }));
+    fs.writeFileSync(configuration, `${kept}nonsense`);
     try {
       const failed = ovai(["start"]);
       assert.notEqual(failed.status, 0);
-      assert.match(failed.stderr, /^ovai: the server exited \(1\) before it was up:\n[^\n]*quietHours is "nonsense"/);
+      assert.match(failed.stderr, /^ovai: the server exited \(1\) before it was up:\n[^\n]*openovai\.json is not readable as JSON/);
       assert.doesNotMatch(failed.stderr, /Serving /);
     } finally {
       fs.writeFileSync(configuration, kept);

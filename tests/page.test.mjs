@@ -490,6 +490,39 @@ describe("the script", () => {
     assert.match(script, /themeToggle\.addEventListener\("click", \(\) => applyTheme\(document\.documentElement\.dataset\.theme === "dark" \? "light" : "dark"\)\);/);
   });
 
+  // Reaching a reader who is not at the page: a browser notification, through the browser's own
+  // system, for a card appearing on any panel and for the Leader's turn ending — read off the event
+  // against the state before it is applied, and told after the draw. Never while the page is
+  // visible, never with the switch off, never without the browser's permission; one per panel at
+  // a time, since the tag is the seat; a click brings the page and the panel back. No sound of
+  // the page's own.
+  it("notifies through the browser on a card and on the Leader's reply, only while the page is not visible and the switch is on", () => {
+    assert.match(script, /import \{[^}]*\bCARD\b[^}]*\bREPLY\b[^}]*\bnoticed\b[^}]*\} from "\.\/panels\.mjs"/);
+    assert.match(script, /const data = JSON\.parse\(event\.data\);\s*(?:\/\/[^\n]*\n\s*)*const notice = noticed\(state, \{ name, data \}\);\s*applyEvent\(state, \{ name, data \}\);\s*draw\(\);\s*if \(notice !== null\) notified\(notice\);/, "read against the state before the event is applied, told after the draw");
+    assert.match(script, /function notified\(\{ seat, kind \}\) \{\s*if \(document\.visibilityState === "visible" \|\| !notifyOn\(kind\)\) return;\s*if \(!\("Notification" in window\) \|\| Notification\.permission !== "granted"\) return;/);
+    assert.match(script, /new Notification\(title\(state\), \{ body, tag: seat \}\)/, "one per panel at a time: the tag is the seat");
+    assert.match(script, /shown\.addEventListener\("click", \(\) => \{\s*window\.focus\(\);\s*sections\.get\(seat\)\?\.section\.scrollIntoView\(\{ block: "nearest" \}\);\s*shown\.close\(\);/);
+    assert.doesNotMatch(script, /new Audio\(|<audio|\.play\(\)/, "a sound of the page's own");
+  });
+
+  // The two switches, on the Leader's head after the theme toggle: cards and Leader replies, on
+  // unless the browser's storage says off — and on when there is no storage to ask. The browser's
+  // own permission is asked from the click that turns a switch on, as browsers require, and from
+  // nowhere else: a page that asked at load would be a page that asks on every visit.
+  it("keeps the two switches on the Leader's head, on by default, in storage, and asks the browser only from a switch turned on", () => {
+    assert.match(script, /headLine\.append\(themeToggle\);\s*headLine\.append\(notifySwitch\(CARD\), notifySwitch\(REPLY\)\);/);
+    assert.match(script, /\[CARD\]: \{ key: "openovai-notify-cards", word: "cards" \}, \[REPLY\]: \{ key: "openovai-notify-replies", word: "Leader replies" \}/);
+    assert.match(script, /function notifyOn\(kind\) \{\s*try \{ return localStorage\.getItem\(NOTIFY\[kind\]\.key\) !== "off"; \} catch \(error\) \{ return true; \}/, "on unless the store says off, and on when there is no store");
+    assert.match(script, /try \{ localStorage\.setItem\(NOTIFY\[kind\]\.key, on \? "on" : "off"\); \} catch \(error\) \{\}/);
+    assert.match(script, /if \(on && "Notification" in window && Notification\.permission === "default"\) Notification\.requestPermission\(\);/);
+    assert.equal(script.match(/requestPermission/g).length, 1, "the browser is asked from the switch and nowhere else");
+    assert.match(script, /button\.classList\.toggle\("on", on\)/);
+    const notify = rules.find((rule) => rule.selector === ".phead .notify");
+    assert.ok(notify !== undefined, "no rule for the switch");
+    assert.equal(notify.declarations.cursor, "pointer");
+    assert.ok(rules.some((rule) => rule.selector === ".phead .notify.on"), "no rule for a switch that is on");
+  });
+
   // The pill: shown by a draw that appended rows while the reader was more than 80px above the
   // newest, gone once a scroll brings them near it or a click takes them there. It is a child of
   // the rows (sticky needs a scrolling ancestor) and their LAST child after every draw, or the

@@ -509,38 +509,20 @@ the deciding. `plugins/` sits at the root beside `desks/`, outside everything an
 
 ## Reaching you when you are not at the page
 
-Two things wait on you: a session stopped to ask whether it may do something, and a rule the
-Leader asked you to settle. Both are drawn on the page the moment they happen, and both are worth
-nothing while nobody has the page open — so the server also pops your desktop, for those two and
-for nothing else. Not an answer, not a turn ending, not a seat starting or stopping: those are a
-record, and a record is read when you read it.
+The page sends a browser notification, through the browser's own notification system, for two
+things and nothing else: a card appearing on any panel — a session stopped to ask whether it may
+do something, or a rule the Leader asked you to settle — and the Leader's turn ending, however it
+ended. Only while the page is not visible: a tab you are looking at tells you itself. A Worker's
+turn ending, a seat starting or stopping, a message between seats: those are a record, and a record
+is read when you read it.
 
-How your desktop is made to pop is yours to write: one file named `pop.mjs` at the root of the
-instance, beside `openovai.json`, exporting one function called `pop`:
-
-```js
-import { execFile } from "node:child_process";
-
-export function pop({ on, why }, { root, config }) {
-  execFile("notify-send", ["--", config.user, `${on}: ${why}`]);
-}
-```
-
-`on` is whose panel it is about and `why` is the sentence to read, the command in it. It is told,
-not asked: whatever it answers is ignored and never waited for, and whatever it throws is caught
-and written as a line on the panel it was about. It is read when the server starts, so
-**`ovai restart` after writing it**. An instance without one pops nothing; one whose file will not
-load, or has no `pop` in it, is named in `runtime.log`.
-
-**When you are not to be woken**, say so in `openovai.json`:
-
-```json
-"quietHours": "22:00-08:00"
-```
-
-Your machine's own clock, from the first minute and up to but not including the last; it may wrap
-midnight or not. Nothing pops inside the window and nothing is held back to arrive when it ends —
-the page is still the record. A window the server cannot read stops it starting, naming the field.
+Two switches on the Leader's head, beside the theme toggle, are the whole of the configuration:
+**cards** and **Leader replies**, both on to begin with, kept by the browser for that page. The
+first switch you turn on asks the browser for its permission, the way any site does; a browser that
+refused notifies nothing until you allow it in the browser's own settings. A click on a notification
+brings the page to the front and the panel it came from into view. One notification per panel at a
+time: a burst on one panel replaces its own, never stacks. Sound, and whether anything shows while
+you are in another app, are the browser's and the system's, not the page's.
 
 ## Signing in
 

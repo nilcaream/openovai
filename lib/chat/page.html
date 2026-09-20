@@ -106,6 +106,10 @@
   .phead .theme .moon { display: none; }
   :root[data-theme="dark"] .phead .theme .sun { display: none; }
   :root[data-theme="dark"] .phead .theme .moon { display: block; }
+  /* the two notification switches after the theme toggle: a word each, lit while on */
+  .phead .notify { margin-left: 6px; align-self: center; flex: 0 0 auto; padding: 1px 7px; border: 1px solid var(--line); border-radius: 999px; font-family: var(--mono); font-size: .72rem; line-height: 1.4; color: var(--fg-faint); background: none; cursor: pointer; }
+  .phead .notify:hover { color: var(--fg); background: var(--line); }
+  .phead .notify.on { color: var(--fg); border-color: var(--accent); }
   /* the pill that says rows arrived below where the reader is, on the Leader's panel */
   #jump { position: sticky; left: 50%; transform: translateX(-50%); bottom: 24px; background: var(--panel); border: 1px solid var(--line); color: var(--fg); border-radius: 999px; padding: 6px 14px; font-size: .85rem; cursor: pointer; box-shadow: 0 4px 14px var(--shadow); display: none; }
   #jump.show { display: block; }
@@ -230,7 +234,7 @@
   // draws it and carries what is typed and pressed to the server.
 
   import { dialogOf } from "./dialog.mjs";
-  import { AMBER, CONNECTED, DISCONNECTED, GREEN, RED, applyEvent, composersEnabled, delivery, dot, fresh, head, keyAction, place, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title } from "./panels.mjs";
+  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, applyEvent, composersEnabled, delivery, dot, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title } from "./panels.mjs";
   import { row as rowOf } from "./render.mjs";
 
   const secret = document.querySelector('meta[name="openovai-secret"]').content;
@@ -249,7 +253,57 @@
     themeMeta.content = getComputedStyle(document.documentElement).getPropertyValue("--panel-2").trim() || themeMeta.content;
   }
   applyTheme(document.documentElement.dataset.theme === "dark" ? "dark" : "light");
-  const SUN = '<svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 1.7v2.6M12 19.7v2.6M4.6 4.6l1.9 1.9M17.5 17.5l1.9 1.9M1.7 12h2.6M19.7 12h2.6M4.6 19.4l1.9-1.9M17.5 6.5l1.9-1.9"/></svg>';
+
+  // Reaching a reader who is not at the page: a browser notification, through the browser's own
+  // system, for a card appearing on any panel and for the Leader's reply arriving — what
+  // panels.mjs reads off an event. Never while the page is visible, since a page in front of the reader tells
+  // them itself; never with its switch off; never without the browser's permission, which is the
+  // browser's to ask and to keep. One per panel at a time: the tag is the seat, so a burst on one
+  // panel replaces its own rather than stacking. A click brings the page to the front and the panel
+  // it came from into view. No sound of the page's own — the browser and the system do what they
+  // do with a notification.
+  //
+  // Two switches, on the Leader's head after the theme toggle, are the whole of the configuration:
+  // one for cards, one for the Leader's replies, each on unless the browser's storage says off —
+  // and on when there is no storage to ask, the way the theme is light then. The browser's own
+  // permission is asked from the click that turns a switch on, as browsers require, and from
+  // nowhere else.
+  const NOTIFY = { [CARD]: { key: "openovai-notify-cards", word: "cards" }, [REPLY]: { key: "openovai-notify-replies", word: "Leader replies" } };
+  function notifyOn(kind) {
+    try { return localStorage.getItem(NOTIFY[kind].key) !== "off"; } catch (error) { return true; }
+  }
+  function notifySwitch(kind) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "notify";
+    button.textContent = NOTIFY[kind].word;
+    const show = () => {
+      const on = notifyOn(kind);
+      button.classList.toggle("on", on);
+      button.title = on ? `Notifying about ${NOTIFY[kind].word} while the page is not visible — click to stop` : `Not notifying about ${NOTIFY[kind].word} — click to notify`;
+    };
+    button.addEventListener("click", () => {
+      const on = !notifyOn(kind);
+      try { localStorage.setItem(NOTIFY[kind].key, on ? "on" : "off"); } catch (error) {}
+      if (on && "Notification" in window && Notification.permission === "default") Notification.requestPermission();
+      show();
+    });
+    show();
+    return button;
+  }
+  function notified({ seat, kind }) {
+    if (document.visibilityState === "visible" || !notifyOn(kind)) return;
+    if (!("Notification" in window) || Notification.permission !== "granted") return;
+    const body = kind === CARD ? `${seat} is waiting for you` : `${seat} has replied`;
+    const shown = new Notification(title(state), { body, tag: seat });
+    shown.addEventListener("click", () => {
+      window.focus();
+      sections.get(seat)?.section.scrollIntoView({ block: "nearest" });
+      shown.close();
+    });
+  }
+
+  const SUN ='<svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 1.7v2.6M12 19.7v2.6M4.6 4.6l1.9 1.9M17.5 17.5l1.9 1.9M1.7 12h2.6M19.7 12h2.6M4.6 19.4l1.9-1.9M17.5 6.5l1.9-1.9"/></svg>';
   const MOON = '<svg class="moon" viewBox="0 0 24 24" fill="currentColor"><path d="M20.7 14.6A8.7 8.7 0 0 1 9.4 3.3a8.9 8.9 0 1 0 11.3 11.3z"/></svg>';
   const SQUARE = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>';
   // The copy button's icon: the clipboard, and the tick the stylesheet shows in its place while
@@ -330,6 +384,7 @@
       themeToggle.addEventListener("click", () => applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));
       applyTheme(document.documentElement.dataset.theme);
       headLine.append(themeToggle);
+      headLine.append(notifySwitch(CARD), notifySwitch(REPLY));
     }
 
     const rows = document.createElement("div");
@@ -1008,8 +1063,12 @@
     stream = new EventSource(`/events?page=${encodeURIComponent(secret)}${since}`);
     for (const name of EVENTS) {
       stream.addEventListener(name, (event) => {
-        applyEvent(state, { name, data: JSON.parse(event.data) });
+        const data = JSON.parse(event.data);
+        // What the event is worth telling a reader who is not here, read before it is applied.
+        const notice = noticed(state, { name, data });
+        applyEvent(state, { name, data });
         draw();
+        if (notice !== null) notified(notice);
       });
     }
     stream.addEventListener("open", () => {

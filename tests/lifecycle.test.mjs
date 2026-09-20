@@ -95,7 +95,7 @@ installed(options(instance));
 hire(instance, WORKER);
 
 before(async () => {
-  chat = { root: instance, config: configOf(instance), plugins: [], pop: () => {}, clock: () => now };
+  chat = { root: instance, config: configOf(instance), plugins: [], clock: () => now };
   log_ = console.log;
   console.log = (line) => said.push(String(line));
   // Any spawn the chat makes on its own finds the stand-in, and one nobody arranged a log for

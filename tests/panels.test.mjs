@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { AMBER, CONNECTED, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, RED, SENDING, applyEvent, composersEnabled, delivery, dot, fresh, head, keyAction, place, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title } from "../lib/chat/panels.mjs";
+import { AMBER, CARD, CONNECTED, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, RED, REPLY, SENDING, applyEvent, composersEnabled, delivery, dot, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title } from "../lib/chat/panels.mjs";
 
 const LEADER = "Leader";
 
@@ -363,5 +363,38 @@ describe("a reference to a row", () => {
     reference(refs, "2026.09.14 Monday 14:39:14", "Paul", "two");
     assert.equal(spellReferences(refs, "see (ref:2026.09.14-14:39:14) and (ref:2026.09.14-14:39:14#2), not (ref:2026.09.13-01:02:03)"), 'see (ref: 14:39:14 Paul — "one") and (ref: 14:39:14 Paul — "two"), not (ref:2026.09.13-01:02:03)');
     assert.equal(spellReferences(refs, "nothing here"), "nothing here");
+  });
+});
+
+// What is worth telling a reader who is not at the page, read off an event against the state as
+// it stands before the event is applied: a card that was not on its panel, and the end of the
+// Leader's turn. Nothing else — a Worker's turn, a row, a seat coming or going is a record.
+describe("what the page notifies about", () => {
+  function pending(seat, ids) {
+    return { name: "asking", data: { seat, pending: ids.map((id) => ({ id, tool: "Bash", input: { command: "ls" } })) } };
+  }
+
+  it("a card that was not on its panel, on any panel, once", () => {
+    const state = fresh();
+    applyEvent(state, snapshot([about(LEADER), about("Paul")]), 0);
+    assert.deepEqual(noticed(state, pending("Paul", ["r1"])), { seat: "Paul", kind: CARD });
+    applyEvent(state, pending("Paul", ["r1"]), 0);
+    assert.equal(noticed(state, pending("Paul", ["r1"])), null, "the same card listed again");
+    assert.deepEqual(noticed(state, pending("Paul", ["r1", "r2"])), { seat: "Paul", kind: CARD }, "a second card beside the first");
+    assert.equal(noticed(state, pending("Paul", [])), null, "a card taken down");
+    assert.deepEqual(noticed(state, { name: "asking", data: { seat: LEADER, pending: [{ id: "u1", kind: "rule", rule: "Bash(git:*)", why: "w", from: LEADER }] } }), { seat: LEADER, kind: CARD }, "a rule dialog is a card");
+    assert.equal(noticed(state, pending("Nobody", ["r9"])), null, "a panel the page has not got");
+  });
+
+  it("the end of the Leader's turn, however it ended, and no Worker's", () => {
+    const state = fresh();
+    applyEvent(state, snapshot([about(LEADER, { busy: true }), about("Paul", { busy: true })]), 0);
+    assert.equal(noticed(state, seat(LEADER, { busy: true })), null, "a turn still running");
+    assert.deepEqual(noticed(state, seat(LEADER, { busy: false })), { seat: LEADER, kind: REPLY });
+    assert.deepEqual(noticed(state, seat(LEADER, { running: false, busy: false })), { seat: LEADER, kind: REPLY }, "a turn ended by the process going");
+    applyEvent(state, seat(LEADER, { busy: false }), 0);
+    assert.equal(noticed(state, seat(LEADER, { busy: false })), null, "listening already");
+    assert.equal(noticed(state, seat("Paul", { busy: false })), null, "a Worker's turn");
+    assert.equal(noticed(state, { name: "row", data: { seat: LEADER, index: 0, row: { from: LEADER, text: "b" } } }), null, "a row");
   });
 });

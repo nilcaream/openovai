@@ -68,7 +68,6 @@ function configOf(root) {
   return JSON.parse(fs.readFileSync(path.join(root, CONFIG_FILE), "utf8"));
 }
 
-const pops = [];
 const said = [];
 let chat = null;
 let server = null;
@@ -83,7 +82,7 @@ hire(instance, WORKER);
 hire(instance, OTHER);
 
 before(async () => {
-  chat = { root: instance, config: configOf(instance), plugins: [], pop: (asked) => pops.push(asked) };
+  chat = { root: instance, config: configOf(instance), plugins: [] };
   // The chat says every request and every refusal to tell on console.log; a check reads them
   // from here rather than from the suite's output.
   log_ = console.log;
@@ -1580,7 +1579,9 @@ describe("what the page is made of", () => {
 
   it("loads nothing from outside the server and prompts for nothing of its own", () => {
     assert.doesNotMatch(source, /(src|href)="https?:\/\//);
-    assert.doesNotMatch(source, /Notification\.requestPermission/);
+    // The browser's notification permission is asked from a click on a switch, and nowhere else.
+    assert.equal(source.match(/Notification\.requestPermission/g).length, 1);
+    assert.match(source, /button\.addEventListener\("click", \(\) => \{[\s\S]{0,300}?Notification\.requestPermission\(\);/);
     assert.doesNotMatch(source, /serviceWorker/);
     assert.doesNotMatch(source, /import\s*\(|from "https?:/);
   });
