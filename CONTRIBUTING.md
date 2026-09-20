@@ -1,7 +1,7 @@
 # Contributing
 
-Thanks for looking. The project is young, so the most useful contribution today is a clear
-issue: what you tried, what happened, and what you expected.
+Thanks for looking. The toolkit is in daily use and still being tested against real work, so the
+most useful contribution is a clear issue: what you tried, what happened, and what you expected.
 
 ## Getting a clone
 
