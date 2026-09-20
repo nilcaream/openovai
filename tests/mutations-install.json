@@ -564,5 +564,120 @@
         "to": "export function turnAttributionOff(root) {\n  const settings = fs.existsSync(settingsFile(root)) ? settingsReadable(root) : null;"
       }
     ]
+  },
+  {
+    "name": "a missing answer is asked for off a terminal too",
+    "catches": "off a terminal, refuses a command line with an option missing, as it always did",
+    "edits": [
+      {
+        "file": "lib/install.mjs",
+        "from": "    if (parsed[key] === undefined && ask !== null && ASKED.some(([name]) => name === key)) {",
+        "to": "    if (parsed[key] === undefined && ASKED.some(([name]) => name === key)) {"
+      }
+    ]
+  },
+  {
+    "name": "every question is asked whatever the command line said",
+    "catches": "asks nothing when the command line says it all",
+    "edits": [
+      {
+        "file": "lib/install.mjs",
+        "from": "    if (parsed[key] === undefined && ask !== null && ASKED.some(([name]) => name === key)) {",
+        "to": "    if (ask !== null && ASKED.some(([name]) => name === key)) {"
+      }
+    ]
+  },
+  {
+    "name": "the questions come in the reverse order",
+    "catches": "asks only for what is missing, in order, with the default shown where there is one",
+    "edits": [
+      {
+        "file": "lib/install.mjs",
+        "from": "  const fromConfig = new Set();\n  for (const key of REQUIRED) {",
+        "to": "  const fromConfig = new Set();\n  for (const key of [...REQUIRED].reverse()) {"
+      }
+    ]
+  },
+  {
+    "name": "the default is never shown on the line",
+    "catches": "asks only for what is missing, in order, with the default shown where there is one",
+    "edits": [
+      {
+        "file": "lib/install.mjs",
+        "from": "  const line = fallback === null ? `${question}: ` : `${question} [${fallback}]: `;",
+        "to": "  const line = `${question}: `;"
+      }
+    ]
+  },
+  {
+    "name": "Enter is taken as an answer of nothing",
+    "catches": "takes the default on Enter",
+    "edits": [
+      {
+        "file": "lib/install.mjs",
+        "from": "    if (fallback !== null) {\n      return fallback;\n    }",
+        "to": "    return typed;"
+      }
+    ]
+  },
+  {
+    "name": "an empty answer where there is no default is taken as the answer",
+    "catches": "asks again on Enter where there is no default",
+    "edits": [
+      {
+        "file": "lib/install.mjs",
+        "from": "    if (typed !== \"\") {\n      return typed;\n    }",
+        "to": "    if (typed !== \"\" || fallback === null) {\n      return typed;\n    }"
+      }
+    ]
+  },
+  {
+    "name": "the port is asked for even when it was typed",
+    "catches": "never asks for what was typed",
+    "edits": [
+      {
+        "file": "lib/install.mjs",
+        "from": "    if (parsed[key] === undefined && ask !== null && ASKED.some(([name]) => name === key)) {",
+        "to": "    if ((parsed[key] === undefined || key === \"port\") && ask !== null && ASKED.some(([name]) => name === key)) {"
+      }
+    ]
+  },
+  {
+    "name": "the instance's own word is asked for over again",
+    "catches": "lets an instance's own openovai.json answer before any question",
+    "edits": [
+      {
+        "file": "lib/install.mjs",
+        "from": "    if (parsed[key] === undefined && existing !== null && IN_CONFIG[key] !== undefined) {",
+        "to": "    if (ask === null && parsed[key] === undefined && existing !== null && IN_CONFIG[key] !== undefined) {"
+      }
+    ]
+  },
+  {
+    "name": "--source is asked for like the rest",
+    "catches": "refuses a command line without --source before asking anything",
+    "edits": [
+      {
+        "file": "lib/install.mjs",
+        "from": "  if (parsed.source === undefined) {\n    throw new UsageError(\"--source is required\");\n  }\n  if (parsed.root === undefined) {",
+        "to": "  if (parsed.root === undefined) {"
+      },
+      {
+        "file": "lib/install.mjs",
+        "from": "const ASKED = [\n  [\"root\", \"Where does the instance live\", null],",
+        "to": "const ASKED = [\n  [\"root\", \"Where does the instance live\", null],\n  [\"source\", \"Where is the toolkit\", null],"
+      }
+    ]
+  },
+  {
+    "name": "a port answered is tidied to the one picked at start",
+    "catches": "checks an answer as it checks a typed option, and asks no second time",
+    "edits": [
+      {
+        "file": "lib/install.mjs",
+        "from": "      parsed[key] = await answer(key, ask);\n    }\n    if (parsed[key] === undefined) {",
+        "to": "      parsed[key] = await answer(key, ask);\n      if (key === \"port\") parsed[key] = String(PORT_CHOSEN_AT_START);\n    }\n    if (parsed[key] === undefined) {"
+      }
+    ]
   }
 ]

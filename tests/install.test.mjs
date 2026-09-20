@@ -22,6 +22,7 @@ import {
 } from "./helpers.mjs";
 import { configProblems, settingsProblems } from "./inspect.mjs";
 import { CUSTOMIZATION, persona } from "../lib/desks.mjs";
+import { UsageError, resolvePlan } from "../lib/install.mjs";
 import { PAYLOAD } from "../lib/payload.mjs";
 import { RELEASE_NOTES } from "../lib/release.mjs";
 import { turnAttributionOff } from "../lib/seed.mjs";
@@ -690,6 +691,99 @@ describe("what the installer refuses", () => {
 
   it("refuses a command line with no way of signing in", () => {
     assert.notEqual(install(options(`${instance}-noauth`, { "--auth": undefined })).status, 0);
+  });
+});
+
+// On a terminal, what the command line and the instance leave unanswered is asked for; the
+// checks play the person, and drive the planning in-process because a check has no terminal to
+// type at. Every mutation in tests/mutations-install.json names the check it was written to redden.
+describe("what the installer asks for", () => {
+  // The command line as parsed, whole, which a check then leaves one thing off.
+  const typed = (changes = {}) => ({
+    root: `${instance}-asked`,
+    source: repo,
+    user: USER,
+    leader: LEADER,
+    leaderModel: LEADER_MODEL,
+    workerModel: WORKER_MODEL,
+    port: String(PORT),
+    auth: AUTH,
+    ...changes,
+  });
+
+  // A person at the terminal, played from a list: each question takes the next answer, and what
+  // was asked is kept, line for line. A question past the last answer is a question the check
+  // did not expect, and says so rather than answering nothing for ever.
+  function person(answers) {
+    const asked = [];
+    const ask = async (line) => {
+      asked.push(line);
+      if (answers.length === 0) {
+        throw new Error(`asked more than the person had to say: ${JSON.stringify(line)}`);
+      }
+      return answers.shift();
+    };
+    return { asked, ask };
+  }
+
+  it("off a terminal, refuses a command line with an option missing, as it always did", async () => {
+    await assert.rejects(resolvePlan(typed({ port: undefined }), null), UsageError);
+    await assert.rejects(resolvePlan(typed({ root: undefined }), null), UsageError);
+  });
+
+  it("asks nothing when the command line says it all", async () => {
+    const { asked, ask } = person([]);
+    const plan = await resolvePlan(typed(), ask);
+    assert.deepEqual(asked, []);
+    assert.equal(plan.port, PORT);
+  });
+
+  it("asks only for what is missing, in order, with the default shown where there is one", async () => {
+    const { asked, ask } = person(["Ann", "1234"]);
+    const plan = await resolvePlan(typed({ user: undefined, port: undefined }), ask);
+    assert.deepEqual(asked, ["Who does the team work for: ", "Which port does the chat page listen on, 0 for one picked at start [0]: "]);
+    assert.deepEqual([plan.user, plan.port, plan.leader, plan.auth], ["Ann", 1234, LEADER, AUTH]);
+  });
+
+  it("takes the default on Enter", async () => {
+    const { asked, ask } = person(["", ""]);
+    const plan = await resolvePlan(typed({ leaderModel: undefined, auth: undefined }), ask);
+    assert.equal(asked.length, 2);
+    assert.deepEqual([plan.leaderModel, plan.auth], ["opus", "login"]);
+  });
+
+  it("asks again on Enter where there is no default", async () => {
+    const { asked, ask } = person(["", "   ", "Zed"]);
+    const plan = await resolvePlan(typed({ leader: undefined }), ask);
+    assert.equal(asked.length, 3);
+    assert.equal(plan.leader, "Zed");
+  });
+
+  it("never asks for what was typed", async () => {
+    const { asked, ask } = person(["Ann", "Zed"]);
+    const plan = await resolvePlan(typed({ user: undefined, leader: undefined, port: "8000" }), ask);
+    assert.equal(asked.some((line) => /port/.test(line)), false);
+    assert.equal(plan.port, 8000);
+  });
+
+  // The instance made at the top of this file: its openovai.json has every answer.
+  it("lets an instance's own openovai.json answer before any question", async () => {
+    const { asked, ask } = person([]);
+    const plan = await resolvePlan({ root: instance, source: repo }, ask);
+    assert.deepEqual(asked, []);
+    assert.deepEqual([plan.user, plan.leader, plan.port, plan.auth], [USER, LEADER, PORT, AUTH]);
+  });
+
+  it("refuses a command line without --source before asking anything", async () => {
+    const { asked, ask } = person([]);
+    await assert.rejects(resolvePlan(typed({ source: undefined, user: undefined }), ask), UsageError);
+    assert.deepEqual(asked, []);
+  });
+
+  it("checks an answer as it checks a typed option, and asks no second time", async () => {
+    const { asked, ask } = person(["80"]);
+    await assert.rejects(resolvePlan(typed({ port: undefined }), ask), /--port must be/);
+    assert.equal(asked.length, 1);
   });
 });
 
