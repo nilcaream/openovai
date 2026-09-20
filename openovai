@@ -189,7 +189,7 @@ install_self() {
     mkdir -p "${data}" "${bin}"
     work="${data}/openovai.download"
     fetch "${self_url}" "${work}"
-    grep -qF -- "${marker}" "${work}" || die "what ${self_url} served is not the openovai command"
+    grep -qF -- "${marker}" "${work}" || die "could not fetch openovai from ${self_url}"
     chmod 755 "${work}"
     mv "${work}" "${target}"
     say "Installed openovai at ${target}"

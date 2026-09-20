@@ -395,7 +395,7 @@ describe("read from a pipe", () => {
       const { home, data, bin } = aHome("self-page");
       const said = await piped("sh", { home, url: page.url });
       assert.equal(said.status, 1);
-      assert.equal(said.err, `openovai: what ${page.url}/openovai served is not the openovai command`);
+      assert.equal(said.err, `openovai: could not fetch openovai from ${page.url}/openovai`);
       assert.equal(fs.existsSync(path.join(data, "openovai")), false);
       assert.equal(fs.existsSync(path.join(bin, "openovai")), false);
       assert.deepEqual(fs.readdirSync(data), []);

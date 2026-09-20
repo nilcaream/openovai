@@ -112,7 +112,7 @@
   {
     "name": "whatever the address serves is installed as the command",
     "catches": "refuses a copy that is not this script, and installs nothing",
-    "edits": [{ "file": "openovai", "from": "    grep -qF -- \"${marker}\" \"${work}\" || die \"what ${self_url} served is not the openovai command\"\n", "to": "" }]
+    "edits": [{ "file": "openovai", "from": "    grep -qF -- \"${marker}\" \"${work}\" || die \"could not fetch openovai from ${self_url}\"\n", "to": "" }]
   },
   {
     "name": "a piped run is taken for a run from its place",
