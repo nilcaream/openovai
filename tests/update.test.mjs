@@ -14,7 +14,7 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { after, before, describe, it } from "node:test";
 
-import { installed, remove, repo, runToolLater, scratch, serveRelease } from "./helpers.mjs";
+import { installed, remove, repo, runToolLater, scratch, serveRelease, standInEnvironment, writeStandIn } from "./helpers.mjs";
 import { PAYLOAD, RETIRED } from "../lib/payload.mjs";
 import { RELEASES } from "../lib/release.mjs";
 import { describeRunning } from "../lib/running.mjs";
@@ -145,10 +145,38 @@ function difference(before_, after_) {
 describe("taking a newer version from a directory", () => {
   const root = makeInstance("from-directory");
   const tree = makeRelease("release");
+  const standIn = path.join(here, "stand-in");
   let accumulated;
   let done;
+  let standing;
+
+  // A shell standing in bin/ while the update runs — the one that ran `ovai update` from there
+  // and is about to run `./ovai start`, as the hint at the end says. It is told to go on once the
+  // update is through, and what it finds then is the question: a directory that was removed and
+  // put back is not the directory it stands in.
+  function shellStandingInBin() {
+    writeStandIn(standIn);
+    const child = spawn("bash", ["-c", "read go; ./ovai status"], {
+      cwd: path.join(root, "bin"),
+      env: standInEnvironment(standIn, path.join(standIn, "calls.txt")),
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk;
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk;
+    });
+    const closed = new Promise((resolve) => child.on("close", (status) => resolve({ status, stdout, stderr })));
+    return { goOn: () => child.stdin.end("go\n"), closed };
+  }
 
   before(async () => {
+    standing = shellStandingInBin();
     // A file this version has and the next one has not, so a check can ask whether an update
     // replaces the payload or merely writes over it.
     fs.writeFileSync(path.join(root, "lib", "left-behind.mjs"), "// dropped by the newer version\n");
@@ -223,6 +251,22 @@ describe("taking a newer version from a directory", () => {
     assert.equal(fs.existsSync(path.join(root, "CONTRIBUTING.md")), false);
   });
 
+  // bin/ is copied over in place rather than swapped for a new directory. A shell that ran the
+  // update from inside bin/ — where the hint at the end sends it next — would otherwise stand in
+  // a directory that no longer exists, and its `./ovai start` would be "No such file or
+  // directory" with the file right there. Measured on the swap: exit 127, and this check red.
+  it("leaves a shell standing in bin/ able to run ./ovai from there afterwards", async () => {
+    standing.goOn();
+    const ran = await standing.closed;
+    assert.equal([ran.status, ran.stdout].join(" "), "3 not running\n", ran.stderr);
+  });
+
+  // Copied over, the launcher has to arrive as a launcher: a copy that wrote the bytes and not
+  // the mode would leave a bin/ovai nobody can run.
+  it("keeps bin/ovai executable", () => {
+    assert.notEqual(fs.statSync(path.join(root, "bin", "ovai")).mode & 0o111, 0);
+  });
+
   // The whole of what an update must not do, in one reading. Every file outside the payload,
   // compared by content: the desks, the personas, the settings, the instance's own description of
   // itself, its Claude Code home, the store and the panels.
@@ -232,6 +276,27 @@ describe("taking a newer version from a directory", () => {
 
   it("says nothing to do when the instance is already on it", async () => {
     assert.match((await update(root, tree)).stdout, /is the latest release/);
+  });
+});
+
+// An instance whose bin/ is gone — removed by hand, or by an update of the swapping kind that
+// died between the remove and the rename — gets it back: the files are copied over into a bin/
+// made for them when there is none. The installer takes the same path into an empty root, so a
+// copy that assumed bin/ was there would not get as far as this check: the whole suite installs
+// nothing. Proven red instead by a copy that leaves the launcher without its mode.
+describe("taking a newer version into an instance whose bin/ is missing", () => {
+  const root = makeInstance("without-bin");
+  const tree = makeRelease("release-for-without-bin");
+  let done;
+
+  before(async () => {
+    fs.rmSync(path.join(root, "bin"), { recursive: true, force: true });
+    done = await update(root, tree);
+  });
+
+  it("makes bin/ and puts the launcher in it, executable", () => {
+    assert.equal(done.status, 0, done.stderr);
+    assert.notEqual(fs.statSync(path.join(root, "bin", "ovai")).mode & 0o111, 0);
   });
 });
 

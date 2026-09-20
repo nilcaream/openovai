@@ -286,6 +286,28 @@
     ]
   },
   {
+    "name": "bin/ is swapped for a new directory like the rest of the payload",
+    "catches": "leaves a shell standing in bin/ able to run ./ovai from there afterwards",
+    "edits": [
+      {
+        "file": "lib/release.mjs",
+        "from": "  for (const entry of PAYLOAD.filter((one) => one !== COPIED_OVER)) {",
+        "to": "  for (const entry of PAYLOAD) {"
+      }
+    ]
+  },
+  {
+    "name": "the launcher is written anew as bytes, with whatever mode a new file gets",
+    "catches": "keeps bin/ovai executable",
+    "edits": [
+      {
+        "file": "lib/release.mjs",
+        "from": "  fs.cpSync(path.join(tree, COPIED_OVER), over, { recursive: true, force: true });",
+        "to": "  for (const name of fs.readdirSync(path.join(tree, COPIED_OVER))) {\n    fs.rmSync(path.join(over, name), { force: true });\n    fs.writeFileSync(path.join(over, name), fs.readFileSync(path.join(tree, COPIED_OVER, name)));\n  }"
+      }
+    ]
+  },
+  {
     "name": "the skill an earlier version shipped is left in the instance",
     "catches": "takes away the skill an earlier version shipped and leaves the skill beside it that the person wrote",
     "edits": [
