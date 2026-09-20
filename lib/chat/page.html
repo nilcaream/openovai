@@ -130,8 +130,9 @@
   /* what the User typed, until the process has it: a waiting ground, dashed */
   .msg.pending .bubble { background: var(--pending); border-style: dashed; color: var(--fg-dim); }
   .msg.failed .bubble { border-color: var(--bad); }
-  /* a message between two sessions on the Leader's panel: one ground for what went to a session, another for what came from one */
-  .msg.peer-in, .msg.peer-out { cursor: pointer; }
+  /* a message between two sessions on the Leader's panel: one ground for what went to a session, another for what came from one;
+     the rows that fold — these two and what one Worker said to another — carry the pointer */
+  .msg.peer-in, .msg.peer-out, .msg.overheard { cursor: pointer; }
   .msg.peer-in .bubble, .msg.peer-out .bubble { overflow-wrap: anywhere; }
   .msg.peer-in .bubble { background: var(--from); border-color: var(--from-line); }
   .msg.peer-out .bubble { background: var(--to); border-color: var(--to-line); }
@@ -141,8 +142,10 @@
   .msg.overheard .bubble { background: var(--typed); border-color: var(--typed-line); white-space: pre-wrap; overflow-wrap: anywhere; }
   /* the message a click on a line found, lit for a moment */
   .msg.focus .bubble { outline: 2px solid var(--accent); }
-  /* a message to a session or from one is one line of itself, cut with an ellipsis, until a double click opens it */
-  .msg.collapsed .md { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }
+  /* a message between sessions — to one, from one, or between two Workers — is one line of itself, cut with an ellipsis,
+     until a double click opens it: the clamp on its body whether that is markdown or the words as they are, and a
+     forced break in pre-wrap words is a line to the clamp like a soft one, so the first line shows and no more */
+  .msg.collapsed .md, .msg.collapsed .text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }
   .text { white-space: pre-wrap; }
   /* the label row: the speaker on the left, ellipsised before it could push the timestamp, the timestamp last */
   .who { font-size: .78rem; font-weight: 600; color: var(--fg-dim); display: flex; gap: 8px; align-items: baseline; margin-right: auto; flex: 1 1 auto; min-width: 0; }
@@ -581,8 +584,9 @@
   // stamp in the DOM and before it on screen; its body is the compact markdown, one line of it
   // until a double click opens the row and a second one folds it again — nothing is stored, so a
   // fresh page folds every one. A message between two sessions carries its id on the row, for a
-  // click on the line the other panel draws for it. The User's words — typed on a panel, or to a
-  // Worker — and a Worker's to a Worker are shown whole. The User's own row carries what became of
+  // click on the line the other panel draws for it, and what one Worker said to another folds the
+  // same way, its words as they are. The User's words — typed on a panel, or to a Worker — are
+  // shown whole. The User's own row carries what became of
   // it too — the waiting words beside the label, on a dashed ground, then the delivered glyph
   // beside the stamp — read off the row and the panel's state at the draw, and every stamp is a
   // click that points at its row from the panel's composer.
@@ -641,7 +645,7 @@
     }
     bubble.append(meta, body);
     line.append(bubble);
-    if (shown.kind === "peer-in" || shown.kind === "peer-out") {
+    if (shown.kind === "peer-in" || shown.kind === "peer-out" || shown.kind === "overheard") {
       line.classList.add("collapsed");
       line.addEventListener("dblclick", () => line.classList.toggle("collapsed"));
     }

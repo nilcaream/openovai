@@ -229,22 +229,29 @@ describe("the rules", () => {
 
   // A folded message is one line of its body, cut with an ellipsis: the line clamp, which cuts
   // across the blocks of the markdown where a nowrap would only cut the first, and it needs the
-  // box display and the vertical orient to take.
-  it("clip a folded message to one line of its body, cut with an ellipsis", () => {
-    const folded = rules.find((rule) => rule.selector === ".msg.collapsed .md");
+  // box display and the vertical orient to take. The body is the markdown of a message the
+  // Leader sent or received, and the words as they are of one a Worker said to another — the
+  // clamp is on both, under the one fold class, and the clamp holds a pre-wrap body to its first
+  // line as it does a block: a forced break is a line like a soft one.
+  it("clip a folded message to one line of its body, cut with an ellipsis, whether the body is markdown or words as they are", () => {
+    const folded = rules.find((rule) => rule.selector.split(",").map((part) => part.trim()).includes(".msg.collapsed .md"));
+    assert.ok(folded !== undefined, "the clamp is under the fold class, on the markdown body");
+    assert.ok(folded.selector.split(",").map((part) => part.trim()).includes(".msg.collapsed .text"), "and on the body of words as they are, in the same rule");
     assert.equal(folded.declarations["-webkit-line-clamp"], "1", "one line, and an ellipsis where it is cut");
     assert.equal(folded.declarations.display, "-webkit-box");
     assert.equal(folded.declarations["-webkit-box-orient"], "vertical");
     assert.equal(folded.declarations.overflow, "hidden");
   });
 
-  // The rows that fold and unfold on a double click — a message to a Worker, a message from one —
-  // carry the pointer, folded or open, so the mouse says the row answers a click; no other row does.
+  // The rows that fold and unfold on a double click — a message to a Worker, a message from one,
+  // and what one Worker said to another — carry the pointer, folded or open, so the mouse says
+  // the row answers a click; no other row does.
   it("carry the pointer over the rows that fold on a double click, and over no other row", () => {
     const pointing = (selector) => rules.some((rule) => rule.selector.split(",").map((part) => part.trim()).includes(selector) && rule.declarations.cursor === "pointer");
     assert.ok(pointing(".msg.peer-in"), "a message from a Worker carries the pointer");
     assert.ok(pointing(".msg.peer-out"), "a message to a Worker carries the pointer");
-    for (const other of [".msg", ".msg.user", ".msg.typed", ".msg.overheard", ".msg.perm", ".msg.collapsed"]) assert.ok(!pointing(other), `${other} carries no pointer`);
+    assert.ok(pointing(".msg.overheard"), "what one Worker said to another carries the pointer");
+    for (const other of [".msg", ".msg.user", ".msg.typed", ".msg.perm", ".msg.collapsed"]) assert.ok(!pointing(other), `${other} carries no pointer`);
   });
 
   it("make the stamp a click, and say so under the pointer", () => {
@@ -656,16 +663,17 @@ describe("the script", () => {
     assert.doesNotMatch(script, /show all|collapsible\(|"more"/, "no word under the row opens it");
   });
 
-  // Only a message to a session or from one is folded. What the User typed on a panel, what the
-  // User typed to a Worker, and what one Worker said to another — the typed ground — are shown
-  // whole: the renderer gives them other kinds, and the fold is under the two kinds alone.
-  it("shows the User's words, and a Worker's to a Worker, whole — never folded", () => {
-    assert.match(script, /line\.append\(bubble\);\n    if \(shown\.kind === "peer-in" \|\| shown\.kind === "peer-out"\) \{\n/, "the fold is under the two kinds of a message to a session or from one, and nothing else");
+  // A message between sessions is folded — to the Leader, from the Leader, or between two Workers
+  // and overheard. What the User typed on a panel and what the User typed to a Worker are shown
+  // whole: the renderer gives them other kinds, and the fold is under the three kinds alone.
+  it("folds what one Worker said to another like a message to a session or from one, and shows the User's words whole", () => {
+    assert.match(script, /line\.append\(bubble\);\n    if \(shown\.kind === "peer-in" \|\| shown\.kind === "peer-out" \|\| shown\.kind === "overheard"\) \{\n/, "the fold is under the three kinds of a message between sessions, and nothing else");
     const names = { chat: "Server", seat: "Bobby", leader: "Bobby", user: "Copter" };
-    const folded = new Set(["peer-in", "peer-out"]);
+    const folded = new Set(["peer-in", "peer-out", "overheard"]);
     assert.equal(row({ from: "Bobby", to: "Tom", msg: "m1", text: "go" }, names).kind, "peer-out");
     assert.equal(row({ from: "Tom", to: "Bobby", msg: "m2", text: "done" }, names).kind, "peer-in");
-    for (const entry of [{ from: "user", text: "hi" }, { from: "user", typedTo: "Tom", text: "hi" }, { from: "Eva", to: "Sam", overheard: true, msg: "m3", text: "hi" }]) {
+    assert.equal(row({ from: "Eva", to: "Sam", overheard: true, msg: "m3", text: "hi" }, names).kind, "overheard");
+    for (const entry of [{ from: "user", text: "hi" }, { from: "user", typedTo: "Tom", text: "hi" }]) {
       const shown = row(entry, names);
       assert.ok(!folded.has(shown.kind), `${shown.who} is drawn as ${shown.kind}, a kind the page folds`);
     }

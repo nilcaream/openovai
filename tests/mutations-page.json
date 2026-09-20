@@ -845,7 +845,7 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "  .msg.peer-in, .msg.peer-out { cursor: pointer; }\n",
+        "from": "  .msg.peer-in, .msg.peer-out, .msg.overheard { cursor: pointer; }\n",
         "to": ""
       },
       {
@@ -1185,19 +1185,30 @@
     ]
   },
   {
-    "name": "what a Worker said to another Worker is folded too",
-    "catches": "shows the User's words, and a Worker's to a Worker, whole — never folded",
+    "name": "what the User typed to a Worker is folded too",
+    "catches": "folds what one Worker said to another like a message to a session or from one, and shows the User's words whole",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "    if (shown.kind === \"peer-in\" || shown.kind === \"peer-out\") {\n      line.classList.add(\"collapsed\");",
-        "to": "    if (shown.kind === \"peer-in\" || shown.kind === \"peer-out\" || shown.kind === \"typed\") {\n      line.classList.add(\"collapsed\");"
+        "from": "    if (shown.kind === \"peer-in\" || shown.kind === \"peer-out\" || shown.kind === \"overheard\") {\n      line.classList.add(\"collapsed\");",
+        "to": "    if (shown.kind === \"peer-in\" || shown.kind === \"peer-out\" || shown.kind === \"overheard\" || shown.kind === \"typed\") {\n      line.classList.add(\"collapsed\");"
       }
     ]
   },
   {
-    "name": "what one Worker said to another is drawn as a message from a session, and folded with it",
-    "catches": "shows the User's words, and a Worker's to a Worker, whole — never folded",
+    "name": "what one Worker said to another is shown whole again",
+    "catches": "folds what one Worker said to another like a message to a session or from one, and shows the User's words whole",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    if (shown.kind === \"peer-in\" || shown.kind === \"peer-out\" || shown.kind === \"overheard\") {\n      line.classList.add(\"collapsed\");",
+        "to": "    if (shown.kind === \"peer-in\" || shown.kind === \"peer-out\") {\n      line.classList.add(\"collapsed\");"
+      }
+    ]
+  },
+  {
+    "name": "what one Worker said to another is drawn as a message from a session",
+    "catches": "folds what one Worker said to another like a message to a session or from one, and shows the User's words whole",
     "edits": [
       {
         "file": "lib/chat/render.mjs",
@@ -1268,12 +1279,23 @@
   },
   {
     "name": "a folded message shows three lines",
-    "catches": "clip a folded message to one line of its body, cut with an ellipsis",
+    "catches": "clip a folded message to one line of its body, cut with an ellipsis, whether the body is markdown or words as they are",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "  .msg.collapsed .md { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }",
-        "to": "  .msg.collapsed .md { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }"
+        "from": "  .msg.collapsed .md, .msg.collapsed .text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }",
+        "to": "  .msg.collapsed .md, .msg.collapsed .text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }"
+      }
+    ]
+  },
+  {
+    "name": "the clamp is on the markdown body alone, and a folded Worker's words to a Worker show whole",
+    "catches": "clip a folded message to one line of its body, cut with an ellipsis, whether the body is markdown or words as they are",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "  .msg.collapsed .md, .msg.collapsed .text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }",
+        "to": "  .msg.collapsed .md { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }"
       }
     ]
   },
@@ -1283,19 +1305,30 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "  .msg.peer-in, .msg.peer-out { cursor: pointer; }",
-        "to": "  .msg.peer-in, .msg.peer-out { cursor: default; }"
+        "from": "  .msg.peer-in, .msg.peer-out, .msg.overheard { cursor: pointer; }",
+        "to": "  .msg.peer-in, .msg.peer-out, .msg.overheard { cursor: default; }"
+      }
+    ]
+  },
+  {
+    "name": "what one Worker said to another folds but carries no pointer",
+    "catches": "carry the pointer over the rows that fold on a double click, and over no other row",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "  .msg.peer-in, .msg.peer-out, .msg.overheard { cursor: pointer; }",
+        "to": "  .msg.peer-in, .msg.peer-out { cursor: pointer; }"
       }
     ]
   },
   {
     "name": "a folded message is clamped without the box display the clamp needs",
-    "catches": "clip a folded message to one line of its body, cut with an ellipsis",
+    "catches": "clip a folded message to one line of its body, cut with an ellipsis, whether the body is markdown or words as they are",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "  .msg.collapsed .md { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }",
-        "to": "  .msg.collapsed .md { -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }"
+        "from": "  .msg.collapsed .md, .msg.collapsed .text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }",
+        "to": "  .msg.collapsed .md, .msg.collapsed .text { -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }"
       }
     ]
   },
