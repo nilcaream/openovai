@@ -315,6 +315,19 @@ jobs:
       - name: Record the trust before serving, refuse when it is not on disk
         run: node --test tests/start.test.mjs
 
+  log:
+    name: Log
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+
+      - name: Write every event as one row of four columns, paired to its call
+        run: node --test tests/log.test.mjs
+
   release:
     name: Release
     runs-on: ubuntu-latest
