@@ -4,6 +4,19 @@ For the Leader of a workspace taking this version. Short, and about what is diff
 working there — not a developer changelog. A section per release, newest first; a release page
 carries only its own.
 
+## 0.17.0
+
+**What a session starts ends with the session.** Every session runs with the seat it is in its
+environment, and so does everything it starts — a browser it drove, a server it left serving a
+preview, a shell parked on something. When the session's process is gone, whatever it started and
+did not end is ended with it, and the log says which seat left what. A Worker's own instructions
+say the same in a sentence: a long run is a call you wait on, not a process left behind.
+
+**A stop no longer waits on what is not a session.** `ovai stop` waits for the sessions and
+nothing else, and `ovai update` refuses only for a session — a process that is running the code an
+update replaces. Anything else a seat left running is named by the seat that left it, with what it
+is and one line that ends all of them, and the update goes on.
+
 ## 0.16.0
 
 The toolkit brings its own Node.js and Claude Code, one `openovai` command installs an instance from

@@ -96,6 +96,9 @@ export function installed(options, environment) {
 //   OPENOVAI_STAND_IN_DIES          exit without a result frame in the middle of the first turn it
 //                             is asked — a run that ended mid-turn
 //   OPENOVAI_STAND_IN_STUCK         ignore stdin being closed and never exit on its own
+//   OPENOVAI_STAND_IN_LEAVES        start a detached process of its own with the environment as
+//                             it came, and log its pid as `left-running:` — what a session
+//                             started and did not end
 //   OPENOVAI_STAND_IN_ASKS          ask to be allowed to use this tool before answering each turn,
 //                             wait for the answer, and make the answer say what was decided
 //   OPENOVAI_STAND_IN_ASKS_INPUT    the argument that tool would be given: a command, or the whole
@@ -157,6 +160,7 @@ export function installed(options, environment) {
 // makes an extensionless module do nothing at all and exit 0, so the field is left out.
 const STAND_IN = `#!/usr/bin/env node
 
+import { spawn } from "node:child_process";
 import fs from "node:fs";
 
 const argv = process.argv.slice(2);
@@ -178,9 +182,19 @@ fs.appendFileSync(
     \`ANTHROPIC_API_KEY: \${value("ANTHROPIC_API_KEY")}\`,
     \`CLAUDE_CODE_OAUTH_TOKEN: \${value("CLAUDE_CODE_OAUTH_TOKEN")}\`,
     \`OPENOVAI_SESSION_SECRET: \${value("OPENOVAI_SESSION_SECRET")}\`,
+    \`OPENOVAI_SEAT: \${value("OPENOVAI_SEAT")}\`,
     "",
   ].join("\\n"),
 );
+
+// Something left running: a process of its own, detached, with the environment as it came, the
+// way a browser or a preview server a session started outlives it. Its pid is in the log for
+// whoever asks whether it is still there.
+if ((process.env.OPENOVAI_STAND_IN_LEAVES ?? "") !== "") {
+  const left = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { detached: true, stdio: "ignore" });
+  left.unref();
+  note("left-running: " + left.pid);
+}
 
 if (argv[0] === "auth" && argv[1] === "status") {
   const signedIn = process.env.OPENOVAI_STAND_IN_SIGNED_IN ?? "true";
@@ -742,6 +756,16 @@ export function arrivalsIn(log) {
 
 export function pidsIn(log) {
   return recordedIn(log, "pid: ").map(Number);
+}
+
+// The pids of what the run left running (OPENOVAI_STAND_IN_LEAVES).
+export function leftRunningIn(log) {
+  return recordedIn(log, "left-running: ").map(Number);
+}
+
+// The seat the run was told it is, newest last.
+export function seatsIn(log) {
+  return recordedIn(log, "OPENOVAI_SEAT: ");
 }
 
 // What Claude Code was told to file this instance's transcripts and memory under, newest last.

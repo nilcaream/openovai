@@ -372,5 +372,38 @@
         "to": "  if (fetched.status !== 0 && false) {\n    throw new ReleaseError("
       }
     ]
+  },
+  {
+    "name": "everything a seat carries is called a session, whatever it runs",
+    "catches": "goes through once the session is gone, whatever the seat left running",
+    "edits": [
+      {
+        "file": "lib/running.mjs",
+        "from": "session: seat === null || runsClaude(argumentsOf(pid))",
+        "to": "session: true"
+      }
+    ]
+  },
+  {
+    "name": "a leftover is named by its pid alone, without the seat that left it",
+    "catches": "names each leftover by its seat, and ends all of them in one line",
+    "edits": [
+      {
+        "file": "lib/running.mjs",
+        "from": "`${seat} left this running: ${commandOf(pid)} (pid ${pid})`",
+        "to": "`left running: ${commandOf(pid)} (pid ${pid})`"
+      }
+    ]
+  },
+  {
+    "name": "a seat's session is named among what the seat left running",
+    "catches": "refuses while the seat's session runs, naming the session and not calling it a leftover",
+    "edits": [
+      {
+        "file": "lib/running.mjs",
+        "from": "  const leftovers = running.filter(({ session }) => session === false);",
+        "to": "  const leftovers = running.filter(({ seat }) => seat !== null);"
+      }
+    ]
   }
 ]

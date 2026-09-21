@@ -25,7 +25,7 @@ import { sink } from "../lib/chat/log.mjs";
 import { LEADER as LEADS, SECRET_IN_ENVIRONMENT, WORKER as WORKS, end, endEvery, interrupt, running, runningSeats, start, tell } from "../lib/chat/session.mjs";
 import { BUILT_IN } from "../lib/plugins.mjs";
 import { CONFIG_FILE } from "../lib/seed.mjs";
-import { alive, callsIn, childrenOf, get as fetchPlain, heardIn, installed, notesIn, post as postPlain, queuesHeardIn, readLog, remove, repo, sansMoment, scratch, secretsIn, startChat, stopChat, waitFor, waitForAddress, writeStandIn } from "./helpers.mjs";
+import { alive, callsIn, childrenOf, get as fetchPlain, heardIn, installed, leftRunningIn, notesIn, post as postPlain, queuesHeardIn, readLog, remove, repo, sansMoment, scratch, seatsIn, secretsIn, startChat, stopChat, waitFor, waitForAddress, writeStandIn } from "./helpers.mjs";
 
 const USER = "Mike";
 const LEADER = "Superman";
@@ -827,6 +827,41 @@ describe("ending a seat", () => {
     assert.deepEqual(runningSeats().sort(), [OTHER, WORKER]);
     await endEvery(500);
     assert.deepEqual(runningSeats(), []);
+  });
+});
+
+// What a session starts ends with it. A process carries the seat it was started under, in its
+// environment, and so does everything the process starts; when the session is gone, whatever
+// still carries the seat is ended — a browser, a preview server, a process nobody remembers —
+// and the log says what was.
+describe("what a seat left running", () => {
+  it("is told its seat, in its environment", async () => {
+    const paul = await seatUp(WORKER);
+    assert.deepEqual(seatsIn(paul.log), [WORKER]);
+    await end(WORKER, 2000);
+  });
+
+  it("ends with its session, however the session ended, and is said in the log", async () => {
+    const paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_LEAVES: "1" });
+    const [left] = leftRunningIn(paul.log);
+    assert.ok(left !== undefined, "the run left nothing running");
+    assert.equal(alive(left), true);
+    const logged = said.length;
+    assert.equal(await end(WORKER, 2000), true);
+    assert.equal(alive(left), false, `pid ${left} is still there`);
+    assert.ok(
+      said.slice(logged).some((line) => line.startsWith(`leftovers ${WORKER} - ended `) && line.includes(`(pid ${left})`)),
+      said.slice(logged).join("\n"),
+    );
+  });
+
+  it("is ended when the session ends on its own, with nobody asking for it", async () => {
+    const paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_LEAVES: "1", OPENOVAI_STAND_IN_DIES: "1" });
+    const [left] = leftRunningIn(paul.log);
+    assert.equal(alive(left), true);
+    await tell(WORKER, userFrame("go")).answered;
+    assert.ok(await waitFor(() => (running(WORKER) ? null : true)), "the seat is still running");
+    assert.ok(await waitFor(() => (alive(left) ? null : true)), `pid ${left} is still there`);
   });
 });
 

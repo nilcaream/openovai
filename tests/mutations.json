@@ -170,8 +170,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "    env: { ...environment(instance.root, instance.config.auth), [SECRET_IN_ENVIRONMENT]: secret },",
-        "to": "    env: { ...environment(instance.root, instance.config.auth) },"
+        "from": "    env: { ...environment(instance.root, instance.config.auth, seat), [SECRET_IN_ENVIRONMENT]: secret },",
+        "to": "    env: { ...environment(instance.root, instance.config.auth, seat) },"
       }
     ]
   },
@@ -1809,6 +1809,28 @@
         "file": "lib/chat/frames.mjs",
         "from": "  const inner = items.map(",
         "to": "  if (items.length === 1) return items[0].frame;\n  const inner = items.map("
+      }
+    ]
+  },
+  {
+    "name": "what a session left running is left running",
+    "catches": "ends with its session, however the session ended, and is said in the log",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "    record.leftovers = endLeftovers(instance.root, seat).then((found) => {\n      if (found.length > 0) {\n        log(\"leftovers\", seat, null, `ended ${found.map(({ pid, command }) => `${command} (pid ${pid})`).join(\"; \")}`);\n      }\n    });\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a session is started without the seat it is",
+    "catches": "is told its seat, in its environment",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "environment(instance.root, instance.config.auth, seat)",
+        "to": "environment(instance.root, instance.config.auth)"
       }
     ]
   }

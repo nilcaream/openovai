@@ -17,7 +17,9 @@ import { after, before, describe, it } from "node:test";
 import { installed, remove, repo, runToolLater, scratch, serveRelease, standInEnvironment, writeStandIn } from "./helpers.mjs";
 import { PAYLOAD, RETIRED } from "../lib/payload.mjs";
 import { RELEASES } from "../lib/release.mjs";
+import { SEAT_IN_ENVIRONMENT } from "../lib/claude.mjs";
 import { describeRunning } from "../lib/running.mjs";
+import { runtimePaths } from "../lib/runtime.mjs";
 import { isOlderThan } from "../lib/version.mjs";
 
 const USER = "Mike";
@@ -594,13 +596,13 @@ describe("an update while a session of this instance is running", () => {
 
   // A process that carries what a session of this instance carries — the instance's own home in
   // its environment — and nothing else of one: it is the environment that says whose it is, not
-  // what it runs.
+  // what it runs. No seat, whatever this suite was started from: a process with a seat and not
+  // the toolkit's claude is what a seat left running, which is the next describe's.
   const IDLING = ["node", "-e", "setInterval(() => {}, 1000)"];
   function idle(environment) {
-    const child = spawn(IDLING[0], IDLING.slice(1), {
-      env: { ...process.env, ...environment },
-      stdio: "ignore",
-    });
+    const env = { ...process.env, ...environment };
+    delete env[SEAT_IN_ENVIRONMENT];
+    const child = spawn(IDLING[0], IDLING.slice(1), { env, stdio: "ignore" });
     idling.push(child);
     return child;
   }
@@ -672,7 +674,76 @@ describe("how a running session is described", () => {
   it("says ? for a command that cannot be read", async () => {
     const gone = spawn("node", ["-e", ""], { stdio: "ignore" });
     await new Promise((resolve) => gone.once("exit", resolve));
-    assert.ok(describeRunning([{ pid: gone.pid }]).includes(`\n  kill ${gone.pid}   # ?\n`));
+    assert.ok(describeRunning([{ pid: gone.pid, seat: null, session: true }]).includes(`\n  kill ${gone.pid}   # ?\n`));
+  });
+});
+
+// A process with a seat in its environment is the seat's session — the toolkit's own claude —
+// or something the session started and did not end: a preview server, a browser. The second is
+// not running the code an update replaces. It is named by the seat that left it, with the one
+// line that ends all of them, and the update goes on.
+describe("an update while what a seat left running is still there", () => {
+  const SEAT = "Hugo";
+  const root = makeInstance("leftovers");
+  const tree = makeRelease("leftovers-release");
+  const home = path.join(root, ".local");
+  const LEFT = ["node", "-e", "setInterval(() => {}, 1000)"];
+  const started = [];
+  let leftover;
+  let another;
+  let session;
+  let withSession;
+  let done;
+
+  function keep(child) {
+    started.push(child);
+    return child;
+  }
+
+  before(async () => {
+    leftover = keep(spawn(LEFT[0], LEFT.slice(1), { env: { ...process.env, CLAUDE_CONFIG_DIR: home, [SEAT_IN_ENVIRONMENT]: SEAT }, stdio: "ignore" }));
+    another = keep(spawn(LEFT[0], LEFT.slice(1), { env: { ...process.env, CLAUDE_CONFIG_DIR: home, [SEAT_IN_ENVIRONMENT]: "Jane" }, stdio: "ignore" }));
+    // The seat's session: the toolkit's own claude, waiting on its stdin, with the seat beside
+    // the home the way the chat starts one.
+    session = keep(
+      spawn(runtimePaths(root).claude, ["--print"], {
+        env: { ...process.env, CLAUDE_CONFIG_DIR: home, [SEAT_IN_ENVIRONMENT]: SEAT, OPENOVAI_STAND_IN_LOG: path.join(here, "leftovers-session.txt") },
+        stdio: ["pipe", "ignore", "ignore"],
+      }),
+    );
+    withSession = await update(root, tree);
+    session.kill("SIGKILL");
+    await new Promise((resolve) => session.once("exit", resolve));
+    done = await update(root, tree);
+  });
+
+  after(() => {
+    for (const child of started) {
+      child.kill("SIGKILL");
+    }
+  });
+
+  it("refuses while the seat's session runs, naming the session and not calling it a leftover", () => {
+    assert.notEqual(withSession.status, 0);
+    assert.ok(withSession.stderr.includes(`\n  kill ${session.pid}   # `), withSession.stderr);
+    assert.ok(!withSession.stderr.includes(`(pid ${session.pid})`), withSession.stderr);
+  });
+
+  it("goes through once the session is gone, whatever the seat left running", () => {
+    assert.equal(done.status, 0, done.stderr);
+    assert.equal(fs.readFileSync(path.join(root, "lib", "VERSION"), "utf8").trim(), NEWER);
+  });
+
+  it("names each leftover by its seat, and ends all of them in one line", () => {
+    const said = done.stderr.split("\n");
+    assert.ok(said.includes(`${SEAT} left this running: ${LEFT.join(" ")} (pid ${leftover.pid})`), done.stderr);
+    assert.ok(said.includes(`Jane left this running: ${LEFT.join(" ")} (pid ${another.pid})`), done.stderr);
+    const lines = said.filter((line) => line.startsWith("  kill "));
+    assert.equal(lines.length, 1, done.stderr);
+    const ending = lines[0].slice("  kill ".length).split(" ").map(Number);
+    for (const pid of [leftover.pid, another.pid]) {
+      assert.ok(ending.includes(pid), `${pid} is not in ${lines[0]}`);
+    }
   });
 });
 
