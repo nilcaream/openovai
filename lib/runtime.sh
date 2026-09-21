@@ -130,7 +130,7 @@ settle() {
     if [ ! -e "${target}" ]; then
         mv "${finished}" "${target}" 2>/dev/null || true
     fi
-    rm -rf "${target}/${finished##*/}"
+    rm -rf "${target:?}/${finished##*/}"
     rm -rf "${work}"
 }
 
