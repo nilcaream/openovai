@@ -1944,24 +1944,46 @@
     ]
   },
   {
-    "name": "a panel that does not follow is pinned to the newest anyway when rows land",
+    "name": "the draw pins a panel that follows itself, the moment a row lands",
     "catches": "leaves a panel that does not follow exactly where the reader has it when rows land",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      const follows = panel.shown === 0 || panel.view.follow;\n",
-        "to": "      const follows = true;\n"
+        "from": "      if (landed && !panel.view.follow && panel.jump !== null && !near) {\n        panel.jump.classList.add(\"show\");\n      }",
+        "to": "      if (landed && panel.view.follow) panel.rows.scrollTop = panel.rows.scrollHeight;\n      if (landed && !panel.view.follow && panel.jump !== null && !near) {\n        panel.jump.classList.add(\"show\");\n      }"
       }
     ]
   },
   {
-    "name": "a scroll back to the newest row never engages the panel again",
-    "catches": "follows the newest row while the reader is at it, and lets go when they scroll away",
+    "name": "every scroll of the rows decides the word off where they stand, the page's own included",
+    "catches": "follows its newest row until a hand moves the rows away, and again once they are back at it",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      view.follow = atTheNewest(rows);\n",
-        "to": "      view.follow = false;\n"
+        "from": "      if (view.held && rows.scrollTop < top) movedAway();\n      top = rows.scrollTop;\n",
+        "to": "      view.follow = atTheNewest(rows);\n      top = rows.scrollTop;\n"
+      }
+    ]
+  },
+  {
+    "name": "a wheel down at the newest is a hand too, and the row that lands in the tick lets go",
+    "catches": "follows its newest row until a hand moves the rows away, and again once they are back at it",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      if (event.deltaY < 0) movedAway();\n",
+        "to": "      movedAway();\n"
+      }
+    ]
+  },
+  {
+    "name": "the tick pins a panel that follows even at the newest, a write on every tick",
+    "catches": "keeps every panel ten times a second: the word decided, a panel that follows pinned, one at rest untouched",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      if (view.follow && !atTheNewest(rows)) rows.scrollTop = rows.scrollHeight;\n",
+        "to": "      if (view.follow) rows.scrollTop = rows.scrollHeight;\n"
       }
     ]
   },
@@ -1971,8 +1993,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      if (view.follow) rows.scrollTop = rows.scrollHeight;\n",
-        "to": "      rows.scrollTop = rows.scrollHeight;\n"
+        "from": "      fitFolds(rows.querySelectorAll(\".msg.collapsed\"));\n    }).observe(rows);\n",
+        "to": "      fitFolds(rows.querySelectorAll(\".msg.collapsed\"));\n      rows.scrollTop = rows.scrollHeight;\n    }).observe(rows);\n"
       }
     ]
   },
@@ -2096,14 +2118,14 @@
       },
       {
         "file": "lib/chat/page.html",
-        "from": "      if (landed) {\n        if (follows) {",
-        "to": "      if (landed || asked) {\n        if (follows) {"
+        "from": "      if (landed && !panel.view.follow && panel.jump !== null && !near) {",
+        "to": "      if ((landed || asked) && !panel.view.follow && panel.jump !== null && !near) {"
       }
     ]
   },
   {
-    "name": "a tool line lands without pinning the panel that follows",
-    "catches": "pins a following panel on any row that landed, a tool line and a counter too, never on the stamps alone",
+    "name": "a tool line lands without counting for the pill",
+    "catches": "counts any row that landed for the pill, a tool line and a counter too, never the stamps alone",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -2113,8 +2135,8 @@
     ]
   },
   {
-    "name": "a repeated call that grew its counter lands without pinning the panel that follows",
-    "catches": "pins a following panel on any row that landed, a tool line and a counter too, never on the stamps alone",
+    "name": "a repeated call that grew its counter lands without counting for the pill",
+    "catches": "counts any row that landed for the pill, a tool line and a counter too, never the stamps alone",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -2184,8 +2206,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      if (landed) {\n        if (follows) {",
-        "to": "      if (added.length > 0) {\n        if (follows) {"
+        "from": "      if (landed && !panel.view.follow && panel.jump !== null && !near) {",
+        "to": "      if (added.length > 0 && !panel.view.follow && panel.jump !== null && !near) {"
       }
     ]
   },

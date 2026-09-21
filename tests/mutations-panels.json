@@ -658,5 +658,38 @@
         "to": "  return panel.doingSince + SHOWN_FOR;"
       }
     ]
+  },
+  {
+    "name": "every tick decides follow off where the rows stand, a tall row that moved the bottom away included",
+    "catches": "a scroll of the page's own never lets a following panel go: a tall row that moves the bottom away is no word from the reader",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  return follow || atNewest;\n}",
+        "to": "  return atNewest;\n}"
+      }
+    ]
+  },
+  {
+    "name": "a hand that moved the rows away lets go only when the rows are away already",
+    "catches": "a hand that moved the rows away lets the panel go, wherever the rows stand now",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  if (away) return false;\n",
+        "to": "  if (away && !atNewest) return false;\n"
+      }
+    ]
+  },
+  {
+    "name": "a panel back at the newest with no hand on it never follows again",
+    "catches": "at the newest again, however the rows got there, a panel follows; away from it, with no hand, it stays as it was",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  return follow || atNewest;\n}",
+        "to": "  return follow;\n}"
+      }
+    ]
   }
 ]

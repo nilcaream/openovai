@@ -119,7 +119,8 @@
   /* the pill that says rows arrived below where the reader is, on the Leader's panel */
   #jump { position: sticky; left: 50%; transform: translateX(-50%); bottom: 24px; background: var(--panel); border: 1px solid var(--line); color: var(--fg); border-radius: 999px; padding: 6px 14px; font-size: .85rem; cursor: pointer; box-shadow: 0 4px 14px var(--shadow); display: none; }
   #jump.show { display: block; }
-  .rows { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 0; }
+  /* the rows take the focus on a click, so the keys scroll them; no ring for it, the head's border says what the keys do */
+  .rows { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 0; outline: none; }
   .rows .empty { color: var(--fg-faint); font-size: .8rem; padding: 4px 0; }
   #mid .rows .empty { font-size: inherit; text-align: center; padding: 20px 0; }
   /* a tool call is a light line: one per call, no label, no stamp */
@@ -246,7 +247,7 @@
   // draws it and carries what is typed and pressed to the server.
 
   import { dialogOf } from "./dialog.mjs";
-  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title } from "./panels.mjs";
+  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title } from "./panels.mjs";
   import { row as rowOf } from "./render.mjs";
 
   const secret = document.querySelector('meta[name="openovai-secret"]').content;
@@ -339,6 +340,8 @@
   const COPIED_FOR = 1200;
   // How long a message found from a click on the line at its other end stays lit, in milliseconds.
   const FOCUS_FOR = 1500;
+  // How often every panel decides whether it follows its newest row and pins it, in milliseconds.
+  const KEEP_EVERY = 100;
 
   // How wide a line of text is in a box's own font, for a placeholder that must fit on one line.
   const gauge = document.createElement("canvas").getContext("2d");
@@ -416,29 +419,70 @@
 
     const rows = document.createElement("div");
     rows.className = "rows";
-    // Whether this panel follows its newest row: true while the reader is at the end of the rows,
-    // read off where the rows stand on every scroll — a wheel, the bar, a key, or the page itself
-    // pinning the newest — and nowhere else. True from the start, since a panel is first drawn at
-    // its newest row; a scroll away from the end sets it false, a scroll back sets it true again.
-    // Nothing but a scroll of the rows changes it: typing in the box never scrolls the rows, so
-    // it neither engages a panel nor lets one go. Every panel has its own.
-    const view = { follow: true };
+    // Whether this panel follows its newest row: the panel's own word, decided by `following` at
+    // every tick of the page's timer (keep, below), true from the start. Only a hand that moved
+    // the rows away from the newest lets it go — a wheel up, an up key, a finger, the bar dragged
+    // up, each noted here as `away` until the next tick — and being at the newest again engages
+    // it, however the rows got there. Nothing the page does on its own — a row landing, a taller
+    // box, a card, a resize, a row folding — is a word from the reader: a panel that follows is
+    // pinned back to its newest at the next tick, and one that does not is left exactly where the
+    // reader has it. Every panel has its own.
+    const view = { follow: true, away: false, held: false };
     // the head shows whether the panel follows its newest row
     const showFollow = () => headLine.classList.toggle("follow", view.follow);
-    rows.addEventListener("scroll", () => {
-      view.follow = atTheNewest(rows);
-      showFollow();
+    const movedAway = () => {
+      view.away = true;
+    };
+    rows.addEventListener("wheel", (event) => {
+      if (event.deltaY < 0) movedAway();
+    }, { passive: true });
+    // The keys scroll the rows that hold the focus, so the rows can hold it: a click on them takes
+    // it from the box, and a key pressed in a box reaches no rows.
+    rows.tabIndex = -1;
+    rows.addEventListener("keydown", (event) => {
+      if (["ArrowUp", "PageUp", "Home"].includes(event.key)) movedAway();
     });
+    // A finger moving down the screen scrolls the rows up.
+    let finger = null;
+    rows.addEventListener("touchstart", (event) => {
+      finger = event.touches[0].clientY;
+    }, { passive: true });
+    rows.addEventListener("touchmove", (event) => {
+      const at = event.touches[0].clientY;
+      if (at > finger) movedAway();
+      finger = at;
+    }, { passive: true });
+    // The bar is the one hand the rows report as scrolls alone: pressed on the rows themselves —
+    // never on a row, whose press has a target of its own — and released anywhere, it moves the
+    // rows away when a scroll in between took their top up.
+    let top = 0;
+    rows.addEventListener("pointerdown", (event) => {
+      if (event.target === rows) view.held = true;
+    });
+    for (const done of ["pointerup", "pointercancel"]) {
+      document.addEventListener(done, () => {
+        view.held = false;
+      });
+    }
+    rows.addEventListener("scroll", () => {
+      if (view.held && rows.scrollTop < top) movedAway();
+      top = rows.scrollTop;
+    });
+    // One tick of the page's timer: the word decided, shown, and a panel that follows pinned to
+    // its newest — only when it is not there already, so a panel at rest writes nothing.
+    const keep = () => {
+      view.follow = following(view.follow, atTheNewest(rows), view.away);
+      showFollow();
+      view.away = false;
+      if (view.follow && !atTheNewest(rows)) rows.scrollTop = rows.scrollHeight;
+    };
     showFollow();
-    // Whenever the rows change size: the stamps and the folds are measured again for the width, and
-    // for the height a panel that follows is pinned to its newest row again — the bottom area under the
-    // rows grows with a taller box or a card, the window is resized, and the rows keep their
-    // scroll position and would lose their last lines under the bottom area otherwise. One that
-    // does not follow is left exactly where the reader has it.
+    // Whenever the rows change size, the stamps and the folds are measured again for the width.
+    // The height is the timer's business: the bottom area under the rows grows with a taller box
+    // or a card, the window is resized, and a panel that follows is pinned at the next tick.
     new ResizeObserver(() => {
       fitStamps(rows.querySelectorAll(".t"));
       fitFolds(rows.querySelectorAll(".msg.collapsed"));
-      if (view.follow) rows.scrollTop = rows.scrollHeight;
     }).observe(rows);
     // One click handler for every copy button the rows will hold: the code inside the button's
     // block goes to the clipboard — the code element, never the button's own markup — and the
@@ -496,7 +540,7 @@
     new ResizeObserver(fitPlaceholder).observe(box);
     // The box is one row until what is typed needs more, and stops growing at 40% of the window,
     // where it scrolls instead. A taller box takes its room from the rows; what that does to
-    // their scroll position is the rows' own observer's business, never this one's.
+    // their scroll position is the timer's business, never this one's.
     const autosize = () => {
       box.style.height = "auto";
       const max = window.innerHeight * 0.4;
@@ -544,7 +588,7 @@
 
     // The bottom area, under the rows: the cards of the panel's questions, then the composer. It
     // takes its room from the rows in the panel's column, so a card or a taller box never covers
-    // a row — the rows get shorter, and the observer above keeps a following panel at its newest.
+    // a row — the rows get shorter, and the timer keeps a following panel at its newest.
     const bottom = document.createElement("div");
     bottom.className = "bottom";
     const cards = document.createElement("div");
@@ -557,7 +601,7 @@
     // delivery to find its row; `day` the day of the row drawn last, for the pill between two days;
     // `drawn` the card of every question on the panel, by the id of its request; `doing` the one
     // line that says what the seat is at, while there is one.
-    return { name, section, nameLine, info, word, fitPlaceholder, facts, composer, stop, rows, cards, empty, jump, box, refs, view, shown: 0, day: null, drawn: new Map(), loading: false, last: null, lines: new Map(), waiting: new Map(), doing: null };
+    return { name, section, nameLine, info, word, fitPlaceholder, facts, composer, stop, rows, cards, empty, jump, box, refs, view, keep, shown: 0, day: null, drawn: new Map(), loading: false, last: null, lines: new Map(), waiting: new Map(), doing: null };
   }
 
   // When a row was written, in the reader's own zone: `2026.09.13 Sunday 23:17:05` on the row, the
@@ -917,9 +961,8 @@
     if (about.rows === null) {
       load(panel);
     } else {
-      // At the newest row on the first draw and while the panel follows it — the panel's own word,
-      // set by its scrolls, never a measure taken here; otherwise exactly where the reader left it.
-      const follows = panel.shown === 0 || panel.view.follow;
+      // Whether the reader is near the newest row is taken before anything lands, and on the first
+      // draw they are: the timer pins a panel that follows, and the draw scrolls nothing itself.
       const near = panel.shown === 0 || nearTheNewest(panel.rows);
       if (about.rows.length < panel.shown) {
         panel.rows.replaceChildren(panel.empty);
@@ -1010,7 +1053,7 @@
       }
       // The questions, in the bottom area: a card answered or taken down leaves, a card not yet
       // drawn goes in after the cards there. Nothing here scrolls the rows for a card: it is not
-      // in them, and a taller bottom area is the rows' observer's business.
+      // in them, and a taller bottom area is the timer's business.
       for (const [id, card] of panel.drawn) {
         if (!about.asking.some((request) => request.id === id)) {
           card.remove();
@@ -1045,14 +1088,10 @@
       }
       // Rows are appended after the pill; it goes back to the end so it sticks to the bottom edge.
       if (panel.jump !== null && panel.jump !== panel.rows.lastElementChild) panel.rows.append(panel.jump);
-      // A row that landed: a panel that follows is pinned to the newest; otherwise the pill says
-      // something landed below.
-      if (landed) {
-        if (follows) {
-          panel.rows.scrollTop = panel.rows.scrollHeight;
-        } else if (panel.jump !== null && !near) {
-          panel.jump.classList.add("show");
-        }
+      // A row that landed while the reader is away from the newest: the pill says something
+      // landed below. A panel that follows is pinned to the newest by the timer, not here.
+      if (landed && !panel.view.follow && panel.jump !== null && !near) {
+        panel.jump.classList.add("show");
       }
     }
   }
@@ -1165,4 +1204,10 @@
       draw();
     }
   }, 1000);
+  // Every panel keeps its word and its place ten times a second: a panel that follows is pinned
+  // to its newest whatever moved the bottom away — a row that landed, a taller box, a card, a
+  // resize — and a panel at rest writes nothing.
+  setInterval(() => {
+    for (const panel of sections.values()) panel.keep();
+  }, KEEP_EVERY);
 </script>

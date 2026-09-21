@@ -5,9 +5,26 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { AMBER, CARD, CONNECTED, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, RED, REPLY, LINE_QUEUE, SENDING, SHOWN_FOR, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title } from "../lib/chat/panels.mjs";
+import { AMBER, CARD, CONNECTED, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, RED, REPLY, LINE_QUEUE, SENDING, SHOWN_FOR, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title } from "../lib/chat/panels.mjs";
 
 const LEADER = "Leader";
+
+describe("following the newest row", () => {
+  it("a hand that moved the rows away lets the panel go, wherever the rows stand now", () => {
+    assert.equal(following(true, false, true), false);
+    assert.equal(following(true, true, true), false, "the wheel turned up, the rows have not moved yet: let go, the rows are on their way");
+    assert.equal(following(false, true, true), false);
+    assert.equal(following(false, false, true), false);
+  });
+  it("a scroll of the page's own never lets a following panel go: a tall row that moves the bottom away is no word from the reader", () => {
+    assert.equal(following(true, false, false), true);
+    assert.equal(following(true, true, false), true);
+  });
+  it("at the newest again, however the rows got there, a panel follows; away from it, with no hand, it stays as it was", () => {
+    assert.equal(following(false, true, false), true);
+    assert.equal(following(false, false, false), false);
+  });
+});
 
 function about(name, extra = {}) {
   return { name, role: name === LEADER ? "Leader" : "Worker", model: "opus", running: true, busy: false, title: "", status: "", rules: "", ...extra };
