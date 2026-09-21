@@ -98,9 +98,12 @@ export function installed(options, environment) {
 //   OPENOVAI_STAND_IN_STUCK         ignore stdin being closed and never exit on its own
 //   OPENOVAI_STAND_IN_ASKS          ask to be allowed to use this tool before answering each turn,
 //                             wait for the answer, and make the answer say what was decided
-//   OPENOVAI_STAND_IN_ASKS_INPUT    the argument that tool would be given
+//   OPENOVAI_STAND_IN_ASKS_INPUT    the argument that tool would be given: a command, or the whole
+//                             input as a JSON object for a tool that takes something else
 //   OPENOVAI_STAND_IN_ASKS_FILE     the same, for the other shape a request takes: a tool that
 //                             names a path rather than a command
+//   OPENOVAI_STAND_IN_SUGGESTS      the rules Claude Code would save for that call, as JSON, sent
+//                             beside the request as permission_suggestions
 //   OPENOVAI_STAND_IN_WAITS         milliseconds to wait for that answer before giving up on it
 //                             (default: 5000)
 //   OPENOVAI_STAND_IN_LIFETIME      milliseconds after which it exits on its own whatever is
@@ -381,6 +384,12 @@ async function callTool(name, args) {
 
 // Asking to be allowed, the way the real one asks: a control request, then a wait for the
 // control response echoing the same request id. The real one waits for good; a suite cannot.
+// The argument as the tool would be given it: a command, or, spelt as a JSON object, the input of
+// a tool that takes something else — a fetch its url, a search its query.
+function inputAsked(given) {
+  return given.startsWith("{") ? JSON.parse(given) : { command: given };
+}
+
 async function askPermission(turn) {
   const id = "request-" + turn;
   frame({
@@ -391,8 +400,9 @@ async function askPermission(turn) {
       tool_name: process.env.OPENOVAI_STAND_IN_ASKS,
       input:
         (process.env.OPENOVAI_STAND_IN_ASKS_FILE ?? "") === ""
-          ? { command: process.env.OPENOVAI_STAND_IN_ASKS_INPUT ?? "the one it wanted to run" }
+          ? inputAsked(process.env.OPENOVAI_STAND_IN_ASKS_INPUT ?? "the one it wanted to run")
           : { file_path: process.env.OPENOVAI_STAND_IN_ASKS_FILE },
+      ...((process.env.OPENOVAI_STAND_IN_SUGGESTS ?? "") === "" ? {} : { permission_suggestions: JSON.parse(process.env.OPENOVAI_STAND_IN_SUGGESTS) }),
     },
   });
   const answer = await Promise.race([

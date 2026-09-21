@@ -186,21 +186,117 @@ describe("the rule a write could be allowed by", () => {
   });
 });
 
-// The inverse: a rule written by hand, for the Leader's permission tool. One checker for both
-// callers, so what a person can be asked to settle is exactly what an Always button could offer.
+// The rules Claude Code itself would save for a call, carried in the request: the button for a
+// tool nothing above composes for, and the button for a command or a write nothing composes for.
+describe("the rule Claude Code suggested for a call", () => {
+  const suggesting = (toolName, ruleContent) => [{ type: "addRules", behavior: "allow", destination: "localSettings", rules: [ruleContent === undefined ? { toolName } : { toolName, ruleContent }] }];
+  const carried = [
+    ["a fetch", "WebFetch", { url: "https://example.com/" }, suggesting("WebFetch", "domain:example.com"), ["WebFetch(domain:example.com)"]],
+    ["a search", "WebSearch", { query: "needle" }, suggesting("WebSearch"), ["WebSearch"]],
+    ["a command nothing here composes for", "Bash", { command: "~/bin/deploy --now" }, suggesting("Bash", "~/bin/deploy --now"), ["Bash(~/bin/deploy --now)"]],
+    ["a find with -exec, which no prefix covers", "Bash", { command: "find . -name '*.log' -exec rm {} +" }, suggesting("Bash", "find . -name '*.log' -exec rm {} +"), null],
+    ["a loop", "Bash", { command: "for f in a b; do cmp x/$f $f; done" }, suggesting("Bash", "for f in a b; do cmp x/$f $f; done"), ["Bash(for f in a b; do cmp x/$f $f; done)"]],
+    ["a write outside the instance", "Write", { file_path: "/etc/hosts" }, suggesting("Edit", "//etc/hosts"), null],
+    ["a suggestion the checker refuses", "WebFetch", { url: "https://example.com/" }, suggesting("WebFetch", "example.com"), null],
+    ["a suggestion that is not a rule", "WebFetch", { url: "https://example.com/" }, [{ type: "setMode", mode: "acceptEdits", destination: "session" }], null],
+    ["a suggestion to deny", "WebFetch", { url: "https://example.com/" }, [{ type: "addRules", behavior: "deny", rules: [{ toolName: "WebFetch", ruleContent: "domain:example.com" }] }], null],
+    ["one of the chat's own tools", "mcp__openovai__message", { to: LEADER }, suggesting("mcp__openovai__message"), ["mcp__openovai__message"]],
+    ["the same rule suggested twice", "WebSearch", { query: "needle" }, [...suggesting("WebSearch"), ...suggesting("WebSearch")], ["WebSearch"]],
+    ["nothing suggested", "WebFetch", { url: "https://example.com/" }, undefined, null],
+  ];
+
+  for (const [what, tool, input, suggestions, rules] of carried) {
+    it(rules === null ? `offers nothing for ${what}` : `offers ${rules.join(" and ")} for ${what}`, () => {
+      assert.deepEqual(shapeOf({ id: "request-1", tool, input, suggestions }, AT), rules);
+    });
+  }
+
+  it("composes its own rule for a command before reading what was suggested", () => {
+    const request = { id: "request-1", tool: "Bash", input: { command: "npm test" }, suggestions: suggesting("Bash", "npm test") };
+    assert.deepEqual(shapeOf(request, AT), ["Bash(npm:*)"]);
+  });
+
+  it("composes its own rule for a write before reading what was suggested", () => {
+    const request = { id: "request-1", tool: "Write", input: { file_path: `${AT}/projects/Wren/notes.md` }, suggestions: suggesting("Edit", "/projects/Wren/notes.md") };
+    assert.deepEqual(shapeOf(request, AT), ["Edit(/projects/Wren/**)"]);
+  });
+});
+
+// The one checker for both callers: a rule written by hand for the Leader's permission tool, and
+// a rule Claude Code suggested for a button. What Claude Code reads from a settings file, as its
+// reference spells it, and nothing it would skip.
 describe("the rule a person may be asked to settle", () => {
-  it("accepts what shapeOf composes and nothing else", () => {
-    for (const rule of ["Bash(git:*)", "Bash(git push:*)", "Bash(pip install:*)", "Edit(/projects/Paul/**)", "Edit(/**)"]) {
+  it("accepts a command by prefix in either spelling, answered in the one this workspace writes", () => {
+    for (const rule of ["Bash(git:*)", "Bash(git push:*)", "Bash(pip install:*)", "Bash(/usr/bin/time:*)", "Bash(temp/shellcheck/shellcheck:*)"]) {
       assert.equal(acceptRule(rule, AT), rule);
     }
+    assert.equal(acceptRule("Bash(npm run *)", AT), "Bash(npm run:*)");
+    assert.equal(acceptRule("Bash(ls *)", AT), "Bash(ls:*)");
+    assert.equal(acceptRule("Bash(*)", AT), "Bash");
+  });
+
+  it("accepts a command exactly, star-free", () => {
+    for (const rule of ["Bash(git push)", "Bash(find . -name x -exec rm {} +)", "Bash(env X=1 make)", "Bash(echo (a))", "Bash(x)"]) {
+      assert.equal(acceptRule(rule, AT), rule);
+    }
+  });
+
+  it("refuses a star that stands in for a program or a subcommand, and a glued one", () => {
+    for (const rule of ["Bash(* --version)", "Bash(git * main)", "Bash(ls*)", "Bash(git:* push)", "Bash(*.sh)", "Bash()", "Bash( )", "Bash( npm:*)", "Bash(npm :*)", "Bash(git:*) ", "Bash(a\nb)"]) {
+      assert.equal(acceptRule(rule, AT), null, JSON.stringify(rule));
+    }
+  });
+
+  it("accepts a subtree under the instance root for Edit and Read, and a read outside it by the machine's path", () => {
+    for (const rule of ["Edit(/projects/Paul/**)", "Edit(/**)", "Read(/projects/Paul/**)", "Read(/**)", "Read(//etc/**)", "Read(//home/alice/notes/**)"]) {
+      assert.equal(acceptRule(rule, AT), rule);
+    }
+  });
+
+  it("refuses a path read from wherever the session is, a path on a tool Claude Code never checks, and a write outside", () => {
     // A bare path is read from the session's current directory rather than the instance root, so
     // it is a wrong rule and not an older spelling of the right one.
-    for (const rule of ["Bash(*)", "Bash(git push)", "Bash(git:*) ", "Edit(projects/Paul/**)", "Edit(**)", "Edit(//etc/**)", "Edit(/../**)", "Edit(/./projects/**)", "Edit(/projects/Paul/STATE.md)", "Read(/**)", "mcp__openovai", "", null]) {
+    for (const rule of [
+      "Edit(projects/Paul/**)", "Edit(**)", "Edit(//etc/**)", "Edit(/../**)", "Edit(/./projects/**)", "Edit(/projects/Paul/STATE.md)", "Edit(~/x/**)", "Edit(/src/**/*.ts)", "Edit(/docs/*)",
+      "Read(projects/**)", "Read(./.env)", "Read(~/.zshrc)", `Read(/${AT}/projects/**)`, "Read(//**)", "Read(//etc/../root/**)", "Read(//etc/*/**)", "Read(//etc/x.txt)",
+      "Write(/docs/**)", "Glob(/docs/**)", "NotebookEdit(/docs/**)", "MultiEdit(/docs/**)",
+    ]) {
+      assert.equal(acceptRule(rule, AT), null, rule);
+    }
+  });
+
+  it("accepts a fetch by host with the wildcards the reference names, and a search", () => {
+    for (const rule of ["WebFetch", "WebFetch(domain:example.com)", "WebFetch(domain:*.example.com)", "WebFetch(domain:example.*)", "WebFetch(domain:*)", "WebFetch(domain:localhost)", "WebSearch"]) {
+      assert.equal(acceptRule(rule, AT), rule);
+    }
+    for (const rule of ["WebFetch(example.com)", "WebFetch(domain:example.com.)", "WebFetch(domain:*.*)", "WebFetch(domain:https://example.com)", "WebFetch(domain:)", "WebSearch(*)", "WebSearch(needle)"]) {
+      assert.equal(acceptRule(rule, AT), null, rule);
+    }
+  });
+
+  it("accepts a server's tools by name, with a glob only after the server is named in full", () => {
+    for (const rule of ["mcp__openovai", "mcp__openovai__message", "mcp__openovai__*", "mcp__github__get_*", "mcp__claude_ai_Claude_Docs__read"]) {
+      assert.equal(acceptRule(rule, AT), rule);
+    }
+    for (const rule of ["mcp__*", "mcp__", "mcp__*__message", "mcp__open*__message", "mcp__openovai(message)", "mcp__openovai__", "mcp"]) {
+      assert.equal(acceptRule(rule, AT), null, rule);
+    }
+  });
+
+  it("accepts a subagent by name and a bare tool name, and refuses a parameter rule and a tool-name glob", () => {
+    for (const rule of ["Agent(Explore)", "Agent(my-custom-agent)", "Agent", "Read", "Write", "Bash", "NotebookEdit", "TaskStop", "Skill"]) {
+      assert.equal(acceptRule(rule, AT), rule);
+    }
+    for (const rule of ["Agent(model:opus)", "Agent(isolation:*)", "Agent()", "*", "B*", "bash", "Bash(run_in_background:true) ", "", " ", null, undefined, 3]) {
       assert.equal(acceptRule(rule, AT), null, String(rule));
     }
+  });
+
+  it("accepts every rule a button carries", () => {
     for (const request of [
       { id: "r", tool: "Bash", input: { command: "git push origin main" } },
       { id: "r", tool: "Write", input: { file_path: path.join(AT, "desks", "Paul", "notes.md") } },
+      { id: "r", tool: "WebFetch", input: { url: "https://example.com/" }, suggestions: [{ type: "addRules", behavior: "allow", rules: [{ toolName: "WebFetch", ruleContent: "domain:example.com" }] }] },
     ]) {
       for (const composed of shapeOf(request, AT)) {
         assert.equal(acceptRule(composed, AT), composed);
@@ -596,6 +692,42 @@ describe("asking to be allowed", () => {
     });
   });
 
+  describe("allowing a fetch, by the rule Claude Code itself would save", () => {
+    const RULE = "WebFetch(domain:example.com)";
+    const settings = path.join(instance, ".claude", "settings.json");
+    const ledger = path.join(instance, LEDGER);
+    let shown;
+    let said;
+
+    before(async () => {
+      await leaderAsking({
+        OPENOVAI_STAND_IN_ASKS: "WebFetch",
+        OPENOVAI_STAND_IN_ASKS_INPUT: JSON.stringify({ url: "https://example.com/", prompt: "the title" }),
+        OPENOVAI_STAND_IN_SUGGESTS: JSON.stringify([{ type: "addRules", destination: "localSettings", rules: [{ toolName: "WebFetch", ruleContent: "domain:example.com" }], behavior: "allow" }]),
+      });
+      const reply = await say("read the page");
+      shown = (await waitingOn())[0];
+      said = await page("POST", `/sessions/${LEADER}/permission`, { id: shown.id, decision: "always" });
+      await reply();
+    });
+
+    after(async () => {
+      await endSeat(LEADER, 500);
+    });
+
+    it("offers the rule Claude Code suggested, and grants it", () => {
+      assert.deepEqual(shown.shape, [RULE]);
+      assert.deepEqual(JSON.parse(said.body), { answered: shown.id, decision: "always", granted: [RULE] });
+      assert.ok(JSON.parse(fs.readFileSync(settings, "utf8")).permissions.allow.includes(RULE));
+    });
+
+    it("writes down which fetch it was for", () => {
+      const written = fs.readFileSync(ledger, "utf8").split("\n").filter((line) => line.startsWith(`- \`${RULE}\``));
+      assert.equal(written.length, 1);
+      assert.match(written[0], /for `https:\/\/example\.com\/`/);
+    });
+  });
+
   describe("asking to allow a shape that cannot be composed", () => {
     let shown;
     let refused;
@@ -659,7 +791,7 @@ describe("asking to be allowed", () => {
       leader.secret = secretsIn(leader.log)[0];
       ruleAsked(instance, { rule: "Bash(git:*)", list: "deny", session: LEADER, call: "settled by hand for the check", day: "2026-09-13" });
       said.noWhy = await permission({ rule: "Bash(pip:*)" });
-      said.badShape = await permission({ rule: "Bash(*)", why: "anything" });
+      said.badShape = await permission({ rule: "Write(/docs/**)", why: "anything" });
       said.held = await permission({ rule: "Bash(git:*)", why: "the User asked" });
       said.asked = await permission({ rule: "Bash(pip:*)", why: "pip install is too much" });
       said.again = await permission({ rule: "Bash(pip:*)", why: "pip install is too much" });
@@ -686,8 +818,10 @@ describe("asking to be allowed", () => {
       assert.equal(said.noWhy.refused, true);
       assert.match(said.noWhy.text, /say why/);
       assert.equal(said.badShape.refused, true);
+      assert.match(said.badShape.text, /^Write\(\/docs\/\*\*\) is not a rule Claude Code reads/);
       assert.match(said.badShape.text, /Bash\(word:\*\)/);
       assert.match(said.badShape.text, /Edit\(\/dir\/\*\*\)/);
+      assert.match(said.badShape.text, /WebFetch\(domain:host\)/);
       assert.equal(said.again.refused, true);
       assert.match(said.again.text, /already asked on your panel/);
     });

@@ -56,23 +56,56 @@
   },
   {
     "name": "a bare directory rule is accepted as if it were the anchored one",
-    "catches": "accepts what shapeOf composes and nothing else",
+    "catches": "refuses a path read from wherever the session is, a path on a tool Claude Code never checks, and a write outside",
     "edits": [
       {
         "file": "lib/chat/permissions.mjs",
-        "from": "const EDIT_RULE = /^Edit\\(\\/(.+)\\/\\*\\*\\)$/;",
-        "to": "const EDIT_RULE = /^Edit\\(\\/?(.+)\\/\\*\\*\\)$/;"
+        "from": "const SUBTREE_RULE = /^(Edit|Read)\\(\\/(.+)\\/\\*\\*\\)$/;",
+        "to": "const SUBTREE_RULE = /^(Edit|Read)\\(\\/?(.+)\\/\\*\\*\\)$/;"
       }
     ]
   },
   {
     "name": "the bare root rule is accepted beside the anchored one",
-    "catches": "accepts what shapeOf composes and nothing else",
+    "catches": "refuses a path read from wherever the session is, a path on a tool Claude Code never checks, and a write outside",
     "edits": [
       {
         "file": "lib/chat/permissions.mjs",
-        "from": "  if (BASH_RULE.test(rule) || rule === ROOT_RULE) {",
-        "to": "  if (BASH_RULE.test(rule) || rule === ROOT_RULE || rule === \"Edit(**)\") {"
+        "from": "const ROOT_RULES = new Set([ROOT_RULE, \"Read(/**)\"]);",
+        "to": "const ROOT_RULES = new Set([ROOT_RULE, \"Read(/**)\", \"Edit(**)\"]);"
+      }
+    ]
+  },
+  {
+    "name": "a path rule on the tool that never consults it is accepted like one on Edit",
+    "catches": "refuses a path read from wherever the session is, a path on a tool Claude Code never checks, and a write outside",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": "const SUBTREE_RULE = /^(Edit|Read)\\(\\/(.+)\\/\\*\\*\\)$/;",
+        "to": "const SUBTREE_RULE = /^(Edit|Read|Write)\\(\\/(.+)\\/\\*\\*\\)$/;"
+      }
+    ]
+  },
+  {
+    "name": "a read outside the instance is accepted for a path inside it too, spelt as a place on this machine",
+    "catches": "refuses a path read from wherever the session is, a path on a tool Claude Code never checks, and a write outside",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": " && inside(named, root) === null ? rule : null;",
+        "to": " ? rule : null;"
+      }
+    ]
+  },
+  {
+    "name": "a read outside the instance is accepted with .. and ./ in the path",
+    "catches": "refuses a path read from wherever the session is, a path on a tool Claude Code never checks, and a write outside",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": "    return path.posix.normalize(named) === named && ",
+        "to": "    return "
       }
     ]
   },
@@ -197,7 +230,7 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "    for (const rule of granted) {\n      allowAsked(instance.root, {\n        rule,\n        session: seat,\n        call: asked.input?.command ?? inside(asked.input?.file_path, instance.root),\n        day: new Date().toISOString().slice(0, 10),\n      });\n    }\n",
+        "from": "    for (const rule of granted) {\n      allowAsked(instance.root, {\n        rule,\n        session: seat,\n        call: asked.input?.command ?? inside(asked.input?.file_path, instance.root) ?? asked.input?.url ?? asked.input?.query ?? asked.tool,\n        day: new Date().toISOString().slice(0, 10),\n      });\n    }\n",
         "to": ""
       }
     ]
@@ -230,8 +263,8 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "      call: asked.input?.command ?? inside(asked.input?.file_path, instance.root),",
-        "to": "      call: asked.input?.command ?? asked.input?.file_path,"
+        "from": "      call: asked.input?.command ?? inside(asked.input?.file_path, instance.root) ?? asked.input?.url ?? asked.input?.query ?? asked.tool,",
+        "to": "      call: asked.input?.command ?? asked.input?.file_path ?? asked.input?.url ?? asked.input?.query ?? asked.tool,"
       }
     ]
   },
@@ -258,24 +291,222 @@
     ]
   },
   {
-    "name": "the checker accepts a Bash rule without the prefix star",
-    "catches": "accepts what shapeOf composes and nothing else",
+    "name": "the checker accepts a star in the middle of a command",
+    "catches": "refuses a star that stands in for a program or a subcommand, and a glued one",
     "edits": [
       {
         "file": "lib/chat/permissions.mjs",
-        "from": "(?: [A-Za-z0-9_.=-]+)*):\\*\\)$/;",
-        "to": "(?: [A-Za-z0-9_.=-]+)*):?\\*?\\)$/;"
+        "from": "const BASH_RULE = /^Bash\\(([^\\s*]|[^\\s*][^\\n*]*[^\\s*])(:\\*| \\*)?\\)$/;",
+        "to": "const BASH_RULE = /^Bash\\(([^\\s]|[^\\s][^\\n]*[^\\s])(:\\*| \\*)?\\)$/;"
+      }
+    ]
+  },
+  {
+    "name": "the checker accepts a Bash rule with a space before or after the command",
+    "catches": "refuses a star that stands in for a program or a subcommand, and a glued one",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": "const BASH_RULE = /^Bash\\(([^\\s*]|[^\\s*][^\\n*]*[^\\s*])(:\\*| \\*)?\\)$/;",
+        "to": "const BASH_RULE = /^Bash\\(([^\\n*]+?)(:\\*| \\*)?\\)$/;"
+      }
+    ]
+  },
+  {
+    "name": "the space-star spelling of a prefix is answered as given rather than in the spelling this workspace writes",
+    "catches": "accepts a command by prefix in either spelling, answered in the one this workspace writes",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": "    return bash[2] === undefined ? rule : `Bash(${bash[1]}:*)`;",
+        "to": "    return rule;"
+      }
+    ]
+  },
+  {
+    "name": "Bash(*) is refused rather than answered as the bare tool",
+    "catches": "accepts a command by prefix in either spelling, answered in the one this workspace writes",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": "  if (rule === \"Bash(*)\") {\n    return \"Bash\";\n  }\n",
+        "to": ""
       }
     ]
   },
   {
     "name": "the checker accepts an Edit rule for any directory at all",
-    "catches": "accepts what shapeOf composes and nothing else",
+    "catches": "refuses a path read from wherever the session is, a path on a tool Claude Code never checks, and a write outside",
     "edits": [
       {
         "file": "lib/chat/permissions.mjs",
-        "from": "  return named === edit[1] ? rule : null;",
+        "from": "  return inside(subtree[2], root) === subtree[2] ? rule : null;",
         "to": "  return rule;"
+      }
+    ]
+  },
+  {
+    "name": "a fetch rule is accepted with anything at all after domain:",
+    "catches": "accepts a fetch by host with the wildcards the reference names, and a search",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": "const FETCH_RULE = /^WebFetch\\(domain:(?:\\*|(?:\\*\\.)?[A-Za-z0-9-]+(?:\\.(?:[A-Za-z0-9-]+|\\*))*)\\)$/;",
+        "to": "const FETCH_RULE = /^WebFetch\\(domain:.*\\)$/;"
+      }
+    ]
+  },
+  {
+    "name": "a fetch rule is accepted without the domain: prefix",
+    "catches": "accepts a fetch by host with the wildcards the reference names, and a search",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": "const FETCH_RULE = /^WebFetch\\(domain:(?:",
+        "to": "const FETCH_RULE = /^WebFetch\\((?:domain:)?(?:"
+      }
+    ]
+  },
+  {
+    "name": "a glob in the server's name is accepted",
+    "catches": "accepts a server's tools by name, with a glob only after the server is named in full",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": "const MCP_RULE = /^mcp__[A-Za-z0-9-]+(?:_[A-Za-z0-9-]+)*",
+        "to": "const MCP_RULE = /^mcp__[A-Za-z0-9*-]+(?:_[A-Za-z0-9*-]+)*"
+      }
+    ]
+  },
+  {
+    "name": "an mcp rule with parentheses is accepted",
+    "catches": "accepts a server's tools by name, with a glob only after the server is named in full",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": "(?:__(?:[A-Za-z0-9_-]+\\*?|\\*))?$/;",
+        "to": "(?:__(?:[A-Za-z0-9_-]+\\*?|\\*))?(?:\\(.*\\))?$/;"
+      }
+    ]
+  },
+  {
+    "name": "a parameter rule on Agent is accepted as if it named a subagent",
+    "catches": "accepts a subagent by name and a bare tool name, and refuses a parameter rule and a tool-name glob",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": "const AGENT_RULE = /^Agent\\([A-Za-z0-9_-]+\\)$/;",
+        "to": "const AGENT_RULE = /^Agent\\([A-Za-z0-9_:*-]+\\)$/;"
+      }
+    ]
+  },
+  {
+    "name": "a tool-name glob is accepted as a bare tool name",
+    "catches": "accepts a subagent by name and a bare tool name, and refuses a parameter rule and a tool-name glob",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": "const TOOL_RULE = /^[A-Z][A-Za-z]+$/;",
+        "to": "const TOOL_RULE = /^[A-Za-z*]+$/;"
+      }
+    ]
+  },
+  {
+    "name": "a suggestion to deny is put on the Always button",
+    "catches": "offers nothing for a suggestion to deny",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": "    if (suggestion?.behavior !== \"allow\" || !Array.isArray(suggestion.rules)) {",
+        "to": "    if (!Array.isArray(suggestion?.rules)) {"
+      }
+    ]
+  },
+  {
+    "name": "a suggested rule is put on the button without passing the checker",
+    "catches": "offers nothing for a suggestion the checker refuses",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": "      const accepted = acceptRule(typeof ruleContent === \"string\" ? `${toolName}(${ruleContent})` : toolName, root);",
+        "to": "      const accepted = typeof ruleContent === \"string\" ? `${toolName}(${ruleContent})` : toolName;"
+      }
+    ]
+  },
+  {
+    "name": "the same suggested rule is offered as many times as it was suggested",
+    "catches": "offers WebSearch for the same rule suggested twice",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": "      if (accepted !== null && !rules.includes(accepted)) {",
+        "to": "      if (accepted !== null) {"
+      }
+    ]
+  },
+  {
+    "name": "a command nothing here composes for gets no button although Claude Code suggested one",
+    "catches": "offers Bash(~/bin/deploy --now) for a command nothing here composes for",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": "    return own ?? suggested(request, root);",
+        "to": "    return own;"
+      }
+    ]
+  },
+  {
+    "name": "what Claude Code suggested for a command is offered before the rule composed here",
+    "catches": "composes its own rule for a command before reading what was suggested",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": "    return own ?? suggested(request, root);",
+        "to": "    return suggested(request, root) ?? own;"
+      }
+    ]
+  },
+  {
+    "name": "a tool that is neither Bash nor a write gets no button whatever Claude Code suggested",
+    "catches": "offers WebFetch(domain:example.com) for a fetch",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": "  return suggested(request, root);\n}\n\n// The rules Claude Code would write",
+        "to": "  return null;\n}\n\n// The rules Claude Code would write"
+      }
+    ]
+  },
+  {
+    "name": "the rules Claude Code suggested are dropped on their way in from the run",
+    "catches": "offers the rule Claude Code suggested, and grants it",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "input: frame.request.input, ...(suggestions === undefined ? {} : { suggestions }) };",
+        "to": "input: frame.request.input };"
+      }
+    ]
+  },
+  {
+    "name": "the line accounting for a fetch does not say which fetch",
+    "catches": "writes down which fetch it was for",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": " ?? asked.input?.url ?? asked.input?.query ?? asked.tool,",
+        "to": " ?? asked.tool,"
+      }
+    ]
+  },
+  {
+    "name": "the tool's refusal no longer says what a fetch rule looks like",
+    "catches": "refuses a rule without a why, a rule already pending, and a shape it does not accept",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "Read(//dir/**) outside it, WebFetch(domain:host), WebSearch, mcp__server__tool, Agent(Name), or a bare tool name` };",
+        "to": "Read(//dir/**) outside it, WebSearch, mcp__server__tool, Agent(Name), or a bare tool name` };"
       }
     ]
   },
