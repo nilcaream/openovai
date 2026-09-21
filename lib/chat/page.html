@@ -162,7 +162,8 @@
   .msg .fold { display: none; font-size: .72rem; color: var(--fg-faint); font-family: var(--mono); }
   .msg.collapsed.placeholder .md { display: none; }
   .msg.collapsed.placeholder .fold { display: block; }
-  .text { white-space: pre-wrap; }
+  /* a plain body wraps anywhere: one unbreakable token — a URL, a path — would otherwise run past the bubble and give the page a sideways scrollbar */
+  .text { white-space: pre-wrap; overflow-wrap: anywhere; }
   /* the label row: the speaker on the left, ellipsised before it could push the timestamp, the timestamp last */
   .who { font-size: .78rem; font-weight: 600; color: var(--fg-dim); display: flex; gap: 8px; align-items: baseline; margin-right: auto; flex: 1 1 auto; min-width: 0; }
   .who .lbl { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
