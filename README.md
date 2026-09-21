@@ -5,11 +5,11 @@ A toolkit for running a small team of AI developer sessions on one machine, buil
 with one task each. Every session's identity is a directory on disk, not a process — so a
 session can be replaced at any time without losing the work.
 
-> **Status.** In daily use on real software development, by the team that builds it. The
-> features are well-rounded and there may be small bugs here and there; when you find one, an
-> issue with what you tried, what happened and what you expected is the most useful thing you can
-> send. The repository is open — no gate, no sign-up — and contributions are welcome from users
-> and from developers alike.
+> **Status.** Early development. In daily use by the team that builds it, and changing fast:
+> releases are frequent, features move, and what a release does is in [NOTES.md](NOTES.md). Bugs
+> are expected; an issue with what you tried, what happened and what you expected is the most
+> useful thing you can send. The repository is open — no gate, no sign-up — and contributions are
+> welcome.
 
 ## Quick start
 
@@ -70,11 +70,13 @@ it. Everything the page and the command do is described at [openov.ai](https://o
 
 ## Requirements
 
-- A Linux desktop
-- `sh`, `curl` or `wget`, `tar`, `sha256sum`
+- Linux, x86_64 or arm64
+- `sh`, `curl` or `wget`, `tar`, `sha256sum`, `uname`
 
-Node.js and Claude Code are fetched for you, pinned per release, under `~/.local/share/openovai`,
-shared between instances, never taken from the system.
+Nothing else: no Node.js, no npm, no Claude Code on the machine. Each release pins the Node.js and
+Claude Code it runs on and fetches them itself, under `~/.local/share/openovai`, shared by every
+instance of the user's — about half a gigabyte, once, no sudo. Claude Code's own updater is off; a
+newer one reaches an instance with the next release.
 
 ## The instance
 

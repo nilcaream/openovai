@@ -4,6 +4,90 @@ For the Leader of a workspace taking this version. Short, and about what is diff
 working there — not a developer changelog. A section per release, newest first; a release page
 carries only its own.
 
+## 0.16.0
+
+The toolkit brings its own Node.js and Claude Code, one `openovai` command installs an instance from
+any release and asks for what it was not told, `permission` settles every rule Claude Code reads, a
+desk is edited in place, and a turn is one queue in arrival order. The page keeps its cards, its
+tool line, its columns and its scroll where they belong.
+
+**Nothing of the machine's own is needed but a shell.** Each release pins the exact Node.js and
+Claude Code it runs on, in lib/RUNTIME, and fetches them itself: the node archive from nodejs.org,
+verified against the checksums published beside it, and Claude Code installed with that node's own
+npm, both under `~/.local/share/openovai` (`$XDG_DATA_HOME/openovai` when set), shared by every
+instance of the user's, about half a gigabyte, once. Nothing is taken from the PATH, nothing needs
+sudo, and no instance runs on a node or a claude the machine happens to have. Claude Code's own
+background updater is off for every session: a newer Claude Code reaches an instance with the next
+release, not on its own. `ovai` and the installer are POSIX sh and need sh, curl or wget, tar,
+sha256sum and uname, on Linux x86_64 or arm64. An update fetches the new release's runtimes after
+the swap, so the first start after it waits for nothing; a fetch that fails leaves the release in
+place and says what fetches it again. `ovai configuration` has a `runtime` row: the pinned versions
+and the data directory. When the chat cannot start a Leader, the refusal says what is missing,
+where it was looked for and the two commands that fetch it.
+
+**One `openovai` command, once per user.** `curl -fsSL …/main/openovai | sh` installs the command
+under `~/.local/share/openovai` and links it at `~/.local/bin/openovai`, printing the line to add to
+the shell profile when that directory is not on the PATH and never editing one. Run, it says which
+release it resolved — the newest on GitHub, or the one named as `openovai 0.16.0` — downloads that
+release once, and hands over to that release's own installer with every other option unchanged.
+With nothing said and a terminal to ask on, it asks the one question that is its own: the newest,
+or a version already fetched.
+
+**The installer asks for what it was not told.** On a terminal, each option the command line left
+off — where the instance lives, who it works for, the Leader's name, the models, the port, how it
+signs in — is asked for, one line each, Enter taking the default where there is one; an option
+typed on the command line is never asked again, and an instance installed over is asked nothing it
+already knows. Off a terminal nothing is asked, and what is missing is refused as before.
+
+**`permission` settles every rule Claude Code reads.** The Leader's `permission` tool accepts every
+rule shape Claude Code itself reads from a settings file, and refuses the shapes Claude Code skips:
+an exact Bash command or a `Bash(word:*)` prefix; `Edit` and `Read` on a `/dir/**` under the
+instance root, and Read on an absolute path outside it as `//abs/**`; `WebFetch` bare or
+`domain:host`; `WebSearch`; an MCP server, one of its tools, or a prefix of them; `Agent(Name)` and
+any bare tool name. The card carries the rule Claude Code suggests for the call — for a Bash call
+the exact command, for a fetch the domain — so the Leader settles a rule with what is already on
+the card.
+
+**A desk is edited in place.** `desks/<Name>/STATE.md` is a file like any other: its body is edited
+with the file tools, line by line, and the server owns the header line alone. `write_desk` takes
+the title and the status, rewrites that line and leaves everything below it as it stands. The gate
+at the end of a session is unchanged: `restart_session` and `stop_session` refuse until
+`write_desk` was called since the event that asked. A fresh instance is no longer born with a rule
+denying Edit on the desks; an instance updated from an earlier version still has that rule, and
+the update lists it — withdraw it by hand, the update removes nothing.
+
+**A turn is one queue, in arrival order.** Everything a seat is handed for one turn is one
+`<queue>` element: the frames as they arrived, each with the time it arrived, the envelope there
+also for one item. The User's line no longer goes ahead of what arrived before it. The persona says
+it in one sentence, with the example.
+
+**A card stays up while another is pressed.** A press on a rule card starts a turn of the Leader's,
+and every rule card used to hide while a turn ran: pressing one with others standing took them all
+down until that turn ended, then drew the rest again. A rule card now knows the turn that raised
+it, and the panel keeps every card raised earlier while a later turn runs.
+
+**The Leader's tool line can be read.** Every word on the line above the Leader's pill —
+"Thinking…", the call it has out — stays up half a second before the next replaces it; a word that
+repeats the one showing is not queued, and the line trails the seat by at most a second and a half.
+And a Leader call that stopped on a card no longer leaves a row on the panel: the tool line says it
+while the card stands, and the wait row names it once answered.
+
+**A Worker back after a while goes to its own column.** A Worker whose panel had gone — its process
+stopped for thirty seconds, or its seat gone from the room — and came back was placed on both sides
+at once and drawn on the right; three such Workers all went right and the left column stood empty.
+A panel that goes takes its place in the order with it, and the sides alternate over the panels
+that are there.
+
+**A panel follows its newest row until a hand moves it away.** A panel that followed its rows used
+to stop following when a tall row landed. Now only a hand — a wheel up, an up key, a finger moving
+down the screen, the bar dragged up — lets a panel go, and at the newest row again, however it got
+there, a panel follows. And one long unbreakable token — a URL, a path — no longer scrolls the
+whole page sideways: a plain row's body wraps anywhere, as the markdown body did already.
+
+**The README is what is read before cloning.** The documentation is at openov.ai; the README keeps
+the first paragraph, the status, the quick start through `openovai`, the idea, the requirements and
+the instance root. This file says what each release changed.
+
 ## 0.15.0
 
 The browser tells you when a page you are not looking at needs you, the desktop pop is gone, the

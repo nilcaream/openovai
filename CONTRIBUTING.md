@@ -1,7 +1,8 @@
 # Contributing
 
-Thanks for looking. The toolkit is in daily use and still being tested against real work, so the
-most useful contribution is a clear issue: what you tried, what happened, and what you expected.
+Thanks for looking. The toolkit is in early development — in daily use by the team that builds it,
+and changing fast — so the most useful contribution is a clear issue: what you tried, what
+happened, and what you expected.
 
 ## Getting a clone
 
