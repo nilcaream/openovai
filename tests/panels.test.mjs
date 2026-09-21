@@ -57,6 +57,22 @@ describe("placement", () => {
     assert.deepEqual(state.order, [LEADER, "Paul", "Ann"]);
     assert.deepEqual(place(names(state), state.leader, state.order), { left: ["Paul"], mid: LEADER, right: ["Ann"] });
   });
+
+  it("a panel that went and came back is placed once, as the newest: never on both sides", () => {
+    const state = fresh();
+    applyEvent(state, snapshot([about(LEADER), about("Paul"), about("Ann"), about("Max")]), 0);
+    for (const name of ["Paul", "Ann", "Max"]) applyEvent(state, seat(name, { running: false }), 0);
+    assert.deepEqual(prune(state, 31_000), ["Paul", "Ann", "Max"]);
+    // Hired back one by one after the reset: three Workers, three panels, two sides.
+    for (const name of ["Paul", "Ann", "Max"]) applyEvent(state, seat(name), 40_000);
+    assert.deepEqual(state.order, [LEADER, "Paul", "Ann", "Max"]);
+    assert.deepEqual(place(names(state), state.leader, state.order), { left: ["Paul", "Max"], mid: LEADER, right: ["Ann"] });
+    // Gone from a snapshot — retired — and back under the same name: the same, one panel, one side.
+    applyEvent(state, snapshot([about(LEADER), about("Ann"), about("Max")]), 50_000);
+    applyEvent(state, seat("Paul"), 60_000);
+    assert.deepEqual(state.order, [LEADER, "Ann", "Max", "Paul"]);
+    assert.deepEqual(place(names(state), state.leader, state.order), { left: ["Ann", "Paul"], mid: LEADER, right: ["Max"] });
+  });
 });
 
 describe("the desk title", () => {

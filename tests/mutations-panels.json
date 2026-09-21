@@ -22,6 +22,17 @@
     ]
   },
   {
+    "name": "a panel that went keeps its name in the order",
+    "catches": "a panel that went and came back is placed once, as the newest: never on both sides",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  state.order = state.order.filter((listed) => listed !== name);\n",
+        "to": ""
+      }
+    ]
+  },
+  {
     "name": "Shift+Enter sends",
     "catches": "Enter sends, Shift+Enter is a newline, anything else is nothing",
     "edits": [
