@@ -5,18 +5,8 @@
     "edits": [
       {
         "file": "lib/helper.mjs",
-        "from": "    const child = spawn(\"claude\", args, { cwd, env, stdio: [\"pipe\", \"pipe\", \"pipe\"] });",
-        "to": "    const child = spawn(\"claude\", args, { cwd: instance.root, env, stdio: [\"pipe\", \"pipe\", \"pipe\"] });"
-      },
-      {
-        "file": "lib/helper.mjs",
-        "from": "function run(cwd, env, prompt, stdin, clock) {",
-        "to": "function run(cwd, env, prompt, stdin, clock, instance) {"
-      },
-      {
-        "file": "lib/helper.mjs",
-        "from": "    const ran = await run(cwd, env, asked.prompt, JSON.stringify(request), clock);",
-        "to": "    const ran = await run(cwd, env, asked.prompt, JSON.stringify(request), clock, instance);"
+        "from": "      child = spawn(claudeCommand(root), args, { cwd, env, stdio: [\"pipe\", \"pipe\", \"pipe\"] });",
+        "to": "      child = spawn(claudeCommand(root), args, { cwd: root, env, stdio: [\"pipe\", \"pipe\", \"pipe\"] });"
       }
     ]
   },
@@ -160,6 +150,17 @@
         "file": "lib/helper.mjs",
         "from": "      \"--safe-mode\",\n",
         "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the helper is run as whatever claude the PATH has",
+    "catches": "answers the validated shape",
+    "edits": [
+      {
+        "file": "lib/helper.mjs",
+        "from": "child = spawn(claudeCommand(root), args, { cwd, env, stdio: [\"pipe\", \"pipe\", \"pipe\"] });",
+        "to": "child = spawn(\"claude\", args, { cwd, env, stdio: [\"pipe\", \"pipe\", \"pipe\"] });"
       }
     ]
   }

@@ -350,5 +350,27 @@
         "to": "  if (quieted.length < 0) {"
       }
     ]
+  },
+  {
+    "name": "an update fetches nothing after the swap",
+    "catches": "runs the new payload's runtime.sh ensure after the swap, and prints what it said",
+    "edits": [
+      {
+        "file": "lib/ovai.mjs",
+        "from": "const fetched = spawnSync(\"sh\", [path.join(root, \"lib\", \"runtime.sh\"), \"ensure\"], { stdio: \"inherit\" });",
+        "to": "const fetched = { status: 0 };"
+      }
+    ]
+  },
+  {
+    "name": "an update reports success over a runtime that could not be fetched",
+    "catches": "fails, saying what fetches it again, when the new payload's runtime cannot be fetched",
+    "edits": [
+      {
+        "file": "lib/ovai.mjs",
+        "from": "  if (fetched.status !== 0) {\n    throw new ReleaseError(",
+        "to": "  if (fetched.status !== 0 && false) {\n    throw new ReleaseError("
+      }
+    ]
   }
 ]

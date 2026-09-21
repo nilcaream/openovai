@@ -1,7 +1,7 @@
 // tests/install.test.mjs — install an instance, check it is the one that was asked for, remove it.
 //
-// It needs Node.js and nothing else. Claude Code is only needed to run an instance, so the
-// checks that would start one are skipped when it is not installed, and the run still says so.
+// It needs nothing of the machine's: the toolkit's own node and claude are the stand-ins
+// helpers.mjs lays out under a data directory of the suite's, and install.sh finds them there.
 //
 // Run it with: node --test tests/install.test.mjs
 
@@ -10,16 +10,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
-import {
-  claudeIsInstalled,
-  install,
-  installed,
-  remove,
-  repo,
-  runOvai,
-  scratch,
-  writeNodeStandIn,
-} from "./helpers.mjs";
+import { install, installed, remove, repo, runOvai, runtimeData, scratch } from "./helpers.mjs";
+import { pins } from "../lib/runtime.mjs";
 import { configProblems, settingsProblems } from "./inspect.mjs";
 import { CUSTOMIZATION, persona } from "../lib/desks.mjs";
 import { UsageError, resolvePlan } from "../lib/install.mjs";
@@ -38,9 +30,9 @@ const AUTH = "inherit";
 const instance = scratch("install-test");
 const chosen = `${instance}-chosen`;
 
-// Everything the Node checks need: one stand-in node per version they pretend to have, and one
-// instance root per install that is expected to go through.
-const versions = `${instance}-versions`;
+// A data directory with no runtime in it, for the check that asks what happens when none can be
+// fetched.
+const empty = `${instance}-empty-data`;
 
 // A source that is this workspace in every way except the version, so a check can ask what the
 // installer does about one. Everything else is COPIED rather than made empty: a source of empty
@@ -49,7 +41,7 @@ const versions = `${instance}-versions`;
 const versionless = `${instance}-versionless`;
 
 // The instances are removed however this run ends, including one that fails half way through.
-process.on("exit", () => remove(instance, chosen, versions, versionless, `${instance}-over`));
+process.on("exit", () => remove(instance, chosen, empty, versionless, `${instance}-over`));
 
 // A full command line, which a check then spoils in one place to ask what is refused.
 function options(root, changes = {}) {
@@ -64,18 +56,6 @@ function options(root, changes = {}) {
     "--auth": AUTH,
     ...changes,
   };
-}
-
-// A PATH whose node reports the version given. The installer only asks node what version it
-// is, so this is enough to put it in front of a Node nobody here has installed.
-function pretending(version) {
-  const directory = path.join(versions, "node", version);
-  writeNodeStandIn(directory, version);
-  return { ...process.env, PATH: `${directory}${path.delimiter}${process.env.PATH}` };
-}
-
-function rootFor(version) {
-  return path.join(versions, "root", version);
 }
 
 // Built once, on first use: the checks that want it are two, and building it in each of them
@@ -182,6 +162,13 @@ describe("what the installer made", () => {
     assert.notEqual(hint, -1);
     assert.equal(lines[hint + 1], `  ${inside("bin", "ovai")} start`);
     assert.ok(!made.stdout.includes("ovai chat"));
+  });
+
+  // An instance that inherits its token is told how to mint one, and the command that does is
+  // the toolkit's own claude, by path: there is no other on the machine to count on.
+  it("names the toolkit's own claude, by path, as the command that mints a token", () => {
+    const pinned = pins(repo);
+    assert.match(made.stdout, new RegExp(`^Mint one once with: ${path.join(runtimeData, "openovai", "claude", pinned.claude, "bin", "claude")} setup-token$`, "m"));
   });
 
   it("makes a directory for the settings", () => {
@@ -787,30 +774,27 @@ describe("what the installer asks for", () => {
   });
 });
 
-// The toolkit is written against one Node. An older one reads a different language and stops
-// on syntax used freely here, so the installer says so in one line rather than leaving an
-// instance to fail at its first message.
-describe("the Node the installer needs", () => {
-  const refused = install(options(rootFor("v20.18.1")), pretending("v20.18.1"));
+// The toolkit runs on the node and claude its source tree pins, fetched by install.sh before
+// anything else; what the machine has is neither asked about nor used.
+describe("the runtime the installer needs", () => {
+  it("installs on the toolkit's own node, by path", () => {
+    const log = path.join(empty, "calls.txt");
+    fs.mkdirSync(empty, { recursive: true });
+    const made = install(options(`${instance}-own-node`), { ...process.env, OPENOVAI_STAND_IN_LOG: log });
+    assert.equal(made.status, 0, made.stderr);
+    assert.match(fs.readFileSync(log, "utf8"), new RegExp(`^node: ${path.join(repo, "lib", "install.mjs")} --root ${instance}-own-node `, "m"));
+    remove(`${instance}-own-node`);
+  });
 
-  it("refuses a Node older than the one it needs", () => {
+  // Nothing under the data directory and nowhere to fetch from: refused in the bootstrap's words
+  // and the installer's own, and nothing is installed.
+  it("refuses to install when the runtime is not there and cannot be fetched", () => {
+    fs.mkdirSync(empty, { recursive: true });
+    const refused = install(options(`${instance}-no-runtime`), { ...process.env, XDG_DATA_HOME: empty, OPENOVAI_NODE_DIST: "http://127.0.0.1:9" });
     assert.notEqual(refused.status, 0);
-  });
-
-  it("says which Node it needs", () => {
-    assert.match(refused.stderr, /Node\.js 24 or newer is required/);
-  });
-
-  it("says which Node it found", () => {
-    assert.match(refused.stderr, /v20\.18\.1/);
-  });
-
-  it("installs on the Node it needs", () => {
-    assert.equal(install(options(rootFor("v24.0.0")), pretending("v24.0.0")).status, 0);
-  });
-
-  it("installs on a Node newer than the one it needs", () => {
-    assert.equal(install(options(rootFor("v99.0.0")), pretending("v99.0.0")).status, 0);
+    assert.match(refused.stderr, new RegExp(`^runtime\\.sh: could not download http://127\\.0\\.0\\.1:9/v${pins(repo).node}/`, "m"));
+    assert.match(refused.stderr, /^install\.sh: the runtime could not be fetched, so nothing can be installed$/m);
+    assert.equal(fs.existsSync(`${instance}-no-runtime`), false);
   });
 });
 
@@ -834,14 +818,19 @@ describe("a port the machine picks", () => {
   });
 });
 
-// Claude Code is a prerequisite of running an instance, not of making one.
-describe("the instance runs", { skip: claudeIsInstalled() ? false : "Claude Code is not on the PATH" }, () => {
+// The instance runs on the same runtimes the installer fetched, from the same data directory.
+describe("the instance runs", () => {
   it("answers ovai configuration", () => {
     assert.equal(runOvai(instance, ["configuration"], process.env).status, 0);
   });
 
   it("names the User in ovai configuration", () => {
     assert.match(runOvai(instance, ["configuration"], process.env).stdout, new RegExp(USER));
+  });
+
+  it("names the runtimes it is on, under the data directory the installer used", () => {
+    const pinned = pins(repo);
+    assert.match(runOvai(instance, ["configuration"], process.env).stdout, new RegExp(`^runtime\\s+node ${pinned.node}, claude ${pinned.claude}, under ${path.join(runtimeData, "openovai")}$`, "m"));
   });
 });
 

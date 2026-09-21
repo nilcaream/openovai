@@ -264,17 +264,6 @@
     ]
   },
   {
-    "name": "a missing Claude Code is reported in the system's words",
-    "catches": "says so when Claude Code is not on the PATH, and the seat is not running",
-    "edits": [
-      {
-        "file": "lib/chat/session.mjs",
-        "from": "    gone(error.code === \"ENOENT\" ? \"Claude Code is not on the PATH of the process serving this page\" : error.message);",
-        "to": "    gone(error.message);"
-      }
-    ]
-  },
-  {
     "name": "tell takes anything shaped like a frame",
     "catches": "takes frames from frames.mjs and nothing else, however much a string looks like one",
     "edits": [
@@ -389,8 +378,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "    gone(\n      record.ending === \"restart\"\n        ? `${seat} restarted`\n        : record.err.trim() === \"\"\n          ? `${seat} ended before answering`\n          : record.err.trim(),\n    );",
-        "to": "    gone(record.ending === \"restart\" ? `${seat} restarted` : `${seat} ended before answering`);"
+        "from": "    gone(\n      record.ending === \"restart\"\n        ? `${seat} restarted`\n        : record.err.trim() === \"\"\n          ? `${seat} ended before answering`\n          : record.err.trim(),\n      signal ?? `exit ${code}`,\n    );",
+        "to": "    gone(record.ending === \"restart\" ? `${seat} restarted` : `${seat} ended before answering`, signal ?? `exit ${code}`);"
       }
     ]
   },
@@ -768,7 +757,7 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "    append(root, seat, { from: SERVER, text: `${seat} has no process`, failed: true });\n",
+        "from": "    append(root, seat, { from: SERVER, text: told.refused === \"no process\" ? `${seat} has no process` : told.refused, failed: true });\n",
         "to": ""
       }
     ]
@@ -1732,6 +1721,39 @@
         "file": "lib/chat/session.mjs",
         "from": "            returned({ id: block.tool_use_id });",
         "to": "            returned({ id: null });"
+      }
+    ]
+  },
+  {
+    "name": "a session is started as whatever claude the PATH has, and a missing one is an ENOENT",
+    "catches": "refuses to start a seat when the claude this instance runs on is not there, saying what fetches it",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "const child = spawn(claudeCommand(instance.root), args, {",
+        "to": "const child = spawn(\"claude\", args, {"
+      }
+    ]
+  },
+  {
+    "name": "a Leader that cannot be spawned is a thrown error rather than a refusal",
+    "catches": "refuses a message to a Leader it cannot spawn, saying what fetches its claude",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "      if (!(error instanceof RuntimeError)) throw error;\n      return { refused: error.message };",
+        "to": "      throw error;"
+      }
+    ]
+  },
+  {
+    "name": "the row for a Leader that cannot be spawned says it has no process",
+    "catches": "refuses a message to a Leader it cannot spawn, saying what fetches its claude",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "text: told.refused === \"no process\" ? `${seat} has no process` : told.refused, failed: true",
+        "to": "text: `${seat} has no process`, failed: true"
       }
     ]
   }

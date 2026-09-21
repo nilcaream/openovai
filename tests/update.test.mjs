@@ -279,6 +279,46 @@ describe("taking a newer version from a directory", () => {
   });
 });
 
+// The payload just put in place pins its own node and claude, and it is the NEW lib/runtime.sh —
+// the one that knows those pins — that fetches them, right after the swap, so the first start
+// after an update has nothing left to wait for. Proven with a release whose runtime.sh is a
+// recorder: what it writes says which script ran, and what it prints says its output reaches the
+// person.
+describe("the runtime an update fetches", () => {
+  const record = path.join(here, "runtime-record.txt");
+
+  function releaseWhoseRuntimeScript(name, script) {
+    const tree = makeRelease(name);
+    fs.writeFileSync(path.join(tree, "lib", "runtime.sh"), script, { mode: 0o755 });
+    return tree;
+  }
+
+  it("runs the new payload's runtime.sh ensure after the swap, and prints what it said", async () => {
+    const root = makeInstance("fetches-runtime");
+    const tree = releaseWhoseRuntimeScript("release-recording-runtime", `#!/bin/sh\nprintf '%s\\n' "$*" >> "${record}"\nprintf 'fetched by the new payload\\n'\n`);
+    const done = await update(root, tree);
+    assert.equal(done.status, 0, done.stderr);
+    assert.equal(fs.readFileSync(record, "utf8"), "ensure\n");
+    assert.match(done.stdout, /^fetched by the new payload$/m);
+    // After the version it went to, and before the hint that starts it.
+    assert.ok(done.stdout.indexOf("fetched by the new payload") > done.stdout.indexOf(`now on ${NEWER}`), done.stdout);
+    assert.ok(done.stdout.indexOf("fetched by the new payload") < done.stdout.indexOf("Start the server"), done.stdout);
+  });
+
+  // The payload stays in place — it is the new version, and a start fetches again — but the update
+  // does not report success over a runtime that is not there.
+  it("fails, saying what fetches it again, when the new payload's runtime cannot be fetched", async () => {
+    const root = makeInstance("cannot-fetch-runtime");
+    const tree = releaseWhoseRuntimeScript("release-refusing-runtime", "#!/bin/sh\nprintf 'runtime.sh: could not download\\n' >&2\nexit 1\n");
+    const done = await update(root, tree);
+    assert.equal(done.status, 1);
+    assert.equal(fs.readFileSync(path.join(root, "lib", "VERSION"), "utf8").trim(), NEWER);
+    assert.match(done.stderr, /^runtime\.sh: could not download$/m);
+    assert.match(done.stderr, new RegExp(`^ovai: now on ${NEWER}, but its runtime could not be fetched \\(runtime\\.sh ensure exited 1\\); run ${path.join(root, "bin", "ovai")} start, which fetches it again$`, "m"));
+    assert.doesNotMatch(done.stdout, /Start the server/);
+  });
+});
+
 // An instance whose bin/ is gone — removed by hand, or by an update of the swapping kind that
 // died between the remove and the rename — gets it back: the files are copied over into a bin/
 // made for them when there is none. The installer takes the same path into an empty root, so a

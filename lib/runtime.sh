@@ -7,7 +7,7 @@
 # versions from lib/RUNTIME beside it, keeps the runtimes under the XDG data directory, and never
 # looks at, uses or changes a node, npm or claude the machine already has.
 #
-#   runtime.sh ensure        fetch whatever is missing, say what is reused; nothing to do is fine
+#   runtime.sh ensure        fetch whatever is missing, one line per fetch; silent with nothing to do
 #   runtime.sh node-path     print the absolute path of the node binary this version runs on
 #   runtime.sh npm-path      the npm that came with it
 #   runtime.sh claude-path   the claude command
@@ -144,7 +144,6 @@ ensure_node() {
 
     if [ -e "${target}" ]; then
         if [ -x "${binary}" ] && [ "$("${binary}" --version 2>/dev/null || true)" = "v${version}" ]; then
-            say "Node.js ${version} already in ${target}"
             return 0
         fi
         die "${target} is there but ${binary} does not run as Node.js ${version}; remove the directory and run this again"
@@ -180,7 +179,6 @@ ensure_claude() {
     if [ -e "${target}" ]; then
         [ -x "${command_path}" ] ||
             die "${target} is there but ${command_path} is not runnable; remove the directory and run this again"
-        say "Claude Code ${version} already in ${target}"
         return 0
     fi
 

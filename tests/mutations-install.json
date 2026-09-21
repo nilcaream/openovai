@@ -679,5 +679,38 @@
         "to": "      parsed[key] = await answer(key, ask);\n      if (key === \"port\") parsed[key] = String(PORT_CHOSEN_AT_START);\n    }\n    if (parsed[key] === undefined) {"
       }
     ]
+  },
+  {
+    "name": "the installer hands over to whatever node the PATH has",
+    "catches": "installs on the toolkit's own node, by path",
+    "edits": [
+      {
+        "file": "install.sh",
+        "from": "exec \"$(sh \"${runtime}\" node-path)\" \"${installer}\" \"$@\"",
+        "to": "exec node \"${installer}\" \"$@\""
+      }
+    ]
+  },
+  {
+    "name": "the installer goes on when the runtime could not be fetched, saying nothing of its own",
+    "catches": "refuses to install when the runtime is not there and cannot be fetched",
+    "edits": [
+      {
+        "file": "install.sh",
+        "from": "sh \"${runtime}\" ensure || die \"the runtime could not be fetched, so nothing can be installed\"",
+        "to": "sh \"${runtime}\" ensure || true"
+      }
+    ]
+  },
+  {
+    "name": "the installer sends the person to a claude on the PATH to mint a token",
+    "catches": "names the toolkit's own claude, by path, as the command that mints a token",
+    "edits": [
+      {
+        "file": "lib/install.mjs",
+        "from": "    console.log(`Mint one once with: ${runtimePaths(plan.root).claude} setup-token`);",
+        "to": "    console.log(\"Mint one once with: claude setup-token\");"
+      }
+    ]
   }
 ]

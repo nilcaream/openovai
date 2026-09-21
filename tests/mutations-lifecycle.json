@@ -5,7 +5,7 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "      return { delivered: false, held: holding, answered };\n    }\n    startSeat(instance, seat);\n",
+        "from": "      return { delivered: false, held: holding, answered };\n    }\n    // The claude the instance runs on is not there: the frame is refused with the sentence that\n    // says what fetches it, and nothing is spawned.\n    try {\n      startSeat(instance, seat);\n    } catch (error) {\n      if (!(error instanceof RuntimeError)) throw error;\n      return { refused: error.message };\n    }\n",
         "to": "      return { delivered: false, held: holding, answered };\n    }\n"
       }
     ]
@@ -27,7 +27,7 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "      return { delivered: false, held: holding, answered };\n    }\n    startSeat(instance, seat);\n",
+        "from": "      return { delivered: false, held: holding, answered };\n    }\n    // The claude the instance runs on is not there: the frame is refused with the sentence that\n    // says what fetches it, and nothing is spawned.\n    try {\n      startSeat(instance, seat);\n    } catch (error) {\n      if (!(error instanceof RuntimeError)) throw error;\n      return { refused: error.message };\n    }\n",
         "to": "      return { delivered: false, held: holding, answered };\n    }\n"
       },
       {
@@ -570,8 +570,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "    ended({ seat, role, ending: record.ending, carried, why });",
-        "to": "    ended({ seat, role, ending: record.ending, carried: [...record.prefix.map((entry) => ({ frame: entry.frame, resolve() {} })), ...carried], why });"
+        "from": "    ended({ seat, role, ending: record.ending, exit, carried, why });",
+        "to": "    ended({ seat, role, ending: record.ending, exit, carried: [...record.prefix.map((entry) => ({ frame: entry.frame, resolve() {} })), ...carried], why });"
       }
     ]
   },

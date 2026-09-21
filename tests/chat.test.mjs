@@ -43,7 +43,7 @@ const nowhere = `${base}-nowhere`;
 // Where a process the chat starts of its own accord — the successor after a restart — writes:
 // nobody arranged a log for it, and the machine's own `claude`, present or not, must never be it.
 const unarranged = path.join(standIn, "unarranged.txt");
-const realPath = process.env.PATH;
+const realData = process.env.XDG_DATA_HOME;
 
 process.on("exit", () => {
   remove(instance, standIn, nowhere);
@@ -86,10 +86,11 @@ before(async () => {
   // The chat says every request and every refusal to tell as a row of its log; a check reads
   // them from here rather than from the suite's output, without the moment.
   sink((row) => said.push(sansMoment(row)));
-  // A seat is started with the stand-in on the PATH for that spawn only (seatUp); a spawn the
-  // chat makes later on its own gets the environment of that moment, so the stand-in is on the
-  // PATH for the whole suite and a spawn nobody arranged a log for writes to the one place.
-  process.env.PATH = `${standIn}${path.delimiter}${realPath}`;
+  // A seat is started with the stand-in as the instance's own claude for that spawn only (seatUp);
+  // a spawn the chat makes later on its own gets the environment of that moment, so the stand-in's
+  // data directory is the whole suite's and a spawn nobody arranged a log for writes to the one
+  // place.
+  process.env.XDG_DATA_HOME = standIn;
   process.env.OPENOVAI_STAND_IN_LOG = unarranged;
   server = await serve(chat);
   url = `http://127.0.0.1:${server.address().port}`;
@@ -99,7 +100,7 @@ after(async () => {
   await endEvery(500);
   await new Promise((resolve) => server.close(resolve));
   sink(null);
-  process.env.PATH = realPath;
+  process.env.XDG_DATA_HOME = realData;
   delete process.env.OPENOVAI_STAND_IN_LOG;
 });
 
@@ -114,9 +115,9 @@ async function seatUp(seat, knobs = {}, { on = chat, command = standIn, first = 
   const log = path.join(standIn, `${seat}-${logs}.txt`);
   const before_ = { ...process.env };
   process.env.OPENOVAI_STAND_IN_LOG = log;
-  // A command of null is a PATH with nothing on it at all: the one way to start a seat where
-  // Claude Code is not, on a machine where it is.
-  process.env.PATH = command === null ? nowhere : `${command}${path.delimiter}${before_.PATH}`;
+  // A command of null is a data directory with nothing in it: the one way to start a seat where
+  // the instance's own claude is not, on a machine where it is.
+  process.env.XDG_DATA_HOME = command === null ? nowhere : command;
   Object.assign(process.env, knobs);
   let started;
   let asked = null;
@@ -148,7 +149,7 @@ async function spawnedBy(seat, act, knobs = {}) {
   const log = path.join(standIn, `${seat}-${logs}.txt`);
   const before_ = { ...process.env };
   process.env.OPENOVAI_STAND_IN_LOG = log;
-  process.env.PATH = `${standIn}${path.delimiter}${before_.PATH}`;
+  process.env.XDG_DATA_HOME = standIn;
   Object.assign(process.env, knobs);
   let result;
   try {
@@ -503,15 +504,34 @@ describe("starting a seat", () => {
     assert.throws(() => start(chat, "Nobody"), /nobody called Nobody works here/);
   });
 
-  it("says so when Claude Code is not on the PATH, and the seat is not running", async () => {
+  // Refused before anything is spawned, in the sentence that says what fetches it — never as an
+  // ENOENT from the middle of a spawn.
+  it("refuses to start a seat when the claude this instance runs on is not there, saying what fetches it", async () => {
     await endSeat(WORKER, 500);
-    const gone = await seatUp(WORKER, {}, { command: null, first: userFrame("hello") });
-    assert.equal(gone.asked.delivered, true);
-    const reply = await gone.asked.answered;
-    assert.deepEqual(reply, { ended: true, text: "Claude Code is not on the PATH of the process serving this page" });
+    await assert.rejects(seatUp(WORKER, {}, { command: null }), /^Error: Claude Code \d+\.\d+\.\d+ is not at .*\/claude: run .*\/bin\/ovai start, which fetches it, or: sh .*\/lib\/runtime\.sh ensure$/);
     assert.equal(running(WORKER), false);
-    assert.equal(gone.secret, null);
     paul = await seatUp(WORKER);
+  });
+
+  // The Leader is spawned by the chat itself for a message to it; with no claude to spawn, the
+  // message is refused in the same sentence, and the page hears it.
+  it("refuses a message to a Leader it cannot spawn, saying what fetches its claude", async () => {
+    await endSeat(LEADER, 500);
+    const before_ = process.env.XDG_DATA_HOME;
+    process.env.XDG_DATA_HOME = nowhere;
+    let answered;
+    try {
+      answered = await page("POST", `/sessions/${LEADER}/message`, { text: "anybody there" });
+    } finally {
+      process.env.XDG_DATA_HOME = before_;
+    }
+    assert.deepEqual(JSON.parse(answered.body), { delivered: false });
+    const row = panel(instance, LEADER).at(-1);
+    assert.equal(row.from, SERVER);
+    assert.equal(row.failed, true);
+    assert.match(row.text, /^Claude Code \d+\.\d+\.\d+ is not at .*: run .*\/bin\/ovai start, which fetches it/);
+    assert.equal(running(LEADER), false);
+    superman = await seatUp(LEADER);
   });
 });
 

@@ -1,61 +1,29 @@
-#!/usr/bin/env bash
-set -euo pipefail
-
+#!/bin/sh
+#
 # install.sh — bootstrap for installing an OpenOv AI instance.
 #
-# This script only checks that the machine is ready and then hands over to the installer,
-# which is written in Node so that one implementation covers every platform we care about.
-# Keeping the shell layer this thin means the only thing that can go wrong here is a missing
-# prerequisite, and it says so in plain words.
+# This script fetches the toolkit's own Node.js and Claude Code, if this user has not got them
+# yet, and hands over to the installer, which is written in Node so that one implementation covers
+# everything after this line. Keeping the shell layer this thin means the only thing that can go
+# wrong here is a fetch, and lib/runtime.sh says so in plain words.
+#
+# POSIX sh: it runs before any node exists, and the machine owes it nothing more than lib/runtime.sh
+# needs — sh, curl or wget, tar, sha256sum and uname. Nothing of the machine's own node or claude is
+# looked at, used or changed.
 
-# Neither this script nor bin/ovai uses anything newer than bash 3: the most modern things in
-# them are [[ =~ ]] and BASH_SOURCE. 4 is a deliberate floor rather than a measured one — it
-# has been on every Linux desktop since 2009, and there is nothing to gain from claiming to
-# support less than that.
-readonly MIN_BASH_MAJOR=4
+set -eu
 
-# The Node this toolkit is written against. Kept as a literal because install.sh is the one
-# thing that runs before an instance exists, and it must say the same thing whether it was
-# started from a clone or from an unpacked release. The other two places that name it are
-# .node-version and the engines field of package.json.
-readonly MIN_NODE_MAJOR=24
+die() { printf 'install.sh: %s\n' "$*" >&2; exit 1; }
 
-die() { echo "install.sh: ${*}" >&2; exit 1; }
-warn() { echo "install.sh: warning: ${*}" >&2; }
+script_dir="$(cd -- "$(dirname -- "$0")" && pwd -P)"
+runtime="${script_dir}/lib/runtime.sh"
+installer="${script_dir}/lib/install.mjs"
 
-main() {
-    local script_dir installer node_version node_major
+[ -f "${runtime}" ] || die "the runtime bootstrap is missing at ${runtime}"
+[ -f "${installer}" ] || die "the installer is missing at ${installer}"
 
-    if (( BASH_VERSINFO[0] < MIN_BASH_MAJOR )); then
-        die "bash ${MIN_BASH_MAJOR} or newer is required, this shell is ${BASH_VERSION}"
-    fi
+# The runtimes this source tree pins, from the tree itself: a clone and an unpacked release both
+# carry lib/RUNTIME, and the instance made from either runs on exactly what it says.
+sh "${runtime}" ensure || die "the runtime could not be fetched, so nothing can be installed"
 
-    # Node.js is a prerequisite. We never hunt for it in a version manager's directories: it
-    # has to be on the PATH of whoever runs the install, and that is the node the instance
-    # will use.
-    command -v node >/dev/null 2>&1 ||
-        die "Node.js is required and is not on your PATH — install it, or load your version manager, then run this again"
-
-    # An older Node reads a different language: it stops on syntax the toolkit uses freely.
-    # Refusing here, in one line, beats an instance that installs and then fails at its first
-    # message with a parse error nobody can place.
-    node_version="$(node --version 2>/dev/null || true)"
-    node_major="${node_version#v}"
-    node_major="${node_major%%.*}"
-    if [[ ! "${node_major}" =~ ^[0-9]+$ ]] || (( node_major < MIN_NODE_MAJOR )); then
-        die "Node.js ${MIN_NODE_MAJOR} or newer is required, this one is ${node_version:-unreadable}"
-    fi
-
-    # Claude Code is a prerequisite too, but only to run an instance, not to create one. A
-    # missing binary must not stop an install on a machine that is still being set up.
-    command -v claude >/dev/null 2>&1 ||
-        warn "Claude Code is not on your PATH; the instance will install, but no session can start until 'claude' is available"
-
-    script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
-    installer="${script_dir}/lib/install.mjs"
-    [[ -f "${installer}" ]] || die "the installer is missing at ${installer}"
-
-    exec node "${installer}" "$@"
-}
-
-main "$@"
+exec "$(sh "${runtime}" node-path)" "${installer}" "$@"

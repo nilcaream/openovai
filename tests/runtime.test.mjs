@@ -242,7 +242,7 @@ describe("ensure", () => {
   after(() => served.close());
 
   // A tree pinned to the fixture, its own data directory, and the claude the fixture cannot install
-  // already in place — so `ensure` is about node, and says of claude that it is there.
+  // already in place — so `ensure` is about node, and has nothing to say about claude.
   function anInstance(name, { claude = true } = {}) {
     const tree = aTree(name);
     const env = { XDG_DATA_HOME: path.join(tree, "xdg"), OPENOVAI_NODE_DIST: served.url };
@@ -258,7 +258,6 @@ describe("ensure", () => {
     assert.deepEqual(said.out.split("\n"), [
       `Fetching Node.js ${NODE} (${PLATFORM}) from ${served.url}/v${NODE} into ${path.dirname(path.dirname(paths.node))}`,
       `Node.js ${NODE} in ${path.dirname(path.dirname(paths.node))}`,
-      `Claude Code ${CLAUDE} already in ${path.dirname(path.dirname(paths.claude))}`,
     ]);
     assert.equal(spawnSync(paths.node, ["--version"], { encoding: "utf8" }).stdout.trim(), `v${NODE}`);
     assert.ok(fs.existsSync(paths.npm), "npm came with node");
@@ -271,16 +270,15 @@ describe("ensure", () => {
     assert.deepEqual(fs.readdirSync(path.join(paths.data, "tmp")), []);
   });
 
-  it("reuses a node that is already there and asks the archive for nothing", async () => {
-    const { tree, env, paths } = anInstance("reuse");
+  // Silent, because every start of an instance runs this first, and a start that said two lines
+  // about nothing having changed would drown the one line that matters when something has.
+  it("reuses a node that is already there, asks the archive for nothing, and says nothing", async () => {
+    const { tree, env } = anInstance("reuse");
     assert.equal((await sh(tree, ["ensure"], env)).status, 0);
     const before = served.asked.length;
     const said = await sh(tree, ["ensure"], env);
     assert.equal(said.status, 0, said.err);
-    assert.deepEqual(said.out.split("\n"), [
-      `Node.js ${NODE} already in ${path.dirname(path.dirname(paths.node))}`,
-      `Claude Code ${CLAUDE} already in ${path.dirname(path.dirname(paths.claude))}`,
-    ]);
+    assert.equal(said.out, "");
     assert.equal(served.asked.length, before);
   });
 

@@ -276,7 +276,7 @@ async function leaderAsking(knobs) {
   logs += 1;
   const log = path.join(standIn, `asking-${logs}.txt`);
   const before_ = { ...process.env };
-  Object.assign(process.env, { OPENOVAI_STAND_IN_LOG: log, PATH: `${standIn}${path.delimiter}${before_.PATH}`, ...knobs });
+  Object.assign(process.env, { OPENOVAI_STAND_IN_LOG: log, XDG_DATA_HOME: standIn, ...knobs });
   let started;
   try {
     started = startSeat(chat, LEADER);

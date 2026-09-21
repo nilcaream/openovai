@@ -41,7 +41,7 @@ installed({
 fs.mkdirSync(inner, { recursive: true });
 
 // The helper takes its environment from this process, the way the chat's does from the chat's.
-process.env.PATH = `${standIn}${path.delimiter}${process.env.PATH}`;
+process.env.XDG_DATA_HOME = standIn;
 process.env.OPENOVAI_STAND_IN_LOG = log;
 process.env.OPENOVAI_STAND_IN_HELPER = helperAnswer;
 process.env.TMPDIR = inner;

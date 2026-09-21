@@ -82,8 +82,8 @@
     "edits": [
       {
         "file": "bin/ovai",
-        "from": "    exec node \"${root}/lib/ovai.mjs\" --root \"${root}\" \"$@\"",
-        "to": "    if [[ \"${1:-}\" == \"resume\" ]]; then\n        exec claude --resume\n    fi\n\n    exec node \"${root}/lib/ovai.mjs\" --root \"${root}\" \"$@\""
+        "from": "exec \"$(sh \"${runtime}\" node-path)\" \"${root}/lib/ovai.mjs\" --root \"${root}\" \"$@\"",
+        "to": "if [ \"${1:-}\" = \"resume\" ]; then\n    exec claude --resume\nfi\n\nexec \"$(sh \"${runtime}\" node-path)\" \"${root}/lib/ovai.mjs\" --root \"${root}\" \"$@\""
       }
     ]
   },
@@ -104,8 +104,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "  const child = spawn(\"claude\", args, {",
-        "to": "  const child = spawn(\"claude\", args.slice(), {"
+        "from": "  const child = spawn(claudeCommand(instance.root), args, {",
+        "to": "  const child = spawn(claudeCommand(instance.root), args.slice(), {"
       }
     ]
   },
@@ -115,13 +115,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "export function start(instance, seat, {",
-        "to": "const CLAUDE_BIN = \"claude\";\n\nexport function start(instance, seat, {"
-      },
-      {
-        "file": "lib/chat/session.mjs",
-        "from": "  const child = spawn(\"claude\", args, {",
-        "to": "  const child = spawn(CLAUDE_BIN, args, {"
+        "from": "  const child = spawn(claudeCommand(instance.root), args, {",
+        "to": "  const own = claudeCommand(instance.root);\n  const child = spawn(own, args, {"
       }
     ]
   },
@@ -243,6 +238,94 @@
         "file": "README.md",
         "from": "## Requirements\n",
         "to": "## Requirements\n\nThe Leader runs on Opus.\n"
+      }
+    ]
+  },
+  {
+    "name": "the instance command runs on whatever node the PATH has",
+    "catches": "runs the instance command on the toolkit's own node, by path",
+    "edits": [
+      {
+        "file": "bin/ovai",
+        "from": "exec \"$(sh \"${runtime}\" node-path)\" \"${root}/lib/ovai.mjs\"",
+        "to": "exec node \"${root}/lib/ovai.mjs\""
+      }
+    ]
+  },
+  {
+    "name": "the launcher goes on when the runtime could not be fetched, saying nothing of its own",
+    "catches": "refuses to run when the runtime is not there and cannot be fetched",
+    "edits": [
+      {
+        "file": "bin/ovai",
+        "from": "sh \"${runtime}\" ensure || die \"the runtime could not be fetched, so nothing can run\"",
+        "to": "sh \"${runtime}\" ensure || true"
+      }
+    ]
+  },
+  {
+    "name": "the server is started on whatever node the PATH has",
+    "catches": "starts the server on the toolkit's own node, by path",
+    "edits": [
+      {
+        "file": "lib/ovai.mjs",
+        "from": "const child = spawn(nodeCommand(root), [SERVER, \"--root\", root], {",
+        "to": "const child = spawn(\"node\", [SERVER, \"--root\", root], {"
+      }
+    ]
+  },
+  {
+    "name": "the credential is asked of whatever claude the PATH has",
+    "catches": "is the toolkit's own claude, by path, and not one on the PATH",
+    "edits": [
+      {
+        "file": "lib/claude.mjs",
+        "from": "asked = spawnSync(claudeCommand(root), [\"auth\", \"status\"], {",
+        "to": "asked = spawnSync(\"claude\", [\"auth\", \"status\"], {"
+      }
+    ]
+  },
+  {
+    "name": "Claude Code is started with its background updater on",
+    "catches": "runs with its background updater off",
+    "edits": [
+      {
+        "file": "lib/claude.mjs",
+        "from": "  env.DISABLE_AUTOUPDATER = \"1\";\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "configuration says nothing about the runtime",
+    "catches": "says which node and claude this instance runs on, and where they are kept",
+    "edits": [
+      {
+        "file": "lib/ovai.mjs",
+        "from": "    [\"runtime\", describeRuntime(root)],\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the sign-in refusal sends the person to a claude on the PATH to mint a token",
+    "catches": "is told where a token comes from instead, with the command that mints one by path",
+    "edits": [
+      {
+        "file": "lib/ovai.mjs",
+        "from": "not with an account of its own — mint a token with: ${runtimePaths(root).claude} setup-token`,",
+        "to": "not with an account of its own — mint a token with: claude setup-token`,"
+      }
+    ]
+  },
+  {
+    "name": "configuration sends the person to a claude on the PATH to mint a token",
+    "catches": "says the same in configuration while no token is set",
+    "edits": [
+      {
+        "file": "lib/ovai.mjs",
+        "from": "      : `CLAUDE_CODE_OAUTH_TOKEN, which is not set here — mint one with: ${runtimePaths(root).claude} setup-token`,",
+        "to": "      : \"CLAUDE_CODE_OAUTH_TOKEN, which is not set here — mint one with: claude setup-token\","
       }
     ]
   }

@@ -41,8 +41,8 @@
   },
   {
     "name": "a node that is already there is fetched again",
-    "catches": "reuses a node that is already there and asks the archive for nothing",
-    "edits": [{ "file": "lib/runtime.sh", "from": "            say \"Node.js ${version} already in ${target}\"\n            return 0\n", "to": "            rm -rf \"${target}\"\n" }]
+    "catches": "reuses a node that is already there, asks the archive for nothing, and says nothing",
+    "edits": [{ "file": "lib/runtime.sh", "from": "= \"v${version}\" ]; then\n            return 0\n", "to": "= \"v${version}\" ]; then\n            rm -rf \"${target}\"\n" }]
   },
   {
     "name": "the working directory is left behind after a fetch",
@@ -78,5 +78,10 @@
     "name": "the module skips a line it cannot read rather than refusing it",
     "catches": "refuses a line that is not a name and a version",
     "edits": [{ "file": "lib/runtime.mjs", "from": "      throw new RuntimeError(`${file} has a line that is not", "to": "      continue; throw new RuntimeError(`${file} has a line that is not" }]
+  },
+  {
+    "name": "a reused runtime is announced at every start",
+    "catches": "reuses a node that is already there, asks the archive for nothing, and says nothing",
+    "edits": [{ "file": "lib/runtime.sh", "from": "= \"v${version}\" ]; then\n            return 0", "to": "= \"v${version}\" ]; then\n            say \"Node.js ${version} already in ${target}\"\n            return 0" }]
   }
 ]

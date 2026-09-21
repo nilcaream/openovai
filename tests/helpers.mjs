@@ -18,6 +18,8 @@ import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { pins } from "../lib/runtime.mjs";
+
 export const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 // Scratch lives inside the repository, where .gitignore already covers it, so a failed run
@@ -25,6 +27,15 @@ export const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "
 export function scratch(name) {
   return path.join(repo, ".tmp", `${name}-${process.pid}`);
 }
+
+// Where every process a suite starts looks for the toolkit's own node and claude: a data directory
+// under scratch, laid out by writeStandIn the way lib/runtime.sh lays the real one out. Set on this
+// process, so that a launcher run with the environment as it is finds the stand-ins there and
+// fetches nothing — a suite that reached the real ~/.local/share would fetch a runtime from the
+// network into the person's own data, and one that reached the PATH would run whatever Claude Code
+// the machine has.
+export const runtimeData = scratch("runtime-data");
+process.env.XDG_DATA_HOME = runtimeData;
 
 export function remove(...targets) {
   for (const target of targets) {
@@ -52,7 +63,7 @@ export function optionsToArguments(options) {
 
 // Install an instance. Returns the finished process, so a suite can ask for the exit status as
 // easily as for the output. The environment is optional and is only worth passing when the
-// check is about something the installer reads out of it, such as which node is on the PATH.
+// check is about something the installer reads out of it, such as where the runtimes are.
 export function install(options, environment) {
   return spawnSync(path.join(repo, "install.sh"), optionsToArguments(options), {
     encoding: "utf8",
@@ -68,13 +79,7 @@ export function installed(options, environment) {
   return done;
 }
 
-// Whether the real Claude Code is on the PATH. Only needed to run an instance, never to make
-// one, so the few checks that start a session say they were skipped instead of failing.
-export function claudeIsInstalled() {
-  return spawnSync("claude", ["--version"], { encoding: "utf8" }).error === undefined;
-}
-
-// The stand-in, written into a directory that goes first on the PATH.
+// The stand-in, written where the toolkit's own claude would be under a data directory.
 //
 // It speaks the streaming protocol the way a session is run: one process, started once, reading
 // user frames from stdin one after another and answering each with a result frame, until stdin
@@ -161,9 +166,11 @@ fs.appendFileSync(
   log,
   [
     \`argv: \${called}\`,
+    \`command: \${process.argv[1]}\`,
     \`pid: \${process.pid}\`,
     \`cwd: \${process.cwd()}\`,
     \`CLAUDE_CONFIG_DIR: \${value("CLAUDE_CONFIG_DIR")}\`,
+    \`DISABLE_AUTOUPDATER: \${value("DISABLE_AUTOUPDATER")}\`,
     \`CLAUDE_CODE_PROJECT_DIR_NAME: \${value("CLAUDE_CODE_PROJECT_DIR_NAME")}\`,
     \`ANTHROPIC_API_KEY: \${value("ANTHROPIC_API_KEY")}\`,
     \`CLAUDE_CODE_OAUTH_TOKEN: \${value("CLAUDE_CODE_OAUTH_TOKEN")}\`,
@@ -521,50 +528,55 @@ if (stuck) {
 process.exit(0);
 `;
 
-// A stand-in for node itself, so a check can ask what the installer does about a Node this
-// machine has not got. It answers the version question with whatever it was told to say and
-// hands everything else to the real one, whose path is written into the shebang — a plain
-// `node` shebang would find this file again and call itself forever.
-export function writeNodeStandIn(directory, version) {
-  fs.mkdirSync(directory, { recursive: true });
-  const command = path.join(directory, "node");
+// The runtimes the toolkit's own scripts and modules look for, laid out under DIRECTORY the way
+// lib/runtime.sh lays the real ones out — DIRECTORY is what XDG_DATA_HOME is set to — at the
+// versions the repository pins: the Claude Code stand-in at claude/<version>/bin/claude, and at
+// node/<version>/bin/node a shell that answers the version question with the pinned version, so
+// `runtime.sh ensure` finds both there and fetches nothing, and execs the node running this suite
+// for everything else, so the process is the real node under the same pid. Returns the stand-in.
+//
+// Both record where they were started from: the stand-in with `command:` — the path it was
+// started by — and the node with a `node:` line naming what it was handed, so a check can read
+// that a run was started from here and not from a PATH.
+export function writeStandIn(directory) {
+  const pinned = pins(repo);
+  const node = path.join(directory, "openovai", "node", pinned.node, "bin");
+  const claude = path.join(directory, "openovai", "claude", pinned.claude, "bin");
+  fs.mkdirSync(node, { recursive: true });
+  fs.mkdirSync(claude, { recursive: true });
   fs.writeFileSync(
-    command,
-    `#!${process.execPath}
-
-import { spawnSync } from "node:child_process";
-
-const argv = process.argv.slice(2);
-
-if (argv.length === 1 && argv[0] === "--version") {
-  process.stdout.write("${version}\\n");
-  process.exit(0);
-}
-
-process.exit(spawnSync(process.execPath, argv, { stdio: "inherit" }).status ?? 1);
+    path.join(node, "node"),
+    `#!/bin/sh
+if [ $# -eq 1 ] && [ "$1" = "--version" ]; then
+  printf 'v${pinned.node}\\n'
+  exit 0
+fi
+if [ -n "\${OPENOVAI_STAND_IN_LOG:-}" ]; then
+  printf 'node: %s\\n' "$*" >> "\${OPENOVAI_STAND_IN_LOG}"
+fi
+exec "${process.execPath}" "$@"
 `,
     { mode: 0o755 },
   );
-  return command;
-}
-
-export function writeStandIn(directory) {
-  fs.mkdirSync(directory, { recursive: true });
-  const command = path.join(directory, "claude");
+  const command = path.join(claude, "claude");
   fs.writeFileSync(command, STAND_IN, { mode: 0o755 });
   return command;
 }
 
-// The environment an instance's command or chat runs in for a test: the stand-in first on the
-// PATH, and the log it records its calls in.
+// The environment an instance's command or chat runs in for a test: the runtimes under DIRECTORY,
+// and the log the stand-in records its calls in.
 export function standInEnvironment(directory, log, extra = {}) {
   return {
     ...process.env,
     OPENOVAI_STAND_IN_LOG: log,
-    PATH: `${directory}${path.delimiter}${process.env.PATH}`,
+    XDG_DATA_HOME: directory,
     ...extra,
   };
 }
+
+// The runtimes every suite's processes find unless a check points elsewhere.
+writeStandIn(runtimeData);
+process.on("exit", () => remove(runtimeData));
 
 // Drive the stand-in directly: spawn it, hand it a question, read its frames and wait for it to
 // go. Almost every check here reaches it through the chat, which is right when the subject is

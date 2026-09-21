@@ -87,7 +87,7 @@ let chat = null;
 let server = null;
 let url = null;
 let now = Date.now();
-const realPath = process.env.PATH;
+const realData = process.env.XDG_DATA_HOME;
 
 remove(instance, standIn);
 writeStandIn(standIn);
@@ -99,7 +99,7 @@ before(async () => {
   sink((row) => said.push(sansMoment(row)));
   // Any spawn the chat makes on its own finds the stand-in, and one nobody arranged a log for
   // writes to the one every "no spawn" check reads.
-  process.env.PATH = `${standIn}${path.delimiter}${realPath}`;
+  process.env.XDG_DATA_HOME = standIn;
   process.env.OPENOVAI_STAND_IN_LOG = unexpected;
   fs.writeFileSync(helperAnswer, JSON.stringify({ replaces: null, reason: "new" }));
   process.env.OPENOVAI_STAND_IN_HELPER = helperAnswer;
@@ -111,7 +111,7 @@ after(async () => {
   await endEvery(500);
   await new Promise((resolve) => server.close(resolve));
   sink(null);
-  process.env.PATH = realPath;
+  process.env.XDG_DATA_HOME = realData;
   delete process.env.OPENOVAI_STAND_IN_LOG;
   delete process.env.OPENOVAI_STAND_IN_HELPER;
 });
@@ -1642,7 +1642,7 @@ describe("a tool of the instance's own, from its file", () => {
   });
 
   it("is found at the start, listed to a seat and answered by its own code", async () => {
-    child = startChat(own, { ...process.env, PATH: `${ownStandIn}${path.delimiter}${realPath}`, OPENOVAI_STAND_IN_LOG: ownLog });
+    child = startChat(own, { ...process.env, XDG_DATA_HOME: ownStandIn, OPENOVAI_STAND_IN_LOG: ownLog });
     const address = await waitForAddress(child);
     assert.ok(address, `the chat never said where it was listening:\n${child.output}`);
     assert.match(child.output, /^\S+ plugins - - This instance serves a tool of its own: echo$/m);
@@ -1679,7 +1679,7 @@ describe("a signal to the chat", () => {
   function ownEnvironment(extra = {}) {
     return {
       ...process.env,
-      PATH: `${ownStandIn}${path.delimiter}${realPath}`,
+      XDG_DATA_HOME: ownStandIn,
       OPENOVAI_STAND_IN_LOG: ownLog,
       ...extra,
     };

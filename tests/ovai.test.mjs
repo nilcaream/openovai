@@ -31,7 +31,6 @@ import {
   repo,
   runOvai,
   scratch,
-  writeNodeStandIn,
   writeStandIn,
 } from "./helpers.mjs";
 import { LEDGER, settingsProblems, trustProblems } from "./inspect.mjs";
@@ -42,6 +41,7 @@ import { LEDGER, settingsProblems, trustProblems } from "./inspect.mjs";
 import { home } from "../lib/claude.mjs";
 import { DeskError, hire, modelFor, persona as renderPersona } from "../lib/desks.mjs";
 import { HOOK_ENTRY } from "../lib/hooks/compound.mjs";
+import { pins } from "../lib/runtime.mjs";
 
 // Open a desk the way the Leader's `hire` tool does, in this process, and answer the way a command
 // would: what was written, or the refusal. The command line has no hire — a Worker joins through
@@ -72,15 +72,12 @@ const instance = scratch("ovai-test");
 const inherited = `${instance}-inherited`;
 const standIn = `${instance}-stand-in`;
 
-// One stand-in node per version the Node checks pretend the machine has.
-const nodes = `${instance}-nodes`;
-
 // Each instance records its calls in its own file, so that what one of them was run with can
 // never be read as evidence about the other.
 const log = path.join(standIn, "calls.txt");
 const inheritedLog = path.join(standIn, "inherited.txt");
 
-process.on("exit", () => remove(instance, inherited, standIn, nodes));
+process.on("exit", () => remove(instance, inherited, standIn));
 
 function install(root, auth) {
   installed({
@@ -95,34 +92,26 @@ function install(root, auth) {
   });
 }
 
-// Run an instance's command with the stand-in first on the PATH, and with both an account
-// credential that must never be inherited and a machine token that may be, depending on how the
-// instance was installed. `changes` is how a check asks what happens when the machine has no
-// token, or when Claude Code answers differently.
+// Run an instance's command with the stand-in where the toolkit's own claude would be, and with
+// both an account credential that must never be inherited and a machine token that may be,
+// depending on how the instance was installed. `changes` is how a check asks what happens when the
+// machine has no token, or when Claude Code answers differently.
 function run(root, recordIn, argv, changes = {}) {
   return runOvai(root, argv, {
     ...process.env,
     OPENOVAI_STAND_IN_LOG: recordIn,
     ANTHROPIC_API_KEY: "must-not-be-inherited",
     CLAUDE_CODE_OAUTH_TOKEN: TOKEN,
-    PATH: `${standIn}${path.delimiter}${process.env.PATH}`,
+    XDG_DATA_HOME: standIn,
     ...changes,
   });
-}
-
-// A PATH whose node reports the version given, with the stand-in for Claude Code still on it,
-// so the only thing different about the run is which Node the launcher finds first.
-function onNode(version) {
-  const directory = path.join(nodes, version);
-  writeNodeStandIn(directory, version);
-  return { PATH: [directory, standIn, process.env.PATH].join(path.delimiter) };
 }
 
 const ovai = (argv, changes) => run(instance, log, argv, changes);
 const ovaiInherited = (argv, changes) => run(inherited, inheritedLog, argv, changes);
 
 remove(instance, inherited, standIn);
-writeStandIn(standIn);
+const command = writeStandIn(standIn);
 install(instance, "login");
 install(inherited, "inherit");
 
@@ -178,6 +167,30 @@ describe("what configuration reports", () => {
 
   it("asks Claude Code rather than guessing", () => {
     assert.match(readLog(log), /argv: auth status/);
+  });
+
+  // The pins and the directory, on one line: the first thing to know about an instance whose
+  // session will not start, and the thing that differs between two machines with the same version.
+  it("says which node and claude this instance runs on, and where they are kept", () => {
+    const pinned = pins(repo);
+    assert.match(said, new RegExp(`^runtime\\s+node ${pinned.node}, claude ${pinned.claude}, under ${path.join(standIn, "openovai")}$`, "m"));
+  });
+});
+
+// Every start of Claude Code is the toolkit's own, at the place lib/RUNTIME and the data directory
+// name, never one found on the PATH; and it is started with its background updater off, or it
+// would replace itself under the pin.
+describe("what Claude Code is started as", () => {
+  before(() => {
+    ovai(["configuration"]);
+  });
+
+  it("is the toolkit's own claude, by path, and not one on the PATH", () => {
+    assert.match(readLog(log), new RegExp(`^command: ${command}$`, "m"));
+  });
+
+  it("runs with its background updater off", () => {
+    assert.match(readLog(log), /^DISABLE_AUTOUPDATER: 1$/m);
   });
 });
 
@@ -391,6 +404,16 @@ function saidLiterally(text) {
   return said === null ? null : said[2];
 }
 
+// The command a run names: a literal, or one of the two resolvers in lib/runtime.mjs — the
+// toolkit's own node and its own claude, by path — read by name. Anything else is a command this
+// cannot read.
+const OWN_RUNTIME = /^\s*(node|claude)Command\s*\(/;
+
+function commandNamed(text) {
+  const own = OWN_RUNTIME.exec(text ?? "");
+  return own === null ? saidLiterally(text) : own[1];
+}
+
 // The arguments handed to a run, read either from the array written at the call or from the one
 // declared under that name in the same file — the run that serves a seat builds its list a
 // couple of dozen lines above the spawn. An entry that is not a literal comes back as null,
@@ -418,7 +441,7 @@ function processStarts(root) {
     const source = withoutComments(fs.readFileSync(file, "utf8"));
     for (const call of source.matchAll(STARTS_A_PROCESS)) {
       const args = argumentsOf(source, call.index + call[0].length);
-      const command = args === null ? null : saidLiterally(args[0]);
+      const command = args === null ? null : commandNamed(args[0]);
       found.push({
         where: `${path.relative(root, file)}:${source.slice(0, call.index).split("\n").length}`,
         command,
@@ -431,7 +454,7 @@ function processStarts(root) {
 
 // What a shell script says, with what it merely mentions taken out: a comment runs from the first
 // # that is not inside quoting to the end of its line, and the inside of a string is prose rather
-// than a command — install.sh names Claude Code in a warning it prints when the PATH has none.
+// than a command — runtime.sh names Claude Code in what it says while installing it.
 function shellCode(source) {
   let out = "";
   for (const line of source.split("\n")) {
@@ -596,35 +619,39 @@ describe("an instance that inherits", () => {
     assert.notEqual(ovaiInherited(["login"]).status, 0);
   });
 
-  it("is told where a token comes from instead", () => {
-    assert.match(ovaiInherited(["login"]).stderr, /setup-token/);
+  // With the toolkit's own claude named by path: there is no other on the machine to count on.
+  it("is told where a token comes from instead, with the command that mints one by path", () => {
+    assert.match(ovaiInherited(["login"]).stderr, new RegExp(`mint a token with: ${command} setup-token`));
+  });
+
+  it("says the same in configuration while no token is set", () => {
+    assert.match(ovaiInherited(["configuration"], { CLAUDE_CODE_OAUTH_TOKEN: "" }).stdout, new RegExp(`not set here — mint one with: ${command} setup-token`));
   });
 });
 
 // An instance carries its own copy of everything it runs and can be started on a different
-// machine from the one it was installed on, so the launcher applies the same floor the
-// installer does rather than trusting that it was checked once.
-describe("the Node the command needs", () => {
-  const refused = ovai(["configuration"], onNode("v20.18.1"));
-
-  it("refuses a Node older than the one it needs", () => {
-    assert.notEqual(refused.status, 0);
+// machine from the one it was installed on, so the launcher fetches the runtime it pins before
+// anything else, and runs on that node and no other.
+describe("the runtime the command runs on", () => {
+  it("runs the instance command on the toolkit's own node, by path", () => {
+    ovai(["configuration"]);
+    assert.match(readLog(log), new RegExp(`^node: ${path.join(instance, "lib", "ovai.mjs")} --root ${instance} configuration$`, "m"));
   });
 
-  it("says which Node it needs", () => {
-    assert.match(refused.stderr, /Node\.js 24 or newer is required/);
-  });
-
-  it("says which Node it found", () => {
-    assert.match(refused.stderr, /v20\.18\.1/);
-  });
-
-  it("runs on the Node it needs", () => {
-    assert.equal(ovai(["configuration"], onNode("v24.0.0")).status, 0);
-  });
-
-  it("runs on a Node newer than the one it needs", () => {
-    assert.equal(ovai(["configuration"], onNode("v99.0.0")).status, 0);
+  // Nothing under the data directory and nowhere to fetch from: the launcher says so in the
+  // bootstrap's words and its own, and runs nothing.
+  it("refuses to run when the runtime is not there and cannot be fetched", () => {
+    const nowhere = `${instance}-no-runtime`;
+    fs.mkdirSync(nowhere, { recursive: true });
+    try {
+      const refused = ovai(["configuration"], { XDG_DATA_HOME: nowhere, OPENOVAI_NODE_DIST: "http://127.0.0.1:9" });
+      assert.notEqual(refused.status, 0);
+      assert.match(refused.stderr, /^runtime\.sh: could not download http:\/\/127\.0\.0\.1:9\//m);
+      assert.match(refused.stderr, /^ovai: the runtime could not be fetched, so nothing can run$/m);
+      assert.match(refused.stdout, /^Fetching Node\.js \d+\.\d+\.\d+ /);
+    } finally {
+      remove(nowhere);
+    }
   });
 });
 
@@ -1291,6 +1318,10 @@ describe("the server commands", () => {
     assert.equal(started.stderr, "");
     url = started.stdout.trim();
     assert.ok(await settled(true), "the server is not answering after start returned");
+  });
+
+  it("starts the server on the toolkit's own node, by path", () => {
+    assert.match(readLog(log), new RegExp(`^node: ${path.join(served, "lib", "serve.mjs")} --root ${served}$`, "m"));
   });
 
   // The last row, not the whole: what the server found on its way up — a plugin file it could not
