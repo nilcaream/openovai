@@ -898,10 +898,12 @@ describe("asking to be allowed", () => {
     let during;
     let after_;
     let reply;
+    let later;
     // The page is told when what the Leader's panel asks has changed: once at the park, and again
     // when the turn ends and the dialog is listed.
     const told = [];
     let toldDuring;
+    let toldAfter;
     let unsubscribe;
 
     async function permission(args) {
@@ -927,6 +929,13 @@ describe("asking to be allowed", () => {
         const { permissions } = JSON.parse((await page("GET", `/sessions/${LEADER}/permissions`)).body);
         return permissions.length > 0 ? permissions : null;
       });
+      toldAfter = told.length;
+      // A later turn, with the dialog standing: what it lists is read while that turn runs.
+      const heard = heardIn(leader.log).length;
+      const again = await say("and once more");
+      await waitFor(() => (heardIn(leader.log).length > heard ? true : null));
+      later = JSON.parse((await page("GET", `/sessions/${LEADER}/permissions`)).body).permissions;
+      await again();
     });
 
     after(async () => {
@@ -937,13 +946,18 @@ describe("asking to be allowed", () => {
 
     it("tells the page again once the turn has ended, so the dialog is drawn then", () => {
       assert.equal(toldDuring, 1);
-      assert.equal(told.length, 2, JSON.stringify(told));
+      assert.equal(toldAfter, 2, JSON.stringify(told));
     });
 
     it("lists a rule request only after the turn that raised it ended", () => {
       assert.deepEqual(during, []);
       assert.equal(after_.length, 1);
       assert.equal(after_[0].rule, "Bash(cargo:*)");
+    });
+
+    // A press on a card is a turn of its own: the cards beside it stay listed while it runs.
+    it("keeps a rule request listed while a later turn runs", () => {
+      assert.deepEqual(later.map(({ rule }) => rule), ["Bash(cargo:*)"]);
     });
 
   });

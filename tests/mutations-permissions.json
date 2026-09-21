@@ -582,8 +582,19 @@
     "edits": [
       {
         "file": "lib/chat/permissions.mjs",
-        "from": "  const asked = onTurn ? [] : [...rulesOf(name).values()]",
-        "to": "  const asked = [...rulesOf(name).values()]"
+        "from": "    .filter((held) => turn === null || held.turn !== turn)\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "every rule request leaves the panel while any turn runs",
+    "catches": "keeps a rule request listed while a later turn runs",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": "    .filter((held) => turn === null || held.turn !== turn)",
+        "to": "    .filter(() => turn === null)"
       }
     ]
   },
