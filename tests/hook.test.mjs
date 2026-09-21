@@ -11,7 +11,7 @@ import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
 import { HOOK_COMMAND, HOOK_ENTRY, answerFor, decide, hookWired } from "../lib/hooks/compound.mjs";
-import { rulesMissing, wireHook } from "../lib/seed.mjs";
+import { rulesMissing, rulesStale, wireHook } from "../lib/seed.mjs";
 import { readSettings, settingsFile, writeSettings } from "../lib/settings.mjs";
 import { remove, repo, scratch } from "./helpers.mjs";
 
@@ -225,14 +225,15 @@ describe("the rules an update says are missing", () => {
     writeSettings(root, {
       permissions: {
         allow: ["mcp__openovai", "Read(/**)", "Edit(/reference/**)", "Edit(/projects/**)", "Edit(/temp/**)", "Bash(git:*)", "Bash(mkdir:*)", "Bash(cd:*)", "Bash(node:*)", "Bash(bash:*)", "Bash(sh:*)", "Bash(cp:*)", "Bash(mv:*)", "Bash(rm:*)", "Bash(ls:*)", "Bash(cat:*)", "Bash(tar:*)", "Bash(diff:*)", "Bash(cmp:*)", "Bash(sha256sum:*)", "Bash(grep:*)", "Bash(find:*)", "Bash(sed:*)", "Bash(awk:*)", "Bash(head:*)", "Bash(tail:*)", "Bash(wc:*)", "Bash(echo:*)", "Bash(chmod:*)", "Bash(touch:*)", "Bash(curl:*)", "Bash(npm:*)", "Edit(/desks/Bob/**)"],
-        deny: ["Edit(/.claude/**)", "Edit(/.local/settings.json)", "Edit(/.local/.claude.json)", "Bash(git push:*)", "Bash(sudo:*)", "Bash(ssh:*)", "Edit(/desks/*/STATE.md)"],
+        deny: ["Edit(/.claude/**)", "Edit(/.local/settings.json)", "Edit(/.local/.claude.json)", "Bash(git push:*)", "Bash(sudo:*)", "Bash(ssh:*)"],
       },
     });
     assert.deepEqual(rulesMissing(root), []);
+    assert.deepEqual(rulesStale(root), []);
   });
 
   it("names each rule the settings lack, by the list it belongs in, and adds none", () => {
-    writeSettings(root, { permissions: { allow: ["mcp__openovai", "Read(/**)", "Edit(/reference/**)", "Edit(/projects/**)", "Edit(/temp/**)"], deny: ["Edit(/.claude/**)", "Edit(/.local/settings.json)", "Edit(/.local/.claude.json)", "Edit(/desks/*/STATE.md)"] } });
+    writeSettings(root, { permissions: { allow: ["mcp__openovai", "Read(/**)", "Edit(/reference/**)", "Edit(/projects/**)", "Edit(/temp/**)"], deny: ["Edit(/.claude/**)", "Edit(/.local/settings.json)", "Edit(/.local/.claude.json)"] } });
     const text = fs.readFileSync(settingsFile(root), "utf8");
     const missing = rulesMissing(root);
     assert.equal(missing.length, 30);
@@ -241,5 +242,16 @@ describe("the rules an update says are missing", () => {
     assert.equal(missing.includes("deny Bash(ssh:*)"), true);
     assert.equal(missing.some((entry) => entry.includes("desks/")), false);
     assert.equal(fs.readFileSync(settingsFile(root), "utf8"), text);
+  });
+
+  // The desk file was refused to the file tools by earlier releases, and an instance born then
+  // still holds the rule: the update names it as stale, spelt as it stands, and removes nothing.
+  it("names the desk-file deny rule an earlier release wrote as stale, and removes none", () => {
+    writeSettings(root, { permissions: { allow: ["mcp__openovai"], deny: ["Edit(/.claude/**)", "Edit(/desks/*/STATE.md)", "Bash(git push:*)"] } });
+    const text = fs.readFileSync(settingsFile(root), "utf8");
+    assert.deepEqual(rulesStale(root), ["deny Edit(/desks/*/STATE.md)"]);
+    assert.equal(fs.readFileSync(settingsFile(root), "utf8"), text);
+    fs.writeFileSync(settingsFile(root), "{ not json\n");
+    assert.deepEqual(rulesStale(root), []);
   });
 });

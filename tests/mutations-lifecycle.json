@@ -60,8 +60,8 @@
     ]
   },
   {
-    "name": "write_desk takes a name and writes that desk",
-    "catches": "writes its own desk only, the server owning the header",
+    "name": "write_desk takes a name and writes that desk's header",
+    "catches": "writes its own desk's header only, the body below it exactly as it stands",
     "edits": [
       {
         "file": "lib/chat/mcp.mjs",
@@ -70,41 +70,41 @@
       },
       {
         "file": "lib/chat/server.mjs",
-        "from": "        const written = writeDeskWhole(root, caller.seat, {",
-        "to": "        const written = writeDeskWhole(root, args.name ?? caller.seat, {"
+        "from": "        const written = writeDeskHeader(root, caller.seat, record === undefined ? fields : { ...fields, rules: record.rules });",
+        "to": "        const written = writeDeskHeader(root, args.name ?? caller.seat, record === undefined ? fields : { ...fields, rules: record.rules });"
       }
     ]
   },
   {
-    "name": "write_desk takes an empty title",
-    "catches": "refuses an empty title, a status with a |, and a body over 64 KB, leaving the desk as it was",
+    "name": "write_desk drops the first line of the body under the header",
+    "catches": "writes its own desk's header only, the body below it exactly as it stands",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "  const body = kept === null ? lines : lines.slice(1);",
+        "to": "  const body = kept === null ? lines : lines.slice(2);"
+      }
+    ]
+  },
+  {
+    "name": "write_desk writes a body that lost its header from its second line",
+    "catches": "puts the header back in front of a body that lost it, losing no line",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "  const body = kept === null ? lines : lines.slice(1);",
+        "to": "  const body = lines.slice(1);"
+      }
+    ]
+  },
+  {
+    "name": "write_desk writes the header whatever the title and status",
+    "catches": "refuses an empty title and a status with a |, leaving the desk as it was",
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "        if (typeof title !== \"string\" || title.trim() === \"\" || title.length > LONGEST_TITLE || title.includes(\"\\n\")) {\n          return { refused: `title is one line of 1 to ${LONGEST_TITLE} characters` };\n        }\n",
+        "from": "        if (fields.refused !== undefined) {\n          return fields;\n        }\n",
         "to": ""
-      }
-    ]
-  },
-  {
-    "name": "write_desk takes a body of any size",
-    "catches": "refuses an empty title, a status with a |, and a body over 64 KB, leaving the desk as it was",
-    "edits": [
-      {
-        "file": "lib/chat/server.mjs",
-        "from": "        if (typeof body !== \"string\" || Buffer.byteLength(body) > LONGEST_BODY) {\n          return { refused: `body is markdown of at most ${LONGEST_BODY} bytes` };\n        }\n",
-        "to": ""
-      }
-    ]
-  },
-  {
-    "name": "write_desk takes a | in the status",
-    "catches": "refuses an empty title, a status with a |, and a body over 64 KB, leaving the desk as it was",
-    "edits": [
-      {
-        "file": "lib/chat/server.mjs",
-        "from": " || status.includes(\"\\n\") || status.includes(\"|\")) {",
-        "to": " || status.includes(\"\\n\")) {"
       }
     ]
   },
@@ -1011,7 +1011,7 @@
   },
   {
     "name": "the wait on a card is written on a Worker's panel alone",
-    "catches": "says the wait on the Leader's panel too, and draws one line, the call it waited on, where the card came",
+    "catches": "says the wait on the Leader's panel too, and draws no line for the call it waited on",
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
@@ -1022,7 +1022,7 @@
   },
   {
     "name": "the Leader's own calls are drawn as lines on its panel, the call it waited on first of all",
-    "catches": "says the wait on the Leader's panel too, and draws one line, the call it waited on, where the card came",
+    "catches": "says the wait on the Leader's panel too, and draws no line for the call it waited on",
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",

@@ -60,8 +60,8 @@
     "edits": [
       {
         "file": "lib/seed.mjs",
-        "from": "import { DESK_DENY_RULES, DESK_TEMPLATE, OWN_ACCOUNT_RULES, READ_RULES, SHELL_DENY_RULES, SHELL_RULES, TOOL_RULES, TREE_RULES, deskFile, deskRules, readTemplate, render } from \"./desks.mjs\";",
-        "to": "import { DESK_DENY_RULES, DESK_TEMPLATE, OWN_ACCOUNT_RULES, READ_RULES, SHELL_DENY_RULES, SHELL_RULES, TOOL_RULES, TREE_RULES, account, deskFile, deskRules, readTemplate, render } from \"./desks.mjs\";"
+        "from": "import { DESK_TEMPLATE, OWN_ACCOUNT_RULES, READ_RULES, SHELL_DENY_RULES, SHELL_RULES, STALE_DENY_RULES, TOOL_RULES, TREE_RULES, deskFile, deskRules, readTemplate, render } from \"./desks.mjs\";",
+        "to": "import { DESK_TEMPLATE, OWN_ACCOUNT_RULES, READ_RULES, SHELL_DENY_RULES, SHELL_RULES, STALE_DENY_RULES, TOOL_RULES, TREE_RULES, account, deskFile, deskRules, readTemplate, render } from \"./desks.mjs\";"
       },
       {
         "file": "lib/seed.mjs",
@@ -280,24 +280,13 @@
     ]
   },
   {
-    "name": "the seed refuses the desk file from wherever the session is standing rather than from the root",
-    "catches": "denies a desk file edit and write at install",
-    "edits": [
-      {
-        "file": "lib/desks.mjs",
-        "from": "export const DESK_DENY_RULES = [\"Edit(/desks/*/STATE.md)\"];",
-        "to": "export const DESK_DENY_RULES = [\"Edit(desks/*/STATE.md)\"];"
-      }
-    ]
-  },
-  {
-    "name": "the seed refuses nothing about a desk file",
-    "catches": "denies a desk file edit and write at install",
+    "name": "the seed is born with the stale desk-file deny rule again",
+    "catches": "refuses nothing under desks/ at install",
     "edits": [
       {
         "file": "lib/seed.mjs",
-        "from": "      deny: [...OWN_ACCOUNT_RULES, ...SHELL_DENY_RULES, ...DESK_DENY_RULES],",
-        "to": "      deny: [...OWN_ACCOUNT_RULES],"
+        "from": "      deny: [...OWN_ACCOUNT_RULES, ...SHELL_DENY_RULES],",
+        "to": "      deny: [...OWN_ACCOUNT_RULES, ...SHELL_DENY_RULES, ...STALE_DENY_RULES],"
       }
     ]
   },
@@ -375,17 +364,6 @@
         "file": "lib/seed.mjs",
         "from": "      allow: [...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...SHELL_RULES, ...deskRules(leader)],",
         "to": "      allow: [...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...SHELL_RULES, ...deskRules(leader), ...deskRules(\"Paul\")],"
-      }
-    ]
-  },
-  {
-    "name": "the seed denies nothing about a desk",
-    "catches": "denies a desk file edit and write at install",
-    "edits": [
-      {
-        "file": "lib/seed.mjs",
-        "from": "      deny: [...OWN_ACCOUNT_RULES, ...SHELL_DENY_RULES, ...DESK_DENY_RULES],",
-        "to": "      deny: OWN_ACCOUNT_RULES,"
       }
     ]
   },

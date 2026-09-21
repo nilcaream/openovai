@@ -331,13 +331,12 @@ describe("what the installer made", () => {
     ]);
   });
 
-  // A desk file is written through the write_desk tool and no other way. A session reaching for
-  // one with a file tool is refused on the spot — never a stop that asks the User to settle it —
-  // one `Edit(...)` rule, which refuses the Write tool too, anchored at the root so it refuses
-  // from wherever the run is standing.
-  it("denies a desk file edit and write at install", () => {
+  // A desk file is edited in place with the file tools like any other file under the desk
+  // directory: nothing under desks/ is refused, and the one rule an earlier release refused the
+  // file by is what an update names as stale.
+  it("refuses nothing under desks/ at install", () => {
     const deny = JSON.parse(contentOf(".claude", "settings.json")).permissions.deny;
-    assert.deepEqual(deny.filter((rule) => rule.includes("desks/")), ["Edit(/desks/*/STATE.md)"]);
+    assert.deepEqual(deny.filter((rule) => rule.includes("desks/")), []);
   });
 
   // A push is the User's, and so are the machine's root and its other hosts: three shell rules
@@ -392,11 +391,11 @@ describe("what the installer made", () => {
 
   // A refusal is absolute: no rule overrides it, the call never reaches a panel, and somebody who
   // works differently is blocked rather than defaulted away. So these name the workspace's account
-  // of itself, the one file a tool writes, and the three shell commands that are the User's —
-  // and nothing else anybody works on.
+  // of itself and the three shell commands that are the User's — and nothing else anybody works
+  // on.
   it("refuses nothing about anybody's work beyond the push, the root and the other hosts", () => {
     const deny = JSON.parse(contentOf(".claude", "settings.json")).permissions.deny;
-    assert.deepEqual(deny.filter((rule) => !rule.startsWith("Edit(/.claude") && !rule.startsWith("Edit(/.local") && !rule.endsWith("(/desks/*/STATE.md)")), ["Bash(git push:*)", "Bash(sudo:*)", "Bash(ssh:*)"]);
+    assert.deepEqual(deny.filter((rule) => !rule.startsWith("Edit(/.claude") && !rule.startsWith("Edit(/.local")), ["Bash(git push:*)", "Bash(sudo:*)", "Bash(ssh:*)"]);
   });
 
   // What the harness would add to every commit and pull request — a trailer naming the model, a

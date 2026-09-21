@@ -665,7 +665,7 @@ describe("telling a seat", () => {
     const spawned = secretsIn(unarranged).length;
     await seatUp(OTHER, {
       OPENOVAI_STAND_IN_TOOL: JSON.stringify([
-        { name: "write_desk", arguments: { title: "restart by the stand-in", status: "going", body: "## State\nx\n" } },
+        { name: "write_desk", arguments: { title: "restart by the stand-in", status: "going" } },
         { name: "restart_session", arguments: {} },
       ]),
     });
@@ -1716,7 +1716,7 @@ describe("the stream", () => {
     await until(client, (event) => event.name === "asking");
     paul = await seatUp(WORKER, {
       OPENOVAI_STAND_IN_TOOL: JSON.stringify([
-        { name: "write_desk", arguments: { title: "restart by the stand-in", status: "going", body: "## State\nx\n" } },
+        { name: "write_desk", arguments: { title: "restart by the stand-in", status: "going" } },
         { name: "restart_session", arguments: {} },
       ]),
     });

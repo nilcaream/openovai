@@ -101,10 +101,12 @@ describe("what the Leader is told", () => {
   // A desk is a working directory. The desk file stays the tool's; everything beside it is the
   // session's to write with the file tools, and it is told so rather than left to find out on a
   // permission dialog.
-  it("tells the Leader its desk directory is its working directory and the desk file is the tool's", () => {
+  it("tells the Leader its desk directory is its working directory, the header the tool's and the body edited in place", () => {
     assert.match(leader(), new RegExp(`Your desk is desks/${LEAD}/, and it is your working directory`));
     assert.match(leader(), /write there with\s+the file tools without being asked/);
-    assert.match(leader(), /That one file is written with one tool and no other way: `write_desk`/);
+    assert.match(leader(), /Its first line is the server's header, and `write_desk` is what writes it/);
+    assert.match(leader(), /edited in place with the file tools like any other file: change the line that changed, never the\s+whole desk, then call `write_desk`/);
+    assert.doesNotMatch(leader(), /no other way/);
   });
 
   // The three trees, and the one question that decides between two of them. The question is
@@ -252,10 +254,13 @@ describe("what a Worker is told", () => {
     assert.ok(worker().includes(`desks/${PAUL}/STATE.md`));
   });
 
-  it("tells the Worker its desk directory is its working directory and the desk file is the tool's", () => {
+  it("tells the Worker its desk directory is its working directory, the header the tool's and the body edited in place", () => {
     assert.match(worker(), new RegExp(`Your desk is desks/${PAUL}/, and it is your working directory`));
     assert.match(worker(), /write there with\s+the file tools without being asked/);
-    assert.match(worker(), /That one file is written with one tool and no other way: `write_desk`/);
+    assert.match(worker(), /Its first line is the server's header, and `write_desk` is what writes it/);
+    assert.match(worker(), /edited in place with the file tools like any other file — the sections/);
+    assert.match(worker(), /you change the line that changed,\s+never the whole desk\. Edit the body first and call `write_desk` after it/);
+    assert.doesNotMatch(worker(), /no other way/);
   });
 
   // Scratch has a named place, and it is not the root and not the home directory: a session with

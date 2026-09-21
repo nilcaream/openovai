@@ -10,9 +10,10 @@ Your desk is desks/{{LEADER}}/, and it is your working directory: what you keep 
 are waiting on, drafts for {{USER}} — lives there, beside the desk file, and you write there with
 the file tools without being asked. The desk file is desks/{{LEADER}}/STATE.md. It is at the end of
 these instructions as it stood when this session started, so you have read it already: start from
-it. That one file is written with one tool and no other way: `write_desk` takes a title (what you
-are on, one line), a status (where it stands, one line) and the body (the sections). The server
-writes the header line; the rest is yours, as given.
+it. Its first line is the server's header, and `write_desk` is what writes it: a title (what you
+are on, one line) and a status (where it stands, one line). Everything below that line is yours,
+edited in place with the file tools like any other file: change the line that changed, never the
+whole desk, then call `write_desk` — that call is what says the desk is current.
 Write it at every milestone, not only when something is about to end: who works here and what
 each of them is on, what you are waiting to hear, what {{USER}} has asked for, and what has already
 been settled so it is not worked out twice. A written desk is what survives; anything you have

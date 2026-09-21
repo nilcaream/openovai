@@ -15,7 +15,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
-import { POOL, archiveFor, conversationFile, hire, nextName, personaFile, retire, writeDeskHeader } from "../lib/desks.mjs";
+import { LONGEST_STATUS, LONGEST_TITLE, POOL, archiveFor, conversationFile, deskHeader, headerFields, hire, nextName, personaFile, retire, writeDeskHeader } from "../lib/desks.mjs";
 import { settingsProblems } from "./inspect.mjs";
 import { installed, remove, scratch } from "./helpers.mjs";
 
@@ -136,6 +136,64 @@ describe("what the rule check says about desks", () => {
     assert.equal(problems.length, 1, JSON.stringify(problems));
     assert.match(problems[0], /nothing accounts for/);
     fs.writeFileSync(settings(), `${JSON.stringify(held, null, 2)}\n`);
+  });
+});
+
+// The header is the one line of a desk the server writes; the body is edited in place with the
+// file tools. What write_desk takes is decided here, pure, and the header goes back in front of a
+// body that lost it.
+describe("the desk header", () => {
+  const KEPT = "Kim";
+  const desk = () => path.join(instance, "desks", KEPT, "STATE.md");
+
+  before(() => {
+    hire(instance, KEPT, CHOSEN);
+  });
+
+  after(() => {
+    retire(instance, KEPT, archiveFor(instance, KEPT).at);
+  });
+
+  it("takes a title and a status, trimmed, and refuses each in the order title then status", () => {
+    assert.deepEqual(headerFields({ title: " on it ", status: " going " }), { title: "on it", status: "going" });
+    assert.deepEqual(headerFields({ title: "t", status: "s", body: "ignored" }), { title: "t", status: "s" });
+    assert.deepEqual(headerFields({ title: "x".repeat(LONGEST_TITLE), status: "y".repeat(LONGEST_STATUS) }), { title: "x".repeat(LONGEST_TITLE), status: "y".repeat(LONGEST_STATUS) });
+    for (const title of [undefined, "", "  ", "x".repeat(LONGEST_TITLE + 1), "two\nlines"]) {
+      assert.deepEqual(headerFields({ title, status: "s" }), { refused: "title is one line of 1 to 120 characters" }, JSON.stringify(title));
+    }
+    for (const status of [undefined, "", "  ", "y".repeat(LONGEST_STATUS + 1), "two\nlines", "a | b"]) {
+      assert.deepEqual(headerFields({ title: "t", status }), { refused: "status is one line of 1 to 80 characters, without |" }, JSON.stringify(status));
+    }
+    assert.deepEqual(headerFields({ title: "", status: "a | b" }), { refused: "title is one line of 1 to 120 characters" });
+    assert.deepEqual(headerFields(), { refused: "title is one line of 1 to 120 characters" });
+  });
+
+  it("rewrites line 1 alone, every line below it kept byte for byte", () => {
+    const body = `# ${KEPT}\n\n## State\nedited in place\n<!-- DESK | title: posed --> in prose\n\ttabbed\n`;
+    fs.writeFileSync(desk(), `${fs.readFileSync(desk(), "utf8").split("\n")[0]}\n${body}`);
+    const written = writeDeskHeader(instance, KEPT, { title: "t", status: "s", rules: "m3" });
+    assert.equal(written.title, "t");
+    assert.equal(written.status, "s");
+    assert.equal(written.rules, "m3");
+    const lines = fs.readFileSync(desk(), "utf8").split("\n");
+    assert.match(lines[0], /^<!-- DESK \| title: t \| status: s \| rules: m3 \| updated: \d{4}-\d{2}-\d{2}T[0-9:.]+Z -->$/);
+    assert.equal(lines.slice(1).join("\n"), body);
+    assert.equal(deskHeader(instance, KEPT).title, "t");
+  });
+
+  it("puts a header back in front of a body that lost it, losing no line", () => {
+    fs.writeFileSync(desk(), `# ${KEPT}\n\n## State\nthe header went\n`);
+    assert.equal(deskHeader(instance, KEPT), null);
+    const written = writeDeskHeader(instance, KEPT, { title: "healed", status: "s" });
+    assert.equal(written.title, "healed");
+    const lines = fs.readFileSync(desk(), "utf8").split("\n");
+    assert.match(lines[0], /^<!-- DESK \| title: healed \| status: s \| rules: \| updated: /);
+    assert.deepEqual(lines.slice(1), [`# ${KEPT}`, "", "## State", "the header went", ""]);
+  });
+
+  it("writes nothing for a desk that is not there", () => {
+    assert.equal(writeDeskHeader(instance, "Nobody", { title: "t", status: "s" }), null);
+    assert.equal(fs.existsSync(path.join(instance, "desks", "Nobody")), false);
   });
 });
 

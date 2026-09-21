@@ -1,5 +1,27 @@
 [
   {
+    "name": "the Leader's persona says the desk file is written with one tool and no other way again",
+    "catches": "tells the Leader its desk directory is its working directory, the header the tool's and the body edited in place",
+    "edits": [
+      {
+        "file": "lib/templates/leader.md",
+        "from": "edited in place with the file tools like any other file: change the line that changed, never the\nwhole desk, then call `write_desk` — that call is what says the desk is current.",
+        "to": "written with one tool and no other way: `write_desk`, which takes the whole of it."
+      }
+    ]
+  },
+  {
+    "name": "the Worker's persona says the desk file is written with one tool and no other way again",
+    "catches": "tells the Worker its desk directory is its working directory, the header the tool's and the body edited in place",
+    "edits": [
+      {
+        "file": "lib/templates/worker.md",
+        "from": "never the whole desk. Edit the body first and call `write_desk` after it, at every point the work\nmoves,",
+        "to": "never by hand: that one file is written with one tool and no other way, at every point the work\nmoves,"
+      }
+    ]
+  },
+  {
     "name": "the Leader's persona names the word the target banned",
     "catches": "names no word the target banned",
     "edits": [
@@ -28,7 +50,7 @@
       {
         "file": "lib/templates/leader.md",
         "from": "any words, any language — call `park`.",
-        "to": "any words, any language — call `retire`."
+        "to": "any words, any language — call `halt`."
       }
     ]
   },
@@ -379,7 +401,7 @@
     "edits": [
       {
         "file": "lib/templates/worker.md",
-        "from": "A written desk is what survives; anything you have worked out and not\nwritten is gone with this session, and the next session on this desk starts from what it says.",
+        "from": "A written desk is what survives; anything you have worked out and not written is gone with this\nsession, and the next session on this desk starts from what it says.",
         "to": ""
       }
     ]
@@ -441,7 +463,7 @@
   },
   {
     "name": "the Leader's desk is the desk file alone again",
-    "catches": "tells the Leader its desk directory is its working directory and the desk file is the tool's",
+    "catches": "tells the Leader its desk directory is its working directory, the header the tool's and the body edited in place",
     "edits": [
       {
         "file": "lib/templates/leader.md",
@@ -485,7 +507,7 @@
   },
   {
     "name": "the Worker's desk is the desk file alone again",
-    "catches": "tells the Worker its desk directory is its working directory and the desk file is the tool's",
+    "catches": "tells the Worker its desk directory is its working directory, the header the tool's and the body edited in place",
     "edits": [
       {
         "file": "lib/templates/worker.md",

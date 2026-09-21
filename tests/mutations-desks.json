@@ -1,5 +1,93 @@
 [
   {
+    "name": "the header takes a status with a | in it",
+    "catches": "takes a title and a status, trimmed, and refuses each in the order title then status",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": " || status.includes(\"\\n\") || status.includes(\"|\")) {",
+        "to": " || status.includes(\"\\n\")) {"
+      }
+    ]
+  },
+  {
+    "name": "the header takes a title of any length",
+    "catches": "takes a title and a status, trimmed, and refuses each in the order title then status",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "  if (typeof title !== \"string\" || title.trim() === \"\" || title.length > LONGEST_TITLE || title.includes(\"\\n\")) {",
+        "to": "  if (typeof title !== \"string\" || title.trim() === \"\" || title.includes(\"\\n\")) {"
+      }
+    ]
+  },
+  {
+    "name": "the header keeps the title's surrounding blanks",
+    "catches": "takes a title and a status, trimmed, and refuses each in the order title then status",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "  return { title: title.trim(), status: status.trim() };",
+        "to": "  return { title, status: status.trim() };"
+      }
+    ]
+  },
+  {
+    "name": "the header is checked status first",
+    "catches": "takes a title and a status, trimmed, and refuses each in the order title then status",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "  if (typeof title !== \"string\" || title.trim() === \"\" || title.length > LONGEST_TITLE || title.includes(\"\\n\")) {\n    return { refused: `title is one line of 1 to ${LONGEST_TITLE} characters` };\n  }\n  if (typeof status !== \"string\" || status.trim() === \"\" || status.length > LONGEST_STATUS || status.includes(\"\\n\") || status.includes(\"|\")) {\n    return { refused: `status is one line of 1 to ${LONGEST_STATUS} characters, without |` };\n  }\n",
+        "to": "  if (typeof status !== \"string\" || status.trim() === \"\" || status.length > LONGEST_STATUS || status.includes(\"\\n\") || status.includes(\"|\")) {\n    return { refused: `status is one line of 1 to ${LONGEST_STATUS} characters, without |` };\n  }\n  if (typeof title !== \"string\" || title.trim() === \"\" || title.length > LONGEST_TITLE || title.includes(\"\\n\")) {\n    return { refused: `title is one line of 1 to ${LONGEST_TITLE} characters` };\n  }\n"
+      }
+    ]
+  },
+  {
+    "name": "the header write drops the first line under it",
+    "catches": "rewrites line 1 alone, every line below it kept byte for byte",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "  const body = kept === null ? lines : lines.slice(1);",
+        "to": "  const body = kept === null ? lines : lines.slice(2);"
+      }
+    ]
+  },
+  {
+    "name": "the header write forgets the rules it was given",
+    "catches": "rewrites line 1 alone, every line below it kept byte for byte",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "  const merged = { ...(kept ?? {}), ...fields, updated: fields.updated ?? new Date().toISOString() };",
+        "to": "  const merged = { ...(kept ?? {}), ...fields, rules: kept?.rules ?? \"\", updated: fields.updated ?? new Date().toISOString() };"
+      }
+    ]
+  },
+  {
+    "name": "the header write treats a body that lost its header as if line 1 were the header",
+    "catches": "puts a header back in front of a body that lost it, losing no line",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "  const body = kept === null ? lines : lines.slice(1);",
+        "to": "  const body = lines.slice(1);"
+      }
+    ]
+  },
+  {
+    "name": "the header write makes a desk for a name that has none",
+    "catches": "writes nothing for a desk that is not there",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "  try {\n    text = fs.readFileSync(file, \"utf8\");\n  } catch {\n    return null;\n  }\n  const lines = text.split(\"\\n\");",
+        "to": "  try {\n    text = fs.readFileSync(file, \"utf8\");\n  } catch {\n    text = \"\";\n    fs.mkdirSync(path.dirname(file), { recursive: true });\n  }\n  const lines = text.split(\"\\n\");"
+      }
+    ]
+  },
+  {
     "name": "the archive name carries the day and the name but not the title",
     "catches": "files the desk under the day, the name and the slug of the final title",
     "edits": [

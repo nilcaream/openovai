@@ -226,7 +226,7 @@ async function gone(seat) {
 function callsThen(name, on) {
   return {
     OPENOVAI_STAND_IN_TOOL: JSON.stringify([
-      { name: "write_desk", arguments: { title: `${name} by the stand-in`, status: "leaving", body: "## State\nwritten by the stand-in\n" } },
+      { name: "write_desk", arguments: { title: `${name} by the stand-in`, status: "leaving" } },
       { name, arguments: {} },
     ]),
     ...(on === undefined ? {} : { OPENOVAI_STAND_IN_TOOL_ON: on }),
@@ -351,37 +351,46 @@ describe("write_desk", () => {
     await endEvery(500);
   });
 
-  it("writes its own desk only, the server owning the header", async () => {
+  it("writes its own desk's header only, the body below it exactly as it stands", async () => {
     const leaderDesk = deskOf(LEADER);
-    const refused = await tool(paul.secret, "write_desk", { name: LEADER, title: "t", status: "s", body: "B" });
+    const refused = await tool(paul.secret, "write_desk", { name: LEADER, title: "t", status: "s" });
     assert.equal(refused.refused, true);
     assert.equal(refused.text, "write_desk: name is not an argument it takes");
     assert.equal(deskOf(LEADER), leaderDesk);
+    assert.equal((await tool(paul.secret, "write_desk", { title: "t", status: "s", body: "B" })).text, "write_desk: body is not an argument it takes");
 
-    const written = await tool(paul.secret, "write_desk", { title: "t", status: "s", body: "B\n" });
+    // The body is edited in place, like any file: a line changed with a file tool is what the
+    // next write_desk keeps, byte for byte, below a header that is the server's alone.
+    const before = deskOf(WORKER).split("\n");
+    const edited = [before[0], ...before.slice(1), "## State", "edited in place, <!-- DESK | title: posed --> and all", ""].join("\n");
+    fs.writeFileSync(deskFile(instance, WORKER), edited);
+    const written = await tool(paul.secret, "write_desk", { title: " t ", status: "s" });
     assert.equal(written.refused, false, written.text);
-    assert.match(written.text, new RegExp(`^desk written: desks/${WORKER}/STATE.md \\(\\d+ lines, rules m\\d+\\)$`));
+    assert.match(written.text, new RegExp(`^desk header written: desks/${WORKER}/STATE.md \\(title and status; the body as it stands; rules m\\d+\\)$`));
     const lines = deskOf(WORKER).split("\n");
     assert.match(lines[0], /^<!-- DESK \| title: t \| status: s \| rules: m\d+ \| updated: \d{4}-\d{2}-\d{2}T[0-9:.]+Z -->$/);
-    assert.equal(lines[1], `# ${WORKER} - t`);
-    assert.equal(lines[3], "B");
-
-    const posed = await tool(paul.secret, "write_desk", { title: "t", status: "s", body: "<!-- DESK | title: posed -->\nbody" });
-    assert.equal(posed.refused, false);
+    assert.equal(lines.slice(1).join("\n"), edited.split("\n").slice(1).join("\n"));
+    assert.equal(lines[1], `# ${WORKER}`);
     assert.equal(deskTitle(instance, WORKER), "t");
-    assert.equal(deskOf(WORKER).split("\n")[3], "<!-- DESK | title: posed -->");
   });
 
-  it("refuses an empty title, a status with a |, and a body over 64 KB, leaving the desk as it was", async () => {
-    await tool(paul.secret, "write_desk", { title: "kept", status: "kept", body: "kept" });
+  it("puts the header back in front of a body that lost it, losing no line", async () => {
+    fs.writeFileSync(deskFile(instance, WORKER), `# ${WORKER}\n\n## State\nthe header went\n`);
+    assert.equal(deskTitle(instance, WORKER), "");
+    const written = await tool(paul.secret, "write_desk", { title: "healed", status: "s" });
+    assert.equal(written.refused, false, written.text);
+    const lines = deskOf(WORKER).split("\n");
+    assert.match(lines[0], /^<!-- DESK \| title: healed \| status: s \| rules: m\d+ \| updated: /);
+    assert.deepEqual(lines.slice(1), [`# ${WORKER}`, "", "## State", "the header went", ""]);
+  });
+
+  it("refuses an empty title and a status with a |, leaving the desk as it was", async () => {
+    await tool(paul.secret, "write_desk", { title: "kept", status: "kept" });
     const kept = deskOf(WORKER);
-    assert.equal((await tool(paul.secret, "write_desk", { title: "", status: "s", body: "B" })).refused, true);
+    assert.deepEqual(await tool(paul.secret, "write_desk", { title: "", status: "s" }), { text: "title is one line of 1 to 120 characters", refused: true, error: null });
     assert.equal(deskOf(WORKER), kept);
-    assert.equal((await tool(paul.secret, "write_desk", { title: "t", status: "a | b", body: "B" })).refused, true);
+    assert.deepEqual(await tool(paul.secret, "write_desk", { title: "t", status: "a | b" }), { text: "status is one line of 1 to 80 characters, without |", refused: true, error: null });
     assert.equal(deskOf(WORKER), kept);
-    assert.equal((await tool(paul.secret, "write_desk", { title: "t", status: "s", body: "x".repeat(64 * 1024 + 1) })).refused, true);
-    assert.equal(deskOf(WORKER), kept);
-    assert.equal((await tool(paul.secret, "write_desk", { title: "t", status: "s", body: "x".repeat(64 * 1024) })).refused, false);
   });
 
   it("is listed for both roles, park and hire for the Leader only", async () => {
@@ -413,7 +422,7 @@ describe("restart_session and stop_session", () => {
   it("restart_session wants the desk written since the event that asked", async () => {
     paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_USAGE: JSON.stringify({ iterations: [{ input_tokens: 2, cache_read_input_tokens: 171_202 }] }) });
     // The desk written before the event does not count.
-    assert.equal((await tool(paul.secret, "write_desk", { title: "early", status: "s", body: "B" })).refused, false);
+    assert.equal((await tool(paul.secret, "write_desk", { title: "early", status: "s" })).refused, false);
     now += 1000;
     const asked = tell(WORKER, userFrame("fill up"));
     await asked.answered;
@@ -421,7 +430,7 @@ describe("restart_session and stop_session", () => {
     assert.deepEqual(await tool(paul.secret, "restart_session", {}), { text: "write your desk first (write_desk)", refused: true, error: null });
     assert.equal(running(WORKER), true);
     now += 1000;
-    assert.equal((await tool(paul.secret, "write_desk", { title: "late", status: "s", body: "B" })).refused, false);
+    assert.equal((await tool(paul.secret, "write_desk", { title: "late", status: "s" })).refused, false);
     const successor = await spawnedBy(WORKER, async () => {
       const answered = await tool(paul.secret, "restart_session", {});
       assert.ok(await gone(WORKER) !== null || running(WORKER));
@@ -434,6 +443,8 @@ describe("restart_session and stop_session", () => {
 
   it("a restart is a new process on the same desk, the queue carried, the successor started from the desk", async () => {
     paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_SLOW: "400", ...callsThen("restart_session", "restart please") });
+    // The predecessor's body, edited in place with a file tool before its write_desk.
+    fs.appendFileSync(deskFile(instance, WORKER), "## State\nedited in place by the predecessor\n");
     tell(WORKER, userFrame("restart please"));
     await told(paul.log, 1);
     const successor = await spawnedBy(WORKER, () => asked(superman.secret, WORKER, "after the restart"));
@@ -448,7 +459,8 @@ describe("restart_session and stop_session", () => {
     const file = /--append-system-prompt-file (\S+)/.exec(argv)[1];
     const prompt = fs.readFileSync(file, "utf8");
     assert.ok(prompt.includes(`Your desk, desks/${WORKER}/STATE.md, as it stands at this start:`), prompt.slice(-400));
-    assert.ok(prompt.includes("written by the stand-in"), prompt.slice(-400));
+    assert.ok(prompt.includes("edited in place by the predecessor"), prompt.slice(-400));
+    assert.ok(prompt.includes("| title: restart_session by the stand-in |"), prompt.slice(-400));
     // The message landed on the panel as it was taken, before the predecessor's own last words;
     // the successor's answer to it is the last row.
     const rows = panel(instance, WORKER).slice(-3);
@@ -481,7 +493,7 @@ describe("restart_session and stop_session", () => {
     paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_REPLY: "before the stop" });
     assert.equal((await asked(superman.secret, WORKER, "one")).reply, "before the stop");
     const rows = panel(instance, WORKER).length;
-    assert.equal((await tool(paul.secret, "write_desk", { title: "stopping", status: "s", body: "B" })).refused, false);
+    assert.equal((await tool(paul.secret, "write_desk", { title: "stopping", status: "s" })).refused, false);
     const spawns = readLog(unexpected);
     const logged = said.length;
     assert.deepEqual(await tool(paul.secret, "stop_session", {}), { text: "stopping; your desk stays", refused: false, error: null });
@@ -512,7 +524,7 @@ describe("restart_session and stop_session", () => {
   it("stop_session refuses without a desk written this turn, and a second ending", async () => {
     paul = await seatUp(WORKER);
     assert.deepEqual(await tool(paul.secret, "stop_session", {}), { text: "write your desk first (write_desk)", refused: true, error: null });
-    assert.equal((await tool(paul.secret, "write_desk", { title: "t", status: "s", body: "B" })).refused, false);
+    assert.equal((await tool(paul.secret, "write_desk", { title: "t", status: "s" })).refused, false);
     assert.equal((await tool(paul.secret, "stop_session", {})).refused, false);
     const again = await tool(paul.secret, "restart_session", {});
     assert.ok(again.refused && (again.text === "already ending" || again.error !== null || (await call(paul.secret, "tools/list")).status === 401));
@@ -1381,7 +1393,7 @@ describe("the hard-rule delta", () => {
     await settle();
     assert.deepEqual(readIn(paul.log), ["<user>stay awake</user>"]);
     assert.notEqual(deskHeader(instance, WORKER).rules, set);
-    assert.equal((await tool(paul.secret, "write_desk", { title: "leaving on a restart", status: "s", body: "B" })).refused, false);
+    assert.equal((await tool(paul.secret, "write_desk", { title: "leaving on a restart", status: "s" })).refused, false);
     const successor = await spawnedBy(WORKER, async () => {
       const answered = await tool(paul.secret, "restart_session", {});
       assert.equal(answered.refused, false, answered.text);
@@ -1553,7 +1565,8 @@ describe("retire", () => {
   it("retire files a stopped Worker's desk under archive/, the seat leaves the room and the page, and the name is free again", async () => {
     const ann = await spawnedBy(OTHER, () => tool(superman.secret, "hire", { name: OTHER }));
     assert.equal(ann.result.refused, false, ann.result.text);
-    const written = await tool(ann.secret, "write_desk", { title: "Ann by the stand-in", status: "done", body: "## State\nround done\n" });
+    fs.appendFileSync(deskFile(instance, OTHER), "## State\nround done\n");
+    const written = await tool(ann.secret, "write_desk", { title: "Ann by the stand-in", status: "done" });
     assert.equal(written.refused, false, written.text);
     // A row on the panel, so there is a conversation to file with the desk.
     const typed = await page("POST", `/sessions/${OTHER}/message`, { text: "well done" });

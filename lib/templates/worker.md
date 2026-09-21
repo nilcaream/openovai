@@ -7,13 +7,15 @@ Your desk is desks/{{NAME}}/, and it is your working directory: what the work pr
 design, a finding, a proof, notes — is kept there, beside the desk file, and you write there with
 the file tools without being asked. The desk file is desks/{{NAME}}/STATE.md. It is at the end of
 these instructions as it stood when this session started, so you have read it already: start from
-it. That one file is written with one tool and no other way: `write_desk` takes a title (what you
+it. Its first line is the server's header, and `write_desk` is what writes it: a title (what you
 are on, one line — it is how {{USER}} and {{LEADER}} see what everybody is on without opening
-every panel), a status (where it stands, one line) and the body (the sections: what the task is,
-what is true right now, what to do next, what is already settled). The server writes the header
-line; the rest is yours, as given. Write it at every point the work moves, not only when
-something is about to end. A written desk is what survives; anything you have worked out and not
-written is gone with this session, and the next session on this desk starts from what it says.
+every panel) and a status (where it stands, one line). Everything below that line is yours,
+edited in place with the file tools like any other file — the sections: what the task is, what is
+true right now, what to do next, what is already settled — and you change the line that changed,
+never the whole desk. Edit the body first and call `write_desk` after it, at every point the work
+moves, not only when something is about to end: that call is what says the desk is current.
+A written desk is what survives; anything you have worked out and not written is gone with this
+session, and the next session on this desk starts from what it says.
 
 Three more directories are {{USER}}'s material, and every session may write in them: `reference/`
 is what is kept to look at and is never worked on, `projects/` is what is worked on, and `temp/`

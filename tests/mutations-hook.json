@@ -1,5 +1,27 @@
 [
   {
+    "name": "the update names as stale the desk-file rule the settings do not hold, and not the one they do",
+    "catches": "names the desk-file deny rule an earlier release wrote as stale, and removes none",
+    "edits": [
+      {
+        "file": "lib/seed.mjs",
+        "from": "  return STALE_DENY_RULES.filter((rule) => deny.includes(rule)).map((rule) => `deny ${rule}`);",
+        "to": "  return STALE_DENY_RULES.filter((rule) => !deny.includes(rule)).map((rule) => `deny ${rule}`);"
+      }
+    ]
+  },
+  {
+    "name": "the update reads stale rules out of settings it cannot read",
+    "catches": "names the desk-file deny rule an earlier release wrote as stale, and removes none",
+    "edits": [
+      {
+        "file": "lib/seed.mjs",
+        "from": "  if (settings === null) {\n    return [];\n  }\n  const deny = Array.isArray(settings.permissions?.deny) ? settings.permissions.deny.map(String) : [];",
+        "to": "  const deny = Array.isArray(settings?.permissions?.deny) ? settings.permissions.deny.map(String) : STALE_DENY_RULES;"
+      }
+    ]
+  },
+  {
     "name": "the hook stops holding a side against the refusals, so a compound with git push in it is let through",
     "catches": "answers nothing for a side that is refused by rule",
     "edits": [

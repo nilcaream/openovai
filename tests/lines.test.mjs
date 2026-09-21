@@ -49,7 +49,7 @@ const CALLS = [
   ["mcp__openovai__recall", { store: "knowledge", id: "k-12" }],
   ["mcp__openovai__recall", { store: "memory" }],
   ["mcp__openovai__remember", { store: "knowledge", text: "The suite runs without a browser." }],
-  ["mcp__openovai__write_desk", { title: "t", status: "s", body: "b" }],
+  ["mcp__openovai__write_desk", { title: "t", status: "s" }],
   ["mcp__openovai__restart_session", {}],
   ["mcp__openovai__stop_session", {}],
   ["mcp__openovai__park", { name: "Paul" }],
