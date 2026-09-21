@@ -269,8 +269,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "export function tell(seat, frame, { ahead = false, ask = null, written = nothing } = {}) {\n  if (!isFrame(frame)) {",
-        "to": "export function tell(seat, frame, { ahead = false, ask = null, written = nothing } = {}) {\n  if (false) {"
+        "from": "export function tell(seat, frame, { ask = null, written = nothing } = {}) {\n  if (!isFrame(frame)) {",
+        "to": "export function tell(seat, frame, { ask = null, written = nothing } = {}) {\n  if (false) {"
       }
     ]
   },
@@ -280,30 +280,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": ".map((frame) => frame.text).join(\"\\n\");",
-        "to": ".map((frame) => frame.kind).join(\"\\n\");"
-      }
-    ]
-  },
-  {
-    "name": "the next frame is written without waiting for the result",
-    "catches": "writes one frame per turn, the next only once the last has answered",
-    "edits": [
-      {
-        "file": "lib/chat/session.mjs",
-        "from": "  if (record.turn !== null) {\n    log(\"unwritten\", record.seat, null, `turn open since ${new Date(record.turnBegan).toISOString()}, ${record.queue.length} waiting`);\n    return;\n  }\n",
-        "to": ""
-      }
-    ]
-  },
-  {
-    "name": "ahead is behind",
-    "catches": "puts a frame told ahead in front of what is waiting, behind the turn under way",
-    "edits": [
-      {
-        "file": "lib/chat/session.mjs",
-        "from": "      record.queue.splice(record.queue.findLastIndex((one) => one.ahead) + 1, 0, turn);",
-        "to": "      record.queue.push(turn);"
+        "from": "content: record.turn.frame.text }",
+        "to": "content: record.turn.frame.kind }"
       }
     ]
   },
@@ -702,8 +680,8 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "  const told = deliver(instance, seat, userFrame(text), { ahead: true, written: () => delivered(root, seat, index) });",
-        "to": "  const told = deliver(instance, seat, messageFrame(\"User\", text), { ahead: true, written: () => delivered(root, seat, index) });"
+        "from": "  const told = deliver(instance, seat, userFrame(text), { written: () => delivered(root, seat, index) });",
+        "to": "  const told = deliver(instance, seat, messageFrame(\"User\", text), { written: () => delivered(root, seat, index) });"
       }
     ]
   },
@@ -790,8 +768,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "  const told = tell(seat, frame, { ahead, ask, written });",
-        "to": "  // recordOf(seat)?.child.stdin.write(frame.text);\n  const told = tell(seat, frame, { ahead, ask, written });"
+        "from": "  const told = tell(seat, frame, { ask, written });",
+        "to": "  // recordOf(seat)?.child.stdin.write(frame.text);\n  const told = tell(seat, frame, { ask, written });"
       }
     ]
   },
@@ -889,8 +867,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "  record.turn.written();\n  if (prefix.length > 0) {\n    record.rules = prefix.at(-1).version;\n    writeDeskHeader(record.root, record.seat, { rules: record.rules });\n  }\n  record.changed(record);\n}",
-        "to": "  record.turn.written();\n  if (prefix.length > 0) {\n    record.rules = prefix.at(-1).version;\n    writeDeskHeader(record.root, record.seat, { rules: record.rules });\n  }\n}"
+        "from": "    writeDeskHeader(record.root, record.seat, { rules: record.rules });\n  }\n  record.changed(record);\n}",
+        "to": "    writeDeskHeader(record.root, record.seat, { rules: record.rules });\n  }\n}"
       }
     ]
   },
@@ -1098,8 +1076,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, anyAsking, applyEvent, composersEnabled, delivery, dot, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title } from \"./panels.mjs\";",
-        "to": "  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, anyAsking, applyEvent, composersEnabled, delivery, dot, fresh, head, keyAction, noticed, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title } from \"./panels.mjs\";\n  const place = (seats, leader) => ({ left: seats.filter((s) => s !== leader), mid: leader, right: [] });"
+        "from": "  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title } from \"./panels.mjs\";",
+        "to": "  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title } from \"./panels.mjs\";\n  const place = (seats, leader) => ({ left: seats.filter((s) => s !== leader), mid: leader, right: [] });"
       }
     ]
   },
@@ -1362,8 +1340,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "    const turn = { frame, resolve, ahead, ask, written, order: arrival(), at: record.clock() };",
-        "to": "    const turn = { frame, resolve, ahead, ask, written, order: arrival(), at: record.clock() };\n    written();"
+        "from": "    const turn = { frame, resolve, ask, written, order: arrival(), at: record.clock() };",
+        "to": "    const turn = { frame, resolve, ask, written, order: arrival(), at: record.clock() };\n    written();"
       }
     ]
   },
@@ -1373,8 +1351,8 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "  const told = deliver(instance, seat, userFrame(text), { ahead: true, written: () => delivered(root, seat, index) });",
-        "to": "  delivered(root, seat, index);\n  const told = deliver(instance, seat, userFrame(text), { ahead: true });"
+        "from": "  const told = deliver(instance, seat, userFrame(text), { written: () => delivered(root, seat, index) });",
+        "to": "  delivered(root, seat, index);\n  const told = deliver(instance, seat, userFrame(text));"
       }
     ]
   },
@@ -1384,8 +1362,8 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "  const told = deliver(instance, seat, userFrame(text), { ahead: true, written: () => delivered(root, seat, index) });",
-        "to": "  const told = deliver(instance, seat, userFrame(text), { ahead: true });"
+        "from": "  const told = deliver(instance, seat, userFrame(text), { written: () => delivered(root, seat, index) });",
+        "to": "  const told = deliver(instance, seat, userFrame(text));"
       }
     ]
   },
@@ -1406,8 +1384,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "  const told = tell(seat, frame, { ahead, ask, written });",
-        "to": "  const told = tell(seat, frame, { ahead, ask });"
+        "from": "  const told = tell(seat, frame, { ask, written });",
+        "to": "  const told = tell(seat, frame, { ask });"
       }
     ]
   },
@@ -1417,7 +1395,7 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "  log(\"queued\", seat, null, `${frame.kind} #${order}${ahead ? \" ahead\" : \"\"}, ${record.queue.length} waiting`);\n",
+        "from": "  log(\"queued\", seat, null, `${frame.kind} #${order}, ${record.queue.length} waiting`);\n",
         "to": ""
       }
     ]
@@ -1428,8 +1406,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "  log(\"wrote\", record.seat, null, `${record.turn.frame.kind} #${record.turn.order}, ${record.queue.length} waiting`);",
-        "to": "  log(\"wrote\", record.seat, null, `${record.turn.frame.kind} #${record.turn.order}, ${record.queue.length + 1} waiting`);"
+        "from": "  log(\"wrote\", record.seat, null, `${describe(record.turn)}, ${record.queue.length} waiting`);",
+        "to": "  log(\"wrote\", record.seat, null, `${describe(record.turn)}, ${record.queue.length + 1} waiting`);"
       }
     ]
   },
@@ -1461,7 +1439,7 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "  log(\"interrupt\", seat, null, `written, turn ${turn.frame.kind} #${turn.order}`);\n",
+        "from": "  log(\"interrupt\", seat, null, `written, turn ${describe(turn)}`);\n",
         "to": ""
       }
     ]
@@ -1490,7 +1468,7 @@
   },
   {
     "name": "the line after a stop says nothing waits, whatever does",
-    "catches": "a stop says on the panel how many wait and what goes in next, with when it was told",
+    "catches": "a stop says on the panel how many wait and what goes in, as one, with when each was told",
     "edits": [
       {
         "file": "lib/chat/server.mjs",
@@ -1501,7 +1479,7 @@
   },
   {
     "name": "the queue is read only after the next frame has gone in",
-    "catches": "a stop says on the panel how many wait and what goes in next, with when it was told",
+    "catches": "a stop says on the panel how many wait and what goes in, as one, with when each was told",
     "edits": [
       {
         "file": "lib/chat/server.mjs",
@@ -1512,7 +1490,7 @@
   },
   {
     "name": "a message frame forgets who it is from",
-    "catches": "a stop says on the panel how many wait and what goes in next, with when it was told",
+    "catches": "a stop says on the panel how many wait and what goes in, as one, with when each was told",
     "edits": [
       {
         "file": "lib/chat/frames.mjs",
@@ -1523,12 +1501,12 @@
   },
   {
     "name": "a turn is queued without the moment it was told",
-    "catches": "a stop says on the panel how many wait and what goes in next, with when it was told",
+    "catches": "a stop says on the panel how many wait and what goes in, as one, with when each was told",
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "    const turn = { frame, resolve, ahead, ask, written, order: arrival(), at: record.clock() };",
-        "to": "    const turn = { frame, resolve, ahead, ask, written, order: arrival() };"
+        "from": "    const turn = { frame, resolve, ask, written, order: arrival(), at: record.clock() };",
+        "to": "    const turn = { frame, resolve, ask, written, order: arrival() };"
       }
     ]
   },
@@ -1622,28 +1600,6 @@
         "file": "lib/chat/lifecycle.mjs",
         "from": "    log.called(seat, { id: call.id, name: call.name, what: named(call.name, call.input) });",
         "to": "    log.log(\"called\", seat, call.id, named(call.name, call.input));"
-      }
-    ]
-  },
-  {
-    "name": "a frame told ahead goes in front of the one told ahead before it",
-    "catches": "keeps two frames told ahead in the order they were told, both in front of what was waiting",
-    "edits": [
-      {
-        "file": "lib/chat/session.mjs",
-        "from": "      record.queue.splice(record.queue.findLastIndex((one) => one.ahead) + 1, 0, turn);",
-        "to": "      record.queue.unshift(turn);"
-      }
-    ]
-  },
-  {
-    "name": "what the User types waits its turn behind the messages",
-    "catches": "puts what the User types ahead of a message waiting on the seat, in the order typed",
-    "edits": [
-      {
-        "file": "lib/chat/server.mjs",
-        "from": "  const told = deliver(instance, seat, userFrame(text), { ahead: true, written: () => delivered(root, seat, index) });",
-        "to": "  const told = deliver(instance, seat, userFrame(text), { written: () => delivered(root, seat, index) });"
       }
     ]
   },
@@ -1754,6 +1710,105 @@
         "file": "lib/chat/server.mjs",
         "from": "text: told.refused === \"no process\" ? `${seat} has no process` : told.refused, failed: true",
         "to": "text: `${seat} has no process`, failed: true"
+      }
+    ]
+  },
+  {
+    "name": "what waited behind a turn goes in one at a time",
+    "catches": "writes a frame told to an idle seat as a queue of one, what waited behind it as one queue, and answers every one of them with the one reply",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "  record.turn = queueOf(passing);",
+        "to": "  record.turn = queueOf([passing[0]]);\n  record.queue = passing.slice(1);"
+      }
+    ]
+  },
+  {
+    "name": "a queue answers only the last turn in it",
+    "catches": "writes a frame told to an idle seat as a queue of one, what waited behind it as one queue, and answers every one of them with the one reply",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "    resolve: (reply) => turns.forEach((turn) => turn.resolve(reply)),",
+        "to": "    resolve: (reply) => turns.at(-1).resolve(reply),"
+      }
+    ]
+  },
+  {
+    "name": "the server's events are put on top when several go in",
+    "catches": "keeps the batch in arrival order, every kind alike, a server event in its place among the rest",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "    frame: queueFrame(turns.map((turn) => ({ frame: turn.frame, at: turn.at }))),",
+        "to": "    frame: queueFrame([...turns.filter((turn) => turn.frame.kind === \"server-event\"), ...turns.filter((turn) => turn.frame.kind !== \"server-event\")].map((turn) => ({ frame: turn.frame, at: turn.at }))),"
+      }
+    ]
+  },
+  {
+    "name": "the User's line jumps the queue",
+    "catches": "puts what the User types into the batch where it arrived, behind a message told before it",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "    record.queue.push(turn);",
+        "to": "    if (frame.kind === \"user\") record.queue.unshift(turn); else record.queue.push(turn);"
+      }
+    ]
+  },
+  {
+    "name": "the log numbers a queue by its first alone",
+    "catches": "says in the log that several went in as one queue, numbered by the first and the last of them, each named",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "`#${turn.order}..#${turn.last}`",
+        "to": "`#${turn.order}`"
+      }
+    ]
+  },
+  {
+    "name": "what waits is named with the server's events first, not as it goes in",
+    "catches": "a stop says on the panel how many wait and what goes in, as one, with when each was told",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "  return queue.map((turn) =>",
+        "to": "  return [...queue.filter((turn) => turn.frame.kind === \"server-event\"), ...queue.filter((turn) => turn.frame.kind !== \"server-event\")].map((turn) =>"
+      }
+    ]
+  },
+  {
+    "name": "the stop line names only the first of several",
+    "catches": "a stop says on the panel how many wait and what goes in, as one, with when each was told",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "  return waits.length === 1 ? `stopped; 1 waiting, next: ${named[0]}` : `stopped; ${waits.length} waiting, going in as one: ${named.join(\", \")}`;",
+        "to": "  return `stopped; ${waits.length} waiting, next: ${named[0]}`;"
+      }
+    ]
+  },
+  {
+    "name": "the next frame is written without waiting for the result",
+    "catches": "writes a frame told to an idle seat as a queue of one, what waited behind it as one queue, and answers every one of them with the one reply",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "  if (record.turn !== null) {\n    log(\"unwritten\", record.seat, null, `turn open since ${new Date(record.turnBegan).toISOString()}, ${record.queue.length} waiting`);\n    return;\n  }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a frame alone goes in bare, without the envelope",
+    "catches": "writes a frame told to an idle seat as a queue of one, what waited behind it as one queue, and answers every one of them with the one reply",
+    "edits": [
+      {
+        "file": "lib/chat/frames.mjs",
+        "from": "  const inner = items.map(",
+        "to": "  if (items.length === 1) return items[0].frame;\n  const inner = items.map("
       }
     ]
   }

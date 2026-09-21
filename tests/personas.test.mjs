@@ -90,6 +90,36 @@ describe("what both personas are held to", () => {
     assert.doesNotMatch(leader(), /\b(opus|sonnet|haiku)\b/i);
     assert.doesNotMatch(worker(), /\b(opus|sonnet|haiku)\b/i);
   });
+
+  // The one placement rule, in one sentence, the same for both: everything is one queue, its
+  // children in arrival order, also one alone, the hard-rules update among them — and the shape
+  // shown once, as the reader will see it: a bare `<queue>`, children indented and stamped
+  // `at="HH:MM"`, the Leader's with the two events only the Leader is told.
+  it("tells both that everything they receive is one queue in arrival order, and nothing else places a frame", () => {
+    const rule = /Everything you receive is one `<queue>` element whose children are those frames as they arrived, each with `at="HH:MM"` and ordered by it — always, also when there is exactly one, the hard-rules update as an ordinary child at its time, and no other placement rule exists:\n\n```/;
+    assert.match(leader().replace(/(\S)\n(\S)/g, "$1 $2"), rule);
+    assert.match(worker().replace(/(\S)\n(\S)/g, "$1 $2"), rule);
+    assert.ok(
+      leader().includes(
+        [
+          "<queue>",
+          '  <message from="…" at="17:41">…</message>',
+          '  <server-event type="idle" who="…" minutes="10" at="17:42"/>',
+          '  <user at="17:44">…</user>',
+          '  <server-event type="permission" who="…" minutes="3" at="17:45">Bash: env …</server-event>',
+          "</queue>",
+        ].join("\n"),
+      ),
+    );
+    assert.ok(
+      worker().includes(
+        ["<queue>", '  <message from="…" at="17:41">…</message>', '  <server-event type="hard-rules" set="…" at="17:42">…</server-event>', '  <user at="17:44">…</user>', "</queue>"].join("\n"),
+      ),
+    );
+    for (const text of [leader(), worker()]) {
+      assert.doesNotMatch(text, /in front of a turn|on top of|come first|events first|<queue n=/);
+    }
+  });
 });
 
 describe("what the Leader is told", () => {
@@ -242,7 +272,7 @@ describe("what the Leader is told", () => {
   });
 
   it("tells the Leader to act when a Worker has waited long on a button", () => {
-    assert.match(leader(), /<server-event type="permission" who="…" waiting="…">/);
+    assert.match(leader(), /<server-event type="permission" who="…" minutes="…">/);
     assert.match(leader(), new RegExp(`Tell ${USER} in your next reply that\\s+somebody is waiting on their panel, or give the work to somebody else`));
   });
 });

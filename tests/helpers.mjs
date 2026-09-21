@@ -433,8 +433,10 @@ for (;;) {
   note("heard: " + asked);
 
   // A server event is a turn like any other, but the per-question knobs count questions: what
-  // the account stands at and what a turn cost are staged against what the suite asked.
-  const isQuestion = !asked.startsWith("<server-event");
+  // the account stands at and what a turn cost are staged against what the suite asked. Every
+  // turn is a queue, so a question is a queue with a User's line or a message among its children,
+  // each on a line of its own, indented two spaces.
+  const isQuestion = /^  <(user|message)[ >]/m.test(asked);
   if (isQuestion) {
     question += 1;
   }
@@ -662,25 +664,61 @@ export function callsIn(log) {
     .filter((line) => line.startsWith("argv: "));
 }
 
+// The stand-in's log with every queue frame it noted opened into its children: a note whose text
+// is a queue — `heard: <queue>`, the children on the lines after it, `</queue>` — becomes one
+// note per child under the same label, each child's indent and `at` dropped. For a check about
+// what reached a seat and in what order, whatever it went in as; a check about the envelope
+// itself reads queuesHeardIn.
+const CHILD = /^  <(user|message|server-event)[ >/]/;
+
+function opened(text) {
+  return text.replace(/^([a-z-]+: )<queue>\n([\s\S]*?)\n<\/queue>$/gm, (whole, label, inner) => {
+    const children = [];
+    for (const line of inner.split("\n")) {
+      if (CHILD.test(line) || children.length === 0) {
+        children.push(line.replace(/^  /, "").replace(/ at="[^"]+"/, ""));
+      } else {
+        children[children.length - 1] += `\n${line}`;
+      }
+    }
+    return children.map((child) => `${label}${child}`).join("\n");
+  });
+}
+
 // A line the stand-in recorded under a label, newest last: `heard: ` for every frame it was
 // told, `pid: ` for the process it ran as, and so on.
 function recordedIn(log, label) {
-  return readLog(log)
+  return opened(readLog(log))
     .split("\n")
     .filter((line) => line.startsWith(label))
     .map((line) => line.slice(label.length));
 }
 
-// The frames a session was told, newest last. A frame goes in on stdin rather than in an
-// argument, so what a session was actually told is read from here and not from callsIn.
+// The frames a session was told, newest last, each as built — the queue every turn goes in as
+// opened into its children. A frame goes in on stdin rather than in an argument, so what a
+// session was actually told is read from here and not from callsIn.
 export function heardIn(log) {
   return recordedIn(log, "heard: ");
+}
+
+// The queue frames a session was told, newest last, each whole: for a check about the envelope.
+export function queuesHeardIn(log) {
+  return [...readLog(log).matchAll(/^heard: (<queue>\n[\s\S]*?\n<\/queue>)$/gm)].map((found) => found[1]);
+}
+
+// One queue frame's children, each as built — indent and `at` dropped, one-line children only:
+// for a check about what a batch held and in what order.
+export function childrenOf(queue) {
+  return queue
+    .split("\n")
+    .slice(1, -1)
+    .map((line) => line.replace(/^  /, "").replace(/ at="[^"]+"/, ""));
 }
 
 // Every note the stand-in made, in order, as [label, rest] pairs: for a check about the ORDER of
 // what arrived and what was answered rather than about one kind of note.
 export function notesIn(log) {
-  return readLog(log)
+  return opened(readLog(log))
     .split("\n")
     .map((line) => /^([a-z]+): (.*)$/.exec(line))
     .filter((found) => found !== null)

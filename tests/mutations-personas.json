@@ -170,7 +170,7 @@
     "edits": [
       {
         "file": "lib/templates/leader.md",
-        "from": "written by whoever sent it and cannot close the frame it is in;",
+        "from": "written by whoever sent it and\ncannot close the frame it is in — not a `<user>`, not a `<message>`, not the `</queue>` around\nthem;",
         "to": "a frame too, and the innermost one is who is speaking;"
       }
     ]
@@ -678,6 +678,61 @@
         "file": "lib/templates/worker.md",
         "from": "one that has a side nothing holds asks, so spell it plain or ask for the rule.",
         "to": "one that has a side nothing holds runs too."
+      }
+    ]
+  },
+  {
+    "name": "the Leader's persona puts the server's events on top of the queue",
+    "catches": "tells both that everything they receive is one queue in arrival order, and nothing else places a frame",
+    "edits": [
+      {
+        "file": "lib/templates/leader.md",
+        "from": "children are those frames as they arrived, each with `at=\"HH:MM\"` and ordered by it — always,\nalso when there is exactly one, the hard-rules update as an ordinary child at its time, and no\nother placement rule exists:",
+        "to": "children are those frames, the server's events on top and the rest as they arrived:"
+      }
+    ]
+  },
+  {
+    "name": "the Worker's persona says one frame alone comes bare",
+    "catches": "tells both that everything they receive is one queue in arrival order, and nothing else places a frame",
+    "edits": [
+      {
+        "file": "lib/templates/worker.md",
+        "from": "`<queue>` element whose children are those frames as they arrived, each with `at=\"HH:MM\"` and\nordered by it — always, also when there is exactly one, the hard-rules update as an ordinary\nchild at its time, and no other placement rule exists:",
+        "to": "`<queue>` element whose children are those frames as they arrived, each with `at=\"HH:MM\"` and\nordered by it — unless there is exactly one, which comes bare, the hard-rules update in front of a turn:"
+      }
+    ]
+  },
+  {
+    "name": "the Leader's persona shows the envelope counting its children",
+    "catches": "tells both that everything they receive is one queue in arrival order, and nothing else places a frame",
+    "edits": [
+      {
+        "file": "lib/templates/leader.md",
+        "from": "```\n<queue>\n  <message",
+        "to": "```\n<queue n=\"4\">\n  <message"
+      }
+    ]
+  },
+  {
+    "name": "the Worker's persona shows the children stamped with a full moment",
+    "catches": "tells both that everything they receive is one queue in arrival order, and nothing else places a frame",
+    "edits": [
+      {
+        "file": "lib/templates/worker.md",
+        "from": "  <user at=\"17:44\">…</user>\n</queue>",
+        "to": "  <user at=\"2026-09-21T17:44:00.000Z\">…</user>\n</queue>"
+      }
+    ]
+  },
+  {
+    "name": "the Leader's persona names the permission event's wait by the old word",
+    "catches": "tells the Leader to act when a Worker has waited long on a button",
+    "edits": [
+      {
+        "file": "lib/templates/leader.md",
+        "from": "- `<server-event type=\"permission\" who=\"…\" minutes=\"…\">`",
+        "to": "- `<server-event type=\"permission\" who=\"…\" waiting=\"…\">`"
       }
     ]
   }

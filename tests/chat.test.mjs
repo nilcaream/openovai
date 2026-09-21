@@ -15,7 +15,7 @@ import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
 import { SERVER, panelFile, read as panel } from "../lib/chat/conversation.mjs";
-import { messageFrame, serverEvent, userFrame } from "../lib/chat/frames.mjs";
+import { messageFrame, rulesUpdateFrame, serverEvent, userFrame } from "../lib/chat/frames.mjs";
 import { listening } from "../lib/chat/runtime.mjs";
 import { pageSecret } from "../lib/chat/secrets.mjs";
 import { hire } from "../lib/desks.mjs";
@@ -25,7 +25,7 @@ import { sink } from "../lib/chat/log.mjs";
 import { LEADER as LEADS, SECRET_IN_ENVIRONMENT, WORKER as WORKS, end, endEvery, interrupt, running, runningSeats, start, tell } from "../lib/chat/session.mjs";
 import { BUILT_IN } from "../lib/plugins.mjs";
 import { CONFIG_FILE } from "../lib/seed.mjs";
-import { alive, callsIn, get as fetchPlain, heardIn, installed, notesIn, post as postPlain, remove, repo, sansMoment, scratch, secretsIn, startChat, stopChat, waitFor, waitForAddress, writeStandIn } from "./helpers.mjs";
+import { alive, callsIn, childrenOf, get as fetchPlain, heardIn, installed, notesIn, post as postPlain, queuesHeardIn, readLog, remove, repo, sansMoment, scratch, secretsIn, startChat, stopChat, waitFor, waitForAddress, writeStandIn } from "./helpers.mjs";
 
 const USER = "Mike";
 const LEADER = "Superman";
@@ -564,54 +564,72 @@ describe("telling a seat", () => {
     assert.equal(heardIn(paul.log).at(-1), "<user>hello</user>");
   });
 
-  it("writes one frame per turn, the next only once the last has answered", async () => {
-    const asked = [tell(WORKER, userFrame("one")), tell(WORKER, userFrame("two")), tell(WORKER, userFrame("three"))];
-    await Promise.all(asked.map((one) => one.answered));
-    const notes = notesIn(paul.log).filter(([label, text]) => ["read", "answered"].includes(label) && /<user>(one|two|three)<\/user>/.test(text));
-    assert.deepEqual(notes, [
-      ["read", "<user>one</user>"],
-      ["answered", "<user>one</user>"],
-      ["read", "<user>two</user>"],
-      ["answered", "<user>two</user>"],
-      ["read", "<user>three</user>"],
-      ["answered", "<user>three</user>"],
+  // Every write is one queue frame: the frame told to an idle seat goes in as a queue of one,
+  // and everything that arrives while that turn is under way goes in together the moment it
+  // ends — one write, one queue frame around every frame that waited, one answer for all of
+  // them. The envelope is several lines, so it is read from the stand-in's log whole.
+  it("writes a frame told to an idle seat as a queue of one, what waited behind it as one queue, and answers every one of them with the one reply", async () => {
+    const before_ = queuesHeardIn(paul.log).length;
+    const asked = [tell(WORKER, userFrame("one")), tell(WORKER, userFrame("two")), tell(WORKER, messageFrame(LEADER, "three"))];
+    assert.deepEqual(await asked[2].answered, { text: "a reply", failed: false, silent: false });
+    // The two that went in with it were answered by the same reply, at the same moment: a turn
+    // in a queue that is never answered would hang here, so it is given a moment and no more.
+    const unanswered = new Promise((resolve) => setTimeout(() => resolve("unanswered"), 300));
+    const replies = await Promise.all(asked.slice(0, 2).map((one) => Promise.race([one.answered, unanswered])));
+    assert.deepEqual(replies, [
+      { text: "a reply", failed: false, silent: false },
+      { text: "a reply", failed: false, silent: false },
+    ]);
+    const queues = queuesHeardIn(paul.log).slice(before_);
+    assert.equal(queues.length, 2, `${queues.length} queue frames went in`);
+    assert.match(queues[0], /^<queue>\n  <user at="\d{2}:\d{2}">one<\/user>\n<\/queue>$/);
+    const lines = queues[1].split("\n");
+    assert.equal(lines[0], "<queue>");
+    assert.match(lines[1], /^  <user at="\d{2}:\d{2}">two<\/user>$/);
+    assert.match(lines[2], new RegExp(`^  <message from="${LEADER}" at="\\d{2}:\\d{2}">three</message>$`));
+    assert.equal(lines[3], "</queue>");
+    assert.equal(lines.length, 4);
+    // Nothing went in twice, and nothing went in bare: every frame heard is in one of the two.
+    assert.deepEqual(heardIn(paul.log).slice(-3), ["<user>one</user>", "<user>two</user>", `<message from="${LEADER}">three</message>`]);
+    assert.equal(readLog(paul.log).split("\n").filter((line) => line.startsWith("heard: <") && !line.startsWith("heard: <queue>")).length, 0, "a frame went in bare");
+  });
+
+  // Nothing jumps the queue any more: a frame told later goes in behind what was told before it,
+  // whatever it is — a server event, a hard-rules update among them, takes its place among the
+  // rest like any other item. The seat reads all of it at once and decides for itself.
+  it("keeps the batch in arrival order, every kind alike, a server event in its place among the rest", async () => {
+    const before_ = queuesHeardIn(paul.log).length;
+    const busy = tell(WORKER, userFrame("busy"));
+    const message = tell(WORKER, messageFrame(LEADER, "from the Leader"));
+    const event = tell(WORKER, serverEvent("overheard", { who: OTHER }));
+    const typed = tell(WORKER, userFrame("typed"));
+    const rules = tell(WORKER, rulesUpdateFrame("m9", "rule 2 changed"));
+    const later = tell(WORKER, serverEvent("idle", { who: OTHER, minutes: "10" }));
+    await Promise.all([busy.answered, message.answered, event.answered, typed.answered, rules.answered, later.answered]);
+    const queues = queuesHeardIn(paul.log).slice(before_);
+    assert.equal(queues.length, 2, `${queues.length} queue frames went in`);
+    assert.deepEqual(childrenOf(queues[1]), [
+      `<message from="${LEADER}">from the Leader</message>`,
+      `<server-event type="overheard" who="${OTHER}"/>`,
+      "<user>typed</user>",
+      '<server-event type="hard-rules" set="m9">rule 2 changed</server-event>',
+      `<server-event type="idle" who="${OTHER}" minutes="10"/>`,
     ]);
   });
 
-  it("puts a frame told ahead in front of what is waiting, behind the turn under way", async () => {
-    const first = tell(WORKER, userFrame("first"));
-    const later = tell(WORKER, userFrame("later"));
-    const urgent = tell(WORKER, userFrame("urgent"), { ahead: true });
-    await Promise.all([first.answered, later.answered, urgent.answered]);
-    const order = heardIn(paul.log).filter((text) => /<user>(first|later|urgent)<\/user>/.test(text));
-    assert.deepEqual(order, ["<user>first</user>", "<user>urgent</user>", "<user>later</user>"]);
-  });
-
-  it("keeps two frames told ahead in the order they were told, both in front of what was waiting", async () => {
-    const from = heardIn(paul.log).length;
-    const first = tell(WORKER, userFrame("first"));
-    const later = tell(WORKER, userFrame("later"));
-    const one = tell(WORKER, userFrame("ahead one"), { ahead: true });
-    const two = tell(WORKER, userFrame("ahead two"), { ahead: true });
-    await Promise.all([first.answered, later.answered, one.answered, two.answered]);
-    const order = heardIn(paul.log).slice(from).filter((text) => /<user>(first|later|ahead one|ahead two)<\/user>/.test(text));
-    assert.deepEqual(order, ["<user>first</user>", "<user>ahead one</user>", "<user>ahead two</user>", "<user>later</user>"]);
-  });
-
-  // The User steers wherever they type: a line typed onto a panel goes in front of the messages
-  // and events waiting on that seat, and two lines typed keep their order.
-  it("puts what the User types ahead of a message waiting on the seat, in the order typed", async () => {
+  // The User's line goes in with what waits, where it arrived: a seat with a backlog reads the
+  // User's line in the same write as the backlog, never after working through it — and never
+  // ahead of a message told before it.
+  it("puts what the User types into the batch where it arrived, behind a message told before it", async () => {
+    const before_ = queuesHeardIn(paul.log).length;
     const busy = tell(WORKER, userFrame("busy"));
     const message = tell(WORKER, messageFrame(LEADER, "from the Leader"));
     await page("POST", `/sessions/${WORKER}/message`, { text: "typed one" });
     await page("POST", `/sessions/${WORKER}/message`, { text: "typed two" });
     await Promise.all([busy.answered, message.answered]);
-    // Every turn answered before the next check, whichever went in last.
-    for (const text of ["typed one", "typed two"]) {
-      await waitFor(() => (notesIn(paul.log).some(([label, note]) => label === "answered" && note === `<user>${text}</user>`) ? true : null));
-    }
-    const order = heardIn(paul.log).filter((text) => /<user>(busy|typed one|typed two)<\/user>|<message from="/.test(text));
-    assert.deepEqual(order, ["<user>busy</user>", "<user>typed one</user>", "<user>typed two</user>", `<message from="${LEADER}">from the Leader</message>`]);
+    const queues = queuesHeardIn(paul.log).slice(before_);
+    assert.equal(queues.length, 2, `${queues.length} queue frames went in`);
+    assert.deepEqual(childrenOf(queues[1]), [`<message from="${LEADER}">from the Leader</message>`, "<user>typed one</user>", "<user>typed two</user>"]);
   });
 
   // `written` is the one word a caller gets between the queue and the answer: it fires as the
@@ -645,7 +663,19 @@ describe("telling a seat", () => {
     const order = /^queued (\S+) - user #(\d+), 1 waiting$/.exec(queued ?? "");
     assert.notEqual(order, null, lines.join("\n"));
     assert.equal(order[1], WORKER);
-    assert.ok(lines.includes(`wrote ${WORKER} - user #${order[2]}, 0 waiting`), lines.join("\n"));
+    assert.ok(lines.includes(`wrote ${WORKER} - queue x1 (#${order[2]}: user), 0 waiting`), lines.join("\n"));
+  });
+
+  // Every write is a queue, and the log says what went in it: how many, numbered by the first
+  // and the last of them, and what each was.
+  it("says in the log that several went in as one queue, numbered by the first and the last of them, each named", async () => {
+    const before_ = said.length;
+    const asked = [tell(WORKER, userFrame("one")), tell(WORKER, messageFrame(LEADER, "two")), tell(WORKER, serverEvent("overheard", { who: OTHER }))];
+    await Promise.all(asked.map((one) => one.answered));
+    const lines = said.slice(before_);
+    const queued = lines.filter((line) => line.startsWith("queued ")).map((line) => /^queued \S+ - \S+ #(\d+), \d+ waiting$/.exec(line)?.[1]);
+    assert.equal(queued.length, 3, lines.join("\n"));
+    assert.ok(lines.includes(`wrote ${WORKER} - queue x2 (#${queued[1]}..#${queued[2]}: message, overheard event), 0 waiting`), lines.join("\n"));
   });
 
   it("says in the log why a frame was not written: the turn open since when, and how many wait", async () => {
@@ -658,7 +688,7 @@ describe("telling a seat", () => {
     assert.equal(held.length, 1, lines.join("\n"));
     assert.match(held[0], new RegExp(`^unwritten ${WORKER} - turn open since \\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z, 1 waiting$`));
     const after_ = lines.slice(lines.indexOf(held[0]) + 1);
-    assert.ok(after_.some((line) => new RegExp(`^wrote ${WORKER} - user #\\d+, \\d+ waiting$`).test(line)), lines.join("\n"));
+    assert.ok(after_.some((line) => new RegExp(`^wrote ${WORKER} - queue x1 \\(#\\d+: user\\), \\d+ waiting$`).test(line)), lines.join("\n"));
   });
 
   it("says in the log that a seat on its way out took no new turn, and what it was ending as", async () => {
@@ -693,7 +723,7 @@ describe("telling a seat", () => {
       assert.deepEqual(await slow.answered, { interrupted: true, text: "interrupted" });
       const lines = said.slice(before_).filter((line) => line.startsWith("interrupt "));
       assert.equal(lines.length, 2, said.slice(before_).join("\n"));
-      assert.match(lines[0], new RegExp(`^interrupt ${OTHER} - written, turn user #\\d+$`));
+      assert.match(lines[0], new RegExp(`^interrupt ${OTHER} - written, turn queue x1 \\(#\\d+: user\\)$`));
       assert.match(lines[1], new RegExp(`^interrupt ${OTHER} - result in \\d+ ms$`));
     } finally {
       await endSeat(OTHER, 500);
@@ -1755,10 +1785,11 @@ describe("the stream", () => {
     await end(WORKER, 500);
   });
 
-  // A seat with a queue is busy again the moment it is stopped — with the next frame, which may be
-  // older than the press. The panel says so under the stop: how many wait and which goes in next —
-  // here the User's own line, typed after a colleague's message and ahead of it.
-  it("a stop says on the panel how many wait and what goes in next, with when it was told", async () => {
+  // A seat with a queue is busy again the moment it is stopped — with everything that waited, as
+  // one turn, which may be older than the press. The panel says so under the stop: how many wait
+  // and what they are, in the order they go in — a colleague's message, the User's own line and
+  // the server's event, as they arrived.
+  it("a stop says on the panel how many wait and what goes in, as one, with when each was told", async () => {
     const client = await listen();
     await until(client, (event) => event.name === "asking");
     paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_SLOW: "4000", OPENOVAI_STAND_IN_REPLY: "late" });
@@ -1768,15 +1799,20 @@ describe("the stream", () => {
       await until(client, (event) => event.name === "seat" && event.data.name === WORKER && event.data.busy === true);
       tell(WORKER, messageFrame(OTHER, "from a colleague"));
       await page("POST", `/sessions/${WORKER}/message`, { text: "and this" });
+      tell(WORKER, serverEvent("overheard", { who: OTHER }));
       const stopped = await page("POST", `/sessions/${WORKER}/stop`);
       assert.deepEqual(JSON.parse(stopped.body), { interrupted: true });
       const rows = panel(instance, WORKER).slice(from);
       const said_ = rows.findIndex((row) => row.from === SERVER && row.text.startsWith("stopped;"));
       assert.notEqual(said_, -1, JSON.stringify(rows.map((row) => row.text)));
-      assert.match(rows[said_].text, /^stopped; 2 waiting, next: line from the User \(\d{2}:\d{2}\)$/);
+      assert.match(
+        rows[said_].text,
+        new RegExp(`^stopped; 3 waiting, going in as one: message from ${OTHER} \\(\\d{2}:\\d{2}\\), line from the User \\(\\d{2}:\\d{2}\\), overheard event from the Server \\(\\d{2}:\\d{2}\\)$`),
+      );
       assert.ok(rows.slice(0, said_).some((row) => row.interrupted === true), "the stop's own row is not above the line about the queue");
-      // The User's line went in at the stop, so the seat is busy again; a second stop finds the
-      // colleague's message next, named by who it is from.
+      // All three went in at the stop as one turn, so the seat is busy again with nothing behind
+      // it; one more message told now is the whole queue, and a second stop names it alone.
+      tell(WORKER, messageFrame(OTHER, "one more"));
       const again = await page("POST", `/sessions/${WORKER}/stop`);
       assert.deepEqual(JSON.parse(again.body), { interrupted: true });
       const line = panel(instance, WORKER).slice(from + rows.length).find((row) => row.from === SERVER && row.text.startsWith("stopped;"));

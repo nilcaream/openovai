@@ -16,7 +16,7 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "    if (seat !== leaderOf(instance)) {\n      // A Worker with no process refuses the frame: nothing is written, so nothing is said.\n      return tell(seat, frame, { ahead, ask });\n    }\n",
+        "from": "    if (seat !== leaderOf(instance)) {\n      // A Worker with no process refuses the frame: nothing is written, so nothing is said.\n      return tell(seat, frame, { ask });\n    }\n",
         "to": ""
       }
     ]
@@ -209,7 +209,7 @@
   },
   {
     "name": "the context is read from the top-level usage, not the last request",
-    "catches": "fires once, ahead of what was queued, from the last request of the turn",
+    "catches": "fires once, behind what was queued, from the last request of the turn",
     "edits": [
       {
         "file": "lib/chat/session.mjs",
@@ -220,7 +220,7 @@
   },
   {
     "name": "context-full fires after every turn over the ceiling",
-    "catches": "fires once, ahead of what was queued, from the last request of the turn",
+    "catches": "fires once, behind what was queued, from the last request of the turn",
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
@@ -231,7 +231,7 @@
   },
   {
     "name": "the first reading of a window is kept, not the newest",
-    "catches": "keeps the newest reading per window from one turn, and stage one tells every seat ahead, nobody interrupted",
+    "catches": "keeps the newest reading per window from one turn, and stage one tells every seat, behind its queue, nobody interrupted",
     "edits": [
       {
         "file": "lib/chat/quota.mjs",
@@ -242,12 +242,12 @@
   },
   {
     "name": "stage one is told to Workers only",
-    "catches": "keeps the newest reading per window from one turn, and stage one tells every seat ahead, nobody interrupted",
+    "catches": "keeps the newest reading per window from one turn, and stage one tells every seat, behind its queue, nobody interrupted",
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "    for (const seat of seats) {\n      deliver(instance, seat, serverEvent(\"quota-low\", attrs), { ahead: true });",
-        "to": "    for (const seat of seats.filter((seat) => seat !== leader)) {\n      deliver(instance, seat, serverEvent(\"quota-low\", attrs), { ahead: true });"
+        "from": "    for (const seat of seats) {\n      deliver(instance, seat, serverEvent(\"quota-low\", attrs));",
+        "to": "    for (const seat of seats.filter((seat) => seat !== leader)) {\n      deliver(instance, seat, serverEvent(\"quota-low\", attrs));"
       }
     ]
   },
@@ -268,8 +268,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "      await interrupt(seat, { thenDrain: false });\n      deliver(instance, seat, serverEvent(\"quota-low\", { ...attrs, interrupted: \"true\" }, BODY_CRITICAL), { ahead: true, ask: \"stop\" });",
-        "to": "      deliver(instance, seat, serverEvent(\"quota-low\", { ...attrs, interrupted: \"true\" }, BODY_CRITICAL), { ahead: true, ask: \"stop\" });"
+        "from": "      await interrupt(seat, { thenDrain: false });\n      deliver(instance, seat, serverEvent(\"quota-low\", { ...attrs, interrupted: \"true\" }, BODY_CRITICAL), { ask: \"stop\" });",
+        "to": "      deliver(instance, seat, serverEvent(\"quota-low\", { ...attrs, interrupted: \"true\" }, BODY_CRITICAL), { ask: \"stop\" });"
       }
     ]
   },
@@ -279,7 +279,7 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "      if (seat === leader) {\n        deliver(instance, seat, serverEvent(\"quota-low\", attrs, BODY_CRITICAL_LEADER), { ahead: true });\n        return;\n      }\n",
+        "from": "      if (seat === leader) {\n        deliver(instance, seat, serverEvent(\"quota-low\", attrs, BODY_CRITICAL_LEADER));\n        return;\n      }\n",
         "to": ""
       }
     ]
@@ -323,7 +323,7 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "    const holding = record.gate(record.queue[0].frame);",
+        "from": "    const holding = record.gate(turn.frame);",
         "to": "    const holding = null;"
       }
     ]
@@ -532,46 +532,24 @@
     ]
   },
   {
-    "name": "the hard-rule delta is a turn of its own",
-    "catches": "is prepended to the next frame in one write, never a turn of its own, and the header says the set",
-    "edits": [
-      {
-        "file": "lib/chat/session.mjs",
-        "from": "  record.prefix.push({ frame, version });\n  return true;",
-        "to": "  record.queue.push({ frame, resolve() {} });\n  drain(record);\n  return true;"
-      }
-    ]
-  },
-  {
-    "name": "a rule rendering to nothing for a role is prefixed anyway",
-    "catches": "is prepended to the next frame in one write, never a turn of its own, and the header says the set",
+    "name": "a rule rendering to nothing for a role is told anyway",
+    "catches": "is a child of the queue at its arrival, alone on an idle seat, and the header says the set once written",
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "      if (text !== null) {\n        prefix(seat, rulesUpdateFrame(version, text), version);\n      }",
-        "to": "      prefix(seat, rulesUpdateFrame(version, text ?? \"\"), version);"
+        "from": "      if (text !== null) {\n        deliver(instance, seat, rulesUpdateFrame(version, text));\n      }",
+        "to": "      deliver(instance, seat, rulesUpdateFrame(version, text ?? \"\"));"
       }
     ]
   },
   {
     "name": "the delta body is a raw template",
-    "catches": "neutralises the rule text in the delta",
+    "catches": "neutralises the rule text in the update",
     "edits": [
       {
         "file": "lib/chat/frames.mjs",
         "from": "  return serverEvent(\"hard-rules\", { set: version }, text);",
         "to": "  return new Frame(BUILT_HERE, \"server-event\", `<server-event type=\"hard-rules\" set=\"${version}\">${text}</server-event>`, { type: \"hard-rules\", attrs: { set: version } });"
-      }
-    ]
-  },
-  {
-    "name": "a pending delta is carried to the successor",
-    "catches": "a pending delta dies with the process; the successor has the set at spawn, in its header, and no frame",
-    "edits": [
-      {
-        "file": "lib/chat/session.mjs",
-        "from": "    ended({ seat, role, ending: record.ending, exit, carried, why });",
-        "to": "    ended({ seat, role, ending: record.ending, exit, carried: [...record.prefix.map((entry) => ({ frame: entry.frame, resolve() {} })), ...carried], why });"
       }
     ]
   },
@@ -850,8 +828,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "      holdTurn(instance, seat, { frame, ahead, ask, resolve, written, order: arrival() }, holding);",
-        "to": "      holdTurn(instance, seat, { frame, ahead, ask, resolve, order: arrival() }, holding);"
+        "from": "      holdTurn(instance, seat, { frame, ask, resolve, written, order: arrival() }, holding);",
+        "to": "      holdTurn(instance, seat, { frame, ask, resolve, order: arrival() }, holding);"
       }
     ]
   },
@@ -861,8 +839,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "{ ahead: entry.ahead, ask: entry.ask, written: entry.written }",
-        "to": "{ ahead: entry.ahead, ask: entry.ask }"
+        "from": "{ ask: entry.ask, written: entry.written }",
+        "to": "{ ask: entry.ask }"
       }
     ]
   },
@@ -1176,6 +1154,44 @@
         "file": "lib/serve.mjs",
         "from": "    log(\"stopped\", null, null, signal);\n",
         "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the header does not say the set once the update is written",
+    "catches": "takes its place in a busy seat's queue, behind what arrived before it, and the header says the set at the write",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "    rules: turns.filter((turn) => turn.frame.event?.type === \"hard-rules\").map((turn) => turn.frame.event.attrs.set).at(-1) ?? null,",
+        "to": "    rules: null,"
+      }
+    ]
+  },
+  {
+    "name": "the update is put in front of the queue instead of at its arrival",
+    "catches": "takes its place in a busy seat's queue, behind what arrived before it, and the header says the set at the write",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "    record.queue.push(turn);",
+        "to": "    if (frame.event?.type === \"hard-rules\") record.queue.unshift(turn); else record.queue.push(turn);"
+      }
+    ]
+  },
+  {
+    "name": "the update is carried to the successor and written again",
+    "catches": "an update written before a restart is in the successor's set at spawn, in its header, and not written again",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "import { isFrame, queueFrame } from \"./frames.mjs\";",
+        "to": "import { isFrame, queueFrame, rulesUpdateFrame } from \"./frames.mjs\";"
+      },
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "    ended({ seat, role, ending: record.ending, exit, carried, why });",
+        "to": "    ended({ seat, role, ending: record.ending, exit, carried: [{ frame: rulesUpdateFrame(record.rules, \"Hard rules update: the set as it stands.\"), resolve() {} }, ...carried], why });"
       }
     ]
   }
