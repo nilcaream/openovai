@@ -1238,5 +1238,27 @@
         "to": "    ended({ seat, role, ending: record.ending, exit, carried, why });"
       }
     ]
+  },
+  {
+    "name": "a successor is started with only what its predecessor left",
+    "catches": "a successor nobody speaks to is handed a turn of its own: the birth event",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "    const born = serverTurn(serverEvent(\"restarted\", {}, BODY_RESTARTED), clockOf(instance)());\n    startSeat(instance, seat, { queue: [...carried, born] });",
+        "to": "    startSeat(instance, seat, { queue: carried });"
+      }
+    ]
+  },
+  {
+    "name": "the birth event jumps the queue ahead of what the predecessor left",
+    "catches": "what the predecessor left comes first in the successor's turn, the birth event behind it",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "    startSeat(instance, seat, { queue: [...carried, born] });",
+        "to": "    startSeat(instance, seat, { queue: [born, ...carried] });"
+      }
+    ]
   }
 ]

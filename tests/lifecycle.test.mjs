@@ -1,7 +1,8 @@
 // The lifecycle: how seats are started, what the server says to them on its own account, and how
 // they end — the Leader started by whatever is addressed to it, Workers by hire and by their own
-// restart; the five tools; the server events (context-full, quota-low, idle, park, stopped, the
-// hard-rule delta); the quota gate in front of every write; a server stop that parks first.
+// restart; the five tools; the server events (context-full, restarted, quota-low, idle, park,
+// stopped, the hard-rule delta); the quota gate in front of every write; a server stop that
+// parks first.
 //
 // Served in this process, with the clock injected: `chat.clock` is what every idle minute, reset
 // and deadline is measured against, and `tick()` is called by hand where the server's own
@@ -18,7 +19,7 @@ import { after, before, describe, it } from "node:test";
 import { SERVER, read as panel } from "../lib/chat/conversation.mjs";
 import { subscribe } from "../lib/chat/events.mjs";
 import { messageFrame, serverEvent, userFrame } from "../lib/chat/frames.mjs";
-import { BODY_CONTEXT_FULL, BODY_CRITICAL, BODY_IDLE, BODY_PARK, IDLE_GRACE, deliver, parkRoom, tick } from "../lib/chat/lifecycle.mjs";
+import { BODY_CONTEXT_FULL, BODY_CRITICAL, BODY_IDLE, BODY_PARK, BODY_RESTARTED, IDLE_GRACE, deliver, parkRoom, tick } from "../lib/chat/lifecycle.mjs";
 import { sink } from "../lib/chat/log.mjs";
 import * as quota from "../lib/chat/quota.mjs";
 import { pageSecret } from "../lib/chat/secrets.mjs";
@@ -211,6 +212,12 @@ async function asked(secret, seat, text) {
 async function told(log, count) {
   await waitFor(() => (heardIn(log).length >= count ? true : null));
   return heardIn(log);
+}
+
+// The same, without the turn the server hands a successor at birth: for the checks about what
+// somebody else sent. That event has checks of its own, so no other check asserts it.
+function besideBirth(items) {
+  return items.filter((one) => !one.startsWith('<server-event type="restarted"'));
 }
 
 // Every frame the run has been handed so far, as it arrived — before the run got round to it.
@@ -476,7 +483,7 @@ describe("restart_session and stop_session", () => {
     assert.deepEqual(successor.result, { text: `sent to ${WORKER}`, refused: false, error: null, reply: "a reply" });
     assert.notEqual(successor.secret, paul.secret);
     assert.equal(callsIn(successor.log).length, 1);
-    assert.deepEqual(await told(successor.log, 1), [`<message from="${LEADER}">after the restart</message>`]);
+    assert.deepEqual(besideBirth(await told(successor.log, 2)), [`<message from="${LEADER}">after the restart</message>`]);
     // The secret dies with the process that held it.
     assert.equal((await call(paul.secret, "tools/list")).status, 401);
     // The successor starts from the desk the predecessor wrote.
@@ -491,6 +498,47 @@ describe("restart_session and stop_session", () => {
     const rows = panel(instance, WORKER).slice(-3);
     assert.deepEqual(rows.map((row) => [row.from, row.text]), [[LEADER, "after the restart"], [WORKER, "a reply"], [WORKER, "a reply"]]);
     await end(WORKER, 500);
+  });
+
+  // A session is moved by a frame and by nothing else, and a restart is the one start with
+  // nobody standing over it to write one: a hired Worker turns because the Leader speaks to it,
+  // the Leader turns because something was addressed to it, a successor has neither. So the
+  // server writes the successor's first turn itself, and a successor nobody speaks to works.
+  it("a successor nobody speaks to is handed a turn of its own: the birth event", async () => {
+    paul = await seatUp(WORKER);
+    assert.equal((await tool(paul.secret, "write_desk", { title: "left for the successor", status: "s" })).refused, false);
+    const successor = await spawnedBy(WORKER, async () => {
+      const answered = await tool(paul.secret, "restart_session", {});
+      assert.equal(answered.refused, false, answered.text);
+      await waitFor(() => (running(WORKER) && recordOf(WORKER).ending === null ? true : null));
+      return answered;
+    });
+    assert.notEqual(successor.secret, paul.secret);
+    // The seat is freed whatever the check finds: a restart check that leaves a process behind
+    // fails every check after it, and a mutation sweep then reads as five findings and one bug.
+    try {
+      assert.deepEqual(await told(successor.log, 1), [`<server-event type="restarted">${BODY_RESTARTED}</server-event>`]);
+    } finally {
+      await end(WORKER, 500);
+    }
+  });
+
+  // The birth event is the newest thing in that turn and never ahead of what was already waiting:
+  // a successor reads what came for its seat in the order it came, and the server's own word last.
+  it("what the predecessor left comes first in the successor's turn, the birth event behind it", async () => {
+    paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_SLOW: "400", ...callsThen("restart_session", "restart please") });
+    tell(WORKER, userFrame("restart please"));
+    await told(paul.log, 1);
+    const successor = await spawnedBy(WORKER, () => asked(superman.secret, WORKER, "carried over"));
+    const carried = `<message from="${LEADER}">carried over</message>`;
+    await told(successor.log, 2);
+    try {
+      const children = childrenOf(queuesHeardIn(successor.log).find((one) => one.includes("carried over")));
+      assert.equal(children[0], carried, children.join("\n"));
+      assert.deepEqual(children.filter((one) => one.startsWith("<message")), [carried]);
+    } finally {
+      await end(WORKER, 500);
+    }
   });
 
   // "It filled up" is a fact somebody can check afterwards or it is a story, so the restart row
@@ -523,7 +571,7 @@ describe("restart_session and stop_session", () => {
     const successor = await spawnedBy(LEADER, () => asked(paul.secret, LEADER, "after the restart"));
     assert.equal(successor.result.reply, "a reply");
     assert.notEqual(successor.secret, superman.secret);
-    assert.deepEqual(await told(successor.log, 1), [`<message from="${WORKER}">after the restart</message>`]);
+    assert.deepEqual(besideBirth(await told(successor.log, 2)), [`<message from="${WORKER}">after the restart</message>`]);
     assert.deepEqual(
       panel(instance, LEADER).slice(rows).map((row) => [row.from, row.text, row.divider]),
       [[WORKER, "after the restart", undefined], [LEADER, "a reply", undefined], [LEADER, "a reply", undefined]],
@@ -1500,7 +1548,7 @@ describe("the hard-rule delta", () => {
     assert.ok(prompt.includes("The successor reads this in its set."), prompt.slice(-600));
     assert.equal(deskHeader(instance, WORKER).rules, set);
     await asked(superman.secret, WORKER, "first");
-    assert.deepEqual(readIn(successor.log), [`<message from="${LEADER}">first</message>`]);
+    assert.deepEqual(besideBirth(readIn(successor.log)), [`<message from="${LEADER}">first</message>`]);
     assert.equal(deskHeader(instance, WORKER).rules, set);
   });
 });

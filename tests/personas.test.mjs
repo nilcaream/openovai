@@ -364,10 +364,10 @@ describe("what a Worker is told", () => {
   });
 
   it("tells the Worker what each event asks of it, and that the desk comes first", () => {
-    for (const event of ["context-full", "quota-low", "idle", "park", "hard-rules"]) {
+    for (const event of ["context-full", "restarted", "quota-low", "idle", "park", "hard-rules"]) {
       assert.match(worker(), new RegExp(`<server-event type="${event}"`), event);
     }
-    assert.match(worker(), /`restart_session` and `stop_session` refuse until the\s+desk was written after the event that asked/);
+    assert.match(worker(), /`restart_session` and\s+`stop_session` refuse until the desk was written after the event that asked/);
   });
 
   // The install allows a seat plain git, mkdir and cd; a permission rule matches a command from its

@@ -45,6 +45,19 @@ these files stops for your press — every seat, the Leader with the rest, since
 serves them all. An instance made before this version is told the rule it has not got, the way it
 is told about any other, and nothing is added to its settings for it.
 
+**A session that restarts picks its own work back up.** A session is moved by a frame and by
+nothing else, and a restart was the one start with nobody to write one: a hired Worker turns
+because the Leader speaks to it, the Leader turns because something was addressed to it, and a
+successor had neither — so it sat on its desk, its work written down in front of it, until
+somebody happened to say something to it. The server now writes that first turn itself.
+`<server-event type="restarted">` is the successor's first frame, behind whatever was waiting for
+the seat and in the same turn as it: you are the session after a restart, your desk is the whole
+of what the one before you left, go on from what it says to do next and never redo what it says
+is done. Nothing is announced, nothing is asked of anybody, and a successor with nothing left in
+flight says nothing at all. Both roles restart this way. Nothing the predecessor left is lost,
+reordered or rewritten: what was queued for the seat still goes in first, in the order it
+arrived.
+
 ## 0.16.0
 
 The toolkit brings its own Node.js and Claude Code, one `openovai` command installs an instance from
