@@ -50,12 +50,12 @@ export function configProblems(file, expected) {
 
 // Does the instance grant exactly what working there takes and nothing wider: the one rule that
 // lets a session call the tools the chat serves it, the one that lets it read any file here, the
-// edit rule for each of the three trees the User works in — reference/, projects/, temp/ — and,
-// per person, the edit rule for their own desk directory. Every path rule anchored at the
-// instance root with a leading `/`.
+// edit rule for each of the three trees the User works in — reference/, projects/, temp/ — the
+// one for knowledge/, where every seat writes what it learnt, and, per person, the edit rule for
+// their own desk directory. Every path rule anchored at the instance root with a leading `/`.
 //
-// Fourteen for everybody and one per person. The list being exact in both directions is what
-// says that retiring a desk withdrew its rule with it, that no tree beyond the three was quietly
+// Fifteen for everybody and one per person. The list being exact in both directions is what
+// says that retiring a desk withdrew its rule with it, that no tree beyond these was quietly
 // opened, and that no desk was opened without its rule.
 export const STANDING = [
   "mcp__openovai",
@@ -63,6 +63,7 @@ export const STANDING = [
   "Edit(/reference/**)",
   "Edit(/projects/**)",
   "Edit(/temp/**)",
+  "Edit(/knowledge/**)",
   "Bash(git:*)",
   "Bash(mkdir:*)",
   "Bash(cd:*)",

@@ -60,8 +60,8 @@
     "edits": [
       {
         "file": "lib/seed.mjs",
-        "from": "import { CUSTOMIZATION_ASK_RULES, DESK_TEMPLATE, OWN_ACCOUNT_RULES, READ_RULES, SHELL_DENY_RULES, SHELL_RULES, STALE_DENY_RULES, TOOL_RULES, TREE_RULES, deskFile, deskRules, readTemplate, render } from \"./desks.mjs\";",
-        "to": "import { CUSTOMIZATION_ASK_RULES, DESK_TEMPLATE, OWN_ACCOUNT_RULES, READ_RULES, SHELL_DENY_RULES, SHELL_RULES, STALE_DENY_RULES, TOOL_RULES, TREE_RULES, account, deskFile, deskRules, readTemplate, render } from \"./desks.mjs\";"
+        "from": "import { CUSTOMIZATION_ASK_RULES, DESK_TEMPLATE, KNOWLEDGE_RULES, OWN_ACCOUNT_RULES, READ_RULES, SHELL_DENY_RULES, SHELL_RULES, STALE_DENY_RULES, TOOL_RULES, TREE_RULES, deskFile, deskRules, readTemplate, render } from \"./desks.mjs\";",
+        "to": "import { CUSTOMIZATION_ASK_RULES, DESK_TEMPLATE, KNOWLEDGE_RULES, OWN_ACCOUNT_RULES, READ_RULES, SHELL_DENY_RULES, SHELL_RULES, STALE_DENY_RULES, TOOL_RULES, TREE_RULES, account, deskFile, deskRules, readTemplate, render } from \"./desks.mjs\";"
       },
       {
         "file": "lib/seed.mjs",
@@ -109,8 +109,8 @@
     "edits": [
       {
         "file": "lib/install.mjs",
-        "from": "const LAYOUT = [DESKS, ...USER_TREES, \".claude\", HOME, PLUGINS, CUSTOMIZATION];",
-        "to": "const LAYOUT = [DESKS, ...USER_TREES, \"personas\", \".claude\", HOME, PLUGINS, CUSTOMIZATION];"
+        "from": "const LAYOUT = [DESKS, ...USER_TREES, \".claude\", HOME, PLUGINS, CUSTOMIZATION, KNOWLEDGE];",
+        "to": "const LAYOUT = [DESKS, ...USER_TREES, \"personas\", \".claude\", HOME, PLUGINS, CUSTOMIZATION, KNOWLEDGE];"
       }
     ]
   },
@@ -131,8 +131,8 @@
     "edits": [
       {
         "file": "lib/desks.mjs",
-        "from": "  const frames = customization(root, what);\n  return frames.length === 0 ? rendered",
-        "to": "  const frames = [];\n  return frames.length === 0 ? rendered"
+        "from": "  const frames = [...customization(root, what), ...knowledge(root)];\n  return frames.length === 0 ? rendered",
+        "to": "  const frames = [...knowledge(root)];\n  return frames.length === 0 ? rendered"
       }
     ]
   },
@@ -241,30 +241,30 @@
     "edits": [
       {
         "file": "lib/install.mjs",
-        "from": "const LAYOUT = [DESKS, ...USER_TREES, \".claude\", HOME, PLUGINS, CUSTOMIZATION];",
-        "to": "const LAYOUT = [DESKS, ...USER_TREES, \".claude\", HOME, PLUGINS, path.join(\".claude\", \"skills\", \"allowed\"), CUSTOMIZATION];"
+        "from": "const LAYOUT = [DESKS, ...USER_TREES, \".claude\", HOME, PLUGINS, CUSTOMIZATION, KNOWLEDGE];",
+        "to": "const LAYOUT = [DESKS, ...USER_TREES, \".claude\", HOME, PLUGINS, path.join(\".claude\", \"skills\", \"allowed\"), CUSTOMIZATION, KNOWLEDGE];"
       }
     ]
   },
   {
     "name": "the seed grants nothing for reading",
-    "catches": "allows the tool server, the reads, the three trees, the shell commands of a seat's day, the Leader's desk directory, and nothing else",
+    "catches": "allows the tool server, the reads, the three trees, the knowledge directory, the shell commands of a seat's day, the Leader's desk directory, and nothing else",
     "edits": [
       {
         "file": "lib/seed.mjs",
-        "from": "      allow: [...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...SHELL_RULES, ...deskRules(leader)],",
-        "to": "      allow: [...TOOL_RULES, ...TREE_RULES, ...SHELL_RULES, ...deskRules(leader)],"
+        "from": "      allow: [...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...KNOWLEDGE_RULES, ...SHELL_RULES, ...deskRules(leader)],",
+        "to": "      allow: [...TOOL_RULES, ...TREE_RULES, ...KNOWLEDGE_RULES, ...SHELL_RULES, ...deskRules(leader)],"
       }
     ]
   },
   {
     "name": "the seed grants the Leader no desk directory",
-    "catches": "allows the tool server, the reads, the three trees, the shell commands of a seat's day, the Leader's desk directory, and nothing else",
+    "catches": "allows the tool server, the reads, the three trees, the knowledge directory, the shell commands of a seat's day, the Leader's desk directory, and nothing else",
     "edits": [
       {
         "file": "lib/seed.mjs",
-        "from": "      allow: [...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...SHELL_RULES, ...deskRules(leader)],",
-        "to": "      allow: [...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...SHELL_RULES],"
+        "from": "      allow: [...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...KNOWLEDGE_RULES, ...SHELL_RULES, ...deskRules(leader)],",
+        "to": "      allow: [...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...KNOWLEDGE_RULES, ...SHELL_RULES],"
       }
     ]
   },
@@ -292,18 +292,18 @@
   },
   {
     "name": "the seed grants nothing for the three trees",
-    "catches": "allows the tool server, the reads, the three trees, the shell commands of a seat's day, the Leader's desk directory, and nothing else",
+    "catches": "allows the tool server, the reads, the three trees, the knowledge directory, the shell commands of a seat's day, the Leader's desk directory, and nothing else",
     "edits": [
       {
         "file": "lib/seed.mjs",
-        "from": "      allow: [...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...SHELL_RULES, ...deskRules(leader)],",
-        "to": "      allow: [...TOOL_RULES, ...READ_RULES, ...deskRules(leader)],"
+        "from": "      allow: [...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...KNOWLEDGE_RULES, ...SHELL_RULES, ...deskRules(leader)],",
+        "to": "      allow: [...TOOL_RULES, ...READ_RULES, ...KNOWLEDGE_RULES, ...deskRules(leader)],"
       }
     ]
   },
   {
     "name": "the seed grants a fourth tree",
-    "catches": "allows the tool server, the reads, the three trees, the shell commands of a seat's day, the Leader's desk directory, and nothing else",
+    "catches": "allows the tool server, the reads, the three trees, the knowledge directory, the shell commands of a seat's day, the Leader's desk directory, and nothing else",
     "edits": [
       {
         "file": "lib/desks.mjs",
@@ -314,7 +314,7 @@
   },
   {
     "name": "the seed grants the trees from the session's current directory rather than the root",
-    "catches": "allows the tool server, the reads, the three trees, the shell commands of a seat's day, the Leader's desk directory, and nothing else",
+    "catches": "allows the tool server, the reads, the three trees, the knowledge directory, the shell commands of a seat's day, the Leader's desk directory, and nothing else",
     "edits": [
       {
         "file": "lib/desks.mjs",
@@ -325,7 +325,7 @@
   },
   {
     "name": "the seed grants each tree a Write twin that matches nothing",
-    "catches": "allows the tool server, the reads, the three trees, the shell commands of a seat's day, the Leader's desk directory, and nothing else",
+    "catches": "allows the tool server, the reads, the three trees, the knowledge directory, the shell commands of a seat's day, the Leader's desk directory, and nothing else",
     "edits": [
       {
         "file": "lib/desks.mjs",
@@ -336,7 +336,7 @@
   },
   {
     "name": "the read rule is read from the session's current directory rather than the root",
-    "catches": "allows the tool server, the reads, the three trees, the shell commands of a seat's day, the Leader's desk directory, and nothing else",
+    "catches": "allows the tool server, the reads, the three trees, the knowledge directory, the shell commands of a seat's day, the Leader's desk directory, and nothing else",
     "edits": [
       {
         "file": "lib/desks.mjs",
@@ -351,8 +351,8 @@
     "edits": [
       {
         "file": "lib/install.mjs",
-        "from": "const LAYOUT = [DESKS, ...USER_TREES, \".claude\", HOME, PLUGINS, CUSTOMIZATION];",
-        "to": "const LAYOUT = [DESKS, \".claude\", HOME, PLUGINS, CUSTOMIZATION];"
+        "from": "const LAYOUT = [DESKS, ...USER_TREES, \".claude\", HOME, PLUGINS, CUSTOMIZATION, KNOWLEDGE];",
+        "to": "const LAYOUT = [DESKS, \".claude\", HOME, PLUGINS, CUSTOMIZATION, KNOWLEDGE];"
       }
     ]
   },
@@ -362,8 +362,8 @@
     "edits": [
       {
         "file": "lib/seed.mjs",
-        "from": "      allow: [...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...SHELL_RULES, ...deskRules(leader)],",
-        "to": "      allow: [...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...SHELL_RULES, ...deskRules(leader), ...deskRules(\"Paul\")],"
+        "from": "      allow: [...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...KNOWLEDGE_RULES, ...SHELL_RULES, ...deskRules(leader)],",
+        "to": "      allow: [...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...KNOWLEDGE_RULES, ...SHELL_RULES, ...deskRules(leader), ...deskRules(\"Paul\")],"
       }
     ]
   },
@@ -395,8 +395,8 @@
     "edits": [
       {
         "file": "lib/install.mjs",
-        "from": "const LAYOUT = [DESKS, ...USER_TREES, \".claude\", HOME, PLUGINS, CUSTOMIZATION];",
-        "to": "const LAYOUT = [DESKS, ...USER_TREES, \".claude\", HOME, PLUGINS];"
+        "from": "const LAYOUT = [DESKS, ...USER_TREES, \".claude\", HOME, PLUGINS, CUSTOMIZATION, KNOWLEDGE];",
+        "to": "const LAYOUT = [DESKS, ...USER_TREES, \".claude\", HOME, PLUGINS, KNOWLEDGE];"
       }
     ]
   },
@@ -435,18 +435,18 @@
   },
   {
     "name": "the seed grants no shell command for a repository",
-    "catches": "allows the tool server, the reads, the three trees, the shell commands of a seat's day, the Leader's desk directory, and nothing else",
+    "catches": "allows the tool server, the reads, the three trees, the knowledge directory, the shell commands of a seat's day, the Leader's desk directory, and nothing else",
     "edits": [
       {
         "file": "lib/seed.mjs",
-        "from": "      allow: [...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...SHELL_RULES, ...deskRules(leader)],",
-        "to": "      allow: [...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...deskRules(leader)],"
+        "from": "      allow: [...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...KNOWLEDGE_RULES, ...SHELL_RULES, ...deskRules(leader)],",
+        "to": "      allow: [...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...KNOWLEDGE_RULES, ...deskRules(leader)],"
       }
     ]
   },
   {
     "name": "the seed grants a repository everything but Bash(git:*)",
-    "catches": "allows the tool server, the reads, the three trees, the shell commands of a seat's day, the Leader's desk directory, and nothing else",
+    "catches": "allows the tool server, the reads, the three trees, the knowledge directory, the shell commands of a seat's day, the Leader's desk directory, and nothing else",
     "edits": [
       {
         "file": "lib/desks.mjs",
@@ -457,7 +457,7 @@
   },
   {
     "name": "the seed grants a repository everything but Bash(mkdir:*)",
-    "catches": "allows the tool server, the reads, the three trees, the shell commands of a seat's day, the Leader's desk directory, and nothing else",
+    "catches": "allows the tool server, the reads, the three trees, the knowledge directory, the shell commands of a seat's day, the Leader's desk directory, and nothing else",
     "edits": [
       {
         "file": "lib/desks.mjs",
@@ -468,7 +468,7 @@
   },
   {
     "name": "the seed grants a repository everything but Bash(cd:*)",
-    "catches": "allows the tool server, the reads, the three trees, the shell commands of a seat's day, the Leader's desk directory, and nothing else",
+    "catches": "allows the tool server, the reads, the three trees, the knowledge directory, the shell commands of a seat's day, the Leader's desk directory, and nothing else",
     "edits": [
       {
         "file": "lib/desks.mjs",
@@ -776,6 +776,28 @@
         "file": "lib/desks.mjs",
         "from": "    const content = added(root, name);",
         "to": "    const content = added(root, name) ?? \"\";"
+      }
+    ]
+  },
+  {
+    "name": "the installer does not make the knowledge directory",
+    "catches": "makes exactly the layout at the root: the product, the instance's own, the people, the User's material, Claude Code's",
+    "edits": [
+      {
+        "file": "lib/install.mjs",
+        "from": "const LAYOUT = [DESKS, ...USER_TREES, \".claude\", HOME, PLUGINS, CUSTOMIZATION, KNOWLEDGE];",
+        "to": "const LAYOUT = [DESKS, ...USER_TREES, \".claude\", HOME, PLUGINS, CUSTOMIZATION];"
+      }
+    ]
+  },
+  {
+    "name": "a fresh instance is not granted the knowledge directory to write in",
+    "catches": "allows the tool server, the reads, the three trees, the knowledge directory, the shell commands of a seat's day, the Leader's desk directory, and nothing else",
+    "edits": [
+      {
+        "file": "lib/seed.mjs",
+        "from": "      allow: [...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...KNOWLEDGE_RULES, ...SHELL_RULES, ...deskRules(leader)],",
+        "to": "      allow: [...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...SHELL_RULES, ...deskRules(leader)],"
       }
     ]
   }

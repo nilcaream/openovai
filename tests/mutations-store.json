@@ -544,8 +544,8 @@
     "edits": [
       {
         "file": "lib/plugins.mjs",
-        "from": "export const BUILT_IN = [\"message\", \"room\", \"recall\", \"remember\", \"write_desk\", \"restart_session\", \"stop_session\", \"park\", \"hire\", \"retire\", \"permission\"];",
-        "to": "export const BUILT_IN = [\"message\", \"room\", \"recall\", \"write_desk\", \"restart_session\", \"stop_session\", \"park\", \"hire\", \"retire\", \"permission\"];"
+        "from": "export const BUILT_IN = [\"message\", \"room\", \"recall\", \"remember\", \"index\", \"validate\", \"write_desk\", \"restart_session\", \"stop_session\", \"park\", \"hire\", \"retire\", \"permission\"];",
+        "to": "export const BUILT_IN = [\"message\", \"room\", \"recall\", \"index\", \"validate\", \"write_desk\", \"restart_session\", \"stop_session\", \"park\", \"hire\", \"retire\", \"permission\"];"
       }
     ]
   },

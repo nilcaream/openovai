@@ -45,6 +45,27 @@ these files stops for your press — every seat, the Leader with the rest, since
 serves them all. An instance made before this version is told the rule it has not got, the way it
 is told about any other, and nothing is added to its settings for it.
 
+**What the workspace knows is a directory you can read.** `knowledge/` sits at the root of a fresh
+instance, empty, and fills with Markdown notes — one topic per file, facts only, written and edited
+by every session with the ordinary file tools. A note opens with four fields and nothing else: a
+`summary` line, at least three `tags`, the `sources` it came from, and the date it was `updated`.
+There is no id, no status and no expiry, because a wrong note is edited and a dead one deleted.
+Two tools read it, and neither keeps anything of its own — both are built from the files every time
+they are called, so a note changed a moment ago is the note the next call sees. `index()` gives the
+header: how many notes there are, when the directory last changed, every tag with its count, and
+any file it could not read. `index(tags)` lists the notes carrying a tag, the ones carrying more of
+what was asked first; it matches on tags and never on filenames or summaries, so a search means
+what somebody decided when they wrote the note, and words are what grep is for. `validate` checks
+the whole directory against those rules and answers with one line per problem, each saying the rule
+it breaks, so a session can fix what it wrote without going to find the contract. Every seat may
+write here — `Edit(/knowledge/**)` is in the settings a fresh instance is born with, and an
+instance made before this version is told the rule the way it is told about any other. One note is
+the framework's business: `knowledge/common.md` is handed to every session at its start, after your
+customization files, in a frame naming it — `<knowledge source="knowledge/common.md">`. It is an
+ordinary note otherwise, and it is the Leader's to gather: the team, the business, the lingo, where
+things are, and which notes a newcomer reads first. No file, no frame, no error — a workspace that
+has learnt nothing yet reads exactly as it did.
+
 **A session that restarts picks its own work back up.** A session is moved by a frame and by
 nothing else, and a restart was the one start with nobody to write one: a hired Worker turns
 because the Leader speaks to it, the Leader turns because something was addressed to it, and a

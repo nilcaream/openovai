@@ -23,7 +23,7 @@
   },
   {
     "name": "the update takes the ask rule for held whatever the settings say, so an instance born without it is told nothing",
-    "catches": "names the ask rule an instance born earlier has not got",
+    "catches": "names the rules an instance born earlier has not got, each in its own list",
     "edits": [
       {
         "file": "lib/seed.mjs",
@@ -84,6 +84,17 @@
         "file": "lib/seed.mjs",
         "from": "  if (settings === null || hookWired(settings)) {",
         "to": "  if (settings === null) {"
+      }
+    ]
+  },
+  {
+    "name": "an instance born earlier is not told it has no knowledge rule",
+    "catches": "names the rules an instance born earlier has not got, each in its own list",
+    "edits": [
+      {
+        "file": "lib/seed.mjs",
+        "from": "    ...[...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...KNOWLEDGE_RULES, ...SHELL_RULES].filter((rule) => !allow.includes(rule)).map((rule) => `allow ${rule}`),",
+        "to": "    ...[...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...SHELL_RULES].filter((rule) => !allow.includes(rule)).map((rule) => `allow ${rule}`),"
       }
     ]
   }

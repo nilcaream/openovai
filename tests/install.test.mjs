@@ -237,6 +237,7 @@ describe("what the installer made", () => {
       "customization",
       "desks",
       "instructions.json",
+      "knowledge",
       "lib",
       "openovai.json",
       "plugins",
@@ -245,7 +246,7 @@ describe("what the installer made", () => {
       "store",
       "temp",
     ]);
-    for (const tree of ["reference", "projects", "temp", "customization"]) {
+    for (const tree of ["reference", "projects", "temp", "customization", "knowledge"]) {
       assert.deepEqual(fs.readdirSync(inside(tree)), [], tree);
     }
   });
@@ -418,10 +419,11 @@ describe("what the installer made", () => {
   });
 
   // The allow list, exactly: the tool server, the reads, the edit rule for each of the three
-  // trees the User works in, the shell commands of a seat's ordinary day, and the Leader's own
-  // desk directory — a desk is a working directory. Spelled out rather than asked of the code, so
-  // a widened list is caught here.
-  it("allows the tool server, the reads, the three trees, the shell commands of a seat's day, the Leader's desk directory, and nothing else", () => {
+  // trees the User works in, the one for `knowledge/` — every seat writes what it learnt, and a
+  // session that must ask before recording it records nothing — the shell commands of a seat's
+  // ordinary day, and the Leader's own desk directory, a desk being a working directory. Spelled
+  // out rather than asked of the code, so a widened list is caught here.
+  it("allows the tool server, the reads, the three trees, the knowledge directory, the shell commands of a seat's day, the Leader's desk directory, and nothing else", () => {
     const permissions = JSON.parse(contentOf(".claude", "settings.json")).permissions;
     assert.deepEqual(permissions.allow, [
       "mcp__openovai",
@@ -429,6 +431,7 @@ describe("what the installer made", () => {
       "Edit(/reference/**)",
       "Edit(/projects/**)",
       "Edit(/temp/**)",
+      "Edit(/knowledge/**)",
       "Bash(git:*)",
       "Bash(mkdir:*)",
       "Bash(cd:*)",

@@ -1,0 +1,475 @@
+[
+  {
+    "name": "a date that makes no instant at all is asked for its ISO string anyway",
+    "catches": "reports a date that is not a real YYYY-MM-DD",
+    "edits": [
+      {
+        "file": "lib/knowledge.mjs",
+        "from": "    if (Number.isNaN(midnight.getTime()) || midnight.toISOString().slice(0, 10) !== updated) {",
+        "to": "    if (midnight.toISOString().slice(0, 10) !== updated) {"
+      }
+    ]
+  },
+  {
+    "name": "today is taken from UTC rather than from the local zone",
+    "catches": "takes today from the local zone rather than from UTC",
+    "edits": [
+      {
+        "file": "lib/knowledge.mjs",
+        "from": "  const today = localDate(now);",
+        "to": "  const today = now.toISOString().slice(0, 10);"
+      }
+    ]
+  },
+  {
+    "name": "the header's timestamp keeps its milliseconds",
+    "catches": "counts the notes and says when the directory last changed",
+    "edits": [
+      {
+        "file": "lib/knowledge.mjs",
+        "from": "  return new Date(ms).toISOString().replace(/\\.\\d{3}Z$/, \"Z\");",
+        "to": "  return new Date(ms).toISOString();"
+      }
+    ]
+  },
+  {
+    "name": "the header takes the directory's own mtime and never a note's",
+    "catches": "counts the notes and says when the directory last changed",
+    "edits": [
+      {
+        "file": "lib/knowledge.mjs",
+        "from": "  return new Date(ms).toISOString().replace(/\\.\\d{3}Z$/, \"Z\");",
+        "to": "  return new Date(ms).toISOString().slice(0, 10);"
+      }
+    ]
+  },
+  {
+    "name": "the tags come back in the order they were first seen, not alphabetically",
+    "catches": "lists every tag alphabetically with the number of notes carrying it",
+    "edits": [
+      {
+        "file": "lib/knowledge.mjs",
+        "from": "  const tags = [...counts.keys()].sort();",
+        "to": "  const tags = [...counts.keys()];"
+      }
+    ]
+  },
+  {
+    "name": "a tag's count is dropped and only the tag is named",
+    "catches": "lists every tag alphabetically with the number of notes carrying it",
+    "edits": [
+      {
+        "file": "lib/knowledge.mjs",
+        "from": "    `tags (${tags.length}): ${tags.map((tag) => `${tag} ${counts.get(tag)}`).join(\" · \")}`,",
+        "to": "    `tags (${tags.length}): ${tags.join(\" · \")}`,"
+      }
+    ]
+  },
+  {
+    "name": "the header counts every file, including the ones it could not read",
+    "catches": "does not count a file it could not read as one of the notes",
+    "edits": [
+      {
+        "file": "lib/knowledge.mjs",
+        "from": "    `${KNOWLEDGE}/ — ${notes.length} notes, last changed ${when(changed)}`,",
+        "to": "    `${KNOWLEDGE}/ — ${read.length} notes, last changed ${when(changed)}`,"
+      }
+    ]
+  },
+  {
+    "name": "a file it could not read is named without the reason",
+    "catches": "names the files it could not read, each with its reason, and judges nothing else",
+    "edits": [
+      {
+        "file": "lib/knowledge.mjs",
+        "from": "      lines.push(`  ${one.name} — ${one.error}`);",
+        "to": "      lines.push(`  ${one.name}`);"
+      }
+    ]
+  },
+  {
+    "name": "the not-indexed list is left out of the header altogether",
+    "catches": "names the files it could not read, each with its reason, and judges nothing else",
+    "edits": [
+      {
+        "file": "lib/knowledge.mjs",
+        "from": "  if (unread.length > 0) {",
+        "to": "  if (unread.length > 0 && false) {"
+      }
+    ]
+  },
+  {
+    "name": "the results are ordered by filename alone, so the note at the intersection is not first",
+    "catches": "returns every note carrying at least one of the asked tags, the ones carrying more of them first",
+    "edits": [
+      {
+        "file": "lib/knowledge.mjs",
+        "from": "  found.sort((a, b) => b.hits - a.hits || a.one.name.localeCompare(b.one.name));",
+        "to": "  found.sort((a, b) => a.one.name.localeCompare(b.one.name));"
+      }
+    ]
+  },
+  {
+    "name": "the notes carrying fewest of the asked tags come first",
+    "catches": "returns every note carrying at least one of the asked tags, the ones carrying more of them first",
+    "edits": [
+      {
+        "file": "lib/knowledge.mjs",
+        "from": "  found.sort((a, b) => b.hits - a.hits || a.one.name.localeCompare(b.one.name));",
+        "to": "  found.sort((a, b) => a.hits - b.hits || a.one.name.localeCompare(b.one.name));"
+      }
+    ]
+  },
+  {
+    "name": "a result's summary is put on the same line as its filename",
+    "catches": "gives each note as its filename and tags, with the summary indented under it",
+    "edits": [
+      {
+        "file": "lib/knowledge.mjs",
+        "from": "  return found.map(({ one }) => `${one.name}  [${one.tags.join(\", \")}]\\n  ${one.summary}`).join(\"\\n\");",
+        "to": "  return found.map(({ one }) => `${one.name}  [${one.tags.join(\", \")}] ${one.summary}`).join(\"\\n\");"
+      }
+    ]
+  },
+  {
+    "name": "a result carries its summary without its tags",
+    "catches": "gives each note as its filename and tags, with the summary indented under it",
+    "edits": [
+      {
+        "file": "lib/knowledge.mjs",
+        "from": "  return found.map(({ one }) => `${one.name}  [${one.tags.join(\", \")}]\\n  ${one.summary}`).join(\"\\n\");",
+        "to": "  return found.map(({ one }) => `${one.name}\\n  ${one.summary}`).join(\"\\n\");"
+      }
+    ]
+  },
+  {
+    "name": "a search matches a filename as well as a tag",
+    "catches": "matches on tags alone, never on a filename or a summary",
+    "edits": [
+      {
+        "file": "lib/knowledge.mjs",
+        "from": "    const hits = one.tags.filter((tag) => wanted.has(tag)).length;",
+        "to": "    const hits = one.tags.filter((tag) => wanted.has(tag)).length + (wanted.has(one.name.replace(/\\.md$/, \"\")) ? 1 : 0);"
+      }
+    ]
+  },
+  {
+    "name": "a search matches a word in a summary as well as a tag",
+    "catches": "matches on tags alone, never on a filename or a summary",
+    "edits": [
+      {
+        "file": "lib/knowledge.mjs",
+        "from": "    const hits = one.tags.filter((tag) => wanted.has(tag)).length;",
+        "to": "    const hits = one.tags.filter((tag) => wanted.has(tag)).length + one.summary.toLowerCase().split(/\\W+/).filter((word) => wanted.has(word)).length;"
+      }
+    ]
+  },
+  {
+    "name": "a search that found nothing answers with an empty string",
+    "catches": "says so when no note carries any of the asked tags",
+    "edits": [
+      {
+        "file": "lib/knowledge.mjs",
+        "from": "    return `no notes carry any of: ${asked.join(\", \")}`;",
+        "to": "    return \"\";"
+      }
+    ]
+  },
+  {
+    "name": "a search that found nothing does not say which tags it was asked for",
+    "catches": "says so when no note carries any of the asked tags",
+    "edits": [
+      {
+        "file": "lib/knowledge.mjs",
+        "from": "    return `no notes carry any of: ${asked.join(\", \")}`;",
+        "to": "    return \"no notes carry any of those\";"
+      }
+    ]
+  },
+  {
+    "name": "a sound directory is answered with a count of problems rather than all valid",
+    "catches": "answers a sound directory with the count and nothing else",
+    "edits": [
+      {
+        "file": "lib/knowledge.mjs",
+        "from": "    return `${notes.length} notes, all valid`;",
+        "to": "    return `${notes.length} notes, 0 problems`;"
+      }
+    ]
+  },
+  {
+    "name": "a missing field is reported without saying which four the head takes",
+    "catches": "reports a head that is missing one of the four fields",
+    "edits": [
+      {
+        "file": "lib/knowledge.mjs",
+        "from": "      say(`the head has no \\`${field}\\` (${FOUR}, all four, none missing)`);",
+        "to": "      say(`the head has no \\`${field}\\``);"
+      }
+    ]
+  },
+  {
+    "name": "a field the head has not got is not looked for at all",
+    "catches": "reports a head that is missing one of the four fields",
+    "edits": [
+      {
+        "file": "lib/knowledge.mjs",
+        "from": "    if (!one.fields.has(field)) {",
+        "to": "    if (!one.fields.has(field) && false) {"
+      }
+    ]
+  },
+  {
+    "name": "a fifth field in the head is reported without saying what the four are",
+    "catches": "reports a head carrying a field the contract has not got",
+    "edits": [
+      {
+        "file": "lib/knowledge.mjs",
+        "from": "      say(`the head has \\`${field}\\` (${FOUR}, and nothing else)`);",
+        "to": "      say(`the head has \\`${field}\\`, which is not one of the four`);"
+      }
+    ]
+  },
+  {
+    "name": "a summary with nothing on the line is let through",
+    "catches": "reports a summary with nothing on the line",
+    "edits": [
+      {
+        "file": "lib/knowledge.mjs",
+        "from": "  if (one.fields.has(\"summary\") && one.fields.get(\"summary\") === \"\") {",
+        "to": "  if (one.fields.has(\"summary\") && one.fields.get(\"summary\") === \"\" && false) {"
+      }
+    ]
+  },
+  {
+    "name": "a summary with nothing on the line is reported without saying what a summary is for",
+    "catches": "reports a summary with nothing on the line",
+    "edits": [
+      {
+        "file": "lib/knowledge.mjs",
+        "from": "    say(\"`summary` is one non-empty line: what a session gets from reading this note\");",
+        "to": "    say(\"`summary` is empty\");"
+      }
+    ]
+  },
+  {
+    "name": "two tags are enough",
+    "catches": "reports a note carrying fewer than three tags",
+    "edits": [
+      {
+        "file": "lib/knowledge.mjs",
+        "from": "const LEAST_TAGS = 3;",
+        "to": "const LEAST_TAGS = 2;"
+      }
+    ]
+  },
+  {
+    "name": "a tag in capitals is let through",
+    "catches": "reports a tag that is not lowercase letters, digits and hyphens",
+    "edits": [
+      {
+        "file": "lib/knowledge.mjs",
+        "from": "const TAG = /^[a-z0-9-]+$/;",
+        "to": "const TAG = /^[A-Za-z0-9-]+$/;"
+      }
+    ]
+  },
+  {
+    "name": "a tag named twice is let through",
+    "catches": "reports a tag named twice",
+    "edits": [
+      {
+        "file": "lib/knowledge.mjs",
+        "from": "      for (const tag of [...new Set(tags.filter((tag, at) => tags.indexOf(tag) !== at))]) {",
+        "to": "      for (const tag of []) {"
+      }
+    ]
+  },
+  {
+    "name": "an absolute path is accepted as a source",
+    "catches": "reports a source that is not a path from the instance root, a URL, or what the User said",
+    "edits": [
+      {
+        "file": "lib/knowledge.mjs",
+        "from": "  if (entry === \"\" || /[\\s\\\\<>]/.test(entry) || entry.startsWith(\"/\") || entry.startsWith(\"~\")) {",
+        "to": "  if (entry === \"\" || /[\\s\\\\<>]/.test(entry) || entry.startsWith(\"~\")) {"
+      }
+    ]
+  },
+  {
+    "name": "what the User said is not accepted as a source",
+    "catches": "reports a source that is not a path from the instance root, a URL, or what the User said",
+    "edits": [
+      {
+        "file": "lib/knowledge.mjs",
+        "from": "  if (entry === SAID || URL.test(entry)) {",
+        "to": "  if (URL.test(entry)) {"
+      }
+    ]
+  },
+  {
+    "name": "only a date that makes no instant at all is refused, so the thirty-first of February passes",
+    "catches": "reports a date that is not a real YYYY-MM-DD",
+    "edits": [
+      {
+        "file": "lib/knowledge.mjs",
+        "from": "    if (Number.isNaN(midnight.getTime()) || midnight.toISOString().slice(0, 10) !== updated) {",
+        "to": "    if (Number.isNaN(midnight.getTime())) {"
+      }
+    ]
+  },
+  {
+    "name": "a date after today is let through",
+    "catches": "reports a date after today",
+    "edits": [
+      {
+        "file": "lib/knowledge.mjs",
+        "from": "    } else if (updated > today) {",
+        "to": "    } else if (updated > today && false) {"
+      }
+    ]
+  },
+  {
+    "name": "today itself is reported as being after today",
+    "catches": "reports a date after today",
+    "edits": [
+      {
+        "file": "lib/knowledge.mjs",
+        "from": "    } else if (updated > today) {",
+        "to": "    } else if (updated >= today) {"
+      }
+    ]
+  },
+  {
+    "name": "a filename in capitals and underscores is let through",
+    "catches": "reports a filename that is not lowercase letters, digits and hyphens",
+    "edits": [
+      {
+        "file": "lib/knowledge.mjs",
+        "from": "const FILENAME = /^[a-z0-9-]+\\.md$/;",
+        "to": "const FILENAME = /^[A-Za-z0-9_-]+\\.md$/;"
+      }
+    ]
+  },
+  {
+    "name": "a file that could not be read as a note is reported and then held to the rules as well",
+    "catches": "reports a file it could not read as a note, and holds it to none of the other rules",
+    "edits": [
+      {
+        "file": "lib/knowledge.mjs",
+        "from": "    say(one.error);\n    return found;",
+        "to": "    say(one.error);"
+      }
+    ]
+  },
+  {
+    "name": "a file that could not be read as a note is passed over in silence",
+    "catches": "reports a file it could not read as a note, and holds it to none of the other rules",
+    "edits": [
+      {
+        "file": "lib/knowledge.mjs",
+        "from": "    say(one.error);\n    return found;",
+        "to": "    return found;"
+      }
+    ]
+  },
+  {
+    "name": "the closing line counts one problem more than there are",
+    "catches": "closes with the number of notes and the number of problems, one of them in the singular",
+    "edits": [
+      {
+        "file": "lib/knowledge.mjs",
+        "from": "  return [...found, `${notes.length} notes, ${found.length} ${found.length === 1 ? \"problem\" : \"problems\"}`].join(\"\\n\");",
+        "to": "  return [...found, `${notes.length} notes, ${found.length + 1} ${found.length === 1 ? \"problem\" : \"problems\"}`].join(\"\\n\");"
+      }
+    ]
+  },
+  {
+    "name": "one problem is closed in the plural",
+    "catches": "closes with the number of notes and the number of problems, one of them in the singular",
+    "edits": [
+      {
+        "file": "lib/knowledge.mjs",
+        "from": "  return [...found, `${notes.length} notes, ${found.length} ${found.length === 1 ? \"problem\" : \"problems\"}`].join(\"\\n\");",
+        "to": "  return [...found, `${notes.length} notes, ${found.length} problems`].join(\"\\n\");"
+      }
+    ]
+  },
+  {
+    "name": "the common note is framed before the person's own files rather than after",
+    "catches": "frames the common note after the person's own files, naming the file it came from",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "  const frames = [...customization(root, what), ...knowledge(root)];",
+        "to": "  const frames = [...knowledge(root), ...customization(root, what)];"
+      }
+    ]
+  },
+  {
+    "name": "the knowledge frame does not say which file it came from",
+    "catches": "frames the common note after the person's own files, naming the file it came from",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "  return [`<knowledge source=\"${source}\">\\n${content}</knowledge>`];",
+        "to": "  return [`<knowledge>\\n${content}</knowledge>`];"
+      }
+    ]
+  },
+  {
+    "name": "an instance with no common note gets an empty frame instead of none",
+    "catches": "renders no frame and no error when there is no common note",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "  const content = readIfThere(path.join(root, KNOWLEDGE, KNOWLEDGE_COMMON));\n  if (content === null) {",
+        "to": "  const content = readIfThere(path.join(root, KNOWLEDGE, KNOWLEDGE_COMMON)) ?? \"\";\n  if (content === null) {"
+      }
+    ]
+  },
+  {
+    "name": "a persona is never told where knowledge is or which call comes first",
+    "catches": "tells both roles where knowledge is, to call index first, and to validate what they wrote",
+    "edits": [
+      {
+        "file": "lib/templates/worker.md",
+        "from": "The workspace's knowledge is `knowledge/`: Markdown notes, one topic per file, facts only.",
+        "to": "The workspace's knowledge is kept in files."
+      }
+    ]
+  },
+  {
+    "name": "a persona is shown the rules as a list of fields instead of an example head",
+    "catches": "tells both roles where knowledge is, to call index first, and to validate what they wrote",
+    "edits": [
+      {
+        "file": "lib/templates/leader.md",
+        "from": "tags: [billing-service, invoicing, rounding]",
+        "to": "tags: a list of at least three"
+      }
+    ]
+  },
+  {
+    "name": "a Worker is not told to leave the common note alone",
+    "catches": "tells a Worker never to edit the common note, and tells the Leader it is theirs",
+    "edits": [
+      {
+        "file": "lib/templates/worker.md",
+        "from": " `common.md` is the one note you never edit — it is read by every session\nhere, so what belongs in it goes to {{LEADER}} instead.",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the Leader is not told the common note is theirs to gather",
+    "catches": "tells a Worker never to edit the common note, and tells the Leader it is theirs",
+    "edits": [
+      {
+        "file": "lib/templates/leader.md",
+        "from": "`common.md` is yours: the team, whom to heed, the business, the lingo",
+        "to": "`common.md` holds the team, whom to heed, the business, the lingo"
+      }
+    ]
+  }
+]

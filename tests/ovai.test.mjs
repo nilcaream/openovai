@@ -801,6 +801,7 @@ describe("what a workspace can account for", () => {
     "Edit(/reference/**)",
     "Edit(/projects/**)",
     "Edit(/temp/**)",
+    "Edit(/knowledge/**)",
     "Bash(git:*)",
     "Bash(mkdir:*)",
     "Bash(cd:*)",

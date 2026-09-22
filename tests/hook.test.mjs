@@ -224,7 +224,7 @@ describe("the rules an update says are missing", () => {
   it("is nothing for settings that hold every rule a fresh instance is born with", () => {
     writeSettings(root, {
       permissions: {
-        allow: ["mcp__openovai", "Read(/**)", "Edit(/reference/**)", "Edit(/projects/**)", "Edit(/temp/**)", "Bash(git:*)", "Bash(mkdir:*)", "Bash(cd:*)", "Bash(node:*)", "Bash(bash:*)", "Bash(sh:*)", "Bash(cp:*)", "Bash(mv:*)", "Bash(rm:*)", "Bash(ls:*)", "Bash(cat:*)", "Bash(tar:*)", "Bash(diff:*)", "Bash(cmp:*)", "Bash(sha256sum:*)", "Bash(grep:*)", "Bash(find:*)", "Bash(sed:*)", "Bash(awk:*)", "Bash(head:*)", "Bash(tail:*)", "Bash(wc:*)", "Bash(echo:*)", "Bash(chmod:*)", "Bash(touch:*)", "Bash(curl:*)", "Bash(npm:*)", "Edit(/desks/Bob/**)"],
+        allow: ["mcp__openovai", "Read(/**)", "Edit(/reference/**)", "Edit(/projects/**)", "Edit(/temp/**)", "Edit(/knowledge/**)", "Bash(git:*)", "Bash(mkdir:*)", "Bash(cd:*)", "Bash(node:*)", "Bash(bash:*)", "Bash(sh:*)", "Bash(cp:*)", "Bash(mv:*)", "Bash(rm:*)", "Bash(ls:*)", "Bash(cat:*)", "Bash(tar:*)", "Bash(diff:*)", "Bash(cmp:*)", "Bash(sha256sum:*)", "Bash(grep:*)", "Bash(find:*)", "Bash(sed:*)", "Bash(awk:*)", "Bash(head:*)", "Bash(tail:*)", "Bash(wc:*)", "Bash(echo:*)", "Bash(chmod:*)", "Bash(touch:*)", "Bash(curl:*)", "Bash(npm:*)", "Edit(/desks/Bob/**)"],
         deny: ["Edit(/.claude/**)", "Edit(/.local/settings.json)", "Edit(/.local/.claude.json)", "Bash(git push:*)", "Bash(sudo:*)", "Bash(ssh:*)"],
         ask: ["Edit(/customization/**)"],
       },
@@ -233,11 +233,11 @@ describe("the rules an update says are missing", () => {
     assert.deepEqual(rulesStale(root), []);
   });
 
-  // An instance made before there was an ask rule holds every other rule and not that one, which
-  // is the case the update exists for: it is named, in the list it belongs in, and added to
-  // nothing. A rule the person took out of the list afterwards is named the same way, and stays
-  // out — saying is all an update does here.
-  it("names the ask rule an instance born earlier has not got", () => {
+  // An instance made before there was an ask rule, or before there was a `knowledge/` to write in,
+  // holds every other rule and not those, which is the case the update exists for: each is named,
+  // in the list it belongs in, and added to nothing. A rule the person took out of the list
+  // afterwards is named the same way, and stays out — saying is all an update does here.
+  it("names the rules an instance born earlier has not got, each in its own list", () => {
     writeSettings(root, {
       permissions: {
         allow: ["mcp__openovai", "Read(/**)", "Edit(/reference/**)", "Edit(/projects/**)", "Edit(/temp/**)", "Bash(git:*)", "Bash(mkdir:*)", "Bash(cd:*)", "Bash(node:*)", "Bash(bash:*)", "Bash(sh:*)", "Bash(cp:*)", "Bash(mv:*)", "Bash(rm:*)", "Bash(ls:*)", "Bash(cat:*)", "Bash(tar:*)", "Bash(diff:*)", "Bash(cmp:*)", "Bash(sha256sum:*)", "Bash(grep:*)", "Bash(find:*)", "Bash(sed:*)", "Bash(awk:*)", "Bash(head:*)", "Bash(tail:*)", "Bash(wc:*)", "Bash(echo:*)", "Bash(chmod:*)", "Bash(touch:*)", "Bash(curl:*)", "Bash(npm:*)"],
@@ -245,7 +245,7 @@ describe("the rules an update says are missing", () => {
       },
     });
     const text = fs.readFileSync(settingsFile(root), "utf8");
-    assert.deepEqual(rulesMissing(root), ["ask Edit(/customization/**)"]);
+    assert.deepEqual(rulesMissing(root), ["allow Edit(/knowledge/**)", "ask Edit(/customization/**)"]);
     assert.equal(fs.readFileSync(settingsFile(root), "utf8"), text);
   });
 
@@ -253,8 +253,8 @@ describe("the rules an update says are missing", () => {
     writeSettings(root, { permissions: { allow: ["mcp__openovai", "Read(/**)", "Edit(/reference/**)", "Edit(/projects/**)", "Edit(/temp/**)"], deny: ["Edit(/.claude/**)", "Edit(/.local/settings.json)", "Edit(/.local/.claude.json)"], ask: ["Edit(/customization/**)"] } });
     const text = fs.readFileSync(settingsFile(root), "utf8");
     const missing = rulesMissing(root);
-    assert.equal(missing.length, 30);
-    assert.equal(missing[0], "allow Bash(git:*)");
+    assert.equal(missing.length, 31);
+    assert.equal(missing[0], "allow Edit(/knowledge/**)");
     assert.equal(missing.includes("deny Bash(git push:*)"), true);
     assert.equal(missing.includes("deny Bash(ssh:*)"), true);
     assert.equal(missing.some((entry) => entry.includes("desks/")), false);

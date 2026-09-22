@@ -107,6 +107,19 @@ jobs:
       - name: Remember and recall
         run: node --test tests/store.test.mjs
 
+  knowledge:
+    name: Knowledge
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+
+      - name: Index the notes, and say what is wrong with them
+        run: node --test tests/knowledge.test.mjs
+
   helper:
     name: Helper
     runs-on: ubuntu-latest

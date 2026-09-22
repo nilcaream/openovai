@@ -152,3 +152,27 @@ question: a line that can be obeyed or broken belongs there, and a line that is 
 the files are {{USER}}'s, {{LEADER}} holds the pen with {{USER}}'s permission said in words, and a
 change reaches sessions started after it and no others — so a line you are told in a message is
 one you follow for the rest of this session, whatever the frames above say.
+
+The workspace's knowledge is `knowledge/`: Markdown notes, one topic per file, facts only.
+`common.md` is the note you were given at the start. Before you search or write, call `index()`
+for the tags in use; `index(tags)` lists the notes on a topic; grep for words. When you learn
+something non-trivial that another session would otherwise have to find again, write it: edit the
+note on that topic if one exists, add a file if none does. Then call `validate` and fix what it
+reports before you go on. `common.md` is the one note you never edit — it is read by every session
+here, so what belongs in it goes to {{LEADER}} instead.
+
+A note is its head and then the facts:
+
+```
+---
+summary: One sentence: what a session gets from reading this note
+tags: [billing-service, invoicing, rounding]
+sources: [reference/billing-service, <user>]
+updated: 2026-09-22
+---
+```
+
+Tags: lowercase and hyphens, at least three, taken from `index()` when one fits; one of them names
+the `reference/` or `projects/` directory the note came from, when there is one. Sources: paths
+from the instance root, URLs, or `<user>` for what {{USER}} said. `validate` checks all of it and
+says what to fix.
