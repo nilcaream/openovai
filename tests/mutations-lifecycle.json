@@ -43,7 +43,7 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "        if (!fs.existsSync(deskFile(root, name))) {\n          try {\n            openDesk(",
+        "from": "        if (!hadDesk) {\n          try {\n            openDesk(",
         "to": "        if (true) {\n          try {\n            openDesk("
       }
     ]
@@ -202,8 +202,8 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "        startSeat(instance, name);\n        return { text: `${name} started on the desk",
-        "to": "        fs.rmSync(panelDirectory(root, name), { recursive: true, force: true });\n        startSeat(instance, name);\n        return { text: `${name} started on the desk"
+        "from": "        startSeat(instance, name);\n        const runs = modelFor(root, name, instance.config);",
+        "to": "        fs.rmSync(panelDirectory(root, name), { recursive: true, force: true });\n        startSeat(instance, name);\n        const runs = modelFor(root, name, instance.config);"
       }
     ]
   },
@@ -356,8 +356,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "    if (holding === null) {\n      startSuccessor(instance, seat, carried);\n      return;\n    }",
-        "to": "    startSuccessor(instance, seat, carried);\n    if (holding === null) {\n      return;\n    }"
+        "from": "    if (holding === null) {\n      startSuccessor(instance, seat, carried, context);\n      return;\n    }",
+        "to": "    startSuccessor(instance, seat, carried, context);\n    if (holding === null) {\n      return;\n    }"
       }
     ]
   },
@@ -1070,8 +1070,8 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "        if (instance.stopping === true) {\n          return { refused: \"the server is stopping\" };\n        }\n        const { at, where } = archiveFor(root, name);",
-        "to": "        const { at, where } = archiveFor(root, name);"
+        "from": "        if (instance.stopping === true) {\n          return { refused: \"the server is stopping\" };\n        }\n        // What it ran on, read while the desk is still there",
+        "to": "        // What it ran on, read while the desk is still there"
       }
     ]
   },
@@ -1190,8 +1190,52 @@
       },
       {
         "file": "lib/chat/session.mjs",
-        "from": "    ended({ seat, role, ending: record.ending, exit, carried, why });",
-        "to": "    ended({ seat, role, ending: record.ending, exit, carried: [{ frame: rulesUpdateFrame(record.rules, \"Hard rules update: the set as it stands.\"), resolve() {} }, ...carried], why });"
+        "from": "    ended({ seat, role, ending: record.ending, exit, carried, why, context: record.context });",
+        "to": "    ended({ seat, role, ending: record.ending, exit, carried: [{ frame: rulesUpdateFrame(record.rules, \"Hard rules update: the set as it stands.\"), resolve() {} }, ...carried], why, context: record.context });"
+      }
+    ]
+  },
+  {
+    "name": "every hire says the desk was new",
+    "catches": "writes a hired row with the model and whether the desk was new or one the Worker had",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "        log(\"hired\", name, null, `${runs} on ${hadDesk ? \"the desk it had\" : \"a new desk\"}`);",
+        "to": "        log(\"hired\", name, null, `${runs} on a new desk`);"
+      }
+    ]
+  },
+  {
+    "name": "the model a retired Worker ran on is read after the desk is filed",
+    "catches": "writes a retired row with the model it ran on and where the desk went",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "        const ran = modelFor(root, name, instance.config);\n        const { at, where } = archiveFor(root, name);\n        closeDesk(root, name, at);\n        log(\"retired\", name, null, `${ran}, filed under ${where}`);",
+        "to": "        const { at, where } = archiveFor(root, name);\n        closeDesk(root, name, at);\n        log(\"retired\", name, null, `${modelFor(root, name, instance.config)}, filed under ${where}`);"
+      }
+    ]
+  },
+  {
+    "name": "the crossing is announced without the percentage the reading measured",
+    "catches": "writes a quota row at each crossing: the stage, the percentage, the reset, and the model when the window is one model's own",
+    "edits": [
+      {
+        "file": "lib/chat/quota.mjs",
+        "from": "      listener(key, stage, resets, model, percent);",
+        "to": "      listener(key, stage, resets, model);"
+      }
+    ]
+  },
+  {
+    "name": "a process gone takes the context it measured with it",
+    "catches": "writes a restart row carrying the context the session that restarted was at",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "    ended({ seat, role, ending: record.ending, exit, carried, why, context: record.context });",
+        "to": "    ended({ seat, role, ending: record.ending, exit, carried, why });"
       }
     ]
   }

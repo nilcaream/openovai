@@ -878,8 +878,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "function afterClose(instance, { seat, role, ending, carried }) {\n  seatChanged(instance, seat);",
-        "to": "function afterClose(instance, { seat, role, ending, carried }) {"
+        "from": "function afterClose(instance, { seat, role, ending, carried, context = null }) {\n  seatChanged(instance, seat);",
+        "to": "function afterClose(instance, { seat, role, ending, carried, context = null }) {"
       }
     ]
   },
@@ -889,8 +889,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "function afterClose(instance, { seat, role, ending, carried }) {\n  seatChanged(instance, seat);",
-        "to": "function afterClose(instance, { seat, role, ending, carried }) {\n  if (role === WORKER) {\n    seatChanged(instance, seat);\n  }"
+        "from": "function afterClose(instance, { seat, role, ending, carried, context = null }) {\n  seatChanged(instance, seat);",
+        "to": "function afterClose(instance, { seat, role, ending, carried, context = null }) {\n  if (role === WORKER) {\n    seatChanged(instance, seat);\n  }"
       }
     ]
   },

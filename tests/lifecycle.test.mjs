@@ -331,6 +331,29 @@ describe("starting a seat", () => {
     assert.equal(fs.existsSync(deskFile(instance, "Zed")), false);
   });
 
+  // The log had a seat's stop and never its start, so a day could not be read back. Two rows, and
+  // the one fact that tells them apart — whether the desk was already there — is known where the
+  // hire tests for it and nowhere afterwards. Kit is outside the roster, so this disturbs no name
+  // the pool hands out.
+  it("writes a hired row with the model and whether the desk was new or one the Worker had", async () => {
+    try {
+      assert.equal(fs.existsSync(deskFile(instance, "Kit")), false);
+      const logged = said.length;
+      const first = await spawnedBy("Kit", () => tool(superman.secret, "hire", { name: "Kit" }));
+      assert.equal(first.result.refused, false, first.result.text);
+      await end("Kit", 500);
+      const back = await spawnedBy("Kit", () => tool(superman.secret, "hire", { name: "Kit" }));
+      assert.equal(back.result.refused, false, back.result.text);
+      assert.deepEqual(said.slice(logged).filter((line) => line.startsWith("hired ")), [
+        `hired Kit - ${WORKER_MODEL} on a new desk`,
+        `hired Kit - ${WORKER_MODEL} on the desk it had`,
+      ]);
+    } finally {
+      await end("Kit", 500);
+      remove(path.join(instance, "desks", "Kit"));
+    }
+  });
+
   it("records the rule-set version in the desk header at spawn", () => {
     const header = deskHeader(instance, WORKER);
     assert.match(header.rules, /^m\d+$/);
@@ -467,6 +490,24 @@ describe("restart_session and stop_session", () => {
     // the successor's answer to it is the last row.
     const rows = panel(instance, WORKER).slice(-3);
     assert.deepEqual(rows.map((row) => [row.from, row.text]), [[LEADER, "after the restart"], [WORKER, "a reply"], [WORKER, "a reply"]]);
+    await end(WORKER, 500);
+  });
+
+  // "It filled up" is a fact somebody can check afterwards or it is a story, so the restart row
+  // carries the number: what the predecessor's last request measured, taken off the record that
+  // measured it, and after the row that says its process is gone.
+  it("writes a restart row carrying the context the session that restarted was at", async () => {
+    const context = JSON.stringify([{ iterations: [{ input_tokens: 150_000 }] }, { iterations: [{ input_tokens: 150_000 }] }]);
+    paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_SLOW: "400", OPENOVAI_STAND_IN_USAGE: context, ...callsThen("restart_session", "restart please") });
+    await tell(WORKER, userFrame("one")).answered;
+    const logged = said.length;
+    tell(WORKER, userFrame("restart please"));
+    await told(paul.log, 2);
+    const successor = await spawnedBy(WORKER, () => asked(superman.secret, WORKER, "after the restart"));
+    assert.notEqual(successor.secret, paul.secret);
+    const since = said.slice(logged);
+    assert.deepEqual(since.filter((line) => line.startsWith("restart ")), [`restart ${WORKER} - successor started, 150000 tokens of context`]);
+    assert.ok(since.indexOf(`restart ${WORKER} - successor started, 150000 tokens of context`) > since.indexOf(`stopped ${WORKER} - restart`), since.join("\n"));
     await end(WORKER, 500);
   });
 
@@ -661,6 +702,25 @@ describe("the quota gate", () => {
     assert.deepEqual(await told(superman.log, 1), [warning]);
     assert.ok(!notesIn(paul.log).some(([label]) => label === "interrupt"));
     assert.ok(!notesIn(superman.log).some(([label]) => label === "interrupt"));
+  });
+
+  // What the gate learned, written where it learned it: the stage was told to the seats and never
+  // to the log, so a day's quota could not be read back. The percentage is the reading's own —
+  // quota.mjs keeps the readings, and it is the only place the number exists.
+  it("writes a quota row at each crossing: the stage, the percentage, the reset, and the model when the window is one model's own", async () => {
+    const resets = RESETS();
+    const week = now + 3 * 24 * 60 * MINUTE;
+    await fresh(readings(reading(0.91, { resets }), reading(0.96, { resets })));
+    const logged = said.length;
+    await tell(WORKER, userFrame("one")).answered;
+    await tell(WORKER, userFrame("two")).answered;
+    // Fable's own weekly window reaches the gate from the usage endpoint, not from a process.
+    quota.saw("usage", null, { unifiedWindows: { [quota.FABLE_WINDOW]: { utilization: 0.995, resetsAt: week } } }, now);
+    assert.deepEqual(said.slice(logged).filter((line) => line.startsWith("quota ")), [
+      `quota - - warning on 5h at 91%, resets ${new Date(resets).toISOString()}`,
+      `quota - - critical on 5h at 96%, resets ${new Date(resets).toISOString()}`,
+      `quota - - critical on 7d-fable (fable) at 99.5%, resets ${new Date(week).toISOString()}`,
+    ]);
   });
 
   it("stage two interrupts a Worker mid-turn and tells it critical; the Leader is told, not interrupted", async () => {
@@ -1638,6 +1698,25 @@ describe("retire", () => {
     assert.doesNotMatch(deskOf(OTHER), /round done/);
     assert.match(fs.readFileSync(path.join(where, "STATE.md"), "utf8"), /round done/);
     await end(OTHER, 500);
+  });
+
+  // The other end of the hired row: what the Worker ran on, read while the desk is still there to
+  // say so, and where the desk went, so the filed round can be found from the log.
+  it("writes a retired row with the model it ran on and where the desk went", async () => {
+    // On a model of its own, not the workspace's, which is why the desk has to be a new one: the
+    // desk is where the model is written down, and a row that reads it once the desk is filed
+    // says the workspace's default instead and is wrong.
+    assert.notEqual("opus", WORKER_MODEL);
+    assert.equal(fs.existsSync(deskFile(instance, "Kit")), false);
+    const kit = await spawnedBy("Kit", () => tool(superman.secret, "hire", { name: "Kit", model: "opus" }));
+    assert.equal(kit.result.refused, false, kit.result.text);
+    await end("Kit", 500);
+    const logged = said.length;
+    const filed = await tool(superman.secret, "retire", { name: "Kit" });
+    assert.equal(filed.refused, false, filed.text);
+    const where = filed.text.slice("Kit filed under ".length);
+    assert.match(where, /^archive\/\d{4}-\d{2}-\d{2}-Kit/);
+    assert.deepEqual(said.slice(logged).filter((line) => line.startsWith("retired ")), [`retired Kit - opus, filed under ${where}`]);
   });
 
   it("retire drops what the quota gate held for the seat", async () => {

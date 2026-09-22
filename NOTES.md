@@ -12,6 +12,15 @@ preview, a shell parked on something. When the session's process is gone, whatev
 did not end is ended with it, and the log says which seat left what. A Worker's own instructions
 say the same in a sentence: a long run is a call you wait on, not a process left behind.
 
+**The log says what became of the sessions, not only what they did.** `runtime.log` had a seat's
+stop and never its start. It now says when a Worker was hired — what it runs on, and whether the
+desk was new or one it had — and when a desk was filed away, with the model that round ran on and
+where the desk went. A restart says how full the session that restarted was, in tokens, so "it
+filled up" is a number that can be checked rather than a story. And every time the account's usage
+crosses a threshold, the log says which window, the percentage it stood at, when it resets, and the
+model when the window is one model's own — until now that was told to the sessions and to nobody
+else. A day can be read back from the file.
+
 **A stop no longer waits on what is not a session.** `ovai stop` waits for the sessions and
 nothing else, and `ovai update` refuses only for a session — a process that is running the code an
 update replaces. Anything else a seat left running is named by the seat that left it, with what it
