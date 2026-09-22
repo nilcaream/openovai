@@ -679,7 +679,10 @@ describe("the page's STOP", () => {
   });
 
   it("interrupts the turn and nothing else: the process stays, the next frame goes in", async () => {
-    paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_SLOW: "5000" });
+    // Only long enough that the turn is still running when the stop lands. The check waits for
+    // the turn below before it posts, so this has one localhost POST to outlast, not five seconds
+    // of guessing.
+    paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_SLOW: "1000" });
     const first = tell(WORKER, userFrame("slow"));
     tell(WORKER, userFrame("next"));
     await told(paul.log, 1);
@@ -773,7 +776,9 @@ describe("the quota gate", () => {
 
   it("stage two interrupts a Worker mid-turn and tells it critical; the Leader is told, not interrupted", async () => {
     const resets = RESETS();
-    await fresh({ OPENOVAI_STAND_IN_SLOW: "3000", ...readings(reading(0.96, { resets })) });
+    // The gate acts on the reading this turn's own first request carries, so the turn has the
+    // gate's handling to outlast and nothing more.
+    await fresh({ OPENOVAI_STAND_IN_SLOW: "1200", ...readings(reading(0.96, { resets })) });
     const first = tell(WORKER, userFrame("busy"));
     assert.deepEqual(await first.answered, { interrupted: true, text: "interrupted" });
     const critical = `<server-event type="quota-low" stage="critical" window="5h" resets="${new Date(resets).toISOString()}" interrupted="true">${BODY_CRITICAL}</server-event>`;
@@ -1053,7 +1058,9 @@ describe("the quota gate", () => {
     try {
       const resets = now + 3 * 24 * 60 * MINUTE;
       await fresh({});
-      const zed = await spawnedBy("Zed", () => tool(superman.secret, "hire", { name: "Zed", model: "fable" }), { OPENOVAI_STAND_IN_SLOW: "3000" });
+      // The reading below is handed over in-process once the turn is heard, so what the turn has
+      // to outlast is a synchronous call.
+      const zed = await spawnedBy("Zed", () => tool(superman.secret, "hire", { name: "Zed", model: "fable" }), { OPENOVAI_STAND_IN_SLOW: "1200" });
       assert.equal(zed.result.refused, false, zed.result.text);
       assert.match(callsIn(zed.log)[0], /--model fable/);
       const busy = tell("Zed", userFrame("busy"));
@@ -1164,7 +1171,9 @@ describe("idle", () => {
   });
 
   it("a seat on a turn is not idle, however long the turn: a pending permission at 55 gets no critical frame", async () => {
-    ({ superman, paul } = await pair({ OPENOVAI_STAND_IN_ASKS: "Bash", OPENOVAI_STAND_IN_WAITS: "4000" }));
+    // The ask stays pending for as long as the checks below need it: two clock jumps, two ticks
+    // and a settle. Waiting longer than that proves nothing further.
+    ({ superman, paul } = await pair({ OPENOVAI_STAND_IN_ASKS: "Bash", OPENOVAI_STAND_IN_WAITS: "2000" }));
     await awake(WORKER);
     const idleFrom = now;
     now = idleFrom + 50 * MINUTE;

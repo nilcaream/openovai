@@ -23,12 +23,25 @@ import { fileURLToPath } from "node:url";
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-// How many copies to sweep in parallel. Bounded by MEMORY, not by cores: one run peaks around
-// 300 MB once its chat server and stand-ins are counted, and a sweep is usually run on a machine
-// that is also running an editor and a browser. Four copies is ~1.2 GB and about 1.5 cores' worth
-// of work. An OOM kill mid-mutation is the accident this tool exists to prevent, so the default
-// errs low; raise it with --copies when the machine is quiet.
-const COPIES = Math.max(1, Math.min(4, os.cpus().length));
+// How many copies to sweep in parallel. Bounded by MEMORY, not by cores: one run peaks at 416 MB
+// across its whole process tree once its chat server and stand-ins are counted, and a sweep is
+// usually run on a machine that is also running an editor and a browser. Read that 416 MB as a
+// FLOOR: it was sampled every 250 ms, so a spike shorter than the interval would have been
+// missed. Six copies is ~2.5 GB. An OOM kill mid-mutation is the accident this tool exists to
+// prevent, so the default errs low; raise it with --copies when the machine is quiet.
+//
+// Six, and the reason is not speed. On a 16-core machine the wall clock is still falling at
+// eight: the same 112-mutation list takes 25.5 min at six and 20.0 min at eight. Six is the
+// fastest count whose per-mutation reddened-check counts match a four-copy reference EXACTLY.
+// At eight, a mutation SOMETIMES reddens a check it has nothing to do with, and a closing
+// re-green sometimes fails with nothing mutated at all. Not every run — which is the point: a
+// count you cannot reproduce is a count you cannot read a sweep on. Two of three runs at eight
+// were dirty and one was clean, so a clean run there proves nothing. A default is the number
+// that runs unattended, so it must not walk into a reading nobody can reproduce; 5.5 minutes is
+// a cheap price for a sweep you can believe. Watch the run if you raise it, and compare the
+// reddened counts against a lower count rather than trusting that the sweep came back green —
+// a spurious red during a mutated run looks exactly like the mutation biting.
+const COPIES = Math.max(1, Math.min(6, os.cpus().length));
 
 // A per-CHECK bound, which is how a mutation that hangs by design is caught. node --test defaults
 // to --test-timeout=0, meaning no bound at all, so one await that never settles hangs the whole
