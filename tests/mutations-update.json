@@ -203,8 +203,8 @@
     "edits": [
       {
         "file": "lib/ovai.mjs",
-        "from": "  const sessions = runningHere(root);",
-        "to": "  const sessions = [];"
+        "from": "  const processes = runningHere(root);",
+        "to": "  const processes = [];"
       }
     ]
   },
@@ -214,8 +214,8 @@
     "edits": [
       {
         "file": "lib/running.mjs",
-        "from": "    ...running.map(({ pid }) => `  kill ${pid}   # ${commandOf(pid)}`),",
-        "to": "    ...running.map(({ pid }) => `  ${pid}   # ${commandOf(pid)}`),"
+        "from": "      ...sessions.map(({ pid }) => `  kill ${pid}   # ${commandOf(pid)}`),",
+        "to": "      ...sessions.map(({ pid }) => `  ${pid}   # ${commandOf(pid)}`),"
       }
     ]
   },
@@ -225,8 +225,8 @@
     "edits": [
       {
         "file": "lib/running.mjs",
-        "from": "    ...running.map(({ pid }) => `  kill ${pid}   # ${commandOf(pid)}`),",
-        "to": "    ...running.map(({ pid }) => `  kill ${pid}`),"
+        "from": "      ...sessions.map(({ pid }) => `  kill ${pid}   # ${commandOf(pid)}`),",
+        "to": "      ...sessions.map(({ pid }) => `  kill ${pid}`),"
       }
     ]
   },
@@ -236,8 +236,8 @@
     "edits": [
       {
         "file": "lib/running.mjs",
-        "from": "  } catch {\n    return \"?\";\n  }",
-        "to": "  } catch {\n    return \"\";\n  }"
+        "from": "  return found.length === 0 ? \"?\" : found.join(\" \");",
+        "to": "  return found.join(\" \");"
       }
     ]
   },
@@ -258,8 +258,8 @@
     "edits": [
       {
         "file": "lib/ovai.mjs",
-        "from": "    throw new ReleaseError(describeRunning(sessions));",
-        "to": "    console.error(describeRunning(sessions));"
+        "from": "    throw new ReleaseError(describeRunning(processes));",
+        "to": "    console.error(describeRunning(processes));"
       }
     ]
   },
