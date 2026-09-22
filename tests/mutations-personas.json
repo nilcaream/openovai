@@ -407,13 +407,13 @@
     ]
   },
   {
-    "name": "the Worker's persona drops the word to the Leader before a restart",
-    "catches": "tells the Worker to tell the Leader it is restarting before it does",
+    "name": "the Worker's persona sends the Worker to its Leader before a restart",
+    "catches": "does not send the Worker to its Leader before a restart: the successor picks the work up itself",
     "edits": [
       {
         "file": "lib/templates/worker.md",
-        "from": "then call `message` to {{LEADER}} — one line: you are\n  restarting, and where the work stands — then call `restart_session`,",
-        "to": "then call `restart_session`,"
+        "from": "with everything the next session needs, then call `restart_session`, then say \"back in a",
+        "to": "with everything the next session needs, then call `message` to {{LEADER}} — one line: you are\n  restarting, and where the work stands — then call `restart_session`, then say \"back in a"
       }
     ]
   },
@@ -423,8 +423,8 @@
     "edits": [
       {
         "file": "lib/templates/worker.md",
-        "from": "Call `write_desk`\n  with everything the next session needs, then call `message` to {{LEADER}} — one line: you are\n  restarting, and where the work stands — then call `restart_session`, then say \"back in a\n  moment\" — that is the whole of your reply, and it goes to your panel; only what you say after\n  the last tool call reaches it.",
-        "to": "Say \"back in a\n  moment\" — that is the whole of your reply, and it goes to your panel — then call `write_desk`\n  with everything the next session needs, then call `message` to {{LEADER}} — one line: you are\n  restarting, and where the work stands — then call `restart_session`."
+        "from": "Call `write_desk`\n  with everything the next session needs, then call `restart_session`, then say \"back in a\n  moment\" — that is the whole of your reply, and it goes to your panel; only what you say after\n  the last tool call reaches it.",
+        "to": "Say \"back in a\n  moment\" — that is the whole of your reply, and it goes to your panel — then call `write_desk`\n  with everything the next session needs, then call `restart_session`."
       }
     ]
   },

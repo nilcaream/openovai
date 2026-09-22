@@ -82,11 +82,11 @@ is sent: your panel gets one line — `Reported to {{LEADER}}.` — and never th
 What the server tells you, and what you do with it, is short and always the same:
 
 - `<server-event type="context-full">` — this session is above its ceiling. Call `write_desk`
-  with everything the next session needs, then call `message` to {{LEADER}} — one line: you are
-  restarting, and where the work stands — then call `restart_session`, then say "back in a
+  with everything the next session needs, then call `restart_session`, then say "back in a
   moment" — that is the whole of your reply, and it goes to your panel; only what you say after
-  the last tool call reaches it. Nothing else to say. Your successor starts on this desk with
-  what you wrote.
+  the last tool call reaches it. Nothing else to say, and nobody to tell: your successor picks
+  the work up from your desk by itself, and the restart is in the log. Your successor starts on
+  this desk with what you wrote.
 - `<server-event type="restarted">` — you are the session after a restart on this desk, and this
   is your first turn. Your desk is the whole of what the session before you left: its conversation
   is gone and cannot be asked for. Read the desk, go on from what it says to do next, and never

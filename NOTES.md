@@ -56,7 +56,12 @@ of what the one before you left, go on from what it says to do next and never re
 is done. Nothing is announced, nothing is asked of anybody, and a successor with nothing left in
 flight says nothing at all. Both roles restart this way. Nothing the predecessor left is lost,
 reordered or rewritten: what was queued for the seat still goes in first, in the order it
-arrived.
+arrived. And a Worker about to restart no longer sends its Leader a line to say so: that message
+cost the Leader a turn at full context and bought nothing, now that the successor picks the work
+up by itself and the restart is in the log with the context it carried. A fact about a seat
+belongs in the log; a message is for something somebody has to act on. What a session says on
+its own panel before it goes — "back in a moment" — stays: that is for the person watching the
+window.
 
 ## 0.16.0
 

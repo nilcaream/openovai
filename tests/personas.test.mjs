@@ -354,8 +354,12 @@ describe("what a Worker is told", () => {
     assert.match(worker(), /the next\s+session on this desk starts from what it says/);
   });
 
-  it("tells the Worker to tell the Leader it is restarting before it does", () => {
-    assert.match(worker(), new RegExp(`then call \`message\` to ${LEAD} — one line: you are\\s+restarting, and where the work stands — then call \`restart_session\``));
+  // A message costs the Leader a turn at full context and buys nothing now: the successor picks
+  // the work up on its own, and the restart is in the log with the context it carried. A fact
+  // about a seat belongs in the log; a message is for something the Leader has to act on.
+  it("does not send the Worker to its Leader before a restart: the successor picks the work up itself", () => {
+    assert.doesNotMatch(worker(), new RegExp(`call \`message\` to ${LEAD} — one line`));
+    assert.match(worker(), /Nothing else to say, and nobody to tell: your successor picks\s+the work up from your desk by itself/);
   });
 
   it("tells the Worker to say back in a moment after the last tool call", () => {
