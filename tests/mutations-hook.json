@@ -22,6 +22,17 @@
     ]
   },
   {
+    "name": "the update takes the ask rule for held whatever the settings say, so an instance born without it is told nothing",
+    "catches": "names the ask rule an instance born earlier has not got",
+    "edits": [
+      {
+        "file": "lib/seed.mjs",
+        "from": "  const ask = held(settings.permissions?.ask);",
+        "to": "  const ask = [...CUSTOMIZATION_ASK_RULES];"
+      }
+    ]
+  },
+  {
     "name": "the hook stops holding a side against the refusals, so a compound with git push in it is let through",
     "catches": "answers nothing for a side that is refused by rule",
     "edits": [

@@ -735,5 +735,93 @@
         "to": "- `<server-event type=\"permission\" who=\"…\" waiting=\"…\">`"
       }
     ]
+  },
+  {
+    "name": "the Worker's persona leaves the frames round the person's files unexplained",
+    "catches": "tells both what a customization frame is and that it adds to the instructions",
+    "edits": [
+      {
+        "file": "lib/templates/worker.md",
+        "from": "each file in a frame of\nits own — `<customization source=\"customization/common.md\">` for what every session here is\ngiven, and the one for your own kind of session under it.",
+        "to": "whatever the person here has written down."
+      }
+    ]
+  },
+  {
+    "name": "the Leader's persona shows the mark on a line with the date written the other way round",
+    "catches": "gives both the shape of a line and the mark on the ones the User set",
+    "edits": [
+      {
+        "file": "lib/templates/leader.md",
+        "from": "`3. Nothing is pushed to any repository. (User, 2026-09-22)`",
+        "to": "`3. Nothing is pushed to any repository. (User, 22 Sep 2026)`"
+      }
+    ]
+  },
+  {
+    "name": "the Worker's persona drops the test for whether a line is customization or knowledge",
+    "catches": "gives both the test for where a line belongs: obeyed or broken here, true or false in knowledge",
+    "edits": [
+      {
+        "file": "lib/templates/worker.md",
+        "from": "a line that can be obeyed or broken belongs there, and a line that is true or false is\n`knowledge` and belongs where what this workspace knows is kept.",
+        "to": "anything a session should have in front of it belongs there."
+      }
+    ]
+  },
+  {
+    "name": "the Worker's persona says a changed file reaches every session at once",
+    "catches": "tells both that a change reaches sessions started after it and no others",
+    "edits": [
+      {
+        "file": "lib/templates/worker.md",
+        "from": "change reaches sessions started after it and no others — so a line you are told in a message is",
+        "to": "change reaches every session there is at once — so a line you are told in a message is"
+      }
+    ]
+  },
+  {
+    "name": "the Leader's persona hands it the Worker's file as one more of its own",
+    "catches": "tells the Leader the Worker's frame is not its own, and is there so it briefs the task",
+    "edits": [
+      {
+        "file": "lib/templates/leader.md",
+        "from": "then the Worker's under `for=\"worker\"`. That last one\nis not yours to follow — it is what every Worker is already given, and it is there so that you\nbrief the task and not the method.",
+        "to": "then the Worker's, which is yours to follow like the rest."
+      }
+    ]
+  },
+  {
+    "name": "the Leader's persona lets it rewrite the person's file whenever the team needs it",
+    "catches": "tells the Leader it writes a line only on the User's word, and tells or hires again after",
+    "edits": [
+      {
+        "file": "lib/templates/leader.md",
+        "from": "You write one only when {{USER}} has given you permission in words, and a change",
+        "to": "You write one whenever the team needs it, and a change"
+      }
+    ]
+  },
+  {
+    "name": "the Worker's persona hands it the Leader's file as well",
+    "catches": "tells the Worker it is not given the Leader's file",
+    "edits": [
+      {
+        "file": "lib/templates/worker.md",
+        "from": "There is\nno frame for the Leader's file; you are not given it.",
+        "to": "The Leader's file, `customization/leader.md`, comes to you under the rest."
+      }
+    ]
+  },
+  {
+    "name": "the Worker's persona tells it to write a line into the person's file itself",
+    "catches": "tells the Worker to propose a line and never write one, and that a line said in a message holds",
+    "edits": [
+      {
+        "file": "lib/templates/worker.md",
+        "from": "Propose a line, never write one:",
+        "to": "Write a line yourself when you see one missing:"
+      }
+    ]
   }
 ]

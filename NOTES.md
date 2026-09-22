@@ -26,6 +26,25 @@ nothing else, and `ovai update` refuses only for a session — a process that is
 update replaces. Anything else a seat left running is named by the seat that left it, with what it
 is and one line that ends all of them, and the update goes on.
 
+**What you add to a persona is three files, and a session can see where each line came from.**
+`customization/` takes a third file beside `leader.md` and `worker.md`: `common.md`, what every
+session here is given. Each one that is there arrives after the instructions in a frame naming the
+file it came from — `<customization source="customization/common.md">` — with the content between
+the tags exactly as you left it: nothing trimmed, nothing re-wrapped, and a file that is there and
+empty is an empty frame rather than no frame at all. A file that is not there is no frame and no
+error, so an instance with none of them reads exactly as it did. The common file comes first and
+the role's own under it. A Leader is given the Worker's file as well as its own, marked
+`for="worker"`, so that it knows what every Worker already holds and briefs the task rather than
+the method; a Worker is never given the Leader's. Both templates now say what a frame is, what
+shape a line has — numbered, one thing per line, a mark such as `(User, 2026-09-22)` on the ones
+you set — and the one test for where a line belongs: a line that can be obeyed or broken is
+customization, a line that is true or false is not. A change to any of these files reaches
+sessions started after it and no others. And a fresh instance is born asking about that change:
+`Edit(/customization/**)` goes in the settings' `ask` list, so a session that would rewrite one of
+these files stops for your press — every seat, the Leader with the rest, since one settings file
+serves them all. An instance made before this version is told the rule it has not got, the way it
+is told about any other, and nothing is added to its settings for it.
+
 ## 0.16.0
 
 The toolkit brings its own Node.js and Claude Code, one `openovai` command installs an instance from

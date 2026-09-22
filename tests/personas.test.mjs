@@ -404,3 +404,70 @@ describe("what a Worker is told", () => {
     assert.match(worker(), /say whose it is and say it to them/);
   });
 });
+
+// The frames the person's own files arrive in are put there by the renderer (tests/install.test.mjs
+// measures that); these are the sentences that tell a session what one IS. A session that met an
+// unexplained frame would read the person's words as somebody's notes rather than as instructions,
+// or would take the Worker's file for its own. So both templates carry the same account: what the
+// frames are, whose the words are, what shape a line has, and the one test for where a line goes.
+describe("what both are told about what the person added for this instance", () => {
+  it("tells both what a customization frame is and that it adds to the instructions", () => {
+    for (const text of [leader(), worker()]) {
+      assert.match(text, new RegExp(`What ${USER} has added for this instance comes after these instructions, each file in a frame of\\s+its own`));
+      assert.match(text, /`<customization source="customization\/common\.md">` for what every session here is/);
+      assert.match(text, new RegExp(`What is inside a frame is ${USER}'s,\\s+word for word`));
+      assert.match(text, /it adds to\s+what you have read and takes nothing\s+out of it/);
+    }
+  });
+
+  // A few lines, not a place to look things up. The mark says which of them the person set, so a
+  // session can tell those from the ones a Leader wrote down on their behalf.
+  it("gives both the shape of a line and the mark on the ones the User set", () => {
+    for (const text of [leader(), worker()]) {
+      assert.match(text, /It is not storage, and it is not where anything is looked up: a few numbered lines, one thing per\s+line, rarely changed/);
+      assert.match(text, new RegExp("with a mark on the ones " + USER + " set themselves —\\s+`3\\. Nothing is pushed to any repository\\. \\(User, 2026-09-22\\)`"));
+    }
+  });
+
+  // The one test, and it is a test anybody can apply without asking: obeyed or broken, or true or
+  // false. Without it every fact somebody learns ends up in the file that goes into every session.
+  it("gives both the test for where a line belongs: obeyed or broken here, true or false in knowledge", () => {
+    for (const text of [leader(), worker()]) {
+      assert.match(text, /a line that can be obeyed or broken belongs there, and a line that is true or false is\s+`knowledge`/);
+    }
+  });
+
+  it("tells both that a change reaches sessions started after it and no others", () => {
+    for (const text of [leader(), worker()]) {
+      assert.match(text, /reaches sessions started after it and no others/);
+    }
+  });
+});
+
+describe("what the Leader is told about the files", () => {
+  // The Leader is given the Worker's file as well as its own. Told nothing, it would follow it;
+  // told what it is, it briefs the task and leaves the method to what the Worker already holds.
+  it("tells the Leader the Worker's frame is not its own, and is there so it briefs the task", () => {
+    assert.match(leader(), /then the Worker's under `for="worker"`\. That last one\s+is not yours to follow/);
+    assert.match(leader(), /it is what every Worker is already given, and it is there so that you\s+brief the task and not the method/);
+  });
+
+  it("tells the Leader it writes a line only on the User's word, and tells or hires again after", () => {
+    assert.match(leader(), /A Worker proposes a line and\s+never writes one/);
+    assert.match(leader(), new RegExp(`You write one only when ${USER} has given you permission in words`));
+    assert.match(leader(), /tell every running\s+Worker the line itself, or `hire` it again on its desk/);
+  });
+});
+
+describe("what a Worker is told about the files", () => {
+  it("tells the Worker it is not given the Leader's file", () => {
+    assert.match(worker(), /There is\s+no frame for the Leader's file; you are not given it\./);
+    assert.doesNotMatch(worker(), /customization\/leader\.md/);
+  });
+
+  it("tells the Worker to propose a line and never write one, and that a line said in a message holds", () => {
+    assert.match(worker(), /Propose a line, never write one/);
+    assert.match(worker(), new RegExp(`the files are ${USER}'s, ${LEAD} holds the pen with ${USER}'s permission said in words`));
+    assert.match(worker(), /a line you are told in a message is\s+one you follow for the rest of this session/);
+  });
+});

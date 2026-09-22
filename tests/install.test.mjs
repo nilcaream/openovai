@@ -87,6 +87,11 @@ function leadPersona(root = instance) {
   return persona(root, LEADER, { user: USER, leader: LEADER });
 }
 
+// The same for a Worker of this instance: anybody whose name is not the Leader's.
+function workerPersona(root = instance) {
+  return persona(root, "Paul", { user: USER, leader: LEADER });
+}
+
 remove(instance, chosen);
 const made = installed(options(instance));
 
@@ -254,34 +259,89 @@ describe("what the installer made", () => {
     assert.deepEqual(excluded.filter((pattern) => !path.isAbsolute(pattern)), []);
   });
 
-  // What the person adds to a persona. Their file, at the root beside desks/, read as it is and put
-  // after everything the toolkit puts in — so it can add to what a session is told and cannot take
-  // any of it away, and an update, which replaces the templates, never reaches it.
+  // What the person adds to a persona. Their files, at the root beside desks/, read as they are
+  // and put after everything the toolkit puts in — so they can add to what a session is told and
+  // cannot take any of it away, and an update, which replaces the templates, never reaches them.
+  //
+  // Each one goes in a frame naming the file it came from, so that a session can tell the person's
+  // words from the toolkit's and can say which file a line came from. The content between the tags
+  // is the file byte for byte: these are the person's own words going into every session, and a
+  // frame that trimmed them, re-wrapped them or dropped an empty one would be worse than no frame.
+  //
+  // The templates themselves SPEAK of these frames and show an open tag as an example, so every
+  // check here looks for a real frame — one that closes — rather than for the tag alone.
   describe("what the person adds to a persona", () => {
-    const ADDED = "Always answer in French. Keep {{THIS}} as it is.\n";
-    const file = inside(CUSTOMIZATION, "leader.md");
+    const COMMON = "Always answer in French. Keep {{THIS}} as it is.\n";
+    // Trailing spaces and blank lines on purpose: what a person leaves is what a session reads.
+    const FOR_LEADER = "1. The Leader alone presses a button.   \n\n\n";
+    const FOR_WORKER = "1. Nothing is pushed.\n";
+    const where = (name) => inside(CUSTOMIZATION, name);
     let plain;
-    let added;
+    let plainWorker;
+    let lead;
+    let work;
+    let hollow;
 
     before(() => {
       plain = leadPersona();
-      fs.mkdirSync(path.dirname(file), { recursive: true });
-      fs.writeFileSync(file, ADDED);
-      added = leadPersona();
-      fs.rmSync(path.dirname(file), { recursive: true, force: true });
+      plainWorker = workerPersona();
+      fs.mkdirSync(inside(CUSTOMIZATION), { recursive: true });
+      fs.writeFileSync(where("common.md"), COMMON);
+      fs.writeFileSync(where("leader.md"), FOR_LEADER);
+      fs.writeFileSync(where("worker.md"), FOR_WORKER);
+      lead = leadPersona();
+      work = workerPersona();
+      fs.writeFileSync(where("common.md"), "");
+      fs.rmSync(where("leader.md"));
+      fs.rmSync(where("worker.md"));
+      hollow = workerPersona();
+      fs.rmSync(inside(CUSTOMIZATION), { recursive: true, force: true });
     });
 
     it("is the template alone while there is nothing added", () => {
       assert.ok(!plain.includes("Always answer in French"));
+      assert.ok(!plain.includes("</customization>"));
+      assert.ok(!plainWorker.includes("</customization>"));
+    });
+
+    // Only this check reads the source attribute; the rest tell the frames apart by what is in
+    // them. One mutation to the attribute then reddens one check instead of the whole describe,
+    // which is the difference between a suite that says what broke and one that says something did.
+    it("puts each file in a frame that names it, the content between the tags word for word", () => {
+      assert.ok(lead.includes('<customization source="customization/common.md">\nAlways answer in French. Keep {{THIS}} as it is.\n</customization>'), lead.slice(-400));
+    });
+
+    it("keeps the whitespace the person left exactly as it stands", () => {
+      assert.ok(lead.includes(">\n1. The Leader alone presses a button.   \n\n\n</customization>"), lead.slice(-400));
     });
 
     it("comes after everything the toolkit puts in, the budget included", () => {
-      assert.ok(added.startsWith(plain.replace(/\s*$/, "")));
-      assert.ok(added.indexOf("Always answer in French") > added.indexOf("at most 15 tool calls"));
+      assert.ok(lead.indexOf("</customization>") > lead.indexOf("at most 15 tool calls"));
+      assert.ok(lead.indexOf("</customization>") > lead.indexOf("it again on its desk"));
     });
 
-    it("is read as it is, braces and all", () => {
-      assert.ok(added.endsWith("Keep {{THIS}} as it is.\n"));
+    it("gives the common file first and the role's own after it", () => {
+      assert.ok(lead.indexOf("Always answer in French") < lead.indexOf("The Leader alone presses a button"));
+      assert.ok(work.indexOf("Always answer in French") < work.indexOf("1. Nothing is pushed."));
+    });
+
+    // A Leader is told what every Worker already holds, so that it briefs the task and not the
+    // method. The frame says whose it is, because a Leader that read it as its own would follow it.
+    it("gives the Leader the Worker's file too, after its own and marked as the Worker's", () => {
+      assert.ok(lead.includes(' for="worker">\n1. Nothing is pushed.\n</customization>'), lead.slice(-400));
+      assert.ok(lead.indexOf("The Leader alone presses a button") < lead.indexOf("1. Nothing is pushed."));
+    });
+
+    it("never gives a Worker the Leader's file, and marks the Worker's own as nobody else's", () => {
+      assert.ok(!work.includes("The Leader alone presses a button"));
+      assert.ok(!work.includes('for="worker"'));
+      assert.ok(work.includes(">\n1. Nothing is pushed.\n</customization>"), work.slice(-400));
+    });
+
+    // An empty file is a person who meant nothing here, and it says so; an absent file is a person
+    // who has not written one. A frame that swallowed the first would make the two the same thing.
+    it("frames a file that is there and empty rather than dropping it", () => {
+      assert.ok(hollow.includes(">\n</customization>"), hollow.slice(-400));
     });
 
     it("is the person's, so the installer does not make the directory for it", () => {
@@ -344,6 +404,17 @@ describe("what the installer made", () => {
   it("denies git push, sudo and ssh at install", () => {
     const deny = JSON.parse(contentOf(".claude", "settings.json")).permissions.deny;
     assert.deepEqual(deny.filter((rule) => rule.startsWith("Bash(")), ["Bash(git push:*)", "Bash(sudo:*)", "Bash(ssh:*)"]);
+  });
+
+  // And the third list, which holds one rule: a change to what the person added to a persona is
+  // theirs to press for, every seat alike. Not refused, because a refusal would close the files to
+  // everybody here; not granted, because the lines are the User's. The Leader is in it with
+  // everybody else — one settings file serves every seat, so there is no per-role list to leave it
+  // out of. Spelled out whole rather than asked of the code, so a second spelling of the same rule
+  // or a path quietly added beside it is caught here.
+  it("asks the User before any seat changes what they added to a persona", () => {
+    const permissions = JSON.parse(contentOf(".claude", "settings.json")).permissions;
+    assert.deepEqual(permissions.ask, ["Edit(/customization/**)"]);
   });
 
   // The allow list, exactly: the tool server, the reads, the edit rule for each of the three

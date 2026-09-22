@@ -60,8 +60,8 @@
     "edits": [
       {
         "file": "lib/seed.mjs",
-        "from": "import { DESK_TEMPLATE, OWN_ACCOUNT_RULES, READ_RULES, SHELL_DENY_RULES, SHELL_RULES, STALE_DENY_RULES, TOOL_RULES, TREE_RULES, deskFile, deskRules, readTemplate, render } from \"./desks.mjs\";",
-        "to": "import { DESK_TEMPLATE, OWN_ACCOUNT_RULES, READ_RULES, SHELL_DENY_RULES, SHELL_RULES, STALE_DENY_RULES, TOOL_RULES, TREE_RULES, account, deskFile, deskRules, readTemplate, render } from \"./desks.mjs\";"
+        "from": "import { CUSTOMIZATION_ASK_RULES, DESK_TEMPLATE, OWN_ACCOUNT_RULES, READ_RULES, SHELL_DENY_RULES, SHELL_RULES, STALE_DENY_RULES, TOOL_RULES, TREE_RULES, deskFile, deskRules, readTemplate, render } from \"./desks.mjs\";",
+        "to": "import { CUSTOMIZATION_ASK_RULES, DESK_TEMPLATE, OWN_ACCOUNT_RULES, READ_RULES, SHELL_DENY_RULES, SHELL_RULES, STALE_DENY_RULES, TOOL_RULES, TREE_RULES, account, deskFile, deskRules, readTemplate, render } from \"./desks.mjs\";"
       },
       {
         "file": "lib/seed.mjs",
@@ -131,8 +131,8 @@
     "edits": [
       {
         "file": "lib/desks.mjs",
-        "from": "  const added = customization(root, what);\n  return added === null ? rendered",
-        "to": "  const added = null;\n  return added === null ? rendered"
+        "from": "  const frames = customization(root, what);\n  return frames.length === 0 ? rendered",
+        "to": "  const frames = [];\n  return frames.length === 0 ? rendered"
       }
     ]
   },
@@ -142,30 +142,19 @@
     "edits": [
       {
         "file": "lib/desks.mjs",
-        "from": "`${rendered.replace(/\\s*$/, \"\")}\\n\\n${added.replace(/\\s*$/, \"\")}\\n`",
-        "to": "`${added.replace(/\\s*$/, \"\")}\\n\\n${rendered.replace(/\\s*$/, \"\")}\\n`"
+        "from": "  return frames.length === 0 ? rendered : `${rendered.replace(/\\s*$/, \"\")}\\n\\n${frames.join(\"\\n\\n\")}\\n`;",
+        "to": "  return frames.length === 0 ? rendered : `${frames.join(\"\\n\\n\")}\\n\\n${rendered}`;"
       }
     ]
   },
   {
-    "name": "what the person added is read as a template and refused for its braces",
-    "catches": "is read as it is, braces and all",
+    "name": "a pair of braces in what the person added is swallowed instead of kept",
+    "catches": "puts each file in a frame that names it, the content between the tags word for word",
     "edits": [
       {
         "file": "lib/desks.mjs",
-        "from": "  const added = customization(root, what);",
-        "to": "  const raw = customization(root, what);\n  const added = raw === null ? null : render(what, raw, {});"
-      }
-    ]
-  },
-  {
-    "name": "the Leader is given the addition written for everybody else",
-    "catches": "comes after everything the toolkit puts in, the budget included",
-    "edits": [
-      {
-        "file": "lib/desks.mjs",
-        "from": "  const added = customization(root, what);",
-        "to": "  const added = customization(root, \"worker\");"
+        "from": "    frames.push(`${open}\\n${content}</customization>`);",
+        "to": "    frames.push(`${open}\\n${content.replace(/\\{\\{(\\w+)\\}\\}/g, \"\")}</customization>`);"
       }
     ]
   },
@@ -287,6 +276,17 @@
         "file": "lib/seed.mjs",
         "from": "      deny: [...OWN_ACCOUNT_RULES, ...SHELL_DENY_RULES],",
         "to": "      deny: [...OWN_ACCOUNT_RULES, ...SHELL_DENY_RULES, ...STALE_DENY_RULES],"
+      }
+    ]
+  },
+  {
+    "name": "a fresh instance is born asking about nothing, so what the person added to a persona is changed without a press",
+    "catches": "asks the User before any seat changes what they added to a persona",
+    "edits": [
+      {
+        "file": "lib/seed.mjs",
+        "from": "      ask: [...CUSTOMIZATION_ASK_RULES],",
+        "to": "      ask: [],"
       }
     ]
   },
@@ -688,6 +688,94 @@
         "file": "lib/install.mjs",
         "from": "    console.log(`Mint one once with: ${runtimePaths(plan.root).claude} setup-token`);",
         "to": "    console.log(\"Mint one once with: claude setup-token\");"
+      }
+    ]
+  },
+  {
+    "name": "a frame names the file by its bare name rather than by where it sits",
+    "catches": "puts each file in a frame that names it, the content between the tags word for word",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "    const source = path.posix.join(CUSTOMIZATION, name);",
+        "to": "    const source = name;"
+      }
+    ]
+  },
+  {
+    "name": "a frame tidies the trailing spaces off the person's lines",
+    "catches": "keeps the whitespace the person left exactly as it stands",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "    frames.push(`${open}\\n${content}</customization>`);",
+        "to": "    frames.push(`${open}\\n${content.replace(/[ \\t]+$/gm, \"\")}</customization>`);"
+      }
+    ]
+  },
+  {
+    "name": "the Leader's own file is put in front of the one every session is given",
+    "catches": "gives the common file first and the role's own after it",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "  leader: Object.freeze([{ name: \"common.md\" }, { name: \"leader.md\" }, { name: \"worker.md\", whose: \"worker\" }]),",
+        "to": "  leader: Object.freeze([{ name: \"leader.md\" }, { name: \"common.md\" }, { name: \"worker.md\", whose: \"worker\" }]),"
+      }
+    ]
+  },
+  {
+    "name": "the Worker's file reaches the Leader unmarked, as though it were the Leader's own",
+    "catches": "gives the Leader the Worker's file too, after its own and marked as the Worker's",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "{ name: \"worker.md\", whose: \"worker\" }]),",
+        "to": "{ name: \"worker.md\" }]),"
+      }
+    ]
+  },
+  {
+    "name": "the Leader is not given the Worker's file at all",
+    "catches": "gives the Leader the Worker's file too, after its own and marked as the Worker's",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": ", { name: \"worker.md\", whose: \"worker\" }]),",
+        "to": "]),"
+      }
+    ]
+  },
+  {
+    "name": "a Worker is given the Leader's file too",
+    "catches": "never gives a Worker the Leader's file, and marks the Worker's own as nobody else's",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "  worker: Object.freeze([{ name: \"common.md\" }, { name: \"worker.md\" }]),",
+        "to": "  worker: Object.freeze([{ name: \"common.md\" }, { name: \"worker.md\" }, { name: \"leader.md\" }]),"
+      }
+    ]
+  },
+  {
+    "name": "a file that is there and empty is dropped as though it were not there",
+    "catches": "frames a file that is there and empty rather than dropping it",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "    if (content === null) {\n      continue;\n    }",
+        "to": "    if (content === null || content === \"\") {\n      continue;\n    }"
+      }
+    ]
+  },
+  {
+    "name": "a file that is not there becomes an empty frame instead of no frame",
+    "catches": "is the template alone while there is nothing added",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "    const content = added(root, name);",
+        "to": "    const content = added(root, name) ?? \"\";"
       }
     ]
   }
