@@ -60,8 +60,8 @@
     "edits": [
       {
         "file": "lib/seed.mjs",
-        "from": "import { CUSTOMIZATION_ASK_RULES, DESK_TEMPLATE, KNOWLEDGE_RULES, OWN_ACCOUNT_RULES, READ_RULES, SHELL_DENY_RULES, SHELL_RULES, STALE_DENY_RULES, TOOL_RULES, TREE_RULES, deskFile, deskRules, readTemplate, render } from \"./desks.mjs\";",
-        "to": "import { CUSTOMIZATION_ASK_RULES, DESK_TEMPLATE, KNOWLEDGE_RULES, OWN_ACCOUNT_RULES, READ_RULES, SHELL_DENY_RULES, SHELL_RULES, STALE_DENY_RULES, TOOL_RULES, TREE_RULES, account, deskFile, deskRules, readTemplate, render } from \"./desks.mjs\";"
+        "from": "import { CUSTOMIZATION_ASK_RULES, DESK_TEMPLATE, KNOWLEDGE_ASK_RULES, KNOWLEDGE_RULES, OWN_ACCOUNT_RULES, READ_RULES, SHELL_DENY_RULES, SHELL_RULES, STALE_DENY_RULES, TOOL_RULES, TREE_RULES, deskFile, deskRules, readTemplate, render } from \"./desks.mjs\";",
+        "to": "import { CUSTOMIZATION_ASK_RULES, DESK_TEMPLATE, KNOWLEDGE_ASK_RULES, KNOWLEDGE_RULES, OWN_ACCOUNT_RULES, READ_RULES, SHELL_DENY_RULES, SHELL_RULES, STALE_DENY_RULES, TOOL_RULES, TREE_RULES, account, deskFile, deskRules, readTemplate, render } from \"./desks.mjs\";"
       },
       {
         "file": "lib/seed.mjs",
@@ -274,7 +274,7 @@
     "edits": [
       {
         "file": "lib/seed.mjs",
-        "from": "      ask: [...CUSTOMIZATION_ASK_RULES],",
+        "from": "      ask: [...CUSTOMIZATION_ASK_RULES, ...KNOWLEDGE_ASK_RULES],",
         "to": "      ask: [],"
       }
     ]
@@ -787,6 +787,17 @@
         "file": "lib/seed.mjs",
         "from": "      allow: [...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...KNOWLEDGE_RULES, ...SHELL_RULES, ...deskRules(leader)],",
         "to": "      allow: [...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...SHELL_RULES, ...deskRules(leader)],"
+      }
+    ]
+  },
+  {
+    "name": "a fresh instance grants the common note with the rest of the tree, so it is changed without a press",
+    "catches": "asks before the common note is changed, inside a tree it otherwise grants",
+    "edits": [
+      {
+        "file": "lib/seed.mjs",
+        "from": "      ask: [...CUSTOMIZATION_ASK_RULES, ...KNOWLEDGE_ASK_RULES],",
+        "to": "      ask: [...CUSTOMIZATION_ASK_RULES],"
       }
     ]
   }

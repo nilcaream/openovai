@@ -398,7 +398,7 @@ describe("what the installer made", () => {
     assert.deepEqual(deny.filter((rule) => rule.startsWith("Bash(")), ["Bash(git push:*)", "Bash(sudo:*)", "Bash(ssh:*)"]);
   });
 
-  // And the third list, which holds one rule: a change to what the person added to a persona is
+  // And the third list, the first of its two rules: a change to what the person added to a persona is
   // theirs to press for, every seat alike. Not refused, because a refusal would close the files to
   // everybody here; not granted, because the lines are the User's. The Leader is in it with
   // everybody else — one settings file serves every seat, so there is no per-role list to leave it
@@ -406,7 +406,17 @@ describe("what the installer made", () => {
   // or a path quietly added beside it is caught here.
   it("asks the User before any seat changes what they added to a persona", () => {
     const permissions = JSON.parse(contentOf(".claude", "settings.json")).permissions;
-    assert.deepEqual(permissions.ask, ["Edit(/customization/**)"]);
+    assert.deepEqual(permissions.ask, ["Edit(/customization/**)", "Edit(/knowledge/common.md)"]);
+  });
+
+  // The second rule in that list, and the pair it makes with the allow above: the common note
+  // lives inside `knowledge/`, which every seat may write, so one file is matched by a rule in
+  // each list at once. The overlap is the point — the note is framed into every session, so a
+  // change to it is asked for, while the rest of the tree stays open to write.
+  it("asks before the common note is changed, inside a tree it otherwise grants", () => {
+    const permissions = JSON.parse(contentOf(".claude", "settings.json")).permissions;
+    assert.equal(permissions.ask.includes("Edit(/knowledge/common.md)"), true);
+    assert.equal(permissions.allow.includes("Edit(/knowledge/**)"), true);
   });
 
   // The allow list, exactly: the tool server, the reads, the edit rule for each of the three

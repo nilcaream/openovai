@@ -63,8 +63,12 @@ instance made before this version is told the rule the way it is told about any 
 the framework's business: `knowledge/common.md` is handed to every session at its start, after your
 customization files, in a frame naming it — `<knowledge source="knowledge/common.md">`. It is an
 ordinary note otherwise, and it is the Leader's to gather: the team, the business, the lingo, where
-things are, and which notes a newcomer reads first. No file, no frame, no error — a workspace that
-has learnt nothing yet reads exactly as it did.
+things are, and which notes a newcomer reads first. Because it is handed to every session, the
+settings a fresh instance is born with ask before it changes: `Edit(/knowledge/common.md)` is in
+the `ask` list beside the customization rule, so a session that would rewrite that one file stops
+for your press while the rest of `knowledge/` stays open to write. An instance made before this
+version is told the rule the way it is told about any other. No file, no frame, no error — a
+workspace that has learnt nothing yet reads exactly as it did.
 
 **The store is gone, and what it held is `knowledge/` and your own instructions.** `recall` and
 `remember` are no longer served, `store/` is no longer made, and no session is given a numbered set
