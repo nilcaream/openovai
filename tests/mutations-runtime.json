@@ -47,7 +47,7 @@
   {
     "name": "the working directory is left behind after a fetch",
     "catches": "leaves nothing under tmp once the runtime is in place",
-    "edits": [{ "file": "lib/runtime.sh", "from": "    rm -rf \"${target}/${finished##*/}\"\n    rm -rf \"${work}\"\n", "to": "    rm -rf \"${target}/${finished##*/}\"\n    work=\"\"\n" }]
+    "edits": [{ "file": "lib/runtime.sh", "from": "    rm -rf \"${target:?}/${finished##*/}\"\n    rm -rf \"${work}\"\n", "to": "    rm -rf \"${target:?}/${finished##*/}\"\n    work=\"\"\n" }]
   },
   {
     "name": "a fetch that fails leaves its working directory behind",

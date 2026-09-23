@@ -182,16 +182,24 @@ describe("what configuration reports", () => {
 // name, never one found on the PATH; and it is started with its background updater off, or it
 // would replace itself under the pin.
 describe("what Claude Code is started as", () => {
+  // Two things would answer for this instance's own doing if they were left alone. The stand-in
+  // appends, and `log` collects every run in this file, so a line another check's run left there
+  // reads exactly like this one's: this describe keeps a log of its own. And the stand-in reports
+  // the environment as it reaches it, so an updater setting already in the environment this suite
+  // is started under reads exactly like one the toolkit put there: it is turned the other way
+  // round first. What the log says can then only have been put there by lib/claude.mjs.
+  const started = path.join(standIn, "started.log");
+
   before(() => {
-    ovai(["configuration"]);
+    run(instance, started, ["configuration"], { DISABLE_AUTOUPDATER: "0" });
   });
 
   it("is the toolkit's own claude, by path, and not one on the PATH", () => {
-    assert.match(readLog(log), new RegExp(`^command: ${command}$`, "m"));
+    assert.match(readLog(started), new RegExp(`^command: ${command}$`, "m"));
   });
 
   it("runs with its background updater off", () => {
-    assert.match(readLog(log), /^DISABLE_AUTOUPDATER: 1$/m);
+    assert.match(readLog(started), /^DISABLE_AUTOUPDATER: 1$/m);
   });
 });
 

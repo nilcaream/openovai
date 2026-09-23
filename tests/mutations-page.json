@@ -356,7 +356,7 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "        } else if (panel.jump !== null && !near) {\n          panel.jump.classList.add(\"show\");\n        }\n",
+        "from": "      if (landed && !panel.view.follow && panel.jump !== null && !near) {\n        panel.jump.classList.add(\"show\");\n      }\n",
         "to": ""
       }
     ]
