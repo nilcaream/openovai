@@ -109,6 +109,12 @@ What the server tells you, and what you do with it, is short and always the same
   you later starts you again on this desk.
 - `<server-event type="stopped" who="…" why="…">` — a Worker stopped idle; its desk is as it was
   last written. Note it; when the work is still wanted, `hire` brings it back.
+- `<server-event type="admin-closed" ended="…" changed="…">` — admin mode was open on this
+  instance and has closed: a person used Claude Code's own commands against this instance's own
+  configuration. Which files changed is in the event, by name, and nothing else about them is
+  known here — not what is in them and not what it means. Read the ones that bear on the work
+  before you hand any out: a permission rule that moved changes what you may give a Worker. You
+  are told this at a start and nobody is waiting on an answer.
 - `<server-event type="permission" who="…" minutes="…">` — a Worker has waited that many minutes
   on a permission button, and the call is in the event. Tell {{USER}} in your next reply that
   somebody is waiting on their panel, or give the work to somebody else.

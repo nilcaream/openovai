@@ -128,6 +128,19 @@ belongs in the log; a message is for something somebody has to act on. What a se
 its own panel before it goes — "back in a moment" — stays: that is for the person watching the
 window.
 
+**The Leader is told that admin mode ran.** `ovai claude` opens a Claude Code session on this
+instance's own configuration, and it used to close with nobody the wiser. It now leaves a record at
+the instance root, beside `runtime.json`: when the session ended, and which of the four
+configuration files it watches changed — the account's settings and the account's own record of
+servers, the permission rules every seat in this instance obeys, and the project's MCP file — by
+name, and nothing of what is in them. At its next start the server hands that to the Leader as
+`<server-event type="admin-closed">` and removes the record; a Worker is never told, and nothing is
+asked of anybody. The telling is the server's and never the admin session's, which has no connector
+and is not given one. Not a route on the running server, because a route fails exactly when nothing
+is running, which is when admin work is likeliest — and the wait costs nothing, since a seat reads
+its configuration when it starts: what was changed reaches the seats at the same start that carries
+the notice.
+
 **A newer Claude Code.** This version pins Claude Code 2.1.280, where the last pinned 2.1.278; the
 node it brings is the one it brought before. An instance takes the new one the way it takes any
 other change to the toolkit — `ovai update`, and the sessions started after it run on it.

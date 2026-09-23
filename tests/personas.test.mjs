@@ -234,7 +234,7 @@ describe("what the Leader is told", () => {
   });
 
   it("tells the Leader what each event asks of it", () => {
-    for (const event of ["overheard", "quota-low", "idle", "stopped", "permission"]) {
+    for (const event of ["overheard", "quota-low", "idle", "stopped", "permission", "admin-closed"]) {
       assert.match(leader(), new RegExp(`<server-event type="${event}"`), event);
     }
     assert.match(leader(), /call `park`/);

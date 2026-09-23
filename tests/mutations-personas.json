@@ -1,5 +1,16 @@
 [
   {
+    "name": "the Leader's persona names the admin event for the role instead of the condition",
+    "catches": "tells the Leader what each event asks of it",
+    "edits": [
+      {
+        "file": "lib/templates/leader.md",
+        "from": "- `<server-event type=\"admin-closed\" ended=\"…\" changed=\"…\">`",
+        "to": "- `<server-event type=\"admin\" ended=\"…\" changed=\"…\">`"
+      }
+    ]
+  },
+  {
     "name": "the Leader's persona says the desk file is written with one tool and no other way again",
     "catches": "tells the Leader its desk directory is its working directory, the header the tool's and the body edited in place",
     "edits": [

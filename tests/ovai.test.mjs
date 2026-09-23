@@ -38,6 +38,7 @@ import { LEDGER, settingsProblems, trustProblems } from "./inspect.mjs";
 // The reader this suite asks directly. Everywhere else what a session runs on is seen by starting
 // one, which is right when the subject is a run — and no help at all with what a file holding
 // nothing means, which is a question about the reading rather than about the running.
+import { ADMIN_FILE, WATCHED, changedBetween, fingerprint, recorded } from "../lib/admin.mjs";
 import { home } from "../lib/claude.mjs";
 import { DeskError, hire, modelFor, persona as renderPersona } from "../lib/desks.mjs";
 import { HOOK_ENTRY } from "../lib/hooks/compound.mjs";
@@ -1531,5 +1532,38 @@ describe("what the command refuses", () => {
 
   it("refuses an argument to a command that takes none", () => {
     assert.notEqual(ovai(["status", WORKER]).status, 0);
+  });
+});
+
+// The door closing is the one thing about admin mode that reaches the team, and it reaches it as a
+// file: the command leaves a record at the instance root and the server hands it to the Leader at
+// its next start. What the record carries is when the session ended and which configuration files
+// differ — a name and nothing else about them.
+describe("what admin mode leaves behind when the door closes", () => {
+  const left = path.join(instance, ADMIN_FILE);
+  const settings = path.join(instance, WATCHED[2]);
+
+  it("leaves a record at the instance root even when nothing changed", () => {
+    fs.rmSync(left, { force: true });
+    const ran = ovai(["claude"]);
+    assert.equal(ran.status, 0, ran.stderr);
+    const record = recorded(instance);
+    assert.ok(record !== null, `nothing was left at ${left}`);
+    assert.match(record.ended, /^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/);
+    assert.deepEqual(record.changed, []);
+    fs.rmSync(left, { force: true });
+  });
+
+  it("names the configuration file that changed, and counts a rewrite with the same bytes as no change", () => {
+    const was = fs.readFileSync(settings);
+    const before = fingerprint(instance);
+    try {
+      fs.writeFileSync(settings, `${was}\n`);
+      assert.deepEqual(changedBetween(before, fingerprint(instance)), [WATCHED[2]]);
+      fs.writeFileSync(settings, was);
+      assert.deepEqual(changedBetween(before, fingerprint(instance)), []);
+    } finally {
+      fs.writeFileSync(settings, was);
+    }
   });
 });

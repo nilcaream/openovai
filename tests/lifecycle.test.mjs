@@ -19,7 +19,8 @@ import { after, before, describe, it } from "node:test";
 import { SERVER, read as panel } from "../lib/chat/conversation.mjs";
 import { subscribe } from "../lib/chat/events.mjs";
 import { messageFrame, serverEvent, userFrame } from "../lib/chat/frames.mjs";
-import { BODY_CONTEXT_ERROR, BODY_CONTEXT_WARNING, BODY_CRITICAL, BODY_IDLE, BODY_PARK, BODY_RESTARTED, IDLE_GRACE, deliver, parkRoom, tick } from "../lib/chat/lifecycle.mjs";
+import { ADMIN_FILE } from "../lib/admin.mjs";
+import { BODY_CONTEXT_ERROR, BODY_CONTEXT_WARNING, BODY_CRITICAL, BODY_IDLE, BODY_PARK, BODY_RESTARTED, IDLE_GRACE, adminTold, deliver, parkRoom, tick } from "../lib/chat/lifecycle.mjs";
 import { sink } from "../lib/chat/log.mjs";
 import * as quota from "../lib/chat/quota.mjs";
 import { pageSecret } from "../lib/chat/secrets.mjs";
@@ -1944,5 +1945,54 @@ describe("a signal to the chat", () => {
     assert.match(child.output, /^\S+ parking - - 3 sessions$/m);
     assert.equal(notesIn(ownLog).filter(([label]) => label === "left").length, 3);
     await assert.rejects(fetch(`${address}/health`));
+  });
+});
+
+// What `ovai claude` left at the root, and the one thing the server says on its own account at a
+// start. The Leader alone is told; a Worker running at the time hears nothing of it. And the
+// record is taken away when the frame has really reached the Leader and not before — the two
+// failure modes are a notice lost for ever and a notice every future session hears again.
+describe("what admin mode left behind", () => {
+  const left = path.join(instance, ADMIN_FILE);
+  const ended = "2026-09-23T10:20:00.000Z";
+
+  before(async () => {
+    // Nothing running, so a process started inside a check is the one that check caused.
+    await endEvery(500);
+  });
+
+  it("says nothing and starts nobody when there is no record", async () => {
+    assert.equal(fs.existsSync(left), false);
+    const spawns = secretsIn(unexpected).length;
+    assert.equal(adminTold(chat), false);
+    assert.equal(secretsIn(unexpected).length, spawns, "something was started for a record that is not there");
+    assert.ok(!running(LEADER));
+  });
+
+  it("keeps the record when the Leader cannot be started, so the next start still tells it", async () => {
+    fs.writeFileSync(left, `${JSON.stringify({ ended, changed: [".mcp.json"] }, null, 2)}\n`);
+    const real = process.env.XDG_DATA_HOME;
+    process.env.XDG_DATA_HOME = path.join(standIn, "nothing-installed-here");
+    try {
+      assert.equal(adminTold(chat), false);
+    } finally {
+      process.env.XDG_DATA_HOME = real;
+    }
+    assert.equal(fs.existsSync(left), true, "the notice was thrown away by a telling that never happened");
+  });
+
+  it("tells the Leader which files changed at the next start, tells no Worker, and takes the record away", async () => {
+    const paul = await seatUp(WORKER);
+    fs.writeFileSync(left, `${JSON.stringify({ ended, changed: [".claude/settings.json", ".mcp.json"] }, null, 2)}\n`);
+    const born = await spawnedBy(LEADER, async () => adminTold(chat));
+    assert.equal(born.result, true);
+    const [heard] = await told(born.log, 1);
+    assert.match(heard, /<server-event type="admin-closed" ended="2026-09-23T10:20:00\.000Z" changed="2"/);
+    assert.match(heard, /These changed: \.claude\/settings\.json, \.mcp\.json\./);
+    assert.ok(await waitFor(() => (fs.existsSync(left) ? null : true)), "the record is still at the instance root");
+    assert.deepEqual(
+      heardIn(paul.log).filter((one) => one.includes("admin-closed")),
+      [],
+    );
   });
 });

@@ -1,5 +1,49 @@
 [
   {
+    "name": "the admin record is thrown away before the Leader has it",
+    "catches": "keeps the record when the Leader cannot be started, so the next start still tells it",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "  return deliver(instance, leaderOf(instance), frame, { written: () => forget(instance.root) }).refused === undefined;\n",
+        "to": "  forget(instance.root);\n  return deliver(instance, leaderOf(instance), frame).refused === undefined;\n"
+      }
+    ]
+  },
+  {
+    "name": "the admin record is never taken away",
+    "catches": "tells the Leader which files changed at the next start, tells no Worker, and takes the record away",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "  return deliver(instance, leaderOf(instance), frame, { written: () => forget(instance.root) }).refused === undefined;\n",
+        "to": "  return deliver(instance, leaderOf(instance), frame).refused === undefined;\n"
+      }
+    ]
+  },
+  {
+    "name": "every running seat is told that admin mode closed",
+    "catches": "tells the Leader which files changed at the next start, tells no Worker, and takes the record away",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "  return deliver(instance, leaderOf(instance), frame, { written: () => forget(instance.root) }).refused === undefined;\n",
+        "to": "  for (const seat of runningSeats()) {\n    deliver(instance, seat, frame);\n  }\n  return deliver(instance, leaderOf(instance), frame, { written: () => forget(instance.root) }).refused === undefined;\n"
+      }
+    ]
+  },
+  {
+    "name": "the event says something changed without saying what",
+    "catches": "tells the Leader which files changed at the next start, tells no Worker, and takes the record away",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "These changed: ${changed.join(\", \")}.",
+        "to": "Something changed."
+      }
+    ]
+  },
+  {
     "name": "deliver never starts the Leader",
     "catches": "starts a stopped Leader for a page message, the message its first line",
     "edits": [
