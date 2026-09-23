@@ -62,8 +62,8 @@ it. Everything the page and the command do is described at [openov.ai](https://o
   nobody else, and every turn carries a frame the server sets itself — `<user>`, `<message
   from="…">`, `<server-event type="…">` — so a session always knows who is speaking. Who is
   calling a tool is a per-process secret the server minted, never a name a session could claim.
-- **The lifecycle is tools, not phrases.** A session that is full, idle, out of quota or being
-  parked is told so in a server event and answers with one tool call. No button on the page
+- **The lifecycle is tools, not phrases.** A session that is idle, out of quota or being parked
+  is told so in a server event and answers with one tool call. No button on the page
   starts or ends a seat; STOP interrupts a turn, and that is all.
 - **Built from ordinary Claude Code features**: two persona templates, project settings, an MCP
   server, plus a shell shim, a few Node tools and a small web page to host it all on.
@@ -92,6 +92,9 @@ An instance is a directory of its own. Its root is this, and nothing else ever l
                     files above the instance it is not to read; written at every start
   runtime.json      the running server: url, pid, since
   runtime.log       what the server said, one row per line, every run appended
+  admin.json        what `ovai claude` left when the door closed: when the session ended and
+                    which configuration files changed, by name; the server hands it to the
+                    Leader at its next start and removes it
   plugins/          tools the instance serves itself, one file each; yours, kept across updates
   knowledge/        what the workspace knows, one Markdown note per topic; written and read by
                     every session with the file tools
