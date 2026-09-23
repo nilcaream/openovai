@@ -70,8 +70,8 @@
       },
       {
         "file": "lib/chat/server.mjs",
-        "from": "        const written = writeDeskHeader(root, caller.seat, record === undefined ? fields : { ...fields, rules: record.rules });",
-        "to": "        const written = writeDeskHeader(root, args.name ?? caller.seat, record === undefined ? fields : { ...fields, rules: record.rules });"
+        "from": "        const written = writeDeskHeader(root, caller.seat, fields);",
+        "to": "        const written = writeDeskHeader(root, args.name ?? caller.seat, fields);"
       }
     ]
   },
@@ -395,28 +395,6 @@
     ]
   },
   {
-    "name": "the helper runs whatever the gate says",
-    "catches": "holds the helper at stage two only",
-    "edits": [
-      {
-        "file": "lib/helper.mjs",
-        "from": "  const held = mayStart(HELPER_MODEL);\n  if (held !== null) {\n    return { refused: \"the helper is held: quota\" };\n  }\n",
-        "to": ""
-      }
-    ]
-  },
-  {
-    "name": "the helper is held from stage one",
-    "catches": "holds the helper at stage two only",
-    "edits": [
-      {
-        "file": "lib/chat/quota.mjs",
-        "from": "export function mayStart(model, now = clock()) {\n  return holdOn(model, CRITICAL, now);",
-        "to": "export function mayStart(model, now = clock()) {\n  return holdOn(model, WARNING, now);"
-      }
-    ]
-  },
-  {
     "name": "a rejected status is ignored",
     "catches": "a rejected status closes the window whatever the number, until its reset",
     "edits": [
@@ -528,50 +506,6 @@
         "file": "lib/chat/session.mjs",
         "from": "        record.said = 0;\n        record.idleSince = clock();\n        record.idleTold = 0;",
         "to": "        record.said = 0;\n        record.idleTold = 0;"
-      }
-    ]
-  },
-  {
-    "name": "a rule rendering to nothing for a role is told anyway",
-    "catches": "is a child of the queue at its arrival, alone on an idle seat, and the header says the set once written",
-    "edits": [
-      {
-        "file": "lib/chat/lifecycle.mjs",
-        "from": "      if (text !== null) {\n        deliver(instance, seat, rulesUpdateFrame(version, text));\n      }",
-        "to": "      deliver(instance, seat, rulesUpdateFrame(version, text ?? \"\"));"
-      }
-    ]
-  },
-  {
-    "name": "the delta body is a raw template",
-    "catches": "neutralises the rule text in the update",
-    "edits": [
-      {
-        "file": "lib/chat/frames.mjs",
-        "from": "  return serverEvent(\"hard-rules\", { set: version }, text);",
-        "to": "  return new Frame(BUILT_HERE, \"server-event\", `<server-event type=\"hard-rules\" set=\"${version}\">${text}</server-event>`, { type: \"hard-rules\", attrs: { set: version } });"
-      }
-    ]
-  },
-  {
-    "name": "the persona render drops the version",
-    "catches": "records the rule-set version in the desk header at spawn",
-    "edits": [
-      {
-        "file": "lib/chat/session.mjs",
-        "from": "  return { file, version };",
-        "to": "  return { file, version: undefined };"
-      }
-    ]
-  },
-  {
-    "name": "the header is not written at spawn",
-    "catches": "records the rule-set version in the desk header at spawn",
-    "edits": [
-      {
-        "file": "lib/chat/session.mjs",
-        "from": "  writeDeskHeader(instance.root, seat, { rules: record.rules });\n\n  child.stdout.on(",
-        "to": "\n  child.stdout.on("
       }
     ]
   },
@@ -1154,44 +1088,6 @@
         "file": "lib/serve.mjs",
         "from": "    log(\"stopped\", null, null, signal);\n",
         "to": ""
-      }
-    ]
-  },
-  {
-    "name": "the header does not say the set once the update is written",
-    "catches": "takes its place in a busy seat's queue, behind what arrived before it, and the header says the set at the write",
-    "edits": [
-      {
-        "file": "lib/chat/session.mjs",
-        "from": "    rules: turns.filter((turn) => turn.frame.event?.type === \"hard-rules\").map((turn) => turn.frame.event.attrs.set).at(-1) ?? null,",
-        "to": "    rules: null,"
-      }
-    ]
-  },
-  {
-    "name": "the update is put in front of the queue instead of at its arrival",
-    "catches": "takes its place in a busy seat's queue, behind what arrived before it, and the header says the set at the write",
-    "edits": [
-      {
-        "file": "lib/chat/session.mjs",
-        "from": "    record.queue.push(turn);",
-        "to": "    if (frame.event?.type === \"hard-rules\") record.queue.unshift(turn); else record.queue.push(turn);"
-      }
-    ]
-  },
-  {
-    "name": "the update is carried to the successor and written again",
-    "catches": "an update written before a restart is in the successor's set at spawn, in its header, and not written again",
-    "edits": [
-      {
-        "file": "lib/chat/session.mjs",
-        "from": "import { isFrame, queueFrame } from \"./frames.mjs\";",
-        "to": "import { isFrame, queueFrame, rulesUpdateFrame } from \"./frames.mjs\";"
-      },
-      {
-        "file": "lib/chat/session.mjs",
-        "from": "    ended({ seat, role, ending: record.ending, exit, carried, why, context: record.context });",
-        "to": "    ended({ seat, role, ending: record.ending, exit, carried: [{ frame: rulesUpdateFrame(record.rules, \"Hard rules update: the set as it stands.\"), resolve() {} }, ...carried], why, context: record.context });"
       }
     ]
   },

@@ -126,30 +126,8 @@
     "edits": [
       {
         "file": "lib/templates/leader.md",
-        "from": "You do no project work. A check on the machine, a clone, a build, a test: each\nof those is a hire, never a call of your own.",
+        "from": "You do no project work. A check on the machine, a clone, a build, a test: each of those is a hire,\nnever a call of your own.",
         "to": "You do the project work yourself."
-      }
-    ]
-  },
-  {
-    "name": "the Leader is told nothing about the two store tools",
-    "catches": "tells the Leader what the store is and that two tools are the way to it",
-    "edits": [
-      {
-        "file": "lib/templates/leader.md",
-        "from": "It is reached through two\ntools: `recall` reads it (by meaning, by id, or the whole of a store), and `remember` writes one\nrecord.",
-        "to": "It is a directory of files."
-      }
-    ]
-  },
-  {
-    "name": "the Leader is told a Worker writes hard rules too",
-    "catches": "tells the Leader that hard rules are its to write and that a Worker proposes one",
-    "edits": [
-      {
-        "file": "lib/templates/leader.md",
-        "from": "Hard rules are yours to\nwrite and nobody else's:",
-        "to": "Hard rules are anybody's to\nwrite:"
       }
     ]
   },
@@ -341,28 +319,6 @@
     ]
   },
   {
-    "name": "the Worker is told nothing about the two store tools",
-    "catches": "tells the Worker what the store is and that two tools are the way to it",
-    "edits": [
-      {
-        "file": "lib/templates/worker.md",
-        "from": "It is reached through two\ntools: `recall` reads it (by meaning, by id, or the whole of a store), and `remember` writes one\nrecord — a fact or a trap, in memory or in knowledge.",
-        "to": "It is a directory of files."
-      }
-    ]
-  },
-  {
-    "name": "the Worker is told to write hard rules",
-    "catches": "tells the Worker that a hard rule is the Leader's to write and is proposed",
-    "edits": [
-      {
-        "file": "lib/templates/worker.md",
-        "from": "A hard rule is the Leader's to write: when you think the team needs one, say it\nto {{LEADER}} as a proposal.",
-        "to": "Write a hard rule when you think the team needs one."
-      }
-    ]
-  },
-  {
     "name": "the Worker's persona names the frames without saying who writes them",
     "catches": "tells the Worker what each frame is, and that only the server writes one",
     "edits": [
@@ -451,13 +407,13 @@
     ]
   },
   {
-    "name": "the Worker's persona makes the hires and the rules its own",
-    "catches": "tells the Worker whose the hires, the permissions and the hard rules are",
+    "name": "the Worker's persona makes the hires and the permissions its own",
+    "catches": "tells the Worker whose the hires and the permissions are",
     "edits": [
       {
         "file": "lib/templates/worker.md",
-        "from": "instance may do, and the hard rules are {{LEADER}}'s — not because you would do it badly, but\nbecause it takes one person deciding it for this to be a place rather than a crowd.",
-        "to": "instance may do, and the hard rules are yours as much as anybody's."
+        "from": "instance may do are {{LEADER}}'s — not because you would do it badly, but\nbecause it takes one person deciding it for this to be a place rather than a crowd.",
+        "to": "instance may do are yours as much as anybody's."
       }
     ]
   },
@@ -572,94 +528,6 @@
     ]
   },
   {
-    "name": "the Leader's persona says the store is a file of its own",
-    "catches": "tells the Leader the store is managed by a model, not a file, that a resemblance is refused naming the record, none says new, and restore brings a record back",
-    "edits": [
-      {
-        "file": "lib/templates/leader.md",
-        "from": "The store is managed by a model, not by you: it is not a file, and the two tools are not\ncreate, read, update and delete over a MEMORY.md you know from elsewhere. ",
-        "to": "The store is a file of yours: the two tools are create, read, update and delete over it. "
-      }
-    ]
-  },
-  {
-    "name": "the Leader's persona says the store replaces on its own again",
-    "catches": "tells the Leader the store is managed by a model, not a file, that a resemblance is refused naming the record, none says new, and restore brings a record back",
-    "edits": [
-      {
-        "file": "lib/templates/leader.md",
-        "from": "restates, widens, narrows or reverses a record it holds, and when it does the write is refused,\nnothing written, naming that record — its id, its text, the model's reason — so you answer by\nnaming it or by saying none. The store never replaces anything on its own. ",
-        "to": "restates, widens, narrows or reverses a record it holds and replaces that record on its own. "
-      }
-    ]
-  },
-  {
-    "name": "the Leader's persona drops restore",
-    "catches": "tells the Leader the store is managed by a model, not a file, that a resemblance is refused naming the record, none says new, and restore brings a record back",
-    "edits": [
-      {
-        "file": "lib/templates/leader.md",
-        "from": "A record replaced by\nmistake comes back with `restore: <id>`, alone with store: live again under its own id, as it was,\nwhile the record that replaced it stands. ",
-        "to": ""
-      }
-    ]
-  },
-  {
-    "name": "the Leader's persona drops none",
-    "catches": "tells the Leader the store is managed by a model, not a file, that a resemblance is refused naming the record, none says new, and restore brings a record back",
-    "edits": [
-      {
-        "file": "lib/templates/leader.md",
-        "from": "rather than accumulates: name what it replaces, or say `replaces: none` when you have read the\nstore and it is new. Named neither, ",
-        "to": "rather than accumulates: name what it replaces. Named neither, "
-      }
-    ]
-  },
-  {
-    "name": "the Leader's persona drops source user as the shield for an adjudicated fact or trap",
-    "catches": "tells the Leader that a fact or trap the User adjudicated is written with source user and no team write replaces it",
-    "edits": [
-      {
-        "file": "lib/templates/leader.md",
-        "from": "A fact or trap\n{{USER}} has adjudicated is written with source user, and no team write can then replace it.\n",
-        "to": ""
-      }
-    ]
-  },
-  {
-    "name": "the Worker's persona says the store is a file of its own",
-    "catches": "tells the Worker the store is managed by a model, not a file, that a resemblance is refused naming the record, none says new, and restore brings a record back",
-    "edits": [
-      {
-        "file": "lib/templates/worker.md",
-        "from": "The store is managed by a model, not by you:\nit is not a file, and the two tools are not create, read, update and delete over a MEMORY.md you\nknow from elsewhere. ",
-        "to": "The store is a file of yours: the two tools are create, read, update and delete over it. "
-      }
-    ]
-  },
-  {
-    "name": "the Worker's persona says the store replaces on its own again",
-    "catches": "tells the Worker the store is managed by a model, not a file, that a resemblance is refused naming the record, none says new, and restore brings a record back",
-    "edits": [
-      {
-        "file": "lib/templates/worker.md",
-        "from": "store asks a model whether your text restates, widens, narrows or reverses a record it holds, and\nwhen it does the write is refused, nothing written, naming that record — its id, its text, the\nmodel's reason — so you answer by naming it or by saying none. The store never replaces anything\non its own. ",
-        "to": "store asks a model whether your text restates, widens, narrows or reverses a record it holds and\nreplaces that record on its own. "
-      }
-    ]
-  },
-  {
-    "name": "the Worker's persona drops restore",
-    "catches": "tells the Worker the store is managed by a model, not a file, that a resemblance is refused naming the record, none says new, and restore brings a record back",
-    "edits": [
-      {
-        "file": "lib/templates/worker.md",
-        "from": "A record replaced by mistake comes back with `restore: <id>`, alone with store: live\nagain under its own id, as it was, while the record that replaced it stands. ",
-        "to": ""
-      }
-    ]
-  },
-  {
     "name": "the Worker's persona lets a Worker go round the harness's own directories",
     "catches": "tells both that the harness's own directories ask whatever the rules say, and that a Worker does not go round",
     "edits": [
@@ -687,7 +555,7 @@
     "edits": [
       {
         "file": "lib/templates/leader.md",
-        "from": "children are those frames as they arrived, each with `at=\"HH:MM\"` and ordered by it — always,\nalso when there is exactly one, the hard-rules update as an ordinary child at its time, and no\nother placement rule exists:",
+        "from": "children are those frames as they arrived, each with `at=\"HH:MM\"` and ordered by it — always,\nalso when there is exactly one, and no other placement rule exists:",
         "to": "children are those frames, the server's events on top and the rest as they arrived:"
       }
     ]
@@ -698,8 +566,8 @@
     "edits": [
       {
         "file": "lib/templates/worker.md",
-        "from": "`<queue>` element whose children are those frames as they arrived, each with `at=\"HH:MM\"` and\nordered by it — always, also when there is exactly one, the hard-rules update as an ordinary\nchild at its time, and no other placement rule exists:",
-        "to": "`<queue>` element whose children are those frames as they arrived, each with `at=\"HH:MM\"` and\nordered by it — unless there is exactly one, which comes bare, the hard-rules update in front of a turn:"
+        "from": "`<queue>` element whose children are those frames as they arrived, each with `at=\"HH:MM\"` and\nordered by it — always, also when there is exactly one, and no other placement rule exists:",
+        "to": "`<queue>` element whose children are those frames as they arrived, each with `at=\"HH:MM\"` and\nordered by it — unless there is exactly one, which comes bare:"
       }
     ]
   },
@@ -764,7 +632,7 @@
     "edits": [
       {
         "file": "lib/templates/worker.md",
-        "from": "a line that can be obeyed or broken belongs there, and a line that is true or false is\n`knowledge` and belongs where what this workspace knows is kept.",
+        "from": "a line that can be obeyed or broken belongs there, and a line that is true or false is\nknowledge and belongs in `knowledge/`.",
         "to": "anything a session should have in front of it belongs there."
       }
     ]
@@ -775,8 +643,8 @@
     "edits": [
       {
         "file": "lib/templates/worker.md",
-        "from": "change reaches sessions started after it and no others — so a line you are told in a message is",
-        "to": "change reaches every session there is at once — so a line you are told in a message is"
+        "from": "and a change reaches sessions\nstarted after it and no others",
+        "to": "and a change reaches every session there is at once"
       }
     ]
   },
@@ -797,8 +665,8 @@
     "edits": [
       {
         "file": "lib/templates/leader.md",
-        "from": "You write one only when {{USER}} has given you permission in words, and a change",
-        "to": "You write one whenever the team needs it, and a change"
+        "from": "one only when {{USER}} has given you permission in words, and a change",
+        "to": "one whenever the team needs it, and a change"
       }
     ]
   },

@@ -37,7 +37,7 @@ This is required.**
 ```
 
 - **type** — one of `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `build`, `ci`.
-- **scope** — optional, the part of the toolkit touched: `install`, `ovai`, `chat`, `store`,
+- **scope** — optional, the part of the toolkit touched: `install`, `ovai`, `chat`, `knowledge`,
   `personas`, `docs`.
 - **subject** — imperative mood, lower case, no trailing period, 72 characters or fewer.
   Write `feat(hooks): name a new worker session`, not `Added the naming hook.`
@@ -63,7 +63,7 @@ One logical change per commit.
 
 ## Tests
 
-One suite per module, all on Node's own test runner, sixteen of them under `tests/`:
+One suite per module, all on Node's own test runner, under `tests/`:
 
 ```sh
 node --test tests/install.test.mjs      # install an instance, check what came out
@@ -75,8 +75,7 @@ node --test tests/permissions.test.mjs  # ask to be allowed, and answer
 node --test tests/dialog.test.mjs       # show a question in the words it was asked in
 node --test tests/frames.test.mjs       # frame what a session is told
 node --test tests/secrets.test.mjs      # mint, resolve and revoke a secret
-node --test tests/store.test.mjs        # remember and recall
-node --test tests/helper.test.mjs       # ask the helper, and refuse what it answers badly
+node --test tests/knowledge.test.mjs    # index and validate what the workspace knows
 node --test tests/personas.test.mjs     # tell a Leader and a Worker only what is there
 node --test tests/panels.test.mjs       # place the seats in three columns and keep their rows
 node --test tests/render.test.mjs       # draw a row as markdown, and nothing a row must not do

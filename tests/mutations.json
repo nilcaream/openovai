@@ -209,17 +209,6 @@
     ]
   },
   {
-    "name": "the persona goes out without the hard rules",
-    "catches": "renders the persona at every start, with the hard rules after it",
-    "edits": [
-      {
-        "file": "lib/chat/session.mjs",
-        "from": "  const { text, version } = withHardRules(persona(instance.root, seat, instance.config), instance.root, roleOf(instance, seat));",
-        "to": "  const { version } = withHardRules(persona(instance.root, seat, instance.config), instance.root, roleOf(instance, seat));\n  const text = persona(instance.root, seat, instance.config);"
-      }
-    ]
-  },
-  {
     "name": "the run is started without the list of what is not to be read",
     "catches": "hands the run the list of what is not to be read, as a settings document of its own",
     "edits": [
@@ -867,8 +856,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "    writeDeskHeader(record.root, record.seat, { rules: record.rules });\n  }\n  record.changed(record);\n}",
-        "to": "    writeDeskHeader(record.root, record.seat, { rules: record.rules });\n  }\n}"
+        "from": "  record.turn.written();\n  record.changed(record);\n}",
+        "to": "  record.turn.written();\n}"
       }
     ]
   },

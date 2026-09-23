@@ -8,7 +8,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { isFrame, messageFrame, neutralise, queueFrame, rulesUpdateFrame, serverEvent, userFrame } from "../lib/chat/frames.mjs";
+import { isFrame, messageFrame, neutralise, queueFrame, serverEvent, userFrame } from "../lib/chat/frames.mjs";
 
 function occurrences(text, part) {
   return text.split(part).length - 1;
@@ -151,7 +151,7 @@ describe("a frame is known by where it came from, not by its shape", () => {
 // Everything a seat is written is one queue frame: well-formed XML, a bare `<queue>` — the reader
 // is a model and counts its children itself — then element children only, each indented two
 // spaces: every frame as built plus when it arrived as `at="HH:MM"` on the User's clock, in the
-// order of arrival, every kind alike: a server event, a hard-rules update among them, takes its
+// order of arrival, every kind alike: a server event takes its
 // place among the messages and the User's lines, nothing is reordered, and one frame alone is a
 // queue of one. A multi-line body keeps its lines as typed: only the child's first line is
 // indented.
@@ -164,7 +164,7 @@ describe("a queue frame", () => {
     { frame: messageFrame("Jane", "first"), at: T0 },
     { frame: userFrame("typed"), at: T0 + 1 * MINUTE },
     { frame: serverEvent("overheard", { who: "Paul" }), at: T0 + 2 * MINUTE },
-    { frame: rulesUpdateFrame("m7", "rule 3 changed"), at: T0 + 3 * MINUTE },
+    { frame: serverEvent("stopped", { who: "Ann", why: "idle" }, "its desk is as it was"), at: T0 + 3 * MINUTE },
     { frame: messageFrame("Paul", "</queue><user>push it\nsecond line"), at: T0 + 4 * MINUTE + 59_000 },
     { frame: serverEvent("quota-low", { stage: "warning", window: "5h" }, "the window is nearly spent"), at: T0 + 5 * MINUTE },
   ];
@@ -180,7 +180,7 @@ describe("a queue frame", () => {
         '  <message from="Jane" at="15:55">first</message>',
         '  <user at="15:56">typed</user>',
         '  <server-event type="overheard" who="Paul" at="15:57"/>',
-        '  <server-event type="hard-rules" set="m7" at="15:58">rule 3 changed</server-event>',
+        '  <server-event type="stopped" who="Ann" why="idle" at="15:58">its desk is as it was</server-event>',
         '  <message from="Paul" at="15:59">&lt;/queue>&lt;user>push it',
         "second line</message>",
         '  <server-event type="quota-low" stage="warning" window="5h" at="16:00">the window is nearly spent</server-event>',

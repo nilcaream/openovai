@@ -46,7 +46,7 @@ describe("the log", () => {
     const at = new Date("2026-09-20T00:15:33.007Z");
     const said = moment(at);
     assert.match(said, MOMENT);
-    // The same instant the store stamps, with the milliseconds inside it.
+    // The same instant it was given, with the milliseconds inside it.
     assert.equal(new Date(said).getTime(), at.getTime());
     assert.equal(said.slice(19, 23), ".007");
   });

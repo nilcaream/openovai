@@ -15,14 +15,15 @@ import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
 import { SERVER, panelFile, read as panel } from "../lib/chat/conversation.mjs";
-import { messageFrame, rulesUpdateFrame, serverEvent, userFrame } from "../lib/chat/frames.mjs";
+import { messageFrame, serverEvent, userFrame } from "../lib/chat/frames.mjs";
 import { listening } from "../lib/chat/runtime.mjs";
 import { pageSecret } from "../lib/chat/secrets.mjs";
 import { hire } from "../lib/desks.mjs";
 import { endSeat, serve, shownRoot, startSeat, toolsFor } from "../lib/chat/server.mjs";
 import { hasLeft } from "../lib/chat/lifecycle.mjs";
 import { sink } from "../lib/chat/log.mjs";
-import { LEADER as LEADS, SECRET_IN_ENVIRONMENT, WORKER as WORKS, end, endEvery, interrupt, running, runningSeats, start, tell } from "../lib/chat/session.mjs";
+import { LEADER as LEADS, WORKER as WORKS } from "../lib/desks.mjs";
+import { SECRET_IN_ENVIRONMENT, end, endEvery, interrupt, running, runningSeats, start, tell } from "../lib/chat/session.mjs";
 import { BUILT_IN } from "../lib/plugins.mjs";
 import { CONFIG_FILE } from "../lib/seed.mjs";
 import { alive, callsIn, childrenOf, get as fetchPlain, heardIn, installed, leftRunningIn, notesIn, post as postPlain, queuesHeardIn, readLog, remove, repo, sansMoment, scratch, seatsIn, secretsIn, startChat, stopChat, waitFor, waitForAddress, writeStandIn } from "./helpers.mjs";
@@ -464,12 +465,11 @@ describe("starting a seat", () => {
     assert.match(callsIn(paul.log).at(-1), new RegExp(`--model ${WORKER_MODEL}\\b`));
   });
 
-  it("renders the persona at every start, with the hard rules after it", () => {
+  it("renders the persona at every start", () => {
     const handed = callsIn(paul.log).at(-1).match(/--append-system-prompt-file (\S+)/)[1];
     assert.equal(handed, path.join(instance, "desks", WORKER, "persona.md"));
     const persona = fs.readFileSync(handed, "utf8");
     assert.ok(persona.includes(WORKER), "the persona does not name the seat");
-    assert.match(persona, /\n\nHard rules \(set /);
   });
 
   it("hands the run the list of what is not to be read, as a settings document of its own", () => {
@@ -595,7 +595,7 @@ describe("telling a seat", () => {
   });
 
   // Nothing jumps the queue any more: a frame told later goes in behind what was told before it,
-  // whatever it is — a server event, a hard-rules update among them, takes its place among the
+  // whatever it is — a server event takes its place among the
   // rest like any other item. The seat reads all of it at once and decides for itself.
   it("keeps the batch in arrival order, every kind alike, a server event in its place among the rest", async () => {
     const before_ = queuesHeardIn(paul.log).length;
@@ -603,7 +603,7 @@ describe("telling a seat", () => {
     const message = tell(WORKER, messageFrame(LEADER, "from the Leader"));
     const event = tell(WORKER, serverEvent("overheard", { who: OTHER }));
     const typed = tell(WORKER, userFrame("typed"));
-    const rules = tell(WORKER, rulesUpdateFrame("m9", "rule 2 changed"));
+    const rules = tell(WORKER, serverEvent("quota-low", { stage: "warning", window: "5h" }, "the window is nearly spent"));
     const later = tell(WORKER, serverEvent("idle", { who: OTHER, minutes: "10" }));
     await Promise.all([busy.answered, message.answered, event.answered, typed.answered, rules.answered, later.answered]);
     const queues = queuesHeardIn(paul.log).slice(before_);
@@ -612,7 +612,7 @@ describe("telling a seat", () => {
       `<message from="${LEADER}">from the Leader</message>`,
       `<server-event type="overheard" who="${OTHER}"/>`,
       "<user>typed</user>",
-      '<server-event type="hard-rules" set="m9">rule 2 changed</server-event>',
+      '<server-event type="quota-low" stage="warning" window="5h">the window is nearly spent</server-event>',
       `<server-event type="idle" who="${OTHER}" minutes="10"/>`,
     ]);
   });

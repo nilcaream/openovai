@@ -225,17 +225,6 @@
     ]
   },
   {
-    "name": "the store's directories are not made",
-    "catches": "makes the store's two directories, empty",
-    "edits": [
-      {
-        "file": "lib/seed.mjs",
-        "from": "  for (const store of STORES) {\n    fs.mkdirSync(storeDirectory(root, store), { recursive: true });\n  }\n",
-        "to": ""
-      }
-    ]
-  },
-  {
     "name": "the installer writes a skill directory into the instance",
     "catches": "ships no skill",
     "edits": [

@@ -263,14 +263,6 @@ describe("an instance with no version in it", () => {
   });
 });
 
-describe("where a person can read what the workspace has learned", () => {
-  // Spelled out here rather than asked of the code, so that moving the store and moving the check
-  // cannot be one edit.
-  it("says where this instance keeps it", () => {
-    assert.match(ovai(["configuration"]).stdout, new RegExp(`store\\s+${instance}/store`));
-  });
-});
-
 describe("the sign-in", () => {
   it("hands over to Claude Code", () => {
     assert.equal(ovai(["login"]).status, 0);

@@ -186,7 +186,7 @@ describe("the gate", () => {
     assert.deepEqual(mayWrite("Paul", "opus"), { window: "5h", resets: new Date(RESET_5H).toISOString() });
   });
 
-  it("holds the helper and a start at stage two only", () => {
+  it("holds a start at stage two only", () => {
     fresh();
     saw("Paul", "opus", reading(0.91));
     assert.equal(mayStart("sonnet"), null);

@@ -55,17 +55,6 @@
     ]
   },
   {
-    "name": "the header write forgets the rules it was given",
-    "catches": "rewrites line 1 alone, every line below it kept byte for byte",
-    "edits": [
-      {
-        "file": "lib/desks.mjs",
-        "from": "  const merged = { ...(kept ?? {}), ...fields, updated: fields.updated ?? new Date().toISOString() };",
-        "to": "  const merged = { ...(kept ?? {}), ...fields, rules: kept?.rules ?? \"\", updated: fields.updated ?? new Date().toISOString() };"
-      }
-    ]
-  },
-  {
     "name": "the header write treats a body that lost its header as if line 1 were the header",
     "catches": "puts a header back in front of a body that lost it, losing no line",
     "edits": [
@@ -304,6 +293,17 @@
         "file": "lib/desks.mjs",
         "from": "  return [`Edit(/${path.posix.join(DESKS, name)}/**)`];",
         "to": "  return [`Edit(/${path.posix.join(DESKS, name)}/**)`, `Write(/${path.posix.join(DESKS, name)}/**)`];"
+      }
+    ]
+  },
+  {
+    "name": "a header field the reader no longer knows is kept on the parse",
+    "catches": "reads a header field it no longer knows as nothing, drops it on the next write, and leaves the body alone",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "  const fields = {};\n  for (const field of HEADER_FIELDS) {",
+        "to": "  const fields = { rules: \"\" };\n  for (const field of HEADER_FIELDS) {"
       }
     ]
   }

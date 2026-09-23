@@ -54,8 +54,8 @@ it. Everything the page and the command do is described at [openov.ai](https://o
   away when it ends: a session writes its desk with a tool as it goes, and the next session at
   that desk reads it first.
 - **One Leader, many Workers.** The Leader hires, delegates, relays, settles what the instance may
-  do and writes the hard rules; it does no project work. Workers do the work and stop when it
-  ships. The User steers the team through the Leader, in plain words.
+  do; it does no project work. Workers do the work and stop when it ships. The User steers the
+  team through the Leader, in plain words.
 - **Every session is hosted on the page.** Nobody has a terminal of their own. The Leader's panel
   is in the middle, the Workers' either side, and the User can type on any of them.
 - **Only the server writes to a session.** A session's stdin is written by the server and by
@@ -93,8 +93,10 @@ An instance is a directory of its own. Its root is this, and nothing else ever l
   runtime.json      the running server: url, pid, since
   runtime.log       what the server said, one row per line, every run appended
   plugins/          tools the instance serves itself, one file each; yours, kept across updates
-  store/            what the workspace knows: memory/ and knowledge/, one file per record
-  customization/    what you add to the personas, one file per kind; yours, never touched
+  knowledge/        what the workspace knows, one Markdown note per topic; written and read by
+                    every session with the file tools
+  customization/    what you add to the personas: common.md, leader.md, worker.md; yours, never
+                    touched
   desks/<Name>/     one directory per person: STATE.md, persona.md, conversation.json, and
                     whatever that person keeps there; the listing IS the roster
   archive/          retired desks, moved whole: <day>-<Name>-<slug of the final title>/
@@ -108,7 +110,7 @@ An instance is a directory of its own. Its root is this, and nothing else ever l
 ## Documentation
 
 The documentation is at [openov.ai](https://openov.ai): how it works, installing and updating,
-the Leader and the Workers, permissions, the store, plugins, customization, a FAQ and the
+the Leader and the Workers, permissions, knowledge, plugins, customization, a FAQ and the
 reference. [NOTES.md](NOTES.md) says what each release changed and what taking it asks of the
 workspace that takes it. [CONTRIBUTING.md](CONTRIBUTING.md) is about working on the toolkit
 rather than with it.

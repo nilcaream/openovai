@@ -66,6 +66,20 @@ ordinary note otherwise, and it is the Leader's to gather: the team, the busines
 things are, and which notes a newcomer reads first. No file, no frame, no error — a workspace that
 has learnt nothing yet reads exactly as it did.
 
+**The store is gone, and what it held is `knowledge/` and your own instructions.** `recall` and
+`remember` are no longer served, `store/` is no longer made, and no session is given a numbered set
+of hard rules at the end of its instructions. What the workspace knows is the directory above, read
+and written with the file tools every session already has; what the team is held to is
+`customization/`, in your words, where you can read it. Nothing on disk is touched: an instance
+that has a `store/` keeps it, every file in it, and the toolkit simply stops looking — delete it
+yourself once you are satisfied, or leave it where it is. Two things follow that are worth knowing
+before you take this version. A desk header no longer carries the rule set its session was started
+under; a desk that has one is read and rewritten without it, and not a line of the body moves. And
+a session already running can no longer be handed a change to its standing instructions — the
+hard-rules update was the one frame that did that. A change to `customization/` or to
+`knowledge/common.md` reaches the sessions started after it and no others, so when something has to
+reach a session that is running, tell it in words, or stop the seat and hire it again.
+
 **A session that restarts picks its own work back up.** A session is moved by a frame and by
 nothing else, and a restart was the one start with nobody to write one: a hired Worker turns
 because the Leader speaks to it, the Leader turns because something was addressed to it, and a

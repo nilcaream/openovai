@@ -116,7 +116,7 @@
   },
   {
     "name": "a start is held from the first stage",
-    "catches": "holds the helper and a start at stage two only",
+    "catches": "holds a start at stage two only",
     "edits": [
       {
         "file": "lib/chat/quota.mjs",

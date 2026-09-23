@@ -27,8 +27,8 @@
     "edits": [
       {
         "file": "lib/desks.mjs",
-        "from": "What is not\nin the brief did not reach anybody: the cheapest kinds of agent arrive with none of what you are\nreading now, no workspace memory and no instructions, so a rule that lives anywhere but the text\nyou hand them is one they never see.",
-        "to": "The workspace's instructions and its memory reach every agent it\nstarts, so a rule written in either of them is one they have all been given already."
+        "from": "What is not\nin the brief did not reach anybody: the cheapest kinds of agent arrive with none of what you are\nreading now, nothing this workspace knows and no instructions, so a rule that lives anywhere but\nthe text you hand them is one they never see.",
+        "to": "The workspace's own instructions reach every agent it\nstarts, so a rule written there is one they have all been given already."
       }
     ]
   },
@@ -84,17 +84,6 @@
         "file": "bin/ovai",
         "from": "exec \"$(sh \"${runtime}\" node-path)\" \"${root}/lib/ovai.mjs\" --root \"${root}\" \"$@\"",
         "to": "if [ \"${1:-}\" = \"resume\" ]; then\n    exec claude --resume\nfi\n\nexec \"$(sh \"${runtime}\" node-path)\" \"${root}/lib/ovai.mjs\" --root \"${root}\" \"$@\""
-      }
-    ]
-  },
-  {
-    "name": "status names the Claude Code home instead of the store",
-    "catches": "says where this instance keeps it",
-    "edits": [
-      {
-        "file": "lib/ovai.mjs",
-        "from": "    [\"store\", path.join(root, STORE_DIRECTORY)],",
-        "to": "    [\"store\", path.join(root, \".local\")],"
       }
     ]
   },

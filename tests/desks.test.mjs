@@ -171,14 +171,29 @@ describe("the desk header", () => {
   it("rewrites line 1 alone, every line below it kept byte for byte", () => {
     const body = `# ${KEPT}\n\n## State\nedited in place\n<!-- DESK | title: posed --> in prose\n\ttabbed\n`;
     fs.writeFileSync(desk(), `${fs.readFileSync(desk(), "utf8").split("\n")[0]}\n${body}`);
-    const written = writeDeskHeader(instance, KEPT, { title: "t", status: "s", rules: "m3" });
+    const written = writeDeskHeader(instance, KEPT, { title: "t", status: "s" });
     assert.equal(written.title, "t");
     assert.equal(written.status, "s");
-    assert.equal(written.rules, "m3");
     const lines = fs.readFileSync(desk(), "utf8").split("\n");
-    assert.match(lines[0], /^<!-- DESK \| title: t \| status: s \| rules: m3 \| updated: \d{4}-\d{2}-\d{2}T[0-9:.]+Z -->$/);
+    assert.match(lines[0], /^<!-- DESK \| title: t \| status: s \| updated: \d{4}-\d{2}-\d{2}T[0-9:.]+Z -->$/);
     assert.equal(lines.slice(1).join("\n"), body);
     assert.equal(deskHeader(instance, KEPT).title, "t");
+  });
+
+  // A desk written under an older version carries a field this one no longer knows. It is not an
+  // error and nothing migrates it: the reader passes over it, the next write leaves it out, and
+  // not a line of the body moves.
+  it("reads a header field it no longer knows as nothing, drops it on the next write, and leaves the body alone", () => {
+    const body = `# ${KEPT}\n\n## State\nwritten under an older version\n`;
+    fs.writeFileSync(desk(), `<!-- DESK | title: old | status: s | rules: m59 | updated: 2026-09-01T00:00:00.000Z -->\n${body}`);
+    const read = deskHeader(instance, KEPT);
+    assert.deepEqual(Object.keys(read), ["title", "status", "updated"]);
+    assert.equal(read.title, "old");
+    writeDeskHeader(instance, KEPT, { title: "new", status: "s" });
+    const lines = fs.readFileSync(desk(), "utf8").split("\n");
+    assert.match(lines[0], /^<!-- DESK \| title: new \| status: s \| updated: /);
+    assert.doesNotMatch(lines[0], /rules/);
+    assert.equal(lines.slice(1).join("\n"), body);
   });
 
   it("puts a header back in front of a body that lost it, losing no line", () => {
@@ -187,7 +202,7 @@ describe("the desk header", () => {
     const written = writeDeskHeader(instance, KEPT, { title: "healed", status: "s" });
     assert.equal(written.title, "healed");
     const lines = fs.readFileSync(desk(), "utf8").split("\n");
-    assert.match(lines[0], /^<!-- DESK \| title: healed \| status: s \| rules: \| updated: /);
+    assert.match(lines[0], /^<!-- DESK \| title: healed \| status: s \| updated: /);
     assert.deepEqual(lines.slice(1), [`# ${KEPT}`, "", "## State", "the header went", ""]);
   });
 

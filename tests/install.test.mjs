@@ -130,16 +130,8 @@ describe("what the installer made", () => {
     assert.ok(fs.existsSync(inside("lib", "templates", "STATE.md")));
   });
 
-  // Where the workspace keeps what it knows: two empty directories, one per store, and nothing
-  // seeded into them. The paths are spelled out rather than asked of the code, so that moving the
-  // store and moving the check cannot be one edit.
-  it("makes the store's two directories, empty", () => {
-    assert.deepEqual(fs.readdirSync(inside("store", "memory")), []);
-    assert.deepEqual(fs.readdirSync(inside("store", "knowledge")), []);
-  });
-
   // Claude Code's own memory is a second answer to what the workspace knows, read by the one
-  // session that wrote it. The store is the only one. The key is honoured in the home's settings.
+  // session that wrote it. `knowledge/` is the only one. The key is honoured in the home's settings.
   it("turns Claude Code's own memory off in the home settings", () => {
     const settings = JSON.parse(contentOf(".local", "settings.json"));
     assert.equal(settings.autoMemoryEnabled, false);
@@ -243,7 +235,6 @@ describe("what the installer made", () => {
       "plugins",
       "projects",
       "reference",
-      "store",
       "temp",
     ]);
     for (const tree of ["reference", "projects", "temp", "customization", "knowledge"]) {

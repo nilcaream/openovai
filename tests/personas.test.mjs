@@ -13,7 +13,7 @@ import { describe, it } from "node:test";
 
 import { EVENTS } from "../lib/chat/frames.mjs";
 import { toolsFor } from "../lib/chat/server.mjs";
-import { LEADER, WORKER } from "../lib/chat/session.mjs";
+import { LEADER, WORKER } from "../lib/desks.mjs";
 import { persona } from "../lib/desks.mjs";
 import { BUILT_IN } from "../lib/plugins.mjs";
 import { repo } from "./helpers.mjs";
@@ -26,9 +26,8 @@ const template = (kind) => fs.readFileSync(path.join(repo, "lib", "templates", `
 const leader = () => persona(repo, LEAD, { user: USER, leader: LEAD });
 const worker = () => persona(repo, PAUL, { user: USER, leader: LEAD });
 
-// What a backticked word in a persona may be: a tool the server offers that role, or one of the
-// two stores. Anything else backticked is a name a session would go looking for.
-const STORES = ["memory", "knowledge"];
+// What a backticked word in a persona may be: a tool the server offers that role. Anything else
+// backticked is a name a session would go looking for.
 const backticked = (text) => [...text.matchAll(/`([a-z_]+)`/g)].map((found) => found[1]);
 const offeredTo = (role) =>
   toolsFor({ root: repo, config: { user: USER, leader: LEAD }, plugins: [] }, { seat: role === LEADER ? LEAD : PAUL, role })
@@ -49,14 +48,14 @@ describe("what both personas are held to", () => {
   it("names the Leader only tools that exist and are offered to the Leader", () => {
     const offered = offeredTo(LEADER);
     for (const word of backticked(template("leader"))) {
-      assert.ok(STORES.includes(word) || (BUILT_IN.includes(word) && offered.includes(word)), `\`${word}\` is not a tool the Leader is offered`);
+      assert.ok(BUILT_IN.includes(word) && offered.includes(word), `\`${word}\` is not a tool the Leader is offered`);
     }
   });
 
   it("names the Worker only tools that exist and are offered to a Worker", () => {
     const offered = offeredTo(WORKER);
     for (const word of backticked(template("worker"))) {
-      assert.ok(STORES.includes(word) || (BUILT_IN.includes(word) && offered.includes(word)), `\`${word}\` is not a tool a Worker is offered`);
+      assert.ok(BUILT_IN.includes(word) && offered.includes(word), `\`${word}\` is not a tool a Worker is offered`);
     }
     assert.ok(!offered.includes("hire") && !offered.includes("park") && !offered.includes("permission"));
   });
@@ -92,11 +91,11 @@ describe("what both personas are held to", () => {
   });
 
   // The one placement rule, in one sentence, the same for both: everything is one queue, its
-  // children in arrival order, also one alone, the hard-rules update among them — and the shape
+  // children in arrival order, also one alone — and the shape
   // shown once, as the reader will see it: a bare `<queue>`, children indented and stamped
   // `at="HH:MM"`, the Leader's with the two events only the Leader is told.
   it("tells both that everything they receive is one queue in arrival order, and nothing else places a frame", () => {
-    const rule = /Everything you receive is one `<queue>` element whose children are those frames as they arrived, each with `at="HH:MM"` and ordered by it — always, also when there is exactly one, the hard-rules update as an ordinary child at its time, and no other placement rule exists:\n\n```/;
+    const rule = /Everything you receive is one `<queue>` element whose children are those frames as they arrived, each with `at="HH:MM"` and ordered by it — always, also when there is exactly one, and no other placement rule exists:\n\n```/;
     assert.match(leader().replace(/(\S)\n(\S)/g, "$1 $2"), rule);
     assert.match(worker().replace(/(\S)\n(\S)/g, "$1 $2"), rule);
     assert.ok(
@@ -113,7 +112,7 @@ describe("what both personas are held to", () => {
     );
     assert.ok(
       worker().includes(
-        ["<queue>", '  <message from="…" at="17:41">…</message>', '  <server-event type="hard-rules" set="…" at="17:42">…</server-event>', '  <user at="17:44">…</user>', "</queue>"].join("\n"),
+        ["<queue>", '  <message from="…" at="17:41">…</message>', '  <server-event type="restarted" at="17:42">…</server-event>', '  <user at="17:44">…</user>', "</queue>"].join("\n"),
       ),
     );
     for (const text of [leader(), worker()]) {
@@ -166,31 +165,7 @@ describe("what the Leader is told", () => {
 
   it("tells the Leader it does no project work and that a check is a hire", () => {
     assert.match(leader(), /You do no project work/);
-    assert.match(leader(), /A check on the machine, a clone, a build, a test: each\s+of those is a hire, never a call of your own/);
-  });
-
-  it("tells the Leader what the store is and that two tools are the way to it", () => {
-    assert.match(leader(), /everybody\s+here reads the same thing/);
-    assert.match(leader(), /reached through two\s+tools: `recall` reads it/);
-    assert.match(leader(), /`remember` writes one\s+record/);
-    assert.doesNotMatch(leader(), /store\//);
-  });
-
-  it("tells the Leader the store is managed by a model, not a file, that a resemblance is refused naming the record, none says new, and restore brings a record back", () => {
-    assert.match(leader(), /The store is managed by a model, not by you: it is not a file, and the two tools are not\s+create, read, update and delete over a MEMORY\.md you know from elsewhere\./);
-    assert.match(leader(), /name what it replaces, or say `replaces: none` when you have read the\s+store and it is new\./);
-    assert.match(leader(), /Named neither, the store asks a model whether your text\s+restates, widens, narrows or reverses a record it holds, and when it does the write is refused,\s+nothing written, naming that record — its id, its text, the model's reason — so you answer by\s+naming it or by saying none\. The store never replaces anything on its own\./);
-    assert.match(leader(), /A record replaced by\s+mistake comes back with `restore: <id>`, alone with store: live again under its own id, as it was,\s+while the record that replaced it stands\. Writes to one store run one at a time\./);
-    assert.doesNotMatch(leader(), /replaces that record on its own|the store's choice included/);
-  });
-
-  it("tells the Leader that a fact or trap the User adjudicated is written with source user and no team write replaces it", () => {
-    assert.match(leader(), /A fact or trap\s+Mike has adjudicated is written with source user, and no team write can then replace it\./);
-  });
-
-  it("tells the Leader that hard rules are its to write and that a Worker proposes one", () => {
-    assert.match(leader(), /Hard rules are yours to\s+write and nobody else's/);
-    assert.match(leader(), /A Worker proposes a rule to you and you write it/);
+    assert.match(leader(), /A check on the machine, a clone, a build, a test: each of those is a hire,\s+never a call of your own/);
   });
 
   it("tells the Leader what each frame is, and that only the server writes one", () => {
@@ -259,7 +234,7 @@ describe("what the Leader is told", () => {
   });
 
   it("tells the Leader what each event asks of it", () => {
-    for (const event of ["overheard", "quota-low", "idle", "stopped", "hard-rules", "permission"]) {
+    for (const event of ["overheard", "quota-low", "idle", "stopped", "permission"]) {
       assert.match(leader(), new RegExp(`<server-event type="${event}"`), event);
     }
     assert.match(leader(), /call `park`/);
@@ -300,26 +275,6 @@ describe("what a Worker is told", () => {
     assert.match(worker(), /`projects\/` is what is worked on/);
     assert.match(worker(), /Anything throwaway — a rig, a probe, a dump, a clone made for one test, a build — goes\s+under `temp\/`/);
     assert.match(worker(), /Nothing of yours goes in the instance root,\s+and nothing in the home directory/);
-  });
-
-  it("tells the Worker what the store is and that two tools are the way to it", () => {
-    assert.match(worker(), /everybody\s+here reads the same thing/);
-    assert.match(worker(), /reached through two\s+tools: `recall` reads it/);
-    assert.match(worker(), /`remember` writes one\s+record/);
-    assert.doesNotMatch(worker(), /store\//);
-  });
-
-  it("tells the Worker the store is managed by a model, not a file, that a resemblance is refused naming the record, none says new, and restore brings a record back", () => {
-    assert.match(worker(), /The store is managed by a model, not by you:\s+it is not a file, and the two tools are not create, read, update and delete over a MEMORY\.md you\s+know from elsewhere\./);
-    assert.match(worker(), /name what it replaces, or say\s+`replaces: none` when you have read the store and it is new\./);
-    assert.match(worker(), /Named neither, the\s+store asks a model whether your text restates, widens, narrows or reverses a record it holds, and\s+when it does the write is refused, nothing written, naming that record — its id, its text, the\s+model's reason — so you answer by naming it or by saying none\. The store never replaces anything\s+on its own\./);
-    assert.match(worker(), /A record replaced by mistake comes back with `restore: <id>`, alone with store: live\s+again under its own id, as it was, while the record that replaced it stands\./);
-    assert.doesNotMatch(worker(), /replaces that record on its own/);
-  });
-
-  it("tells the Worker that a hard rule is the Leader's to write and is proposed", () => {
-    assert.match(worker(), /A hard rule is the Leader's to write/);
-    assert.match(worker(), new RegExp(`say it\\s+to ${LEAD} as a proposal`));
   });
 
   it("tells the Worker what each frame is, and that only the server writes one", () => {
@@ -368,7 +323,7 @@ describe("what a Worker is told", () => {
   });
 
   it("tells the Worker what each event asks of it, and that the desk comes first", () => {
-    for (const event of ["context-full", "restarted", "quota-low", "idle", "park", "hard-rules"]) {
+    for (const event of ["context-full", "restarted", "quota-low", "idle", "park"]) {
       assert.match(worker(), new RegExp(`<server-event type="${event}"`), event);
     }
     assert.match(worker(), /`restart_session` and\s+`stop_session` refuse until the desk was written after the event that asked/);
@@ -403,8 +358,8 @@ describe("what a Worker is told", () => {
     assert.match(worker(), /end on that sentence/);
   });
 
-  it("tells the Worker whose the hires, the permissions and the hard rules are", () => {
-    assert.match(worker(), new RegExp(`Who works here, who joins and who leaves, what the\\s+instance may do, and the hard rules are ${LEAD}'s`));
+  it("tells the Worker whose the hires and the permissions are", () => {
+    assert.match(worker(), new RegExp(`Who works here, who joins and who leaves, and what the\\s+instance may do are ${LEAD}'s`));
     assert.match(worker(), /say whose it is and say it to them/);
   });
 });
@@ -437,13 +392,13 @@ describe("what both are told about what the person added for this instance", () 
   // false. Without it every fact somebody learns ends up in the file that goes into every session.
   it("gives both the test for where a line belongs: obeyed or broken here, true or false in knowledge", () => {
     for (const text of [leader(), worker()]) {
-      assert.match(text, /a line that can be obeyed or broken belongs there, and a line that is true or false is\s+`knowledge`/);
+      assert.match(text, /a line that can be obeyed or broken belongs there, and a line that is true or false is\s+knowledge and belongs in `knowledge\/`/);
     }
   });
 
   it("tells both that a change reaches sessions started after it and no others", () => {
     for (const text of [leader(), worker()]) {
-      assert.match(text, /reaches sessions started after it and no others/);
+      assert.match(text, /reaches sessions\s+started\s+after it and no others/);
     }
   });
 });
@@ -458,8 +413,8 @@ describe("what the Leader is told about the files", () => {
 
   it("tells the Leader it writes a line only on the User's word, and tells or hires again after", () => {
     assert.match(leader(), /A Worker proposes a line and\s+never writes one/);
-    assert.match(leader(), new RegExp(`You write one only when ${USER} has given you permission in words`));
-    assert.match(leader(), /tell every running\s+Worker the line itself, or `hire` it again on its desk/);
+    assert.match(leader(), new RegExp(`You write\\s+one only when ${USER} has given you permission in words`));
+    assert.match(leader(), /tell every running\s+Worker the line itself, or\s+`hire` it again on its desk/);
   });
 });
 
@@ -471,7 +426,7 @@ describe("what a Worker is told about the files", () => {
 
   it("tells the Worker to propose a line and never write one, and that a line said in a message holds", () => {
     assert.match(worker(), /Propose a line, never write one/);
-    assert.match(worker(), new RegExp(`the files are ${USER}'s, ${LEAD} holds the pen with ${USER}'s permission said in words`));
-    assert.match(worker(), /a line you are told in a message is\s+one you follow for the rest of this session/);
+    assert.match(worker(), new RegExp(`the files are ${USER}'s,\\s+${LEAD} holds the pen with ${USER}'s permission said in words`));
+    assert.match(worker(), /a line you are told in a message is\s+one you follow for the\s+rest of this session/);
   });
 });

@@ -138,17 +138,6 @@ export function installed(options, environment) {
 //                             carry on with the turn when told to interrupt it; without this an
 //                             interrupt ends the turn with an error result, as the real one does
 //                             (measured 2026-09-12: subtype error_during_execution, 13 ms after)
-//   OPENOVAI_STAND_IN_HELPER        a file holding what the memory helper answers — the JSON the
-//                             model would return, read afresh on every call so one chat can be
-//                             handed a different answer per question. Unset, or the file not
-//                             there, answers `{}`: a shape the tool has to refuse, which is a case
-//                             of its own. A helper run is told apart by `--system-prompt` in its
-//                             arguments, which no session run carries; it logs its arguments
-//                             whole as JSON (`helper-argv:`), since one of them is the empty
-//                             string and a space-joined line cannot show one, and the request it
-//                             read from stdin (`helper:`). STUCK and BROKEN apply to it the way
-//                             they apply to a session; REFUSED makes it exit the way the service
-//                             turns a run away
 // It records what a session was given — its arguments, the environment it can be identified
 // by, and every frame it was told — so a check can read what a seat was told rather than
 // trusting what the server says it sent.
@@ -213,42 +202,6 @@ if ((process.env.OPENOVAI_STAND_IN_BROKEN ?? "") !== "") {
 
 // One frame per line, the way the real one answers.
 const frame = (fields) => process.stdout.write(JSON.stringify(fields) + "\\n");
-
-// The memory helper: a print-mode run with the question as its whole system prompt, the request
-// on stdin as plain text, and ONE JSON object back — never a stream of frames, which is why this
-// sits before every frame a session run would be sent.
-if (argv.includes("--system-prompt")) {
-  fs.appendFileSync(
-    log,
-    "helper-argv: " + JSON.stringify(argv) + "\\n" +
-      "CLAUDE_CODE_DISABLE_AUTO_MEMORY: " + value("CLAUDE_CODE_DISABLE_AUTO_MEMORY") + "\\n" +
-      "helper-cwd-holds: " + fs.readdirSync(process.cwd()).length + "\\n",
-  );
-  process.stdin.setEncoding("utf8");
-  let request = "";
-  for await (const chunk of process.stdin) {
-    request += chunk;
-  }
-  fs.appendFileSync(log, "helper: " + request + "\\n");
-  if ((process.env.OPENOVAI_STAND_IN_STUCK ?? "") !== "") {
-    // Kept alive on purpose: a promise nobody settles with nothing else on the loop is an exit,
-    // not a run that will not end. Its pid is above, for whoever has to end it.
-    setInterval(() => {}, 60000);
-    await new Promise(() => {});
-  }
-  if ((process.env.OPENOVAI_STAND_IN_REFUSED ?? "") !== "") {
-    frame({ type: "result", subtype: "success", is_error: true, api_error_status: 429, num_turns: 0, result: "You've hit your session limit · resets 9am", session_id: "helper" });
-    process.exit(1);
-  }
-  let result = "{}";
-  try {
-    result = fs.readFileSync(process.env.OPENOVAI_STAND_IN_HELPER ?? "", "utf8");
-  } catch {
-    // Nothing staged: the empty shape, which the tool refuses.
-  }
-  frame({ type: "result", subtype: "success", is_error: false, num_turns: 1, result, session_id: "helper" });
-  process.exit(0);
-}
 
 // A run that will not end on its own, whatever it is told. The lifetime bound below still ends
 // it, so a suite that forgot it cannot hang.
