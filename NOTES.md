@@ -102,6 +102,10 @@ belongs in the log; a message is for something somebody has to act on. What a se
 its own panel before it goes — "back in a moment" — stays: that is for the person watching the
 window.
 
+**A newer Claude Code.** This version pins Claude Code 2.1.280, where the last pinned 2.1.278; the
+node it brings is the one it brought before. An instance takes the new one the way it takes any
+other change to the toolkit — `ovai update`, and the sessions started after it run on it.
+
 ## 0.16.0
 
 The toolkit brings its own Node.js and Claude Code, one `openovai` command installs an instance from

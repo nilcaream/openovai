@@ -3,4 +3,4 @@
 # through the next release — never through a range resolved at install time. Read by
 # lib/runtime.sh (before any node exists) and by lib/runtime.mjs; lines starting with # are notes.
 node 24.21.0
-claude 2.1.278
+claude 2.1.280
