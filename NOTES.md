@@ -17,6 +17,21 @@ done. A seat reads its configuration when it starts, so nothing you changed is l
 working here until `ovai restart` — which interrupts whatever they are mid-way through, and is
 yours to ask for rather than something the door does on its own.
 
+**A session is told how much room is left, not that it is over.** There was one size — 160,000
+tokens — and a session that passed it was told once, in words that read as an order to stop there
+and then, though nothing here ever stopped it. There are three sizes now, under `context` in the
+instance's configuration: `warning` (200,000), `step` (20,000) and `error` (300,000). The event
+arrives when the conversation as sent passes the warning size, and again at every step above it —
+220,000, 240,000, and on — carrying the size reached and all three sizes, so a session can see what
+it is counting toward. Below the error size it says to carry on and plan its own restart; from the
+error size it says to wrap up and restart as soon as it can, and the stepping goes on above that,
+with the instruction changed and nothing else. Nothing is enforced at any size: when a session
+restarts stays the session's own decision. The event is `context` with `stage="warning"` or
+`stage="error"`, in place of `context-full`, and `context.ceiling` is gone — an instance that set
+it sets the three sizes instead. The warning asks nothing of the session, and an event that asks
+nothing no longer cancels an ending the server is already waiting on: a seat told at 55 minutes to
+write its desk and stop is still ended at 60, whatever else the server tells it in between.
+
 **What a session starts ends with the session.** Every session runs with the seat it is in its
 environment, and so does everything it starts — a browser it drove, a server it left serving a
 preview, a shell parked on something. When the session's process is gone, whatever it started and

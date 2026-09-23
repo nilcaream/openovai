@@ -71,8 +71,8 @@
     "edits": [
       {
         "file": "lib/templates/leader.md",
-        "from": "type=\"context-full\"",
-        "to": "type=\"context-fill\""
+        "from": "type=\"context\" stage=\"error\"",
+        "to": "type=\"context-fill\" stage=\"error\""
       }
     ]
   },

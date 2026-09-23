@@ -228,7 +228,7 @@ describe("what the Leader is told", () => {
   });
 
   it("tells the Leader to write the desk, restart, then say back in a moment — after the last tool call", () => {
-    assert.match(leader(), /type="context-full"/);
+    assert.match(leader(), /type="context" stage="error"/);
     assert.match(leader(), /Call `write_desk`\s+with everything the next session needs, then call `restart_session`, then say "back in a\s+moment" — that is the whole of your reply/);
     assert.match(leader(), /only what you say after\s+the last tool call reaches it/);
   });
@@ -323,7 +323,7 @@ describe("what a Worker is told", () => {
   });
 
   it("tells the Worker what each event asks of it, and that the desk comes first", () => {
-    for (const event of ["context-full", "restarted", "quota-low", "idle", "park"]) {
+    for (const event of ["context", "restarted", "quota-low", "idle", "park"]) {
       assert.match(worker(), new RegExp(`<server-event type="${event}"`), event);
     }
     assert.match(worker(), /`restart_session` and\s+`stop_session` refuse until the desk was written after the event that asked/);

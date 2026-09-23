@@ -1,6 +1,6 @@
 // The lifecycle: how seats are started, what the server says to them on its own account, and how
 // they end — the Leader started by whatever is addressed to it, Workers by hire and by their own
-// restart; the five tools; the server events (context-full, restarted, quota-low, idle, park,
+// restart; the five tools; the server events (context, restarted, quota-low, idle, park,
 // stopped, the hard-rule delta); the quota gate in front of every write; a server stop that
 // parks first.
 //
@@ -19,7 +19,7 @@ import { after, before, describe, it } from "node:test";
 import { SERVER, read as panel } from "../lib/chat/conversation.mjs";
 import { subscribe } from "../lib/chat/events.mjs";
 import { messageFrame, serverEvent, userFrame } from "../lib/chat/frames.mjs";
-import { BODY_CONTEXT_FULL, BODY_CRITICAL, BODY_IDLE, BODY_PARK, BODY_RESTARTED, IDLE_GRACE, deliver, parkRoom, tick } from "../lib/chat/lifecycle.mjs";
+import { BODY_CONTEXT_ERROR, BODY_CONTEXT_WARNING, BODY_CRITICAL, BODY_IDLE, BODY_PARK, BODY_RESTARTED, IDLE_GRACE, deliver, parkRoom, tick } from "../lib/chat/lifecycle.mjs";
 import { sink } from "../lib/chat/log.mjs";
 import * as quota from "../lib/chat/quota.mjs";
 import { pageSecret } from "../lib/chat/secrets.mjs";
@@ -439,13 +439,16 @@ describe("restart_session and stop_session", () => {
   });
 
   it("restart_session wants the desk written since the event that asked", async () => {
-    paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_USAGE: JSON.stringify({ iterations: [{ input_tokens: 2, cache_read_input_tokens: 171_202 }] }) });
+    paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_USAGE: JSON.stringify({ iterations: [{ input_tokens: 2, cache_read_input_tokens: 371_202 }] }) });
     // The desk written before the event does not count.
     assert.equal((await tool(paul.secret, "write_desk", { title: "early", status: "s" })).refused, false);
     now += 1000;
     const asked = tell(WORKER, userFrame("fill up"));
     await asked.answered;
-    assert.equal((await told(paul.log, 2)).at(-1), `<server-event type="context-full" context="171204" ceiling="160000">${BODY_CONTEXT_FULL}</server-event>`);
+    assert.equal(
+      (await told(paul.log, 2)).at(-1),
+      `<server-event type="context" stage="error" context="371204" warning="200000" step="20000" error="300000">${BODY_CONTEXT_ERROR}</server-event>`,
+    );
     assert.deepEqual(await tool(paul.secret, "restart_session", {}), { text: "write your desk first (write_desk)", refused: true, error: null });
     assert.equal(running(WORKER), true);
     now += 1000;
@@ -612,26 +615,26 @@ describe("restart_session and stop_session", () => {
 
 // ---------------------------------------------------------------------------------------------
 
-describe("context-full", () => {
+describe("context", () => {
   let paul = null;
 
   after(async () => {
     await endEvery(500);
   });
 
-  // The event goes in with what was queued behind the turn that crossed the ceiling — behind it,
+  // The event goes in with what was queued behind the turn that passed the size — behind it,
   // since it arrived when that turn ended and a queue is in arrival order — and the seat decides
-  // for itself.
+  // for itself what to do about it.
   it("fires once, behind what was queued, from the last request of the turn", async () => {
     paul = await seatUp(WORKER, {
       OPENOVAI_STAND_IN_SLOW: "300",
       OPENOVAI_STAND_IN_USAGE: JSON.stringify([
         { input_tokens: 250_000, iterations: [{ input_tokens: 130_000 }, { input_tokens: 120_000 }] },
-        { input_tokens: 2, iterations: [{ input_tokens: 100 }, { input_tokens: 171_204 }] },
-        { input_tokens: 2, iterations: [{ input_tokens: 171_204 }] },
+        { input_tokens: 2, iterations: [{ input_tokens: 100 }, { input_tokens: 211_204 }] },
+        { input_tokens: 2, iterations: [{ input_tokens: 211_204 }] },
       ]),
     });
-    // A top-level sum over the ceiling with a last request under it: nothing.
+    // A top-level sum over the warning size with a last request under it: nothing.
     await tell(WORKER, userFrame("one")).answered;
     assert.deepEqual(await told(paul.log, 1), ["<user>one</user>"]);
     tell(WORKER, userFrame("two"));
@@ -642,9 +645,9 @@ describe("context-full", () => {
     assert.equal(queues.length, 3, heardIn(paul.log).join("\n"));
     assert.deepEqual(childrenOf(queues[2]), [
       "<user>three</user>",
-      `<server-event type="context-full" context="171204" ceiling="160000">${BODY_CONTEXT_FULL}</server-event>`,
+      `<server-event type="context" stage="warning" context="211204" warning="200000" step="20000" error="300000">${BODY_CONTEXT_WARNING}</server-event>`,
     ]);
-    // A further turn over the ceiling says nothing more.
+    // A further turn at the same size says nothing more.
     await tell(WORKER, userFrame("four")).answered;
     await tell(WORKER, userFrame("five")).answered;
     assert.deepEqual(heardIn(paul.log).slice(4), ["<user>four</user>", "<user>five</user>"]);
@@ -652,7 +655,55 @@ describe("context-full", () => {
 
   it("is what the page and the room report as the seat's context", async () => {
     const listed = (await sessionsListed()).sessions.find((seat) => seat.name === WORKER);
-    assert.equal(listed.context, 171_204);
+    assert.equal(listed.context, 211_204);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+
+describe("the context sizes", () => {
+  let paul = null;
+
+  after(async () => {
+    await endEvery(500);
+  });
+
+  const event = (context, stage) =>
+    `<server-event type="context" stage="${stage}" context="${context}" warning="200000" step="20000" error="300000">${
+      stage === "error" ? BODY_CONTEXT_ERROR : BODY_CONTEXT_WARNING
+    }</server-event>`;
+
+  // Six turns and a reading each — the stand-in's list is per turn of the User's, not per turn:
+  // just under the warning size, on it, between it and the first step, two steps at once, the
+  // error size, and a step above the error size. Nothing is ended at any of them: the seat is
+  // still running when the last event has gone in.
+  it("tells the warning at the warning size and at every step, once each, and the error stage from the error size", async () => {
+    paul = await seatUp(WORKER, {
+      OPENOVAI_STAND_IN_USAGE: JSON.stringify([
+        { input_tokens: 2, iterations: [{ input_tokens: 199_999 }] },
+        { input_tokens: 2, iterations: [{ input_tokens: 200_000 }] },
+        { input_tokens: 2, iterations: [{ input_tokens: 219_999 }] },
+        { input_tokens: 2, iterations: [{ input_tokens: 240_500 }] },
+        { input_tokens: 2, iterations: [{ input_tokens: 300_000 }] },
+        { input_tokens: 2, iterations: [{ input_tokens: 321_000 }] },
+      ]),
+    });
+    for (const said of ["one", "two", "three", "four", "five", "six"]) {
+      await tell(WORKER, userFrame(said)).answered;
+    }
+    assert.deepEqual(await told(paul.log, 10), [
+      "<user>one</user>",
+      "<user>two</user>",
+      event("200000", "warning"),
+      "<user>three</user>",
+      "<user>four</user>",
+      event("240500", "warning"),
+      "<user>five</user>",
+      event("300000", "error"),
+      "<user>six</user>",
+      event("321000", "error"),
+    ]);
+    assert.equal(running(WORKER), true, "a size ended the seat");
   });
 });
 
@@ -1086,6 +1137,43 @@ async function awake(seat) {
 }
 
 const A_CONTEXT = JSON.stringify({ iterations: [{ input_tokens: 400, cache_read_input_tokens: 118_000, cache_creation_input_tokens: 0 }] });
+
+// An event that asks nothing is the server talking to a seat it may already be waiting on, so it
+// must not cancel the server's own ending: the ask it finds is the ask it leaves. A turn of the
+// User's or a message still reprieves — that is the check in `idle` below, and the two rules live
+// side by side.
+describe("an advisory and a pending ask", () => {
+  let superman = null;
+  let paul = null;
+
+  after(async () => {
+    await endEvery(500);
+  });
+
+  it("a context warning behind the critical idle ask does not spare the seat", async () => {
+    ({ superman, paul } = await pair({ OPENOVAI_STAND_IN_USAGE: A_CONTEXT }));
+    await awake(WORKER);
+    const idleFrom = now;
+    now = idleFrom + 55 * MINUTE;
+    tick(chat);
+    assert.equal((await told(paul.log, 2)).at(-1), `<server-event type="idle" stage="critical" minutes="55">${BODY_IDLE(55)}</server-event>`);
+    // The advisory, delivered the way `turned` delivers it: no ask at all.
+    const warning = serverEvent(
+      "context",
+      { stage: "warning", context: "211204", warning: "200000", step: "20000", error: "300000" },
+      BODY_CONTEXT_WARNING,
+    );
+    await deliver(chat, WORKER, warning).answered;
+    assert.equal((await told(paul.log, 3)).at(-1), warning.text);
+    now = idleFrom + (55 + IDLE_GRACE + 1) * MINUTE;
+    tick(chat);
+    assert.ok(await gone(WORKER), `${WORKER} was spared by an event that asks nothing`);
+    // The Leader has the two FYIs from the 55-minute tick behind it, so the ending is the third.
+    assert.equal((await told(superman.log, 3)).at(-1), `<server-event type="stopped" who="${WORKER}" why="idle-forced"/>`);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
 
 // The clocks are the instance's: `now` is jumped and `tick` is called by hand. The server's own
 // ticker runs on the same frozen clock, so a tick of its own in between changes nothing.

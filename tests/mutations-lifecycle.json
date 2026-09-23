@@ -219,13 +219,35 @@
     ]
   },
   {
-    "name": "context-full fires after every turn over the ceiling",
-    "catches": "fires once, behind what was queued, from the last request of the turn",
+    "name": "the context event is told again for a size already told",
+    "catches": "tells the warning at the warning size and at every step, once each, and the error stage from the error size",
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "  if (record.context === null || record.context <= context.ceiling || record.contextFullTold) {",
-        "to": "  if (record.context === null || record.context <= context.ceiling) {"
+        "from": "  if (passed === null || (record.contextTold !== null && passed <= record.contextTold)) {",
+        "to": "  if (passed === null) {"
+      }
+    ]
+  },
+  {
+    "name": "the error stage never replaces the warning",
+    "catches": "tells the warning at the warning size and at every step, once each, and the error stage from the error size",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "  const stage = passed >= context.error ? \"error\" : \"warning\";",
+        "to": "  const stage = \"warning\";"
+      }
+    ]
+  },
+  {
+    "name": "the context event waits for a step instead of firing at the warning size",
+    "catches": "tells the warning at the warning size and at every step, once each, and the error stage from the error size",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "  if (context === null || context < warning) {",
+        "to": "  if (context === null || context <= warning) {"
       }
     ]
   },
@@ -444,8 +466,19 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "  record.askedWhy = record.turn.ask;\n  record.askedAt = record.turn.ask === null ? null : record.turnBegan;\n",
-        "to": "  if (record.turn.ask !== null) {\n    record.askedWhy = record.turn.ask;\n    record.askedAt = record.turnBegan;\n  }\n"
+        "from": "  if (record.turn.ask !== undefined) {\n    record.askedWhy = record.turn.ask;\n    record.askedAt = record.turn.ask === null ? null : record.turnBegan;\n  }\n",
+        "to": "  if (record.turn.ask !== undefined && record.turn.ask !== null) {\n    record.askedWhy = record.turn.ask;\n    record.askedAt = record.turnBegan;\n  }\n"
+      }
+    ]
+  },
+  {
+    "name": "an advisory swallows the ask it found",
+    "catches": "a context warning behind the critical idle ask does not spare the seat",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "  const speaking = turns.filter((turn) => turn.ask !== null || turn.frame.kind !== \"server-event\").at(-1);\n",
+        "to": "  const speaking = turns.at(-1);\n"
       }
     ]
   },
