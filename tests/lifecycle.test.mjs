@@ -210,6 +210,13 @@ async function told(log, count) {
   return heardIn(log);
 }
 
+// The frames a seat was told, once `frame` is among them — for a frame that lands behind others
+// the seat may already have, where a count would be met before it arrives.
+async function toldUntil(log, frame) {
+  await waitFor(() => (heardIn(log).includes(frame) ? true : null));
+  return heardIn(log);
+}
+
 // The same, without the turn the server hands a successor at birth: for the checks about what
 // somebody else sent. That event has checks of its own, so no other check asserts it.
 function besideBirth(items) {
@@ -1155,6 +1162,8 @@ describe("an advisory and a pending ask", () => {
     ({ superman, paul } = await pair({ OPENOVAI_STAND_IN_USAGE: A_CONTEXT }));
     await awake(WORKER);
     const idleFrom = now;
+    now = idleFrom + 50 * MINUTE;
+    await awake(LEADER);
     now = idleFrom + 55 * MINUTE;
     tick(chat);
     assert.equal((await told(paul.log, 2)).at(-1), `<server-event type="idle" stage="critical" minutes="55">${BODY_IDLE(55)}</server-event>`);
@@ -1169,8 +1178,11 @@ describe("an advisory and a pending ask", () => {
     now = idleFrom + (55 + IDLE_GRACE + 1) * MINUTE;
     tick(chat);
     assert.ok(await gone(WORKER), `${WORKER} was spared by an event that asks nothing`);
-    // The Leader has the two FYIs from the 55-minute tick behind it, so the ending is the third.
-    assert.equal((await told(superman.log, 3)).at(-1), `<server-event type="stopped" who="${WORKER}" why="idle-forced"/>`);
+    // The Leader is woken at 50 so that only the Worker ages to the forced ending; it has its own
+    // turn and the two FYIs about the Worker behind it, so the ending is waited for, not counted.
+    const stopped = `<server-event type="stopped" who="${WORKER}" why="idle-forced"/>`;
+    const frames = await toldUntil(superman.log, stopped);
+    assert.ok(frames.includes(stopped), frames.join("\n"));
   });
 });
 
@@ -1315,7 +1327,11 @@ describe("idle", () => {
     assert.ok(await waitFor(() => (recordOf(WORKER).turn === null ? true : null)), "the ask's turn never ended");
     tick(chat);
     assert.ok(await gone(WORKER), `${WORKER} was not ended once its turn was over`);
-    assert.equal((await told(superman.log, 2)).at(-1), `<server-event type="stopped" who="${WORKER}" why="idle-forced"/>`);
+    // The Leader has its own turn and the two FYIs about the Worker behind it, so the ending is
+    // waited for, not counted.
+    const stopped = `<server-event type="stopped" who="${WORKER}" why="idle-forced"/>`;
+    const frames = await toldUntil(superman.log, stopped);
+    assert.ok(frames.includes(stopped), frames.join("\n"));
   });
 
   it("the Leader has no 10 and no 50, and the critical frame at 55", async () => {
