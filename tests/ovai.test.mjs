@@ -510,15 +510,64 @@ describe("what the toolkit starts", () => {
     );
   });
 
+  // The admin door is the third decidable shape, and the only one of the three that runs turns.
+  // Its exemption does not generalise and is not meant to: that session is the person's own,
+  // started by them at their own terminal, with no seat, no desk and no connector, so the
+  // background work a reaper would take there is theirs and none of it is this instance's. Like
+  // --print, it is decided from the argument list, where a reader is already looking.
   it("never starts Claude Code in a shape its background reaper is armed for", () => {
     const armed = claudes
       .filter((one) => one.argv !== null)
-      .filter((one) => !one.argv.includes("--print") && one.argv[0] !== "auth")
+      .filter((one) => !one.argv.includes("--print") && one.argv[0] !== "auth" && one.argv[0] !== "--append-system-prompt")
       .map((one) => one.where);
     assert.deepEqual(
       armed,
       [],
-      "Claude Code is started neither in print mode nor as an auth subcommand, so a terminal underneath it would arm the background reaper and background work would start disappearing: pass --print",
+      "Claude Code is started neither in print mode, nor as an auth subcommand, nor as the admin door, so a terminal underneath it would arm the background reaper and background work would start disappearing: pass --print",
+    );
+  });
+
+  // And that exemption is not a hole for anything else to fall through: it admits one start, the
+  // door itself. A second would mean a session of this instance had been handed a terminal under
+  // the same word, which is the thing the check above exists to refuse.
+  it("gives a terminal to one start of Claude Code and no other", () => {
+    const doors = claudes
+      .filter((one) => one.argv !== null && one.argv[0] === "--append-system-prompt")
+      .map((one) => one.where);
+    assert.equal(
+      doors.length,
+      1,
+      `the admin door is meant to be the one start of Claude Code that runs turns on a terminal, and ${doors.length} were found: ${doors.join(", ") || "none"}`,
+    );
+  });
+
+  // What the door must not carry, each left out for its own reason. --print, because there is a
+  // person at the terminal. --permission-prompt-tool, because a card has to appear where that
+  // person is sitting and inherited stdio does that for nothing. --mcp-config, because the
+  // connector is how a seat talks to the room and an admin has no room. --settings, because those
+  // are the rules set for seats. --model, because the model is the person's own choice in their
+  // own session: this instance picks one for its seats, not for people.
+  //
+  // And the one argument it must carry, which is there to take a seat's settings away rather than
+  // to add anything: --setting-sources user. Without it the door inherits the instance's project
+  // settings, and the allow list written for unattended seats would let a person's session edit
+  // desks and shared notes with no card at all.
+  it("gives the admin door none of a seat's arguments, and the one that removes a seat's settings", () => {
+    const door = claudes.find((one) => one.argv !== null && one.argv[0] === "--append-system-prompt");
+    assert.ok(door !== undefined, "no admin door found under lib/: the walk is reading the wrong tree");
+    const carried = ["--print", "--permission-prompt-tool", "--mcp-config", "--settings", "--model"].filter((flag) =>
+      door.argv.includes(flag),
+    );
+    assert.deepEqual(
+      carried,
+      [],
+      `the admin door is given ${carried.join(", ")}, which is a seat's argument and not a person's`,
+    );
+    const sources = door.argv.indexOf("--setting-sources");
+    assert.equal(
+      door.argv[sources + 1],
+      "user",
+      "the admin door does not pass --setting-sources user, so it runs under the permission rules this instance writes for unattended seats: an allow meant for a session nobody is watching would apply to a person sitting at a terminal, and the writes the briefing warns about would happen with no card",
     );
   });
 

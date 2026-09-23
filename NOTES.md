@@ -6,6 +6,17 @@ carries only its own.
 
 ## 0.17.0
 
+**A door to Claude Code's own commands: `ovai claude`.** There is no screen here for connectors,
+plugins or marketplaces, and there will not be one. Instead the instance opens a real Claude Code
+session on itself, at your terminal, with its configuration around it — so `/mcp`, `/plugin` and
+whatever Claude Code gains next work here the day they ship, and write this instance's account
+rather than your own. That session is not a seat: no desk, no name in the room, no way to speak to
+anybody here, and every question it has it asks you, where you are sitting. It is told what it can
+reach, who reads each of those things, and what changes if it writes to one. Quit it when you are
+done. A seat reads its configuration when it starts, so nothing you changed is live for the people
+working here until `ovai restart` — which interrupts whatever they are mid-way through, and is
+yours to ask for rather than something the door does on its own.
+
 **What a session starts ends with the session.** Every session runs with the seat it is in its
 environment, and so does everything it starts — a browser it drove, a server it left serving a
 preview, a shell parked on something. When the session's process is gone, whatever it started and
