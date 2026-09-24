@@ -109,8 +109,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "        record.said = 0;\n        record.idleSince = clock();\n        record.idleTold = 0;",
-        "to": "        record.said = 0;\n        record.idleTold = 0;"
+        "from": "        record.said = 0;\n        record.open.clear();\n        record.idleSince = clock();\n        record.idleTold = 0;",
+        "to": "        record.said = 0;\n        record.open.clear();\n        record.idleTold = 0;"
       }
     ]
   }

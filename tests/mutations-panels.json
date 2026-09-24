@@ -368,8 +368,8 @@
     "edits": [
       {
         "file": "lib/chat/panels.mjs",
-        "from": "  if (delivered) return { text: DELIVERED, glyph: DELIVERED_GLYPH, wait: false };",
-        "to": "  if (delivered && !busy) return { text: DELIVERED, glyph: DELIVERED_GLYPH, wait: false };"
+        "from": "  if (delivered) {\n    if (waited !== null",
+        "to": "  if (delivered && !busy) {\n    if (waited !== null"
       }
     ]
   },
@@ -390,8 +390,8 @@
     "edits": [
       {
         "file": "lib/chat/panels.mjs",
-        "from": "  if (delivered) return { text: DELIVERED, glyph: DELIVERED_GLYPH, wait: false };",
-        "to": "  if (delivered) return { text: DELIVERED, wait: false };"
+        "from": "    return { text: DELIVERED, glyph: DELIVERED_GLYPH, wait: false };",
+        "to": "    return { text: DELIVERED, wait: false };"
       }
     ]
   },

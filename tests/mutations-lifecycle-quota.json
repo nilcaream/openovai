@@ -120,8 +120,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "    const holding = record.gate(turn.frame);",
-        "to": "    const holding = null;"
+        "from": "  for (const turn of record.queue) {\n    const holding = record.gate(turn.frame);",
+        "to": "  for (const turn of record.queue) {\n    const holding = null;"
       }
     ]
   },

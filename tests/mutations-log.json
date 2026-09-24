@@ -82,8 +82,8 @@
     "edits": [
       {
         "file": "lib/chat/log.mjs",
-        "from": "  for (const line of String(text).split(\"\\n\")) {",
-        "to": "  for (const line of [String(text)]) {"
+        "from": "  for (const line of mask(text).split(\"\\n\")) {",
+        "to": "  for (const line of [mask(text)]) {"
       }
     ]
   },

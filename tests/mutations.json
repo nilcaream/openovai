@@ -269,8 +269,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "content: record.turn.frame.text }",
-        "to": "content: record.turn.frame.kind }"
+        "from": "content: frame.text }",
+        "to": "content: frame.kind }"
       }
     ]
   },
@@ -1065,8 +1065,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title } from \"./panels.mjs\";",
-        "to": "  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title } from \"./panels.mjs\";\n  const place = (seats, leader) => ({ left: seats.filter((s) => s !== leader), mid: leader, right: [] });"
+        "from": "  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title, typedAgainst } from \"./panels.mjs\";",
+        "to": "  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title, typedAgainst } from \"./panels.mjs\";\n  const place = (seats, leader) => ({ left: seats.filter((s) => s !== leader), mid: leader, right: [] });"
       }
     ]
   },
@@ -1362,8 +1362,8 @@
     "edits": [
       {
         "file": "lib/chat/conversation.mjs",
-        "from": "  messages[index].delivered = true;\n  fs.writeFileSync(file(root, session), `${JSON.stringify(messages, null, 2)}\\n`);\n  publish(\"row\", { seat: session, index, row: messages[index] });",
-        "to": "  messages[index].delivered = true;\n  fs.writeFileSync(file(root, session), `${JSON.stringify(messages, null, 2)}\\n`);"
+        "from": "  messages[index].delivered = true;\n  messages[index].deliveredAt = new Date().toISOString();\n  fs.writeFileSync(file(root, session), `${JSON.stringify(messages, null, 2)}\\n`);\n  publish(\"row\", { seat: session, index, row: messages[index] });",
+        "to": "  messages[index].delivered = true;\n  messages[index].deliveredAt = new Date().toISOString();\n  fs.writeFileSync(file(root, session), `${JSON.stringify(messages, null, 2)}\\n`);"
       }
     ]
   },
@@ -1719,8 +1719,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "    resolve: (reply) => turns.forEach((turn) => turn.resolve(reply)),",
-        "to": "    resolve: (reply) => turns.at(-1).resolve(reply),"
+        "from": "    at: turns[0].at,\n    resolve: (reply) => turns.forEach((turn) => turn.resolve(reply)),",
+        "to": "    at: turns[0].at,\n    resolve: (reply) => turns.at(-1).resolve(reply),"
       }
     ]
   },
@@ -1785,7 +1785,7 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "  if (record.turn !== null) {\n    log(\"unwritten\", record.seat, null, `turn open since ${new Date(record.turnBegan).toISOString()}, ${record.queue.length} waiting`);\n    return;\n  }\n",
+        "from": "  if (record.turn !== null) {\n    if (joined(record)) {\n      return;\n    }\n    log(\"unwritten\", record.seat, null, `turn open since ${new Date(record.turnBegan).toISOString()}, ${record.queue.length} waiting`);\n    return;\n  }\n",
         "to": ""
       }
     ]

@@ -38,7 +38,7 @@
     "edits": [
       {
         "file": "lib/desks.mjs",
-        "from": "So copy the four sentences below into every brief you write, word for word, before you send it —\nnot a summary of them, not the gist of them, and never left for the agent to work out.",
+        "from": "So copy the four sentences below into every brief you write, word for word, before you send it —\nnot a summary of them, not the gist of them, and never left for the agent to work out; the one\nthing you change is N, which you replace with the number of tool calls for that round.",
         "to": "So keep them in mind whenever you hand work on, and brief accordingly."
       }
     ]

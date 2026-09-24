@@ -16,8 +16,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "      forget(instance.root);\n      telling.delete(instance.root);\n",
-        "to": "      telling.delete(instance.root);\n"
+        "from": "      forget(instance.root, left.ended);\n      if (telling.get(instance.root) === left.ended) {",
+        "to": "      if (telling.get(instance.root) === left.ended) {"
       }
     ]
   },
@@ -82,7 +82,7 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "    while (clock() < until && !waitedFor.every(stopped)) {",
+        "from": "    while (clock() < until && !told.every(stopped)) {",
         "to": "    while (false) {"
       }
     ]

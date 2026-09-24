@@ -92,6 +92,7 @@ node --test tests/page.test.mjs             # the stylesheet read as rules, one 
 node --test tests/render.test.mjs           # draw a row as markdown, and nothing a row must not do
 node --test tests/lines.test.mjs            # draw a tool call as the line its summary composes
 node --test tests/log.test.mjs              # the server's log: one writer, one row shape
+node --test tests/mask.test.mjs             # hide a secret's shape, and leave everything else byte for byte
 node --test tests/update.test.mjs           # take a newer version from a release, and refuse to
 node --test tests/tag.test.mjs              # what a release of this tree would be, and what it refuses to be
 ```

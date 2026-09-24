@@ -104,8 +104,8 @@
     "edits": [
       {
         "file": "lib/chat/render.mjs",
-        "from": "  if (entry.divider === true) {",
-        "to": "  if (entry.divider === true && false) {"
+        "from": "  if (entry.divider === true || entry.stamp === true) {",
+        "to": "  if ((entry.divider === true || entry.stamp === true) && false) {"
       }
     ]
   },

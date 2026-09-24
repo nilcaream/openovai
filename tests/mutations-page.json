@@ -1696,8 +1696,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "delivery(shown.delivered, panel.section.classList.contains(\"busy\"), panel.name)",
-        "to": "delivery(shown.delivered, false, panel.name)"
+        "from": "delivery(shown.delivered, panel.section.classList.contains(\"busy\"), panel.name, waitedOf(entry))",
+        "to": "delivery(shown.delivered, false, panel.name, waitedOf(entry))"
       }
     ]
   },
@@ -1751,8 +1751,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "    time.parentElement.append(deliveredElement(delivery(true, false, panel.name)));",
-        "to": "    element.querySelector(\".who\").append(deliveredElement(delivery(true, false, panel.name)));"
+        "from": "    time.parentElement.append(deliveredElement(delivery(true, false, panel.name, waitedOf(entry))));",
+        "to": "    element.querySelector(\".who\").append(deliveredElement(delivery(true, false, panel.name, waitedOf(entry))));"
       }
     ]
   },
@@ -1784,7 +1784,7 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "        if (about.rows[index].delivered === true) deliveredRow(panel, index);\n",
+        "from": "        if (about.rows[index].delivered === true) deliveredRow(panel, index, about.rows[index]);\n",
         "to": ""
       }
     ]
@@ -1806,8 +1806,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      const text = spellReferences(refs, box.value);",
-        "to": "      const text = box.value;"
+        "from": "      const text = spellReferences(refs, typedAgainst(refs, typing.anchor, typing.latest, box.value));",
+        "to": "      const text = typedAgainst(refs, typing.anchor, typing.latest, box.value);"
       }
     ]
   },
