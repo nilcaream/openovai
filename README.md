@@ -92,9 +92,10 @@ An instance is a directory of its own. Its root is this, and nothing else ever l
                     files above the instance it is not to read; written at every start
   runtime.json      the running server: url, pid, since
   runtime.log       what the server said, one row per line, every run appended
-  admin.json        what `ovai claude` left when the door closed: when the session ended and
-                    which configuration files changed, by name; the server hands it to the
-                    Leader at its next start and removes it
+  admin.json        what `ovai claude` left when the door closed: when the session ended, which
+                    configuration files changed, and what moved in them, by name; a running
+                    server hands it to the Leader within seconds, a stopped one at its next
+                    start, and removes it
   plugins/          tools the instance serves itself, one file each; yours, kept across updates
   knowledge/        what the workspace knows, one Markdown note per topic; written and read by
                     every session with the file tools

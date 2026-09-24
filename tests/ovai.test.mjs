@@ -38,7 +38,8 @@ import { LEDGER, settingsProblems, trustProblems } from "./inspect.mjs";
 // The reader this suite asks directly. Everywhere else what a session runs on is seen by starting
 // one, which is right when the subject is a run — and no help at all with what a file holding
 // nothing means, which is a question about the reading rather than about the running.
-import { ADMIN_FILE, WATCHED, changedBetween, fingerprint, recorded } from "../lib/admin.mjs";
+import { ADMIN_FILE, WATCHED, changedBetween, differences, fingerprint, record as recordAdmin, recorded, snapshot } from "../lib/admin.mjs";
+import { BODY_ADMIN_CLOSED } from "../lib/chat/lifecycle.mjs";
 import { SEAT_IN_ENVIRONMENT, home } from "../lib/claude.mjs";
 import { DeskError, hire, modelFor, persona as renderPersona } from "../lib/desks.mjs";
 import { HOOK_ENTRY } from "../lib/hooks/compound.mjs";
@@ -1567,6 +1568,7 @@ describe("what admin mode leaves behind when the door closes", () => {
     assert.ok(record !== null, `nothing was left at ${left}`);
     assert.match(record.ended, /^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/);
     assert.deepEqual(record.changed, []);
+    assert.deepEqual(JSON.parse(fs.readFileSync(left, "utf8")).moved, [], "the record carries no list of what moved");
     fs.rmSync(left, { force: true });
   });
 
@@ -1581,5 +1583,91 @@ describe("what admin mode leaves behind when the door closes", () => {
     } finally {
       fs.writeFileSync(settings, was);
     }
+  });
+});
+
+// The snapshot taken as the door opens and again as it closes, and the sentences the Leader reads
+// from the two. Every kind of change the User makes in admin mode, each named — and a secret put
+// everywhere Claude Code keeps one, none of it carried.
+describe("what admin mode says moved", () => {
+  const root = scratch("ovai-admin-snapshot");
+  const SECRET = "sk-never-in-a-record";
+  const write = (name, value) => {
+    fs.mkdirSync(path.dirname(path.join(root, name)), { recursive: true });
+    fs.writeFileSync(path.join(root, name), JSON.stringify(value));
+  };
+  const local = { type: "stdio", command: "run", env: { TOKEN: SECRET } };
+  const account = (servers, connectors, churn, locals = {}) => ({
+    oauthAccount: { accessToken: SECRET, emailAddress: "someone@example.com" },
+    cachedGrowthBookFeaturesAt: churn,
+    claudeAiMcpEverConnected: connectors,
+    mcpServers: servers,
+    projects: { [path.resolve(root)]: { mcpServers: { kept: local, ...locals } } },
+  });
+  const secretServer = { type: "http", url: `https://mcp.example.com/?key=${SECRET}`, headers: { Authorization: `Bearer ${SECRET}` } };
+
+  before(() => {
+    write(".local/settings.json", {
+      env: { API_KEY: SECRET },
+      model: "opus",
+      enabledPlugins: { "fmt@tools": true },
+      permissions: { allow: ["Bash(npm:*)"], defaultMode: "default" },
+    });
+    write(".local/.claude.json", account({ moving: secretServer }, ["Gmail"], 1));
+    write(".local/plugins/known_marketplaces.json", { tools: { source: { source: "git", url: `https://${SECRET}@example.com/tools.git` } } });
+    write(".local/plugins/installed_plugins.json", { version: 2, plugins: { "fmt@tools": [{ installPath: "/x", version: "1" }] } });
+    write(".mcp.json", { mcpServers: {} });
+  });
+
+  it("names what moved and carries no value of it", () => {
+    const opened = snapshot(root);
+    write(".local/settings.json", {
+      env: { API_KEY: `${SECRET}-2` },
+      model: "opus",
+      theme: "dark",
+      enabledPlugins: { "fmt@tools": false, "lint@corp": true },
+      extraKnownMarketplaces: { corp: { source: { source: "github", repo: `corp/${SECRET}` } } },
+      permissions: { allow: ["Bash(git:*)"], deny: ["Read(./.env)"], defaultMode: "default" },
+    });
+    write(".local/.claude.json", account({ linear: secretServer }, ["Gmail", "Linear"], 2, { notes: local }));
+    write(".mcp.json", { mcpServers: { moving: secretServer } });
+    fs.mkdirSync(path.join(root, ".local", "skills", "review"), { recursive: true });
+    const closed = snapshot(root);
+    const moved = differences(opened, closed);
+
+    assert.deepEqual(moved, [
+      "marketplaces added: corp",
+      "plugins installed: lint@corp (enabled)",
+      "plugins disabled: fmt@tools",
+      "skills added: review",
+      "MCP servers added: linear (user scope), notes (local scope)",
+      "MCP servers that changed scope: moving (user → project)",
+      "claude.ai connectors connected: Linear",
+      "permission rules added in .local/settings.json: allow Bash(git:*), deny Read(./.env)",
+      "permission rules removed in .local/settings.json: allow Bash(npm:*)",
+      "other settings changed in .local/settings.json: env, theme",
+    ]);
+    for (const taken of [opened, closed, moved]) {
+      assert.ok(!JSON.stringify(taken).includes(SECRET), `a secret reached the snapshot: ${JSON.stringify(taken)}`);
+    }
+  });
+
+  it("puts no token and no hash in the record or the event", () => {
+    // Opened on an empty configuration, so everything in the fixture — a token in an MCP header,
+    // env and url, and in a marketplace's git URL — is something that moved.
+    const empty = scratch("ovai-admin-empty");
+    const moved = differences(snapshot(empty), snapshot(root));
+    assert.ok(moved.length > 0, "nothing moved from an empty configuration: the check reads nothing");
+    const written = fs.readFileSync(recordAdmin(root, { ended: "2026-09-23T10:00:00.000Z", changed: WATCHED, moved }), "utf8");
+    const body = BODY_ADMIN_CLOSED(WATCHED, moved);
+    fs.rmSync(path.join(root, ADMIN_FILE), { force: true });
+    for (const [where, text] of [["admin.json", written], ["the event", body]]) {
+      assert.ok(!text.includes(SECRET), `a token reached ${where}: ${text}`);
+      assert.doesNotMatch(text, /[0-9a-f]{64}/, `a hash reached ${where}`);
+    }
+  });
+
+  it("says nothing moved when nothing did", () => {
+    assert.deepEqual(differences(snapshot(root), snapshot(root)), []);
   });
 });

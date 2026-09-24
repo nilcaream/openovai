@@ -1,0 +1,145 @@
+[
+  {
+    "name": "an MCP server's definition enters the snapshot",
+    "catches": "names what moved and carries no value of it",
+    "edits": [
+      {
+        "file": "lib/admin.mjs",
+        "from": "      mcp[name] = [...(mcp[name] ?? []), scope];",
+        "to": "      mcp[name] = [...(mcp[name] ?? []), scope, JSON.stringify(servers[name])];"
+      }
+    ]
+  },
+  {
+    "name": "a settings key is carried by value rather than by hash",
+    "catches": "names what moved and carries no value of it",
+    "edits": [
+      {
+        "file": "lib/admin.mjs",
+        "from": "        other[name][key] = hash(JSON.stringify(read[key]));",
+        "to": "        other[name][key] = JSON.stringify(read[key]);"
+      }
+    ]
+  },
+  {
+    "name": "the account's record gives its own keys, oauth and caches among them",
+    "catches": "names what moved and carries no value of it",
+    "edits": [
+      {
+        "file": "lib/admin.mjs",
+        "from": "  other[PROJECT_MCP] = {};\n",
+        "to": "  other[PROJECT_MCP] = {};\n  other[ACCOUNT_RECORD] = Object.fromEntries(Object.keys(account).map((key) => [key, hash(JSON.stringify(account[key]))]));\n"
+      }
+    ]
+  },
+  {
+    "name": "marketplaces from the settings are not read",
+    "catches": "names what moved and carries no value of it",
+    "edits": [
+      {
+        "file": "lib/admin.mjs",
+        "from": "    keysOf(settings[name].extraKnownMarketplaces).forEach((one) => marketplaces.add(one));\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a plugin turned off is not said",
+    "catches": "names what moved and carries no value of it",
+    "edits": [
+      {
+        "file": "lib/admin.mjs",
+        "from": "now[name] === \"disabled\").sort());",
+        "to": "now[name] === \"off\").sort());"
+      }
+    ]
+  },
+  {
+    "name": "skills are not read",
+    "catches": "names what moved and carries no value of it",
+    "edits": [
+      {
+        "file": "lib/admin.mjs",
+        "from": "    skills: directoriesIn(root, path.join(HOME, \"skills\")).sort(),",
+        "to": "    skills: [],"
+      }
+    ]
+  },
+  {
+    "name": "a server that changed scope is not said",
+    "catches": "names what moved and carries no value of it",
+    "edits": [
+      {
+        "file": "lib/admin.mjs",
+        "from": "name in before.mcp && scopes(before.mcp[name]) !== scopes(after.mcp[name])",
+        "to": "false"
+      }
+    ]
+  },
+  {
+    "name": "the local scope is not read",
+    "catches": "names what moved and carries no value of it",
+    "edits": [
+      {
+        "file": "lib/admin.mjs",
+        "from": "? account.projects[path.resolve(root)].mcpServers : undefined]",
+        "to": "? undefined : undefined]"
+      }
+    ]
+  },
+  {
+    "name": "connectors are not read",
+    "catches": "names what moved and carries no value of it",
+    "edits": [
+      {
+        "file": "lib/admin.mjs",
+        "from": "    connectors: namesIn(account.claudeAiMcpEverConnected).sort(),",
+        "to": "    connectors: [],"
+      }
+    ]
+  },
+  {
+    "name": "a permission rule removed is not said",
+    "catches": "names what moved and carries no value of it",
+    "edits": [
+      {
+        "file": "lib/admin.mjs",
+        "from": "    say(`permission rules removed in ${name}`, added(after.rules[name], before.rules[name] ?? []));\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a marketplace is named by its source",
+    "catches": "puts no token and no hash in the record or the event",
+    "edits": [
+      {
+        "file": "lib/admin.mjs",
+        "from": "  const marketplaces = new Set(keysOf(objectIn(root, path.join(plugins, \"known_marketplaces.json\"))));",
+        "to": "  const known = objectIn(root, path.join(plugins, \"known_marketplaces.json\"));\n  const marketplaces = new Set(keysOf(known).map((name) => JSON.stringify(known[name])));"
+      }
+    ]
+  },
+  {
+    "name": "a changed settings key is said with its hash",
+    "catches": "puts no token and no hash in the record or the event",
+    "edits": [
+      {
+        "file": "lib/admin.mjs",
+        "from": "    say(`other settings changed in ${name}`, keys);",
+        "to": "    say(`other settings changed in ${name}`, keys.map((key) => `${key} ${today[key]}`));"
+      }
+    ]
+  },
+  {
+    "name": "the record at the door's close carries no list of what moved",
+    "catches": "leaves a record at the instance root even when nothing changed",
+    "edits": [
+      {
+        "file": "lib/ovai.mjs",
+        "from": ", moved: differences(opened, snapshot(root)) });",
+        "to": " });"
+      }
+    ]
+  }
+]

@@ -5,41 +5,74 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "  return deliver(instance, leaderOf(instance), frame, { written: () => forget(instance.root) }).refused === undefined;\n",
-        "to": "  forget(instance.root);\n  return deliver(instance, leaderOf(instance), frame).refused === undefined;\n"
+        "from": "  telling.set(instance.root, left.ended);\n",
+        "to": "  telling.set(instance.root, left.ended);\n  forget(instance.root);\n"
       }
     ]
   },
   {
     "name": "the admin record is never taken away",
-    "catches": "tells the Leader which files changed at the next start, tells no Worker, and takes the record away",
+    "catches": "tells the Leader what moved at the next start, tells no Worker, and takes the record away",
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "  return deliver(instance, leaderOf(instance), frame, { written: () => forget(instance.root) }).refused === undefined;\n",
-        "to": "  return deliver(instance, leaderOf(instance), frame).refused === undefined;\n"
+        "from": "      forget(instance.root);\n      telling.delete(instance.root);\n",
+        "to": "      telling.delete(instance.root);\n"
       }
     ]
   },
   {
     "name": "every running seat is told that admin mode closed",
-    "catches": "tells the Leader which files changed at the next start, tells no Worker, and takes the record away",
+    "catches": "tells the Leader what moved at the next start, tells no Worker, and takes the record away",
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "  return deliver(instance, leaderOf(instance), frame, { written: () => forget(instance.root) }).refused === undefined;\n",
-        "to": "  for (const seat of runningSeats()) {\n    deliver(instance, seat, frame);\n  }\n  return deliver(instance, leaderOf(instance), frame, { written: () => forget(instance.root) }).refused === undefined;\n"
+        "from": "  telling.set(instance.root, left.ended);\n",
+        "to": "  telling.set(instance.root, left.ended);\n  for (const seat of runningSeats()) {\n    deliver(instance, seat, frame);\n  }\n"
       }
     ]
   },
   {
     "name": "the event says something changed without saying what",
-    "catches": "tells the Leader which files changed at the next start, tells no Worker, and takes the record away",
+    "catches": "tells the Leader what moved at the next start, tells no Worker, and takes the record away",
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "These changed: ${changed.join(\", \")}.",
+        "from": "What changed: ${moved.join(\"; \")}.",
         "to": "Something changed."
+      }
+    ]
+  },
+  {
+    "name": "the event no longer says nothing is live until a restart",
+    "catches": "tells the Leader what moved at the next start, tells no Worker, and takes the record away",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": " None of it is live yet: a seat reads its configuration when it starts, so nothing of this reaches any seat until the User runs \\`ovai restart\\`.",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a notice on its way is handed over again at the next look",
+    "catches": "hands a notice on its way over once, however often the server looks",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "left === null || telling.get(instance.root) === left.ended || isParking()",
+        "to": "left === null || isParking()"
+      }
+    ]
+  },
+  {
+    "name": "the running server never looks for admin mode's record",
+    "catches": "tells a running Leader within seconds of the door closing, with no restart",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "        adminTold(instance);\n        usage.tick",
+        "to": "        usage.tick"
       }
     ]
   },

@@ -2027,24 +2027,56 @@ describe("what admin mode left behind", () => {
     process.env.XDG_DATA_HOME = path.join(standIn, "nothing-installed-here");
     try {
       assert.equal(adminTold(chat), false);
+      assert.equal(fs.existsSync(left), true, "the notice was thrown away by a telling that never happened");
     } finally {
       process.env.XDG_DATA_HOME = real;
+      // Not left for the running server's own look, which would start the Leader between checks.
+      fs.rmSync(left, { force: true });
     }
-    assert.equal(fs.existsSync(left), true, "the notice was thrown away by a telling that never happened");
   });
 
-  it("tells the Leader which files changed at the next start, tells no Worker, and takes the record away", async () => {
+  it("tells the Leader what moved at the next start, tells no Worker, and takes the record away", async () => {
     const paul = await seatUp(WORKER);
-    fs.writeFileSync(left, `${JSON.stringify({ ended, changed: [".claude/settings.json", ".mcp.json"] }, null, 2)}\n`);
+    const moved = ["plugins installed: lint@corp (enabled)", "MCP servers added: linear (user scope)"];
+    fs.writeFileSync(left, `${JSON.stringify({ ended, changed: [".claude/settings.json", ".mcp.json"], moved }, null, 2)}\n`);
     const born = await spawnedBy(LEADER, async () => adminTold(chat));
     assert.equal(born.result, true);
     const [heard] = await told(born.log, 1);
     assert.match(heard, /<server-event type="admin-closed" ended="2026-09-23T10:20:00\.000Z" changed="2"/);
-    assert.match(heard, /These changed: \.claude\/settings\.json, \.mcp\.json\./);
+    assert.match(heard, /What changed: plugins installed: lint@corp \(enabled\); MCP servers added: linear \(user scope\)\./);
+    assert.match(heard, /Files: \.claude\/settings\.json, \.mcp\.json\./);
+    assert.match(heard, /until the User runs `ovai restart`/);
     assert.ok(await waitFor(() => (fs.existsSync(left) ? null : true)), "the record is still at the instance root");
     assert.deepEqual(
       heardIn(paul.log).filter((one) => one.includes("admin-closed")),
       [],
     );
+  });
+
+  it("hands a notice on its way over once, however often the server looks", async () => {
+    await endEvery(500);
+    // The Leader mid-turn, so the notice waits in its queue and the record stays while it does.
+    const leader = await seatUp(LEADER, { OPENOVAI_STAND_IN_SLOW: "1500" });
+    deliver(chat, LEADER, userFrame("a turn that takes a while"));
+    fs.writeFileSync(left, `${JSON.stringify({ ended: "2026-09-23T10:30:00.000Z", changed: [], moved: [] }, null, 2)}\n`);
+    assert.deepEqual([adminTold(chat), adminTold(chat)], [true, false]);
+    assert.ok(await waitFor(() => (fs.existsSync(left) ? null : true)), "the record is still at the instance root");
+    await told(leader.log, 2);
+    assert.equal(heardIn(leader.log).filter((one) => one.includes("admin-closed")).length, 1);
+  });
+
+  it("tells a running Leader within seconds of the door closing, with no restart", async () => {
+    await endEvery(500);
+    const leader = await seatUp(LEADER);
+    fs.writeFileSync(left, `${JSON.stringify({ ended: "2026-09-23T10:40:00.000Z", changed: [".mcp.json"], moved: ["MCP servers added: linear (project scope)"] }, null, 2)}\n`);
+    // Nothing here calls adminTold: the served instance's own tick is what has to notice.
+    // One wait is 5 s, the tick's own period, so three are two ticks and a margin.
+    let heard = null;
+    for (let wait = 0; heard === null && wait < 3; wait += 1) {
+      heard = await waitFor(() => heardIn(leader.log).find((one) => one.includes('ended="2026-09-23T10:40:00.000Z"')) ?? null);
+    }
+    assert.ok(heard, "the running server never told the Leader that admin mode closed");
+    assert.match(heard, /MCP servers added: linear \(project scope\)/);
+    assert.ok(await waitFor(() => (fs.existsSync(left) ? null : true)), "the record is still at the instance root");
   });
 });
