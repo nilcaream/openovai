@@ -477,8 +477,14 @@ describe("the script", () => {
   // What the User typed against: the anchor is the last stamped row when the first key goes into
   // an empty box, emptied with the box, and every stamped row drawn is the latest.
   it("anchors what is typed to the last row shown when typing began, and every stamped row drawn is the latest", () => {
-    assert.match(script, /box\.addEventListener\("input", \(\) => \{\s*if \(box\.value === ""\) typing\.anchor = null;\s*else if \(typing\.anchor === null\) typing\.anchor = typing\.latest;\s*\}\);/);
+    assert.match(script, /box\.addEventListener\("input", \(\) => \{\s*if \(box\.value === ""\) \{\s*typing\.anchor = null;\s*return;\s*\}\s*if \(typing\.anchor === null\) typing\.anchor = typing\.latest;/);
     assert.match(script, /if \(when\.whole !== ""\) panel\.typing\.latest = \{ whole: when\.whole, who: shown\.who, text: body\.textContent \};/);
+  });
+
+  // The typing hold: a key that leaves text in the box tells the server, at most once a beat; one
+  // that empties the box tells nothing, since it returns first.
+  it("tells the server a key went into the box, at most once a beat", () => {
+    assert.match(script, /if \(typingBeat\(typing\.beat, now\)\) \{\s*typing\.beat = now;\s*call\(`\/sessions\/\$\{encodeURIComponent\(name\)\}\/typing`, \{ method: "POST" \}\)/);
   });
 
   // Enter sends and the box grows: the page is never run here, so the wiring is read as text —

@@ -4,6 +4,20 @@ For the Leader of a workspace taking this version. Short, and about what is diff
 working there — not a developer changelog. A section per release, newest first; a release page
 carries only its own.
 
+## 0.18.0
+
+**A seat waits for you while you type to it.** When a Worker's message or a server event
+arrives for a seat while you are typing in that seat's box, the seat does not start on it straight
+away: it waits until you send your line — which then goes in with it, as one turn, in the order
+they arrived — or until you stop typing. Your own line is never held, a turn already under way runs
+on, and only the seat whose box you type in waits. Two settings under `typing` in
+`openovai.json`, in seconds: `quiet` (10) is how long after your last keystroke you still count
+as typing, so words left in a box you walked away from hold nothing, and `cap` (30) is the
+longest a waiting turn is held, counted from when it started waiting, however long you keep
+typing. `0` in either turns the hold off, and a change takes effect at `ovai restart`. In
+`runtime.log` a hold is a `held <seat> - typing` row, and the `wrote` row that ends it says how
+long it held and what ended it: `user`, `quiet` or `cap`.
+
 ## 0.17.0
 
 **A door to Claude Code's own commands: `ovai claude`.** There is no screen here for connectors,

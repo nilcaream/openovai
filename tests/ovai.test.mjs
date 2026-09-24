@@ -1499,6 +1499,13 @@ describe("the server commands", () => {
     assert.equal(settingsIn({ park: { margin: 2 } }).park.margin, 2);
   });
 
+  it("holds a turn ten seconds after the last key and thirty at most unless the instance says otherwise, 0 kept and nonsense not", async () => {
+    const { settingsIn } = await import("../lib/chat/lifecycle.mjs");
+    assert.deepEqual(settingsIn({}).typing, { quiet: 10, cap: 30 });
+    assert.deepEqual(settingsIn({ typing: { quiet: 4, cap: 0 } }).typing, { quiet: 4, cap: 0 });
+    assert.deepEqual(settingsIn({ typing: { quiet: -1, cap: "60" } }).typing, { quiet: 10, cap: 30 });
+  });
+
   it("fails at the deadline naming what is still running", async () => {
     const configuration = path.join(served, "openovai.json");
     const kept = fs.readFileSync(configuration, "utf8");

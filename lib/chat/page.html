@@ -249,7 +249,7 @@
   // draws it and carries what is typed and pressed to the server.
 
   import { dialogOf } from "./dialog.mjs";
-  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title, typedAgainst } from "./panels.mjs";
+  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title, typedAgainst, typingBeat } from "./panels.mjs";
   import { collapsed, row as rowOf } from "./render.mjs";
 
   const secret = document.querySelector('meta[name="openovai-secret"]').content;
@@ -573,11 +573,20 @@
     const refs = new Map();
     // The last stamped row shown, and the one that was last when the first key went into an empty
     // box: a row arriving while the User types makes what is sent point back at the one it was
-    // typed against.
-    const typing = { anchor: null, latest: null };
+    // typed against. `beat` is when the server was last told a key went in, for the typing hold:
+    // a key that changes what is in the box is told, at most once a beat, and nothing else is.
+    const typing = { anchor: null, latest: null, beat: null };
     box.addEventListener("input", () => {
-      if (box.value === "") typing.anchor = null;
-      else if (typing.anchor === null) typing.anchor = typing.latest;
+      if (box.value === "") {
+        typing.anchor = null;
+        return;
+      }
+      if (typing.anchor === null) typing.anchor = typing.latest;
+      const now = Date.now();
+      if (typingBeat(typing.beat, now)) {
+        typing.beat = now;
+        call(`/sessions/${encodeURIComponent(name)}/typing`, { method: "POST" }).catch(() => {});
+      }
     });
     // What is typed goes to the server as text and nothing else: the server knows it came from
     // this page by the secret on the call, and frames it as the User's own words.

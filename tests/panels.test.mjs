@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { AMBER, CARD, CONNECTED, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, LATE_AFTER, RED, REPLY, LINE_QUEUE, SENDING, SHOWN_FOR, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title, typedAgainst } from "../lib/chat/panels.mjs";
+import { AMBER, CARD, CONNECTED, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, LATE_AFTER, RED, REPLY, LINE_QUEUE, SENDING, SHOWN_FOR, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title, typedAgainst, typingBeat, TYPING_BEAT } from "../lib/chat/panels.mjs";
 
 const LEADER = "Leader";
 
@@ -454,6 +454,14 @@ describe("what the User typed against", () => {
     assert.equal(typedAgainst(refs, null, later, "yes"), "yes");
     const token = reference(refs, anchor.whole, anchor.who, anchor.text);
     assert.equal(typedAgainst(refs, anchor, later, `about ${token} yes`), `about ${token} yes`);
+  });
+});
+
+describe("telling the server a key went into the box", () => {
+  it("tells the first key, none within a beat of the last told, and the next one after it", () => {
+    assert.equal(typingBeat(null, 1000), true);
+    assert.equal(typingBeat(1000, 1000 + TYPING_BEAT - 1), false);
+    assert.equal(typingBeat(1000, 1000 + TYPING_BEAT), true);
   });
 });
 

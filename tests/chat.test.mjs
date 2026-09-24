@@ -23,7 +23,7 @@ import { endSeat, serve, shownRoot, startSeat, toolsFor } from "../lib/chat/serv
 import { hasLeft } from "../lib/chat/lifecycle.mjs";
 import { sink } from "../lib/chat/log.mjs";
 import { LEADER as LEADS, WORKER as WORKS } from "../lib/desks.mjs";
-import { SECRET_IN_ENVIRONMENT, end, endEvery, interrupt, recordOf, running, runningSeats, start, tell } from "../lib/chat/session.mjs";
+import { SECRET_IN_ENVIRONMENT, end, endEvery, interrupt, recordOf, running, runningSeats, start, tell, keystroke as keyTyped } from "../lib/chat/session.mjs";
 import { BUILT_IN } from "../lib/plugins.mjs";
 import { CONFIG_FILE } from "../lib/seed.mjs";
 import { alive, callsIn, childrenOf, get as fetchPlain, heardIn, installed, leftRunningIn, notesIn, post as postPlain, queuesHeardIn, readLog, remove, repo, sansMoment, scratch, seatsIn, secretsIn, startChat, stopChat, waitFor, waitForAddress, writeStandIn } from "./helpers.mjs";
@@ -802,6 +802,88 @@ describe("telling a seat", () => {
     } finally {
       await endSeat(OTHER, 500);
     }
+  });
+
+  // The typing hold: a turn about to begin with none of the User's words in it waits while the
+  // User types on the seat's panel — until the quiet after the last key, or the cap. The settings
+  // are read from the instance at every drain, so a check sets them on the chat's config.
+  async function typingOn(settings, check) {
+    chat.config.typing = settings;
+    await seatUp(OTHER);
+    try {
+      await check(said.length);
+    } finally {
+      delete chat.config.typing;
+      await endSeat(OTHER, 500);
+    }
+  }
+  const wroteRows = (from) => said.slice(from).filter((line) => line.startsWith(`wrote ${OTHER} `));
+
+  it("holds a message told while the User types, and writes it once the quiet after the last key runs out", async () => {
+    await typingOn({ quiet: 0.6, cap: 5 }, async (from) => {
+      keyTyped(OTHER);
+      const began = Date.now();
+      let writtenAt = null;
+      const note = tell(OTHER, messageFrame(LEADER, "a note"), { written: () => { writtenAt = Date.now(); } });
+      assert.equal(writtenAt, null, "the message was written while the User was typing");
+      assert.ok(said.slice(from).includes(`held ${OTHER} - typing, 1 waiting`), said.slice(from).join("\n"));
+      await note.answered;
+      assert.ok(writtenAt - began >= 500, `written after ${writtenAt - began} ms`);
+      assert.match(wroteRows(from)[0], /, after typing held \d+\.\ds \(quiet\)$/);
+    });
+  });
+
+  it("writes it at the cap however long the User keeps typing", async () => {
+    await typingOn({ quiet: 5, cap: 0.6 }, async (from) => {
+      keyTyped(OTHER);
+      const keys = setInterval(() => keyTyped(OTHER), 100);
+      try {
+        const began = Date.now();
+        await tell(OTHER, messageFrame(LEADER, "a note")).answered;
+        assert.ok(Date.now() - began < 3000, "held past the cap");
+        assert.match(wroteRows(from)[0], /, after typing held \d+\.\ds \(cap\)$/);
+      } finally {
+        clearInterval(keys);
+      }
+    });
+  });
+
+  it("never holds the User's own line, which takes what was held in with it", async () => {
+    await typingOn({ quiet: 5, cap: 5 }, async (from) => {
+      keyTyped(OTHER);
+      const note = tell(OTHER, messageFrame(LEADER, "a note"));
+      assert.equal(wroteRows(from).length, 0, "the message was not held");
+      const line = tell(OTHER, userFrame("here it is"));
+      assert.equal(wroteRows(from).length, 1, said.slice(from).join("\n"));
+      assert.match(wroteRows(from)[0], /queue x2 \(#\d+\.\.#\d+: message, user\).*, after typing held \d+\.\ds \(user\)$/);
+      const [one, two] = await Promise.all([note.answered, line.answered]);
+      assert.deepEqual(two, one);
+    });
+  });
+
+  it("holds nothing when the quiet is 0", async () => {
+    await typingOn({ quiet: 0, cap: 30 }, async (from) => {
+      keyTyped(OTHER);
+      tell(OTHER, messageFrame(LEADER, "a note"));
+      assert.equal(wroteRows(from).length, 1, said.slice(from).join("\n"));
+      assert.ok(!said.slice(from).some((line) => line.startsWith(`held ${OTHER}`)));
+    });
+  });
+
+  it("a seat ended during a hold answers what was held unread, and its timer writes nothing after", async () => {
+    await typingOn({ quiet: 0.5, cap: 5 }, async (from) => {
+      keyTyped(OTHER);
+      const note = tell(OTHER, messageFrame(LEADER, "a note"));
+      await endSeat(OTHER, 500);
+      assert.equal((await note.answered).unread, true);
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      assert.equal(wroteRows(from).length, 0, said.slice(from).join("\n"));
+    });
+  });
+
+  it("takes a key from the page for a seat, and refuses one for nobody", async () => {
+    assert.equal((await page("POST", `/sessions/${OTHER}/typing`)).status, 204);
+    assert.equal((await page("POST", "/sessions/Nobody/typing")).status, 404);
   });
 
   it("an interrupt answers the frames that joined the turn as interrupted too", async () => {
