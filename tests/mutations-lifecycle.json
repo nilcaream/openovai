@@ -653,6 +653,17 @@
     ]
   },
   {
+    "name": "the park tells the Leader and does not wait for it",
+    "catches": "SIGTERM waits for the Leader to write its desk and stop, when it is the only one running",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "    while (clock() < until && !told.every(stopped)) {",
+        "to": "    while (clock() < until && !told.filter((seat) => seat !== leader).every(stopped)) {"
+      }
+    ]
+  },
+  {
     "name": "the server is closed before the park",
     "catches": "SIGTERM parks the room, the Leader too, over a server that keeps answering the tools, then exits 0",
     "edits": [

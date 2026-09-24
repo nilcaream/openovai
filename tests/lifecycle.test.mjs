@@ -1882,11 +1882,13 @@ describe("a signal to the chat", () => {
     return /<meta name="openovai-secret" content="([^"]*)">/.exec(page_)[1];
   }
 
-  // Start the chat with the Leader and two Workers running, the stand-ins answering the park
+  // Start the chat with the Leader and the Workers named running, the stand-ins answering the park
   // frame with write_desk and stop_session after `slow` ms.
-  async function roomUp(extra) {
+  async function roomUp(extra, workers = [WORKER, OTHER]) {
     // A chat a failed check left running would hold this process open through its pipes.
     await stopChat(child);
+    // Each room counts its own sessions: the log starts empty.
+    fs.rmSync(ownLog, { force: true });
     child = startChat(own, ownEnvironment(extra));
     address = await waitForAddress(child);
     assert.ok(address, `the chat never said where it was listening:\n${child.output}`);
@@ -1899,11 +1901,11 @@ describe("a signal to the chat", () => {
     assert.equal(woken.status, 200, await woken.text());
     assert.ok(await waitFor(() => secretsIn(ownLog).length > 0), "the Leader was never started");
     const leader = secretsIn(ownLog)[0];
-    for (const name of [WORKER, OTHER]) {
+    for (const name of workers) {
       const hired = await postPlain(`${address}/mcp/${leader}`, { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "hire", arguments: { name } } });
       assert.equal(JSON.parse(hired.body).result?.isError, undefined, hired.body);
     }
-    assert.ok(await waitFor(() => secretsIn(ownLog).length === 3), "the Workers were never started");
+    assert.ok(await waitFor(() => secretsIn(ownLog).length === 1 + workers.length), "the Workers were never started");
     return { page: page_ };
   }
 
@@ -1965,6 +1967,20 @@ describe("a signal to the chat", () => {
       assert.equal(alive(pid), false, `${pid} is still alive`);
     }
     await assert.rejects(fetch(`${address}/health`));
+  });
+
+  // The Leader alone, slower than the patience a session is ended with: the park waits for it as
+  // for any other session, so it writes its desk and stops itself rather than being taken down.
+  it("SIGTERM waits for the Leader to write its desk and stop, when it is the only one running", async () => {
+    await roomUp({ OPENOVAI_STAND_IN_SLOW: "2500", ...callsThen("stop_session", 'type="park"') }, []);
+    const closed = new Promise((resolve) => child.once("close", resolve));
+    child.kill("SIGTERM");
+    assert.equal(await closed, 0, child.output);
+    assert.match(child.output, new RegExp(`^\\S+ parked - - ${LEADER} stopped \\(desk \\d\\d:\\d\\d\\)$`, "m"));
+    assert.match(child.output, new RegExp(`^\\S+ stopped ${LEADER} - park$`, "m"));
+    const notes = notesIn(ownLog);
+    assert.equal(notes.filter(([label, rest]) => label === "tool" && rest.startsWith("write_desk -> ")).length, 1, readLog(ownLog));
+    assert.equal(notes.filter(([label, rest]) => label === "tool" && rest.startsWith("stop_session -> stopping")).length, 1, readLog(ownLog));
   });
 
   it("ovai stop is SIGTERM to the holder of the port, and waits until nothing answers", async () => {
