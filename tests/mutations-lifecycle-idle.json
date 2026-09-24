@@ -1,0 +1,117 @@
+[
+  {
+    "name": "the critical idle frame needs more than the force minute",
+    "catches": "tells the Leader at 10 and at 50, the seat at 55, and ends it at 60 with the Leader told why",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "    if (minutes >= idle.force) {",
+        "to": "    if (minutes > idle.force) {"
+      }
+    ]
+  },
+  {
+    "name": "the 10-minute FYI is not remembered, so it repeats every tick",
+    "catches": "tells the Leader at 10 and at 50, the seat at 55, and ends it at 60 with the Leader told why",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "      record.idleTold = idle.fyi[0];\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a seat asked to stop for idling is never ended",
+    "catches": "tells the Leader at 10 and at 50, the seat at 55, and ends it at 60 with the Leader told why",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "    if (record.askedWhy === \"idle\" && record.turn === null && now - record.askedAt >= IDLE_GRACE * 60_000) {\n      record.ending = \"idle-forced\";\n      end(seat);\n      continue;\n    }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "an idle ask never expires",
+    "catches": "a turn after the ask is a reprieve: asked at 55, given work at 57, alive at 60 with the ask gone",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "  if (record.turn.ask !== undefined) {\n    record.askedWhy = record.turn.ask;\n    record.askedAt = record.turn.ask === null ? null : record.turnBegan;\n  }\n",
+        "to": "  if (record.turn.ask !== undefined && record.turn.ask !== null) {\n    record.askedWhy = record.turn.ask;\n    record.askedAt = record.turnBegan;\n  }\n"
+      }
+    ]
+  },
+  {
+    "name": "an advisory swallows the ask it found",
+    "catches": "a context warning behind the critical idle ask does not spare the seat",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "  const speaking = turns.filter((turn) => turn.ask !== null || turn.frame.kind !== \"server-event\").at(-1);\n",
+        "to": "  const speaking = turns.at(-1);\n"
+      }
+    ]
+  },
+  {
+    "name": "a seat on a turn is ended idle-forced",
+    "catches": "the ask's own turn is never cut short: a permission pending at 60 keeps the seat, ended once the turn is over",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "    if (record.askedWhy === \"idle\" && record.turn === null && now - record.askedAt >= IDLE_GRACE * 60_000) {",
+        "to": "    if (record.askedWhy === \"idle\" && now - record.askedAt >= IDLE_GRACE * 60_000) {"
+      }
+    ]
+  },
+  {
+    "name": "the stopped FYI follows a forced idle stop only",
+    "catches": "the stopped FYI follows a voluntary idle stop too",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "  if (role === WORKER && (ending === \"idle\" || ending === \"idle-forced\")) {",
+        "to": "  if (role === WORKER && ending === \"idle-forced\") {"
+      }
+    ]
+  },
+  {
+    "name": "a seat on a turn counts as idle",
+    "catches": "a seat on a turn is not idle, however long the turn: a pending permission at 55 gets no critical frame",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "  if (record === undefined || record.turn !== null) {\n    return null;\n  }\n  return Math.floor(",
+        "to": "  if (record === undefined) {\n    return null;\n  }\n  return Math.floor("
+      }
+    ]
+  },
+  {
+    "name": "the idle FYIs are sent about the Leader too",
+    "catches": "the Leader has no 10 and no 50, and the critical frame at 55",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "    if (seat !== leader && minutes >= idle.fyi[0] && record.idleTold < idle.fyi[0]) {",
+        "to": "    if (minutes >= idle.fyi[0] && record.idleTold < idle.fyi[0]) {"
+      },
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "    if (seat !== leader && minutes >= idle.fyi[1] && record.idleTold < idle.fyi[1]) {",
+        "to": "    if (minutes >= idle.fyi[1] && record.idleTold < idle.fyi[1]) {"
+      }
+    ]
+  },
+  {
+    "name": "the idle clock is set at spawn only",
+    "catches": "a message resets the idle clock",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "        record.said = 0;\n        record.idleSince = clock();\n        record.idleTold = 0;",
+        "to": "        record.said = 0;\n        record.idleTold = 0;"
+      }
+    ]
+  }
+]

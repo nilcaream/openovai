@@ -168,8 +168,47 @@ jobs:
         with:
           node-version-file: .node-version
 
-      - name: Start, tell, restart, stop and park the seats
+      - name: Start, tell, restart and stop the seats
         run: node --test tests/lifecycle.test.mjs
+
+  lifecycle-quota:
+    name: Lifecycle, the quota gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+
+      - name: Hold what is written behind a spent window, release it at the reset
+        run: node --test tests/lifecycle-quota.test.mjs
+
+  lifecycle-idle:
+    name: Lifecycle, idle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+
+      - name: Tell about an idle seat, ask it to stop, end it
+        run: node --test tests/lifecycle-idle.test.mjs
+
+  lifecycle-stop:
+    name: Lifecycle, the endings
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+
+      - name: Stop, park and retire the seats, and stop the server
+        run: node --test tests/lifecycle-stop.test.mjs
 
   checkpoint:
     name: Checkpoint

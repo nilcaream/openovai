@@ -66,31 +66,34 @@ One logical change per commit.
 One suite per module, all on Node's own test runner, under `tests/`:
 
 ```sh
-node --test tests/openovai.test.mjs     # resolve a release, fetch it once, hand over to its installer
-node --test tests/install.test.mjs      # install an instance, check what came out
-node --test tests/runtime.test.mjs      # where the toolkit's own node and claude are, and how they are fetched
-node --test tests/ovai.test.mjs         # what status reports and what login hands over
-node --test tests/start.test.mjs        # what has to be true on disk before an instance is served
-node --test tests/chat.test.mjs         # serve the chat, talk to it, stop it
-node --test tests/lifecycle.test.mjs    # start, tell, restart, stop and park the seats
-node --test tests/checkpoint.test.mjs   # count a Worker's calls to the Leader's checkpoint, and tell both
-node --test tests/desks.test.mjs        # a desk is one directory, and filing it away is moving it
-node --test tests/quota.test.mjs        # read the windows, stage them, hold at the gate
-node --test tests/usage.test.mjs        # the account's usage windows, and when the page is told
-node --test tests/permissions.test.mjs  # ask to be allowed, and answer
-node --test tests/hook.test.mjs         # let a compound of allowed commands through, or do not
-node --test tests/dialog.test.mjs       # show a question in the words it was asked in
-node --test tests/frames.test.mjs       # frame what a session is told
-node --test tests/secrets.test.mjs      # mint, resolve and revoke a secret
-node --test tests/knowledge.test.mjs    # index and validate what the workspace knows
-node --test tests/personas.test.mjs     # tell a Leader and a Worker only what is there
-node --test tests/panels.test.mjs       # place the seats in three columns and keep their rows
-node --test tests/page.test.mjs         # the stylesheet read as rules, one token table per theme
-node --test tests/render.test.mjs       # draw a row as markdown, and nothing a row must not do
-node --test tests/lines.test.mjs        # draw a tool call as the line its summary composes
-node --test tests/log.test.mjs          # the server's log: one writer, one row shape
-node --test tests/update.test.mjs       # take a newer version from a release, and refuse to
-node --test tests/tag.test.mjs          # what a release of this tree would be, and what it refuses to be
+node --test tests/openovai.test.mjs         # resolve a release, fetch it once, hand over to its installer
+node --test tests/install.test.mjs          # install an instance, check what came out
+node --test tests/runtime.test.mjs          # where the toolkit's own node and claude are, and how they are fetched
+node --test tests/ovai.test.mjs             # what status reports and what login hands over
+node --test tests/start.test.mjs            # what has to be true on disk before an instance is served
+node --test tests/chat.test.mjs             # serve the chat, talk to it, stop it
+node --test tests/lifecycle.test.mjs        # start, tell, restart and stop the seats
+node --test tests/lifecycle-quota.test.mjs  # hold what is written behind a spent window, release it at the reset
+node --test tests/lifecycle-idle.test.mjs   # tell about an idle seat, ask it to stop, end it
+node --test tests/lifecycle-stop.test.mjs   # stop, park and retire the seats, and stop the server
+node --test tests/checkpoint.test.mjs       # count a Worker's calls to the Leader's checkpoint, and tell both
+node --test tests/desks.test.mjs            # a desk is one directory, and filing it away is moving it
+node --test tests/quota.test.mjs            # read the windows, stage them, hold at the gate
+node --test tests/usage.test.mjs            # the account's usage windows, and when the page is told
+node --test tests/permissions.test.mjs      # ask to be allowed, and answer
+node --test tests/hook.test.mjs             # let a compound of allowed commands through, or do not
+node --test tests/dialog.test.mjs           # show a question in the words it was asked in
+node --test tests/frames.test.mjs           # frame what a session is told
+node --test tests/secrets.test.mjs          # mint, resolve and revoke a secret
+node --test tests/knowledge.test.mjs        # index and validate what the workspace knows
+node --test tests/personas.test.mjs         # tell a Leader and a Worker only what is there
+node --test tests/panels.test.mjs           # place the seats in three columns and keep their rows
+node --test tests/page.test.mjs             # the stylesheet read as rules, one token table per theme
+node --test tests/render.test.mjs           # draw a row as markdown, and nothing a row must not do
+node --test tests/lines.test.mjs            # draw a tool call as the line its summary composes
+node --test tests/log.test.mjs              # the server's log: one writer, one row shape
+node --test tests/update.test.mjs           # take a newer version from a release, and refuse to
+node --test tests/tag.test.mjs              # what a release of this tree would be, and what it refuses to be
 ```
 
 Run them all with `node --test tests/*.test.mjs`. Continuous integration runs each as a job of

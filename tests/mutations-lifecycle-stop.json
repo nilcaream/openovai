@@ -1,0 +1,392 @@
+[
+  {
+    "name": "the admin record is thrown away before the Leader has it",
+    "catches": "keeps the record when the Leader cannot be started, so the next start still tells it",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "  telling.set(instance.root, left.ended);\n",
+        "to": "  telling.set(instance.root, left.ended);\n  forget(instance.root);\n"
+      }
+    ]
+  },
+  {
+    "name": "the admin record is never taken away",
+    "catches": "tells the Leader what moved at the next start, tells no Worker, and takes the record away",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "      forget(instance.root);\n      telling.delete(instance.root);\n",
+        "to": "      telling.delete(instance.root);\n"
+      }
+    ]
+  },
+  {
+    "name": "every running seat is told that admin mode closed",
+    "catches": "tells the Leader what moved at the next start, tells no Worker, and takes the record away",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "  telling.set(instance.root, left.ended);\n",
+        "to": "  telling.set(instance.root, left.ended);\n  for (const seat of runningSeats()) {\n    deliver(instance, seat, frame);\n  }\n"
+      }
+    ]
+  },
+  {
+    "name": "the event says something changed without saying what",
+    "catches": "tells the Leader what moved at the next start, tells no Worker, and takes the record away",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "What changed: ${moved.join(\"; \")}.",
+        "to": "Something changed."
+      }
+    ]
+  },
+  {
+    "name": "the event no longer says nothing is live until a restart",
+    "catches": "tells the Leader what moved at the next start, tells no Worker, and takes the record away",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": " None of it is live yet: a seat reads its configuration when it starts, so nothing of this reaches any seat until the User runs \\`ovai restart\\`.",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a notice on its way is handed over again at the next look",
+    "catches": "hands a notice on its way over once, however often the server looks",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "left === null || telling.get(instance.root) === left.ended || isParking()",
+        "to": "left === null || isParking()"
+      }
+    ]
+  },
+  {
+    "name": "the running server never looks for admin mode's record",
+    "catches": "tells a running Leader within seconds of the door closing, with no restart",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "        adminTold(instance);\n        usage.tick",
+        "to": "        usage.tick"
+      }
+    ]
+  },
+  {
+    "name": "park does not wait for the stops",
+    "catches": "interrupts when asked, waits for the stops, ends the rest at the deadline, and leaves the Leader's turn alone",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "    while (clock() < until && !waitedFor.every(stopped)) {",
+        "to": "    while (false) {"
+      }
+    ]
+  },
+  {
+    "name": "park ends nobody at the deadline",
+    "catches": "interrupts when asked, waits for the stops, ends the rest at the deadline, and leaves the Leader's turn alone",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "      said.push(`${seat} ended at the deadline (${hhmm(record.deskWrittenAt)})`);\n      end(seat);",
+        "to": "      said.push(`${seat} ended at the deadline (${hhmm(record.deskWrittenAt)})`);"
+      }
+    ]
+  },
+  {
+    "name": "park with no deadline has no ceiling",
+    "catches": "with no deadline has the instance's ceiling, says who it ended there, and the flag clears on every exit",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "    const seconds = deadline ?? settingsIn(instance.config).park.deadline;",
+        "to": "    const seconds = deadline ?? Infinity;"
+      }
+    ]
+  },
+  {
+    "name": "the parking flag clears on the return path only",
+    "catches": "with no deadline has the instance's ceiling, says who it ended there, and the flag clears on every exit",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "    return { text: `parked: ${said.length === 0 ? \"nobody was running\" : said.join(\"; \")}` };\n  } finally {\n    parking = false;\n  }",
+        "to": "    parking = false;\n    return { text: `parked: ${said.length === 0 ? \"nobody was running\" : said.join(\"; \")}` };\n  } finally {\n  }"
+      }
+    ]
+  },
+  {
+    "name": "the signal handler ends every session without a park",
+    "catches": "SIGTERM parks the room, the Leader too, over a server that keeps answering the tools, then exits 0",
+    "edits": [
+      {
+        "file": "lib/serve.mjs",
+        "from": "    if (going > 0) {\n      log(\"parking\", null, null, `${going} ${going === 1 ? \"session\" : \"sessions\"}`);\n      const parked = await parkRoom(instance, { interrupt: true, deadline: settingsIn(config).park.timeout, leaderToo: true });\n      // The tool's answer says \"parked: \" first; the row's event already does.\n      log(\"parked\", null, null, parked.refused ?? parked.text.replace(/^parked: /, \"\"));\n    }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the park under the signal skips the Leader",
+    "catches": "SIGTERM parks the room, the Leader too, over a server that keeps answering the tools, then exits 0",
+    "edits": [
+      {
+        "file": "lib/serve.mjs",
+        "from": "deadline: settingsIn(config).park.timeout, leaderToo: true });",
+        "to": "deadline: settingsIn(config).park.timeout, leaderToo: false });"
+      }
+    ]
+  },
+  {
+    "name": "the park tells the Leader and does not wait for it",
+    "catches": "SIGTERM waits for the Leader to write its desk and stop, when it is the only one running",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "    while (clock() < until && !told.every(stopped)) {",
+        "to": "    while (clock() < until && !told.filter((seat) => seat !== leader).every(stopped)) {"
+      }
+    ]
+  },
+  {
+    "name": "the server is closed before the park",
+    "catches": "SIGTERM parks the room, the Leader too, over a server that keeps answering the tools, then exits 0",
+    "edits": [
+      {
+        "file": "lib/serve.mjs",
+        "from": "    stopping(instance);\n    const going = runningSeats().length;",
+        "to": "    stopping(instance);\n    server.close();\n    const going = runningSeats().length;"
+      },
+      {
+        "file": "lib/serve.mjs",
+        "from": "    server.close();\n    await endEvery();",
+        "to": "    await endEvery();"
+      }
+    ]
+  },
+  {
+    "name": "ovai stop sends SIGKILL",
+    "catches": "ovai stop is SIGTERM to the holder of the port, and waits until nothing answers",
+    "edits": [
+      {
+        "file": "lib/ovai.mjs",
+        "from": "  process.kill(pid, \"SIGTERM\");",
+        "to": "  process.kill(pid, \"SIGKILL\");"
+      }
+    ]
+  },
+  {
+    "name": "the page's STOP ends the process",
+    "catches": "interrupts the turn and nothing else: the process stays, the next frame goes in",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "      const interrupted = await interrupt(seat, { thenDrain: false });\n      if (interrupted) {",
+        "to": "      const interrupted = await interrupt(seat, { thenDrain: false });\n      end(seat);\n      if (interrupted) {"
+      }
+    ]
+  },
+  {
+    "name": "a call stop that waited long is reported on every tick",
+    "catches": "the Leader is told once per wait: at ten minutes, the call as made, and not again at twenty",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": "        entry.told = true;\n",
+        "to": "        entry.told = false;\n"
+      }
+    ]
+  },
+  {
+    "name": "a call stop is reported before it has waited long",
+    "catches": "answered before ten minutes: the Leader is never told",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": "      if (!entry.told && now - entry.parkedAt >= minutes * 60_000) {",
+        "to": "      if (!entry.told) {"
+      }
+    ]
+  },
+  {
+    "name": "a card answered under ten seconds draws a row",
+    "catches": "a card answered at nine seconds leaves no row on the panel",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "      if (seconds >= WAIT_SAID_FROM) append(instance.root, seat, { from: SERVER, text: `waited ${seconds} s for permission: ${what}` });\n",
+        "to": "      append(instance.root, seat, { from: SERVER, text: `waited ${seconds} s for permission: ${what}` });\n"
+      }
+    ]
+  },
+  {
+    "name": "a card answered at ten seconds draws no row",
+    "catches": "a card answered at ten seconds says so on the panel",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "      if (seconds >= WAIT_SAID_FROM) append(",
+        "to": "      if (seconds > WAIT_SAID_FROM) append("
+      }
+    ]
+  },
+  {
+    "name": "the wait on a card is written on a Worker's panel alone",
+    "catches": "says the wait on the Leader's panel too, and draws no line for the call it waited on",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "      if (seconds >= WAIT_SAID_FROM) append(instance.root, seat, { from: SERVER, text: `waited ${seconds} s for permission: ${what}` });",
+        "to": "      if (seconds >= WAIT_SAID_FROM && roleOf(instance, seat) === WORKER) append(instance.root, seat, { from: SERVER, text: `waited ${seconds} s for permission: ${what}` });"
+      }
+    ]
+  },
+  {
+    "name": "the Leader's own calls are drawn as lines on its panel, the call it waited on first of all",
+    "catches": "says the wait on the Leader's panel too, and draws no line for the call it waited on",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "    called: logged(instance, seat, roleOf(instance, seat) === WORKER ? calledBy(instance, seat) : doingBy(instance, seat)),",
+        "to": "    called: logged(instance, seat, calledBy(instance, seat)),"
+      }
+    ]
+  },
+  {
+    "name": "the Leader's panel draws a row for the call that stopped on a card",
+    "catches": "says the wait on the Leader's panel too, and draws no line for the call it waited on",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "    // wait row names it once answered. A row would stay on the panel after the turn.\n    return waiting;",
+        "to": "    if (roleOf(instance, seat) !== WORKER) {\n      calledBy(instance, seat)({ name: request.tool, input: request.input });\n    }\n    return waiting;"
+      }
+    ]
+  },
+  {
+    "name": "retire takes any string as a name",
+    "catches": "retire refuses a name that is not one, and the Leader's own",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "\n        if (!isName(name)) {\n          return { refused: `${JSON.stringify(name)} is not a name here` };\n        }\n        if (name === instance.config.leader) {",
+        "to": "\n        if (name === instance.config.leader) {"
+      }
+    ]
+  },
+  {
+    "name": "retire files the Leader's own desk",
+    "catches": "retire refuses a name that is not one, and the Leader's own",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "        if (name === instance.config.leader) {\n          return { refused: `${name} is the Leader` };\n        }\n        if (!fs.existsSync(deskFile(root, name))) {\n          return { refused: `${name} has no desk here` };",
+        "to": "        if (!fs.existsSync(deskFile(root, name))) {\n          return { refused: `${name} has no desk here` };"
+      }
+    ]
+  },
+  {
+    "name": "retire goes ahead on a name with no desk",
+    "catches": "retire refuses a name with no desk, and files nothing for it",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "        if (!fs.existsSync(deskFile(root, name))) {\n          return { refused: `${name} has no desk here` };\n        }",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "retire files a running Worker's desk from under it",
+    "catches": "retire refuses a running Worker and ends nothing",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "        if (running(name)) {\n          return { refused: `${name} is running; stop it first` };\n        }",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "retire goes ahead while the server is stopping",
+    "catches": "retire refuses while the server is stopping",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "        if (instance.stopping === true) {\n          return { refused: \"the server is stopping\" };\n        }\n        // What it ran on, read while the desk is still there",
+        "to": "        // What it ran on, read while the desk is still there"
+      }
+    ]
+  },
+  {
+    "name": "retire is offered to a Worker",
+    "catches": "retire is the Leader's: a Worker is refused and nothing is filed",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "  retire: [LEADER],",
+        "to": "  retire: [LEADER, WORKER],"
+      }
+    ]
+  },
+  {
+    "name": "retire makes the archive directory and leaves the desk where it is",
+    "catches": "retire files a stopped Worker's desk under archive/, the seat leaves the room and the page, and the name is free again",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "        closeDesk(root, name, at);",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "retire tells the page nothing",
+    "catches": "retire files a stopped Worker's desk under archive/, the seat leaves the room and the page, and the name is free again",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "        publish(\"snapshot\", snapshot(instance));",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "retire leaves the frames the gate held for the seat on the held list",
+    "catches": "retire drops what the quota gate held for the seat",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "        quota.drop(name);",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the server goes out without its own stopped row",
+    "catches": "SIGTERM parks the room, the Leader too, over a server that keeps answering the tools, then exits 0",
+    "edits": [
+      {
+        "file": "lib/serve.mjs",
+        "from": "    log(\"stopped\", null, null, signal);\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the model a retired Worker ran on is read after the desk is filed",
+    "catches": "writes a retired row with the model it ran on and where the desk went",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "        const ran = modelFor(root, name, instance.config);\n        const { at, where } = archiveFor(root, name);\n        closeDesk(root, name, at);\n        log(\"retired\", name, null, `${ran}, filed under ${where}`);",
+        "to": "        const { at, where } = archiveFor(root, name);\n        closeDesk(root, name, at);\n        log(\"retired\", name, null, `${modelFor(root, name, instance.config)}, filed under ${where}`);"
+      }
+    ]
+  }
+]
