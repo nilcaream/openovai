@@ -38,7 +38,7 @@ import { LEDGER, settingsProblems, trustProblems } from "./inspect.mjs";
 // The reader this suite asks directly. Everywhere else what a session runs on is seen by starting
 // one, which is right when the subject is a run — and no help at all with what a file holding
 // nothing means, which is a question about the reading rather than about the running.
-import { ADMIN_FILE, WATCHED, changedBetween, differences, fingerprint, record as recordAdmin, recorded, snapshot } from "../lib/admin.mjs";
+import { ADMIN_FILE, WATCHED, changedBetween, differences, fingerprint, forget as forgetAdmin, record as recordAdmin, recorded, snapshot } from "../lib/admin.mjs";
 import { BODY_ADMIN_CLOSED } from "../lib/chat/lifecycle.mjs";
 import { SEAT_IN_ENVIRONMENT, home } from "../lib/claude.mjs";
 import { DeskError, hire, modelFor, persona as renderPersona } from "../lib/desks.mjs";
@@ -1570,6 +1570,20 @@ describe("what admin mode leaves behind when the door closes", () => {
     assert.deepEqual(record.changed, []);
     assert.deepEqual(JSON.parse(fs.readFileSync(left, "utf8")).moved, [], "the record carries no list of what moved");
     fs.rmSync(left, { force: true });
+  });
+
+  it("removes only the record the notice was made from, not one a second close wrote after it", () => {
+    const first = "2026-09-23T10:00:00.000Z";
+    const second = "2026-09-23T10:05:00.000Z";
+    recordAdmin(instance, { ended: second, changed: [], moved: [] });
+    try {
+      forgetAdmin(instance, first);
+      assert.equal(recorded(instance)?.ended, second, "the first notice, written late, took the second close's record with it");
+      forgetAdmin(instance, second);
+      assert.equal(recorded(instance), null);
+    } finally {
+      fs.rmSync(left, { force: true });
+    }
   });
 
   it("names the configuration file that changed, and counts a rewrite with the same bytes as no change", () => {

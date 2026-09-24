@@ -1,5 +1,16 @@
 [
   {
+    "name": "a notice written late removes whatever record is there",
+    "catches": "removes only the record the notice was made from, not one a second close wrote after it",
+    "edits": [
+      {
+        "file": "lib/admin.mjs",
+        "from": "  if (recorded(root)?.ended === ended) {",
+        "to": "  if (true) {"
+      }
+    ]
+  },
+  {
     "name": "an MCP server's definition enters the snapshot",
     "catches": "names what moved and carries no value of it",
     "edits": [
