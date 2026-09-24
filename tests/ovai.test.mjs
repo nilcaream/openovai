@@ -39,7 +39,7 @@ import { LEDGER, settingsProblems, trustProblems } from "./inspect.mjs";
 // one, which is right when the subject is a run — and no help at all with what a file holding
 // nothing means, which is a question about the reading rather than about the running.
 import { ADMIN_FILE, WATCHED, changedBetween, fingerprint, recorded } from "../lib/admin.mjs";
-import { home } from "../lib/claude.mjs";
+import { SEAT_IN_ENVIRONMENT, home } from "../lib/claude.mjs";
 import { DeskError, hire, modelFor, persona as renderPersona } from "../lib/desks.mjs";
 import { HOOK_ENTRY } from "../lib/hooks/compound.mjs";
 import { pins } from "../lib/runtime.mjs";
@@ -1444,12 +1444,14 @@ describe("the server commands", () => {
 
   // A session of this instance, as the machine sees one: a process with the instance's Claude
   // Code home in its environment (lib/running.mjs). Made the way one is left behind — a process
-  // the server did not start and cannot end — living for the milliseconds given.
-  const sessionLiving = (ms) =>
-    spawn(process.execPath, ["-e", `setTimeout(() => {}, ${ms})`], {
-      env: { ...process.env, CLAUDE_CONFIG_DIR: path.resolve(home(served)) },
-      stdio: "ignore",
-    });
+  // the server did not start and cannot end — living for the milliseconds given. Not a seat's,
+  // whoever runs the suite: a seat's process with no claude on its command line is a leftover,
+  // which stop does not wait for.
+  const sessionLiving = (ms) => {
+    const env = { ...process.env, CLAUDE_CONFIG_DIR: path.resolve(home(served)) };
+    delete env[SEAT_IN_ENVIRONMENT];
+    return spawn(process.execPath, ["-e", `setTimeout(() => {}, ${ms})`], { env, stdio: "ignore" });
+  };
   const alive = (pid) => {
     try {
       process.kill(pid, 0);
