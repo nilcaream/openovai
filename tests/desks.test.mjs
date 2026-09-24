@@ -15,7 +15,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
-import { LONGEST_STATUS, LONGEST_TITLE, POOL, archiveFor, conversationFile, deskHeader, headerFields, hire, nextName, personaFile, retire, writeDeskHeader } from "../lib/desks.mjs";
+import { LONGEST_STATUS, LONGEST_TITLE, POOL, REFUSED_STATUS, REFUSED_TITLE, archiveFor, conversationFile, deskHeader, headerFields, hire, nextName, personaFile, retire, writeDeskHeader } from "../lib/desks.mjs";
 import { settingsProblems } from "./inspect.mjs";
 import { installed, remove, scratch } from "./helpers.mjs";
 
@@ -158,14 +158,23 @@ describe("the desk header", () => {
     assert.deepEqual(headerFields({ title: " on it ", status: " going " }), { title: "on it", status: "going" });
     assert.deepEqual(headerFields({ title: "t", status: "s", body: "ignored" }), { title: "t", status: "s" });
     assert.deepEqual(headerFields({ title: "x".repeat(LONGEST_TITLE), status: "y".repeat(LONGEST_STATUS) }), { title: "x".repeat(LONGEST_TITLE), status: "y".repeat(LONGEST_STATUS) });
-    for (const title of [undefined, "", "  ", "x".repeat(LONGEST_TITLE + 1), "two\nlines"]) {
-      assert.deepEqual(headerFields({ title, status: "s" }), { refused: "title is one line of 1 to 120 characters" }, JSON.stringify(title));
+    for (const title of [undefined, "", "  "]) {
+      assert.deepEqual(headerFields({ title, status: "s" }), { refused: "title is empty" }, JSON.stringify(title));
     }
-    for (const status of [undefined, "", "  ", "y".repeat(LONGEST_STATUS + 1), "two\nlines", "a | b"]) {
-      assert.deepEqual(headerFields({ title: "t", status }), { refused: "status is one line of 1 to 80 characters, without |" }, JSON.stringify(status));
+    for (const status of [undefined, "", "  "]) {
+      assert.deepEqual(headerFields({ title: "t", status }), { refused: "status is empty" }, JSON.stringify(status));
     }
-    assert.deepEqual(headerFields({ title: "", status: "a | b" }), { refused: "title is one line of 1 to 120 characters" });
-    assert.deepEqual(headerFields(), { refused: "title is one line of 1 to 120 characters" });
+    assert.deepEqual(headerFields({ title: "two\nlines", status: "s" }), { refused: "title has a newline in it; it is one line" });
+    assert.deepEqual(headerFields({ title: "t", status: "two\nlines" }), { refused: "status has a newline in it; it is one line" });
+    assert.deepEqual(headerFields({ title: "t", status: "a | b" }), { refused: "status has a | in it; the header uses | between its fields" });
+    assert.deepEqual(headerFields({ title: "", status: "" }), { refused: "title is empty" });
+    assert.deepEqual(headerFields(), { refused: "title is empty" });
+  });
+
+  it("takes a line up to its ceiling past what was asked, and refuses one past it with its length", () => {
+    assert.deepEqual(headerFields({ title: "x".repeat(REFUSED_TITLE), status: "y".repeat(REFUSED_STATUS) }), { title: "x".repeat(REFUSED_TITLE), status: "y".repeat(REFUSED_STATUS) });
+    assert.deepEqual(headerFields({ title: "x".repeat(REFUSED_TITLE + 1), status: "s" }), { refused: "title is 151 characters; write it in 120" });
+    assert.deepEqual(headerFields({ title: "t", status: "y".repeat(REFUSED_STATUS + 1) }), { refused: "status is 101 characters; write it in 80" });
   });
 
   it("rewrites line 1 alone, every line below it kept byte for byte", () => {

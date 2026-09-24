@@ -5,19 +5,52 @@
     "edits": [
       {
         "file": "lib/desks.mjs",
-        "from": " || status.includes(\"\\n\") || status.includes(\"|\")) {",
-        "to": " || status.includes(\"\\n\")) {"
+        "from": "  if (status.includes(\"|\")) {",
+        "to": "  if (false) {"
       }
     ]
   },
   {
-    "name": "the header takes a title of any length",
+    "name": "the header takes a line with a newline in it",
     "catches": "takes a title and a status, trimmed, and refuses each in the order title then status",
     "edits": [
       {
         "file": "lib/desks.mjs",
-        "from": "  if (typeof title !== \"string\" || title.trim() === \"\" || title.length > LONGEST_TITLE || title.includes(\"\\n\")) {",
-        "to": "  if (typeof title !== \"string\" || title.trim() === \"\" || title.includes(\"\\n\")) {"
+        "from": "  if (value.includes(\"\\n\")) {",
+        "to": "  if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "the header refuses a title at what was asked, with no slack",
+    "catches": "takes a line up to its ceiling past what was asked, and refuses one past it with its length",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "export const REFUSED_TITLE = 150;",
+        "to": "export const REFUSED_TITLE = 120;"
+      }
+    ]
+  },
+  {
+    "name": "the header refuses a status at what was asked, with no slack",
+    "catches": "takes a line up to its ceiling past what was asked, and refuses one past it with its length",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "export const REFUSED_STATUS = 100;",
+        "to": "export const REFUSED_STATUS = 80;"
+      }
+    ]
+  },
+  {
+    "name": "the length refusal names the ceiling instead of what was asked",
+    "catches": "takes a line up to its ceiling past what was asked, and refuses one past it with its length",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "characters; write it in ${asked}`;",
+        "to": "characters; write it in ${ceiling}`;"
       }
     ]
   },
@@ -38,8 +71,8 @@
     "edits": [
       {
         "file": "lib/desks.mjs",
-        "from": "  if (typeof title !== \"string\" || title.trim() === \"\" || title.length > LONGEST_TITLE || title.includes(\"\\n\")) {\n    return { refused: `title is one line of 1 to ${LONGEST_TITLE} characters` };\n  }\n  if (typeof status !== \"string\" || status.trim() === \"\" || status.length > LONGEST_STATUS || status.includes(\"\\n\") || status.includes(\"|\")) {\n    return { refused: `status is one line of 1 to ${LONGEST_STATUS} characters, without |` };\n  }\n",
-        "to": "  if (typeof status !== \"string\" || status.trim() === \"\" || status.length > LONGEST_STATUS || status.includes(\"\\n\") || status.includes(\"|\")) {\n    return { refused: `status is one line of 1 to ${LONGEST_STATUS} characters, without |` };\n  }\n  if (typeof title !== \"string\" || title.trim() === \"\" || title.length > LONGEST_TITLE || title.includes(\"\\n\")) {\n    return { refused: `title is one line of 1 to ${LONGEST_TITLE} characters` };\n  }\n"
+        "from": "  const titleFault = lineFault(\"title\", title, LONGEST_TITLE, REFUSED_TITLE);\n  if (titleFault !== null) {\n    return { refused: titleFault };\n  }\n  const statusFault = lineFault(\"status\", status, LONGEST_STATUS, REFUSED_STATUS);\n  if (statusFault !== null) {\n    return { refused: statusFault };\n  }\n",
+        "to": "  const statusFault = lineFault(\"status\", status, LONGEST_STATUS, REFUSED_STATUS);\n  if (statusFault !== null) {\n    return { refused: statusFault };\n  }\n  const titleFault = lineFault(\"title\", title, LONGEST_TITLE, REFUSED_TITLE);\n  if (titleFault !== null) {\n    return { refused: titleFault };\n  }\n"
       }
     ]
   },

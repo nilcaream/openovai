@@ -414,9 +414,9 @@ describe("write_desk", () => {
   it("refuses an empty title and a status with a |, leaving the desk as it was", async () => {
     await tool(paul.secret, "write_desk", { title: "kept", status: "kept" });
     const kept = deskOf(WORKER);
-    assert.deepEqual(await tool(paul.secret, "write_desk", { title: "", status: "s" }), { text: "title is one line of 1 to 120 characters", refused: true, error: null });
+    assert.deepEqual(await tool(paul.secret, "write_desk", { title: "", status: "s" }), { text: "title is empty", refused: true, error: null });
     assert.equal(deskOf(WORKER), kept);
-    assert.deepEqual(await tool(paul.secret, "write_desk", { title: "t", status: "a | b" }), { text: "status is one line of 1 to 80 characters, without |", refused: true, error: null });
+    assert.deepEqual(await tool(paul.secret, "write_desk", { title: "t", status: "a | b" }), { text: "status has a | in it; the header uses | between its fields", refused: true, error: null });
     assert.equal(deskOf(WORKER), kept);
   });
 
