@@ -1490,11 +1490,18 @@ describe("the server commands", () => {
 
   // What stop cannot end it names, the way an update names it: one line per process with the
   // command that ends it, and a status that is not 0. On the one budget, the park's timeout and
-  // a margin; the timeout is set to nothing so the check waits for the margin alone.
+  // a margin; the timeout is set to nothing and the margin to two seconds, so the check waits for
+  // those alone rather than the fifteen an instance that sets neither is given.
+  it("gives the sessions fifteen seconds past the park's timeout unless the instance says otherwise", async () => {
+    const { settingsIn } = await import("../lib/chat/lifecycle.mjs");
+    assert.equal(settingsIn({}).park.margin, 15);
+    assert.equal(settingsIn({ park: { margin: 2 } }).park.margin, 2);
+  });
+
   it("fails at the deadline naming what is still running", async () => {
     const configuration = path.join(served, "openovai.json");
     const kept = fs.readFileSync(configuration, "utf8");
-    fs.writeFileSync(configuration, JSON.stringify({ ...JSON.parse(kept), park: { timeout: 0 } }));
+    fs.writeFileSync(configuration, JSON.stringify({ ...JSON.parse(kept), park: { timeout: 0, margin: 2 } }));
     const session = sessionLiving(60_000);
     try {
       const started = ovai(["start"]);
@@ -1503,7 +1510,7 @@ describe("the server commands", () => {
       assert.ok(await settled(true));
       const stopped = ovai(["stop"]);
       assert.notEqual(stopped.status, 0);
-      assert.match(stopped.stderr, new RegExp(`^ovai: 15s after asking the server to stop, a session of this instance is running[^\n]*\n  kill ${session.pid}   # [^\n]*setTimeout[^\n]*\nEnd them, or let them finish, and run this again\\.$`, "m"));
+      assert.match(stopped.stderr, new RegExp(`^ovai: 2s after asking the server to stop, a session of this instance is running[^\n]*\n  kill ${session.pid}   # [^\n]*setTimeout[^\n]*\nEnd them, or let them finish, and run this again\\.$`, "m"));
       assert.equal(stopped.stdout, `Stopping the server at ${url} (pid ${pidRecorded()}).\n`);
       assert.ok(await settled(false));
     } finally {
