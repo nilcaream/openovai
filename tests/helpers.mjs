@@ -167,6 +167,7 @@ fs.appendFileSync(
     \`cwd: \${process.cwd()}\`,
     \`CLAUDE_CONFIG_DIR: \${value("CLAUDE_CONFIG_DIR")}\`,
     \`DISABLE_AUTOUPDATER: \${value("DISABLE_AUTOUPDATER")}\`,
+    \`ENABLE_CLAUDEAI_MCP_SERVERS: \${value("ENABLE_CLAUDEAI_MCP_SERVERS")}\`,
     \`CLAUDE_CODE_PROJECT_DIR_NAME: \${value("CLAUDE_CODE_PROJECT_DIR_NAME")}\`,
     \`ANTHROPIC_API_KEY: \${value("ANTHROPIC_API_KEY")}\`,
     \`CLAUDE_CODE_OAUTH_TOKEN: \${value("CLAUDE_CODE_OAUTH_TOKEN")}\`,

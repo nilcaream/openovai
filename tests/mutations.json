@@ -1822,5 +1822,16 @@
         "to": "environment(instance.root, instance.config.auth)"
       }
     ]
+  },
+  {
+    "name": "a seat is started with the claude.ai account's connectors",
+    "catches": "keeps the claude.ai account's connectors out of every start of a seat",
+    "edits": [
+      {
+        "file": "lib/claude.mjs",
+        "from": "    env.ENABLE_CLAUDEAI_MCP_SERVERS = \"false\";\n",
+        "to": ""
+      }
+    ]
   }
 ]

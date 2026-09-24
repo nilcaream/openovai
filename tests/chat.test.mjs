@@ -453,6 +453,12 @@ describe("starting a seat", () => {
     assert.equal(config.mcpServers.openovai.timeout, 30 * 60 * 1000);
   });
 
+  it("keeps the claude.ai account's connectors out of every start of a seat", () => {
+    const said = fs.readFileSync(paul.log, "utf8").split("\n").filter((line) => line.startsWith("ENABLE_CLAUDEAI_MCP_SERVERS: "));
+    assert.ok(said.length > 0, "no start of the seat is in its log");
+    assert.deepEqual([...new Set(said)], ["ENABLE_CLAUDEAI_MCP_SERVERS: false"]);
+  });
+
   it("runs it in print mode over the streaming protocol, asking here before using a tool", () => {
     const argv = callsIn(paul.log).at(-1);
     for (const part of ["--print", "--input-format stream-json", "--output-format stream-json", "--verbose", "--permission-prompt-tool stdio"]) {

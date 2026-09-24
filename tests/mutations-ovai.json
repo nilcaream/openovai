@@ -275,6 +275,17 @@
     ]
   },
   {
+    "name": "every start of Claude Code loses the account's connectors, the person's own among them",
+    "catches": "leaves the account's connectors alone in a start that is nobody's session",
+    "edits": [
+      {
+        "file": "lib/claude.mjs",
+        "from": "  env.DISABLE_AUTOUPDATER = \"1\";\n",
+        "to": "  env.DISABLE_AUTOUPDATER = \"1\";\n  env.ENABLE_CLAUDEAI_MCP_SERVERS = \"false\";\n"
+      }
+    ]
+  },
+  {
     "name": "Claude Code is started with its background updater on",
     "catches": "runs with its background updater off",
     "edits": [

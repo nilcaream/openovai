@@ -201,6 +201,12 @@ describe("what Claude Code is started as", () => {
   it("runs with its background updater off", () => {
     assert.match(readLog(started), /^DISABLE_AUTOUPDATER: 1$/m);
   });
+
+  // A start that is nobody's session goes through the same environment as the admin door, and
+  // the door is the person's own: their account's connectors are theirs to keep.
+  it("leaves the account's connectors alone in a start that is nobody's session", () => {
+    assert.match(readLog(started), /^ENABLE_CLAUDEAI_MCP_SERVERS: <unset>$/m);
+  });
 });
 
 describe("an instance with no credential", () => {
