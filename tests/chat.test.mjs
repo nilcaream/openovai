@@ -23,7 +23,7 @@ import { endSeat, serve, shownRoot, startSeat, toolsFor } from "../lib/chat/serv
 import { hasLeft } from "../lib/chat/lifecycle.mjs";
 import { sink } from "../lib/chat/log.mjs";
 import { LEADER as LEADS, WORKER as WORKS } from "../lib/desks.mjs";
-import { SECRET_IN_ENVIRONMENT, end, endEvery, interrupt, running, runningSeats, start, tell } from "../lib/chat/session.mjs";
+import { SECRET_IN_ENVIRONMENT, end, endEvery, interrupt, recordOf, running, runningSeats, start, tell } from "../lib/chat/session.mjs";
 import { BUILT_IN } from "../lib/plugins.mjs";
 import { CONFIG_FILE } from "../lib/seed.mjs";
 import { alive, callsIn, childrenOf, get as fetchPlain, heardIn, installed, leftRunningIn, notesIn, post as postPlain, queuesHeardIn, readLog, remove, repo, sansMoment, scratch, seatsIn, secretsIn, startChat, stopChat, waitFor, waitForAddress, writeStandIn } from "./helpers.mjs";
@@ -813,6 +813,67 @@ describe("telling a seat", () => {
       assert.equal(await interrupt(OTHER), true);
       assert.deepEqual(await first.answered, { interrupted: true, text: "interrupted" });
       assert.deepEqual(await joining.answered, { interrupted: true, text: "interrupted" });
+    } finally {
+      await endSeat(OTHER, 500);
+    }
+  });
+
+  // A turn the run began itself — its init finding no turn open — is a turn like any other for the
+  // seat: busy while it runs, what is told meanwhile waits behind it, and its result answers
+  // nobody. A result with no init before it is said and nothing more.
+  const SELF = { OPENOVAI_STAND_IN_SELF_STARTS: "400", OPENOVAI_STAND_IN_REPLY: "done" };
+
+  it("says in the log when the run begins a turn of its own", async () => {
+    await seatUp(OTHER, SELF);
+    const before_ = said.length;
+    try {
+      await tell(OTHER, userFrame("go")).answered;
+      const line = await waitFor(() => said.slice(before_).find((one) => one.startsWith(`self-started ${OTHER} `)) ?? null);
+      assert.equal(line, `self-started ${OTHER} - a turn the run began itself, nothing joined`);
+    } finally {
+      await endSeat(OTHER, 500);
+    }
+  });
+
+  it("reads a seat busy while a turn it began itself runs, and idle once that turn's result is in", async () => {
+    await seatUp(OTHER, SELF);
+    const before_ = said.length;
+    try {
+      await tell(OTHER, userFrame("go")).answered;
+      assert.equal(recordOf(OTHER).turn, null, "the seat was busy before the run began anything");
+      await waitFor(() => (said.slice(before_).some((one) => one.startsWith(`self-started ${OTHER} `)) ? true : null));
+      assert.notEqual(recordOf(OTHER).turn, null, "the seat read idle while the run's own turn ran");
+      await waitFor(() => (recordOf(OTHER).turn === null ? true : null));
+      assert.ok(!said.slice(before_).some((one) => one.startsWith(`unpaired ${OTHER} `)), "the run's own result was not paired with its turn");
+    } finally {
+      await endSeat(OTHER, 500);
+    }
+  });
+
+  it("keeps what is told during a turn the run began itself waiting behind it, and writes it after that turn's result", async () => {
+    await seatUp(OTHER, SELF);
+    const before_ = said.length;
+    try {
+      await tell(OTHER, userFrame("go")).answered;
+      await waitFor(() => (said.slice(before_).some((one) => one.startsWith(`self-started ${OTHER} `)) ? true : null));
+      const after_ = tell(OTHER, userFrame("after"));
+      assert.ok(said.slice(before_).some((one) => one.startsWith(`unwritten ${OTHER} - turn open since`)), said.slice(before_).join("\n"));
+      assert.equal((await after_.answered).text, "done");
+      const wrote = said.slice(before_).filter((one) => one.startsWith(`wrote ${OTHER} `));
+      assert.equal(wrote.length, 2, said.slice(before_).join("\n"));
+    } finally {
+      await endSeat(OTHER, 500);
+    }
+  });
+
+  it("says in the log when a result comes with no turn open, and nothing more", async () => {
+    await seatUp(OTHER, { ...SELF, OPENOVAI_STAND_IN_UNPAIRED: "1" });
+    const before_ = said.length;
+    try {
+      await tell(OTHER, userFrame("go")).answered;
+      const line = await waitFor(() => said.slice(before_).find((one) => one.startsWith(`unpaired ${OTHER} `)) ?? null);
+      assert.equal(line, `unpaired ${OTHER} - a result with no turn open`);
+      assert.equal(recordOf(OTHER).turn, null);
     } finally {
       await endSeat(OTHER, 500);
     }

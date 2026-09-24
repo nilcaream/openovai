@@ -138,6 +138,9 @@ export function installed(options, environment) {
 //                             and its tool_result; a user frame that arrives while one is out
 //                             is read into the turn under way, logged as `joined:`, and answered
 //                             by that turn's one result — as measured on 2.1.280
+//   OPENOVAI_STAND_IN_SELF_STARTS   after answering its first question, begin a turn of its own:
+//                             an init, words and a result, this many ms apart
+//   OPENOVAI_STAND_IN_UNPAIRED      the same without the init: a result with no turn before it
 //   OPENOVAI_STAND_IN_IGNORES_INTERRUPT
 //                             carry on with the turn when told to interrupt it; without this an
 //                             interrupt ends the turn with an error result, as the real one does
@@ -512,6 +515,21 @@ for (;;) {
     ...(usage === null ? {} : { usage }),
     result: answer,
   });
+
+  // A turn of its own after the first answer, the shape measured on 2.1.280 for a line that came
+  // too late for the turn it was written into: an init, words, and a result, each SELF_STARTS ms
+  // apart. With UNPAIRED the init is left out, and a result comes with no turn before it.
+  const selfStarts = Number(process.env.OPENOVAI_STAND_IN_SELF_STARTS ?? 0);
+  if (selfStarts > 0 && turn === 1) {
+    await sleep(selfStarts);
+    if ((process.env.OPENOVAI_STAND_IN_UNPAIRED ?? "") === "") {
+      frame({ type: "system", subtype: "init", session_id: "test-thread" });
+    }
+    frame({ type: "assistant", message: { role: "assistant", content: [{ type: "text", text: "on my own" }] }, session_id: "test-thread" });
+    await sleep(selfStarts);
+    note("self-started: answered");
+    frame({ type: "result", subtype: "success", is_error: false, num_turns: 1, session_id: "test-thread", result: "on my own" });
+  }
 }
 
 // Stdin was closed: the conversation is over. A stuck run stays until its lifetime is up — held
