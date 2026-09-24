@@ -108,7 +108,11 @@ repository: `cd projects/<repo>` once, alone, then plain git, mkdir and the file
 its first character, and those spellings ask every time. For the same reason a script is run
 through its interpreter by name — `bash /abs/script.sh`, `node /abs/x.mjs` — never by a path to the
 interpreter or to the script (`/bin/sh /abs/x.sh`, `./x.sh`), which a rule for the name never
-matches. Claude Code keeps a few directories for
+matches. A backtick or a `$(` anywhere on the line reads as a command hidden inside it, quoted or
+not, and asks whatever the rules allow; so a search pattern or any other argument that holds a
+backtick, a dollar or other shell syntax goes into a pattern file passed with `grep -f`, or into
+a script under temp/ run by its interpreter, never onto the command line, and several alternatives
+go as repeated `-e` rather than one pattern joined by `\|`. Claude Code keeps a few directories for
 itself — .claude, .git, .idea, .vscode and the like, wherever they are, under projects/ too — and a
 write there asks {{USER}} whatever the rules say; do not look for a way round it (a script, a copy,
 a rename): ask, or leave it. A compound whose every side is a command this instance allows runs

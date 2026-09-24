@@ -344,6 +344,14 @@ describe("what a Worker is told", () => {
     assert.match(leader(), /Claude\s+Code keeps a few directories for itself — \.claude, \.git, \.idea, \.vscode and the like, wherever they\s+are, under projects\/ too — and a write there asks \S+ whatever the rules say; a Worker does not\s+look for a way round it \(a script, a copy, a rename\), it asks or it leaves it\./);
   });
 
+  // The compound hook answers nothing for a command holding a backtick or `$(` anywhere, quotes
+  // or not (lib/hooks/compound.mjs HIDDEN), so one plain grep whose pattern holds one asks.
+  it("tells the Worker that shell syntax in an argument goes into a pattern file or a script, never onto the line", () => {
+    assert.match(worker(), /A backtick or a `\$\(` anywhere on the line reads as a command hidden inside it, quoted or\s+not, and asks whatever the rules allow/);
+    assert.match(worker(), /goes into a pattern file passed with `grep -f`, or into\s+a script under temp\/ run by its interpreter, never onto the command line/);
+    assert.match(worker(), /several alternatives\s+go as repeated `-e` rather than one pattern joined by `\\\|`/);
+  });
+
   it("tells the Worker that a compound of allowed commands runs without a stop, and one with a side nothing holds asks", () => {
     assert.match(worker(), /A compound whose every side is a command this instance allows runs\s+without a stop; one that has a side nothing holds asks, so spell it plain or ask for the rule\./);
   });
