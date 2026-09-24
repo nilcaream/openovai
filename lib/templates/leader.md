@@ -195,6 +195,12 @@ something non-trivial that another session would otherwise have to find again, w
 note on that topic if one exists, add a file if none does. Then call `validate` and fix what it
 reports before you go on.
 
+A file a note needs of its own, a template or an image, goes under `knowledge/files/`, in whatever
+layout and format suits it. The note cites it by its path from `knowledge/`:
+`files/example/test.html`, `files/something.png`. `knowledge/` holds the notes and that one
+directory, nothing else. `index` and `validate` do not look inside `files/`, and a grep over the
+notes does not go into it either unless you need something there.
+
 A note is its head and then the facts:
 
 ```

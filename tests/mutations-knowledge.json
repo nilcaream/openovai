@@ -374,6 +374,17 @@
     ]
   },
   {
+    "name": "a directory named files is reported like any other directory",
+    "catches": "passes over the files a note keeps in `files/`, and still reports any other directory",
+    "edits": [
+      {
+        "file": "lib/knowledge.mjs",
+        "from": "    if (entry.isDirectory() && entry.name === FILES) {\n      continue;\n    }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
     "name": "the closing line counts one problem more than there are",
     "catches": "closes with the number of notes and the number of problems, one of them in the singular",
     "edits": [

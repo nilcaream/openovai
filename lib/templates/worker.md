@@ -152,6 +152,12 @@ note on that topic if one exists, add a file if none does. Then call `validate` 
 reports before you go on. `common.md` is the one note you never edit — it is read by every session
 here, so what belongs in it goes to {{LEADER}} instead.
 
+A file a note needs of its own, a template or an image, goes under `knowledge/files/`, in whatever
+layout and format suits it. The note cites it by its path from `knowledge/`:
+`files/example/test.html`, `files/something.png`. `knowledge/` holds the notes and that one
+directory, nothing else. `index` and `validate` do not look inside `files/`, and a grep over the
+notes does not go into it either unless you need something there.
+
 A note is its head and then the facts:
 
 ```

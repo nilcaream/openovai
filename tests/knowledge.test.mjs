@@ -245,6 +245,24 @@ describe("validate", () => {
     assert.deepEqual(complaintAbout("Notes.txt", "Whatever this is.\n"), ["Notes.txt: not a .md file"]);
   });
 
+  // The one directory the shelf holds. What is in `files/` is a note's own, in any layout and any
+  // format, and neither tool reads it; any other directory is still reported, by both.
+  it("passes over the files a note keeps in `files/`, and still reports any other directory", () => {
+    fs.mkdirSync(path.join(dir, "files", "example"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "files", "example", "test.html"), "<html></html>\n");
+    fs.writeFileSync(path.join(dir, "files", "something.png"), "");
+    fs.mkdirSync(path.join(dir, "other"));
+    try {
+      const judged = validate(root, { now: new Date("2026-09-22T00:00:00Z") }).split("\n");
+      assert.deepEqual(judged.slice(0, -1), ["other: not a file: the one directory `knowledge/` holds is `files/`"]);
+      const indexed = index(root).split("\n");
+      assert.equal(indexed.some((line) => /^ {2}files |test\.html|something\.png/.test(line)), false, indexed.join("\n"));
+      assert.equal(indexed.some((line) => line.startsWith("  other —")), true, indexed.join("\n"));
+    } finally {
+      remove(path.join(dir, "files"), path.join(dir, "other"));
+    }
+  });
+
   // The closing line, in both numbers it can carry. Both broken notes here break the same rule and
   // break it plainly, so that this check is about the count and never about which rule found what.
   it("closes with the number of notes and the number of problems, one of them in the singular", () => {
