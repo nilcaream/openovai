@@ -348,7 +348,8 @@ describe("what a Worker is told", () => {
   // or not (lib/hooks/compound.mjs HIDDEN), so one plain grep whose pattern holds one asks.
   it("tells the Worker that shell syntax in an argument goes into a pattern file or a script, never onto the line", () => {
     assert.match(worker(), /A backtick or a `\$\(` anywhere on the line reads as a command hidden inside it, quoted or\s+not, and asks whatever the rules allow/);
-    assert.match(worker(), /goes into a pattern file passed with `grep -f`, or into\s+a script under temp\/ run by its interpreter, never onto the command line/);
+    assert.match(worker(), /goes into a pattern file passed with `grep -f`, or into\s+such a script on your desk, never onto the command line/);
+    assert.match(worker(), /Anything more than one plain command — a pipe, a chain, a loop, a command that runs on\s+for lines — is a one-time script written on your own desk and run that way/);
     assert.match(worker(), /several alternatives\s+go as repeated `-e` rather than one pattern joined by `\\\|`/);
   });
 

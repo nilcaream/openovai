@@ -61,6 +61,10 @@ wrote <seat> - queue x2 (#41..#42: message, user), 0 waiting, after typing held 
 
 **A panel with no rows shows nothing.** It stays empty until the seat's first row arrives.
 
+**A Worker writes anything longer than one command as a script on its desk.** A pipe, a chain or
+a loop becomes a one-time script on the Worker's own desk, run by its interpreter, so the card you
+are asked on shows one short line and the script stays there to read.
+
 ## 0.17.0
 
 **A door to Claude Code's own commands: `ovai claude`.** There is no screen here for connectors,
