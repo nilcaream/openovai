@@ -70,6 +70,80 @@ than 80 characters, or one holding a pipe, a chain, a redirect, a `$` or a newli
 Allow or Deny: nobody keeps its whole text as a rule. The panel row saying how long a card waited
 shows its first line; double-click it for the whole call.
 
+**Your words reach the turn under way.** A line you type while a seat is working does not wait for
+the turn to end: while one of the turn's calls is out, it goes into that turn and the session reads
+it at its next step. With no call out it waits for the next call, or for the turn's end. The label
+under a waiting line reads `queued — <name> reads it at its next step`. Worker messages and server
+events still wait for the turn to end.
+
+**A turn the session begins itself is a busy turn.** A line that reaches a session after the last
+call of its turn gets a turn Claude Code begins on its own. The seat reads busy through it, and
+what arrives meanwhile waits behind it. `runtime.log` names it `self-started`.
+
+**A line you type while rows arrive says which row it answers.** The box remembers the last row
+shown when you start typing into it empty. If a row arrives before you send, your line goes with a
+reference to the row you were reading, spelled like a clicked stamp. A line that waited 5 seconds
+or more before the session had it says so: `delivered 19:22:36 ✓ — 40 s after`.
+
+**Every panel says when a session started and when it ended.** One row marks each start and each
+end with the moment, in the machine's time zone: `2026.09.23 Wednesday 16:03:40`. Of two such rows
+less than a minute apart, the page draws only the first.
+
+**A session's question is answered on its card.** When a session calls AskUserQuestion, its card
+shows each question with its options and a line for your own words, and Answer sends them back to
+the session. An answer that leaves a question out is refused, and a question has no Always. A new
+instance's allow list holds `AskUserQuestion`, so no permission card stands before the question.
+An instance made before this version is told the rule by `ovai update`, as `allow AskUserQuestion`
+among the rules its settings lack, and nothing is added for it: add it to the instance's
+`.claude/settings.json` with an editor, then `ovai restart`.
+
+**A message nobody read comes back.** A message queued for a session that ends before it reads it
+goes back to its sender: a row on the sender's panel, and `<server-event type="undelivered"
+to="…">` with the words as they were sent. A Leader that is not running is started by it. A line
+of yours that was never read shows as not delivered on the panel you typed it on. A server event
+for the Leader that asks nothing, queued while the Leader was ending, goes once more to the Leader
+that comes next — never while the server stops or the room parks.
+
+**Secrets are masked everywhere they are shown.** A secret's shape is hidden in every panel row,
+in `conversation.json` and on the page alike, in `runtime.log`, and in the permission rules
+admin mode reports. A permission card still shows the call exactly as the session made it: what
+you approve is what runs.
+
+**The Leader learns what admin mode changed.** When the `ovai claude` door closes, the
+`admin-closed` event names what moved, by name and never by value: marketplaces, plugins and
+whether each is on, skills, MCP servers by scope, claude.ai connectors, permission rules and other
+settings keys. A running server tells the Leader within seconds. The first time on an instance,
+the door also says that Claude Code runs its own first-launch setup, and that if it asks for an
+account, you pick the one the instance is already signed in to.
+
+**A seat runs without the claude.ai account's connectors.** MCP servers added to the claude.ai
+account the instance signs in with do not reach the seats. A seat keeps the instance's own server
+and whatever admin mode added. `ovai claude` is your own session and keeps them.
+
+**A note keeps its own files in `knowledge/files/`.** A template or an image a note needs goes
+there, cited by its path from `knowledge/`. `index` and `validate` do not look inside it; any
+other directory under `knowledge/` is reported.
+
+**A brief's tool budget is a checkpoint.** The Leader sets `checkpoint` on its message to a
+Worker, a number of tool calls, and the server counts the Worker's own calls. When they reach it,
+the Worker is told to report and carry on (`<server-event type="checkpoint">`), and the Leader is
+told at the same moment. A checkpoint fires once; a new one replaces the one pending. The first
+sentence of a brief reads "Report after N tool calls", with N sized for the round.
+
+**The margin `ovai stop` allows is a setting.** `park.margin` in `openovai.json`, in seconds (15),
+is how long past the park's timeout `ovai stop` waits for the sessions to finish.
+
+**Stopping the server waits for the Leader too.** A server stop parks the room with the Leader in
+it, and waits for the Leader to call `stop_session` just as it waits for the Workers, on the same
+deadline; whoever has not stopped by then is ended with its desk as it is.
+
+**A Worker ends its turn with no text once its report is sent.** Its panel shows the message
+going out, and the Leader's panel shows it arriving.
+
+**`write_desk` names each fault.** A status asked for at 80 characters is refused only above 100,
+and a title asked for at 120 only above 150. A refusal names what is wrong: empty, a newline, a `|`
+in the status, or how long the line was against the length asked for.
+
 ## 0.17.0
 
 **A door to Claude Code's own commands: `ovai claude`.** There is no screen here for connectors,

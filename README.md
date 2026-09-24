@@ -97,8 +97,9 @@ An instance is a directory of its own. Its root is this, and nothing else ever l
                     server hands it to the Leader within seconds, a stopped one at its next
                     start, and removes it
   plugins/          tools the instance serves itself, one file each; yours, kept across updates
-  knowledge/        what the workspace knows, one Markdown note per topic; written and read by
-                    every session with the file tools
+  knowledge/        what the workspace knows, one Markdown note per topic, and files/ for the
+                    files a note keeps of its own; written and read by every session with the
+                    file tools
   customization/    what you add to the personas: common.md, leader.md, worker.md; yours, never
                     touched
   desks/<Name>/     one directory per person: STATE.md, persona.md, conversation.json, and
