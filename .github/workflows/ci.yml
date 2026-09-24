@@ -1,11 +1,10 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
-  pull_request:
+  workflow_dispatch:
   # A release calls this file rather than keeping a copy of the list: what a release is checked
-  # against and what a push is checked against are then the same checks, and cannot drift apart.
+  # against and what a run by hand is checked against are then the same checks, and cannot drift
+  # apart.
   workflow_call:
 
 # Nothing here writes anything. Said out loud because the release workflow calls this one, and a

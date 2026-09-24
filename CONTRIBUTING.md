@@ -108,7 +108,7 @@ it is written, and what its panel says. It takes its behaviour from environment 
 stand-in serves every suite.
 
 They install into `.tmp/` inside the clone and clean up after themselves. Continuous
-integration runs them on every push and pull request.
+integration runs them when started by hand, and every release runs them before it publishes.
 
 ### Proving a check
 
