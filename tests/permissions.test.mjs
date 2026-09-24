@@ -190,6 +190,9 @@ describe("the rule a write could be allowed by", () => {
 // The rules Claude Code itself would save for a call, carried in the request: the button for a
 // tool nothing above composes for, and the button for a command or a write nothing composes for.
 describe("the rule Claude Code suggested for a call", () => {
+  // A call that stopped on a card offering "Bash(Use the:*)": a prefix Claude Code read from inside
+  // the backtick span, a word that is not the command at all.
+  const BACKTICKED = 'grep -n -e "const CASES" -e "file: \\"other.md\\" }," -e "content: `Use the Edit" -e "b.type === \\"tool_use\\"" /srv/rig/rig.mjs';
   const suggesting = (toolName, ruleContent) => [{ type: "addRules", behavior: "allow", destination: "localSettings", rules: [ruleContent === undefined ? { toolName } : { toolName, ruleContent }] }];
   const carried = [
     ["a fetch", "WebFetch", { url: "https://example.com/" }, suggesting("WebFetch", "domain:example.com"), ["WebFetch(domain:example.com)"]],
@@ -201,6 +204,8 @@ describe("the rule Claude Code suggested for a call", () => {
     ["a command longer than 80 characters", "Bash", { command: `~/bin/deploy ${"x".repeat(80)}` }, suggesting("Bash", `~/bin/deploy ${"x".repeat(80)}`), null],
     ["a command of exactly 80 characters", "Bash", { command: `~/bin/deploy ${"x".repeat(67)}` }, suggesting("Bash", `~/bin/deploy ${"x".repeat(67)}`), [`Bash(~/bin/deploy ${"x".repeat(67)})`]],
     ["a write outside the instance", "Write", { file_path: "/etc/hosts" }, suggesting("Edit", "//etc/hosts"), null],
+    ["a command with a backtick, whose suggested prefix is read from inside it", "Bash", { command: BACKTICKED }, suggesting("Bash", "Use the:*"), null],
+    ["a command with a $( ), whose suggested prefix is read from inside it", "Bash", { command: "grep -rn \"$(Use the Edit)\" lib" }, suggesting("Bash", "Use the:*"), null],
     ["a read of one file under the root", "Read", { file_path: `${AT}/knowledge/common.md` }, suggesting("Read", "/knowledge/common.md"), null],
     ["a suggestion the checker refuses", "WebFetch", { url: "https://example.com/" }, suggesting("WebFetch", "example.com"), null],
     ["a suggestion that is not a rule", "WebFetch", { url: "https://example.com/" }, [{ type: "setMode", mode: "acceptEdits", destination: "session" }], null],

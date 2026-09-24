@@ -99,6 +99,17 @@
     ]
   },
   {
+    "name": "a command with a backtick gets the prefix Claude Code read from inside it",
+    "catches": "offers nothing for a command with a backtick, whose suggested prefix is read from inside it",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": "    return own ?? (typeof command === \"string\" && SUBSTITUTION.test(command) ? null : suggested(request, root));",
+        "to": "    return own ?? suggested(request, root);"
+      }
+    ]
+  },
+  {
     "name": "a button offers the one file Claude Code suggested",
     "catches": "offers nothing for a read of one file under the root",
     "edits": [
@@ -472,7 +483,7 @@
     "edits": [
       {
         "file": "lib/chat/permissions.mjs",
-        "from": "    return own ?? suggested(request, root);",
+        "from": "    return own ?? (typeof command === \"string\" && SUBSTITUTION.test(command) ? null : suggested(request, root));",
         "to": "    return own;"
       }
     ]
@@ -483,8 +494,8 @@
     "edits": [
       {
         "file": "lib/chat/permissions.mjs",
-        "from": "    return own ?? suggested(request, root);",
-        "to": "    return suggested(request, root) ?? own;"
+        "from": "    return own ?? (typeof command === \"string\" && SUBSTITUTION.test(command) ? null : suggested(request, root));",
+        "to": "    return (typeof command === \"string\" && SUBSTITUTION.test(command) ? null : suggested(request, root)) ?? own;"
       }
     ]
   },
