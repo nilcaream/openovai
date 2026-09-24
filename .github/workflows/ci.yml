@@ -171,6 +171,19 @@ jobs:
       - name: Start, tell, restart, stop and park the seats
         run: node --test tests/lifecycle.test.mjs
 
+  checkpoint:
+    name: Checkpoint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+
+      - name: Count a Worker's calls to the Leader's checkpoint, and tell both
+        run: node --test tests/checkpoint.test.mjs
+
   permissions:
     name: Permissions
     runs-on: ubuntu-latest

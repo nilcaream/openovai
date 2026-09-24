@@ -308,7 +308,7 @@ describe("what the installer made", () => {
     });
 
     it("comes after everything the toolkit puts in, the budget included", () => {
-      assert.ok(lead.indexOf("</customization>") > lead.indexOf("at most 15 tool calls"));
+      assert.ok(lead.indexOf("</customization>") > lead.indexOf("Report after N tool calls"));
       assert.ok(lead.indexOf("</customization>") > lead.indexOf("it again on its desk"));
     });
 

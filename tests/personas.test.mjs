@@ -76,13 +76,13 @@ describe("what both personas are held to", () => {
   });
 
   it("tells the Leader how much a brief it writes may spend", () => {
-    assert.match(leader(), /at most 15 tool calls/);
-    assert.match(leader(), /report what you have and say what is missing/);
+    assert.match(leader(), /Report after N tool calls/);
+    assert.match(leader(), /done or not: where it stands and what is left/);
   });
 
   it("tells the Worker how much a brief it writes may spend", () => {
-    assert.match(worker(), /at most 15 tool calls/);
-    assert.match(worker(), /report what you have and say what is missing/);
+    assert.match(worker(), /Report after N tool calls/);
+    assert.match(worker(), /done or not: where it stands and what is left/);
   });
 
   it("names nobody a model", () => {

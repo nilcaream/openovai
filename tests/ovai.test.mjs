@@ -777,8 +777,8 @@ describe("hiring a worker", () => {
   // cheapest kinds of agent are given none of this workspace's own instructions.
   it("tells the worker how much a brief it writes may spend", () => {
     const persona = workerPersona();
-    assert.match(persona, /at most 15 tool calls/);
-    assert.match(persona, /report what you have and say what is missing/);
+    assert.match(persona, /Report after N tool calls/);
+    assert.match(persona, /done or not: where it stands and what is left/);
   });
 
   // The half that makes the rest of it worth anything. This workspace writes no briefs — the session

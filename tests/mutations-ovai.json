@@ -1,12 +1,12 @@
 [
   {
-    "name": "the budget in every brief is raised past anything worth calling a budget",
+    "name": "the checkpoint in every brief is a fixed number again instead of the one sized for the round",
     "catches": "tells the worker how much a brief it writes may spend",
     "edits": [
       {
         "file": "lib/desks.mjs",
-        "from": "- Answer in at most 15 tool calls; if you cannot, report what you have and say what is missing.",
-        "to": "- Answer in at most 500 tool calls; if you cannot, report what you have and say what is missing."
+        "from": "- Report after N tool calls, done or not: where it stands and what is left; then go on unless told to stop.",
+        "to": "- Report after 15 tool calls, done or not: where it stands and what is left; then go on unless told to stop."
       }
     ]
   },

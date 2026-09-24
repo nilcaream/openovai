@@ -73,6 +73,7 @@ node --test tests/ovai.test.mjs         # what status reports and what login han
 node --test tests/start.test.mjs        # what has to be true on disk before an instance is served
 node --test tests/chat.test.mjs         # serve the chat, talk to it, stop it
 node --test tests/lifecycle.test.mjs    # start, tell, restart, stop and park the seats
+node --test tests/checkpoint.test.mjs   # count a Worker's calls to the Leader's checkpoint, and tell both
 node --test tests/desks.test.mjs        # a desk is one directory, and filing it away is moving it
 node --test tests/quota.test.mjs        # read the windows, stage them, hold at the gate
 node --test tests/usage.test.mjs        # the account's usage windows, and when the page is told

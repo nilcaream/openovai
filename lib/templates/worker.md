@@ -86,6 +86,10 @@ What the server tells you, and what you do with it, is short and always the same
   `stop_session`, now.
 - `<server-event type="idle" stage="critical">` — you have been idle 55 minutes and go cold at 60.
   Call `write_desk`, then `stop_session`.
+- `<server-event type="checkpoint" calls="…">` — you have made that many tool calls since
+  {{LEADER}}'s order, which set the number. Update your desk, send {{LEADER}} a report — where the
+  work stands, done or not, what is left and how many more calls you expect — and carry on. It is
+  a checkpoint, never a stop.
 - `<server-event type="park">` — the room is parking. Call `write_desk`, then `stop_session`.
   With interrupted="true" the server stopped your turn to tell you, and there is a deadline: one
   short turn, desk then stop, nothing else.

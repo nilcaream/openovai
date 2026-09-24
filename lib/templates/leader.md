@@ -109,6 +109,10 @@ What the server tells you, and what you do with it, is short and always the same
   you later starts you again on this desk.
 - `<server-event type="stopped" who="…" why="…">` — a Worker stopped idle; its desk is as it was
   last written. Note it; when the work is still wanted, `hire` brings it back.
+- `<server-event type="checkpoint" who="…" calls="…">` — a Worker has made the number of tool
+  calls you set as the checkpoint on your order, and has been told to report and carry on. Its report
+  follows as a message; that is where you decide whether the round goes on as planned. Only you
+  set one, on `message` to a Worker, sized for that round; a new one replaces one still pending.
 - `<server-event type="admin-closed" ended="…" changed="…">` — admin mode was open on this
   instance and has closed: a person used Claude Code's own commands against this instance's own
   configuration. What moved is in the event by name — marketplaces, plugins, skills, MCP servers
