@@ -866,7 +866,7 @@ describe("the script", () => {
   // unaware of them.
   it("counts any row that landed for the pill, a tool line and a counter too, never the stamps alone", () => {
     const draw = script.slice(script.indexOf("function drawPanel(panel)"), script.indexOf("// ------------------------------------------------------------------------------- the page"));
-    assert.match(draw, /let landed = false;\s*panel\.empty\.hidden = about\.rows\.length > 0;\s*const added = \[\];\s*const folded = \[\];\s*if \(about\.rows\.length > panel\.shown\) \{/, "the word is set before any row is drawn, beside the stamps list and the folded list");
+    assert.match(draw, /let landed = false;\s*const added = \[\];\s*const folded = \[\];\s*if \(about\.rows\.length > panel\.shown\) \{/, "the word is set before any row is drawn, beside the stamps list and the folded list");
     assert.match(draw, /panel\.last\.n\.textContent = ` ×\$\{panel\.last\.count\}`;\s*landed = true;/, "a counter that grew is a row that landed");
     assert.match(draw, /panel\.rows\.append\(line\);\s*landed = true;/, "an element appended is a row that landed");
     assert.match(draw, /if \(landed && !panel\.view\.follow && panel\.jump !== null && !near\) \{\s*panel\.jump\.classList\.add\("show"\);/, "the pill hangs on the word");

@@ -59,6 +59,8 @@ held <seat> - typing, 1 waiting
 wrote <seat> - queue x2 (#41..#42: message, user), 0 waiting, after typing held 5.0s (user)
 ```
 
+**A panel with no rows shows nothing.** It stays empty until the seat's first row arrives.
+
 ## 0.17.0
 
 **A door to Claude Code's own commands: `ovai claude`.** There is no screen here for connectors,

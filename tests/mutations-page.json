@@ -66,17 +66,6 @@
     ]
   },
   {
-    "name": "the empty state is emitted while both of its rules are gone",
-    "catches": "give every class the page emits at least one rule",
-    "edits": [
-      {
-        "file": "lib/chat/page.html",
-        "from": "  .rows .empty { color: var(--fg-faint); font-size: .8rem; padding: 4px 0; }\n  #mid .rows .empty { font-size: inherit; text-align: center; padding: 20px 0; }\n",
-        "to": ""
-      }
-    ]
-  },
-  {
     "name": "the dot of a panel whose process is gone takes the busy colour",
     "catches": "mark a panel whose process is gone, or whose page has no stream, with a red dot on its head",
     "edits": [
@@ -565,8 +554,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      panel.empty.hidden = about.rows.length > 0;\n      const added = [];\n      const folded = [];\n      if (about.rows.length > panel.shown) {\n",
-        "to": "      panel.empty.hidden = about.rows.length > 0;\n      const added = [];\n      const folded = [];\n      if (panel.jump !== null && panel.jump !== panel.rows.lastElementChild) panel.rows.append(panel.jump);\n      if (about.rows.length > panel.shown) {\n"
+        "from": "      const added = [];\n      const folded = [];\n      if (about.rows.length > panel.shown) {\n",
+        "to": "      const added = [];\n      const folded = [];\n      if (panel.jump !== null && panel.jump !== panel.rows.lastElementChild) panel.rows.append(panel.jump);\n      if (about.rows.length > panel.shown) {\n"
       },
       {
         "file": "lib/chat/page.html",

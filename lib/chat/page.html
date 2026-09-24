@@ -121,8 +121,6 @@
   #jump.show { display: block; }
   /* the rows take the focus on a click, so the keys scroll them; no ring for it, the head's border says what the keys do */
   .rows { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 0; outline: none; }
-  .rows .empty { color: var(--fg-faint); font-size: .8rem; padding: 4px 0; }
-  #mid .rows .empty { font-size: inherit; text-align: center; padding: 20px 0; }
   /* a tool call is a light line: one per call, no label, no stamp */
   .rows .line { display: block; width: 100%; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); font-family: var(--mono); font-size: .76rem; color: var(--fg-dim); padding: 3px 8px; margin: 3px 0; overflow-wrap: anywhere; }
   .rows .line.err { color: var(--bad); }
@@ -498,12 +496,6 @@
         setTimeout(() => copy.classList.remove("copied"), COPIED_FOR);
       }, () => {});
     });
-    // What a panel says until its first row: while the rows are still on their way, and while
-    // there are none.
-    const empty = document.createElement("div");
-    empty.className = "empty";
-    empty.textContent = "Waiting for the transcript…";
-    rows.append(empty);
     // On the Leader's panel, a pill for rows that arrived below where the reader is: shown when a
     // row lands while the reader is more than 80px above the newest, gone once they are near it
     // again or click it. It is the last child of the rows and sticks to their bottom edge, so it
@@ -621,7 +613,7 @@
     // delivery to find its row; `day` the day of the row drawn last, for the pill between two days;
     // `drawn` the card of every question on the panel, by the id of its request; `doing` the one
     // line that says what the seat is at, while there is one.
-    return { name, section, nameLine, info, word, fitPlaceholder, facts, composer, stop, rows, cards, empty, jump, box, refs, typing, view, keep, shown: 0, day: null, drawn: new Map(), loading: false, last: null, lines: new Map(), waiting: new Map(), doing: null };
+    return { name, section, nameLine, info, word, fitPlaceholder, facts, composer, stop, rows, cards, jump, box, refs, typing, view, keep, shown: 0, day: null, drawn: new Map(), loading: false, last: null, lines: new Map(), waiting: new Map(), doing: null };
   }
 
   // When a row was written, in the reader's own zone: `2026.09.13 Sunday 23:17:05` on the row, the
@@ -1037,7 +1029,7 @@
       // draw they are: the timer pins a panel that follows, and the draw scrolls nothing itself.
       const near = panel.shown === 0 || nearTheNewest(panel.rows);
       if (about.rows.length < panel.shown) {
-        panel.rows.replaceChildren(panel.empty);
+        panel.rows.replaceChildren();
         panel.shown = 0;
         panel.day = null;
         panel.last = null;
@@ -1050,7 +1042,6 @@
       // its counter — is what decides the scroll; the stamps appended are for the fitter alone,
       // since a tool line carries no stamp, and the rows appended folded are for the fold's measure.
       let landed = false;
-      panel.empty.hidden = about.rows.length > 0;
       const added = [];
       const folded = [];
       if (about.rows.length > panel.shown) {
@@ -1099,8 +1090,8 @@
         fitStamps(added);
         fitFolds(folded);
         panel.shown = about.rows.length;
-        // A Worker panel keeps a hundred drawn rows — bubbles, lines and pills; the empty box is
-        // not a row — and lets the oldest go, with the lines it no longer holds.
+        // A Worker panel keeps a hundred drawn rows — bubbles, lines and pills —
+        // and lets the oldest go, with the lines it no longer holds.
         if (panel.jump === null) {
           const drawn = [...panel.rows.children].filter((child) => child.matches(".msg, .line, .divider"));
           while (drawn.length > 100) drawn.shift().remove();
