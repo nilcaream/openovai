@@ -656,13 +656,13 @@ describe("an update while a session of this instance is running", () => {
 
   // A command run from inside a session inherits the session's environment, and telling the person
   // to kill the command that is telling them is not an answer; the session it runs under is, and
-  // is found on its own account.
+  // is found on its own account. No seat, whatever this suite was started from: with one, the
+  // command would be what a seat left running, and pass whether it counted itself or not.
   it("does not count itself as a session, whatever environment it was started in", async () => {
     const again = makeRelease("while-running-release-again", { version: "9.9.10" });
-    const done = await runToolLater(root, ["update", "--from", again], {
-      ...process.env,
-      CLAUDE_CONFIG_DIR: path.join(root, ".local"),
-    });
+    const env = { ...process.env, CLAUDE_CONFIG_DIR: path.join(root, ".local") };
+    delete env[SEAT_IN_ENVIRONMENT];
+    const done = await runToolLater(root, ["update", "--from", again], env);
     assert.equal(done.status, 0, done.stderr);
   });
 });
@@ -758,11 +758,12 @@ describe("an update while another instance's server, started from inside a sessi
   const tree = makeRelease("beside-a-server-release");
   let done;
 
+  // No seat, whatever this suite was started from: with one, a server carrying this instance's
+  // home would be what a seat left running, and the update would go through either way.
   before(async () => {
-    const started = await runToolLater(other, ["start"], {
-      ...process.env,
-      CLAUDE_CONFIG_DIR: path.join(root, ".local"),
-    });
+    const env = { ...process.env, CLAUDE_CONFIG_DIR: path.join(root, ".local") };
+    delete env[SEAT_IN_ENVIRONMENT];
+    const started = await runToolLater(other, ["start"], env);
     assert.equal(started.status, 0, started.stderr);
     done = await update(root, tree);
   });

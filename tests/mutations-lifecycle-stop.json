@@ -17,7 +17,7 @@
       {
         "file": "lib/chat/lifecycle.mjs",
         "from": "  telling.set(instance.root, left.ended);\n",
-        "to": "  telling.set(instance.root, left.ended);\n  forget(instance.root);\n"
+        "to": "  telling.set(instance.root, left.ended);\n  forget(instance.root, left.ended);\n"
       }
     ]
   },
