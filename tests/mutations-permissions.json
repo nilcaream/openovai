@@ -88,6 +88,28 @@
     ]
   },
   {
+    "name": "a rule for one file takes a star as if it were a name",
+    "catches": "accepts one file under the instance root for Edit and Read, the ask a fresh instance is born with among them",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": "const FILE_RULE = /^(Edit|Read)\\(\\/([^*/][^*]*)\\)$/;",
+        "to": "const FILE_RULE = /^(Edit|Read)\\(\\/([^/].*)\\)$/;"
+      }
+    ]
+  },
+  {
+    "name": "a button offers the one file Claude Code suggested",
+    "catches": "offers nothing for a read of one file under the root",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": " && !FILE_RULE.test(accepted)",
+        "to": ""
+      }
+    ]
+  },
+  {
     "name": "a read outside the instance is accepted for a path inside it too, spelt as a place on this machine",
     "catches": "refuses a path read from wherever the session is, a path on a tool Claude Code never checks, and a write outside",
     "edits": [
@@ -340,8 +362,8 @@
     "edits": [
       {
         "file": "lib/chat/permissions.mjs",
-        "from": "  return inside(subtree[2], root) === subtree[2] ? rule : null;",
-        "to": "  return rule;"
+        "from": "  return named !== undefined && inside(named, root) === named ? rule : null;",
+        "to": "  return named !== undefined ? rule : null;"
       }
     ]
   },
@@ -439,8 +461,8 @@
     "edits": [
       {
         "file": "lib/chat/permissions.mjs",
-        "from": "      if (accepted !== null && !oneOff(accepted) && !rules.includes(accepted)) {",
-        "to": "      if (accepted !== null && !oneOff(accepted)) {"
+        "from": "      if (accepted !== null && !oneOff(accepted) && !FILE_RULE.test(accepted) && !rules.includes(accepted)) {",
+        "to": "      if (accepted !== null && !oneOff(accepted) && !FILE_RULE.test(accepted)) {"
       }
     ]
   },

@@ -19,7 +19,7 @@ import { pageSecret } from "../lib/chat/secrets.mjs";
 import { endSeat, serve, startSeat, toolsFor } from "../lib/chat/server.mjs";
 import { LEADER as LEADS, WORKER } from "../lib/desks.mjs";
 import { endEvery } from "../lib/chat/session.mjs";
-import { LEDGER, ruleAsked } from "../lib/desks.mjs";
+import { KNOWLEDGE_ASK_RULES, LEDGER, ruleAsked } from "../lib/desks.mjs";
 import { CONFIG_FILE } from "../lib/seed.mjs";
 import { heardIn, installed, post, remove, repo, scratch, secretsIn, waitFor, writeStandIn } from "./helpers.mjs";
 import { settingsProblems } from "./inspect.mjs";
@@ -201,6 +201,7 @@ describe("the rule Claude Code suggested for a call", () => {
     ["a command longer than 80 characters", "Bash", { command: `~/bin/deploy ${"x".repeat(80)}` }, suggesting("Bash", `~/bin/deploy ${"x".repeat(80)}`), null],
     ["a command of exactly 80 characters", "Bash", { command: `~/bin/deploy ${"x".repeat(67)}` }, suggesting("Bash", `~/bin/deploy ${"x".repeat(67)}`), [`Bash(~/bin/deploy ${"x".repeat(67)})`]],
     ["a write outside the instance", "Write", { file_path: "/etc/hosts" }, suggesting("Edit", "//etc/hosts"), null],
+    ["a read of one file under the root", "Read", { file_path: `${AT}/knowledge/common.md` }, suggesting("Read", "/knowledge/common.md"), null],
     ["a suggestion the checker refuses", "WebFetch", { url: "https://example.com/" }, suggesting("WebFetch", "example.com"), null],
     ["a suggestion that is not a rule", "WebFetch", { url: "https://example.com/" }, [{ type: "setMode", mode: "acceptEdits", destination: "session" }], null],
     ["a suggestion to deny", "WebFetch", { url: "https://example.com/" }, [{ type: "addRules", behavior: "deny", rules: [{ toolName: "WebFetch", ruleContent: "domain:example.com" }] }], null],
@@ -257,11 +258,20 @@ describe("the rule a person may be asked to settle", () => {
     }
   });
 
+  it("accepts one file under the instance root for Edit and Read, the ask a fresh instance is born with among them", () => {
+    for (const rule of [...KNOWLEDGE_ASK_RULES, "Edit(/projects/Paul/STATE.md)", "Read(/projects/Paul/.env)"]) {
+      assert.equal(acceptRule(rule, AT), rule);
+    }
+    for (const rule of ["Edit(knowledge/common.md)", "Edit(/../x.md)", "Edit(/./knowledge/common.md)", "Edit(/knowledge/*.md)", "Edit(/knowledge/)", "Read(//etc/hosts)", "Write(/knowledge/common.md)"]) {
+      assert.equal(acceptRule(rule, AT), null, rule);
+    }
+  });
+
   it("refuses a path read from wherever the session is, a path on a tool Claude Code never checks, and a write outside", () => {
     // A bare path is read from the session's current directory rather than the instance root, so
     // it is a wrong rule and not an older spelling of the right one.
     for (const rule of [
-      "Edit(projects/Paul/**)", "Edit(**)", "Edit(//etc/**)", "Edit(/../**)", "Edit(/./projects/**)", "Edit(/projects/Paul/STATE.md)", "Edit(~/x/**)", "Edit(/src/**/*.ts)", "Edit(/docs/*)",
+      "Edit(projects/Paul/**)", "Edit(**)", "Edit(//etc/**)", "Edit(/../**)", "Edit(/./projects/**)", "Edit(~/x/**)", "Edit(/src/**/*.ts)", "Edit(/docs/*)",
       "Read(projects/**)", "Read(./.env)", "Read(~/.zshrc)", `Read(/${AT}/projects/**)`, "Read(//**)", "Read(//etc/../root/**)", "Read(//etc/*/**)", "Read(//etc/x.txt)",
       "Write(/docs/**)", "Glob(/docs/**)", "NotebookEdit(/docs/**)", "MultiEdit(/docs/**)",
     ]) {
