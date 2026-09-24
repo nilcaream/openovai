@@ -5,6 +5,8 @@ import path from "node:path";
 import { after, describe, it } from "node:test";
 
 import { snapshot } from "../lib/admin.mjs";
+import { amend, append, failedAsSaid, read } from "../lib/chat/conversation.mjs";
+import { subscribe } from "../lib/chat/events.mjs";
 import { called, sink } from "../lib/chat/log.mjs";
 import { mask } from "../lib/mask.mjs";
 
@@ -87,6 +89,40 @@ describe("where masking is applied", () => {
     }
     assert.equal(rows.length, 1);
     assert.ok(rows[0].endsWith(` called Worker toolu_mask curl -H "Authorization: Bearer ***" https://api.example.com`), rows[0]);
+  });
+
+  // A panel row as the file keeps it and as the page is told it: the same row, masked in both.
+  function rowOf(write) {
+    const told = [];
+    const stop = subscribe((event) => event.name === "row" && told.push(event.data.row));
+    try {
+      write();
+    } finally {
+      stop();
+    }
+    const kept = read(root, "Worker").at(-1);
+    assert.deepEqual(told.at(-1), kept);
+    return kept;
+  }
+
+  it("masks what a session says in its panel and on the page", () => {
+    assert.equal(rowOf(() => append(root, "Worker", { from: "Worker", text: `ran ${command}` })).text, `ran curl -H "Authorization: Bearer ***" https://api.example.com`);
+  });
+
+  it("masks a tool call's line in the panel and on the page", () => {
+    assert.equal(rowOf(() => append(root, "Worker", { from: "Worker", line: command, call: "toolu_line" })).line, `curl -H "Authorization: Bearer ***" https://api.example.com`);
+  });
+
+  it("masks a failed call's reason in the panel and on the page", () => {
+    append(root, "Worker", { from: "Worker", line: "curl https://api.example.com", call: "toolu_why" });
+    assert.equal(rowOf(() => amend(root, "Worker", "toolu_why", `refused: ${command}`)).why, `refused: curl -H "Authorization: Bearer ***" https://api.example.com`);
+  });
+
+  it("marks a failed reply with a secret in it rather than writing it twice", () => {
+    append(root, "Worker", { from: "Worker", text: `cannot go on: ${command}` });
+    const rows = read(root, "Worker").length;
+    assert.equal(failedAsSaid(root, "Worker", `cannot go on: ${command}`).failed, true);
+    assert.equal(read(root, "Worker").length, rows);
   });
 
   it("masks a permission rule in what admin mode reports", () => {

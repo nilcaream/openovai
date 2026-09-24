@@ -185,5 +185,49 @@
         "to": "${kind} ${rule}"
       }
     ]
+  },
+  {
+    "name": "a panel row keeps what a session said unmasked",
+    "catches": "masks what a session says in its panel and on the page",
+    "edits": [
+      {
+        "file": "lib/chat/conversation.mjs",
+        "from": "const SAID = [\"text\", \"line\", \"why\"];",
+        "to": "const SAID = [\"line\", \"why\"];"
+      }
+    ]
+  },
+  {
+    "name": "a panel row keeps a tool call's line unmasked",
+    "catches": "masks a tool call's line in the panel and on the page",
+    "edits": [
+      {
+        "file": "lib/chat/conversation.mjs",
+        "from": "const SAID = [\"text\", \"line\", \"why\"];",
+        "to": "const SAID = [\"text\", \"why\"];"
+      }
+    ]
+  },
+  {
+    "name": "a failed call's reason is kept unmasked",
+    "catches": "masks a failed call's reason in the panel and on the page",
+    "edits": [
+      {
+        "file": "lib/chat/conversation.mjs",
+        "from": "messages[index].why = mask(why);",
+        "to": "messages[index].why = why;"
+      }
+    ]
+  },
+  {
+    "name": "a failed reply is compared unmasked with the masked row",
+    "catches": "marks a failed reply with a secret in it rather than writing it twice",
+    "edits": [
+      {
+        "file": "lib/chat/conversation.mjs",
+        "from": "messages[index].text !== mask(text)",
+        "to": "messages[index].text !== text"
+      }
+    ]
   }
 ]
