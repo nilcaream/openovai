@@ -367,6 +367,13 @@ describe("what the installer made", () => {
     assert.ok(allow.includes("mcp__openovai"));
   });
 
+  // A question a session puts to the User is its own card; a rule-less call would raise a
+  // permission card first, asking whether the session may ask.
+  it("lets a session ask the User a question without a permission card before it", () => {
+    const allow = JSON.parse(contentOf(".claude", "settings.json")).permissions.allow;
+    assert.ok(allow.includes("AskUserQuestion"));
+  });
+
   // The other half of the file, and the only refusals a fresh instance holds. The rules are spelled
   // out here rather than asked of the code: a check that read the list it is checking would agree
   // with itself the day somebody widened it.
@@ -428,6 +435,7 @@ describe("what the installer made", () => {
     const permissions = JSON.parse(contentOf(".claude", "settings.json")).permissions;
     assert.deepEqual(permissions.allow, [
       "mcp__openovai",
+      "AskUserQuestion",
       "Read(/**)",
       "Edit(/reference/**)",
       "Edit(/projects/**)",

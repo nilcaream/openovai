@@ -49,8 +49,8 @@
     "edits": [
       {
         "file": "lib/chat/dialog.mjs",
-        "from": "  return request?.kind === \"rule\" ? ruleDialog(request, who) : callDialog(request, who);",
-        "to": "  return true ? ruleDialog(request, who) : callDialog(request, who);"
+        "from": "  if (request?.kind === \"rule\") {\n    return ruleDialog(request, who);",
+        "to": "  if (true) {\n    return ruleDialog(request, who);"
       }
     ]
   },

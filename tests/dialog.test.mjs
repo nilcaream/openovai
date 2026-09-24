@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { dialogOf } from "../lib/chat/dialog.mjs";
+import { answeredInput, dialogOf } from "../lib/chat/dialog.mjs";
 
 const line = (dialog, kind) => dialog.lines.filter((held) => held.kind === kind).map((held) => held.text);
 const decisions = (dialog) => dialog.buttons.map((button) => button.decision);
@@ -78,5 +78,40 @@ describe("a rule request", () => {
     assert.deepEqual(decisions(call), ["allow", "always", "deny"]);
     assert.ok(!decisions(call).includes("ask"));
     assert.ok(!decisions(rule).includes("always"));
+  });
+});
+
+describe("a question", () => {
+  const input = {
+    questions: [
+      { question: "Which branch?", header: "Branch", options: [{ label: "main", description: "the default" }, { label: "next" }], multiSelect: false },
+      { question: "Which checks?", header: "Checks", options: [{ label: "unit" }, { label: "lint" }], multiSelect: true },
+    ],
+  };
+  const request = { id: "q1", tool: "AskUserQuestion", input, shape: ["AskUserQuestion"] };
+
+  it("shows every question with its options, answered Answer or Deny and never Always", () => {
+    const dialog = dialogOf(request, "Paul");
+    assert.equal(dialog.kind, "questions");
+    assert.equal(dialog.heading, "Paul asks you");
+    assert.deepEqual(dialog.questions, [
+      { question: "Which branch?", header: "Branch", multiSelect: false, options: [{ label: "main", description: "the default" }, { label: "next", description: "" }] },
+      { question: "Which checks?", header: "Checks", multiSelect: true, options: [{ label: "unit", description: "" }, { label: "lint", description: "" }] },
+    ]);
+    assert.deepEqual(decisions(dialog), ["answer", "deny"]);
+  });
+
+  it("goes back as its own input with an answer for every question", () => {
+    assert.deepEqual(answeredInput(request, { "Which branch?": "main", "Which checks?": " unit, lint ", "Not asked": "x" }), {
+      ...input,
+      answers: { "Which branch?": "main", "Which checks?": "unit, lint" },
+    });
+  });
+
+  it("goes back as nothing while a question has no answer, or for a call that is not a question", () => {
+    assert.equal(answeredInput(request, { "Which branch?": "main" }), null);
+    assert.equal(answeredInput(request, { "Which branch?": "main", "Which checks?": "  " }), null);
+    assert.equal(answeredInput(request, null), null);
+    assert.equal(answeredInput({ id: "b1", tool: "Bash", input: { command: "ls" } }, {}), null);
   });
 });

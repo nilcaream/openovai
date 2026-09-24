@@ -505,6 +505,37 @@ describe("asking to be allowed", () => {
     });
   });
 
+  describe("answering a question", () => {
+    const QUESTIONS = { questions: [{ question: "Which branch?", header: "Branch", options: [{ label: "main" }, { label: "next" }], multiSelect: false }] };
+    let log;
+    let incomplete;
+    let said;
+    let shown;
+
+    before(async () => {
+      ({ log } = await leaderAsking({ OPENOVAI_STAND_IN_ASKS: "AskUserQuestion", OPENOVAI_STAND_IN_ASKS_INPUT: JSON.stringify(QUESTIONS) }));
+      const reply = await say("ask me");
+      shown = (await waitingOn())[0];
+      incomplete = await page("POST", `/sessions/${LEADER}/permission`, { id: shown.id, decision: "answer", answers: {} });
+      said = await page("POST", `/sessions/${LEADER}/permission`, { id: shown.id, decision: "answer", answers: { "Which branch?": "next" } });
+      await reply();
+    });
+
+    after(async () => {
+      await endSeat(LEADER, 500);
+    });
+
+    it("refuses an answer that leaves a question unanswered, and keeps the question waiting", () => {
+      assert.equal(incomplete.status, 400, incomplete.body);
+      assert.deepEqual(JSON.parse(said.body), { answered: shown.id, decision: "answer" });
+    });
+
+    it("lets the question go ahead carrying what the User answered", () => {
+      const decided = fs.readFileSync(log, "utf8").split("\n").find((line) => line.startsWith("decided: "));
+      assert.deepEqual(JSON.parse(decided.slice("decided: ".length)), { behavior: "allow", updatedInput: { ...QUESTIONS, answers: { "Which branch?": "next" } } });
+    });
+  });
+
   describe("refusing it", () => {
     let replied;
 

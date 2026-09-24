@@ -197,7 +197,7 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "  if (decision !== \"allow\" && decision !== \"deny\" && decision !== \"always\") {\n    sendJson(response, 400, { error: \"a decision on a call is allow, deny or always\" });\n    return;\n  }\n",
+        "from": "  if (decision !== \"allow\" && decision !== \"deny\" && decision !== \"always\" && decision !== \"answer\") {\n    sendJson(response, 400, { error: \"a decision on a call is allow, deny, always or answer\" });\n    return;\n  }\n",
         "to": ""
       }
     ]

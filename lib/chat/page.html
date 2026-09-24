@@ -220,7 +220,8 @@
   .msg.perm .raw { font-family: var(--mono); font-size: .76rem; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; margin: 4px 0; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 18em; overflow: auto; }
   .msg.perm .acts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0 2px; }
   .msg.perm .acts button { font: 600 .82rem var(--sans); padding: 4px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); cursor: pointer; }
-  .msg.perm .acts button[data-decision=allow] { background: var(--me); border-color: var(--me-line); }
+  .msg.perm .acts button[data-decision=allow], .msg.perm .acts button[data-decision=answer] { background: var(--me); border-color: var(--me-line); }
+  .msg.perm .choice label { display: block; }
   .msg.perm .acts button[data-decision=deny] { background: var(--to); border-color: var(--to-line); }
   .msg.perm .acts input { flex: 1 1 200px; min-width: 120px; font: .82rem var(--sans); padding: 4px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); }
   /* the composer: one row that grows with what is typed, never dragged, up to 40% of the window */
@@ -885,6 +886,37 @@
       bubble.append(shown);
     }
 
+    // A question: each one with its options — one pick, or several where it takes several — and a
+    // line for the User's own words, which win over any pick. What it reads back is the answer
+    // to that question, or "" while there is none.
+    const choices = (dialog.questions ?? []).map((asked, index) => {
+      const block = document.createElement("div");
+      block.className = "choice";
+      const said = document.createElement("div");
+      said.className = "reason";
+      said.textContent = asked.header === "" ? asked.question : `${asked.header}: ${asked.question}`;
+      block.append(said);
+      const picks = asked.options.map((option) => {
+        const row = document.createElement("label");
+        const pick = document.createElement("input");
+        pick.type = asked.multiSelect ? "checkbox" : "radio";
+        pick.name = `${request.id}-${index}`;
+        pick.value = option.label;
+        row.append(pick, ` ${option.label}${option.description === "" ? "" : ` — ${option.description}`}`);
+        block.append(row);
+        return pick;
+      });
+      const own = document.createElement("input");
+      own.placeholder = "other";
+      block.append(own);
+      bubble.append(block);
+      return {
+        question: asked.question,
+        own,
+        read: () => own.value.trim() || picks.filter((pick) => pick.checked).map((pick) => pick.value).join(", "),
+      };
+    });
+
     const acts = document.createElement("div");
     acts.className = "acts";
     bubble.append(acts);
@@ -915,6 +947,19 @@
     for (const button of buttons) {
       const decision = button.dataset.decision;
       button.addEventListener("click", () => {
+        if (decision === "answer") {
+          const unanswered = choices.find((choice) => choice.read() === "");
+          if (unanswered !== undefined) {
+            unanswered.own.focus();
+            return;
+          }
+          answer({ id: request.id, decision, answers: Object.fromEntries(choices.map((choice) => [choice.question, choice.read()])) });
+          return;
+        }
+        if (decision === "deny" && dialog.kind === "questions") {
+          answer({ id: request.id, decision, why: "The User declined to answer." });
+          return;
+        }
         if (decision === "deny" && reason !== null) {
           if (reason.value.trim() === "") {
             reason.focus();

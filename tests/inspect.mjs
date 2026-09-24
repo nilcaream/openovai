@@ -59,6 +59,7 @@ export function configProblems(file, expected) {
 // opened, and that no desk was opened without its rule.
 export const STANDING = [
   "mcp__openovai",
+  "AskUserQuestion",
   "Read(/**)",
   "Edit(/reference/**)",
   "Edit(/projects/**)",

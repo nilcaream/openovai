@@ -854,6 +854,7 @@ describe("what a workspace can account for", () => {
   // itself the day somebody widened it.
   const standing = [
     "mcp__openovai",
+    "AskUserQuestion",
     "Read(/**)",
     "Edit(/reference/**)",
     "Edit(/projects/**)",
