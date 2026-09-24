@@ -134,6 +134,10 @@ export function installed(options, environment) {
 //                             with its tool_result (is_error from error; error given as a
 //                             string is the words the failed result says) — the shapes measured
 //                             on the real one, one frame per block
+//   OPENOVAI_STAND_IN_CALL_HOLDS    milliseconds each of those calls stays out between its tool_use
+//                             and its tool_result; a user frame that arrives while one is out
+//                             is read into the turn under way, logged as `joined:`, and answered
+//                             by that turn's one result — as measured on 2.1.280
 //   OPENOVAI_STAND_IN_IGNORES_INTERRUPT
 //                             carry on with the turn when told to interrupt it; without this an
 //                             interrupt ends the turn with an error result, as the real one does
@@ -232,6 +236,8 @@ let wakeAnswer = null;
 // An interrupt under way: set while a turn runs, called when one arrives.
 let interrupted = false;
 let onInterrupt = null;
+// A call of the turn is out: what the User says now joins the turn.
+let callOut = false;
 
 process.stdin.on("data", (chunk) => {
   rest += chunk;
@@ -260,6 +266,10 @@ process.stdin.on("data", (chunk) => {
       // wrote it, as against "heard:", which is when this run got round to it.
       note("read-at: " + process.hrtime.bigint());
       note("read: " + said.message.content);
+      if (callOut) {
+        note("joined: " + said.message.content);
+        continue;
+      }
       questions.push(said.message.content);
       if (wakeQuestion !== null) {
         const wake = wakeQuestion;
@@ -440,6 +450,12 @@ for (;;) {
     const id = "call-" + turn + "-" + i;
     const parent = call.parent ?? null;
     frame({ type: "assistant", message: { role: "assistant", content: [{ type: "tool_use", id, name: call.name, input: call.input ?? {} }] }, parent_tool_use_id: parent, session_id: "test-thread" });
+    const hold = Number(process.env.OPENOVAI_STAND_IN_CALL_HOLDS ?? 0);
+    if (hold > 0 && !interrupted) {
+      callOut = true;
+      await sleepUnlessInterrupted(hold);
+      callOut = false;
+    }
     frame({ type: "user", message: { role: "user", content: [{ type: "tool_result", content: typeof call.error === "string" ? call.error : call.error === true ? "failed" : "done", is_error: call.error === true || typeof call.error === "string", tool_use_id: id }] }, parent_tool_use_id: parent, session_id: "test-thread" });
   }
 

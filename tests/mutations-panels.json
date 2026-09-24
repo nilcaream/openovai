@@ -357,7 +357,7 @@
     "edits": [
       {
         "file": "lib/chat/panels.mjs",
-        "from": "`queued — ${name} gets it after the current turn`",
+        "from": "`queued — ${name} reads it at its next step`",
         "to": "`queued — ${name} gets it later`"
       }
     ]

@@ -421,7 +421,7 @@ describe("the quota line", () => {
 describe("the User's own row", () => {
   it("waits as sending on an idle seat, as queued behind the turn on a busy one, and reads delivered once the frame went in, with the glyph alone for a narrow row", () => {
     assert.deepEqual(delivery(false, false, "Bob"), { text: "sending…", wait: true });
-    assert.deepEqual(delivery(false, true, "Bob"), { text: "queued — Bob gets it after the current turn", wait: true });
+    assert.deepEqual(delivery(false, true, "Bob"), { text: "queued — Bob reads it at its next step", wait: true });
     assert.deepEqual(delivery(true, false, "Bob"), { text: "delivered ✓", glyph: "✓", wait: false });
     assert.deepEqual(delivery(true, true, "Bob"), { text: "delivered ✓", glyph: "✓", wait: false }, "delivered is delivered, busy or not");
     assert.equal(SENDING, "sending…");
@@ -433,7 +433,7 @@ describe("the User's own row", () => {
     assert.deepEqual(delivery(true, false, "Bob", { clock: "19:22:36", seconds: 40 }), { text: "delivered 19:22:36 ✓ — 40 s after", glyph: "✓", wait: false });
     assert.deepEqual(delivery(true, false, "Bob", { clock: "19:22:36", seconds: LATE_AFTER }), { text: `delivered 19:22:36 ✓ — ${LATE_AFTER} s after`, glyph: "✓", wait: false });
     assert.deepEqual(delivery(true, false, "Bob", { clock: "19:22:36", seconds: LATE_AFTER - 1 }), { text: "delivered ✓", glyph: "✓", wait: false });
-    assert.deepEqual(delivery(false, true, "Bob", { clock: "19:22:36", seconds: 40 }), { text: "queued — Bob gets it after the current turn", wait: true }, "not yet written is waiting, whatever the time");
+    assert.deepEqual(delivery(false, true, "Bob", { clock: "19:22:36", seconds: 40 }), { text: "queued — Bob reads it at its next step", wait: true }, "not yet written is waiting, whatever the time");
   });
 });
 

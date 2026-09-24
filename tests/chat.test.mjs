@@ -757,6 +757,67 @@ describe("telling a seat", () => {
     }
   });
 
+  // The User's words go into the turn under way while one of its calls is out, and that turn's one
+  // result answers them; with no call out they wait (the stream's "a row typed behind a turn under
+  // way" check). The stand-in holds its call out, and reads what arrives then into the turn.
+  const CALL_OUT = { OPENOVAI_STAND_IN_CALLS: JSON.stringify([[{ name: "Bash", input: { command: "sleep 1" } }]]), OPENOVAI_STAND_IN_CALL_HOLDS: "1500", OPENOVAI_STAND_IN_REPLY: "done" };
+
+  it("writes a User frame into the turn under way while a call is out, and answers it with that turn's one result", async () => {
+    await seatUp(OTHER, CALL_OUT);
+    const before_ = said.length;
+    try {
+      const first = tell(OTHER, userFrame("go"));
+      await waitFor(() => (running(OTHER) ? true : null));
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      let firstAnswered = false;
+      first.answered.then(() => { firstAnswered = true; });
+      let writtenBeforeAnswer = null;
+      const joining = tell(OTHER, userFrame("and this"), { written: () => { writtenBeforeAnswer = !firstAnswered; } });
+      assert.equal(writtenBeforeAnswer, true, "the User's frame was not written while the call was out");
+      const [one, two] = await Promise.all([first.answered, joining.answered]);
+      assert.deepEqual(two, one, "the joined frame was not answered by the turn it joined");
+      const wrote = said.slice(before_).filter((line) => line.startsWith(`wrote ${OTHER} `));
+      assert.equal(wrote.length, 2, wrote.join("\n"));
+      assert.match(wrote[1], new RegExp(`^wrote ${OTHER} - queue x1 \\(#\\d+: user\\) into the turn open since \\S+, 0 waiting$`));
+    } finally {
+      await endSeat(OTHER, 500);
+    }
+  });
+
+  it("keeps a message told while a call is out waiting, until a User frame pulls it in, in the order it came", async () => {
+    await seatUp(OTHER, CALL_OUT);
+    const before_ = said.length;
+    try {
+      const first = tell(OTHER, userFrame("go"));
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      const message = tell(OTHER, messageFrame(LEADER, "a note"));
+      assert.ok(said.slice(before_).some((line) => line.startsWith(`unwritten ${OTHER} - turn open since`)), said.slice(before_).join("\n"));
+      assert.ok(!said.slice(before_).some((line) => line.includes("into the turn")), "a message went into the turn on its own");
+      const typed = tell(OTHER, userFrame("and this"));
+      const joined = said.slice(before_).filter((line) => line.includes("into the turn"));
+      assert.equal(joined.length, 1, said.slice(before_).join("\n"));
+      assert.match(joined[0], /queue x2 \(#\d+\.\.#\d+: message, user\) into the turn/);
+      const [one, two, three] = await Promise.all([first.answered, message.answered, typed.answered]);
+      assert.deepEqual([two, three], [one, one]);
+    } finally {
+      await endSeat(OTHER, 500);
+    }
+  });
+
+  it("an interrupt answers the frames that joined the turn as interrupted too", async () => {
+    await seatUp(OTHER, CALL_OUT);
+    try {
+      const first = tell(OTHER, userFrame("go"));
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      const joining = tell(OTHER, userFrame("and this"));
+      assert.equal(await interrupt(OTHER), true);
+      assert.deepEqual(await first.answered, { interrupted: true, text: "interrupted" });
+      assert.deepEqual(await joining.answered, { interrupted: true, text: "interrupted" });
+    } finally {
+      await endSeat(OTHER, 500);
+    }
+  });
+
   it("refuses a seat with no process, queues nothing, and says so in the log", async () => {
     const before_ = said.length;
     const asked = tell(OTHER, serverEvent("user-typed", { who: WORKER }, "go"));
