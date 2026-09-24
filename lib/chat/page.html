@@ -248,7 +248,7 @@
   // draws it and carries what is typed and pressed to the server.
 
   import { dialogOf } from "./dialog.mjs";
-  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title } from "./panels.mjs";
+  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title, typedAgainst } from "./panels.mjs";
   import { collapsed, row as rowOf } from "./render.mjs";
 
   const secret = document.querySelector('meta[name="openovai-secret"]').content;
@@ -570,14 +570,23 @@
     composer.append(box, stop);
     // The rows a click on a stamp pointed at, token to spelling; what is sent carries the spelling.
     const refs = new Map();
+    // The last stamped row shown, and the one that was last when the first key went into an empty
+    // box: a row arriving while the User types makes what is sent point back at the one it was
+    // typed against.
+    const typing = { anchor: null, latest: null };
+    box.addEventListener("input", () => {
+      if (box.value === "") typing.anchor = null;
+      else if (typing.anchor === null) typing.anchor = typing.latest;
+    });
     // What is typed goes to the server as text and nothing else: the server knows it came from
     // this page by the secret on the call, and frames it as the User's own words.
     composer.addEventListener("submit", (event) => {
       event.preventDefault();
-      const text = spellReferences(refs, box.value);
-      if (text.trim() === "") {
+      if (box.value.trim() === "") {
         return;
       }
+      const text = spellReferences(refs, typedAgainst(refs, typing.anchor, typing.latest, box.value));
+      typing.anchor = null;
       box.value = "";
       autosize();
       call(`/sessions/${encodeURIComponent(name)}/message`, {
@@ -602,7 +611,7 @@
     // delivery to find its row; `day` the day of the row drawn last, for the pill between two days;
     // `drawn` the card of every question on the panel, by the id of its request; `doing` the one
     // line that says what the seat is at, while there is one.
-    return { name, section, nameLine, info, word, fitPlaceholder, facts, composer, stop, rows, cards, empty, jump, box, refs, view, keep, shown: 0, day: null, drawn: new Map(), loading: false, last: null, lines: new Map(), waiting: new Map(), doing: null };
+    return { name, section, nameLine, info, word, fitPlaceholder, facts, composer, stop, rows, cards, empty, jump, box, refs, typing, view, keep, shown: 0, day: null, drawn: new Map(), loading: false, last: null, lines: new Map(), waiting: new Map(), doing: null };
   }
 
   // When a row was written, in the reader's own zone: `2026.09.13 Sunday 23:17:05` on the row, the
@@ -616,6 +625,13 @@
     const day = `${part.year}.${part.month}.${part.day}`;
     const clock = `${part.hour}:${part.minute}:${part.second}`;
     return { whole: `${day} ${part.weekday} ${clock}`, clock, day };
+  }
+
+  // How long a User's row waited to go in: the clock of the write and the seconds since it was
+  // typed, or null for a row with no time of its write.
+  function waitedOf(entry) {
+    if (entry.at === undefined || entry.deliveredAt === undefined) return null;
+    return { clock: stamp(entry.deliveredAt).clock, seconds: Math.round((Date.parse(entry.deliveredAt) - Date.parse(entry.at)) / 1000) };
   }
 
   // A row's stamp is the whole day and time when it sits beside the whole label on one line, and
@@ -765,7 +781,7 @@
       meta.append(st);
     }
     if (shown.kind === "user") {
-      const said = delivery(shown.delivered, panel.section.classList.contains("busy"), panel.name);
+      const said = delivery(shown.delivered, panel.section.classList.contains("busy"), panel.name, waitedOf(entry));
       if (said.wait) {
         const tag = document.createElement("span");
         tag.className = "tag";
@@ -804,6 +820,7 @@
     }
     time.title = REFERENCE;
     time.addEventListener("click", () => pointAt(panel, time, shown.who, body));
+    if (when.whole !== "") panel.typing.latest = { whole: when.whole, who: shown.who, text: body.textContent };
     return line;
   }
 
@@ -830,14 +847,14 @@
 
   // The User's row at that index, delivered: on the row it has, the ground changes, the waiting
   // words leave the label and the glyph goes in beside the stamp, fitted with it.
-  function deliveredRow(panel, index) {
+  function deliveredRow(panel, index, entry) {
     const element = panel.waiting.get(index);
     if (element === undefined) return;
     panel.waiting.delete(index);
     element.classList.remove("pending");
     element.querySelector(".tag").remove();
     const time = element.querySelector(".t");
-    time.parentElement.append(deliveredElement(delivery(true, false, panel.name)));
+    time.parentElement.append(deliveredElement(delivery(true, false, panel.name, waitedOf(entry))));
     fitStamps([time]);
   }
 
@@ -1051,7 +1068,7 @@
           element.classList.add("err");
           element.title = about.rows[index].why ?? "";
         }
-        if (about.rows[index].delivered === true) deliveredRow(panel, index);
+        if (about.rows[index].delivered === true) deliveredRow(panel, index, about.rows[index]);
       }
       // The questions, in the bottom area: a card answered or taken down leaves, a card not yet
       // drawn goes in after the cards there. Nothing here scrolls the rows for a card: it is not

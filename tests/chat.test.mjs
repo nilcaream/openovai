@@ -1221,6 +1221,8 @@ describe("what the User types", () => {
     assert.equal(rows[0].from, "user");
     assert.equal(rows[0].text, "go");
     assert.equal(rows[0].delivered, true, "the row is not marked delivered once its frame went in");
+    assert.match(rows[0].deliveredAt ?? "", /^\d{4}-\d\d-\d\dT[\d:.]+Z$/, "the row does not carry the time its frame went in");
+    assert.ok(Date.parse(rows[0].deliveredAt) >= Date.parse(rows[0].at), "the row went in before it was typed");
     assert.equal(rows[1].from, WORKER);
     assert.equal(rows[1].text, "on it");
     assert.equal(rows[1].delivered, undefined, "a reply is nobody's delivery");

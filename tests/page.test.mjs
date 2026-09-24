@@ -453,11 +453,11 @@ describe("the script", () => {
   // beside the stamp, fitted with it; the panel's state at the draw says whether the wait is a
   // queue behind the turn under way.
   it("draws the User's row waiting on the dashed ground until the server says delivered, then changes the row it has", () => {
-    assert.match(script, /if \(shown\.kind === "user"\) \{\s*const said = delivery\(shown\.delivered, panel\.section\.classList\.contains\("busy"\), panel\.name\);\s*if \(said\.wait\) \{\s*const tag = document\.createElement\("span"\);\s*tag\.className = "tag";\s*tag\.textContent = said\.text;\s*who\.append\(tag\);\s*line\.classList\.add\("pending"\);\s*\} else \{\s*meta\.append\(deliveredElement\(said\)\);\s*\}\s*\}/);
+    assert.match(script, /if \(shown\.kind === "user"\) \{\s*const said = delivery\(shown\.delivered, panel\.section\.classList\.contains\("busy"\), panel\.name, waitedOf\(entry\)\);\s*if \(said\.wait\) \{\s*const tag = document\.createElement\("span"\);\s*tag\.className = "tag";\s*tag\.textContent = said\.text;\s*who\.append\(tag\);\s*line\.classList\.add\("pending"\);\s*\} else \{\s*meta\.append\(deliveredElement\(said\)\);\s*\}\s*\}/);
     assert.match(script, /function deliveredElement\(said\) \{\s*const st = document\.createElement\("span"\);\s*st\.className = "st";\s*st\.dataset\.whole = said\.text;\s*st\.dataset\.glyph = said\.glyph;\s*st\.textContent = said\.text;\s*return st;\s*\}/);
     assert.match(script, /if \(shown\.kind === "user" && !shown\.delivered\) panel\.waiting\.set\(index, line\);/);
-    assert.match(script, /function deliveredRow\(panel, index\) \{\s*const element = panel\.waiting\.get\(index\);\s*if \(element === undefined\) return;\s*panel\.waiting\.delete\(index\);\s*element\.classList\.remove\("pending"\);\s*element\.querySelector\("\.tag"\)\.remove\(\);\s*const time = element\.querySelector\("\.t"\);\s*time\.parentElement\.append\(deliveredElement\(delivery\(true, false, panel\.name\)\)\);\s*fitStamps\(\[time\]\);\s*\}/);
-    assert.match(script, /for \(const index of about\.amended\.splice\(0\)\) \{[^}]*\}\s*if \(about\.rows\[index\]\.delivered === true\) deliveredRow\(panel, index\);\s*\}/);
+    assert.match(script, /function deliveredRow\(panel, index, entry\) \{\s*const element = panel\.waiting\.get\(index\);\s*if \(element === undefined\) return;\s*panel\.waiting\.delete\(index\);\s*element\.classList\.remove\("pending"\);\s*element\.querySelector\("\.tag"\)\.remove\(\);\s*const time = element\.querySelector\("\.t"\);\s*time\.parentElement\.append\(deliveredElement\(delivery\(true, false, panel\.name, waitedOf\(entry\)\)\)\);\s*fitStamps\(\[time\]\);\s*\}/);
+    assert.match(script, /for \(const index of about\.amended\.splice\(0\)\) \{[^}]*\}\s*if \(about\.rows\[index\]\.delivered === true\) deliveredRow\(panel, index, about\.rows\[index\]\);\s*\}/);
     assert.match(script, /panel\.lines\.clear\(\);\s*panel\.waiting\.clear\(\);/, "a panel drawn afresh forgets whom it was waiting on");
     assert.match(script, /for \(const kept of \[panel\.lines, panel\.waiting\]\) \{\s*for \(const \[index, element\] of kept\) \{\s*if \(!element\.isConnected\) kept\.delete\(index\);/, "the trim lets go of a waiting row it no longer holds");
   });
@@ -471,7 +471,14 @@ describe("the script", () => {
     assert.match(script, /const REFERENCE = "click to reference this message in your reply";/);
     assert.match(script, /function pointAt\(panel, time, who, body\) \{\s*const token = reference\(panel\.refs, time\.dataset\.whole, who, body\.textContent\);\s*if \(token === null\) return;\s*const typed = panel\.box\.value;\s*panel\.box\.value = `\$\{typed\}\$\{typed !== "" && !\/\\s\$\/\.test\(typed\) \? " " : ""\}\$\{token\} `;\s*panel\.box\.dispatchEvent\(new Event\("input"\)\);\s*if \(!panel\.box\.disabled\) panel\.box\.focus\(\);\s*\}/);
     assert.match(script, /const refs = new Map\(\);/);
-    assert.match(script, /composer\.addEventListener\("submit", \(event\) => \{\s*event\.preventDefault\(\);\s*const text = spellReferences\(refs, box\.value\);/);
+    assert.match(script, /composer\.addEventListener\("submit", \(event\) => \{\s*event\.preventDefault\(\);\s*if \(box\.value\.trim\(\) === ""\) \{\s*return;\s*\}\s*const text = spellReferences\(refs, typedAgainst\(refs, typing\.anchor, typing\.latest, box\.value\)\);\s*typing\.anchor = null;/);
+  });
+
+  // What the User typed against: the anchor is the last stamped row when the first key goes into
+  // an empty box, emptied with the box, and every stamped row drawn is the latest.
+  it("anchors what is typed to the last row shown when typing began, and every stamped row drawn is the latest", () => {
+    assert.match(script, /box\.addEventListener\("input", \(\) => \{\s*if \(box\.value === ""\) typing\.anchor = null;\s*else if \(typing\.anchor === null\) typing\.anchor = typing\.latest;\s*\}\);/);
+    assert.match(script, /if \(when\.whole !== ""\) panel\.typing\.latest = \{ whole: when\.whole, who: shown\.who, text: body\.textContent \};/);
   });
 
   // Enter sends and the box grows: the page is never run here, so the wiring is read as text —
