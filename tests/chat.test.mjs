@@ -994,7 +994,7 @@ describe("telling a seat", () => {
     const second = tell(OTHER, userFrame("and then"));
     const replies = await Promise.all([first.answered, second.answered]);
     assert.deepEqual(replies, [
-      { ended: true, text: `${OTHER} ended before answering` },
+      { ended: true, text: `${OTHER} ended before answering`, err: "" },
       { ended: true, unread: true, text: `${OTHER} ended before answering` },
     ]);
     assert.equal(running(OTHER), false);
@@ -1006,7 +1006,7 @@ describe("telling a seat", () => {
     const broken = await seatUp(OTHER, { OPENOVAI_STAND_IN_BROKEN: "1" }, { first: userFrame("go") });
     assert.equal(broken.asked.delivered, true);
     const reply = await broken.asked.answered;
-    assert.deepEqual(reply, { ended: true, text: "a model was never reached" });
+    assert.deepEqual(reply, { ended: true, text: "a model was never reached", err: "a model was never reached" });
     assert.equal(running(OTHER), false);
   });
 });
@@ -1232,7 +1232,24 @@ describe("the tools a session is served", () => {
     await waitFor(() => (panel(instance, OTHER).at(-1)?.failed === true ? true : null));
     const last = panel(instance, OTHER).at(-1);
     assert.equal(last.from, SERVER);
-    assert.match(last.text, new RegExp(`^${OTHER} stopped before answering: `));
+    assert.equal(last.text, `${OTHER} stopped before answering`);
+  });
+
+  // "second" and "third" wait behind "first" and go in as one turn; the process ends under it.
+  it("says a turn of several frames stopped once, not once a frame", async () => {
+    const slow = await seatUp(OTHER, { OPENOVAI_STAND_IN_SLOW: "2000" });
+    const rows = panel(instance, OTHER).length;
+    for (const text of ["first", "second", "third"]) {
+      const said_ = await tool(superman.secret, "message", { to: OTHER, text });
+      assert.equal(said_.refused, false, said_.text);
+    }
+    await waitFor(() => (queuesHeardIn(slow.log).length >= 2 ? true : null));
+    assert.equal(childrenOf(queuesHeardIn(slow.log)[1]).length, 2, "the second turn did not hold two frames");
+    process.kill(slow.pid, "SIGKILL");
+    await waitFor(() => (running(OTHER) ? null : true));
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    const ended = panel(instance, OTHER).slice(rows).filter((row) => row.failed === true);
+    assert.deepEqual(ended.map((row) => row.text), [`${OTHER} stopped before answering`]);
   });
 
   // The Leader's turn asks Paul something and Paul, before answering, messages the Leader: with

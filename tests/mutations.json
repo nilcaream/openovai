@@ -334,7 +334,7 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "    for (const turn of left) {\n      turn.resolve({ ended: true, text: why });\n    }\n",
+        "from": "    for (const turn of left) {\n      turn.resolve(turn === running ? { ended: true, text: why, err: record.err.trim() } : { ended: true, unread: true, text: why });\n    }\n",
         "to": ""
       }
     ]
@@ -1830,6 +1830,17 @@
       {
         "file": "lib/claude.mjs",
         "from": "    env.ENABLE_CLAUDEAI_MCP_SERVERS = \"false\";\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "every frame of a turn that stopped gets its own row",
+    "catches": "says a turn of several frames stopped once, not once a frame",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "    if (shownEndings.has(reply)) {\n      return;\n    }\n",
         "to": ""
       }
     ]
