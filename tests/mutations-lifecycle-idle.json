@@ -1,5 +1,16 @@
 [
   {
+    "name": "an event the ending Leader never read is not delivered again",
+    "catches": "the Leader hears a Worker's forced stop when both are ended in one tick, the Worker first",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "        deliverOnce(instance, seat, frame, { ask, written });\n      }",
+        "to": "      }"
+      }
+    ]
+  },
+  {
     "name": "the critical idle frame needs more than the force minute",
     "catches": "tells the Leader at 10 and at 50, the seat at 55, and ends it at 60 with the Leader told why",
     "edits": [

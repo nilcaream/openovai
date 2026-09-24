@@ -104,6 +104,29 @@ describe("idle", () => {
     assert.ok(said.includes(`stopped ${WORKER} - idle-forced`), said.slice(-6).join("\n"));
   });
 
+  it("the Leader hears a Worker's forced stop when both are ended in one tick, the Worker first", async () => {
+    // The Leader does not close on its stdin, so it is still ending — taken down once patience
+    // has run out — when the Worker's stop is delivered to it: the order in which the FYI was lost.
+    ({ superman, paul } = await pair({}, { OPENOVAI_STAND_IN_STUCK: "1" }));
+    await awake(WORKER);
+    await awake(LEADER);
+    const from = said.length;
+    const idleFrom = now;
+    now = idleFrom + 55 * MINUTE;
+    tick(chat);
+    await told(paul.log, 2);
+    await told(superman.log, 2);
+    await settle();
+    now = idleFrom + (55 + IDLE_GRACE + 1) * MINUTE;
+    tick(chat);
+    assert.ok(await gone(WORKER), `${WORKER} was not ended`);
+    const rows = () => said.slice(from);
+    const heard = await waitFor(() => rows().some((row) => row.startsWith(`wrote ${LEADER} `) && row.includes("stopped event")));
+    assert.ok(heard, rows().join("\n"));
+    assert.ok(rows().includes(`redelivered ${LEADER} - stopped event, unread by the session that ended`), rows().join("\n"));
+    assert.ok(rows().indexOf(`stopped ${WORKER} - idle-forced`) < rows().indexOf(`stopped ${LEADER} - idle-forced`), rows().join("\n"));
+  });
+
   it("the stopped FYI follows a voluntary idle stop too", async () => {
     ({ superman, paul } = await pair(callsThen("stop_session", 'type="idle"')));
     const idleFrom = now;
