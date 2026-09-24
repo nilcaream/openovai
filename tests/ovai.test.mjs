@@ -1572,6 +1572,31 @@ describe("what admin mode leaves behind when the door closes", () => {
     fs.rmSync(left, { force: true });
   });
 
+  // Claude Code's own first-launch setup looks like a second sign-in to a person who has just run
+  // `ovai login`, so the door says so the first time and only then.
+  const firstTime = /first-launch setup/;
+
+  it("says the first time that Claude Code runs its own first-launch setup", () => {
+    const ran = ovai(["claude"]);
+    assert.equal(ran.status, 0, ran.stderr);
+    assert.match(ran.stdout, firstTime);
+    fs.rmSync(left, { force: true });
+  });
+
+  it("does not say it once Claude Code has recorded its first launch", () => {
+    const state = path.join(instance, ".local", ".claude.json");
+    const kept = fs.readFileSync(state, "utf8");
+    fs.writeFileSync(state, JSON.stringify({ ...JSON.parse(kept), hasCompletedOnboarding: true }));
+    try {
+      const ran = ovai(["claude"]);
+      assert.equal(ran.status, 0, ran.stderr);
+      assert.doesNotMatch(ran.stdout, firstTime);
+    } finally {
+      fs.writeFileSync(state, kept);
+      fs.rmSync(left, { force: true });
+    }
+  });
+
   it("removes only the record the notice was made from, not one a second close wrote after it", () => {
     const first = "2026-09-23T10:00:00.000Z";
     const second = "2026-09-23T10:05:00.000Z";
