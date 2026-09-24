@@ -249,7 +249,7 @@
 
   import { dialogOf } from "./dialog.mjs";
   import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title } from "./panels.mjs";
-  import { row as rowOf } from "./render.mjs";
+  import { collapsed, row as rowOf } from "./render.mjs";
 
   const secret = document.querySelector('meta[name="openovai-secret"]').content;
 
@@ -992,6 +992,7 @@
         // row — a bubble, a pill — ends the run.
         for (const [offset, entry] of about.rows.slice(from).entries()) {
           const index = from + offset;
+          if (collapsed(about.rows, index)) continue;
           const when = stamp(entry.at);
           if (entry.at !== undefined && when.day !== panel.day) {
             if (panel.day !== null) {

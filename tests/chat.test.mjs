@@ -14,7 +14,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
-import { SERVER, panelFile, read as panel } from "../lib/chat/conversation.mjs";
+import { SERVER, panelFile, read } from "../lib/chat/conversation.mjs";
 import { messageFrame, serverEvent, userFrame } from "../lib/chat/frames.mjs";
 import { listening } from "../lib/chat/runtime.mjs";
 import { pageSecret } from "../lib/chat/secrets.mjs";
@@ -32,6 +32,12 @@ const USER = "Mike";
 const LEADER = "Superman";
 const WORKER = "Paul";
 const OTHER = "Jane";
+// What was said on a panel: every row but the ones that say when a session started or ended,
+// which the lifecycle suite checks whole, so no check here counts them.
+function panel(root, seat) {
+  return read(root, seat).filter((row) => row.stamp !== true);
+}
+
 const LEADER_MODEL = "opus";
 const WORKER_MODEL = "sonnet";
 
@@ -1167,7 +1173,7 @@ describe("what one Worker says to another", () => {
     assert.equal(rows[0].msg, panel(instance, OTHER)[0].msg, "the addressee's row and the Leader's carry one id");
     assert.deepEqual([rows[1].from, rows[1].text], [LEADER, "heard"]);
     const shown = JSON.parse((await page("GET", `/sessions/${LEADER}/messages`)).body).messages;
-    assert.deepEqual(shown, rows);
+    assert.deepEqual(shown, read(instance, LEADER));
   });
 
   it("hears nothing more for a message to or from the Leader", async () => {
@@ -1219,7 +1225,7 @@ describe("what the User types", () => {
     assert.equal(rows[1].text, "on it");
     assert.equal(rows[1].delivered, undefined, "a reply is nobody's delivery");
     const shown = JSON.parse((await page("GET", `/sessions/${WORKER}/messages`)).body).messages;
-    assert.deepEqual(shown, rows);
+    assert.deepEqual(shown, read(instance, WORKER));
   });
 
   it("shows the Leader what was typed to whom, and what the Leader made of it", async () => {
@@ -1425,12 +1431,13 @@ describe("what a Worker's calls draw", () => {
     assert.equal(rows[1].why, undefined);
     // The page was told the row twice: as the line was written, and again — at the same index,
     // marked and explained — as its result came back.
-    await until(client, (event) => event.name === "row" && event.data.seat === WORKER && event.data.index === 2 && event.data.row.err === true);
-    const told = about(client, WORKER, "row").filter((event) => event.data.index === 2).map((event) => [event.data.row.line, event.data.row.err, event.data.row.why]);
+    const index = read(instance, WORKER).findIndex((row) => row.line === "Run the suite");
+    await until(client, (event) => event.name === "row" && event.data.seat === WORKER && event.data.index === index && event.data.row.err === true);
+    const told = about(client, WORKER, "row").filter((event) => event.data.index === index).map((event) => [event.data.row.line, event.data.row.err, event.data.row.why]);
     assert.deepEqual(told, [["Run the suite", undefined, undefined], ["Run the suite", true, "Exit code 1"]]);
     // The reply came after the mark, so a page drawing the file draws the line red from the start.
     const indexes = about(client, WORKER, "row").map((event) => [event.data.index, event.data.row.err ?? event.data.row.text ?? event.data.row.line]);
-    assert.deepEqual(indexes, [[0, "go"], [0, "go"], [1, "Reading /srv/app/lib/chat/session.mjs"], [2, "Run the suite"], [2, true], [3, "on it"]], "the User's row is told twice, typed and delivered, before anything the seat did");
+    assert.deepEqual(indexes, [[index - 2, "go"], [index - 2, "go"], [index - 1, "Reading /srv/app/lib/chat/session.mjs"], [index, "Run the suite"], [index, true], [index + 1, "on it"]], "the User's row is told twice, typed and delivered, before anything the seat did");
   });
 
   it("writes no line for the Leader's own calls", async () => {
@@ -1471,7 +1478,8 @@ describe("what a Worker's calls draw", () => {
     const rows = await turn(WORKER, panel(instance, WORKER).length, "twice");
     assert.deepEqual(rows.map((row) => row.line), [undefined, "Reading /srv/app/lib/chat/session.mjs", "Reading /srv/app/lib/chat/session.mjs", undefined]);
     assert.deepEqual(rows.map((row) => row.call), [undefined, "call-4-0", "call-4-1", undefined]);
-    const shown = JSON.parse((await page("GET", `/sessions/${WORKER}/messages?since=8`)).body).messages;
+    const since = read(instance, WORKER).length - rows.length;
+    const shown = JSON.parse((await page("GET", `/sessions/${WORKER}/messages?since=${since}`)).body).messages;
     assert.deepEqual(shown, rows, "the page is served the file as it is");
   });
 });
@@ -1745,26 +1753,28 @@ describe("the stream", () => {
     assert.equal(data.leader, LEADER);
     assert.equal(data.chat, SERVER);
     assert.deepEqual(data.sessions.map((seat) => [seat.name, seat.running, seat.busy]), [[LEADER, true, false], [OTHER, false, false], [WORKER, false, false]]);
-    assert.deepEqual(client.events[1].data, { seat: LEADER, since: 0, rows: [] });
+    assert.deepEqual(client.events[1].data, { seat: LEADER, since: 0, rows: read(instance, LEADER) });
     assert.ok(!said.some((line) => line.includes("page=")), "the stream's URL was logged");
   });
 
   it("a new row reaches the page without a poll", async () => {
     const client = await listen();
     await until(client, (event) => event.name === "asking");
+    const at = read(instance, LEADER).length;
     await page("POST", `/sessions/${LEADER}/message`, { text: "hello" });
     await until(client, (event) => event.name === "row" && event.data.seat === LEADER && event.data.row.from === LEADER);
     const rows = about(client, LEADER, "row");
     // The User's row twice at its index: once as it was typed, once more once its frame went in.
-    assert.deepEqual(rows.map((event) => [event.data.index, event.data.row.from, event.data.row.text, event.data.row.delivered]), [[0, "user", "hello", undefined], [0, "user", "hello", true], [1, LEADER, "noted", undefined]]);
+    assert.deepEqual(rows.map((event) => [event.data.index, event.data.row.from, event.data.row.text, event.data.row.delivered]), [[at, "user", "hello", undefined], [at, "user", "hello", true], [at + 1, LEADER, "noted", undefined]]);
   });
 
 
   it("a client connecting with counts gets only the rows after them", async () => {
-    const client = await listen(`&since=${encodeURIComponent(`${LEADER}:1`)}`);
+    const noted = read(instance, LEADER).findIndex((row) => row.text === "noted");
+    const client = await listen(`&since=${encodeURIComponent(`${LEADER}:${noted}`)}`);
     await until(client, (event) => event.name === "asking");
     const rows = about(client, LEADER, "rows")[0].data;
-    assert.equal(rows.since, 1);
+    assert.equal(rows.since, noted);
     assert.deepEqual(rows.rows.map((row) => row.text), ["noted"]);
   });
 

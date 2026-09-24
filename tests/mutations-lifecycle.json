@@ -1233,5 +1233,16 @@
         "to": "    startSeat(instance, seat, { queue: [born, ...carried] });"
       }
     ]
+  },
+  {
+    "name": "no row says when a session ended",
+    "catches": "a start and an end each leave a row that says when, and nothing else",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "      stampRow(instance, seat);\n      giveUp(seat);",
+        "to": "      giveUp(seat);"
+      }
+    ]
   }
 ]

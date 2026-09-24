@@ -16,12 +16,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
-import { SERVER, read as panel } from "../lib/chat/conversation.mjs";
+import { SERVER, read } from "../lib/chat/conversation.mjs";
 import { subscribe } from "../lib/chat/events.mjs";
 import { messageFrame, serverEvent, userFrame } from "../lib/chat/frames.mjs";
 import { ADMIN_FILE } from "../lib/admin.mjs";
 import { BODY_CONTEXT_ERROR, BODY_CONTEXT_WARNING, BODY_CRITICAL, BODY_IDLE, BODY_PARK, BODY_RESTARTED, IDLE_GRACE, adminTold, deliver, parkRoom, tick } from "../lib/chat/lifecycle.mjs";
-import { sink } from "../lib/chat/log.mjs";
+import { sink, wallClock } from "../lib/chat/log.mjs";
 import * as quota from "../lib/chat/quota.mjs";
 import { pageSecret } from "../lib/chat/secrets.mjs";
 import { serve, startSeat, toolsFor } from "../lib/chat/server.mjs";
@@ -38,6 +38,12 @@ const LEADER_MODEL = "opus";
 const WORKER_MODEL = "sonnet";
 
 const MINUTE = 60_000;
+
+// What was said on a panel: every row but the ones that say when a session started or ended,
+// which one check of their own reads whole (`read`), so no other check counts them.
+function panel(root, seat) {
+  return read(root, seat).filter((row) => row.stamp !== true);
+}
 
 const base = scratch("lifecycle-test");
 const instance = `${base}-instance`;
@@ -498,6 +504,20 @@ describe("restart_session and stop_session", () => {
     await end(WORKER, 500);
   });
 
+  it("a start and an end each leave a row that says when, and nothing else", async () => {
+    const from = read(instance, WORKER).length;
+    paul = await seatUp(WORKER);
+    const started = now;
+    now += 5 * MINUTE;
+    await end(WORKER, 500);
+    const stamps = read(instance, WORKER).slice(from).filter((row) => row.stamp === true);
+    assert.deepEqual(
+      stamps.map((row) => [row.from, row.at, row.text]),
+      [started, now].map((at) => [SERVER, new Date(at).toISOString(), wallClock(new Date(at))]),
+    );
+    assert.match(stamps[0].text, /^\d{4}\.\d{2}\.\d{2} (Mon|Tues|Wednes|Thurs|Fri|Satur|Sun)day \d{2}:\d{2}:\d{2}$/);
+  });
+
   // A session is moved by a frame and by nothing else, and a restart is the one start with
   // nobody standing over it to write one: a hired Worker turns because the Leader speaks to it,
   // the Leader turns because something was addressed to it, a successor has neither. So the
@@ -601,7 +621,7 @@ describe("restart_session and stop_session", () => {
     assert.equal(back.result.refused, false, back.result.text);
     assert.equal((await asked(superman.secret, WORKER, "two")).reply, "after the stop");
     const messages = JSON.parse((await page("GET", `/sessions/${WORKER}/messages`)).body).messages;
-    assert.deepEqual(messages.slice(rows - 2).map((row) => [row.from, row.text]), [
+    assert.deepEqual(messages.filter((row) => row.stamp !== true).slice(rows - 2).map((row) => [row.from, row.text]), [
       [LEADER, "one"],
       [WORKER, "before the stop"],
       [LEADER, "two"],
@@ -1710,7 +1730,7 @@ describe("retire", () => {
     assert.equal(typed.status, 200, typed.body);
     await end(OTHER, 500);
     assert.ok((await sessionsListed()).sessions.some((seat) => seat.name === OTHER));
-    const rows = panel(instance, OTHER);
+    const rows = read(instance, OTHER);
     assert.ok(rows.some((row) => row.text === "well done"), "nothing on the panel to file");
 
     const seen = [];

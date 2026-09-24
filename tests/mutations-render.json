@@ -284,5 +284,16 @@
         "to": "delivered: entry.delivered !== undefined"
       }
     ]
+  },
+  {
+    "name": "a stamp close behind a drawn one is drawn too",
+    "catches": "draws only the first of two less than a minute apart, and both of two a minute apart",
+    "edits": [
+      {
+        "file": "lib/chat/render.mjs",
+        "from": "< STAMPS_APART && !collapsed(rows, before);",
+        "to": "< 0 && !collapsed(rows, before);"
+      }
+    ]
   }
 ]

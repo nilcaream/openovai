@@ -10,7 +10,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { after, describe, it } from "node:test";
 
-import { EVENTS, called, ended, failed, fullName, log, moment, returned, row, sink, tool } from "../lib/chat/log.mjs";
+import { EVENTS, called, ended, failed, fullName, log, moment, returned, row, sink, tool, wallClock } from "../lib/chat/log.mjs";
 import { repo } from "./helpers.mjs";
 
 const MOMENT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}[+-]\d{2}:\d{2}$/;
@@ -24,6 +24,13 @@ function serverFiles() {
     path.join(repo, "lib", "serve.mjs"),
   ];
 }
+
+describe("the moment between two sessions", () => {
+  it("reads as the User wrote it: dots, the weekday whole, the 24-hour clock with seconds", () => {
+    assert.equal(wallClock(new Date("2026-09-23T14:03:40Z"), "Europe/Prague"), "2026.09.23 Wednesday 16:03:40");
+    assert.equal(wallClock(new Date("2026-09-26T22:00:05Z"), "Europe/Prague"), "2026.09.27 Sunday 00:00:05");
+  });
+});
 
 describe("the log", () => {
   const rows = [];

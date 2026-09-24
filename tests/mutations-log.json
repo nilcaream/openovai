@@ -196,5 +196,16 @@
         "to": "  log(\"stopped\", seat, why, \"-\");"
       }
     ]
+  },
+  {
+    "name": "the weekday between two sessions is short",
+    "catches": "reads as the User wrote it: dots, the weekday whole, the 24-hour clock with seconds",
+    "edits": [
+      {
+        "file": "lib/chat/log.mjs",
+        "from": "weekday: \"long\"",
+        "to": "weekday: \"short\""
+      }
+    ]
   }
 ]
