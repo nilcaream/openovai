@@ -236,6 +236,17 @@ function readIn(log) {
     .map(([, rest]) => rest);
 }
 
+// Whether a turn is still running, read without waiting on it. A stand-in's SLOW turn is the
+// window a check needs something to land in; kept short, the check says so when it was too short
+// rather than passing on a seat that had gone idle.
+function stillRunning(turn) {
+  let open = true;
+  turn.answered.finally(() => {
+    open = false;
+  });
+  return () => open;
+}
+
 async function gone(seat) {
   return waitFor(() => (running(seat) ? null : true));
 }
@@ -1584,9 +1595,10 @@ describe("park", () => {
   }
 
   it("interrupts when asked, waits for the stops, ends the rest at the deadline, and leaves the Leader's turn alone", async () => {
-    ({ superman, paul } = await pair({ OPENOVAI_STAND_IN_SLOW: "3000", ...callsThen("stop_session", 'type="park"') }, { OPENOVAI_STAND_IN_SLOW: "6000" }));
+    ({ superman, paul } = await pair({ OPENOVAI_STAND_IN_SLOW: "1000", ...callsThen("stop_session", 'type="park"') }, { OPENOVAI_STAND_IN_SLOW: "3500" }));
     const ann = await seatUp(OTHER);
     const leaderTurn = tell(LEADER, userFrame("thinking"));
+    const leaderBusy = stillRunning(leaderTurn);
     const paulTurn = tell(WORKER, userFrame("busy"));
     await told(paul.log, 1);
     await told(superman.log, 1);
@@ -1604,6 +1616,7 @@ describe("park", () => {
     now += 5000;
     assert.ok(await gone(OTHER), `${OTHER} was not ended at the deadline`);
     const result = await parked;
+    assert.equal(leaderBusy(), true, "the Leader's turn ended before the park did, so nothing below proves it was left alone");
     assert.equal(result.refused, false, result.text);
     assert.ok(result.text.startsWith("parked: "), result.text);
     assert.ok(result.text.includes(`${WORKER} stopped (desk ${written})`), result.text);
