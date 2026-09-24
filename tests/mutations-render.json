@@ -295,5 +295,16 @@
         "to": "< 0 && !collapsed(rows, before);"
       }
     ]
+  },
+  {
+    "name": "a new day opened by a stamp row gets the day's pill too",
+    "catches": "opens a new day without the day's pill, which would say the same words again",
+    "edits": [
+      {
+        "file": "lib/chat/render.mjs",
+        "from": "return shownDay !== null && entry.stamp !== true;",
+        "to": "return shownDay !== null;"
+      }
+    ]
   }
 ]

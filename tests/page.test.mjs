@@ -442,8 +442,9 @@ describe("the script", () => {
   // row it announces. A row without a stamp keeps the day. The trim of a Worker panel takes the
   // pill with the rows before it, so it is never the first thing on a panel either.
   it("puts the pill between two days only, with the whole stamp of the first row of the new day on it, and never first", () => {
+    assert.match(script, /import \{ collapsed, dayPillBefore, row as rowOf \} from "\.\/render\.mjs";/);
     assert.match(script, /function dayPill\(when\) \{\s*const element = pill\(when\.whole\);\s*element\.dataset\.day = when\.day;\s*return element;\s*\}/);
-    assert.match(script, /const when = stamp\(entry\.at\);\s*if \(entry\.at !== undefined && when\.day !== panel\.day\) \{\s*if \(panel\.day !== null\) \{\s*panel\.last = null;\s*panel\.rows\.append\(dayPill\(when\)\);\s*\}\s*panel\.day = when\.day;\s*\}/);
+    assert.match(script, /const when = stamp\(entry\.at\);\s*if \(entry\.at !== undefined && when\.day !== panel\.day\) \{\s*if \(dayPillBefore\(entry, panel\.day\)\) \{\s*panel\.last = null;\s*panel\.rows\.append\(dayPill\(when\)\);\s*\}\s*panel\.day = when\.day;\s*\}/);
     assert.match(script, /while \(drawn\.length > 100\) drawn\.shift\(\)\.remove\(\);\s*\/\/[^\n]*\n\s*while \(drawn\.length > 0 && drawn\[0\]\.dataset\.day !== undefined\) drawn\.shift\(\)\.remove\(\);/);
     assert.match(script, /panel\.shown = 0;\s*panel\.day = null;/, "a panel drawn afresh starts with no day, so its first row gets no pill");
   });

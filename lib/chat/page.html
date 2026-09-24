@@ -248,7 +248,7 @@
 
   import { dialogOf } from "./dialog.mjs";
   import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title, typedAgainst, typingBeat } from "./panels.mjs";
-  import { collapsed, row as rowOf } from "./render.mjs";
+  import { collapsed, dayPillBefore, row as rowOf } from "./render.mjs";
 
   const secret = document.querySelector('meta[name="openovai-secret"]').content;
 
@@ -1050,7 +1050,8 @@
         // builds a hundred elements, not thousands. The Leader's panel draws every row it holds.
         const from = panel.jump === null && panel.shown === 0 ? Math.max(panel.shown, about.rows.length - 100) : panel.shown;
         // A pill names the day between the last row of one day and the first row of the next —
-        // never before the first row drawn, whatever its day. A tool call that repeats the line
+        // never before the first row drawn, whatever its day, and never before a row that says when
+        // a session ended or started, which names the day itself (dayPillBefore). A tool call that repeats the line
         // appended last counts itself into that line rather than drawing a second one; any other
         // row — a bubble, a pill — ends the run.
         for (const [offset, entry] of about.rows.slice(from).entries()) {
@@ -1058,7 +1059,7 @@
           if (collapsed(about.rows, index)) continue;
           const when = stamp(entry.at);
           if (entry.at !== undefined && when.day !== panel.day) {
-            if (panel.day !== null) {
+            if (dayPillBefore(entry, panel.day)) {
               panel.last = null;
               panel.rows.append(dayPill(when));
             }

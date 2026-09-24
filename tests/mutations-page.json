@@ -1641,7 +1641,7 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "            if (panel.day !== null) {\n              panel.last = null;\n              panel.rows.append(dayPill(when));\n            }",
+        "from": "            if (dayPillBefore(entry, panel.day)) {\n              panel.last = null;\n              panel.rows.append(dayPill(when));\n            }",
         "to": "            panel.last = null;\n            panel.rows.append(dayPill(when));"
       }
     ]

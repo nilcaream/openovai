@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { INTERRUPTED, SILENT, collapsed, html, row } from "../lib/chat/render.mjs";
+import { INTERRUPTED, SILENT, collapsed, dayPillBefore, html, row } from "../lib/chat/render.mjs";
 
 // The Leader's panel, and a Worker's: the same rows drawn from two seats, for one User.
 const names = { chat: "Server", seat: "Leader", leader: "Leader", user: "Mike" };
@@ -27,6 +27,13 @@ describe("the row that says when a session ended or started", () => {
   it("draws the third of three close together, since the second was not drawn", () => {
     const rows = [when(0), when(5), when(10)];
     assert.deepEqual(rows.map((_, index) => collapsed(rows, index)), [false, true, false]);
+  });
+
+  it("opens a new day without the day's pill, which would say the same words again", () => {
+    // A hire on a desk last used the day before: its start row is the first row of the new day.
+    assert.equal(dayPillBefore(when(0), "2026.09.22"), false);
+    assert.equal(dayPillBefore({ at: at(0), from: "Paul", text: "hi" }, "2026.09.22"), true);
+    assert.equal(dayPillBefore({ at: at(0), from: "Paul", text: "hi" }, null), false);
   });
 });
 
