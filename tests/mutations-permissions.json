@@ -439,8 +439,8 @@
     "edits": [
       {
         "file": "lib/chat/permissions.mjs",
-        "from": "      if (accepted !== null && !rules.includes(accepted)) {",
-        "to": "      if (accepted !== null) {"
+        "from": "      if (accepted !== null && !oneOff(accepted) && !rules.includes(accepted)) {",
+        "to": "      if (accepted !== null && !oneOff(accepted)) {"
       }
     ]
   },
