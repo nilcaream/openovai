@@ -65,6 +65,11 @@ wrote <seat> - queue x2 (#41..#42: message, user), 0 waiting, after typing held 
 a loop becomes a one-time script on the Worker's own desk, run by its interpreter, so the card you
 are asked on shows one short line and the script stays there to read.
 
+**A card offers no Always for a one-off command, and a wait row is one line.** A command longer
+than 80 characters, or one holding a pipe, a chain, a redirect, a `$` or a newline, is answered
+Allow or Deny: nobody keeps its whole text as a rule. The panel row saying how long a card waited
+shows its first line; double-click it for the whole call.
+
 ## 0.17.0
 
 **A door to Claude Code's own commands: `ovai claude`.** There is no screen here for connectors,

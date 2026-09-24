@@ -153,7 +153,7 @@
   /* the message a click on a line found, lit for a moment */
   .msg.focus .bubble { outline: 2px solid var(--accent); }
   /* a message between sessions — to one, from one, or between two Workers — is one line of its markdown, cut with an ellipsis, until a double click opens it */
-  .msg.collapsed .md { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }
+  .msg.collapsed .md, .msg.collapsed .text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }
   /* a folded message whose markdown opens with something other than a paragraph — a table, a list, a code block, a heading,
      a quote, a rule — has no first line the clamp could show (a table clamped drew whole): its fold shows a placeholder in
      the meta's style in place of the body, and a double click opens the whole rendered markdown as on any other row */
@@ -664,7 +664,7 @@
   function fitFolds(folded) {
     for (const row of folded) {
       if (!row.classList.contains("collapsed")) continue;
-      const body = row.querySelector(".md");
+      const body = row.querySelector(".md, .text");
       row.classList.toggle("foldable", row.classList.contains("placeholder") || body.scrollHeight > body.clientHeight);
     }
   }
@@ -806,7 +806,8 @@
     }
     bubble.append(meta, body);
     line.append(bubble);
-    if (shown.kind === "peer-in" || shown.kind === "peer-out" || shown.kind === "overheard") {
+    // The server's own rows fold too: a wait row names the whole call, and one line of it is enough.
+    if (shown.kind === "peer-in" || shown.kind === "peer-out" || shown.kind === "overheard" || shown.kind === "chat") {
       line.classList.add("collapsed");
       line.addEventListener("dblclick", () => {
         if (line.classList.contains("foldable")) line.classList.toggle("collapsed");

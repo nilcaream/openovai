@@ -253,11 +253,12 @@ describe("the rules", () => {
 
   // A folded message is one line of its body, cut with an ellipsis: the line clamp, which cuts
   // across the blocks of the markdown where a nowrap would only cut the first, and it needs the
-  // box display and the vertical orient to take. Every row that folds — to a session, from one,
-  // or between two Workers — has a markdown body, so the one rule on `.md` is the whole clamp.
+  // box display and the vertical orient to take. A row that folds — to a session, from one,
+  // between two Workers, or the server's own — has a markdown body or a plain-text one, and the
+  // one rule on the two of them is the whole clamp.
   it("clip a folded message to one line of its body, cut with an ellipsis", () => {
-    const folded = rules.find((rule) => rule.selector === ".msg.collapsed .md");
-    assert.ok(folded !== undefined, "the clamp is under the fold class, on the markdown body, and on nothing else");
+    const folded = rules.find((rule) => rule.selector.split(",").map((one) => one.trim()).join(", ") === ".msg.collapsed .md, .msg.collapsed .text");
+    assert.ok(folded !== undefined, "the clamp is under the fold class, on the markdown or plain-text body, and on nothing else");
     assert.equal(folded.declarations["-webkit-line-clamp"], "1", "one line, and an ellipsis where it is cut");
     assert.equal(folded.declarations.display, "-webkit-box");
     assert.equal(folded.declarations["-webkit-box-orient"], "vertical");
@@ -770,6 +771,13 @@ describe("the script", () => {
     assert.doesNotMatch(script, /localStorage[^\n]*collapsed|collapsed[^\n]*localStorage/, "nothing about the fold is stored");
   });
 
+  // The server's own rows fold the same way: a wait row names the whole call it waited on, and a
+  // long command would otherwise fill a narrow panel. Its body is plain text, clamped with the rest
+  // (the rule is pinned under "clip a folded message").
+  it("folds the server's own rows to one line, the whole row a double click away", () => {
+    assert.match(script, /if \(shown\.kind === "peer-in" \|\| shown\.kind === "peer-out" \|\| shown\.kind === "overheard" \|\| shown\.kind === "chat"\) \{\n\s*line\.classList\.add\("collapsed"\);/, "a chat row is folded as its row is built");
+  });
+
   // A double click on a row with something under its fold opens it, and the next folds it again;
   // a row whose body fits answers no double click, since there is nothing to open. A single click
   // does nothing to a row — it is what selects a word, and the stamp's click points at the row —
@@ -788,7 +796,7 @@ describe("the script", () => {
   // placeholder has the whole message under its fold by construction: its body is not drawn, so
   // it measures nothing, and the mark is by the class.
   it("marks a folded row as having something to fold by its clamped body's overflow, once it is on the page and at every change of the rows' size", () => {
-    assert.match(script, /function fitFolds\(folded\) \{\n\s*for \(const row of folded\) \{\n\s*if \(!row\.classList\.contains\("collapsed"\)\) continue;\n\s*const body = row\.querySelector\("\.md"\);\n\s*row\.classList\.toggle\("foldable", row\.classList\.contains\("placeholder"\) \|\| body\.scrollHeight > body\.clientHeight\);/, "the clamped body's scroll height against its client height, on the folded rows alone — and a row behind a placeholder by its class");
+    assert.match(script, /function fitFolds\(folded\) \{\n\s*for \(const row of folded\) \{\n\s*if \(!row\.classList\.contains\("collapsed"\)\) continue;\n\s*const body = row\.querySelector\("\.md, \.text"\);\n\s*row\.classList\.toggle\("foldable", row\.classList\.contains\("placeholder"\) \|\| body\.scrollHeight > body\.clientHeight\);/, "the clamped body's scroll height against its client height, on the folded rows alone — and a row behind a placeholder by its class");
     assert.match(script, /if \(line\.classList\.contains\("collapsed"\)\) folded\.push\(line\);\n(?:[^\n]*\n)*?\s*fitFolds\(folded\);\n\s*panel\.shown = about\.rows\.length;/, "the rows a draw appended are measured after they are on the page, once, after the loop");
     assert.match(script, /new ResizeObserver\(\(\) => \{\n(?:[^\n]*\n)*?\s*fitFolds\(rows\.querySelectorAll\("\.msg\.collapsed"\)\);/, "and every folded row again when the rows change size");
   });
@@ -797,7 +805,7 @@ describe("the script", () => {
   // and overheard. What the User typed on a panel and what the User typed to a Worker are shown
   // whole: the renderer gives them other kinds, and the fold is under the three kinds alone.
   it("folds what one Worker said to another like a message to a session or from one, and shows the User's words whole", () => {
-    assert.match(script, /line\.append\(bubble\);\n    if \(shown\.kind === "peer-in" \|\| shown\.kind === "peer-out" \|\| shown\.kind === "overheard"\) \{\n/, "the fold is under the three kinds of a message between sessions, and nothing else");
+    assert.match(script, /line\.append\(bubble\);\n(?:    \/\/[^\n]*\n)?    if \(shown\.kind === "peer-in" \|\| shown\.kind === "peer-out" \|\| shown\.kind === "overheard" \|\| shown\.kind === "chat"\) \{\n/, "the fold is under the three kinds of a message between sessions and the server's own rows, and nothing else");
     const names = { chat: "Server", seat: "Bobby", leader: "Bobby", user: "Copter" };
     const folded = new Set(["peer-in", "peer-out", "overheard"]);
     assert.equal(row({ from: "Bobby", to: "Tom", msg: "m1", text: "go" }, names).kind, "peer-out");
