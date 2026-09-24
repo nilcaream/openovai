@@ -1,0 +1,189 @@
+[
+  {
+    "name": "an Anthropic or OpenAI key is not masked",
+    "catches": "masks an Anthropic or OpenAI key",
+    "edits": [
+      {
+        "file": "lib/mask.mjs",
+        "from": "[\"an Anthropic or OpenAI key\", /",
+        "to": "[\"an Anthropic or OpenAI key\", /(?!)"
+      }
+    ]
+  },
+  {
+    "name": "a GitHub token is not masked",
+    "catches": "masks a GitHub token",
+    "edits": [
+      {
+        "file": "lib/mask.mjs",
+        "from": "[\"a GitHub token\", /",
+        "to": "[\"a GitHub token\", /(?!)"
+      }
+    ]
+  },
+  {
+    "name": "a GitLab token is not masked",
+    "catches": "masks a GitLab token",
+    "edits": [
+      {
+        "file": "lib/mask.mjs",
+        "from": "[\"a GitLab token\", /",
+        "to": "[\"a GitLab token\", /(?!)"
+      }
+    ]
+  },
+  {
+    "name": "a Slack token is not masked",
+    "catches": "masks a Slack token",
+    "edits": [
+      {
+        "file": "lib/mask.mjs",
+        "from": "[\"a Slack token\", /",
+        "to": "[\"a Slack token\", /(?!)"
+      }
+    ]
+  },
+  {
+    "name": "an AWS access key is not masked",
+    "catches": "masks an AWS access key",
+    "edits": [
+      {
+        "file": "lib/mask.mjs",
+        "from": "[\"an AWS access key\", /",
+        "to": "[\"an AWS access key\", /(?!)"
+      }
+    ]
+  },
+  {
+    "name": "a Google API key is not masked",
+    "catches": "masks a Google API key",
+    "edits": [
+      {
+        "file": "lib/mask.mjs",
+        "from": "[\"a Google API key\", /",
+        "to": "[\"a Google API key\", /(?!)"
+      }
+    ]
+  },
+  {
+    "name": "an npm token is not masked",
+    "catches": "masks an npm token",
+    "edits": [
+      {
+        "file": "lib/mask.mjs",
+        "from": "[\"an npm token\", /",
+        "to": "[\"an npm token\", /(?!)"
+      }
+    ]
+  },
+  {
+    "name": "a JWT is not masked",
+    "catches": "masks a JWT",
+    "edits": [
+      {
+        "file": "lib/mask.mjs",
+        "from": "[\"a JWT\", /",
+        "to": "[\"a JWT\", /(?!)"
+      }
+    ]
+  },
+  {
+    "name": "an Authorization header is not masked",
+    "catches": "masks an Authorization header",
+    "edits": [
+      {
+        "file": "lib/mask.mjs",
+        "from": "[\"an Authorization header\", /",
+        "to": "[\"an Authorization header\", /(?!)"
+      }
+    ]
+  },
+  {
+    "name": "a Bearer value is not masked",
+    "catches": "masks a Bearer value",
+    "edits": [
+      {
+        "file": "lib/mask.mjs",
+        "from": "[\"a Bearer value\", /",
+        "to": "[\"a Bearer value\", /(?!)"
+      }
+    ]
+  },
+  {
+    "name": "a URL password is not masked",
+    "catches": "masks a URL password",
+    "edits": [
+      {
+        "file": "lib/mask.mjs",
+        "from": "[\"a URL password\", /",
+        "to": "[\"a URL password\", /(?!)"
+      }
+    ]
+  },
+  {
+    "name": "a URL token user is not masked",
+    "catches": "masks a URL token user",
+    "edits": [
+      {
+        "file": "lib/mask.mjs",
+        "from": "[\"a URL token user\", /",
+        "to": "[\"a URL token user\", /(?!)"
+      }
+    ]
+  },
+  {
+    "name": "a secret assignment is not masked",
+    "catches": "masks a secret assignment",
+    "edits": [
+      {
+        "file": "lib/mask.mjs",
+        "from": "[\"a secret assignment\", new RegExp(`",
+        "to": "[\"a secret assignment\", new RegExp(`(?!)"
+      }
+    ]
+  },
+  {
+    "name": "a secret flag is not masked",
+    "catches": "masks a secret flag",
+    "edits": [
+      {
+        "file": "lib/mask.mjs",
+        "from": "[\"a secret flag\", new RegExp(`",
+        "to": "[\"a secret flag\", new RegExp(`(?!)"
+      }
+    ]
+  },
+  {
+    "name": "an ordinary word counts as a secret's name",
+    "catches": "leaves ordinary commands byte for byte",
+    "edits": [
+      {
+        "file": "lib/mask.mjs",
+        "from": "(?:token|secret|",
+        "to": "(?:token|format|secret|"
+      }
+    ]
+  },
+  {
+    "name": "runtime.log rows are written unmasked",
+    "catches": "masks a session's command in runtime.log",
+    "edits": [
+      {
+        "file": "lib/chat/log.mjs",
+        "from": "for (const line of mask(text).split",
+        "to": "for (const line of String(text).split"
+      }
+    ]
+  },
+  {
+    "name": "admin mode reports permission rules unmasked",
+    "catches": "masks a permission rule in what admin mode reports",
+    "edits": [
+      {
+        "file": "lib/admin.mjs",
+        "from": "${kind} ${mask(rule)}",
+        "to": "${kind} ${rule}"
+      }
+    ]
+  }
+]
