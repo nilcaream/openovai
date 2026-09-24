@@ -174,6 +174,29 @@ describe("a call stop that waits", () => {
   });
 });
 
+// A message queued behind a Worker's last turn, before it stops itself, is never read: the sender
+// is told, with the words, and its panel says so.
+describe("a message to a Worker that stops before reading it", () => {
+  after(async () => {
+    await endEvery(500);
+  });
+
+  it("goes back to the sender as an undelivered event with the words, and a row on its panel", async () => {
+    const { superman } = await pair({ OPENOVAI_STAND_IN_SLOW: "1500", ...callsThen("stop_session", "wrap up") });
+    const paulTurn = tell(WORKER, userFrame("wrap up"));
+    await waitFor(() => (recordOf(WORKER)?.turn !== null ? true : null));
+    const sent = await tool(superman.secret, "message", { to: WORKER, text: "one more order" });
+    assert.equal(sent.text, `sent to ${WORKER}`);
+    assert.equal(recordOf(WORKER).ending, null, "the Worker was already ending: not the case measured");
+    await paulTurn.answered;
+    assert.ok(await gone(WORKER), `${WORKER} did not stop`);
+    const frame = `<server-event type="undelivered" to="${WORKER}">one more order</server-event>`;
+    assert.ok(await waitFor(() => (heardIn(superman.log).includes(frame) ? true : null)), heardIn(superman.log).join("\n"));
+    const row = panel(instance, LEADER).find((one) => one.from === SERVER && one.text === `not delivered: ${WORKER} stopped before reading it`);
+    assert.ok(row !== undefined, JSON.stringify(panel(instance, LEADER).slice(-5)));
+  });
+});
+
 describe("park", () => {
   let superman = null;
   let paul = null;

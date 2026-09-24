@@ -913,7 +913,7 @@ describe("telling a seat", () => {
     const replies = await Promise.all([first.answered, second.answered]);
     assert.deepEqual(replies, [
       { ended: true, text: `${OTHER} ended before answering` },
-      { ended: true, text: `${OTHER} ended before answering` },
+      { ended: true, unread: true, text: `${OTHER} ended before answering` },
     ]);
     assert.equal(running(OTHER), false);
     assert.equal(alive(dying.pid), false);

@@ -1,5 +1,16 @@
 [
   {
+    "name": "a queued turn a process ended before is answered as if it had been read",
+    "catches": "goes back to the sender as an undelivered event with the words, and a row on its panel",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "{ ended: true, unread: true, text: why });",
+        "to": "{ ended: true, text: why });"
+      }
+    ]
+  },
+  {
     "name": "the admin record is thrown away before the Leader has it",
     "catches": "keeps the record when the Leader cannot be started, so the next start still tells it",
     "edits": [

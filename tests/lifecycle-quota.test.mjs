@@ -340,13 +340,13 @@ describe("the quota gate", () => {
     assert.equal(running(WORKER), false);
     assert.equal(readLog(unexpected), spawns, "a successor was started through the closed gate");
     assert.ok(said.includes(`restart ${WORKER} - no successor: stopped, 5h exhausted until ${new Date(resets).toISOString()}`), said.slice(-8).join("\n"));
-    assert.deepEqual(await carried.answered, { ended: true, text: `${WORKER} stopped: the 5h window is exhausted, reset at ${quota.hhmm(resets)}` });
+    assert.deepEqual(await carried.answered, { ended: true, unread: true, text: `${WORKER} stopped: the 5h window is exhausted, reset at ${quota.hhmm(resets)}` });
     assert.ok(!heardIn(superman.log).some((frame) => frame.startsWith('<server-event type="stopped"')), "the Leader was told through a closed gate");
     now = resets + 1;
     tick(chat);
     assert.equal((await told(superman.log, 2)).at(-1), `<server-event type="stopped" who="${WORKER}" why="quota"/>`);
     // Released at the reset to a seat that has no process any more: answered so.
-    assert.deepEqual(await held.answered, { ended: true, text: `${WORKER} has no process` });
+    assert.deepEqual(await held.answered, { ended: true, unread: true, text: `${WORKER} has no process` });
     await settle();
     assert.equal(running(WORKER), false, "a successor was started at the reset");
     assert.equal(readLog(unexpected), spawns);

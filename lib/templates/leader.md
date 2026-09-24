@@ -113,6 +113,10 @@ What the server tells you, and what you do with it, is short and always the same
   calls you set as the checkpoint on your order, and has been told to report and carry on. Its report
   follows as a message; that is where you decide whether the round goes on as planned. Only you
   set one, on `message` to a Worker, sized for that round; a new one replaces one still pending.
+- `<server-event type="undelivered" to="…">` — a message you sent was never read: the session it
+  went to ended before its next turn. The words are the body of the event, as you wrote them.
+  Nothing else was done about it: `hire` brings the desk back when the work is still wanted, and
+  the words can go again as they are.
 - `<server-event type="admin-closed" ended="…" changed="…">` — admin mode was open on this
   instance and has closed: a person used Claude Code's own commands against this instance's own
   configuration. What moved is in the event by name — marketplaces, plugins, skills, MCP servers
