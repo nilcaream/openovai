@@ -231,13 +231,13 @@
     ]
   },
   {
-    "name": "the Worker's panel gets the report a second time once it was sent",
-    "catches": "tells the Worker that a report once sent is one line on its own panel, never the report again",
+    "name": "the Worker closes a sent report with a line saying so",
+    "catches": "tells the Worker that a report once sent ends the turn with no text, never the report again",
     "edits": [
       {
         "file": "lib/templates/worker.md",
-        "from": "your panel gets one line — `Reported to {{LEADER}}.` — and never the report again, since",
-        "to": "your panel gets one line — `Reported to {{LEADER}}.` — and the report under it, since"
+        "from": "the turn ends there with no text at all — not a line saying so, and never the report",
+        "to": "the turn ends there with one line — `Reported to {{LEADER}}.` — and never the report"
       }
     ]
   },

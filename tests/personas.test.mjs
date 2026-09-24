@@ -294,8 +294,8 @@ describe("what a Worker is told", () => {
     assert.match(worker(), new RegExp(`a report ${LEAD} is\\s+waiting for is a \`message\` to ${LEAD}, never the last line of your turn`));
   });
 
-  it("tells the Worker that a report once sent is one line on its own panel, never the report again", () => {
-    assert.match(worker(), new RegExp(`your panel gets one line — \`Reported to ${LEAD}\\.\` — and never the report again`));
+  it("tells the Worker that a report once sent ends the turn with no text, never the report again", () => {
+    assert.match(worker(), /the turn ends there with no text at all — not a line saying so, and never the report\s+again/);
     assert.match(worker(), new RegExp(`what you say on your own panel is for what\\s+${USER} typed there`));
   });
 
