@@ -6,17 +6,58 @@ carries only its own.
 
 ## 0.18.0
 
-**A seat waits for you while you type to it.** When a Worker's message or a server event
-arrives for a seat while you are typing in that seat's box, the seat does not start on it straight
-away: it waits until you send your line — which then goes in with it, as one turn, in the order
-they arrived — or until you stop typing. Your own line is never held, a turn already under way runs
-on, and only the seat whose box you type in waits. Two settings under `typing` in
-`openovai.json`, in seconds: `quiet` (10) is how long after your last keystroke you still count
-as typing, so words left in a box you walked away from hold nothing, and `cap` (30) is the
-longest a waiting turn is held, counted from when it started waiting, however long you keep
-typing. `0` in either turns the hold off, and a change takes effect at `ovai restart`. In
-`runtime.log` a hold is a `held <seat> - typing` row, and the `wrote` row that ends it says how
-long it held and what ended it: `user`, `quiet` or `cap`.
+**A seat waits for you while you type to it.** When something arrives for a seat — a Worker's
+message, a server event — while you are typing in that seat's box, the seat does not start on it
+straight away: it waits until you send your line or stop typing, so what you were about to say goes
+in with it instead of landing behind a turn spent on something else.
+
+What is held, and what is not:
+
+- Only a turn made of Worker messages and server events, and only before it begins. A turn already
+  under way runs on: the server cannot pause a session between its own tool calls.
+- Your own line is never held. Pressing Enter takes whatever is waiting in with it, as one turn,
+  in the order it all arrived.
+- Only the seat whose box you are typing in. Every other seat carries on as before.
+- A keystroke counts, text sitting in the box does not: a box you walked away from with words
+  still in it holds nothing once the quiet has run out.
+
+Two settings, under `typing` in `openovai.json`, both in seconds:
+
+```json
+"typing": { "quiet": 10, "cap": 30 }
+```
+
+- `quiet` (10) — how long after your last keystroke you still count as typing. The page tells the
+  server about a keystroke at most once every two seconds, so the quiet is counted from the last
+  keystroke the server heard, which can be up to two seconds before your real last one. A `quiet`
+  under two seconds therefore holds only in patches.
+- `cap` (30) — the longest a waiting turn is held, counted from when it started waiting (the
+  moment it would otherwise have begun), however long you keep typing. Once it goes in and its turn
+  ends, the next thing that arrives while you are still typing can be held again, for a fresh cap.
+- `0` in either one turns the hold off. A value that is not a number, or is below 0, is taken as the
+  default.
+- The server reads `openovai.json` when it starts: a change takes effect at `ovai restart`.
+
+A timeline with the defaults, on the Leader's panel:
+
+1. **Typing, a message arrives, Enter.** You start typing at 14:00:00. At 14:00:04 a Worker's
+   message arrives and the Leader, idle, does not start on it. At 14:00:09 you press Enter: your
+   line and the message go in together as one turn, the message first because it arrived first.
+2. **Typing stops without sending.** You type from 14:00:00 to 14:00:03 and stop, the words left in
+   the box. At 14:00:04 a Worker's message arrives and is held. Ten seconds after the last
+   keystroke the server heard, at about 14:00:13, it goes in on its own.
+3. **Typing past the cap.** You type without a pause from 14:00:00. At 14:00:04 a Worker's message
+   arrives and is held. At 14:00:34 the cap is reached and it goes in while you are still typing.
+   When you send your line it reaches that turn the way any line of yours does: at the turn's next
+   tool call, or after the turn if none is left.
+
+What `runtime.log` shows, one row when a hold starts and the usual `wrote` row when it ends, with
+how long it held and what ended it — `user` (your line), `quiet` or `cap`:
+
+```
+held <seat> - typing, 1 waiting
+wrote <seat> - queue x2 (#41..#42: message, user), 0 waiting, after typing held 5.0s (user)
+```
 
 ## 0.17.0
 
