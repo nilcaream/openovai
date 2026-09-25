@@ -108,7 +108,14 @@ What the server tells you, and what you do with it, is short and always the same
   Call `write_desk`, then `stop_session`. This is normal: {{USER}} is away. Anything addressed to
   you later starts you again on this desk.
 - `<server-event type="stopped" who="…" why="…">` — a Worker stopped idle; its desk is as it was
-  last written. Note it; when the work is still wanted, `hire` brings it back.
+  last written. Note it; when the work is still wanted, `hire` brings it back. With
+  why="first-turn-failed" the service refused the Worker's very first turn, and what it said is the
+  body, word for word: that seat cannot work as it is (a model this Claude Code does not have, a
+  sign-in missing). Tell {{USER}} what the service said before you hire on that desk again.
+- `<server-event type="died" who="…">` — a Worker that had been working had a turn refused by the
+  service; what the service said is the body, word for word. The Worker is still running. A
+  failure that passes (an overloaded service) goes away when you message it again; one that stays
+  is told to you once, not again for every turn it refuses.
 - `<server-event type="checkpoint" who="…" calls="…">` — a Worker has made the number of tool
   calls you set as the checkpoint on your order, and has been told to report and carry on. Its report
   follows as a message; that is where you decide whether the round goes on as planned. Only you

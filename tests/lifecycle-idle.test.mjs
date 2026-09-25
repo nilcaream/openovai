@@ -141,6 +141,41 @@ describe("idle", () => {
     assert.equal(deskTitle(instance, WORKER), "stop_session by the stand-in");
   });
 
+  // What the service says when it will not take a turn at all, as Claude Code passes it on: the
+  // sentence is the only thing that names what to do about it.
+  const DEAD = "There's an issue with the selected model (claude-opus-9-9). It may not exist or you may not have access to it.";
+
+  // A seat whose first turn dies has never worked and never will: it is ended, and the Leader
+  // learns it through the event it already knows, the service's sentence as the body.
+  it("tells the Leader a Worker stopped when its first turn came back an error, in the service's own words", async () => {
+    ({ superman, paul } = await pair({ OPENOVAI_STAND_IN_FAILS: "1", OPENOVAI_STAND_IN_REPLY: DEAD }));
+    const going = asked(superman.secret, WORKER, "go").catch(() => null);
+    assert.ok(await gone(WORKER), `${WORKER} was not ended`);
+    assert.deepEqual(await told(superman.log, 1), [`<server-event type="stopped" who="${WORKER}" why="first-turn-failed">${DEAD}</server-event>`]);
+    assert.ok(said.includes(`died ${WORKER} - ${DEAD}`), said.slice(-6).join("\n"));
+    await going;
+  });
+
+  // A seat that has worked may be over a failure that passes: it lives, and the Leader is told
+  // once for a run of dead turns and decides. The idle clock stays where the last answered turn
+  // left it, so a seat whose turns all die still drifts to the idle ending.
+  it("keeps a Worker whose later turns die, tells the Leader once for the run, and leaves the idle clock alone", async () => {
+    ({ superman, paul } = await pair({ OPENOVAI_STAND_IN_FAILS: "[false, true, true]", OPENOVAI_STAND_IN_REPLY: DEAD }));
+    assert.equal((await asked(superman.secret, WORKER, "go")).reply, DEAD);
+    const idleSince = recordOf(WORKER).idleSince;
+    const from = said.length;
+    now = now + 20 * MINUTE;
+    await asked(superman.secret, WORKER, "again").catch(() => null);
+    assert.ok(await waitFor(() => (said.slice(from).includes(`died ${WORKER} - ${DEAD}`) ? true : null)), said.slice(from).join("\n"));
+    assert.deepEqual(await told(superman.log, 1), [`<server-event type="died" who="${WORKER}">${DEAD}</server-event>`]);
+    await asked(superman.secret, WORKER, "once more").catch(() => null);
+    assert.ok(await waitFor(() => (said.slice(from).filter((row) => row === `died ${WORKER} - ${DEAD}`).length === 2 ? true : null)), said.slice(from).join("\n"));
+    await settle();
+    assert.equal(heardIn(superman.log).length, 1, "the Leader was told again within one run of dead turns");
+    assert.equal(recordOf(WORKER).idleSince, idleSince, "a dead turn put the idle clock back to now");
+    assert.equal(running(WORKER), true);
+  });
+
   it("a seat on a turn is not idle, however long the turn: a pending permission at 55 gets no critical frame", async () => {
     // The ask stays pending for as long as the checks below need it: two clock jumps, two ticks
     // and a settle. Waiting longer than that proves nothing further.

@@ -4,6 +4,20 @@ For the Leader of a workspace taking this version. Short, and about what is diff
 working there — not a developer changelog. A section per release, newest first; a release page
 carries only its own.
 
+## 0.19.0
+
+**A Worker the service refuses no longer sits there looking well.** A turn can come back from the
+service refused: a model this Claude Code does not have, a sign-in missing, the service down.
+Every time that happens, the service's own words go in the log as a `died` row. From there:
+
+- If it is the Worker's very first turn, the Worker has never worked and cannot. It is ended at
+  once, and the Leader is told why in the service's own words, through the `stopped` event with
+  why="first-turn-failed".
+- If the Worker has worked before, it keeps running, since the failure may pass. The Leader is told
+  once, through the new `died` event, and is not told again until the Worker has answered a turn.
+- A refused turn does not count as activity. A Worker whose every turn is refused still reaches the
+  idle ending instead of sitting until somebody notices.
+
 ## 0.18.0
 
 **A seat waits for you while you type to it.** When something arrives for a seat — a Worker's

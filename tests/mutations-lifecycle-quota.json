@@ -153,8 +153,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "    if (holding === null) {\n      startSuccessor(instance, seat, carried, context);\n      return;\n    }",
-        "to": "    startSuccessor(instance, seat, carried, context);\n    if (holding === null) {\n      return;\n    }"
+        "from": "    if (holding === null) {\n      startSuccessor(instance, seat, carried, context, spoke);\n      return;\n    }",
+        "to": "    startSuccessor(instance, seat, carried, context, spoke);\n    if (holding === null) {\n      return;\n    }"
       }
     ]
   },

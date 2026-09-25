@@ -1488,10 +1488,46 @@ describe("what the User types", () => {
     assert.deepEqual(said.map((row) => [row.text, row.failed]), [["Not logged in · Please run /login", true]], "the failed words landed twice, or not as failed");
   });
 
+  // A run the service will not take at all — a model this Claude Code has not got, a key that is
+  // not there — answers every turn as an error. The words it said are the only thing that says
+  // what to do about it, so they go in the log as they came; and a seat whose very first turn came
+  // back that way has never worked and never will, so it is ended rather than left looking well.
+  const DEAD = "API Error: 400 Claude Code 2.1.278 does not support this model";
+
+  it("ends a seat whose first turn came back an error from the service, saying what the service said", async () => {
+    if (running(WORKER)) await endSeat(WORKER, 500);
+    remove(panelFile(instance, WORKER));
+    const from = said.length;
+    paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_FAILS: "1", OPENOVAI_STAND_IN_REPLY: DEAD });
+    const answered = await page("POST", `/sessions/${WORKER}/message`, { text: "go" });
+    assert.deepEqual(JSON.parse(answered.body), { delivered: true, leaderTold: true });
+    assert.ok(await waitFor(() => (running(WORKER) ? null : true)), `${WORKER} was left running`);
+    assert.ok(said.slice(from).includes(`died ${WORKER} - ${DEAD}`), said.slice(from).join("\n"));
+  });
+
+  // A seat that has answered before is a seat that works: one turn the service refused is a row
+  // and nothing else. Ending it there would cost a round's work over a failure that passes.
+  it("keeps a seat whose later turn came back an error: the words are logged and the seat lives", async () => {
+    if (running(WORKER)) await endSeat(WORKER, 500);
+    remove(panelFile(instance, WORKER));
+    const from = said.length;
+    paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_FAILS: "[false, true]", OPENOVAI_STAND_IN_REPLY: DEAD });
+    await page("POST", `/sessions/${WORKER}/message`, { text: "go" });
+    await waitFor(() => (panel(instance, WORKER).some((row) => row.from === WORKER) ? true : null));
+    await page("POST", `/sessions/${WORKER}/message`, { text: "again" });
+    assert.ok(await waitFor(() => (said.slice(from).includes(`died ${WORKER} - ${DEAD}`) ? true : null)), said.slice(from).join("\n"));
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    assert.equal(running(WORKER), true, "a seat that had already answered was ended by one failed turn");
+  });
+
   // A Leader whose process is gone leaves one row on its panel saying so — between what that
   // session said and what the next one will say — and the next one is a fresh run: no resume, no
   // continue, nothing of the context it had; the desk is its only memory.
   it("leaves one row on the Leader's panel when its process is gone, and starts a fresh one for the event, the event its first line", async () => {
+    // The Worker it posts to is its own: the checks above leave a seat whose turns die at the
+    // service, and such a seat is now one that ends.
+    if (running(WORKER)) await endSeat(WORKER, 500);
+    paul = await seatUp(WORKER);
     const rows = panel(instance, LEADER).length;
     await endSeat(LEADER, 500);
     assert.equal(running(LEADER), false);
@@ -1501,7 +1537,7 @@ describe("what the User types", () => {
     assert.equal(hasLeft(LEADER), `${LEADER} has left — the next message starts a fresh session`);
     const spawned = await spawnedBy(LEADER, () => page("POST", `/sessions/${WORKER}/message`, { text: "carry on" }));
     assert.deepEqual(JSON.parse(spawned.result.body), { delivered: true, leaderTold: true });
-    assert.equal((await told(paul.log, 2)).at(-1), "<user>carry on</user>");
+    assert.equal((await told(paul.log, 1)).at(-1), "<user>carry on</user>");
     assert.deepEqual(await told(spawned.log, 1), [`<server-event type="user-typed" who="${WORKER}">carry on</server-event>`]);
     const argv = callsIn(spawned.log)[0];
     assert.ok(!/--resume|--continue/.test(argv), argv);

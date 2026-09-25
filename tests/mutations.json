@@ -345,8 +345,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "    gone(\n      record.ending === \"restart\"\n        ? `${seat} restarted`\n        : record.err.trim() === \"\"\n          ? `${seat} ended before answering`\n          : record.err.trim(),\n      signal ?? `exit ${code}`,\n    );",
-        "to": "    gone(record.ending === \"restart\" ? `${seat} restarted` : `${seat} ended before answering`, signal ?? `exit ${code}`);"
+        "from": "    gone(\n      record.ending === \"restart\"\n        ? `${seat} restarted`\n        : record.diedOf !== null\n          ? record.diedOf\n          : record.err.trim() === \"\"\n            ? `${seat} ended before answering`\n            : record.err.trim(),\n      signal ?? `exit ${code}`,\n    );",
+        "to": "    gone(record.ending === \"restart\" ? `${seat} restarted` : record.diedOf !== null ? record.diedOf : `${seat} ended before answering`, signal ?? `exit ${code}`);"
       }
     ]
   },
@@ -867,8 +867,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "function afterClose(instance, { seat, role, ending, carried, context = null }) {\n  seatChanged(instance, seat);",
-        "to": "function afterClose(instance, { seat, role, ending, carried, context = null }) {"
+        "from": "function afterClose(instance, { seat, role, ending, carried, context = null, why = \"\", spoke = false }) {\n  seatChanged(instance, seat);",
+        "to": "function afterClose(instance, { seat, role, ending, carried, context = null, why = \"\", spoke = false }) {"
       }
     ]
   },
@@ -878,8 +878,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "function afterClose(instance, { seat, role, ending, carried, context = null }) {\n  seatChanged(instance, seat);",
-        "to": "function afterClose(instance, { seat, role, ending, carried, context = null }) {\n  if (role === WORKER) {\n    seatChanged(instance, seat);\n  }"
+        "from": "function afterClose(instance, { seat, role, ending, carried, context = null, why = \"\", spoke = false }) {\n  seatChanged(instance, seat);",
+        "to": "function afterClose(instance, { seat, role, ending, carried, context = null, why = \"\", spoke = false }) {\n  if (role === WORKER) {\n    seatChanged(instance, seat);\n  }"
       }
     ]
   },
@@ -1842,6 +1842,28 @@
         "file": "lib/chat/server.mjs",
         "from": "    if (shownEndings.has(reply)) {\n      return;\n    }\n",
         "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a first turn dead at the service leaves the seat sitting",
+    "catches": "ends a seat whose first turn came back an error from the service, saying what the service said",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "          record.ending = \"first-turn-failed\";\n          record.diedOf = answer.text;\n          end(seat);\n          return;\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a turn dead at the service ends the seat whether or not it has ever answered",
+    "catches": "keeps a seat whose later turn came back an error: the words are logged and the seat lives",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "        if (dead && !record.spoke) {",
+        "to": "        if (dead) {"
       }
     ]
   }

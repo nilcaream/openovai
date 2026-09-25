@@ -389,8 +389,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "    ended({ seat, role, ending: record.ending, exit, carried, why, context: record.context });",
-        "to": "    ended({ seat, role, ending: record.ending, exit, carried, why });"
+        "from": "    ended({ seat, role, ending: record.ending, exit, carried, why, context: record.context, spoke: record.spoke });",
+        "to": "    ended({ seat, role, ending: record.ending, exit, carried, why, spoke: record.spoke });"
       }
     ]
   },
@@ -400,8 +400,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "    const born = serverTurn(serverEvent(\"restarted\", {}, BODY_RESTARTED), clockOf(instance)());\n    startSeat(instance, seat, { queue: [...carried, born] });",
-        "to": "    startSeat(instance, seat, { queue: carried });"
+        "from": "    const born = serverTurn(serverEvent(\"restarted\", {}, BODY_RESTARTED), clockOf(instance)());\n    startSeat(instance, seat, { queue: [...carried, born], spoke });",
+        "to": "    startSeat(instance, seat, { queue: carried, spoke });"
       }
     ]
   },
@@ -411,8 +411,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "    startSeat(instance, seat, { queue: [...carried, born] });",
-        "to": "    startSeat(instance, seat, { queue: [born, ...carried] });"
+        "from": "    startSeat(instance, seat, { queue: [...carried, born], spoke });",
+        "to": "    startSeat(instance, seat, { queue: [born, ...carried], spoke });"
       }
     ]
   },

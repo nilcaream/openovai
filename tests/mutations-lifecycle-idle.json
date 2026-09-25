@@ -120,8 +120,52 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "        record.said = 0;\n        record.open.clear();\n        record.idleSince = clock();\n        record.idleTold = 0;",
-        "to": "        record.said = 0;\n        record.open.clear();\n        record.idleTold = 0;"
+        "from": "        if (!dead) {\n          // A turn that died at the service is not a turn taken. The idle clock is the only one\n          // that would ever notice a seat which can no longer work, so a death must not refresh\n          // it: a seat whose turns all die drifts to the idle ending instead of sitting for ever.\n          record.idleSince = clock();\n          record.idleTold = 0;",
+        "to": "        if (!dead) {\n          // A turn that died at the service is not a turn taken. The idle clock is the only one\n          // that would ever notice a seat which can no longer work, so a death must not refresh\n          // it: a seat whose turns all die drifts to the idle ending instead of sitting for ever.\n          record.idleTold = 0;"
+      }
+    ]
+  },
+  {
+    "name": "the Leader is told nothing when a hire's first turn dies at the service",
+    "catches": "tells the Leader a Worker stopped when its first turn came back an error, in the service's own words",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "  if (role === WORKER && ending === \"first-turn-failed\") {\n    deliver(instance, leaderOf(instance), serverEvent(\"stopped\", { who: seat, why: ending }, why));\n  }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "every dead turn of a run is told, not the first alone",
+    "catches": "keeps a Worker whose later turns die, tells the Leader once for the run, and leaves the idle clock alone",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "        if (dead && !record.deathTold) {",
+        "to": "        if (dead) {"
+      }
+    ]
+  },
+  {
+    "name": "a dead turn puts the idle clock back to now",
+    "catches": "keeps a Worker whose later turns die, tells the Leader once for the run, and leaves the idle clock alone",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "        if (!dead) {\n          // A turn that died at the service is not a turn taken.",
+        "to": "        if (true) {\n          // A turn that died at the service is not a turn taken."
+      }
+    ]
+  },
+  {
+    "name": "the Leader is not told when a working Worker's turn dies",
+    "catches": "keeps a Worker whose later turns die, tells the Leader once for the run, and leaves the idle clock alone",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "        deliver(instance, leaderOf(instance), serverEvent(\"died\", { who: seat }, text));",
+        "to": ""
       }
     ]
   }
