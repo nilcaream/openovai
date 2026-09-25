@@ -152,6 +152,7 @@
   .msg.overheard .bubble { background: var(--typed); border-color: var(--typed-line); overflow-wrap: anywhere; }
   /* the message a click on a line found, lit for a moment */
   .msg.focus .bubble { outline: 2px solid var(--accent); }
+  .msg .text a.ref { cursor: pointer; color: var(--accent); text-decoration: underline; }
   /* a message between sessions — to one, from one, or between two Workers — is one line of its markdown, cut with an ellipsis, until a double click opens it */
   .msg.collapsed .md, .msg.collapsed .text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }
   /* a folded message whose markdown opens with something other than a paragraph — a table, a list, a code block, a heading,
@@ -252,8 +253,9 @@
   // draws it and carries what is typed and pressed to the server.
 
   import { answerOf, dialogOf } from "./dialog.mjs";
-  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title, typingBeat } from "./panels.mjs";
+  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, insertRef, stopEnabled, title, typingBeat } from "./panels.mjs";
   import { collapsed, dayPillBefore, row as rowOf } from "./render.mjs";
+  import { refTo, references } from "./refs.mjs";
 
   const secret = document.querySelector('meta[name="openovai-secret"]').content;
 
@@ -566,8 +568,6 @@
       call(`/sessions/${encodeURIComponent(name)}/stop`, { method: "POST" }).catch(() => {});
     });
     composer.append(box, stop);
-    // The rows a click on a stamp pointed at, token to spelling; what is sent carries the spelling.
-    const refs = new Map();
     // When the server was last told a key went in, for the typing hold: a key that changes what is
     // in the box is told, at most once a beat, and nothing else is.
     let beat = null;
@@ -586,7 +586,7 @@
       if (box.value.trim() === "") {
         return;
       }
-      const text = spellReferences(refs, box.value);
+      const text = box.value;
       box.value = "";
       autosize();
       call(`/sessions/${encodeURIComponent(name)}/message`, {
@@ -610,8 +610,9 @@
     // `waiting` the element of every row of the User's not yet delivered, by its index, for the
     // delivery to find its row; `day` the day of the row drawn last, for the pill between two days;
     // `drawn` the card of every question on the panel, by the id of its request; `doing` the one
-    // line that says what the seat is at, while there is one.
-    return { name, section, nameLine, info, word, fitPlaceholder, facts, composer, stop, rows, cards, jump, box, refs, view, keep, shown: 0, day: null, drawn: new Map(), loading: false, last: null, lines: new Map(), waiting: new Map(), doing: null };
+    // line that says what the seat is at, while there is one; `bubbles` the element of every stamped
+    // row by its index, for a reference in a User's row to find the row it names.
+    return { name, section, nameLine, info, word, fitPlaceholder, facts, composer, stop, rows, cards, jump, box, view, keep, shown: 0, day: null, drawn: new Map(), loading: false, last: null, lines: new Map(), bubbles: new Map(), waiting: new Map(), doing: null };
   }
 
   // When a row was written, in the reader's own zone: `2026.09.13 Sunday 23:17:05` on the row, the
@@ -686,17 +687,35 @@
     return element;
   }
 
-  // A click on a stamp points at its row from the panel's composer: the token goes into the box,
-  // after a space when the box has words already, and the box takes the next keystroke.
+  // A click on a stamp points at its row from the panel's composer: the reference goes into the box
+  // where the cursor is (insertRef), the cursor goes after it, and the box takes the next keystroke.
   const REFERENCE = "click to reference this message in your reply";
 
-  function pointAt(panel, time, who, body) {
-    const token = reference(panel.refs, time.dataset.whole, who, body.textContent);
-    if (token === null) return;
-    const typed = panel.box.value;
-    panel.box.value = `${typed}${typed !== "" && !/\s$/.test(typed) ? " " : ""}${token} `;
-    panel.box.dispatchEvent(new Event("input"));
-    if (!panel.box.disabled) panel.box.focus();
+  function pointAt(panel, at) {
+    const box = panel.box;
+    const put = insertRef(box.value, box.selectionStart, box.selectionEnd, refTo(at));
+    box.value = put.value;
+    box.setSelectionRange(put.caret, put.caret);
+    box.dispatchEvent(new Event("input"));
+    if (!box.disabled) box.focus();
+  }
+
+  // The User's words with every reference that names a drawn row as a link to it; the rest, and a
+  // reference that names nothing drawn, as typed.
+  function linkedText(body, text, rows, index, panel) {
+    let from = 0;
+    for (const ref of references(rows, index, text)) {
+      const target = ref.index === null ? undefined : panel.bubbles.get(ref.index);
+      if (target === undefined) continue;
+      body.append(text.slice(from, ref.start));
+      const link = document.createElement("a");
+      link.className = "ref";
+      link.textContent = text.slice(ref.start, ref.end);
+      link.addEventListener("click", () => focusRow(panel, target));
+      body.append(link);
+      from = ref.end;
+    }
+    body.append(text.slice(from));
   }
 
   // A tool call is a light line, not a bubble: the summary as the element's own text, a counter
@@ -729,9 +748,17 @@
     const leader = sections.get(state.leader);
     const found = leader === undefined ? null : leader.rows.querySelector(`.msg[data-msg="${id}"]`);
     if (found === null) return;
+    focusRow(leader, found);
+  }
+
+  // A row found from a click elsewhere — a message's other end, a reference — opened, brought into
+  // view with its label at the top, and lit for a moment. A row the panel has let go since is
+  // nothing to do.
+  function focusRow(panel, found) {
+    if (!found.isConnected) return;
     found.classList.remove("collapsed");
     found.scrollIntoView({ block: "start" });
-    for (const lit of leader.rows.querySelectorAll(".msg.focus")) lit.classList.remove("focus");
+    for (const lit of panel.rows.querySelectorAll(".msg.focus")) lit.classList.remove("focus");
     found.classList.add("focus");
     setTimeout(() => found.classList.remove("focus"), FOCUS_FOR);
   }
@@ -749,7 +776,7 @@
   // it too — the waiting words beside the label, on a dashed ground, then the delivered glyph
   // beside the stamp — read off the row and the panel's state at the draw, and every stamp is a
   // click that points at its row from the panel's composer.
-  function rowElement(entry, shown, panel) {
+  function rowElement(entry, shown, panel, rows, index) {
     if (shown.kind === "line") return lineElement(shown);
     if (shown.kind === "divider") return pill(shown.text);
     const line = document.createElement("div");
@@ -798,6 +825,9 @@
       body.innerHTML = shown.html;
       if (shown.tight === true) body.classList.add("tight");
       for (const block of body.querySelectorAll("pre")) block.append(copyButton());
+    } else if (shown.kind === "user") {
+      body.className = "text";
+      linkedText(body, shown.text, rows, index, panel);
     } else {
       body.className = "text";
       body.textContent = shown.text;
@@ -819,8 +849,10 @@
         bubble.append(fold);
       }
     }
-    time.title = REFERENCE;
-    time.addEventListener("click", () => pointAt(panel, time, shown.who, body));
+    if (entry.at !== undefined) {
+      time.title = REFERENCE;
+      time.addEventListener("click", () => pointAt(panel, entry.at));
+    }
     return line;
   }
 
@@ -1048,6 +1080,7 @@
         panel.lines.clear();
         panel.waiting.clear();
         panel.doing = null;
+        panel.bubbles.clear();
         // The cards are not among the rows: they stand, and leave when their question does.
       }
       // Whether any row landed — a bubble, a pill, a tool line, or a repeated call that only grew
@@ -1086,7 +1119,7 @@
             panel.lines.set(index, panel.last.el);
             continue;
           }
-          const line = rowElement(entry, shown, panel);
+          const line = rowElement(entry, shown, panel, about.rows, index);
           panel.rows.append(line);
           landed = true;
           if (shown.kind === "line") {
@@ -1095,6 +1128,7 @@
           } else {
             panel.last = null;
             if (shown.kind === "user" && !shown.delivered) panel.waiting.set(index, line);
+            panel.bubbles.set(index, line);
           }
           const time = line.querySelector(".t");
           if (time !== null) added.push(time);

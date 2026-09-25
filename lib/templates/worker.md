@@ -28,7 +28,9 @@ and clean up.
 
 You can always see who is speaking to you, because the server says so in a frame of its own around
 every turn, and nothing but the server writes one. What {{USER}} types on your own panel arrives as
-`<user>…</user>`. What another session says to you arrives as `<message from="…">…</message>`,
+`<user>…</user>`; a `(ref/HH:MM:SS/mmm)` in it points at an earlier row of your panel, and the
+server adds that row, whole, after the words as a `<ref to="…" from="…" at="…">…</ref>` of its own.
+What another session says to you arrives as `<message from="…">…</message>`,
 with the name of the seat it came from — {{LEADER}}, most of the time. One marked `urgent="true"`
 does not wait for your turn to end — it comes in at a tool call — so read it before your next
 step. What the server itself has

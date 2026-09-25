@@ -5,7 +5,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { AMBER, CARD, CONNECTED, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, LATE_AFTER, RED, REPLY, LINE_QUEUE, SENDING, SHOWN_FOR, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title, typingBeat, TYPING_BEAT } from "../lib/chat/panels.mjs";
+import { AMBER, CARD, CONNECTED, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, LATE_AFTER, RED, REPLY, LINE_QUEUE, SENDING, SHOWN_FOR, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, insertRef, stopEnabled, title, typingBeat, TYPING_BEAT } from "../lib/chat/panels.mjs";
+import { localAt, refTo, references } from "../lib/chat/refs.mjs";
 
 const LEADER = "Leader";
 
@@ -449,44 +450,53 @@ describe("telling the server a key went into the box", () => {
   });
 });
 
+describe("a reference going into the box", () => {
+  it("goes in at the cursor with a space on either side, the cursor after it", () => {
+    assert.deepEqual(insertRef("", 0, 0, "(ref/15:08:11/123)"), { value: "(ref/15:08:11/123) ", caret: 19 });
+    assert.deepEqual(insertRef("I agree. more", 8, 8, "(ref/15:08:11/123)"), { value: "I agree. (ref/15:08:11/123) more", caret: 28 }, "a space follows already: none added, the cursor after it");
+    assert.deepEqual(insertRef("ab", 1, 1, "(ref/15:08:11/123)"), { value: "a (ref/15:08:11/123) b", caret: 21 });
+    assert.deepEqual(insertRef("I agree", 7, 7, "(ref/15:08:11/123)"), { value: "I agree (ref/15:08:11/123) ", caret: 27 });
+  });
+
+  it("takes the place of what is selected", () => {
+    assert.deepEqual(insertRef("see XX now", 4, 6, "(ref/15:08:11/123)"), { value: "see (ref/15:08:11/123) now", caret: 23 });
+  });
+});
+
 describe("a reference to a row", () => {
-  it("is the day and the clock of the stamp, the weekday dropped, spelled out as the clock, the speaker and the first line of the row", () => {
-    const refs = new Map();
-    assert.equal(reference(refs, "2026.09.14 Monday 14:39:14", "Paul", "  hello   there\nand more"), "(ref:2026.09.14-14:39:14)");
-    assert.deepEqual([...refs], [["(ref:2026.09.14-14:39:14)", '14:39:14 Paul — "hello there"']]);
+  // Local times, so the checks read the same on any machine's zone.
+  const at = (h, m, s, ms, day = 25) => new Date(2026, 8, day, h, m, s, ms).toISOString();
+
+  it("is the local time to the millisecond, zero-padded to one length", () => {
+    assert.equal(refTo(at(15, 8, 11, 123)), "(ref/15:08:11/123)");
+    assert.equal(refTo(at(1, 2, 3, 4)), "(ref/01:02:03/004)");
+    assert.equal(localAt(at(15, 8, 11, 123)), "2026-09-25T15:08:11.123");
   });
 
-  it("cuts the quote at eighty characters with an ellipsis, and at eighty exactly keeps it whole", () => {
-    const refs = new Map();
-    const long = "x".repeat(81);
-    reference(refs, "2026.09.14 Monday 14:39:14", "Paul", long);
-    assert.equal(refs.get("(ref:2026.09.14-14:39:14)"), `14:39:14 Paul — "${"x".repeat(80)}…"`);
-    reference(refs, "2026.09.14 Monday 14:39:15", "Paul", "y".repeat(80));
-    assert.equal(refs.get("(ref:2026.09.14-14:39:15)"), `14:39:15 Paul — "${"y".repeat(80)}"`);
+  it("names the nearest earlier row with that time, over midnight too, and nothing for a time no row has", () => {
+    const rows = [
+      { at: at(23, 59, 1, 500, 24), from: "Anna", text: "yesterday" },
+      { at: at(15, 8, 11, 123), from: "Anna", text: "first" },
+      { at: at(15, 8, 11, 123), from: "Bobby", text: "same millisecond" },
+      { at: at(0, 1, 0, 0), from: "user", text: "(ref/23:59:01/500) and (ref/15:08:11/123) and (ref/09:00:00/000)" },
+    ];
+    const found = references(rows, 3, rows[3].text);
+    assert.deepEqual(found.map(({ to, index }) => ({ to, index })), [
+      { to: "23:59:01/500", index: 0 },
+      { to: "15:08:11/123", index: 2 },
+      { to: "09:00:00/000", index: null },
+    ]);
+    assert.deepEqual(found.map(({ start, end }) => rows[3].text.slice(start, end)), ["(ref/23:59:01/500)", "(ref/15:08:11/123)", "(ref/09:00:00/000)"]);
   });
 
-  it("numbers a second row in the same second rather than pointing at the first, and gives the same row its token again", () => {
-    const refs = new Map();
-    assert.equal(reference(refs, "2026.09.14 Monday 14:39:14", "Paul", "one"), "(ref:2026.09.14-14:39:14)");
-    assert.equal(reference(refs, "2026.09.14 Monday 14:39:14", "Paul", "two"), "(ref:2026.09.14-14:39:14#2)");
-    assert.equal(reference(refs, "2026.09.14 Monday 14:39:14", "Paul", "three"), "(ref:2026.09.14-14:39:14#3)");
-    assert.equal(reference(refs, "2026.09.14 Monday 14:39:14", "Paul", "one"), "(ref:2026.09.14-14:39:14)", "the same row again is the same token");
-    assert.equal(refs.size, 3);
-  });
-
-  it("is nothing for a stamp with less than a day and a clock on it", () => {
-    const refs = new Map();
-    assert.equal(reference(refs, "14:39:14", "Paul", "one"), null);
-    assert.equal(reference(refs, "", "Paul", "one"), null);
-    assert.equal(refs.size, 0);
-  });
-
-  it("is spelled out on send from the table, and a token the table has not got goes as it is", () => {
-    const refs = new Map();
-    reference(refs, "2026.09.14 Monday 14:39:14", "Paul", "one");
-    reference(refs, "2026.09.14 Monday 14:39:14", "Paul", "two");
-    assert.equal(spellReferences(refs, "see (ref:2026.09.14-14:39:14) and (ref:2026.09.14-14:39:14#2), not (ref:2026.09.13-01:02:03)"), 'see (ref: 14:39:14 Paul — "one") and (ref: 14:39:14 Paul — "two"), not (ref:2026.09.13-01:02:03)');
-    assert.equal(spellReferences(refs, "nothing here"), "nothing here");
+  it("never names a later row, a tool line or a divider, and reads only the one form", () => {
+    const rows = [
+      { at: at(15, 8, 11, 123), from: "Ivy", line: "Read x" },
+      { at: at(15, 8, 11, 124), divider: true, text: "started" },
+      { at: at(15, 8, 11, 125), from: "Bobby", text: "later" },
+    ];
+    assert.deepEqual(references(rows, 2, "(ref/15:08:11/123) (ref/15:08:11/124) (ref/15:08:11/125)").map(({ index }) => index), [null, null, null]);
+    assert.deepEqual(references(rows, 3, "(ref/15:08:11/12) (ref:15:08:11/125) (ref/5:08:11/125)"), []);
   });
 });
 

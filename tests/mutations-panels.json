@@ -429,57 +429,68 @@
     ]
   },
   {
-    "name": "the same row gets a new number every click",
-    "catches": "numbers a second row in the same second rather than pointing at the first, and gives the same row its token again",
+    "name": "the reference goes at the end of the box, wherever the cursor is",
+    "catches": "goes in at the cursor with a space on either side, the cursor after it",
     "edits": [
       {
         "file": "lib/chat/panels.mjs",
-        "from": "refs.has(token) && refs.get(token) !== spelled;",
-        "to": "refs.has(token);"
+        "from": "  const before = value.slice(0, start);\n  const after = value.slice(end);",
+        "to": "  const before = value;\n  const after = \"\";"
       }
     ]
   },
   {
-    "name": "a second row in the same second takes the first row's token",
-    "catches": "numbers a second row in the same second rather than pointing at the first, and gives the same row its token again",
+    "name": "the selection stays beside the reference",
+    "catches": "takes the place of what is selected",
     "edits": [
       {
         "file": "lib/chat/panels.mjs",
-        "from": "refs.has(token) && refs.get(token) !== spelled;",
-        "to": "false;"
+        "from": "  const after = value.slice(end);",
+        "to": "  const after = value.slice(start);"
       }
     ]
   },
   {
-    "name": "a clock alone is a stamp",
-    "catches": "is nothing for a stamp with less than a day and a clock on it",
+    "name": "the reference is the time to the second",
+    "catches": "is the local time to the millisecond, zero-padded to one length",
     "edits": [
       {
-        "file": "lib/chat/panels.mjs",
-        "from": "  if (parts.length < 2) return null;",
-        "to": "  if (parts.length < 1) return null;"
+        "file": "lib/chat/refs.mjs",
+        "from": "/${String(when.getMilliseconds()).padStart(3, \"0\")}`",
+        "to": "/${when.getMilliseconds()}`"
       }
     ]
   },
   {
-    "name": "eighty characters exactly are cut",
-    "catches": "cuts the quote at eighty characters with an ellipsis, and at eighty exactly keeps it whole",
+    "name": "the first row with the time is named, not the nearest",
+    "catches": "names the nearest earlier row with that time, over midnight too, and nothing for a time no row has",
     "edits": [
       {
-        "file": "lib/chat/panels.mjs",
-        "from": "${first.length > 80 ? \"…\" : \"\"}",
-        "to": "${first.length >= 80 ? \"…\" : \"\"}"
+        "file": "lib/chat/refs.mjs",
+        "from": "    for (let at = Math.min(before, rows.length) - 1; at >= 0; at -= 1) {",
+        "to": "    for (let at = 0; at < Math.min(before, rows.length); at += 1) {"
       }
     ]
   },
   {
-    "name": "an unknown token is dropped on send",
-    "catches": "is spelled out on send from the table, and a token the table has not got goes as it is",
+    "name": "a later row can be named",
+    "catches": "never names a later row, a tool line or a divider, and reads only the one form",
     "edits": [
       {
-        "file": "lib/chat/panels.mjs",
-        "from": "`(ref: ${refs.get(token)})` : token",
-        "to": "`(ref: ${refs.get(token)})` : \"\""
+        "file": "lib/chat/refs.mjs",
+        "from": "    for (let at = Math.min(before, rows.length) - 1; at >= 0; at -= 1) {",
+        "to": "    for (let at = rows.length - 1; at >= 0; at -= 1) {"
+      }
+    ]
+  },
+  {
+    "name": "a tool line can be named",
+    "catches": "never names a later row, a tool line or a divider, and reads only the one form",
+    "edits": [
+      {
+        "file": "lib/chat/refs.mjs",
+        "from": " && typeof entry.line !== \"string\"",
+        "to": ""
       }
     ]
   },

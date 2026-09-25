@@ -468,12 +468,26 @@ describe("the script", () => {
   // panels.mjs, built from the whole stamp — never from what is on screen, which may be the clock
   // alone — goes into the box after a space, the box is told and takes the next keystroke; what is
   // sent is the box with every token spelled out.
-  it("makes every stamp a click that puts a reference to its row into the composer, spelled out on send", () => {
-    assert.match(script, /time\.title = REFERENCE;\s*time\.addEventListener\("click", \(\) => pointAt\(panel, time, shown\.who, body\)\);/);
+  it("makes every stamp a click that puts a reference to its row into the composer at the cursor, sent as typed", () => {
+    assert.match(script, /if \(entry\.at !== undefined\) \{\s*time\.title = REFERENCE;\s*time\.addEventListener\("click", \(\) => pointAt\(panel, entry\.at\)\);\s*\}/);
     assert.match(script, /const REFERENCE = "click to reference this message in your reply";/);
-    assert.match(script, /function pointAt\(panel, time, who, body\) \{\s*const token = reference\(panel\.refs, time\.dataset\.whole, who, body\.textContent\);\s*if \(token === null\) return;\s*const typed = panel\.box\.value;\s*panel\.box\.value = `\$\{typed\}\$\{typed !== "" && !\/\\s\$\/\.test\(typed\) \? " " : ""\}\$\{token\} `;\s*panel\.box\.dispatchEvent\(new Event\("input"\)\);\s*if \(!panel\.box\.disabled\) panel\.box\.focus\(\);\s*\}/);
-    assert.match(script, /const refs = new Map\(\);/);
-    assert.match(script, /composer\.addEventListener\("submit", \(event\) => \{\s*event\.preventDefault\(\);\s*if \(box\.value\.trim\(\) === ""\) \{\s*return;\s*\}\s*const text = spellReferences\(refs, box\.value\);\s*box\.value = "";/);
+    assert.match(script, /function pointAt\(panel, at\) \{\s*const box = panel\.box;\s*const put = insertRef\(box\.value, box\.selectionStart, box\.selectionEnd, refTo\(at\)\);\s*box\.value = put\.value;\s*box\.setSelectionRange\(put\.caret, put\.caret\);\s*box\.dispatchEvent\(new Event\("input"\)\);\s*if \(!box\.disabled\) box\.focus\(\);\s*\}/);
+    assert.match(script, /composer\.addEventListener\("submit", \(event\) => \{\s*event\.preventDefault\(\);\s*if \(box\.value\.trim\(\) === ""\) \{\s*return;\s*\}\s*const text = box\.value;\s*box\.value = "";/);
+    assert.doesNotMatch(script, /new Map\(\);\s*box\.addEventListener/, "no table is kept between the click and the send");
+  });
+
+  // A reference in the User's row that names a drawn row is a link to it, focused the way a
+  // message's other end is; one that names nothing drawn stays as typed. Every stamped row drawn
+  // is kept by its index for it, and forgotten when the rows are drawn afresh.
+  it("draws each reference in the User's row that names a drawn row as a link that focuses it", () => {
+    assert.match(script, /\} else if \(shown\.kind === "user"\) \{\s*body\.className = "text";\s*linkedText\(body, shown\.text, rows, index, panel\);/);
+    assert.match(script, /for \(const ref of references\(rows, index, text\)\) \{\s*const target = ref\.index === null \? undefined : panel\.bubbles\.get\(ref\.index\);\s*if \(target === undefined\) continue;/);
+    assert.match(script, /link\.addEventListener\("click", \(\) => focusRow\(panel, target\)\);/);
+    assert.match(script, /panel\.waiting\.set\(index, line\);\s*panel\.bubbles\.set\(index, line\);/);
+    assert.match(script, /panel\.doing = null;\s*panel\.bubbles\.clear\(\);/);
+    assert.match(script, /const line = rowElement\(entry, shown, panel, about\.rows, index\);/);
+    assert.match(script, /if \(found === null\) return;\s*focusRow\(leader, found\);/, "a message's other end goes through the same focus");
+    assert.match(script, /function focusRow\(panel, found\) \{\s*if \(!found\.isConnected\) return;\s*found\.classList\.remove\("collapsed"\);\s*found\.scrollIntoView\(\{ block: "start" \}\);/);
   });
 
   // The typing hold: a key that leaves text in the box tells the server, at most once a beat; one
@@ -753,7 +767,7 @@ describe("the script", () => {
   it("marks the line of a message with its id and takes a click on it to the message on the Leader's panel, opened", () => {
     assert.match(script, /if \(shown\.msg !== undefined\) \{\s*line\.classList\.add\("peer"\);\s*line\.dataset\.msg = shown\.msg;\s*line\.onclick = \(\) => focusMessage\(shown\.msg\);\s*\}\s*return line;/);
     assert.match(script, /if \(shown\.msg !== undefined\) line\.dataset\.msg = shown\.msg;/, "a bubble carries the id too, for the click to find");
-    assert.match(script, /function focusMessage\(id\) \{\s*const leader = sections\.get\(state\.leader\);\s*const found = leader === undefined \? null : leader\.rows\.querySelector\(`\.msg\[data-msg="\$\{id\}"\]`\);\s*if \(found === null\) return;\s*found\.classList\.remove\("collapsed"\);\s*found\.scrollIntoView\(\{ block: "start" \}\);/, "opened before it is brought into view, so the scroll is to the row as it will stand");
+    assert.match(script, /function focusMessage\(id\) \{\s*const leader = sections\.get\(state\.leader\);\s*const found = leader === undefined \? null : leader\.rows\.querySelector\(`\.msg\[data-msg="\$\{id\}"\]`\);\s*if \(found === null\) return;\s*focusRow\(leader, found\);\s*\}(?:[^\n]*\n)+?\s*function focusRow\(panel, found\) \{\s*if \(!found\.isConnected\) return;\s*found\.classList\.remove\("collapsed"\);\s*found\.scrollIntoView\(\{ block: "start" \}\);/, "opened before it is brought into view, so the scroll is to the row as it will stand");
     assert.match(script, /found\.classList\.add\("focus"\);\s*setTimeout\(\(\) => found\.classList\.remove\("focus"\), FOCUS_FOR\);/);
     assert.match(script, /const FOCUS_FOR = 1500;/);
   });
@@ -851,7 +865,7 @@ describe("the script", () => {
   it("merges a repeated call into one line with a counter, never a message's line", () => {
     assert.match(script, /if \(shown\.kind === "line" && shown\.msg === undefined && panel\.last !== null && panel\.last\.text === shown\.text\) \{\s*panel\.last\.count \+= 1;\s*panel\.last\.n\.textContent = ` ×\$\{panel\.last\.count\}`;\s*landed = true;\s*panel\.lines\.set\(index, panel\.last\.el\);\s*continue;/);
     assert.match(script, /panel\.last = shown\.msg === undefined \? \{ text: shown\.text, el: line, count: 1, n: line\.lastElementChild \} : null;/, "a message's line ends the run");
-    assert.match(script, /\} else \{\s*panel\.last = null;\s*if \(shown\.kind === "user" && !shown\.delivered\) panel\.waiting\.set\(index, line\);\s*\}/, "a bubble ends the run");
+    assert.match(script, /\} else \{\s*panel\.last = null;\s*if \(shown\.kind === "user" && !shown\.delivered\) panel\.waiting\.set\(index, line\);\s*panel\.bubbles\.set\(index, line\);\s*\}/, "a bubble ends the run");
     assert.match(script, /panel\.last = null;\s*panel\.rows\.append\(dayPill\(when\)\);/, "a pill ends the run");
   });
 

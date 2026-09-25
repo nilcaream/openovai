@@ -1065,8 +1065,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title, typingBeat } from \"./panels.mjs\";",
-        "to": "  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title, typingBeat } from \"./panels.mjs\";\n  const place = (seats, leader, order) => ({ left: order.filter((s) => s !== leader && seats.includes(s)), mid: leader, right: [] });"
+        "from": "  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, insertRef, stopEnabled, title, typingBeat } from \"./panels.mjs\";",
+        "to": "  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, prune, quotaLine, quotaTitle, insertRef, stopEnabled, title, typingBeat } from \"./panels.mjs\";\n  const place = (seats, leader, order) => ({ left: order.filter((s) => s !== leader && seats.includes(s)), mid: leader, right: [] });"
       }
     ]
   },
@@ -1908,6 +1908,61 @@
         "file": "lib/chat/frames.mjs",
         "from": "  const marked = urgent === true ? ` urgent=\"true\"` : \"\";",
         "to": "  const marked = \"\";"
+      }
+    ]
+  },
+  {
+    "name": "a <ref> the User typed poses as the server's",
+    "catches": "neutralises a <ref> in the words or in a row, and is the plain frame with no rows",
+    "edits": [
+      {
+        "file": "lib/chat/frames.mjs",
+        "from": "(user|message|server-event|queue|ref)",
+        "to": "(user|message|server-event|queue)"
+      }
+    ]
+  },
+  {
+    "name": "the rows a reference names are left out of the frame",
+    "catches": "is the words, then one <ref> per row, in the shape a queue indents",
+    "edits": [
+      {
+        "file": "lib/chat/frames.mjs",
+        "from": "  if (refs.length === 0) return",
+        "to": "  if (true) return"
+      }
+    ]
+  },
+  {
+    "name": "the server resolves no reference",
+    "catches": "carries every row a reference in the line names, whole, after the words",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "deliver(instance, seat, userFrame(text, refs), {",
+        "to": "deliver(instance, seat, userFrame(text), {"
+      }
+    ]
+  },
+  {
+    "name": "a reference names the User's row by what the row stores",
+    "catches": "carries every row a reference in the line names, whole, after the words",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "from: rows[index].from === \"user\" ? instance.config.user : rows[index].from,",
+        "to": "from: rows[index].from,"
+      }
+    ]
+  },
+  {
+    "name": "the Leader is told a Worker's line without its references",
+    "catches": "tells the Leader the rows a line typed on a Worker names, resolved on the Worker's panel",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "serverEvent(\"user-typed\", { who: seat }, text, refs)",
+        "to": "serverEvent(\"user-typed\", { who: seat }, text)"
       }
     ]
   }

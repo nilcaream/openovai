@@ -1779,34 +1779,56 @@
     ]
   },
   {
-    "name": "the click reads the stamp off the screen",
-    "catches": "makes every stamp a click that puts a reference to its row into the composer, spelled out on send",
+    "name": "the click puts the reference at the end of the box",
+    "catches": "makes every stamp a click that puts a reference to its row into the composer at the cursor, sent as typed",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "reference(panel.refs, time.dataset.whole, who, body.textContent)",
-        "to": "reference(panel.refs, time.textContent, who, body.textContent)"
-      }
-    ]
-  },
-  {
-    "name": "what is sent carries the tokens unspelled",
-    "catches": "makes every stamp a click that puts a reference to its row into the composer, spelled out on send",
-    "edits": [
-      {
-        "file": "lib/chat/page.html",
-        "from": "      const text = spellReferences(refs, box.value);",
-        "to": "      const text = box.value;"
+        "from": "insertRef(box.value, box.selectionStart, box.selectionEnd, refTo(at))",
+        "to": "insertRef(box.value, box.value.length, box.value.length, refTo(at))"
       }
     ]
   },
   {
     "name": "the stamp is no click",
-    "catches": "makes every stamp a click that puts a reference to its row into the composer, spelled out on send",
+    "catches": "makes every stamp a click that puts a reference to its row into the composer at the cursor, sent as typed",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "    time.addEventListener(\"click\", () => pointAt(panel, time, shown.who, body));\n",
+        "from": "      time.addEventListener(\"click\", () => pointAt(panel, entry.at));\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a reference in the User's row is never a link",
+    "catches": "draws each reference in the User's row that names a drawn row as a link that focuses it",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      linkedText(body, shown.text, rows, index, panel);",
+        "to": "      body.textContent = shown.text;"
+      }
+    ]
+  },
+  {
+    "name": "rows drawn afresh keep the old rows for references",
+    "catches": "draws each reference in the User's row that names a drawn row as a link that focuses it",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "        panel.doing = null;\n        panel.bubbles.clear();\n",
+        "to": "        panel.doing = null;\n"
+      }
+    ]
+  },
+  {
+    "name": "a row the panel let go of is still focused",
+    "catches": "draws each reference in the User's row that names a drawn row as a link that focuses it",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    if (!found.isConnected) return;\n",
         "to": ""
       }
     ]

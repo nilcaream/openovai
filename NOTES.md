@@ -50,6 +50,14 @@ All of that is the Leader's now:
   a panel's head.
 - A line carries a reference only when the User pins one by clicking a timestamp. A row arriving
   while the User types no longer puts a reference to an earlier row in front of the line.
+- A click on a timestamp puts `(ref/15:08:11/123)` into the box where the cursor is: the row's time
+  to the millisecond. The line is kept and shown exactly as typed, and on the panel every reference
+  that names an earlier row there is a link that brings the row into view. The session gets the
+  line as typed and, inside the same `<user>`, the whole row each reference names, as `<ref
+  to="15:08:11/123" from="Anna" at="2026-09-25T15:08:11.123">…</ref>`, `from` the name of whoever
+  wrote it — the seat, the User, or `Server`. A line typed on a Worker's panel reaches the Leader
+  with the same `<ref>`s, resolved on the Worker's panel. A reference is read from the text alone,
+  so one typed by hand works the same, and one that names nothing stays text.
 
 **A Worker's session is closed for it, and never in the middle of a step.** When a Worker has to
 end — idle at 55 minutes, its usage window spent, the room parking — the server tells it one thing,

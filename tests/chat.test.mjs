@@ -16,6 +16,7 @@ import { after, before, describe, it } from "node:test";
 
 import { SERVER, panelFile, read } from "../lib/chat/conversation.mjs";
 import { messageFrame, serverEvent, userFrame } from "../lib/chat/frames.mjs";
+import { localAt, refTo } from "../lib/chat/refs.mjs";
 import { listening } from "../lib/chat/runtime.mjs";
 import { pageSecret } from "../lib/chat/secrets.mjs";
 import { hire } from "../lib/desks.mjs";
@@ -1466,6 +1467,41 @@ describe("what the User types", () => {
     assert.deepEqual(heardIn(superman.log), [`<server-event type="user-typed" who="${WORKER}">go</server-event>`, "<user>how is it going</user>"]);
     assert.deepEqual(panel(instance, LEADER).slice(rows).map((row) => [row.from, row.typedTo, row.text]), [["user", undefined, "how is it going"], [LEADER, undefined, "noted"]]);
     assert.deepEqual(heardIn(paul.log), ["<user>go</user>"]);
+  });
+
+  // A reference in the line to a row of that panel goes in after the words, the whole row; one
+  // that names no row goes in as typed and nothing more. The row is kept exactly as typed. Who
+  // wrote the row is named: the seat for its own reply, the User's name for the User's line.
+  it("carries every row a reference in the line names, whole, after the words", async () => {
+    const before = panel(instance, LEADER);
+    const noted = before.findLast((row) => row.from === LEADER);
+    const asked = before.findLast((row) => row.from === "user");
+    const text = `${refTo(noted.at)} good. ${refTo(asked.at)} (ref/00:00:00/001) nothing`;
+    const queues = queuesHeardIn(superman.log).length;
+    await page("POST", `/sessions/${LEADER}/message`, { text });
+    await waitFor(() => (queuesHeardIn(superman.log).length > queues ? true : null));
+    const heard = queuesHeardIn(superman.log).at(-1);
+    const clock = (row) => /^\(ref\/(.+)\)$/.exec(refTo(row.at))[1];
+    const ref = (row, from) => `<ref to="${clock(row)}" from="${from}" at="${localAt(row.at).replace(".", "\\.")}">${row.text}</ref>`;
+    assert.match(heard, new RegExp(`<user at="\\d\\d:\\d\\d">\\(ref/${clock(noted)}\\) good\\. \\(ref/${clock(asked)}\\) \\(ref/00:00:00/001\\) nothing\\n    ${ref(noted, LEADER)}\\n    ${ref(asked, USER)}\\n  </user>`));
+    assert.equal(heard.split("<ref ").length - 1, 2, "a reference that names no row got a <ref>");
+    assert.equal(panel(instance, LEADER)[before.length].text, text, "the row is not kept as typed");
+  });
+
+  // The Leader is told of a line typed on a Worker's panel, and cannot resolve its references
+  // against rows it does not have: they go in the event, resolved against the Worker's.
+  it("tells the Leader the rows a line typed on a Worker names, resolved on the Worker's panel", async () => {
+    const before = panel(instance, WORKER);
+    const onIt = before.findLast((row) => row.from === WORKER);
+    const go = before.findLast((row) => row.from === "user");
+    const text = `${refTo(onIt.at)} and ${refTo(go.at)}`;
+    const queues = queuesHeardIn(superman.log).length;
+    await page("POST", `/sessions/${WORKER}/message`, { text });
+    await waitFor(() => (queuesHeardIn(superman.log).length > queues ? true : null));
+    const heard = queuesHeardIn(superman.log).at(-1);
+    const clock = (row) => /^\(ref\/(.+)\)$/.exec(refTo(row.at))[1];
+    const ref = (row, from) => `<ref to="${clock(row)}" from="${from}" at="${localAt(row.at).replace(".", "\\.")}">${row.text}</ref>`;
+    assert.match(heard, new RegExp(`<server-event type="user-typed" who="${WORKER}"[^>]*>\\(ref/${clock(onIt)}\\) and \\(ref/${clock(go)}\\)\\n    ${ref(onIt, WORKER)}\\n    ${ref(go, USER)}\\n  </server-event>`));
   });
 
   // A run that cannot go on — not logged in, a window spent — says why as text and then results
