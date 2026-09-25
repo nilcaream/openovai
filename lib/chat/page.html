@@ -1039,7 +1039,7 @@
       panel.facts.conn.textContent = state.connection;
       panel.facts.conn.classList.toggle("off", state.connection !== CONNECTED);
       panel.facts.quota.textContent = quotaLine(state.quota);
-      panel.facts.quota.title = quotaTitle(state.quota, (iso) => stamp(iso).whole);
+      panel.facts.quota.title = quotaTitle(state.quota, new Date());
     }
 
     if (about.rows === null) {

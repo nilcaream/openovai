@@ -904,7 +904,7 @@ describe("the script", () => {
   it("draws the connection word and the quota line on the Leader's head, and marks a lost stream", () => {
     assert.match(script, /headLine\.append\(facts\.conn, facts\.quota\);[\s\S]{0,600}headLine\.append\(themeToggle\);/);
     assert.match(script, /panel\.facts\.conn\.textContent = state\.connection;\s*panel\.facts\.conn\.classList\.toggle\("off", state\.connection !== CONNECTED\);/);
-    assert.match(script, /panel\.facts\.quota\.textContent = quotaLine\(state\.quota\);\s*panel\.facts\.quota\.title = quotaTitle\(state\.quota, \(iso\) => stamp\(iso\)\.whole\);/);
+    assert.match(script, /panel\.facts\.quota\.textContent = quotaLine\(state\.quota\);\s*panel\.facts\.quota\.title = quotaTitle\(state\.quota, new Date\(\)\);/);
     assert.match(script, /document\.title = title\(state\);/);
   });
 

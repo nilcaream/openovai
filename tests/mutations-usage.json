@@ -214,7 +214,7 @@
     "edits": [
       {
         "file": "lib/chat/usage.mjs",
-        "from": "    allReset: until(week?.resets_at ?? data.seven_day?.resets_at, now),",
+        "from": "    allReset: until(weekResets, now),",
         "to": "    allReset: null,"
       }
     ]
@@ -242,13 +242,13 @@
     ]
   },
   {
-    "name": "the endpoint is asked while nobody is looking",
-    "catches": "is asked for nothing while no page holds a stream",
+    "name": "the clock asks while no session runs",
+    "catches": "is asked for nothing on the clock while no session runs",
     "edits": [
       {
         "file": "lib/chat/usage.mjs",
-        "from": "  if (pages > 0 && now() >= live.nextAt && now() - live.fetchedAt >= TTL) {",
-        "to": "  if (now() >= live.nextAt && now() - live.fetchedAt >= TTL) {"
+        "from": "  if (running > 0) {",
+        "to": "  if (true) {"
       }
     ]
   },
@@ -275,13 +275,68 @@
     ]
   },
   {
-    "name": "the endpoint is asked on every tick",
-    "catches": "is told the reading once it is in, again when its words change or a fresh one is taken, and not for a tick that says the same",
+    "name": "the clock asks every minute rather than every five",
+    "catches": "is asked on the clock while any session runs, with no page open, and again every five minutes",
     "edits": [
       {
         "file": "lib/chat/usage.mjs",
-        "from": "  if (pages > 0 && now() >= live.nextAt && now() - live.fetchedAt >= TTL) {",
-        "to": "  if (pages > 0 && now() >= live.nextAt) {"
+        "from": "    ask(instance, POLL, options);",
+        "to": "    ask(instance, SPACING, options);"
+      }
+    ]
+  },
+  {
+    "name": "a turn's end asks however young the reading is",
+    "catches": "is asked at a turn's end and when a page opens, once the last reading is a minute old",
+    "edits": [
+      {
+        "file": "lib/chat/usage.mjs",
+        "from": "export function turnEnded(instance, options = {}) {\n  ask(instance, SPACING, options);",
+        "to": "export function turnEnded(instance, options = {}) {\n  ask(instance, 0, options);"
+      }
+    ]
+  },
+  {
+    "name": "a page opening asks nothing",
+    "catches": "is asked at a turn's end and when a page opens, once the last reading is a minute old",
+    "edits": [
+      {
+        "file": "lib/chat/usage.mjs",
+        "from": "export function pageOpened(instance, options = {}) {\n  ask(instance, SPACING, options);",
+        "to": "export function pageOpened(instance, options = {}) {"
+      }
+    ]
+  },
+  {
+    "name": "the backoff does not hold back a turn's end or a page opening",
+    "catches": "leaves a failure alone for the backoff, at a turn's end and a page opening too",
+    "edits": [
+      {
+        "file": "lib/chat/usage.mjs",
+        "from": "export function turnEnded(instance, options = {}) {\n  ask(instance, SPACING, options);\n}\n\n// A page has opened its stream: somebody is looking, sessions running or not.\nexport function pageOpened(instance, options = {}) {\n  ask(instance, SPACING, options);",
+        "to": "export function turnEnded(instance, options = {}) {\n  live.nextAt = 0;\n  ask(instance, SPACING, options);\n}\n\n// A page has opened its stream: somebody is looking, sessions running or not.\nexport function pageOpened(instance, options = {}) {\n  live.nextAt = 0;\n  ask(instance, SPACING, options);"
+      }
+    ]
+  },
+  {
+    "name": "the weekly reset moment is the session window's",
+    "catches": "gives each window's reset moment off that window alone",
+    "edits": [
+      {
+        "file": "lib/chat/usage.mjs",
+        "from": "\"7d\": moment(weekResets, now)",
+        "to": "\"7d\": moment(sessionResets, now)"
+      }
+    ]
+  },
+  {
+    "name": "the version the server was armed with is not kept",
+    "catches": "names the version the server was armed with, when the call names none",
+    "edits": [
+      {
+        "file": "lib/chat/usage.mjs",
+        "from": "  configured = { version };\n}",
+        "to": "}"
       }
     ]
   },

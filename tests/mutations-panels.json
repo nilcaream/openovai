@@ -308,13 +308,24 @@
     ]
   },
   {
-    "name": "the tooltip drops when the reading was taken",
-    "catches": "spells the same out for the tooltip, with when the reading was taken",
+    "name": "the tooltip says tomorrow's reset as a weekday",
+    "catches": "says in the tooltip when each window resets, each at its own moment on the page's clock, and nothing else",
     "edits": [
       {
         "file": "lib/chat/panels.mjs",
-        "from": "\\nasked of the Anthropic usage API at ${when(quota.updated)}`;",
-        "to": "`;"
+        "from": "sameDay(at, tomorrow) ? \"tomorrow\"",
+        "to": "false ? \"tomorrow\""
+      }
+    ]
+  },
+  {
+    "name": "the tooltip keeps a window that has no reset",
+    "catches": "says in the tooltip when each window resets, each at its own moment on the page's clock, and nothing else",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "Object.entries(quota.resets).filter(([, iso]) => iso !== null);",
+        "to": "Object.entries(quota.resets);"
       }
     ]
   },

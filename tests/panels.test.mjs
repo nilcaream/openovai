@@ -389,7 +389,10 @@ describe("marks and controls", () => {
 });
 
 describe("the quota line", () => {
-  const reading = { session: "8%", reset: "3h", all: "86%", allReset: "6d", fable: "20%", fableReset: "6d", updated: "2026-09-14T18:00:00.000Z" };
+  // Moments on the local clock, as the page's own: Friday 25 September 2026, 10:00.
+  const local = (day, hours, minutes) => new Date(2026, 8, day, hours, minutes).toISOString();
+  const now = new Date(2026, 8, 25, 10, 0);
+  const reading = { session: "8%", reset: "3h", all: "86%", allReset: "6d", fable: "20%", fableReset: "6d", resets: { "5h": local(25, 12, 12), "7d": local(28, 13, 41), "7d fable": local(26, 23, 11) } };
 
   it("is the session window with its reset, then all with its reset, then fable with its reset", () => {
     assert.equal(quotaLine(reading), "8% (3h) · all 86% (6d) · fable 20% (6d)");
@@ -397,10 +400,11 @@ describe("the quota line", () => {
     assert.equal(quotaLine(null), "");
   });
 
-  it("spells the same out for the tooltip, with when the reading was taken", () => {
-    assert.equal(quotaTitle(reading, (iso) => `at ${iso}`), "session 8%, resets in 3h · all models 86%, resets in 6d · Fable 20%, resets in 6d\nasked of the Anthropic usage API at at 2026-09-14T18:00:00.000Z");
-    assert.equal(quotaTitle({ ...reading, allReset: null, fableReset: null }), "session 8%, resets in 3h · all models 86% · Fable 20%\nasked of the Anthropic usage API at 2026-09-14T18:00:00.000Z");
-    assert.equal(quotaTitle(null), "");
+  it("says in the tooltip when each window resets, each at its own moment on the page's clock, and nothing else", () => {
+    assert.equal(quotaTitle(reading, now), "5h resets today at 12:12, 7d on Monday at 13:41, 7d fable tomorrow at 23:11");
+    assert.equal(quotaTitle({ ...reading, resets: { "5h": local(25, 9, 5), "7d": local(26, 0, 0), "7d fable": local(32, 7, 30) } }, now), "5h resets today at 09:05, 7d tomorrow at 00:00, 7d fable on Friday at 07:30");
+    assert.equal(quotaTitle({ ...reading, resets: { ...reading.resets, "7d fable": null } }, now), "5h resets today at 12:12, 7d on Monday at 13:41", "a window with no reset is left out");
+    assert.equal(quotaTitle(null, now), "");
   });
 
   it("comes with the snapshot and moves with the quota event", () => {

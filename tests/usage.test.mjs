@@ -12,7 +12,7 @@ import { home } from "../lib/claude.mjs";
 import { subscribe } from "../lib/chat/events.mjs";
 import { sink } from "../lib/chat/log.mjs";
 import * as quota from "../lib/chat/quota.mjs";
-import { BACKOFF, CREDENTIALS_FILE, MACHINE_TOKEN, TTL, USAGE_URL, format, reading, refresh, reset, tick, token, until } from "../lib/chat/usage.mjs";
+import { BACKOFF, CREDENTIALS_FILE, MACHINE_TOKEN, POLL, SPACING, USAGE_URL, configure, format, pageOpened, reading, refresh, reset, tick, token, turnEnded, until } from "../lib/chat/usage.mjs";
 import { remove, scratch } from "./helpers.mjs";
 
 const root = scratch("usage-test");
@@ -104,8 +104,14 @@ describe("asking the endpoint", () => {
     assert.equal(get.asked[0].options.headers["anthropic-beta"], "oauth-2025-04-20");
     assert.equal(get.asked[0].options.headers["user-agent"], "claude-code/1.2.3");
     assert.ok(get.asked[0].options.signal instanceof AbortSignal, "no timeout on the request");
-    assert.equal(reading(T0).updated, new Date(T0).toISOString());
     assert.equal(reading(T0).session, "8%");
+  });
+
+  it("names the version the server was armed with, when the call names none", async () => {
+    configure({ version: "4.5.6" });
+    const get = answering();
+    await refresh(instance, { get, now: () => T0 });
+    assert.equal(get.asked[0].options.headers["user-agent"], "claude-code/4.5.6");
   });
 
   it("hands fable's own window to the gate with every answer — a fraction, its own reset, from usage — and the account's two stay the frames'", async () => {
@@ -114,10 +120,10 @@ describe("asking the endpoint", () => {
       seven_day_fable: { key: "7d-fable", utilization: 0.2, resetsAt: "2026-09-19T21:00:00.000Z", resets: quota.hhmm("2026-09-19T21:00:00.000Z"), at: new Date(T0).toISOString(), from: "usage", stage: null },
     });
     assert.equal(quota.mayStart("fable", T0), null);
-    await refresh(instance, { get: answering({ body: payload({ fable: 99.5 }) }), now: () => T0 + TTL });
-    assert.equal(quota.standing(T0 + TTL).seven_day_fable.utilization, 0.995);
-    assert.deepEqual(quota.mayStart("fable", T0 + TTL), { window: "7d-fable", resets: "2026-09-19T21:00:00.000Z" }, "held at the 7d pair, 97/99");
-    assert.equal(quota.mayStart("opus", T0 + TTL), null);
+    await refresh(instance, { get: answering({ body: payload({ fable: 99.5 }) }), now: () => T0 + SPACING });
+    assert.equal(quota.standing(T0 + SPACING).seven_day_fable.utilization, 0.995);
+    assert.deepEqual(quota.mayStart("fable", T0 + SPACING), { window: "7d-fable", resets: "2026-09-19T21:00:00.000Z" }, "held at the 7d pair, 97/99");
+    assert.equal(quota.mayStart("opus", T0 + SPACING), null);
   });
 
   it("hands the gate nothing when the account has no window of fable's own", async () => {
@@ -142,11 +148,11 @@ describe("asking the endpoint", () => {
     const good = answering();
     await refresh(instance, { get: good, now: () => T0 });
     const refused = answering({ ok: false, status: 429, headers: { "retry-after": "900" } });
-    await refresh(instance, { get: refused, now: () => T0 + TTL });
-    assert.equal(reading(T0 + TTL).session, "8%", "a refusal threw the reading away");
-    tick(instance, 1, { get: refused, now: () => T0 + TTL + 900_000 - 1 });
+    await refresh(instance, { get: refused, now: () => T0 + SPACING });
+    assert.equal(reading(T0 + SPACING).session, "8%", "a refusal threw the reading away");
+    tick(instance, 1, { get: refused, now: () => T0 + SPACING + 900_000 - 1 });
     assert.equal(refused.asked.length, 1, "asked again before the retry-after passed");
-    tick(instance, 1, { get: refused, now: () => T0 + TTL + 900_000 });
+    tick(instance, 1, { get: refused, now: () => T0 + SPACING + 900_000 });
     assert.equal(refused.asked.length, 2, "not asked once the retry-after passed");
     await settle();
     const denied = answering({ ok: false, status: 401 });
@@ -207,26 +213,39 @@ describe("the reading", () => {
   });
 
   it("is the three windows with their resets, the percent whole below 95 and to two decimals from there", () => {
-    assert.deepEqual(format(payload(), T0 - 5_000, T0), { session: "8%", reset: "3h", all: "86%", allReset: "5d", fable: "20%", fableReset: "5d", updated: new Date(T0 - 5_000).toISOString() });
-    const near = format(payload({ session: 95.129, all: 99.5, fable: 94.5 }), T0, T0);
+    assert.deepEqual(format(payload(), T0), {
+      session: "8%", reset: "3h", all: "86%", allReset: "5d", fable: "20%", fableReset: "5d",
+      resets: { "5h": "2026-09-14T19:20:00.000Z", "7d": "2026-09-19T21:00:00.000Z", "7d fable": "2026-09-19T21:00:00.000Z" },
+    });
+    const near = format(payload({ session: 95.129, all: 99.5, fable: 94.5 }), T0);
     assert.equal(near.session, "95.13%");
     assert.equal(near.all, "99.5%");
     assert.equal(near.fable, "95%");
-    assert.equal(format(payload({ fable: null }), T0, T0).fable, "-", "a window the account has not got");
-    assert.equal(format(payload({ fable: null }), T0, T0).fableReset, null);
+    assert.equal(format(payload({ fable: null }), T0).fable, "-", "a window the account has not got");
+    assert.equal(format(payload({ fable: null }), T0).fableReset, null);
+    assert.equal(format(payload({ fable: null }), T0).resets["7d fable"], null);
+  });
+
+  it("gives each window's reset moment off that window alone", () => {
+    const apart = format(payload({ sessionResets: "2026-09-14T19:20:00.000Z", allResets: "2026-09-21T11:41:00.000Z", fableResets: "2026-09-15T21:11:00.000Z" }), T0);
+    assert.deepEqual(apart.resets, { "5h": "2026-09-14T19:20:00.000Z", "7d": "2026-09-21T11:41:00.000Z", "7d fable": "2026-09-15T21:11:00.000Z" });
+    assert.equal(format(payload({ allResets: "2026-09-14T15:00:00.000Z" }), T0).resets["7d"], null, "a reset already passed");
   });
 
   it("falls back on the flat keys when the limits list is not there, and is nothing when the session window has passed", () => {
     const flat = payload();
     delete flat.limits;
-    assert.deepEqual(format(flat, T0, T0), { session: "8%", reset: "3h", all: "86%", allReset: "5d", fable: "-", fableReset: null, updated: new Date(T0).toISOString() });
-    assert.equal(format(payload(), T0, Date.parse("2026-09-14T19:20:00.000Z")), null, "the numbers are the last window's");
-    assert.equal(format(null, T0, T0), null);
-    assert.equal(format("odd", T0, T0), null);
+    assert.deepEqual(format(flat, T0), {
+      session: "8%", reset: "3h", all: "86%", allReset: "5d", fable: "-", fableReset: null,
+      resets: { "5h": "2026-09-14T19:20:00.000Z", "7d": "2026-09-19T21:00:00.000Z", "7d fable": null },
+    });
+    assert.equal(format(payload(), Date.parse("2026-09-14T19:20:00.000Z")), null, "the numbers are the last window's");
+    assert.equal(format(null, T0), null);
+    assert.equal(format("odd", T0), null);
   });
 });
 
-describe("the page", () => {
+describe("when it is asked, and the page told", () => {
   const instance = { root, config: { auth: "login" } };
   let told;
   let unsubscribe;
@@ -246,14 +265,55 @@ describe("the page", () => {
     unsubscribe();
   });
 
-  it("is asked for nothing while no page holds a stream", () => {
+  it("is asked for nothing on the clock while no session runs", () => {
     const get = answering();
     tick(instance, 0, { get, now: () => T0 });
     assert.equal(get.asked.length, 0);
     assert.deepEqual(told, []);
   });
 
-  it("is told the reading once it is in, again when its words change or a fresh one is taken, and not for a tick that says the same", async () => {
+  it("is asked on the clock while any session runs, with no page open, and again every five minutes", async () => {
+    const get = answering();
+    tick(instance, 1, { get, now: () => T0 });
+    assert.equal(get.asked.length, 1, "not asked while a session runs");
+    await settle();
+    tick(instance, 2, { get, now: () => T0 + POLL - 1 });
+    assert.equal(get.asked.length, 1, "asked again before five minutes");
+    tick(instance, 2, { get, now: () => T0 + POLL });
+    assert.equal(get.asked.length, 2, "not asked again at five minutes");
+  });
+
+  it("is asked at a turn's end and when a page opens, once the last reading is a minute old", async () => {
+    const get = answering();
+    turnEnded(instance, { get, now: () => T0 });
+    assert.equal(get.asked.length, 1, "not asked at a turn's end");
+    await settle();
+    turnEnded(instance, { get, now: () => T0 + SPACING - 1 });
+    pageOpened(instance, { get, now: () => T0 + SPACING - 1 });
+    assert.equal(get.asked.length, 1, "asked again within the minute");
+    pageOpened(instance, { get, now: () => T0 + SPACING });
+    assert.equal(get.asked.length, 2, "not asked when a page opened a minute on");
+    await settle();
+    turnEnded(instance, { get, now: () => T0 + 2 * SPACING });
+    assert.equal(get.asked.length, 3, "not asked at a turn's end a minute on");
+  });
+
+  it("leaves a failure alone for the backoff, at a turn's end and a page opening too", async () => {
+    const down = answering({ fails: "fetch failed" });
+    sink(() => {});
+    try {
+      turnEnded(instance, { get: down, now: () => T0 });
+      await settle();
+    } finally {
+      sink(null);
+    }
+    turnEnded(instance, { get: down, now: () => T0 + BACKOFF - 1 });
+    pageOpened(instance, { get: down, now: () => T0 + BACKOFF - 1 });
+    tick(instance, 1, { get: down, now: () => T0 + BACKOFF - 1 });
+    assert.equal(down.asked.length, 1, "asked again before the backoff passed");
+  });
+
+  it("is told the reading once it is in, again when its words change, and not for a fresh one that says the same", async () => {
     const get = answering();
     tick(instance, 1, { get, now: () => T0 });
     assert.equal(get.asked.length, 1);
@@ -261,19 +321,14 @@ describe("the page", () => {
     assert.equal(told.length, 1, "not told once the answer landed");
     assert.equal(told[0].reset, "3h");
     tick(instance, 1, { get, now: () => T0 + 30_000 });
-    assert.equal(get.asked.length, 1, "asked again within the minute");
     assert.equal(told.length, 1, "told a reading that says what the last one said");
-    tick(instance, 1, { get, now: () => T0 + TTL });
-    assert.equal(get.asked.length, 2, "not asked again after the minute");
+    tick(instance, 1, { get, now: () => T0 + POLL });
+    assert.equal(get.asked.length, 2);
     await settle();
-    assert.equal(told.length, 2, "not told a fresh reading, taken a minute later");
-    assert.equal(told[1].updated, new Date(T0 + TTL).toISOString());
-    assert.equal(told[1].reset, "3h");
-    tick(instance, 1, { get, now: () => T0 + TTL + 30_000 });
-    assert.equal(told.length, 2, "told a reading that says what the last one said");
+    assert.equal(told.length, 1, "told a fresh reading that says what the last one said");
     tick(instance, 1, { get, now: () => T0 + 2 * 3_600_000 });
-    assert.equal(told.length, 3, "not told when the time to the reset moved");
-    assert.equal(told[2].reset, "95m");
+    assert.equal(told.length, 2, "not told when the time to the reset moved");
+    assert.equal(told[1].reset, "95m");
   });
 
   it("is told nothing once the reading has outlived its window, once", () => {

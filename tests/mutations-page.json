@@ -433,19 +433,19 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      panel.facts.quota.title = quotaTitle(state.quota, (iso) => stamp(iso).whole);\n",
+        "from": "      panel.facts.quota.title = quotaTitle(state.quota, new Date());\n",
         "to": ""
       }
     ]
   },
   {
-    "name": "the tooltip says the stamp object, not its words",
+    "name": "the tooltip is not given the page's clock",
     "catches": "draws the connection word and the quota line on the Leader's head, and marks a lost stream",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "(iso) => stamp(iso).whole);\n",
-        "to": "(iso) => stamp(iso));\n"
+        "from": "quotaTitle(state.quota, new Date());\n",
+        "to": "quotaTitle(state.quota);\n"
       }
     ]
   },

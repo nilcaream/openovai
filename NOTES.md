@@ -35,6 +35,12 @@ All of that is the Leader's now:
   and the log says the same words.
 - The Leader keeps a Worker's checkpoint to itself: it tells the User nothing about it, only the
   Worker's report when that matters to them.
+- The quota line in the Leader's head is current without a page open: the usage windows are read
+  every 5 minutes while any session runs, and at a turn's end and a page load when the last read
+  is a minute old. Its tooltip says when each window resets, each at its own time: `5h resets
+  today at 12:12, 7d on Monday at 13:41, 7d fable tomorrow at 23:11`. Fable's own weekly window,
+  which only this read carries, now reaches the quota gate with no page open too; before, a fable
+  Worker could not be held at that window while nobody was looking.
 
 **A Worker's session is closed for it, and never in the middle of a step.** When a Worker has to
 end — idle at 55 minutes, its usage window spent, the room parking — the server tells it one thing,

@@ -15,6 +15,8 @@ import { userFrame } from "../lib/chat/frames.mjs";
 import { BODY_CLOSING, BODY_CONTEXT_ERROR, BODY_CONTEXT_WARNING, BODY_CONTEXT_WORKER, BODY_RESTARTED } from "../lib/chat/lifecycle.mjs";
 import { wallClock } from "../lib/chat/log.mjs";
 import * as quota from "../lib/chat/quota.mjs";
+import * as usage from "../lib/chat/usage.mjs";
+import { home } from "../lib/claude.mjs";
 import { end, endEvery, recordOf, running, runningSeats, tell } from "../lib/chat/session.mjs";
 import { deskFile, deskTitle, hire } from "../lib/desks.mjs";
 import { callsIn, childrenOf, heardIn, installed, post as postPlain, queuesHeardIn, readLog, remove, secretsIn, startChat, stopChat, waitFor, waitForAddress, writeStandIn } from "./helpers.mjs";
@@ -467,6 +469,37 @@ describe("done", () => {
     assert.deepEqual(await tool(paul.secret, "done", {}), { text: `${LEADER} is told you are done`, refused: false, error: null });
     assert.equal((await told(superman.log, 2))[1], `<server-event type="done" who="${WORKER}"/>`);
     assert.equal(running(WORKER), true);
+  });
+});
+
+describe("the account's usage", () => {
+  const credentials = () => path.join(home(instance), usage.CREDENTIALS_FILE);
+  const realFetch = globalThis.fetch;
+
+  after(async () => {
+    globalThis.fetch = realFetch;
+    fs.rmSync(credentials(), { force: true });
+    usage.reset();
+    await endEvery(500);
+  });
+
+  it("is asked at a turn's end, with no page open", async () => {
+    await endEvery(500);
+    fs.mkdirSync(home(instance), { recursive: true });
+    fs.writeFileSync(credentials(), JSON.stringify({ claudeAiOauth: { accessToken: "token-own" } }));
+    const requests = [];
+    globalThis.fetch = async (url, options) => {
+      if (url !== usage.USAGE_URL) return realFetch(url, options);
+      requests.push(url);
+      return { ok: true, status: 200, headers: { get: () => null }, json: async () => ({ limits: [] }) };
+    };
+    await seatUp(LEADER);
+    // A reading a minute old: too young for the clock, old enough for a turn's end.
+    usage.reset();
+    await usage.refresh(chat, { now: () => Date.now() - usage.SPACING });
+    assert.equal(requests.length, 1);
+    await tell(LEADER, userFrame("hello")).answered;
+    assert.ok(await waitFor(() => requests.length === 2), "not asked at the turn's end");
   });
 });
 

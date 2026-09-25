@@ -1,5 +1,16 @@
 [
   {
+    "name": "a turn's end does not ask for the account's usage",
+    "catches": "is asked at a turn's end, with no page open",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "  toldContext(instance, record);\n  usage.turnEnded(instance);\n",
+        "to": "  toldContext(instance, record);\n"
+      }
+    ]
+  },
+  {
     "name": "deliver never starts the Leader",
     "catches": "starts a stopped Leader for a page message, the message its first line",
     "edits": [
