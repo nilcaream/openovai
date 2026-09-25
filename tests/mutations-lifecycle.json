@@ -186,8 +186,19 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "  const last = Array.isArray(usage?.iterations) ? usage.iterations.at(-1) : undefined;\n  if (last === undefined || last === null) {\n    return null;\n  }\n  return (last.input_tokens ?? 0) + (last.cache_read_input_tokens ?? 0) + (last.cache_creation_input_tokens ?? 0);",
-        "to": "  if (usage === undefined || usage === null || typeof usage.input_tokens !== \"number\") {\n    return null;\n  }\n  return (usage.input_tokens ?? 0) + (usage.cache_read_input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0);"
+        "from": "  const last = Array.isArray(usage?.iterations) ? usage.iterations.at(-1) : undefined;\n  if (last === undefined || last === null) {\n    return null;\n  }\n  return inputOf(last);",
+        "to": "  if (usage === undefined || usage === null || typeof usage.input_tokens !== \"number\") {\n    return null;\n  }\n  return inputOf(usage);"
+      }
+    ]
+  },
+  {
+    "name": "the context is told only at the turn's end, not at the request that passed the size",
+    "catches": "tells the Leader of a Worker's context at the request that passed the size, before the turn's result, and not again at it",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "            record.context = context;\n            measured(record);",
+        "to": "            record.context = context;"
       }
     ]
   },

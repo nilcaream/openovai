@@ -563,6 +563,31 @@ describe("the context sizes", () => {
     assert.deepEqual(heardIn(paul.log), ["one", "two", "three", "four", "five"].map((said) => `<user>${said}</user>`));
     assert.equal(running(WORKER), true);
   });
+
+  // Every request of a turn says what it took, so a size passed in the middle of a long turn is
+  // told at that request and not held until the turn is over; the turn's result, at the same size,
+  // tells nothing more.
+  it("tells the Leader of a Worker's context at the request that passed the size, before the turn's result, and not again at it", async () => {
+    await endEvery(500);
+    const leader = await seatUp(LEADER);
+    const request = { input_tokens: 2, cache_read_input_tokens: 239_998, cache_creation_input_tokens: 500 };
+    await seatUp(WORKER, {
+      OPENOVAI_STAND_IN_CALLS: JSON.stringify([[{ name: "Bash", input: { command: "ls" }, usage: request }]]),
+      OPENOVAI_STAND_IN_CALL_HOLDS: "3000",
+      OPENOVAI_STAND_IN_USAGE: JSON.stringify([{ input_tokens: 2, iterations: [request] }]),
+    });
+    let over = false;
+    const turn = tell(WORKER, userFrame("one"));
+    turn.answered.then(() => {
+      over = true;
+    });
+    const about = `<server-event type="context" who="${WORKER}" stage="warning" context="240500" error="300000"/>`;
+    assert.deepEqual(await told(leader.log, 1), [about]);
+    assert.equal(over, false, "the size was told only once the turn was over");
+    await turn.answered;
+    await settle();
+    assert.deepEqual(heardIn(leader.log), [about]);
+  });
 });
 
 // Every call of the instance's own tools is timed where it is dispatched: the log says how long

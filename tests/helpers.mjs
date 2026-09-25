@@ -128,10 +128,11 @@ export function installed(options, environment) {
 //   OPENOVAI_STAND_IN_TOOL_ON       only turns whose question contains this text make those calls
 //                             (default: every turn)
 //   OPENOVAI_STAND_IN_CALLS         a JSON list, one entry per QUESTION the same way, each a list of
-//                             { name, input, error?, parent? }: the tools the real one would say
-//                             it is using in that turn, each written before the answer as one
-//                             assistant frame with a tool_use block (id call-<turn>-<i>,
-//                             parent_tool_use_id from parent, else null) and one user frame
+//                             { name, input, error?, parent?, usage? }: the tools the real one
+//                             would say it is using in that turn, each written before the answer
+//                             as one assistant frame with a tool_use block (id call-<turn>-<i>,
+//                             parent_tool_use_id from parent, else null, and usage as the
+//                             message's usage, the request's own) and one user frame
 //                             with its tool_result (is_error from error; error given as a
 //                             string is the words the failed result says) — the shapes measured
 //                             on the real one, one frame per block
@@ -456,7 +457,7 @@ for (;;) {
   for (const [i, call] of (made ?? []).entries()) {
     const id = "call-" + turn + "-" + i;
     const parent = call.parent ?? null;
-    frame({ type: "assistant", message: { role: "assistant", content: [{ type: "tool_use", id, name: call.name, input: call.input ?? {} }] }, parent_tool_use_id: parent, session_id: "test-thread" });
+    frame({ type: "assistant", message: { role: "assistant", content: [{ type: "tool_use", id, name: call.name, input: call.input ?? {} }], ...(call.usage === undefined ? {} : { usage: call.usage }) }, parent_tool_use_id: parent, session_id: "test-thread" });
     const hold = Number(process.env.OPENOVAI_STAND_IN_CALL_HOLDS ?? 0);
     if (hold > 0 && !interrupted) {
       callOut = true;
