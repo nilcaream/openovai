@@ -1,6 +1,7 @@
 // A Worker's checkpoint: the Leader sets a number of tool calls on its order, the server counts the
 // Worker's own calls and, when they reach it, tells the Worker to report and carry on and tells
-// the Leader it did. Driven through the real chat with stand-ins for both seats.
+// the Leader it did. And an urgent message: the Leader's word into a Worker's turn under way.
+// Driven through the real chat with stand-ins for both seats.
 
 import assert from "node:assert/strict";
 import path from "node:path";
@@ -14,7 +15,7 @@ import { serve, startSeat, toolsFor } from "../lib/chat/server.mjs";
 import { endEvery } from "../lib/chat/session.mjs";
 import { LEADER as LEADER_ROLE, WORKER as WORKER_ROLE, hire } from "../lib/desks.mjs";
 import { CONFIG_FILE } from "../lib/seed.mjs";
-import { heardIn, installed, post as postPlain, remove, repo, sansMoment, scratch, secretsIn, waitFor, writeStandIn } from "./helpers.mjs";
+import { heardIn, installed, notesIn, post as postPlain, remove, repo, sansMoment, scratch, secretsIn, waitFor, writeStandIn } from "./helpers.mjs";
 
 const USER = "Mike";
 const LEADER = "Superman";
@@ -66,8 +67,8 @@ after(async () => {
 });
 
 // A seat started through the one seam, with its own log and knobs on the environment for the spawn.
-async function seatUp(seat, knobs = {}) {
-  const log = path.join(standIn, `${seat}.txt`);
+async function seatUp(seat, knobs = {}, logName = seat) {
+  const log = path.join(standIn, `${logName}.txt`);
   const before_ = { ...process.env };
   process.env.OPENOVAI_STAND_IN_LOG = log;
   Object.assign(process.env, knobs);
@@ -133,5 +134,59 @@ describe("a checkpoint", () => {
     assert.ok((await toldUntil(worker.log, toWorker)).includes(toWorker), heardIn(worker.log).join("\n"));
     assert.ok((await toldUntil(leader.log, toLeader)).includes(toLeader), heardIn(leader.log).join("\n"));
     assert.equal(said.filter((row) => /^checkpoint\s+Paul\s+-\s+3 calls$/.test(row.trim())).length, 1, said.join("\n"));
+  });
+});
+
+// An urgent message does not wait for the Worker's turn to end: it goes in at the Worker's next
+// call, as a line the User types does, with whatever was queued ahead of it, and the turn's one
+// result answers them all. A message that is not urgent waits for the turn's end.
+describe("an urgent message", () => {
+  let leader = null;
+  let worker = null;
+  const from = (text, urgent = false) => `<message from="${LEADER}"${urgent ? ` urgent="true"` : ""}>${text}</message>`;
+  const noted = (label) => notesIn(worker.log).filter(([one]) => one === label).map(([, rest]) => rest);
+  const settled = () => new Promise((resolve) => setTimeout(resolve, 300));
+
+  before(async () => {
+    await endEvery(500);
+    leader = await seatUp(LEADER, {}, "urgent-leader");
+    // Each of the first two turns holds a call out for three seconds; the third makes none.
+    worker = await seatUp(WORKER, { OPENOVAI_STAND_IN_CALLS: JSON.stringify([[call("ls")], [call("pwd")], []]), OPENOVAI_STAND_IN_CALL_HOLDS: "3000" }, "urgent-worker");
+  });
+
+  it("is offered to the Leader only", () => {
+    const schemaFor = (seat, role) => toolsFor(chat, { seat, role }).find((one) => one.name === "message").inputSchema.properties;
+    assert.ok("urgent" in schemaFor(LEADER, LEADER_ROLE));
+    assert.ok(!("urgent" in schemaFor(WORKER, WORKER_ROLE)));
+  });
+
+  it("refuses a Worker's and one that is not true or false", async () => {
+    assert.equal((await tool(worker.secret, "message", { to: LEADER, text: "hi", urgent: true })).text, "urgent is the Leader's to set");
+    assert.equal((await tool(leader.secret, "message", { to: WORKER, text: "hi", urgent: "yes" })).text, "message: urgent is not true or false");
+  });
+
+  it("joins the Worker's turn at its call, with what was queued ahead of it, and one result answers them all", async () => {
+    assert.equal((await tool(leader.secret, "message", { to: WORKER, text: "first" })).refused, false);
+    await waitFor(() => (heardIn(worker.log).length >= 1 ? true : null));
+    await settled();
+    assert.equal((await tool(leader.secret, "message", { to: WORKER, text: "queued" })).refused, false);
+    assert.equal((await tool(leader.secret, "message", { to: WORKER, text: "now", urgent: true })).refused, false);
+    await waitFor(() => (noted("answered").length >= 1 ? true : null));
+    await settled();
+    assert.deepEqual(noted("joined"), [from("queued"), from("now", true)]);
+    const order = notesIn(worker.log).map(([label]) => label);
+    assert.ok(order.indexOf("joined") < order.indexOf("answered"), order.join(" "));
+    assert.deepEqual(heardIn(worker.log), [from("first")]);
+    assert.equal(noted("answered").length, 1);
+  });
+
+  it("waits for the turn's end when it is not urgent", async () => {
+    assert.equal((await tool(leader.secret, "message", { to: WORKER, text: "second" })).refused, false);
+    await waitFor(() => (heardIn(worker.log).length >= 2 ? true : null));
+    await settled();
+    assert.equal((await tool(leader.secret, "message", { to: WORKER, text: "plain" })).refused, false);
+    await waitFor(() => (noted("answered").length >= 3 ? true : null));
+    assert.equal(noted("joined").length, 2, "a message that is not urgent joined a turn under way");
+    assert.deepEqual(heardIn(worker.log), [from("first"), from("second"), from("plain")]);
   });
 });

@@ -20,6 +20,7 @@ All of that is the Leader's now:
   at the warning size and at the error size only. At the error size the Leader restarts it with
   `restart_worker` at a moment that suits the work.
 - That size is measured at every request of a turn, so a long turn is told when it passes a size.
+- `message` takes `urgent`, the Leader's only: it reaches a Worker mid-turn, at its next tool call.
 - A Worker says it is done with the new `done` tool, with a one-line note if it likes. The Leader
   gets a `done` event and decides whether it stops. The report still goes as a message.
 - The Leader's own session is unchanged: it still ends and restarts itself.

@@ -27,8 +27,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "  const closing = record.queue.findIndex((turn) => isClosing(turn.ask));\n  const last = (closing === -1 ? record.queue : record.queue.slice(0, closing)).findLastIndex((turn) => turn.frame.kind === \"user\");",
-        "to": "  const last = record.queue.findLastIndex((turn) => turn.frame.kind === \"user\");"
+        "from": "  const closing = record.queue.findIndex((turn) => isClosing(turn.ask));\n  const last = (closing === -1 ? record.queue : record.queue.slice(0, closing)).findLastIndex((turn) => joins(turn.frame));",
+        "to": "  const last = record.queue.findLastIndex((turn) => joins(turn.frame));"
       }
     ]
   },

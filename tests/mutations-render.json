@@ -170,7 +170,7 @@
     "edits": [
       {
         "file": "lib/chat/render.mjs",
-        "from": "      return { who: entry.from, kind: \"line\", text: `Received a message from ${entry.from}`, err: false, why: \"\", ...msg };",
+        "from": "      return { who: entry.from, kind: \"line\", text: `Received ${entry.urgent === true ? \"an urgent\" : \"a\"} message from ${entry.from}`, err: false, why: \"\", ...msg };",
         "to": "      return { who: `From ${entry.from}`, kind: \"peer-in\", html: html(entry.text), tight: true, ...msg };"
       }
     ]
@@ -214,8 +214,8 @@
     "edits": [
       {
         "file": "lib/chat/render.mjs",
-        "from": "        return { who: `To ${entry.to}`, kind: \"peer-out\", ...folded(entry.text), ...status, ...msg };",
-        "to": "        return { who: `To ${entry.to}`, kind: \"peer-out\", ...folded(entry.text), ...status };"
+        "from": "        return { who: `${entry.urgent === true ? \"Urgent to\" : \"To\"} ${entry.to}`, kind: \"peer-out\", ...folded(entry.text), ...status, ...msg };",
+        "to": "        return { who: `${entry.urgent === true ? \"Urgent to\" : \"To\"} ${entry.to}`, kind: \"peer-out\", ...folded(entry.text), ...status };"
       }
     ]
   },
@@ -258,8 +258,8 @@
     "edits": [
       {
         "file": "lib/chat/render.mjs",
-        "from": "text: `Received a message from ${entry.from}`, err: false, why: \"\", ...msg };",
-        "to": "text: `Received a message from ${entry.from}`, err: false, why: \"\" };"
+        "from": "message from ${entry.from}`, err: false, why: \"\", ...msg };",
+        "to": "message from ${entry.from}`, err: false, why: \"\" };"
       }
     ]
   },

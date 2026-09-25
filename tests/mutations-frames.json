@@ -104,8 +104,8 @@
     "edits": [
       {
         "file": "lib/chat/frames.mjs",
-        "from": "\">${neutralise(text)}</message>`, null, from);",
-        "to": "\">${text}</message>`, null, from);"
+        "from": ">${neutralise(text)}</message>`",
+        "to": ">${text}</message>`"
       }
     ]
   },
@@ -137,8 +137,8 @@
     "edits": [
       {
         "file": "lib/chat/frames.mjs",
-        "from": "`<message from=\"${token(\"from\", from)}\">",
-        "to": "`<message>"
+        "from": "`<message from=\"${token(\"from\", from)}\"${marked}>",
+        "to": "`<message${marked}>"
       }
     ]
   },
@@ -170,8 +170,8 @@
     "edits": [
       {
         "file": "lib/chat/frames.mjs",
-        "from": "`<message from=\"${token(\"from\", from)}\">",
-        "to": "`<message from=\"${from}\">"
+        "from": "`<message from=\"${token(\"from\", from)}\"${marked}>",
+        "to": "`<message from=\"${from}\"${marked}>"
       }
     ]
   },

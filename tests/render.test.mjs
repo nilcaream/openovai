@@ -192,6 +192,19 @@ describe("a message between two sessions", () => {
     assert.deepEqual(row({ from: "Leader", to: "Paul", text: "**go**", msg: "m-5" }, worker), { who: "Leader", kind: "line", text: "Received a message from Leader", err: false, why: "", msg: "m-5" });
   });
 
+  // One the Leader sent urgent says so at both ends: it went into a turn under way.
+  it("a message the Leader sent urgent is Urgent to its Worker, and an urgent one the Worker received", () => {
+    assert.equal(row({ from: "Leader", to: "Paul", text: "stop that", outcome: "sent", msg: "m-6", urgent: true }, names).who, "Urgent to Paul");
+    assert.deepEqual(row({ from: "Leader", to: "Paul", text: "stop that", msg: "m-6", urgent: true }, worker), {
+      who: "Leader",
+      kind: "line",
+      text: "Received an urgent message from Leader",
+      err: false,
+      why: "",
+      msg: "m-6",
+    });
+  });
+
   it("a Worker's answer stays its own reply", () => {
     const shown = row({ from: "Paul", to: "Leader", text: "pong" }, worker);
     assert.equal(shown.who, "Paul");

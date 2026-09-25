@@ -422,8 +422,8 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "        const told = deliver(instance, to, messageFrame(caller.seat, text));",
-        "to": "        const told = deliver(instance, to, messageFrame(args?.from ?? caller.seat, text));"
+        "from": "        const told = deliver(instance, to, messageFrame(caller.seat, text, { urgent: urgent === true }));",
+        "to": "        const told = deliver(instance, to, messageFrame(args?.from ?? caller.seat, text, { urgent: urgent === true }));"
       }
     ]
   },
@@ -433,7 +433,7 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "        append(root, to, { from: caller.seat, to, text, msg });\n",
+        "from": "        append(root, to, { from: caller.seat, to, text, msg, ...marked });\n",
         "to": ""
       }
     ]
@@ -614,8 +614,8 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "        const told = deliver(instance, to, messageFrame(caller.seat, text));",
-        "to": "        if (!running(to)) {\n          startSeat(instance, to);\n        }\n        const told = deliver(instance, to, messageFrame(caller.seat, text));"
+        "from": "        const told = deliver(instance, to, messageFrame(caller.seat, text, { urgent: urgent === true }));",
+        "to": "        if (!running(to)) {\n          startSeat(instance, to);\n        }\n        const told = deliver(instance, to, messageFrame(caller.seat, text, { urgent: urgent === true }));"
       }
     ]
   },
@@ -1186,7 +1186,7 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "        append(root, caller.seat, { from: caller.seat, to, text, outcome: \"sent\", msg });\n",
+        "from": "        append(root, caller.seat, { from: caller.seat, to, text, outcome: \"sent\", msg, ...marked });\n",
         "to": ""
       }
     ]
@@ -1219,8 +1219,8 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "        append(root, to, { from: caller.seat, to, text, msg });\n",
-        "to": "        append(root, to, { from: caller.seat, text, msg });\n"
+        "from": "        append(root, to, { from: caller.seat, to, text, msg, ...marked });\n",
+        "to": "        append(root, to, { from: caller.seat, text, msg, ...marked });\n"
       }
     ]
   },
@@ -1285,8 +1285,8 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "        append(root, to, { from: caller.seat, to, text, msg });\n",
-        "to": "        append(root, to, { from: caller.seat, to, text, msg: crypto.randomUUID() });\n"
+        "from": "        append(root, to, { from: caller.seat, to, text, msg, ...marked });\n",
+        "to": "        append(root, to, { from: caller.seat, to, text, msg: crypto.randomUUID(), ...marked });\n"
       }
     ]
   },
@@ -1483,8 +1483,8 @@
     "edits": [
       {
         "file": "lib/chat/frames.mjs",
-        "from": "`<message from=\"${token(\"from\", from)}\">${neutralise(text)}</message>`, null, from);",
-        "to": "`<message from=\"${token(\"from\", from)}\">${neutralise(text)}</message>`);"
+        "from": "`<message from=\"${token(\"from\", from)}\"${marked}>${neutralise(text)}</message>`, null, from, urgent === true);",
+        "to": "`<message from=\"${token(\"from\", from)}\"${marked}>${neutralise(text)}</message>`, null, null, urgent === true);"
       }
     ]
   },
@@ -1875,6 +1875,39 @@
         "file": "lib/chat/server.mjs",
         "from": "  done: [WORKER],",
         "to": "  done: [LEADER, WORKER],"
+      }
+    ]
+  },
+  {
+    "name": "an urgent message waits for the turn's end like any other",
+    "catches": "joins the Worker's turn at its call, with what was queued ahead of it, and one result answers them all",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "  return frame.kind === \"user\" || frame.urgent === true;",
+        "to": "  return frame.kind === \"user\";"
+      }
+    ]
+  },
+  {
+    "name": "a Worker may send an urgent message",
+    "catches": "refuses a Worker's and one that is not true or false",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "        if (urgent !== undefined && caller.role !== LEADER) {",
+        "to": "        if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "an urgent message is not marked for the Worker",
+    "catches": "joins the Worker's turn at its call, with what was queued ahead of it, and one result answers them all",
+    "edits": [
+      {
+        "file": "lib/chat/frames.mjs",
+        "from": "  const marked = urgent === true ? ` urgent=\"true\"` : \"\";",
+        "to": "  const marked = \"\";"
       }
     ]
   }
