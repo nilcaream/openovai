@@ -525,5 +525,16 @@
         "to": ""
       }
     ]
+  },
+  {
+    "name": "a hire on a desk the Worker had keeps the desk's model over the one given",
+    "catches": "hire on a desk the Worker had: a given model replaces the desk's, and without one the desk's stands",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "          writeModel(root, name, model);\n",
+        "to": ""
+      }
+    ]
   }
 ]

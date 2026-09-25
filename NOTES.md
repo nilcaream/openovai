@@ -28,6 +28,8 @@ All of that is the Leader's now:
   window, and the model when it is one model's own; a stopped Leader is started by it, to bring
   back the Workers that stopped on the window. A park forgets the resets to come, and a server
   restart before the reset loses them.
+- `hire` with a model on a desk a Worker had now runs it on that model and keeps it for the desk
+  from then on; without a model, the desk's own stands as before.
 
 **A Worker's session is closed for it, and never in the middle of a step.** When a Worker has to
 end — idle at 55 minutes, its usage window spent, the room parking — the server tells it one thing,

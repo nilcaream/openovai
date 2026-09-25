@@ -130,6 +130,27 @@ describe("starting a seat", () => {
     }
   });
 
+  // A model given to a hire on a desk that exists is the Leader's word now, and it outranks what
+  // the desk was hired on before; left out, the desk's own stands.
+  it("hire on a desk the Worker had: a given model replaces the desk's, and without one the desk's stands", async () => {
+    const modelOf = () => fs.readFileSync(path.join(instance, "desks", "Lou", "MODEL"), "utf8");
+    try {
+      const first = await spawnedBy("Lou", () => tool(superman.secret, "hire", { name: "Lou", model: "model-a" }));
+      assert.equal(first.result.refused, false, first.result.text);
+      await end("Lou", 500);
+      const moved = await spawnedBy("Lou", () => tool(superman.secret, "hire", { name: "Lou", model: "model-b" }));
+      assert.equal(moved.result.text, "Lou started on the desk desks/Lou (model-b)");
+      assert.equal(modelOf(), "model-b\n");
+      await end("Lou", 500);
+      const kept = await spawnedBy("Lou", () => tool(superman.secret, "hire", { name: "Lou" }));
+      assert.equal(kept.result.text, "Lou started on the desk desks/Lou (model-b)");
+      assert.equal(modelOf(), "model-b\n");
+    } finally {
+      await end("Lou", 500);
+      remove(path.join(instance, "desks", "Lou"));
+    }
+  });
+
 });
 
 describe("write_desk", () => {
