@@ -63,6 +63,9 @@ All of that is the Leader's now:
   the User typed to a Worker stays. Shown by default, kept in the browser as `openovai-comms`. A
   hidden row reached from a click — its Sent or Received line on a Worker's panel, a reference —
   is shown opened, and hides again when it is folded.
+- A code block wider than the panel shows a thin horizontal scrollbar in the theme's colours, the
+  only scrollbar on the page, and only while the code overflows. Its copy button stays in the
+  block's top-right corner however far the code is scrolled, and shows while the block is hovered.
 
 **A Worker's session is closed for it, and never in the middle of a step.** When a Worker has to
 end — idle at 55 minutes, its usage window spent, the room parking — the server tells it one thing,

@@ -2551,5 +2551,71 @@
         "to": "          landed = true;\n"
       }
     ]
+  },
+  {
+    "name": "the copy button goes back inside the scroller",
+    "catches": "frames a code block that scrolls, with a thin themed scrollbar, the frame holding the border",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "        block.append(pre, copyButton());\n",
+        "to": "        block.append(pre);\n        pre.append(copyButton());\n"
+      }
+    ]
+  },
+  {
+    "name": "the code block's scroller shows no bar",
+    "catches": "frames a code block that scrolls, with a thin themed scrollbar, the frame holding the border",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "line-height: 1.4; scrollbar-width: thin;",
+        "to": "line-height: 1.4; scrollbar-width: none;"
+      }
+    ]
+  },
+  {
+    "name": "the code block's bar takes no theme colour",
+    "catches": "frames a code block that scrolls, with a thin themed scrollbar, the frame holding the border",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": " scrollbar-color: var(--fg-faint) transparent;",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the code block's frame lets the bar out past its corners",
+    "catches": "frames a code block that scrolls, with a thin themed scrollbar, the frame holding the border",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "border-radius: 8px; overflow: hidden; }",
+        "to": "border-radius: 8px; }"
+      }
+    ]
+  },
+  {
+    "name": "hovering a code block shows no copy button",
+    "catches": "keep the copy button in a code block's corner, shown on hover and while it says copied",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": ".md .code:hover .copy, ",
+        "to": ".md .code:focus .copy, "
+      }
+    ]
+  },
+  {
+    "name": "a block with no code element copies the button's markup too",
+    "catches": "puts a copy button on every code block and copies the block's code on one delegated click",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "?? block.querySelector(\"pre\")).textContent",
+        "to": "?? block).textContent"
+      }
+    ]
   }
 ]

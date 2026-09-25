@@ -314,20 +314,39 @@ describe("the rules", () => {
     assert.equal(stage.declarations["grid-template-columns"], "minmax(406px, 1fr) minmax(0, 1092px) minmax(406px, 1fr)");
   });
 
-  // The copy button sits in the top-right corner of a code block, so the block is what it is
-  // placed against; it is invisible until the block is hovered, or it has the focus, or it has
+  // The copy button sits in the top-right corner of a code block's frame, so the frame is what it
+  // is placed against; it is invisible until the frame is hovered, or it has the focus, or it has
   // just copied — that state is the icon's own colour, and the tick in place of the clipboard.
   it("keep the copy button in a code block's corner, shown on hover and while it says copied", () => {
-    assert.equal(rules.find((rule) => rule.selector === ".md pre").declarations.position, "relative");
-    const copy = rules.find((rule) => rule.selector === ".md pre .copy");
+    assert.equal(rules.find((rule) => rule.selector === ".md .code").declarations.position, "relative");
+    const copy = rules.find((rule) => rule.selector === ".md .code .copy");
     assert.equal(copy.declarations.position, "absolute");
     assert.equal(copy.declarations.top, "4px");
     assert.equal(copy.declarations.right, "4px");
     assert.equal(copy.declarations.opacity, "0");
-    assert.deepEqual(rules.find((rule) => rule.selector === ".md pre:hover .copy, .md pre .copy:focus-visible, .md pre .copy.copied").declarations, { opacity: "1" });
-    assert.equal(rules.find((rule) => rule.selector === ".md pre .copy.copied").declarations.color, "var(--ok)");
-    assert.deepEqual(rules.find((rule) => rule.selector === ".md pre .copy .tick, .md pre .copy.copied .clip").declarations, { display: "none" });
-    assert.deepEqual(rules.find((rule) => rule.selector === ".md pre .copy.copied .tick").declarations, { display: "inline" });
+    assert.deepEqual(rules.find((rule) => rule.selector === ".md .code:hover .copy, .md .code .copy:focus-visible, .md .code .copy.copied").declarations, { opacity: "1" });
+    assert.equal(rules.find((rule) => rule.selector === ".md .code .copy.copied").declarations.color, "var(--ok)");
+    assert.deepEqual(rules.find((rule) => rule.selector === ".md .code .copy .tick, .md .code .copy.copied .clip").declarations, { display: "none" });
+    assert.deepEqual(rules.find((rule) => rule.selector === ".md .code .copy.copied .tick").declarations, { display: "inline" });
+  });
+
+  // A code block is a frame that does not scroll around a <pre> that does: the border is the
+  // frame's and the button is placed against it, so a long line scrolled right leaves the button
+  // in the corner. The <pre> is the one element on the page with a scrollbar — every other is
+  // hidden — shown only when the code is wider than the block, thin, in the theme's faint colour.
+  it("frames a code block that scrolls, with a thin themed scrollbar, the frame holding the border", () => {
+    const frame = rules.find((rule) => rule.selector === ".md .code");
+    assert.equal(frame.declarations.border, "1px solid var(--line)");
+    assert.equal(frame.declarations.overflow, "hidden", "the scroller's bar is kept inside the rounded frame");
+    const scroller = rules.find((rule) => rule.selector === ".md pre");
+    assert.equal(scroller.declarations["overflow-x"], "auto", "a bar only when the code overflows");
+    assert.equal(scroller.declarations["scrollbar-width"], "thin");
+    assert.equal(scroller.declarations["scrollbar-color"], "var(--fg-faint) transparent");
+    assert.equal(scroller.declarations.border, undefined, "the border is the frame's, not the scroller's");
+    assert.equal(scroller.declarations.position, undefined, "the button is not placed against the scroller");
+    assert.equal(rules.find((rule) => rule.selector === ".md pre::-webkit-scrollbar")?.declarations.display, "block");
+    assert.equal(rules.find((rule) => rule.selector === ".md pre::-webkit-scrollbar-thumb")?.declarations.background, "var(--fg-faint)");
+    assert.match(script, /for \(const pre of body\.querySelectorAll\("pre"\)\) \{\s*const block = document\.createElement\("div"\);\s*block\.className = "code";\s*pre\.replaceWith\(block\);\s*block\.append\(pre, copyButton\(\)\);\s*\}/, "the button goes on the frame, beside the <pre>");
   });
 
   it("draw a tool line in the dim mono of a machine word", () => {
@@ -998,8 +1017,8 @@ describe("the script", () => {
   // for all of them: the click finds the button, copies the code inside its block — the code
   // element, never the button's own markup — and says copied on the button for a moment.
   it("puts a copy button on every code block and copies the block's code on one delegated click", () => {
-    assert.match(script, /body\.innerHTML = shown\.html;\s*if \(shown\.tight === true\) body\.classList\.add\("tight"\);\s*for \(const block of body\.querySelectorAll\("pre"\)\) block\.append\(copyButton\(\)\);/);
-    assert.match(script, /rows\.addEventListener\("click", \(event\) => \{\s*const copy = event\.target\.closest\(".copy"\);\s*if \(copy === null\) return;\s*const block = copy\.parentElement;\s*navigator\.clipboard\.writeText\(\(block\.querySelector\("code"\) \?\? block\)\.textContent\)\.then\(\(\) => \{\s*copy\.classList\.add\("copied"\);\s*setTimeout\(\(\) => copy\.classList\.remove\("copied"\), COPIED_FOR\);/);
+    assert.match(script, /body\.innerHTML = shown\.html;\s*if \(shown\.tight === true\) body\.classList\.add\("tight"\);\s*(?:\/\/[^\n]*\n\s*)*for \(const pre of body\.querySelectorAll\("pre"\)\) \{/);
+    assert.match(script, /rows\.addEventListener\("click", \(event\) => \{\s*const copy = event\.target\.closest\(".copy"\);\s*if \(copy === null\) return;\s*const block = copy\.parentElement;\s*navigator\.clipboard\.writeText\(\(block\.querySelector\("code"\) \?\? block\.querySelector\("pre"\)\)\.textContent\)\.then\(\(\) => \{\s*copy\.classList\.add\("copied"\);\s*setTimeout\(\(\) => copy\.classList\.remove\("copied"\), COPIED_FOR\);/);
     assert.match(script, /function copyButton\(\) \{\s*const button = document\.createElement\("button"\);\s*button\.type = "button";\s*button\.className = "copy";/);
   });
 

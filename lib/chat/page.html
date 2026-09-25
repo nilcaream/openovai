@@ -182,20 +182,28 @@
   .divider span { background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 2px 12px; }
   /* markdown inside a reply */
   .md > :first-child { margin-top: 0; } .md > :last-child { margin-bottom: 0; }
-  .md p, .md ul, .md ol, .md pre, .md table, .md blockquote { margin: .45em 0; }
+  .md p, .md ul, .md ol, .md .code, .md table, .md blockquote { margin: .45em 0; }
   .md h1, .md h2, .md h3, .md h4 { margin: .7em 0 .3em; line-height: 1.25; }
   .md h1 { font-size: 1.25rem; } .md h2 { font-size: 1.15rem; } .md h3 { font-size: 1.05rem; } .md h4 { font-size: 1rem; }
   .md code { font-family: var(--mono); font-size: .88em; background: rgba(127,127,127,.18); padding: .1em .35em; border-radius: 5px; }
-  .md pre { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; overflow-x: auto; font-size: .85rem; line-height: 1.4; position: relative; }
+  /* a code block is two boxes: the frame, which does not scroll and carries the border and the
+     copy button, and the <pre> inside it, which scrolls sideways under the button */
+  .md .code { position: relative; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .md pre { margin: 0; padding: 10px 12px; overflow-x: auto; font-size: .85rem; line-height: 1.4; scrollbar-width: thin; scrollbar-color: var(--fg-faint) transparent; }
+  /* the one scrollbar the page shows, and only when the code is wider than the block: thin, in
+     the theme's faint colour — the standard properties above, the same drawn for WebKit here */
+  .md pre::-webkit-scrollbar { display: block; height: 6px; }
+  .md pre::-webkit-scrollbar-track { background: transparent; }
+  .md pre::-webkit-scrollbar-thumb { background: var(--fg-faint); border-radius: 3px; }
   .md pre code { background: none; padding: 0; font-size: inherit; }
   /* the copy button in a code block's top-right corner: there on hover, on focus and while it
      says copied — the tick in place of the clipboard, in the ok colour, for a moment */
-  .md pre .copy { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: var(--panel-2); color: var(--fg-dim); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; opacity: 0; transition: opacity .15s; }
-  .md pre:hover .copy, .md pre .copy:focus-visible, .md pre .copy.copied { opacity: 1; }
-  .md pre .copy.copied { color: var(--ok); }
-  .md pre .copy svg { width: 14px; height: 14px; }
-  .md pre .copy .tick, .md pre .copy.copied .clip { display: none; }
-  .md pre .copy.copied .tick { display: inline; }
+  .md .code .copy { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: var(--panel-2); color: var(--fg-dim); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; opacity: 0; transition: opacity .15s; }
+  .md .code:hover .copy, .md .code .copy:focus-visible, .md .code .copy.copied { opacity: 1; }
+  .md .code .copy.copied { color: var(--ok); }
+  .md .code .copy svg { width: 14px; height: 14px; }
+  .md .code .copy .tick, .md .code .copy.copied .clip { display: none; }
+  .md .code .copy.copied .tick { display: inline; }
   .md table { border-collapse: collapse; display: block; overflow-x: auto; max-width: 100%; font-size: .92rem; }
   .md th, .md td { border: 1px solid var(--line); padding: 4px 9px; text-align: left; vertical-align: top; }
   .md th { background: var(--panel); }
@@ -205,7 +213,7 @@
   .md li { margin: .1em 0; }
   .md li > p { margin: .15em 0; }
   /* the compact form, for a message between two sessions */
-  .md.tight p, .md.tight ul, .md.tight ol, .md.tight li, .md.tight li > p, .md.tight pre { margin: 0; }
+  .md.tight p, .md.tight ul, .md.tight ol, .md.tight li, .md.tight li > p, .md.tight .code { margin: 0; }
   .md.tight ul, .md.tight ol { padding-left: 1.1em; }
   .md hr { border: 0; border-top: 1px solid var(--line); }
   .md img { max-width: 100%; }
@@ -542,7 +550,7 @@
       const copy = event.target.closest(".copy");
       if (copy === null) return;
       const block = copy.parentElement;
-      navigator.clipboard.writeText((block.querySelector("code") ?? block).textContent).then(() => {
+      navigator.clipboard.writeText((block.querySelector("code") ?? block.querySelector("pre")).textContent).then(() => {
         copy.classList.add("copied");
         setTimeout(() => copy.classList.remove("copied"), COPIED_FOR);
       }, () => {});
@@ -873,7 +881,14 @@
       body.className = "md";
       body.innerHTML = shown.html;
       if (shown.tight === true) body.classList.add("tight");
-      for (const block of body.querySelectorAll("pre")) block.append(copyButton());
+      // Each code block goes into a frame that does not scroll, and the copy button with it, so
+      // the button stays in the frame's corner however far the code is scrolled.
+      for (const pre of body.querySelectorAll("pre")) {
+        const block = document.createElement("div");
+        block.className = "code";
+        pre.replaceWith(block);
+        block.append(pre, copyButton());
+      }
     } else if (shown.kind === "user") {
       body.className = "text";
       linkedText(body, shown.text, rows, index, panel);
