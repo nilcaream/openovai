@@ -49,8 +49,8 @@
     "edits": [
       {
         "file": "lib/templates/worker.md",
-        "from": "`stop_session`, now.",
-        "to": "`end_session`, now."
+        "from": "then call `done`,\nwith a one-line note if you like",
+        "to": "then call `finish`,\nwith a one-line note if you like"
       }
     ]
   },
@@ -71,8 +71,8 @@
     "edits": [
       {
         "file": "lib/templates/worker.md",
-        "from": "Nobody relaunches you now; {{LEADER}} hires you back on this desk after the reset.",
-        "to": "Nobody relaunches you now; call `hire` with your own name after the reset."
+        "from": "Keep your desk current and carry on:\n  {{LEADER}} decides what happens next.",
+        "to": "Keep your desk current, then call\n  `stop_worker` with your own name."
       }
     ]
   },
@@ -374,24 +374,24 @@
     ]
   },
   {
-    "name": "the Worker's persona sends the Worker to its Leader before a restart",
-    "catches": "does not send the Worker to its Leader before a restart: the successor picks the work up itself",
+    "name": "the Worker's persona has a close end the session at the desk write",
+    "catches": "tells the Worker a close asks only for its desk, written last in the turn, and cuts nothing",
     "edits": [
       {
         "file": "lib/templates/worker.md",
-        "from": "with everything the next session needs, then call `restart_session`, then say \"back in a",
-        "to": "with everything the next session needs, then call `message` to {{LEADER}} — one line: you are\n  restarting, and where the work stands — then call `restart_session`, then say \"back in a"
+        "from": "The session\n  ends when the turn is over, with the desk as you wrote it, and nothing is cut while the turn\n  runs.",
+        "to": "The session\n  ends the moment the desk is written."
       }
     ]
   },
   {
-    "name": "the Worker's persona has the reply said before the tool calls",
-    "catches": "tells the Worker to say back in a moment after the last tool call",
+    "name": "the Worker's persona has done end the session",
+    "catches": "tells the Worker to say it is done after its report, and that done ends nothing",
     "edits": [
       {
         "file": "lib/templates/worker.md",
-        "from": "Call `write_desk`\n  with everything the next session needs, then call `restart_session`, then say \"back in a\n  moment\" — that is the whole of your reply, and it goes to your panel; only what you say after\n  the last tool call reaches it.",
-        "to": "Say \"back in a\n  moment\" — that is the whole of your reply, and it goes to your panel — then call `write_desk`\n  with everything the next session needs, then call `restart_session`."
+        "from": "it tells {{LEADER}} you are ready to close, and ends nothing.",
+        "to": "it tells {{LEADER}} you are ready to close, and ends your session."
       }
     ]
   },
@@ -700,6 +700,17 @@
         "file": "lib/templates/worker.md",
         "from": "Propose a line, never write one:",
         "to": "Write a line yourself when you see one missing:"
+      }
+    ]
+  },
+  {
+    "name": "the Leader's persona leaves a Worker's ending to the Worker",
+    "catches": "tells the Leader that a Worker's session is its to end, with the events that bear on it",
+    "edits": [
+      {
+        "file": "lib/templates/leader.md",
+        "from": "- A Worker's session is yours to end, never its own:",
+        "to": "- A Worker's session is its own to end:"
       }
     ]
   }

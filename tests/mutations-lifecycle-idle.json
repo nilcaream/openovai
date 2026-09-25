@@ -82,8 +82,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "  if (role === WORKER && (ending === \"idle\" || ending === \"idle-forced\")) {",
-        "to": "  if (role === WORKER && ending === \"idle-forced\") {"
+        "from": "const STOPPED_TOLD = [\"stop\", \"stop-deadline\", \"idle\", \"idle-forced\", \"quota\"];",
+        "to": "const STOPPED_TOLD = [\"stop\", \"stop-deadline\", \"idle-forced\", \"quota\"];"
       }
     ]
   },

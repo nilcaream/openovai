@@ -16,7 +16,7 @@ import { INTERRUPT_PATIENCE, end, endEvery, running, tell } from "../lib/chat/se
 import { deskTitle, hire } from "../lib/desks.mjs";
 import { callsIn, childrenOf, heardIn, notesIn, queuesHeardIn, readLog, remove, waitFor } from "./helpers.mjs";
 
-import { setup, LEADER, WORKER, OTHER, MINUTE, panel, instance, unexpected, reading, said, chat, server, seatUp, spawnedBy, page, call, tool, asked, told, readIn, gone, callsThen, settle } from "./lifecycle-helpers.mjs";
+import { setup, LEADER, WORKER, OTHER, MINUTE, panel, instance, unexpected, reading, said, chat, server, seatUp, spawnedBy, page, call, tool, asked, told, readIn, gone, callsThen, writesDesk, settle } from "./lifecycle-helpers.mjs";
 
 let now = Date.now();
 // Ann is hired before the first check: these checks start her without a hire of their own, as
@@ -51,6 +51,15 @@ describe("the quota gate", () => {
     quota.forget();
     superman = await seatUp(LEADER, leaderKnobs);
     paul = await seatUp(WORKER, paulKnobs);
+  }
+
+  // A check that jumps to the reset also passes the deadline of the Worker's close for the spent
+  // window: the Worker goes at that tick and the Leader is told. Waited for here, so the event is
+  // not left to start a Leader in the middle of the next check's setup.
+  async function closedAtTheReset() {
+    assert.ok(await gone(WORKER), `${WORKER} was not closed at its deadline`);
+    const stopped = `<server-event type="stopped" who="${WORKER}" why="quota"/>`;
+    assert.ok(await waitFor(() => (heardIn(superman.log).includes(stopped) ? true : null)), heardIn(superman.log).join("\n"));
   }
 
   it("keeps the newest reading per window from one turn, and stage one tells every seat, behind its queue, nobody interrupted", async () => {
@@ -129,6 +138,7 @@ describe("the quota gate", () => {
     // result it wrote right after has been read here.
     await waitFor(() => (panel(instance, LEADER).at(-1).from === LEADER ? true : null));
     assert.deepEqual(panel(instance, LEADER).slice(-1).map((row) => [row.from, row.text]), [[LEADER, "a reply"]]);
+    await closedAtTheReset();
   });
 
   it("holds a hire from stage one, until the reset", async () => {
@@ -157,6 +167,7 @@ describe("the quota gate", () => {
     now = resets + 1;
     tick(chat);
     assert.equal((await told(superman.log, 2)).at(-1), "<user>rejected</user>");
+    await closedAtTheReset();
   });
 
   it("applies the 7d thresholds to the 7d window: nothing at 0.91, warning at 0.98, interrupt and critical at 0.99", async () => {
@@ -248,7 +259,8 @@ describe("the quota gate", () => {
       await waitFor(() => (running(LEADER) ? true : null));
     });
     assert.equal(callsIn(superman.log).length, 1);
-    assert.deepEqual(await told(superman.log, 1), ["<user>wake up</user>"]);
+    // The Worker's close for the spent window ended at its deadline meanwhile, and that is told too.
+    assert.equal((await told(superman.log, 1))[0], "<user>wake up</user>");
     assert.equal(woke(), true, "the row is not marked delivered once the spawn took its frame");
   });
 
@@ -319,37 +331,27 @@ describe("the quota gate", () => {
     assert.ok(since.findIndex((row) => row.text === "behind") < since.indexOf(lines[0]), "the line came before the row it is about");
     now = resets + 1;
     tick(chat);
-    assert.equal((await told(superman.log, 4)).at(-1), `<message from="${WORKER}">a note</message>`);
+    assert.ok(await waitFor(() => (heardIn(superman.log).includes(`<message from="${WORKER}">a note</message>`) ? true : null)), heardIn(superman.log).join("\n"));
+    await closedAtTheReset();
   });
 
-  // What was queued behind the interrupted turn is held at the write — the window had closed by
-  // then — and waits for the reset like anything held; what arrives during the critical turn is
-  // still on the queue when the process ends, and that is what a restart carries.
-  it("a restart while the window is closed is a stop: no successor is queued, the carried turns are answered so, and the Leader hears of it after the reset", async () => {
+  // A spent window holds every start until it resets, a successor's too: the Leader restarting
+  // itself then is stopped instead. What arrived during its last turn is still on the queue when
+  // the process ends, and is answered so; the next thing addressed to it after the reset starts it.
+  it("a Leader's restart while the window is closed is a stop: no successor, the carried turns answered so", async () => {
     const resets = RESETS();
-    await fresh({ OPENOVAI_STAND_IN_SLOW: "400", ...readings(reading(0.96, { resets })), ...callsThen("restart_session", 'why="quota"') });
+    await fresh({}, { OPENOVAI_STAND_IN_SLOW: "400", ...readings(reading(0.96, { resets })), ...callsThen("restart_session", 'stage="critical"') });
     const spawns = readLog(unexpected);
-    tell(WORKER, userFrame("one"));
-    const held = tell(WORKER, userFrame("held"));
-    assert.match((await told(paul.log, 2)).at(-1), /^<server-event type="closing" why="quota"/);
-    assert.equal(quota.held(WORKER).filter((entry) => entry.frame.kind === "user").length, 1, "the turn behind the critical one was not held at the write");
-    const carried = tell(WORKER, userFrame("carried"));
-    assert.ok(await gone(WORKER), `${WORKER} never restarted`);
-    assert.equal(deskTitle(instance, WORKER), "restart_session by the stand-in");
+    tell(LEADER, userFrame("one"));
+    assert.match((await told(superman.log, 2)).at(-1), /^<server-event type="quota-low" stage="critical"/);
+    const carried = tell(LEADER, userFrame("carried"));
+    assert.ok(await gone(LEADER), said.slice(-12).join("\n"));
+    assert.equal(deskTitle(instance, LEADER), "restart_session by the stand-in");
     await settle();
-    assert.equal(running(WORKER), false);
+    assert.equal(running(LEADER), false);
     assert.equal(readLog(unexpected), spawns, "a successor was started through the closed gate");
-    assert.ok(said.includes(`restart ${WORKER} - no successor: stopped, 5h exhausted until ${new Date(resets).toISOString()}`), said.slice(-8).join("\n"));
-    assert.deepEqual(await carried.answered, { ended: true, unread: true, text: `${WORKER} stopped: the 5h window is exhausted, reset at ${quota.hhmm(resets)}` });
-    assert.ok(!heardIn(superman.log).some((frame) => frame.startsWith('<server-event type="stopped"')), "the Leader was told through a closed gate");
-    now = resets + 1;
-    tick(chat);
-    assert.equal((await told(superman.log, 2)).at(-1), `<server-event type="stopped" who="${WORKER}" why="quota"/>`);
-    // Released at the reset to a seat that has no process any more: answered so.
-    assert.deepEqual(await held.answered, { ended: true, unread: true, text: `${WORKER} has no process` });
-    await settle();
-    assert.equal(running(WORKER), false, "a successor was started at the reset");
-    assert.equal(readLog(unexpected), spawns);
+    assert.ok(said.includes(`restart ${LEADER} - no successor: stopped, 5h exhausted until ${new Date(resets).toISOString()}`), said.slice(-8).join("\n"));
+    assert.deepEqual(await carried.answered, { ended: true, unread: true, text: `${LEADER} stopped: the 5h window is exhausted, reset at ${quota.hhmm(resets)}` });
   });
 
   // Fable's own weekly window reaches the gate from the usage endpoint (usage.mjs hands it in as

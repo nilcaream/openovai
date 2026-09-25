@@ -396,7 +396,7 @@
   },
   {
     "name": "room is the Leader's alone",
-    "catches": "serves the Leader exactly what BUILT_IN names, and a Worker the same but park, hire, retire and permission",
+    "catches": "serves the Leader exactly what BUILT_IN names but done, and a Worker message, room, index, validate, write_desk and done",
     "edits": [
       {
         "file": "lib/chat/server.mjs",
@@ -1864,6 +1864,17 @@
         "file": "lib/chat/session.mjs",
         "from": "        if (dead && !record.spoke) {",
         "to": "        if (dead) {"
+      }
+    ]
+  },
+  {
+    "name": "done is offered to the Leader too",
+    "catches": "serves the Leader exactly what BUILT_IN names but done, and a Worker message, room, index, validate, write_desk and done",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "  done: [WORKER],",
+        "to": "  done: [LEADER, WORKER],"
       }
     ]
   }

@@ -240,6 +240,17 @@ describe("what the Leader is told", () => {
     assert.match(leader(), /call `park`/);
   });
 
+  // The Worker has no ending of its own: the Leader holds it, and hears of a Worker's context,
+  // its word that it is done, and every close.
+  it("tells the Leader that a Worker's session is its to end, with the events that bear on it", () => {
+    assert.match(leader(), /A Worker's session is yours to end, never its own: `stop_worker` stops one and `restart_worker`\s+restarts one on its desk/);
+    assert.match(leader(), /so its work is never cut in the middle unless you say interrupt/);
+    for (const event of ["context\" who=", "done", "died"]) {
+      assert.match(leader(), new RegExp(`<server-event type="${event}`), event);
+    }
+    assert.match(leader(), /At the error\s+size it is past the size a session wraps up at: restart it with `restart_worker`/);
+  });
+
   it("tells the Leader to settle rules with the permission tool and never by tripping or reading", () => {
     assert.match(leader(), /then call `permission` once\s+per rule/);
     assert.match(leader(), /Never trip a command to see whether it stops, never read a settings file to\s+learn what is allowed/);
@@ -309,24 +320,26 @@ describe("what a Worker is told", () => {
     assert.match(worker(), /the next\s+session on this desk starts from what it says/);
   });
 
-  // A message costs the Leader a turn at full context and buys nothing now: the successor picks
-  // the work up on its own, and the restart is in the log with the context it carried. A fact
-  // about a seat belongs in the log; a message is for something the Leader has to act on.
-  it("does not send the Worker to its Leader before a restart: the successor picks the work up itself", () => {
-    assert.doesNotMatch(worker(), new RegExp(`call \`message\` to ${LEAD} — one line`));
-    assert.match(worker(), /Nothing else to say, and nobody to tell: your successor picks\s+the work up from your desk by itself/);
+  // A Worker's session is closed for it: the one thing asked of it is the desk, written last in the
+  // turn that reads the close, and the session ends when that turn is over.
+  it("tells the Worker a close asks only for its desk, written last in the turn, and cuts nothing", () => {
+    assert.match(worker(), /Write your desk now — what the task is, what is true now, what to do next —\s+with `write_desk` as the last thing you do in this turn, and end the turn there/);
+    assert.match(worker(), /The session\s+ends when the turn is over, with the desk as you wrote it, and nothing is cut while the turn\s+runs/);
+    assert.match(worker(), /Ending your session is never yours to do/);
   });
 
-  it("tells the Worker to say back in a moment after the last tool call", () => {
-    assert.match(worker(), /then call `restart_session`, then say "back in a\s+moment" — that is the whole of your reply/);
-    assert.match(worker(), /only what you say after\s+the last tool call reaches it/);
+  it("tells the Worker to say it is done after its report, and that done ends nothing", () => {
+    assert.match(worker(), /send your report as a `message`, then call `done`,\s+with a one-line note if you like: it tells \S+ you are ready to close, and ends nothing/);
   });
 
-  it("tells the Worker what each event asks of it, and that the desk comes first", () => {
-    for (const event of ["context", "restarted", "quota-low", "idle", "park"]) {
+  it("tells the Worker what each event it is sent asks of it, and names none it is not sent", () => {
+    for (const event of ["closing", "restarted", "quota-low", "checkpoint", "undelivered"]) {
       assert.match(worker(), new RegExp(`<server-event type="${event}"`), event);
     }
-    assert.match(worker(), /`restart_session` and\s+`stop_session` refuse until the desk was written after the event that asked/);
+    for (const event of ["context", "idle", "park"]) {
+      assert.doesNotMatch(worker(), new RegExp(`<server-event type="${event}"`), event);
+    }
+    assert.match(worker(), /all a close\s+needs from you is the desk/);
   });
 
   // The install allows a seat plain git, mkdir and cd; a permission rule matches a command from its

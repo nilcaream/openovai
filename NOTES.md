@@ -6,6 +6,23 @@ carries only its own.
 
 ## 0.19.0
 
+**The Leader stops and restarts Workers; a Worker only works.** A Worker no longer has
+`stop_session` or `restart_session`, and is no longer told of its context or asked to stop itself.
+All of that is the Leader's now:
+
+- `stop_worker` and `restart_worker` close one Worker. It is told its session is closing, writes
+  its desk, and goes when that turn is over; a restart starts its successor on the desk. With
+  `interrupt`, the turn it is on is cut first. Both answer at once, and the Leader hears the
+  outcome as a `stopped` event: why is stop, stop-deadline, restart, idle, idle-forced or quota.
+  A desk not written within the deadline (5 minutes after an interrupt, the park deadline
+  otherwise, or the one given) is taken as it was last written.
+- A Worker's context reaches the Leader, not the Worker, as a `context` event naming the Worker —
+  at the warning size and at the error size only. At the error size the Leader restarts it with
+  `restart_worker` at a moment that suits the work.
+- A Worker says it is done with the new `done` tool, with a one-line note if it likes. The Leader
+  gets a `done` event and decides whether it stops. The report still goes as a message.
+- The Leader's own session is unchanged: it still ends and restarts itself.
+
 **A Worker's session is closed for it, and never in the middle of a step.** When a Worker has to
 end — idle at 55 minutes, its usage window spent, the room parking — the server tells it one thing,
 `closing`, with why. The Worker writes its desk, and the session ends when that turn is over:

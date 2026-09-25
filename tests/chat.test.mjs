@@ -20,7 +20,7 @@ import { listening } from "../lib/chat/runtime.mjs";
 import { pageSecret } from "../lib/chat/secrets.mjs";
 import { hire } from "../lib/desks.mjs";
 import { endSeat, serve, shownRoot, startSeat, toolsFor } from "../lib/chat/server.mjs";
-import { hasLeft } from "../lib/chat/lifecycle.mjs";
+import { close, hasLeft } from "../lib/chat/lifecycle.mjs";
 import { sink } from "../lib/chat/log.mjs";
 import { LEADER as LEADS, WORKER as WORKS } from "../lib/desks.mjs";
 import { SECRET_IN_ENVIRONMENT, end, endEvery, interrupt, recordOf, running, runningSeats, start, tell, keystroke as keyTyped } from "../lib/chat/session.mjs";
@@ -706,14 +706,12 @@ describe("telling a seat", () => {
   it("says in the log that a seat on its way out took no new turn, and what it was ending as", async () => {
     const spawned = secretsIn(unarranged).length;
     await seatUp(OTHER, {
-      OPENOVAI_STAND_IN_TOOL: JSON.stringify([
-        { name: "write_desk", arguments: { title: "restart by the stand-in", status: "going" } },
-        { name: "restart_session", arguments: {} },
-      ]),
+      OPENOVAI_STAND_IN_TOOL: JSON.stringify([{ name: "write_desk", arguments: { title: "restart by the stand-in", status: "going" } }]),
+      OPENOVAI_STAND_IN_TOOL_ON: 'type="closing"',
     });
     const before_ = said.length;
     try {
-      const going = tell(OTHER, userFrame("go"));
+      const going = await close(chat, OTHER, "restart");
       const after_ = tell(OTHER, userFrame("after"));
       await going.answered;
       const line = await waitFor(() => said.slice(before_).find((one) => one.startsWith(`unwritten ${OTHER} - ending=`)) ?? null);
@@ -1096,12 +1094,9 @@ describe("the tools a session is served", () => {
     await endEvery(500);
   });
 
-  it("serves the Leader exactly what BUILT_IN names, and a Worker the same but park, hire, retire and permission", async () => {
-    assert.deepEqual(await listed(superman.secret), BUILT_IN);
-    assert.deepEqual(
-      await listed(paul.secret),
-      BUILT_IN.filter((name) => name !== "park" && name !== "hire" && name !== "retire" && name !== "permission"),
-    );
+  it("serves the Leader exactly what BUILT_IN names but done, and a Worker message, room, index, validate, write_desk and done", async () => {
+    assert.deepEqual(await listed(superman.secret), BUILT_IN.filter((name) => name !== "done"));
+    assert.deepEqual(await listed(paul.secret), ["message", "room", "index", "validate", "write_desk", "done"]);
   });
 
   it("binds who is calling into every tool, so none of them reads it from an argument", () => {
@@ -1287,7 +1282,7 @@ describe("the tools a session is served", () => {
     };
     chat.plugins = [plugin];
     try {
-      assert.deepEqual(await listed(superman.secret), [...BUILT_IN, "weather"]);
+      assert.deepEqual(await listed(superman.secret), [...BUILT_IN.filter((name) => name !== "done"), "weather"]);
       const said_ = await tool(paul.secret, "weather", { where: "Oslo" });
       assert.equal(said_.text, "sunny in Oslo");
       assert.deepEqual(seen, [{ args: { where: "Oslo" }, caller: { seat: WORKER, role: WORKS, root: instance, config: chat.config } }]);
@@ -2055,14 +2050,12 @@ describe("the stream", () => {
     const client = await listen();
     await until(client, (event) => event.name === "asking");
     paul = await seatUp(WORKER, {
-      OPENOVAI_STAND_IN_TOOL: JSON.stringify([
-        { name: "write_desk", arguments: { title: "restart by the stand-in", status: "going" } },
-        { name: "restart_session", arguments: {} },
-      ]),
+      OPENOVAI_STAND_IN_TOOL: JSON.stringify([{ name: "write_desk", arguments: { title: "restart by the stand-in", status: "going" } }]),
+      OPENOVAI_STAND_IN_TOOL_ON: 'type="closing"',
     });
     const first = paul.secret;
     const spawned = secretsIn(unarranged).length;
-    await page("POST", `/sessions/${WORKER}/message`, { text: "go" });
+    await close(chat, WORKER, "restart");
     await until(client, (event) => event.name === "seat" && event.data.name === WORKER && event.data.running === false);
     await until(client, (event) => event.name === "seat" && event.data.name === WORKER && event.data.running === true && about(client, WORKER).some((seen) => seen.data.running === false));
     // The successor is the chat's own spawn: a new process under a new secret, in the log nobody

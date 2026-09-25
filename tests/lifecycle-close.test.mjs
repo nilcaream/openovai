@@ -12,7 +12,7 @@ import { after, describe, it } from "node:test";
 
 import { userFrame } from "../lib/chat/frames.mjs";
 import { BODY_CLOSING, BODY_RESTARTED, close, tick } from "../lib/chat/lifecycle.mjs";
-import { endEvery, recordOf, running, tell } from "../lib/chat/session.mjs";
+import { end, endEvery, recordOf, running, tell } from "../lib/chat/session.mjs";
 import { deskTitle } from "../lib/desks.mjs";
 import { heardIn, notesIn, readLog, waitFor } from "./helpers.mjs";
 
@@ -60,6 +60,8 @@ describe("close", () => {
     assert.deepEqual(await told(successor.log, 1), [`<server-event type="restarted">${BODY_RESTARTED}</server-event>`]);
     assert.ok(said.includes(`stopped ${WORKER} - restart`), said.slice(-8).join("\n"));
     assert.equal(deskTitle(instance, WORKER), "a desk by the stand-in");
+    // The Leader hears the restart as its outcome, once the successor has started.
+    assert.ok(await waitFor(() => (heardIn(superman.log).includes(`<server-event type="stopped" who="${WORKER}" why="restart"/>`) ? true : null)), heardIn(superman.log).join("\n"));
   });
 
   it("never joins a turn under way: a line typed after it waits with it, and the close is what that turn asks", async () => {
@@ -101,6 +103,20 @@ describe("close", () => {
     assert.ok(await gone(WORKER), `${WORKER} was left running on a close whose turn died`);
     assert.ok(said.slice(from).includes(`stopped ${WORKER} - stop`), said.slice(from).join("\n"));
     assert.equal(heardIn(superman.log).filter((frame) => frame.startsWith('<server-event type="died"')).length, 1, "the closing turn's death was told as a death");
+  });
+
+  it("is not what ends a seat somebody else is ending, when its last turn dies on the way out", async () => {
+    ({ superman, paul } = await pair({ OPENOVAI_STAND_IN_FAILS: "[false, true]", OPENOVAI_STAND_IN_SLOW: "600" }));
+    await asked(superman.secret, WORKER, "go");
+    await asked(superman.secret, WORKER, "again");
+    assert.ok(await waitFor(() => (heardIn(superman.log).some((frame) => frame.startsWith('<server-event type="died"')) ? true : null)), heardIn(superman.log).join("\n"));
+    const from = said.length;
+    await close(chat, WORKER, "stop");
+    assert.ok(await waitFor(() => (recordOf(WORKER)?.askedWhy === "close:stop" && recordOf(WORKER).turn !== null ? true : null)), "the close was never read");
+    await end(WORKER, 3000);
+    await settle();
+    assert.ok(!said.slice(from).includes(`stopped ${WORKER} - stop`), said.slice(from).join("\n"));
+    assert.ok(!heardIn(superman.log).some((frame) => frame.startsWith('<server-event type="stopped"')), heardIn(superman.log).join("\n"));
   });
 
   it("has a deadline that runs from the turn that read it and waits for a turn to end", async () => {

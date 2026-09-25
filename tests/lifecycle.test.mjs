@@ -12,14 +12,14 @@ import { after, before, describe, it } from "node:test";
 
 import { SERVER, read } from "../lib/chat/conversation.mjs";
 import { userFrame } from "../lib/chat/frames.mjs";
-import { BODY_CONTEXT_ERROR, BODY_CONTEXT_WARNING, BODY_RESTARTED } from "../lib/chat/lifecycle.mjs";
+import { BODY_CLOSING, BODY_CONTEXT_ERROR, BODY_CONTEXT_WARNING, BODY_CONTEXT_WORKER, BODY_RESTARTED } from "../lib/chat/lifecycle.mjs";
 import { wallClock } from "../lib/chat/log.mjs";
 import * as quota from "../lib/chat/quota.mjs";
 import { end, endEvery, recordOf, running, runningSeats, tell } from "../lib/chat/session.mjs";
 import { deskFile, deskTitle, hire } from "../lib/desks.mjs";
 import { callsIn, childrenOf, heardIn, installed, post as postPlain, queuesHeardIn, readLog, remove, secretsIn, startChat, stopChat, waitFor, waitForAddress, writeStandIn } from "./helpers.mjs";
 
-import { setup, LEADER, WORKER, OTHER, WORKER_MODEL, MINUTE, panel, base, instance, unexpected, options, reading, said, chat, server, seatUp, spawnedBy, page, call, tool, asked, told, besideBirth, gone, callsThen, deskOf, sessionsListed, pair } from "./lifecycle-helpers.mjs";
+import { setup, LEADER, WORKER, OTHER, WORKER_MODEL, MINUTE, panel, base, instance, unexpected, options, reading, said, chat, server, seatUp, spawnedBy, page, call, tool, asked, told, besideBirth, gone, callsThen, writesDesk, deskOf, sessionsListed, settle, pair } from "./lifecycle-helpers.mjs";
 
 let now = Date.now();
 setup("lifecycle-test", () => now);
@@ -187,15 +187,18 @@ describe("write_desk", () => {
     assert.equal(deskOf(WORKER), kept);
   });
 
-  it("is listed for both roles, park and hire for the Leader only", async () => {
+  it("is listed for both roles; a session's own ending and the orders to end one are the Leader's, done the Worker's", async () => {
     const forLeader = JSON.parse((await call(superman.secret, "tools/list")).body).result.tools.map((entry) => entry.name);
     const forPaul = JSON.parse((await call(paul.secret, "tools/list")).body).result.tools.map((entry) => entry.name);
-    for (const name of ["write_desk", "restart_session", "stop_session"]) {
-      assert.ok(forLeader.includes(name) && forPaul.includes(name), name);
+    assert.ok(forLeader.includes("write_desk") && forPaul.includes("write_desk"));
+    for (const name of ["restart_session", "stop_session", "stop_worker", "restart_worker", "park", "hire"]) {
+      assert.ok(forLeader.includes(name) && !forPaul.includes(name), name);
     }
-    assert.ok(forLeader.includes("park") && forLeader.includes("hire"));
-    assert.ok(!forPaul.includes("park") && !forPaul.includes("hire"));
-    assert.deepEqual(await tool(paul.secret, "park", {}), { text: "park is not offered to you", refused: true, error: null });
+    assert.ok(forPaul.includes("done") && !forLeader.includes("done"));
+    for (const name of ["park", "stop_session", "restart_session", "stop_worker"]) {
+      assert.deepEqual(await tool(paul.secret, name, name === "stop_worker" ? { name: OTHER } : {}), { text: `${name} is not offered to you`, refused: true, error: null });
+    }
+    assert.deepEqual(await tool(superman.secret, "done", {}), { text: "done is not offered to you", refused: true, error: null });
   });
 });
 
@@ -212,35 +215,36 @@ describe("restart_session and stop_session", () => {
   });
 
   it("restart_session wants the desk written since the event that asked", async () => {
-    paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_USAGE: JSON.stringify({ iterations: [{ input_tokens: 2, cache_read_input_tokens: 371_202 }] }) });
+    await end(LEADER, 500);
+    superman = await seatUp(LEADER, { OPENOVAI_STAND_IN_USAGE: JSON.stringify({ iterations: [{ input_tokens: 2, cache_read_input_tokens: 371_202 }] }) });
     // The desk written before the event does not count.
-    assert.equal((await tool(paul.secret, "write_desk", { title: "early", status: "s" })).refused, false);
+    assert.equal((await tool(superman.secret, "write_desk", { title: "early", status: "s" })).refused, false);
     now += 1000;
-    const asked = tell(WORKER, userFrame("fill up"));
+    const asked = tell(LEADER, userFrame("fill up"));
     await asked.answered;
     assert.equal(
-      (await told(paul.log, 2)).at(-1),
+      (await told(superman.log, 2)).at(-1),
       `<server-event type="context" stage="error" context="371204" warning="200000" step="20000" error="300000">${BODY_CONTEXT_ERROR}</server-event>`,
     );
-    assert.deepEqual(await tool(paul.secret, "restart_session", {}), { text: "write your desk first (write_desk)", refused: true, error: null });
-    assert.equal(running(WORKER), true);
+    assert.deepEqual(await tool(superman.secret, "restart_session", {}), { text: "write your desk first (write_desk)", refused: true, error: null });
+    assert.equal(running(LEADER), true);
     now += 1000;
-    assert.equal((await tool(paul.secret, "write_desk", { title: "late", status: "s" })).refused, false);
-    const successor = await spawnedBy(WORKER, async () => {
-      const answered = await tool(paul.secret, "restart_session", {});
-      assert.ok(await gone(WORKER) !== null || running(WORKER));
+    assert.equal((await tool(superman.secret, "write_desk", { title: "late", status: "s" })).refused, false);
+    const successor = await spawnedBy(LEADER, async () => {
+      const answered = await tool(superman.secret, "restart_session", {});
+      assert.ok(await gone(LEADER) !== null || running(LEADER));
       return answered;
     });
     assert.deepEqual(successor.result, { text: "restarting; your successor starts from your desk", refused: false, error: null });
-    assert.notEqual(successor.secret, paul.secret);
-    await end(WORKER, 500);
+    assert.notEqual(successor.secret, superman.secret);
+    superman = successor;
   });
 
   it("a restart is a new process on the same desk, the queue carried, the successor started from the desk", async () => {
-    paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_SLOW: "400", ...callsThen("restart_session", "restart please") });
+    paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_SLOW: "400", ...writesDesk('type="closing"') });
     // The predecessor's body, edited in place with a file tool before its write_desk.
     fs.appendFileSync(deskFile(instance, WORKER), "## State\nedited in place by the predecessor\n");
-    tell(WORKER, userFrame("restart please"));
+    assert.equal((await tool(superman.secret, "restart_worker", { name: WORKER })).refused, false);
     await told(paul.log, 1);
     const successor = await spawnedBy(WORKER, () => asked(superman.secret, WORKER, "after the restart"));
     assert.deepEqual(successor.result, { text: `sent to ${WORKER}`, refused: false, error: null, reply: "a reply" });
@@ -255,7 +259,7 @@ describe("restart_session and stop_session", () => {
     const prompt = fs.readFileSync(file, "utf8");
     assert.ok(prompt.includes(`Your desk, desks/${WORKER}/STATE.md, as it stands at this start:`), prompt.slice(-400));
     assert.ok(prompt.includes("edited in place by the predecessor"), prompt.slice(-400));
-    assert.ok(prompt.includes("| title: restart_session by the stand-in |"), prompt.slice(-400));
+    assert.ok(prompt.includes("| title: a desk by the stand-in |"), prompt.slice(-400));
     // The message landed on the panel as it was taken, before the predecessor's own last words;
     // the successor's answer to it is the last row.
     const rows = panel(instance, WORKER).slice(-3);
@@ -282,12 +286,12 @@ describe("restart_session and stop_session", () => {
   // the Leader turns because something was addressed to it, a successor has neither. So the
   // server writes the successor's first turn itself, and a successor nobody speaks to works.
   it("a successor nobody speaks to is handed a turn of its own: the birth event", async () => {
-    paul = await seatUp(WORKER);
-    assert.equal((await tool(paul.secret, "write_desk", { title: "left for the successor", status: "s" })).refused, false);
+    paul = await seatUp(WORKER, writesDesk('type="closing"'));
+    const before_ = recordOf(WORKER);
     const successor = await spawnedBy(WORKER, async () => {
-      const answered = await tool(paul.secret, "restart_session", {});
+      const answered = await tool(superman.secret, "restart_worker", { name: WORKER });
       assert.equal(answered.refused, false, answered.text);
-      await waitFor(() => (running(WORKER) && recordOf(WORKER).ending === null ? true : null));
+      await waitFor(() => (running(WORKER) && recordOf(WORKER) !== before_ && recordOf(WORKER).ending === null ? true : null));
       return answered;
     });
     assert.notEqual(successor.secret, paul.secret);
@@ -303,8 +307,8 @@ describe("restart_session and stop_session", () => {
   // The birth event is the newest thing in that turn and never ahead of what was already waiting:
   // a successor reads what came for its seat in the order it came, and the server's own word last.
   it("what the predecessor left comes first in the successor's turn, the birth event behind it", async () => {
-    paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_SLOW: "400", ...callsThen("restart_session", "restart please") });
-    tell(WORKER, userFrame("restart please"));
+    paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_SLOW: "400", ...writesDesk('type="closing"') });
+    assert.equal((await tool(superman.secret, "restart_worker", { name: WORKER })).refused, false);
     await told(paul.log, 1);
     const successor = await spawnedBy(WORKER, () => asked(superman.secret, WORKER, "carried over"));
     const carried = `<message from="${LEADER}">carried over</message>`;
@@ -323,10 +327,10 @@ describe("restart_session and stop_session", () => {
   // measured it, and after the row that says its process is gone.
   it("writes a restart row carrying the context the session that restarted was at", async () => {
     const context = JSON.stringify([{ iterations: [{ input_tokens: 150_000 }] }, { iterations: [{ input_tokens: 150_000 }] }]);
-    paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_SLOW: "400", OPENOVAI_STAND_IN_USAGE: context, ...callsThen("restart_session", "restart please") });
+    paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_SLOW: "400", OPENOVAI_STAND_IN_USAGE: context, ...writesDesk('type="closing"') });
     await tell(WORKER, userFrame("one")).answered;
     const logged = said.length;
-    tell(WORKER, userFrame("restart please"));
+    assert.equal((await tool(superman.secret, "restart_worker", { name: WORKER })).refused, false);
     await told(paul.log, 2);
     const successor = await spawnedBy(WORKER, () => asked(superman.secret, WORKER, "after the restart"));
     assert.notEqual(successor.secret, paul.secret);
@@ -357,31 +361,34 @@ describe("restart_session and stop_session", () => {
     await end(WORKER, 500);
   });
 
-  it("stop_session ends the process and its panel; the desk and the log stay; hire brings it back appending", async () => {
-    paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_REPLY: "before the stop" });
+  it("stop_worker ends the process once its desk is written; the desk and the log stay; hire brings it back appending", async () => {
+    paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_REPLY: "before the stop", ...writesDesk('type="closing"') });
     assert.equal((await asked(superman.secret, WORKER, "one")).reply, "before the stop");
-    const rows = panel(instance, WORKER).length;
-    assert.equal((await tool(paul.secret, "write_desk", { title: "stopping", status: "s" })).refused, false);
     const spawns = readLog(unexpected);
     const logged = said.length;
-    assert.deepEqual(await tool(paul.secret, "stop_session", {}), { text: "stopping; your desk stays", refused: false, error: null });
+    const ordered = await tool(superman.secret, "stop_worker", { name: WORKER });
+    assert.equal(ordered.refused, false, ordered.text);
+    assert.match(ordered.text, new RegExp(`^${WORKER} is told to write its desk and goes when that turn is over; its desk stays\\. .* You are told with a stopped event\\.$`));
     assert.ok(await gone(WORKER));
+    const rows = panel(instance, WORKER).length;
     assert.equal(readLog(unexpected), spawns);
-    // One `stopped` row in the log, the ending word the record holds, after the seat's own tool row.
+    // One `stopped` row in the log, the ending word the record holds, after the seat's desk row.
     const since = said.slice(logged);
     assert.deepEqual(since.filter((line) => line.startsWith("stopped ")), [`stopped ${WORKER} - stop`]);
-    assert.ok(since.findIndex((line) => line.startsWith("stopped ")) > since.findIndex((line) => line.startsWith(`tool ${WORKER} `) && line.includes("mcp__openovai__stop_session ")), since.join("\n"));
+    assert.ok(since.findIndex((line) => line.startsWith("stopped ")) > since.findIndex((line) => line.startsWith(`tool ${WORKER} `) && line.includes("mcp__openovai__write_desk ")), since.join("\n"));
+    assert.ok(await waitFor(() => (heardIn(superman.log).includes(`<server-event type="stopped" who="${WORKER}" why="stop"/>`) ? true : null)), heardIn(superman.log).join("\n"));
     const listed = (await sessionsListed()).sessions.find((seat) => seat.name === WORKER);
     assert.equal(listed.running, false);
-    assert.equal(listed.title, "stopping");
+    assert.equal(listed.title, "a desk by the stand-in");
     assert.ok(fs.existsSync(deskFile(instance, WORKER)));
-    assert.equal(panel(instance, WORKER).length, rows);
     const back = await spawnedBy(WORKER, () => tool(superman.secret, "hire", { name: WORKER }), { OPENOVAI_STAND_IN_REPLY: "after the stop" });
     assert.equal(back.result.refused, false, back.result.text);
     assert.equal((await asked(superman.secret, WORKER, "two")).reply, "after the stop");
     const messages = JSON.parse((await page("GET", `/sessions/${WORKER}/messages`)).body).messages;
-    assert.deepEqual(messages.filter((row) => row.stamp !== true).slice(rows - 2).map((row) => [row.from, row.text]), [
+    // The Worker's answer to the close is its last row before the stop.
+    assert.deepEqual(messages.filter((row) => row.stamp !== true).slice(rows - 3).map((row) => [row.from, row.text]), [
       [LEADER, "one"],
+      [WORKER, "before the stop"],
       [WORKER, "before the stop"],
       [LEADER, "two"],
       [WORKER, "after the stop"],
@@ -389,19 +396,61 @@ describe("restart_session and stop_session", () => {
     await end(WORKER, 500);
   });
 
-  it("stop_session refuses without a desk written this turn, and a second ending", async () => {
-    paul = await seatUp(WORKER);
-    assert.deepEqual(await tool(paul.secret, "stop_session", {}), { text: "write your desk first (write_desk)", refused: true, error: null });
-    assert.equal((await tool(paul.secret, "write_desk", { title: "t", status: "s" })).refused, false);
-    assert.equal((await tool(paul.secret, "stop_session", {})).refused, false);
-    const again = await tool(paul.secret, "restart_session", {});
-    assert.ok(again.refused && (again.text === "already ending" || again.error !== null || (await call(paul.secret, "tools/list")).status === 401));
-    await gone(WORKER);
+  it("stop_worker and restart_worker refuse what cannot be closed, and answer at once for what can", async () => {
+    await endEvery(500);
+    superman = await seatUp(LEADER);
+    const order = (name, args = {}) => tool(superman.secret, "stop_worker", { name, ...args });
+    assert.deepEqual(await order("not a name"), { text: '"not a name" is not a name here', refused: true, error: null });
+    assert.deepEqual(await order(LEADER), { text: `${LEADER} is the Leader`, refused: true, error: null });
+    assert.deepEqual(await order("Nobody"), { text: "Nobody has no desk here", refused: true, error: null });
+    assert.deepEqual(await order(WORKER), { text: `${WORKER} is not running`, refused: true, error: null });
+    paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_SLOW: "400" });
+    assert.deepEqual(await order(WORKER, { deadline: 4 }), { text: "deadline is a whole number of seconds, at least 5", refused: true, error: null });
+    const restarting = await tool(superman.secret, "restart_worker", { name: WORKER, interrupt: true });
+    assert.equal(restarting.refused, false, restarting.text);
+    assert.match(restarting.text, /a successor starts on its desk\. With no desk written within 300 s of reading this/);
+    assert.equal((await told(paul.log, 1))[0].startsWith('<server-event type="closing" why="restart" interrupted="true" deadline="300">'), true, heardIn(paul.log).join("\n"));
+    // A stop replaces the restart, with the instance's park deadline when none is given.
+    const stopping = await order(WORKER);
+    assert.equal(stopping.refused, false, stopping.text);
+    assert.match(stopping.text, / within 1800 s /);
+    assert.equal((await told(paul.log, 2))[1], `<server-event type="closing" why="stop" deadline="1800">${BODY_CLOSING("stop", false, 1800)}</server-event>`);
+    assert.equal(recordOf(WORKER).askedWhy, "close:stop");
+    await end(WORKER, 500);
+  });
+
+  it("stop_session refuses the Leader without a desk written this turn, and a second ending", async () => {
+    await endEvery(500);
+    superman = await seatUp(LEADER);
+    assert.deepEqual(await tool(superman.secret, "stop_session", {}), { text: "write your desk first (write_desk)", refused: true, error: null });
+    assert.equal((await tool(superman.secret, "write_desk", { title: "t", status: "s" })).refused, false);
+    assert.equal((await tool(superman.secret, "stop_session", {})).refused, false);
+    const again = await tool(superman.secret, "restart_session", {});
+    assert.ok(again.refused && (again.text === "already ending" || again.error !== null || (await call(superman.secret, "tools/list")).status === 401));
+    await gone(LEADER);
+  });
+});
+
+describe("done", () => {
+  after(async () => {
+    await endEvery(500);
+  });
+
+  it("tells the Leader the Worker is done, with its note, and ends nothing", async () => {
+    await endEvery(500);
+    const superman = await seatUp(LEADER);
+    const paul = await seatUp(WORKER);
+    assert.deepEqual(await tool(paul.secret, "done", { note: "two\nlines" }), { text: "note is one line, up to 200 characters", refused: true, error: null });
+    assert.deepEqual(await tool(paul.secret, "done", { note: "the design is on the desk" }), { text: `${LEADER} is told you are done`, refused: false, error: null });
+    assert.deepEqual(await told(superman.log, 1), [`<server-event type="done" who="${WORKER}">the design is on the desk</server-event>`]);
+    assert.deepEqual(await tool(paul.secret, "done", {}), { text: `${LEADER} is told you are done`, refused: false, error: null });
+    assert.equal((await told(superman.log, 2))[1], `<server-event type="done" who="${WORKER}"/>`);
+    assert.equal(running(WORKER), true);
   });
 });
 
 describe("context", () => {
-  let paul = null;
+  let superman = null;
 
   after(async () => {
     await endEvery(500);
@@ -411,7 +460,7 @@ describe("context", () => {
   // since it arrived when that turn ended and a queue is in arrival order — and the seat decides
   // for itself what to do about it.
   it("fires once, behind what was queued, from the last request of the turn", async () => {
-    paul = await seatUp(WORKER, {
+    superman = await seatUp(LEADER, {
       OPENOVAI_STAND_IN_SLOW: "300",
       OPENOVAI_STAND_IN_USAGE: JSON.stringify([
         { input_tokens: 250_000, iterations: [{ input_tokens: 130_000 }, { input_tokens: 120_000 }] },
@@ -420,32 +469,32 @@ describe("context", () => {
       ]),
     });
     // A top-level sum over the warning size with a last request under it: nothing.
-    await tell(WORKER, userFrame("one")).answered;
-    assert.deepEqual(await told(paul.log, 1), ["<user>one</user>"]);
-    tell(WORKER, userFrame("two"));
-    const three = tell(WORKER, userFrame("three"));
+    await tell(LEADER, userFrame("one")).answered;
+    assert.deepEqual(await told(superman.log, 1), ["<user>one</user>"]);
+    tell(LEADER, userFrame("two"));
+    const three = tell(LEADER, userFrame("three"));
     await three.answered;
-    assert.deepEqual(heardIn(paul.log).slice(0, 2), ["<user>one</user>", "<user>two</user>"]);
-    const queues = queuesHeardIn(paul.log);
-    assert.equal(queues.length, 3, heardIn(paul.log).join("\n"));
+    assert.deepEqual(heardIn(superman.log).slice(0, 2), ["<user>one</user>", "<user>two</user>"]);
+    const queues = queuesHeardIn(superman.log);
+    assert.equal(queues.length, 3, heardIn(superman.log).join("\n"));
     assert.deepEqual(childrenOf(queues[2]), [
       "<user>three</user>",
       `<server-event type="context" stage="warning" context="211204" warning="200000" step="20000" error="300000">${BODY_CONTEXT_WARNING}</server-event>`,
     ]);
     // A further turn at the same size says nothing more.
-    await tell(WORKER, userFrame("four")).answered;
-    await tell(WORKER, userFrame("five")).answered;
-    assert.deepEqual(heardIn(paul.log).slice(4), ["<user>four</user>", "<user>five</user>"]);
+    await tell(LEADER, userFrame("four")).answered;
+    await tell(LEADER, userFrame("five")).answered;
+    assert.deepEqual(heardIn(superman.log).slice(4), ["<user>four</user>", "<user>five</user>"]);
   });
 
   it("is what the page and the room report as the seat's context", async () => {
-    const listed = (await sessionsListed()).sessions.find((seat) => seat.name === WORKER);
+    const listed = (await sessionsListed()).sessions.find((seat) => seat.name === LEADER);
     assert.equal(listed.context, 211_204);
   });
 });
 
 describe("the context sizes", () => {
-  let paul = null;
+  let superman = null;
 
   after(async () => {
     await endEvery(500);
@@ -461,7 +510,7 @@ describe("the context sizes", () => {
   // error size, and a step above the error size. Nothing is ended at any of them: the seat is
   // still running when the last event has gone in.
   it("tells the warning at the warning size and at every step, once each, and the error stage from the error size", async () => {
-    paul = await seatUp(WORKER, {
+    superman = await seatUp(LEADER, {
       OPENOVAI_STAND_IN_USAGE: JSON.stringify([
         { input_tokens: 2, iterations: [{ input_tokens: 199_999 }] },
         { input_tokens: 2, iterations: [{ input_tokens: 200_000 }] },
@@ -472,9 +521,9 @@ describe("the context sizes", () => {
       ]),
     });
     for (const said of ["one", "two", "three", "four", "five", "six"]) {
-      await tell(WORKER, userFrame(said)).answered;
+      await tell(LEADER, userFrame(said)).answered;
     }
-    assert.deepEqual(await told(paul.log, 10), [
+    assert.deepEqual(await told(superman.log, 10), [
       "<user>one</user>",
       "<user>two</user>",
       event("200000", "warning"),
@@ -486,7 +535,33 @@ describe("the context sizes", () => {
       "<user>six</user>",
       event("321000", "error"),
     ]);
-    assert.equal(running(WORKER), true, "a size ended the seat");
+    assert.equal(running(LEADER), true, "a size ended the seat");
+  });
+
+  // A Worker's context is the Leader's to act on: told twice, at the warning and at the error size,
+  // each a turn of the Leader's; the Worker is told nothing of it.
+  it("tells the Leader of a Worker's context at the warning and the error size only, and the Worker nothing", async () => {
+    await endEvery(500);
+    const leader = await seatUp(LEADER);
+    const paul = await seatUp(WORKER, {
+      OPENOVAI_STAND_IN_USAGE: JSON.stringify([
+        { input_tokens: 2, iterations: [{ input_tokens: 199_999 }] },
+        { input_tokens: 2, iterations: [{ input_tokens: 200_000 }] },
+        { input_tokens: 2, iterations: [{ input_tokens: 240_500 }] },
+        { input_tokens: 2, iterations: [{ input_tokens: 300_000 }] },
+        { input_tokens: 2, iterations: [{ input_tokens: 321_000 }] },
+      ]),
+    });
+    for (const said of ["one", "two", "three", "four", "five"]) {
+      await tell(WORKER, userFrame(said)).answered;
+    }
+    const about = (context, stage) =>
+      `<server-event type=\"context\" who=\"${WORKER}\" stage=\"${stage}\" context=\"${context}\" error=\"300000\"${stage === "error" ? `>${BODY_CONTEXT_WORKER}</server-event>` : "/>"}`;
+    assert.deepEqual(await told(leader.log, 2), [about("200000", "warning"), about("300000", "error")]);
+    await settle();
+    assert.equal(heardIn(leader.log).length, 2, heardIn(leader.log).join("\n"));
+    assert.deepEqual(heardIn(paul.log), ["one", "two", "three", "four", "five"].map((said) => `<user>${said}</user>`));
+    assert.equal(running(WORKER), true);
   });
 });
 

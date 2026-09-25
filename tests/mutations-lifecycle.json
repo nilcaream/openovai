@@ -105,7 +105,7 @@
   },
   {
     "name": "a Worker gone for good leaves a row on its panel too",
-    "catches": "stop_session ends the process and its panel; the desk and the log stay; hire brings it back appending",
+    "catches": "stop_worker ends the process once its desk is written; the desk and the log stay; hire brings it back appending",
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
@@ -148,30 +148,30 @@
     ]
   },
   {
-    "name": "stop_session ends as a restart, so a successor spawns",
-    "catches": "stop_session ends the process and its panel; the desk and the log stay; hire brings it back appending",
+    "name": "stop_worker ends as a restart, so a successor spawns",
+    "catches": "stop_worker ends the process once its desk is written; the desk and the log stay; hire brings it back appending",
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "        return endOwn(instance, caller, \"stop\", \"stopping; your desk stays\");",
-        "to": "        return endOwn(instance, caller, \"restart\", \"stopping; your desk stays\");"
+        "from": "        return closeOrder(instance, args, \"stop\");",
+        "to": "        return closeOrder(instance, args, \"restart\");"
       }
     ]
   },
   {
-    "name": "stop_session deletes the panel",
-    "catches": "stop_session ends the process and its panel; the desk and the log stay; hire brings it back appending",
+    "name": "stop_worker deletes the panel",
+    "catches": "stop_worker ends the process once its desk is written; the desk and the log stay; hire brings it back appending",
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "  record.ending = ending === \"stop\" ? (asked === \"restart\" ? \"stop\" : (asked ?? \"stop\")) : ending;\n",
-        "to": "  record.ending = ending === \"stop\" ? (asked === \"restart\" ? \"stop\" : (asked ?? \"stop\")) : ending;\n  if (ending === \"stop\") {\n    fs.rmSync(panelDirectory(instance.root, caller.seat), { recursive: true, force: true });\n  }\n"
+        "from": "  const given = closeWorker(instance, name, why, { interrupt: args?.interrupt === true, deadline: deadline ?? null });\n",
+        "to": "  const given = closeWorker(instance, name, why, { interrupt: args?.interrupt === true, deadline: deadline ?? null });\n  if (why === \"stop\") {\n    fs.rmSync(panelDirectory(instance.root, name), { recursive: true, force: true });\n  }\n"
       }
     ]
   },
   {
     "name": "hire starts a stopped seat on a fresh panel",
-    "catches": "stop_session ends the process and its panel; the desk and the log stay; hire brings it back appending",
+    "catches": "stop_worker ends the process once its desk is written; the desk and the log stay; hire brings it back appending",
     "edits": [
       {
         "file": "lib/chat/server.mjs",
@@ -347,7 +347,7 @@
   },
   {
     "name": "the stopped row of a seat says how the process exited, never what it was ending as",
-    "catches": "stop_session ends the process and its panel; the desk and the log stay; hire brings it back appending",
+    "catches": "stop_worker ends the process once its desk is written; the desk and the log stay; hire brings it back appending",
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
@@ -358,7 +358,7 @@
   },
   {
     "name": "the stopped row of a seat is written before its calls' rows, at the ending's mark and not at the close",
-    "catches": "stop_session ends the process and its panel; the desk and the log stay; hire brings it back appending",
+    "catches": "stop_worker ends the process once its desk is written; the desk and the log stay; hire brings it back appending",
     "edits": [
       {
         "file": "lib/chat/server.mjs",
@@ -424,6 +424,94 @@
         "file": "lib/chat/lifecycle.mjs",
         "from": "      stampRow(instance, seat);\n      giveUp(seat);",
         "to": "      giveUp(seat);"
+      }
+    ]
+  },
+  {
+    "name": "a Worker keeps a stop of its own",
+    "catches": "is listed for both roles; a session's own ending and the orders to end one are the Leader's, done the Worker's",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "  stop_session: [LEADER],",
+        "to": "  stop_session: [LEADER, WORKER],"
+      }
+    ]
+  },
+  {
+    "name": "stop_worker closes a Worker that is not running",
+    "catches": "stop_worker and restart_worker refuse what cannot be closed, and answer at once for what can",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "  if (!running(name)) {\n    return { refused: `${name} is not running` };\n  }\n  if (instance.stopping === true) {\n    return { refused: \"the server is stopping\" };\n  }\n  if (isParking()) {",
+        "to": "  if (instance.stopping === true) {\n    return { refused: \"the server is stopping\" };\n  }\n  if (isParking()) {"
+      }
+    ]
+  },
+  {
+    "name": "an order's default deadline is the other way round",
+    "catches": "stop_worker and restart_worker refuse what cannot be closed, and answer at once for what can",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "deadline ?? (first ? IDLE_GRACE * 60 : settingsIn(instance.config).park.deadline)",
+        "to": "deadline ?? (first ? settingsIn(instance.config).park.deadline : IDLE_GRACE * 60)"
+      }
+    ]
+  },
+  {
+    "name": "the Leader is not told of a Worker it stopped",
+    "catches": "stop_worker ends the process once its desk is written; the desk and the log stay; hire brings it back appending",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "const STOPPED_TOLD = [\"stop\", \"stop-deadline\",",
+        "to": "const STOPPED_TOLD = [\"stop-deadline\","
+      }
+    ]
+  },
+  {
+    "name": "done tells nobody",
+    "catches": "tells the Leader the Worker is done, with its note, and ends nothing",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "        const told = deliver(instance, leader, serverEvent(\"done\", { who: caller.seat }, note === \"\" ? undefined : note));",
+        "to": "        const told = { refused: \"told nobody\" };"
+      }
+    ]
+  },
+  {
+    "name": "done takes a note of any shape",
+    "catches": "tells the Leader the Worker is done, with its note, and ends nothing",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "        if (typeof note !== \"string\" || note.includes(\"\\n\") || note.length > 200) {",
+        "to": "        if (typeof note !== \"string\") {"
+      }
+    ]
+  },
+  {
+    "name": "a Worker is told its own context",
+    "catches": "tells the Leader of a Worker's context at the warning and the error size only, and the Worker nothing",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "    deliver(\n      instance,\n      leaderOf(instance),\n      serverEvent(\"context\", { who: record.seat,",
+        "to": "    deliver(\n      instance,\n      record.seat,\n      serverEvent(\"context\", { who: record.seat,"
+      }
+    ]
+  },
+  {
+    "name": "the Leader is told a Worker's context at every step",
+    "catches": "tells the Leader of a Worker's context at the warning and the error size only, and the Worker nothing",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "    if (toldStage === stage) {\n      return;\n    }\n",
+        "to": ""
       }
     ]
   }

@@ -5,7 +5,7 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "        if (record.ending === null && closedBy(record, dead)) {\n          record.ending = closedAs(record.askedWhy);\n          end(seat, TURN_PATIENCE);\n          return;\n        }\n",
+        "from": "          record.ending = closedAs(record.askedWhy);\n          end(seat, TURN_PATIENCE);\n          // What waits is not written now, and the log says so; a restart carries it.\n          drain(record);\n          return;\n",
         "to": ""
       }
     ]
@@ -84,6 +84,28 @@
         "file": "lib/chat/lifecycle.mjs",
         "from": "    if (isClosing(record.askedWhy) && record.closeDeadline !== null && record.turn === null",
         "to": "    if (false && isClosing(record.askedWhy) && record.closeDeadline !== null && record.turn === null"
+      }
+    ]
+  },
+  {
+    "name": "the Leader is not told of a restart it ordered",
+    "catches": "to restart, hands the seat to a successor that starts on the desk",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "      if (role === WORKER) {\n        deliver(instance, leaderOf(instance), serverEvent(\"stopped\", { who: seat, why: \"restart\" }));\n      }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a seat being ended completes its close when its last turn dies",
+    "catches": "is not what ends a seat somebody else is ending, when its last turn dies on the way out",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "        if (record.ending === null && !record.child.stdin.writableEnded && closedBy(record, dead)) {",
+        "to": "        if (record.ending === null && closedBy(record, dead)) {"
       }
     ]
   }

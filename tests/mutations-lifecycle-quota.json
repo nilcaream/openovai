@@ -138,7 +138,7 @@
   },
   {
     "name": "a restart successor spawns through a closed gate",
-    "catches": "a restart while the window is closed is a stop: no successor is queued, the carried turns are answered so, and the Leader hears of it after the reset",
+    "catches": "a Leader's restart while the window is closed is a stop: no successor, the carried turns answered so",
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
@@ -149,11 +149,11 @@
   },
   {
     "name": "a successor is started through the closed gate",
-    "catches": "a restart while the window is closed is a stop: no successor is queued, the carried turns are answered so, and the Leader hears of it after the reset",
+    "catches": "a Leader's restart while the window is closed is a stop: no successor, the carried turns answered so",
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "    if (holding === null) {\n      startSuccessor(instance, seat, carried, context, spoke);\n      return;\n    }",
+        "from": "    if (holding === null) {\n      startSuccessor(instance, seat, carried, context, spoke);\n      // A Worker restarts only on the Leader's order now, and the order's outcome is this.\n      if (role === WORKER) {\n        deliver(instance, leaderOf(instance), serverEvent(\"stopped\", { who: seat, why: \"restart\" }));\n      }\n      return;\n    }",
         "to": "    startSuccessor(instance, seat, carried, context, spoke);\n    if (holding === null) {\n      return;\n    }"
       }
     ]
@@ -254,17 +254,6 @@
         "file": "lib/chat/quota.mjs",
         "from": "    if (STAGES.indexOf(stage) <= STAGES.indexOf(last)) {\n      continue;\n    }\n",
         "to": ""
-      }
-    ]
-  },
-  {
-    "name": "the Leader is not told of a stop the window forced",
-    "catches": "a restart while the window is closed is a stop: no successor is queued, the carried turns are answered so, and the Leader hears of it after the reset",
-    "edits": [
-      {
-        "file": "lib/chat/lifecycle.mjs",
-        "from": "    if (role === WORKER) {\n      deliver(instance, leaderOf(instance), serverEvent(\"stopped\", { who: seat, why: \"quota\" }));\n    }\n    return;",
-        "to": "    return;"
       }
     ]
   },

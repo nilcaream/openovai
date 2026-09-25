@@ -20,7 +20,7 @@ import { deskFile, hire } from "../lib/desks.mjs";
 import { CONFIG_FILE } from "../lib/seed.mjs";
 import { alive, heardIn, installed, notesIn, pidsIn, post as postPlain, readLog, remove, runToolLater, secretsIn, startChat, stopChat, waitFor, waitForAddress, writeStandIn } from "./helpers.mjs";
 
-import { setup, LEADER, WORKER, OTHER, WORKER_MODEL, MINUTE, panel, base, instance, standIn, unexpected, options, configOf, said, chat, server, seatUp, spawnedBy, page, call, tool, asked, told, stillRunning, gone, callsThen, deskOf, sessionsListed, settle, pair, awake } from "./lifecycle-helpers.mjs";
+import { setup, LEADER, WORKER, OTHER, WORKER_MODEL, MINUTE, panel, base, instance, standIn, unexpected, options, configOf, said, chat, server, seatUp, spawnedBy, page, call, tool, asked, told, stillRunning, gone, callsThen, writesDesk, deskOf, sessionsListed, settle, pair, awake } from "./lifecycle-helpers.mjs";
 
 let now = Date.now();
 // Ann is hired before the first check: these checks start her without a hire of their own, as
@@ -182,13 +182,12 @@ describe("a message to a Worker that stops before reading it", () => {
   });
 
   it("goes back to the sender as an undelivered event with the words, and a row on its panel", async () => {
-    const { superman } = await pair({ OPENOVAI_STAND_IN_SLOW: "1500", ...callsThen("stop_session", "wrap up") });
-    const paulTurn = tell(WORKER, userFrame("wrap up"));
+    const { superman } = await pair({ OPENOVAI_STAND_IN_SLOW: "1500", ...writesDesk('type="closing"') });
+    assert.equal((await tool(superman.secret, "stop_worker", { name: WORKER })).refused, false);
     await waitFor(() => (recordOf(WORKER)?.turn !== null ? true : null));
     const sent = await tool(superman.secret, "message", { to: WORKER, text: "one more order" });
     assert.equal(sent.text, `sent to ${WORKER}`);
     assert.equal(recordOf(WORKER).ending, null, "the Worker was already ending: not the case measured");
-    await paulTurn.answered;
     assert.ok(await gone(WORKER), `${WORKER} did not stop`);
     const frame = `<server-event type="undelivered" to="${WORKER}">one more order</server-event>`;
     assert.ok(await waitFor(() => (heardIn(superman.log).includes(frame) ? true : null)), heardIn(superman.log).join("\n"));
@@ -211,7 +210,7 @@ describe("park", () => {
   }
 
   it("interrupts when asked, waits for the stops, ends the rest at the deadline, and leaves the Leader's turn alone", async () => {
-    ({ superman, paul } = await pair({ OPENOVAI_STAND_IN_SLOW: "1000", ...callsThen("stop_session", 'why="park"') }, { OPENOVAI_STAND_IN_SLOW: "3500" }));
+    ({ superman, paul } = await pair({ OPENOVAI_STAND_IN_SLOW: "1000", ...writesDesk('why="park"') }, { OPENOVAI_STAND_IN_SLOW: "3500" }));
     const ann = await seatUp(OTHER);
     const leaderTurn = tell(LEADER, userFrame("thinking"));
     const leaderBusy = stillRunning(leaderTurn);
@@ -224,7 +223,7 @@ describe("park", () => {
     const labels = notesIn(paul.log).map(([label]) => label);
     assert.ok(labels.indexOf("interrupt") < labels.lastIndexOf("heard"), labels.join(","));
     assert.equal(heardIn(paul.log).at(-1), `<server-event type="closing" why="park" deadline="5" interrupted="true">${BODY_CLOSING("park", true, null)}</server-event>`);
-    assert.ok(notesIn(paul.log).some(([label, rest]) => label === "tool" && rest.startsWith("stop_session -> stopping")), readLog(paul.log));
+    assert.ok(notesIn(paul.log).some(([label, rest]) => label === "tool" && rest.startsWith("write_desk -> ")), readLog(paul.log));
     assert.deepEqual(await told(ann.log, 1), [`<server-event type="closing" why="park" deadline="5" interrupted="true">${BODY_CLOSING("park", true, null)}</server-event>`]);
     await settle(400);
     assert.equal(running(OTHER), true, "ended before the deadline");
@@ -525,8 +524,10 @@ describe("a signal to the chat", () => {
     const parkFrames = notes.filter(([label, rest]) => label === "heard" && (rest.startsWith('<server-event type="park" interrupted="true"') || (rest.startsWith('<server-event type="closing" why="park"') && rest.includes('interrupted="true"'))));
     assert.equal(parkFrames.length, 3, "not every session was told the park");
     assert.equal(notes.filter(([label, rest]) => label === "tool" && rest.startsWith("write_desk -> ")).length, 3);
-    assert.equal(notes.filter(([label, rest]) => label === "tool" && rest.startsWith("stop_session -> stopping")).length, 3);
-    assert.ok(!notes.some(([label, rest]) => label === "tool" && /-> (failed|refused)/.test(rest)), readLog(ownLog));
+    // The Leader stops itself; a Worker is closed once its desk is written, and has no stop of its own.
+    assert.equal(notes.filter(([label, rest]) => label === "tool" && rest.startsWith("stop_session -> stopping")).length, 1);
+    assert.equal(notes.filter(([label, rest]) => label === "tool" && rest.startsWith("stop_session -> refused: stop_session is not offered to you")).length, 2);
+    assert.ok(!notes.some(([label, rest]) => label === "tool" && /-> (failed|refused)/.test(rest) && !rest.startsWith("stop_session -> refused: stop_session is not offered to you")), readLog(ownLog));
     const labels = notes.map(([label]) => label);
     assert.ok(labels.lastIndexOf("heard") < labels.indexOf("left"), "a process ended before it was told the park");
     assert.equal(labels.filter((label) => label === "left").length, 3);
