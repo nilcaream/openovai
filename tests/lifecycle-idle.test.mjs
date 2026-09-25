@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
 import { serverEvent, userFrame } from "../lib/chat/frames.mjs";
-import { BODY_CLOSING, BODY_CONTEXT_WARNING, BODY_IDLE, IDLE_GRACE, deliver, tick } from "../lib/chat/lifecycle.mjs";
+import { BODY_CLOSING, BODY_CONTEXT_WARNING, BODY_IDLE, IDLE_GRACE, deliver, idleOf, tick } from "../lib/chat/lifecycle.mjs";
 import { endEvery, recordOf, running, tell } from "../lib/chat/session.mjs";
 import { deskTitle } from "../lib/desks.mjs";
 import { alive, callsIn, heardIn, pidsIn, readLog, waitFor } from "./helpers.mjs";
@@ -176,6 +176,25 @@ describe("idle", () => {
     assert.equal(heardIn(superman.log).length, 1, "the Leader was told again within one run of dead turns");
     assert.equal(recordOf(WORKER).idleSince, idleSince, "a dead turn put the idle clock back to now");
     assert.equal(running(WORKER), true);
+  });
+
+  // A turn the run begins itself — a CronCreate tick is one: its own system/init and result with
+  // nothing written to stdin (measured on 2.1.280) — is activity like any other, so the idle clock
+  // counts from its result, and a Leader kept busy by its own ticks never reaches the idle ending.
+  it("counts a turn the Leader began itself as activity: the idle clock starts again at its result", async () => {
+    await endEvery(500);
+    await seatUp(LEADER, { OPENOVAI_STAND_IN_SELF_STARTS: "400" });
+    await awake(LEADER);
+    const idleFrom = now;
+    // The tick's turn ends 50 minutes after the last turn anybody wrote.
+    now = idleFrom + 50 * MINUTE;
+    assert.ok(await waitFor(() => (recordOf(LEADER).idleSince !== idleFrom ? true : null)), "the self-started turn did not move the idle clock");
+    assert.equal(recordOf(LEADER).idleSince, idleFrom + 50 * MINUTE);
+    now = idleFrom + 60 * MINUTE;
+    assert.equal(idleOf(LEADER, now), 10);
+    tick(chat);
+    await settle();
+    assert.equal(running(LEADER), true, "the Leader was ended idle, counted from before its own turn");
   });
 
   it("a seat on a turn is not idle, however long the turn: a pending permission at 55 gets no critical frame", async () => {

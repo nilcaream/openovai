@@ -168,5 +168,16 @@
         "to": ""
       }
     ]
+  },
+  {
+    "name": "a turn the run began itself leaves the idle clock where it was",
+    "catches": "counts a turn the Leader began itself as activity: the idle clock starts again at its result",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "        if (!dead) {\n          // A turn that died at the service is not a turn taken.",
+        "to": "        if (!dead && turn.turns.length > 0) {\n          // A turn that died at the service is not a turn taken."
+      }
+    ]
   }
 ]
