@@ -268,6 +268,27 @@ describe("idle", () => {
     assert.ok(frames.includes(stopped), frames.join("\n"));
   });
 
+  // The Leader is still asked and ended the old way, and the same holds for it: its own turn on the
+  // ask runs to its end.
+  it("the Leader's idle ask never cuts its own turn short: a permission pending at 60 keeps it, ended once the turn is over", async () => {
+    await endEvery(500);
+    superman = await seatUp(LEADER, { OPENOVAI_STAND_IN_ASKS: "Bash", OPENOVAI_STAND_IN_WAITS: "2500" });
+    const idleFrom = now;
+    now = idleFrom + 55 * MINUTE;
+    tick(chat);
+    assert.deepEqual(await told(superman.log, 1), [`<server-event type="idle" stage="critical" minutes="55">${BODY_IDLE(55)}</server-event>`]);
+    assert.ok(await waitFor(() => (callsIn(superman.log).length > 0 && recordOf(LEADER).turn !== null ? true : null)), "no turn on the ask");
+    now = idleFrom + 60 * MINUTE;
+    tick(chat);
+    tick(chat);
+    await settle();
+    assert.equal(running(LEADER), true);
+    assert.equal(recordOf(LEADER).ending, null);
+    assert.ok(await waitFor(() => (recordOf(LEADER).turn === null ? true : null)), "the ask's turn never ended");
+    tick(chat);
+    assert.ok(await gone(LEADER), `${LEADER} was not ended once its turn was over`);
+  });
+
   it("the Leader has no 10 and no 50, and the critical frame at 55", async () => {
     await endEvery(500);
     superman = await seatUp(LEADER);

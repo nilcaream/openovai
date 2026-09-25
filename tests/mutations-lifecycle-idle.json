@@ -34,7 +34,7 @@
   },
   {
     "name": "a seat asked to stop for idling is never ended",
-    "catches": "tells the Leader at 10 and at 50, the seat at 55, and ends it at 60 with the Leader told why",
+    "catches": "the Leader hears a Worker's forced stop when both are ended in one tick, the Worker first",
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
@@ -67,7 +67,7 @@
   },
   {
     "name": "a seat on a turn is ended idle-forced",
-    "catches": "the ask's own turn is never cut short: a permission pending at 60 keeps the seat, ended once the turn is over",
+    "catches": "the Leader's idle ask never cuts its own turn short: a permission pending at 60 keeps it, ended once the turn is over",
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
