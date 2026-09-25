@@ -33,6 +33,8 @@ All of that is the Leader's now:
 - Every row a panel shows from the Server starts with a capital letter — `Waited 40 s for
   permission: …`, `Limit exhausted (5h window) …`, `Stopped; nothing waiting`, `No turn to stop` —
   and the log says the same words.
+- The Leader keeps a Worker's checkpoint to itself: it tells the User nothing about it, only the
+  Worker's report when that matters to them.
 
 **A Worker's session is closed for it, and never in the middle of a step.** When a Worker has to
 end — idle at 55 minutes, its usage window spent, the room parking — the server tells it one thing,
