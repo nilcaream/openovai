@@ -10,7 +10,7 @@ import { after, before, describe, it } from "node:test";
 
 import { SERVER } from "../lib/chat/conversation.mjs";
 import { messageFrame, userFrame } from "../lib/chat/frames.mjs";
-import { BODY_CRITICAL, tick } from "../lib/chat/lifecycle.mjs";
+import { BODY_CLOSING, IDLE_GRACE, tick } from "../lib/chat/lifecycle.mjs";
 import * as quota from "../lib/chat/quota.mjs";
 import { INTERRUPT_PATIENCE, end, endEvery, running, tell } from "../lib/chat/session.mjs";
 import { deskTitle, hire } from "../lib/desks.mjs";
@@ -89,14 +89,14 @@ describe("the quota gate", () => {
     ]);
   });
 
-  it("stage two interrupts a Worker mid-turn and tells it critical; the Leader is told, not interrupted", async () => {
+  it("stage two interrupts a Worker mid-turn and closes it; the Leader is told, not interrupted", async () => {
     const resets = RESETS();
     // The gate acts on the reading this turn's own first request carries, so the turn has the
     // gate's handling to outlast and nothing more.
     await fresh({ OPENOVAI_STAND_IN_SLOW: "1200", ...readings(reading(0.96, { resets })) });
     const first = tell(WORKER, userFrame("busy"));
     assert.deepEqual(await first.answered, { interrupted: true, text: "interrupted" });
-    const critical = `<server-event type="quota-low" stage="critical" window="5h" resets="${new Date(resets).toISOString()}" interrupted="true">${BODY_CRITICAL}</server-event>`;
+    const critical = `<server-event type="closing" why="quota" window="5h" resets="${new Date(resets).toISOString()}" interrupted="true" deadline="${IDLE_GRACE * 60}">${BODY_CLOSING("quota", true, IDLE_GRACE * 60)}</server-event>`;
     assert.deepEqual(await told(paul.log, 2), ["<user>busy</user>", critical]);
     const labels = notesIn(paul.log).map(([label]) => label);
     assert.ok(labels.indexOf("interrupt") < labels.lastIndexOf("heard"), labels.join(","));
@@ -170,7 +170,7 @@ describe("the quota gate", () => {
     const third = tell(WORKER, userFrame("three"));
     assert.deepEqual(await third.answered, { interrupted: true, text: "interrupted" });
     const frames = await told(paul.log, 5);
-    assert.match(frames.at(-1), /^<server-event type="quota-low" stage="critical" window="7d" resets="[^"]+" interrupted="true">/);
+    assert.match(frames.at(-1), /^<server-event type="closing" why="quota" window="7d" resets="[^"]+" interrupted="true" deadline="\d+">/);
   });
 
   it("a stage fires once per crossing and again after the reset", async () => {
@@ -226,7 +226,7 @@ describe("the quota gate", () => {
     const arrived = await waitFor(() => (readIn(paul.log).length >= 2 ? Date.now() - began : null));
     assert.ok(arrived !== null, "the critical frame was never written");
     assert.ok(arrived >= INTERRUPT_PATIENCE - 50, `written after ${arrived} ms, before the patience ran out`);
-    assert.match(readIn(paul.log)[1], /^<server-event type="quota-low" stage="critical"/);
+    assert.match(readIn(paul.log)[1], /^<server-event type="closing" why="quota"/);
   });
 
   it("holds a message to a stopped Leader before spawning it, and spawns once when the window resets", async () => {
@@ -261,7 +261,7 @@ describe("the quota gate", () => {
     // Queued behind the Leader's turn while the window was open: the page was told it went in.
     assert.deepEqual(JSON.parse((await page("POST", `/sessions/${LEADER}/message`, { text: "behind" })).body), { delivered: true });
     tell(WORKER, userFrame("one"));
-    assert.equal((await told(paul.log, 2)).at(-1).startsWith('<server-event type="quota-low" stage="critical"'), true);
+    assert.equal((await told(paul.log, 2)).at(-1).startsWith('<server-event type="closing" why="quota"'), true);
     // Told after the window closed: one behind the Worker's critical turn, one to an idle seat.
     assert.equal(JSON.parse((await page("POST", `/sessions/${WORKER}/message`, { text: "to paul" })).body).delivered, false);
     assert.equal(JSON.parse((await page("POST", `/sessions/${OTHER}/message`, { text: "to ann" })).body).delivered, false);
@@ -306,7 +306,7 @@ describe("the quota gate", () => {
     assert.deepEqual(JSON.parse((await page("POST", `/sessions/${LEADER}/message`, { text: "behind" })).body), { delivered: true });
     tell(LEADER, messageFrame(WORKER, "a note"));
     tell(WORKER, userFrame("one"));
-    assert.equal((await told(paul.log, 2)).at(-1).startsWith('<server-event type="quota-low" stage="critical"'), true);
+    assert.equal((await told(paul.log, 2)).at(-1).startsWith('<server-event type="closing" why="quota"'), true);
     assert.equal((await long.answered).text, "a reply");
     const heldOnLeader = () => quota.held(LEADER).filter((entry) => entry.frame.kind !== "server-event").length;
     assert.ok(await waitFor(() => (heldOnLeader() === 2 ? true : null)), "behind and the note were not held at the write");
@@ -327,11 +327,11 @@ describe("the quota gate", () => {
   // still on the queue when the process ends, and that is what a restart carries.
   it("a restart while the window is closed is a stop: no successor is queued, the carried turns are answered so, and the Leader hears of it after the reset", async () => {
     const resets = RESETS();
-    await fresh({ OPENOVAI_STAND_IN_SLOW: "400", ...readings(reading(0.96, { resets })), ...callsThen("restart_session", 'stage="critical"') });
+    await fresh({ OPENOVAI_STAND_IN_SLOW: "400", ...readings(reading(0.96, { resets })), ...callsThen("restart_session", 'why="quota"') });
     const spawns = readLog(unexpected);
     tell(WORKER, userFrame("one"));
     const held = tell(WORKER, userFrame("held"));
-    assert.match((await told(paul.log, 2)).at(-1), /^<server-event type="quota-low" stage="critical"/);
+    assert.match((await told(paul.log, 2)).at(-1), /^<server-event type="closing" why="quota"/);
     assert.equal(quota.held(WORKER).filter((entry) => entry.frame.kind === "user").length, 1, "the turn behind the critical one was not held at the write");
     const carried = tell(WORKER, userFrame("carried"));
     assert.ok(await gone(WORKER), `${WORKER} never restarted`);
@@ -369,7 +369,7 @@ describe("the quota gate", () => {
       quota.saw("usage", null, { unifiedWindows: { [quota.FABLE_WINDOW]: { utilization: 0.99, resetsAt: resets } } }, now);
       assert.deepEqual(await busy.answered, { interrupted: true, text: "interrupted" });
       const frames = await told(zed.log, 2);
-      assert.match(frames[1], /^<server-event type="quota-low" stage="critical" window="7d-fable" resets="[^"]+" model="fable" interrupted="true">/);
+      assert.match(frames[1], /^<server-event type="closing" why="quota" window="7d-fable" resets="[^"]+" model="fable" interrupted="true" deadline="\d+">/);
       await new Promise((resolve) => setTimeout(resolve, 200));
       assert.deepEqual(heardIn(paul.log), []);
       assert.deepEqual(heardIn(superman.log), []);

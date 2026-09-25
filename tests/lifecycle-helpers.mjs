@@ -270,6 +270,15 @@ export function callsThen(name, on) {
   };
 }
 
+// A stand-in that writes its desk on a frame holding `on`, and does nothing else: a Worker told
+// its session is closing does exactly this, and the close completes when the turn is over.
+export function writesDesk(on) {
+  return {
+    OPENOVAI_STAND_IN_TOOL: JSON.stringify([{ name: "write_desk", arguments: { title: "a desk by the stand-in", status: "leaving" } }]),
+    OPENOVAI_STAND_IN_TOOL_ON: on,
+  };
+}
+
 export function deskOf(seat) {
   return fs.readFileSync(deskFile(instance, seat), "utf8");
 }

@@ -8,14 +8,16 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
 import { serverEvent, userFrame } from "../lib/chat/frames.mjs";
-import { BODY_CONTEXT_WARNING, BODY_IDLE, IDLE_GRACE, deliver, tick } from "../lib/chat/lifecycle.mjs";
+import { BODY_CLOSING, BODY_CONTEXT_WARNING, BODY_IDLE, IDLE_GRACE, deliver, tick } from "../lib/chat/lifecycle.mjs";
 import { endEvery, recordOf, running, tell } from "../lib/chat/session.mjs";
 import { deskTitle } from "../lib/desks.mjs";
 import { alive, callsIn, heardIn, pidsIn, readLog, waitFor } from "./helpers.mjs";
 
-import { setup, LEADER, WORKER, OTHER, MINUTE, instance, unexpected, said, chat, server, seatUp, asked, told, toldUntil, readIn, gone, callsThen, settle, pair, awake, A_CONTEXT } from "./lifecycle-helpers.mjs";
+import { setup, LEADER, WORKER, OTHER, MINUTE, instance, unexpected, said, chat, server, seatUp, asked, told, toldUntil, readIn, gone, callsThen, writesDesk, settle, pair, awake, A_CONTEXT } from "./lifecycle-helpers.mjs";
 
 let now = Date.now();
+// What a Worker idle for 55 minutes is told: its session is closing, its desk given the grace.
+const IDLE_CLOSING = `<server-event type="closing" why="idle" deadline="${IDLE_GRACE * 60}">${BODY_CLOSING("idle", false, IDLE_GRACE * 60)}</server-event>`;
 // Ann is hired before the first check: these checks start her without a hire of their own, as
 // they did when they ran after the ones that hire her.
 setup("lifecycle-idle-test", () => now, { hired: [WORKER, OTHER] });
@@ -42,7 +44,7 @@ describe("an advisory and a pending ask", () => {
     await awake(LEADER);
     now = idleFrom + 55 * MINUTE;
     tick(chat);
-    assert.equal((await told(paul.log, 2)).at(-1), `<server-event type="idle" stage="critical" minutes="55">${BODY_IDLE(55)}</server-event>`);
+    assert.equal((await told(paul.log, 2)).at(-1), IDLE_CLOSING);
     // The advisory, delivered the way `turned` delivers it: no ask at all.
     const warning = serverEvent(
       "context",
@@ -92,7 +94,7 @@ describe("idle", () => {
     now = idleFrom + 55 * MINUTE;
     tick(chat);
     tick(chat);
-    assert.equal((await told(paul.log, 2)).at(-1), `<server-event type="idle" stage="critical" minutes="55">${BODY_IDLE(55)}</server-event>`);
+    assert.equal((await told(paul.log, 2)).at(-1), IDLE_CLOSING);
     await settle();
     assert.equal(heardIn(paul.log).length, 2, "the critical frame was repeated");
     assert.equal(running(WORKER), true);
@@ -128,7 +130,7 @@ describe("idle", () => {
   });
 
   it("the stopped FYI follows a voluntary idle stop too", async () => {
-    ({ superman, paul } = await pair(callsThen("stop_session", 'type="idle"')));
+    ({ superman, paul } = await pair(writesDesk('type="closing"')));
     const idleFrom = now;
     now = idleFrom + 50 * MINUTE;
     await awake(LEADER);
@@ -138,7 +140,7 @@ describe("idle", () => {
     const frames = await waitFor(() => (heardIn(superman.log).some((frame) => frame.startsWith("<server-event type=\"stopped\"")) ? heardIn(superman.log) : null));
     assert.ok(frames !== null, "the Leader was never told");
     assert.ok(frames.includes(`<server-event type="stopped" who="${WORKER}" why="idle"/>`), frames.join("\n"));
-    assert.equal(deskTitle(instance, WORKER), "stop_session by the stand-in");
+    assert.equal(deskTitle(instance, WORKER), "a desk by the stand-in");
   });
 
   // What the service says when it will not take a turn at all, as Claude Code passes it on: the
@@ -190,8 +192,8 @@ describe("idle", () => {
     tick(chat);
     tick(chat);
     await settle();
-    assert.ok(!heardIn(paul.log).some((frame) => frame.includes('stage="critical"')), heardIn(paul.log).join("\n"));
-    assert.ok(!readIn(paul.log).some((frame) => frame.includes('stage="critical"')), readIn(paul.log).join("\n"));
+    assert.ok(!heardIn(paul.log).some((frame) => frame.includes('type="closing"')), heardIn(paul.log).join("\n"));
+    assert.ok(!readIn(paul.log).some((frame) => frame.includes('type="closing"')), readIn(paul.log).join("\n"));
     assert.equal(running(WORKER), true);
     assert.ok(alive(pidsIn(paul.log)[0]));
     // Nor past the force and the grace, the button still up: a Worker waiting on a button is
@@ -201,7 +203,7 @@ describe("idle", () => {
     tick(chat);
     tick(chat);
     await settle();
-    assert.ok(!readIn(paul.log).some((frame) => frame.includes('type="idle"')), readIn(paul.log).join("\n"));
+    assert.ok(!readIn(paul.log).some((frame) => frame.includes('type="closing"')), readIn(paul.log).join("\n"));
     assert.ok(!heardIn(superman.log).some((frame) => frame.includes('type="idle"')), heardIn(superman.log).join("\n"));
     assert.equal(recordOf(WORKER).ending, null);
     assert.equal(running(WORKER), true);
@@ -209,7 +211,7 @@ describe("idle", () => {
     // Nor once the turn is over: nothing was queued behind it, and nothing was asked of the seat.
     await asking_.answered;
     await settle();
-    assert.ok(!readIn(paul.log).some((frame) => frame.includes('stage="critical"')), readIn(paul.log).join("\n"));
+    assert.ok(!readIn(paul.log).some((frame) => frame.includes('type="closing"')), readIn(paul.log).join("\n"));
     assert.equal(recordOf(WORKER).askedWhy, null);
   });
 
@@ -221,9 +223,9 @@ describe("idle", () => {
     await awake(LEADER);
     now = idleFrom + 55 * MINUTE;
     tick(chat);
-    assert.equal((await told(paul.log, 2)).at(-1), `<server-event type="idle" stage="critical" minutes="55">${BODY_IDLE(55)}</server-event>`);
+    assert.equal((await told(paul.log, 2)).at(-1), IDLE_CLOSING);
     await settle();
-    assert.equal(recordOf(WORKER).askedWhy, "idle");
+    assert.equal(recordOf(WORKER).askedWhy, "close:idle");
     now = idleFrom + 57 * MINUTE;
     assert.equal((await asked(superman.secret, WORKER, "one more thing")).reply, "a reply");
     assert.equal(recordOf(WORKER).askedWhy, null);
@@ -245,7 +247,7 @@ describe("idle", () => {
     await awake(LEADER);
     now = idleFrom + 55 * MINUTE;
     tick(chat);
-    assert.deepEqual(await told(paul.log, 1), [`<server-event type="idle" stage="critical" minutes="55">${BODY_IDLE(55)}</server-event>`]);
+    assert.deepEqual(await told(paul.log, 1), [IDLE_CLOSING]);
     assert.ok(await waitFor(() => (callsIn(paul.log).length > 0 && recordOf(WORKER).turn !== null ? true : null)), "no turn on the ask");
     now = idleFrom + 60 * MINUTE;
     tick(chat);
@@ -294,12 +296,12 @@ describe("idle", () => {
     tick(chat);
     tick(chat);
     await settle();
-    assert.ok(!heardIn(paul.log).some((frame) => frame.includes('stage="critical"')), heardIn(paul.log).join("\n"));
+    assert.ok(!heardIn(paul.log).some((frame) => frame.includes('type="closing"')), heardIn(paul.log).join("\n"));
     assert.ok(!heardIn(superman.log).some((frame) => frame.startsWith('<server-event type="stopped"')), heardIn(superman.log).join("\n"));
     assert.equal(running(WORKER), true);
     now = idleFrom + 40 * MINUTE + 55 * MINUTE;
     tick(chat);
-    assert.ok(await waitFor(() => (heardIn(paul.log).some((frame) => frame.includes('stage="critical"')) ? true : null)), heardIn(paul.log).join("\n"));
-    assert.equal(heardIn(paul.log).at(-1), `<server-event type="idle" stage="critical" minutes="55">${BODY_IDLE(55)}</server-event>`);
+    assert.ok(await waitFor(() => (heardIn(paul.log).some((frame) => frame.includes('type="closing"')) ? true : null)), heardIn(paul.log).join("\n"));
+    assert.equal(heardIn(paul.log).at(-1), IDLE_CLOSING);
   });
 });

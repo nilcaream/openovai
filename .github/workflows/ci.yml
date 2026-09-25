@@ -197,6 +197,19 @@ jobs:
       - name: Tell about an idle seat, ask it to stop, end it
         run: node --test tests/lifecycle-idle.test.mjs
 
+  lifecycle-close:
+    name: Lifecycle, a close
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+
+      - name: Close a Worker at a turn's end, never in the middle of one
+        run: node --test tests/lifecycle-close.test.mjs
+
   lifecycle-stop:
     name: Lifecycle, the endings
     runs-on: ubuntu-latest

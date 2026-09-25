@@ -13,7 +13,7 @@ import { SERVER, read } from "../lib/chat/conversation.mjs";
 import { subscribe } from "../lib/chat/events.mjs";
 import { userFrame } from "../lib/chat/frames.mjs";
 import { ADMIN_FILE } from "../lib/admin.mjs";
-import { BODY_PARK, adminTold, deliver, parkRoom, tick } from "../lib/chat/lifecycle.mjs";
+import { BODY_CLOSING, adminTold, deliver, parkRoom, tick } from "../lib/chat/lifecycle.mjs";
 import * as quota from "../lib/chat/quota.mjs";
 import { INTERRUPT_PATIENCE, end, endEvery, recordOf, running, tell } from "../lib/chat/session.mjs";
 import { deskFile, hire } from "../lib/desks.mjs";
@@ -211,7 +211,7 @@ describe("park", () => {
   }
 
   it("interrupts when asked, waits for the stops, ends the rest at the deadline, and leaves the Leader's turn alone", async () => {
-    ({ superman, paul } = await pair({ OPENOVAI_STAND_IN_SLOW: "1000", ...callsThen("stop_session", 'type="park"') }, { OPENOVAI_STAND_IN_SLOW: "3500" }));
+    ({ superman, paul } = await pair({ OPENOVAI_STAND_IN_SLOW: "1000", ...callsThen("stop_session", 'why="park"') }, { OPENOVAI_STAND_IN_SLOW: "3500" }));
     const ann = await seatUp(OTHER);
     const leaderTurn = tell(LEADER, userFrame("thinking"));
     const leaderBusy = stillRunning(leaderTurn);
@@ -223,9 +223,9 @@ describe("park", () => {
     assert.ok(await gone(WORKER), `${WORKER} did not stop`);
     const labels = notesIn(paul.log).map(([label]) => label);
     assert.ok(labels.indexOf("interrupt") < labels.lastIndexOf("heard"), labels.join(","));
-    assert.equal(heardIn(paul.log).at(-1), `<server-event type="park" interrupted="true" deadline="5">${BODY_PARK}</server-event>`);
+    assert.equal(heardIn(paul.log).at(-1), `<server-event type="closing" why="park" deadline="5" interrupted="true">${BODY_CLOSING("park", true, null)}</server-event>`);
     assert.ok(notesIn(paul.log).some(([label, rest]) => label === "tool" && rest.startsWith("stop_session -> stopping")), readLog(paul.log));
-    assert.deepEqual(await told(ann.log, 1), [`<server-event type="park" interrupted="true" deadline="5">${BODY_PARK}</server-event>`]);
+    assert.deepEqual(await told(ann.log, 1), [`<server-event type="closing" why="park" deadline="5" interrupted="true">${BODY_CLOSING("park", true, null)}</server-event>`]);
     await settle(400);
     assert.equal(running(OTHER), true, "ended before the deadline");
     const written = hhmm(now);
@@ -251,7 +251,7 @@ describe("park", () => {
     const ann = await seatUp(OTHER);
     const began = now;
     const parked = tool(superman.secret, "park", {});
-    assert.deepEqual(await told(ann.log, 1), ['<server-event type="park"/>']);
+    assert.deepEqual(await told(ann.log, 1), [`<server-event type="closing" why="park">${BODY_CLOSING("park", false, null)}</server-event>`]);
     await settle(400);
     assert.equal(running(OTHER), true);
     assert.deepEqual(await tool(superman.secret, "park", {}), { text: "already parking", refused: true, error: null });
@@ -490,7 +490,7 @@ describe("a signal to the chat", () => {
   });
 
   it("SIGTERM parks the room, the Leader too, over a server that keeps answering the tools, then exits 0", async () => {
-    const { page: page_ } = await roomUp({ OPENOVAI_STAND_IN_SLOW: "1000", ...callsThen("stop_session", 'type="park"') });
+    const { page: page_ } = await roomUp({ OPENOVAI_STAND_IN_SLOW: "1000", ...callsThen("stop_session", '="park"') });
     const pids = pidsIn(ownLog);
     assert.equal(pids.length, 3);
     const closed = new Promise((resolve) => child.once("close", resolve));
@@ -522,7 +522,7 @@ describe("a signal to the chat", () => {
     assert.deepEqual(stoppedRows.slice(3), ["stopped - - SIGTERM"], child.output);
     assert.equal(child.output.trimEnd().split("\n").at(-1).slice(-"stopped - - SIGTERM".length), "stopped - - SIGTERM", child.output);
     const notes = notesIn(ownLog);
-    const parkFrames = notes.filter(([label, rest]) => label === "heard" && rest.startsWith('<server-event type="park" interrupted="true"'));
+    const parkFrames = notes.filter(([label, rest]) => label === "heard" && (rest.startsWith('<server-event type="park" interrupted="true"') || (rest.startsWith('<server-event type="closing" why="park"') && rest.includes('interrupted="true"'))));
     assert.equal(parkFrames.length, 3, "not every session was told the park");
     assert.equal(notes.filter(([label, rest]) => label === "tool" && rest.startsWith("write_desk -> ")).length, 3);
     assert.equal(notes.filter(([label, rest]) => label === "tool" && rest.startsWith("stop_session -> stopping")).length, 3);
@@ -539,7 +539,7 @@ describe("a signal to the chat", () => {
   // The Leader alone, slower than the patience a session is ended with: the park waits for it as
   // for any other session, so it writes its desk and stops itself rather than being taken down.
   it("SIGTERM waits for the Leader to write its desk and stop, when it is the only one running", async () => {
-    await roomUp({ OPENOVAI_STAND_IN_SLOW: "2500", ...callsThen("stop_session", 'type="park"') }, []);
+    await roomUp({ OPENOVAI_STAND_IN_SLOW: "2500", ...callsThen("stop_session", '="park"') }, []);
     const closed = new Promise((resolve) => child.once("close", resolve));
     child.kill("SIGTERM");
     assert.equal(await closed, 0, child.output);
@@ -552,7 +552,7 @@ describe("a signal to the chat", () => {
 
   it("ovai stop is SIGTERM to the holder of the port, and waits until nothing answers", async () => {
     remove(ownLog);
-    await roomUp(callsThen("stop_session", 'type="park"'));
+    await roomUp(callsThen("stop_session", '="park"'));
     const closed = new Promise((resolve) => child.once("close", resolve));
     const stopped = await runToolLater(own, ["stop"], ownEnvironment());
     assert.equal(stopped.status, 0, stopped.stderr);

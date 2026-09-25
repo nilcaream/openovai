@@ -6,6 +6,21 @@ carries only its own.
 
 ## 0.19.0
 
+**A Worker's session is closed for it, and never in the middle of a step.** When a Worker has to
+end — idle at 55 minutes, its usage window spent, the room parking — the server tells it one thing,
+`closing`, with why. The Worker writes its desk, and the session ends when that turn is over:
+
+- The close is read at the start of a turn of its own. It never goes into a turn already under way,
+  and a line you type while it waits goes in with it, behind it.
+- The session ends when the turn that wrote the desk is over, not at the desk write, so whatever the
+  Worker does after its desk in that turn is done before it goes. A later message does not take a
+  close back; a word to an idle Worker still does, since that is what it was waiting for.
+- A close that waits too long for its desk ends with the desk as it was last written. The deadline
+  counts from the turn that read the close, and never ends a turn that is running. Idle and a spent
+  window give the desk 5 minutes; a park keeps its own deadline.
+- A close whose turn is refused by the service ends at once, since no turn is left to write a desk
+  in.
+
 **A Worker the service refuses no longer sits there looking well.** A turn can come back from the
 service refused: a model this Claude Code does not have, a sign-in missing, the service down.
 Every time that happens, the service's own words go in the log as a `died` row. From there:

@@ -61,18 +61,18 @@
   },
   {
     "name": "stage two tells the Worker critical without interrupting it",
-    "catches": "stage two interrupts a Worker mid-turn and tells it critical; the Leader is told, not interrupted",
+    "catches": "stage two interrupts a Worker mid-turn and closes it; the Leader is told, not interrupted",
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "      await interrupt(seat, { thenDrain: false });\n      deliver(instance, seat, serverEvent(\"quota-low\", { ...attrs, interrupted: \"true\" }, BODY_CRITICAL), { ask: \"stop\" });",
-        "to": "      deliver(instance, seat, serverEvent(\"quota-low\", { ...attrs, interrupted: \"true\" }, BODY_CRITICAL), { ask: \"stop\" });"
+        "from": "      await close(instance, seat, \"quota\", { interrupt: true, deadline: IDLE_GRACE * 60, about: { window, resets, ...(model === null ? {} : { model }) } });",
+        "to": "      await close(instance, seat, \"quota\", { interrupt: false, deadline: IDLE_GRACE * 60, about: { window, resets, ...(model === null ? {} : { model }) } });"
       }
     ]
   },
   {
     "name": "stage two interrupts the Leader too",
-    "catches": "stage two interrupts a Worker mid-turn and tells it critical; the Leader is told, not interrupted",
+    "catches": "stage two interrupts a Worker mid-turn and closes it; the Leader is told, not interrupted",
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
@@ -105,7 +105,7 @@
   },
   {
     "name": "the critical event goes through the closed gate like any frame",
-    "catches": "stage two interrupts a Worker mid-turn and tells it critical; the Leader is told, not interrupted",
+    "catches": "stage two interrupts a Worker mid-turn and closes it; the Leader is told, not interrupted",
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
@@ -353,6 +353,17 @@
         "file": "lib/chat/quota.mjs",
         "from": "      listener(key, stage, resets, model, percent);",
         "to": "      listener(key, stage, resets, model);"
+      }
+    ]
+  },
+  {
+    "name": "a close the server makes on its own waits at the closed gate",
+    "catches": "stage two interrupts a Worker mid-turn and closes it; the Leader is told, not interrupted",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "    return event.attrs.why === \"idle\" || event.attrs.why === \"quota\" || event.attrs.why === \"park\";",
+        "to": "    return false;"
       }
     ]
   }

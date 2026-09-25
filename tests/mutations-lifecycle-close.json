@@ -1,0 +1,90 @@
+[
+  {
+    "name": "a close completes at no turn's end",
+    "catches": "completes when the turn that wrote the desk is over, after everything that turn did",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "        if (record.ending === null && closedBy(record, dead)) {\n          record.ending = closedAs(record.askedWhy);\n          end(seat, TURN_PATIENCE);\n          return;\n        }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a close to restart ends as a stop",
+    "catches": "to restart, hands the seat to a successor that starts on the desk",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "          record.ending = closedAs(record.askedWhy);\n          end(seat, TURN_PATIENCE);",
+        "to": "          record.ending = \"stop\";\n          end(seat, TURN_PATIENCE);"
+      }
+    ]
+  },
+  {
+    "name": "a close joins a turn under way with the line typed after it",
+    "catches": "never joins a turn under way: a line typed after it waits with it, and the close is what that turn asks",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "  const closing = record.queue.findIndex((turn) => isClosing(turn.ask));\n  const last = (closing === -1 ? record.queue : record.queue.slice(0, closing)).findLastIndex((turn) => turn.frame.kind === \"user\");",
+        "to": "  const last = record.queue.findLastIndex((turn) => turn.frame.kind === \"user\");"
+      }
+    ]
+  },
+  {
+    "name": "a close is taken back by the line that goes in with it",
+    "catches": "never joins a turn under way: a line typed after it waits with it, and the close is what that turn asks",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "    ask: holding !== undefined ? holding.ask : speaking === undefined ? undefined : speaking.ask,",
+        "to": "    ask: speaking === undefined ? undefined : speaking.ask,"
+      }
+    ]
+  },
+  {
+    "name": "a close is taken back by a message after it",
+    "catches": "holds through a message, and completes at the later turn that writes the desk",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "  if (ask === undefined || (holds(record.askedWhy) && !isClosing(ask))) {",
+        "to": "  if (ask === undefined) {"
+      }
+    ]
+  },
+  {
+    "name": "a close whose turn died waits for a desk that cannot come",
+    "catches": "completes at once, the desk as it was, when the turn that reads it dies at the service",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "  return isClosing(record.askedWhy) && (dead || (record.deskWrittenAt !== null",
+        "to": "  return isClosing(record.askedWhy) && ((record.deskWrittenAt !== null"
+      }
+    ]
+  },
+  {
+    "name": "a close's deadline cuts a turn under way",
+    "catches": "has a deadline that runs from the turn that read it and waits for a turn to end",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "record.closeDeadline !== null && record.turn === null && now - record.askedAt >= record.closeDeadline",
+        "to": "record.closeDeadline !== null && now - record.askedAt >= record.closeDeadline"
+      }
+    ]
+  },
+  {
+    "name": "a close's deadline never ends anything",
+    "catches": "has a deadline that runs from the turn that read it and waits for a turn to end",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "    if (isClosing(record.askedWhy) && record.closeDeadline !== null && record.turn === null",
+        "to": "    if (false && isClosing(record.askedWhy) && record.closeDeadline !== null && record.turn === null"
+      }
+    ]
+  }
+]

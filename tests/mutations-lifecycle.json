@@ -164,8 +164,8 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "  record.ending = ending === \"stop\" ? (record.askedWhy === \"restart\" ? \"stop\" : (record.askedWhy ?? \"stop\")) : ending;\n",
-        "to": "  record.ending = ending === \"stop\" ? (record.askedWhy === \"restart\" ? \"stop\" : (record.askedWhy ?? \"stop\")) : ending;\n  if (ending === \"stop\") {\n    fs.rmSync(panelDirectory(instance.root, caller.seat), { recursive: true, force: true });\n  }\n"
+        "from": "  record.ending = ending === \"stop\" ? (asked === \"restart\" ? \"stop\" : (asked ?? \"stop\")) : ending;\n",
+        "to": "  record.ending = ending === \"stop\" ? (asked === \"restart\" ? \"stop\" : (asked ?? \"stop\")) : ending;\n  if (ending === \"stop\") {\n    fs.rmSync(panelDirectory(instance.root, caller.seat), { recursive: true, force: true });\n  }\n"
       }
     ]
   },
@@ -362,8 +362,8 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "  record.ending = ending === \"stop\" ? (record.askedWhy === \"restart\" ? \"stop\" : (record.askedWhy ?? \"stop\")) : ending;",
-        "to": "  record.ending = ending === \"stop\" ? (record.askedWhy === \"restart\" ? \"stop\" : (record.askedWhy ?? \"stop\")) : ending;\n  log(\"stopped\", caller.seat, null, record.ending);"
+        "from": "  record.ending = ending === \"stop\" ? (asked === \"restart\" ? \"stop\" : (asked ?? \"stop\")) : ending;",
+        "to": "  record.ending = ending === \"stop\" ? (asked === \"restart\" ? \"stop\" : (asked ?? \"stop\")) : ending;\n  log(\"stopped\", caller.seat, null, record.ending);"
       },
       {
         "file": "lib/chat/log.mjs",
