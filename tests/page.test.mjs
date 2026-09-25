@@ -487,7 +487,7 @@ describe("the script", () => {
     assert.match(script, /panel\.doing = null;\s*panel\.bubbles\.clear\(\);/);
     assert.match(script, /const line = rowElement\(entry, shown, panel, about\.rows, index\);/);
     assert.match(script, /if \(found === null\) return;\s*focusRow\(leader, found\);/, "a message's other end goes through the same focus");
-    assert.match(script, /function focusRow\(panel, found\) \{\s*if \(!found\.isConnected\) return;\s*found\.classList\.remove\("collapsed"\);\s*found\.scrollIntoView\(\{ block: "start" \}\);/);
+    assert.match(script, /function focusRow\(panel, found\) \{\s*if \(!found\.isConnected\) return;\s*if \(hiddenTalk\(found\)\) \{\s*found\.classList\.add\("revealed"\);\s*fitFolds\(\[found\]\);\s*\}\s*found\.classList\.remove\("collapsed"\);\s*found\.scrollIntoView\(\{ block: "start" \}\);/);
   });
 
   // The typing hold: a key that leaves text in the box tells the server, at most once a beat; one
@@ -592,6 +592,36 @@ describe("the script", () => {
     assert.equal(rules.find((rule) => rule.selector === ".phead .notify .lit")?.declarations.display, "none", "the lit icon is not drawn while off");
     assert.equal(rules.find((rule) => rule.selector === ".phead .notify.on .lit")?.declarations.display, "block", "and is while on");
     assert.equal(rules.find((rule) => rule.selector === ".phead .notify.on .slashed")?.declarations.display, "none", "the slashed icon is not drawn while on");
+  });
+
+  // A third switch on the Leader's head, after the two: the messages between the Leader and the
+  // Workers, and one Worker's to another, shown until the browser's storage says hidden — shown on
+  // any other value and when there is no storage. The switch keeps a class on the Leader's rows and
+  // the stylesheet hides by it, so a click redraws nothing; what the User typed to a Worker is
+  // never among what it hides.
+  it("hides the messages between sessions on the Leader's panel from a third switch, shown by default, in storage", () => {
+    assert.match(script, /rows\.className = "rows";\s*if \(leads\) headLine\.append\(commsSwitch\(rows\)\);/, "after the two switches, on the Leader's head only");
+    assert.match(script, /const COMMS = \{ key: "openovai-comms", label: "Messages between the Leader and Workers", on: "Showing messages between the Leader and Workers — click to hide them", off: "Hiding messages between the Leader and Workers — click to show them" \};/);
+    assert.match(script, /function commsShown\(\) \{\s*try \{ return localStorage\.getItem\(COMMS\.key\) !== "hidden"; \} catch \(error\) \{ return true; \}/, "shown until the store says hidden, and shown when there is no store");
+    assert.match(script, /button\.addEventListener\("click", \(\) => \{\s*try \{ localStorage\.setItem\(COMMS\.key, commsShown\(\) \? "hidden" : "shown"\); \} catch \(error\) \{\}\s*show\(\);/);
+    assert.match(script, /button\.classList\.toggle\("on", on\);\s*button\.title = on \? COMMS\.on : COMMS\.off;\s*rows\.classList\.toggle\("comms-hidden", !on\);/, "the switch's state is the class on the rows");
+    assert.match(script, /button\.className = "notify";\s*button\.setAttribute\("aria-label", COMMS\.label\);\s*button\.innerHTML = TALK \+ TALK_SLASHED;/, "an icon button in the notify switches' style");
+    assert.match(script, /const TALK_SLASHED = '<svg class="slashed"[^']*M1 1l22 22"\/>/, "the same icon, with a slash across it");
+    const hide = rules.find((rule) => rule.selector === ".rows.comms-hidden .msg:is(.peer-in, .peer-out, .overheard):not(.revealed)");
+    assert.equal(hide?.declarations.display, "none", "sent, received and overheard rows are off the panel while hidden, save a revealed one");
+    assert.match(script, /const TALKING = "\.msg:is\(\.peer-in, \.peer-out, \.overheard\)";/, "the script names the rows as the stylesheet does");
+  });
+
+  // A row the switch hides is still reached from a click elsewhere: focusRow reveals it and
+  // measures its fold, since it measured nothing hidden. Folded again, or double-clicked with no
+  // fold, it hides again; turning the switch off hides every revealed row, turning it on measures
+  // the folds of the rows drawn hidden. A hidden row landing is no row for the pill.
+  it("reveals a hidden message reached from a click, hides it again on its fold, and never counts it as landed", () => {
+    assert.match(script, /if \(hiddenTalk\(found\)\) \{\s*found\.classList\.add\("revealed"\);\s*fitFolds\(\[found\]\);\s*\}\s*found\.classList\.remove\("collapsed"\);/, "revealed and measured while still folded, then opened");
+    assert.match(script, /function hiddenTalk\(row\) \{\s*return row\.matches\(`\.rows\.comms-hidden \$\{TALKING\}:not\(\.revealed\)`\);/);
+    assert.match(script, /if \(line\.classList\.contains\("collapsed"\) \|\| !line\.classList\.contains\("foldable"\)\) line\.classList\.remove\("revealed"\);/, "the fold hides it again");
+    assert.match(script, /if \(on\) fitFolds\(rows\.querySelectorAll\(TALKING\)\);\s*else for \(const revealed of rows\.querySelectorAll\("\.revealed"\)\) revealed\.classList\.remove\("revealed"\);/, "off hides every revealed row; on measures the folds drawn hidden");
+    assert.match(script, /if \(!hiddenTalk\(line\)\) landed = true;/, "a hidden row does not land");
   });
 
   // The pill: shown by a draw that appended rows while the reader was more than 80px above the
@@ -767,7 +797,7 @@ describe("the script", () => {
   it("marks the line of a message with its id and takes a click on it to the message on the Leader's panel, opened", () => {
     assert.match(script, /if \(shown\.msg !== undefined\) \{\s*line\.classList\.add\("peer"\);\s*line\.dataset\.msg = shown\.msg;\s*line\.onclick = \(\) => focusMessage\(shown\.msg\);\s*\}\s*return line;/);
     assert.match(script, /if \(shown\.msg !== undefined\) line\.dataset\.msg = shown\.msg;/, "a bubble carries the id too, for the click to find");
-    assert.match(script, /function focusMessage\(id\) \{\s*const leader = sections\.get\(state\.leader\);\s*const found = leader === undefined \? null : leader\.rows\.querySelector\(`\.msg\[data-msg="\$\{id\}"\]`\);\s*if \(found === null\) return;\s*focusRow\(leader, found\);\s*\}(?:[^\n]*\n)+?\s*function focusRow\(panel, found\) \{\s*if \(!found\.isConnected\) return;\s*found\.classList\.remove\("collapsed"\);\s*found\.scrollIntoView\(\{ block: "start" \}\);/, "opened before it is brought into view, so the scroll is to the row as it will stand");
+    assert.match(script, /function focusMessage\(id\) \{\s*const leader = sections\.get\(state\.leader\);\s*const found = leader === undefined \? null : leader\.rows\.querySelector\(`\.msg\[data-msg="\$\{id\}"\]`\);\s*if \(found === null\) return;\s*focusRow\(leader, found\);\s*\}(?:[^\n]*\n)+?\s*function focusRow\(panel, found\) \{\s*if \(!found\.isConnected\) return;\s*if \(hiddenTalk\(found\)\) \{[^}]*\}\s*found\.classList\.remove\("collapsed"\);\s*found\.scrollIntoView\(\{ block: "start" \}\);/, "opened before it is brought into view, so the scroll is to the row as it will stand");
     assert.match(script, /found\.classList\.add\("focus"\);\s*setTimeout\(\(\) => found\.classList\.remove\("focus"\), FOCUS_FOR\);/);
     assert.match(script, /const FOCUS_FOR = 1500;/);
   });
@@ -792,7 +822,7 @@ describe("the script", () => {
   // does nothing to a row — it is what selects a word, and the stamp's click points at the row —
   // and there is no word under the row that opens it.
   it("opens a folded message on a double click, folds it again on the next, and on nothing else", () => {
-    assert.match(script, /line\.addEventListener\("dblclick", \(\) => \{\n\s*if \(line\.classList\.contains\("foldable"\)\) line\.classList\.toggle\("collapsed"\);\n\s*\}\);/, "the toggle, under the mark of something to fold");
+    assert.match(script, /line\.addEventListener\("dblclick", \(\) => \{\n\s*if \(line\.classList\.contains\("foldable"\)\) line\.classList\.toggle\("collapsed"\);\n\s*if \(line\.classList\.contains\("collapsed"\) \|\| !line\.classList\.contains\("foldable"\)\) line\.classList\.remove\("revealed"\);\n\s*\}\);/, "the toggle, under the mark of something to fold");
     assert.doesNotMatch(script, /(?:addEventListener\("click"|onclick)[^\n]*collapsed/, "a single click never folds or opens a row");
     assert.doesNotMatch(script, /show all|collapsible\(|"more"/, "no word under the row opens it");
   });
@@ -885,7 +915,7 @@ describe("the script", () => {
     const draw = script.slice(script.indexOf("function drawPanel(panel)"), script.indexOf("// ------------------------------------------------------------------------------- the page"));
     assert.match(draw, /let landed = false;\s*const added = \[\];\s*const folded = \[\];\s*if \(about\.rows\.length > panel\.shown\) \{/, "the word is set before any row is drawn, beside the stamps list and the folded list");
     assert.match(draw, /panel\.last\.n\.textContent = ` ×\$\{panel\.last\.count\}`;\s*landed = true;/, "a counter that grew is a row that landed");
-    assert.match(draw, /panel\.rows\.append\(line\);\s*landed = true;/, "an element appended is a row that landed");
+    assert.match(draw, /panel\.rows\.append\(line\);\s*(?:\/\/[^\n]*\n\s*)*if \(!hiddenTalk\(line\)\) landed = true;/, "an element appended is a row that landed, unless the comms switch hides it");
     assert.match(draw, /if \(landed && !panel\.view\.follow && panel\.jump !== null && !near\) \{\s*panel\.jump\.classList\.add\("show"\);/, "the pill hangs on the word");
     assert.doesNotMatch(draw, /if \(added\.length > 0\)/, "the stamps list decides the pill");
   });

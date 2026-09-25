@@ -150,6 +150,8 @@
   /* what one Worker said to another, on the Leader's panel: not a prompt to the Leader and not the User's words, so a ground of its
      own; its body is markdown like To and From, so no pre-wrap here — it would draw the markup's own newlines as blank lines */
   .msg.overheard .bubble { background: var(--typed); border-color: var(--typed-line); overflow-wrap: anywhere; }
+  /* the Leader's panel with the comms switch off: the messages between sessions are off it, save one a click revealed */
+  .rows.comms-hidden .msg:is(.peer-in, .peer-out, .overheard):not(.revealed) { display: none; }
   /* the message a click on a line found, lit for a moment */
   .msg.focus .bubble { outline: 2px solid var(--accent); }
   .msg .text a.ref { cursor: pointer; color: var(--accent); text-decoration: underline; }
@@ -283,7 +285,7 @@
   // it came from into view. No sound of the page's own — the browser and the system do what they
   // do with a notification.
   //
-  // Two switches, on the Leader's head after the theme toggle, are the whole of the configuration:
+  // Two switches, on the Leader's head after the theme toggle, are the whole of the notifications' configuration:
   // one for the action-needed notification, one for the end-of-turn notification, each off until
   // the browser's storage says on — off when the storage says anything else, and off when there is
   // no storage to ask. Each is an icon button in the theme toggle's style: an exclamation mark in
@@ -335,6 +337,47 @@
       sections.get(seat)?.section.scrollIntoView({ block: "nearest" });
       shown.close();
     });
+  }
+
+  // One more switch after those two, on the Leader's head: whether the Leader's panel shows the
+  // messages between the Leader and the Workers — sent, received, and one Worker's to another.
+  // Shown until the browser's storage says hidden. The storage is read at the draw of the head and
+  // the switch keeps its class on the Leader's rows; the stylesheet does the hiding, so a click
+  // redraws nothing. A row reached from a click elsewhere — the Sent or Received line on a
+  // Worker's panel, a reference — is revealed by focusRow and hides again when it is folded.
+  const TALK = '<svg class="lit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2z"/><path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1"/></svg>';
+  const TALK_SLASHED = '<svg class="slashed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2z"/><path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1"/><path d="M1 1l22 22"/></svg>';
+  const COMMS = { key: "openovai-comms", label: "Messages between the Leader and Workers", on: "Showing messages between the Leader and Workers — click to hide them", off: "Hiding messages between the Leader and Workers — click to show them" };
+  // The rows the switch hides, as the stylesheet names them.
+  const TALKING = ".msg:is(.peer-in, .peer-out, .overheard)";
+  function commsShown() {
+    try { return localStorage.getItem(COMMS.key) !== "hidden"; } catch (error) { return true; }
+  }
+  function commsSwitch(rows) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "notify";
+    button.setAttribute("aria-label", COMMS.label);
+    button.innerHTML = TALK + TALK_SLASHED;
+    const show = () => {
+      const on = commsShown();
+      button.classList.toggle("on", on);
+      button.title = on ? COMMS.on : COMMS.off;
+      rows.classList.toggle("comms-hidden", !on);
+      // Rows drawn while hidden measured nothing, so shown again their folds are measured afresh.
+      if (on) fitFolds(rows.querySelectorAll(TALKING));
+      else for (const revealed of rows.querySelectorAll(".revealed")) revealed.classList.remove("revealed");
+    };
+    button.addEventListener("click", () => {
+      try { localStorage.setItem(COMMS.key, commsShown() ? "hidden" : "shown"); } catch (error) {}
+      show();
+    });
+    show();
+    return button;
+  }
+  // Whether a row is one the switch keeps off the panel right now.
+  function hiddenTalk(row) {
+    return row.matches(`.rows.comms-hidden ${TALKING}:not(.revealed)`);
   }
 
   const SUN ='<svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 1.7v2.6M12 19.7v2.6M4.6 4.6l1.9 1.9M17.5 17.5l1.9 1.9M1.7 12h2.6M19.7 12h2.6M4.6 19.4l1.9-1.9M17.5 6.5l1.9-1.9"/></svg>';
@@ -426,6 +469,7 @@
 
     const rows = document.createElement("div");
     rows.className = "rows";
+    if (leads) headLine.append(commsSwitch(rows));
     // Whether this panel follows its newest row: the panel's own word, decided by `following` at
     // every tick of the page's timer (keep, below), true from the start. Only a hand that moved
     // the rows away from the newest lets it go — a wheel up, an up key, a finger, the bar dragged
@@ -753,9 +797,14 @@
 
   // A row found from a click elsewhere — a message's other end, a reference — opened, brought into
   // view with its label at the top, and lit for a moment. A row the panel has let go since is
-  // nothing to do.
+  // nothing to do. A row the comms switch hides is revealed first, and its fold measured while it
+  // is still folded: hidden at the draw, it measured nothing then.
   function focusRow(panel, found) {
     if (!found.isConnected) return;
+    if (hiddenTalk(found)) {
+      found.classList.add("revealed");
+      fitFolds([found]);
+    }
     found.classList.remove("collapsed");
     found.scrollIntoView({ block: "start" });
     for (const lit of panel.rows.querySelectorAll(".msg.focus")) lit.classList.remove("focus");
@@ -837,8 +886,10 @@
     // The server's own rows fold too: a wait row names the whole call, and one line of it is enough.
     if (shown.kind === "peer-in" || shown.kind === "peer-out" || shown.kind === "overheard" || shown.kind === "chat") {
       line.classList.add("collapsed");
+      // A revealed row folded hides again; one with no fold hides at the double click.
       line.addEventListener("dblclick", () => {
         if (line.classList.contains("foldable")) line.classList.toggle("collapsed");
+        if (line.classList.contains("collapsed") || !line.classList.contains("foldable")) line.classList.remove("revealed");
       });
       // No first line to show, the renderer says: the fold is a placeholder in place of the body
       if (shown.placeholder === true) {
@@ -1121,7 +1172,8 @@
           }
           const line = rowElement(entry, shown, panel, about.rows, index);
           panel.rows.append(line);
-          landed = true;
+          // A row the comms switch hides lands nowhere the reader can see.
+          if (!hiddenTalk(line)) landed = true;
           if (shown.kind === "line") {
             panel.last = shown.msg === undefined ? { text: shown.text, el: line, count: 1, n: line.lastElementChild } : null;
             panel.lines.set(index, line);

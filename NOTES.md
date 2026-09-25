@@ -58,6 +58,11 @@ All of that is the Leader's now:
   wrote it — the seat, the User, or `Server`. A line typed on a Worker's panel reaches the Leader
   with the same `<ref>`s, resolved on the Worker's panel. A reference is read from the text alone,
   so one typed by hand works the same, and one that names nothing stays text.
+- A third switch on the Leader's head, after the two notification switches, hides the messages
+  between the Leader and the Workers, and one Worker's to another, from the Leader's panel; what
+  the User typed to a Worker stays. Shown by default, kept in the browser as `openovai-comms`. A
+  hidden row reached from a click — its Sent or Received line on a Worker's panel, a reference —
+  is shown opened, and hides again when it is folded.
 
 **A Worker's session is closed for it, and never in the middle of a step.** When a Worker has to
 end — idle at 55 minutes, its usage window spent, the room parking — the server tells it one thing,

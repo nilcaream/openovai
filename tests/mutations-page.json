@@ -1273,8 +1273,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      line.addEventListener(\"dblclick\", () => {\n        if (line.classList.contains(\"foldable\")) line.classList.toggle(\"collapsed\");\n      });",
-        "to": "      line.addEventListener(\"click\", () => {\n        if (line.classList.contains(\"foldable\")) line.classList.toggle(\"collapsed\");\n      });"
+        "from": "      line.addEventListener(\"dblclick\", () => {\n        if (line.classList.contains(\"foldable\")) line.classList.toggle(\"collapsed\");",
+        "to": "      line.addEventListener(\"click\", () => {\n        if (line.classList.contains(\"foldable\")) line.classList.toggle(\"collapsed\");"
       }
     ]
   },
@@ -1284,8 +1284,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      line.addEventListener(\"dblclick\", () => {\n        if (line.classList.contains(\"foldable\")) line.classList.toggle(\"collapsed\");\n      });",
-        "to": "      line.addEventListener(\"dblclick\", () => {\n        if (line.classList.contains(\"foldable\")) line.classList.remove(\"collapsed\");\n      });"
+        "from": "      line.addEventListener(\"dblclick\", () => {\n        if (line.classList.contains(\"foldable\")) line.classList.toggle(\"collapsed\");",
+        "to": "      line.addEventListener(\"dblclick\", () => {\n        if (line.classList.contains(\"foldable\")) line.classList.remove(\"collapsed\");"
       }
     ]
   },
@@ -1295,8 +1295,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      line.addEventListener(\"dblclick\", () => {\n        if (line.classList.contains(\"foldable\")) line.classList.toggle(\"collapsed\");\n      });",
-        "to": "      line.addEventListener(\"dblclick\", () => {\n        line.classList.toggle(\"collapsed\");\n      });"
+        "from": "      line.addEventListener(\"dblclick\", () => {\n        if (line.classList.contains(\"foldable\")) line.classList.toggle(\"collapsed\");",
+        "to": "      line.addEventListener(\"dblclick\", () => {\n        line.classList.toggle(\"collapsed\");"
       }
     ]
   },
@@ -2140,8 +2140,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "          panel.rows.append(line);\n          landed = true;\n",
-        "to": "          panel.rows.append(line);\n          if (line.querySelector(\".t\") !== null) landed = true;\n"
+        "from": "          if (!hiddenTalk(line)) landed = true;\n",
+        "to": "          if (!hiddenTalk(line) && line.querySelector(\".t\") !== null) landed = true;\n"
       }
     ]
   },
@@ -2450,6 +2450,105 @@
         "file": "lib/chat/page.html",
         "from": "      lineTimer = setTimeout(() => {\n        keepLines();\n        draw();\n      }, Math.max(0, due - Date.now()));",
         "to": "      lineTimer = setTimeout(() => {\n        advance(state, Date.now());\n        draw();\n      }, Math.max(0, due - Date.now()));"
+      }
+    ]
+  },
+  {
+    "name": "the comms switch is on every panel's head",
+    "catches": "hides the messages between sessions on the Leader's panel from a third switch, shown by default, in storage",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    if (leads) headLine.append(commsSwitch(rows));\n",
+        "to": "    headLine.append(commsSwitch(rows));\n"
+      }
+    ]
+  },
+  {
+    "name": "the comms are hidden until the store says shown",
+    "catches": "hides the messages between sessions on the Leader's panel from a third switch, shown by default, in storage",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "localStorage.getItem(COMMS.key) !== \"hidden\"",
+        "to": "localStorage.getItem(COMMS.key) === \"shown\""
+      }
+    ]
+  },
+  {
+    "name": "the comms switch never marks the rows",
+    "catches": "hides the messages between sessions on the Leader's panel from a third switch, shown by default, in storage",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      rows.classList.toggle(\"comms-hidden\", !on);\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the stylesheet hides nothing for the comms switch",
+    "catches": "hides the messages between sessions on the Leader's panel from a third switch, shown by default, in storage",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": ".rows.comms-hidden .msg:is(.peer-in, .peer-out, .overheard):not(.revealed) { display: none; }",
+        "to": ".rows.comms-hidden .msg:is(.peer-in, .peer-out, .overheard):not(.revealed) { opacity: 0.5; }"
+      }
+    ]
+  },
+  {
+    "name": "a hidden row reached from a click stays hidden",
+    "catches": "reveals a hidden message reached from a click, hides it again on its fold, and never counts it as landed",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      found.classList.add(\"revealed\");\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a revealed row's fold is not measured",
+    "catches": "reveals a hidden message reached from a click, hides it again on its fold, and never counts it as landed",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      fitFolds([found]);\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a revealed row folded stays revealed",
+    "catches": "reveals a hidden message reached from a click, hides it again on its fold, and never counts it as landed",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "        if (line.classList.contains(\"collapsed\") || !line.classList.contains(\"foldable\")) line.classList.remove(\"revealed\");\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "turning the comms off keeps the revealed rows",
+    "catches": "reveals a hidden message reached from a click, hides it again on its fold, and never counts it as landed",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      else for (const revealed of rows.querySelectorAll(\".revealed\")) revealed.classList.remove(\"revealed\");\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a hidden row counts as landed",
+    "catches": "reveals a hidden message reached from a click, hides it again on its fold, and never counts it as landed",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "          if (!hiddenTalk(line)) landed = true;\n",
+        "to": "          landed = true;\n"
       }
     ]
   }
