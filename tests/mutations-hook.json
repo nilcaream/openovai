@@ -71,8 +71,8 @@
     "edits": [
       {
         "file": "lib/hooks/compound.mjs",
-        "from": "  if (input?.tool_name !== \"Bash\" || decide(",
-        "to": "  if (decide("
+        "from": "input?.tool_name === \"Bash\" ? decide(input.tool_input?.command, settings) : null;",
+        "to": "decide(input?.tool_input?.command, settings);"
       }
     ]
   },
