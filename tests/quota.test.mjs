@@ -24,8 +24,10 @@ import {
   mayStart,
   mayWrite,
   onStage,
+  forgetResets,
   releasedBy,
   reset,
+  resetsPassed,
   saw,
   stageOf,
   standing,
@@ -305,6 +307,41 @@ describe("a stage crossing", () => {
     off();
     saw("Paul", "opus", reading(0.91));
     assert.deepEqual(fired, []);
+  });
+});
+
+describe("a reset", () => {
+  it("of a window that reached a stage is answered once its reset has passed, by the clock alone, and never again", () => {
+    const clock = fresh();
+    saw("Paul", "opus", reading(0.91));
+    assert.deepEqual(resetsPassed(), [], "answered before the reset");
+    clock.at(RESET_5H + 1);
+    assert.deepEqual(resetsPassed(), [{ window: "5h", model: null }]);
+    assert.deepEqual(resetsPassed(), []);
+  });
+
+  it("of a window that never reached a stage is not answered", () => {
+    const clock = fresh();
+    saw("Paul", "opus", reading(0.5));
+    clock.at(RESET_7D + 1);
+    assert.deepEqual(resetsPassed(), []);
+  });
+
+  it("names the model for fable's own window, and each window is answered at its own reset", () => {
+    const clock = fresh();
+    saw("usage", null, reading(0.91, 0.5, fable(0.98)));
+    clock.at(RESET_5H + 1);
+    assert.deepEqual(resetsPassed(), [{ window: "5h", model: null }]);
+    clock.at(RESET_7D + 1);
+    assert.deepEqual(resetsPassed(), [{ window: "7d-fable", model: "fable" }]);
+  });
+
+  it("is not answered once forgotten", () => {
+    const clock = fresh();
+    saw("Paul", "opus", reading(0.96));
+    forgetResets();
+    clock.at(RESET_5H + 1);
+    assert.deepEqual(resetsPassed(), []);
   });
 });
 

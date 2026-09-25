@@ -24,6 +24,10 @@ All of that is the Leader's now:
 - A Worker says it is done with the new `done` tool, with a one-line note if it likes. The Leader
   gets a `done` event and decides whether it stops. The report still goes as a message.
 - The Leader's own session is unchanged: it still ends and restarts itself.
+- When a usage window that reached a stage resets, the Leader gets a `quota-reset` event with the
+  window, and the model when it is one model's own; a stopped Leader is started by it, to bring
+  back the Workers that stopped on the window. A park forgets the resets to come, and a server
+  restart before the reset loses them.
 
 **A Worker's session is closed for it, and never in the middle of a step.** When a Worker has to
 end — idle at 55 minutes, its usage window spent, the room parking — the server tells it one thing,

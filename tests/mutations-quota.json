@@ -333,5 +333,38 @@
         "to": "  const name = String(model ?? \"\");"
       }
     ]
+  },
+  {
+    "name": "a window that reached a stage is not kept for its reset",
+    "catches": "of a window that reached a stage is answered once its reset has passed, by the clock alone, and never again",
+    "edits": [
+      {
+        "file": "lib/chat/quota.mjs",
+        "from": "    pendingReset.set(key, { resetsAt: reading.resetsAt, model });\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a reset is answered at every look, not once",
+    "catches": "of a window that reached a stage is answered once its reset has passed, by the clock alone, and never again",
+    "edits": [
+      {
+        "file": "lib/chat/quota.mjs",
+        "from": "      pendingReset.delete(key);\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "forgetting the resets forgets nothing",
+    "catches": "is not answered once forgotten",
+    "edits": [
+      {
+        "file": "lib/chat/quota.mjs",
+        "from": "export function forgetResets() {\n  pendingReset.clear();\n}",
+        "to": "export function forgetResets() {}"
+      }
+    ]
   }
 ]

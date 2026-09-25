@@ -10,7 +10,7 @@ import { after, before, describe, it } from "node:test";
 
 import { SERVER } from "../lib/chat/conversation.mjs";
 import { messageFrame, userFrame } from "../lib/chat/frames.mjs";
-import { BODY_CLOSING, IDLE_GRACE, tick } from "../lib/chat/lifecycle.mjs";
+import { BODY_CLOSING, IDLE_GRACE, parkRoom, tick } from "../lib/chat/lifecycle.mjs";
 import * as quota from "../lib/chat/quota.mjs";
 import { INTERRUPT_PATIENCE, end, endEvery, running, tell } from "../lib/chat/session.mjs";
 import { deskTitle, hire } from "../lib/desks.mjs";
@@ -264,6 +264,33 @@ describe("the quota gate", () => {
     assert.equal(woke(), true, "the row is not marked delivered once the spawn took its frame");
   });
 
+  // The Leader went cold before the reset — idle, with a hire held on the window — and nothing
+  // else would start it: the reset does.
+  it("starts a stopped Leader when a window that reached a stage resets, and tells it quota-reset", async () => {
+    const resets = RESETS();
+    await fresh(readings(reading(0.91, { resets })));
+    await tell(WORKER, userFrame("one")).answered;
+    await end(LEADER, 500);
+    now = resets + 1;
+    superman = await spawnedBy(LEADER, async () => {
+      tick(chat);
+      await waitFor(() => (running(LEADER) ? true : null));
+    });
+    assert.deepEqual(await told(superman.log, 1), ['<server-event type="quota-reset" window="5h"/>']);
+  });
+
+  it("a park forgets the resets to come: the parked room's Leader is not started at the reset", async () => {
+    const resets = RESETS();
+    await fresh(readings(reading(0.91, { resets })));
+    await tell(WORKER, userFrame("one")).answered;
+    await endEvery(500);
+    assert.match((await parkRoom(chat)).text, /^parked: /);
+    now = resets + 1;
+    tick(chat);
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    assert.equal(running(LEADER), false);
+  });
+
   it("holds at the write what was queued behind a turn before the window closed, and releases it in arrival order", async () => {
     const resets = RESETS();
     await fresh({ OPENOVAI_STAND_IN_SLOW: "1500", ...readings(reading(0.96, { resets })) }, { OPENOVAI_STAND_IN_SLOW: "1500" });
@@ -297,11 +324,13 @@ describe("the quota gate", () => {
       said.slice(before_).filter((line) => line.startsWith("released ") && line.endsWith(" - user")),
       [`released ${LEADER} - user`, `released ${WORKER} - user`, `released ${OTHER} - user`],
     );
-    // The Leader's release is one queue in arrival order: "behind", then the page's two events.
+    // The Leader's release is one queue in arrival order: "behind", then the page's two events;
+    // the reset is told after what the window held.
     assert.deepEqual((await told(superman.log, 3)).slice(2), [
       "<user>behind</user>",
       `<server-event type="user-typed" who="${WORKER}">to paul</server-event>`,
       `<server-event type="user-typed" who="${OTHER}">to ann</server-event>`,
+      '<server-event type="quota-reset" window="5h"/>',
     ]);
     assert.equal((await told(paul.log, 3)).at(-1), "<user>to paul</user>");
     assert.equal((await told(ann.log, 2)).at(-1), "<user>to ann</user>");

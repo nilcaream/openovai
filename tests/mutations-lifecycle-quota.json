@@ -355,5 +355,27 @@
         "to": "    return false;"
       }
     ]
+  },
+  {
+    "name": "the tick tells the Leader no reset",
+    "catches": "starts a stopped Leader when a window that reached a stage resets, and tells it quota-reset",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "  releaseHeld(instance);\n  toldResets(instance);\n",
+        "to": "  releaseHeld(instance);\n"
+      }
+    ]
+  },
+  {
+    "name": "a park keeps the resets to come",
+    "catches": "a park forgets the resets to come: the parked room's Leader is not started at the reset",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "  quota.forgetResets();\n",
+        "to": ""
+      }
+    ]
   }
 ]
