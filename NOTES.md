@@ -30,9 +30,9 @@ All of that is the Leader's now:
   restart before the reset loses them.
 - `hire` with a model on a desk a Worker had now runs it on that model and keeps it for the desk
   from then on; without a model, the desk's own stands as before.
-- Every row a panel shows from the Server starts with a capital letter — `Waited 40 s for
-  permission: …`, `Limit exhausted (5h window) …`, `Stopped; nothing waiting`, `No turn to stop` —
-  and the log says the same words.
+- Every row a panel shows from the Server starts with a capital letter — `Waited 40 seconds for
+  permission: …`, `Limit exhausted (5-hour window) …`, `Stopped; nothing waiting`, `No turn to
+  stop` — and the log says the same words.
 - The Leader keeps a Worker's checkpoint to itself: it tells the User nothing about it, only the
   Worker's report when that matters to them.
 - The quota line in the Leader's head is current without a page open: the usage windows are read
@@ -41,6 +41,11 @@ All of that is the Leader's now:
   today at 12:12, 7d on Monday at 13:41, 7d fable tomorrow at 23:11`. Fable's own weekly window,
   which only this read carries, now reaches the quota gate with no page open too; before, a fable
   Worker could not be held at that window while nobody was looking.
+- Text the page and the terminal show spells its units out where there is room: `Waited 233
+  seconds for permission: …`, `delivered 13:42 ✓ — 12 seconds after`, `The hire tool took 12.3
+  seconds`, `Limit exhausted (7-day fable window) …`, and `ovai stop`'s `Stopped (sessions gone
+  after 1.4 seconds).` Where room is tight they stay short: the quota line and the context size in
+  a panel's head.
 
 **A Worker's session is closed for it, and never in the middle of a step.** When a Worker has to
 end — idle at 55 minutes, its usage window spent, the room parking — the server tells it one thing,

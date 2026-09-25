@@ -230,8 +230,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "      if (seconds >= WAIT_SAID_FROM) append(instance.root, seat, { from: SERVER, text: `Waited ${seconds} s for permission: ${what}` });\n",
-        "to": "      append(instance.root, seat, { from: SERVER, text: `Waited ${seconds} s for permission: ${what}` });\n"
+        "from": "      if (seconds >= WAIT_SAID_FROM) append(instance.root, seat, { from: SERVER, text: `Waited ${seconds} seconds for permission: ${what}` });\n",
+        "to": "      append(instance.root, seat, { from: SERVER, text: `Waited ${seconds} seconds for permission: ${what}` });\n"
       }
     ]
   },
@@ -252,8 +252,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "      if (seconds >= WAIT_SAID_FROM) append(instance.root, seat, { from: SERVER, text: `Waited ${seconds} s for permission: ${what}` });",
-        "to": "      if (seconds >= WAIT_SAID_FROM && roleOf(instance, seat) === WORKER) append(instance.root, seat, { from: SERVER, text: `Waited ${seconds} s for permission: ${what}` });"
+        "from": "      if (seconds >= WAIT_SAID_FROM) append(instance.root, seat, { from: SERVER, text: `Waited ${seconds} seconds for permission: ${what}` });",
+        "to": "      if (seconds >= WAIT_SAID_FROM && roleOf(instance, seat) === WORKER) append(instance.root, seat, { from: SERVER, text: `Waited ${seconds} seconds for permission: ${what}` });"
       }
     ]
   },

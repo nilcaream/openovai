@@ -10,7 +10,7 @@ import { after, before, describe, it } from "node:test";
 
 import { SERVER } from "../lib/chat/conversation.mjs";
 import { messageFrame, userFrame } from "../lib/chat/frames.mjs";
-import { BODY_CLOSING, IDLE_GRACE, parkRoom, tick } from "../lib/chat/lifecycle.mjs";
+import { BODY_CLOSING, IDLE_GRACE, heldLine, parkRoom, tick } from "../lib/chat/lifecycle.mjs";
 import * as quota from "../lib/chat/quota.mjs";
 import { INTERRUPT_PATIENCE, end, endEvery, running, tell } from "../lib/chat/session.mjs";
 import { deskTitle, hire } from "../lib/desks.mjs";
@@ -24,6 +24,17 @@ let now = Date.now();
 setup("lifecycle-quota-test", () => now, { hired: [WORKER, OTHER] });
 
 // ---------------------------------------------------------------------------------------------
+
+describe("the row a held frame gets", () => {
+  it("names each window in words, and one it has no words for by its key", () => {
+    const resets = "2026-09-25T12:12:00.000Z";
+    const at = quota.hhmm(resets);
+    assert.equal(heldLine({ window: "5h", resets }), `Limit exhausted (5-hour window), reset at ${at}, your message is waiting`);
+    assert.equal(heldLine({ window: "7d", resets }), `Limit exhausted (7-day window), reset at ${at}, your message is waiting`);
+    assert.equal(heldLine({ window: "7d-fable", resets }), `Limit exhausted (7-day fable window), reset at ${at}, your message is waiting`);
+    assert.equal(heldLine({ window: "30d", resets }), `Limit exhausted (30d window), reset at ${at}, your message is waiting`);
+  });
+});
 
 // The gate reads what the children say about the account's windows. Every check here starts from
 // no reading at all and ends with none, so what one measured never stands in for the next.
@@ -129,7 +140,7 @@ describe("the quota gate", () => {
     assert.deepEqual(JSON.parse(held.body), { delivered: false, held: { window: "5h", resets: new Date(resets).toISOString() } });
     await new Promise((resolve) => setTimeout(resolve, 200));
     assert.equal(heardIn(superman.log).filter((frame) => frame === "<user>at two</user>").length, 0);
-    assert.deepEqual(panel(instance, LEADER).at(-1).text, `Limit exhausted (5h window), reset at ${quota.hhmm(resets)}, your message is waiting`);
+    assert.deepEqual(panel(instance, LEADER).at(-1).text, `Limit exhausted (5-hour window), reset at ${quota.hhmm(resets)}, your message is waiting`);
     now = resets + 1;
     tick(chat);
     assert.equal((await told(superman.log, 4)).at(-1), "<user>at two</user>");
@@ -354,8 +365,8 @@ describe("the quota gate", () => {
     const since = panel(instance, LEADER).slice(rows);
     const lines = since.filter((row) => row.from === SERVER && row.text.startsWith("Limit exhausted"));
     assert.deepEqual(lines.map((row) => row.text), [
-      `Limit exhausted (5h window), reset at ${quota.hhmm(resets)}, your message is waiting`,
-      `Limit exhausted (5h window), reset at ${quota.hhmm(resets)}, the message from ${WORKER} is waiting`,
+      `Limit exhausted (5-hour window), reset at ${quota.hhmm(resets)}, your message is waiting`,
+      `Limit exhausted (5-hour window), reset at ${quota.hhmm(resets)}, the message from ${WORKER} is waiting`,
     ]);
     assert.ok(since.findIndex((row) => row.text === "behind") < since.indexOf(lines[0]), "the line came before the row it is about");
     now = resets + 1;
@@ -406,7 +417,7 @@ describe("the quota gate", () => {
       assert.deepEqual(heardIn(superman.log), []);
       assert.equal(JSON.parse((await page("POST", `/sessions/${LEADER}/message`, { text: "opus goes" })).body).delivered, true);
       assert.deepEqual(await tool(superman.secret, "message", { to: "Zed", text: "fable is held" }), {
-        text: `Zed has it. Limit exhausted (7d-fable window), reset at ${quota.hhmm(resets)}, your message is waiting`,
+        text: `Zed has it. Limit exhausted (7-day fable window), reset at ${quota.hhmm(resets)}, your message is waiting`,
         refused: false,
         error: null,
       });

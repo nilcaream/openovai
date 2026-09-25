@@ -1549,8 +1549,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "      if (seconds >= WAIT_SAID_FROM) append(instance.root, seat, { from: SERVER, text: `Waited ${seconds} s for permission: ${what}` });\n",
-        "to": "      append(instance.root, seat, { from: SERVER, text: `Waited ${seconds} s for permission: ${what}` });\n"
+        "from": "      if (seconds >= WAIT_SAID_FROM) append(instance.root, seat, { from: SERVER, text: `Waited ${seconds} seconds for permission: ${what}` });\n",
+        "to": "      append(instance.root, seat, { from: SERVER, text: `Waited ${seconds} seconds for permission: ${what}` });\n"
       }
     ]
   },

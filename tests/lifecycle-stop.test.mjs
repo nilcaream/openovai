@@ -151,7 +151,7 @@ describe("a call stop that waits", () => {
   it("a card answered at ten seconds says so on the panel", async () => {
     const waited = await waitOnCard(10);
     const row = await waitFor(waited);
-    assert.equal(row?.text, "Waited 10 s for permission: Bash: git push");
+    assert.equal(row?.text, "Waited 10 seconds for permission: Bash: git push");
   });
 
   // The Leader's panel says the wait the same way, and draws no line for the call the card came
@@ -167,7 +167,7 @@ describe("a call stop that waits", () => {
     await page("POST", `/sessions/${LEADER}/permission`, { id: stop.id, decision: "deny", why: "not today" });
     await asking_.answered;
     const waited = await waitFor(() => panel(instance, LEADER).slice(rows).find((row) => row.from === SERVER && row.text.startsWith("Waited ")) ?? null);
-    assert.equal(waited?.text, "Waited 10 s for permission: Bash: git push");
+    assert.equal(waited?.text, "Waited 10 seconds for permission: Bash: git push");
     await settle();
     const drawn = panel(instance, LEADER).slice(rows);
     assert.deepEqual(drawn.filter((row) => row.line !== undefined), [], `the lines on the Leader's panel: ${JSON.stringify(drawn)}`);
@@ -560,7 +560,7 @@ describe("a signal to the chat", () => {
     assert.match(stopped.stdout, new RegExp(`^Stopping the server at ${address.replace(/[.]/g, "\\.")} \\(pid ${child.pid}\\)\\.$`, "m"));
     // Whether the sessions were still there when the port went dark is a race the server wins
     // more often than not; when it did not, the line says how long they took.
-    assert.match(stopped.stdout, /^Stopped( \(sessions gone after \d+ ms\))?\.$/m);
+    assert.match(stopped.stdout, /^Stopped( \(sessions gone after \d+\.\d seconds\))?\.$/m);
     assert.equal(await closed, 0, child.output);
     assert.match(child.output, /^\S+ parking - - 3 sessions$/m);
     assert.equal(notesIn(ownLog).filter(([label]) => label === "left").length, 3);

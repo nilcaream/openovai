@@ -434,8 +434,8 @@ describe("the User's own row", () => {
   });
 
   it("says when a row that waited went in and how long after it was typed, and nothing of a wait under LATE_AFTER", () => {
-    assert.deepEqual(delivery(true, false, "Bob", { clock: "19:22:36", seconds: 40 }), { text: "delivered 19:22:36 ✓ — 40 s after", glyph: "✓", wait: false });
-    assert.deepEqual(delivery(true, false, "Bob", { clock: "19:22:36", seconds: LATE_AFTER }), { text: `delivered 19:22:36 ✓ — ${LATE_AFTER} s after`, glyph: "✓", wait: false });
+    assert.deepEqual(delivery(true, false, "Bob", { clock: "19:22:36", seconds: 40 }), { text: "delivered 19:22:36 ✓ — 40 seconds after", glyph: "✓", wait: false });
+    assert.deepEqual(delivery(true, false, "Bob", { clock: "19:22:36", seconds: LATE_AFTER }), { text: `delivered 19:22:36 ✓ — ${LATE_AFTER} seconds after`, glyph: "✓", wait: false });
     assert.deepEqual(delivery(true, false, "Bob", { clock: "19:22:36", seconds: LATE_AFTER - 1 }), { text: "delivered ✓", glyph: "✓", wait: false });
     assert.deepEqual(delivery(false, true, "Bob", { clock: "19:22:36", seconds: 40 }), { text: "queued — Bob reads it at its next step", wait: true }, "not yet written is waiting, whatever the time");
   });

@@ -302,13 +302,13 @@
     ]
   },
   {
-    "name": "the slow row is said in seconds",
+    "name": "the slow row is said in whole seconds",
     "catches": "one of ten seconds says so on the panel",
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "text: `The ${tool.name} tool took ${ms} ms`",
-        "to": "text: `The ${tool.name} tool took ${Math.round(ms / 1000)} s`"
+        "from": "text: `The ${tool.name} tool took ${(ms / 1000).toFixed(1)} seconds`",
+        "to": "text: `The ${tool.name} tool took ${Math.round(ms / 1000)} seconds`"
       }
     ]
   },

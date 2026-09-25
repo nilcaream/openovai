@@ -1512,8 +1512,8 @@ describe("the server commands", () => {
     const stopped = ovai(["stop"]);
     const took = Date.now() - began;
     assert.equal(stopped.status, 0, stopped.stderr);
-    assert.match(stopped.stdout, new RegExp(`^Stopping the server at ${url} \\(pid ${pid}\\)\\.\nStopped \\(sessions gone after (\\d+) ms\\)\\.\n$`));
-    const said = Number(stopped.stdout.match(/after (\d+) ms/)[1]);
+    assert.match(stopped.stdout, new RegExp(`^Stopping the server at ${url} \\(pid ${pid}\\)\\.\nStopped \\(sessions gone after (\\d+\\.\\d) seconds\\)\\.\n$`));
+    const said = Number(stopped.stdout.match(/after (\d+\.\d) seconds/)[1]) * 1000;
     assert.ok(said > 0 && said <= took, `said ${said} ms, took ${took} ms`);
     assert.ok(took >= 1500, `stop returned after ${took} ms, before the session was gone`);
     assert.equal(alive(pid), false, "the server is still running after stop returned");
@@ -1552,7 +1552,7 @@ describe("the server commands", () => {
       assert.ok(await settled(true));
       const stopped = ovai(["stop"]);
       assert.notEqual(stopped.status, 0);
-      assert.match(stopped.stderr, new RegExp(`^ovai: 2s after asking the server to stop, a session of this instance is running[^\n]*\n  kill ${session.pid}   # [^\n]*setTimeout[^\n]*\nEnd them, or let them finish, and run this again\\.$`, "m"));
+      assert.match(stopped.stderr, new RegExp(`^ovai: 2 seconds after asking the server to stop, a session of this instance is running[^\n]*\n  kill ${session.pid}   # [^\n]*setTimeout[^\n]*\nEnd them, or let them finish, and run this again\\.$`, "m"));
       assert.equal(stopped.stdout, `Stopping the server at ${url} (pid ${pidRecorded()}).\n`);
       assert.ok(await settled(false));
     } finally {

@@ -263,8 +263,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "  return `Limit exhausted (${window} window), reset at ${quota.hhmm(resets)}, ${what} is waiting`;",
-        "to": "  return `Limit exhausted (${window} window), reset at ${quota.hhmm(resets)}`;"
+        "from": "  return `Limit exhausted (${WINDOW_WORDS[window] ?? window} window), reset at ${quota.hhmm(resets)}, ${what} is waiting`;",
+        "to": "  return `Limit exhausted (${WINDOW_WORDS[window] ?? window} window), reset at ${quota.hhmm(resets)}`;"
       }
     ]
   },
@@ -274,8 +274,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "  return `Limit exhausted (${window} window), reset at ${quota.hhmm(resets)}, ${what} is waiting`;",
-        "to": "  return `Limit exhausted (${window} window), reset at ${resets}, ${what} is waiting`;"
+        "from": "  return `Limit exhausted (${WINDOW_WORDS[window] ?? window} window), reset at ${quota.hhmm(resets)}, ${what} is waiting`;",
+        "to": "  return `Limit exhausted (${WINDOW_WORDS[window] ?? window} window), reset at ${resets}, ${what} is waiting`;"
       }
     ]
   },
@@ -374,6 +374,17 @@
       {
         "file": "lib/chat/lifecycle.mjs",
         "from": "  quota.forgetResets();\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the 7-day window is named by its key",
+    "catches": "names each window in words, and one it has no words for by its key",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "\"7d\": \"7-day\", ",
         "to": ""
       }
     ]
