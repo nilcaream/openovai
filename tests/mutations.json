@@ -1505,7 +1505,7 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "        append(instance.root, seat, { from: SERVER, text: \"no turn to stop\" });\n",
+        "from": "        append(instance.root, seat, { from: SERVER, text: \"No turn to stop\" });\n",
         "to": ""
       }
     ]
@@ -1516,7 +1516,7 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "        log(\"stop\", seat, null, \"no turn to stop\");\n",
+        "from": "        log(\"stop\", seat, null, \"No turn to stop\");\n",
         "to": ""
       }
     ]
@@ -1549,8 +1549,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "      if (seconds >= WAIT_SAID_FROM) append(instance.root, seat, { from: SERVER, text: `waited ${seconds} s for permission: ${what}` });\n",
-        "to": "      append(instance.root, seat, { from: SERVER, text: `waited ${seconds} s for permission: ${what}` });\n"
+        "from": "      if (seconds >= WAIT_SAID_FROM) append(instance.root, seat, { from: SERVER, text: `Waited ${seconds} s for permission: ${what}` });\n",
+        "to": "      append(instance.root, seat, { from: SERVER, text: `Waited ${seconds} s for permission: ${what}` });\n"
       }
     ]
   },
@@ -1774,8 +1774,8 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "  return waits.length === 1 ? `stopped; 1 waiting, next: ${named[0]}` : `stopped; ${waits.length} waiting, going in as one: ${named.join(\", \")}`;",
-        "to": "  return `stopped; ${waits.length} waiting, next: ${named[0]}`;"
+        "from": "  return waits.length === 1 ? `Stopped; 1 waiting, next: ${named[0]}` : `Stopped; ${waits.length} waiting, going in as one: ${named.join(\", \")}`;",
+        "to": "  return `Stopped; ${waits.length} waiting, next: ${named[0]}`;"
       }
     ]
   },

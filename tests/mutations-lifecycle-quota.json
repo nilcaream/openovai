@@ -21,8 +21,8 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "          return { text: `${to} has it; ${heldLine(told.held)}` };",
-        "to": "          return { refused: `${to} has it; ${heldLine(told.held)}` };"
+        "from": "          return { text: `${to} has it. ${heldLine(told.held)}` };",
+        "to": "          return { refused: `${to} has it. ${heldLine(told.held)}` };"
       }
     ]
   },
@@ -263,8 +263,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "  return `limit exhausted (${window} window), reset at ${quota.hhmm(resets)}, ${what} is waiting`;",
-        "to": "  return `limit exhausted (${window} window), reset at ${quota.hhmm(resets)}`;"
+        "from": "  return `Limit exhausted (${window} window), reset at ${quota.hhmm(resets)}, ${what} is waiting`;",
+        "to": "  return `Limit exhausted (${window} window), reset at ${quota.hhmm(resets)}`;"
       }
     ]
   },
@@ -274,8 +274,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "  return `limit exhausted (${window} window), reset at ${quota.hhmm(resets)}, ${what} is waiting`;",
-        "to": "  return `limit exhausted (${window} window), reset at ${resets}, ${what} is waiting`;"
+        "from": "  return `Limit exhausted (${window} window), reset at ${quota.hhmm(resets)}, ${what} is waiting`;",
+        "to": "  return `Limit exhausted (${window} window), reset at ${resets}, ${what} is waiting`;"
       }
     ]
   },

@@ -139,7 +139,7 @@ describe("a call stop that waits", () => {
     now = from + seconds * 1000;
     await page("POST", `/sessions/${WORKER}/permission`, { id: stop.id, decision: "deny", why: "not today" });
     await asking_.answered;
-    return () => panel(instance, WORKER).slice(rows).find((row) => row.from === SERVER && row.text.startsWith("waited ")) ?? null;
+    return () => panel(instance, WORKER).slice(rows).find((row) => row.from === SERVER && row.text.startsWith("Waited ")) ?? null;
   }
 
   it("a card answered at nine seconds leaves no row on the panel", async () => {
@@ -151,7 +151,7 @@ describe("a call stop that waits", () => {
   it("a card answered at ten seconds says so on the panel", async () => {
     const waited = await waitOnCard(10);
     const row = await waitFor(waited);
-    assert.equal(row?.text, "waited 10 s for permission: Bash: git push");
+    assert.equal(row?.text, "Waited 10 s for permission: Bash: git push");
   });
 
   // The Leader's panel says the wait the same way, and draws no line for the call the card came
@@ -166,8 +166,8 @@ describe("a call stop that waits", () => {
     now = from + 10 * 1000;
     await page("POST", `/sessions/${LEADER}/permission`, { id: stop.id, decision: "deny", why: "not today" });
     await asking_.answered;
-    const waited = await waitFor(() => panel(instance, LEADER).slice(rows).find((row) => row.from === SERVER && row.text.startsWith("waited ")) ?? null);
-    assert.equal(waited?.text, "waited 10 s for permission: Bash: git push");
+    const waited = await waitFor(() => panel(instance, LEADER).slice(rows).find((row) => row.from === SERVER && row.text.startsWith("Waited ")) ?? null);
+    assert.equal(waited?.text, "Waited 10 s for permission: Bash: git push");
     await settle();
     const drawn = panel(instance, LEADER).slice(rows);
     assert.deepEqual(drawn.filter((row) => row.line !== undefined), [], `the lines on the Leader's panel: ${JSON.stringify(drawn)}`);
@@ -191,7 +191,7 @@ describe("a message to a Worker that stops before reading it", () => {
     assert.ok(await gone(WORKER), `${WORKER} did not stop`);
     const frame = `<server-event type="undelivered" to="${WORKER}">one more order</server-event>`;
     assert.ok(await waitFor(() => (heardIn(superman.log).includes(frame) ? true : null)), heardIn(superman.log).join("\n"));
-    const row = panel(instance, LEADER).find((one) => one.from === SERVER && one.text === `not delivered: ${WORKER} stopped before reading it`);
+    const row = panel(instance, LEADER).find((one) => one.from === SERVER && one.text === `Not delivered: ${WORKER} stopped before reading it`);
     assert.ok(row !== undefined, JSON.stringify(panel(instance, LEADER).slice(-5)));
   });
 });

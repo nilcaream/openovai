@@ -296,8 +296,8 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "text: `${tool.name} took ${ms} ms`",
-        "to": "text: `${tool.name} took ${Math.round(ms / 1000)} s`"
+        "from": "text: `The ${tool.name} tool took ${ms} ms`",
+        "to": "text: `The ${tool.name} tool took ${Math.round(ms / 1000)} s`"
       }
     ]
   },

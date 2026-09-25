@@ -2083,7 +2083,7 @@ describe("the stream", () => {
     const row = about(client, WORKER, "row").findLast((event) => event.data.row.from === WORKER).data.row;
     assert.equal(row.interrupted, true);
     assert.equal(row.text, "interrupted");
-    await until(client, (event) => event.name === "row" && event.data.seat === WORKER && event.data.row.text === "stopped; nothing waiting");
+    await until(client, (event) => event.name === "row" && event.data.seat === WORKER && event.data.row.text === "Stopped; nothing waiting");
     await until(client, (event) => event.name === "seat" && event.data.name === WORKER && event.data.busy === false && about(client, WORKER).some((seen) => seen.data.busy === true));
     await end(WORKER, 500);
   });
@@ -2106,11 +2106,11 @@ describe("the stream", () => {
       const stopped = await page("POST", `/sessions/${WORKER}/stop`);
       assert.deepEqual(JSON.parse(stopped.body), { interrupted: true });
       const rows = panel(instance, WORKER).slice(from);
-      const said_ = rows.findIndex((row) => row.from === SERVER && row.text.startsWith("stopped;"));
+      const said_ = rows.findIndex((row) => row.from === SERVER && row.text.startsWith("Stopped;"));
       assert.notEqual(said_, -1, JSON.stringify(rows.map((row) => row.text)));
       assert.match(
         rows[said_].text,
-        new RegExp(`^stopped; 3 waiting, going in as one: message from ${OTHER} \\(\\d{2}:\\d{2}\\), line from the User \\(\\d{2}:\\d{2}\\), overheard event from the Server \\(\\d{2}:\\d{2}\\)$`),
+        new RegExp(`^Stopped; 3 waiting, going in as one: message from ${OTHER} \\(\\d{2}:\\d{2}\\), line from the User \\(\\d{2}:\\d{2}\\), overheard event from the Server \\(\\d{2}:\\d{2}\\)$`),
       );
       assert.ok(rows.slice(0, said_).some((row) => row.interrupted === true), "the stop's own row is not above the line about the queue");
       // All three went in at the stop as one turn, so the seat is busy again with nothing behind
@@ -2118,8 +2118,8 @@ describe("the stream", () => {
       tell(WORKER, messageFrame(OTHER, "one more"));
       const again = await page("POST", `/sessions/${WORKER}/stop`);
       assert.deepEqual(JSON.parse(again.body), { interrupted: true });
-      const line = panel(instance, WORKER).slice(from + rows.length).find((row) => row.from === SERVER && row.text.startsWith("stopped;"));
-      assert.match(line?.text ?? "", new RegExp(`^stopped; 1 waiting, next: message from ${OTHER} \\(\\d{2}:\\d{2}\\)$`));
+      const line = panel(instance, WORKER).slice(from + rows.length).find((row) => row.from === SERVER && row.text.startsWith("Stopped;"));
+      assert.match(line?.text ?? "", new RegExp(`^Stopped; 1 waiting, next: message from ${OTHER} \\(\\d{2}:\\d{2}\\)$`));
     } finally {
       await end(WORKER, 500);
     }
@@ -2134,8 +2134,8 @@ describe("the stream", () => {
       const stopped = await page("POST", `/sessions/${WORKER}/stop`);
       assert.deepEqual(JSON.parse(stopped.body), { interrupted: false });
       const row = panel(instance, WORKER).at(-1);
-      assert.deepEqual([row.from, row.text], [SERVER, "no turn to stop"]);
-      assert.ok(said.slice(before_).includes(`stop ${WORKER} - no turn to stop`), said.slice(before_).join("\n"));
+      assert.deepEqual([row.from, row.text], [SERVER, "No turn to stop"]);
+      assert.ok(said.slice(before_).includes(`stop ${WORKER} - No turn to stop`), said.slice(before_).join("\n"));
     } finally {
       await end(WORKER, 500);
     }
@@ -2199,7 +2199,7 @@ describe("the stream", () => {
       assert.match(answered ?? "", new RegExp(`^answered ${OTHER} - allow after \\d+ s$`));
       // The row, when there is one, is appended in the same step as the answered line — so once
       // that line is in the log, a missing row is missing for good.
-      assert.equal(panel(instance, OTHER).slice(from).find((one) => one.from === SERVER && one.text.startsWith("waited ")), undefined, "a wait of no time drew a row");
+      assert.equal(panel(instance, OTHER).slice(from).find((one) => one.from === SERVER && one.text.startsWith("Waited ")), undefined, "a wait of no time drew a row");
     } finally {
       await end(OTHER, 500);
     }

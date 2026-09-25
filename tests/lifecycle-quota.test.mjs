@@ -129,7 +129,7 @@ describe("the quota gate", () => {
     assert.deepEqual(JSON.parse(held.body), { delivered: false, held: { window: "5h", resets: new Date(resets).toISOString() } });
     await new Promise((resolve) => setTimeout(resolve, 200));
     assert.equal(heardIn(superman.log).filter((frame) => frame === "<user>at two</user>").length, 0);
-    assert.deepEqual(panel(instance, LEADER).at(-1).text, `limit exhausted (5h window), reset at ${quota.hhmm(resets)}, your message is waiting`);
+    assert.deepEqual(panel(instance, LEADER).at(-1).text, `Limit exhausted (5h window), reset at ${quota.hhmm(resets)}, your message is waiting`);
     now = resets + 1;
     tick(chat);
     assert.equal((await told(superman.log, 4)).at(-1), "<user>at two</user>");
@@ -352,10 +352,10 @@ describe("the quota gate", () => {
     const heldOnLeader = () => quota.held(LEADER).filter((entry) => entry.frame.kind !== "server-event").length;
     assert.ok(await waitFor(() => (heldOnLeader() === 2 ? true : null)), "behind and the note were not held at the write");
     const since = panel(instance, LEADER).slice(rows);
-    const lines = since.filter((row) => row.from === SERVER && row.text.startsWith("limit exhausted"));
+    const lines = since.filter((row) => row.from === SERVER && row.text.startsWith("Limit exhausted"));
     assert.deepEqual(lines.map((row) => row.text), [
-      `limit exhausted (5h window), reset at ${quota.hhmm(resets)}, your message is waiting`,
-      `limit exhausted (5h window), reset at ${quota.hhmm(resets)}, the message from ${WORKER} is waiting`,
+      `Limit exhausted (5h window), reset at ${quota.hhmm(resets)}, your message is waiting`,
+      `Limit exhausted (5h window), reset at ${quota.hhmm(resets)}, the message from ${WORKER} is waiting`,
     ]);
     assert.ok(since.findIndex((row) => row.text === "behind") < since.indexOf(lines[0]), "the line came before the row it is about");
     now = resets + 1;
@@ -406,7 +406,7 @@ describe("the quota gate", () => {
       assert.deepEqual(heardIn(superman.log), []);
       assert.equal(JSON.parse((await page("POST", `/sessions/${LEADER}/message`, { text: "opus goes" })).body).delivered, true);
       assert.deepEqual(await tool(superman.secret, "message", { to: "Zed", text: "fable is held" }), {
-        text: `Zed has it; limit exhausted (7d-fable window), reset at ${quota.hhmm(resets)}, your message is waiting`,
+        text: `Zed has it. Limit exhausted (7d-fable window), reset at ${quota.hhmm(resets)}, your message is waiting`,
         refused: false,
         error: null,
       });

@@ -648,7 +648,7 @@ describe("a call of the instance's own tools", () => {
     return {
       answered,
       lines: said.slice(logged).filter((line) => line.startsWith("tool ")),
-      row: panel(instance, WORKER).slice(rows).find((row) => row.from === SERVER && row.text.startsWith("slow took ")) ?? null,
+      row: panel(instance, WORKER).slice(rows).find((row) => row.from === SERVER && row.text.startsWith("The slow tool took ")) ?? null,
     };
   }
 
@@ -663,7 +663,7 @@ describe("a call of the instance's own tools", () => {
 
   it("one of ten seconds says so on the panel", async () => {
     const { row } = await held(10, ({ resolve }) => resolve({ text: "done" }));
-    assert.equal(row?.text, "slow took 10000 ms");
+    assert.equal(row?.text, "The slow tool took 10000 ms");
   });
 
   it("one that threw is logged failed, with the reason, and still timed", async () => {

@@ -30,6 +30,9 @@ All of that is the Leader's now:
   restart before the reset loses them.
 - `hire` with a model on a desk a Worker had now runs it on that model and keeps it for the desk
   from then on; without a model, the desk's own stands as before.
+- Every row a panel shows from the Server starts with a capital letter — `Waited 40 s for
+  permission: …`, `Limit exhausted (5h window) …`, `Stopped; nothing waiting`, `No turn to stop` —
+  and the log says the same words.
 
 **A Worker's session is closed for it, and never in the middle of a step.** When a Worker has to
 end — idle at 55 minutes, its usage window spent, the room parking — the server tells it one thing,
