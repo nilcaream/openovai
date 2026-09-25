@@ -40,7 +40,7 @@ import { LEDGER, settingsProblems, trustProblems } from "./inspect.mjs";
 // nothing means, which is a question about the reading rather than about the running.
 import { ADMIN_FILE, WATCHED, changedBetween, differences, fingerprint, forget as forgetAdmin, record as recordAdmin, recorded, snapshot } from "../lib/admin.mjs";
 import { BODY_ADMIN_CLOSED } from "../lib/chat/lifecycle.mjs";
-import { SEAT_IN_ENVIRONMENT, home } from "../lib/claude.mjs";
+import { SEAT_IN_ENVIRONMENT, environment as claudeEnvironment, home } from "../lib/claude.mjs";
 import { DeskError, hire, modelFor, persona as renderPersona } from "../lib/desks.mjs";
 import { HOOK_ENTRY } from "../lib/hooks/compound.mjs";
 import { pins } from "../lib/runtime.mjs";
@@ -218,6 +218,29 @@ describe("what Claude Code is started as", () => {
   // the door is the person's own: their account's connectors are theirs to keep.
   it("leaves the account's connectors alone in a start that is nobody's session", () => {
     assert.match(readLog(started), /^ENABLE_CLAUDEAI_MCP_SERVERS: <unset>$/m);
+  });
+
+  // Started from inside a session — `ovai claude` typed in a seat's shell — a start that is
+  // nobody's session inherits what the chat put on that session. It hands on none of it: not the
+  // seat's secret, and not the switch that takes the account's connectors away. A seat's start
+  // sets the switch again.
+  it("hands a start that is nobody's session nothing the session it was started from was given", () => {
+    const names = ["OPENOVAI_SESSION_SECRET", "ENABLE_CLAUDEAI_MCP_SERVERS"];
+    const kept = Object.fromEntries(names.map((name) => [name, process.env[name]]));
+    process.env.OPENOVAI_SESSION_SECRET = "a-seat-secret";
+    process.env.ENABLE_CLAUDEAI_MCP_SERVERS = "false";
+    try {
+      const nobodys = claudeEnvironment(instance, "login", null);
+      for (const name of names) {
+        assert.equal(Object.hasOwn(nobodys, name), false, `${name} was handed on`);
+      }
+      assert.equal(claudeEnvironment(instance, "login", "Paul").ENABLE_CLAUDEAI_MCP_SERVERS, "false");
+    } finally {
+      for (const name of names) {
+        if (kept[name] === undefined) delete process.env[name];
+        else process.env[name] = kept[name];
+      }
+    }
   });
 });
 
