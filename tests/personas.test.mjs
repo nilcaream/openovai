@@ -357,10 +357,11 @@ describe("what a Worker is told", () => {
     assert.match(leader(), /Claude\s+Code keeps a few directories for itself — \.claude, \.git, \.idea, \.vscode and the like, wherever they\s+are, under projects\/ too — and a write there asks \S+ whatever the rules say; a Worker does not\s+look for a way round it \(a script, a copy, a rename\), it asks or it leaves it\./);
   });
 
-  // The compound hook answers nothing for a command holding a backtick or `$(` anywhere, quotes
-  // or not (lib/hooks/compound.mjs HIDDEN), so one plain grep whose pattern holds one asks.
+  // The compound hook never allows a command holding a backtick or `$(` anywhere, quotes or not
+  // (lib/hooks/compound.mjs HIDDEN): it refuses one whose every side is allowed, with a reason,
+  // and answers nothing for the rest, which then ask.
   it("tells the Worker that shell syntax in an argument goes into a pattern file or a script, never onto the line", () => {
-    assert.match(worker(), /A backtick or a `\$\(` anywhere on the line reads as a command hidden inside it, quoted or\s+not, and asks whatever the rules allow/);
+    assert.match(worker(), /A backtick or a `\$\(` anywhere on the line reads as a command hidden inside it, quoted or\s+not: when every side of the line is one the rules allow, it is refused with a reason, and otherwise\s+it asks/);
     assert.match(worker(), /goes into a pattern file passed with `grep -f`, or into\s+such a script on your desk, never onto the command line/);
     assert.match(worker(), /Anything more than one plain command — a pipe, a chain, a loop, a command that runs on\s+for lines — is a one-time script written on your own desk and run that way/);
     assert.match(worker(), /several alternatives\s+go as repeated `-e` rather than one pattern joined by `\\\|`/);

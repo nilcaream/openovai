@@ -105,7 +105,8 @@ matches. Anything more than one plain command — a pipe, a chain, a loop, a com
 for lines — is a one-time script written on your own desk and run that way: the card it stops on
 shows one short line instead of a screenful, and the script stays on the desk for whoever wants to
 read what ran. A backtick or a `$(` anywhere on the line reads as a command hidden inside it, quoted or
-not, and asks whatever the rules allow; so a search pattern or any other argument that holds a
+not: when every side of the line is one the rules allow, it is refused with a reason, and otherwise
+it asks; so a search pattern or any other argument that holds a
 backtick, a dollar or other shell syntax goes into a pattern file passed with `grep -f`, or into
 such a script on your desk, never onto the command line, and several alternatives
 go as repeated `-e` rather than one pattern joined by `\|`. Claude Code keeps a few directories for

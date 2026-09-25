@@ -55,6 +55,17 @@
     ]
   },
   {
+    "name": "the hook is silent again for an allowed line that hides a program, so the harness cards it",
+    "catches": "refuses a grep whose double-quoted pattern holds a backtick",
+    "edits": [
+      {
+        "file": "lib/hooks/compound.mjs",
+        "from": "    return held(command.replace(HIDDEN_EVERY, \" ; \"), settings) === \"allow\" ? \"deny\" : null;",
+        "to": "    return null;"
+      }
+    ]
+  },
+  {
     "name": "the hook answers for any tool that carries a command, not only Bash",
     "catches": "is nothing for a call that is not Bash, whatever it carries",
     "edits": [

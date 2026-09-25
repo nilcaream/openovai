@@ -10,7 +10,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
-import { HOOK_COMMAND, HOOK_ENTRY, answerFor, decide, hookWired } from "../lib/hooks/compound.mjs";
+import { HIDDEN_REASON, HOOK_COMMAND, HOOK_ENTRY, answerFor, decide, hookWired } from "../lib/hooks/compound.mjs";
 import { rulesMissing, rulesStale, wireHook } from "../lib/seed.mjs";
 import { readSettings, settingsFile, writeSettings } from "../lib/settings.mjs";
 import { remove, repo, scratch } from "./helpers.mjs";
@@ -63,7 +63,8 @@ describe("the decision for a command", () => {
     ["git with a subcommand that is not a word", "git -C /x status"],
     ["a command that hides a program in a substitution", "ls $(cat x)"],
     ["a command that hides a program in backticks", "ls `cat x`"],
-    ["a command that hides a program in a process substitution", "cmp <(ls a) <(ls b)"],
+    ["a hidden program nothing holds, behind an allowed one", "grep x $(make build)"],
+    ["a hidden program that is refused by rule", "echo `git push`"],
     ["a here-document", "cat <<EOF\nhello\nEOF"],
     ["a quote left open", 'echo "a && rm -rf /'],
     ["a first word with a slash", "./release.sh && npm test"],
@@ -82,6 +83,18 @@ describe("the decision for a command", () => {
   for (const [name, command] of silent) {
     it(`answers nothing for ${name}`, () => {
       assert.equal(decide(command, SETTINGS), null);
+    });
+  }
+
+  const refused = [
+    ["a grep whose double-quoted pattern holds a backtick", 'grep -n -e "content: `Use the" /x/rig.mjs'],
+    ["a grep whose pattern holds a $(", 'grep -n "console.log($(" /x/ovai.mjs'],
+    ["a substitution whose program is allowed", "ls `ls x`"],
+    ["a process substitution over allowed commands", "cmp <(ls a) <(ls b)"],
+  ];
+  for (const [name, command] of refused) {
+    it(`refuses ${name}`, () => {
+      assert.equal(decide(command, SETTINGS), "deny");
     });
   }
 
@@ -105,6 +118,14 @@ describe("what the harness reads back", () => {
     assert.equal(said.hookSpecificOutput.hookEventName, "PreToolUse");
     assert.equal(said.hookSpecificOutput.permissionDecision, "allow");
     assert.equal(typeof said.hookSpecificOutput.permissionDecisionReason, "string");
+  });
+
+  it("is the deny decision with a reason naming grep -f and a script for an allowed line that hides a program", () => {
+    const said = JSON.parse(answerFor({ tool_name: "Bash", tool_input: { command: 'grep -n "a`b" /x/f' } }, SETTINGS));
+    assert.equal(said.hookSpecificOutput.permissionDecision, "deny");
+    assert.equal(said.hookSpecificOutput.permissionDecisionReason, HIDDEN_REASON);
+    assert.match(HIDDEN_REASON, /grep -f/);
+    assert.match(HIDDEN_REASON, /script on your desk/);
   });
 
   it("is nothing for a command that gets no decision", () => {
@@ -142,6 +163,12 @@ describe("run as the hook", () => {
     const ran = run(JSON.stringify({ hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command: "cd /x && git push" } }));
     assert.equal(ran.status, 0, ran.stderr);
     assert.equal(ran.stdout, "");
+  });
+
+  it("prints the deny decision for an allowed line that hides a program and exits 0", () => {
+    const ran = run(JSON.stringify({ hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command: 'grep -n "a`b" /x/f' } }));
+    assert.equal(ran.status, 0, ran.stderr);
+    assert.equal(JSON.parse(ran.stdout).hookSpecificOutput.permissionDecision, "deny");
   });
 
   it("prints nothing for input that is not a call and exits 0", () => {

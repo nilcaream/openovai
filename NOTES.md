@@ -58,6 +58,15 @@ Every time that happens, the service's own words go in the log as a `died` row. 
 - A refused turn does not count as activity. A Worker whose every turn is refused still reaches the
   idle ending instead of sitting until somebody notices.
 
+**No card for a backtick in an otherwise allowed command.** A grep whose double-quoted pattern held a
+backtick or `$(` stopped on a card even with grep allowed, because Claude Code reads the span as a
+program hidden in the line.
+
+- When every side of such a line is allowed, the hook now refuses it instead, with a reason the
+  session reads: put the pattern in a file for `grep -f`, or the steps in a script on its desk.
+- The session spells the command again and you are not asked.
+- A line with a side the rules do not allow still asks as before.
+
 ## 0.18.0
 
 **A seat waits for you while you type to it.** When something arrives for a seat — a Worker's
