@@ -1868,7 +1868,7 @@ describe("what the page is made of", () => {
   it("draws from the two tested modules and the dialog module", () => {
     assert.match(script, /import \{[^}]*\bapplyEvent\b[^}]*\bplace\b[^}]*\} from "\.\/panels\.mjs"/);
     assert.match(script, /import \{[^}]*\brow as rowOf\b[^}]*\} from "\.\/render\.mjs"/);
-    assert.match(script, /import \{ dialogOf \} from "\.\/dialog\.mjs"/);
+    assert.match(script, /import \{[^}]*\banswerOf\b[^}]*\bdialogOf\b[^}]*\} from "\.\/dialog\.mjs"/);
     assert.match(script, /place\(/);
     assert.match(script, /rowOf\(/);
   });

@@ -75,5 +75,16 @@
         "to": "    buttons.push({ decision: \"always\", label: `Always allow ${request.shape[0]}` });"
       }
     ]
+  },
+  {
+    "name": "the words typed in Other go back although another option is picked",
+    "catches": "sends the words typed in Other only while Other is picked",
+    "edits": [
+      {
+        "file": "lib/chat/dialog.mjs",
+        "from": "  const words = other ? own.trim() : \"\";",
+        "to": "  const words = own.trim();"
+      }
+    ]
   }
 ]

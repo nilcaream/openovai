@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { answeredInput, dialogOf } from "../lib/chat/dialog.mjs";
+import { answerOf, answeredInput, dialogOf } from "../lib/chat/dialog.mjs";
 
 const line = (dialog, kind) => dialog.lines.filter((held) => held.kind === kind).map((held) => held.text);
 const decisions = (dialog) => dialog.buttons.map((button) => button.decision);
@@ -90,7 +90,7 @@ describe("a question", () => {
   };
   const request = { id: "q1", tool: "AskUserQuestion", input, shape: ["AskUserQuestion"] };
 
-  it("shows every question with its options, answered Answer or Deny and never Always", () => {
+  it("shows every question with its options, answered Send or Cancel and never Always", () => {
     const dialog = dialogOf(request, "Paul");
     assert.equal(dialog.kind, "questions");
     assert.equal(dialog.heading, "Paul asks you");
@@ -99,6 +99,15 @@ describe("a question", () => {
       { question: "Which checks?", header: "Checks", multiSelect: true, options: [{ label: "unit", description: "" }, { label: "lint", description: "" }] },
     ]);
     assert.deepEqual(decisions(dialog), ["answer", "deny"]);
+    assert.deepEqual(dialog.buttons.map((button) => button.label), ["Send", "Cancel"]);
+  });
+
+  it("sends the words typed in Other only while Other is picked", () => {
+    assert.equal(answerOf({ picked: ["main"], other: false, own: "typed, then left" }), "main");
+    assert.equal(answerOf({ picked: [], other: true, own: " a feature branch " }), "a feature branch");
+    assert.equal(answerOf({ picked: ["unit", "lint"], other: true, own: "e2e" }), "unit, lint, e2e");
+    assert.equal(answerOf({ picked: [], other: true, own: "  " }), "");
+    assert.equal(answerOf({ picked: [], other: false, own: "" }), "");
   });
 
   it("goes back as its own input with an answer for every question", () => {

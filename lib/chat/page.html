@@ -219,7 +219,12 @@
   .msg.perm .acts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0 2px; }
   .msg.perm .acts button { font: 600 .82rem var(--sans); padding: 4px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); cursor: pointer; }
   .msg.perm .acts button[data-decision=allow], .msg.perm .acts button[data-decision=answer] { background: var(--me); border-color: var(--me-line); }
-  .msg.perm .choice label { display: block; }
+  /* the questions of one card, a rule between each and the next; an option's button in a column of
+     its own, its words wrapping under themselves and never under the button; Other's field the
+     whole width of that column */
+  .msg.perm .choice + .choice { border-top: 1px solid var(--line); margin-top: 6px; padding-top: 6px; }
+  .msg.perm .choice label { display: grid; grid-template-columns: auto 1fr; column-gap: .4em; align-items: baseline; }
+  .msg.perm .choice input[type=text] { width: 100%; margin: 4px 0; font: .82rem var(--sans); padding: 4px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); }
   .msg.perm .acts button[data-decision=deny] { background: var(--to); border-color: var(--to-line); }
   .msg.perm .acts input { flex: 1 1 200px; min-width: 120px; font: .82rem var(--sans); padding: 4px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); }
   /* the composer: one row that grows with what is typed, never dragged, up to 40% of the window */
@@ -246,7 +251,7 @@
   // each panel a process. What to show is decided in panels.mjs and render.mjs; this script
   // draws it and carries what is typed and pressed to the server.
 
-  import { dialogOf } from "./dialog.mjs";
+  import { answerOf, dialogOf } from "./dialog.mjs";
   import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title, typedAgainst, typingBeat } from "./panels.mjs";
   import { collapsed, dayPillBefore, row as rowOf } from "./render.mjs";
 
@@ -888,9 +893,10 @@
       bubble.append(shown);
     }
 
-    // A question: each one with its options — one pick, or several where it takes several — and a
-    // line for the User's own words, which win over any pick. What it reads back is the answer
-    // to that question, or "" while there is none.
+    // A question: each one with its options — one pick, or several where it takes several — and
+    // Other last, an option like the rest whose words are a field in it. Typing there picks it,
+    // and what is typed goes back only while it is picked (answerOf). What a question reads back
+    // is its answer, or "" while there is none.
     const choices = (dialog.questions ?? []).map((asked, index) => {
       const block = document.createElement("div");
       block.className = "choice";
@@ -898,24 +904,37 @@
       said.className = "reason";
       said.textContent = asked.header === "" ? asked.question : `${asked.header}: ${asked.question}`;
       block.append(said);
-      const picks = asked.options.map((option) => {
+      const option = () => {
         const row = document.createElement("label");
         const pick = document.createElement("input");
         pick.type = asked.multiSelect ? "checkbox" : "radio";
         pick.name = `${request.id}-${index}`;
-        pick.value = option.label;
-        row.append(pick, ` ${option.label}${option.description === "" ? "" : ` — ${option.description}`}`);
+        const words = document.createElement("span");
+        row.append(pick, words);
         block.append(row);
+        return { pick, words };
+      };
+      const picks = asked.options.map(({ label, description }) => {
+        const { pick, words } = option();
+        pick.value = label;
+        words.textContent = description === "" ? label : `${label} — ${description}`;
         return pick;
       });
+      const { pick: other, words } = option();
       const own = document.createElement("input");
-      own.placeholder = "other";
-      block.append(own);
+      own.type = "text";
+      own.placeholder = "Other";
+      own.addEventListener("input", () => {
+        if (own.value.trim() !== "") {
+          other.checked = true;
+        }
+      });
+      words.append(own);
       bubble.append(block);
       return {
         question: asked.question,
-        own,
-        read: () => own.value.trim() || picks.filter((pick) => pick.checked).map((pick) => pick.value).join(", "),
+        aim: () => (other.checked || picks.length === 0 ? own : picks[0]).focus(),
+        read: () => answerOf({ picked: picks.filter((pick) => pick.checked).map((pick) => pick.value), other: other.checked, own: own.value }),
       };
     });
 
@@ -952,7 +971,7 @@
         if (decision === "answer") {
           const unanswered = choices.find((choice) => choice.read() === "");
           if (unanswered !== undefined) {
-            unanswered.own.focus();
+            unanswered.aim();
             return;
           }
           answer({ id: request.id, decision, answers: Object.fromEntries(choices.map((choice) => [choice.question, choice.read()])) });
