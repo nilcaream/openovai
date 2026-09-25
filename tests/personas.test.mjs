@@ -197,6 +197,11 @@ describe("what the Leader is told", () => {
     assert.match(leader(), new RegExp(`keep what ${USER} has to know on your desk until ${USER} next speaks to you`));
   });
 
+  it("tells the Leader that a turn with nothing in it for the User ends without a word", () => {
+    assert.match(leader(), new RegExp(`A turn with nothing in it for ${USER} ends without a word`));
+    assert.match(leader(), /no "nothing to report", no filler/);
+  });
+
   it("tells the Leader it has no channel to the User but the one", () => {
     assert.match(leader(), /There is no other channel/);
     assert.match(leader(), new RegExp(`Nothing you can run raises a notification on ${USER}'s desktop`));

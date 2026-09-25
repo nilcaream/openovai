@@ -198,6 +198,17 @@
     ]
   },
   {
+    "name": "the Leader's persona has no word on a turn with nothing for the User",
+    "catches": "tells the Leader that a turn with nothing in it for the User ends without a word",
+    "edits": [
+      {
+        "file": "lib/templates/leader.md",
+        "from": "A turn with nothing in it for {{USER}} ends without a word — no \"nothing to report\", no filler:\nonly what {{USER}} needs lands on the panel.\n",
+        "to": ""
+      }
+    ]
+  },
+  {
     "name": "the Leader's persona says a Worker reads the end of its turn",
     "catches": "tells the Leader that what it says lands on its own panel, and a Worker is reached through message",
     "edits": [
