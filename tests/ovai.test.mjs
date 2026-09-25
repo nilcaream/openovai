@@ -98,9 +98,20 @@ function install(root, auth) {
 // both an account credential that must never be inherited and a machine token that may be,
 // depending on how the instance was installed. `changes` is how a check asks what happens when the
 // machine has no token, or when Claude Code answers differently.
+//
+// Every run here is nobody's session, whatever this suite was started from. Run from inside a
+// seat, it would inherit what the chat puts on a session — the seat, its secret, the switch that
+// takes the account's connectors away — and a check on what the toolkit put there would read the
+// seat's instead.
+const SET_ON_A_SEAT = [SEAT_IN_ENVIRONMENT, "OPENOVAI_SESSION_SECRET", "ENABLE_CLAUDEAI_MCP_SERVERS"];
+
 function run(root, recordIn, argv, changes = {}) {
+  const inherited = { ...process.env };
+  for (const name of SET_ON_A_SEAT) {
+    delete inherited[name];
+  }
   return runOvai(root, argv, {
-    ...process.env,
+    ...inherited,
     OPENOVAI_STAND_IN_LOG: recordIn,
     ANTHROPIC_API_KEY: "must-not-be-inherited",
     CLAUDE_CODE_OAUTH_TOKEN: TOKEN,
