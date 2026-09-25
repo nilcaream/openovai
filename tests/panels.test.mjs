@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { AMBER, CARD, CONNECTED, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, LATE_AFTER, RED, REPLY, LINE_QUEUE, SENDING, SHOWN_FOR, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title, typedAgainst, typingBeat, TYPING_BEAT } from "../lib/chat/panels.mjs";
+import { AMBER, CARD, CONNECTED, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, LATE_AFTER, RED, REPLY, LINE_QUEUE, SENDING, SHOWN_FOR, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title, typingBeat, TYPING_BEAT } from "../lib/chat/panels.mjs";
 
 const LEADER = "Leader";
 
@@ -438,26 +438,6 @@ describe("the User's own row", () => {
     assert.deepEqual(delivery(true, false, "Bob", { clock: "19:22:36", seconds: LATE_AFTER }), { text: `delivered 19:22:36 ✓ — ${LATE_AFTER} seconds after`, glyph: "✓", wait: false });
     assert.deepEqual(delivery(true, false, "Bob", { clock: "19:22:36", seconds: LATE_AFTER - 1 }), { text: "delivered ✓", glyph: "✓", wait: false });
     assert.deepEqual(delivery(false, true, "Bob", { clock: "19:22:36", seconds: 40 }), { text: "queued — Bob reads it at its next step", wait: true }, "not yet written is waiting, whatever the time");
-  });
-});
-
-describe("what the User typed against", () => {
-  const anchor = { whole: "2026.09.23 Wednesday 19:21:04", who: "Max", text: "the report\nsecond line" };
-  const later = { whole: "2026.09.23 Wednesday 19:21:50", who: "Bobby", text: "something else" };
-
-  it("puts the anchor's token in front when a row arrived after typing began, spelled at send", () => {
-    const refs = new Map();
-    const text = typedAgainst(refs, anchor, later, "yes, do it");
-    assert.equal(text, "(ref:2026.09.23-19:21:04) yes, do it");
-    assert.equal(spellReferences(refs, text), '(ref: 19:21:04 Max — "the report") yes, do it');
-  });
-
-  it("goes as it is when nothing arrived, when there was no anchor, or when it points at the anchor already", () => {
-    const refs = new Map();
-    assert.equal(typedAgainst(refs, anchor, anchor, "yes"), "yes");
-    assert.equal(typedAgainst(refs, null, later, "yes"), "yes");
-    const token = reference(refs, anchor.whole, anchor.who, anchor.text);
-    assert.equal(typedAgainst(refs, anchor, later, `about ${token} yes`), `about ${token} yes`);
   });
 });
 

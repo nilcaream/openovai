@@ -252,7 +252,7 @@
   // draws it and carries what is typed and pressed to the server.
 
   import { answerOf, dialogOf } from "./dialog.mjs";
-  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title, typedAgainst, typingBeat } from "./panels.mjs";
+  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, reference, spellReferences, stopEnabled, title, typingBeat } from "./panels.mjs";
   import { collapsed, dayPillBefore, row as rowOf } from "./render.mjs";
 
   const secret = document.querySelector('meta[name="openovai-secret"]').content;
@@ -568,20 +568,14 @@
     composer.append(box, stop);
     // The rows a click on a stamp pointed at, token to spelling; what is sent carries the spelling.
     const refs = new Map();
-    // The last stamped row shown, and the one that was last when the first key went into an empty
-    // box: a row arriving while the User types makes what is sent point back at the one it was
-    // typed against. `beat` is when the server was last told a key went in, for the typing hold:
-    // a key that changes what is in the box is told, at most once a beat, and nothing else is.
-    const typing = { anchor: null, latest: null, beat: null };
+    // When the server was last told a key went in, for the typing hold: a key that changes what is
+    // in the box is told, at most once a beat, and nothing else is.
+    let beat = null;
     box.addEventListener("input", () => {
-      if (box.value === "") {
-        typing.anchor = null;
-        return;
-      }
-      if (typing.anchor === null) typing.anchor = typing.latest;
+      if (box.value === "") return;
       const now = Date.now();
-      if (typingBeat(typing.beat, now)) {
-        typing.beat = now;
+      if (typingBeat(beat, now)) {
+        beat = now;
         call(`/sessions/${encodeURIComponent(name)}/typing`, { method: "POST" }).catch(() => {});
       }
     });
@@ -592,8 +586,7 @@
       if (box.value.trim() === "") {
         return;
       }
-      const text = spellReferences(refs, typedAgainst(refs, typing.anchor, typing.latest, box.value));
-      typing.anchor = null;
+      const text = spellReferences(refs, box.value);
       box.value = "";
       autosize();
       call(`/sessions/${encodeURIComponent(name)}/message`, {
@@ -618,7 +611,7 @@
     // delivery to find its row; `day` the day of the row drawn last, for the pill between two days;
     // `drawn` the card of every question on the panel, by the id of its request; `doing` the one
     // line that says what the seat is at, while there is one.
-    return { name, section, nameLine, info, word, fitPlaceholder, facts, composer, stop, rows, cards, jump, box, refs, typing, view, keep, shown: 0, day: null, drawn: new Map(), loading: false, last: null, lines: new Map(), waiting: new Map(), doing: null };
+    return { name, section, nameLine, info, word, fitPlaceholder, facts, composer, stop, rows, cards, jump, box, refs, view, keep, shown: 0, day: null, drawn: new Map(), loading: false, last: null, lines: new Map(), waiting: new Map(), doing: null };
   }
 
   // When a row was written, in the reader's own zone: `2026.09.13 Sunday 23:17:05` on the row, the
@@ -828,7 +821,6 @@
     }
     time.title = REFERENCE;
     time.addEventListener("click", () => pointAt(panel, time, shown.who, body));
-    if (when.whole !== "") panel.typing.latest = { whole: when.whole, who: shown.who, text: body.textContent };
     return line;
   }
 

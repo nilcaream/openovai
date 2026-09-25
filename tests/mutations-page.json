@@ -1795,8 +1795,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      const text = spellReferences(refs, typedAgainst(refs, typing.anchor, typing.latest, box.value));",
-        "to": "      const text = typedAgainst(refs, typing.anchor, typing.latest, box.value);"
+        "from": "      const text = spellReferences(refs, box.value);",
+        "to": "      const text = box.value;"
       }
     ]
   },

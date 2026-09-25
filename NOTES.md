@@ -48,6 +48,8 @@ All of that is the Leader's now:
   seconds`, `Limit exhausted (7-day fable window) …`, and `ovai stop`'s `Stopped (sessions gone
   after 1.4 seconds).` Where room is tight they stay short: the quota line and the context size in
   a panel's head.
+- A line carries a reference only when the User pins one by clicking a timestamp. A row arriving
+  while the User types no longer puts a reference to an earlier row in front of the line.
 
 **A Worker's session is closed for it, and never in the middle of a step.** When a Worker has to
 end — idle at 55 minutes, its usage window spent, the room parking — the server tells it one thing,

@@ -473,20 +473,14 @@ describe("the script", () => {
     assert.match(script, /const REFERENCE = "click to reference this message in your reply";/);
     assert.match(script, /function pointAt\(panel, time, who, body\) \{\s*const token = reference\(panel\.refs, time\.dataset\.whole, who, body\.textContent\);\s*if \(token === null\) return;\s*const typed = panel\.box\.value;\s*panel\.box\.value = `\$\{typed\}\$\{typed !== "" && !\/\\s\$\/\.test\(typed\) \? " " : ""\}\$\{token\} `;\s*panel\.box\.dispatchEvent\(new Event\("input"\)\);\s*if \(!panel\.box\.disabled\) panel\.box\.focus\(\);\s*\}/);
     assert.match(script, /const refs = new Map\(\);/);
-    assert.match(script, /composer\.addEventListener\("submit", \(event\) => \{\s*event\.preventDefault\(\);\s*if \(box\.value\.trim\(\) === ""\) \{\s*return;\s*\}\s*const text = spellReferences\(refs, typedAgainst\(refs, typing\.anchor, typing\.latest, box\.value\)\);\s*typing\.anchor = null;/);
-  });
-
-  // What the User typed against: the anchor is the last stamped row when the first key goes into
-  // an empty box, emptied with the box, and every stamped row drawn is the latest.
-  it("anchors what is typed to the last row shown when typing began, and every stamped row drawn is the latest", () => {
-    assert.match(script, /box\.addEventListener\("input", \(\) => \{\s*if \(box\.value === ""\) \{\s*typing\.anchor = null;\s*return;\s*\}\s*if \(typing\.anchor === null\) typing\.anchor = typing\.latest;/);
-    assert.match(script, /if \(when\.whole !== ""\) panel\.typing\.latest = \{ whole: when\.whole, who: shown\.who, text: body\.textContent \};/);
+    assert.match(script, /composer\.addEventListener\("submit", \(event\) => \{\s*event\.preventDefault\(\);\s*if \(box\.value\.trim\(\) === ""\) \{\s*return;\s*\}\s*const text = spellReferences\(refs, box\.value\);\s*box\.value = "";/);
   });
 
   // The typing hold: a key that leaves text in the box tells the server, at most once a beat; one
   // that empties the box tells nothing, since it returns first.
   it("tells the server a key went into the box, at most once a beat", () => {
-    assert.match(script, /if \(typingBeat\(typing\.beat, now\)\) \{\s*typing\.beat = now;\s*call\(`\/sessions\/\$\{encodeURIComponent\(name\)\}\/typing`, \{ method: "POST" \}\)/);
+    assert.match(script, /box\.addEventListener\("input", \(\) => \{\s*if \(box\.value === ""\) return;/);
+    assert.match(script, /if \(typingBeat\(beat, now\)\) \{\s*beat = now;\s*call\(`\/sessions\/\$\{encodeURIComponent\(name\)\}\/typing`, \{ method: "POST" \}\)/);
   });
 
   // Enter sends and the box grows: the page is never run here, so the wiring is read as text —
