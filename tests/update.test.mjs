@@ -597,8 +597,9 @@ describe("an update while a session of this instance is running", () => {
   // A process that carries what a session of this instance carries — the instance's own home in
   // its environment — and nothing else of one: it is the environment that says whose it is, not
   // what it runs. No seat, whatever this suite was started from: a process with a seat and not
-  // the toolkit's claude is what a seat left running, which is the next describe's.
-  const IDLING = ["node", "-e", "setInterval(() => {}, 1000)"];
+  // the toolkit's claude is what a seat left running, which is the next describe's. Bounded, so a
+  // run killed before its teardown leaves nothing running for ever.
+  const IDLING = ["node", "-e", "setTimeout(() => {}, 60000)"];
   function idle(environment) {
     const env = { ...process.env, ...environment };
     delete env[SEAT_IN_ENVIRONMENT];
@@ -607,11 +608,16 @@ describe("an update while a session of this instance is running", () => {
     return child;
   }
 
-  const one = idle({ CLAUDE_CONFIG_DIR: path.join(root, ".local") });
-  const another = idle({ CLAUDE_CONFIG_DIR: path.join(root, ".local") });
-  const elsewhere = idle({ CLAUDE_CONFIG_DIR: path.join(other, ".local") });
+  let one;
+  let another;
+  let elsewhere;
 
+  // Started in the hook and not in the describe's body: the body runs whether or not any of its
+  // checks is picked (--test-name-pattern), the hooks that end them only when one is.
   before(async () => {
+    one = idle({ CLAUDE_CONFIG_DIR: path.join(root, ".local") });
+    another = idle({ CLAUDE_CONFIG_DIR: path.join(root, ".local") });
+    elsewhere = idle({ CLAUDE_CONFIG_DIR: path.join(other, ".local") });
     refused = await update(root, tree);
     versionWhileRefused = fs.readFileSync(path.join(root, "lib", "VERSION"), "utf8").trim();
     for (const child of idling) {
@@ -687,7 +693,7 @@ describe("an update while what a seat left running is still there", () => {
   const root = makeInstance("leftovers");
   const tree = makeRelease("leftovers-release");
   const home = path.join(root, ".local");
-  const LEFT = ["node", "-e", "setInterval(() => {}, 1000)"];
+  const LEFT = ["node", "-e", "setTimeout(() => {}, 60000)"];
   const started = [];
   let leftover;
   let another;

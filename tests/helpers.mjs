@@ -186,9 +186,12 @@ fs.appendFileSync(
 
 // Something left running: a process of its own, detached, with the environment as it came, the
 // way a browser or a preview server a session started outlives it. Its pid is in the log for
-// whoever asks whether it is still there.
+// whoever asks whether it is still there. It lives as long as the stand-in may, and no longer: a
+// check that finds it ended is about what ended it, and one that goes red — a mutation that broke
+// the ending, a suite killed before its teardown — must not leave it running for ever.
 if ((process.env.OPENOVAI_STAND_IN_LEAVES ?? "") !== "") {
-  const left = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { detached: true, stdio: "ignore" });
+  const lifetime = Number(process.env.OPENOVAI_STAND_IN_LIFETIME ?? 60000);
+  const left = spawn(process.execPath, ["-e", "setTimeout(() => {}, " + lifetime + ")"], { detached: true, stdio: "ignore" });
   left.unref();
   note("left-running: " + left.pid);
 }

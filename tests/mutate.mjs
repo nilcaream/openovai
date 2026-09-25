@@ -243,8 +243,47 @@ function removeFromCopy(into, name) {
 // Node has to be on the PATH and not merely be the interpreter: install.sh and bin/ovai resolve
 // `node` themselves and refuse a major older than the toolkit needs. Whichever node is running
 // this tool is the one its children get.
-function environment() {
-  return { ...process.env, PATH: `${path.dirname(process.execPath)}${path.delimiter}${process.env.PATH}` };
+function environment(where) {
+  return { ...process.env, PATH: `${path.dirname(process.execPath)}${path.delimiter}${process.env.PATH}`, [MARKER]: where };
+}
+
+// What a copy's suite started is ended with it. A test server is started detached, in a session
+// of its own (lib/ovai.mjs), and so is what a stand-in leaves running, so neither the runner's pid
+// nor its process group reaches them, and a run that died before its teardown leaves them running
+// for ever. The environment does reach them: the runner is given this marker, naming its copy, and
+// everything it starts inherits it unless it is given an environment built from nothing — the way
+// a seat's leftovers are told apart (lib/running.mjs). Nothing else on the machine carries it, so
+// nothing else is ended.
+const MARKER = "OPENOVAI_MUTATE_COPY";
+
+// The copy a process was started for, from its environment; null when it carries no marker or
+// cannot be read (it is gone, or somebody else's).
+function copyOf(pid) {
+  let raw;
+  try {
+    raw = fs.readFileSync(path.join("/proc", String(pid), "environ"), "utf8");
+  } catch {
+    return null;
+  }
+  const entry = raw.split("\0").find((pair) => pair.startsWith(`${MARKER}=`));
+  return entry === undefined ? null : entry.slice(MARKER.length + 1);
+}
+
+// Ends every process marked with `within` or a copy under it, and says how many.
+function endMarked(within) {
+  let ended = 0;
+  for (const name of fs.readdirSync("/proc")) {
+    if (!/^\d+$/.test(name) || Number(name) === process.pid) continue;
+    const copy = copyOf(name);
+    if (copy === null || (copy !== within && !copy.startsWith(within + path.sep))) continue;
+    try {
+      process.kill(Number(name), "SIGKILL");
+      ended += 1;
+    } catch {
+      // Gone between being read and being ended.
+    }
+  }
+  return ended;
 }
 
 // Every `not ok` in the TAP, split into the leaves that actually failed and the describes that are
@@ -290,7 +329,7 @@ function runSuite(where, { suite, checkTimeout, boundMs }) {
     const child = spawn(
       process.execPath,
       ["--test", "--test-reporter=tap", `--test-timeout=${checkTimeout}`, suite],
-      { cwd: where, env: environment(), stdio: ["ignore", "pipe", "pipe"] },
+      { cwd: where, env: environment(where), stdio: ["ignore", "pipe", "pipe"] },
     );
     let output = "";
     let timedOut = false;
@@ -301,13 +340,15 @@ function runSuite(where, { suite, checkTimeout, boundMs }) {
       });
     }
     // The outer net. A check that hangs is caught by --test-timeout above and goes red by name;
-    // this is for the case the runner itself wedges, and it takes the whole process group down.
+    // this is for the case the runner itself wedges. It kills the runner alone; what the runner
+    // started is ended by its marker once the run has closed.
     const bound = setTimeout(() => {
       timedOut = true;
       child.kill("SIGKILL");
     }, boundMs);
     child.on("close", () => {
       clearTimeout(bound);
+      endMarked(where);
       const { leaves, red } = readTap(output);
       resolve({ leaves, red, timedOut, tookMs: Date.now() - began });
     });
@@ -384,6 +425,15 @@ async function main() {
   const before = treeState();
   const scratch = path.join(repo, ".tmp", "mutate");
   fs.mkdirSync(scratch, { recursive: true });
+
+  // A sweep that was killed ended nothing; this one ends what it left, and ends its own however it
+  // stops. Killed with -9 it cannot, and the next sweep here is what ends it.
+  const leftBefore = endMarked(scratch);
+  if (leftBefore > 0) process.stdout.write(`ended ${leftBefore} processes an earlier sweep here left running\n`);
+  process.on("exit", () => endMarked(scratch));
+  for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
+    process.on(signal, () => process.exit(128 + os.constants.signals[signal]));
+  }
 
   const howMany = Math.max(1, Math.min(chosen.copies, mutations.length));
   process.stdout.write(`${mutations.length} mutations, ${howMany} pinned ${howMany === 1 ? "copy" : "copies"}, suite ${chosen.suite}\n\n`);
