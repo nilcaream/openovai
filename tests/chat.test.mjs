@@ -1077,6 +1077,8 @@ describe("what a seat left running", () => {
     await tell(WORKER, userFrame("go")).answered;
     assert.ok(await waitFor(() => (running(WORKER) ? null : true)), "the seat is still running");
     assert.ok(await waitFor(() => (alive(left) ? null : true)), `pid ${left} is still there`);
+    // A Worker gone on its own is told to the Leader, which starts it: not this check's business.
+    await end(LEADER, 500);
   });
 });
 

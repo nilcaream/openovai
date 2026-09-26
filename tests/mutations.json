@@ -867,8 +867,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "function afterClose(instance, { seat, role, ending, carried, context = null, why = \"\", spoke = false }) {\n  seatChanged(instance, seat);",
-        "to": "function afterClose(instance, { seat, role, ending, carried, context = null, why = \"\", spoke = false }) {"
+        "from": "function afterClose(instance, { seat, role, ending, own = false, carried, context = null, why = \"\", spoke = false }) {\n  seatChanged(instance, seat);",
+        "to": "function afterClose(instance, { seat, role, ending, own = false, carried, context = null, why = \"\", spoke = false }) {"
       }
     ]
   },
@@ -878,8 +878,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "function afterClose(instance, { seat, role, ending, carried, context = null, why = \"\", spoke = false }) {\n  seatChanged(instance, seat);",
-        "to": "function afterClose(instance, { seat, role, ending, carried, context = null, why = \"\", spoke = false }) {\n  if (role === WORKER) {\n    seatChanged(instance, seat);\n  }"
+        "from": "function afterClose(instance, { seat, role, ending, own = false, carried, context = null, why = \"\", spoke = false }) {\n  seatChanged(instance, seat);",
+        "to": "function afterClose(instance, { seat, role, ending, own = false, carried, context = null, why = \"\", spoke = false }) {\n  if (role === WORKER) {\n    seatChanged(instance, seat);\n  }"
       }
     ]
   },

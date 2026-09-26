@@ -93,7 +93,7 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "      if (role === WORKER) {\n        deliver(instance, leaderOf(instance), serverEvent(\"stopped\", { who: seat, why: \"restart\" }));\n      }\n",
+        "from": "      if (role === WORKER) {\n        deliver(instance, leaderOf(instance), failed === null ? serverEvent(\"stopped\", { who: seat, why: \"restart\" }) : serverEvent(\"stopped\", { who: seat, why: \"restart-failed\" }, failed));\n      }\n",
         "to": ""
       }
     ]
@@ -106,6 +106,39 @@
         "file": "lib/chat/session.mjs",
         "from": "        if (record.ending === null && !record.child.stdin.writableEnded && closedBy(record, dead)) {",
         "to": "        if (record.ending === null && closedBy(record, dead)) {"
+      }
+    ]
+  },
+  {
+    "name": "a Worker gone on its own is never told",
+    "catches": "tells the Leader of a Worker whose process ended on its own before the close completed",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "  if (role === WORKER && own && instance.stopping !== true && !isParking()) {",
+        "to": "  if (role === WORKER && false && instance.stopping !== true && !isParking()) {"
+      }
+    ]
+  },
+  {
+    "name": "a process somebody ended reads as one gone on its own",
+    "catches": "is not what ends a seat somebody else is ending, when its last turn dies on the way out",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "  record.endAsked = true;\n  child.stdin.end();",
+        "to": "  child.stdin.end();"
+      }
+    ]
+  },
+  {
+    "name": "a restart with no successor is told as a restart",
+    "catches": "tells the Leader a restart failed, and why, when no successor could be started",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "    return error.message;\n  }\n}",
+        "to": "    return null;\n  }\n}"
       }
     ]
   }

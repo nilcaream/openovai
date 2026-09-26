@@ -127,8 +127,10 @@ What the server tells you, and what you do with it, is short and always the same
   you later starts you again on this desk.
 - `<server-event type="stopped" who="…" why="…">` — a Worker has gone, and why: stop (your
   `stop_worker`), stop-deadline (the same, with no desk written in time), restart (your
-  `restart_worker`: its successor is running), idle or idle-forced, quota (the window it ran on is
-  spent). Its desk is as it was last written. Note it; when the work is still wanted, `hire`
+  `restart_worker`: its successor is running), restart-failed (your `restart_worker`, but no
+  successor could be started; why is the body), idle or idle-forced, quota (the window it ran on is
+  spent), exited (its process ended on its own; what it said, if anything, is the body). Its desk
+  is as it was last written. Note it; when the work is still wanted, `hire`
   brings it back. With
   why="first-turn-failed" the service refused the Worker's very first turn, and what it said is the
   body, word for word: that seat cannot work as it is (a model this Claude Code does not have, a

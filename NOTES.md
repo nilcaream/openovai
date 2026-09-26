@@ -13,7 +13,9 @@ All of that is the Leader's now:
 - `stop_worker` and `restart_worker` close one Worker. It is told its session is closing, writes
   its desk, and goes when that turn is over; a restart starts its successor on the desk. With
   `interrupt`, the turn it is on is cut first. Both answer at once, and the Leader hears the
-  outcome as a `stopped` event: why is stop, stop-deadline, restart, idle, idle-forced or quota.
+  outcome as a `stopped` event: why is stop, stop-deadline, restart, idle, idle-forced or quota;
+  restart-failed when no successor could be started, with the reason as the body; and exited when
+  the Worker's process ended on its own, closing or not, with what it said as the body.
   A desk not written within the deadline (5 minutes after an interrupt, the park deadline
   otherwise, or the one given) is taken as it was last written.
 - A Worker's context reaches the Leader, not the Worker, as a `context` event naming the Worker —
@@ -32,7 +34,8 @@ All of that is the Leader's now:
   messaging socket and token, and the shell's PWD and OLDPWD. The server also drops the seat's
   name and secret. The machine's sign-in, CLAUDE_CODE_OAUTH_TOKEN, stays under `inherit` as before.
 - When a usage window that reached a stage resets, the Leader gets a `quota-reset` event with the
-  window, and the model when it is one model's own; a stopped Leader is started by it, to bring
+  window, and the model when it is one model's own; a stopped Leader is started by it — after a
+  warning too, since from there hires are refused and the Leader stops whoever can wait — to bring
   back the Workers that stopped on the window. A park forgets the resets to come, and a server
   restart before the reset loses them.
 - `hire` with a model on a desk a Worker had now runs it on that model and keeps it for the desk

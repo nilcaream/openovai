@@ -142,8 +142,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "    const holding = quota.mayStart(modelFor(instance.root, seat, instance.config));\n    if (holding === null) {\n      startSuccessor",
-        "to": "    const holding = null;\n    if (holding === null) {\n      startSuccessor"
+        "from": "    const holding = quota.mayStart(modelFor(instance.root, seat, instance.config));\n    if (holding === null) {\n      const failed = startSuccessor",
+        "to": "    const holding = null;\n    if (holding === null) {\n      const failed = startSuccessor"
       }
     ]
   },
@@ -153,7 +153,7 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "    if (holding === null) {\n      startSuccessor(instance, seat, carried, context, spoke);\n      // A Worker restarts only on the Leader's order now, and the order's outcome is this.\n      if (role === WORKER) {\n        deliver(instance, leaderOf(instance), serverEvent(\"stopped\", { who: seat, why: \"restart\" }));\n      }\n      return;\n    }",
+        "from": "    if (holding === null) {\n      const failed = startSuccessor(instance, seat, carried, context, spoke);\n      // A Worker restarts only on the Leader's order now, and the order's outcome is this: the\n      // successor running, or the reason there is none.\n      if (role === WORKER) {\n        deliver(instance, leaderOf(instance), failed === null ? serverEvent(\"stopped\", { who: seat, why: \"restart\" }) : serverEvent(\"stopped\", { who: seat, why: \"restart-failed\" }, failed));\n      }\n      return;\n    }",
         "to": "    startSuccessor(instance, seat, carried, context, spoke);\n    if (holding === null) {\n      return;\n    }"
       }
     ]

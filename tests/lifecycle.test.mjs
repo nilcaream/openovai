@@ -154,6 +154,31 @@ describe("starting a seat", () => {
     }
   });
 
+  // The model is the desk's word for the next start too, so a hire whose start failed must not
+  // leave its model behind: nobody ran on it.
+  it("hire with a model whose start fails leaves the desk's model as it was", async () => {
+    const modelOf = () => fs.readFileSync(path.join(instance, "desks", "Lou", "MODEL"), "utf8");
+    const data = process.env.XDG_DATA_HOME;
+    try {
+      const first = await spawnedBy("Lou", () => tool(superman.secret, "hire", { name: "Lou", model: "model-a" }));
+      assert.equal(first.result.refused, false, first.result.text);
+      await end("Lou", 500);
+      process.env.XDG_DATA_HOME = path.join(instance, "no-claude-here");
+      let failed;
+      try {
+        failed = await tool(superman.secret, "hire", { name: "Lou", model: "model-b" });
+      } finally {
+        process.env.XDG_DATA_HOME = data;
+      }
+      assert.equal(running("Lou"), false, JSON.stringify(failed));
+      assert.equal(modelOf(), "model-a\n", JSON.stringify(failed));
+    } finally {
+      process.env.XDG_DATA_HOME = data;
+      await end("Lou", 500);
+      remove(path.join(instance, "desks", "Lou"));
+    }
+  });
+
 });
 
 describe("write_desk", () => {

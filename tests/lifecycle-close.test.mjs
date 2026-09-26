@@ -8,6 +8,7 @@
 // tests/mutations-lifecycle-close.json names the check it was written to redden.
 
 import assert from "node:assert/strict";
+import path from "node:path";
 import { after, describe, it } from "node:test";
 
 import { userFrame } from "../lib/chat/frames.mjs";
@@ -117,6 +118,38 @@ describe("close", () => {
     await settle();
     assert.ok(!said.slice(from).includes(`stopped ${WORKER} - stop`), said.slice(from).join("\n"));
     assert.ok(!heardIn(superman.log).some((frame) => frame.startsWith('<server-event type="stopped"')), heardIn(superman.log).join("\n"));
+  });
+
+  // A process that goes on its own while a close is pending has no ending of its own: the Leader,
+  // told the close's outcome comes as `stopped`, is told this one, with what the process said.
+  it("tells the Leader of a Worker whose process ended on its own before the close completed", async () => {
+    ({ superman, paul } = await pair({ OPENOVAI_STAND_IN_SLOW: "3000" }));
+    await close(chat, WORKER, "stop");
+    assert.ok(await waitFor(() => (recordOf(WORKER)?.askedWhy === "close:stop" && recordOf(WORKER).turn !== null ? true : null)), "the close was never read");
+    process.kill(recordOf(WORKER).child.pid, "SIGKILL");
+    assert.ok(await gone(WORKER), `${WORKER} was not gone after a kill`);
+    const stopped = () => heardIn(superman.log).filter((frame) => frame.startsWith(`<server-event type="stopped" who="${WORKER}"`));
+    assert.ok(await waitFor(() => (stopped().length > 0 ? true : null)), heardIn(superman.log).join("\n"));
+    assert.deepEqual(stopped(), [`<server-event type="stopped" who="${WORKER}" why="exited">${WORKER} ended before answering</server-event>`]);
+  });
+
+  // The outcome of a restart is its successor running; one that could not start is said so, with
+  // why, and never as a restart.
+  it("tells the Leader a restart failed, and why, when no successor could be started", async () => {
+    ({ superman, paul } = await pair(writesDesk('type="closing"')));
+    const data = process.env.XDG_DATA_HOME;
+    process.env.XDG_DATA_HOME = path.join(instance, "no-claude-here");
+    try {
+      await close(chat, WORKER, "restart");
+      assert.ok(await gone(WORKER), `${WORKER} was not closed`);
+      const stopped = () => heardIn(superman.log).filter((frame) => frame.startsWith(`<server-event type="stopped" who="${WORKER}"`));
+      assert.ok(await waitFor(() => (stopped().length > 0 ? true : null)), heardIn(superman.log).join("\n"));
+      assert.equal(stopped().length, 1, stopped().join("\n"));
+      assert.match(stopped()[0], new RegExp(`^<server-event type="stopped" who="${WORKER}" why="restart-failed">Claude Code \\d+\\.\\d+\\.\\d+ is not at `));
+      assert.equal(running(WORKER), false);
+    } finally {
+      process.env.XDG_DATA_HOME = data;
+    }
   });
 
   it("has a deadline that runs from the turn that read it and waits for a turn to end", async () => {

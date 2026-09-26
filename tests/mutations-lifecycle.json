@@ -186,8 +186,8 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "        startSeat(instance, name);\n        const runs = modelFor(root, name, instance.config);",
-        "to": "        fs.rmSync(panelDirectory(root, name), { recursive: true, force: true });\n        startSeat(instance, name);\n        const runs = modelFor(root, name, instance.config);"
+        "from": "        try {\n          startSeat(instance, name);",
+        "to": "        fs.rmSync(panelDirectory(root, name), { recursive: true, force: true });\n        try {\n          startSeat(instance, name);"
       }
     ]
   },
@@ -411,8 +411,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "    ended({ seat, role, ending: record.ending, exit, carried, why, context: record.context, spoke: record.spoke });",
-        "to": "    ended({ seat, role, ending: record.ending, exit, carried, why, spoke: record.spoke });"
+        "from": "    ended({ seat, role, ending: record.ending, own: record.ending === null && record.endAsked !== true, exit, carried, why, context: record.context, spoke: record.spoke });",
+        "to": "    ended({ seat, role, ending: record.ending, own: record.ending === null && record.endAsked !== true, exit, carried, why, spoke: record.spoke });"
       }
     ]
   },
@@ -544,6 +544,17 @@
       {
         "file": "lib/chat/server.mjs",
         "from": "          writeModel(root, name, model);\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a hire whose start failed leaves its model on the desk",
+    "catches": "hire with a model whose start fails leaves the desk's model as it was",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "            fs.writeFileSync(modelFile(root, name), kept);\n",
         "to": ""
       }
     ]
