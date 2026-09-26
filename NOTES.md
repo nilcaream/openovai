@@ -15,6 +15,18 @@ retires, seeds what is missing, wires the hooks and turns attribution off, all i
 same finish. Taking 0.20.0 itself is still finished by the version before it, so run `ovai update`
 a second time once it is through.
 
+**`ovai update --from <checkout>` takes a build of main, named by its commit.** A directory that is
+a git checkout is taken only when it is on `main` with nothing `git status --porcelain` lists;
+otherwise the update refuses in one line that says which. The instance is then on the first 8
+characters of that commit's hash (`12345678`), and that is its version wherever ovai shows one (`ovai configuration`, the page,
+the server's health). A hash has no order: a release is always taken onto a build, with no
+`--downgrade` and never "Nothing to do"; another commit is always taken; the same commit is
+"Nothing to do". A directory that is not a checkout — an unpacked release — is taken as before.
+Going back with `--downgrade` to a version older than 0.20.0 no longer ends in "finishing it
+failed": the finish is not handed to a version that does not take it. An instance on 0.19.0 reads a
+checkout as the release its `lib/VERSION` names, so the first build is taken with the checkout's own
+updater: `node <checkout>/lib/ovai.mjs --root <instance> update --from <checkout>`.
+
 **The Leader gives the whole open list in two cases, said plainly: when the User asks where things
 stand, and when the Leader asks the User what to take next.** The instruction used to read as
 though the Leader were the one telling the User where things stand. A Leader hired before this

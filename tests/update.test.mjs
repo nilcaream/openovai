@@ -11,7 +11,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { after, before, describe, it } from "node:test";
 
 import { installed, remove, repo, runToolLater, scratch, serveRelease, standInEnvironment, writeStandIn } from "./helpers.mjs";
@@ -622,9 +622,108 @@ describe("which version is older", () => {
       ["0.5.0", "dev"],
       ["dev", "0.5.0"],
       ["0.5.0-rc1", "0.5.0"],
+      ["0.5.0", "1234567"],
+      ["1234567", "0.5.0"],
     ].map(([candidate, installed_]) => isOlderThan(candidate, installed_));
 
-    assert.deepEqual(answered, [false, false, false, false, false]);
+    assert.deepEqual(answered, [false, false, false, false, false, false, false]);
+  });
+});
+
+// A checkout of this workspace in a repository of its own, committed on `branch`. Its lib/VERSION
+// says what this repository's does — the last release — which is exactly why a build is named by its
+// commit instead.
+function makeCheckout(name, { branch = "main" } = {}) {
+  const tree = makeRelease(name, { version: INSTALLED });
+  const git = (...words) => {
+    const done = spawnSync("git", ["-c", "user.name=OpenOv AI", "-c", "user.email=ovai@example.invalid", "-c", "commit.gpgsign=false", ...words], { cwd: tree, encoding: "utf8" });
+    assert.equal(done.status, 0, done.stderr);
+    return done.stdout.trim();
+  };
+  git("init", "--quiet", "--initial-branch", branch);
+  git("add", "--all");
+  git("commit", "--quiet", "--message", "the build");
+  return { tree, hash: git("rev-parse", "HEAD").slice(0, 8) };
+}
+
+function versionOf(root) {
+  return fs.readFileSync(path.join(root, "lib", "VERSION"), "utf8").trim();
+}
+
+describe("taking a build from a checkout of main", () => {
+  const root = makeInstance("from-a-checkout");
+  const { tree, hash } = makeCheckout("checkout-of-main");
+  let done;
+
+  before(async () => {
+    done = await update(root, tree);
+  });
+
+  it("takes it, on the first eight characters of its commit's hash", () => {
+    assert.deepEqual([done.status, versionOf(root)], [0, hash], done.stderr);
+    assert.match(done.stdout, new RegExp(`now on ${hash}\\. Replaced:`));
+  });
+
+  it("takes the same commit again as nothing to do", async () => {
+    const again = await update(root, tree);
+    assert.equal(again.status, 0, again.stderr);
+    assert.match(again.stdout, new RegExp(`^This instance is on ${hash}, which is what .* holds\\. Nothing to do\\.$`, "m"));
+    assert.doesNotMatch(again.stdout, /Replaced:/);
+  });
+});
+
+// Only main, committed and clean: what is copied is the working tree and not the commit, so anything
+// else puts in place something no commit names.
+describe("what a checkout is refused for", () => {
+  const root = makeInstance("checkout-refusals");
+
+  it("refuses a checkout holding a file git has not been given", async () => {
+    const { tree } = makeCheckout("checkout-with-changes");
+    fs.writeFileSync(path.join(tree, "lib", "work-in-progress.mjs"), "\n");
+    const refused = await update(root, tree);
+    assert.deepEqual([refused.status, versionOf(root)], [1, INSTALLED]);
+    assert.match(refused.stderr, /^ovai: .* has changes git status lists — a checkout is taken only as main, committed and clean$/m);
+  });
+
+  it("refuses a checkout on a branch other than main", async () => {
+    const { tree } = makeCheckout("checkout-of-a-feature", { branch: "feature" });
+    const refused = await update(root, tree);
+    assert.deepEqual([refused.status, versionOf(root)], [1, INSTALLED]);
+    assert.match(refused.stderr, /^ovai: .* is on feature, not main — a checkout is taken only as main, committed and clean$/m);
+  });
+});
+
+// A build has no order, so a release after one is always taken — even one whose numbers are lower,
+// and even from a build whose hash happens to be digits alone.
+describe("taking a release onto a build", () => {
+  const root = makeInstance("release-onto-a-build");
+  const tree = makeRelease("release-after-a-build", { version: OLDER });
+  let done;
+
+  before(async () => {
+    fs.writeFileSync(path.join(root, "lib", "VERSION"), "1234567\n");
+    done = await update(root, tree);
+  });
+
+  it("takes it without being told to go backwards", () => {
+    assert.deepEqual([done.status, versionOf(root)], [0, OLDER], done.stderr);
+  });
+});
+
+// A version from before the finish was handed over refuses the word, so going back to one on purpose
+// hands it nothing rather than ending in a failure that is not one.
+describe("going back to a version that does not take the finish", () => {
+  const root = makeInstance("back-before-the-finish");
+  const tree = makeRelease("release-before-the-finish", { version: OLDER });
+  let done;
+
+  before(async () => {
+    fs.writeFileSync(path.join(tree, "bin", "ovai"), "#!/bin/sh\necho the finish was handed over >&2\nexit 2\n");
+    done = await runToolLater(root, ["update", "--from", tree, "--downgrade"], process.env);
+  });
+
+  it("hands it no finish", () => {
+    assert.deepEqual([done.status, done.stderr.includes("the finish was handed over")], [0, false], done.stderr);
   });
 });
 

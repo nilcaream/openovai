@@ -427,5 +427,93 @@
         "to": "  const leftovers = running.filter(({ seat }) => seat !== null);"
       }
     ]
+  },
+  {
+    "name": "a checkout is taken as the version its lib/VERSION says",
+    "catches": "takes it, on the first eight characters of its commit's hash",
+    "edits": [
+      {
+        "file": "lib/release.mjs",
+        "from": "    if (fs.existsSync(path.join(from, \".git\"))) {",
+        "to": "    if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "a build is named by git's short hash, whose length varies",
+    "catches": "takes it, on the first eight characters of its commit's hash",
+    "edits": [
+      {
+        "file": "lib/release.mjs",
+        "from": "  return git(\"rev-parse\", \"HEAD\").stdout.trim().slice(0, BUILD_LENGTH);",
+        "to": "  return git(\"rev-parse\", \"--short\", \"HEAD\").stdout.trim();"
+      }
+    ]
+  },
+  {
+    "name": "a build's version is not written into the payload put in place",
+    "catches": "takes it, on the first eight characters of its commit's hash",
+    "edits": [
+      {
+        "file": "lib/release.mjs",
+        "from": "  if (stamp !== null) {",
+        "to": "  if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "the commit an instance is already on is taken again",
+    "catches": "takes the same commit again as nothing to do",
+    "edits": [
+      {
+        "file": "lib/ovai.mjs",
+        "from": "  if (release.version === here && release.build) {",
+        "to": "  if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "a checkout with changes is taken",
+    "catches": "refuses a checkout holding a file git has not been given",
+    "edits": [
+      {
+        "file": "lib/release.mjs",
+        "from": "  if (status.status !== 0 || status.stdout.trim() !== \"\") {",
+        "to": "  if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "a checkout on any branch is taken",
+    "catches": "refuses a checkout on a branch other than main",
+    "edits": [
+      {
+        "file": "lib/release.mjs",
+        "from": "  if (branch.stdout.trim() !== BUILT_FROM) {",
+        "to": "  if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "a hash of digits alone is placed as a version",
+    "catches": "takes it without being told to go backwards",
+    "edits": [
+      {
+        "file": "lib/version.mjs",
+        "from": "!/^\\d+(\\.\\d+)+$/.test(text.trim())",
+        "to": "!/^\\d+(\\.\\d+)*$/.test(text.trim())"
+      }
+    ]
+  },
+  {
+    "name": "the finish is handed to a version that does not take it",
+    "catches": "hands it no finish",
+    "edits": [
+      {
+        "file": "lib/ovai.mjs",
+        "from": "  if (isOlderThan(now, FIRST_TO_FINISH)) {",
+        "to": "  if (false) {"
+      }
+    ]
   }
 ]
