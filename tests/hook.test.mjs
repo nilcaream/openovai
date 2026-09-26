@@ -14,7 +14,7 @@ import { COMPOUND_REASON, HIDDEN_REASON, HOOK_COMMAND, HOOK_ENTRY, answerFor, de
 import { SUBAGENT_HOOK_COMMAND, SUBAGENT_HOOK_ENTRY } from "../lib/hooks/subagent.mjs";
 import { hooksWired, rulesMissing, rulesStale, wireHooks } from "../lib/seed.mjs";
 import { readSettings, settingsFile, writeSettings } from "../lib/settings.mjs";
-import { remove, repo, scratch } from "./helpers.mjs";
+import { remove, repo, runtimeData, scratch, standInEnvironment } from "./helpers.mjs";
 
 // The settings a fresh instance is born with, cut down to what these checks turn on: a few of the
 // seeded commands, git by its subcommand, and the three refusals.
@@ -269,6 +269,36 @@ describe("wiring the hook at update", () => {
     assert.deepEqual(rulesMissing(root), []);
   });
 
+  // What the settings of an instance from before the hooks ran on the toolkit's own node carry.
+  const OLD_COMPOUND = 'node "${CLAUDE_PROJECT_DIR}/lib/hooks/compound.mjs"';
+  const OLD_SUBAGENT = 'node "${CLAUDE_PROJECT_DIR}/lib/hooks/subagent.mjs"';
+
+  it("takes out the hooks wired to run on the machine's node and wires each one once, on the toolkit's", () => {
+    writeSettings(root, {
+      permissions: SETTINGS.permissions,
+      hooks: { PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: OLD_COMPOUND }] }], SubagentStart: [{ hooks: [{ type: "command", command: OLD_SUBAGENT }] }] },
+    });
+    assert.deepEqual(wireHooks(root), [settingsFile(root)]);
+    const after = readSettings(root);
+    assert.deepEqual(after.hooks.PreToolUse, [HOOK_ENTRY]);
+    assert.deepEqual(after.hooks.SubagentStart, [SUBAGENT_HOOK_ENTRY]);
+    assert.deepEqual(after.permissions, SETTINGS.permissions);
+  });
+
+  it("takes a retired hook out of settings that already carry the current ones, and keeps theirs from the same entry", () => {
+    writeSettings(root, {
+      permissions: SETTINGS.permissions,
+      hooks: {
+        PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: "theirs" }, { type: "command", command: OLD_COMPOUND }] }, HOOK_ENTRY],
+        SubagentStart: [SUBAGENT_HOOK_ENTRY],
+      },
+    });
+    assert.deepEqual(wireHooks(root), [settingsFile(root)]);
+    const after = readSettings(root);
+    assert.deepEqual(after.hooks.PreToolUse, [{ matcher: "Bash", hooks: [{ type: "command", command: "theirs" }] }, HOOK_ENTRY]);
+    assert.deepEqual(after.hooks.SubagentStart, [SUBAGENT_HOOK_ENTRY]);
+  });
+
   it("wires settings that are not there at all, granting nothing", () => {
     fs.rmSync(settingsFile(root), { force: true });
     wireHooks(root);
@@ -323,6 +353,55 @@ describe("the subagent hook", () => {
     const ran = run();
     assert.equal(ran.status, 0, ran.stderr);
     assert.equal(ran.stdout, "");
+  });
+});
+
+describe("the node a hook runs on", () => {
+  // The command run the way the harness runs it — by a shell, with the instance root as
+  // CLAUDE_PROJECT_DIR — in a scratch instance with lib/ copied in, and a PATH whose `node` is the
+  // machine's: one that says so in the log and fails.
+  const root = scratch("hook-node-instance");
+  const machine = scratch("hook-node-machine");
+  const log = path.join(machine, "log");
+  before(() => {
+    remove(root, machine);
+    fs.cpSync(path.join(repo, "lib"), path.join(root, "lib"), { recursive: true });
+    writeSettings(root, SETTINGS);
+    fs.mkdirSync(path.join(root, "customization"), { recursive: true });
+    fs.writeFileSync(path.join(root, "customization", "common.md"), "1. A line the person set.\n");
+    fs.mkdirSync(machine, { recursive: true });
+    fs.writeFileSync(path.join(machine, "node"), `#!/bin/sh\nprintf 'machine node: %s\\n' "$*" >> "${log}"\nexit 1\n`, { mode: 0o755 });
+  });
+  after(() => {
+    remove(root, machine);
+  });
+
+  const run = (command, input) => {
+    fs.rmSync(log, { force: true });
+    return spawnSync("sh", ["-c", command], {
+      input,
+      encoding: "utf8",
+      cwd: "/",
+      env: standInEnvironment(runtimeData, log, { CLAUDE_PROJECT_DIR: root, PATH: `${machine}:/usr/bin:/bin` }),
+    });
+  };
+
+  it("runs the compound hook on the node the toolkit pins, not the one on the PATH", () => {
+    const ran = run(HOOK_COMMAND, JSON.stringify({ tool_name: "Bash", tool_input: { command: "cd /x && npm test" } }));
+    assert.equal(ran.status, 0, ran.stderr);
+    assert.equal(JSON.parse(ran.stdout).hookSpecificOutput.permissionDecision, "allow");
+    const said = fs.readFileSync(log, "utf8");
+    assert.equal(said.includes("machine node"), false, said);
+    assert.equal(said.includes(`node: ${path.join(root, "lib", "hooks", "compound.mjs")}`), true, said);
+  });
+
+  it("runs the subagent hook on the node the toolkit pins, not the one on the PATH", () => {
+    const ran = run(SUBAGENT_HOOK_COMMAND, JSON.stringify({ hook_event_name: "SubagentStart", agent_type: "general-purpose" }));
+    assert.equal(ran.status, 0, ran.stderr);
+    assert.equal(JSON.parse(ran.stdout).hookSpecificOutput.hookEventName, "SubagentStart");
+    const said = fs.readFileSync(log, "utf8");
+    assert.equal(said.includes("machine node"), false, said);
+    assert.equal(said.includes(`node: ${path.join(root, "lib", "hooks", "subagent.mjs")}`), true, said);
   });
 });
 

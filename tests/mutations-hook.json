@@ -148,8 +148,52 @@
     "edits": [
       {
         "file": "lib/seed.mjs",
-        "from": "  if (settings === null || hooksWired(settings)) {",
+        "from": "  if (settings === null || (hooksWired(settings) && !carriesRetired(settings))) {",
         "to": "  if (settings === null) {"
+      }
+    ]
+  },
+  {
+    "name": "the compound hook runs on whatever node the session's PATH has",
+    "catches": "runs the compound hook on the node the toolkit pins, not the one on the PATH",
+    "edits": [
+      {
+        "file": "lib/hooks/compound.mjs",
+        "from": "export const HOOK_COMMAND = 'sh \"${CLAUDE_PROJECT_DIR}/lib/hooks/run.sh\" compound';",
+        "to": "export const HOOK_COMMAND = 'node \"${CLAUDE_PROJECT_DIR}/lib/hooks/compound.mjs\"';"
+      }
+    ]
+  },
+  {
+    "name": "the subagent hook runs on whatever node the session's PATH has",
+    "catches": "runs the subagent hook on the node the toolkit pins, not the one on the PATH",
+    "edits": [
+      {
+        "file": "lib/hooks/subagent.mjs",
+        "from": "export const SUBAGENT_HOOK_COMMAND = 'sh \"${CLAUDE_PROJECT_DIR}/lib/hooks/run.sh\" subagent';",
+        "to": "export const SUBAGENT_HOOK_COMMAND = 'node \"${CLAUDE_PROJECT_DIR}/lib/hooks/subagent.mjs\"';"
+      }
+    ]
+  },
+  {
+    "name": "an update leaves a hook wired the old way beside the current one, so it runs twice",
+    "catches": "takes out the hooks wired to run on the machine's node and wires each one once, on the toolkit's",
+    "edits": [
+      {
+        "file": "lib/seed.mjs",
+        "from": "      hooks[event] = withoutRetired(entries);",
+        "to": "      hooks[event] = entries;"
+      }
+    ]
+  },
+  {
+    "name": "an update leaves a retired hook in settings that already carry the current ones",
+    "catches": "takes a retired hook out of settings that already carry the current ones, and keeps theirs from the same entry",
+    "edits": [
+      {
+        "file": "lib/seed.mjs",
+        "from": "  if (settings === null || (hooksWired(settings) && !carriesRetired(settings))) {",
+        "to": "  if (settings === null || hooksWired(settings)) {"
       }
     ]
   },

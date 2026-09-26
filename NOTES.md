@@ -111,6 +111,14 @@ app installed before takes the name when the browser next reads the manifest. Wh
 an update refuses a directory that is not an instance, it names each missing entry by its whole
 path, such as `<source>/lib/VERSION`.
 
+**The hooks run on ovai's own node.** The two hooks in `.claude/settings.json`, the one that lets
+a compound of allowed commands through and the one that hands a subagent
+`customization/common.md`, used to run `node`, which was whatever node the session's PATH had.
+On a machine with no node of its own, every Bash call hit a failing hook. They now run
+`sh "${CLAUDE_PROJECT_DIR}/lib/hooks/run.sh" compound` and `… subagent`, which starts the node the
+instance's version pins. `ovai update` replaces the old commands with these and keeps any hook of
+your own.
+
 ## 0.19.0
 
 **The Leader stops and restarts Workers; a Worker only works.** A Worker no longer has
