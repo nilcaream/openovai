@@ -125,6 +125,17 @@ one stopped on a card for you. The hook runs for a subagent's commands too.
 - A line with a side the rules refuse (`git push`, `sudo`, `ssh`), or one the hook cannot read,
   still asks, and is never sent toward a script.
 
+**A subagent is handed `customization/common.md`.** What you set for every session here used to
+reach the seats only. A subagent a seat started knew none of it unless the seat copied it into
+the prompt.
+
+- A new hook, `lib/hooks/subagent.mjs`, runs when a subagent starts. It hands the subagent
+  `customization/common.md` in the same frame a seat reads it in, word for word.
+- It hands over `common.md` only. A subagent is neither the Leader nor a Worker, so the role files
+  stay with the seats.
+- With no `common.md`, the subagent is handed nothing.
+- An update wires the hook into settings that lack it, beside the compound hook, and adds no rule.
+
 ## 0.18.0
 
 **A seat waits for you while you type to it.** When something arrives for a seat — a Worker's

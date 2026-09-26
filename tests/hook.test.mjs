@@ -10,8 +10,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
-import { COMPOUND_REASON, HIDDEN_REASON, HOOK_COMMAND, HOOK_ENTRY, answerFor, decide, hookWired } from "../lib/hooks/compound.mjs";
-import { rulesMissing, rulesStale, wireHook } from "../lib/seed.mjs";
+import { COMPOUND_REASON, HIDDEN_REASON, HOOK_COMMAND, HOOK_ENTRY, answerFor, decide } from "../lib/hooks/compound.mjs";
+import { SUBAGENT_HOOK_COMMAND, SUBAGENT_HOOK_ENTRY } from "../lib/hooks/subagent.mjs";
+import { hooksWired, rulesMissing, rulesStale, wireHooks } from "../lib/seed.mjs";
 import { readSettings, settingsFile, writeSettings } from "../lib/settings.mjs";
 import { remove, repo, scratch } from "./helpers.mjs";
 
@@ -225,42 +226,91 @@ describe("wiring the hook at update", () => {
     assert.deepEqual(HOOK_ENTRY, { matcher: "Bash", hooks: [{ type: "command", command: HOOK_COMMAND }] });
   });
 
-  it("adds the hook to settings that lack it and leaves the rest as it was", () => {
+  it("adds the hooks to settings that lack them and leaves the rest as it was", () => {
     writeSettings(root, { permissions: SETTINGS.permissions, hooks: { PostToolUse: [{ matcher: "Edit", hooks: [{ type: "command", command: "theirs" }] }] } });
-    assert.deepEqual(wireHook(root), [settingsFile(root)]);
+    assert.deepEqual(wireHooks(root), [settingsFile(root)]);
     const after = readSettings(root);
-    assert.equal(hookWired(after), true);
+    assert.equal(hooksWired(after), true);
     assert.deepEqual(after.permissions, SETTINGS.permissions);
     assert.deepEqual(after.hooks.PostToolUse, [{ matcher: "Edit", hooks: [{ type: "command", command: "theirs" }] }]);
     assert.deepEqual(after.hooks.PreToolUse, [HOOK_ENTRY]);
+    assert.deepEqual(after.hooks.SubagentStart, [SUBAGENT_HOOK_ENTRY]);
   });
 
   it("keeps a PreToolUse hook of theirs beside ours", () => {
     writeSettings(root, { permissions: SETTINGS.permissions, hooks: { PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: "theirs" }] }] } });
-    wireHook(root);
+    wireHooks(root);
     assert.deepEqual(readSettings(root).hooks.PreToolUse, [{ matcher: "Bash", hooks: [{ type: "command", command: "theirs" }] }, HOOK_ENTRY]);
   });
 
-  it("writes nothing when the hook is there", () => {
+  it("adds the subagent hook to settings that carry only the compound one, and the compound one once", () => {
     writeSettings(root, { permissions: SETTINGS.permissions, hooks: { PreToolUse: [HOOK_ENTRY] } });
+    assert.deepEqual(wireHooks(root), [settingsFile(root)]);
+    const after = readSettings(root);
+    assert.deepEqual(after.hooks.PreToolUse, [HOOK_ENTRY]);
+    assert.deepEqual(after.hooks.SubagentStart, [SUBAGENT_HOOK_ENTRY]);
+  });
+
+  it("writes nothing when the hooks are there", () => {
+    writeSettings(root, { permissions: SETTINGS.permissions, hooks: { PreToolUse: [HOOK_ENTRY], SubagentStart: [SUBAGENT_HOOK_ENTRY] } });
     const text = fs.readFileSync(settingsFile(root), "utf8");
-    assert.deepEqual(wireHook(root), []);
+    assert.deepEqual(wireHooks(root), []);
     assert.equal(fs.readFileSync(settingsFile(root), "utf8"), text);
   });
 
   it("leaves settings it cannot read exactly as they are, and says nothing is missing from them", () => {
     fs.writeFileSync(settingsFile(root), "{ not json\n");
-    assert.deepEqual(wireHook(root), []);
+    assert.deepEqual(wireHooks(root), []);
     assert.equal(fs.readFileSync(settingsFile(root), "utf8"), "{ not json\n");
     assert.deepEqual(rulesMissing(root), []);
   });
 
   it("wires settings that are not there at all, granting nothing", () => {
     fs.rmSync(settingsFile(root), { force: true });
-    wireHook(root);
+    wireHooks(root);
     const after = readSettings(root);
-    assert.equal(hookWired(after), true);
+    assert.equal(hooksWired(after), true);
     assert.equal(after.permissions, undefined);
+  });
+});
+
+describe("the subagent hook", () => {
+  // A scratch instance with lib/ copied in, so the script reads the customization of the instance
+  // it sits in, worked out from its own place.
+  const root = scratch("subagent-hook-instance");
+  const common = path.join(root, "customization", "common.md");
+  before(() => {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.cpSync(path.join(repo, "lib"), path.join(root, "lib"), { recursive: true });
+    fs.mkdirSync(path.dirname(common), { recursive: true });
+  });
+  after(() => {
+    remove(root);
+  });
+
+  const run = () => spawnSync(process.execPath, [path.join(root, "lib", "hooks", "subagent.mjs")], { input: JSON.stringify({ hook_event_name: "SubagentStart", agent_type: "general-purpose" }), encoding: "utf8", cwd: "/" });
+
+  it("names the command by the harness's own name for the root, for every type of subagent", () => {
+    assert.equal(SUBAGENT_HOOK_COMMAND.includes("${CLAUDE_PROJECT_DIR}"), true);
+    assert.equal(SUBAGENT_HOOK_COMMAND.includes(repo), false);
+    assert.deepEqual(SUBAGENT_HOOK_ENTRY, { hooks: [{ type: "command", command: SUBAGENT_HOOK_COMMAND }] });
+  });
+
+  it("hands the subagent customization/common.md in its frame, byte for byte, and exits 0", () => {
+    const words = "1. A line the person set, with `a backtick` and no newline at the end";
+    fs.writeFileSync(common, words);
+    const ran = run();
+    assert.equal(ran.status, 0, ran.stderr);
+    const said = JSON.parse(ran.stdout).hookSpecificOutput;
+    assert.equal(said.hookEventName, "SubagentStart");
+    assert.equal(said.additionalContext.endsWith(`<customization source="customization/common.md">\n${words}</customization>`), true);
+  });
+
+  it("answers nothing when the instance has no common.md, and exits 0", () => {
+    fs.rmSync(common, { force: true });
+    const ran = run();
+    assert.equal(ran.status, 0, ran.stderr);
+    assert.equal(ran.stdout, "");
   });
 });
 

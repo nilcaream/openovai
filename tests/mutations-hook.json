@@ -121,12 +121,34 @@
     ]
   },
   {
+    "name": "the subagent hook hands a subagent nothing, so it starts knowing none of the person's rules",
+    "catches": "hands the subagent customization/common.md in its frame, byte for byte, and exits 0",
+    "edits": [
+      {
+        "file": "lib/hooks/subagent.mjs",
+        "from": "    content = fs.readFileSync(path.join(root, SOURCE), \"utf8\");",
+        "to": "    return \"\";"
+      }
+    ]
+  },
+  {
+    "name": "an update wires the compound hook only, so an instance born earlier never hands a subagent its customization",
+    "catches": "adds the subagent hook to settings that carry only the compound one, and the compound one once",
+    "edits": [
+      {
+        "file": "lib/seed.mjs",
+        "from": "  [\"SubagentStart\", SUBAGENT_HOOK_ENTRY, subagentHookWired],\n",
+        "to": ""
+      }
+    ]
+  },
+  {
     "name": "an update writes the hook again over settings that already carry it",
     "catches": "writes nothing when the hook is there",
     "edits": [
       {
         "file": "lib/seed.mjs",
-        "from": "  if (settings === null || hookWired(settings)) {",
+        "from": "  if (settings === null || hooksWired(settings)) {",
         "to": "  if (settings === null) {"
       }
     ]

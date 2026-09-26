@@ -483,8 +483,8 @@
     "edits": [
       {
         "file": "lib/seed.mjs",
-        "from": "    hooks: { PreToolUse: [HOOK_ENTRY] },\n    attribution: ATTRIBUTION,\n",
-        "to": "    hooks: { PreToolUse: [HOOK_ENTRY] },\n"
+        "from": "    hooks: { PreToolUse: [HOOK_ENTRY], SubagentStart: [SUBAGENT_HOOK_ENTRY] },\n    attribution: ATTRIBUTION,\n",
+        "to": "    hooks: { PreToolUse: [HOOK_ENTRY], SubagentStart: [SUBAGENT_HOOK_ENTRY] },\n"
       }
     ]
   },
