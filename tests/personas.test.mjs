@@ -489,6 +489,17 @@ describe("what both are told in ovai's common frame", () => {
       assert.match(text, /The frame before this one is ovai's own\s+mechanics for every session here, the Leader and the Workers alike, and you follow it as you\s+follow this one\./);
     }
   });
+
+  // The page links a backticked path by reading it from the instance root, so that is how a session
+  // is told to write one. The sentence is the User's, character for character.
+  it("tells both, once and in the common frame, to name a file by its path from the instance root", () => {
+    const SENTENCE =
+      "Whenever you name a file, write its path from the instance root — `projects/openovai/lib/ovai.mjs`, `desks/Ann/notes.md` — and a file outside the instance by its absolute path.";
+    for (const [text, role] of [[leader(), "leader"], [worker(), "worker"]]) {
+      assert.equal(text.split(SENTENCE).length, 2, role);
+      assert.ok(commonOf(text).includes(`\n\n${SENTENCE}\n\n`), role);
+    }
+  });
 });
 
 // The frames the person's own files arrive in are put there by the renderer (tests/install.test.mjs

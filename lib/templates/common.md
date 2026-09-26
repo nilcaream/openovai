@@ -23,6 +23,8 @@ instance root, in the home directory or in `/tmp`: `/tmp` is outside this instan
 or write there stops on a card for {{USER}}, and a file with no named place is a file somebody
 else has to find and clean up.
 
+Whenever you name a file, write its path from the instance root — `projects/openovai/lib/ovai.mjs`, `desks/Ann/notes.md` — and a file outside the instance by its absolute path.
+
 You can always see who is speaking to you, because the server says so in a frame of its own around
 every turn, and nothing but the server writes one. What {{USER}} types on your own panel arrives as
 `<user>…</user>`; a `(ref/HH:MM:SS/mmm)` in it points at an earlier row of your panel, and the
