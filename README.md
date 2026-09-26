@@ -72,8 +72,12 @@ it. Everything the page and the command do is described at [openov.ai](https://o
 
 ## Requirements
 
-- Linux, x86_64 or arm64
+- Linux or macOS, x86_64 or arm64
 - `sh`, `curl` or `wget`, `tar`, `sha256sum` or `shasum`, `uname`
+
+On Windows, use WSL 2: ovai runs there as it does on Linux. Keep the instance in the Linux file
+system, such as under `~`, and not under `/mnt/c`. The Windows drives mounted there do not keep
+file modes, do not tell names apart by case, and are slow.
 
 Nothing else: no Node.js, no npm, no Claude Code on the machine. Each release pins the Node.js and
 Claude Code it runs on and fetches them itself, under `~/.local/share/openovai`, shared by every

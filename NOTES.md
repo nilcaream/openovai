@@ -147,6 +147,10 @@ of a single model, which only the usage line reads, is not guarded. When there i
 server log now says so once, and on a Mac it names the Keychain. Assumes: where a Mac keeps the
 sign-in is taken from Claude Code's documentation, not seen on a Mac.
 
+**Where ovai runs is written down.** The README's requirements now say Linux or macOS. On Windows,
+ovai runs in WSL 2 as on Linux, with the instance kept in the Linux file system and off `/mnt/c`.
+Assumes: WSL 2 has not been tried.
+
 ## 0.19.0
 
 **The Leader stops and restarts Workers; a Worker only works.** A Worker no longer has
