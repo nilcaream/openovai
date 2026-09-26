@@ -33,13 +33,13 @@
     ]
   },
   {
-    "name": "home is written whole",
-    "catches": "writes the home directory as a tilde",
+    "name": "a path under the instance root is written whole",
+    "catches": "writes a path under the instance root from the root, and every other path as it came",
     "edits": [
       {
         "file": "lib/chat/lines.mjs",
-        "from": "  return typeof value === \"string\" ? value.replace(HOME, \"~\") : \"?\";",
-        "to": "  return typeof value === \"string\" ? value : \"?\";"
+        "from": "  return value.startsWith(`${root}${path.sep}`) ? value.slice(root.length + 1) : value;",
+        "to": "  return value;"
       }
     ]
   }

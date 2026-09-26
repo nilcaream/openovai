@@ -750,8 +750,10 @@ describe("what the installer refuses", () => {
   // until this was anchored on the line the installer writes itself.
   it("refuses a source with no version in it, saying which entry that is", () => {
     const refused = install(options(`${instance}-noversion`, { "--source": withoutVersion() }));
-    const said = /^install: .*does not look like an OpenOv AI instance.*lib\/VERSION/m.test(refused.stderr);
-    assert.equal([refused.status === 0, said].join(" "), "false true");
+    const said = refused.stderr
+      .split("\n")
+      .includes(`install: ${versionless} does not look like an OpenOv AI instance: no ${path.join(versionless, "lib", "VERSION")}`);
+    assert.equal([refused.status === 0, said].join(" "), "false true", refused.stderr);
   });
 
   it("refuses a port below 1024", () => {

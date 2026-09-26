@@ -12,16 +12,18 @@ import { line } from "../lib/chat/lines.mjs";
 import { repo } from "./helpers.mjs";
 
 const home = os.homedir();
+// The instance root every call here is drawn for.
+const ROOT = path.join(home, "work", "inst");
 
 // One call of every tool the summary knows, with the input the real one gives it.
 const CALLS = [
   ["Bash", { command: "npm test", description: "Run the suite" }],
   ["Bash", { command: "git status --porcelain" }],
-  ["Read", { file_path: `${home}/code/app/lib/chat/session.mjs` }],
+  ["Read", { file_path: `${ROOT}/projects/app/lib/chat/session.mjs` }],
   ["Write", { file_path: "/etc/hosts" }],
-  ["Edit", { file_path: `${home}/notes.md` }],
-  ["NotebookEdit", { notebook_path: `${home}/book.ipynb` }],
-  ["Grep", { pattern: "tool_use", path: `${home}/code` }],
+  ["Edit", { file_path: `${ROOT}/desks/Paul/notes.md` }],
+  ["NotebookEdit", { notebook_path: `${ROOT}/temp/book.ipynb` }],
+  ["Grep", { pattern: "tool_use", path: `${ROOT}/projects` }],
   ["Glob", { pattern: "**/*.mjs" }],
   ["SendMessage", { to: "Paul", message: "hello" }],
   ["ListAgents", {}],
@@ -59,14 +61,14 @@ const CALLS = [
 
 describe("what a tool call is drawn as", () => {
   it("names each tool by what it does, from the call and never its result", () => {
-    assert.deepEqual(CALLS.map(([name, input]) => line(name, input)), [
+    assert.deepEqual(CALLS.map(([name, input]) => line(name, input, ROOT)), [
       "Run the suite",
       "git status --porcelain",
-      "Reading ~/code/app/lib/chat/session.mjs",
+      "Reading projects/app/lib/chat/session.mjs",
       "Writing /etc/hosts",
-      "Editing ~/notes.md",
-      "Editing notebook ~/book.ipynb",
-      "Searching tool_use in ~/code",
+      "Editing desks/Paul/notes.md",
+      "Editing notebook temp/book.ipynb",
+      "Searching tool_use in projects",
       "Searching **/*.mjs",
       "Writing a message to Paul",
       "Looking around the room",
@@ -113,10 +115,14 @@ describe("what a tool call is drawn as", () => {
     assert.equal(line("Bash", { command: "  ls   -la\n  | wc  " }), "ls -la | wc", "whitespace is collapsed");
   });
 
-  it("writes the home directory as a tilde", () => {
-    assert.equal(line("Read", { file_path: `${home}/a/b.mjs` }), "Reading ~/a/b.mjs");
-    assert.equal(line("Grep", { pattern: "x", path: home }), "Searching x in ~");
-    assert.equal(line("Write", { file_path: "/var/tmp/x" }), "Writing /var/tmp/x", "another path is written whole");
+  it("writes a path under the instance root from the root, and every other path as it came", () => {
+    assert.equal(line("Read", { file_path: `${ROOT}/desks/Paul/notes.md` }, ROOT), "Reading desks/Paul/notes.md");
+    assert.equal(line("Grep", { pattern: "x", path: `${ROOT}/projects` }, ROOT), "Searching x in projects");
+    assert.equal(line("Read", { file_path: `${home}/a/b.mjs` }, ROOT), `Reading ${home}/a/b.mjs`, "home is not written as a tilde");
+    assert.equal(line("Grep", { pattern: "x", path: ROOT }, ROOT), `Searching x in ${ROOT}`, "the root itself is written whole");
+    assert.equal(line("Read", { file_path: `${ROOT}-old/x.md` }, ROOT), `Reading ${ROOT}-old/x.md`, "a sibling that shares the name is not under it");
+    assert.equal(line("Read", { file_path: "lib/x.mjs" }, ROOT), "Reading lib/x.mjs", "a relative path is already from the root");
+    assert.equal(line("Write", { file_path: "/var/tmp/x" }, ROOT), "Writing /var/tmp/x", "another path is written whole");
   });
 
   it("draws nothing for a search of the tool list or a session's own stop", () => {
@@ -130,7 +136,7 @@ describe("what a tool call is drawn as", () => {
 
   it("carries no forbidden word in anything it can say", () => {
     const { words } = JSON.parse(fs.readFileSync(path.join(repo, "tests", "forbidden-words.json"), "utf8"));
-    const said = CALLS.map(([name, input]) => line(name, input)).filter((text) => text !== null);
+    const said = CALLS.map(([name, input]) => line(name, input, ROOT)).filter((text) => text !== null);
     assert.ok(said.length >= 30, `only ${said.length} lines, so this check read almost nothing`);
     for (const text of said) {
       for (const word of words) {

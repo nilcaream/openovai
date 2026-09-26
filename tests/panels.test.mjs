@@ -175,10 +175,10 @@ describe("the Leader's panel", () => {
 describe("marks and controls", () => {
   it("the title is the product and the instance as the snapshot names it, and never changes with asking", () => {
     const state = fresh();
-    applyEvent(state, snapshot([about(LEADER)], { instance: "~/work/inst" }), 0);
-    assert.equal(title(state), "OpenOv AI ~/work/inst");
+    applyEvent(state, snapshot([about(LEADER)], { instance: "/home/a/work/inst" }), 0);
+    assert.equal(title(state), "OpenOv AI /home/a/work/inst");
     applyEvent(state, { name: "asking", data: { seat: LEADER, pending: [{ id: "r1", tool: "Bash", input: { command: "ls" } }] } }, 0);
-    assert.equal(title(state), "OpenOv AI ~/work/inst", "the title is the same while a panel asks");
+    assert.equal(title(state), "OpenOv AI /home/a/work/inst", "the title is the same while a panel asks");
     assert.equal(title(fresh()), "OpenOv AI");
   });
 
@@ -191,7 +191,7 @@ describe("marks and controls", () => {
 
   it("the panel that asks carries the mark, and anyAsking says whether any panel does", () => {
     const state = fresh();
-    applyEvent(state, snapshot([about(LEADER), about("Paul")], { instance: "~/inst" }), 0);
+    applyEvent(state, snapshot([about(LEADER), about("Paul")], { instance: "/home/a/inst" }), 0);
     assert.equal(anyAsking(state), false);
     applyEvent(state, { name: "asking", data: { seat: "Paul", pending: [{ id: "r1", tool: "Bash", input: { command: "ls" } }] } }, 0);
     assert.equal(anyAsking(state), true);

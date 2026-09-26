@@ -379,6 +379,17 @@
     ]
   },
   {
+    "name": "a missing entry is named from the source rather than whole",
+    "catches": "refuses a source with no version in it, saying which entry that is",
+    "edits": [
+      {
+        "file": "lib/payload.mjs",
+        "from": "no ${missing.map((entry) => path.join(source, entry)).join(\", \")}`;",
+        "to": "no ${missing.join(\", \")} in it`;"
+      }
+    ]
+  },
+  {
     "name": "customization/ is left for the first use to make",
     "catches": "makes exactly the layout at the root: the product, the instance's own, the people, the User's material, Claude Code's",
     "edits": [

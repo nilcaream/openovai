@@ -104,8 +104,19 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "    user: instance.config.user,\n    leader: instance.config.leader,\n    instance: shownRoot",
-        "to": "    user: \"User\",\n    leader: instance.config.leader,\n    instance: shownRoot"
+        "from": "    user: instance.config.user,\n    leader: instance.config.leader,\n    instance: instance.root,",
+        "to": "    user: \"User\",\n    leader: instance.config.leader,\n    instance: instance.root,"
+      }
+    ]
+  },
+  {
+    "name": "the page is told the instance with the home directory as ~",
+    "catches": "tells the page the instance as the title says it, and the usage windows as they stand",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "    instance: instance.root,",
+        "to": "    instance: instance.root.replace(process.env.HOME, \"~\"),"
       }
     ]
   },
@@ -1302,28 +1313,6 @@
     ]
   },
   {
-    "name": "the title's instance is the root as it is",
-    "catches": "tells the page the instance as the title says it, and the usage windows as they stand",
-    "edits": [
-      {
-        "file": "lib/chat/server.mjs",
-        "from": "  return root === home || root.startsWith(`${home}${path.sep}`) ? `~${root.slice(home.length)}` : root;",
-        "to": "  return root;"
-      }
-    ]
-  },
-  {
-    "name": "a root that merely begins with the home's letters is shortened",
-    "catches": "tells the page the instance as the title says it, and the usage windows as they stand",
-    "edits": [
-      {
-        "file": "lib/chat/server.mjs",
-        "from": "  return root === home || root.startsWith(`${home}${path.sep}`) ? `~${root.slice(home.length)}` : root;",
-        "to": "  return root.startsWith(home) ? `~${root.slice(home.length)}` : root;"
-      }
-    ]
-  },
-  {
     "name": "the snapshot carries no usage windows",
     "catches": "tells the page the instance as the title says it, and the usage windows as they stand",
     "edits": [
@@ -1708,8 +1697,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "    const text = line(name, input);\n    if (text !== null) {\n      record.doing = text;",
-        "to": "    const text = line(name, input);\n    if (true) {\n      record.doing = text;"
+        "from": "    const text = line(name, input, instance.root);\n    if (text !== null) {\n      record.doing = text;",
+        "to": "    const text = line(name, input, instance.root);\n    if (true) {\n      record.doing = text;"
       }
     ]
   },
@@ -2038,8 +2027,8 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "    instance: shownRoot(instance.root),\n    version: version(instance.root) ?? \"unknown\",",
-        "to": "    instance: shownRoot(instance.root),"
+        "from": "    instance: instance.root,\n    version: version(instance.root) ?? \"unknown\",",
+        "to": "    instance: instance.root,"
       }
     ]
   }
