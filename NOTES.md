@@ -138,6 +138,15 @@ own. That errs toward leaving a process running. Assumes: that `ps -E` prints a 
 processes' environment after the command, one space apart, and that `lsof` answers the same way
 on a Mac. The checks use stand-ins that print that, and nothing has been run on a Mac yet.
 
+**On a Mac, the usage line stays empty, and the log says why.** The usage line reads its
+percentages with the token Claude Code keeps in `.credentials.json` in the instance's home. On a
+Mac, Claude Code keeps the sign-in in the Keychain instead, and ovai does not read the Keychain.
+So there, the head shows no usage line rather than a number it does not have. The quota guard
+still holds sessions at the 5-hour and 7-day limits, from what each turn reports. The weekly limit
+of a single model, which only the usage line reads, is not guarded. When there is no token, the
+server log now says so once, and on a Mac it names the Keychain. Assumes: where a Mac keeps the
+sign-in is taken from Claude Code's documentation, not seen on a Mac.
+
 ## 0.19.0
 
 **The Leader stops and restarts Workers; a Worker only works.** A Worker no longer has

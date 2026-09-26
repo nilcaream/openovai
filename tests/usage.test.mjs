@@ -12,7 +12,7 @@ import { home } from "../lib/claude.mjs";
 import { subscribe } from "../lib/chat/events.mjs";
 import { sink } from "../lib/chat/log.mjs";
 import * as quota from "../lib/chat/quota.mjs";
-import { BACKOFF, CREDENTIALS_FILE, MACHINE_TOKEN, POLL, SPACING, USAGE_URL, configure, format, pageOpened, reading, refresh, reset, tick, token, turnEnded, until } from "../lib/chat/usage.mjs";
+import { BACKOFF, CREDENTIALS_FILE, MACHINE_TOKEN, POLL, SPACING, USAGE_URL, configure, format, noToken, pageOpened, reading, refresh, reset, tick, token, turnEnded, until } from "../lib/chat/usage.mjs";
 import { remove, scratch } from "./helpers.mjs";
 
 const root = scratch("usage-test");
@@ -142,6 +142,31 @@ describe("asking the endpoint", () => {
     assert.equal(get.asked.length, 0, "asked again before the backoff passed, though a token is there now");
     tick(instance, 1, { get, now: () => T0 + BACKOFF });
     assert.equal(get.asked.length, 1, "not asked once the backoff passed");
+  });
+
+  it("says once why there is no reading, and on a Mac that Claude Code keeps the sign-in in the Keychain", async () => {
+    const said = [];
+    sink((row) => said.push(row));
+    try {
+      remove(path.join(home(root), CREDENTIALS_FILE));
+      await refresh(instance, { get: answering(), now: () => T0, platform: "darwin" });
+      await refresh(instance, { get: answering(), now: () => T0 + BACKOFF, platform: "darwin" });
+      assert.equal(said.length, 1, said.join("\n"));
+      assert.match(said[0], /no unexpired token in \.credentials\.json .*: on a Mac, Claude Code keeps the sign-in in the Keychain, which ovai does not read/);
+      assert.equal(reading(T0 + BACKOFF), null);
+
+      credentials({ claudeAiOauth: { accessToken: "token-own" } });
+      await refresh(instance, { get: answering({ ok: false, status: 401 }), now: () => T0 + 2 * BACKOFF, platform: "linux" });
+      remove(path.join(home(root), CREDENTIALS_FILE));
+      await refresh(instance, { get: answering(), now: () => T0 + 3 * BACKOFF, platform: "linux" });
+      const why = said.filter((line) => /no usage reading/.test(line));
+      assert.equal(why.length, 2, "not said again once a token had been read and was gone again");
+      assert.doesNotMatch(why[1], /Keychain/);
+    } finally {
+      sink(null);
+      credentials({ claudeAiOauth: { accessToken: "token-own" } });
+    }
+    assert.equal(noToken("inherit", "darwin"), `${MACHINE_TOKEN} is not set, so there is no usage reading`);
   });
 
   it("backs off after a refusal, for the backoff or the retry-after the answer names, and keeps the last reading", async () => {

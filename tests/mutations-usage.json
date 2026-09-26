@@ -1,5 +1,20 @@
 [
   {
+    "name": "why there is no reading is said at every ask",
+    "catches": "says once why there is no reading, and on a Mac that Claude Code keeps the sign-in in the Keychain",
+    "edits": [{ "file": "lib/chat/usage.mjs", "from": "    if (!live.saidNoToken) {", "to": "    if (true) {" }]
+  },
+  {
+    "name": "a Mac is not told the sign-in is in the Keychain",
+    "catches": "says once why there is no reading, and on a Mac that Claude Code keeps the sign-in in the Keychain",
+    "edits": [{ "file": "lib/chat/usage.mjs", "from": "return platform === \"darwin\" ? ", "to": "return platform === \"mac\" ? " }]
+  },
+  {
+    "name": "once said, why there is no reading is never said again, though a token was read in between",
+    "catches": "says once why there is no reading, and on a Mac that Claude Code keeps the sign-in in the Keychain",
+    "edits": [{ "file": "lib/chat/usage.mjs", "from": "  live.saidNoToken = false;\n", "to": "" }]
+  },
+  {
     "name": "an inheriting instance reads the file instead of the machine's token",
     "catches": "is the machine's when the instance inherits it, and nothing when the machine has none",
     "edits": [
@@ -38,8 +53,8 @@
     "edits": [
       {
         "file": "lib/chat/usage.mjs",
-        "from": "  } catch {\n    return null;\n  }\n}\n\n// One request",
-        "to": "  } catch {\n    return env[MACHINE_TOKEN] ?? null;\n  }\n}\n\n// One request"
+        "from": "  } catch {\n    return null;\n  }\n}\n\n// Why there is no token",
+        "to": "  } catch {\n    return env[MACHINE_TOKEN] ?? null;\n  }\n}\n\n// Why there is no token"
       }
     ]
   },
@@ -82,8 +97,8 @@
     "edits": [
       {
         "file": "lib/chat/usage.mjs",
-        "from": "  if (bearer === null) {\n    live.nextAt = now() + BACKOFF;\n    return;\n  }",
-        "to": "  if (bearer === null) {\n    return;\n  }"
+        "from": "  if (bearer === null) {\n    live.nextAt = now() + BACKOFF;\n",
+        "to": "  if (bearer === null) {\n"
       }
     ]
   },
