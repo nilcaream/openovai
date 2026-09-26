@@ -534,26 +534,26 @@ describe("what the Leader is told about the files", () => {
   // The Leader is given the Worker's file as well as its own. Told nothing, it would follow it;
   // told what it is, it briefs the task and leaves the method to what the Worker already holds.
   it("tells the Leader the Worker's frame is not its own, and is there so it briefs the task", () => {
-    assert.match(leader(), /After them comes the Worker's, under `for="worker"`\. That one is not yours to follow/);
-    assert.match(leader(), /it is what\s+every Worker is already given, and it is there so that you brief the task and not the method/);
+    assert.match(leader(), /After the customization frames comes the Worker's, under `for="worker"`\. That one is not yours to\s+follow/);
+    assert.match(leader(), /it is what every Worker is already given, and it is there so that you brief the task and\s+not the method/);
   });
 
   it("tells the Leader it writes a line only on the User's word, and tells or hires again after", () => {
     assert.match(leader(), /a Worker proposes a line and never\s+writes one/);
     assert.match(leader(), new RegExp(`${LEAD} writes one only with ${USER}'s permission said in words`));
-    assert.match(leader(), /tell every running Worker the line itself, or `hire` it again\s+on its desk/);
+    assert.match(leader(), /tell every running Worker the line itself, or\s+`hire` it again on its desk/);
   });
 });
 
 describe("what a Worker is told about the files", () => {
   it("tells the Worker it is not given the Leader's file", () => {
-    assert.match(worker(), /There is\s+no frame for the Leader's file; you are not given it\./);
+    assert.match(worker(), /There is\s+no customization frame for the Leader's file; you are not given it\./);
     assert.doesNotMatch(worker(), /customization\/leader\.md/);
   });
 
   it("tells the Worker to propose a line and never write one, and that a line said in a message holds", () => {
-    assert.match(worker(), new RegExp(`Propose a line to ${LEAD}, never\\s+write one`));
+    assert.match(worker(), new RegExp(`Propose a line to\\s+${LEAD}, never write one`));
     assert.match(worker(), new RegExp(`The files are ${USER}'s: a Worker proposes a line and never\\s+writes one, and ${LEAD} writes one only with ${USER}'s permission said in words`));
-    assert.match(worker(), /a line you are told in a message is\s+one you follow for the\s+rest of this session/);
+    assert.match(worker(), /a line you are told in a message is\s+one you follow for the\s+rest of\s+this session, whatever the customization frames say\./);
   });
 });

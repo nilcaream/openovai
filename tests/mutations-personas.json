@@ -786,8 +786,8 @@
     "edits": [
       {
         "file": "lib/templates/leader.md",
-        "from": "After them comes the Worker's, under `for=\"worker\"`. That one is not yours to follow — it is what\nevery Worker is already given, and it is there so that you brief the task and not the method.",
-        "to": "After them comes the Worker's, which is yours to follow like the rest."
+        "from": "After the customization frames comes the Worker's, under `for=\"worker\"`. That one is not yours to\nfollow — it is what every Worker is already given, and it is there so that you brief the task and\nnot the method.",
+        "to": "After the customization frames comes the Worker's, which is yours to follow like the rest."
       }
     ]
   },
@@ -808,7 +808,7 @@
     "edits": [
       {
         "file": "lib/templates/worker.md",
-        "from": "There is no frame for the Leader's file; you are not given it.",
+        "from": "There is no customization frame for the Leader's file; you are not given it.",
         "to": "The Leader's file, `customization/leader.md`, comes to you under the rest."
       }
     ]
@@ -819,7 +819,7 @@
     "edits": [
       {
         "file": "lib/templates/worker.md",
-        "from": "Propose a line to {{LEADER}}, never\nwrite one;",
+        "from": "Propose a line to\n{{LEADER}}, never write one;",
         "to": "Write a line yourself when you see one missing;"
       }
     ]
