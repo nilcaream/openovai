@@ -51,6 +51,14 @@ one to the Leader starts it. The restart event no longer tells either role how t
 beyond going on from what the desk says. Sessions hired before this version keep the persona they
 were rendered with.
 
+**The server answers only to its own address.** A request whose `Host` is not `127.0.0.1:<port>`
+or `localhost:<port>` is refused with 421 on every route, the page included. A request that changes
+something (anything but GET, HEAD, OPTIONS) and carries an `Origin` is refused with 403 unless that
+origin is `http://127.0.0.1:<port>` or `http://localhost:<port>`. Before this, a web page whose own
+name was pointed at 127.0.0.1 could load the page, read its secret and drive every seat. ovai has
+had no security hardening, and this closes that one gap and nothing else: any process or user on
+the machine that connects to the port directly still gets the page and its secret from `GET /`.
+
 ## 0.19.0
 
 **The Leader stops and restarts Workers; a Worker only works.** A Worker no longer has

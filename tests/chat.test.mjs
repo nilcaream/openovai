@@ -11,6 +11,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
+import http from "node:http";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
@@ -243,6 +244,47 @@ describe("what the chat serves", () => {
     assert.equal(health.port, server.address().port);
     assert.equal(typeof health.version, "string");
     assert.deepEqual(Object.keys(health).sort(), ["instance", "port", "version"]);
+  });
+
+  // fetch will not set Host, so these go over node:http with the headers written by hand. A POST to
+  // a seat nobody holds is a route that changes nothing: 404 when let through, the refusal when not.
+  function raw(method, route, headers) {
+    return new Promise((resolve, reject) => {
+      const asked = http.request(`${url}${route}`, { method, headers: { authorization: `Bearer ${pageSecret()}`, ...headers } }, (answer) => {
+        let body = "";
+        answer.on("data", (chunk) => (body += chunk));
+        answer.on("end", () => resolve({ status: answer.statusCode, body }));
+      });
+      asked.on("error", reject);
+      asked.end();
+    });
+  }
+  const own = () => [`127.0.0.1:${server.address().port}`, `localhost:${server.address().port}`];
+
+  it("refuses a request for any name but its own, the page and its secret included", async () => {
+    const port = server.address().port;
+    for (const host of [`attacker.example:${port}`, "127.0.0.1", `127.0.0.1:${port + 1}`]) {
+      const answered = await raw("GET", "/", { host });
+      assert.equal(answered.status, 421, host);
+      assert.ok(!answered.body.includes(pageSecret()), `the secret went to ${host}`);
+      assert.equal((await raw("POST", "/sessions/Nobody/typing", { host })).status, 421, host);
+    }
+    for (const host of own()) {
+      const answered = await raw("GET", "/", { host });
+      assert.equal(answered.status, 200, host);
+      assert.ok(answered.body.includes(pageSecret()), host);
+      assert.equal((await raw("POST", "/sessions/Nobody/typing", { host })).status, 404, host);
+    }
+  });
+
+  it("takes a change only from its own origins when the request names one", async () => {
+    const [host] = own();
+    assert.equal((await raw("POST", "/sessions/Nobody/typing", { host, origin: "http://attacker.example" })).status, 403);
+    assert.equal((await raw("POST", "/sessions/Nobody/typing", { host, origin: `http://127.0.0.1:${server.address().port + 1}` })).status, 403);
+    for (const name of own()) {
+      assert.equal((await raw("POST", "/sessions/Nobody/typing", { host, origin: `http://${name}` })).status, 404, name);
+    }
+    assert.equal((await raw("GET", "/health", { host, origin: "http://attacker.example" })).status, 200);
   });
 
   it("records where it is listening, for whoever starts a session", () => {

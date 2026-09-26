@@ -44,6 +44,39 @@
     ]
   },
   {
+    "name": "a request for any name is served",
+    "catches": "refuses a request for any name but its own, the page and its secret included",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "  if (!names.includes(request.headers.host)) {",
+        "to": "  if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "localhost is not one of its names",
+    "catches": "refuses a request for any name but its own, the page and its secret included",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "  return [`${HOST}:${port}`, `localhost:${port}`];",
+        "to": "  return [`${HOST}:${port}`];"
+      }
+    ]
+  },
+  {
+    "name": "a change is taken from any origin",
+    "catches": "takes a change only from its own origins when the request names one",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "  if (!READS.has(request.method) && origin !== undefined && !names.some((name) => origin === `http://${name}`)) {",
+        "to": "  if (false) {"
+      }
+    ]
+  },
+  {
     "name": "the health says nothing about the port",
     "catches": "says in its health which instance it serves, on which port, at which version",
     "edits": [
