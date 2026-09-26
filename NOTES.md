@@ -77,6 +77,11 @@ only a request that carries it. The view's page allows no inline script or style
 The Leader and the Workers are now told to name a file by its path from the instance root, and a
 file outside the instance by its absolute path.
 
+**A User's message that waited says only when it went in.** Beside its stamp, a message that waited
+five seconds or more used to read `delivered 22:31:01 ✓ — 10 seconds after 2026.09.26 Saturday
+22:30:52`. It now reads `delivered 22:31:01 ✓ 2026.09.26 Saturday 22:30:52`: the delivery time, then
+the time it was typed. When a message is queued and delivered is unchanged.
+
 ## 0.19.0
 
 **The Leader stops and restarts Workers; a Worker only works.** A Worker no longer has

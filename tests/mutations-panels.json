@@ -385,6 +385,17 @@
     ]
   },
   {
+    "name": "a row that waited says how long after it was typed",
+    "catches": "says when a row that waited went in and nothing more, and nothing of a wait under LATE_AFTER",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "`delivered ${waited.clock} ✓`",
+        "to": "`delivered ${waited.clock} ✓ — ${waited.seconds} seconds after`"
+      }
+    ]
+  },
+  {
     "name": "the delivered glyph is the whole word",
     "catches": "waits as sending on an idle seat, as queued behind the turn on a busy one, and reads delivered once the frame went in, with the glyph alone for a narrow row",
     "edits": [
