@@ -2,7 +2,22 @@
   {
     "name": "the checksum is never compared: the archive is taken as it came",
     "catches": "refuses an archive whose checksum does not match",
-    "edits": [{ "file": "lib/runtime.sh", "from": "sha256sum -c --status -)", "to": "cat >/dev/null)" }]
+    "edits": [{ "file": "lib/runtime.sh", "from": "| check_sums)", "to": "| cat >/dev/null)" }]
+  },
+  {
+    "name": "a Mac's shasum is asked for its default SHA-1",
+    "catches": "checks with shasum -a 256 where there is no sha256sum, as on a Mac",
+    "edits": [{ "file": "lib/runtime.sh", "from": "shasum -a 256 -c --status -", "to": "shasum -c --status -" }]
+  },
+  {
+    "name": "a machine with neither checker is not refused up front",
+    "catches": "refuses to go on without either checker, before anything is taken as verified",
+    "edits": [{ "file": "lib/runtime.sh", "from": "    command -v sha256sum >/dev/null 2>&1 || command -v shasum >/dev/null 2>&1 ||\n        die \"sha256sum or shasum is required to verify ${archive_name}, and neither is on your PATH\"\n", "to": "" }]
+  },
+  {
+    "name": "a Mac is named linux",
+    "catches": "names a Mac in the words nodejs.org uses",
+    "edits": [{ "file": "lib/runtime.sh", "from": "Darwin) os=darwin ;;", "to": "Darwin) os=linux ;;" }]
   },
   {
     "name": "a checksum file that names the archive on no line is not refused",
@@ -11,8 +26,8 @@
   },
   {
     "name": "any operating system is taken for Linux",
-    "catches": "refuses anything but Linux in one line",
-    "edits": [{ "file": "lib/runtime.sh", "from": "    [ \"${system}\" = \"Linux\" ] || die \"only Linux is supported, and this is ${system}\"\n", "to": "" }]
+    "catches": "refuses anything but Linux and macOS in one line",
+    "edits": [{ "file": "lib/runtime.sh", "from": "        *) die \"only Linux and macOS are supported, and this is ${system}\" ;;\n", "to": "        *) os=linux ;;\n" }]
   },
   {
     "name": "the shell keeps the runtimes under ~/.local rather than ~/.local/share",
@@ -72,7 +87,7 @@
   {
     "name": "the platform is named with the machine word rather than nodejs.org's",
     "catches": "is this machine, in the words nodejs.org uses",
-    "edits": [{ "file": "lib/runtime.sh", "from": "x86_64) printf 'linux-x64\\n' ;;", "to": "x86_64) printf 'linux-x86_64\\n' ;;" }]
+    "edits": [{ "file": "lib/runtime.sh", "from": "x86_64) printf '%s-x64\\n'", "to": "x86_64) printf '%s-x86_64\\n'" }]
   },
   {
     "name": "the module skips a line it cannot read rather than refusing it",

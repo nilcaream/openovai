@@ -271,13 +271,21 @@ describe("run from its place", () => {
     assert.equal(said.err, `openovai: ${releases}/9.9.6 is there but has no install.sh; remove the directory and run this again`);
   });
 
-  it("refuses anything but Linux in one line", async () => {
+  it("refuses anything but Linux and macOS in one line", async () => {
     const { home } = aHome("not-linux");
     const fake = path.join(here, "not-linux");
-    standIn(fake, "uname", "echo Darwin");
+    standIn(fake, "uname", "echo FreeBSD");
     const said = await run([OLDER], { home, url: served.url, env: { PATH: `${fake}:${process.env.PATH}` } });
     assert.equal(said.status, 1);
-    assert.equal(said.err, "openovai: only Linux is supported, and this is Darwin");
+    assert.equal(said.err, "openovai: only Linux and macOS are supported, and this is FreeBSD");
+  });
+
+  it("goes on for a Mac", async () => {
+    const { home } = aHome("mac");
+    const fake = path.join(here, "mac");
+    standIn(fake, "uname", "echo Darwin");
+    const said = await run([OLDER], { home, url: served.url, env: { PATH: `${fake}:${process.env.PATH}` } });
+    assert.equal(said.status, 0, said.err);
   });
 
   it("refuses to run without tar", async () => {

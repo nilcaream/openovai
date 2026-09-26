@@ -211,7 +211,10 @@ install_self() {
 
 [ -n "${HOME:-}" ] || die "HOME is not set"
 system="$(uname -s)"
-[ "${system}" = "Linux" ] || die "only Linux is supported, and this is ${system}"
+case "${system}" in
+    Linux | Darwin) ;;
+    *) die "only Linux and macOS are supported, and this is ${system}" ;;
+esac
 
 if [ -f "$0" ] && grep -qF -- "${marker}" "$0"; then
     main "$@"

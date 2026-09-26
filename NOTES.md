@@ -120,6 +120,13 @@ On a machine with no node of its own, every Bash call hit a failing hook. They n
 instance's version pins. `ovai update` replaces the old commands with these and keeps any hook of
 your own.
 
+**The installer takes a Mac.** `openovai` and `lib/runtime.sh` used to refuse anything but Linux.
+They now take macOS too, and fetch the `darwin-arm64` or `darwin-x64` Node.js archive from
+nodejs.org. Claude Code comes from the same `npm install`, which picks its macOS build by itself.
+Where there is no `sha256sum`, the archive is checked with `shasum -a 256`, and a machine with
+neither is refused before anything is taken as verified. Assumes: this has been tested with a
+stand-in `uname` and `shasum` on Linux, not yet run on a Mac.
+
 ## 0.19.0
 
 **The Leader stops and restarts Workers; a Worker only works.** A Worker no longer has

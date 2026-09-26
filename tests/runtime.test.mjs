@@ -168,12 +168,21 @@ describe("the platform", () => {
     assert.equal((await sh(repo, ["platform"])).out, PLATFORM);
   });
 
-  it("refuses anything but Linux in one line", async () => {
+  it("names a Mac in the words nodejs.org uses", async () => {
+    for (const [machine, named] of [["arm64", "darwin-arm64"], ["x86_64", "darwin-x64"]]) {
+      const fake = path.join(here, `mac-${machine}`);
+      standIn(fake, "uname", `case "$1" in -s) echo Darwin ;; -m) echo ${machine} ;; esac`);
+      const said = await sh(repo, ["platform"], { PATH: `${fake}:${process.env.PATH}` });
+      assert.equal(said.out, named, said.err);
+    }
+  });
+
+  it("refuses anything but Linux and macOS in one line", async () => {
     const fake = path.join(here, "not-linux");
-    standIn(fake, "uname", 'case "$1" in -s) echo Darwin ;; -m) echo arm64 ;; esac');
+    standIn(fake, "uname", 'case "$1" in -s) echo FreeBSD ;; -m) echo arm64 ;; esac');
     const said = await sh(repo, ["platform"], { PATH: `${fake}:${process.env.PATH}` });
     assert.equal(said.status, 1);
-    assert.equal(said.err, "runtime.sh: only Linux is supported, and this is Darwin");
+    assert.equal(said.err, "runtime.sh: only Linux and macOS are supported, and this is FreeBSD");
   });
 
   it("refuses a machine nodejs.org has no archive for", async () => {
@@ -227,6 +236,45 @@ describe("verify", () => {
     const said = await sh(repo, ["verify", archive.tarball, archive.sums]);
     assert.equal(said.status, 1);
     assert.match(said.err, /has 0 lines naming node-v.*, not one; nothing was verified/);
+  });
+
+  // A PATH holding only what verify runs, with or without a shasum; never a sha256sum. The shasum
+  // is a stand-in that writes down how it was asked and hands the check to whichever checker this
+  // machine has, so the result is a real check either way.
+  function aPathWithoutSha256sum(name, { shasum }) {
+    const toolbox = path.join(here, name);
+    fs.mkdirSync(toolbox, { recursive: true });
+    for (const tool of ["sh", "dirname", "grep", "rm"]) {
+      fs.symlinkSync(spawnSync("sh", ["-c", `command -v ${tool}`], { encoding: "utf8" }).stdout.trim(), path.join(toolbox, tool));
+    }
+    const asked = path.join(here, `${name}.asked`);
+    if (shasum) {
+      const real = spawnSync("sh", ["-c", "command -v sha256sum"], { encoding: "utf8" }).stdout.trim();
+      const check = real === "" ? `${spawnSync("sh", ["-c", "command -v shasum"], { encoding: "utf8" }).stdout.trim()} -a 256` : real;
+      standIn(toolbox, "shasum", `printf '%s\\n' "$*" > '${asked}'\nexec ${check} -c --status -`);
+    }
+    return { PATH: toolbox, asked };
+  }
+
+  it("checks with shasum -a 256 where there is no sha256sum, as on a Mac", async () => {
+    const archive = anArchive("verify-shasum");
+    const { PATH, asked } = aPathWithoutSha256sum("toolbox-shasum", { shasum: true });
+    const said = await sh(repo, ["verify", archive.tarball, archive.sums], { PATH });
+    assert.equal(said.status, 0, said.err);
+    assert.equal(fs.readFileSync(asked, "utf8"), "-a 256 -c --status -\n");
+
+    const bad = anArchive("verify-shasum-bad", { sums: (lines) => lines.map((line) => line.replace(/^[0-9a-f]{64}  node-v.*linux/, `${"f".repeat(64)}  node-v${NODE}-linux`)) });
+    const refused = await sh(repo, ["verify", bad.tarball, bad.sums], { PATH });
+    assert.equal(refused.status, 1);
+    assert.match(refused.err, /does not match its checksum in SHASUMS256\.txt/);
+  });
+
+  it("refuses to go on without either checker, before anything is taken as verified", async () => {
+    const archive = anArchive("verify-no-checker");
+    const { PATH } = aPathWithoutSha256sum("toolbox-no-checker", { shasum: false });
+    const said = await sh(repo, ["verify", archive.tarball, archive.sums], { PATH });
+    assert.equal(said.status, 1);
+    assert.equal(said.err, `runtime.sh: sha256sum or shasum is required to verify node-v${NODE}-${PLATFORM}.tar.gz, and neither is on your PATH`);
   });
 });
 

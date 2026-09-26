@@ -3,7 +3,7 @@
 # runtime.sh — the toolkit's own Node.js and Claude Code, fetched once per user and shared.
 #
 # This is the one piece of the toolkit that runs before any node exists, which is why it is POSIX
-# sh and needs nothing beyond sh, curl or wget, tar, sha256sum and uname. It reads the exact
+# sh and needs nothing beyond sh, curl or wget, tar, sha256sum or shasum, and uname. It reads the exact
 # versions from lib/RUNTIME beside it, keeps the runtimes under the XDG data directory, and never
 # looks at, uses or changes a node, npm or claude the machine already has.
 #
@@ -41,15 +41,20 @@ data_dir() {
     printf '%s/openovai\n' "${XDG_DATA_HOME:-${HOME}/.local/share}"
 }
 
-# The one platform the toolkit runs on, in the words nodejs.org names its archives with. Anything
-# else is refused in one line rather than fetched and found not to run.
+# The platforms the toolkit runs on, in the words nodejs.org names its archives with: linux or
+# darwin, x64 or arm64. Anything else is refused in one line rather than fetched and found not to
+# run.
 platform() {
     system="$(uname -s)"
     machine="$(uname -m)"
-    [ "${system}" = "Linux" ] || die "only Linux is supported, and this is ${system}"
+    case "${system}" in
+        Linux) os=linux ;;
+        Darwin) os=darwin ;;
+        *) die "only Linux and macOS are supported, and this is ${system}" ;;
+    esac
     case "${machine}" in
-        x86_64) printf 'linux-x64\n' ;;
-        aarch64 | arm64) printf 'linux-arm64\n' ;;
+        x86_64) printf '%s-x64\n' "${os}" ;;
+        aarch64 | arm64) printf '%s-arm64\n' "${os}" ;;
         *) die "only x86_64 and arm64 are supported, and this machine is ${machine}" ;;
     esac
 }
@@ -87,6 +92,17 @@ fetch() {
     fi
 }
 
+# Check the checksum lines on stdin against the files they name, silently, with the status saying
+# whether all of them match: sha256sum where it is there, and the shasum a Mac ships where it is not
+# — both read the same format and take the same flags.
+check_sums() {
+    if command -v sha256sum >/dev/null 2>&1; then
+        sha256sum -c --status -
+    else
+        shasum -a 256 -c --status -
+    fi
+}
+
 # ARCHIVE against the one line of SUMS that names it. The file is the SHASUMS256.txt nodejs.org
 # publishes beside every release: a checksum, two spaces, a file name. Exactly one line has to name
 # the archive, or nothing was verified.
@@ -95,9 +111,11 @@ verify() {
     sums="$2"
     archive_name="${archive##*/}"
     archive_dir="$(dirname -- "${archive}")"
+    command -v sha256sum >/dev/null 2>&1 || command -v shasum >/dev/null 2>&1 ||
+        die "sha256sum or shasum is required to verify ${archive_name}, and neither is on your PATH"
     lines="$(grep -c "  ${archive_name}\$" "${sums}" || true)"
     [ "${lines}" = "1" ] || die "${sums} has ${lines} lines naming ${archive_name}, not one; nothing was verified"
-    (cd -- "${archive_dir}" && grep "  ${archive_name}\$" "${sums}" | sha256sum -c --status -) ||
+    (cd -- "${archive_dir}" && grep "  ${archive_name}\$" "${sums}" | check_sums) ||
         die "${archive_name} does not match its checksum in ${sums##*/}; the download is corrupt or tampered with"
 }
 

@@ -61,8 +61,13 @@
   },
   {
     "name": "any operating system is taken for Linux",
-    "catches": "refuses anything but Linux in one line",
-    "edits": [{ "file": "openovai", "from": "[ \"${system}\" = \"Linux\" ] || die \"only Linux is supported, and this is ${system}\"\n", "to": "" }]
+    "catches": "refuses anything but Linux and macOS in one line",
+    "edits": [{ "file": "openovai", "from": "    *) die \"only Linux and macOS are supported, and this is ${system}\" ;;\n", "to": "" }]
+  },
+  {
+    "name": "a Mac is refused",
+    "catches": "goes on for a Mac",
+    "edits": [{ "file": "openovai", "from": "    Linux | Darwin) ;;", "to": "    Linux) ;;" }]
   },
   {
     "name": "tar is not looked for before the download",

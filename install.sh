@@ -8,7 +8,7 @@
 # wrong here is a fetch, and lib/runtime.sh says so in plain words.
 #
 # POSIX sh: it runs before any node exists, and the machine owes it nothing more than lib/runtime.sh
-# needs — sh, curl or wget, tar, sha256sum and uname. Nothing of the machine's own node or claude is
+# needs — sh, curl or wget, tar, sha256sum or shasum, and uname. Nothing of the machine's own node or claude is
 # looked at, used or changed.
 
 set -eu
