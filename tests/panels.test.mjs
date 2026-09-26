@@ -182,6 +182,13 @@ describe("marks and controls", () => {
     assert.equal(title(fresh()), "OpenOv AI");
   });
 
+  it("the version on the Leader's head is the one the snapshot names, and nothing before it", () => {
+    const state = fresh();
+    assert.equal(state.version, "");
+    applyEvent(state, snapshot([about(LEADER)], { version: "12345678" }), 0);
+    assert.equal(state.version, "12345678");
+  });
+
   it("the panel that asks carries the mark, and anyAsking says whether any panel does", () => {
     const state = fresh();
     applyEvent(state, snapshot([about(LEADER), about("Paul")], { instance: "~/inst" }), 0);

@@ -477,8 +477,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "  .phead .conn, .phead .quota { font-family: var(--mono); font-size: .78rem; color: var(--fg-dim); white-space: nowrap; flex: 0 0 auto; }",
-        "to": "  .phead .conn, .phead .quota { font-family: var(--mono); font-size: .78rem; color: var(--fg-dim); white-space: nowrap; flex: 0 1 auto; }"
+        "from": "  .phead .conn, .phead .version, .phead .quota { font-family: var(--mono); font-size: .78rem; color: var(--fg-dim); white-space: nowrap; flex: 0 0 auto; }",
+        "to": "  .phead .conn, .phead .version, .phead .quota { font-family: var(--mono); font-size: .78rem; color: var(--fg-dim); white-space: nowrap; flex: 0 1 auto; }"
       }
     ]
   },
@@ -2642,6 +2642,17 @@
         "file": "lib/chat/page.html",
         "from": "<link rel=\"stylesheet\" href=\"/md.css\">\n",
         "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the Leader's head does not draw the version",
+    "catches": "draws the version the server runs between the connection word and the quota line",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      panel.facts.version.textContent = state.version;",
+        "to": "      panel.facts.version.textContent = \"\";"
       }
     ]
   }

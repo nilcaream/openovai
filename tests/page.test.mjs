@@ -143,7 +143,7 @@ describe("the rules", () => {
     const declared = (selector) => rules.find((rule) => rule.selector === selector)?.declarations;
     assert.equal(declared(".phead").overflow, "hidden");
     assert.equal(declared(".phead")["white-space"], "nowrap");
-    for (const part of [".phead .info", ".phead .state", ".phead .conn, .phead .quota"]) assert.equal(declared(part).flex, "0 0 auto", part);
+    for (const part of [".phead .info", ".phead .state", ".phead .conn, .phead .version, .phead .quota"]) assert.equal(declared(part).flex, "0 0 auto", part);
     assert.equal(declared(".phead .info")["text-overflow"], undefined, "the model and the context are shown whole or clipped, never cut to a fragment");
     assert.equal(declared(".phead .theme")["margin-left"], "auto");
   });
@@ -976,10 +976,18 @@ describe("the script", () => {
   // stream, and the quota line with its tooltip — drawn from the words panels.mjs makes, on
   // every draw; the theme toggle after them.
   it("draws the connection word and the quota line on the Leader's head, and marks a lost stream", () => {
-    assert.match(script, /headLine\.append\(facts\.conn, facts\.quota\);[\s\S]{0,600}headLine\.append\(themeToggle\);/);
+    assert.match(script, /headLine\.append\(facts\.conn, facts\.version, facts\.quota\);[\s\S]{0,600}headLine\.append\(themeToggle\);/);
     assert.match(script, /panel\.facts\.conn\.textContent = state\.connection;\s*panel\.facts\.conn\.classList\.toggle\("off", state\.connection !== CONNECTED\);/);
     assert.match(script, /panel\.facts\.quota\.textContent = quotaLine\(state\.quota\);\s*panel\.facts\.quota\.title = quotaTitle\(state\.quota, new Date\(\)\);/);
     assert.match(script, /document\.title = title\(state\);/);
+  });
+
+  // Between the connection word and the quota line, behind the same dot, the version the server
+  // runs: a release, or the commit of a build.
+  it("draws the version the server runs between the connection word and the quota line", () => {
+    assert.match(script, /panel\.facts\.conn\.classList\.toggle\("off", state\.connection !== CONNECTED\);\s*panel\.facts\.version\.textContent = state\.version;\s*panel\.facts\.quota\.textContent/);
+    const dotted = rules.find((rule) => rule.selector.includes(".phead .version:not(:empty)::before"));
+    assert.equal(dotted?.declarations.content, '"\\00a0·\\00a0"');
   });
 
   // The tab's icon carries the asking state, the title never: on every draw the icon link points

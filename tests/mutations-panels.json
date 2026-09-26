@@ -724,5 +724,16 @@
         "to": "  return follow;\n}"
       }
     ]
+  },
+  {
+    "name": "the version a snapshot names is not kept",
+    "catches": "the version on the Leader's head is the one the snapshot names, and nothing before it",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "      state.version = data.version ?? \"\";",
+        "to": "      state.version = \"\";"
+      }
+    ]
   }
 ]

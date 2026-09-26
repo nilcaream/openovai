@@ -27,6 +27,11 @@ failed": the finish is not handed to a version that does not take it. An instanc
 checkout as the release its `lib/VERSION` names, so the first build is taken with the checkout's own
 updater: `node <checkout>/lib/ovai.mjs --root <instance> update --from <checkout>`.
 
+**The Leader's panel head shows the version the server runs.** After the connection word and
+before the quota, behind the same dot: `Bobby · opus 53k · listening · connected · 0.20.0 · 55% (46m)`,
+or the 8-character commit on a build (`… · connected · 12345678 · …`). The page takes it from the
+snapshot the server sends first, which now carries `version`.
+
 **The Leader gives the whole open list in two cases, said plainly: when the User asks where things
 stand, and when the Leader asks the User what to take next.** The instruction used to read as
 though the Leader were the one telling the User where things stand. A Leader hired before this

@@ -354,6 +354,11 @@ describe("what the chat serves", () => {
     assert.equal(shownRoot("/srv/inst", "/home/a"), "/srv/inst");
   });
 
+  it("tells the page the version the server runs, as the instance's lib/VERSION says it", async () => {
+    const room = JSON.parse((await page("GET", "/sessions")).body);
+    assert.equal(room.version, fs.readFileSync(path.join(instance, "lib", "VERSION"), "utf8").trim());
+  });
+
   it("puts the Leader first and the rest in name order", async () => {
     const { sessions } = JSON.parse((await page("GET", "/sessions")).body);
     assert.deepEqual(

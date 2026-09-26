@@ -68,8 +68,8 @@
   .phead .info:not(:empty) + .state:not(:empty)::before { content: "\00a0·\00a0"; }
   /* on the Leader's head only: the connection word, red while the page has no stream, and the
      account's usage windows */
-  .phead .conn, .phead .quota { font-family: var(--mono); font-size: .78rem; color: var(--fg-dim); white-space: nowrap; flex: 0 0 auto; }
-  .phead .conn::before, .phead .quota:not(:empty)::before { content: "\00a0·\00a0"; }
+  .phead .conn, .phead .version, .phead .quota { font-family: var(--mono); font-size: .78rem; color: var(--fg-dim); white-space: nowrap; flex: 0 0 auto; }
+  .phead .conn::before, .phead .version:not(:empty)::before, .phead .quota:not(:empty)::before { content: "\00a0·\00a0"; }
   .phead .conn.off { color: var(--bad); }
   /* the theme toggle, last on the Leader's head and pushed to its right edge: one icon button
      showing the theme that is on; both icons are in the DOM and the theme picks the one drawn */
@@ -392,14 +392,16 @@
     const word = document.createElement("span");
     word.className = "state";
     headLine.append(nameLine, info, word);
-    // The Leader's head carries, after the state word, how the page stands to the server and the
-    // account's usage windows, and the theme toggle last, at the right edge.
+    // The Leader's head carries, after the state word, how the page stands to the server, the
+    // version the server runs and the account's usage windows, and the theme toggle last, at the
+    // right edge.
     const leads = name === state.leader;
-    const facts = leads ? { conn: document.createElement("span"), quota: document.createElement("span") } : null;
+    const facts = leads ? { conn: document.createElement("span"), version: document.createElement("span"), quota: document.createElement("span") } : null;
     if (facts !== null) {
       facts.conn.className = "conn";
+      facts.version.className = "version";
       facts.quota.className = "quota";
-      headLine.append(facts.conn, facts.quota);
+      headLine.append(facts.conn, facts.version, facts.quota);
     }
     if (leads) {
       themeToggle = document.createElement("button");
@@ -1068,6 +1070,7 @@
     if (panel.facts !== null) {
       panel.facts.conn.textContent = state.connection;
       panel.facts.conn.classList.toggle("off", state.connection !== CONNECTED);
+      panel.facts.version.textContent = state.version;
       panel.facts.quota.textContent = quotaLine(state.quota);
       panel.facts.quota.title = quotaTitle(state.quota, new Date());
     }

@@ -2031,5 +2031,16 @@
         "to": ";"
       }
     ]
+  },
+  {
+    "name": "the snapshot does not say the version the server runs",
+    "catches": "tells the page the version the server runs, as the instance's lib/VERSION says it",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "    instance: shownRoot(instance.root),\n    version: version(instance.root) ?? \"unknown\",",
+        "to": "    instance: shownRoot(instance.root),"
+      }
+    ]
   }
 ]
