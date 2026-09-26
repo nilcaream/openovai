@@ -82,8 +82,8 @@
     "edits": [
       {
         "file": "lib/knowledge.mjs",
-        "from": "      lines.push(`  ${one.name} — ${one.error}`);",
-        "to": "      lines.push(`  ${one.name}`);"
+        "from": "      lines.push(`  ${KNOWLEDGE}/${one.name} — ${one.error}`);",
+        "to": "      lines.push(`  ${KNOWLEDGE}/${one.name}`);"
       }
     ]
   },
@@ -126,8 +126,8 @@
     "edits": [
       {
         "file": "lib/knowledge.mjs",
-        "from": "  return found.map(({ one }) => `${one.name}  [${one.tags.join(\", \")}]\\n  ${one.summary}`).join(\"\\n\");",
-        "to": "  return found.map(({ one }) => `${one.name}  [${one.tags.join(\", \")}] ${one.summary}`).join(\"\\n\");"
+        "from": "  return found.map(({ one }) => `${KNOWLEDGE}/${one.name}  [${one.tags.join(\", \")}]\\n  ${one.summary}`).join(\"\\n\");",
+        "to": "  return found.map(({ one }) => `${KNOWLEDGE}/${one.name}  [${one.tags.join(\", \")}] ${one.summary}`).join(\"\\n\");"
       }
     ]
   },
@@ -137,8 +137,8 @@
     "edits": [
       {
         "file": "lib/knowledge.mjs",
-        "from": "  return found.map(({ one }) => `${one.name}  [${one.tags.join(\", \")}]\\n  ${one.summary}`).join(\"\\n\");",
-        "to": "  return found.map(({ one }) => `${one.name}\\n  ${one.summary}`).join(\"\\n\");"
+        "from": "  return found.map(({ one }) => `${KNOWLEDGE}/${one.name}  [${one.tags.join(\", \")}]\\n  ${one.summary}`).join(\"\\n\");",
+        "to": "  return found.map(({ one }) => `${KNOWLEDGE}/${one.name}\\n  ${one.summary}`).join(\"\\n\");"
       }
     ]
   },
@@ -467,7 +467,7 @@
     "edits": [
       {
         "file": "lib/templates/worker.md",
-        "from": "`common.md` is the one note you never edit — it is read by every session here, so what belongs in\nit goes to {{LEADER}} instead.",
+        "from": "`knowledge/common.md` is the one note you never edit — it is read by every session here, so what\nbelongs in it goes to {{LEADER}} instead.",
         "to": ""
       }
     ]
@@ -478,8 +478,19 @@
     "edits": [
       {
         "file": "lib/templates/leader.md",
-        "from": "`common.md` is yours: the team, whom to heed, the business, the lingo",
-        "to": "`common.md` holds the team, whom to heed, the business, the lingo"
+        "from": "`knowledge/common.md` is yours: the team, whom to heed, the business, the lingo",
+        "to": "`knowledge/common.md` holds the team, whom to heed, the business, the lingo"
+      }
+    ]
+  },
+  {
+    "name": "the index names a note by its bare filename again",
+    "catches": "gives each note as its filename and tags, with the summary indented under it",
+    "edits": [
+      {
+        "file": "lib/knowledge.mjs",
+        "from": "  return found.map(({ one }) => `${KNOWLEDGE}/${one.name}  [",
+        "to": "  return found.map(({ one }) => `${one.name}  ["
       }
     ]
   }

@@ -167,7 +167,7 @@ follow — it is what every Worker is already given, and it is there so that you
 not the method. Having changed one of those files, tell every running Worker the line itself, or
 `hire` it again on its desk.
 
-`common.md` is yours: the team, whom to heed, the business, the lingo, where things are, and which
-notes a newcomer reads first. Gather it as you learn it — from {{USER}} in passing, from what
+`knowledge/common.md` is yours: the team, whom to heed, the business, the lingo, where things are,
+and which notes a newcomer reads first. Gather it as you learn it — from {{USER}} in passing, from what
 Workers report — and keep it a page; anything longer is a note of its own that it names. Call
 `validate` at the end of a round.

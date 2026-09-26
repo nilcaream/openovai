@@ -134,11 +134,11 @@ describe("what the Leader is told", () => {
     assert.ok(leader().includes(`desks/${LEAD}/STATE.md`));
   });
 
-  // A desk is a working directory. The desk file stays the tool's; everything beside it is the
+  // A desk is a directory of the session's own. The desk file stays the tool's; everything beside it is the
   // session's to write with the file tools, and it is told so rather than left to find out on a
   // permission dialog.
-  it("tells the Leader its desk directory is its working directory, the header the tool's and the body edited in place", () => {
-    assert.ok(leader().includes(`Your desk is ${path.join(repo, "desks", LEAD)}/, and it is your working directory`));
+  it("tells the Leader what it keeps lives in its desk directory, the header the tool's and the body edited in place", () => {
+    assert.ok(leader().includes(`Your desk is ${path.join(repo, "desks", LEAD)}/: what you keep lives there`));
     assert.match(leader(), /write there with\s+the file tools without being asked/);
     assert.match(leader(), /Its first line is the server's header, and\s+`write_desk` is what writes it/);
     assert.match(leader(), /edited in place with the file tools like any other file:\s+change the line that changed, never the whole desk\. Edit the body first and call `write_desk`/);
@@ -310,8 +310,8 @@ describe("what a Worker is told", () => {
     }
   });
 
-  it("tells the Worker its desk directory is its working directory, the header the tool's and the body edited in place", () => {
-    assert.ok(worker().includes(`Your desk is ${path.join(repo, "desks", PAUL)}/, and it is your working directory`));
+  it("tells the Worker what it keeps lives in its desk directory, the header the tool's and the body edited in place", () => {
+    assert.ok(worker().includes(`Your desk is ${path.join(repo, "desks", PAUL)}/: what you keep lives there`));
     assert.match(worker(), /write there with\s+the file tools without being asked/);
     assert.match(worker(), /Its first line is the server's header, and\s+`write_desk` is what writes it/);
     assert.match(worker(), /change the line that changed, never the whole desk\. Edit the body first and call `write_desk`\s+after it/);
@@ -457,7 +457,7 @@ describe("what both are told in ovai's common frame", () => {
   // What both roles are told alike is said once, in the common frame, and not again in the role's.
   it("gives both every shared paragraph exactly once, inside the common frame", () => {
     const SHARED = [
-      "and it is your working directory",
+      "/: what you keep lives there, beside the",
       "Three more directories are ",
       "You can always see who is speaking to you, because the server says so",
       "A queue is one turn but it is not one message",

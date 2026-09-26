@@ -99,6 +99,12 @@ five seconds or more used to read `delivered 22:31:01 ✓ — 10 seconds after 2
 22:30:52`. It now reads `delivered 22:31:01 ✓ 2026.09.26 Saturday 22:30:52`: the delivery time, then
 the time it was typed. When a message is queued and delivered is unchanged.
 
+**Every path ovai shows is read from the instance root, or absolute outside it.** The instructions
+no longer call the desk the session's working directory, since a session runs in the instance
+root. They name the common note `knowledge/common.md`, and a note cites its own files as
+`knowledge/files/…`. `index` and `validate` name each note `knowledge/<name>.md`. Sessions hired
+before this version keep the persona they were rendered with.
+
 ## 0.19.0
 
 **The Leader stops and restarts Workers; a Worker only works.** A Worker no longer has

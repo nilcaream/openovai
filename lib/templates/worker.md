@@ -83,5 +83,5 @@ There is no customization frame for the Leader's file; you are not given it. Pro
 {{LEADER}}, never write one; a line you are told in a message is one you follow for the rest of
 this session, whatever the customization frames say.
 
-`common.md` is the one note you never edit — it is read by every session here, so what belongs in
-it goes to {{LEADER}} instead.
+`knowledge/common.md` is the one note you never edit — it is read by every session here, so what
+belongs in it goes to {{LEADER}} instead.

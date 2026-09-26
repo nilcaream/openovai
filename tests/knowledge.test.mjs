@@ -88,11 +88,11 @@ describe("the index", () => {
     aroundBrokenFiles((lines) => {
       assert.equal(lines.includes("not indexed:"), true);
       assert.equal(
-        lines.includes("  unreadable.md — no front matter: a note opens with the head between two `---` lines"),
+        lines.includes("  knowledge/unreadable.md — no front matter: a note opens with the head between two `---` lines"),
         true,
         lines.join("\n"),
       );
-      assert.equal(lines.includes("  notes.txt — not a .md file"), true, lines.join("\n"));
+      assert.equal(lines.includes("  knowledge/notes.txt — not a .md file"), true, lines.join("\n"));
       assert.equal(
         lines.some((line) => line.includes("thin.md")),
         false,
@@ -109,17 +109,17 @@ describe("the index", () => {
       .split("\n")
       .filter((line) => line.endsWith("]"))
       .map((line) => line.split(" ")[0]);
-    assert.deepEqual(names, ["gamma-note.md", "alpha-note.md", "beta-note.md"]);
+    assert.deepEqual(names, ["knowledge/gamma-note.md", "knowledge/alpha-note.md", "knowledge/beta-note.md"]);
   });
 
   it("gives each note as its filename and tags, with the summary indented under it", () => {
-    assert.equal(index(root, ["epsilon"]), "beta-note.md  [beta, delta, epsilon]\n  Beta, and what it is for");
+    assert.equal(index(root, ["epsilon"]), "knowledge/beta-note.md  [beta, delta, epsilon]\n  Beta, and what it is for");
   });
 
   // Tags and nothing else. What a tag means is a decision somebody made when they wrote the note,
   // and a search that also matched the words in a summary would return notes nobody filed there.
   it("matches on tags alone, never on a filename or a summary", () => {
-    assert.equal(index(root, ["alpha-note"]).includes("alpha-note.md  ["), false, "a filename is not a tag");
+    assert.equal(index(root, ["alpha-note"]).includes("knowledge/alpha-note.md  ["), false, "a filename is not a tag");
     assert.equal(index(root, ["what"]).includes(".md  ["), false, "a word in a summary is not a tag");
   });
 
@@ -136,7 +136,7 @@ describe("validate", () => {
     try {
       return validate(root, { now })
         .split("\n")
-        .filter((line) => line.startsWith(`${name}:`));
+        .filter((line) => line.startsWith(`knowledge/${name}:`));
     } finally {
       remove(path.join(dir, name));
     }
@@ -148,63 +148,63 @@ describe("validate", () => {
 
   it("reports a head that is missing one of the four fields", () => {
     const [said] = complaintAbout("missing-field.md", "---\ntags: [alpha, beta, gamma]\nsources: [a/b]\nupdated: 2026-09-20\n---\n");
-    assert.equal(said, "missing-field.md: the head has no `summary` (the four fields are summary, tags, sources, updated, all four, none missing)");
+    assert.equal(said, "knowledge/missing-field.md: the head has no `summary` (the four fields are summary, tags, sources, updated, all four, none missing)");
   });
 
   it("reports a head carrying a field the contract has not got", () => {
     const [said] = complaintAbout("extra-field.md", head().replace("updated: 2026-09-20", "updated: 2026-09-20\nauthor: somebody"));
-    assert.equal(said, "extra-field.md: the head has `author` (the four fields are summary, tags, sources, updated, and nothing else)");
+    assert.equal(said, "knowledge/extra-field.md: the head has `author` (the four fields are summary, tags, sources, updated, and nothing else)");
   });
 
   it("reports a summary with nothing on the line", () => {
     const [said] = complaintAbout("no-summary.md", head({ summary: "" }));
-    assert.equal(said, "no-summary.md: `summary` is one non-empty line: what a session gets from reading this note");
+    assert.equal(said, "knowledge/no-summary.md: `summary` is one non-empty line: what a session gets from reading this note");
   });
 
   // Three, because one or two tags describe a note and three begin to describe a shelf.
   it("reports a note carrying fewer than three tags", () => {
     const [said] = complaintAbout("two-tags.md", head({ tags: "[alpha, beta]" }));
-    assert.equal(said, "two-tags.md: `tags` has 2, and a note carries at least 3");
+    assert.equal(said, "knowledge/two-tags.md: `tags` has 2, and a note carries at least 3");
   });
 
   it("reports a tag that is not lowercase letters, digits and hyphens", () => {
     const [said] = complaintAbout("shouty-tag.md", head({ tags: "[alpha, Beta, gamma]" }));
-    assert.equal(said, "shouty-tag.md: `tags` has `Beta`, and a tag is lowercase letters, digits and hyphens");
+    assert.equal(said, "knowledge/shouty-tag.md: `tags` has `Beta`, and a tag is lowercase letters, digits and hyphens");
   });
 
   it("reports a tag named twice", () => {
     const [said] = complaintAbout("twice-tag.md", head({ tags: "[alpha, beta, alpha]" }));
-    assert.equal(said, "twice-tag.md: `tags` names `alpha` twice");
+    assert.equal(said, "knowledge/twice-tag.md: `tags` names `alpha` twice");
   });
 
   // Form, never existence: a path is not opened and a URL is not fetched, so `validate` never says
   // a note is wrong because a directory moved.
   it("reports a source that is not a path from the instance root, a URL, or what the User said", () => {
     const [said] = complaintAbout("bad-source.md", head({ sources: "[/etc/passwd]" }));
-    assert.equal(said, "bad-source.md: `sources` has `/etc/passwd`, and a source is a path from the instance root, a URL, or `<user>`");
+    assert.equal(said, "knowledge/bad-source.md: `sources` has `/etc/passwd`, and a source is a path from the instance root, a URL, or `<user>`");
     assert.deepEqual(complaintAbout("fine-source.md", head({ sources: "[reference/a, https://example.com/x, <user>]" })), []);
     // Literally that word: a path shaped like it is a source nobody can follow.
     assert.deepEqual(complaintAbout("near-miss.md", head({ sources: "[<usr>]" })), [
-      "near-miss.md: `sources` has `<usr>`, and a source is a path from the instance root, a URL, or `<user>`",
+      "knowledge/near-miss.md: `sources` has `<usr>`, and a source is a path from the instance root, a URL, or `<user>`",
     ]);
   });
 
   it("reports a date that is not a real YYYY-MM-DD", () => {
-    assert.deepEqual(complaintAbout("odd-date.md", head({ updated: "22-09-2026" })), ["odd-date.md: `updated` is `22-09-2026`, and a date is YYYY-MM-DD"]);
-    assert.deepEqual(complaintAbout("no-such-day.md", head({ updated: "2026-02-31" })), ["no-such-day.md: `updated` is `2026-02-31`, and a date is YYYY-MM-DD"]);
+    assert.deepEqual(complaintAbout("odd-date.md", head({ updated: "22-09-2026" })), ["knowledge/odd-date.md: `updated` is `22-09-2026`, and a date is YYYY-MM-DD"]);
+    assert.deepEqual(complaintAbout("no-such-day.md", head({ updated: "2026-02-31" })), ["knowledge/no-such-day.md: `updated` is `2026-02-31`, and a date is YYYY-MM-DD"]);
     // A month or a day out of range is two digits like any other, so it passes the shape and
     // reaches the round-trip. `2026-02-31` rolls over to March and comes back differing; these
     // make no date at all, and the tool that exists to report a malformed note must report them
     // rather than fall over on them — one typo would otherwise take the reading down for the
     // whole directory.
-    assert.deepEqual(complaintAbout("month-13.md", head({ updated: "2026-13-01" })), ["month-13.md: `updated` is `2026-13-01`, and a date is YYYY-MM-DD"]);
-    assert.deepEqual(complaintAbout("month-00.md", head({ updated: "2026-00-10" })), ["month-00.md: `updated` is `2026-00-10`, and a date is YYYY-MM-DD"]);
-    assert.deepEqual(complaintAbout("day-45.md", head({ updated: "2026-09-45" })), ["day-45.md: `updated` is `2026-09-45`, and a date is YYYY-MM-DD"]);
+    assert.deepEqual(complaintAbout("month-13.md", head({ updated: "2026-13-01" })), ["knowledge/month-13.md: `updated` is `2026-13-01`, and a date is YYYY-MM-DD"]);
+    assert.deepEqual(complaintAbout("month-00.md", head({ updated: "2026-00-10" })), ["knowledge/month-00.md: `updated` is `2026-00-10`, and a date is YYYY-MM-DD"]);
+    assert.deepEqual(complaintAbout("day-45.md", head({ updated: "2026-09-45" })), ["knowledge/day-45.md: `updated` is `2026-09-45`, and a date is YYYY-MM-DD"]);
   });
 
   it("reports a date after today", () => {
     const [said] = complaintAbout("tomorrow.md", head({ updated: "2026-09-23" }));
-    assert.equal(said, "tomorrow.md: `updated` is `2026-09-23`, which is after today (2026-09-22)");
+    assert.equal(said, "knowledge/tomorrow.md: `updated` is `2026-09-23`, which is after today (2026-09-22)");
     assert.deepEqual(complaintAbout("today.md", head({ updated: "2026-09-22" })), []);
   });
 
@@ -231,7 +231,7 @@ describe("validate", () => {
 
   it("reports a filename that is not lowercase letters, digits and hyphens", () => {
     const [said] = complaintAbout("Shouty_Name.md", head());
-    assert.equal(said, "Shouty_Name.md: a filename is lowercase letters, digits and hyphens, ending `.md`");
+    assert.equal(said, "knowledge/Shouty_Name.md: a filename is lowercase letters, digits and hyphens, ending `.md`");
   });
 
   // A file it could not read as a note at all, at both ends of that: one with no head, and one
@@ -240,9 +240,9 @@ describe("validate", () => {
   // the four a note with an empty head would otherwise collect.
   it("reports a file it could not read as a note, and holds it to none of the other rules", () => {
     assert.deepEqual(complaintAbout("headless.md", "Straight into the facts.\n"), [
-      "headless.md: no front matter: a note opens with the head between two `---` lines",
+      "knowledge/headless.md: no front matter: a note opens with the head between two `---` lines",
     ]);
-    assert.deepEqual(complaintAbout("Notes.txt", "Whatever this is.\n"), ["Notes.txt: not a .md file"]);
+    assert.deepEqual(complaintAbout("Notes.txt", "Whatever this is.\n"), ["knowledge/Notes.txt: not a .md file"]);
   });
 
   // The one directory the shelf holds. What is in `files/` is a note's own, in any layout and any
@@ -254,10 +254,10 @@ describe("validate", () => {
     fs.mkdirSync(path.join(dir, "other"));
     try {
       const judged = validate(root, { now: new Date("2026-09-22T00:00:00Z") }).split("\n");
-      assert.deepEqual(judged.slice(0, -1), ["other: not a file: the one directory `knowledge/` holds is `files/`"]);
+      assert.deepEqual(judged.slice(0, -1), ["knowledge/other: not a file: the one directory `knowledge/` holds is `knowledge/files/`"]);
       const indexed = index(root).split("\n");
-      assert.equal(indexed.some((line) => /^ {2}files |test\.html|something\.png/.test(line)), false, indexed.join("\n"));
-      assert.equal(indexed.some((line) => line.startsWith("  other —")), true, indexed.join("\n"));
+      assert.equal(indexed.some((line) => /^ {2}knowledge\/files |test\.html|something\.png/.test(line)), false, indexed.join("\n"));
+      assert.equal(indexed.some((line) => line.startsWith("  knowledge/other —")), true, indexed.join("\n"));
     } finally {
       remove(path.join(dir, "files"), path.join(dir, "other"));
     }
@@ -327,7 +327,7 @@ describe("what a session is told about knowledge", () => {
     for (const [role, name] of [["leader", "Superman"], ["worker", "Paul"]]) {
       const text = persona(repo, name, { user: "Mike", leader: "Superman" });
       assert.match(text, /The workspace's knowledge is `knowledge\/`: Markdown notes, one topic per file, facts only\./, role);
-      assert.match(text, /Before you search or write, call `index\(\)`\nfor the tags in use/, role);
+      assert.match(text, /Before you search or write, call\n`index\(\)` for the tags in use/, role);
       assert.match(text, /Then call `validate` and fix what it\nreports before you go on\./, role);
       assert.match(text, /^tags: \[billing-service, invoicing, rounding\]$/m, role);
     }
@@ -336,9 +336,9 @@ describe("what a session is told about knowledge", () => {
   // The backstop is a sentence, not a rule: `common.md` is read by every session here, so a wrong
   // line in it costs everybody, and it is the Leader who gathers it.
   it("tells a Worker never to edit the common note, and tells the Leader it is theirs", () => {
-    assert.match(read("worker"), /`common\.md` is the one note you never edit/);
-    assert.doesNotMatch(read("worker"), /`common\.md` is yours/);
-    assert.match(read("leader"), /`common\.md` is yours: the team, whom to heed, the business, the lingo/);
+    assert.match(read("worker"), /`knowledge\/common\.md` is the one note you never edit/);
+    assert.doesNotMatch(read("worker"), /common\.md` is yours/);
+    assert.match(read("leader"), /`knowledge\/common\.md` is yours: the team, whom to heed, the business, the lingo/);
     assert.match(read("leader"), /Call\n`validate` at the end of a round\./);
   });
 });
