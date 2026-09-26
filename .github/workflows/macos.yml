@@ -1,0 +1,24 @@
+name: macOS
+
+# The whole suite on a Mac, started by hand from the Actions tab and never by anything else. A
+# macOS runner's minutes cost about ten times a Linux one's, so this is not in ci.yml, which a
+# release calls: a run here is one somebody chose to pay for.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: Tests on macOS
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+
+      - name: Run every suite
+        run: npm test

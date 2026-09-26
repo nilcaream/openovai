@@ -22,6 +22,17 @@
     ]
   },
   {
+    "name": "the run on a Mac starts on every push",
+    "catches": "runs on a Mac only when started by hand",
+    "edits": [
+      {
+        "file": ".github/workflows/macos.yml",
+        "from": "on:\n  workflow_dispatch:\n",
+        "to": "on:\n  workflow_dispatch:\n  push:\n"
+      }
+    ]
+  },
+  {
     "name": "the version is read from the root, where it no longer is",
     "catches": "refuses a tree with no version in it",
     "edits": [

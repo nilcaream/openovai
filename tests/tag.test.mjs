@@ -291,6 +291,15 @@ describe("the checks CI runs", () => {
       assert.ok(ci.includes(`node --test tests/${suite}`), `no CI job runs tests/${suite}`);
     }
   });
+
+  // A macOS runner is billed at about ten times a Linux one, so the run on a Mac is started by hand
+  // and by nothing else: not on a push, not on a pull request, not by a release.
+  it("runs on a Mac only when started by hand", () => {
+    const macos = fs.readFileSync(path.join(repo, ".github", "workflows", "macos.yml"), "utf8");
+    const triggers = macos.match(/^on:\n((?:[ \t]+.*\n)+)/m)?.[1] ?? "";
+    assert.equal(triggers.trim(), "workflow_dispatch:", `the macOS run starts on more than a button:\n${triggers}`);
+    assert.ok(!ci.includes("macos"), "ci.yml runs on a Mac, and a release calls it");
+  });
 });
 
 // A release used to be able to go out on a commit whose checks were failing, or still running, or
