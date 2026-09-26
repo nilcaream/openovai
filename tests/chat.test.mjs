@@ -1233,6 +1233,27 @@ describe("the tools a session is served", () => {
     assert.equal(last.text, `${OTHER} stopped before answering`);
   });
 
+  // A turn with no words ends with the silent row; a turn that said only `<noop/>` ends with the
+  // noop row alone, which the page does not draw, so the panel shows nothing at all.
+  it("ends a turn that said only <noop/> with no silent row", async () => {
+    const endings = async (environment, ended) => {
+      if (running(OTHER)) await endSeat(OTHER, 500);
+      await seatUp(OTHER, environment);
+      const rows = panel(instance, OTHER).length;
+      const said_ = await tool(superman.secret, "message", { to: OTHER, text: "anything?" });
+      assert.equal(said_.refused, false, said_.text);
+      await waitFor(() => (panel(instance, OTHER).slice(rows).some(ended) ? true : null));
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      return panel(instance, OTHER).slice(rows).filter((row) => row.from === OTHER).map((row) => [row.noop, row.silent]);
+    };
+    try {
+      assert.deepEqual(await endings({ OPENOVAI_STAND_IN_EMPTY: "1" }, (row) => row.silent === true), [[undefined, true]]);
+      assert.deepEqual(await endings({ OPENOVAI_STAND_IN_REPLY: "<noop/>" }, (row) => row.noop === true), [[true, undefined]]);
+    } finally {
+      if (running(OTHER)) await endSeat(OTHER, 500);
+    }
+  });
+
   // "second" and "third" wait behind "first" and go in as one turn; the process ends under it.
   it("says a turn of several frames stopped once, not once a frame", async () => {
     const slow = await seatUp(OTHER, { OPENOVAI_STAND_IN_SLOW: "2000" });
@@ -1890,6 +1911,28 @@ describe("what a seat says", () => {
     assert.deepEqual(reply, { text: "", failed: false, silent: false });
     await new Promise((resolve) => setTimeout(resolve, 100));
     assert.deepEqual(panel(instance, WORKER).map((row) => [row.from, row.text, row.silent]), [[WORKER, "thinking", undefined]]);
+  });
+
+  // Claude Code asks for a visible response from a turn that ended with no words, so a seat with
+  // nothing for the panel says `<noop/>`, alone: kept as a row marked noop, which the page does
+  // not draw, and counted as said, so the turn is not a silent one either.
+  it("keeps a turn that said exactly <noop/> as a row marked noop, and not as a silent turn", async () => {
+    await endSeat(WORKER, 500);
+    remove(panelFile(instance, WORKER));
+    paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_REPLY: "  <noop/>\n" });
+    const reply = await tell(WORKER, userFrame("go")).answered;
+    assert.equal(reply.silent, false);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    assert.deepEqual(panel(instance, WORKER).map((row) => [row.from, row.text, row.noop, row.silent]), [[WORKER, "  <noop/>\n", true, undefined]]);
+  });
+
+  it("shows words that only mention <noop/> as words", async () => {
+    await endSeat(WORKER, 500);
+    remove(panelFile(instance, WORKER));
+    paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_REPLY: "nothing to add, so <noop/>" });
+    await tell(WORKER, userFrame("go")).answered;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    assert.deepEqual(panel(instance, WORKER).map((row) => [row.from, row.text, row.noop]), [[WORKER, "nothing to add, so <noop/>", undefined]]);
   });
 });
 

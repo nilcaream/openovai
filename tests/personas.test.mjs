@@ -197,9 +197,9 @@ describe("what the Leader is told", () => {
     assert.match(leader(), new RegExp(`keep what ${USER} has to know on your desk until ${USER} next speaks to you`));
   });
 
-  it("tells the Leader that a turn with nothing in it for the User ends without a word", () => {
-    assert.match(leader(), new RegExp(`A turn with nothing in it for ${USER} ends without a word`));
-    assert.match(leader(), /no "nothing to report", no filler/);
+  it("tells the Leader that a turn with nothing in it for the User replies exactly <noop/>", () => {
+    assert.match(leader(), new RegExp(`A turn with nothing in it for ${USER} replies exactly \`<noop/>\` — no "nothing to report", no filler:\\nonly what ${USER} needs lands on the panel, and \`<noop/>\` shows there as a turn that said nothing\\.`));
+    assert.match(leader(), /With nothing left in flight, reply exactly `<noop\/>` and do nothing\./);
   });
 
   // The Leader's panel fills with Workers' messages: a list pointed back to is a list the User
@@ -334,8 +334,9 @@ describe("what a Worker is told", () => {
     assert.match(worker(), new RegExp(`a report ${LEAD} is\\s+waiting for is a \`message\` to ${LEAD}, never the last line of your turn`));
   });
 
-  it("tells the Worker that a report once sent ends the turn with no text, never the report again", () => {
-    assert.match(worker(), /the turn ends there with no text at all — not a line saying so, and never the report\s+again/);
+  it("tells the Worker that a report once sent ends the turn with exactly <noop/>, never the report again", () => {
+    assert.match(worker(), /the turn ends there with exactly `<noop\/>` — not a line saying so, and never the report\s+again/);
+    assert.match(worker(), /With nothing left in flight, reply exactly `<noop\/>` and do nothing\./);
     assert.match(worker(), new RegExp(`what you say on your own panel is for what\\s+${USER} typed there`));
   });
 

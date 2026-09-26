@@ -20,6 +20,14 @@ stand, and when the Leader asks the User what to take next.** The instruction us
 though the Leader were the one telling the User where things stand. A Leader hired before this
 version keeps the persona it was rendered with.
 
+**A turn with nothing for the panel says `<noop/>`, and the panel shows nothing.** Claude Code asks
+for a visible response once whenever a turn ends with no words, which used to put filler like
+"Nothing to report." on the panel. The Leader and Workers are now told to reply exactly `<noop/>`
+in that case: after a sent report, with nothing in flight after a restart, and (for the Leader)
+when a turn holds nothing for the User. A reply that is exactly `<noop/>`, spaces aside, is kept
+in the panel's conversation marked `noop` and is not drawn, and the turn gets no silent row either:
+the panel shows nothing. Words that only mention `<noop/>` show as usual. Sessions hired before this version keep the persona they were rendered with.
+
 ## 0.19.0
 
 **The Leader stops and restarts Workers; a Worker only works.** A Worker no longer has

@@ -1,5 +1,16 @@
 [
   {
+    "name": "a turn that said it had nothing for the panel is drawn",
+    "catches": "is left out of the drawing when it is collapsed, and so is a turn that said it had nothing, and nothing else",
+    "edits": [
+      {
+        "file": "lib/chat/render.mjs",
+        "from": "  return rows[index]?.noop === true || collapsed(rows, index);",
+        "to": "  return collapsed(rows, index);"
+      }
+    ]
+  },
+  {
     "name": "raw HTML in a reply is passed through",
     "catches": "renders markdown and escapes raw HTML in it",
     "edits": [

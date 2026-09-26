@@ -1,5 +1,38 @@
 [
   {
+    "name": "a turn that said exactly <noop/> is a row like any other",
+    "catches": "keeps a turn that said exactly <noop/> as a row marked noop, and not as a silent turn",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "              said(noop ? { text: block.text, noop: true } : { text: block.text });",
+        "to": "              said({ text: block.text });"
+      }
+    ]
+  },
+  {
+    "name": "a turn that said exactly <noop/> ends as a silent turn",
+    "catches": "keeps a turn that said exactly <noop/> as a row marked noop, and not as a silent turn",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "              record.said += 1;\n              said(noop",
+        "to": "              if (!noop) record.said += 1;\n              said(noop"
+      }
+    ]
+  },
+  {
+    "name": "words that mention <noop/> are taken for it",
+    "catches": "shows words that only mention <noop/> as words",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "              const noop = block.text.trim() === NOOP;",
+        "to": "              const noop = block.text.includes(NOOP);"
+      }
+    ]
+  },
+  {
     "name": "the page goes out with its empty tag",
     "catches": "serves the page with its secret in the one tag that carries it",
     "edits": [
@@ -466,8 +499,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "    said: ({ text }) => append(instance.root, seat, { from: seat, text }),",
-        "to": "    said: ({ text }) => append(instance.root, seat, { from: seat, to: instance.config.leader, text, msg: crypto.randomUUID() }),"
+        "from": "    said: ({ text, noop = false }) => append(instance.root, seat, noop ? { from: seat, text, noop: true } : { from: seat, text }),",
+        "to": "    said: ({ text, noop = false }) => append(instance.root, seat, { from: seat, to: instance.config.leader, text, msg: crypto.randomUUID() }),"
       },
       {
         "file": "lib/chat/lifecycle.mjs",
@@ -559,8 +592,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "              said({ text: block.text });",
-        "to": "              setTimeout(() => said({ text: block.text }), 1000);"
+        "from": "              said(noop ? { text: block.text, noop: true } : { text: block.text });",
+        "to": "              setTimeout(() => said(noop ? { text: block.text, noop: true } : { text: block.text }), 1000);"
       }
     ]
   },
@@ -691,7 +724,7 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "    said: ({ text }) => append(instance.root, seat, { from: seat, text }),\n",
+        "from": "    said: ({ text, noop = false }) => append(instance.root, seat, noop ? { from: seat, text, noop: true } : { from: seat, text }),\n",
         "to": ""
       }
     ]
