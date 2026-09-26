@@ -483,18 +483,20 @@ async function main() {
   // Every copy is baselined on its own, unmutated, before it is allowed to carry a mutation.
   // A sweep that starts from a tree somebody already broke reports the same checks red for every
   // mutation, which reads exactly like a suite watching everything and is the opposite of the truth.
+  // The copies are baselined all at once, each under the floor: copy-1 is read first below, so a
+  // tree that is not green says so rather than being called a copy that baselined differently.
   const bounds = { suite: chosen.suite, checkTimeout: chosen.checkTimeout, boundMs: BOUND_FLOOR };
-  const first = await runSuite(copies[0], bounds);
+  const [first, ...others] = await Promise.all(copies.map((where) => runSuite(where, bounds)));
   if (first.timedOut || first.red.length > 0 || first.leaves === 0) {
     process.stdout.write(`THE TREE IS NOT GREEN BEFORE ANY OF THIS — ${first.red.join(" | ") || "the baseline did not finish"}\n`);
     return 2;
   }
-  // The outer bound is read off what the baseline actually took, so it stays honest as the
-  // suite grows.
-  bounds.boundMs = Math.max(BOUND_FLOOR, first.tookMs * BOUND_MULTIPLE);
+  // The outer bound is read off what the baselines actually took, the slowest of them, so it stays
+  // honest as the suite grows.
+  const slowest = Math.max(first.tookMs, ...others.map((also) => also.tookMs));
+  bounds.boundMs = Math.max(BOUND_FLOOR, slowest * BOUND_MULTIPLE);
   process.stdout.write(`baseline green: ${first.leaves} checks in ${(first.tookMs / 1000).toFixed(1)}s (bound ${(bounds.boundMs / 1000).toFixed(0)}s)\n`);
 
-  const others = await Promise.all(copies.slice(1).map((where) => runSuite(where, bounds)));
   for (const [index, also] of others.entries()) {
     if (also.red.length > 0 || also.leaves !== first.leaves) {
       process.stdout.write(`copy ${path.basename(copies[index + 1])} did not baseline the same as copy-1 — refusing to sweep\n`);
