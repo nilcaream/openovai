@@ -87,7 +87,8 @@ from the instance root and nowhere else. The view is `/view/<path from the insta
 
 It shows a regular file whose real path, symlinks followed, is inside the instance, and which is
 at most 1 MiB of UTF-8 text. It never shows the instance's Claude Code home (`.local/`), a `.git`
-directory, a `.env` or `.env.*` file, or a `.credentials.json`. The server runs that same check on
+directory, a `.env` or `.env.*` file, or a `.credentials.json`, however the name is cased, since on
+a filesystem that ignores case `.GIT` is the same directory as `.git`. The server runs that same check on
 every row it sends, to decide which paths the page links, and again when a link is opened. The page
 sets its secret as a cookie for its own port (`HttpOnly`, `SameSite=Strict`), and the view answers
 only a request that carries it. The view's page allows no inline script or style and is not cached.

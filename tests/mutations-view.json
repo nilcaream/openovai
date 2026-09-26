@@ -27,8 +27,30 @@
     "edits": [
       {
         "file": "lib/chat/view.mjs",
-        "from": "    segments.includes(\".git\") ||",
+        "from": "    folded.includes(\".git\") ||",
         "to": "    false ||"
+      }
+    ]
+  },
+  {
+    "name": "the deny list is compared by exact case, so .GIT, .Env or .CREDENTIALS.JSON is shown",
+    "catches": "never shows any of them however its name is cased, since a filesystem that folds case names the same file either way",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "  const folded = segments.map((segment) => segment.toLowerCase());",
+        "to": "  const folded = segments;"
+      }
+    ]
+  },
+  {
+    "name": "the instance's Claude Code home is compared by exact case, so .LOCAL is shown",
+    "catches": "never shows any of them however its name is cased, since a filesystem that folds case names the same file either way",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "    folded[0] === HOME.toLowerCase() ||",
+        "to": "    segments[0] === HOME ||"
       }
     ]
   },

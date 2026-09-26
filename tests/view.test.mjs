@@ -36,6 +36,12 @@ put("projects/demo/.git/config", "[core]\n");
 put("projects/demo/.env", "A=1\n");
 put("projects/demo/.env.local", "A=2\n");
 put("projects/demo/config/.credentials.json", "{}\n");
+// The same names cased otherwise: on a filesystem that folds case each is one of the files above.
+put(".LOCAL/notes.md", "the instance's Claude Code home, asked for in capitals\n");
+put("projects/demo/.GIT/config", "[core]\n");
+put("projects/demo/.Env", "A=1\n");
+put("projects/demo/.ENV.local", "A=2\n");
+put("projects/demo/config/.CREDENTIALS.JSON", "{}\n");
 put("temp/big.txt", "x".repeat(LARGEST + 1));
 put("temp/edge.txt", "x".repeat(LARGEST));
 put("temp/nul.txt", "text\0more\n");
@@ -69,6 +75,12 @@ describe("which paths the view shows", () => {
 
   it("never shows the instance's Claude Code home, a .git directory, a .env file or a .credentials.json, however it is reached", () => {
     for (const wanted of [".local/notes.md", ".local/.credentials.json", "temp/home-link.md", "projects/demo/.git/config", "projects/demo/.env", "projects/demo/.env.local", "projects/demo/config/.credentials.json"]) {
+      assert.equal(viewable(root, wanted).status, 403, wanted);
+    }
+  });
+
+  it("never shows any of them however its name is cased, since a filesystem that folds case names the same file either way", () => {
+    for (const wanted of [".LOCAL/notes.md", "projects/demo/.GIT/config", "projects/demo/.Env", "projects/demo/.ENV.local", "projects/demo/config/.CREDENTIALS.JSON"]) {
       assert.equal(viewable(root, wanted).status, 403, wanted);
     }
   });
