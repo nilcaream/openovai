@@ -114,7 +114,9 @@ export function installed(options, environment) {
 //   OPENOVAI_STAND_IN_LIFETIME      milliseconds after which it exits on its own whatever is
 //                             going on (default: 60000) — so a run a suite forgot to end cannot
 //                             hold the suite's output open
-//   OPENOVAI_STAND_IN_SIGNED_IN     what `auth status` reports     (default: true)
+//   OPENOVAI_STAND_IN_SIGNED_IN     what `auth status` reports     (default: true) — printed as
+//                             loggedIn and, as the real one does, exited with: 0 if true, 1 if not
+//   OPENOVAI_STAND_IN_AUTH_STATUS   what `auth status` exits with instead, whatever it printed
 //   OPENOVAI_STAND_IN_LOGIN_STATUS  what `auth login` exits with   (default: 0)
 //   OPENOVAI_STAND_IN_RATE_LIMIT    a JSON list, one entry per QUESTION — a user or message frame; a
 //                             server event is a turn but consumes no entry — the rate_limit_info
@@ -202,7 +204,7 @@ if ((process.env.OPENOVAI_STAND_IN_LEAVES ?? "") !== "") {
 if (argv[0] === "auth" && argv[1] === "status") {
   const signedIn = process.env.OPENOVAI_STAND_IN_SIGNED_IN ?? "true";
   process.stdout.write(JSON.stringify({ loggedIn: signedIn === "true" }) + "\\n");
-  process.exit(0);
+  process.exit(Number(process.env.OPENOVAI_STAND_IN_AUTH_STATUS ?? (signedIn === "true" ? 0 : 1)));
 }
 if (argv[0] === "auth" && argv[1] === "login") {
   process.exit(Number(process.env.OPENOVAI_STAND_IN_LOGIN_STATUS ?? 0));

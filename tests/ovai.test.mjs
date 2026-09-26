@@ -261,6 +261,25 @@ describe("an instance with no credential", () => {
   });
 });
 
+// The documented answer of `claude auth status` is its exit status, so each case prints the
+// opposite of what it exits with: a check that read the JSON would go red.
+describe("what an instance's credential is read from", () => {
+  it("takes exit status 0 as a credential", () => {
+    const said = ovai(["configuration"], { OPENOVAI_STAND_IN_SIGNED_IN: "false", OPENOVAI_STAND_IN_AUTH_STATUS: "0" }).stdout;
+    assert.match(said, /credential\s+there is one/);
+  });
+
+  it("takes exit status 1 as none", () => {
+    const said = ovai(["configuration"], { OPENOVAI_STAND_IN_AUTH_STATUS: "1" }).stdout;
+    assert.match(said, /credential\s+none/);
+  });
+
+  it("takes any other exit status as no answer", () => {
+    const said = ovai(["configuration"], { OPENOVAI_STAND_IN_AUTH_STATUS: "2" }).stdout;
+    assert.match(said, /credential\s+cannot tell/);
+  });
+});
+
 describe("how the instance signs in", () => {
   it("says an instance with an account of its own signs itself in", () => {
     assert.match(ovai(["configuration"]).stdout, /signs in by\s+an account of its own/);

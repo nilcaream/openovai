@@ -275,6 +275,17 @@
     ]
   },
   {
+    "name": "any exit status but 0 is taken as no credential",
+    "catches": "takes any other exit status as no answer",
+    "edits": [
+      {
+        "file": "lib/claude.mjs",
+        "from": "if (asked.status === 1) {",
+        "to": "if (asked.status !== 0) {"
+      }
+    ]
+  },
+  {
     "name": "every start of Claude Code loses the account's connectors, the person's own among them",
     "catches": "leaves the account's connectors alone in a start that is nobody's session",
     "edits": [
