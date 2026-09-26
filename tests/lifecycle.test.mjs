@@ -265,29 +265,34 @@ describe("restart_session and stop_session", () => {
 
   it("a restart is a new process on the same desk, the queue carried, the successor started from the desk", async () => {
     paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_SLOW: "400", ...writesDesk('type="closing"') });
-    // The predecessor's body, edited in place with a file tool before its write_desk.
-    fs.appendFileSync(deskFile(instance, WORKER), "## State\nedited in place by the predecessor\n");
-    assert.equal((await tool(superman.secret, "restart_worker", { name: WORKER })).refused, false);
-    await told(paul.log, 1);
-    const successor = await spawnedBy(WORKER, () => asked(superman.secret, WORKER, "after the restart"));
-    assert.deepEqual(successor.result, { text: `sent to ${WORKER}`, refused: false, error: null, reply: "a reply" });
-    assert.notEqual(successor.secret, paul.secret);
-    assert.equal(callsIn(successor.log).length, 1);
-    assert.deepEqual(besideBirth(await told(successor.log, 2)), [`<message from="${LEADER}">after the restart</message>`]);
-    // The secret dies with the process that held it.
-    assert.equal((await call(paul.secret, "tools/list")).status, 401);
-    // The successor starts from the desk the predecessor wrote.
-    const argv = callsIn(successor.log)[0];
-    const file = /--append-system-prompt-file (\S+)/.exec(argv)[1];
-    const prompt = fs.readFileSync(file, "utf8");
-    assert.ok(prompt.includes(`Your desk, desks/${WORKER}/STATE.md, as it stands at this start:`), prompt.slice(-400));
-    assert.ok(prompt.includes("edited in place by the predecessor"), prompt.slice(-400));
-    assert.ok(prompt.includes("| title: a desk by the stand-in |"), prompt.slice(-400));
-    // The message landed on the panel as it was taken, before the predecessor's own last words;
-    // the successor's answer to it is the last row.
-    const rows = panel(instance, WORKER).slice(-3);
-    assert.deepEqual(rows.map((row) => [row.from, row.text]), [[LEADER, "after the restart"], [WORKER, "a reply"], [WORKER, "a reply"]]);
-    await end(WORKER, 500);
+    // The seat is freed whatever the check finds: a restart check that leaves a process behind
+    // fails every check after it, and a mutation sweep then reads as five findings and one bug.
+    try {
+      // The predecessor's body, edited in place with a file tool before its write_desk.
+      fs.appendFileSync(deskFile(instance, WORKER), "## State\nedited in place by the predecessor\n");
+      assert.equal((await tool(superman.secret, "restart_worker", { name: WORKER })).refused, false);
+      await told(paul.log, 1);
+      const successor = await spawnedBy(WORKER, () => asked(superman.secret, WORKER, "after the restart"));
+      assert.deepEqual(successor.result, { text: `sent to ${WORKER}`, refused: false, error: null, reply: "a reply" });
+      assert.notEqual(successor.secret, paul.secret);
+      assert.equal(callsIn(successor.log).length, 1);
+      assert.deepEqual(besideBirth(await told(successor.log, 2)), [`<message from="${LEADER}">after the restart</message>`]);
+      // The secret dies with the process that held it.
+      assert.equal((await call(paul.secret, "tools/list")).status, 401);
+      // The successor starts from the desk the predecessor wrote.
+      const argv = callsIn(successor.log)[0];
+      const file = /--append-system-prompt-file (\S+)/.exec(argv)[1];
+      const prompt = fs.readFileSync(file, "utf8");
+      assert.ok(prompt.includes(`Your desk, desks/${WORKER}/STATE.md, as it stands at this start:`), prompt.slice(-400));
+      assert.ok(prompt.includes("edited in place by the predecessor"), prompt.slice(-400));
+      assert.ok(prompt.includes("| title: a desk by the stand-in |"), prompt.slice(-400));
+      // The message landed on the panel as it was taken, before the predecessor's own last words;
+      // the successor's answer to it is the last row.
+      const rows = panel(instance, WORKER).slice(-3);
+      assert.deepEqual(rows.map((row) => [row.from, row.text]), [[LEADER, "after the restart"], [WORKER, "a reply"], [WORKER, "a reply"]]);
+    } finally {
+      await end(WORKER, 500);
+    }
   });
 
   it("a start and an end each leave a row that says when, and nothing else", async () => {
@@ -310,17 +315,15 @@ describe("restart_session and stop_session", () => {
   // server writes the successor's first turn itself, and a successor nobody speaks to works.
   it("a successor nobody speaks to is handed a turn of its own: the birth event", async () => {
     paul = await seatUp(WORKER, writesDesk('type="closing"'));
-    const before_ = recordOf(WORKER);
-    const successor = await spawnedBy(WORKER, async () => {
-      const answered = await tool(superman.secret, "restart_worker", { name: WORKER });
-      assert.equal(answered.refused, false, answered.text);
-      await waitFor(() => (running(WORKER) && recordOf(WORKER) !== before_ && recordOf(WORKER).ending === null ? true : null));
-      return answered;
-    });
-    assert.notEqual(successor.secret, paul.secret);
-    // The seat is freed whatever the check finds: a restart check that leaves a process behind
-    // fails every check after it, and a mutation sweep then reads as five findings and one bug.
     try {
+      const before_ = recordOf(WORKER);
+      const successor = await spawnedBy(WORKER, async () => {
+        const answered = await tool(superman.secret, "restart_worker", { name: WORKER });
+        assert.equal(answered.refused, false, answered.text);
+        await waitFor(() => (running(WORKER) && recordOf(WORKER) !== before_ && recordOf(WORKER).ending === null ? true : null));
+        return answered;
+      });
+      assert.notEqual(successor.secret, paul.secret);
       assert.deepEqual(await told(successor.log, 1), [`<server-event type="restarted">${BODY_RESTARTED}</server-event>`]);
     } finally {
       await end(WORKER, 500);
@@ -331,12 +334,12 @@ describe("restart_session and stop_session", () => {
   // a successor reads what came for its seat in the order it came, and the server's own word last.
   it("what the predecessor left comes first in the successor's turn, the birth event behind it", async () => {
     paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_SLOW: "400", ...writesDesk('type="closing"') });
-    assert.equal((await tool(superman.secret, "restart_worker", { name: WORKER })).refused, false);
-    await told(paul.log, 1);
-    const successor = await spawnedBy(WORKER, () => asked(superman.secret, WORKER, "carried over"));
-    const carried = `<message from="${LEADER}">carried over</message>`;
-    await told(successor.log, 2);
     try {
+      assert.equal((await tool(superman.secret, "restart_worker", { name: WORKER })).refused, false);
+      await told(paul.log, 1);
+      const successor = await spawnedBy(WORKER, () => asked(superman.secret, WORKER, "carried over"));
+      const carried = `<message from="${LEADER}">carried over</message>`;
+      await told(successor.log, 2);
       const children = childrenOf(queuesHeardIn(successor.log).find((one) => one.includes("carried over")));
       assert.equal(children[0], carried, children.join("\n"));
       assert.deepEqual(children.filter((one) => one.startsWith("<message")), [carried]);
@@ -351,16 +354,19 @@ describe("restart_session and stop_session", () => {
   it("writes a restart row carrying the context the session that restarted was at", async () => {
     const context = JSON.stringify([{ iterations: [{ input_tokens: 150_000 }] }, { iterations: [{ input_tokens: 150_000 }] }]);
     paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_SLOW: "400", OPENOVAI_STAND_IN_USAGE: context, ...writesDesk('type="closing"') });
-    await tell(WORKER, userFrame("one")).answered;
-    const logged = said.length;
-    assert.equal((await tool(superman.secret, "restart_worker", { name: WORKER })).refused, false);
-    await told(paul.log, 2);
-    const successor = await spawnedBy(WORKER, () => asked(superman.secret, WORKER, "after the restart"));
-    assert.notEqual(successor.secret, paul.secret);
-    const since = said.slice(logged);
-    assert.deepEqual(since.filter((line) => line.startsWith("restart ")), [`restart ${WORKER} - successor started, 150000 tokens of context`]);
-    assert.ok(since.indexOf(`restart ${WORKER} - successor started, 150000 tokens of context`) > since.indexOf(`stopped ${WORKER} - restart`), since.join("\n"));
-    await end(WORKER, 500);
+    try {
+      await tell(WORKER, userFrame("one")).answered;
+      const logged = said.length;
+      assert.equal((await tool(superman.secret, "restart_worker", { name: WORKER })).refused, false);
+      await told(paul.log, 2);
+      const successor = await spawnedBy(WORKER, () => asked(superman.secret, WORKER, "after the restart"));
+      assert.notEqual(successor.secret, paul.secret);
+      const since = said.slice(logged);
+      assert.deepEqual(since.filter((line) => line.startsWith("restart ")), [`restart ${WORKER} - successor started, 150000 tokens of context`]);
+      assert.ok(since.indexOf(`restart ${WORKER} - successor started, 150000 tokens of context`) > since.indexOf(`stopped ${WORKER} - restart`), since.join("\n"));
+    } finally {
+      await end(WORKER, 500);
+    }
   });
 
   // The Leader's restart is a successor on the same desk, like a Worker's: no row says it left,
@@ -369,54 +375,60 @@ describe("restart_session and stop_session", () => {
     await end(LEADER, 500);
     superman = await seatUp(LEADER, { OPENOVAI_STAND_IN_SLOW: "400", ...callsThen("restart_session", "restart please") });
     paul = await seatUp(WORKER);
-    const rows = panel(instance, LEADER).length;
-    tell(LEADER, userFrame("restart please"));
-    await told(superman.log, 1);
-    const successor = await spawnedBy(LEADER, () => asked(paul.secret, LEADER, "after the restart"));
-    assert.equal(successor.result.reply, "a reply");
-    assert.notEqual(successor.secret, superman.secret);
-    assert.deepEqual(besideBirth(await told(successor.log, 2)), [`<message from="${WORKER}">after the restart</message>`]);
-    assert.deepEqual(
-      panel(instance, LEADER).slice(rows).map((row) => [row.from, row.text, row.divider]),
-      [[WORKER, "after the restart", undefined], [LEADER, "a reply", undefined], [LEADER, "a reply", undefined]],
-    );
-    superman = successor;
-    await end(WORKER, 500);
+    try {
+      const rows = panel(instance, LEADER).length;
+      tell(LEADER, userFrame("restart please"));
+      await told(superman.log, 1);
+      const successor = await spawnedBy(LEADER, () => asked(paul.secret, LEADER, "after the restart"));
+      assert.equal(successor.result.reply, "a reply");
+      assert.notEqual(successor.secret, superman.secret);
+      assert.deepEqual(besideBirth(await told(successor.log, 2)), [`<message from="${WORKER}">after the restart</message>`]);
+      assert.deepEqual(
+        panel(instance, LEADER).slice(rows).map((row) => [row.from, row.text, row.divider]),
+        [[WORKER, "after the restart", undefined], [LEADER, "a reply", undefined], [LEADER, "a reply", undefined]],
+      );
+      superman = successor;
+    } finally {
+      await end(WORKER, 500);
+    }
   });
 
   it("stop_worker ends the process once its desk is written; the desk and the log stay; hire brings it back appending", async () => {
     paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_REPLY: "before the stop", ...writesDesk('type="closing"') });
-    assert.equal((await asked(superman.secret, WORKER, "one")).reply, "before the stop");
-    const spawns = readLog(unexpected);
-    const logged = said.length;
-    const ordered = await tool(superman.secret, "stop_worker", { name: WORKER });
-    assert.equal(ordered.refused, false, ordered.text);
-    assert.match(ordered.text, new RegExp(`^${WORKER} is told to write its desk and goes when that turn is over; its desk stays\\. .* You are told with a stopped event\\.$`));
-    assert.ok(await gone(WORKER));
-    const rows = panel(instance, WORKER).length;
-    assert.equal(readLog(unexpected), spawns);
-    // One `stopped` row in the log, the ending word the record holds, after the seat's desk row.
-    const since = said.slice(logged);
-    assert.deepEqual(since.filter((line) => line.startsWith("stopped ")), [`stopped ${WORKER} - stop`]);
-    assert.ok(since.findIndex((line) => line.startsWith("stopped ")) > since.findIndex((line) => line.startsWith(`tool ${WORKER} `) && line.includes("mcp__openovai__write_desk ")), since.join("\n"));
-    assert.ok(await waitFor(() => (heardIn(superman.log).includes(`<server-event type="stopped" who="${WORKER}" why="stop"/>`) ? true : null)), heardIn(superman.log).join("\n"));
-    const listed = (await sessionsListed()).sessions.find((seat) => seat.name === WORKER);
-    assert.equal(listed.running, false);
-    assert.equal(listed.title, "a desk by the stand-in");
-    assert.ok(fs.existsSync(deskFile(instance, WORKER)));
-    const back = await spawnedBy(WORKER, () => tool(superman.secret, "hire", { name: WORKER }), { OPENOVAI_STAND_IN_REPLY: "after the stop" });
-    assert.equal(back.result.refused, false, back.result.text);
-    assert.equal((await asked(superman.secret, WORKER, "two")).reply, "after the stop");
-    const messages = JSON.parse((await page("GET", `/sessions/${WORKER}/messages`)).body).messages;
-    // The Worker's answer to the close is its last row before the stop.
-    assert.deepEqual(messages.filter((row) => row.stamp !== true).slice(rows - 3).map((row) => [row.from, row.text]), [
-      [LEADER, "one"],
-      [WORKER, "before the stop"],
-      [WORKER, "before the stop"],
-      [LEADER, "two"],
-      [WORKER, "after the stop"],
-    ]);
-    await end(WORKER, 500);
+    try {
+      assert.equal((await asked(superman.secret, WORKER, "one")).reply, "before the stop");
+      const spawns = readLog(unexpected);
+      const logged = said.length;
+      const ordered = await tool(superman.secret, "stop_worker", { name: WORKER });
+      assert.equal(ordered.refused, false, ordered.text);
+      assert.match(ordered.text, new RegExp(`^${WORKER} is told to write its desk and goes when that turn is over; its desk stays\\. .* You are told with a stopped event\\.$`));
+      assert.ok(await gone(WORKER));
+      const rows = panel(instance, WORKER).length;
+      assert.equal(readLog(unexpected), spawns);
+      // One `stopped` row in the log, the ending word the record holds, after the seat's desk row.
+      const since = said.slice(logged);
+      assert.deepEqual(since.filter((line) => line.startsWith("stopped ")), [`stopped ${WORKER} - stop`]);
+      assert.ok(since.findIndex((line) => line.startsWith("stopped ")) > since.findIndex((line) => line.startsWith(`tool ${WORKER} `) && line.includes("mcp__openovai__write_desk ")), since.join("\n"));
+      assert.ok(await waitFor(() => (heardIn(superman.log).includes(`<server-event type="stopped" who="${WORKER}" why="stop"/>`) ? true : null)), heardIn(superman.log).join("\n"));
+      const listed = (await sessionsListed()).sessions.find((seat) => seat.name === WORKER);
+      assert.equal(listed.running, false);
+      assert.equal(listed.title, "a desk by the stand-in");
+      assert.ok(fs.existsSync(deskFile(instance, WORKER)));
+      const back = await spawnedBy(WORKER, () => tool(superman.secret, "hire", { name: WORKER }), { OPENOVAI_STAND_IN_REPLY: "after the stop" });
+      assert.equal(back.result.refused, false, back.result.text);
+      assert.equal((await asked(superman.secret, WORKER, "two")).reply, "after the stop");
+      const messages = JSON.parse((await page("GET", `/sessions/${WORKER}/messages`)).body).messages;
+      // The Worker's answer to the close is its last row before the stop.
+      assert.deepEqual(messages.filter((row) => row.stamp !== true).slice(rows - 3).map((row) => [row.from, row.text]), [
+        [LEADER, "one"],
+        [WORKER, "before the stop"],
+        [WORKER, "before the stop"],
+        [LEADER, "two"],
+        [WORKER, "after the stop"],
+      ]);
+    } finally {
+      await end(WORKER, 500);
+    }
   });
 
   it("stop_worker and restart_worker refuse what cannot be closed, and answer at once for what can", async () => {
@@ -428,18 +440,21 @@ describe("restart_session and stop_session", () => {
     assert.deepEqual(await order("Nobody"), { text: "Nobody has no desk here", refused: true, error: null });
     assert.deepEqual(await order(WORKER), { text: `${WORKER} is not running`, refused: true, error: null });
     paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_SLOW: "400" });
-    assert.deepEqual(await order(WORKER, { deadline: 4 }), { text: "deadline is a whole number of seconds, at least 5", refused: true, error: null });
-    const restarting = await tool(superman.secret, "restart_worker", { name: WORKER, interrupt: true });
-    assert.equal(restarting.refused, false, restarting.text);
-    assert.match(restarting.text, /a successor starts on its desk\. With no desk written within 300 s of reading this/);
-    assert.equal((await told(paul.log, 1))[0].startsWith('<server-event type="closing" why="restart" interrupted="true" deadline="300">'), true, heardIn(paul.log).join("\n"));
-    // A stop replaces the restart, with the instance's park deadline when none is given.
-    const stopping = await order(WORKER);
-    assert.equal(stopping.refused, false, stopping.text);
-    assert.match(stopping.text, / within 1800 s /);
-    assert.equal((await told(paul.log, 2))[1], `<server-event type="closing" why="stop" deadline="1800">${BODY_CLOSING("stop", false, 1800)}</server-event>`);
-    assert.equal(recordOf(WORKER).askedWhy, "close:stop");
-    await end(WORKER, 500);
+    try {
+      assert.deepEqual(await order(WORKER, { deadline: 4 }), { text: "deadline is a whole number of seconds, at least 5", refused: true, error: null });
+      const restarting = await tool(superman.secret, "restart_worker", { name: WORKER, interrupt: true });
+      assert.equal(restarting.refused, false, restarting.text);
+      assert.match(restarting.text, /a successor starts on its desk\. With no desk written within 300 s of reading this/);
+      assert.equal((await told(paul.log, 1))[0].startsWith('<server-event type="closing" why="restart" interrupted="true" deadline="300">'), true, heardIn(paul.log).join("\n"));
+      // A stop replaces the restart, with the instance's park deadline when none is given.
+      const stopping = await order(WORKER);
+      assert.equal(stopping.refused, false, stopping.text);
+      assert.match(stopping.text, / within 1800 s /);
+      assert.equal((await told(paul.log, 2))[1], `<server-event type="closing" why="stop" deadline="1800">${BODY_CLOSING("stop", false, 1800)}</server-event>`);
+      assert.equal(recordOf(WORKER).askedWhy, "close:stop");
+    } finally {
+      await end(WORKER, 500);
+    }
   });
 
   it("stop_session refuses the Leader without a desk written this turn, and a second ending", async () => {

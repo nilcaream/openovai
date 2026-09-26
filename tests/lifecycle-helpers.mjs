@@ -168,8 +168,13 @@ export async function spawnedBy(seat, act, knobs = {}) {
   process.env.OPENOVAI_STAND_IN_LOG = log;
   Object.assign(process.env, knobs);
   let result;
+  let started;
   try {
     result = await act();
+    // The knobs stay on until the seat has started: `act` can come back before the chat spawns,
+    // as a restart does when the predecessor's last words land before its process is gone, and a
+    // spawn after the environment is put back goes to nobody's log.
+    started = await waitFor(() => secretsIn(log).length > 0);
   } finally {
     for (const name of Object.keys(process.env)) {
       if (!(name in before_)) {
@@ -178,7 +183,7 @@ export async function spawnedBy(seat, act, knobs = {}) {
     }
     Object.assign(process.env, before_);
   }
-  assert.ok(await waitFor(() => secretsIn(log).length > 0), `${seat} was never started`);
+  assert.ok(started, `${seat} was never started`);
   return { seat, result, log, secret: secretsIn(log)[0] };
 }
 
