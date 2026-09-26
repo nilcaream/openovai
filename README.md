@@ -65,8 +65,10 @@ it. Everything the page and the command do is described at [openov.ai](https://o
 - **The lifecycle is tools, not phrases.** A session that is idle, out of quota or being parked
   is told so in a server event and answers with one tool call. No button on the page
   starts or ends a seat; STOP interrupts a turn, and that is all.
-- **Built from ordinary Claude Code features**: two persona templates, project settings, an MCP
-  server, plus a shell shim, a few Node tools and a small web page to host it all on.
+- **Built from ordinary Claude Code features**: two persona templates, project settings, two
+  hooks (one lets a compound of allowed commands through or refuses it toward a script, one hands a subagent
+  `customization/common.md`), an MCP server, plus a shell shim, a few Node tools and a small web
+  page to host it all on.
 
 ## Requirements
 

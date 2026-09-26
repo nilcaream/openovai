@@ -39,7 +39,15 @@ All of that is the Leader's now:
   from then on; without a model, the desk's own stands as before.
 - Every row a panel shows from the Server starts with a capital letter — `Waited 40 seconds for
   permission: …`, `Limit exhausted (5-hour window) …`, `Stopped; nothing waiting`, `No turn to
-  stop` — and the log says the same words.
+  stop`. Where the log repeats a row, as it does for `No turn to stop`, it says the row's words.
+- A turn that held several frames and ended without an answer — the session gone, the run failed,
+  the turn stopped — is one row on the seat's panel, not one for each frame.
+- No day pill stands right before a row that says a session ended or started: that row names the
+  day itself.
+- The question card reads as a form: a rule between questions, the options in a column, Other as
+  the last option with a line of its own to type in, and Send and Cancel.
+- `permission` settles a rule that names one file, `Edit(/knowledge/common.md)` or
+  `Read(/notes/plan.md)`. A card never offers one as its Always.
 - The Leader keeps a Worker's checkpoint to itself: it tells the User nothing about it, only the
   Worker's report when that matters to them.
 - A Leader's turn with nothing in it for the User ends without a word: no "nothing to report", no
@@ -116,6 +124,8 @@ program hidden in the line.
 - When every side of such a line is allowed, the hook now refuses it instead, with a reason the
   session reads: put the pattern in a file for `grep -f`, or the steps in a script on its desk.
 - The session spells the command again and you are not asked.
+- A card for a line that holds a backtick or `$(` no longer offers an Always rule drawn from
+  inside that span, such as `Bash(Use the:*)`.
 - A line with a side the rules do not allow is refused toward a script (below).
 
 **No card for a compound line; the session is told to write a script.** A subagent a session starts

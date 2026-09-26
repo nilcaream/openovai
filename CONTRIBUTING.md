@@ -76,12 +76,14 @@ node --test tests/lifecycle.test.mjs        # start, tell, restart and stop the 
 node --test tests/lifecycle-quota.test.mjs  # hold what is written behind a spent window, release it at the reset
 node --test tests/lifecycle-idle.test.mjs   # tell about an idle seat, ask it to stop, end it
 node --test tests/lifecycle-stop.test.mjs   # stop, park and retire the seats, and stop the server
+node --test tests/lifecycle-close.test.mjs  # close a Worker's session at the end of the turn that writes its desk
 node --test tests/checkpoint.test.mjs       # count a Worker's calls to the Leader's checkpoint, and tell both
 node --test tests/desks.test.mjs            # a desk is one directory, and filing it away is moving it
 node --test tests/quota.test.mjs            # read the windows, stage them, hold at the gate
 node --test tests/usage.test.mjs            # the account's usage windows, and when the page is told
 node --test tests/permissions.test.mjs      # ask to be allowed, and answer
-node --test tests/hook.test.mjs             # let a compound of allowed commands through, or do not
+node --test tests/hook.test.mjs             # let a compound of allowed commands through, refuse one toward a script, hand a subagent common.md
+node --test tests/environment.test.mjs      # start a server or a seat with nothing of the session it was typed in
 node --test tests/dialog.test.mjs           # show a question in the words it was asked in
 node --test tests/frames.test.mjs           # frame what a session is told
 node --test tests/secrets.test.mjs          # mint, resolve and revoke a secret
