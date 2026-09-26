@@ -1474,8 +1474,13 @@ describe("what the User types", () => {
   // wrote the row is named: the seat for its own reply, the User's name for the User's line.
   it("carries every row a reference in the line names, whole, after the words", async () => {
     const before = panel(instance, LEADER);
-    const noted = before.findLast((row) => row.from === LEADER);
-    const asked = before.findLast((row) => row.from === "user");
+    // Two rows in one millisecond are one reference, on purpose, and the stand-in answers in the
+    // millisecond it was asked in often enough: the rows named are ones no other row shares a time
+    // with.
+    const alone = (row) => before.filter((other) => refTo(other.at) === refTo(row.at)).length === 1;
+    const noted = before.findLast((row) => row.from === LEADER && alone(row));
+    const asked = before.findLast((row) => row.from === "user" && alone(row));
+    assert.ok(noted !== undefined && asked !== undefined, "no reply and no line of the User's with a time of its own on the panel");
     const text = `${refTo(noted.at)} good. ${refTo(asked.at)} (ref/00:00:00/001) nothing`;
     const queues = queuesHeardIn(superman.log).length;
     await page("POST", `/sessions/${LEADER}/message`, { text });
