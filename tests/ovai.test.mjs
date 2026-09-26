@@ -1461,7 +1461,7 @@ describe("the server commands", () => {
     const pid = pidRecorded();
     const restarted = ovai(["restart"]);
     assert.equal(restarted.status, 0, restarted.stderr);
-    assert.match(restarted.stdout, new RegExp(`^Stopping the server at ${url} \\(pid ${pid}\\)\\.\nStopped\\.\n(http://127\\.0\\.0\\.1:\\d+)\n$`));
+    assert.match(restarted.stdout, new RegExp(`^Stopping the server at ${url} \\(pid ${pid}\\)\\.\nStopped( \\(sessions gone after \\d+\\.\\d seconds\\))?\\.\n(http://127\\.0\\.0\\.1:\\d+)\n$`));
     assert.notEqual(pidRecorded(), pid);
     url = restarted.stdout.trim().split("\n").at(-1);
     assert.ok(await settled(true));
@@ -1479,7 +1479,9 @@ describe("the server commands", () => {
     const pid = pidRecorded();
     const stopped = ovai(["stop"]);
     assert.equal(stopped.status, 0, stopped.stderr);
-    assert.equal(stopped.stdout, `Stopping the server at ${url} (pid ${pid}).\nStopped.\n`);
+    // A process of the instance still there for a moment after the port went dark is a race nobody
+    // here controls; when stop saw one, the line says how long it waited, and it still stopped.
+    assert.match(stopped.stdout, new RegExp(`^Stopping the server at ${url} \\(pid ${pid}\\)\\.\nStopped( \\(sessions gone after \\d+\\.\\d seconds\\))?\\.\n$`));
     assert.ok(await settled(false), "still answering after stop");
     assert.equal(ovai(["status"]).status, 3);
   });
