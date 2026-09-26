@@ -20,7 +20,7 @@ import { home } from "../lib/claude.mjs";
 import { end, endEvery, recordOf, running, runningSeats, tell } from "../lib/chat/session.mjs";
 import { deskFile, deskTitle, hire } from "../lib/desks.mjs";
 import { CONFIG_FILE } from "../lib/seed.mjs";
-import { callsIn, childrenOf, heardIn, installed, post as postPlain, queuesHeardIn, readLog, remove, secretsIn, startChat, stopChat, waitFor, waitForAddress, writeStandIn } from "./helpers.mjs";
+import { alive, callsIn, childrenOf, heardIn, installed, pidsIn, post as postPlain, queuesHeardIn, readLog, remove, secretsIn, startChat, stopChat, waitFor, waitForAddress, writeStandIn } from "./helpers.mjs";
 
 import { setup, LEADER, WORKER, OTHER, WORKER_MODEL, MINUTE, panel, base, instance, unexpected, options, configOf, reading, said, chat, server, seatUp, spawnedBy, page, call, tool, asked, told, besideBirth, gone, callsThen, writesDesk, deskOf, sessionsListed, settle, pair } from "./lifecycle-helpers.mjs";
 
@@ -254,9 +254,13 @@ describe("restart_session and stop_session", () => {
     assert.equal(running(LEADER), true);
     now += 1000;
     assert.equal((await tool(superman.secret, "write_desk", { title: "late", status: "s" })).refused, false);
+    // The predecessor's own process, not the seat: the seat is running again as soon as the
+    // successor is, so waiting on the seat would wait out its patience for nothing.
+    const [predecessor] = pidsIn(superman.log);
+    assert.equal(alive(predecessor), true, `the Leader's process ${predecessor} is not running before the restart`);
     const successor = await spawnedBy(LEADER, async () => {
       const answered = await tool(superman.secret, "restart_session", {});
-      assert.ok(await gone(LEADER) !== null || running(LEADER));
+      assert.ok(await waitFor(() => (alive(predecessor) ? null : true)), `the predecessor ${predecessor} is still running`);
       return answered;
     });
     assert.deepEqual(successor.result, { text: "restarting; your successor starts from your desk", refused: false, error: null });
