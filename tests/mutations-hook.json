@@ -163,5 +163,16 @@
         "to": "    ...[...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...SHELL_RULES].filter((rule) => !allow.includes(rule)).map((rule) => `allow ${rule}`),"
       }
     ]
+  },
+  {
+    "name": "the hook reads past a variable set in front, so a rule for the command lets a changed PATH through",
+    "catches": "answers nothing for a path set in front of an allowed command",
+    "edits": [
+      {
+        "file": "lib/hooks/compound.mjs",
+        "from": "  if (RESERVED.has(words[0]) || ASSIGNMENT.test(words[0])) {\n    return null;\n  }\n",
+        "to": "  if (RESERVED.has(words[0])) {\n    return null;\n  }\n  while (words.length > 0 && ASSIGNMENT.test(words[0])) {\n    words = words.slice(1);\n  }\n"
+      }
+    ]
   }
 ]

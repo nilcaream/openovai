@@ -35,8 +35,6 @@ describe("the decision for a command", () => {
     ["a branch over allowed commands", "if grep -q x f; then echo yes; else echo no; fi"],
     ["a while over an allowed command", "while cmp a b; do echo same; done"],
     ["a negated allowed command", "! cmp a b"],
-    ["an assignment in front of an allowed command", "CI=1 NODE_ENV=test npm test"],
-    ["an assignment alone", "X=1"],
     ["redirections around an allowed command", "npm test > out.txt 2>&1 && grep x out.txt < in.txt"],
     ["a quoted argument with a separator in it", 'git commit -m "fix: a; b && c | d"'],
     ["an escaped separator, which is text", "echo a \\; b"],
@@ -75,6 +73,14 @@ describe("the decision for a command", () => {
     ["an exact rule and a longer command", "make test --verbose"],
     ["find running what it finds", "find . -name '*.tmp' -exec rm {} ;"],
     ["find deleting what it finds", "find . -name '*.tmp' -delete"],
+    ["a library preloaded in front of an allowed command", "LD_PRELOAD=/tmp/x.so ls"],
+    ["a path set in front of an allowed command", "PATH=/tmp/evil:$PATH git status"],
+    ["an assignment in front of an allowed command", "CI=1 NODE_ENV=test npm test"],
+    ["an assignment behind an opener", "! PATH=/tmp/evil cmp a b"],
+    ["an assignment alone", "X=1"],
+    ["an assignment the allowed command after it runs under", "PATH=/tmp/evil; git status"],
+    ["an assignment in front of a command nothing holds", "CI=1 make build"],
+    ["an assignment then a grep through a cut", "cd /x/notes/ && N='Kris|Carlos'; grep -nwE \"$N\" $(cat /x/list-D.txt) | cut -c1-400"],
     ["nothing at all", "   "],
     ["a command that is not a string", undefined],
   ];
@@ -101,14 +107,12 @@ describe("the decision for a command", () => {
     ["a compound one side of which nothing holds", "cd /x && make build"],
     ["a pipe into a program nothing holds", "grep -c x /x/f | sort"],
     ["a loop over a command nothing holds", "for f in a b; do make $f; done"],
-    ["an assignment in front of a command nothing holds", "CI=1 make build"],
     ["a negated command nothing holds", "! make build"],
     ["a command that hides a program in a substitution", "ls $(cat x)"],
     ["a command that hides a program in backticks", "ls `cat x`"],
     ["a hidden program nothing holds, behind an allowed one", "grep x $(make build)"],
     ["a here-document", "cat <<EOF\nhello\nEOF"],
     ["a sweep over files named in a list", "cd /x/notes/ && grep -ohE '\\b[A-Z][a-z]{2,}\\b' $(cat /x/list-D.txt) | sort | uniq -c | sort -rn | awk '{printf \"%s:%s \",$2,$1}'"],
-    ["an assignment then a grep through a cut", "cd /x/notes/ && N='Kris|Carlos'; grep -nwE \"$N\" $(cat /x/list-D.txt) | cut -c1-400"],
   ];
   for (const [name, command] of compound) {
     it(`refuses toward a script ${name}`, () => {

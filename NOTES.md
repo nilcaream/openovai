@@ -132,13 +132,16 @@ program hidden in the line.
 with the Agent tool is given none of the instance's rules, so it ran pipes and `&&` chains, and each
 one stopped on a card for you. The hook runs for a subagent's commands too.
 
-- A line that is more than one plain command, such as a pipe, a chain, a loop, an assignment, `$(` or
-  a here-document, with a side no rule allows, is now refused with a reason. The reason says to
+- A line that is more than one plain command, such as a pipe, a chain, a loop, `$(` or a
+  here-document, with a side no rule allows, is now refused with a reason. The reason says to
   create the script with the Write tool, in temp/ or on the desk, and to run only `bash <file>`.
 - The session, or the subagent, writes the script and runs it, and you are not asked.
 - One plain command no rule allows still asks, so a new program is still yours to answer.
 - A line with a side the rules refuse (`git push`, `sudo`, `ssh`), or one the hook cannot read,
   still asks, and is never sent toward a script.
+- A variable set in front of a command, as in `PATH=/tmp/x:$PATH git status` or
+  `LD_PRELOAD=/tmp/x.so ls`, changes what runs, so a rule for the command no longer lets it
+  through. Such a line asks, and so does a variable set on its own.
 
 **A subagent is handed `customization/common.md`.** What you set for every session here used to
 reach the seats only. A subagent a seat started knew none of it unless the seat copied it into
