@@ -287,8 +287,8 @@ describe("the common note in a persona", () => {
     fs.mkdirSync(path.join(home, "lib", "templates"), { recursive: true });
     fs.mkdirSync(path.join(home, "customization"), { recursive: true });
     fs.mkdirSync(path.join(home, "knowledge"), { recursive: true });
-    for (const role of ["leader", "worker"]) {
-      fs.copyFileSync(path.join(repo, "lib", "templates", `${role}.md`), path.join(home, "lib", "templates", `${role}.md`));
+    for (const kind of ["common", "leader", "worker"]) {
+      fs.copyFileSync(path.join(repo, "lib", "templates", `${kind}.md`), path.join(home, "lib", "templates", `${kind}.md`));
     }
   });
 

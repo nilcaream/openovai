@@ -303,6 +303,18 @@ describe("what the installer made", () => {
       assert.ok(lead.includes('<customization source="customization/common.md">\nAlways answer in French. Keep {{THIS}} as it is.\n</customization>'), lead.slice(-400));
     });
 
+    // The toolkit's words first, each in a frame that names its template, and the person's after
+    // them: the installed instance carries lib/templates/common.md, and both kinds of seat get it.
+    it("puts ovai's common frame first, then the role's own, then the person's frames", () => {
+      for (const [text, role] of [[lead, "leader"], [plainWorker, "worker"]]) {
+        assert.ok(text.startsWith('<ovai source="lib/templates/common.md">\n'), text.slice(0, 200));
+        const own = text.indexOf(`</ovai>\n\n<ovai source="lib/templates/${role}.md">\n`);
+        assert.ok(own > 0, text.slice(0, 1200));
+        const person = text.indexOf("\n\n<customization source=");
+        assert.ok(person === -1 || person > text.lastIndexOf("</ovai>"), role);
+      }
+    });
+
     it("keeps the whitespace the person left exactly as it stands", () => {
       assert.ok(lead.includes(">\n1. The Leader alone presses a button.   \n\n\n</customization>"), lead.slice(-400));
     });

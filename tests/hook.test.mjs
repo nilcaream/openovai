@@ -310,6 +310,14 @@ describe("the subagent hook", () => {
     assert.equal(said.additionalContext.endsWith(`<customization source="customization/common.md">\n${words}</customization>`), true);
   });
 
+  // A subagent has no panel, so ovai's own common frame, which is about the panel, is not for it.
+  it("hands the subagent nothing of ovai's lib/templates/common.md", () => {
+    fs.writeFileSync(common, "1. A line the person set.\n");
+    const said = JSON.parse(run().stdout).hookSpecificOutput;
+    assert.equal(said.additionalContext.includes("<ovai"), false);
+    assert.equal(said.additionalContext.includes("<noop/>"), false);
+  });
+
   it("answers nothing when the instance has no common.md, and exits 0", () => {
     fs.rmSync(common, { force: true });
     const ran = run();

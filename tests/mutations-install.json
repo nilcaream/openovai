@@ -131,8 +131,8 @@
     "edits": [
       {
         "file": "lib/desks.mjs",
-        "from": "  const frames = [...customization(root, what), ...knowledge(root)];\n  return frames.length === 0 ? rendered",
-        "to": "  const frames = [...knowledge(root)];\n  return frames.length === 0 ? rendered"
+        "from": "    ...customization(root, what),\n    ...knowledge(root),\n",
+        "to": "    ...knowledge(root),\n"
       }
     ]
   },
@@ -142,8 +142,8 @@
     "edits": [
       {
         "file": "lib/desks.mjs",
-        "from": "  return frames.length === 0 ? rendered : `${rendered.replace(/\\s*$/, \"\")}\\n\\n${frames.join(\"\\n\\n\")}\\n`;",
-        "to": "  return frames.length === 0 ? rendered : `${frames.join(\"\\n\\n\")}\\n\\n${rendered}`;"
+        "from": "    ovai(role, render(what, readTemplate(root, what, role), values)),\n    ...customization(root, what),\n",
+        "to": "    ...customization(root, what),\n    ovai(role, render(what, readTemplate(root, what, role), values)),\n"
       }
     ]
   },

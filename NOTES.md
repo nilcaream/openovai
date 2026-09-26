@@ -28,6 +28,15 @@ when a turn holds nothing for the User. A reply that is exactly `<noop/>`, space
 in the panel's conversation marked `noop` and is not drawn, and the turn gets no silent row either:
 the panel shows nothing. Words that only mention `<noop/>` show as usual. Sessions hired before this version keep the persona they were rendered with.
 
+**ovai's own mechanics for every seat live in `lib/templates/common.md`, in a frame that names it.**
+A Leader's and a Worker's instructions now open with `<ovai source="lib/templates/common.md">`,
+then the role's template in `<ovai source="lib/templates/leader.md">` (or `worker.md`), then the
+User's customization frames as before. So every instruction says where it came from, and
+`customization/common.md` holds only the User's own lines. `common.md` takes the same placeholders
+as the role templates. Its first content is the `<noop/>` definition, stated once; the role
+templates point to it. A subagent is not given it: the SubagentStart hook still hands a subagent
+`customization/common.md` alone.
+
 ## 0.19.0
 
 **The Leader stops and restarts Workers; a Worker only works.** A Worker no longer has

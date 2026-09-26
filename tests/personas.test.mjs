@@ -187,7 +187,7 @@ describe("what the Leader is told", () => {
 
   it("tells the Leader that a word between two Workers is heard, not asked", () => {
     assert.match(leader(), /<server-event type="overheard" from="…" to="…">/);
-    assert.match(leader(), /It is heard, not asked: nothing to answer, nobody waiting on you\./);
+    assert.match(leader(), new RegExp(`It is heard, not asked: nobody is waiting on you, so unless ${USER}\\s+needs it, it is a \`<noop/>\` turn\\.`));
   });
 
   it("tells the Leader that what it says lands on its own panel, and a Worker is reached through message", () => {
@@ -197,9 +197,10 @@ describe("what the Leader is told", () => {
     assert.match(leader(), new RegExp(`keep what ${USER} has to know on your desk until ${USER} next speaks to you`));
   });
 
-  it("tells the Leader that a turn with nothing in it for the User replies exactly <noop/>", () => {
-    assert.match(leader(), new RegExp(`A turn with nothing in it for ${USER} replies exactly \`<noop/>\` — no "nothing to report", no filler:\\nonly what ${USER} needs lands on the panel, and \`<noop/>\` shows there as a turn that said nothing\\.`));
-    assert.match(leader(), /With nothing left in flight, reply exactly `<noop\/>` and do nothing\./);
+  it("points the Leader to the <noop/> turn for a turn with nothing in it for the User", () => {
+    assert.match(leader(), new RegExp(`A turn with nothing in it for ${USER} is a \`<noop/>\` turn\\.`));
+    assert.match(leader(), /With nothing left in flight, do nothing: it is a `<noop\/>` turn\./);
+    assert.match(leader(), new RegExp(`Nothing to acknowledge: unless ${USER}\\s+needs it, it is a \`<noop/>\` turn\\.`));
   });
 
   // The Leader's panel fills with Workers' messages: a list pointed back to is a list the User
@@ -334,10 +335,11 @@ describe("what a Worker is told", () => {
     assert.match(worker(), new RegExp(`a report ${LEAD} is\\s+waiting for is a \`message\` to ${LEAD}, never the last line of your turn`));
   });
 
-  it("tells the Worker that a report once sent ends the turn with exactly <noop/>, never the report again", () => {
-    assert.match(worker(), /the turn ends there with exactly `<noop\/>` — not a line saying so, and never the report\s+again/);
-    assert.match(worker(), /With nothing left in flight, reply exactly `<noop\/>` and do nothing\./);
-    assert.match(worker(), new RegExp(`what you say on your own panel is for what\\s+${USER} typed there`));
+  it("tells the Worker that a report once sent ends the turn as a <noop/> turn, never the report again", () => {
+    assert.match(worker(), /Once it is sent, the\s+turn ends there, a `<noop\/>` turn: never the report again\./);
+    assert.match(worker(), /With nothing left in flight, do nothing: it is a `<noop\/>` turn\./);
+    assert.match(worker(), /and end the turn there, a `<noop\/>`\s+turn\./);
+    assert.match(worker(), new RegExp(`what you say on your own\\s+panel is for what\\s+${USER} typed there`));
   });
 
   it("tells the Worker that the server passes on what the User typed, so it does not", () => {
@@ -354,7 +356,7 @@ describe("what a Worker is told", () => {
   // turn that reads the close, and the session ends when that turn is over.
   it("tells the Worker a close asks only for its desk, written last in the turn, and cuts nothing", () => {
     assert.match(worker(), /Write your desk now — what the task is, what is true now, what to do next —\s+with `write_desk` as the last thing you do in this turn, and end the turn there/);
-    assert.match(worker(), /The session\s+ends when the turn is over, with the desk as you wrote it, and nothing is cut while the turn\s+runs/);
+    assert.match(worker(), /The session\s+ends when the turn is over, with the desk as you wrote it, and nothing is\s+cut while the turn runs/);
     assert.match(worker(), /Ending your session is never yours to do/);
   });
 
@@ -414,6 +416,31 @@ describe("what a Worker is told", () => {
   it("tells the Worker whose the hires and the permissions are", () => {
     assert.match(worker(), new RegExp(`Who works here, who joins and who leaves, and what the\\s+instance may do are ${LEAD}'s`));
     assert.match(worker(), /say whose it is and say it to them/);
+  });
+});
+
+// ovai's own mechanics for every seat are stated once, in lib/templates/common.md, which the
+// renderer puts in a frame of its own before the role's; the role templates only point at it.
+describe("what both are told in ovai's common frame", () => {
+  const DEFINITION = new RegExp(
+    "A turn with nothing in it for your panel is a `<noop/>` turn: the whole reply is exactly `<noop/>`,\\nwith no words before or after it, and the panel shows nothing for it\\.",
+    "g",
+  );
+
+  it("gives both the <noop/> definition exactly once, inside the common frame, before the role's own", () => {
+    for (const [text, role] of [[leader(), "leader"], [worker(), "worker"]]) {
+      const common = text.slice(0, text.indexOf("</ovai>"));
+      assert.ok(common.startsWith('<ovai source="lib/templates/common.md">\n'), role);
+      assert.equal(common.match(DEFINITION)?.length, 1, role);
+      assert.equal(text.match(DEFINITION).length, 1, role);
+      assert.ok(text.indexOf(`<ovai source="lib/templates/${role}.md">\n`) > text.indexOf("</ovai>"), role);
+    }
+  });
+
+  it("tells both what the frame before their own is", () => {
+    for (const text of [leader(), worker()]) {
+      assert.match(text, /The frame before this one is ovai's own\s+mechanics for every session here, the Leader and the Workers alike, and you follow it as you\s+follow this one\./);
+    }
   });
 });
 

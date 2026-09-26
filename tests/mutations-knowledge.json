@@ -412,8 +412,8 @@
     "edits": [
       {
         "file": "lib/desks.mjs",
-        "from": "  const frames = [...customization(root, what), ...knowledge(root)];",
-        "to": "  const frames = [...knowledge(root), ...customization(root, what)];"
+        "from": "    ...customization(root, what),\n    ...knowledge(root),\n",
+        "to": "    ...knowledge(root),\n    ...customization(root, what),\n"
       }
     ]
   },
