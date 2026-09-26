@@ -418,17 +418,6 @@
     ]
   },
   {
-    "name": "the token carries the weekday",
-    "catches": "is the day and the clock of the stamp, the weekday dropped, spelled out as the clock, the speaker and the first line of the row",
-    "edits": [
-      {
-        "file": "lib/chat/panels.mjs",
-        "from": "  const clock = parts.at(-1);",
-        "to": "  const clock = parts[1];"
-      }
-    ]
-  },
-  {
     "name": "the reference goes at the end of the box, wherever the cursor is",
     "catches": "goes in at the cursor with a space on either side, the cursor after it",
     "edits": [

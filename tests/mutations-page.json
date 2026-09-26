@@ -846,6 +846,11 @@
         "file": "lib/chat/page.html",
         "from": "  .msg.peer-out .bubble { background: var(--to); border-color: var(--to-line); }\n",
         "to": ""
+      },
+      {
+        "file": "lib/chat/page.html",
+        "from": "  .rows.comms-hidden .msg:is(.peer-in, .peer-out, .overheard):not(.revealed)",
+        "to": "  .rows.comms-hidden .msg:is(.overheard):not(.revealed)"
       }
     ]
   },
@@ -1273,8 +1278,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      line.classList.add(\"collapsed\");\n      line.addEventListener(\"dblclick\"",
-        "to": "      line.addEventListener(\"dblclick\""
+        "from": "      line.classList.add(\"collapsed\");\n",
+        "to": ""
       }
     ]
   },
@@ -1905,8 +1910,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "overflow-x: auto; font-size: .85rem; line-height: 1.4; position: relative; }",
-        "to": "overflow-x: auto; font-size: .85rem; line-height: 1.5; position: relative; }"
+        "from": "overflow-x: auto; font-size: .85rem; line-height: 1.4; scrollbar-width: thin;",
+        "to": "overflow-x: auto; font-size: .85rem; line-height: 1.5; scrollbar-width: thin;"
       }
     ]
   },
@@ -1938,8 +1943,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "font-size: .85rem; line-height: 1.4; position: relative; }",
-        "to": "font-size: .85rem; line-height: 1.4; }"
+        "from": ".md .code { position: relative; background:",
+        "to": ".md .code { background:"
       }
     ]
   },
@@ -1960,7 +1965,7 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "navigator.clipboard.writeText((block.querySelector(\"code\") ?? block).textContent)",
+        "from": "navigator.clipboard.writeText((block.querySelector(\"code\") ?? block.querySelector(\"pre\")).textContent)",
         "to": "navigator.clipboard.writeText(block.textContent)"
       }
     ]
@@ -2173,8 +2178,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "        panel.waiting.clear();\n        panel.doing = null;\n        // The cards are not among the rows: they stand, and leave when their question does.\n",
-        "to": "        panel.waiting.clear();\n        panel.doing = null;\n        panel.drawn.clear();\n"
+        "from": "        panel.bubbles.clear();\n        // The cards are not among the rows: they stand, and leave when their question does.\n",
+        "to": "        panel.bubbles.clear();\n        panel.drawn.clear();\n"
       }
     ]
   },

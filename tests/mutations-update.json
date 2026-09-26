@@ -279,9 +279,9 @@
     "catches": "goes through: that server is a session of its own instance, not of this one",
     "edits": [
       {
-        "file": "lib/ovai.mjs",
-        "from": "    env: { ...process.env, CLAUDE_CONFIG_DIR: home(root) },\n",
-        "to": ""
+        "file": "lib/claude.mjs",
+        "from": "  env.CLAUDE_CONFIG_DIR = home(root);\n  return env;\n",
+        "to": "  return env;\n"
       }
     ]
   },
