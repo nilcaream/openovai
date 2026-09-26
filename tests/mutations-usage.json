@@ -45,7 +45,7 @@
   },
   {
     "name": "the token goes as a plain header",
-    "catches": "sends the token as a bearer with the beta the endpoint wants, and keeps the answer with when it came",
+    "catches": "sends the token as a bearer with the beta the endpoint wants",
     "edits": [
       {
         "file": "lib/chat/usage.mjs",
@@ -56,7 +56,7 @@
   },
   {
     "name": "the request has no timeout",
-    "catches": "sends the token as a bearer with the beta the endpoint wants, and keeps the answer with when it came",
+    "catches": "sends the token as a bearer with the beta the endpoint wants",
     "edits": [
       {
         "file": "lib/chat/usage.mjs",
@@ -67,7 +67,7 @@
   },
   {
     "name": "the answer is kept without when it came",
-    "catches": "sends the token as a bearer with the beta the endpoint wants, and keeps the answer with when it came",
+    "catches": "is asked at a turn's end and when a page opens, once the last reading is a minute old",
     "edits": [
       {
         "file": "lib/chat/usage.mjs",
@@ -254,7 +254,7 @@
   },
   {
     "name": "the page is not told when the answer lands",
-    "catches": "is told the reading once it is in, again when its words change or a fresh one is taken, and not for a tick that says the same",
+    "catches": "is told the reading once it is in, again when its words change, and not for a fresh one that says the same",
     "edits": [
       {
         "file": "lib/chat/usage.mjs",
@@ -265,7 +265,7 @@
   },
   {
     "name": "the page is told on every tick",
-    "catches": "is told the reading once it is in, again when its words change or a fresh one is taken, and not for a tick that says the same",
+    "catches": "is told the reading once it is in, again when its words change, and not for a fresh one that says the same",
     "edits": [
       {
         "file": "lib/chat/usage.mjs",

@@ -95,7 +95,7 @@ describe("asking the endpoint", () => {
     credentials({ claudeAiOauth: { accessToken: "token-own" } });
   });
 
-  it("sends the token as a bearer with the beta the endpoint wants, and keeps the answer with when it came", async () => {
+  it("sends the token as a bearer with the beta the endpoint wants", async () => {
     const get = answering();
     await refresh(instance, { get, now: () => T0, version: "1.2.3" });
     assert.equal(get.asked.length, 1);

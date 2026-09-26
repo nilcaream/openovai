@@ -45,7 +45,7 @@
   },
   {
     "name": "the hook stops seeing a command substitution as hiding a program",
-    "catches": "answers nothing for a command that hides a program in a substitution",
+    "catches": "refuses toward a script a command that hides a program in a substitution",
     "edits": [
       {
         "file": "lib/hooks/compound.mjs",
@@ -144,7 +144,7 @@
   },
   {
     "name": "an update writes the hook again over settings that already carry it",
-    "catches": "writes nothing when the hook is there",
+    "catches": "writes nothing when the hooks are there",
     "edits": [
       {
         "file": "lib/seed.mjs",
