@@ -445,8 +445,8 @@
     "edits": [
       {
         "file": "lib/templates/leader.md",
-        "from": "Your desk is desks/{{LEADER}}/, and it is your working directory: what you keep — notes, what you\nare waiting on, drafts for {{USER}} — lives there, beside the desk file, and you write there with\nthe file tools without being asked. The desk file is desks/{{LEADER}}/STATE.md.",
-        "to": "Your desk is desks/{{LEADER}}/STATE.md."
+        "from": "Your desk is {{DESK}}/, and it is your working directory: what you keep — notes, what you\nare waiting on, drafts for {{USER}} — lives there, beside the desk file, and you write there with\nthe file tools without being asked. The desk file is {{DESK}}/STATE.md.",
+        "to": "Your desk is {{DESK}}/STATE.md."
       }
     ]
   },
@@ -489,8 +489,41 @@
     "edits": [
       {
         "file": "lib/templates/worker.md",
-        "from": "Your desk is desks/{{NAME}}/, and it is your working directory: what the work produces — a\ndesign, a finding, a proof, notes — is kept there, beside the desk file, and you write there with\nthe file tools without being asked. The desk file is desks/{{NAME}}/STATE.md.",
-        "to": "Your desk is desks/{{NAME}}/STATE.md."
+        "from": "Your desk is {{DESK}}/, and it is your working directory: what the work produces — a\ndesign, a finding, a proof, notes — is kept there, beside the desk file, and you write there with\nthe file tools without being asked. The desk file is {{DESK}}/STATE.md.",
+        "to": "Your desk is {{DESK}}/STATE.md."
+      }
+    ]
+  },
+  {
+    "name": "the Worker is told its desk relative to a root it has to guess",
+    "catches": "gives each seat its desk and desk file as the whole path, the instance root joined",
+    "edits": [
+      {
+        "file": "lib/templates/worker.md",
+        "from": "Your desk is {{DESK}}/, and it is your working directory",
+        "to": "Your desk is desks/{{NAME}}/, and it is your working directory"
+      }
+    ]
+  },
+  {
+    "name": "the Leader is told its desk file relative to a root it has to guess",
+    "catches": "gives each seat its desk and desk file as the whole path, the instance root joined",
+    "edits": [
+      {
+        "file": "lib/templates/leader.md",
+        "from": "The desk file is {{DESK}}/STATE.md.",
+        "to": "The desk file is desks/{{LEADER}}/STATE.md."
+      }
+    ]
+  },
+  {
+    "name": "the desk a persona is told is the relative one",
+    "catches": "gives each seat its desk and desk file as the whole path, the instance root joined",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "DESK: deskDirectory(root, name),",
+        "to": "DESK: path.join(\"desks\", name),"
       }
     ]
   },

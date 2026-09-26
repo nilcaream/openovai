@@ -131,7 +131,7 @@ describe("what the Leader is told", () => {
   // session's to write with the file tools, and it is told so rather than left to find out on a
   // permission dialog.
   it("tells the Leader its desk directory is its working directory, the header the tool's and the body edited in place", () => {
-    assert.match(leader(), new RegExp(`Your desk is desks/${LEAD}/, and it is your working directory`));
+    assert.ok(leader().includes(`Your desk is ${path.join(repo, "desks", LEAD)}/, and it is your working directory`));
     assert.match(leader(), /write there with\s+the file tools without being asked/);
     assert.match(leader(), /Its first line is the server's header, and `write_desk` is what writes it/);
     assert.match(leader(), /edited in place with the file tools like any other file: change the line that changed, never the\s+whole desk, then call `write_desk`/);
@@ -275,8 +275,21 @@ describe("what a Worker is told", () => {
     assert.ok(worker().includes(`desks/${PAUL}/STATE.md`));
   });
 
+  // A desk named by `desks/<Name>/` alone leaves the session to work out what it is under, and a
+  // session of an instance that sits inside another has guessed the outer one's root: the same
+  // names, somebody else's desks. So both kinds are told the whole path, the root joined.
+  it("gives each seat its desk and desk file as the whole path, the instance root joined", () => {
+    for (const [text, name] of [[leader(), LEAD], [worker(), PAUL]]) {
+      const desk = path.join(repo, "desks", name);
+      assert.ok(path.isAbsolute(desk));
+      assert.ok(text.includes(`Your desk is ${desk}/`), `${name} is told the desk directory as a whole path`);
+      assert.ok(text.includes(`The desk file is ${desk}/STATE.md`), `${name} is told the desk file as a whole path`);
+      assert.doesNotMatch(text, /(?:Your desk is|The desk file is) desks\//, `${name} is never told a desk relative to a root it has to guess`);
+    }
+  });
+
   it("tells the Worker its desk directory is its working directory, the header the tool's and the body edited in place", () => {
-    assert.match(worker(), new RegExp(`Your desk is desks/${PAUL}/, and it is your working directory`));
+    assert.ok(worker().includes(`Your desk is ${path.join(repo, "desks", PAUL)}/, and it is your working directory`));
     assert.match(worker(), /write there with\s+the file tools without being asked/);
     assert.match(worker(), /Its first line is the server's header, and `write_desk` is what writes it/);
     assert.match(worker(), /edited in place with the file tools like any other file — the sections/);

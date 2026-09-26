@@ -24,6 +24,9 @@ All of that is the Leader's now:
 - A Worker says it is done with the new `done` tool, with a one-line note if it likes. The Leader
   gets a `done` event and decides whether it stops. The report still goes as a message.
 - The Leader's own session is unchanged: it still ends and restarts itself.
+- Every seat is told its desk and desk file as whole paths, with the instance root joined, where
+  it was told `desks/<Name>/`. A session left to work out the root has guessed wrong, reaching for
+  another instance's desk of the same name when its own instance sat inside that one.
 - When a usage window that reached a stage resets, the Leader gets a `quota-reset` event with the
   window, and the model when it is one model's own; a stopped Leader is started by it, to bring
   back the Workers that stopped on the window. A park forgets the resets to come, and a server
