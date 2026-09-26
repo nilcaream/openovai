@@ -10,7 +10,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
-import { HIDDEN_REASON, HOOK_COMMAND, HOOK_ENTRY, answerFor, decide, hookWired } from "../lib/hooks/compound.mjs";
+import { COMPOUND_REASON, HIDDEN_REASON, HOOK_COMMAND, HOOK_ENTRY, answerFor, decide, hookWired } from "../lib/hooks/compound.mjs";
 import { rulesMissing, rulesStale, wireHook } from "../lib/seed.mjs";
 import { readSettings, settingsFile, writeSettings } from "../lib/settings.mjs";
 import { remove, repo, scratch } from "./helpers.mjs";
@@ -54,19 +54,16 @@ describe("the decision for a command", () => {
 
   const silent = [
     ["a command nothing holds", "make build"],
-    ["a compound one side of which nothing holds", "cd /x && make build"],
-    ["a loop over a command nothing holds", "for f in a b; do make $f; done"],
     ["a side that is refused by rule", "cd /x && git push origin main"],
     ["a refused command alone", "sudo ls"],
     ["a refused command inside a loop", "for h in a b; do ssh $h ls; done"],
+    ["a side nothing holds beside a side that is refused", "make build && git push"],
+    ["a side nothing holds beside a side that is not read", "make build && $TOOL --go"],
     ["git without a subcommand", "git"],
     ["git with a subcommand that is not a word", "git -C /x status"],
-    ["a command that hides a program in a substitution", "ls $(cat x)"],
-    ["a command that hides a program in backticks", "ls `cat x`"],
-    ["a hidden program nothing holds, behind an allowed one", "grep x $(make build)"],
     ["a hidden program that is refused by rule", "echo `git push`"],
-    ["a here-document", "cat <<EOF\nhello\nEOF"],
     ["a quote left open", 'echo "a && rm -rf /'],
+    ["a quote left open in a compound nothing holds", "make a && make 'b"],
     ["a first word with a slash", "./release.sh && npm test"],
     ["a first word out of a variable", "$TOOL --go"],
     ["a case, which is not read", "case $x in a) ls;; esac"],
@@ -94,12 +91,33 @@ describe("the decision for a command", () => {
   ];
   for (const [name, command] of refused) {
     it(`refuses ${name}`, () => {
-      assert.equal(decide(command, SETTINGS), "deny");
+      assert.equal(decide(command, SETTINGS), "hidden");
+    });
+  }
+
+  // More than one plain command, with a side no rule holds: refused toward a script, not carded.
+  const compound = [
+    ["a compound one side of which nothing holds", "cd /x && make build"],
+    ["a pipe into a program nothing holds", "grep -c x /x/f | sort"],
+    ["a loop over a command nothing holds", "for f in a b; do make $f; done"],
+    ["an assignment in front of a command nothing holds", "CI=1 make build"],
+    ["a negated command nothing holds", "! make build"],
+    ["a command that hides a program in a substitution", "ls $(cat x)"],
+    ["a command that hides a program in backticks", "ls `cat x`"],
+    ["a hidden program nothing holds, behind an allowed one", "grep x $(make build)"],
+    ["a here-document", "cat <<EOF\nhello\nEOF"],
+    ["a sweep over files named in a list", "cd /x/notes/ && grep -ohE '\\b[A-Z][a-z]{2,}\\b' $(cat /x/list-D.txt) | sort | uniq -c | sort -rn | awk '{printf \"%s:%s \",$2,$1}'"],
+    ["an assignment then a grep through a cut", "cd /x/notes/ && N='Kris|Carlos'; grep -nwE \"$N\" $(cat /x/list-D.txt) | cut -c1-400"],
+  ];
+  for (const [name, command] of compound) {
+    it(`refuses toward a script ${name}`, () => {
+      assert.equal(decide(command, SETTINGS), "compound");
     });
   }
 
   it("reads the rules it is given, not a list of its own", () => {
-    assert.equal(decide("cd /x && npm test", { permissions: { allow: ["Bash(cd:*)"], deny: [] } }), null);
+    assert.equal(decide("npm test", { permissions: { allow: ["Bash(cd:*)"], deny: [] } }), null);
+    assert.equal(decide("cd /x && npm test", { permissions: { allow: ["Bash(cd:*)"], deny: [] } }), "compound");
     assert.equal(decide("cd /x && npm test", { permissions: { allow: ["Bash(cd:*)", "Bash(npm:*)"] } }), "allow");
     assert.equal(decide("npm test", {}), null);
   });
@@ -128,8 +146,15 @@ describe("what the harness reads back", () => {
     assert.match(HIDDEN_REASON, /script on your desk/);
   });
 
+  it("is the deny decision with a reason naming the Write tool and bash <file> for a compound with a side nothing holds", () => {
+    const said = JSON.parse(answerFor({ tool_name: "Bash", tool_input: { command: "cd /x && make build" } }, SETTINGS));
+    assert.equal(said.hookSpecificOutput.permissionDecision, "deny");
+    assert.equal(said.hookSpecificOutput.permissionDecisionReason, COMPOUND_REASON);
+    assert.match(COMPOUND_REASON, /Create the script with the Write tool, in temp\/ or on your desk, then run only `bash <file>` as its own Bash call/);
+  });
+
   it("is nothing for a command that gets no decision", () => {
-    assert.equal(answerFor({ tool_name: "Bash", tool_input: { command: "cd /x && make build" } }, SETTINGS), "");
+    assert.equal(answerFor({ tool_name: "Bash", tool_input: { command: "make build" } }, SETTINGS), "");
   });
 
   it("is nothing for a call that is not Bash, whatever it carries", () => {
@@ -179,7 +204,7 @@ describe("run as the hook", () => {
 
   it("reads the settings of the instance it sits in, so a rule taken out stops counting", () => {
     writeSettings(root, { permissions: { allow: ["Bash(cd:*)"], deny: [] } });
-    const ran = run(JSON.stringify({ tool_name: "Bash", tool_input: { command: "cd /x && npm test" } }));
+    const ran = run(JSON.stringify({ tool_name: "Bash", tool_input: { command: "npm test" } }));
     assert.equal(ran.stdout, "");
     writeSettings(root, SETTINGS);
   });

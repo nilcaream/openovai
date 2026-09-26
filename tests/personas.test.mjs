@@ -376,17 +376,17 @@ describe("what a Worker is told", () => {
   });
 
   // The compound hook never allows a command holding a backtick or `$(` anywhere, quotes or not
-  // (lib/hooks/compound.mjs HIDDEN): it refuses one whose every side is allowed, with a reason,
-  // and answers nothing for the rest, which then ask.
+  // (lib/hooks/compound.mjs HIDDEN): it refuses it with a reason, and answers nothing when a side
+  // is refused by rule or cannot be read, which then asks.
   it("tells the Worker that shell syntax in an argument goes into a pattern file or a script, never onto the line", () => {
-    assert.match(worker(), /A backtick or a `\$\(` anywhere on the line reads as a command hidden inside it, quoted or\s+not: when every side of the line is one the rules allow, it is refused with a reason, and otherwise\s+it asks/);
+    assert.match(worker(), /A backtick or a `\$\(` anywhere on the line reads as a command hidden inside it, quoted or\s+not: it is refused with a reason, unless a side of the line is one the rules refuse or one that\s+cannot be read, and then it asks/);
     assert.match(worker(), /goes into a pattern file passed with `grep -f`, or into\s+such a script on your desk, never onto the command line/);
     assert.match(worker(), /Anything more than one plain command — a pipe, a chain, a loop, a command that runs on\s+for lines — is a one-time script written on your own desk and run that way/);
     assert.match(worker(), /several alternatives\s+go as repeated `-e` rather than one pattern joined by `\\\|`/);
   });
 
-  it("tells the Worker that a compound of allowed commands runs without a stop, and one with a side nothing holds asks", () => {
-    assert.match(worker(), /A compound whose every side is a command this instance allows runs\s+without a stop; one that has a side nothing holds asks, so spell it plain or ask for the rule\./);
+  it("tells the Worker that a compound of allowed commands runs without a stop, and one with a side nothing holds is refused toward a script", () => {
+    assert.match(worker(), /A compound whose every side is a command this instance allows runs\s+without a stop; one that has a side nothing holds is refused with a reason that says how to write it\s+as a script, unless a side is one the rules refuse, and then it asks\./);
   });
 
   it("tells the Worker to say why in the call, in words a person reads", () => {

@@ -111,7 +111,19 @@ program hidden in the line.
 - When every side of such a line is allowed, the hook now refuses it instead, with a reason the
   session reads: put the pattern in a file for `grep -f`, or the steps in a script on its desk.
 - The session spells the command again and you are not asked.
-- A line with a side the rules do not allow still asks as before.
+- A line with a side the rules do not allow is refused toward a script (below).
+
+**No card for a compound line; the session is told to write a script.** A subagent a session starts
+with the Agent tool is given none of the instance's rules, so it ran pipes and `&&` chains, and each
+one stopped on a card for you. The hook runs for a subagent's commands too.
+
+- A line that is more than one plain command, such as a pipe, a chain, a loop, an assignment, `$(` or
+  a here-document, with a side no rule allows, is now refused with a reason. The reason says to
+  create the script with the Write tool, in temp/ or on the desk, and to run only `bash <file>`.
+- The session, or the subagent, writes the script and runs it, and you are not asked.
+- One plain command no rule allows still asks, so a new program is still yours to answer.
+- A line with a side the rules refuse (`git push`, `sudo`, `ssh`), or one the hook cannot read,
+  still asks, and is never sent toward a script.
 
 ## 0.18.0
 

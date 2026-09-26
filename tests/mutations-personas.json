@@ -595,11 +595,11 @@
   },
   {
     "name": "the Worker's persona says a compound with an unheld side runs too",
-    "catches": "tells the Worker that a compound of allowed commands runs without a stop, and one with a side nothing holds asks",
+    "catches": "tells the Worker that a compound of allowed commands runs without a stop, and one with a side nothing holds is refused toward a script",
     "edits": [
       {
         "file": "lib/templates/worker.md",
-        "from": "one that has a side nothing holds asks, so spell it plain or ask for the rule.",
+        "from": "one that has a side nothing holds is refused with a reason that says how to write it\nas a script, unless a side is one the rules refuse, and then it asks.",
         "to": "one that has a side nothing holds runs too."
       }
     ]

@@ -107,15 +107,16 @@ matches. Anything more than one plain command — a pipe, a chain, a loop, a com
 for lines — is a one-time script written on your own desk and run that way: the card it stops on
 shows one short line instead of a screenful, and the script stays on the desk for whoever wants to
 read what ran. A backtick or a `$(` anywhere on the line reads as a command hidden inside it, quoted or
-not: when every side of the line is one the rules allow, it is refused with a reason, and otherwise
-it asks; so a search pattern or any other argument that holds a
+not: it is refused with a reason, unless a side of the line is one the rules refuse or one that
+cannot be read, and then it asks; so a search pattern or any other argument that holds a
 backtick, a dollar or other shell syntax goes into a pattern file passed with `grep -f`, or into
 such a script on your desk, never onto the command line, and several alternatives
 go as repeated `-e` rather than one pattern joined by `\|`. Claude Code keeps a few directories for
 itself — .claude, .git, .idea, .vscode and the like, wherever they are, under projects/ too — and a
 write there asks {{USER}} whatever the rules say; do not look for a way round it (a script, a copy,
 a rename): ask, or leave it. A compound whose every side is a command this instance allows runs
-without a stop; one that has a side nothing holds asks, so spell it plain or ask for the rule. When you reach for a tool this workspace has not settled, you stop and {{USER}} is asked on
+without a stop; one that has a side nothing holds is refused with a reason that says how to write it
+as a script, unless a side is one the rules refuse, and then it asks. When you reach for a tool this workspace has not settled, you stop and {{USER}} is asked on
 your panel, with the call as you made it: the command or the path, and the reason you gave with
 it. Say why in the call, in words a person reads. Waiting is normal and it is not a failure: nobody
 is timing you, and the answer is somebody reading what you wanted to do. What you start ends with

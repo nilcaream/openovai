@@ -38,8 +38,8 @@
     "edits": [
       {
         "file": "lib/hooks/compound.mjs",
-        "from": "    if (refused.some((holds) => holds(spoken))) {",
-        "to": "    if (false) {"
+        "from": "  if (refused.some((holds) => holds(spoken))) {",
+        "to": "  if (false) {"
       }
     ]
   },
@@ -60,8 +60,41 @@
     "edits": [
       {
         "file": "lib/hooks/compound.mjs",
-        "from": "    return held(command.replace(HIDDEN_EVERY, \" ; \"), settings) === \"allow\" ? \"deny\" : null;",
-        "to": "    return null;"
+        "from": "    return hidden ? \"hidden\" : \"allow\";",
+        "to": "    return hidden ? null : \"allow\";"
+      }
+    ]
+  },
+  {
+    "name": "the hook is silent again for a compound with a side nothing holds, so the harness cards it",
+    "catches": "refuses toward a script a compound one side of which nothing holds",
+    "edits": [
+      {
+        "file": "lib/hooks/compound.mjs",
+        "from": "  return hidden || !plain(sides) ? \"compound\" : null;",
+        "to": "  return null;"
+      }
+    ]
+  },
+  {
+    "name": "the hook refuses one plain command nothing holds toward a script, so the User is never asked about a program",
+    "catches": "answers nothing for a command nothing holds",
+    "edits": [
+      {
+        "file": "lib/hooks/compound.mjs",
+        "from": "  return hidden || !plain(sides) ? \"compound\" : null;",
+        "to": "  return \"compound\";"
+      }
+    ]
+  },
+  {
+    "name": "the hook refuses toward a script a line with a side it cannot read",
+    "catches": "answers nothing for a side nothing holds beside a side that is not read",
+    "edits": [
+      {
+        "file": "lib/hooks/compound.mjs",
+        "from": "  if (verdicts.includes(\"unread\")) {\n    return null;\n  }",
+        "to": ""
       }
     ]
   },
