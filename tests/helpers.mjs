@@ -15,6 +15,7 @@
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import http from "node:http";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -597,6 +598,13 @@ export function standInEnvironment(directory, log, extra = {}) {
 writeStandIn(runtimeData);
 process.on("exit", () => remove(runtimeData));
 
+// A run interrupted — Ctrl-C, or a runner told to stop — ends each suite by a signal, and a process
+// ended by a signal runs no exit handler: every suite's teardown on exit, the servers it started
+// included, would be skipped. Exiting instead runs them. Not while a spawnSync is running: node
+// drops a signal that arrives then, and the suite ends with nothing run.
+for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
+  process.on(signal, () => process.exit(128 + os.constants.signals[signal]));
+}
 // Drive the stand-in directly: spawn it, hand it a question, read its frames and wait for it to
 // go. Almost every check here reaches it through the chat, which is right when the subject is
 // what the chat does with an answer. When the subject is the stand-in's OWN output — the shape it

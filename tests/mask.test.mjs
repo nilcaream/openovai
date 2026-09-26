@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { after, describe, it } from "node:test";
+import { after, before, describe, it } from "node:test";
 
 import { snapshot } from "../lib/admin.mjs";
 import { amend, append, failedAsSaid, read } from "../lib/chat/conversation.mjs";
@@ -74,7 +74,12 @@ describe("what masking hides", () => {
 });
 
 describe("where masking is applied", () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "ovai-mask-"));
+  // Made in the hook and not in the describe's body: the body runs whether or not any of its
+  // checks is picked (--test-name-pattern), the hooks only when one is.
+  let root;
+  before(() => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "ovai-mask-"));
+  });
   after(() => fs.rmSync(root, { recursive: true, force: true }));
   const secret = fill(20);
   const command = `curl -H "Authorization: Bearer ${secret}" https://api.example.com`;

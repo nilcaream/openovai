@@ -1344,7 +1344,20 @@ describe("the server commands", () => {
     }
   };
 
+  // Whatever the checks left running is ended by the pid the server wrote down. The server is
+  // started detached and outlives this process, so the ending runs on exit as well: a run
+  // interrupted between start and stop never reaches after().
+  const end = () => {
+    try {
+      process.kill(pidRecorded(), "SIGTERM");
+    } catch {
+      // Nothing running, or nothing recorded.
+    }
+    remove(served);
+  };
+
   before(() => {
+    process.on("exit", end);
     remove(served);
     installed({
       "--root": served,
@@ -1367,15 +1380,7 @@ describe("the server commands", () => {
     return false;
   };
 
-  after(() => {
-    // Whatever the checks left running is ended by the pid the server wrote down.
-    try {
-      process.kill(pidRecorded(), "SIGTERM");
-    } catch {
-      // Nothing running, or nothing recorded.
-    }
-    remove(served);
-  });
+  after(end);
 
   it("prints the help when given no command", () => {
     const bare = ovai([]);
@@ -1679,6 +1684,7 @@ describe("what admin mode leaves behind when the door closes", () => {
 // everywhere Claude Code keeps one, none of it carried.
 describe("what admin mode says moved", () => {
   const root = scratch("ovai-admin-snapshot");
+  after(() => remove(root));
   const SECRET = "sk-never-in-a-record";
   const write = (name, value) => {
     fs.mkdirSync(path.dirname(path.join(root, name)), { recursive: true });
