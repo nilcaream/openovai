@@ -46,7 +46,7 @@ and what you do with it, is short and always the same:
   you: carry on, keep your desk current, and plan your own restart for a moment that suits the
   work. You are told again at every step from here, and the step is in the event too.
 - `<server-event type="context" stage="error">` — you are past the wrap-up size. Call `write_desk`
-  with everything the next session needs, then call `restart_session`, then say "back in a
+  with everything the next session needs, then call `restart_session`, then say "Back in a
   moment" — that is the whole of your reply, and it goes to your panel; only what you say after
   the last tool call reaches it. Nothing else to say, nothing to announce. Your successor starts
   on this desk with what you wrote, and whatever was queued for you goes to it.

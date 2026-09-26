@@ -357,8 +357,8 @@
     "edits": [
       {
         "file": "lib/templates/leader.md",
-        "from": "Call `write_desk`\n  with everything the next session needs, then call `restart_session`, then say \"back in a\n  moment\" — that is the whole of your reply, and it goes to your panel; only what you say after\n  the last tool call reaches it.",
-        "to": "Say \"back in a\n  moment\" — that is the whole of your reply, and it goes to your panel — then call `write_desk`\n  with everything the next session needs, then call `restart_session`."
+        "from": "Call `write_desk`\n  with everything the next session needs, then call `restart_session`, then say \"Back in a\n  moment\" — that is the whole of your reply, and it goes to your panel; only what you say after\n  the last tool call reaches it.",
+        "to": "Say \"Back in a\n  moment\" — that is the whole of your reply, and it goes to your panel — then call `write_desk`\n  with everything the next session needs, then call `restart_session`."
       }
     ]
   },

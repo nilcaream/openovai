@@ -256,7 +256,7 @@ describe("what the Leader is told", () => {
 
   it("tells the Leader to write the desk, restart, then say back in a moment — after the last tool call", () => {
     assert.match(leader(), /type="context" stage="error"/);
-    assert.match(leader(), /Call `write_desk`\s+with everything the next session needs, then call `restart_session`, then say "back in a\s+moment" — that is the whole of your reply/);
+    assert.match(leader(), /Call `write_desk`\s+with everything the next session needs, then call `restart_session`, then say "Back in a\s+moment" — that is the whole of your reply/);
     assert.match(leader(), /only what you say after\s+the last tool call reaches it/);
   });
 
