@@ -27,8 +27,8 @@
     "edits": [
       {
         "file": "lib/chat/frames.mjs",
-        "from": "/<(\\s*\\/?\\s*)(user|message|server-event|queue)",
-        "to": "/<(\\/?)(user|message|server-event|queue)"
+        "from": "/<(\\s*\\/?\\s*)(user|message|server-event|queue|ref)",
+        "to": "/<(\\/?)(user|message|server-event|queue|ref)"
       }
     ]
   },
@@ -38,8 +38,8 @@
     "edits": [
       {
         "file": "lib/chat/frames.mjs",
-        "from": "(user|message|server-event|queue)",
-        "to": "(user|message|queue)"
+        "from": "(user|message|server-event|queue|ref)",
+        "to": "(user|message|queue|ref)"
       }
     ]
   },
@@ -49,8 +49,8 @@
     "edits": [
       {
         "file": "lib/chat/frames.mjs",
-        "from": "(user|message|server-event|queue)",
-        "to": "(user|server-event|queue)"
+        "from": "(user|message|server-event|queue|ref)",
+        "to": "(user|server-event|queue|ref)"
       }
     ]
   },
@@ -82,8 +82,8 @@
     "edits": [
       {
         "file": "lib/chat/frames.mjs",
-        "from": "(user|message|server-event|queue)(?![A-Za-z0-9_])/gi;",
-        "to": "(user|message|server-event|queue)/gi;"
+        "from": "(user|message|server-event|queue|ref)(?![A-Za-z0-9_])/gi;",
+        "to": "(user|message|server-event|queue|ref)/gi;"
       }
     ]
   },
@@ -115,8 +115,8 @@
     "edits": [
       {
         "file": "lib/chat/frames.mjs",
-        "from": "`${opening}>${neutralise(body)}</server-event>`",
-        "to": "`${opening}>${body}</server-event>`"
+        "from": "`${opening}>${withRefs(body, refs, \"</server-event>\")}`",
+        "to": "`${opening}>${body}${withRefs(\"\", refs, \"</server-event>\")}`"
       }
     ]
   },
@@ -230,8 +230,8 @@
     "edits": [
       {
         "file": "lib/chat/frames.mjs",
-        "from": "(user|message|server-event|queue)(?![A-Za-z0-9_])/gi;",
-        "to": "(user|message|server-event)(?![A-Za-z0-9_])/gi;"
+        "from": "(user|message|server-event|queue|ref)(?![A-Za-z0-9_])/gi;",
+        "to": "(user|message|server-event|ref)(?![A-Za-z0-9_])/gi;"
       }
     ]
   },
@@ -342,6 +342,28 @@
         "file": "lib/chat/frames.mjs",
         "from": "  const inner = items.map(",
         "to": "  if (items.length === 1) return items[0].frame;\n  const inner = items.map("
+      }
+    ]
+  },
+  {
+    "name": "a <ref> the User typed poses as the server's",
+    "catches": "neutralises a <ref> in the words or in a row, and is the plain frame with no rows",
+    "edits": [
+      {
+        "file": "lib/chat/frames.mjs",
+        "from": "(user|message|server-event|queue|ref)",
+        "to": "(user|message|server-event|queue)"
+      }
+    ]
+  },
+  {
+    "name": "the rows a reference names are left out of the frame",
+    "catches": "is the words, then one <ref> per row, in the shape a queue indents",
+    "edits": [
+      {
+        "file": "lib/chat/frames.mjs",
+        "from": "  if (refs.length === 0) return",
+        "to": "  if (true) return"
       }
     ]
   }

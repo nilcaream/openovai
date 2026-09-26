@@ -1,0 +1,35 @@
+[
+  {
+    "name": "an urgent message waits for the turn's end like any other",
+    "catches": "joins the Worker's turn at its call, with what was queued ahead of it, and one result answers them all",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "  return frame.kind === \"user\" || frame.urgent === true;",
+        "to": "  return frame.kind === \"user\";"
+      }
+    ]
+  },
+  {
+    "name": "a Worker may send an urgent message",
+    "catches": "refuses a Worker's and one that is not true or false",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "        if (urgent !== undefined && caller.role !== LEADER) {",
+        "to": "        if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "an urgent message is not marked for the Worker",
+    "catches": "joins the Worker's turn at its call, with what was queued ahead of it, and one result answers them all",
+    "edits": [
+      {
+        "file": "lib/chat/frames.mjs",
+        "from": "  const marked = urgent === true ? ` urgent=\"true\"` : \"\";",
+        "to": "  const marked = \"\";"
+      }
+    ]
+  }
+]
