@@ -93,6 +93,9 @@ jobs:
       - name: Take a newer version, and refuse to
         run: node --test tests/update.test.mjs
 
+      - name: Read a Mac's process table and a port's holder, from stand-ins for ps and lsof
+        run: node --test tests/processes.test.mjs
+
   knowledge:
     name: Knowledge
     runs-on: ubuntu-latest

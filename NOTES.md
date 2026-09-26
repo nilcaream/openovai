@@ -127,6 +127,17 @@ Where there is no `sha256sum`, the archive is checked with `shasum -a 256`, and 
 neither is refused before anything is taken as verified. Assumes: this has been tested with a
 stand-in `uname` and `shasum` on Linux, not yet run on a Mac.
 
+**On a Mac, ovai finds its own processes with `ps`.** Linux reads `/proc` as before. A Mac has no
+`/proc`, so there `ovai update` found no running session to refuse over, a seat's leftovers were
+never ended, and "port taken" could not say who held the port. On a Mac the process table is now
+read from `ps -A -ww -o pid=,command=` and `ps -A -ww -E -o pid=,command=`: what the second line
+has beyond the first is the environment. The port's holder is read from
+`lsof -nP -iTCP:<port> -sTCP:LISTEN -t`. A Mac gives a command's arguments back as one line, so a
+session is recognised by the toolkit's claude command appearing anywhere in it, as a word of its
+own. That errs toward leaving a process running. Assumes: that `ps -E` prints a user's own
+processes' environment after the command, one space apart, and that `lsof` answers the same way
+on a Mac. The checks use stand-ins that print that, and nothing has been run on a Mac yet.
+
 ## 0.19.0
 
 **The Leader stops and restarts Workers; a Worker only works.** A Worker no longer has

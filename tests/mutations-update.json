@@ -198,6 +198,17 @@
     ]
   },
   {
+    "name": "Linux is taken for a Mac, and its process table read from ps",
+    "catches": "refuses",
+    "edits": [
+      {
+        "file": "lib/processes.mjs",
+        "from": "export const ON_A_MAC = process.platform === \"darwin\";",
+        "to": "export const ON_A_MAC = process.platform !== \"darwin\";"
+      }
+    ]
+  },
+  {
     "name": "an update does not look for the sessions of this instance at all",
     "catches": "refuses",
     "edits": [
@@ -235,9 +246,9 @@
     "catches": "says ? for a command that cannot be read",
     "edits": [
       {
-        "file": "lib/running.mjs",
-        "from": "  return found.length === 0 ? \"?\" : found.join(\" \");",
-        "to": "  return found.join(\" \");"
+        "file": "lib/processes.mjs",
+        "from": "    return found.length === 0 ? null : found.join(\" \");",
+        "to": "    return found.join(\" \");"
       }
     ]
   },
@@ -268,9 +279,9 @@
     "catches": "does not count itself as a session, whatever environment it was started in",
     "edits": [
       {
-        "file": "lib/running.mjs",
-        "from": "    if (pid === process.pid) {\n      continue;\n    }\n",
-        "to": ""
+        "file": "lib/processes.mjs",
+        "from": "    .filter((name) => /^\\d+$/.test(name) && Number(name) !== process.pid)",
+        "to": "    .filter((name) => /^\\d+$/.test(name))"
       }
     ]
   },
@@ -401,7 +412,7 @@
     "edits": [
       {
         "file": "lib/running.mjs",
-        "from": "session: seat === null || runsClaude(argumentsOf(pid))",
+        "from": "session: seat === null || runsClaude(one)",
         "to": "session: true"
       }
     ]

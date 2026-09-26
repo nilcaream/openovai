@@ -1,0 +1,27 @@
+[
+  {
+    "name": "a Mac's environment is split at every space, so a value with a space in it is cut",
+    "catches": "reads each process's environment off what its line has beyond its command, a value with a space in it whole",
+    "edits": [{ "file": "lib/processes.mjs", "from": "const NEXT_ENTRY = / (?=[A-Za-z_][A-Za-z0-9_]*=)/;", "to": "const NEXT_ENTRY = / /;" }]
+  },
+  {
+    "name": "a Mac's process whose environment nobody could read is taken for one with an empty environment",
+    "catches": "reads each process's environment off what its line has beyond its command, a value with a space in it whole",
+    "edits": [{ "file": "lib/processes.mjs", "from": "rest.startsWith(\" \") ? entries(rest.slice(1).split(NEXT_ENTRY)) : null", "to": "entries(rest.slice(1).split(NEXT_ENTRY))" }]
+  },
+  {
+    "name": "a Mac's table is listed without the environment",
+    "catches": "finds this instance's session and what its seat left, and nothing of another instance's",
+    "edits": [{ "file": "lib/processes.mjs", "from": "...(withEnvironment ? [\"-E\"] : [])", "to": "...[]" }]
+  },
+  {
+    "name": "a Mac's session is taken for a leftover of its seat",
+    "catches": "finds this instance's session and what its seat left, and nothing of another instance's",
+    "edits": [{ "file": "lib/running.mjs", "from": "    return new RegExp(`(^| )${escaped(claude)}\\\\S*${escaped(command)}( |$)`).test(one.command());", "to": "    return false;" }]
+  },
+  {
+    "name": "a port's holder on a Mac is read off the wrong line of lsof",
+    "catches": "is the process lsof names, with its command",
+    "edits": [{ "file": "lib/port.mjs", "from": "asked.stdout.split(\"\\n\")[0].trim()", "to": "asked.stdout.split(\"\\n\")[1].trim()" }]
+  }
+]

@@ -22,6 +22,8 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { processes } from "../lib/processes.mjs";
+
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 // How many copies to sweep in parallel. Bounded by MEMORY, not by cores: one run peaks at 416 MB
@@ -260,28 +262,16 @@ function environment(where) {
 // nothing else is ended.
 const MARKER = "OPENOVAI_MUTATE_COPY";
 
-// The copy a process was started for, from its environment; null when it carries no marker or
-// cannot be read (it is gone, or somebody else's).
-function copyOf(pid) {
-  let raw;
-  try {
-    raw = fs.readFileSync(path.join("/proc", String(pid), "environ"), "utf8");
-  } catch {
-    return null;
-  }
-  const entry = raw.split("\0").find((pair) => pair.startsWith(`${MARKER}=`));
-  return entry === undefined ? null : entry.slice(MARKER.length + 1);
-}
-
-// Ends every process marked with `within` or a copy under it, and says how many.
+// Ends every process marked with `within` or a copy under it, and says how many. The marker is
+// read off the machine's process table (lib/processes.mjs); a process that cannot be read — gone,
+// or somebody else's — carries none.
 function endMarked(within) {
   let ended = 0;
-  for (const name of fs.readdirSync("/proc")) {
-    if (!/^\d+$/.test(name) || Number(name) === process.pid) continue;
-    const copy = copyOf(name);
-    if (copy === null || (copy !== within && !copy.startsWith(within + path.sep))) continue;
+  for (const one of processes()) {
+    const copy = one.environment()?.get(MARKER);
+    if (copy === undefined || (copy !== within && !copy.startsWith(within + path.sep))) continue;
     try {
-      process.kill(Number(name), "SIGKILL");
+      process.kill(one.pid, "SIGKILL");
       ended += 1;
     } catch {
       // Gone between being read and being ended.
