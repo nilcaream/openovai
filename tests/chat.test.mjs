@@ -21,7 +21,7 @@ import { localAt, refTo } from "../lib/chat/refs.mjs";
 import { listening } from "../lib/chat/runtime.mjs";
 import { pageSecret } from "../lib/chat/secrets.mjs";
 import { hire } from "../lib/desks.mjs";
-import { endSeat, serve, startSeat, toolsFor } from "../lib/chat/server.mjs";
+import { endSeat, serve, shownRoot, startSeat, toolsFor } from "../lib/chat/server.mjs";
 import { close, hasLeft } from "../lib/chat/lifecycle.mjs";
 import { sink } from "../lib/chat/log.mjs";
 import { LEADER as LEADS, WORKER as WORKS } from "../lib/desks.mjs";
@@ -342,13 +342,17 @@ describe("what the chat serves", () => {
     );
   });
 
-  // The title names the instance by its whole root, never with the home directory as ~; the usage
-  // windows are null until the account has been asked, which it is only while a page holds a stream.
+  // The title names the instance by its root with the home directory as ~, and whole outside it;
+  // the usage windows are null until the account has been asked, which it is only while a page
+  // holds a stream.
   it("tells the page the instance as the title says it, and the usage windows as they stand", async () => {
     const room = JSON.parse((await page("GET", "/sessions")).body);
-    assert.equal(room.instance, instance);
-    assert.ok(path.isAbsolute(room.instance), room.instance);
+    assert.equal(room.instance, shownRoot(instance));
     assert.equal(room.quota, null);
+    assert.equal(shownRoot("/home/a/inst", "/home/a"), "~/inst");
+    assert.equal(shownRoot("/home/a", "/home/a"), "~");
+    assert.equal(shownRoot("/home/alice/inst", "/home/a"), "/home/alice/inst");
+    assert.equal(shownRoot("/srv/inst", "/home/a"), "/srv/inst");
   });
 
   it("tells the page the version the server runs, as the instance's lib/VERSION says it", async () => {
@@ -2053,7 +2057,7 @@ describe("what the page is made of", () => {
     assert.equal(answered.status, 200);
     const manifest = JSON.parse(answered.body);
     assert.equal(manifest.display, "standalone");
-    assert.equal(manifest.name, "OpenOv AI");
+    assert.equal(manifest.name, `OpenOv AI ${shownRoot(instance)}`, "the installed app is named as the page's title names it");
     assert.equal(manifest.icons.length, 3);
     for (const icon of manifest.icons) {
       const image = await fetch(`${url}${icon.src}`);

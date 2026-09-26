@@ -105,9 +105,11 @@ root. They name the common note `knowledge/common.md`, and a note cites its own 
 `knowledge/files/…`. `index` and `validate` name each note `knowledge/<name>.md`. Sessions hired
 before this version keep the persona they were rendered with. On the panels, a tool line such as
 `Reading …` shows a file inside the instance from the root and any other file by its absolute path,
-and the page's title names the instance by its absolute path: neither writes the home directory as
-`~` any more. When the installer or an update refuses a directory that is not an instance, it names
-each missing entry by its whole path, such as `<source>/lib/VERSION`.
+and never writes the home directory as `~`. The installed app is named as the page's title names
+it, such as `OpenOv AI ~/openovai`, so the apps of two instances are told apart in a launcher; an
+app installed before takes the name when the browser next reads the manifest. When the installer or
+an update refuses a directory that is not an instance, it names each missing entry by its whole
+path, such as `<source>/lib/VERSION`.
 
 ## 0.19.0
 

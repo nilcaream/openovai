@@ -104,19 +104,41 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "    user: instance.config.user,\n    leader: instance.config.leader,\n    instance: instance.root,",
-        "to": "    user: \"User\",\n    leader: instance.config.leader,\n    instance: instance.root,"
+        "from": "    user: instance.config.user,\n    leader: instance.config.leader,\n    instance: shownRoot(instance.root),",
+        "to": "    user: \"User\",\n    leader: instance.config.leader,\n    instance: shownRoot(instance.root),"
       }
     ]
   },
   {
-    "name": "the page is told the instance with the home directory as ~",
+    "name": "the title's instance is the root as it is",
     "catches": "tells the page the instance as the title says it, and the usage windows as they stand",
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "    instance: instance.root,",
-        "to": "    instance: instance.root.replace(process.env.HOME, \"~\"),"
+        "from": "  return root === home || root.startsWith(`${home}${path.sep}`) ? `~${root.slice(home.length)}` : root;",
+        "to": "  return root;"
+      }
+    ]
+  },
+  {
+    "name": "a root that merely begins with the home's letters is shortened",
+    "catches": "tells the page the instance as the title says it, and the usage windows as they stand",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "  return root === home || root.startsWith(`${home}${path.sep}`) ? `~${root.slice(home.length)}` : root;",
+        "to": "  return root.startsWith(home) ? `~${root.slice(home.length)}` : root;"
+      }
+    ]
+  },
+  {
+    "name": "the installed app is named the product alone",
+    "catches": "installs as a standalone app: a manifest with three icons that are PNGs of the size they say, one of them maskable, and no service worker",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "{ ...manifest, name: `${PRODUCT} ${shownRoot(root)}` }",
+        "to": "manifest"
       }
     ]
   },
@@ -2027,8 +2049,8 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "    instance: instance.root,\n    version: version(instance.root) ?? \"unknown\",",
-        "to": "    instance: instance.root,"
+        "from": "    instance: shownRoot(instance.root),\n    version: version(instance.root) ?? \"unknown\",",
+        "to": "    instance: shownRoot(instance.root),"
       }
     ]
   }
