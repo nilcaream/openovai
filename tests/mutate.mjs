@@ -4,7 +4,8 @@
 //
 // A check that has never been watched failing is not a check. This runs the suite once with each
 // mutation applied and reports which LEAF checks went red, so a mutation that reddens the check it
-// was written for has been proven and one that reddens nothing has not.
+// was written for has been proven and one that reddens nothing has not. A mutated run ends as soon
+// as that check is red; --full runs it to the end, for the count of everything it reddened.
 //
 // Everything a sweep has to get right is in here rather than in the head of whoever is writing
 // checks today: a sweep runner written by hand gets the bounds, the baseline or the restore wrong
@@ -39,7 +40,7 @@ const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 // were dirty and one was clean, so a clean run there proves nothing. A default is the number
 // that runs unattended, so it must not walk into a reading nobody can reproduce; 5.5 minutes is
 // a cheap price for a sweep you can believe. Watch the run if you raise it, and compare the
-// reddened counts against a lower count rather than trusting that the sweep came back green —
+// reddened counts (--full) against a lower count rather than trusting that the sweep came back green —
 // a spurious red during a mutated run looks exactly like the mutation biting.
 const COPIES = Math.max(1, Math.min(6, os.cpus().length));
 
@@ -68,6 +69,7 @@ function usage() {
   --copies <n>           pinned copies to sweep at once    (default ${COPIES})
   --check-timeout <ms>   per-check bound                   (default ${CHECK_TIMEOUT})
   --out <path>           where the result JSON goes        (default .tmp/mutations.json)
+  --full                 run every mutated suite to its end, for the count of what else it reddened
   --keep                 leave the copies behind for inspection
 
 A mutations file is a JSON array:
@@ -94,6 +96,7 @@ function options(argv) {
     copies: COPIES,
     checkTimeout: CHECK_TIMEOUT,
     out: path.join(repo, ".tmp", "mutations.json"),
+    full: false,
     keep: false,
   };
   for (let i = 0; i < argv.length; i += 1) {
@@ -102,6 +105,7 @@ function options(argv) {
     else if (flag === "--copies") chosen.copies = Number(argv[(i += 1)]);
     else if (flag === "--check-timeout") chosen.checkTimeout = Number(argv[(i += 1)]);
     else if (flag === "--out") chosen.out = path.resolve(argv[(i += 1)]);
+    else if (flag === "--full") chosen.full = true;
     else if (flag === "--keep") chosen.keep = true;
     else if (flag === "--help" || flag === "-h") return null;
     else if (chosen.list === undefined) chosen.list = flag;
@@ -317,13 +321,40 @@ function readTap(output) {
   return { leaves, red };
 }
 
+// Whether the TAP so far already says that `name`, a leaf, went red. Read the same way readTap
+// reads it — the block's own `type:` — and only once that line has arrived whole, so a describe
+// that happens to share the name is never taken for the leaf.
+function redLeafIn(output, name) {
+  const lines = output.split("\n");
+  for (let i = 0; i < lines.length; i += 1) {
+    const point = /^\s*not ok \d+ - (.*)$/.exec(lines[i]);
+    if (point === null || point[1].replace(/\s+#.*$/, "").trim() !== name) continue;
+    for (let j = i + 1; j < Math.min(i + 12, lines.length - 1); j += 1) {
+      if (/^\s*\.\.\.\s*$/.test(lines[j])) break;
+      const said = /^\s*type: '(\w+)'/.exec(lines[j]);
+      if (said !== null) {
+        if (said[1] !== "suite") return true;
+        break;
+      }
+    }
+  }
+  return false;
+}
+
 // One suite run in one copy. Answers with what went red, and — just as important — with whether the
 // run is worth reading at all: a suite that died early reports few checks and no failures, which
 // looks exactly like a clean pass.
 // spawn and not spawnSync, and that is the whole of what makes the copies parallel: spawnSync holds
 // the event loop, so several of them started "at once" would still run one after another. This was
 // measured the wrong way round first - a three-copy sweep that took exactly three times one copy.
-function runSuite(where, { suite, checkTimeout, boundMs }) {
+//
+// With `stopAt`, the run is ended the moment that leaf is reported red: the mutation has bitten
+// the check it was written for, which is all a verdict of BIT reads, and the rest of the file
+// would only add a count of what else went red — --full keeps that count. A run whose `stopAt`
+// never goes red runs to its end exactly as without it, so every other verdict reads a whole run.
+// It is ended the way a wedged run is, the runner killed and its marked processes after it; what
+// its checks left under the copy's .tmp goes with the copy.
+function runSuite(where, { suite, checkTimeout, boundMs }, stopAt = null) {
   const began = Date.now();
   return new Promise((resolve) => {
     const child = spawn(
@@ -333,10 +364,15 @@ function runSuite(where, { suite, checkTimeout, boundMs }) {
     );
     let output = "";
     let timedOut = false;
+    let caught = false;
     for (const stream of [child.stdout, child.stderr]) {
       stream.setEncoding("utf8");
       stream.on("data", (chunk) => {
         output += chunk;
+        if (stopAt !== null && !caught && redLeafIn(output, stopAt)) {
+          caught = true;
+          child.kill("SIGKILL");
+        }
       });
     }
     // The outer net. A check that hangs is caught by --test-timeout above and goes red by name;
@@ -350,7 +386,7 @@ function runSuite(where, { suite, checkTimeout, boundMs }) {
       clearTimeout(bound);
       endMarked(where);
       const { leaves, red } = readTap(output);
-      resolve({ leaves, red, timedOut, tookMs: Date.now() - began });
+      resolve({ leaves, red, timedOut, caught, tookMs: Date.now() - began });
     });
   });
 }
@@ -377,7 +413,7 @@ async function sweepOne(where, mutation, run) {
     }
     return { ...(await run()), refused: null };
   } catch (error) {
-    return { leaves: 0, red: [], timedOut: false, tookMs: 0, refused: error.message };
+    return { leaves: 0, red: [], timedOut: false, caught: false, tookMs: 0, refused: error.message };
   } finally {
     for (const [target, text] of pristine) fs.writeFileSync(target, text);
   }
@@ -390,6 +426,9 @@ function verdictOf(mutation, result, baselineLeaves) {
   if (result.timedOut) {
     return { verdict: "TIMED OUT", why: "the run did not finish inside the bound; nothing about it can be read", bit: false };
   }
+  // A run ended at the check it was written for (runSuite's `stopAt`) ran fewer checks on purpose,
+  // and the one this verdict reads is red.
+  if (result.caught) return { verdict: "BIT", why: null, bit: true };
   // A run that reported fewer checks than the baseline died somewhere, and its short list of
   // failures is not a list of what the suite noticed.
   if (result.leaves < baselineLeaves) {
@@ -473,7 +512,7 @@ async function main() {
       for (;;) {
         const next = queue.shift();
         if (next === undefined) return;
-        const result = await sweepOne(where, next.mutation, () => runSuite(where, bounds));
+        const result = await sweepOne(where, next.mutation, () => runSuite(where, bounds, chosen.full ? null : next.mutation.catches));
         const verdict = verdictOf(next.mutation, result, first.leaves);
         results[next.index] = {
           name: next.mutation.name,
@@ -481,14 +520,17 @@ async function main() {
           ...verdict,
           red: result.red,
           checks: result.leaves,
+          stoppedAtCatch: result.caught,
           tookMs: result.tookMs,
           copy: path.basename(where),
         };
         process.stdout.write(
           `${verdict.verdict.padEnd(16)} ${next.mutation.name}\n` +
-            (verdict.why === null
-            ? `                 reddened ${result.red.length} of ${first.leaves}: ${result.red.slice(0, 4).join(" | ")}${result.red.length > 4 ? " | …" : ""}\n`
-            : `                 ${verdict.why}\n`),
+            (verdict.why !== null
+            ? `                 ${verdict.why}\n`
+            : result.caught
+              ? `                 stopped at its check, ${result.leaves} of ${first.leaves} run, in ${(result.tookMs / 1000).toFixed(1)}s\n`
+              : `                 reddened ${result.red.length} of ${first.leaves}: ${result.red.slice(0, 4).join(" | ")}${result.red.length > 4 ? " | …" : ""}\n`),
         );
       }
     }),
