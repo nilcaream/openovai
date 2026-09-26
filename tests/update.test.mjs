@@ -276,16 +276,95 @@ describe("taking a newer version from a directory", () => {
     assert.deepEqual(difference(accumulated, whatTheInstanceAccumulated(root)), []);
   });
 
-  it("says nothing to do when the instance is already on it", async () => {
-    assert.match((await update(root, tree)).stdout, /is the latest release/);
+  it("says the instance is already on it, and takes nothing", async () => {
+    const again = await update(root, tree);
+    assert.equal(again.status, 0, again.stderr);
+    assert.match(again.stdout, new RegExp(`^This instance is on ${NEWER}, which is the latest release\\.$`, "m"));
+    assert.doesNotMatch(again.stdout, /Replaced:/);
+  });
+});
+
+// What an update does after the swap is the NEW version's to do: the process that swapped is still
+// running the old modules, and a step the new version added would never run in it. Proven with a
+// release that owns something the installed code has never heard of — a hook of its own and an
+// entry it retires — so only the payload put in place could have done either.
+describe("the finish of an update, run by the payload it put in place", () => {
+  const root = makeInstance("finished-by-the-new-payload");
+  const tree = makeRelease("release-with-a-finish-of-its-own");
+  const settings = path.join(root, ".claude", "settings.json");
+  const retiredLater = path.join(".claude", "skills", "retired-later");
+  let done;
+
+  function rewrite(file, from, to) {
+    const text = fs.readFileSync(file, "utf8");
+    assert.ok(text.includes(from), `${file} has no ${JSON.stringify(from)} to rewrite`);
+    fs.writeFileSync(file, text.replace(from, to));
+  }
+
+  before(async () => {
+    rewrite(
+      path.join(tree, "lib", "seed.mjs"),
+      '  ["SubagentStart", SUBAGENT_HOOK_ENTRY, subagentHookWired],\n',
+      '  ["SubagentStart", SUBAGENT_HOOK_ENTRY, subagentHookWired],\n  ["SessionEnd", { hooks: [{ type: "command", command: "true new-version-hook" }] }, (settings) => JSON.stringify(settings?.hooks?.SessionEnd ?? []).includes("new-version-hook")],\n',
+    );
+    rewrite(
+      path.join(tree, "lib", "payload.mjs"),
+      'export const RETIRED = [path.join(".claude", "skills", "allowed")];',
+      'export const RETIRED = [path.join(".claude", "skills", "allowed"), path.join(".claude", "skills", "retired-later")];',
+    );
+    fs.mkdirSync(path.join(root, retiredLater), { recursive: true });
+    fs.writeFileSync(path.join(root, retiredLater, "SKILL.md"), "---\nname: retired-later\n---\n");
+    done = await update(root, tree);
+  });
+
+  it("goes through", () => {
+    assert.equal(done.status, 0, done.stderr);
+  });
+
+  it("wires a hook only the new version knows", () => {
+    assert.deepEqual(JSON.parse(fs.readFileSync(settings, "utf8")).hooks.SessionEnd, [{ hooks: [{ type: "command", command: "true new-version-hook" }] }]);
+    assert.match(done.stdout, /^Wired the hooks/m);
+  });
+
+  it("takes away what only the new version retires", () => {
+    assert.equal(fs.existsSync(path.join(root, retiredLater)), false);
+  });
+});
+
+// An instance whose last update was finished by the code it replaced — every update into the
+// version that first handed the finish over was — is brought to what its version owns by running
+// the update again. The same version is the latest, so nothing is taken; the finish still runs.
+describe("an update to the version the instance is already on", () => {
+  const root = makeInstance("finished-again");
+  const tree = makeRelease("release-on-the-same-version", { version: INSTALLED });
+  const settings = path.join(root, ".claude", "settings.json");
+  let done;
+
+  before(async () => {
+    const read = JSON.parse(fs.readFileSync(settings, "utf8"));
+    delete read.hooks.SubagentStart;
+    fs.writeFileSync(settings, `${JSON.stringify(read, null, 2)}\n`);
+    done = await update(root, tree);
+  });
+
+  it("wires the hook the instance was left without", () => {
+    assert.equal(done.status, 0, done.stderr);
+    assert.ok(Array.isArray(JSON.parse(fs.readFileSync(settings, "utf8")).hooks.SubagentStart));
+    assert.match(done.stdout, /^Wired the hooks/m);
+  });
+
+  it("replaces nothing", () => {
+    assert.match(done.stdout, new RegExp(`^This instance is on ${INSTALLED}, which is the latest release\\.$`, "m"));
+    assert.doesNotMatch(done.stdout, /Replaced:/);
+    assert.equal(fs.readFileSync(path.join(root, "lib", "ovai.mjs"), "utf8").includes(MARKER), false);
   });
 });
 
 // The payload just put in place pins its own node and claude, and it is the NEW lib/runtime.sh —
 // the one that knows those pins — that fetches them, right after the swap, so the first start
-// after an update has nothing left to wait for. Proven with a release whose runtime.sh is a
-// recorder: what it writes says which script ran, and what it prints says its output reaches the
-// person.
+// after an update has nothing left to wait for: the new launcher runs it before it runs the finish
+// on the node it names. Proven with a release whose runtime.sh is a recorder: what it writes says
+// which script ran, and what it prints says its output reaches the person.
 describe("the runtime an update fetches", () => {
   const record = path.join(here, "runtime-record.txt");
 
@@ -297,10 +376,10 @@ describe("the runtime an update fetches", () => {
 
   it("runs the new payload's runtime.sh ensure after the swap, and prints what it said", async () => {
     const root = makeInstance("fetches-runtime");
-    const tree = releaseWhoseRuntimeScript("release-recording-runtime", `#!/bin/sh\nprintf '%s\\n' "$*" >> "${record}"\nprintf 'fetched by the new payload\\n'\n`);
+    const tree = releaseWhoseRuntimeScript("release-recording-runtime", `#!/bin/sh\nprintf '%s\\n' "$*" >> "${record}"\nif [ "$1" = node-path ]; then printf '%s\\n' "${process.execPath}"; exit 0; fi\nprintf 'fetched by the new payload\\n'\n`);
     const done = await update(root, tree);
     assert.equal(done.status, 0, done.stderr);
-    assert.equal(fs.readFileSync(record, "utf8"), "ensure\n");
+    assert.equal(fs.readFileSync(record, "utf8"), "ensure\nnode-path\n");
     assert.match(done.stdout, /^fetched by the new payload$/m);
     // After the version it went to, and before the hint that starts it.
     assert.ok(done.stdout.indexOf("fetched by the new payload") > done.stdout.indexOf(`now on ${NEWER}`), done.stdout);
@@ -309,14 +388,14 @@ describe("the runtime an update fetches", () => {
 
   // The payload stays in place — it is the new version, and a start fetches again — but the update
   // does not report success over a runtime that is not there.
-  it("fails, saying what fetches it again, when the new payload's runtime cannot be fetched", async () => {
+  it("fails, saying what finishes it, when the new payload's runtime cannot be fetched", async () => {
     const root = makeInstance("cannot-fetch-runtime");
     const tree = releaseWhoseRuntimeScript("release-refusing-runtime", "#!/bin/sh\nprintf 'runtime.sh: could not download\\n' >&2\nexit 1\n");
     const done = await update(root, tree);
     assert.equal(done.status, 1);
     assert.equal(fs.readFileSync(path.join(root, "lib", "VERSION"), "utf8").trim(), NEWER);
     assert.match(done.stderr, /^runtime\.sh: could not download$/m);
-    assert.match(done.stderr, new RegExp(`^ovai: now on ${NEWER}, but its runtime could not be fetched \\(runtime\\.sh ensure exited 1\\); run ${path.join(root, "bin", "ovai")} start, which fetches it again$`, "m"));
+    assert.match(done.stderr, new RegExp(`^ovai: now on ${NEWER}, but finishing it failed \\(bin/ovai update --finish exited 1\\); run ${path.join(root, "bin", "ovai")} update again, which finishes it$`, "m"));
     assert.doesNotMatch(done.stdout, /Start the server/);
   });
 });

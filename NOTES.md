@@ -4,6 +4,17 @@ For the Leader of a workspace taking this version. Short, and about what is diff
 working there — not a developer changelog. A section per release, newest first; a release page
 carries only its own.
 
+## 0.20.0
+
+**An update is finished by the version it brings in.** `ovai update` used to finish in the code it
+was replacing, so a hook or a retired file a new version added was left out until somebody wired it
+by hand. From this version on, it swaps the payload, then runs `bin/ovai update --finish` from the
+payload it just put in place. That fetches the new runtime, takes away what the new version
+retires, seeds what is missing, wires the hooks and turns attribution off, all in the new code.
+`ovai update` on the version the instance is already on no longer says "Nothing to do": it runs the
+same finish. Taking 0.20.0 itself is still finished by the version before it, so run `ovai update`
+a second time once it is through.
+
 ## 0.19.0
 
 **The Leader stops and restarts Workers; a Worker only works.** A Worker no longer has

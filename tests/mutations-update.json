@@ -352,24 +352,46 @@
     ]
   },
   {
-    "name": "an update fetches nothing after the swap",
-    "catches": "runs the new payload's runtime.sh ensure after the swap, and prints what it said",
+    "name": "an update finishes in the code it replaced rather than handing the finish over",
+    "catches": "wires a hook only the new version knows",
     "edits": [
       {
         "file": "lib/ovai.mjs",
-        "from": "const fetched = spawnSync(\"sh\", [path.join(root, \"lib\", \"runtime.sh\"), \"ensure\"], { stdio: \"inherit\" });",
-        "to": "const fetched = { status: 0 };"
+        "from": "const finished = spawnSync(\"sh\", [path.join(root, \"bin\", \"ovai\"), \"update\", FINISH], { stdio: \"inherit\" });",
+        "to": "finish(root); const finished = { status: 0 };"
       }
     ]
   },
   {
-    "name": "an update reports success over a runtime that could not be fetched",
-    "catches": "fails, saying what fetches it again, when the new payload's runtime cannot be fetched",
+    "name": "an update reports success over a finish that failed",
+    "catches": "fails, saying what finishes it, when the new payload's runtime cannot be fetched",
     "edits": [
       {
         "file": "lib/ovai.mjs",
-        "from": "  if (fetched.status !== 0) {\n    throw new ReleaseError(",
-        "to": "  if (fetched.status !== 0 && false) {\n    throw new ReleaseError("
+        "from": "  if (finished.status !== 0) {\n    throw new ReleaseError(",
+        "to": "  if (finished.status !== 0 && false) {\n    throw new ReleaseError("
+      }
+    ]
+  },
+  {
+    "name": "the finish leaves what the new version retires",
+    "catches": "takes away what only the new version retires",
+    "edits": [
+      {
+        "file": "lib/ovai.mjs",
+        "from": "  retire(root);\n\n  // From the templates",
+        "to": "\n  // From the templates"
+      }
+    ]
+  },
+  {
+    "name": "an update to the version the instance is on finishes nothing",
+    "catches": "wires the hook the instance was left without",
+    "edits": [
+      {
+        "file": "lib/ovai.mjs",
+        "from": "    finish(root);\n    return;",
+        "to": "    return;"
       }
     ]
   },
