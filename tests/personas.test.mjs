@@ -202,6 +202,16 @@ describe("what the Leader is told", () => {
     assert.match(leader(), /no "nothing to report", no filler/);
   });
 
+  // The Leader's panel fills with Workers' messages: a list pointed back to is a list the User
+  // cannot find, and a quote in inline code runs off the side instead of wrapping.
+  it("tells the Leader to give the whole open list each time, and what code formatting is for", () => {
+    assert.match(leader(), new RegExp(`When you tell ${USER} where things stand, or ask what to take next, give the whole open list as it is now, every item in order\\.`));
+    assert.match(leader(), /Never point back to a list you wrote earlier/);
+    assert.match(leader(), /Whatever you ask them to choose from has to be in the message that asks\./);
+    assert.match(leader(), /Code formatting is for code\./);
+    assert.match(leader(), /goes in a blockquote, which wraps like prose/);
+  });
+
   it("tells the Leader it has no channel to the User but the one", () => {
     assert.match(leader(), /There is no other channel/);
     assert.match(leader(), new RegExp(`Nothing you can run raises a notification on ${USER}'s desktop`));
@@ -303,7 +313,8 @@ describe("what a Worker is told", () => {
     assert.match(worker(), /`reference\/`\s+is what is kept to look at and is never worked on/);
     assert.match(worker(), /`projects\/` is what is worked on/);
     assert.match(worker(), /Anything throwaway — a rig, a probe, a dump, a clone made for one test, a build — goes\s+under `temp\/`/);
-    assert.match(worker(), /Nothing of yours goes in the instance root,\s+and nothing in the home directory/);
+    assert.match(worker(), /Nothing of yours goes in the instance root, in the home directory or in `\/tmp`/);
+    assert.match(worker(), new RegExp(`\`/tmp\` is outside this instance, so every read or write there stops on a card for ${USER}`));
   });
 
   it("tells the Worker what each frame is, and that only the server writes one", () => {

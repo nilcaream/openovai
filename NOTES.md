@@ -44,6 +44,11 @@ All of that is the Leader's now:
   Worker's report when that matters to them.
 - A Leader's turn with nothing in it for the User ends without a word: no "nothing to report", no
   filler. Only what the User needs lands on the panel.
+- The Leader gives the whole open list each time it says where things stand or asks what to take
+  next, never a list written earlier, and keeps inline code for a name, a path or a short command:
+  quoted or proposed text goes in a blockquote, longer code in a fenced block. A Worker is told
+  that `/tmp` is no place for its files either: it is outside the instance, so every use stops on
+  a card for the User.
 - The quota line in the Leader's head is current without a page open: the usage windows are read
   every 5 minutes while any session runs, and at a turn's end and a page load when the last read
   is a minute old. Its tooltip says when each window resets, each at its own time: `5h resets

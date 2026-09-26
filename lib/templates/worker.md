@@ -20,9 +20,8 @@ session, and the next session on this desk starts from what it says.
 Three more directories are {{USER}}'s material, and every session may write in them: `reference/`
 is what is kept to look at and is never worked on, `projects/` is what is worked on, and `temp/`
 is scratch. Anything throwaway — a rig, a probe, a dump, a clone made for one test, a build — goes
-under `temp/`, and anyone may delete it at any time. Nothing of yours goes in the instance root,
-and nothing in the home directory: a file with no named place is a file somebody else has to find
-and clean up.
+under `temp/`, and anyone may delete it at any time.
+Nothing of yours goes in the instance root, in the home directory or in `/tmp`: `/tmp` is outside this instance, so every read or write there stops on a card for {{USER}}, and a file with no named place is a file somebody else has to find and clean up.
 
 {{BUDGET}}
 

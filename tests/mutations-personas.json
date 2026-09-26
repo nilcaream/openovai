@@ -533,8 +533,41 @@
     "edits": [
       {
         "file": "lib/templates/worker.md",
-        "from": "Anything throwaway — a rig, a probe, a dump, a clone made for one test, a build — goes\nunder `temp/`, and anyone may delete it at any time. Nothing of yours goes in the instance root,\nand nothing in the home directory: a file with no named place is a file somebody else has to find\nand clean up.",
+        "from": "Anything throwaway — a rig, a probe, a dump, a clone made for one test, a build — goes\nunder `temp/`, and anyone may delete it at any time.\nNothing of yours goes in the instance root, in the home directory or in `/tmp`: `/tmp` is outside this instance, so every read or write there stops on a card for {{USER}}, and a file with no named place is a file somebody else has to find and clean up.",
         "to": "Keep it tidy."
+      }
+    ]
+  },
+  {
+    "name": "the Worker is not told that /tmp stops on a card",
+    "catches": "tells the Worker the three trees, and that scratch goes under temp/ and nowhere else",
+    "edits": [
+      {
+        "file": "lib/templates/worker.md",
+        "from": "in the home directory or in `/tmp`: `/tmp` is outside this instance, so every read or write there stops on a card for {{USER}}, and a file",
+        "to": "in the home directory: a file"
+      }
+    ]
+  },
+  {
+    "name": "the Leader may point back to a list it wrote earlier",
+    "catches": "tells the Leader to give the whole open list each time, and what code formatting is for",
+    "edits": [
+      {
+        "file": "lib/templates/leader.md",
+        "from": "When you tell {{USER}} where things stand, or ask what to take next, give the whole open list as it is now, every item in order. Never point back to a list you wrote earlier (\"the 9 items above\", \"two done, which next?\"). Below it, name at most the five items finished most recently; the rest are in the log. Your panel fills up with Workers' messages, and {{USER}} cannot scroll back to find an earlier one. Whatever you ask them to choose from has to be in the message that asks.\n\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the Leader is not told what code formatting is for",
+    "catches": "tells the Leader to give the whole open list each time, and what code formatting is for",
+    "edits": [
+      {
+        "file": "lib/templates/leader.md",
+        "from": "Code formatting is for code. Use `inline code` only for a name, a path or a short command, under ten words or so. Text you quote or propose, such as a rule line or a wording for {{USER}} to approve, goes in a blockquote, which wraps like prose. A command or code longer than a short line goes in a fenced block, which keeps its lines as written.\n",
+        "to": ""
       }
     ]
   },
