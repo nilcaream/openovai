@@ -2633,5 +2633,16 @@
         "to": "?? block).textContent"
       }
     ]
+  },
+  {
+    "name": "the page does not link the shared stylesheet",
+    "catches": "links the shared tokens and markdown rules before its own stylesheet",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "<link rel=\"stylesheet\" href=\"/md.css\">\n",
+        "to": ""
+      }
+    ]
   }
 ]

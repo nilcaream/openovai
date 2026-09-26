@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { INTERRUPTED, SILENT, collapsed, dayPillBefore, html, row, unseen } from "../lib/chat/render.mjs";
+import { INTERRUPTED, SILENT, candidates, collapsed, dayPillBefore, html, pathOf, row, unseen } from "../lib/chat/render.mjs";
 
 // The Leader's panel, and a Worker's: the same rows drawn from two seats, for one User.
 const names = { chat: "Server", seat: "Leader", leader: "Leader", user: "Mike" };
@@ -70,6 +70,44 @@ describe("a reply", () => {
     assert.equal(shown.kind, "reply");
     assert.match(shown.html, /<em>hi<\/em>/);
     assert.equal(shown.text, undefined);
+  });
+});
+
+// A file named in a reply opens in the file view only when the server said the view shows it
+// (lib/chat/view.mjs): the row carries those paths, and nothing else is linked.
+describe("a file named in a reply", () => {
+  it("links a backticked path the view shows to it in a new tab, the place in the file kept in the words only", () => {
+    const shown = html("See `desks/Ann/notes.md:12` and `desks/Ann/other.md`.", ["desks/Ann/notes.md"]);
+    assert.match(shown, /<a href="\/view\/desks\/Ann\/notes\.md" target="_blank" rel="noopener"><code>desks\/Ann\/notes\.md:12<\/code><\/a>/);
+    assert.match(shown, /<code>desks\/Ann\/other\.md<\/code>/);
+    assert.ok(!html("`desks/Ann/notes.md`").includes("<a "), "linked with no word from the server");
+  });
+
+  it("links a markdown link to a path the view shows, and never a path in a code block or in a link's own words", () => {
+    const shown = html("[the notes](desks/Ann/notes.md) and [`desks/Ann/notes.md`](https://x.y)\n\n```\n`desks/Ann/notes.md`\n```", ["desks/Ann/notes.md"]);
+    assert.match(shown, /<a href="\/view\/desks\/Ann\/notes\.md" target="_blank" rel="noopener">the notes<\/a>/);
+    assert.match(shown, /<a href="https:\/\/x\.y" target="_blank" rel="noopener"><code>desks\/Ann\/notes\.md<\/code><\/a>/);
+    assert.equal(shown.split('href="/view/').length - 1, 1, shown);
+  });
+
+  it("names as a candidate a backticked path or a link's target, each once, and never an absolute path, a URL, bare words or a code block", () => {
+    const text = "`projects/x/a.md:3` `/etc/hosts` `~/.ssh/id` `https://a.b/c` `node:http` bare/words.md [l](projects/x/a.md) [k](b.md)\n\n```\n`in/code.md`\n```";
+    assert.deepEqual(candidates(text), ["projects/x/a.md", "b.md"]);
+    assert.equal(pathOf("projects/x/a.md:3-9"), "projects/x/a.md");
+    assert.equal(pathOf("has space.md"), null);
+  });
+
+  it("draws the paths a row carries in every row drawn as markdown", () => {
+    const viewable = ["desks/Ann/notes.md"];
+    const text = "`desks/Ann/notes.md`";
+    for (const [entry, seat] of [
+      [{ from: "Paul", text, viewable }, names],
+      [{ from: "Paul", to: "Leader", text, viewable, msg: "m1" }, names],
+      [{ from: "Leader", to: "Paul", text, viewable, msg: "m2" }, names],
+      [{ from: "Paul", to: "Jane", overheard: true, text, viewable, msg: "m3" }, names],
+    ]) {
+      assert.match(row(entry, seat).html, /href="\/view\/desks\/Ann\/notes\.md"/, JSON.stringify(entry));
+    }
   });
 });
 

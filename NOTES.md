@@ -59,6 +59,24 @@ name was pointed at 127.0.0.1 could load the page, read its secret and drive eve
 had no security hardening, and this closes that one gap and nothing else: any process or user on
 the machine that connects to the port directly still gets the page and its secret from `GET /`.
 
+**A file a reply names opens read-only in a tab of its own.** A backticked path in a reply or a
+message, or a markdown link to one, is a link when the file view would show that file, and plain
+code when it would not. `path:12` links the path, and the line stays in the words. Paths are read
+from the instance root and nowhere else. The view is `/view/<path from the instance root>`:
+- a markdown file is drawn the way a reply is;
+- a code file is wrapped in one fenced block tagged with its language, from the extension, with no
+  highlighting yet;
+- any other text goes in a plain block.
+
+It shows a regular file whose real path, symlinks followed, is inside the instance, and which is
+at most 1 MiB of UTF-8 text. It never shows the instance's Claude Code home (`.local/`), a `.git`
+directory, a `.env` or `.env.*` file, or a `.credentials.json`. The server runs that same check on
+every row it sends, to decide which paths the page links, and again when a link is opened. The page
+sets its secret as a cookie for its own port (`HttpOnly`, `SameSite=Strict`), and the view answers
+only a request that carries it. The view's page allows no inline script or style and is not cached.
+The Leader and the Workers are now told to name a file by its path from the instance root, and a
+file outside the instance by its absolute path.
+
 ## 0.19.0
 
 **The Leader stops and restarts Workers; a Worker only works.** A Worker no longer has

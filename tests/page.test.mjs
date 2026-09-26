@@ -17,7 +17,10 @@ const source = fs.readFileSync(path.join(repo, "lib", "chat", "page.html"), "utf
 // Two scripts: the head one that sets the theme before the first paint, and the page's own module.
 const opened = source.indexOf('<script type="module">');
 const script = source.slice(opened, source.indexOf("</script>", opened));
-const rules = styleRules(source);
+// The page's styles are /md.css — the tokens and the markdown, shared with the file view — then
+// its own block, in the order the page loads them.
+const shared = fs.readFileSync(path.join(repo, "lib", "chat", "md.css"), "utf8");
+const rules = [...styleRules(`<style>${shared}</style>`), ...styleRules(source)];
 const tokens = JSON.parse(fs.readFileSync(path.join(repo, "tests", "page-tokens.json"), "utf8"));
 
 // A token block is a rule that declares custom properties. The light one is bare :root; the dark
@@ -544,6 +547,11 @@ describe("the script", () => {
   // The theme is the page's own choice: set before the first paint by a script that must sit above
   // the stylesheet (below it, a page kept dark paints light first), flipped by the toggle, kept
   // under one key, and carried to the theme-color meta so an installed app's title bar follows.
+  it("links the shared tokens and markdown rules before its own stylesheet", () => {
+    const linked = source.indexOf('<link rel="stylesheet" href="/md.css">');
+    assert.ok(linked !== -1 && linked < source.indexOf("<style>"), "the page does not link /md.css before its own styles");
+  });
+
   it("sets the stored theme above the stylesheet, flips it on the toggle, keeps it and repaints the title bar", () => {
     const head = source.indexOf("<script>");
     assert.ok(head !== -1, "no head script");

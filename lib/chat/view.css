@@ -1,0 +1,7 @@
+/* The file view's frame around the markdown /md.css draws: the page's ground and type, one
+   column, and a header naming the file. */
+* { box-sizing: border-box; }
+body.view { margin: 0; background: var(--bg); color: var(--fg); font: 1rem/1.5 var(--sans); -webkit-font-smoothing: antialiased; }
+.view header { position: sticky; top: 0; padding: 8px 16px; background: var(--panel-2); border-bottom: 1px solid var(--line); font-size: .85rem; color: var(--fg-dim); }
+.view header .path { font-family: var(--mono); color: var(--fg); }
+.view main { max-width: 1092px; margin: 0 auto; padding: 16px; }

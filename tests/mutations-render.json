@@ -317,5 +317,71 @@
         "to": "return shownDay !== null;"
       }
     ]
+  },
+  {
+    "name": "a backticked path the view shows stays plain code",
+    "catches": "links a backticked path the view shows to it in a new tab, the place in the file kept in the words only",
+    "edits": [
+      {
+        "file": "lib/chat/render.mjs",
+        "from": "      return file === null ? false : `<a href=\"${viewHref(file)}\" target=\"_blank\" rel=\"noopener\"><code>${escape(text)}</code></a>`;",
+        "to": "      return false;"
+      }
+    ]
+  },
+  {
+    "name": "every backticked path is linked, shown or not",
+    "catches": "links a backticked path the view shows to it in a new tab, the place in the file kept in the words only",
+    "edits": [
+      {
+        "file": "lib/chat/render.mjs",
+        "from": "  return file !== null && viewable.includes(file) ? file : null;",
+        "to": "  return file;"
+      }
+    ]
+  },
+  {
+    "name": "a backticked path in a link's words is linked again inside it",
+    "catches": "links a markdown link to a path the view shows, and never a path in a code block or in a link's own words",
+    "edits": [
+      {
+        "file": "lib/chat/render.mjs",
+        "from": "      const outer = drawing;\n      drawing = [];\n",
+        "to": "      const outer = drawing;\n"
+      }
+    ]
+  },
+  {
+    "name": "a link's target is not a candidate",
+    "catches": "names as a candidate a backticked path or a link's target, each once, and never an absolute path, a URL, bare words or a code block",
+    "edits": [
+      {
+        "file": "lib/chat/render.mjs",
+        "from": "token.type === \"link\" ? token.href : null;",
+        "to": "null;"
+      }
+    ]
+  },
+  {
+    "name": "an absolute path is a candidate",
+    "catches": "names as a candidate a backticked path or a link's target, each once, and never an absolute path, a URL, bare words or a code block",
+    "edits": [
+      {
+        "file": "lib/chat/render.mjs",
+        "from": "const PATH = /^(?![/~])(",
+        "to": "const PATH = /^("
+      }
+    ]
+  },
+  {
+    "name": "a message between sessions is drawn without the paths it carries",
+    "catches": "draws the paths a row carries in every row drawn as markdown",
+    "edits": [
+      {
+        "file": "lib/chat/render.mjs",
+        "from": "  return { html: html(text, viewable), tight: true,",
+        "to": "  return { html: html(text), tight: true,"
+      }
+    ]
   }
 ]

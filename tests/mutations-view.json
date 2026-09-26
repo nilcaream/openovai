@@ -1,0 +1,123 @@
+[
+  {
+    "name": "an absolute path is read from the root",
+    "catches": "shows a regular text file named by its path from the instance root, and nothing named any other way",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": " || path.isAbsolute(wanted)) {",
+        "to": ") {"
+      }
+    ]
+  },
+  {
+    "name": "a real path outside the instance is shown",
+    "catches": "follows a symlink inside the instance and refuses one or a climb that leads out of it",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "  if (!real.startsWith(top + path.sep)) {",
+        "to": "  if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "a .git directory is shown",
+    "catches": "never shows the instance's Claude Code home, a .git directory, a .env file or a .credentials.json, however it is reached",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "    segments.includes(\".git\") ||",
+        "to": "    false ||"
+      }
+    ]
+  },
+  {
+    "name": "a directory is read as a file",
+    "catches": "shows regular files only, of at most the largest size, and text only",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "    if (!stat.isFile()) {",
+        "to": "    if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "a file twice the largest size is shown",
+    "catches": "shows regular files only, of at most the largest size, and text only",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "    if (stat.size > LARGEST) {",
+        "to": "    if (stat.size > LARGEST * 2) {"
+      }
+    ]
+  },
+  {
+    "name": "a NUL near the start is taken for text",
+    "catches": "shows regular files only, of at most the largest size, and text only",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "    if (bytes.subarray(0, BINARY_PROBE).includes(0)) {",
+        "to": "    if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "a row goes out without the paths it names",
+    "catches": "finds in a row's words exactly the paths it shows, and leaves a row with none as it was",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "  return found.length === 0 ? row : { ...row, viewable: found };",
+        "to": "  return row;"
+      }
+    ]
+  },
+  {
+    "name": "a markdown file is drawn as code",
+    "catches": "renders a markdown file as markdown, its own paths linked only where the view shows them",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "  const source = MARKDOWN.has(extension) && shown.path.includes(\".\")",
+        "to": "  const source = false"
+      }
+    ]
+  },
+  {
+    "name": "the fence is always three backticks",
+    "catches": "wraps a code file in one fenced block with its language tag, a fence longer than any run of backticks in it",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "  const fence = \"`\".repeat(Math.max(3, longest + 1));",
+        "to": "  const fence = \"```\";"
+      }
+    ]
+  },
+  {
+    "name": "a path not shown answers 200",
+    "catches": "answers a path it does not show with its status and the reason, and nothing of the file",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "    return { status: shown.status, page:",
+        "to": "    return { status: 200, page:"
+      }
+    ]
+  },
+  {
+    "name": "the view carries no theme script",
+    "catches": "links only the stylesheets and the theme script the server serves, and nothing inline",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "<script src=\"/theme.js\"></script>\n",
+        "to": ""
+      }
+    ]
+  }
+]

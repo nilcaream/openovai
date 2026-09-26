@@ -327,6 +327,19 @@ jobs:
       - name: Draw a row as markdown, and nothing a row must not do
         run: node --test tests/render.test.mjs
 
+  view:
+    name: View
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+
+      - name: Show a file of the instance read-only, and only the files the view shows
+        run: node --test tests/view.test.mjs
+
   page:
     name: Page
     runs-on: ubuntu-latest

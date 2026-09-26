@@ -253,7 +253,7 @@ describe("what the chat serves", () => {
       const asked = http.request(`${url}${route}`, { method, headers: { authorization: `Bearer ${pageSecret()}`, ...headers } }, (answer) => {
         let body = "";
         answer.on("data", (chunk) => (body += chunk));
-        answer.on("end", () => resolve({ status: answer.statusCode, body }));
+        answer.on("end", () => resolve({ status: answer.statusCode, body, headers: answer.headers }));
       });
       asked.on("error", reject);
       asked.end();
@@ -285,6 +285,41 @@ describe("what the chat serves", () => {
       assert.equal((await raw("POST", "/sessions/Nobody/typing", { host, origin: `http://${name}` })).status, 404, name);
     }
     assert.equal((await raw("GET", "/health", { host, origin: "http://attacker.example" })).status, 200);
+  });
+
+  // A link opens the file view in a tab of its own, where no header can be set: the page's secret
+  // reaches it as a cookie the page sets, named by the port, which nothing on the page can read.
+  it("sets the page's secret as a cookie of its own port that no script reads and no other site sends", async () => {
+    const [host] = own();
+    const answered = await raw("GET", "/", { host });
+    assert.equal(answered.headers["set-cookie"]?.[0], `openovai-page-${server.address().port}=${pageSecret()}; HttpOnly; SameSite=Strict; Path=/`);
+  });
+
+  it("shows a file of the instance to a caller holding the cookie, read-only, with nothing inline run and nothing kept", async () => {
+    fs.mkdirSync(path.join(instance, "temp"), { recursive: true });
+    fs.writeFileSync(path.join(instance, "temp", "view-check.md"), "# Seen\n");
+    const [host] = own();
+    const cookie = `openovai-page-${server.address().port}=${pageSecret()}`;
+    const shown = await raw("GET", "/view/temp/view-check.md", { host, cookie });
+    assert.equal(shown.status, 200);
+    assert.match(shown.body, /<h1>Seen<\/h1>/);
+    assert.match(shown.headers["content-type"], /^text\/html/);
+    assert.equal(shown.headers["x-content-type-options"], "nosniff");
+    assert.equal(shown.headers["cache-control"], "no-store");
+    assert.match(shown.headers["content-security-policy"], /default-src 'none'; style-src 'self'; script-src 'self'/);
+    assert.equal((await raw("GET", "/view/temp/nothing-here.md", { host, cookie })).status, 404);
+    const posted = await raw("POST", "/view/temp/view-check.md", { host, cookie });
+    assert.equal(posted.status, 404, "the view answers a read and nothing else");
+    assert.ok(!posted.body.includes("Seen"));
+  });
+
+  it("refuses the file view to a caller without the cookie, whatever else it carries", async () => {
+    const [host] = own();
+    for (const cookie of [undefined, `openovai-page-${server.address().port}=wrong`, `openovai-page-${server.address().port + 1}=${pageSecret()}`]) {
+      const answered = await raw("GET", "/view/temp/view-check.md", cookie === undefined ? { host } : { host, cookie });
+      assert.equal(answered.status, 401, String(cookie));
+      assert.ok(!answered.body.includes("Seen"), String(cookie));
+    }
   });
 
   it("records where it is listening, for whoever starts a session", () => {
@@ -2158,6 +2193,25 @@ describe("the stream", () => {
     const rows = about(client, LEADER, "rows")[0].data;
     assert.equal(rows.since, noted);
     assert.deepEqual(rows.rows.map((row) => row.text), ["noted"]);
+  });
+
+  // The page links a path only when the view shows it, and it learns which from the row: the
+  // server adds the paths to every row it sends, live and on a connect, and never to the file.
+  it("sends a row with the paths in its words the file view shows, live and on a connect", async () => {
+    fs.mkdirSync(path.join(instance, "temp"), { recursive: true });
+    fs.writeFileSync(path.join(instance, "temp", "view-row.md"), "# Row\n");
+    const client = await listen();
+    await until(client, (event) => event.name === "asking");
+    await seatUp(OTHER, { OPENOVAI_STAND_IN_REPLY: "see `temp/view-row.md:2` and `temp/no-such.md`" });
+    await page("POST", `/sessions/${OTHER}/message`, { text: "where?" });
+    const answered = (event) => event.name === "row" && event.data.seat === OTHER && event.data.row.from === OTHER;
+    await until(client, answered);
+    assert.deepEqual(client.events.find(answered).data.row.viewable, ["temp/view-row.md"]);
+    const kept = read(instance, OTHER).at(-1);
+    assert.equal(kept.viewable, undefined, "the paths were written into the conversation");
+    const again = JSON.parse((await page("GET", `/sessions/${OTHER}/messages`)).body).messages.at(-1);
+    assert.deepEqual(again.viewable, ["temp/view-row.md"]);
+    await end(OTHER, 500);
   });
 
   it("tells of a seat's process starting, a turn under way and over, and the process gone", async () => {

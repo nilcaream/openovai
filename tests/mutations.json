@@ -1976,5 +1976,60 @@
         "to": "serverEvent(\"user-typed\", { who: seat }, text)"
       }
     ]
+  },
+  {
+    "name": "the page sets no cookie",
+    "catches": "sets the page's secret as a cookie of its own port that no script reads and no other site sends",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "    \"set-cookie\": `${cookieName(port)}=${pageSecret()}; HttpOnly; SameSite=Strict; Path=/`,\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the view is served without the cookie",
+    "catches": "refuses the file view to a caller without the cookie, whatever else it carries",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "  if (!isPageSecret(cookieOf(request, port))) {",
+        "to": "  if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "the view lets a browser guess its type",
+    "catches": "shows a file of the instance to a caller holding the cookie, read-only, with nothing inline run and nothing kept",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "  \"x-content-type-options\": \"nosniff\",\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a live row goes out without its paths",
+    "catches": "sends a row with the paths in its words the file view shows, live and on a connect",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "      write({ name: \"row\", data: { ...event.data, row: withViewable(instance.root, event.data.row) } });",
+        "to": "      write(event);"
+      }
+    ]
+  },
+  {
+    "name": "rows read again go out without their paths",
+    "catches": "sends a row with the paths in its words the file view shows, live and on a connect",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": ".map((row) => withViewable(instance.root, row));",
+        "to": ";"
+      }
+    ]
   }
 ]
