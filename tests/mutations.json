@@ -1142,8 +1142,8 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "  return Number.isInteger(from) && from > 0 ? rows.slice(from) : rows;",
-        "to": "  return rows;"
+        "from": "(Number.isInteger(from) && from > 0 ? rows.slice(from) : rows)",
+        "to": "rows"
       }
     ]
   },

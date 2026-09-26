@@ -4,9 +4,9 @@
     "catches": "declares the light tokens in bare :root and the dark ones under the theme attribute, each with its colour-scheme",
     "edits": [
       {
-        "file": "lib/chat/page.html",
-        "from": "    --bg: #0e1116; --panel: #161b22;",
-        "to": "    --bg: #161b22; --panel: #0e1116;"
+        "file": "lib/chat/md.css",
+        "from": "  --bg: #0e1116; --panel: #161b22;",
+        "to": "  --bg: #161b22; --panel: #0e1116;"
       }
     ]
   },
@@ -125,9 +125,9 @@
     "catches": "carry no raw colour outside the token blocks",
     "edits": [
       {
-        "file": "lib/chat/page.html",
-        "from": ".md a, .bubble a { color: var(--accent); }",
-        "to": ".md a, .bubble a { color: #5eaeff; }"
+        "file": "lib/chat/md.css",
+        "from": ".md a { color: var(--accent); }",
+        "to": ".md a { color: #5eaeff; }"
       }
     ]
   },
@@ -136,7 +136,7 @@
     "catches": "carry no raw colour outside the token blocks",
     "edits": [
       {
-        "file": "lib/chat/page.html",
+        "file": "lib/chat/md.css",
         "from": "background: rgba(127,127,127,.18); padding: .1em .35em;",
         "to": "background: rgba(0,0,0,.18); padding: .1em .35em;"
       }
@@ -295,14 +295,14 @@
     "catches": "declares the light tokens in bare :root and the dark ones under the theme attribute, each with its colour-scheme",
     "edits": [
       {
-        "file": "lib/chat/page.html",
-        "from": "  :root[data-theme=\"dark\"] {\n",
-        "to": "  @media (prefers-color-scheme: dark) { :root {\n"
+        "file": "lib/chat/md.css",
+        "from": ":root[data-theme=\"dark\"] {\n",
+        "to": "@media (prefers-color-scheme: dark) { :root {\n"
       },
       {
-        "file": "lib/chat/page.html",
-        "from": "    color-scheme: dark;\n  }\n",
-        "to": "    color-scheme: dark;\n  } }\n"
+        "file": "lib/chat/md.css",
+        "from": "  color-scheme: dark;\n}\n",
+        "to": "  color-scheme: dark;\n} }\n"
       }
     ]
   },
@@ -1377,8 +1377,8 @@
     "edits": [
       {
         "file": "lib/chat/render.mjs",
-        "from": "  return { who: entry.from, kind: \"reply\", html: html(entry.text) };",
-        "to": "  return { who: entry.from, kind: \"reply\", ...folded(entry.text) };"
+        "from": "  return { who: entry.from, kind: \"reply\", html: html(entry.text, entry.viewable) };",
+        "to": "  return { who: entry.from, kind: \"reply\", ...folded(entry.text, entry.viewable) };"
       }
     ]
   },
@@ -1498,8 +1498,8 @@
     "edits": [
       {
         "file": "lib/chat/render.mjs",
-        "from": "      return { who: `${entry.from} → ${entry.to}`, kind: \"overheard\", ...folded(entry.text), ...msg };",
-        "to": "      return { who: `${entry.from} → ${entry.to}`, kind: \"peer-in\", ...folded(entry.text), ...msg };"
+        "from": "kind: \"overheard\", ...folded(entry.text, entry.viewable), ...msg };",
+        "to": "kind: \"peer-in\", ...folded(entry.text, entry.viewable), ...msg };"
       }
     ]
   },
@@ -1530,9 +1530,9 @@
     "catches": "keep the dark ground of a message from a Worker a visible step off the Leader's reply ground",
     "edits": [
       {
-        "file": "lib/chat/page.html",
-        "from": "    --from: #203349; --from-line: #2b4a6d;",
-        "to": "    --from: #1a2a3d; --from-line: #2b4a6d;"
+        "file": "lib/chat/md.css",
+        "from": "  --from: #203349; --from-line: #2b4a6d;",
+        "to": "  --from: #1a2a3d; --from-line: #2b4a6d;"
       },
       {
         "file": "tests/page-tokens.json",
@@ -1909,7 +1909,7 @@
     "catches": "set a code block at .85rem, 1.4 lines high, on the block itself, the code inside inheriting",
     "edits": [
       {
-        "file": "lib/chat/page.html",
+        "file": "lib/chat/md.css",
         "from": "overflow-x: auto; font-size: .85rem; line-height: 1.4; scrollbar-width: thin;",
         "to": "overflow-x: auto; font-size: .85rem; line-height: 1.5; scrollbar-width: thin;"
       }
@@ -1920,9 +1920,9 @@
     "catches": "set a code block at .85rem, 1.4 lines high, on the block itself, the code inside inheriting",
     "edits": [
       {
-        "file": "lib/chat/page.html",
-        "from": "  .md pre code { background: none; padding: 0; font-size: inherit; }",
-        "to": "  .md pre code { background: none; padding: 0; font-size: .85rem; }"
+        "file": "lib/chat/md.css",
+        "from": ".md pre code { background: none; padding: 0; font-size: inherit; }",
+        "to": ".md pre code { background: none; padding: 0; font-size: .85rem; }"
       }
     ]
   },
@@ -1942,7 +1942,7 @@
     "catches": "keep the copy button in a code block's corner, shown on hover and while it says copied",
     "edits": [
       {
-        "file": "lib/chat/page.html",
+        "file": "lib/chat/md.css",
         "from": ".md .code { position: relative; background:",
         "to": ".md .code { background:"
       }
@@ -2584,7 +2584,7 @@
     "catches": "frames a code block that scrolls, with a thin themed scrollbar, the frame holding the border",
     "edits": [
       {
-        "file": "lib/chat/page.html",
+        "file": "lib/chat/md.css",
         "from": "line-height: 1.4; scrollbar-width: thin;",
         "to": "line-height: 1.4; scrollbar-width: none;"
       }
@@ -2595,7 +2595,7 @@
     "catches": "frames a code block that scrolls, with a thin themed scrollbar, the frame holding the border",
     "edits": [
       {
-        "file": "lib/chat/page.html",
+        "file": "lib/chat/md.css",
         "from": " scrollbar-color: var(--fg-faint) transparent;",
         "to": ""
       }
@@ -2606,7 +2606,7 @@
     "catches": "frames a code block that scrolls, with a thin themed scrollbar, the frame holding the border",
     "edits": [
       {
-        "file": "lib/chat/page.html",
+        "file": "lib/chat/md.css",
         "from": "border-radius: 8px; overflow: hidden; }",
         "to": "border-radius: 8px; }"
       }
@@ -2617,7 +2617,7 @@
     "catches": "keep the copy button in a code block's corner, shown on hover and while it says copied",
     "edits": [
       {
-        "file": "lib/chat/page.html",
+        "file": "lib/chat/md.css",
         "from": ".md .code:hover .copy, ",
         "to": ".md .code:focus .copy, "
       }
