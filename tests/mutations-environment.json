@@ -1,0 +1,57 @@
+[
+  {
+    "name": "the server starts with the whole of its starter's environment again",
+    "catches": "is what `ovai start` spawns the server with",
+    "edits": [
+      {
+        "file": "lib/ovai.mjs",
+        "from": "    env: serverEnvironment(root),",
+        "to": "    env: { ...process.env, CLAUDE_CONFIG_DIR: home(root) },"
+      }
+    ]
+  },
+  {
+    "name": "the server keeps the seat it was typed in",
+    "catches": "starts the server with this instance's home and nothing of the session or seat it was typed in",
+    "edits": [
+      {
+        "file": "lib/claude.mjs",
+        "from": "  for (const name of [...A_SESSIONS_OWN, ...SET_ON_A_SESSION]) {",
+        "to": "  for (const name of A_SESSIONS_OWN) {"
+      }
+    ]
+  },
+  {
+    "name": "a seat keeps the session its server was typed in",
+    "catches": "starts a seat with nothing of the session the server was typed in, and its own seat and home",
+    "edits": [
+      {
+        "file": "lib/claude.mjs",
+        "from": "  for (const name of [...NEVER_INHERITED, ...SET_ON_A_SESSION, ...A_SESSIONS_OWN]) {",
+        "to": "  for (const name of [...NEVER_INHERITED, ...SET_ON_A_SESSION]) {"
+      }
+    ]
+  },
+  {
+    "name": "the directory the starter's shell stood in is handed on",
+    "catches": "starts the server with this instance's home and nothing of the session or seat it was typed in",
+    "edits": [
+      {
+        "file": "lib/claude.mjs",
+        "from": "  \"PWD\",\n  \"OLDPWD\",\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the starter's session goes by prefix, the machine's sign-in with it",
+    "catches": "starts the server with this instance's home and nothing of the session or seat it was typed in",
+    "edits": [
+      {
+        "file": "lib/claude.mjs",
+        "from": "  const env = { ...process.env };\n  for (const name of [...A_SESSIONS_OWN, ...SET_ON_A_SESSION]) {",
+        "to": "  const env = Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith(\"CLAUDE_CODE_\")));\n  for (const name of [...A_SESSIONS_OWN, ...SET_ON_A_SESSION]) {"
+      }
+    ]
+  }
+]

@@ -27,6 +27,10 @@ All of that is the Leader's now:
 - Every seat is told its desk and desk file as whole paths, with the instance root joined, where
   it was told `desks/<Name>/`. A session left to work out the root has guessed wrong, reaching for
   another instance's desk of the same name when its own instance sat inside that one.
+- `ovai start` typed in a session's shell no longer hands that session on. The server, and every
+  seat it starts, drop what Claude Code put on the session: its id, pid, entry point, effort,
+  messaging socket and token, and the shell's PWD and OLDPWD. The server also drops the seat's
+  name and secret. The machine's sign-in, CLAUDE_CODE_OAUTH_TOKEN, stays under `inherit` as before.
 - When a usage window that reached a stage resets, the Leader gets a `quota-reset` event with the
   window, and the model when it is one model's own; a stopped Leader is started by it, to bring
   back the Workers that stopped on the window. A park forgets the resets to come, and a server

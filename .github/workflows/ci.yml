@@ -288,6 +288,19 @@ jobs:
       - name: Tell a Leader and a Worker only what is there
         run: node --test tests/personas.test.mjs
 
+  environment:
+    name: Environment
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+
+      - name: Start a server and its seats with nothing of the session they were typed in
+        run: node --test tests/environment.test.mjs
+
   panels:
     name: Panels
     runs-on: ubuntu-latest
