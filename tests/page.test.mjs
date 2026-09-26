@@ -506,7 +506,7 @@ describe("the script", () => {
     assert.match(script, /panel\.doing = null;\s*panel\.bubbles\.clear\(\);/);
     assert.match(script, /const line = rowElement\(entry, shown, panel, about\.rows, index\);/);
     assert.match(script, /if \(found === null\) return;\s*focusRow\(leader, found\);/, "a message's other end goes through the same focus");
-    assert.match(script, /function focusRow\(panel, found\) \{\s*if \(!found\.isConnected\) return;\s*if \(hiddenTalk\(found\)\) \{\s*found\.classList\.add\("revealed"\);\s*fitFolds\(\[found\]\);\s*\}\s*found\.classList\.remove\("collapsed"\);\s*found\.scrollIntoView\(\{ block: "start" \}\);/);
+    assert.match(script, /function focusRow\(panel, found\) \{\s*if \(!found\.isConnected\) return;\s*if \(hiddenTalk\(found\)\) \{\s*found\.classList\.add\("revealed"\);\s*fitFolds\(\[found\]\);\s*\}\s*found\.classList\.remove\("collapsed"\);\s*panel\.view\.away = true;\s*found\.scrollIntoView\(\{ block: "start" \}\);/);
   });
 
   // The typing hold: a key that leaves text in the box tells the server, at most once a beat; one
@@ -706,6 +706,14 @@ describe("the script", () => {
     assert.match(script, /return \{ name, section, [^}]*\bview\b[^}]*\bkeep\b[^}]*\};/, "the draw reads the same word the tick sets");
   });
 
+  // A click that brings a row into view — a reference, a message's other end — is the reader
+  // moving away as a wheel up is: without the word, the next tick pins a panel that follows back
+  // to its newest, and the row the reader asked for is gone again within 100 ms.
+  it("lets a panel that follows go when a click brings one of its rows into view", () => {
+    const focus = script.slice(script.indexOf("function focusRow(panel, found) {"), script.indexOf("function focusRow(panel, found) {") + 600);
+    assert.match(focus, /panel\.view\.away = true;\s*found\.scrollIntoView\(/, "the word is given before the scroll, the way a hand gives it");
+  });
+
   // The tick: every panel, ten times a second, decides its word from where its rows stand and
   // whether a hand moved them away since the last tick, shows it on the head, and pins a panel
   // that follows to its newest — only when it is not there already, so a panel at rest writes
@@ -816,7 +824,7 @@ describe("the script", () => {
   it("marks the line of a message with its id and takes a click on it to the message on the Leader's panel, opened", () => {
     assert.match(script, /if \(shown\.msg !== undefined\) \{\s*line\.classList\.add\("peer"\);\s*line\.dataset\.msg = shown\.msg;\s*line\.onclick = \(\) => focusMessage\(shown\.msg\);\s*\}\s*return line;/);
     assert.match(script, /if \(shown\.msg !== undefined\) line\.dataset\.msg = shown\.msg;/, "a bubble carries the id too, for the click to find");
-    assert.match(script, /function focusMessage\(id\) \{\s*const leader = sections\.get\(state\.leader\);\s*const found = leader === undefined \? null : leader\.rows\.querySelector\(`\.msg\[data-msg="\$\{id\}"\]`\);\s*if \(found === null\) return;\s*focusRow\(leader, found\);\s*\}(?:[^\n]*\n)+?\s*function focusRow\(panel, found\) \{\s*if \(!found\.isConnected\) return;\s*if \(hiddenTalk\(found\)\) \{[^}]*\}\s*found\.classList\.remove\("collapsed"\);\s*found\.scrollIntoView\(\{ block: "start" \}\);/, "opened before it is brought into view, so the scroll is to the row as it will stand");
+    assert.match(script, /function focusMessage\(id\) \{\s*const leader = sections\.get\(state\.leader\);\s*const found = leader === undefined \? null : leader\.rows\.querySelector\(`\.msg\[data-msg="\$\{id\}"\]`\);\s*if \(found === null\) return;\s*focusRow\(leader, found\);\s*\}(?:[^\n]*\n)+?\s*function focusRow\(panel, found\) \{\s*if \(!found\.isConnected\) return;\s*if \(hiddenTalk\(found\)\) \{[^}]*\}\s*found\.classList\.remove\("collapsed"\);\s*panel\.view\.away = true;\s*found\.scrollIntoView\(\{ block: "start" \}\);/, "opened before it is brought into view, so the scroll is to the row as it will stand");
     assert.match(script, /found\.classList\.add\("focus"\);\s*setTimeout\(\(\) => found\.classList\.remove\("focus"\), FOCUS_FOR\);/);
     assert.match(script, /const FOCUS_FOR = 1500;/);
   });

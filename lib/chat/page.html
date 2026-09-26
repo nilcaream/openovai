@@ -806,7 +806,8 @@
   // A row found from a click elsewhere — a message's other end, a reference — opened, brought into
   // view with its label at the top, and lit for a moment. A row the panel has let go since is
   // nothing to do. A row the comms switch hides is revealed first, and its fold measured while it
-  // is still folded: hidden at the draw, it measured nothing then.
+  // is still folded: hidden at the draw, it measured nothing then. The click is the reader moving
+  // away, as a wheel up is: a panel that follows lets go, or its timer pins it back at once.
   function focusRow(panel, found) {
     if (!found.isConnected) return;
     if (hiddenTalk(found)) {
@@ -814,6 +815,7 @@
       fitFolds([found]);
     }
     found.classList.remove("collapsed");
+    panel.view.away = true;
     found.scrollIntoView({ block: "start" });
     for (const lit of panel.rows.querySelectorAll(".msg.focus")) lit.classList.remove("focus");
     found.classList.add("focus");

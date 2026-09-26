@@ -73,6 +73,9 @@ All of that is the Leader's now:
 - A code block wider than the panel shows a thin horizontal scrollbar in the theme's colours, the
   only scrollbar on the page, and only while the code overflows. Its copy button stays in the
   block's top-right corner however far the code is scrolled, and shows while the block is hovered.
+- A click on a reference, or on a Sent or Received line, stays on the row it brings into view: a
+  panel that was following its newest row lets go, as it does for a wheel turned up, and follows
+  again once it is scrolled back to the newest.
 
 **A Worker's session is closed for it, and never in the middle of a step.** When a Worker has to
 end — idle at 55 minutes, its usage window spent, the room parking — the server tells it one thing,

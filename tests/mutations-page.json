@@ -1235,6 +1235,17 @@
     ]
   },
   {
+    "name": "a row a click brought into view is pinned away again by a panel that follows",
+    "catches": "lets a panel that follows go when a click brings one of its rows into view",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    panel.view.away = true;\n    found.scrollIntoView({ block: \"start\" });",
+        "to": "    found.scrollIntoView({ block: \"start\" });"
+      }
+    ]
+  },
+  {
     "name": "the message a click found is brought into view but stays folded",
     "catches": "marks the line of a message with its id and takes a click on it to the message on the Leader's panel, opened",
     "edits": [
