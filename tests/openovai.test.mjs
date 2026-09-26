@@ -120,6 +120,8 @@ function run(argv, { home, url, env = {}, input = "", command = script, stdinIsF
     child.stdout.setEncoding("utf8").on("data", (chunk) => (out += chunk));
     child.stderr.setEncoding("utf8").on("data", (chunk) => (err += chunk));
     child.on("close", (status) => resolve({ status, out: out.trim(), err: err.trim(), lines: out.trim().split("\n") }));
+    // A run that has already gone makes writing to it an error on the pipe rather than a throw.
+    child.stdin?.on("error", () => {});
     if (!stdinIsFile) child.stdin.end(input);
   });
 }
