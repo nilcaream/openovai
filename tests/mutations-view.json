@@ -119,5 +119,16 @@
         "to": ""
       }
     ]
+  },
+  {
+    "name": "the view leaves an installed app's title bar to the manifest",
+    "catches": "gives an installed app's title bar the theme's colour, as the page does",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "<meta name=\"theme-color\" content=\"#eef1f5\">\n",
+        "to": ""
+      }
+    ]
   }
 ]

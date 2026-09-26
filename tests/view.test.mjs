@@ -133,4 +133,15 @@ describe("what the view draws", () => {
     assert.equal(page.split("<script").length - 1, 1);
     assert.ok(!page.includes("<style"));
   });
+
+  // An installed app opens the view in a window of its own, whose title bar takes the page's
+  // theme-color: the theme script repaints it from the head bubble's ground, as the page does,
+  // and runs after the stylesheets that define that ground.
+  it("gives an installed app's title bar the theme's colour, as the page does", () => {
+    const { page } = view(root, "desks/Ann/notes.txt");
+    assert.match(page, /<meta name="theme-color" content="#eef1f5">/);
+    assert.ok(page.indexOf('<script src="/theme.js">') > page.indexOf('<link rel="stylesheet" href="/view.css">'));
+    const script = fs.readFileSync(path.join(import.meta.dirname, "..", "lib", "chat", "theme.js"), "utf8");
+    assert.match(script, /themeMeta\.content = getComputedStyle\(document\.documentElement\)\.getPropertyValue\("--panel-2"\)\.trim\(\) \|\| themeMeta\.content;/);
+  });
 });
