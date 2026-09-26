@@ -322,9 +322,10 @@ describe("the common note in a persona", () => {
 describe("what a session is told about knowledge", () => {
   const read = (role) => fs.readFileSync(path.join(repo, "lib", "templates", `${role}.md`), "utf8");
 
+  // Both roles are told it in the common frame, which the persona puts before the role's own.
   it("tells both roles where knowledge is, to call index first, and to validate what they wrote", () => {
-    for (const role of ["leader", "worker"]) {
-      const text = read(role);
+    for (const [role, name] of [["leader", "Superman"], ["worker", "Paul"]]) {
+      const text = persona(repo, name, { user: "Mike", leader: "Superman" });
       assert.match(text, /The workspace's knowledge is `knowledge\/`: Markdown notes, one topic per file, facts only\./, role);
       assert.match(text, /Before you search or write, call `index\(\)`\nfor the tags in use/, role);
       assert.match(text, /Then call `validate` and fix what it\nreports before you go on\./, role);

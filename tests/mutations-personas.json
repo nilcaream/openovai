@@ -15,8 +15,8 @@
     "catches": "tells the Leader its desk directory is its working directory, the header the tool's and the body edited in place",
     "edits": [
       {
-        "file": "lib/templates/leader.md",
-        "from": "edited in place with the file tools like any other file: change the line that changed, never the\nwhole desk, then call `write_desk` — that call is what says the desk is current.",
+        "file": "lib/templates/common.md",
+        "from": "edited in place with the file tools like any other file:\nchange the line that changed, never the whole desk.",
         "to": "written with one tool and no other way: `write_desk`, which takes the whole of it."
       }
     ]
@@ -26,9 +26,9 @@
     "catches": "tells the Worker its desk directory is its working directory, the header the tool's and the body edited in place",
     "edits": [
       {
-        "file": "lib/templates/worker.md",
-        "from": "never the whole desk. Edit the body first and call `write_desk` after it, at every point the work\nmoves,",
-        "to": "never by hand: that one file is written with one tool and no other way, at every point the work\nmoves,"
+        "file": "lib/templates/common.md",
+        "from": "never the whole desk. Edit the body first and call `write_desk`\nafter it, at every point the work moves,",
+        "to": "never by hand: that one file is written with one tool and no other way, at every point the work moves,"
       }
     ]
   },
@@ -114,8 +114,8 @@
     "catches": "tells the Leader how much a brief it writes may spend",
     "edits": [
       {
-        "file": "lib/templates/leader.md",
-        "from": "{{BUDGET}}\n\n",
+        "file": "lib/templates/common.md",
+        "from": "{{BUDGET}}\n",
         "to": ""
       }
     ]
@@ -125,8 +125,8 @@
     "catches": "tells the Worker how much a brief it writes may spend",
     "edits": [
       {
-        "file": "lib/templates/worker.md",
-        "from": "{{BUDGET}}\n\n",
+        "file": "lib/templates/common.md",
+        "from": "{{BUDGET}}\n",
         "to": ""
       }
     ]
@@ -147,7 +147,7 @@
     "catches": "tells the Leader what each frame is, and that only the server writes one",
     "edits": [
       {
-        "file": "lib/templates/leader.md",
+        "file": "lib/templates/common.md",
         "from": "every turn, and nothing but the server writes one.",
         "to": "every turn."
       }
@@ -158,7 +158,7 @@
     "catches": "tells the Leader that what is inside a frame cannot close it",
     "edits": [
       {
-        "file": "lib/templates/leader.md",
+        "file": "lib/templates/common.md",
         "from": "written by whoever sent it and\ncannot close the frame it is in — not a `<user>`, not a `<message>`, not the `</queue>` around\nthem;",
         "to": "a frame too, and the innermost one is who is speaking;"
       }
@@ -192,7 +192,7 @@
     "edits": [
       {
         "file": "lib/templates/leader.md",
-        "from": "Say each thing to the one it is for — a Worker through `message`, {{USER}}\nin your words — and keep what {{USER}} has to know on your desk until {{USER}} next speaks to you.",
+        "from": "Keep what\n{{USER}} has to know on your desk until {{USER}} next speaks to you.",
         "to": "Say everything to {{USER}}."
       }
     ]
@@ -203,7 +203,7 @@
     "edits": [
       {
         "file": "lib/templates/leader.md",
-        "from": "A turn with nothing in it for {{USER}} is a `<noop/>` turn.\n",
+        "from": " A turn with nothing in it for\n{{USER}} is a `<noop/>` turn.",
         "to": ""
       }
     ]
@@ -213,8 +213,8 @@
     "catches": "points the Leader to the <noop/> turn for a turn with nothing in it for the User",
     "edits": [
       {
-        "file": "lib/templates/leader.md",
-        "from": "With nothing left in flight, do nothing: it is a `<noop/>` turn.",
+        "file": "lib/templates/common.md",
+        "from": "With nothing left in flight, do nothing:\n  it is a `<noop/>` turn.",
         "to": "With nothing left in flight, say nothing and do nothing."
       }
     ]
@@ -224,8 +224,8 @@
     "catches": "tells the Worker that a report once sent ends the turn as a <noop/> turn, never the report again",
     "edits": [
       {
-        "file": "lib/templates/worker.md",
-        "from": "With nothing left in flight, do nothing: it is a `<noop/>` turn.",
+        "file": "lib/templates/common.md",
+        "from": "With nothing left in flight, do nothing:\n  it is a `<noop/>` turn.",
         "to": "With nothing left in flight, say nothing and do nothing."
       }
     ]
@@ -258,8 +258,8 @@
     "edits": [
       {
         "file": "lib/templates/leader.md",
-        "from": "Nothing you say reaches a Worker on its own: a line you address\nto a Worker at the end of its message's turn lands on your panel, in front of {{USER}}, and the\nWorker never sees it.",
-        "to": "A line you address to a Worker at the end of its message's turn reaches the Worker."
+        "from": "a line you address to a Worker at the end of\nits message's turn lands there, in front of {{USER}}, and the Worker never sees it.",
+        "to": "a line you address to a Worker at the end of its message's turn reaches the Worker."
       }
     ]
   },
@@ -268,9 +268,9 @@
     "catches": "tells the Leader how to say something to somebody, and that the call comes back at once",
     "edits": [
       {
-        "file": "lib/templates/leader.md",
-        "from": "It comes back the moment they have it, and your\nturn goes on: answer {{USER}} now — who you asked, for what — and whatever they say back arrives\nlater as a `<message>` of its own, a turn of yours like any other.",
-        "to": "Their reply comes back as the answer, and you are held for their turn."
+        "file": "lib/templates/common.md",
+        "from": "it comes back the moment they have it,\nwhatever the message holds arrives exactly as you wrote it, and whatever they say back arrives\nlater as a `<message>` of its own, a turn of yours like any other.",
+        "to": "their reply comes back as the answer, and you are held for their turn."
       }
     ]
   },
@@ -279,9 +279,9 @@
     "catches": "tells the Worker that the call comes back at once and a report is a message, never its last line",
     "edits": [
       {
-        "file": "lib/templates/worker.md",
-        "from": "it comes back the moment they have it, whatever the message holds\narrives exactly as you wrote it, and whatever they say back arrives later as a `<message>` of its\nown. What you say in a turn lands on your own panel and nowhere else — a report {{LEADER}} is\nwaiting for is a `message` to {{LEADER}}, never the last line of your turn.",
-        "to": "it waits for their answer and hands it back, and whatever the message holds\narrives exactly as you wrote it."
+        "file": "lib/templates/common.md",
+        "from": "it comes back the moment they have it,\nwhatever the message holds arrives exactly as you wrote it, and whatever they say back arrives\nlater as a `<message>` of its own",
+        "to": "it waits for their answer and hands it back, and whatever the message holds\narrives exactly as you wrote it"
       }
     ]
   },
@@ -313,8 +313,8 @@
     "edits": [
       {
         "file": "lib/templates/leader.md",
-        "from": "You\nare not shown that panel and no press is reported to you;",
-        "to": "You\nare shown that panel and every press is reported to you;"
+        "from": "you are not shown that panel and no press is reported to you;",
+        "to": "you are shown that panel and every press is reported to you;"
       }
     ]
   },
@@ -323,9 +323,9 @@
     "catches": "tells the Leader how to say something to somebody, and that the call comes back at once",
     "edits": [
       {
-        "file": "lib/templates/leader.md",
-        "from": "The `message` tool says something\nto one of them:",
-        "to": "The `say` tool says something\nto one of them:"
+        "file": "lib/templates/common.md",
+        "from": "The `message` tool is how you reach anybody else here",
+        "to": "The `say` tool is how you reach anybody else here"
       }
     ]
   },
@@ -334,9 +334,9 @@
     "catches": "tells the Leader how to see who works here",
     "edits": [
       {
-        "file": "lib/templates/leader.md",
-        "from": "The `room` tool says who works here",
-        "to": "The `status` tool says who works here"
+        "file": "lib/templates/common.md",
+        "from": "and the `room` tool says who that is",
+        "to": "and the `status` tool says who that is"
       }
     ]
   },
@@ -345,8 +345,8 @@
     "catches": "tells the Leader that the written desk is what survives",
     "edits": [
       {
-        "file": "lib/templates/leader.md",
-        "from": "A written desk is what survives; anything you have\nworked out and not written is gone with this session.",
+        "file": "lib/templates/common.md",
+        "from": "A written desk is what survives; anything you have worked out and\nnot written is gone with this session, and the next session on this desk starts from what it says.",
         "to": ""
       }
     ]
@@ -389,7 +389,7 @@
     "catches": "tells the Worker what each frame is, and that only the server writes one",
     "edits": [
       {
-        "file": "lib/templates/worker.md",
+        "file": "lib/templates/common.md",
         "from": "every turn, and nothing but the server writes one.",
         "to": "every turn."
       }
@@ -400,7 +400,7 @@
     "catches": "tells the Worker how to say something to somebody and how to see who is here",
     "edits": [
       {
-        "file": "lib/templates/worker.md",
+        "file": "lib/templates/common.md",
         "from": "The `message` tool is how you reach anybody else here, and the `room` tool says who that is:",
         "to": "The `say` tool is how you reach anybody else here, and the `status` tool says who that is:"
       }
@@ -422,8 +422,8 @@
     "catches": "tells the Worker that the written desk is what survives",
     "edits": [
       {
-        "file": "lib/templates/worker.md",
-        "from": "A written desk is what survives; anything you have worked out and not written is gone with this\nsession, and the next session on this desk starts from what it says.",
+        "file": "lib/templates/common.md",
+        "from": "A written desk is what survives; anything you have worked out and\nnot written is gone with this session, and the next session on this desk starts from what it says.",
         "to": ""
       }
     ]
@@ -463,10 +463,10 @@
   },
   {
     "name": "the Worker's persona drops the reason a call carries",
-    "catches": "tells the Worker to say why in the call, in words a person reads",
+    "catches": "tells both to say why in the call, in words a person reads",
     "edits": [
       {
-        "file": "lib/templates/worker.md",
+        "file": "lib/templates/common.md",
         "from": "Say why in the call, in words a person reads.",
         "to": ""
       }
@@ -488,8 +488,8 @@
     "catches": "tells the Leader its desk directory is its working directory, the header the tool's and the body edited in place",
     "edits": [
       {
-        "file": "lib/templates/leader.md",
-        "from": "Your desk is {{DESK}}/, and it is your working directory: what you keep — notes, what you\nare waiting on, drafts for {{USER}} — lives there, beside the desk file, and you write there with\nthe file tools without being asked. The desk file is {{DESK}}/STATE.md.",
+        "file": "lib/templates/common.md",
+        "from": "Your desk is {{DESK}}/, and it is your working directory: what you keep lives there, beside the\ndesk file, and you write there with the file tools without being asked. The desk file is\n{{DESK}}/STATE.md.",
         "to": "Your desk is {{DESK}}/STATE.md."
       }
     ]
@@ -510,8 +510,8 @@
     "catches": "tells the Leader the three trees, and to ask on every clone whether it is for analysis or for modification",
     "edits": [
       {
-        "file": "lib/templates/leader.md",
-        "from": "there — never moved, never edited where it sits.",
+        "file": "lib/templates/common.md",
+        "from": "there — never moved, never edited where\nit sits.",
         "to": "there, or moved there when nobody needs the reference any more."
       }
     ]
@@ -521,9 +521,9 @@
     "catches": "tells the Leader that nothing lands in the root or the home directory, and that a Worker is it",
     "edits": [
       {
-        "file": "lib/templates/leader.md",
-        "from": "Worker, so nothing lands anywhere else: not in the instance root, not in the home directory.",
-        "to": "Worker."
+        "file": "lib/templates/common.md",
+        "from": " Nothing goes in the\ninstance root, in the home directory or in `/tmp`: `/tmp` is outside this instance, so every read\nor write there stops on a card for {{USER}}, and a file with no named place is a file somebody\nelse has to find and clean up.",
+        "to": ""
       }
     ]
   },
@@ -532,8 +532,8 @@
     "catches": "tells the Worker its desk directory is its working directory, the header the tool's and the body edited in place",
     "edits": [
       {
-        "file": "lib/templates/worker.md",
-        "from": "Your desk is {{DESK}}/, and it is your working directory: what the work produces — a\ndesign, a finding, a proof, notes — is kept there, beside the desk file, and you write there with\nthe file tools without being asked. The desk file is {{DESK}}/STATE.md.",
+        "file": "lib/templates/common.md",
+        "from": "Your desk is {{DESK}}/, and it is your working directory: what you keep lives there, beside the\ndesk file, and you write there with the file tools without being asked. The desk file is\n{{DESK}}/STATE.md.",
         "to": "Your desk is {{DESK}}/STATE.md."
       }
     ]
@@ -543,7 +543,7 @@
     "catches": "gives each seat its desk and desk file as the whole path, the instance root joined",
     "edits": [
       {
-        "file": "lib/templates/worker.md",
+        "file": "lib/templates/common.md",
         "from": "Your desk is {{DESK}}/, and it is your working directory",
         "to": "Your desk is desks/{{NAME}}/, and it is your working directory"
       }
@@ -554,9 +554,9 @@
     "catches": "gives each seat its desk and desk file as the whole path, the instance root joined",
     "edits": [
       {
-        "file": "lib/templates/leader.md",
-        "from": "The desk file is {{DESK}}/STATE.md.",
-        "to": "The desk file is desks/{{LEADER}}/STATE.md."
+        "file": "lib/templates/common.md",
+        "from": "The desk file is\n{{DESK}}/STATE.md.",
+        "to": "The desk file is\ndesks/{{LEADER}}/STATE.md."
       }
     ]
   },
@@ -576,8 +576,8 @@
     "catches": "tells the Worker the three trees, and that scratch goes under temp/ and nowhere else",
     "edits": [
       {
-        "file": "lib/templates/worker.md",
-        "from": "Anything throwaway — a rig, a probe, a dump, a clone made for one test, a build — goes\nunder `temp/`, and anyone may delete it at any time.\nNothing of yours goes in the instance root, in the home directory or in `/tmp`: `/tmp` is outside this instance, so every read or write there stops on a card for {{USER}}, and a file with no named place is a file somebody else has to find and clean up.",
+        "file": "lib/templates/common.md",
+        "from": "`temp/` is scratch: anything throwaway — a rig, a probe, a dump, a clone made for one\ntest, a build — goes there, and anyone may delete anything in it at any time.",
         "to": "Keep it tidy."
       }
     ]
@@ -587,8 +587,8 @@
     "catches": "tells the Worker the three trees, and that scratch goes under temp/ and nowhere else",
     "edits": [
       {
-        "file": "lib/templates/worker.md",
-        "from": "in the home directory or in `/tmp`: `/tmp` is outside this instance, so every read or write there stops on a card for {{USER}}, and a file",
+        "file": "lib/templates/common.md",
+        "from": "in the home directory or in `/tmp`: `/tmp` is outside this instance, so every read\nor write there stops on a card for {{USER}}, and a file",
         "to": "in the home directory: a file"
       }
     ]
@@ -661,12 +661,12 @@
   },
   {
     "name": "the Worker's persona lets a Worker go round the harness's own directories",
-    "catches": "tells both that the harness's own directories ask whatever the rules say, and that a Worker does not go round",
+    "catches": "tells both that the harness's own directories ask whatever the rules say, and not to go round them",
     "edits": [
       {
-        "file": "lib/templates/worker.md",
-        "from": "do not look for a way round it (a script, a copy,\na rename): ask, or leave it.",
-        "to": "a way round it (a script, a copy,\na rename) is yours to take."
+        "file": "lib/templates/common.md",
+        "from": "do not look for a way round\nit (a script, a copy, a rename): ask, or leave it.",
+        "to": "a way round\nit (a script, a copy, a rename) is yours to take."
       }
     ]
   },
@@ -676,7 +676,7 @@
     "edits": [
       {
         "file": "lib/templates/worker.md",
-        "from": "one that has a side nothing holds is refused with a reason that says how to write it\nas a script, unless a side is one the rules refuse, and then it asks.",
+        "from": "one that has a side nothing holds is refused with\na reason that says how to write it as a script, unless a side is one the rules refuse, and then it\nasks.",
         "to": "one that has a side nothing holds runs too."
       }
     ]
@@ -686,7 +686,7 @@
     "catches": "tells both that everything they receive is one queue in arrival order, and nothing else places a frame",
     "edits": [
       {
-        "file": "lib/templates/leader.md",
+        "file": "lib/templates/common.md",
         "from": "children are those frames as they arrived, each with `at=\"HH:MM\"` and ordered by it — always,\nalso when there is exactly one, and no other placement rule exists:",
         "to": "children are those frames, the server's events on top and the rest as they arrived:"
       }
@@ -697,9 +697,9 @@
     "catches": "tells both that everything they receive is one queue in arrival order, and nothing else places a frame",
     "edits": [
       {
-        "file": "lib/templates/worker.md",
-        "from": "`<queue>` element whose children are those frames as they arrived, each with `at=\"HH:MM\"` and\nordered by it — always, also when there is exactly one, and no other placement rule exists:",
-        "to": "`<queue>` element whose children are those frames as they arrived, each with `at=\"HH:MM\"` and\nordered by it — unless there is exactly one, which comes bare:"
+        "file": "lib/templates/common.md",
+        "from": "ordered by it — always,\nalso when there is exactly one, and no other placement rule exists:",
+        "to": "ordered by it — unless there is exactly one, which comes bare:"
       }
     ]
   },
@@ -708,7 +708,7 @@
     "catches": "tells both that everything they receive is one queue in arrival order, and nothing else places a frame",
     "edits": [
       {
-        "file": "lib/templates/leader.md",
+        "file": "lib/templates/common.md",
         "from": "```\n<queue>\n  <message",
         "to": "```\n<queue n=\"4\">\n  <message"
       }
@@ -719,7 +719,7 @@
     "catches": "tells both that everything they receive is one queue in arrival order, and nothing else places a frame",
     "edits": [
       {
-        "file": "lib/templates/worker.md",
+        "file": "lib/templates/common.md",
         "from": "  <user at=\"17:44\">…</user>\n</queue>",
         "to": "  <user at=\"2026-09-21T17:44:00.000Z\">…</user>\n</queue>"
       }
@@ -741,8 +741,8 @@
     "catches": "tells both what a customization frame is and that it adds to the instructions",
     "edits": [
       {
-        "file": "lib/templates/worker.md",
-        "from": "each file in a frame of\nits own — `<customization source=\"customization/common.md\">` for what every session here is\ngiven, and the one for your own kind of session under it.",
+        "file": "lib/templates/common.md",
+        "from": "each file in a frame of\nits own: `<customization source=\"customization/common.md\">` for what every session here is given,\nthen the one for your own kind of session.",
         "to": "whatever the person here has written down."
       }
     ]
@@ -752,7 +752,7 @@
     "catches": "gives both the shape of a line and the mark on the ones the User set",
     "edits": [
       {
-        "file": "lib/templates/leader.md",
+        "file": "lib/templates/common.md",
         "from": "`3. Nothing is pushed to any repository. (User, 2026-09-22)`",
         "to": "`3. Nothing is pushed to any repository. (User, 22 Sep 2026)`"
       }
@@ -763,7 +763,7 @@
     "catches": "gives both the test for where a line belongs: obeyed or broken here, true or false in knowledge",
     "edits": [
       {
-        "file": "lib/templates/worker.md",
+        "file": "lib/templates/common.md",
         "from": "a line that can be obeyed or broken belongs there, and a line that is true or false is\nknowledge and belongs in `knowledge/`.",
         "to": "anything a session should have in front of it belongs there."
       }
@@ -774,9 +774,9 @@
     "catches": "tells both that a change reaches sessions started after it and no others",
     "edits": [
       {
-        "file": "lib/templates/worker.md",
-        "from": "and a change reaches sessions\nstarted after it and no others",
-        "to": "and a change reaches every session there is at once"
+        "file": "lib/templates/common.md",
+        "from": "A change\nreaches sessions started after it and no others.",
+        "to": "A change\nreaches every session there is at once."
       }
     ]
   },
@@ -786,8 +786,8 @@
     "edits": [
       {
         "file": "lib/templates/leader.md",
-        "from": "then the Worker's under `for=\"worker\"`. That last one\nis not yours to follow — it is what every Worker is already given, and it is there so that you\nbrief the task and not the method.",
-        "to": "then the Worker's, which is yours to follow like the rest."
+        "from": "After them comes the Worker's, under `for=\"worker\"`. That one is not yours to follow — it is what\nevery Worker is already given, and it is there so that you brief the task and not the method.",
+        "to": "After them comes the Worker's, which is yours to follow like the rest."
       }
     ]
   },
@@ -796,9 +796,9 @@
     "catches": "tells the Leader it writes a line only on the User's word, and tells or hires again after",
     "edits": [
       {
-        "file": "lib/templates/leader.md",
-        "from": "one only when {{USER}} has given you permission in words, and a change",
-        "to": "one whenever the team needs it, and a change"
+        "file": "lib/templates/common.md",
+        "from": "{{LEADER}} writes one only with {{USER}}'s permission said in words.",
+        "to": "{{LEADER}} writes one whenever the team needs it."
       }
     ]
   },
@@ -808,7 +808,7 @@
     "edits": [
       {
         "file": "lib/templates/worker.md",
-        "from": "There is\nno frame for the Leader's file; you are not given it.",
+        "from": "There is no frame for the Leader's file; you are not given it.",
         "to": "The Leader's file, `customization/leader.md`, comes to you under the rest."
       }
     ]
@@ -819,8 +819,8 @@
     "edits": [
       {
         "file": "lib/templates/worker.md",
-        "from": "Propose a line, never write one:",
-        "to": "Write a line yourself when you see one missing:"
+        "from": "Propose a line to {{LEADER}}, never\nwrite one;",
+        "to": "Write a line yourself when you see one missing;"
       }
     ]
   },
@@ -832,6 +832,28 @@
         "file": "lib/templates/leader.md",
         "from": "- A Worker's session is yours to end, never its own:",
         "to": "- A Worker's session is its own to end:"
+      }
+    ]
+  },
+  {
+    "name": "a Worker's own frame says again what the common frame says about knowledge",
+    "catches": "gives both every shared paragraph exactly once, inside the common frame",
+    "edits": [
+      {
+        "file": "lib/templates/worker.md",
+        "from": "`common.md` is the one note you never edit",
+        "to": "The workspace's knowledge is `knowledge/`: Markdown notes, one topic per file, facts only.\n\n`common.md` is the one note you never edit"
+      }
+    ]
+  },
+  {
+    "name": "the common frame names a tool only the Leader is offered",
+    "catches": "names in the common frame only tools that exist and are offered to both roles",
+    "edits": [
+      {
+        "file": "lib/templates/common.md",
+        "from": "Then call `validate` and fix what it",
+        "to": "Then call `retire` and fix what it"
       }
     ]
   }

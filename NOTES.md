@@ -37,6 +37,20 @@ as the role templates. Its first content is the `<noop/>` definition, stated onc
 templates point to it. A subagent is not given it: the SubagentStart hook still hands a subagent
 `customization/common.md` alone.
 
+**What the Leader and a Worker are told alike is said once, in `lib/templates/common.md`.** The
+desk and `write_desk`, the three directories and where nothing goes, the frames and the queue,
+`message` and `room`, where a turn's words land, the `restarted` and `undelivered` events, the
+permission card and Claude Code's own directories, the customization frames and what a line in
+them is, the knowledge notes, and the brief budget used to be written twice, once in each role's
+template, in wordings that had drifted apart. They are now one text in the common frame, and the
+role templates keep only what is theirs. Both roles are now told what only one of them used to be:
+the Leader that its own unsettled call stops on a card, that `/tmp` asks, that the desk title is
+how everybody sees what everybody is on, and that the frames are there to be followed; a Worker
+how long a seat has been idle, and that a message to a Worker that is not running is refused while
+one to the Leader starts it. The restart event no longer tells either role how to pick the work up
+beyond going on from what the desk says. Sessions hired before this version keep the persona they
+were rendered with.
+
 ## 0.19.0
 
 **The Leader stops and restarts Workers; a Worker only works.** A Worker no longer has

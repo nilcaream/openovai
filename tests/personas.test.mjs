@@ -25,10 +25,16 @@ const PAUL = "Paul";
 const template = (kind) => fs.readFileSync(path.join(repo, "lib", "templates", `${kind}.md`), "utf8");
 const leader = () => persona(repo, LEAD, { user: USER, leader: LEAD });
 const worker = () => persona(repo, PAUL, { user: USER, leader: LEAD });
+// The text with every run of white space one space: a pin on the words, not on where a line wraps.
+const flat = (text) => text.replace(/\s+/g, " ");
+// The common frame of an assembled persona, and what comes after it.
+const commonOf = (text) => text.slice(0, text.indexOf("</ovai>"));
+const roleOf = (text) => text.slice(text.indexOf("</ovai>"));
 
-// What a backticked word in a persona may be: a tool the server offers that role. Anything else
-// backticked is a name a session would go looking for.
-const backticked = (text) => [...text.matchAll(/`([a-z_]+)`/g)].map((found) => found[1]);
+// What a backticked word in a persona may be: a tool the server offers that role, or the type of
+// an event the server sends. Anything else backticked is a name a session would go looking for.
+const backticked = (text) =>
+  [...text.matchAll(/`([a-z_]+)`/g)].map((found) => found[1]).filter((word) => !EVENTS.includes(word));
 const offeredTo = (role) =>
   toolsFor({ root: repo, config: { user: USER, leader: LEAD }, plugins: [] }, { seat: role === LEADER ? LEAD : PAUL, role })
     .filter((tool) => tool.offered === true)
@@ -38,7 +44,7 @@ const BANNED = [/handover/i, /human/i, /notify-send/i, /PushNotification/i, /all
 
 describe("what both personas are held to", () => {
   it("names no word the target banned", () => {
-    for (const kind of ["leader", "worker"]) {
+    for (const kind of ["common", "leader", "worker"]) {
       for (const banned of BANNED) {
         assert.doesNotMatch(template(kind), banned, `${kind}.md`);
       }
@@ -60,8 +66,22 @@ describe("what both personas are held to", () => {
     assert.ok(!offered.includes("hire") && !offered.includes("park") && !offered.includes("permission"));
   });
 
+  // Both roles read common.md, so a tool it names has to be one each of them is offered — a
+  // tool named with its call, `index()`, as well.
+  it("names in the common frame only tools that exist and are offered to both roles", () => {
+    const text = template("common");
+    const words = [...backticked(text), ...[...text.matchAll(/`([a-z_]+)\(/g)].map((found) => found[1])];
+    assert.deepEqual([...new Set(words)].sort(), ["index", "message", "room", "validate", "write_desk"]);
+    for (const role of [LEADER, WORKER]) {
+      const offered = offeredTo(role);
+      for (const word of words) {
+        assert.ok(BUILT_IN.includes(word) && offered.includes(word), `\`${word}\` is not a tool the ${role} is offered`);
+      }
+    }
+  });
+
   it("names only events the server sends", () => {
-    for (const kind of ["leader", "worker"]) {
+    for (const kind of ["common", "leader", "worker"]) {
       for (const [, type] of template(kind).matchAll(/type="([a-z-]+)"/g)) {
         assert.ok(EVENTS.includes(type), `${kind}.md names <server-event type="${type}">`);
       }
@@ -92,29 +112,16 @@ describe("what both personas are held to", () => {
 
   // The one placement rule, in one sentence, the same for both: everything is one queue, its
   // children in arrival order, also one alone — and the shape
-  // shown once, as the reader will see it: a bare `<queue>`, children indented and stamped
-  // `at="HH:MM"`, the Leader's with the two events only the Leader is told.
+  // shown once, in the common frame, as the reader will see it: a bare `<queue>`, children
+  // indented and stamped `at="HH:MM"`.
   it("tells both that everything they receive is one queue in arrival order, and nothing else places a frame", () => {
     const rule = /Everything you receive is one `<queue>` element whose children are those frames as they arrived, each with `at="HH:MM"` and ordered by it — always, also when there is exactly one, and no other placement rule exists:\n\n```/;
-    assert.match(leader().replace(/(\S)\n(\S)/g, "$1 $2"), rule);
-    assert.match(worker().replace(/(\S)\n(\S)/g, "$1 $2"), rule);
-    assert.ok(
-      leader().includes(
-        [
-          "<queue>",
-          '  <message from="…" at="17:41">…</message>',
-          '  <server-event type="idle" who="…" minutes="10" at="17:42"/>',
-          '  <user at="17:44">…</user>',
-          '  <server-event type="permission" who="…" minutes="3" at="17:45">Bash: env …</server-event>',
-          "</queue>",
-        ].join("\n"),
-      ),
-    );
-    assert.ok(
-      worker().includes(
-        ["<queue>", '  <message from="…" at="17:41">…</message>', '  <server-event type="restarted" at="17:42">…</server-event>', '  <user at="17:44">…</user>', "</queue>"].join("\n"),
-      ),
-    );
+    const shape = ["<queue>", '  <message from="…" at="17:41">…</message>', '  <server-event type="restarted" at="17:42">…</server-event>', '  <user at="17:44">…</user>', "</queue>"].join("\n");
+    for (const text of [leader(), worker()]) {
+      assert.match(commonOf(text).replace(/(\S)\n(\S)/g, "$1 $2"), rule);
+      assert.ok(commonOf(text).includes(shape));
+      assert.equal(text.split("\n<queue>\n").length, 2);
+    }
     for (const text of [leader(), worker()]) {
       assert.doesNotMatch(text, /in front of a turn|on top of|come first|events first|<queue n=/);
     }
@@ -133,8 +140,9 @@ describe("what the Leader is told", () => {
   it("tells the Leader its desk directory is its working directory, the header the tool's and the body edited in place", () => {
     assert.ok(leader().includes(`Your desk is ${path.join(repo, "desks", LEAD)}/, and it is your working directory`));
     assert.match(leader(), /write there with\s+the file tools without being asked/);
-    assert.match(leader(), /Its first line is the server's header, and `write_desk` is what writes it/);
-    assert.match(leader(), /edited in place with the file tools like any other file: change the line that changed, never the\s+whole desk, then call `write_desk`/);
+    assert.match(leader(), /Its first line is the server's header, and\s+`write_desk` is what writes it/);
+    assert.match(leader(), /edited in place with the file tools like any other file:\s+change the line that changed, never the whole desk\. Edit the body first and call `write_desk`/);
+    assert.match(roleOf(leader()), new RegExp(`What you keep on your desk: notes, what you are waiting on, drafts for ${USER}`));
     assert.doesNotMatch(leader(), /no other way/);
   });
 
@@ -142,16 +150,16 @@ describe("what the Leader is told", () => {
   // behaviour, not a grant: both are writable, so the persona is what keeps a reference from being
   // worked on.
   it("tells the Leader the three trees, and to ask on every clone whether it is for analysis or for modification", () => {
-    assert.match(leader(), /`reference\/` is what is kept to look at/);
+    assert.match(leader(), /`reference\/`\s+is what is kept to look at/);
     assert.match(leader(), /`projects\/` is what is worked on/);
     assert.match(leader(), /`temp\/` is scratch/);
     assert.match(leader(), new RegExp(`Whenever a clone is asked for, ask ${USER} before you hire for it: for analysis, or for\\s+modification\\?`));
     assert.match(leader(), /Analysis goes to `reference\/`; modification goes to\s+`projects\/`/);
-    assert.match(leader(), /cloned or copied fresh into\s+`projects\/` and worked on\s+there — never moved, never edited where it sits/);
+    assert.match(leader(), /cloned or copied fresh into\s+`projects\/` and worked on\s+there — never moved, never edited where\s+it sits/);
   });
 
   it("tells the Leader that nothing lands in the root or the home directory, and that a Worker is it", () => {
-    assert.match(leader(), /not in the instance root, not in the home directory/);
+    assert.match(leader(), /Nothing goes in the\s+instance root, in the home directory or in `\/tmp`/);
     assert.match(leader(), /a Worker is "it" when you speak of one/);
   });
 
@@ -191,15 +199,14 @@ describe("what the Leader is told", () => {
   });
 
   it("tells the Leader that what it says lands on its own panel, and a Worker is reached through message", () => {
-    assert.match(leader(), /What you say in a turn lands on your own panel, as you say it/);
-    assert.match(leader(), /Nothing you say reaches a Worker on its own/);
-    assert.match(leader(), /Say each thing to the one it is for — a Worker through `message`/);
-    assert.match(leader(), new RegExp(`keep what ${USER} has to know on your desk until ${USER} next speaks to you`));
+    assert.match(leader(), /What you say in a turn lands on your own panel and nowhere else\. Nothing you say there reaches\s+another session: whatever is for one goes through `message`\./);
+    assert.match(leader(), new RegExp(`a line you address to a Worker at the end of\\s+its message's turn lands there, in front of ${USER}, and the Worker never sees it`));
+    assert.match(leader(), new RegExp(`Keep what\\s+${USER} has to know on your desk until ${USER} next speaks to you`));
   });
 
   it("points the Leader to the <noop/> turn for a turn with nothing in it for the User", () => {
-    assert.match(leader(), new RegExp(`A turn with nothing in it for ${USER} is a \`<noop/>\` turn\\.`));
-    assert.match(leader(), /With nothing left in flight, do nothing: it is a `<noop\/>` turn\./);
+    assert.match(leader(), new RegExp(`A turn with nothing in it for\\s+${USER} is a \`<noop/>\` turn\\.`));
+    assert.match(leader(), /With nothing left in flight, do nothing:\s+it is a `<noop\/>` turn\./);
     assert.match(leader(), new RegExp(`Nothing to acknowledge: unless ${USER}\\s+needs it, it is a \`<noop/>\` turn\\.`));
   });
 
@@ -224,23 +231,27 @@ describe("what the Leader is told", () => {
   });
 
   it("tells the Leader it is not shown a Worker's panel and no press is reported", () => {
-    assert.match(leader(), /You\s+are not shown that panel and no press is reported to you/);
+    assert.match(leader(), /When a Worker's run stops on a card, you are not shown that panel and no press is reported to you/);
     assert.match(leader(), new RegExp(`Never tell ${USER}\\s+what did or did not stop`));
   });
 
   it("tells the Leader how to say something to somebody, and that the call comes back at once", () => {
-    assert.match(leader(), /The `message` tool says something\s+to one of them/);
-    assert.match(leader(), new RegExp(`It comes back the moment they have it, and your\\s+turn goes on: answer ${USER} now`));
+    assert.match(leader(), /The `message` tool is how you reach anybody else here/);
+    assert.match(leader(), /it comes back the moment they have it/);
+    assert.match(leader(), new RegExp(`A message you send leaves your turn going on: answer ${USER} now — who you asked, for what\\.`));
     assert.match(leader(), /whatever they say back arrives\s+later as a `<message>` of its own/);
+    assert.match(leader(), /A\s+Worker that is not running is hired first, then messaged\./);
   });
 
   it("tells the Leader how to see who works here", () => {
-    assert.match(leader(), /The `room` tool says who works here/);
+    assert.match(leader(), /the `room` tool says who that is/);
+    assert.match(leader(), /how long it has been idle/);
   });
 
   it("tells the Leader that the written desk is what survives", () => {
     assert.match(leader(), /A written desk is what survives/);
-    assert.match(leader(), /Write it at every milestone, not only when something is about to end/);
+    assert.match(leader(), /at every point the work moves, not only when something is about to end/);
+    assert.doesNotMatch(leader(), /milestone/);
   });
 
   it("tells the Leader to write the desk, restart, then say back in a moment — after the last tool call", () => {
@@ -290,7 +301,7 @@ describe("what a Worker is told", () => {
   // session of an instance that sits inside another has guessed the outer one's root: the same
   // names, somebody else's desks. So both kinds are told the whole path, the root joined.
   it("gives each seat its desk and desk file as the whole path, the instance root joined", () => {
-    for (const [text, name] of [[leader(), LEAD], [worker(), PAUL]]) {
+    for (const [text, name] of [[flat(leader()), LEAD], [flat(worker()), PAUL]]) {
       const desk = path.join(repo, "desks", name);
       assert.ok(path.isAbsolute(desk));
       assert.ok(text.includes(`Your desk is ${desk}/`), `${name} is told the desk directory as a whole path`);
@@ -302,27 +313,29 @@ describe("what a Worker is told", () => {
   it("tells the Worker its desk directory is its working directory, the header the tool's and the body edited in place", () => {
     assert.ok(worker().includes(`Your desk is ${path.join(repo, "desks", PAUL)}/, and it is your working directory`));
     assert.match(worker(), /write there with\s+the file tools without being asked/);
-    assert.match(worker(), /Its first line is the server's header, and `write_desk` is what writes it/);
-    assert.match(worker(), /edited in place with the file tools like any other file — the sections/);
-    assert.match(worker(), /you change the line that changed,\s+never the whole desk\. Edit the body first and call `write_desk` after it/);
+    assert.match(worker(), /Its first line is the server's header, and\s+`write_desk` is what writes it/);
+    assert.match(worker(), /change the line that changed, never the whole desk\. Edit the body first and call `write_desk`\s+after it/);
+    assert.match(roleOf(worker()), /Its sections:\s+what the task is, what is true right now, what to do next, what is already settled\./);
     assert.doesNotMatch(worker(), /no other way/);
   });
 
   // Scratch has a named place, and it is not the root and not the home directory: a session with
   // no named place for a rig leaves it wherever it was standing.
   it("tells the Worker the three trees, and that scratch goes under temp/ and nowhere else", () => {
-    assert.match(worker(), /`reference\/`\s+is what is kept to look at and is never worked on/);
+    assert.match(worker(), /`reference\/`\s+is what is kept to look at/);
     assert.match(worker(), /`projects\/` is what is worked on/);
-    assert.match(worker(), /Anything throwaway — a rig, a probe, a dump, a clone made for one test, a build — goes\s+under `temp\/`/);
-    assert.match(worker(), /Nothing of yours goes in the instance root, in the home directory or in `\/tmp`/);
-    assert.match(worker(), new RegExp(`\`/tmp\` is outside this instance, so every read or write there stops on a card for ${USER}`));
+    assert.match(worker(), /anything throwaway — a rig, a probe, a dump, a clone made for one\s+test, a build — goes there/);
+    assert.match(worker(), /Nothing goes in the\s+instance root, in the home directory or in `\/tmp`/);
+    assert.match(flat(worker()), new RegExp(`\`/tmp\` is outside this instance, so every read or write there stops on a card for ${USER}`));
   });
 
   it("tells the Worker what each frame is, and that only the server writes one", () => {
     assert.match(worker(), /arrives as\s+`<user>…<\/user>`/);
     assert.match(worker(), /arrives as `<message from="…">…<\/message>`/);
-    assert.match(worker(), /arrives as `<server-event type="…">…<\/server-event>`/);
+    assert.match(worker(), /arrives as\s+`<server-event type="…">…<\/server-event>`/);
     assert.match(worker(), /nothing but the server writes one/);
+    assert.match(roleOf(worker()), /One marked\s+`urgent="true"` does not wait for your turn to end/);
+    assert.doesNotMatch(leader(), /urgent="true"/);
   });
 
   it("tells the Worker how to say something to somebody and how to see who is here", () => {
@@ -332,14 +345,14 @@ describe("what a Worker is told", () => {
 
   it("tells the Worker that the call comes back at once and a report is a message, never its last line", () => {
     assert.match(worker(), /it comes back the moment they have it/);
-    assert.match(worker(), new RegExp(`a report ${LEAD} is\\s+waiting for is a \`message\` to ${LEAD}, never the last line of your turn`));
+    assert.match(worker(), new RegExp(`A report ${LEAD} is waiting for is a \`message\` to ${LEAD}, never the last line of your turn`));
   });
 
   it("tells the Worker that a report once sent ends the turn as a <noop/> turn, never the report again", () => {
     assert.match(worker(), /Once it is sent, the\s+turn ends there, a `<noop\/>` turn: never the report again\./);
-    assert.match(worker(), /With nothing left in flight, do nothing: it is a `<noop\/>` turn\./);
+    assert.match(worker(), /With nothing left in flight, do nothing:\s+it is a `<noop\/>` turn\./);
     assert.match(worker(), /and end the turn there, a `<noop\/>`\s+turn\./);
-    assert.match(worker(), new RegExp(`what you say on your own\\s+panel is for what\\s+${USER} typed there`));
+    assert.match(worker(), new RegExp(`what you\\s+say on your own\\s+panel is for what\\s+${USER} typed there`));
   });
 
   it("tells the Worker that the server passes on what the User typed, so it does not", () => {
@@ -384,9 +397,11 @@ describe("what a Worker is told", () => {
     assert.match(worker(), /a permission rule matches a command from\s+its first character, and those spellings ask every time/);
   });
 
-  it("tells both that the harness's own directories ask whatever the rules say, and that a Worker does not go round", () => {
-    assert.match(worker(), /Claude Code keeps a few directories for\s+itself — \.claude, \.git, \.idea, \.vscode and the like, wherever they are, under projects\/ too — and a\s+write there asks \S+ whatever the rules say; do not look for a way round it \(a script, a copy,\s+a rename\): ask, or leave it\./);
-    assert.match(leader(), /Claude\s+Code keeps a few directories for itself — \.claude, \.git, \.idea, \.vscode and the like, wherever they\s+are, under projects\/ too — and a write there asks \S+ whatever the rules say; a Worker does not\s+look for a way round it \(a script, a copy, a rename\), it asks or it leaves it\./);
+  it("tells both that the harness's own directories ask whatever the rules say, and not to go round them", () => {
+    for (const text of [leader(), worker()]) {
+      assert.match(flat(commonOf(text)), /Claude Code keeps a few directories for itself — \.claude, \.git, \.idea, \.vscode and the like, wherever they are, under projects\/ too — and a write there asks \S+ whatever the rules say; do not look for a way round it \(a script, a copy, a rename\): ask, or leave it\./);
+      assert.equal(text.split("Claude Code keeps a").length, 2);
+    }
   });
 
   // The compound hook never allows a command holding a backtick or `$(` anywhere, quotes or not
@@ -400,11 +415,13 @@ describe("what a Worker is told", () => {
   });
 
   it("tells the Worker that a compound of allowed commands runs without a stop, and one with a side nothing holds is refused toward a script", () => {
-    assert.match(worker(), /A compound whose every side is a command this instance allows runs\s+without a stop; one that has a side nothing holds is refused with a reason that says how to write it\s+as a script, unless a side is one the rules refuse, and then it asks\./);
+    assert.match(flat(worker()), /A compound whose every side is a command this instance allows runs without a stop; one that has a side nothing holds is refused with a reason that says how to write it as a script, unless a side is one the rules refuse, and then it asks\./);
   });
 
-  it("tells the Worker to say why in the call, in words a person reads", () => {
-    assert.match(worker(), /the command or the path, and the reason you gave with\s+it\. Say why in the call, in words a person reads\./);
+  it("tells both to say why in the call, in words a person reads", () => {
+    for (const text of [leader(), worker()]) {
+      assert.match(flat(text), /When you reach for a tool this workspace has not settled, your run stops and \S+ is asked on your panel, with the call as you made it — the command or the path, and the reason you gave with it — and Allow, Always and Deny\. Say why in the call, in words a person reads\./);
+    }
   });
 
   it("tells the Worker that saying it was refused is the last thing it does that turn", () => {
@@ -434,6 +451,36 @@ describe("what both are told in ovai's common frame", () => {
       assert.equal(common.match(DEFINITION)?.length, 1, role);
       assert.equal(text.match(DEFINITION).length, 1, role);
       assert.ok(text.indexOf(`<ovai source="lib/templates/${role}.md">\n`) > text.indexOf("</ovai>"), role);
+    }
+  });
+
+  // What both roles are told alike is said once, in the common frame, and not again in the role's.
+  it("gives both every shared paragraph exactly once, inside the common frame", () => {
+    const SHARED = [
+      "and it is your working directory",
+      "Three more directories are ",
+      "You can always see who is speaking to you, because the server says so",
+      "A queue is one turn but it is not one message",
+      "The `message` tool is how you reach anybody else here, and the `room` tool says who that is",
+      "What you say in a turn lands on your own panel and nowhere else",
+      "A turn with nothing in it for your panel is a `<noop/>` turn",
+      '`<server-event type="restarted">` — you are the session after a restart on this desk',
+      '`<server-event type="undelivered" to="…">` — a message you sent was never read',
+      "When you reach for a tool this workspace has not settled",
+      "Claude Code keeps a few directories for itself",
+      "has added for this instance comes after these instructions",
+      "It is not storage, and it is not where anything is looked up",
+      "The workspace's knowledge is `knowledge/`",
+      "A file a note needs of its own, a template or an image",
+      "A note is its head and then the facts",
+      "Tags: lowercase and hyphens, at least three",
+      "Report after N tool calls",
+    ];
+    for (const [text, role] of [[leader(), "leader"], [worker(), "worker"]]) {
+      for (const paragraph of SHARED) {
+        assert.equal(flat(text).split(paragraph).length, 2, `${role}: ${paragraph}`);
+        assert.ok(flat(commonOf(text)).includes(paragraph), `${role}: ${paragraph}`);
+      }
     }
   });
 
@@ -487,14 +534,14 @@ describe("what the Leader is told about the files", () => {
   // The Leader is given the Worker's file as well as its own. Told nothing, it would follow it;
   // told what it is, it briefs the task and leaves the method to what the Worker already holds.
   it("tells the Leader the Worker's frame is not its own, and is there so it briefs the task", () => {
-    assert.match(leader(), /then the Worker's under `for="worker"`\. That last one\s+is not yours to follow/);
-    assert.match(leader(), /it is what every Worker is already given, and it is there so that you\s+brief the task and not the method/);
+    assert.match(leader(), /After them comes the Worker's, under `for="worker"`\. That one is not yours to follow/);
+    assert.match(leader(), /it is what\s+every Worker is already given, and it is there so that you brief the task and not the method/);
   });
 
   it("tells the Leader it writes a line only on the User's word, and tells or hires again after", () => {
-    assert.match(leader(), /A Worker proposes a line and\s+never writes one/);
-    assert.match(leader(), new RegExp(`You write\\s+one only when ${USER} has given you permission in words`));
-    assert.match(leader(), /tell every running\s+Worker the line itself, or\s+`hire` it again on its desk/);
+    assert.match(leader(), /a Worker proposes a line and never\s+writes one/);
+    assert.match(leader(), new RegExp(`${LEAD} writes one only with ${USER}'s permission said in words`));
+    assert.match(leader(), /tell every running Worker the line itself, or `hire` it again\s+on its desk/);
   });
 });
 
@@ -505,8 +552,8 @@ describe("what a Worker is told about the files", () => {
   });
 
   it("tells the Worker to propose a line and never write one, and that a line said in a message holds", () => {
-    assert.match(worker(), /Propose a line, never write one/);
-    assert.match(worker(), new RegExp(`the files are ${USER}'s,\\s+${LEAD} holds the pen with ${USER}'s permission said in words`));
+    assert.match(worker(), new RegExp(`Propose a line to ${LEAD}, never\\s+write one`));
+    assert.match(worker(), new RegExp(`The files are ${USER}'s: a Worker proposes a line and never\\s+writes one, and ${LEAD} writes one only with ${USER}'s permission said in words`));
     assert.match(worker(), /a line you are told in a message is\s+one you follow for the\s+rest of this session/);
   });
 });

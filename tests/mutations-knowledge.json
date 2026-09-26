@@ -444,7 +444,7 @@
     "catches": "tells both roles where knowledge is, to call index first, and to validate what they wrote",
     "edits": [
       {
-        "file": "lib/templates/worker.md",
+        "file": "lib/templates/common.md",
         "from": "The workspace's knowledge is `knowledge/`: Markdown notes, one topic per file, facts only.",
         "to": "The workspace's knowledge is kept in files."
       }
@@ -455,7 +455,7 @@
     "catches": "tells both roles where knowledge is, to call index first, and to validate what they wrote",
     "edits": [
       {
-        "file": "lib/templates/leader.md",
+        "file": "lib/templates/common.md",
         "from": "tags: [billing-service, invoicing, rounding]",
         "to": "tags: a list of at least three"
       }
@@ -467,7 +467,7 @@
     "edits": [
       {
         "file": "lib/templates/worker.md",
-        "from": " `common.md` is the one note you never edit — it is read by every session\nhere, so what belongs in it goes to {{LEADER}} instead.",
+        "from": "`common.md` is the one note you never edit — it is read by every session here, so what belongs in\nit goes to {{LEADER}} instead.",
         "to": ""
       }
     ]
