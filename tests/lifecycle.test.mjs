@@ -19,9 +19,10 @@ import * as usage from "../lib/chat/usage.mjs";
 import { home } from "../lib/claude.mjs";
 import { end, endEvery, recordOf, running, runningSeats, tell } from "../lib/chat/session.mjs";
 import { deskFile, deskTitle, hire } from "../lib/desks.mjs";
+import { CONFIG_FILE } from "../lib/seed.mjs";
 import { callsIn, childrenOf, heardIn, installed, post as postPlain, queuesHeardIn, readLog, remove, secretsIn, startChat, stopChat, waitFor, waitForAddress, writeStandIn } from "./helpers.mjs";
 
-import { setup, LEADER, WORKER, OTHER, WORKER_MODEL, MINUTE, panel, base, instance, unexpected, options, reading, said, chat, server, seatUp, spawnedBy, page, call, tool, asked, told, besideBirth, gone, callsThen, writesDesk, deskOf, sessionsListed, settle, pair } from "./lifecycle-helpers.mjs";
+import { setup, LEADER, WORKER, OTHER, WORKER_MODEL, MINUTE, panel, base, instance, unexpected, options, configOf, reading, said, chat, server, seatUp, spawnedBy, page, call, tool, asked, told, besideBirth, gone, callsThen, writesDesk, deskOf, sessionsListed, settle, pair } from "./lifecycle-helpers.mjs";
 
 let now = Date.now();
 setup("lifecycle-test", () => now);
@@ -735,6 +736,9 @@ describe("a tool of the instance's own, from its file", () => {
     remove(own, ownStandIn);
     writeStandIn(ownStandIn);
     installed(options(own));
+    // The Leader this check wakes is still running when the chat is stopped, and a stand-in never
+    // stops itself on the park: the stop would wait out the whole park timeout for nothing.
+    fs.writeFileSync(path.join(own, CONFIG_FILE), JSON.stringify({ ...configOf(own), park: { timeout: 1 } }, null, 2));
     fs.mkdirSync(path.join(own, "plugins"), { recursive: true });
     fs.writeFileSync(
       path.join(own, "plugins", "echo.mjs"),
