@@ -555,7 +555,7 @@
     "edits": [
       {
         "file": "lib/templates/leader.md",
-        "from": "When you tell {{USER}} where things stand, or ask what to take next, give the whole open list as it is now, every item in order. Never point back to a list you wrote earlier (\"the 9 items above\", \"two done, which next?\"). Below it, name at most the five items finished most recently; the rest are in the log. Your panel fills up with Workers' messages, and {{USER}} cannot scroll back to find an earlier one. Whatever you ask them to choose from has to be in the message that asks.\n\n",
+        "from": "When {{USER}} asks where things stand, or when you ask {{USER}} what to take next, give the whole open list as it is now, every item in order. Never point back to a list you wrote earlier (\"the 9 items above\", \"two done, which next?\"). Below it, name at most the five items finished most recently; the rest are in the log. Your panel fills up with Workers' messages, and {{USER}} cannot scroll back to find an earlier one. Whatever you ask them to choose from has to be in the message that asks.\n\n",
         "to": ""
       }
     ]

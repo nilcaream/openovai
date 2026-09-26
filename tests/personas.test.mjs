@@ -205,7 +205,7 @@ describe("what the Leader is told", () => {
   // The Leader's panel fills with Workers' messages: a list pointed back to is a list the User
   // cannot find, and a quote in inline code runs off the side instead of wrapping.
   it("tells the Leader to give the whole open list each time, and what code formatting is for", () => {
-    assert.match(leader(), new RegExp(`When you tell ${USER} where things stand, or ask what to take next, give the whole open list as it is now, every item in order\\.`));
+    assert.match(leader(), new RegExp(`When ${USER} asks where things stand, or when you ask ${USER} what to take next, give the whole open list as it is now, every item in order\\.`));
     assert.match(leader(), /Never point back to a list you wrote earlier/);
     assert.match(leader(), /Whatever you ask them to choose from has to be in the message that asks\./);
     assert.match(leader(), /Code formatting is for code\./);

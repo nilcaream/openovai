@@ -15,6 +15,11 @@ retires, seeds what is missing, wires the hooks and turns attribution off, all i
 same finish. Taking 0.20.0 itself is still finished by the version before it, so run `ovai update`
 a second time once it is through.
 
+**The Leader gives the whole open list in two cases, said plainly: when the User asks where things
+stand, and when the Leader asks the User what to take next.** The instruction used to read as
+though the Leader were the one telling the User where things stand. A Leader hired before this
+version keeps the persona it was rendered with.
+
 ## 0.19.0
 
 **The Leader stops and restarts Workers; a Worker only works.** A Worker no longer has
