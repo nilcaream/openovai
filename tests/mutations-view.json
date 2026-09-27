@@ -104,8 +104,8 @@
     "edits": [
       {
         "file": "lib/chat/view.mjs",
-        "from": "  const source = MARKDOWN.has(extension) && shown.path.includes(\".\")",
-        "to": "  const source = false"
+        "from": "  if (MARKDOWN.has(extension) && shown.path.includes(\".\")) {",
+        "to": "  if (false) {"
       }
     ]
   },
@@ -126,8 +126,8 @@
     "edits": [
       {
         "file": "lib/chat/view.mjs",
-        "from": "  return highlighted(html(source, viewableIn(root, source)));",
-        "to": "  return html(source, viewableIn(root, source));"
+        "from": "    return highlighted(html(shown.text, viewableIn(root, shown.text)));",
+        "to": "    return html(shown.text, viewableIn(root, shown.text));"
       }
     ]
   },
@@ -161,6 +161,28 @@
         "file": "lib/chat/view.mjs",
         "from": "  return language === \"plaintext\" ? \"\" : language;",
         "to": "  return language;"
+      }
+    ]
+  },
+  {
+    "name": "a code file has no gutter",
+    "catches": "numbers a code file's lines in a gutter beside the code, as the raw view does, and a markdown file's not at all",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "  return `<div class=\"numbered\">${numbers(shown.text)}${highlighted(",
+        "to": "  return `<div class=\"numbered\">${highlighted("
+      }
+    ]
+  },
+  {
+    "name": "the gutter's numbers are part of a selection",
+    "catches": "numbers a code file's lines in a gutter beside the code, as the raw view does, and a markdown file's not at all",
+    "edits": [
+      {
+        "file": "lib/chat/view.css",
+        "from": "color: var(--fg-faint); user-select: none; }\n.view pre.numbers.digits-1",
+        "to": "color: var(--fg-faint); }\n.view pre.numbers.digits-1"
       }
     ]
   },
@@ -236,8 +258,8 @@
     "edits": [
       {
         "file": "lib/chat/view.mjs",
-        "from": "  const digits = String(Math.max(drawn.length, 1)).length;",
-        "to": "  const digits = 1;"
+        "from": "  return { drawn, digits: String(Math.max(drawn.length, 1)).length };",
+        "to": "  return { drawn, digits: 1 };"
       }
     ]
   },

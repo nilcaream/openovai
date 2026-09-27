@@ -10,6 +10,19 @@ body.view { margin: 0; background: var(--bg); color: var(--fg); font: 1rem/1.5 v
 /* a file that is not markdown is one code block: drawn as the page itself, not a box on it */
 .view main > .code:only-child { border: 0; border-radius: 0; background: none; }
 .view main > .code:only-child pre { padding: 0; }
+/* a file that is not markdown, its lines numbered in a gutter beside the code as the raw view
+   numbers them: the same font and line height on both sides, so each number sits on its line */
+.view .numbered { display: flex; width: max-content; min-width: 100%; }
+.view .numbered pre { margin: 0; padding: 0; font: .85rem/1.4 var(--mono); }
+.view .numbered pre code { font: inherit; }
+.view pre.numbers { flex: none; margin-right: 16px; text-align: right; color: var(--fg-faint); user-select: none; }
+.view pre.numbers.digits-1 { width: 1ch; }
+.view pre.numbers.digits-2 { width: 2ch; }
+.view pre.numbers.digits-3 { width: 3ch; }
+.view pre.numbers.digits-4 { width: 4ch; }
+.view pre.numbers.digits-5 { width: 5ch; }
+.view pre.numbers.digits-6 { width: 6ch; }
+.view pre.numbers.digits-7 { width: 7ch; }
 /* a code block highlight.js coloured, in the theme's --hl- tokens (md.css) */
 .view .hljs .hljs-keyword, .view .hljs .hljs-doctag, .view .hljs .hljs-template-tag, .view .hljs .hljs-template-variable, .view .hljs .hljs-type, .view .hljs .hljs-variable.language_, .view .hljs .hljs-meta .hljs-keyword { color: var(--hl-keyword); }
 .view .hljs .hljs-title { color: var(--hl-title); }

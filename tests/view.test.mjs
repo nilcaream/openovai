@@ -160,6 +160,20 @@ describe("what the view draws", () => {
     assert.match(view(root, "projects/demo/lib/x.mjs").page, /<pre class="raw digits-1" hidden><span class="line">const fence = &quot;````&quot;;<\/span>/);
   });
 
+  // A file that is not markdown is numbered as the raw view numbers it, in a gutter of its own beside
+  // the block, so no highlighted span is cut and a selection of the code never takes the numbers.
+  it("numbers a code file's lines in a gutter beside the code, as the raw view does, and a markdown file's not at all", () => {
+    assert.match(view(root, "projects/demo/lib/x.mjs").page, /<main class="md"><div class="numbered"><pre class="numbers digits-1" aria-hidden="true">1\n2<\/pre><pre><code class="hljs language-javascript">/);
+    assert.match(view(root, "desks/Ann/notes.txt").page, /<div class="numbered"><pre class="numbers digits-1" aria-hidden="true">1<\/pre><pre><code>plain words\n<\/code><\/pre>\n<\/div><\/main>/);
+    put("projects/demo/thirteen.json", "[\n" + "1,\n".repeat(10) + "1\n]\n");
+    assert.match(view(root, "projects/demo/thirteen.json").page, /<pre class="numbers digits-2" aria-hidden="true">1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13<\/pre>/);
+    assert.ok(!view(root, "projects/demo/README.md").page.includes("numbered"));
+    const css = fs.readFileSync(path.join(import.meta.dirname, "..", "lib", "chat", "view.css"), "utf8");
+    assert.match(css, /^\.view \.numbered pre \{ margin: 0; padding: 0; font: \.85rem\/1\.4 var\(--mono\); \}/m);
+    assert.match(css, /^\.view pre\.numbers \{[^}]*margin-right: 16px; text-align: right; color: var\(--fg-faint\); user-select: none; \}/m);
+    for (let digits = 1; digits <= 7; digits += 1) assert.ok(css.includes(`.view pre.numbers.digits-${digits} { width: ${digits}ch; }`), `${digits} digits`);
+  });
+
   it("answers a path it does not show with its status and the reason, and nothing of the file", () => {
     for (const [wanted, status] of [["temp/big.txt", 413], ["temp/nul.txt", 415], ["projects/demo/.env", 403], ["temp/missing.txt", 404], ["temp/out-link.txt", 403]]) {
       const answered = view(root, wanted);
