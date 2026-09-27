@@ -549,29 +549,24 @@
     ]
   },
   {
-    "name": "the pill is never put back last: appended rows carry it up into the panel",
-    "catches": "shows the pill when the reader is not near the newest, says so when rows land below them, and takes them there on a click",
+    "name": "rows land at the end of the rows, after the jump pill",
+    "catches": "never removes or moves the pill when a row lands: rows go in before it",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      // Rows are appended after the pill; it goes back to the end so it sticks to the bottom edge.\n      if (panel.jump !== panel.rows.lastElementChild) panel.rows.append(panel.jump);\n",
-        "to": ""
+        "from": "      const land = (element) => panel.rows.insertBefore(element, tail);\n",
+        "to": "      const land = (element) => panel.rows.append(element);\n"
       }
     ]
   },
   {
-    "name": "the put-back-last line kept verbatim but moved ABOVE the append loop: rows appended after it carry the pill up again",
+    "name": "rows land before the jump pill on the Leader's panel too, under its pill",
     "catches": "shows the pill when the reader is not near the newest, says so when rows land below them, and takes them there on a click",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      const added = [];\n      const folded = [];\n      if (about.rows.length > panel.shown) {\n",
-        "to": "      const added = [];\n      const folded = [];\n      if (panel.jump !== panel.rows.lastElementChild) panel.rows.append(panel.jump);\n      if (about.rows.length > panel.shown) {\n"
-      },
-      {
-        "file": "lib/chat/page.html",
-        "from": "about.doing ?? LINE_WAITING;\n      // Rows are appended after the pill; it goes back to the end so it sticks to the bottom edge.\n      if (panel.jump !== panel.rows.lastElementChild) panel.rows.append(panel.jump);\n",
-        "to": "about.doing ?? LINE_WAITING;\n"
+        "from": "      const tail = panel.doing ?? panel.jump;\n",
+        "to": "      const tail = panel.jump;\n"
       }
     ]
   },
@@ -1679,8 +1674,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "            if (dayPillBefore(entry, panel.day)) {\n              panel.last = null;\n              panel.rows.append(dayPill(when));\n            }",
-        "to": "            panel.last = null;\n            panel.rows.append(dayPill(when));"
+        "from": "            if (dayPillBefore(entry, panel.day)) {\n              panel.last = null;\n              land(dayPill(when));\n            }",
+        "to": "            panel.last = null;\n            land(dayPill(when));"
       }
     ]
   },
@@ -1994,7 +1989,7 @@
   },
   {
     "name": "the draw pins a panel that follows itself, the moment a row lands",
-    "catches": "leaves a panel that does not follow exactly where the reader has it when rows land",
+    "catches": "leaves a panel that does not follow exactly where the reader has it when rows land, and pins one that follows before the next paint",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -2811,13 +2806,18 @@
     ]
   },
   {
-    "name": "the Leader's pill is left where it was when rows land after it",
-    "catches": "draws what the Leader is at as the day pill, made with the panel, always the last row, changed in place",
+    "name": "the Leader's pill is taken out and put back last after the rows land",
+    "catches": "never removes or moves the pill when a row lands: rows go in before it",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      if (panel.doing !== null && panel.doing.nextElementSibling !== panel.jump) panel.rows.insertBefore(panel.doing, panel.jump);\n",
-        "to": ""
+        "from": "      const land = (element) => panel.rows.insertBefore(element, tail);\n",
+        "to": "      const land = (element) => panel.rows.insertBefore(element, panel.jump);\n"
+      },
+      {
+        "file": "lib/chat/page.html",
+        "from": "      // A row that landed while the reader is away",
+        "to": "      if (panel.doing !== null) panel.rows.insertBefore(panel.doing, panel.jump);\n      // A row that landed while the reader is away"
       }
     ]
   },
@@ -2840,6 +2840,50 @@
         "file": "lib/chat/page.html",
         "from": "      if (panel.doing !== null) panel.doing.firstElementChild.textContent = about.doing ?? LINE_WAITING;\n",
         "to": "      if (panel.doing !== null) panel.doing.firstElementChild.textContent = about.doing ?? LINE_WAITING;\n      if (panel.doing !== null && about.doing === null) panel.doing.remove();\n"
+      }
+    ]
+  },
+  {
+    "name": "rows drawn afresh take both pills out and put them back",
+    "catches": "never removes or moves the pill when a row lands: rows go in before it",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "        for (const child of [...panel.rows.children]) if (child !== panel.doing && child !== panel.jump) child.remove();\n",
+        "to": "        panel.rows.replaceChildren(...[panel.doing, panel.jump].filter((kept) => kept !== null));\n"
+      }
+    ]
+  },
+  {
+    "name": "a following panel is left to the timer's tick, its bottom off the edge for a few frames",
+    "catches": "leaves a panel that does not follow exactly where the reader has it when rows land, and pins one that follows before the next paint",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      if (landed && panel.view.follow && !atTheNewest(panel.rows)) panel.rows.scrollTop = panel.rows.scrollHeight;\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the draw pins a panel that does not follow too",
+    "catches": "leaves a panel that does not follow exactly where the reader has it when rows land, and pins one that follows before the next paint",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      if (landed && panel.view.follow && !atTheNewest(panel.rows)) panel.rows.scrollTop",
+        "to": "      if (landed && !atTheNewest(panel.rows)) panel.rows.scrollTop"
+      }
+    ]
+  },
+  {
+    "name": "the Leader's pill is appended after the jump pill, so rows land between the two",
+    "catches": "never removes or moves the pill when a row lands: rows go in before it",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      rows.insertBefore(doing, jump);\n",
+        "to": "      rows.append(doing);\n"
       }
     ]
   }

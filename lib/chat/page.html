@@ -580,7 +580,7 @@
     if (leads) {
       doing = pill(LINE_WAITING);
       doing.classList.add("doing");
-      rows.append(doing);
+      rows.insertBefore(doing, jump);
     }
 
     const composer = document.createElement("form");
@@ -1150,10 +1150,14 @@
       load(panel);
     } else {
       // Whether the reader is near the newest row is taken before anything lands, and on the first
-      // draw they are: the timer pins a panel that follows, and the draw scrolls nothing itself.
+      // draw they are.
       const near = panel.shown === 0 || nearTheNewest(panel.rows);
+      // Every row lands before the tail: the Leader's pill, else the jump pill. The tail is put in
+      // once with the panel and never moved, so it never leaves the rows for a frame.
+      const tail = panel.doing ?? panel.jump;
+      const land = (element) => panel.rows.insertBefore(element, tail);
       if (about.rows.length < panel.shown) {
-        panel.rows.replaceChildren();
+        for (const child of [...panel.rows.children]) if (child !== panel.doing && child !== panel.jump) child.remove();
         panel.shown = 0;
         panel.day = null;
         panel.last = null;
@@ -1184,7 +1188,7 @@
           if (entry.at !== undefined && when.day !== panel.day) {
             if (dayPillBefore(entry, panel.day)) {
               panel.last = null;
-              panel.rows.append(dayPill(when));
+              land(dayPill(when));
             }
             panel.day = when.day;
           }
@@ -1199,7 +1203,7 @@
             continue;
           }
           const line = rowElement(entry, shown, panel, about.rows, index);
-          panel.rows.append(line);
+          land(line);
           // A row the comms switch hides lands nowhere the reader can see.
           if (!hiddenTalk(line)) landed = true;
           if (shown.kind === "line") {
@@ -1261,12 +1265,13 @@
       // What the Leader is at, on its pill: the server's word on a turn, LINE_WAITING off one. The pill
       // is always there and only its words change, so it is never a row landing.
       if (panel.doing !== null) panel.doing.firstElementChild.textContent = about.doing ?? LINE_WAITING;
-      // Rows are appended after the pill; it goes back to the end so it sticks to the bottom edge.
-      if (panel.jump !== panel.rows.lastElementChild) panel.rows.append(panel.jump);
-      // And the Leader's pill right before it, the last row, under every row drawn.
-      if (panel.doing !== null && panel.doing.nextElementSibling !== panel.jump) panel.rows.insertBefore(panel.doing, panel.jump);
+      // A panel that follows is pinned to its newest in the same task the rows landed in, before
+      // the next paint: left to the timer's next tick, the rows show for a few frames with the
+      // bottom pushed below the edge, the Leader's pill out of view. The scroll goes down only,
+      // so it is never read as a hand moving the rows away.
+      if (landed && panel.view.follow && !atTheNewest(panel.rows)) panel.rows.scrollTop = panel.rows.scrollHeight;
       // A row that landed while the reader is away from the newest: the pill says something
-      // landed below. A panel that follows is pinned to the newest by the timer, not here.
+      // landed below.
       if (landed && !panel.view.follow && panel.leads && !near) {
         panel.jump.classList.add("show");
         panel.jump.textContent = NEW_ROWS;

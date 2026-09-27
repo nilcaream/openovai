@@ -535,7 +535,7 @@ describe("the script", () => {
     assert.match(script, /import \{ dayPillBefore, row as rowOf, unseen \} from "\.\/render\.mjs";/);
     assert.match(script, /const index = from \+ offset;\s*if \(unseen\(about\.rows, index\)\) continue;/, "a row left out of the drawing is skipped, and counted all the same");
     assert.match(script, /function dayPill\(when\) \{\s*const element = pill\(when\.whole\);\s*element\.dataset\.day = when\.day;\s*return element;\s*\}/);
-    assert.match(script, /const when = stamp\(entry\.at\);\s*if \(entry\.at !== undefined && when\.day !== panel\.day\) \{\s*if \(dayPillBefore\(entry, panel\.day\)\) \{\s*panel\.last = null;\s*panel\.rows\.append\(dayPill\(when\)\);\s*\}\s*panel\.day = when\.day;\s*\}/);
+    assert.match(script, /const when = stamp\(entry\.at\);\s*if \(entry\.at !== undefined && when\.day !== panel\.day\) \{\s*if \(dayPillBefore\(entry, panel\.day\)\) \{\s*panel\.last = null;\s*land\(dayPill\(when\)\);\s*\}\s*panel\.day = when\.day;\s*\}/);
     assert.match(script, /while \(drawn\.length > 100\) drawn\.shift\(\)\.remove\(\);\s*\/\/[^\n]*\n\s*while \(drawn\.length > 0 && drawn\[0\]\.dataset\.day !== undefined\) drawn\.shift\(\)\.remove\(\);/);
     assert.match(script, /panel\.shown = 0;\s*panel\.day = null;/, "a panel drawn afresh starts with no day, so its first row gets no pill");
   });
@@ -733,7 +733,7 @@ describe("the script", () => {
     assert.match(script, /\n    const jump = document\.createElement\("button"\);\s*jump\.type = "button";\s*jump\.className = "jump";/, "every panel has its pill, a class since an id is one to a page");
     assert.match(script, /return \{ name, leads, /, "whether a panel is the Leader's is a word of its own, never read off the pill");
     assert.match(script, /\n    rows\.append\(jump\);\n/, "the pill is a child of the rows");
-    assert.match(script, /panel\.shown = about\.rows\.length;\n(?:[^\n]*\n){45}      if \(panel\.jump !== panel\.rows\.lastElementChild\) panel\.rows\.append\(panel\.jump\);\n/, "the pill is put back last AFTER the rows are appended, before the scroll is decided");
+    assert.match(script, /const tail = panel\.doing \?\? panel\.jump;/, "every row lands before the pill, so it stays the last child and sticks to the bottom edge");
     assert.match(script, /if \(landed && !panel\.view\.follow && panel\.leads && !near\) \{\s*panel\.jump\.classList\.add\("show"\);\s*panel\.jump\.textContent = NEW_ROWS;\s*\}/);
     assert.match(script, /rows\.addEventListener\("scroll", \(\) => \{\s*if \(nearTheNewest\(rows\)\) jump\.classList\.remove\("show"\);\s*else if \(!jump\.classList\.contains\("show"\)\) \{\s*jump\.textContent = LATEST;\s*jump\.classList\.add\("show"\);\s*\}\s*\}\);/, "away from the newest the pill is there, and a pill already there keeps its words");
     assert.match(script, /jump\.addEventListener\("click", \(\) => \{\s*rows\.scrollTop = rows\.scrollHeight;\s*jump\.classList\.remove\("show"\);/);
@@ -745,11 +745,23 @@ describe("the script", () => {
   // counts as one landing. A Worker's panel has none.
   it("draws what the Leader is at as the day pill, made with the panel, always the last row, changed in place", () => {
     const draw = script.slice(script.indexOf("function drawPanel(panel)"), script.indexOf("// ------------------------------------------------------------------------------- the page"));
-    assert.match(script, /let doing = null;\s*if \(leads\) \{\s*doing = pill\(LINE_WAITING\);\s*doing\.classList\.add\("doing"\);\s*rows\.append\(doing\);\s*\}/, "the Leader's panel has its pill from the start, the day pill's own, and a Worker's none");
-    assert.match(draw, /if \(panel\.doing !== null\) panel\.doing\.firstElementChild\.textContent = about\.doing \?\? LINE_WAITING;\s*\/\/[^\n]*\n\s*if \(panel\.jump !== panel\.rows\.lastElementChild\) panel\.rows\.append\(panel\.jump\);\s*\/\/[^\n]*\n\s*if \(panel\.doing !== null && panel\.doing\.nextElementSibling !== panel\.jump\) panel\.rows\.insertBefore\(panel\.doing, panel\.jump\);/);
+    assert.match(script, /let doing = null;\s*if \(leads\) \{\s*doing = pill\(LINE_WAITING\);\s*doing\.classList\.add\("doing"\);\s*rows\.insertBefore\(doing, jump\);\s*\}/, "the Leader's panel has its pill from the start, the day pill's own, and a Worker's none");
+    assert.match(draw, /if \(panel\.doing !== null\) panel\.doing\.firstElementChild\.textContent = about\.doing \?\? LINE_WAITING;\n/);
     assert.doesNotMatch(draw, /panel\.doing\.remove\(\)|panel\.doing = /, "the pill is never taken out nor made again");
-    assert.doesNotMatch(draw.slice(draw.indexOf("if (panel.doing !== null) panel.doing.firstElementChild"), draw.indexOf("panel.rows.insertBefore(panel.doing, panel.jump);")), /landed/, "its words changing is not a row landing: it moves no row");
+    assert.doesNotMatch(draw.slice(draw.indexOf("if (panel.doing !== null) panel.doing.firstElementChild"), draw.indexOf("if (landed && panel.view.follow")), /landed =/, "its words changing is not a row landing: it moves no row");
     assert.match(script, /jump, doing, box,/, "the panel keeps the pill it was made with");
+  });
+
+  // The pill never leaves the rows and never moves, not even within one task: every row lands
+  // BEFORE it (the tail: the Leader's pill, else the jump pill), and rows drawn afresh take out
+  // every child but the two pills. The User saw a pill taken out and put back as a flicker.
+  it("never removes or moves the pill when a row lands: rows go in before it", () => {
+    const draw = script.slice(script.indexOf("function drawPanel(panel)"), script.indexOf("// ------------------------------------------------------------------------------- the page"));
+    assert.match(draw, /const tail = panel\.doing \?\? panel\.jump;\s*const land = \(element\) => panel\.rows\.insertBefore\(element, tail\);/);
+    assert.doesNotMatch(draw, /panel\.rows\.append\(|panel\.rows\.prepend\(|replaceChildren\(|insertBefore\(panel\.(?:doing|jump)\b|panel\.(?:doing|jump)\.remove\(\)/, "a row appended after the pill, or the pill put back, moves it");
+    assert.match(draw, /for \(const child of \[\.\.\.panel\.rows\.children\]\) if \(child !== panel\.doing && child !== panel\.jump\) child\.remove\(\);/, "rows drawn afresh keep both pills where they are");
+    assert.match(script, /rows\.append\(jump\);[\s\S]*?rows\.insertBefore\(doing, jump\);/, "made once, the Leader's pill right before the jump pill, so rows landing before it leave the jump pill last");
+    assert.doesNotMatch(script, /rows\.append\(doing\)/, "the Leader's pill appended after the jump pill puts every row between the two, and the jump pill first");
   });
 
   // The words on that line move at panels.mjs's pace, not the server's: after every event the
@@ -764,11 +776,15 @@ describe("the script", () => {
 
   // Every panel follows its newest row or not, on its own: a word of the panel's, decided by
   // `following` at every tick of the page's timer and nowhere else, true from the start. The
-  // draw scrolls nothing: a panel that follows is pinned by the timer, and one that does not is
-  // left exactly where the reader has it, whatever lands — the Leader's pill says so.
-  it("leaves a panel that does not follow exactly where the reader has it when rows land", () => {
+  // draw writes one scroll: a panel that follows is pinned to its newest in the task its rows
+  // landed in, before the next paint, since left to the timer the bottom shows pushed off the
+  // edge for a few frames. One that does not follow is left exactly where the reader has it,
+  // whatever lands — the jump pill says so.
+  it("leaves a panel that does not follow exactly where the reader has it when rows land, and pins one that follows before the next paint", () => {
     const draw = script.slice(script.indexOf("function drawPanel(panel)"), script.indexOf("// ------------------------------------------------------------------------------- the page"));
-    assert.doesNotMatch(draw, /scrollTop =|scrollIntoView/, "the draw writes no scroll position: the timer pins a panel that follows");
+    assert.doesNotMatch(draw, /scrollIntoView/);
+    assert.equal(draw.match(/scrollTop =/g).length, 1, "the draw writes one scroll position");
+    assert.match(draw, /if \(landed && panel\.view\.follow && !atTheNewest\(panel\.rows\)\) panel\.rows\.scrollTop = panel\.rows\.scrollHeight;/, "only when rows landed on a panel that follows, and only down to the newest");
     assert.match(draw, /if \(landed && !panel\.view\.follow && panel\.leads && !near\) \{\s*panel\.jump\.classList\.add\("show"\);\s*panel\.jump\.textContent = NEW_ROWS;\s*\}/, "the pill hangs on the panel's word");
     assert.doesNotMatch(draw, /panel\.rows\.scrollHeight - panel\.rows\.scrollTop - panel\.rows\.clientHeight < \d/, "the draw measures nothing itself: a box that grew hides the last lines, and a measure here would call a following panel gone");
   });
@@ -819,7 +835,7 @@ describe("the script", () => {
     assert.ok(composer.length > 500, "the composer was not found");
     assert.doesNotMatch(composer, /scrollTop|scrollIntoView|view\.follow =|movedAway/, "the composer neither scrolls the rows nor sets the word");
     assert.match(script, /new ResizeObserver\(\(\) => \{\s*fitStamps\(rows\.querySelectorAll\("\.t"\)\);\s*fitFolds\(rows\.querySelectorAll\("\.msg\.collapsed"\)\);\s*\}\)\.observe\(rows\);/, "rows that changed size are measured, never scrolled");
-    assert.equal(script.match(/\.scrollTop = /g).length, 2, "two scroll writes: the pill's click, the tick on a following panel");
+    assert.equal(script.match(/\.scrollTop = /g).length, 3, "three scroll writes: the pill's click, the tick on a following panel, the draw on a following panel that rows landed on");
   });
 
   // While a panel follows, its head carries the follow class and one rule gives it a mark of
@@ -1007,7 +1023,7 @@ describe("the script", () => {
     assert.match(script, /if \(shown\.kind === "line" && shown\.msg === undefined && panel\.last !== null && panel\.last\.text === shown\.text\) \{\s*panel\.last\.count \+= 1;\s*panel\.last\.n\.textContent = ` ×\$\{panel\.last\.count\}`;\s*landed = true;\s*panel\.lines\.set\(index, panel\.last\.el\);\s*continue;/);
     assert.match(script, /panel\.last = shown\.msg === undefined \? \{ text: shown\.text, el: line, count: 1, n: line\.lastElementChild \} : null;/, "a message's line ends the run");
     assert.match(script, /\} else \{\s*panel\.last = null;\s*if \(shown\.kind === "user" && !shown\.delivered\) panel\.waiting\.set\(index, line\);\s*panel\.bubbles\.set\(index, line\);\s*\}/, "a bubble ends the run");
-    assert.match(script, /panel\.last = null;\s*panel\.rows\.append\(dayPill\(when\)\);/, "a pill ends the run");
+    assert.match(script, /panel\.last = null;\s*land\(dayPill\(when\)\);/, "a pill ends the run");
   });
 
   // A Worker panel holds a hundred drawn rows: the first draw starts
@@ -1026,7 +1042,7 @@ describe("the script", () => {
     const draw = script.slice(script.indexOf("function drawPanel(panel)"), script.indexOf("// ------------------------------------------------------------------------------- the page"));
     assert.match(draw, /let landed = false;\s*const added = \[\];\s*const folded = \[\];\s*if \(about\.rows\.length > panel\.shown\) \{/, "the word is set before any row is drawn, beside the stamps list and the folded list");
     assert.match(draw, /panel\.last\.n\.textContent = ` ×\$\{panel\.last\.count\}`;\s*landed = true;/, "a counter that grew is a row that landed");
-    assert.match(draw, /panel\.rows\.append\(line\);\s*(?:\/\/[^\n]*\n\s*)*if \(!hiddenTalk\(line\)\) landed = true;/, "an element appended is a row that landed, unless the comms switch hides it");
+    assert.match(draw, /land\(line\);\s*(?:\/\/[^\n]*\n\s*)*if \(!hiddenTalk\(line\)\) landed = true;/, "an element appended is a row that landed, unless the comms switch hides it");
     assert.match(draw, /if \(landed && !panel\.view\.follow && panel\.leads && !near\) \{\s*panel\.jump\.classList\.add\("show"\);/, "the pill hangs on the word");
     assert.doesNotMatch(draw, /if \(added\.length > 0\)/, "the stamps list decides the pill");
   });

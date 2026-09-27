@@ -241,7 +241,9 @@ the Leader was at used to be the last row of its panel only during a turn, so ea
 went every row above it moved up and back down. It is now a pill like the one between two days,
 always there as the last row: "Waiting for instructions" between turns, "Working…" on a turn (it
 said "Thinking…"), and the call the Leader has out while it has one. It is one line high whatever
-it says, a long call cut with an ellipsis, so no row moves for it. It scrolls with the rows:
+it says, a long call cut with an ellipsis, so no row moves for it. New rows go in above it, so
+the pill is never taken out and put back. A panel at the newest row scrolls to a new row before
+it is drawn, so the pill never drops below the edge for a moment. It scrolls with the rows:
 scrolled up, it is out of view. A call stays on it for one second at least (it was half a
 second). Nothing queues behind it: when the second is up, the pill says what the Leader is at by
 then, so ten calls of 10 ms show the first for a second and then the newest word, never the ten
