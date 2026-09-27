@@ -73,6 +73,20 @@ describe("what a process started here carries of its starter", () => {
     assert.equal(env.CLAUDE_CODE_OAUTH_TOKEN, SIGN_IN.CLAUDE_CODE_OAUTH_TOKEN, "inherit keeps the machine's sign-in");
   });
 
+  it("turns the Artifact tools on for a seat, and leaves a value the person set as it is", () => {
+    const kept = process.env.CLAUDE_CODE_ARTIFACT;
+    try {
+      delete process.env.CLAUDE_CODE_ARTIFACT;
+      assert.equal(environment(root, "inherit", "Paul").CLAUDE_CODE_ARTIFACT, "1");
+      assert.equal(environment(root, "inherit", null).CLAUDE_CODE_ARTIFACT, undefined, "nobody's start has it forced");
+      process.env.CLAUDE_CODE_ARTIFACT = "0";
+      assert.equal(environment(root, "inherit", "Paul").CLAUDE_CODE_ARTIFACT, "0", "the person's own value was overruled");
+    } finally {
+      if (kept === undefined) delete process.env.CLAUDE_CODE_ARTIFACT;
+      else process.env.CLAUDE_CODE_ARTIFACT = kept;
+    }
+  });
+
   it("is what `ovai start` spawns the server with", () => {
     const source = fs.readFileSync(new URL("../lib/ovai.mjs", import.meta.url), "utf8");
     assert.match(source, /spawn\(nodeCommand\(root\), \[SERVER, "--root", root\], \{\s*cwd: root,\s*env: serverEnvironment\(root\),/);

@@ -103,9 +103,9 @@ function install(root, auth) {
 //
 // Every run here is nobody's session, whatever this suite was started from. Run from inside a
 // seat, it would inherit what the chat puts on a session — the seat, its secret, the switch that
-// takes the account's connectors away — and a check on what the toolkit put there would read the
-// seat's instead.
-const SET_ON_A_SEAT = [SEAT_IN_ENVIRONMENT, "OPENOVAI_SESSION_SECRET", "ENABLE_CLAUDEAI_MCP_SERVERS"];
+// takes the account's connectors away, the one that turns the Artifact tools on — and a check on
+// what the toolkit put there would read the seat's instead.
+const SET_ON_A_SEAT = [SEAT_IN_ENVIRONMENT, "OPENOVAI_SESSION_SECRET", "ENABLE_CLAUDEAI_MCP_SERVERS", "CLAUDE_CODE_ARTIFACT"];
 
 function run(root, recordIn, argv, changes = {}) {
   const inherited = { ...process.env };
@@ -220,6 +220,12 @@ describe("what Claude Code is started as", () => {
   // the door is the person's own: their account's connectors are theirs to keep.
   it("leaves the account's connectors alone in a start that is nobody's session", () => {
     assert.match(readLog(started), /^ENABLE_CLAUDEAI_MCP_SERVERS: <unset>$/m);
+  });
+
+  // The Artifact tools are turned on for a seat, which runs in print mode; a start that is nobody's
+  // session gets them as Claude Code gives them, with nothing forced.
+  it("leaves the Artifact tools as Claude Code has them in a start that is nobody's session", () => {
+    assert.match(readLog(started), /^CLAUDE_CODE_ARTIFACT: <unset>$/m);
   });
 
   // Started from inside a session — `ovai claude` typed in a seat's shell — a start that is

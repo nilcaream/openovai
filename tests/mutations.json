@@ -1956,6 +1956,17 @@
     ]
   },
   {
+    "name": "a seat is started with the Artifact tools withheld",
+    "catches": "turns the Artifact tools on in every start of a seat",
+    "edits": [
+      {
+        "file": "lib/claude.mjs",
+        "from": "      env.CLAUDE_CODE_ARTIFACT = \"1\";\n",
+        "to": ""
+      }
+    ]
+  },
+  {
     "name": "every frame of a turn that stopped gets its own row",
     "catches": "says a turn of several frames stopped once, not once a frame",
     "edits": [

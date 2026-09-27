@@ -33,6 +33,17 @@
     ]
   },
   {
+    "name": "a seat's Artifact tools are turned on over the person's own value",
+    "catches": "turns the Artifact tools on for a seat, and leaves a value the person set as it is",
+    "edits": [
+      {
+        "file": "lib/claude.mjs",
+        "from": "    if (!env.CLAUDE_CODE_ARTIFACT) {\n",
+        "to": "    {\n"
+      }
+    ]
+  },
+  {
     "name": "the directory the starter's shell stood in is handed on",
     "catches": "starts the server with this instance's home and nothing of the session or seat it was typed in",
     "edits": [

@@ -299,6 +299,12 @@ panel had none. Every panel now shows it as soon as you are scrolled more than 8
 newest row, saying `↓ latest`. On the Leader's panel it says `↓ new messages` once a row lands below
 you. A click on it takes you to the newest row either way.
 
+**A seat has the Artifact tools, as `claude` at the command line does.** Claude Code withholds
+Artifact, ArtifactComments and ArtifactData from a session in print mode unless
+`CLAUDE_CODE_ARTIFACT` turns them on, and every seat runs in print mode. A seat now starts with it
+set to `1`. A value already in the environment the server starts from is yours and stands, `0`
+included. `ovai claude` is your own session and is left as Claude Code has it.
+
 ## 0.19.0
 
 **The Leader stops and restarts Workers; a Worker only works.** A Worker no longer has

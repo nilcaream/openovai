@@ -697,6 +697,12 @@ describe("starting a seat", () => {
     assert.deepEqual([...new Set(said)], ["ENABLE_CLAUDEAI_MCP_SERVERS: false"]);
   });
 
+  it("turns the Artifact tools on in every start of a seat", () => {
+    const said = fs.readFileSync(paul.log, "utf8").split("\n").filter((line) => line.startsWith("CLAUDE_CODE_ARTIFACT: "));
+    assert.ok(said.length > 0, "no start of the seat is in its log");
+    assert.deepEqual([...new Set(said)], ["CLAUDE_CODE_ARTIFACT: 1"]);
+  });
+
   it("runs it in print mode over the streaming protocol, asking here before using a tool", () => {
     const argv = callsIn(paul.log).at(-1);
     for (const part of ["--print", "--input-format stream-json", "--output-format stream-json", "--verbose", "--permission-prompt-tool stdio"]) {

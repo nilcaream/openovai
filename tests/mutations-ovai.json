@@ -286,6 +286,17 @@
     ]
   },
   {
+    "name": "every start of Claude Code has the Artifact tools forced on, the person's own among them",
+    "catches": "leaves the Artifact tools as Claude Code has them in a start that is nobody's session",
+    "edits": [
+      {
+        "file": "lib/claude.mjs",
+        "from": "  env.DISABLE_AUTOUPDATER = \"1\";\n",
+        "to": "  env.DISABLE_AUTOUPDATER = \"1\";\n  env.CLAUDE_CODE_ARTIFACT = \"1\";\n"
+      }
+    ]
+  },
+  {
     "name": "every start of Claude Code loses the account's connectors, the person's own among them",
     "catches": "leaves the account's connectors alone in a start that is nobody's session",
     "edits": [
