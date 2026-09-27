@@ -241,7 +241,9 @@ Workers alike. The clock is read once a minute, so a card goes within a minute a
 rule card the Leader raises with `permission` holds no call and never times out. The Leader's
 `<server-event type="permission" who="…" minutes="…">` now comes when a Worker's card times out,
 with 10 or 2, not while it still waits, and the `permission.wait` setting it used to be sent on is
-gone.
+gone. What every session is told says that this Deny is nobody's answer: the session goes on with
+what it can do without the call, says what waits on it, and asks for it again once the User is
+back, never looking for a way round it.
 
 **An urgent message the Leader sent reads `To <name> (urgent)` on its panel.** It used to read
 `Urgent to <name>`, which looked like a sender named Urgent. It is now a `To` row like any other,

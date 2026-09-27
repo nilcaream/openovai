@@ -416,6 +416,14 @@ describe("what a Worker is told", () => {
     }
   });
 
+  // A card that times out comes back as a Deny too, and read as the User's answer it is either
+  // dropped for good or got round; nobody refused it.
+  it("tells both that a card that timed out is nobody's answer", () => {
+    for (const text of [leader(), worker()]) {
+      assert.match(flat(commonOf(text)), new RegExp(`A card nobody answers within its time comes back as a Deny that says it timed out: that is nobody's answer\\. Go on with what you can do without the call, say what waits on it, and ask for it again once ${USER} is back; never look for a way round it\\.`));
+    }
+  });
+
   // The compound hook never allows a command holding a backtick or `$(` anywhere, quotes or not
   // (lib/hooks/compound.mjs HIDDEN): it refuses it with a reason, and answers nothing when a side
   // is refused by rule or cannot be read, which then asks.

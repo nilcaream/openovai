@@ -900,5 +900,16 @@
         "to": ""
       }
     ]
+  },
+  {
+    "name": "nobody is told that a card that timed out is nobody's answer, so it reads as the User's",
+    "catches": "tells both that a card that timed out is nobody's answer",
+    "edits": [
+      {
+        "file": "lib/templates/common.md",
+        "from": "A card nobody answers within its time comes back as a Deny that says it timed out: that is nobody's\n",
+        "to": "A card nobody answers within its time comes back as a Deny that says it timed out: that is yours\n"
+      }
+    ]
   }
 ]
