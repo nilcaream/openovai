@@ -132,6 +132,28 @@
     ]
   },
   {
+    "name": "the view's window has no icon",
+    "catches": "shows the page's plain icon in the window's tab, which its policy lets load",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "<link rel=\"icon\" href=\"/icons/192.png\">\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the view's policy refuses the icon",
+    "catches": "shows the page's plain icon in the window's tab, which its policy lets load",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "img-src 'self';",
+        "to": "img-src 'none';"
+      }
+    ]
+  },
+  {
     "name": "the raw toggle shows raw without hiding the rendered file",
     "catches": "draws the file's raw text, lines numbered outside the text, behind a fixed toggle that swaps it in place and keeps nothing",
     "edits": [

@@ -10,7 +10,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { after, describe, it } from "node:test";
 
-import { LARGEST, fenced, languageOf, openable, raw, unknown, view, viewable, viewableIn, withViewable } from "../lib/chat/view.mjs";
+import { HEADERS, LARGEST, fenced, languageOf, openable, raw, unknown, view, viewable, viewableIn, withViewable } from "../lib/chat/view.mjs";
 import { remove, scratch } from "./helpers.mjs";
 
 const base = scratch("view-test");
@@ -202,6 +202,15 @@ describe("what the view draws", () => {
     assert.match(rule(".view .md pre"), /overflow: visible;/);
     assert.match(rule(".view .md table"), /overflow: visible; max-width: none;/);
     assert.ok(!/white-space|overflow-wrap|word-break|overflow: (auto|scroll|hidden)/.test(css), "nothing in the view wraps or scrolls");
+  });
+
+  // The view's window carries the page's own plain icon, never the asking one, and its policy lets
+  // an image of the server's own load, which is what a favicon is to a browser that holds it to it.
+  it("shows the page's plain icon in the window's tab, which its policy lets load", () => {
+    for (const page of [view(root, "desks/Ann/notes.txt").page, view(root, "temp/missing.txt").page, unknown()]) {
+      assert.ok(page.includes('<link rel="icon" href="/icons/192.png">'));
+    }
+    assert.match(HEADERS["content-security-policy"], /; img-src 'self';/);
   });
 
   // The raw view: the file's text as it is, each line a span the stylesheet numbers with a counter
