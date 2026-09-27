@@ -2798,5 +2798,16 @@
         "to": "cursor: pointer; box-shadow: 0 4px 14px var(--line); display: none; }"
       }
     ]
+  },
+  {
+    "name": "the pill keeps its own wide margin again",
+    "catches": "space a pill among the rows as a tool line, its border inside its own row",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "  .divider { text-align: center; margin: 3px 0;",
+        "to": "  .divider { text-align: center; margin: 14px 0;"
+      }
+    ]
   }
 ]

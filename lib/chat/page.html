@@ -163,9 +163,10 @@
   /* what became of a message the Leader sent, or of the User's own once it went in: a glyph before the stamp, red when it did not go */
   .meta .st { flex: 0 0 auto; color: var(--ok); }
   .meta .st.bad { color: var(--bad); }
-  /* the pill between two days */
-  .divider { text-align: center; margin: 14px 0; color: var(--fg-faint); font-size: .78rem; font-family: var(--mono); }
-  .divider span { background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 2px 12px; }
+  /* the pill between two days, and between two sessions: spaced as a tool line is, and a box of its
+     own, so its padding and border are inside the row's height rather than over its neighbours */
+  .divider { text-align: center; margin: 3px 0; color: var(--fg-faint); font-size: .78rem; font-family: var(--mono); }
+  .divider span { display: inline-block; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 2px 12px; }
   /* markdown inside a reply is drawn by /md.css, shared with the file view */
   .bubble a { color: var(--accent); }
   .bubble .open-failed { margin-left: 6px; font-size: .85em; color: var(--fg-dim); }

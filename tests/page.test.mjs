@@ -208,6 +208,15 @@ describe("the rules", () => {
     assert.deepEqual(declared(".cards .msg + .msg"), { "margin-top": rowGap });
   });
 
+  // The pill between two days and the one between two sessions stand among the rows as a tool line
+  // does: the same margin, and a box of its own, so its padding and border are inside its row's
+  // height rather than spilling over the rows beside it.
+  it("space a pill among the rows as a tool line, its border inside its own row", () => {
+    const declared = (selector) => rules.find((rule) => rule.selector === selector)?.declarations;
+    assert.equal(declared(".divider").margin, declared(".rows .line").margin);
+    assert.equal(declared(".divider span").display, "inline-block", "an inline pill's padding and border reach over the rows beside it");
+  });
+
   it("draw what the User typed on the User's own ground", () => {
     const bubble = rules.find((rule) => rule.selector === ".msg.user .bubble");
     assert.equal(bubble.declarations.background, "var(--me)");
