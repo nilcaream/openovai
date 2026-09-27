@@ -253,6 +253,10 @@ used to stand 9 to 10px above the box, more than twice the 3 to 4px between two 
 panel's own gap and an empty stack of cards each added one more. Now the last row's own margin is
 the whole space. A card stands 4px from the last row, from the next card and from the box.
 
+**The space below a panel's head is the space between two rows too.** The first row, a message,
+a tool line or a pill, used to stand 6 to 7px below the head, because a margin of the head's own
+was added to the row's. Now the first row's own margin is the whole space.
+
 **The pill between two days, and the one between two sessions, is spaced like a tool line.**
 `2026.09.27 Sunday 12:16:31` and `Bobby has left — the next message starts a fresh session` used
 to stand 12 to 14px from the rows around them. They now stand 3 to 4px from them, as a tool line

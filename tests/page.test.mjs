@@ -192,8 +192,7 @@ describe("the rules", () => {
   });
 
   // The space above the composer is the space between two rows, never more: the last row's own
-  // margin and nothing else. The panel puts no gap between the rows and the bottom area (the
-  // head keeps its 3px as a margin of its own), an empty stack of cards takes no room and so adds
+  // margin and nothing else. The panel puts no gap between the rows and the bottom area, an empty stack of cards takes no room and so adds
   // no gap of the bottom area's, and a card keeps no margin, standing a row's gap from the last
   // row, the next card and the composer.
   it("leave between the last row and the composer the gap between two rows, and between a card and its neighbours the same", () => {
@@ -201,11 +200,19 @@ describe("the rules", () => {
     const rowGap = declared(".msg").margin.split(" ")[0];
     assert.equal(rowGap, "4px");
     assert.equal(declared(".panel").gap, undefined, "a gap between the rows and the bottom area doubles the space above the composer");
-    assert.equal(declared(".phead")["margin-bottom"], "3px", "the head keeps its space above the rows");
     assert.deepEqual(declared(".cards:empty"), { display: "none" }, "an empty stack is a flex item, and the bottom area's gap under it is a second gap above the composer");
     assert.equal(declared(".bottom").gap, rowGap, "a card stands from the composer as a row from the next");
     assert.deepEqual(declared(".cards .msg"), { margin: "0" });
     assert.deepEqual(declared(".cards .msg + .msg"), { "margin-top": rowGap });
+  });
+
+  // The space below the head is the space between two rows too: the first row's own margin and
+  // nothing else. The rows scroll, so that margin never collapses into one the head keeps, and
+  // any margin of the head's is added to it.
+  it("leave between the head and the first row the gap between two rows", () => {
+    const head = rules.find((rule) => rule.selector === ".phead").declarations;
+    for (const side of ["margin", "margin-bottom"]) assert.equal(head[side], undefined, `a ${side} on the head adds to the first row's own`);
+    assert.equal(rules.find((rule) => rule.selector === ".panel").declarations.gap, undefined, "a gap between the head and the rows adds to it the same way");
   });
 
   // The pill between two days and the one between two sessions stand among the rows as a tool line

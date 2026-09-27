@@ -46,13 +46,14 @@
     #right { order: 2; }
   }
   /* a panel is a bare slot: the head bubble first, then the rows, then the bottom area. No gap
-     between the rows and the bottom area: the last row's own margin is the space above the
-     composer, the same as between two rows */
+     and no margin around the rows: the first row's own margin is the space below the head and
+     the last row's the space above the composer, the same as between two rows (the rows scroll,
+     so a row's margin never collapses into one outside them) */
   .panel { flex: 1 1 0; min-height: 160px; display: flex; flex-direction: column; overflow: hidden; font-size: .9rem; transition: opacity .4s; }
   #mid .panel { flex: 1 1 auto; }
   .panel.dimmed { opacity: .45; }
   .phead {
-    flex: 0 0 auto; margin-bottom: 3px; padding: 4px 10px 3px; border: 2px solid var(--line); border-radius: var(--radius); background: var(--panel-2);
+    flex: 0 0 auto; padding: 4px 10px 3px; border: 2px solid var(--line); border-radius: var(--radius); background: var(--panel-2);
     display: flex; align-items: baseline; gap: 0; min-width: 0; overflow: hidden; white-space: nowrap;
   }
   .panel.asking .phead { border-color: var(--warn); }
