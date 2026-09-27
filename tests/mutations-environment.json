@@ -44,6 +44,28 @@
     ]
   },
   {
+    "name": "a seat is started without the claude.ai account's connectors",
+    "catches": "leaves the claude.ai account's connectors to every start, a seat's among them, and the person's switch as it is",
+    "edits": [
+      {
+        "file": "lib/claude.mjs",
+        "from": "    env[SEAT_IN_ENVIRONMENT] = seat;\n",
+        "to": "    env[SEAT_IN_ENVIRONMENT] = seat;\n    env.ENABLE_CLAUDEAI_MCP_SERVERS = \"false\";\n"
+      }
+    ]
+  },
+  {
+    "name": "the person's own connector switch is taken off every start",
+    "catches": "leaves the claude.ai account's connectors to every start, a seat's among them, and the person's switch as it is",
+    "edits": [
+      {
+        "file": "lib/claude.mjs",
+        "from": "const SET_ON_A_SESSION = [SEAT_IN_ENVIRONMENT, \"OPENOVAI_SESSION_SECRET\"];",
+        "to": "const SET_ON_A_SESSION = [SEAT_IN_ENVIRONMENT, \"OPENOVAI_SESSION_SECRET\", \"ENABLE_CLAUDEAI_MCP_SERVERS\"];"
+      }
+    ]
+  },
+  {
     "name": "the directory the starter's shell stood in is handed on",
     "catches": "starts the server with this instance's home and nothing of the session or seat it was typed in",
     "edits": [

@@ -305,6 +305,12 @@ Artifact, ArtifactComments and ArtifactData from a session in print mode unless
 set to `1`. A value already in the environment the server starts from is yours and stands, `0`
 included. `ovai claude` is your own session and is left as Claude Code has it.
 
+**A seat has the claude.ai account's connectors, as `claude` at the command line does.** MCP servers
+added to the claude.ai account the instance signs in with reach every seat again, beside the
+instance's own server and whatever admin mode added. A call to one is a card, as any tool the
+permission rules do not name. To keep them from the seats, set `ENABLE_CLAUDEAI_MCP_SERVERS=false`
+in the environment `ovai start` runs in: every seat inherits it.
+
 ## 0.19.0
 
 **The Leader stops and restarts Workers; a Worker only works.** A Worker no longer has

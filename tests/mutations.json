@@ -1945,17 +1945,6 @@
     ]
   },
   {
-    "name": "a seat is started with the claude.ai account's connectors",
-    "catches": "keeps the claude.ai account's connectors out of every start of a seat",
-    "edits": [
-      {
-        "file": "lib/claude.mjs",
-        "from": "    env.ENABLE_CLAUDEAI_MCP_SERVERS = \"false\";\n",
-        "to": ""
-      }
-    ]
-  },
-  {
     "name": "a seat is started with the Artifact tools withheld",
     "catches": "turns the Artifact tools on in every start of a seat",
     "edits": [

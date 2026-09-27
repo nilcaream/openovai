@@ -28,7 +28,6 @@ const STARTERS = {
   OLDPWD: "/somewhere",
   OPENOVAI_SEAT: "Starter",
   OPENOVAI_SESSION_SECRET: "secret",
-  ENABLE_CLAUDEAI_MCP_SERVERS: "false",
   CLAUDE_CONFIG_DIR: "/somewhere/else/.local",
 };
 const SIGN_IN = { CLAUDE_CODE_OAUTH_TOKEN: "machine-sign-in" };
@@ -64,7 +63,7 @@ describe("what a process started here carries of its starter", () => {
   it("starts a seat with nothing of the session the server was typed in, and its own seat and home", () => {
     const env = environment(root, "inherit", "Paul");
     for (const name of Object.keys(STARTERS)) {
-      if (["CLAUDE_CONFIG_DIR", "OPENOVAI_SEAT", "ENABLE_CLAUDEAI_MCP_SERVERS", "CLAUDE_CODE_PROJECT_DIR_NAME"].includes(name)) continue;
+      if (["CLAUDE_CONFIG_DIR", "OPENOVAI_SEAT", "CLAUDE_CODE_PROJECT_DIR_NAME"].includes(name)) continue;
       assert.equal(env[name], undefined, `${name} is the starter's, not the seat's`);
     }
     assert.equal(env.OPENOVAI_SEAT, "Paul");
@@ -84,6 +83,20 @@ describe("what a process started here carries of its starter", () => {
     } finally {
       if (kept === undefined) delete process.env.CLAUDE_CODE_ARTIFACT;
       else process.env.CLAUDE_CODE_ARTIFACT = kept;
+    }
+  });
+
+  it("leaves the claude.ai account's connectors to every start, a seat's among them, and the person's switch as it is", () => {
+    const kept = process.env.ENABLE_CLAUDEAI_MCP_SERVERS;
+    try {
+      delete process.env.ENABLE_CLAUDEAI_MCP_SERVERS;
+      assert.equal(environment(root, "inherit", "Paul").ENABLE_CLAUDEAI_MCP_SERVERS, undefined, "a seat's connectors were taken away");
+      assert.equal(environment(root, "inherit", null).ENABLE_CLAUDEAI_MCP_SERVERS, undefined, "nobody's connectors were taken away");
+      process.env.ENABLE_CLAUDEAI_MCP_SERVERS = "false";
+      assert.equal(environment(root, "inherit", "Paul").ENABLE_CLAUDEAI_MCP_SERVERS, "false", "the person's own switch was dropped");
+    } finally {
+      if (kept === undefined) delete process.env.ENABLE_CLAUDEAI_MCP_SERVERS;
+      else process.env.ENABLE_CLAUDEAI_MCP_SERVERS = kept;
     }
   });
 

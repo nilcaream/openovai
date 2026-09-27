@@ -103,9 +103,9 @@ function install(root, auth) {
 //
 // Every run here is nobody's session, whatever this suite was started from. Run from inside a
 // seat, it would inherit what the chat puts on a session — the seat, its secret, the switch that
-// takes the account's connectors away, the one that turns the Artifact tools on — and a check on
-// what the toolkit put there would read the seat's instead.
-const SET_ON_A_SEAT = [SEAT_IN_ENVIRONMENT, "OPENOVAI_SESSION_SECRET", "ENABLE_CLAUDEAI_MCP_SERVERS", "CLAUDE_CODE_ARTIFACT"];
+// turns the Artifact tools on — and a check on what the toolkit put there would read the seat's
+// instead.
+const SET_ON_A_SEAT = [SEAT_IN_ENVIRONMENT, "OPENOVAI_SESSION_SECRET", "CLAUDE_CODE_ARTIFACT"];
 
 function run(root, recordIn, argv, changes = {}) {
   const inherited = { ...process.env };
@@ -216,12 +216,6 @@ describe("what Claude Code is started as", () => {
     assert.match(readLog(started), /^DISABLE_AUTOUPDATER: 1$/m);
   });
 
-  // A start that is nobody's session goes through the same environment as the admin door, and
-  // the door is the person's own: their account's connectors are theirs to keep.
-  it("leaves the account's connectors alone in a start that is nobody's session", () => {
-    assert.match(readLog(started), /^ENABLE_CLAUDEAI_MCP_SERVERS: <unset>$/m);
-  });
-
   // The Artifact tools are turned on for a seat, which runs in print mode; a start that is nobody's
   // session gets them as Claude Code gives them, with nothing forced.
   it("leaves the Artifact tools as Claude Code has them in a start that is nobody's session", () => {
@@ -229,20 +223,17 @@ describe("what Claude Code is started as", () => {
   });
 
   // Started from inside a session — `ovai claude` typed in a seat's shell — a start that is
-  // nobody's session inherits what the chat put on that session. It hands on none of it: not the
-  // seat's secret, and not the switch that takes the account's connectors away. A seat's start
-  // sets the switch again.
+  // nobody's session inherits what the chat put on that session. It hands none of it on, and the
+  // seat's secret least of all.
   it("hands a start that is nobody's session nothing the session it was started from was given", () => {
-    const names = ["OPENOVAI_SESSION_SECRET", "ENABLE_CLAUDEAI_MCP_SERVERS"];
+    const names = ["OPENOVAI_SESSION_SECRET"];
     const kept = Object.fromEntries(names.map((name) => [name, process.env[name]]));
     process.env.OPENOVAI_SESSION_SECRET = "a-seat-secret";
-    process.env.ENABLE_CLAUDEAI_MCP_SERVERS = "false";
     try {
       const nobodys = claudeEnvironment(instance, "login", null);
       for (const name of names) {
         assert.equal(Object.hasOwn(nobodys, name), false, `${name} was handed on`);
       }
-      assert.equal(claudeEnvironment(instance, "login", "Paul").ENABLE_CLAUDEAI_MCP_SERVERS, "false");
     } finally {
       for (const name of names) {
         if (kept[name] === undefined) delete process.env[name];
