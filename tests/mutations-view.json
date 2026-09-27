@@ -154,6 +154,17 @@
     ]
   },
   {
+    "name": "the view's window is titled with the file's name alone",
+    "catches": "titles the window with the instance as the page names it and the path from the root after it",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "page(`${named}/${shown.path}`",
+        "to": "page(path.posix.basename(shown.path)"
+      }
+    ]
+  },
+  {
     "name": "the view is drawn light whatever theme it is given",
     "catches": "draws the page in the theme it is given from the first paint, light for anything but dark",
     "edits": [

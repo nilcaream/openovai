@@ -326,6 +326,7 @@ describe("what the chat serves", () => {
     const shown = await raw("GET", "/view/temp/view-check.md", { host, cookie });
     assert.equal(shown.status, 200);
     assert.match(shown.body, /<h1>Seen<\/h1>/);
+    assert.ok(shown.body.includes(`<title>OpenOv AI ${shownRoot(instance)}/temp/view-check.md</title>`), "titled as the page is, with the path after it");
     assert.match(shown.headers["content-type"], /^text\/html/);
     assert.equal(shown.headers["x-content-type-options"], "nosniff");
     assert.equal(shown.headers["cache-control"], "no-store");

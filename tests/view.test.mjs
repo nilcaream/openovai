@@ -114,13 +114,19 @@ describe("which paths the view shows", () => {
 
 describe("what the view draws", () => {
   it("renders a markdown file as markdown, its own paths linked only where the view shows them", () => {
-    const answered = view(root, "projects/demo/README.md");
+    const answered = view(root, "projects/demo/README.md", "light", "OpenOv AI ~/inst");
     assert.equal(answered.status, 200);
     assert.match(answered.page, /<h1>Demo<\/h1>/);
     assert.match(answered.page, /<a href="\/view\/projects\/demo\/lib\/x\.mjs" target="_blank" rel="noopener"><code>projects\/demo\/lib\/x\.mjs<\/code><\/a>/);
     assert.match(answered.page, /<code>projects\/demo\/nothing\.md<\/code>/);
     assert.match(answered.page, /<code class="path">projects\/demo\/README\.md<\/code>/);
-    assert.match(answered.page, /<title>README\.md<\/title>/);
+  });
+
+  // The window's title is the page's own, the instance as it names it, with the path from the root
+  // after it: a refused path too, as it was asked for.
+  it("titles the window with the instance as the page names it and the path from the root after it", () => {
+    assert.match(view(root, "projects/demo/README.md", "light", "OpenOv AI ~/inst").page, /<title>OpenOv AI ~\/inst\/projects\/demo\/README\.md<\/title>/);
+    assert.match(view(root, "temp/missing.txt", "light", "OpenOv AI /srv/inst").page, /<title>OpenOv AI \/srv\/inst\/temp\/missing\.txt<\/title>/);
   });
 
   it("wraps a code file in one fenced block with its language tag, a fence longer than any run of backticks in it", () => {

@@ -38,8 +38,8 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "view(instance.root, wanted, theme);",
-        "to": "view(instance.root, wanted);"
+        "from": "view(instance.root, wanted, theme, ",
+        "to": "view(instance.root, wanted, undefined, "
       }
     ]
   },
@@ -51,6 +51,17 @@
         "file": "lib/chat/server.mjs",
         "from": "    .replace(SECRET_TAG, `<meta name=\"openovai-secret\" content=\"${pageSecret()}\">`)\n",
         "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the file view is titled without the instance's name",
+    "catches": "shows a file of the instance to a caller holding the cookie, read-only, with nothing inline run and nothing kept",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "`${PRODUCT} ${shownRoot(instance.root)}`);",
+        "to": "\"ovai\");"
       }
     ]
   },
