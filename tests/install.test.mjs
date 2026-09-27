@@ -827,7 +827,15 @@ describe("what the installer asks for", () => {
     const { asked, ask } = person(["", ""]);
     const plan = await resolvePlan(typed({ leaderModel: undefined, auth: undefined }), ask);
     assert.equal(asked.length, 2);
-    assert.deepEqual([plan.leaderModel, plan.auth], ["opus", "login"]);
+    assert.deepEqual([plan.leaderModel, plan.auth], ["opus/high", "login"]);
+  });
+
+  // Both models default to Opus at high effort, and the question shows it.
+  it("offers opus/high for both models", async () => {
+    const { asked, ask } = person(["", ""]);
+    const plan = await resolvePlan(typed({ leaderModel: undefined, workerModel: undefined }), ask);
+    assert.deepEqual(asked, ["Which model does the Leader run on [opus/high]: ", "Which model do Workers run on [opus/high]: "]);
+    assert.deepEqual([plan.leaderModel, plan.workerModel], ["opus/high", "opus/high"]);
   });
 
   it("asks again on Enter where there is no default", async () => {

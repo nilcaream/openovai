@@ -31,6 +31,10 @@ runs at its default. Everywhere a model is shown, it is shown as written: "opus"
 was started from. Claude Code reads that variable before `--effort`, so a value left in that shell
 would have set every seat's effort over the one written here.
 
+**A new workspace runs on Opus at high effort.** The installer now offers "opus/high" for the
+Leader and for the workers, where it offered "opus". A workspace that is already installed keeps
+the model it has, and it runs as it did until somebody adds an effort to it.
+
 ## 0.20.0
 
 **An update is finished by the version it brings in.** `ovai update` used to finish in the code it
