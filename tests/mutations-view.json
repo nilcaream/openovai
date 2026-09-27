@@ -121,6 +121,50 @@
     ]
   },
   {
+    "name": "the view never highlights",
+    "catches": "highlights every code block with a language it knows, a markdown file's fenced ones too, and leaves the rest as marked drew them",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "  return highlighted(html(source, viewableIn(root, source)));",
+        "to": "  return html(source, viewableIn(root, source));"
+      }
+    ]
+  },
+  {
+    "name": "a highlighted block is highlighted still escaped",
+    "catches": "highlights every code block with a language it knows, a markdown file's fenced ones too, and leaves the rest as marked drew them",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "    const text = code.replace(/&(?:amp|lt|gt|quot|#39);/g, (entity) => ENTITIES[entity]);",
+        "to": "    const text = code;"
+      }
+    ]
+  },
+  {
+    "name": "a language answers to its file's name only",
+    "catches": "names a code file's language by highlight.js's own names and aliases, and none where it has no grammar",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "  for (const alias of [name, ...(hljs.getLanguage(name).aliases ?? [])]) ALIASES.set(alias.toLowerCase(), name);",
+        "to": "  ALIASES.set(name, name);"
+      }
+    ]
+  },
+  {
+    "name": "plain text is a language",
+    "catches": "names a code file's language by highlight.js's own names and aliases, and none where it has no grammar",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "  return language === \"plaintext\" ? \"\" : language;",
+        "to": "  return language;"
+      }
+    ]
+  },
+  {
     "name": "a path not shown answers 200",
     "catches": "answers a path it does not show with its status and the reason, and nothing of the file",
     "edits": [

@@ -10,6 +10,20 @@ body.view { margin: 0; background: var(--bg); color: var(--fg); font: 1rem/1.5 v
 /* a file that is not markdown is one code block: drawn as the page itself, not a box on it */
 .view main > .code:only-child { border: 0; border-radius: 0; background: none; }
 .view main > .code:only-child pre { padding: 0; }
+/* a code block highlight.js coloured, in the theme's --hl- tokens (md.css) */
+.view .hljs .hljs-keyword, .view .hljs .hljs-doctag, .view .hljs .hljs-template-tag, .view .hljs .hljs-template-variable, .view .hljs .hljs-type, .view .hljs .hljs-variable.language_, .view .hljs .hljs-meta .hljs-keyword { color: var(--hl-keyword); }
+.view .hljs .hljs-title { color: var(--hl-title); }
+.view .hljs .hljs-attr, .view .hljs .hljs-attribute, .view .hljs .hljs-literal, .view .hljs .hljs-meta, .view .hljs .hljs-number, .view .hljs .hljs-operator, .view .hljs .hljs-selector-attr, .view .hljs .hljs-selector-class, .view .hljs .hljs-selector-id, .view .hljs .hljs-variable { color: var(--hl-literal); }
+.view .hljs .hljs-string, .view .hljs .hljs-regexp, .view .hljs .hljs-meta .hljs-string { color: var(--hl-string); }
+.view .hljs .hljs-built_in, .view .hljs .hljs-symbol { color: var(--hl-built-in); }
+.view .hljs .hljs-comment, .view .hljs .hljs-code, .view .hljs .hljs-formula { color: var(--hl-comment); }
+.view .hljs .hljs-name, .view .hljs .hljs-quote, .view .hljs .hljs-selector-tag, .view .hljs .hljs-selector-pseudo { color: var(--hl-name); }
+.view .hljs .hljs-section { color: var(--hl-literal); font-weight: 700; }
+.view .hljs .hljs-bullet { color: var(--hl-bullet); }
+.view .hljs .hljs-emphasis { font-style: italic; }
+.view .hljs .hljs-strong { font-weight: 700; }
+.view .hljs .hljs-addition { color: var(--hl-add); background: var(--hl-add-bg); }
+.view .hljs .hljs-deletion { color: var(--hl-del); background: var(--hl-del-bg); }
 /* the raw view: the file's text as it is, black on white or the reverse, over the whole page, its
    lines numbered in a column as wide as the last number, the numbers never part of a selection */
 .view pre.raw { margin: 0; padding: 16px; width: max-content; min-width: 100%; min-height: 100vh; background: var(--raw-bg); color: var(--raw-fg); font: .85rem/1.4 var(--mono); counter-reset: line; }

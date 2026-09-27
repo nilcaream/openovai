@@ -10,7 +10,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { after, describe, it } from "node:test";
 
-import { HEADERS, LARGEST, fenced, languageOf, openable, raw, unknown, view, viewable, viewableIn, withViewable } from "../lib/chat/view.mjs";
+import { HEADERS, LARGEST, fenced, highlighted, languageOf, openable, raw, unknown, view, viewable, viewableIn, withViewable } from "../lib/chat/view.mjs";
 import { remove, scratch } from "./helpers.mjs";
 
 const base = scratch("view-test");
@@ -131,13 +131,33 @@ describe("what the view draws", () => {
   it("wraps a code file in one fenced block with its language tag, a fence longer than any run of backticks in it", () => {
     assert.equal(fenced("a ```` b\n", "javascript"), "`````javascript\na ```` b\n`````");
     assert.equal(fenced("plain\n", ""), "```\nplain\n```");
-    assert.equal(languageOf("projects/demo/lib/x.mjs"), "javascript");
-    assert.equal(languageOf("desks/Ann/notes.txt"), "");
     assert.equal(languageOf("projects/demo/Dockerfile"), "dockerfile");
     const answered = view(root, "projects/demo/lib/x.mjs");
     assert.equal(answered.status, 200);
-    assert.match(answered.page, /<pre><code class="language-javascript">const fence = &quot;````&quot;;\nexport default fence;\n<\/code><\/pre>/);
+    assert.match(answered.page, /<pre><code class="hljs language-javascript"><span class="hljs-keyword">const<\/span> fence = <span class="hljs-string">&quot;````&quot;<\/span>;\n<span class="hljs-keyword">export<\/span> <span class="hljs-keyword">default<\/span> fence;\n<\/code><\/pre>/);
     assert.match(view(root, "desks/Ann/notes.txt").page, /<pre><code>plain words\n<\/code><\/pre>/);
+  });
+
+  // Every language highlight.js ships, by the names and aliases it has, and a few extensions it has
+  // none for; a file it has no grammar for, or only its plain-text one, is a plain block.
+  it("names a code file's language by highlight.js's own names and aliases, and none where it has no grammar", () => {
+    for (const [file, language] of [["x.mjs", "javascript"], ["x.ts", "typescript"], ["x.json", "json"], ["x.sh", "bash"], ["X.java", "java"], ["x.kt", "kotlin"], ["x.kts", "kotlin"], ["x.yml", "yaml"], ["x.hpp", "cpp"], ["x.webmanifest", "json"], ["CMakeLists.txt", "cmake"]]) {
+      assert.equal(languageOf(`projects/demo/${file}`), language, file);
+    }
+    for (const file of ["x.zig", "notes.txt", "README", ".bashrc"]) {
+      assert.equal(languageOf(`projects/demo/${file}`), "", file);
+    }
+  });
+
+  it("highlights every code block with a language it knows, a markdown file's fenced ones too, and leaves the rest as marked drew them", () => {
+    const drawn = '<h1>x</h1>\n<pre><code class="language-ts">let a: string = &quot;&lt;b&gt;&amp;&#39;&quot;;\n</code></pre>\n<pre><code class="language-zig">const x = 1;\n</code></pre>\n<pre><code>plain\n</code></pre>\n';
+    assert.equal(
+      highlighted(drawn),
+      '<h1>x</h1>\n<pre><code class="hljs language-ts"><span class="hljs-keyword">let</span> <span class="hljs-attr">a</span>: <span class="hljs-built_in">string</span> = <span class="hljs-string">&quot;&lt;b&gt;&amp;&#x27;&quot;</span>;\n</code></pre>\n<pre><code class="language-zig">const x = 1;\n</code></pre>\n<pre><code>plain\n</code></pre>\n',
+    );
+    put("projects/demo/fenced.md", "# Fenced\n\n```kotlin\nval x = 1\n```\n");
+    assert.match(view(root, "projects/demo/fenced.md").page, /<pre><code class="hljs language-kotlin"><span class="hljs-keyword">val<\/span> x = <span class="hljs-number">1<\/span>\n<\/code><\/pre>/);
+    assert.match(view(root, "projects/demo/lib/x.mjs").page, /<pre class="raw digits-1" hidden><span class="line">const fence = &quot;````&quot;;<\/span>/);
   });
 
   it("answers a path it does not show with its status and the reason, and nothing of the file", () => {

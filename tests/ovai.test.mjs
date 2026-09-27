@@ -383,8 +383,9 @@ const CLAUDE = "claude";
 
 // Where the walk does not go. Scratch holds installed instances, which are copies of lib/, so
 // reading those would report every finding twice; the suites themselves start a Node stand-in,
-// git and `claude --version`, none of which is a session being given a shape.
-const NOT_THE_TOOLKIT = new Set([".git", ".tmp", ".local", "node_modules", "desks", "tests"]);
+// git and `claude --version`, none of which is a session being given a shape. lib/chat/highlight
+// is highlight.js, vendored minified, which starts no process and cannot be read as if it might.
+const NOT_THE_TOOLKIT = new Set([".git", ".tmp", ".local", "node_modules", "desks", "tests", "highlight"]);
 
 // The child_process family, and nothing that merely ends in one of those names: `.exec(` belongs
 // to RegExp and there are a dozen of those in here.
