@@ -311,6 +311,11 @@ instance's own server and whatever admin mode added. A call to one is a card, as
 permission rules do not name. To keep them from the seats, set `ENABLE_CLAUDEAI_MCP_SERVERS=false`
 in the environment `ovai start` runs in: every seat inherits it.
 
+**Every seat is told the instance root by its whole path.** The first paragraph of
+`lib/templates/common.md` now opens with "The instance root is /…/, and it is your working directory:
+every path in these instructions — `desks/`, `projects/`, `temp/`, `knowledge/` — is under it."
+Told only its desk, a session had been seen to take the directory around the instance for its root.
+
 ## 0.19.0
 
 **The Leader stops and restarts Workers; a Worker only works.** A Worker no longer has

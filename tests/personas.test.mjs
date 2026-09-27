@@ -314,6 +314,18 @@ describe("what a Worker is told", () => {
     }
   });
 
+  // Told only its desk, a session has taken the instance around it for its root and looked for
+  // `projects/` there. So both kinds are told the root by its whole path, and that every path the
+  // instructions name is under it.
+  it("gives each seat the instance root as its whole path, as the directory every named path is under", () => {
+    for (const [text, name] of [[flat(leader()), LEAD], [flat(worker()), PAUL]]) {
+      assert.ok(
+        text.includes(`The instance root is ${repo}/, and it is your working directory: every path in these instructions — \`desks/\`, \`projects/\`, \`temp/\`, \`knowledge/\` — is under it.`),
+        `${name} is not told the instance root`,
+      );
+    }
+  });
+
   it("tells the Worker what it keeps lives in its desk directory, the header the tool's and the body edited in place", () => {
     assert.ok(worker().includes(`Your desk is ${path.join(repo, "desks", PAUL)}/: what you keep lives there`));
     assert.match(worker(), /write there with\s+the file tools without being asked/);

@@ -500,7 +500,7 @@
     "edits": [
       {
         "file": "lib/templates/common.md",
-        "from": "Your desk is {{DESK}}/: what you keep lives there, beside the\ndesk file, and you write there with the file tools without being asked. The desk file is\n{{DESK}}/STATE.md.",
+        "from": "Your desk is {{DESK}}/: what you keep lives there, beside the desk file, and you write there with\nthe file tools without being asked. The desk file is {{DESK}}/STATE.md.",
         "to": "Your desk is {{DESK}}/STATE.md."
       }
     ]
@@ -544,7 +544,7 @@
     "edits": [
       {
         "file": "lib/templates/common.md",
-        "from": "Your desk is {{DESK}}/: what you keep lives there, beside the\ndesk file, and you write there with the file tools without being asked. The desk file is\n{{DESK}}/STATE.md.",
+        "from": "Your desk is {{DESK}}/: what you keep lives there, beside the desk file, and you write there with\nthe file tools without being asked. The desk file is {{DESK}}/STATE.md.",
         "to": "Your desk is {{DESK}}/STATE.md."
       }
     ]
@@ -566,8 +566,8 @@
     "edits": [
       {
         "file": "lib/templates/common.md",
-        "from": "The desk file is\n{{DESK}}/STATE.md.",
-        "to": "The desk file is\ndesks/{{LEADER}}/STATE.md."
+        "from": "The desk file is {{DESK}}/STATE.md.",
+        "to": "The desk file is desks/{{LEADER}}/STATE.md."
       }
     ]
   },
@@ -909,6 +909,17 @@
         "file": "lib/templates/common.md",
         "from": "A card nobody answers within its time comes back as a Deny that says it timed out: that is nobody's\n",
         "to": "A card nobody answers within its time comes back as a Deny that says it timed out: that is yours\n"
+      }
+    ]
+  },
+  {
+    "name": "a seat is told the instance around its own for its root",
+    "catches": "gives each seat the instance root as its whole path, as the directory every named path is under",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "LEADER: leader, ROOT: root, DESK:",
+        "to": "LEADER: leader, ROOT: path.dirname(root), DESK:"
       }
     ]
   }
