@@ -244,7 +244,7 @@ describe("what the view draws", () => {
     assert.match(raw("x\n".repeat(10)), /^<pre class="raw digits-2" hidden>/);
     assert.match(raw("x\n".repeat(1000)), /^<pre class="raw digits-4" hidden>/);
     const { page } = view(root, "projects/demo/README.md");
-    assert.match(page, /<main class="md"><h1>Demo<\/h1>[\s\S]*<\/main>\n<pre class="raw digits-1" hidden><span class="line"># Demo<\/span>[\s\S]*<\/pre>\n<button type="button" class="raw-toggle" aria-pressed="false" title="Show the file as raw text">raw<\/button>\n<\/body>/);
+    assert.match(page, /<main class="md"><h1>Demo<\/h1>[\s\S]*<\/main>\n<pre class="raw digits-1" hidden><span class="line"># Demo<\/span>[\s\S]*<\/pre>\n<button type="button" class="raw-toggle" aria-pressed="false" title="View the file's source">View source<\/button>\n<\/body>/);
     assert.ok(!view(root, "temp/missing.txt").page.includes("raw"));
     const script = fs.readFileSync(path.join(import.meta.dirname, "..", "lib", "chat", "view.js"), "utf8");
     assert.match(script, /toggle\.addEventListener\("click", \(\) => \{\s*const showRaw = toggle\.getAttribute\("aria-pressed"\) !== "true";\s*toggle\.setAttribute\("aria-pressed", String\(showRaw\)\);\s*drawn\.hidden = showRaw;\s*text\.hidden = !showRaw;\s*\}\);/);

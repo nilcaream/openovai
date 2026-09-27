@@ -198,6 +198,17 @@
     ]
   },
   {
+    "name": "the toggle keeps its old label",
+    "catches": "draws the file's raw text, lines numbered outside the text, behind a fixed toggle that swaps it in place and keeps nothing",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "title=\"View the file's source\">View source</button>",
+        "to": "title=\"Show the file as raw text\">raw</button>"
+      }
+    ]
+  },
+  {
     "name": "the raw toggle shows raw without hiding the rendered file",
     "catches": "draws the file's raw text, lines numbered outside the text, behind a fixed toggle that swaps it in place and keeps nothing",
     "edits": [
