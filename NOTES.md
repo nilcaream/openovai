@@ -12,6 +12,14 @@ on its panel, before a tool call as much as after one. A Leader that believed it
 twice, once before its calls and once after them. The instruction is otherwise the same: write the
 desk, call `restart_session`, then "Back in a moment" as the whole reply.
 
+**Every session is told what Claude Code's two nudges mean.** Claude Code adds lines of its own
+to a turn. "[Your previous response had no visible output …]" looks at the last response of the
+turn only, so a session that had already said its words could read it as "my words were lost" and
+say them again. The common frame now says the words are on the panel already and are never said
+again: say what is still unsaid, or reply `<noop/>`. "The user hasn't heard from you in a while …"
+counts calls, not the panel, and a `message` is not among them. The sentence that said to reply
+`<noop/>` to a request for a visible response is folded into this paragraph.
+
 ## 0.20.0
 
 **An update is finished by the version it brings in.** `ovai update` used to finish in the code it

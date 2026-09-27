@@ -510,6 +510,22 @@ describe("what both are told in ovai's common frame", () => {
     }
   });
 
+  // Claude Code's "no visible output" nudge looks at the last response of a turn only. A Leader that
+  // read it as "my earlier words were lost" wrote every reply twice.
+  it("tells both what Claude Code's two nudges mean, and that words already said are never said again", () => {
+    for (const [text, role] of [[flat(leader()), "leader"], [flat(worker()), "worker"]]) {
+      const common = text.slice(0, text.indexOf("</ovai>"));
+      assert.ok(
+        common.includes('"[Your previous response had no visible output …]" means only that the last response of the turn had no words: whatever you said earlier in the turn is on your panel already, and it is never said again. Say what is still unsaid, or reply `<noop/>`: a turn that already said something just ends.'),
+        role,
+      );
+      assert.ok(
+        common.includes("\"The user hasn't heard from you in a while …\" counts your calls since your last words, not what your panel shows, and a `message` is not counted"),
+        role,
+      );
+    }
+  });
+
   // What both roles are told alike is said once, in the common frame, and not again in the role's.
   it("gives both every shared paragraph exactly once, inside the common frame", () => {
     const SHARED = [
@@ -520,6 +536,7 @@ describe("what both are told in ovai's common frame", () => {
       "The `message` tool is how you reach anybody else here, and the `room` tool says who that is",
       "What you say in a turn lands on your own panel and nowhere else",
       "A turn with nothing in it for your panel is a `<noop/>` turn",
+      "Claude Code, which runs you, adds two lines of its own to a turn",
       '`<server-event type="restarted">` — you are the session after a restart on this desk',
       '`<server-event type="undelivered" to="…">` — a message you sent was never read',
       "When you reach for a tool this workspace has not settled",

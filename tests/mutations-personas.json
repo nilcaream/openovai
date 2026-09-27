@@ -374,6 +374,17 @@
     ]
   },
   {
+    "name": "the common frame tells a session to say its words again after a no-visible-output nudge",
+    "catches": "tells both what Claude Code's two nudges mean, and that words already said are never said again",
+    "edits": [
+      {
+        "file": "lib/templates/common.md",
+        "from": "whatever you said earlier in the turn is on your panel already, and it is never said\nagain.",
+        "to": "whatever you said earlier in the turn did not reach your panel, so say it\nagain."
+      }
+    ]
+  },
+  {
     "name": "the Leader's persona says only the words after the last tool call reach the panel",
     "catches": "never tells a session that only the words after its last tool call reach the panel",
     "edits": [
