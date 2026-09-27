@@ -10,3 +10,17 @@ body.view { margin: 0; background: var(--bg); color: var(--fg); font: 1rem/1.5 v
 /* a file that is not markdown is one code block: drawn as the page itself, not a box on it */
 .view main > .code:only-child { border: 0; border-radius: 0; background: none; }
 .view main > .code:only-child pre { padding: 0; }
+/* the raw view: the file's text as it is, black on white or the reverse, over the whole page, its
+   lines numbered in a column as wide as the last number, the numbers never part of a selection */
+.view pre.raw { margin: 0; padding: 16px; width: max-content; min-width: 100%; min-height: 100vh; background: var(--raw-bg); color: var(--raw-fg); font: .85rem/1.4 var(--mono); counter-reset: line; }
+.view pre.raw .line::before { counter-increment: line; content: counter(line); display: inline-block; margin-right: 16px; text-align: right; color: var(--fg-faint); user-select: none; }
+.view pre.raw.digits-1 .line::before { width: 1ch; }
+.view pre.raw.digits-2 .line::before { width: 2ch; }
+.view pre.raw.digits-3 .line::before { width: 3ch; }
+.view pre.raw.digits-4 .line::before { width: 4ch; }
+.view pre.raw.digits-5 .line::before { width: 5ch; }
+.view pre.raw.digits-6 .line::before { width: 6ch; }
+.view pre.raw.digits-7 .line::before { width: 7ch; }
+/* the toggle, fixed in the bottom right corner over whatever is under it; lit while raw is shown */
+.view .raw-toggle { position: fixed; right: 12px; bottom: 12px; padding: 2px 10px; font: .8rem/1.5 var(--sans); color: var(--fg-dim); background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
+.view .raw-toggle[aria-pressed="true"] { color: var(--fg); border-color: var(--accent); }

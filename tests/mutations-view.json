@@ -132,6 +132,39 @@
     ]
   },
   {
+    "name": "the raw toggle shows raw without hiding the rendered file",
+    "catches": "draws the file's raw text, lines numbered outside the text, behind a fixed toggle that swaps it in place and keeps nothing",
+    "edits": [
+      {
+        "file": "lib/chat/view.js",
+        "from": "    drawn.hidden = showRaw;\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the line numbers are part of a selection",
+    "catches": "draws the file's raw text, lines numbered outside the text, behind a fixed toggle that swaps it in place and keeps nothing",
+    "edits": [
+      {
+        "file": "lib/chat/view.css",
+        "from": " user-select: none; }",
+        "to": " }"
+      }
+    ]
+  },
+  {
+    "name": "the number column is as wide as one digit whatever the file",
+    "catches": "draws the file's raw text, lines numbered outside the text, behind a fixed toggle that swaps it in place and keeps nothing",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "  const digits = String(Math.max(drawn.length, 1)).length;",
+        "to": "  const digits = 1;"
+      }
+    ]
+  },
+  {
     "name": "a wide code block scrolls inside the view again",
     "catches": "draws the file's content alone across the whole page, nothing in it scrolling or wrapping",
     "edits": [
@@ -166,7 +199,7 @@
   },
   {
     "name": "the view carries no theme script",
-    "catches": "links only the stylesheets and the theme script the server serves, and nothing inline",
+    "catches": "links only the stylesheets and the two scripts the server serves, and nothing inline",
     "edits": [
       {
         "file": "lib/chat/view.mjs",

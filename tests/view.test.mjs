@@ -10,7 +10,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { after, describe, it } from "node:test";
 
-import { LARGEST, fenced, languageOf, openable, unknown, view, viewable, viewableIn, withViewable } from "../lib/chat/view.mjs";
+import { LARGEST, fenced, languageOf, openable, raw, unknown, view, viewable, viewableIn, withViewable } from "../lib/chat/view.mjs";
 import { remove, scratch } from "./helpers.mjs";
 
 const base = scratch("view-test");
@@ -149,12 +149,13 @@ describe("what the view draws", () => {
     assert.match(view(root, "temp/big.txt").page, /more than the 1048576 the view shows/);
   });
 
-  it("links only the stylesheets and the theme script the server serves, and nothing inline", () => {
+  it("links only the stylesheets and the two scripts the server serves, and nothing inline", () => {
     const { page } = view(root, "desks/Ann/notes.txt");
     assert.match(page, /<script src="\/theme\.js"><\/script>/);
+    assert.match(page, /<script src="\/view\.js" defer><\/script>/);
     assert.match(page, /<link rel="stylesheet" href="\/md\.css">/);
     assert.match(page, /<link rel="stylesheet" href="\/view\.css">/);
-    assert.equal(page.split("<script").length - 1, 1);
+    assert.equal(page.split("<script").length - 1, 2);
     assert.ok(!page.includes("<style"));
   });
 
@@ -201,6 +202,31 @@ describe("what the view draws", () => {
     assert.match(rule(".view .md pre"), /overflow: visible;/);
     assert.match(rule(".view .md table"), /overflow: visible; max-width: none;/);
     assert.ok(!/white-space|overflow-wrap|word-break|overflow: (auto|scroll|hidden)/.test(css), "nothing in the view wraps or scrolls");
+  });
+
+  // The raw view: the file's text as it is, each line a span the stylesheet numbers with a counter
+  // in a column as wide as the last number, so a selection never takes the numbers. It is drawn
+  // hidden beside the rendered file, and a fixed toggle swaps the two in place; nothing keeps the
+  // choice, so a reload shows the rendered file. A refused path has neither.
+  it("draws the file's raw text, lines numbered outside the text, behind a fixed toggle that swaps it in place and keeps nothing", () => {
+    assert.equal(raw("a <b>\n\nc\n"), '<pre class="raw digits-1" hidden><span class="line">a &lt;b&gt;</span>\n<span class="line"></span>\n<span class="line">c</span></pre>');
+    assert.equal(raw("x"), '<pre class="raw digits-1" hidden><span class="line">x</span></pre>');
+    assert.equal(raw(""), '<pre class="raw digits-1" hidden></pre>');
+    assert.match(raw("x\n".repeat(10)), /^<pre class="raw digits-2" hidden>/);
+    assert.match(raw("x\n".repeat(1000)), /^<pre class="raw digits-4" hidden>/);
+    const { page } = view(root, "projects/demo/README.md");
+    assert.match(page, /<main class="md"><h1>Demo<\/h1>[\s\S]*<\/main>\n<pre class="raw digits-1" hidden><span class="line"># Demo<\/span>[\s\S]*<\/pre>\n<button type="button" class="raw-toggle" aria-pressed="false" title="Show the file as raw text">raw<\/button>\n<\/body>/);
+    assert.ok(!view(root, "temp/missing.txt").page.includes("raw"));
+    const script = fs.readFileSync(path.join(import.meta.dirname, "..", "lib", "chat", "view.js"), "utf8");
+    assert.match(script, /toggle\.addEventListener\("click", \(\) => \{\s*const showRaw = toggle\.getAttribute\("aria-pressed"\) !== "true";\s*toggle\.setAttribute\("aria-pressed", String\(showRaw\)\);\s*drawn\.hidden = showRaw;\s*text\.hidden = !showRaw;\s*\}\);/);
+    assert.ok(!/localStorage|sessionStorage|cookie|location|history|open\(/.test(script), "the choice is kept nowhere and nothing is navigated");
+    const css = fs.readFileSync(path.join(import.meta.dirname, "..", "lib", "chat", "view.css"), "utf8");
+    assert.match(css, /^\.view pre\.raw \{[^}]*background: var\(--raw-bg\); color: var\(--raw-fg\); font: \.85rem\/1\.4 var\(--mono\); counter-reset: line; \}/m);
+    assert.match(css, /^\.view pre\.raw \.line::before \{ counter-increment: line; content: counter\(line\);[^}]*user-select: none; \}/m);
+    for (let digits = 1; digits <= 7; digits += 1) assert.ok(css.includes(`.view pre.raw.digits-${digits} .line::before { width: ${digits}ch; }`), `${digits} digits`);
+    assert.ok(String(LARGEST).length <= 7, "the most lines a shown file can have is at most 7 digits");
+    assert.ok(!/^\.view pre\.raw[^{]*\{[^}]*display/m.test(css.replace(/::before \{[^}]*\}/g, "")), "nothing overrides the hidden attribute");
+    assert.match(css, /^\.view \.raw-toggle \{ position: fixed; right: 12px; bottom: 12px;/m);
   });
 
   // A web page opens in the browser from its link on the page; the view shows nothing of it, by its

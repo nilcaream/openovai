@@ -10,6 +10,7 @@
   --typed: #fdf0dc; --typed-line: #f0d3a0;
   --pending: #f0f3f6;
   --shadow: rgba(0,0,0,.35);
+  --raw-fg: #000000; --raw-bg: #ffffff;
   --ok: #3fb950; --warn: #d29922; --bad: #f85149; --accent: #5eaeff;
   --radius: 8px;
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
@@ -27,6 +28,7 @@
   --typed: #3a2e1c; --typed-line: #6b5230;
   --pending: #22272e;
   --shadow: rgba(0,0,0,.55);
+  --raw-fg: #ffffff; --raw-bg: #000000;
   color-scheme: dark;
 }
 /* markdown inside a reply */
