@@ -95,7 +95,7 @@
   .phead .notify.on .lit { display: block; }
   .phead .notify.on .slashed { display: none; }
   /* the pill that says rows arrived below where the reader is, on the Leader's panel */
-  #jump { position: sticky; left: 50%; transform: translateX(-50%); bottom: 24px; background: var(--panel); border: 1px solid var(--line); color: var(--fg); border-radius: 999px; padding: 6px 14px; font-size: .85rem; cursor: pointer; box-shadow: 0 4px 14px var(--shadow); display: none; }
+  #jump { position: sticky; left: 50%; transform: translateX(-50%); bottom: 24px; background: var(--panel); border: 1px solid var(--line); color: var(--fg); border-radius: 999px; padding: 6px 14px; font-size: .85rem; cursor: pointer; display: none; }
   #jump.show { display: block; }
   /* the rows take the focus on a click, so the keys scroll them; no ring for it, the head's border says what the keys do */
   .rows { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 0; outline: none; }
@@ -111,9 +111,10 @@
      edge: as wide as its words, in the lower right corner of the last message — its right edge on
      the message's right edge, its bottom on the message's bottom edge, the 4px margin a row keeps
      under it — covering that corner of the message on purpose, and taking no room, so nothing
-     moves when it comes or goes; scrolled up, it floats over the rows like the pill */
+     moves when it comes or goes; scrolled up, it floats over the rows like the pill. No shadow:
+     a row has none, and one under the line reads as the line sitting below the message's edge */
   .rows .dock { position: sticky; bottom: 0; height: 0; pointer-events: none; }
-  .rows .dock .line.doing { position: absolute; right: 0; bottom: 4px; width: auto; max-width: 100%; margin: 0; line-height: 1.5; box-shadow: 0 2px 8px var(--shadow); }
+  .rows .dock .line.doing { position: absolute; right: 0; bottom: 4px; width: auto; max-width: 100%; margin: 0; line-height: 1.5; }
   /* a row is a bubble: the label row on top, the body under it; the kind of the row picks its ground */
   .msg { display: flex; margin: 4px 0; }
   .bubble { width: 100%; max-width: 100%; border: 1px solid var(--line); border-radius: var(--radius); padding: 6px 10px 4px; background: var(--panel-2); position: relative; min-width: 120px; }

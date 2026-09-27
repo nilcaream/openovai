@@ -9,7 +9,6 @@
   --to: #fde8e8; --to-line: #f0bcbc;
   --typed: #fdf0dc; --typed-line: #f0d3a0;
   --pending: #f0f3f6;
-  --shadow: rgba(0,0,0,.35);
   --raw-fg: #000000; --raw-bg: #ffffff;
   --hl-keyword: #cf222e; --hl-title: #8250df; --hl-literal: #0550ae; --hl-string: #0a3069;
   --hl-built-in: #953800; --hl-comment: #6e7781; --hl-name: #116329; --hl-bullet: #735c0f;
@@ -30,7 +29,6 @@
   --to: #3a2226; --to-line: #6b3a42;
   --typed: #3a2e1c; --typed-line: #6b5230;
   --pending: #22272e;
-  --shadow: rgba(0,0,0,.55);
   --raw-fg: #ffffff; --raw-bg: #000000;
   --hl-keyword: #ff7b72; --hl-title: #d2a8ff; --hl-literal: #79c0ff; --hl-string: #a5d6ff;
   --hl-built-in: #ffa657; --hl-comment: #8b949e; --hl-name: #7ee787; --hl-bullet: #f2cc60;

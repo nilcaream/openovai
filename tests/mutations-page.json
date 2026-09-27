@@ -2776,5 +2776,27 @@
         "to": "display: flex; flex-direction: column; gap: 3px; overflow: hidden; font-size: .9rem; transition: opacity .4s; }"
       }
     ]
+  },
+  {
+    "name": "the Leader's floating line casts a shadow again",
+    "catches": "cast no shadow anywhere on the page",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "margin: 0; line-height: 1.5; }",
+        "to": "margin: 0; line-height: 1.5; box-shadow: 0 2px 8px var(--line); }"
+      }
+    ]
+  },
+  {
+    "name": "the pill casts a shadow again",
+    "catches": "cast no shadow anywhere on the page",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "cursor: pointer; display: none; }",
+        "to": "cursor: pointer; box-shadow: 0 4px 14px var(--line); display: none; }"
+      }
+    ]
   }
 ]

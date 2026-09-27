@@ -431,6 +431,14 @@ describe("the rules", () => {
     assert.equal(declared(".rows .line")["font-size"], ".76rem");
   });
 
+  // Nothing on the page casts a shadow: not the Leader's floating line, where one reads as the line
+  // sitting below the message's edge, and not the pill. The stop glyph's ring is the box's own
+  // ground drawn round it, not a shadow.
+  it("cast no shadow anywhere on the page", () => {
+    const shadows = rules.filter((rule) => rule.declarations["box-shadow"] !== undefined).map((rule) => `${rule.selector} { box-shadow: ${rule.declarations["box-shadow"]} }`);
+    assert.deepEqual(shadows, [".composer .stop { box-shadow: 0 0 0 2px var(--bg) }"]);
+  });
+
   // The pill sticks to the bottom edge of the rows it belongs to, not to the viewport: a pill fixed
   // to the viewport sits over whatever is open below the rows — the reason input of a permission
   // card, first of all — while a sticky last child of the rows sits above it, 24px up.
