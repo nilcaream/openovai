@@ -66,6 +66,21 @@ fs.writeFileSync(path.join(outside, "shot.png"), PNG);
 fs.symlinkSync(path.join(root, "desks", "Ann", "launch.desktop"), path.join(root, "temp", "image-link.png"));
 fs.symlinkSync(path.join(root, "desks", "Ann", "shot.PNG"), path.join(root, "temp", "shot-link.jpg"));
 fs.symlinkSync(path.join(outside, "shot.png"), path.join(root, "temp", "out-shot.png"));
+// Credentials by the names their programs give them, at the root and deeper, and a nested
+// instance's own Claude Code home.
+put(".ssh/id_rsa", "-----BEGIN KEY-----\n");
+put("projects/demo/.aws/credentials", "[default]\n");
+put(".gnupg/gpg.conf", "keyid-format long\n");
+put(".git-credentials", "https://u:p@host\n");
+put("projects/demo/.netrc", "machine host\n");
+put("desks/Ann/.npmrc", "//registry/:_authToken=x\n");
+put(".PGPASS", "host:5432:*:u:p\n");
+put("projects/nested/.local/.claude.json", "{}\n");
+put("projects/nested/.local/settings.json", "{}\n");
+// A second name for a file: for a denied one, and for one the view would show under its first.
+fs.linkSync(path.join(root, ".local", ".credentials.json"), path.join(root, "temp", "copy-of-cred.json"));
+put("temp/twin.txt", "one file, two names\n");
+fs.linkSync(path.join(root, "temp", "twin.txt"), path.join(root, "temp", "twin-too.txt"));
 fs.mkdirSync(path.join(root, "temp", "folder.png"), { recursive: true });
 fs.symlinkSync(outside, path.join(root, "temp", "out-dir"));
 fs.symlinkSync(path.join(root, "desks", "Ann"), path.join(root, "temp", "ann-link"));
@@ -96,6 +111,22 @@ describe("which paths the view shows", () => {
     for (const wanted of [".local/notes.md", ".local/.credentials.json", "temp/home-link.md", "projects/demo/.git/config", "projects/demo/.env", "projects/demo/.env.local", "projects/demo/config/.credentials.json"]) {
       assert.equal(viewable(root, wanted).status, 403, wanted);
     }
+  });
+
+  it("never shows a credential file by its program's name, or a Claude Code home, at any depth", () => {
+    for (const wanted of [".ssh/id_rsa", "projects/demo/.aws/credentials", ".gnupg/gpg.conf", ".git-credentials", "projects/demo/.netrc", "desks/Ann/.npmrc", ".PGPASS", "projects/nested/.local/.claude.json", "projects/nested/.local/settings.json"]) {
+      assert.equal(viewable(root, wanted).status, 403, wanted);
+    }
+  });
+
+  // Which other names a file has cannot be read off the one it was asked by, and one of them may be
+  // denied; so a file with more than one name is not shown by any of them.
+  it("never shows a regular file that has another name, since that name may be a denied one", () => {
+    for (const wanted of ["temp/copy-of-cred.json", "temp/twin.txt", "temp/twin-too.txt"]) {
+      assert.equal(viewable(root, wanted).status, 403, wanted);
+      assert.match(viewable(root, wanted).why, /more than one name/, wanted);
+    }
+    assert.equal(viewable(root, "temp/a-directory").status, 404, "a directory has more than one name by nature");
   });
 
   it("never shows any of them however its name is cased, since a filesystem that folds case names the same file either way", () => {

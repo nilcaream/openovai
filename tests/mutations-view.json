@@ -27,8 +27,8 @@
     "edits": [
       {
         "file": "lib/chat/view.mjs",
-        "from": "    folded.includes(\".git\") ||",
-        "to": "    false ||"
+        "from": "const DENIED_DIRECTORIES = [HOME, \".git\", \".ssh\", \".aws\", \".gnupg\"];",
+        "to": "const DENIED_DIRECTORIES = [HOME, \".ssh\", \".aws\", \".gnupg\"];"
       }
     ]
   },
@@ -49,8 +49,8 @@
     "edits": [
       {
         "file": "lib/chat/view.mjs",
-        "from": "    folded[0] === HOME.toLowerCase() ||",
-        "to": "    segments[0] === HOME ||"
+        "from": "    folded.some((segment) => DENIED_DIRECTORIES.includes(segment)) ||",
+        "to": "    segments.some((segment) => DENIED_DIRECTORIES.includes(segment)) ||"
       }
     ]
   },
@@ -480,6 +480,61 @@
         "file": "lib/chat/view.mjs",
         "from": "where.ok && where.stat.isDirectory() ? DIRECTORY : ",
         "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a denied directory is denied at the root only, so a nested instance's home is shown",
+    "catches": "never shows a credential file by its program's name, or a Claude Code home, at any depth",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "    folded.some((segment) => DENIED_DIRECTORIES.includes(segment)) ||",
+        "to": "    DENIED_DIRECTORIES.includes(folded[0]) ||"
+      }
+    ]
+  },
+  {
+    "name": "a directory of keys is shown",
+    "catches": "never shows a credential file by its program's name, or a Claude Code home, at any depth",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "const DENIED_DIRECTORIES = [HOME, \".git\", \".ssh\", \".aws\", \".gnupg\"];",
+        "to": "const DENIED_DIRECTORIES = [HOME, \".git\"];"
+      }
+    ]
+  },
+  {
+    "name": "a file of credentials by its program's name is shown",
+    "catches": "never shows a credential file by its program's name, or a Claude Code home, at any depth",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "const DENIED_FILES = [\".credentials.json\", \".git-credentials\", \".netrc\", \".npmrc\", \".pgpass\"];",
+        "to": "const DENIED_FILES = [\".credentials.json\"];"
+      }
+    ]
+  },
+  {
+    "name": "a file with a second name is shown",
+    "catches": "never shows a regular file that has another name, since that name may be a denied one",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "  if (stat.isFile() && stat.nlink > 1) {",
+        "to": "  if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "a directory is refused for having more than one name",
+    "catches": "never shows a regular file that has another name, since that name may be a denied one",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "  if (stat.isFile() && stat.nlink > 1) {",
+        "to": "  if (stat.nlink > 1) {"
       }
     ]
   }

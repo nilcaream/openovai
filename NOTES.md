@@ -54,6 +54,16 @@ digest of its text in page.html, and nothing else inline, so an event handler or
 row brings with it is not run. Everything else comes from the page's own origin, as the file
 view's does; nothing may frame the page, and it sets no base address and sends no form.
 
+**The file view refuses credential files by name at any depth, and a file with a second name.**
+This closes a gap in what the view shows. It refused a Claude Code home only at the instance root,
+and credentials only under two names, so a nested instance's `.local/`, `.ssh/id_rsa`,
+`.aws/credentials`, `.git-credentials`, `.netrc`, `.npmrc` and `.pgpass` were shown. It now
+refuses a Claude Code home, a `.git`, `.ssh`, `.aws` or `.gnupg` directory anywhere on the path,
+and `.credentials.json`, `.git-credentials`, `.netrc`, `.npmrc`, `.pgpass` and `.env` files at any
+depth. A hard link to a refused file could be shown under a name of its own. The view cannot see a
+file's other names, so it now refuses any regular file that has more than one. The list goes by
+name, and a copy of a credential under another name is still shown.
+
 ## 0.20.0
 
 **An update is finished by the version it brings in.** `ovai update` used to finish in the code it
