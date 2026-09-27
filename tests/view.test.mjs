@@ -235,7 +235,14 @@ describe("what the view draws", () => {
     assert.match(rule(".view .md .code"), /overflow: visible; width: max-content; min-width: 100%;/);
     assert.match(rule(".view .md pre"), /overflow: visible;/);
     assert.match(rule(".view .md table"), /overflow: visible; max-width: none;/);
-    assert.ok(!/white-space|overflow-wrap|word-break|overflow: (auto|scroll|hidden)/.test(css), "nothing in the view wraps or scrolls");
+    assert.ok(!/white-space|overflow-wrap|word-break|overflow: (auto|scroll|hidden)/.test(css.replace(/^html \{ overflow: scroll; \}$/m, "")), "nothing in the view wraps or scrolls");
+  });
+
+  // The window's scrollbars are always there, both of them, whether the view needs them or not, so
+  // swapping the drawn file for its source never shifts the page and the toggle under the pointer.
+  it("always shows the window's two scrollbars, so swapping the view never moves the toggle", () => {
+    const css = fs.readFileSync(path.join(import.meta.dirname, "..", "lib", "chat", "view.css"), "utf8");
+    assert.match(css, /^html \{ overflow: scroll; \}$/m);
   });
 
   // The view's window carries the page's own plain icon, never the asking one, and its policy lets

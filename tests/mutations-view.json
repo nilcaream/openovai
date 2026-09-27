@@ -187,6 +187,17 @@
     ]
   },
   {
+    "name": "the window shows its scrollbars only when needed",
+    "catches": "always shows the window's two scrollbars, so swapping the view never moves the toggle",
+    "edits": [
+      {
+        "file": "lib/chat/view.css",
+        "from": "html { overflow: scroll; }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
     "name": "a path not shown answers 200",
     "catches": "answers a path it does not show with its status and the reason, and nothing of the file",
     "edits": [

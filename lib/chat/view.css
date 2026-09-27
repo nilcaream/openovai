@@ -1,7 +1,9 @@
 /* The file view's frame around the markdown /md.css draws: the file's content alone, across the
    whole page. Nothing inside the page scrolls and no line wraps: a code block, a table or a line
-   wider than the window widens the page, and the window's own scrollbars are the only ones. */
+   wider than the window widens the page, and the window's own scrollbars are the only ones. They
+   are always shown, both, so the toggle in the corner never moves when the view is swapped. */
 * { box-sizing: border-box; }
+html { overflow: scroll; }
 body.view { margin: 0; background: var(--bg); color: var(--fg); font: 1rem/1.5 var(--sans); -webkit-font-smoothing: antialiased; }
 .view main { padding: 16px; }
 .view .md .code { overflow: visible; width: max-content; min-width: 100%; }
