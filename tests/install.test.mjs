@@ -6,6 +6,7 @@
 // Run it with: node --test tests/install.test.mjs
 
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
@@ -118,12 +119,6 @@ describe("what the installer made", () => {
 
   it("copies the version in", () => {
     assert.ok(fs.existsSync(inside("lib", "VERSION")));
-  });
-
-  // Read out of the source rather than compared with a literal. A version written into the check
-  // as well as into the file would agree with itself on the day it was written and never again.
-  it("carries the version the source is on", () => {
-    assert.equal(contentOf("lib", "VERSION").trim(), fs.readFileSync(path.join(repo, "lib", "VERSION"), "utf8").trim());
   });
 
   it("copies the desk template in", () => {
@@ -927,6 +922,66 @@ describe("the instance runs", () => {
   it("names the runtimes it is on, under the data directory the installer used", () => {
     const pinned = pins(repo);
     assert.match(runOvai(instance, ["configuration"], process.env).stdout, new RegExp(`^runtime\\s+node ${pinned.node}, claude ${pinned.claude}, under ${path.join(runtimeData, "openovai")}$`, "m"));
+  });
+});
+
+// A source is this workspace's payload with a version of its own, so what an instance ends up on
+// can only have come from the source or from its commit — never from the repository these checks
+// run in, whatever state that is in. `branch` makes it a checkout committed on that branch.
+const SOURCE_VERSION = "0.0.0-source";
+
+function makeSource(name, { branch = null } = {}) {
+  const tree = `${instance}-${name}`;
+  remove(tree);
+  for (const entry of PAYLOAD) {
+    fs.cpSync(path.join(repo, entry), path.join(tree, entry), { recursive: true });
+  }
+  fs.writeFileSync(path.join(tree, "lib", "VERSION"), `${SOURCE_VERSION}\n`);
+  if (branch === null) {
+    return { tree, hash: null };
+  }
+  const git = (...words) => {
+    const done = spawnSync("git", ["-c", "user.name=OpenOv AI", "-c", "user.email=ovai@example.invalid", "-c", "commit.gpgsign=false", ...words], { cwd: tree, encoding: "utf8" });
+    assert.equal(done.status, 0, done.stderr);
+    return done.stdout.trim();
+  };
+  git("init", "--quiet", "--initial-branch", branch);
+  git("add", "--all");
+  git("commit", "--quiet", "--message", "the build");
+  return { tree, hash: git("rev-parse", "HEAD").slice(0, 8) };
+}
+
+function installedFrom(name, source) {
+  const root = `${instance}-${name}`;
+  remove(root);
+  installed(options(root, { "--source": source }));
+  return fs.readFileSync(path.join(root, "lib", "VERSION"), "utf8").trim();
+}
+
+// A lab is installed from whatever branch is being tried, and its header has to say which commit
+// that was rather than the last release. A checkout's hash is taken only committed and clean, as
+// `update --from` takes it; anything else is installed on the version it carries.
+describe("the version an install is on", () => {
+  const trees = [];
+  after(() => remove(...trees));
+
+  it("carries the version a source that is no checkout says", () => {
+    const { tree } = makeSource("plain-source");
+    trees.push(tree,`${instance}-from-plain`);
+    assert.equal(installedFrom("from-plain", tree), SOURCE_VERSION);
+  });
+
+  it("carries the first eight characters of the commit a clean checkout is on, whatever its branch", () => {
+    const { tree, hash } = makeSource("feature-source", { branch: "feature" });
+    trees.push(tree,`${instance}-from-feature`);
+    assert.equal(installedFrom("from-feature", tree), hash);
+  });
+
+  it("carries the version a checkout with uncommitted changes says", () => {
+    const { tree } = makeSource("dirty-source", { branch: "feature" });
+    fs.writeFileSync(path.join(tree, "lib", "work-in-progress.mjs"), "\n");
+    trees.push(tree,`${instance}-from-dirty`);
+    assert.equal(installedFrom("from-dirty", tree), SOURCE_VERSION);
   });
 });
 

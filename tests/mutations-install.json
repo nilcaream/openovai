@@ -811,5 +811,16 @@
         "to": "      ask: [...CUSTOMIZATION_ASK_RULES],"
       }
     ]
+  },
+  {
+    "name": "an install from a clean checkout is put on the version it carries rather than its commit",
+    "catches": "carries the first eight characters of the commit a clean checkout is on, whatever its branch",
+    "edits": [
+      {
+        "file": "lib/install.mjs",
+        "from": "      ...replacePayload(plan.root, plan.source, installStamp(plan.source)),",
+        "to": "      ...replacePayload(plan.root, plan.source),"
+      }
+    ]
   }
 ]

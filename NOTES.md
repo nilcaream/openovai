@@ -27,6 +27,12 @@ failed": the finish is not handed to a version that does not take it. An instanc
 checkout as the release its `lib/VERSION` names, so the first build is taken with the checkout's own
 updater: `node <checkout>/lib/ovai.mjs --root <instance> update --from <checkout>`.
 
+**`install.sh --source <checkout>` puts the instance on the commit it was installed from.** When
+the source is a git checkout with nothing `git status --porcelain` lists, on any branch, the
+instance is on the first 8 characters of that commit's hash, as a build taken with `update --from`
+is. A source with changes, or one that is not a checkout, is installed on the `lib/VERSION` it
+carries, as before. `update --from` still takes only `main`.
+
 **The Leader's panel head shows the version the server runs.** After the connection word and
 before the quota, behind the same dot: `Bobby · opus 53k · listening · connected · 0.20.0 · 55% (46m)`,
 or the 8-character commit on a build (`… · connected · 12345678 · …`). The page takes it from the
