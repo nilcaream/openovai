@@ -133,6 +133,15 @@ describe("what both personas are held to", () => {
 });
 
 describe("what the Leader is told", () => {
+  // A model may carry an effort, and the Leader is the one who hires onto one: the persona and the
+  // tool both say what a model with an effort is written as.
+  it("says a hire's model may name an effort, model/effort, in the persona and in the tool", () => {
+    assert.match(leader(), /A\s+model beside that when not the usual one, written as model or model\/effort\./);
+    const hire = toolsFor({ root: repo, config: { user: USER, leader: LEAD }, plugins: [] }, { seat: LEAD, role: LEADER }).find((tool) => tool.name === "hire");
+    assert.match(hire.description, /as "model" or "model\/effort" \("opus", "claude-opus-5\/low"\)/);
+    assert.match(hire.inputSchema.properties.model.description, /"model" or "model\/effort"/);
+  });
+
   it("says who the Leader is and whose workspace it leads", () => {
     assert.ok(leader().includes(`You are ${LEAD}, the Leader of ${USER}'s workspace`));
     assert.ok(leader().includes(`desks/${LEAD}/STATE.md`));

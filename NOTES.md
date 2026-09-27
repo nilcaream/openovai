@@ -35,6 +35,10 @@ would have set every seat's effort over the one written here.
 Leader and for the workers, where it offered "opus". A workspace that is already installed keeps
 the model it has, and it runs as it did until somebody adds an effort to it.
 
+**The Leader is told a hire's model may name an effort.** Its instructions and the `hire` tool say
+a model is written as "model" or "model/effort". The tool gives "opus" and "claude-opus-5/low" as
+examples and names the levels Claude Code takes: low, medium, high, xhigh and max.
+
 ## 0.20.0
 
 **An update is finished by the version it brings in.** `ovai update` used to finish in the code it
