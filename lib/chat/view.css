@@ -1,7 +1,12 @@
-/* The file view's frame around the markdown /md.css draws: the page's ground and type, one
-   column, and a header naming the file. */
+/* The file view's frame around the markdown /md.css draws: the file's content alone, across the
+   whole page. Nothing inside the page scrolls and no line wraps: a code block, a table or a line
+   wider than the window widens the page, and the window's own scrollbars are the only ones. */
 * { box-sizing: border-box; }
 body.view { margin: 0; background: var(--bg); color: var(--fg); font: 1rem/1.5 var(--sans); -webkit-font-smoothing: antialiased; }
-.view header { position: sticky; top: 0; padding: 8px 16px; background: var(--panel-2); border-bottom: 1px solid var(--line); font-size: .85rem; color: var(--fg-dim); }
-.view header .path { font-family: var(--mono); color: var(--fg); }
-.view main { max-width: 1092px; margin: 0 auto; padding: 16px; }
+.view main { padding: 16px; }
+.view .md .code { overflow: visible; width: max-content; min-width: 100%; }
+.view .md pre { overflow: visible; }
+.view .md table { overflow: visible; max-width: none; }
+/* a file that is not markdown is one code block: drawn as the page itself, not a box on it */
+.view main > .code:only-child { border: 0; border-radius: 0; background: none; }
+.view main > .code:only-child pre { padding: 0; }

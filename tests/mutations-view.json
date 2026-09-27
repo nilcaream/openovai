@@ -132,6 +132,28 @@
     ]
   },
   {
+    "name": "a wide code block scrolls inside the view again",
+    "catches": "draws the file's content alone across the whole page, nothing in it scrolling or wrapping",
+    "edits": [
+      {
+        "file": "lib/chat/view.css",
+        "from": ".view .md pre { overflow: visible; }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the view is a column in the middle of the page again",
+    "catches": "draws the file's content alone across the whole page, nothing in it scrolling or wrapping",
+    "edits": [
+      {
+        "file": "lib/chat/view.css",
+        "from": ".view main { padding: 16px; }",
+        "to": ".view main { max-width: 1092px; margin: 0 auto; padding: 16px; }"
+      }
+    ]
+  },
+  {
     "name": "the view shows a web page's source",
     "catches": "never shows a web page, however it is named, and says where it opens",
     "edits": [

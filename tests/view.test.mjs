@@ -119,7 +119,6 @@ describe("what the view draws", () => {
     assert.match(answered.page, /<h1>Demo<\/h1>/);
     assert.match(answered.page, /<a href="\/view\/projects\/demo\/lib\/x\.mjs" target="_blank" rel="noopener"><code>projects\/demo\/lib\/x\.mjs<\/code><\/a>/);
     assert.match(answered.page, /<code>projects\/demo\/nothing\.md<\/code>/);
-    assert.match(answered.page, /<code class="path">projects\/demo\/README\.md<\/code>/);
   });
 
   // The window's title is the page's own, the instance as it names it, with the path from the root
@@ -184,6 +183,24 @@ describe("what the view draws", () => {
         assert.ok(page.indexOf('<meta name="theme-color"') < page.indexOf('<link rel="stylesheet"'), String(given));
       }
     }
+  });
+
+  // The file's content and nothing else, across the whole page: no header, no column in the middle,
+  // and nothing inside the page that scrolls or wraps, so a wide file widens the page and the
+  // window's own scrollbar is the one that moves it.
+  it("draws the file's content alone across the whole page, nothing in it scrolling or wrapping", () => {
+    for (const wanted of ["desks/Ann/notes.txt", "projects/demo/README.md", "temp/missing.txt"]) {
+      const { page } = view(root, wanted);
+      assert.match(page, /<body class="view">\n<main class="md">/, wanted);
+      assert.ok(!page.includes("<header"), wanted);
+    }
+    const css = fs.readFileSync(path.join(import.meta.dirname, "..", "lib", "chat", "view.css"), "utf8");
+    const rule = (selector) => css.match(new RegExp(`^${selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} \\{([^}]*)\\}`, "m"))?.[1] ?? "";
+    assert.equal(rule(".view main"), " padding: 16px; ");
+    assert.match(rule(".view .md .code"), /overflow: visible; width: max-content; min-width: 100%;/);
+    assert.match(rule(".view .md pre"), /overflow: visible;/);
+    assert.match(rule(".view .md table"), /overflow: visible; max-width: none;/);
+    assert.ok(!/white-space|overflow-wrap|word-break|overflow: (auto|scroll|hidden)/.test(css), "nothing in the view wraps or scrolls");
   });
 
   // A web page opens in the browser from its link on the page; the view shows nothing of it, by its
