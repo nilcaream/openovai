@@ -51,7 +51,8 @@ when a turn holds nothing for the User. A reply that is exactly `<noop/>`, space
 in the panel's conversation marked `noop` and is not drawn, and the turn gets no silent row either:
 the panel shows nothing. Words that only mention `<noop/>` show as usual. A reply that has words
 and then ends in `<noop/>` shows its words, as they were written, without the marker at the end:
-those words were sent, so they are shown. Sessions hired before this version keep the persona they were rendered with.
+those words were sent, so they are shown. The Leader and Workers are told so, and told to send
+the words alone or `<noop/>` alone. Sessions hired before this version keep the persona they were rendered with.
 
 **ovai's own mechanics for every seat live in `lib/templates/common.md`, in a frame that names it.**
 A Leader's and a Worker's instructions now open with `<ovai source="lib/templates/common.md">`,

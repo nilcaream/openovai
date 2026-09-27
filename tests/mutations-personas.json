@@ -242,6 +242,17 @@
     ]
   },
   {
+    "name": "ovai's common frame does not say that words ending in <noop/> are shown",
+    "catches": "tells both that a reply with words is no <noop/> turn, whatever it ends with",
+    "edits": [
+      {
+        "file": "lib/templates/common.md",
+        "from": " A reply with words in it is\nnot one, whatever it ends with: \"Desk updated, waiting for Paul.\" followed by `<noop/>` shows its\nwords on the panel — send the words alone, or `<noop/>` alone.",
+        "to": ""
+      }
+    ]
+  },
+  {
     "name": "neither role template says what the frame before it is",
     "catches": "tells both what the frame before their own is",
     "edits": [

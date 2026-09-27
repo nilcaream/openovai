@@ -466,6 +466,13 @@ describe("what both are told in ovai's common frame", () => {
     }
   });
 
+  it("tells both that a reply with words is no <noop/> turn, whatever it ends with", () => {
+    for (const [text, role] of [[leader(), "leader"], [worker(), "worker"]]) {
+      const common = text.slice(0, text.indexOf("</ovai>"));
+      assert.match(common, /A reply with words in it is\s+not one, whatever it ends with: "Desk updated, waiting for Paul\." followed by `<noop\/>` shows its\s+words on the panel — send the words alone, or `<noop\/>` alone\./, role);
+    }
+  });
+
   // What both roles are told alike is said once, in the common frame, and not again in the role's.
   it("gives both every shared paragraph exactly once, inside the common frame", () => {
     const SHARED = [
