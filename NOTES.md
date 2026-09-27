@@ -18,14 +18,15 @@ a second time once it is through.
 **`ovai update --from <checkout>` takes a build of main, named by its commit.** A directory that is
 a git checkout is taken only when it is on `main` with nothing `git status --porcelain` lists;
 otherwise the update refuses in one line that says which. The instance is then on the first 8
-characters of that commit's hash (`12345678`), and that is its version wherever ovai shows one (`ovai configuration`, the page,
-the server's health). A hash has no order: a release is always taken onto a build, with no
-`--downgrade` and never "Nothing to do"; another commit is always taken; the same commit is
-"Nothing to do". A directory that is not a checkout — an unpacked release — is taken as before.
-Going back with `--downgrade` to a version older than 0.20.0 no longer ends in "finishing it
-failed": the finish is not handed to a version that does not take it. An instance on 0.19.0 reads a
-checkout as the release its `lib/VERSION` names, so the first build is taken with the checkout's own
-updater: `node <checkout>/lib/ovai.mjs --root <instance> update --from <checkout>`.
+characters of that commit's hash (`12345678`), and that is its version wherever ovai shows one
+(`ovai configuration`, the page, the server's health). A hash has no order: a release is always
+taken onto a build, with no `--downgrade` and never "Nothing to do"; another commit is always taken;
+the same commit replaces nothing and runs the finish, as the same release does. A directory that is
+not a checkout — an unpacked release — is taken as before. Going back with `--downgrade` to a
+version older than 0.20.0 no longer ends in "finishing it failed": the finish is not handed to a
+version that does not take it. An instance on 0.19.0 reads a checkout as the release its
+`lib/VERSION` names, so the first build is taken with the checkout's own updater:
+`node <checkout>/lib/ovai.mjs --root <instance> update --from <checkout>`.
 
 **`install.sh --source <checkout>` puts the instance on the commit it was installed from.** When
 the source is a git checkout with nothing `git status --porcelain` lists, on any branch, the

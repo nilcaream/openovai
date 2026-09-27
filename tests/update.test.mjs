@@ -664,11 +664,29 @@ describe("taking a build from a checkout of main", () => {
     assert.match(done.stdout, new RegExp(`now on ${hash}\\. Replaced:`));
   });
 
-  it("takes the same commit again as nothing to do", async () => {
-    const again = await update(root, tree);
-    assert.equal(again.status, 0, again.stderr);
-    assert.match(again.stdout, new RegExp(`^This instance is on ${hash}, which is what .* holds\\. Nothing to do\\.$`, "m"));
-    assert.doesNotMatch(again.stdout, /Replaced:/);
+  // A finish that failed after the swap says to run the update again, and on a build that is this
+  // run: it replaces nothing and finishes what the failed one left, here a hook it never wired.
+  describe("the same commit again", () => {
+    const settings = path.join(root, ".claude", "settings.json");
+    let again;
+
+    before(async () => {
+      const read = JSON.parse(fs.readFileSync(settings, "utf8"));
+      delete read.hooks.SubagentStart;
+      fs.writeFileSync(settings, `${JSON.stringify(read, null, 2)}\n`);
+      again = await update(root, tree);
+    });
+
+    it("takes the same commit again, replacing nothing", () => {
+      assert.equal(again.status, 0, again.stderr);
+      assert.match(again.stdout, new RegExp(`^This instance is on ${hash}, which is what .* holds\\.$`, "m"));
+      assert.doesNotMatch(again.stdout, /Replaced:/);
+    });
+
+    it("finishes the same commit again, wiring the hook it was left without", () => {
+      assert.ok(Array.isArray(JSON.parse(fs.readFileSync(settings, "utf8")).hooks.SubagentStart));
+      assert.match(again.stdout, /^Wired the hooks/m);
+    });
   });
 });
 

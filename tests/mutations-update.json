@@ -401,8 +401,19 @@
     "edits": [
       {
         "file": "lib/ovai.mjs",
-        "from": "    finish(root);\n    return;",
-        "to": "    return;"
+        "from": "latest release.`);\n    finish(root);",
+        "to": "latest release.`);"
+      }
+    ]
+  },
+  {
+    "name": "an update to the commit the instance is on finishes nothing",
+    "catches": "finishes the same commit again, wiring the hook it was left without",
+    "edits": [
+      {
+        "file": "lib/ovai.mjs",
+        "from": "holds.`);\n    finish(root);",
+        "to": "holds.`);"
       }
     ]
   },
@@ -474,7 +485,7 @@
   },
   {
     "name": "the commit an instance is already on is taken again",
-    "catches": "takes the same commit again as nothing to do",
+    "catches": "takes the same commit again, replacing nothing",
     "edits": [
       {
         "file": "lib/ovai.mjs",
