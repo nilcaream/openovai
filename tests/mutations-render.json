@@ -390,8 +390,30 @@
     "edits": [
       {
         "file": "lib/chat/render.mjs",
-        "from": "opensInBrowser(file) ? ` data-opens=",
+        "from": "opensOnDesktop(file) ? ` data-opens=",
         "to": "false ? ` data-opens="
+      }
+    ]
+  },
+  {
+    "name": "an image never opens on the desktop",
+    "catches": "gives an image's link the address that opens it on the desktop, whatever the case of its extension",
+    "edits": [
+      {
+        "file": "lib/chat/render.mjs",
+        "from": "  return PAGES.test(String(file)) || isImage(file);",
+        "to": "  return PAGES.test(String(file));"
+      }
+    ]
+  },
+  {
+    "name": "an image's extension is matched in lower case only",
+    "catches": "gives an image's link the address that opens it on the desktop, whatever the case of its extension",
+    "edits": [
+      {
+        "file": "lib/chat/render.mjs",
+        "from": "const IMAGES = /\\.(png|jpe?g|gif|webp|bmp|svg)$/i;",
+        "to": "const IMAGES = /\\.(png|jpe?g|gif|webp|bmp|svg)$/;"
       }
     ]
   }

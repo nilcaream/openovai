@@ -113,6 +113,15 @@ is the one route that starts a program on the machine, so it is narrowed:
   opens nothing;
 - the opener is given the absolute path as an argument, not a shell line.
 
+**An image a reply names opens in the image viewer.** Clicking a link to a `.png`, `.jpg`, `.jpeg`,
+`.gif`, `.webp`, `.bmp` or `.svg` file, in any case, opens it as a web page's link does: the same
+POST, the same `Origin` and cookie, and the desktop's opener given its real path. An image is not
+text and is often larger than the view reads, so it is held to where it is rather than to what the
+view would draw: inside the instance by its real path, none of what the view never shows (the
+Claude Code home, `.git`, `.env`, `.credentials.json`), a file, and an image by its real path's
+extension, so an image's name that leads to a `.desktop` file opens nothing. The view shows no
+image and says where it opens.
+
 When the opener is missing or fails, the panel says so beside the link. This closes the ways in
 that the checks above name, and nothing else. A page opened this way runs as a local file in the
 browser, with whatever that browser lets a `file://` page do.

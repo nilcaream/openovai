@@ -57,6 +57,16 @@ fs.writeFileSync(path.join(outside, "page.html"), "<!doctype html>\n");
 fs.symlinkSync(path.join(root, "desks", "Ann", "launch.desktop"), path.join(root, "temp", "page-link.html"));
 fs.symlinkSync(path.join(root, "desks", "Ann", "mock.html"), path.join(root, "temp", "mock-link.htm"));
 fs.symlinkSync(path.join(outside, "page.html"), path.join(root, "temp", "out-page.html"));
+// An image is not text and is often larger than the view reads: a PNG's own first bytes hold a NUL.
+const PNG = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0x0d]), Buffer.alloc(LARGEST)]);
+put("desks/Ann/shot.PNG", PNG);
+put("desks/Ann/logo.svg", "<svg xmlns=\"http://www.w3.org/2000/svg\"><title>Logo</title></svg>\n");
+put("projects/demo/.git/shot.png", PNG);
+fs.writeFileSync(path.join(outside, "shot.png"), PNG);
+fs.symlinkSync(path.join(root, "desks", "Ann", "launch.desktop"), path.join(root, "temp", "image-link.png"));
+fs.symlinkSync(path.join(root, "desks", "Ann", "shot.PNG"), path.join(root, "temp", "shot-link.jpg"));
+fs.symlinkSync(path.join(outside, "shot.png"), path.join(root, "temp", "out-shot.png"));
+fs.mkdirSync(path.join(root, "temp", "folder.png"), { recursive: true });
 
 after(() => remove(base));
 
@@ -306,11 +316,23 @@ describe("what the view draws", () => {
     assert.equal(view(root, "temp/page-link.html").status, 200, "a link named .html to another file");
     assert.equal(view(root, "desks/Ann/notes.txt").status, 200);
   });
+
+  // An image opens in the image viewer from its link on the page, and the view shows nothing of it,
+  // by its real path: text or not, and whatever its size.
+  it("never shows an image, however it is named, and says where it opens", () => {
+    for (const wanted of ["desks/Ann/shot.PNG", "desks/Ann/logo.svg", "temp/shot-link.jpg"]) {
+      const answered = view(root, wanted);
+      assert.equal(answered.status, 404, wanted);
+      assert.ok(!answered.page.includes("Logo"), wanted);
+      assert.match(answered.page, /An image is not shown here: it opens in the image viewer from its link on the ovai page\./, wanted);
+    }
+    assert.equal(view(root, "temp/image-link.png").status, 200, "a link named .png to another file");
+  });
 });
 
-// A web page is opened in the browser by the desktop, which runs what it is given: only a file the
-// view shows, and only one whose real path is a web page's.
-describe("which files open in the browser", () => {
+// A web page or an image is opened by the desktop, which runs what it is given: only a web page the
+// view shows, or an image it may name, each by its real path.
+describe("which files open on the desktop", () => {
   it("opens a web page the view shows, by its real path", () => {
     assert.deepEqual(openable(root, "desks/Ann/mock.html"), { ok: true, real: fs.realpathSync(path.join(root, "desks/Ann/mock.html")) });
     assert.deepEqual(openable(root, "temp/mock-link.htm"), { ok: true, real: fs.realpathSync(path.join(root, "desks/Ann/mock.html")) });
@@ -320,5 +342,24 @@ describe("which files open in the browser", () => {
     for (const [wanted, status] of [["desks/Ann/launch.desktop", 415], ["temp/page-link.html", 415], ["desks/Ann/notes.txt", 415], ["temp/out-page.html", 403], ["projects/demo/.git/page.html", 403], ["temp/missing.html", 404]]) {
       assert.equal(openable(root, wanted).status, status, wanted);
     }
+  });
+
+  // An image is not text and is often larger than the view reads, so it is held to where it is and
+  // what it is, by its real path, and not to what the view would draw.
+  it("opens an image of the instance by its real path, binary and larger than the view reads", () => {
+    const shot = fs.realpathSync(path.join(root, "desks/Ann/shot.PNG"));
+    assert.deepEqual(openable(root, "desks/Ann/shot.PNG"), { ok: true, real: shot });
+    assert.deepEqual(openable(root, "temp/shot-link.jpg"), { ok: true, real: shot });
+    assert.deepEqual(openable(root, "desks/Ann/logo.svg"), { ok: true, real: fs.realpathSync(path.join(root, "desks/Ann/logo.svg")) });
+  });
+
+  it("opens no image the view may not name: outside, in .git, missing, a directory, or another file behind an image's name", () => {
+    for (const [wanted, status] of [["temp/out-shot.png", 403], ["projects/demo/.git/shot.png", 403], ["temp/missing.png", 404], ["temp/folder.png", 404], ["temp/image-link.png", 415]]) {
+      assert.equal(openable(root, wanted).status, status, wanted);
+    }
+  });
+
+  it("links an image a row names, and no file the view may not name", () => {
+    assert.deepEqual(viewableIn(root, "`desks/Ann/shot.PNG`, `temp/out-shot.png`, `temp/missing.png` and `desks/Ann/notes.txt`"), ["desks/Ann/shot.PNG", "desks/Ann/notes.txt"]);
   });
 });

@@ -60,8 +60,8 @@
     "edits": [
       {
         "file": "lib/chat/view.mjs",
-        "from": "    if (!stat.isFile()) {",
-        "to": "    if (false) {"
+        "from": "  if (!stat.isFile()) {",
+        "to": "  if (false) {"
       }
     ]
   },
@@ -71,8 +71,8 @@
     "edits": [
       {
         "file": "lib/chat/view.mjs",
-        "from": "    if (stat.size > LARGEST) {",
-        "to": "    if (stat.size > LARGEST * 2) {"
+        "from": "  if (stat.size > LARGEST) {",
+        "to": "  if (stat.size > LARGEST * 2) {"
       }
     ]
   },
@@ -335,7 +335,7 @@
     "edits": [
       {
         "file": "lib/chat/view.mjs",
-        "from": "  const shown = found.ok && opensInBrowser(found.real) ? WEB_PAGE : found;",
+        "from": "  const shown = found.ok && opensOnDesktop(found.real) ? WEB_PAGE : found;",
         "to": "  const shown = found;"
       }
     ]
@@ -390,8 +390,52 @@
     "edits": [
       {
         "file": "lib/chat/view.mjs",
-        "from": "  if (!opensInBrowser(shown.real)) {",
+        "from": "  if (!opensOnDesktop(shown.real)) {",
         "to": "  if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "an image is held to the view's text and size rules",
+    "catches": "opens an image of the instance by its real path, binary and larger than the view reads",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "  if (isImage(found.real)) {\n    return { ok: true, real: found.real };\n  }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "an image is opened by the name it was asked for rather than by its real path",
+    "catches": "opens no image the view may not name: outside, in .git, missing, a directory, or another file behind an image's name",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "  if (isImage(found.real)) {\n    return { ok: true, real: found.real };",
+        "to": "  if (isImage(wanted)) {\n    return { ok: true, real: found.real };"
+      }
+    ]
+  },
+  {
+    "name": "the view takes an image for a web page",
+    "catches": "never shows an image, however it is named, and says where it opens",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "  const found = where.ok && isImage(where.real) ? IMAGE : viewable(root, wanted);",
+        "to": "  const found = viewable(root, wanted);"
+      }
+    ]
+  },
+  {
+    "name": "a row's image is not linked",
+    "catches": "links an image a row names, and no file the view may not name",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "viewable(root, wanted).ok || openable(root, wanted).ok);",
+        "to": "viewable(root, wanted).ok);"
       }
     ]
   }

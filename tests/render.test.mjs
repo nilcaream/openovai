@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { INTERRUPTED, SILENT, candidates, collapsed, dayPillBefore, html, opensInBrowser, pathOf, row, unseen } from "../lib/chat/render.mjs";
+import { INTERRUPTED, SILENT, candidates, collapsed, dayPillBefore, html, opensOnDesktop, pathOf, row, unseen } from "../lib/chat/render.mjs";
 
 // The Leader's panel, and a Worker's: the same rows drawn from two seats, for one User.
 const names = { chat: "Server", seat: "Leader", leader: "Leader", user: "Mike" };
@@ -95,8 +95,21 @@ describe("a file named in a reply", () => {
     assert.match(shown, /<a href="\/view\/desks\/Lucy\/card-mock\.html" target="_blank" rel="noopener" data-opens="\/open\/desks\/Lucy\/card-mock\.html"><code>desks\/Lucy\/card-mock\.html:3<\/code><\/a>/);
     assert.match(shown, /<a href="\/view\/desks\/Lucy\/old\.HTM" target="_blank" rel="noopener" data-opens="\/open\/desks\/Lucy\/old\.HTM">mock<\/a>/);
     assert.equal(shown.split("data-opens=").length - 1, 2, shown);
-    assert.equal(opensInBrowser("a/b.html.md"), false);
-    assert.equal(opensInBrowser("a/b.xhtml"), false);
+    assert.equal(opensOnDesktop("a/b.html.md"), false);
+    assert.equal(opensOnDesktop("a/b.xhtml"), false);
+  });
+
+  it("gives an image's link the address that opens it on the desktop, whatever the case of its extension", () => {
+    const images = ["a/b.png", "a/b.JPG", "a/b.jpeg", "a/b.Gif", "a/b.webp", "a/b.BMP", "a/b.svg"];
+    for (const image of images) {
+      assert.equal(opensOnDesktop(image), true, image);
+    }
+    const shown = html(images.map((image) => `\`${image}\``).join(" "), images);
+    assert.equal(shown.split("data-opens=").length - 1, images.length, shown);
+    assert.match(shown, /<a href="\/view\/a\/b\.JPG" target="_blank" rel="noopener" data-opens="\/open\/a\/b\.JPG"><code>a\/b\.JPG<\/code><\/a>/);
+    for (const other of ["a/b.png.md", "a/b.tiff", "a/b.ico", "a/b.svgz", "a/png"]) {
+      assert.equal(opensOnDesktop(other), false, other);
+    }
   });
 
   it("names as a candidate a backticked path or a link's target, each once, and never an absolute path, a URL, bare words or a code block", () => {

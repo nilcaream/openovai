@@ -391,6 +391,20 @@ describe("what the chat serves", () => {
     assert.equal(opener.told(), `${fs.realpathSync(page)}\n`);
   });
 
+  it("opens an image of the instance in the image viewer by the desktop's opener, by the same route and the same checks", async () => {
+    const image = path.join(instance, "temp", "open-check.PNG");
+    fs.writeFileSync(image, Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0x0d]));
+    const [host] = own();
+    const cookie = `openovai-page-${server.address().port}=${pageSecret()}`;
+    const opener = standInOpener(0);
+    const answered = await withPath(opener.bin, () => raw("POST", "/open/temp/open-check.PNG", { host, cookie, origin: `http://${host}` }));
+    assert.equal(answered.status, 204);
+    assert.equal(opener.told(), `${fs.realpathSync(image)}\n`);
+    const refused = await withPath(opener.bin, () => raw("POST", "/open/temp/open-check.PNG", { host, origin: `http://${host}` }));
+    assert.equal(refused.status, 401);
+    assert.equal(opener.told(), `${fs.realpathSync(image)}\n`, "opened once, for the page alone");
+  });
+
   it("refuses to open anything but a web page the view would show, for anybody but the page, and opens nothing", async () => {
     const temp = path.join(instance, "temp");
     fs.writeFileSync(path.join(temp, "open-check.html"), "<!doctype html>\n");
