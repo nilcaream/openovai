@@ -115,6 +115,8 @@
      a row has none, and one under the line reads as the line sitting below the message's edge */
   .rows .dock { position: sticky; bottom: 0; height: 0; pointer-events: none; }
   .rows .dock .line.doing { position: absolute; right: 0; bottom: 4px; width: auto; max-width: 100%; margin: 0; line-height: 1.5; }
+  /* while the pointer is over it: not drawn, still laid out, so the page can tell when it leaves */
+  .rows .dock.pointed .line.doing { visibility: hidden; }
   /* a row is a bubble: the label row on top, the body under it; the kind of the row picks its ground */
   .msg { display: flex; margin: 4px 0; }
   .bubble { width: 100%; max-width: 100%; border: 1px solid var(--line); border-radius: var(--radius); padding: 6px 10px 4px; background: var(--panel-2); position: relative; min-width: 120px; }
@@ -587,6 +589,17 @@
       dock = document.createElement("div");
       dock.className = "dock";
       rows.append(dock);
+      // The line hides while the pointer is over it, so the corner of the message under it can be
+      // read and clicked. It takes no pointer, so a click goes through to the message; whether the
+      // pointer is over it is read from where the line is drawn, never from :hover, so hiding it
+      // does not take the pointer off it, and it does not flicker.
+      rows.addEventListener("pointermove", (event) => {
+        const line = dock.firstElementChild;
+        if (line === null) return;
+        const at = line.getBoundingClientRect();
+        dock.classList.toggle("pointed", event.clientX >= at.left && event.clientX <= at.right && event.clientY >= at.top && event.clientY <= at.bottom);
+      });
+      rows.addEventListener("pointerleave", () => dock.classList.remove("pointed"));
     }
 
     const composer = document.createElement("form");

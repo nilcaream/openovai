@@ -212,8 +212,9 @@ Leader is at used to be the last row of its panel, so each time it came and went
 moved up and back down. It now floats in the lower right corner of the last message, as wide as
 its words, its right and bottom edges on the message's own, covering that corner of the message. It
 takes no room, so nothing moves when it comes or goes. Scrolled up, it stays at the bottom edge over
-the rows, like the new-messages pill. It casts no shadow: nothing on the page does, the pill
-included.
+the rows, like the new-messages pill. It casts no shadow: nothing on the page does, the pill included. It disappears while the
+pointer is over it, so the corner of the message it covers can be read, and a click there reaches
+the message.
 
 **A Deny says who gave it.** A Deny on a card used to reach the session as its bare reason, or as
 "not allowed by the Server" with none, and a session could take a reason like "this is a test" for

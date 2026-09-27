@@ -2842,5 +2842,27 @@
         "to": "        if (panel.jump === null) {"
       }
     ]
+  },
+  {
+    "name": "the Leader's line hides by :hover, and flickers",
+    "catches": "hide the Leader's line while the pointer is over it, read from where it is drawn, the click going through",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "  .rows .dock.pointed .line.doing { visibility: hidden; }",
+        "to": "  .rows .dock .line.doing:hover { visibility: hidden; }"
+      }
+    ]
+  },
+  {
+    "name": "the Leader's line stays hidden once the pointer leaves the rows",
+    "catches": "hide the Leader's line while the pointer is over it, read from where it is drawn, the click going through",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      rows.addEventListener(\"pointerleave\", () => dock.classList.remove(\"pointed\"));\n",
+        "to": ""
+      }
+    ]
   }
 ]

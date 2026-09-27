@@ -448,6 +448,19 @@ describe("the rules", () => {
     assert.deepEqual(shadows, [".composer .stop { box-shadow: 0 0 0 2px var(--bg) }"]);
   });
 
+  // The Leader's line hides while the pointer is over it, so the corner of the message it covers
+  // can be read and clicked. It takes no pointer — a click goes through to the message — and the
+  // page reads whether the pointer is over it from where the line is drawn, not from :hover: a
+  // line hidden by :hover would lose the hover and come back, over and over. Hidden, it keeps its
+  // box, so the page can still tell when the pointer leaves it.
+  it("hide the Leader's line while the pointer is over it, read from where it is drawn, the click going through", () => {
+    const declared = (selector) => rules.find((rule) => rule.selector === selector)?.declarations;
+    assert.equal(declared(".rows .dock")["pointer-events"], "none", "a line that takes the pointer takes the click meant for the message");
+    assert.deepEqual(declared(".rows .dock.pointed .line.doing"), { visibility: "hidden" }, "display: none would take its box, and the pointer would never be over it again");
+    assert.equal(rules.filter((rule) => /\.doing\b[^,]*:hover|:hover[^,]*\.doing\b/.test(rule.selector)).length, 0, "a :hover that hides the line flickers");
+    assert.match(script, /rows\.addEventListener\("pointermove", \(event\) => \{\s*const line = dock\.firstElementChild;\s*if \(line === null\) return;\s*const at = line\.getBoundingClientRect\(\);\s*dock\.classList\.toggle\("pointed", event\.clientX >= at\.left && event\.clientX <= at\.right && event\.clientY >= at\.top && event\.clientY <= at\.bottom\);\s*\}\);\s*rows\.addEventListener\("pointerleave", \(\) => dock\.classList\.remove\("pointed"\)\);/);
+  });
+
   // The pill sticks to the bottom edge of the rows it belongs to, not to the viewport: a pill fixed
   // to the viewport sits over whatever is open below the rows — the reason input of a permission
   // card, first of all — while a sticky last child of the rows sits above it, 24px up.
@@ -762,7 +775,7 @@ describe("the script", () => {
     const draw = script.slice(script.indexOf("function drawPanel(panel)"), script.indexOf("// ------------------------------------------------------------------------------- the page"));
     assert.match(draw, /if \(about\.doing === null\) \{\s*if \(panel\.doing !== null\) \{\s*panel\.doing\.remove\(\);\s*panel\.doing = null;\s*\}\s*\} else \{\s*if \(panel\.doing === null\) \{\s*panel\.doing = document\.createElement\("div"\);\s*panel\.doing\.className = "line doing";\s*\(panel\.dock \?\? panel\.rows\)\.append\(panel\.doing\);\s*\}\s*panel\.doing\.textContent = about\.doing;\s*\}\s*\/\/[^\n]*\n\s*if \(panel\.jump !== panel\.rows\.lastElementChild\) panel\.rows\.append\(panel\.jump\);\s*\/\/[^\n]*\n\s*if \(panel\.dock !== null && panel\.dock\.nextElementSibling !== panel\.jump\) panel\.rows\.insertBefore\(panel\.dock, panel\.jump\);/);
     assert.doesNotMatch(draw.slice(draw.indexOf("if (about.doing === null) {"), draw.indexOf("panel.doing.textContent = about.doing;")), /landed/, "the line's coming is not a row landing: it moves no row");
-    assert.match(script, /if \(leads\) \{\s*dock = document\.createElement\("div"\);\s*dock\.className = "dock";\s*rows\.append\(dock\);\s*\}/, "the Leader's panel has its dock from the start, so the strip is there before any line");
+    assert.match(script, /if \(leads\) \{\s*dock = document\.createElement\("div"\);\s*dock\.className = "dock";\s*rows\.append\(dock\);\s/, "the Leader's panel has its dock from the start, so the strip is there before any line");
     assert.equal(draw.match(/createElement\("div"\)/g).length, 1, "the draw makes the one element for what a seat is at, and no other");
     assert.match(script, /panel\.waiting\.clear\(\);\s*panel\.doing = null;/, "a panel drawn afresh forgets the line, which its rows no longer hold");
     assert.match(script, /waiting: new Map\(\), doing: null \};/, "a panel starts with no such line");
