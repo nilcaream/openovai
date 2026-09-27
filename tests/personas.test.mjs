@@ -258,10 +258,15 @@ describe("what the Leader is told", () => {
     assert.doesNotMatch(leader(), /milestone/);
   });
 
-  it("tells the Leader to write the desk, restart, then say back in a moment — after the last tool call", () => {
+  it("tells the Leader to write the desk, restart, then say back in a moment", () => {
     assert.match(leader(), /type="context" stage="error"/);
-    assert.match(leader(), /Call `write_desk`\s+with everything the next session needs, then call `restart_session`, then say "Back in a\s+moment" — that is the whole of your reply/);
-    assert.match(leader(), /only what you say after\s+the last tool call reaches it/);
+    assert.match(leader(), /Call `write_desk`\s+with everything the next session needs, then call `restart_session`, then say "Back in a\s+moment" — that is the whole of your reply, and it goes to your panel\./);
+  });
+
+  // Every text block of a turn is a row on the panel (lib/chat/session.mjs), before a tool call as
+  // much as after the last one. A Leader told otherwise wrote each reply twice.
+  it("never tells a session that only the words after its last tool call reach the panel", () => {
+    for (const text of [leader(), worker()]) assert.doesNotMatch(flat(text), /last tool call/);
   });
 
   it("tells the Leader what each event asks of it", () => {

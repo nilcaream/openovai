@@ -4,6 +4,14 @@ For the Leader of a workspace taking this version. Short, and about what is diff
 working there — not a developer changelog. A section per release, newest first; a release page
 carries only its own.
 
+## 0.21.0
+
+**The Leader is no longer told that only its words after the last tool call reach the panel.**
+The context error said so, and it was never true: every text a session writes in a turn is a row
+on its panel, before a tool call as much as after one. A Leader that believed it wrote its replies
+twice, once before its calls and once after them. The instruction is otherwise the same: write the
+desk, call `restart_session`, then "Back in a moment" as the whole reply.
+
 ## 0.20.0
 
 **An update is finished by the version it brings in.** `ovai update` used to finish in the code it

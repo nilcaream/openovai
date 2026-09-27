@@ -364,12 +364,23 @@
   },
   {
     "name": "the Leader's persona has the reply said before the tool calls",
-    "catches": "tells the Leader to write the desk, restart, then say back in a moment — after the last tool call",
+    "catches": "tells the Leader to write the desk, restart, then say back in a moment",
     "edits": [
       {
         "file": "lib/templates/leader.md",
-        "from": "Call `write_desk`\n  with everything the next session needs, then call `restart_session`, then say \"Back in a\n  moment\" — that is the whole of your reply, and it goes to your panel; only what you say after\n  the last tool call reaches it.",
+        "from": "Call `write_desk`\n  with everything the next session needs, then call `restart_session`, then say \"Back in a\n  moment\" — that is the whole of your reply, and it goes to your panel.",
         "to": "Say \"Back in a\n  moment\" — that is the whole of your reply, and it goes to your panel — then call `write_desk`\n  with everything the next session needs, then call `restart_session`."
+      }
+    ]
+  },
+  {
+    "name": "the Leader's persona says only the words after the last tool call reach the panel",
+    "catches": "never tells a session that only the words after its last tool call reach the panel",
+    "edits": [
+      {
+        "file": "lib/templates/leader.md",
+        "from": "and it goes to your panel. Nothing else to say,",
+        "to": "and it goes to your panel; only what you say after\n  the last tool call reaches it. Nothing else to say,"
       }
     ]
   },
