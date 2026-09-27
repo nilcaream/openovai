@@ -2005,8 +2005,8 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "  if (!isPageSecret(cookieOf(request, port))) {",
-        "to": "  if (false) {"
+        "from": "  if (!isPageSecret(cookieOf(request, port))) {\n    answer = { status: 401,",
+        "to": "  if (false) {\n    answer = { status: 401,"
       }
     ]
   },
@@ -2051,6 +2051,50 @@
         "file": "lib/chat/server.mjs",
         "from": "    instance: shownRoot(instance.root),\n    version: version(instance.root) ?? \"unknown\",",
         "to": "    instance: shownRoot(instance.root),"
+      }
+    ]
+  },
+  {
+    "name": "a web page is opened for a request that names no origin",
+    "catches": "refuses to open anything but a web page the view would show, for anybody but the page, and opens nothing",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "  if (request.headers.origin === undefined) {",
+        "to": "  if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "a web page is opened for a request without the cookie",
+    "catches": "refuses to open anything but a web page the view would show, for anybody but the page, and opens nothing",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "  if (!isPageSecret(cookieOf(request, port))) {\n    sendJson(response, 401,",
+        "to": "  if (false) {\n    sendJson(response, 401,"
+      }
+    ]
+  },
+  {
+    "name": "an opener that exits otherwise counts as having opened the page",
+    "catches": "says so when the desktop has no opener or its opener fails",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "resolve(code === 0 ? { ok: true } :",
+        "to": "resolve(true ? { ok: true } :"
+      }
+    ]
+  },
+  {
+    "name": "a row's link to a web page is followed as well as opened",
+    "catches": "opens a web page a row links to by asking the server, never by following the link",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      event.preventDefault();\n      openInBrowser(page);",
+        "to": "      openInBrowser(page);"
       }
     ]
   }

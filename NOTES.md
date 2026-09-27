@@ -95,6 +95,22 @@ only a request that carries it. The view's page allows no inline script or style
 The Leader and the Workers are now told to name a file by its path from the instance root, and a
 file outside the instance by its absolute path.
 
+**A web page a reply names opens in the browser.** Clicking a link to an `.html` or `.htm` file
+opens it the way a double click in a file manager does: the server hands its real path to the
+desktop's opener (`xdg-open`, or `open` on macOS), and the default browser opens it as a `file://`
+tab, where the files it loads beside it load too. The view of such a file still shows its source,
+and a middle click on the link opens that view. The view also has an "open in browser" button. This
+is the one route that starts a program on the machine, so it is narrowed:
+- it takes only a POST whose `Origin` is the server's own and that carries the page's cookie;
+- the file must be one the view would show;
+- its real path must end in `.html` or `.htm`, so a page's name that leads to a `.desktop` file
+  opens nothing;
+- the opener is given the absolute path as an argument, not a shell line.
+
+When the opener is missing or fails, the panel says so beside the link. This closes the ways in
+that the checks above name, and nothing else. A page opened this way runs as a local file in the
+browser, with whatever that browser lets a `file://` page do.
+
 **A User's message that waited says only when it went in.** Beside its stamp, a message that waited
 five seconds or more used to read `delivered 22:31:01 ✓ — 10 seconds after 2026.09.26 Saturday
 22:30:52`. It now reads `delivered 22:31:01 ✓ 2026.09.26 Saturday 22:30:52`: the delivery time, then

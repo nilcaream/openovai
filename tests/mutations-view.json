@@ -152,5 +152,16 @@
         "to": ""
       }
     ]
+  },
+  {
+    "name": "a file opens in the browser whatever its type",
+    "catches": "opens nothing else: not another type, not one a web page's name leads to, nothing the view refuses",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "  if (!opensInBrowser(shown.real)) {",
+        "to": "  if (false) {"
+      }
+    ]
   }
 ]

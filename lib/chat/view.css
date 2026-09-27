@@ -4,4 +4,5 @@
 body.view { margin: 0; background: var(--bg); color: var(--fg); font: 1rem/1.5 var(--sans); -webkit-font-smoothing: antialiased; }
 .view header { position: sticky; top: 0; padding: 8px 16px; background: var(--panel-2); border-bottom: 1px solid var(--line); font-size: .85rem; color: var(--fg-dim); }
 .view header .path { font-family: var(--mono); color: var(--fg); }
+.view header .opens { margin-left: 8px; font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 1px 8px; cursor: pointer; }
 .view main { max-width: 1092px; margin: 0 auto; padding: 16px; }

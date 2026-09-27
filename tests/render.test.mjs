@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { INTERRUPTED, SILENT, candidates, collapsed, dayPillBefore, html, pathOf, row, unseen } from "../lib/chat/render.mjs";
+import { INTERRUPTED, SILENT, candidates, collapsed, dayPillBefore, html, opensInBrowser, pathOf, row, unseen } from "../lib/chat/render.mjs";
 
 // The Leader's panel, and a Worker's: the same rows drawn from two seats, for one User.
 const names = { chat: "Server", seat: "Leader", leader: "Leader", user: "Mike" };
@@ -88,6 +88,15 @@ describe("a file named in a reply", () => {
     assert.match(shown, /<a href="\/view\/desks\/Ann\/notes\.md" target="_blank" rel="noopener">the notes<\/a>/);
     assert.match(shown, /<a href="https:\/\/x\.y" target="_blank" rel="noopener"><code>desks\/Ann\/notes\.md<\/code><\/a>/);
     assert.equal(shown.split('href="/view/').length - 1, 1, shown);
+  });
+
+  it("gives a web page's link the address that opens it in the browser, beside the view's, and no other file's", () => {
+    const shown = html("`desks/Lucy/card-mock.html:3`, [mock](desks/Lucy/old.HTM) and `desks/Lucy/notes.md`", ["desks/Lucy/card-mock.html", "desks/Lucy/old.HTM", "desks/Lucy/notes.md"]);
+    assert.match(shown, /<a href="\/view\/desks\/Lucy\/card-mock\.html" target="_blank" rel="noopener" data-opens="\/open\/desks\/Lucy\/card-mock\.html"><code>desks\/Lucy\/card-mock\.html:3<\/code><\/a>/);
+    assert.match(shown, /<a href="\/view\/desks\/Lucy\/old\.HTM" target="_blank" rel="noopener" data-opens="\/open\/desks\/Lucy\/old\.HTM">mock<\/a>/);
+    assert.equal(shown.split("data-opens=").length - 1, 2, shown);
+    assert.equal(opensInBrowser("a/b.html.md"), false);
+    assert.equal(opensInBrowser("a/b.xhtml"), false);
   });
 
   it("names as a candidate a backticked path or a link's target, each once, and never an absolute path, a URL, bare words or a code block", () => {

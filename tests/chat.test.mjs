@@ -236,6 +236,16 @@ describe("what the chat serves", () => {
     assert.equal(script.split("fetch(").length - 1, 1, "the page fetches somewhere other than through call()");
   });
 
+  // A row's link to a web page keeps the view's address for a middle click; a plain click asks the
+  // server to open the page in the browser instead, and says beside the link when it did not.
+  it("opens a web page a row links to by asking the server, never by following the link", () => {
+    const opened = answeredPage.indexOf('<script type="module">');
+    const script = answeredPage.slice(opened, answeredPage.indexOf("</script>", opened));
+    assert.match(script, /closest\("a\[data-opens\]"\);\s*if \(page === null\) return;\s*event\.preventDefault\(\);\s*openInBrowser\(page\);/);
+    assert.match(script, /await call\(link\.dataset\.opens, \{ method: "POST" \}\)/);
+    assert.match(script, /said\.className = "open-failed";/);
+  });
+
   it("says in its health which instance it serves, on which port, at which version", async () => {
     const answered = await fetchPlain(`${url}/health`);
     assert.equal(answered.status, 200);
@@ -320,6 +330,86 @@ describe("what the chat serves", () => {
       assert.equal(answered.status, 401, String(cookie));
       assert.ok(!answered.body.includes("Seen"), String(cookie));
     }
+  });
+
+  // The desktop's opener, stood in for by a script of the same name first on PATH, that writes down
+  // what it was given and exits as told. The real one is never run here.
+  function standInOpener(exit) {
+    const bin = scratch(`opener-${exit}`);
+    const told = path.join(bin, "told");
+    fs.mkdirSync(bin, { recursive: true });
+    fs.rmSync(told, { force: true });
+    for (const name of ["xdg-open", "open"]) {
+      fs.writeFileSync(path.join(bin, name), `#!/bin/sh\nprintf '%s\\n' "$@" >> '${told}'\nexit ${exit}\n`, { mode: 0o755 });
+    }
+    return { bin, told: () => (fs.existsSync(told) ? fs.readFileSync(told, "utf8") : "") };
+  }
+  async function withPath(bin, run) {
+    const before = process.env.PATH;
+    process.env.PATH = bin === null ? scratch("no-opener") : `${bin}${path.delimiter}${before}`;
+    try {
+      return await run();
+    } finally {
+      process.env.PATH = before;
+    }
+  }
+
+  it("opens a web page of the instance in the browser by the desktop's opener, given its real path and nothing else", async () => {
+    const page = path.join(instance, "temp", "open-check.html");
+    fs.writeFileSync(page, "<!doctype html><title>Opened</title>\n");
+    const [host] = own();
+    const cookie = `openovai-page-${server.address().port}=${pageSecret()}`;
+    const opener = standInOpener(0);
+    const answered = await withPath(opener.bin, () => raw("POST", "/open/temp/open-check.html", { host, cookie, origin: `http://${host}` }));
+    assert.equal(answered.status, 204);
+    assert.equal(opener.told(), `${fs.realpathSync(page)}\n`);
+  });
+
+  it("refuses to open anything but a web page the view would show, for anybody but the page, and opens nothing", async () => {
+    const temp = path.join(instance, "temp");
+    fs.writeFileSync(path.join(temp, "open-check.html"), "<!doctype html>\n");
+    fs.writeFileSync(path.join(temp, "launch.desktop"), "[Desktop Entry]\nExec=true\n");
+    fs.rmSync(path.join(temp, "launch.html"), { force: true });
+    fs.symlinkSync("launch.desktop", path.join(temp, "launch.html"));
+    const outside = scratch("open-outside.html");
+    fs.writeFileSync(outside, "<!doctype html>\n");
+    fs.rmSync(path.join(temp, "outside.html"), { force: true });
+    fs.symlinkSync(outside, path.join(temp, "outside.html"));
+    fs.mkdirSync(path.join(temp, "repo", ".git"), { recursive: true });
+    fs.writeFileSync(path.join(temp, "repo", ".git", "open-check.html"), "<!doctype html>\n");
+    const [host] = own();
+    const origin = `http://${host}`;
+    const cookie = `openovai-page-${server.address().port}=${pageSecret()}`;
+    const opener = standInOpener(0);
+    const asked = [
+      ["/open/temp/launch.desktop", { host, cookie, origin }, 415],
+      ["/open/temp/launch.html", { host, cookie, origin }, 415],
+      ["/open/temp/outside.html", { host, cookie, origin }, 403],
+      ["/open/temp/repo/.git/open-check.html", { host, cookie, origin }, 403],
+      ["/open/temp/nothing-here.html", { host, cookie, origin }, 404],
+      ["/open/temp/open-check.html", { host, origin }, 401],
+      ["/open/temp/open-check.html", { host, cookie: `openovai-page-${server.address().port}=wrong`, origin }, 401],
+      ["/open/temp/open-check.html", { host, cookie }, 403],
+      ["/open/temp/open-check.html", { host, cookie, origin: "null" }, 403],
+      ["/open/temp/open-check.html", { host, cookie, origin: "http://attacker.example" }, 403],
+    ];
+    for (const [route, headers, status] of asked) {
+      const answered = await withPath(opener.bin, () => raw("POST", route, headers));
+      assert.equal(answered.status, status, `${route} ${JSON.stringify(headers)}`);
+    }
+    assert.equal(opener.told(), "", "the opener was run");
+  });
+
+  it("says so when the desktop has no opener or its opener fails", async () => {
+    fs.writeFileSync(path.join(instance, "temp", "open-check.html"), "<!doctype html>\n");
+    const [host] = own();
+    const headers = { host, cookie: `openovai-page-${server.address().port}=${pageSecret()}`, origin: `http://${host}` };
+    const missing = await withPath(null, () => raw("POST", "/open/temp/open-check.html", headers));
+    assert.equal(missing.status, 502);
+    assert.match(JSON.parse(missing.body).error, /is not installed/);
+    const failing = await withPath(standInOpener(3).bin, () => raw("POST", "/open/temp/open-check.html", headers));
+    assert.equal(failing.status, 502);
+    assert.match(JSON.parse(failing.body).error, /exited with 3/);
   });
 
   it("records where it is listening, for whoever starts a session", () => {

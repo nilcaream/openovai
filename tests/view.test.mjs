@@ -10,7 +10,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { after, describe, it } from "node:test";
 
-import { LARGEST, fenced, languageOf, view, viewable, viewableIn, withViewable } from "../lib/chat/view.mjs";
+import { LARGEST, fenced, languageOf, openable, view, viewable, viewableIn, withViewable } from "../lib/chat/view.mjs";
 import { remove, scratch } from "./helpers.mjs";
 
 const base = scratch("view-test");
@@ -50,6 +50,13 @@ fs.mkdirSync(path.join(root, "temp", "a-directory"), { recursive: true });
 fs.symlinkSync(path.join(outside, "secret.txt"), path.join(root, "temp", "out-link.txt"));
 fs.symlinkSync(path.join(root, "desks", "Ann", "notes.txt"), path.join(root, "temp", "in-link.txt"));
 fs.symlinkSync(path.join(root, ".local", "notes.md"), path.join(root, "temp", "home-link.md"));
+put("desks/Ann/mock.html", "<!doctype html>\n<title>Mock</title>\n");
+put("desks/Ann/launch.desktop", "[Desktop Entry]\nExec=true\n");
+put("projects/demo/.git/page.html", "<!doctype html>\n");
+fs.writeFileSync(path.join(outside, "page.html"), "<!doctype html>\n");
+fs.symlinkSync(path.join(root, "desks", "Ann", "launch.desktop"), path.join(root, "temp", "page-link.html"));
+fs.symlinkSync(path.join(root, "desks", "Ann", "mock.html"), path.join(root, "temp", "mock-link.htm"));
+fs.symlinkSync(path.join(outside, "page.html"), path.join(root, "temp", "out-page.html"));
 
 after(() => remove(base));
 
@@ -137,12 +144,13 @@ describe("what the view draws", () => {
     assert.match(view(root, "temp/big.txt").page, /more than the 1048576 the view shows/);
   });
 
-  it("links only the stylesheets and the theme script the server serves, and nothing inline", () => {
+  it("links only the stylesheets and the scripts the server serves, and nothing inline", () => {
     const { page } = view(root, "desks/Ann/notes.txt");
     assert.match(page, /<script src="\/theme\.js"><\/script>/);
+    assert.match(page, /<script src="\/view\.js" defer><\/script>/);
     assert.match(page, /<link rel="stylesheet" href="\/md\.css">/);
     assert.match(page, /<link rel="stylesheet" href="\/view\.css">/);
-    assert.equal(page.split("<script").length - 1, 1);
+    assert.equal(page.split("<script").length - 1, 2);
     assert.ok(!page.includes("<style"));
   });
 
@@ -155,5 +163,28 @@ describe("what the view draws", () => {
     assert.ok(page.indexOf('<script src="/theme.js">') > page.indexOf('<link rel="stylesheet" href="/view.css">'));
     const script = fs.readFileSync(path.join(import.meta.dirname, "..", "lib", "chat", "theme.js"), "utf8");
     assert.match(script, /themeMeta\.content = getComputedStyle\(document\.documentElement\)\.getPropertyValue\("--panel-2"\)\.trim\(\) \|\| themeMeta\.content;/);
+  });
+
+  it("shows a web page's source with a control that opens it in the browser, and no other file's", () => {
+    const { page } = view(root, "desks/Ann/mock.html");
+    assert.match(page, /<pre><code class="language-html">&lt;!doctype html&gt;/);
+    assert.match(page, /<button type="button" class="opens" data-opens="\/open\/desks\/Ann\/mock\.html">open in browser<\/button> <span class="said"><\/span>/);
+    assert.ok(!view(root, "desks/Ann/notes.txt").page.includes('class="opens"'));
+    assert.ok(!view(root, "temp/page-link.html").page.includes('class="opens"'), "a link named .html to another file");
+  });
+});
+
+// A web page is opened in the browser by the desktop, which runs what it is given: only a file the
+// view shows, and only one whose real path is a web page's.
+describe("which files open in the browser", () => {
+  it("opens a web page the view shows, by its real path", () => {
+    assert.deepEqual(openable(root, "desks/Ann/mock.html"), { ok: true, real: fs.realpathSync(path.join(root, "desks/Ann/mock.html")) });
+    assert.deepEqual(openable(root, "temp/mock-link.htm"), { ok: true, real: fs.realpathSync(path.join(root, "desks/Ann/mock.html")) });
+  });
+
+  it("opens nothing else: not another type, not one a web page's name leads to, nothing the view refuses", () => {
+    for (const [wanted, status] of [["desks/Ann/launch.desktop", 415], ["temp/page-link.html", 415], ["desks/Ann/notes.txt", 415], ["temp/out-page.html", 403], ["projects/demo/.git/page.html", 403], ["temp/missing.html", 404]]) {
+      assert.equal(openable(root, wanted).status, status, wanted);
+    }
   });
 });

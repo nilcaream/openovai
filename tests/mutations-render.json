@@ -324,7 +324,7 @@
     "edits": [
       {
         "file": "lib/chat/render.mjs",
-        "from": "      return file === null ? false : `<a href=\"${viewHref(file)}\" target=\"_blank\" rel=\"noopener\"><code>${escape(text)}</code></a>`;",
+        "from": "      return file === null ? false : fileLink(file, `<code>${escape(text)}</code>`);",
         "to": "      return false;"
       }
     ]
@@ -381,6 +381,17 @@
         "file": "lib/chat/render.mjs",
         "from": "  return { html: html(text, viewable), tight: true,",
         "to": "  return { html: html(text), tight: true,"
+      }
+    ]
+  },
+  {
+    "name": "a web page's link carries no address that opens it",
+    "catches": "gives a web page's link the address that opens it in the browser, beside the view's, and no other file's",
+    "edits": [
+      {
+        "file": "lib/chat/render.mjs",
+        "from": "opensInBrowser(file) ? ` data-opens=",
+        "to": "false ? ` data-opens="
       }
     ]
   }

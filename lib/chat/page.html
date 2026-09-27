@@ -155,6 +155,7 @@
   .divider span { background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 2px 12px; }
   /* markdown inside a reply is drawn by /md.css, shared with the file view */
   .bubble a { color: var(--accent); }
+  .bubble .open-failed { margin-left: 6px; font-size: .85em; color: var(--fg-dim); }
   /* the bottom area of a panel: the cards of its questions, then the composer. It takes its room
      from the rows in the panel's column — never over them — and no more than most of the panel,
      so a stack of cards scrolls inside it while the composer stays in sight */
@@ -366,8 +367,22 @@
     return answered;
   }
 
+  // A web page a row links to is opened by the desktop in the browser, as a double click in a file
+  // manager opens it, rather than shown by the view. When the server does not open it, its reason
+  // is said beside the link for a few seconds.
+  const OPEN_FAILED_FOR = 6000;
+  async function openInBrowser(link) {
+    const answered = await call(link.dataset.opens, { method: "POST" }).catch(() => null);
+    if (answered?.ok) return;
+    const said = document.createElement("span");
+    said.className = "open-failed";
+    said.textContent = answered === null ? "The server did not answer." : ((await answered.json().catch(() => ({}))).error ?? `Not opened (${answered.status}).`);
+    link.after(said);
+    setTimeout(() => said.remove(), OPEN_FAILED_FOR);
+  }
+
   const state = fresh();
-  const columns = { left: document.getElementById("left"), mid: document.getElementById("mid"), right: document.getElementById("right") };
+  const columns ={ left: document.getElementById("left"), mid: document.getElementById("mid"), right: document.getElementById("right") };
   const favicon = document.querySelector('link[rel="icon"]');
 
   // ------------------------------------------------------------------------------- one panel
@@ -494,6 +509,13 @@
         copy.classList.add("copied");
         setTimeout(() => copy.classList.remove("copied"), COPIED_FOR);
       }, () => {});
+    });
+    // One for every link to a web page: opened by the desktop rather than followed (openInBrowser).
+    rows.addEventListener("click", (event) => {
+      const page = event.target.closest("a[data-opens]");
+      if (page === null) return;
+      event.preventDefault();
+      openInBrowser(page);
     });
     // On the Leader's panel, a pill for rows that arrived below where the reader is: shown when a
     // row lands while the reader is more than 80px above the newest, gone once they are near it
