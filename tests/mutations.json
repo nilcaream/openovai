@@ -346,8 +346,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "    modelFor(instance.root, seat, instance.config),",
-        "to": "    instance.config.models.worker,"
+        "from": "  const { model, effort } = splitModel(modelFor(instance.root, seat, instance.config));",
+        "to": "  const { model, effort } = splitModel(instance.config.models.worker);"
       }
     ]
   },
@@ -691,8 +691,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "    \"--model\",\n    modelFor(instance.root, seat, instance.config),\n  ];",
-        "to": "    \"--model\",\n    modelFor(instance.root, seat, instance.config),\n    \"--continue\",\n  ];"
+        "from": "    \"--model\",\n    model,\n  ];",
+        "to": "    \"--model\",\n    model,\n    \"--continue\",\n  ];"
       }
     ]
   },
