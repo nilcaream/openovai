@@ -38,8 +38,8 @@
     "edits": [
       {
         "file": "lib/desks.mjs",
-        "from": "  \"Edit(/.local/.claude.json)\",\n];",
-        "to": "  \"Edit(/.local/.claude.json)\",\n  \"Edit(/.local/projects/**)\",\n];"
+        "from": "  \"Edit(/.local/.credentials.json)\",\n];",
+        "to": "  \"Edit(/.local/.credentials.json)\",\n  \"Edit(/.local/projects/**)\",\n];"
       }
     ]
   },
@@ -820,6 +820,39 @@
         "file": "lib/install.mjs",
         "from": "      ...replacePayload(plan.root, plan.source, installStamp(plan.source)),",
         "to": "      ...replacePayload(plan.root, plan.source),"
+      }
+    ]
+  },
+  {
+    "name": "the account's credential is left to the Read tool",
+    "catches": "refuses the account's credential to the tools that read and write files, and nothing else in its home",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "  \"Read(/.local/.credentials.json)\",\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the whole Claude Code home is refused to the Read tool",
+    "catches": "refuses the account's credential to the tools that read and write files, and nothing else in its home",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "  \"Read(/.local/.credentials.json)\",\n",
+        "to": "  \"Read(/.local/**)\",\n"
+      }
+    ]
+  },
+  {
+    "name": "the account's credential is left to the tools that write files",
+    "catches": "closes its own account of what it allows to the tools that write files",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "  \"Edit(/.local/.credentials.json)\",\n];",
+        "to": "];"
       }
     ]
   }

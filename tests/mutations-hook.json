@@ -218,5 +218,16 @@
         "to": "  if (RESERVED.has(words[0])) {\n    return null;\n  }\n  while (words.length > 0 && ASSIGNMENT.test(words[0])) {\n    words = words.slice(1);\n  }\n"
       }
     ]
+  },
+  {
+    "name": "an update does not name the credential's refusals to an instance born without them",
+    "catches": "names the rules an instance born earlier has not got, each in its own list",
+    "edits": [
+      {
+        "file": "lib/seed.mjs",
+        "from": "    ...[...OWN_ACCOUNT_RULES, ...SHELL_DENY_RULES].filter((rule) => !deny.includes(rule)).map((rule) => `deny ${rule}`),",
+        "to": "    ...[...OWN_ACCOUNT_RULES.slice(0, 3), ...SHELL_DENY_RULES].filter((rule) => !deny.includes(rule)).map((rule) => `deny ${rule}`),"
+      }
+    ]
   }
 ]

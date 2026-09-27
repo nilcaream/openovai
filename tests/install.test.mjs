@@ -394,7 +394,18 @@ describe("what the installer made", () => {
       "Edit(/.claude/**)",
       "Edit(/.local/settings.json)",
       "Edit(/.local/.claude.json)",
+      "Edit(/.local/.credentials.json)",
     ]);
+  });
+
+  // The account's credential sits in the Claude Code home under the instance, which `Read(/**)`
+  // reaches: it is refused to the Read tool and to the tools that write files, by its own name and
+  // no wider, since Claude Code keeps what a session reads back in the same home.
+  it("refuses the account's credential to the tools that read and write files, and nothing else in its home", () => {
+    const deny = JSON.parse(contentOf(".claude", "settings.json")).permissions.deny;
+    assert.ok(deny.includes("Read(/.local/.credentials.json)"), deny.join(", "));
+    assert.ok(deny.includes("Edit(/.local/.credentials.json)"), deny.join(", "));
+    assert.deepEqual(deny.filter((rule) => rule.startsWith("Read(")), ["Read(/.local/.credentials.json)"]);
   });
 
   // A desk file is edited in place with the file tools like any other file under the desk
@@ -485,7 +496,7 @@ describe("what the installer made", () => {
   // on.
   it("refuses nothing about anybody's work beyond the push, the root and the other hosts", () => {
     const deny = JSON.parse(contentOf(".claude", "settings.json")).permissions.deny;
-    assert.deepEqual(deny.filter((rule) => !rule.startsWith("Edit(/.claude") && !rule.startsWith("Edit(/.local")), ["Bash(git push:*)", "Bash(sudo:*)", "Bash(ssh:*)"]);
+    assert.deepEqual(deny.filter((rule) => !rule.startsWith("Edit(/.claude") && !rule.startsWith("Edit(/.local") && rule !== "Read(/.local/.credentials.json)"), ["Bash(git push:*)", "Bash(sudo:*)", "Bash(ssh:*)"]);
   });
 
   // What the harness would add to every commit and pull request — a trailer naming the model, a
