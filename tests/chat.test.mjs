@@ -10,6 +10,7 @@
 
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
@@ -221,6 +222,45 @@ describe("what the chat serves", () => {
     answeredPage = answered.body;
     assert.ok(answered.body.includes(`<meta name="openovai-secret" content="${pageSecret()}">`), "the page has no secret in it");
     assert.ok(!answered.body.includes('<meta name="openovai-secret" content="">'), "the empty tag is still there");
+  });
+
+  // A row is drawn as HTML the page did not write (render.mjs), so the page is sent with a policy
+  // that runs its own two inline scripts and its one inline style, each by its digest, and nothing
+  // else inline: no handler and no tag a row brought with it.
+  it("sends the page with a policy that runs its own inline scripts and style and nothing else inline", async () => {
+    const answered = await fetch(`${url}/`);
+    const page = await answered.text();
+    const policy = answered.headers.get("content-security-policy") ?? "";
+    const directives = Object.fromEntries(policy.split(";").map((part) => part.trim().split(/\s+/)).map(([name, ...values]) => [name, values]));
+    const body = (open, close) => {
+      const start = page.indexOf(open) + open.length;
+      return page.slice(start, page.indexOf(close, start));
+    };
+    const digest = (text) => `'sha256-${crypto.createHash("sha256").update(text).digest("base64")}'`;
+    assert.deepEqual(directives["script-src"], ["'self'", digest(body("<script>", "</script>")), digest(body('<script type="module">', "</script>"))]);
+    assert.deepEqual(directives["style-src"], ["'self'", digest(body("<style>", "</style>"))]);
+    for (const [name, value] of [["default-src", "'none'"], ["connect-src", "'self'"], ["img-src", "'self'"], ["manifest-src", "'self'"], ["base-uri", "'none'"], ["form-action", "'none'"], ["frame-ancestors", "'none'"]]) {
+      assert.deepEqual(directives[name], [value], name);
+    }
+    assert.ok(!policy.includes("unsafe"), policy);
+  });
+
+  // The digests are of page.html as written; the server then writes the secret and the theme into
+  // it. Whatever it writes, every inline block of the page as sent is still one the policy runs.
+  it("runs every inline script and style of the page as sent, in either theme", async () => {
+    for (const theme of ["light", "dark"]) {
+      const answered = await fetch(`${url}/`, { headers: { cookie: `openovai-theme-${server.address().port}=${theme}` } });
+      const page = await answered.text();
+      assert.ok(page.includes(`data-theme="${theme}"`), `not drawn ${theme}`);
+      const policy = answered.headers.get("content-security-policy") ?? "";
+      const allowed = Object.fromEntries(policy.split(";").map((part) => part.trim().split(/\s+/)).map(([name, ...values]) => [name, values]));
+      const blocks = [...page.matchAll(/<(script|style)\b[^>]*>([\s\S]*?)<\/\1>/g)];
+      assert.equal(blocks.length, 3, theme);
+      for (const [, tag, text] of blocks) {
+        const digest = `'sha256-${crypto.createHash("sha256").update(text).digest("base64")}'`;
+        assert.ok(allowed[`${tag}-src`]?.includes(digest), `${theme}: a ${tag} the policy does not run`);
+      }
+    }
   });
 
   // The page's own script is not run here, so the two things it has to do with the secret are read

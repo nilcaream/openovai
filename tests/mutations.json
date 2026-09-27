@@ -2152,5 +2152,38 @@
         "to": "  if (isImage(found.real)) {"
       }
     ]
+  },
+  {
+    "name": "the page runs any inline script, a row's handler among them",
+    "catches": "sends the page with a policy that runs its own inline scripts and style and nothing else inline",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "    `script-src 'self' ${digests.script.join(\" \")}`,",
+        "to": "    `script-src 'self' 'unsafe-inline' ${digests.script.join(\" \")}`,"
+      }
+    ]
+  },
+  {
+    "name": "the page is sent with no policy",
+    "catches": "sends the page with a policy that runs its own inline scripts and style and nothing else inline",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "    \"content-security-policy\": pagePolicy(template),\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the server writes into the page's style after its digest was taken",
+    "catches": "runs every inline script and style of the page as sent, in either theme",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "    .replace(themeHead(\"light\"), themeHead(themeOf(request, port))));",
+        "to": "    .replace(themeHead(\"light\"), themeHead(themeOf(request, port))).replace(\"</style>\", \" </style>\"));"
+      }
+    ]
   }
 ]

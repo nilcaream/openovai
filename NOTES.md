@@ -47,6 +47,13 @@ drawn on the page as live HTML, closed by the `</p>` after it, so a reply or a m
 sessions could put a script on the page. That text now goes through marked's own escaping, like
 any other text; an entity such as `&amp;` reads as it did.
 
+**The page is sent with a Content-Security-Policy.** This closes a second gap behind the one
+above: the page had no policy, so HTML that got into a row could run as the page, with its
+secret. It now runs its own two inline scripts and its one inline style, each allowed by the
+digest of its text in page.html, and nothing else inline, so an event handler or a script tag a
+row brings with it is not run. Everything else comes from the page's own origin, as the file
+view's does; nothing may frame the page, and it sets no base address and sends no form.
+
 ## 0.20.0
 
 **An update is finished by the version it brings in.** `ovai update` used to finish in the code it
