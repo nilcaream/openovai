@@ -738,7 +738,7 @@
   },
   {
     "name": "the Leader's persona names the permission event's wait by the old word",
-    "catches": "tells the Leader to act when a Worker has waited long on a button",
+    "catches": "tells the Leader to act when a Worker's card timed out",
     "edits": [
       {
         "file": "lib/templates/leader.md",

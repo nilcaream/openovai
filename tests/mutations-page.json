@@ -759,6 +759,11 @@
         "file": "lib/chat/page.html",
         "from": "  .rows .line { display: block; width: 100%; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); font-family: var(--mono); font-size: .76rem; color: var(--fg-dim); padding: 3px 8px; margin: 3px 0; overflow-wrap: anywhere; }\n  .rows .line.err { color: var(--bad); }\n  .rows .line .n { color: var(--fg-faint); }\n  /* a line that is one end of a message between two sessions: a click on it finds the message on the Leader's panel */\n  .rows .line.peer { cursor: pointer; border-left: 3px solid var(--accent); }\n  /* the one line that says what the seat is at: always exactly one line, cut with an ellipsis */\n  .rows .line.doing { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }\n",
         "to": "  .rows .tool { display: block; width: 100%; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); font-family: var(--mono); font-size: .76rem; color: var(--fg-dim); padding: 3px 8px; margin: 3px 0; overflow-wrap: anywhere; }\n  .rows .tool.err { color: var(--bad); }\n  .rows .tool .n { color: var(--fg-faint); }\n  /* a line that is one end of a message between two sessions: a click on it finds the message on the Leader's panel */\n  .rows .tool.peer { cursor: pointer; border-left: 3px solid var(--accent); }\n  /* the one line that says what the seat is at: always exactly one line, cut with an ellipsis */\n  .rows .tool.doing { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }\n"
+      },
+      {
+        "file": "lib/chat/page.html",
+        "from": "  .rows .dock .line.doing { position: absolute; right: 0; bottom: 4px; width: auto; max-width: 100%; margin: 0; line-height: 1.5; }\n  /* while the pointer is over it: not drawn, still laid out, so the page can tell when it leaves */\n  .rows .dock.pointed .line.doing { visibility: hidden; }\n",
+        "to": "  .rows .dock .tool.doing { position: absolute; right: 0; bottom: 4px; width: auto; max-width: 100%; margin: 0; line-height: 1.5; }\n  /* while the pointer is over it: not drawn, still laid out, so the page can tell when it leaves */\n  .rows .dock.pointed .tool.doing { visibility: hidden; }\n"
       }
     ]
   },
