@@ -33,6 +33,17 @@
     ]
   },
   {
+    "name": "the file view is drawn without the theme the page's cookie names",
+    "catches": "draws the file view in the theme of the page's own port's cookie, light without one",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "view(instance.root, wanted, theme);",
+        "to": "view(instance.root, wanted);"
+      }
+    ]
+  },
+  {
     "name": "the page goes out with its empty tag",
     "catches": "serves the page with its secret in the one tag that carries it",
     "edits": [

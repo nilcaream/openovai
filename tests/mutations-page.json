@@ -329,6 +329,17 @@
     ]
   },
   {
+    "name": "the theme is kept in storage but never in the cookie the file view is drawn from",
+    "catches": "sets the stored theme above the stylesheet, flips it on the toggle, keeps it and repaints the title bar",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    document.cookie = `openovai-theme-${location.port}=${theme}; SameSite=Strict; Path=/; Max-Age=31536000`;\n",
+        "to": ""
+      }
+    ]
+  },
+  {
     "name": "the installed app's title bar no longer follows the theme: the meta repaint is gone",
     "catches": "sets the stored theme above the stylesheet, flips it on the toggle, keeps it and repaints the title bar",
     "edits": [

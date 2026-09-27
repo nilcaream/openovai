@@ -10,7 +10,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { after, describe, it } from "node:test";
 
-import { LARGEST, fenced, languageOf, openable, view, viewable, viewableIn, withViewable } from "../lib/chat/view.mjs";
+import { LARGEST, fenced, languageOf, openable, unknown, view, viewable, viewableIn, withViewable } from "../lib/chat/view.mjs";
 import { remove, scratch } from "./helpers.mjs";
 
 const base = scratch("view-test");
@@ -163,6 +163,22 @@ describe("what the view draws", () => {
     assert.ok(page.indexOf('<script src="/theme.js">') > page.indexOf('<link rel="stylesheet" href="/view.css">'));
     const script = fs.readFileSync(path.join(import.meta.dirname, "..", "lib", "chat", "theme.js"), "utf8");
     assert.match(script, /themeMeta\.content = getComputedStyle\(document\.documentElement\)\.getPropertyValue\("--panel-2"\)\.trim\(\) \|\| themeMeta\.content;/);
+  });
+
+  // The server names the theme the page keeps, so the first paint is already in it, before any
+  // stylesheet or script: the window's ground, the title bar in the head bubble's ground of that
+  // theme as md.css declares it, and the tokens. Light for anything else, as the page does.
+  it("draws the page in the theme it is given from the first paint, light for anything but dark", () => {
+    const css = fs.readFileSync(path.join(import.meta.dirname, "..", "lib", "chat", "md.css"), "utf8");
+    const ground = (selector) => css.match(new RegExp(`^${selector.replace(/[[\]]/g, "\\$&")} \\{[^}]*--panel-2: (#[0-9a-f]+);`, "m"))[1];
+    for (const [given, theme, selector] of [["dark", "dark", ':root[data-theme="dark"]'], ["light", "light", ":root"], [null, "light", ":root"], ["bogus", "light", ":root"]]) {
+      for (const page of [view(root, "desks/Ann/notes.txt", given).page, view(root, "temp/missing.txt", given).page, unknown(given)]) {
+        assert.match(page, new RegExp(`^<!doctype html>\\n<html lang="en" data-theme="${theme}">\\n`), String(given));
+        assert.ok(page.includes(`<meta name="color-scheme" content="${theme}">`), String(given));
+        assert.ok(page.includes(`<meta name="theme-color" content="${ground(selector)}">`), String(given));
+        assert.ok(page.indexOf('<meta name="theme-color"') < page.indexOf('<link rel="stylesheet"'), String(given));
+      }
+    }
   });
 
   it("shows a web page's source with a control that opens it in the browser, and no other file's", () => {

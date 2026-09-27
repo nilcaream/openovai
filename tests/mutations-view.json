@@ -148,8 +148,19 @@
     "edits": [
       {
         "file": "lib/chat/view.mjs",
-        "from": "<meta name=\"theme-color\" content=\"#eef1f5\">\n",
+        "from": "<meta name=\"theme-color\" content=\"${THEME_COLOR[theme]}\">\n",
         "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the view is drawn light whatever theme it is given",
+    "catches": "draws the page in the theme it is given from the first paint, light for anything but dark",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "  const theme = wanted === \"dark\" ? \"dark\" : \"light\";",
+        "to": "  const theme = \"light\";"
       }
     ]
   },

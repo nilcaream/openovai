@@ -231,12 +231,14 @@
   // this owns the click and keeps the rest in step — the choice stored under one key, the
   // toggle's title, and the theme-color meta repainted from the head bubble's ground so an
   // installed app's title bar follows. Storage can throw (blocked site data): then the theme is
-  // still applied, only not remembered.
+  // still applied, only not remembered. The choice is also a cookie named by the port, as the
+  // secret's is, which the server reads to draw the file view in it from the first paint.
   const themeMeta = document.querySelector('meta[name="theme-color"]');
   let themeToggle = null;
   function applyTheme(theme) {
     document.documentElement.dataset.theme = theme;
     try { localStorage.setItem("openovai-theme", theme); } catch (error) {}
+    document.cookie = `openovai-theme-${location.port}=${theme}; SameSite=Strict; Path=/; Max-Age=31536000`;
     if (themeToggle !== null) themeToggle.title = theme === "dark" ? "Dark — click for light" : "Light — click for dark";
     themeMeta.content = getComputedStyle(document.documentElement).getPropertyValue("--panel-2").trim() || themeMeta.content;
   }

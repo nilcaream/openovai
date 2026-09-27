@@ -608,7 +608,7 @@ describe("the script", () => {
     const headScript = source.slice(head, source.indexOf("</script>", head));
     assert.match(headScript, /document\.documentElement\.dataset\.theme = localStorage\.getItem\("openovai-theme"\) === "dark" \? "dark" : "light";/);
     assert.match(headScript, /catch \(error\) \{ document\.documentElement\.dataset\.theme = "light"; \}/);
-    assert.match(script, /function applyTheme\(theme\) \{\s*document\.documentElement\.dataset\.theme = theme;\s*try \{ localStorage\.setItem\("openovai-theme", theme\); \} catch \(error\) \{\}/);
+    assert.match(script, /function applyTheme\(theme\) \{\s*document\.documentElement\.dataset\.theme = theme;\s*try \{ localStorage\.setItem\("openovai-theme", theme\); \} catch \(error\) \{\}\s*document\.cookie = `openovai-theme-\$\{location\.port\}=\$\{theme\}; SameSite=Strict; Path=\/; Max-Age=31536000`;/);
     assert.match(script, /themeMeta\.content = getComputedStyle\(document\.documentElement\)\.getPropertyValue\("--panel-2"\)\.trim\(\)/);
     assert.match(script, /themeToggle\.addEventListener\("click", \(\) => applyTheme\(document\.documentElement\.dataset\.theme === "dark" \? "light" : "dark"\)\);/);
   });

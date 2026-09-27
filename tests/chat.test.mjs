@@ -323,6 +323,18 @@ describe("what the chat serves", () => {
     assert.ok(!posted.body.includes("Seen"));
   });
 
+  // The page keeps its theme in a cookie of its port too (page.html), and the view is drawn in the
+  // one that cookie names; another port's cookie is another instance's page.
+  it("draws the file view in the theme of the page's own port's cookie, light without one", async () => {
+    const [host] = own();
+    const port = server.address().port;
+    const secret = `openovai-page-${port}=${pageSecret()}`;
+    for (const [cookie, theme] of [[`${secret}; openovai-theme-${port}=dark`, "dark"], [`openovai-theme-${port}=dark`, "dark"], [secret, "light"], [`${secret}; openovai-theme-${port + 1}=dark`, "light"]]) {
+      const answered = await raw("GET", "/view/temp/view-check.md", { host, cookie });
+      assert.match(answered.body, new RegExp(`<html lang="en" data-theme="${theme}">`), cookie);
+    }
+  });
+
   it("refuses the file view to a caller without the cookie, whatever else it carries", async () => {
     const [host] = own();
     for (const cookie of [undefined, `openovai-page-${server.address().port}=wrong`, `openovai-page-${server.address().port + 1}=${pageSecret()}`]) {
