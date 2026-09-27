@@ -176,6 +176,11 @@ line, wrapped at any character and scrolled past a few lines. The buttons read `
 long for a very narrow panel wraps inside its button. The reason a deny needs has a whole row under
 them. A question's Send and Cancel and a rule request's three buttons share their row the same way.
 
+**A permission card says when a subagent made the call.** A call one of a session's subagents
+made used to reach the panel as the seat's own. The card now says so under its heading, in the
+words the session started the subagent with: `from its subagent Explore — “find the card CSS”`.
+Where the server did not see that subagent start, the card says `from a subagent`.
+
 ## 0.19.0
 
 **The Leader stops and restarts Workers; a Worker only works.** A Worker no longer has

@@ -52,6 +52,18 @@ describe("a call stop", () => {
     assert.deepEqual(line(bare, "rules"), [], "no rules line without an Always to save them");
   });
 
+  it("says which subagent made the call, in the words it was started with, first under the heading", () => {
+    const from = (agent) => dialogOf({ id: "r10", tool: "Bash", input: { command: "make" }, agent }, "Paul");
+    const named = from({ id: "a7f3", type: "Explore", description: "build the thing" });
+    assert.equal(named.heading, "Paul wants to use Bash");
+    assert.deepEqual(named.lines[0], { kind: "agent", text: "from its subagent Explore — “build the thing”" });
+    assert.deepEqual(line(from({ id: "a7f3", type: "Explore" }), "agent"), ["from its subagent Explore"]);
+    assert.deepEqual(line(from({ id: "b9e1" }), "agent"), ["from a subagent"]);
+    assert.deepEqual(line(push, "agent"), [], "the session's own call says nothing of a subagent");
+    const other = dialogOf({ id: "r11", tool: "WebFetch", input: { url: "https://x" }, agent: { id: "b9e1" } }, "Paul");
+    assert.deepEqual(line(other, "input"), ['{"url":"https://x"}'], "another tool's input is shown whole under the subagent's line too");
+  });
+
   it("shows every rule the Always press saves, one to a line, and keeps the button's label short", () => {
     assert.deepEqual(line(push, "rules"), ["Bash(git push:*)"]);
     assert.equal(push.buttons[1].label, "Always allow");

@@ -109,6 +109,9 @@ export function installed(options, environment) {
 //                             names a path rather than a command
 //   OPENOVAI_STAND_IN_SUGGESTS      the rules Claude Code would save for that call, as JSON, sent
 //                             beside the request as permission_suggestions
+//   OPENOVAI_STAND_IN_AGENT_ID      the agent_id sent on that request — a call a subagent made
+//   OPENOVAI_STAND_IN_TASK_STARTED  the fields of a system/task_started frame, as JSON, sent
+//                             before that request — a subagent starting
 //   OPENOVAI_STAND_IN_WAITS         milliseconds to wait for that answer before giving up on it
 //                             (default: 5000)
 //   OPENOVAI_STAND_IN_LIFETIME      milliseconds after which it exits on its own whatever is
@@ -381,6 +384,9 @@ function inputAsked(given) {
 
 async function askPermission(turn) {
   const id = "request-" + turn;
+  if ((process.env.OPENOVAI_STAND_IN_TASK_STARTED ?? "") !== "") {
+    frame({ type: "system", subtype: "task_started", ...JSON.parse(process.env.OPENOVAI_STAND_IN_TASK_STARTED) });
+  }
   frame({
     type: "control_request",
     request_id: id,
@@ -392,6 +398,7 @@ async function askPermission(turn) {
           ? inputAsked(process.env.OPENOVAI_STAND_IN_ASKS_INPUT ?? "the one it wanted to run")
           : { file_path: process.env.OPENOVAI_STAND_IN_ASKS_FILE },
       ...((process.env.OPENOVAI_STAND_IN_SUGGESTS ?? "") === "" ? {} : { permission_suggestions: JSON.parse(process.env.OPENOVAI_STAND_IN_SUGGESTS) }),
+      ...((process.env.OPENOVAI_STAND_IN_AGENT_ID ?? "") === "" ? {} : { agent_id: process.env.OPENOVAI_STAND_IN_AGENT_ID }),
     },
   });
   const answer = await Promise.race([

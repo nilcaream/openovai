@@ -778,6 +778,38 @@ describe("asking to be allowed", () => {
     });
   });
 
+  // A call one of the session's subagents made carries that subagent's agent_id and nothing else
+  // about it; its type and description came earlier, when it started, under its task id.
+  describe("a call a subagent made", () => {
+    const shownWith = async (env) => {
+      await leaderAsking({ OPENOVAI_STAND_IN_ASKS: "Bash", OPENOVAI_STAND_IN_ASKS_INPUT: "make", ...env });
+      const reply = await say("build it");
+      const shown = (await waitingOn())[0];
+      await page("POST", `/sessions/${LEADER}/permission`, { id: shown.id, decision: "allow" });
+      await reply();
+      await endSeat(LEADER, 500);
+      return shown;
+    };
+
+    it("names the subagent whose call it is, by the type and description it was started with", async () => {
+      const shown = await shownWith({
+        OPENOVAI_STAND_IN_TASK_STARTED: JSON.stringify({ task_id: "a7f3", tool_use_id: "toolu_1", description: "build the thing", subagent_type: "Explore" }),
+        OPENOVAI_STAND_IN_AGENT_ID: "a7f3",
+      });
+      assert.deepEqual(shown.agent, { id: "a7f3", type: "Explore", description: "build the thing" });
+    });
+
+    it("says only that a subagent made it, where its start was not seen", async () => {
+      const shown = await shownWith({ OPENOVAI_STAND_IN_AGENT_ID: "b9e1" });
+      assert.deepEqual(shown.agent, { id: "b9e1" });
+    });
+
+    it("says nothing of a subagent for the session's own call", async () => {
+      const shown = await shownWith({});
+      assert.equal(shown.agent, undefined);
+    });
+  });
+
   describe("asking to allow a shape that cannot be composed", () => {
     let shown;
     let refused;

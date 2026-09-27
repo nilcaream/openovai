@@ -97,5 +97,27 @@
         "to": "  const words = own.trim();"
       }
     ]
+  },
+  {
+    "name": "the card names a subagent by its type alone, never by what it was started to do",
+    "catches": "says which subagent made the call, in the words it was started with, first under the heading",
+    "edits": [
+      {
+        "file": "lib/chat/dialog.mjs",
+        "from": "    lines.push({ kind: \"agent\", text: description === null ? whose : `${whose} — “${description}”` });",
+        "to": "    lines.push({ kind: \"agent\", text: whose });"
+      }
+    ]
+  },
+  {
+    "name": "a subagent's call with no other line is shown as nothing but the subagent",
+    "catches": "says which subagent made the call, in the words it was started with, first under the heading",
+    "edits": [
+      {
+        "file": "lib/chat/dialog.mjs",
+        "from": "  if (lines.length === said) {",
+        "to": "  if (lines.length === 0) {"
+      }
+    ]
   }
 ]

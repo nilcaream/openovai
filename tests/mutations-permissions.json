@@ -795,5 +795,27 @@
         "to": "    for (const rule of granted.slice(0, 1)) {"
       }
     ]
+  },
+  {
+    "name": "a subagent's start is kept under the call that started it, not under its task id",
+    "catches": "names the subagent whose call it is, by the type and description it was started with",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "        record.agents.set(frame.task_id, {",
+        "to": "        record.agents.set(frame.tool_use_id, {"
+      }
+    ]
+  },
+  {
+    "name": "the request says nothing of the subagent whose call it is",
+    "catches": "says only that a subagent made it, where its start was not seen",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "    ...(agent === null ? {} : { agent }),\n",
+        "to": ""
+      }
+    ]
   }
 ]

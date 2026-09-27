@@ -169,6 +169,8 @@
   /* the rules an Always press saves, one to a line right above the buttons: wrapped at any
      character however long the path in them, and scrolled past a few lines */
   .msg.perm .saves { font-size: .72rem; color: var(--fg-dim); margin: 6px 0 0; }
+  /* which of the session's subagents made the call, under the heading */
+  .msg.perm .agent { font-size: .78rem; color: var(--fg-dim); margin: 0 0 4px; overflow-wrap: anywhere; }
   .msg.perm .raw.rules { max-height: 6em; }
   /* the decisions share the card's width equally, whatever their labels, and a label too long for
      a narrow panel wraps inside its button; the deny reason takes a row of its own under them */
@@ -950,6 +952,7 @@
       if (kind === "reason" || kind === "why") shown.className = "reason";
       else if (kind === "saves") shown.className = "saves";
       else if (kind === "rules") shown.className = "raw rules";
+      else if (kind === "agent") shown.className = "agent";
       else shown.className = "raw";
       shown.textContent = text;
       bubble.append(shown);
