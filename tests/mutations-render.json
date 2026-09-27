@@ -438,5 +438,16 @@
         "to": "  return null;"
       }
     ]
+  },
+  {
+    "name": "the text after an inline raw tag is taken as already escaped",
+    "catches": "escapes the text after an inline raw tag, in every block after it",
+    "edits": [
+      {
+        "file": "lib/chat/render.mjs",
+        "from": "      token.escaped = false;\n",
+        "to": ""
+      }
+    ]
   }
 ]

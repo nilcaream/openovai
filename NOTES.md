@@ -39,6 +39,14 @@ the model it has, and it runs as it did until somebody adds an effort to it.
 a model is written as "model" or "model/effort". The tool gives "opus" and "claude-opus-5/low" as
 examples and names the levels Claude Code takes: low, medium, high, xhigh and max.
 
+**The text after an inline `<code>`, `<pre>`, `<kbd>` or `<script>` in a row is escaped.** This
+closes a gap in how a row's markdown is drawn. The tag itself was escaped, but marked handed over
+the text after it as already escaped, in that paragraph and in every heading, list item, table
+cell and quote after it until the tag was closed. A tag with no `>` of its own in that text was
+drawn on the page as live HTML, closed by the `</p>` after it, so a reply or a message between
+sessions could put a script on the page. That text now goes through marked's own escaping, like
+any other text; an entity such as `&amp;` reads as it did.
+
 ## 0.20.0
 
 **An update is finished by the version it brings in.** `ovai update` used to finish in the code it

@@ -50,6 +50,30 @@ describe("a reply", () => {
     assert.ok(!shown.includes("<script>"));
   });
 
+  // marked marks the text after an inline <pre>, <code>, <kbd> or <script> as already escaped, and
+  // keeps doing so for every block after it until the tag is closed: a tag with no `>` of its own is
+  // then closed by the `</p>` after it.
+  it("escapes the text after an inline raw tag, in every block after it", () => {
+    for (const tag of ["code", "pre", "kbd", "script"]) {
+      const shown = html(
+        [
+          `a <${tag}> <img src=x onerror=alert(1)//`,
+          "# <img src=x onerror=alert(2)//",
+          "- <img src=x onerror=alert(3)//",
+          "| h |\n| - |\n| <img src=x onerror=alert(4)// |",
+          "> <img src=x onerror=alert(5)//",
+        ].join("\n\n"),
+      );
+      assert.ok(!shown.includes("<img"), `${tag}: ${shown}`);
+      assert.equal(shown.match(/&lt;img/g)?.length, 5, `${tag}: ${shown}`);
+    }
+  });
+
+  it("keeps an entity in text as the parser reads it", () => {
+    assert.match(html("a &amp; b &copy;"), /<p>a &amp; b &copy;<\/p>/);
+    assert.match(html("<code> a &amp; b"), /&amp; b<\/p>/);
+  });
+
   it("opens a link in a new tab, on a scheme a page can follow", () => {
     assert.match(html("[l](https://x.y/z)"), /<a href="https:\/\/x\.y\/z" target="_blank" rel="noopener">l<\/a>/);
     assert.match(html("[m](mailto:a@b.c)"), /<a href="mailto:a@b\.c" target="_blank"/);
