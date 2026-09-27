@@ -132,6 +132,17 @@
     ]
   },
   {
+    "name": "the view shows a web page's source",
+    "catches": "never shows a web page, however it is named, and says where it opens",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "  const shown = found.ok && opensInBrowser(found.real) ? WEB_PAGE : found;",
+        "to": "  const shown = found;"
+      }
+    ]
+  },
+  {
     "name": "the view carries no theme script",
     "catches": "links only the stylesheets and the theme script the server serves, and nothing inline",
     "edits": [

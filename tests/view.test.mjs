@@ -150,13 +150,12 @@ describe("what the view draws", () => {
     assert.match(view(root, "temp/big.txt").page, /more than the 1048576 the view shows/);
   });
 
-  it("links only the stylesheets and the scripts the server serves, and nothing inline", () => {
+  it("links only the stylesheets and the theme script the server serves, and nothing inline", () => {
     const { page } = view(root, "desks/Ann/notes.txt");
     assert.match(page, /<script src="\/theme\.js"><\/script>/);
-    assert.match(page, /<script src="\/view\.js" defer><\/script>/);
     assert.match(page, /<link rel="stylesheet" href="\/md\.css">/);
     assert.match(page, /<link rel="stylesheet" href="\/view\.css">/);
-    assert.equal(page.split("<script").length - 1, 2);
+    assert.equal(page.split("<script").length - 1, 1);
     assert.ok(!page.includes("<style"));
   });
 
@@ -187,12 +186,18 @@ describe("what the view draws", () => {
     }
   });
 
-  it("shows a web page's source with a control that opens it in the browser, and no other file's", () => {
-    const { page } = view(root, "desks/Ann/mock.html");
-    assert.match(page, /<pre><code class="language-html">&lt;!doctype html&gt;/);
-    assert.match(page, /<button type="button" class="opens" data-opens="\/open\/desks\/Ann\/mock\.html">open in browser<\/button> <span class="said"><\/span>/);
-    assert.ok(!view(root, "desks/Ann/notes.txt").page.includes('class="opens"'));
-    assert.ok(!view(root, "temp/page-link.html").page.includes('class="opens"'), "a link named .html to another file");
+  // A web page opens in the browser from its link on the page; the view shows nothing of it, by its
+  // real path: a link named .htm to one is refused too, and a link named .html to another kind of
+  // file is that file.
+  it("never shows a web page, however it is named, and says where it opens", () => {
+    for (const wanted of ["desks/Ann/mock.html", "temp/mock-link.htm"]) {
+      const answered = view(root, wanted);
+      assert.equal(answered.status, 404, wanted);
+      assert.ok(!answered.page.includes("Mock") && !answered.page.includes("doctype html&gt;"), wanted);
+      assert.match(answered.page, /A web page is not shown here: it opens in the browser from its link on the ovai page\./);
+    }
+    assert.equal(view(root, "temp/page-link.html").status, 200, "a link named .html to another file");
+    assert.equal(view(root, "desks/Ann/notes.txt").status, 200);
   });
 });
 
