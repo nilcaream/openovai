@@ -390,16 +390,17 @@ describe("the rules", () => {
     assert.deepEqual(doing.declarations, { "white-space": "nowrap", overflow: "hidden", "text-overflow": "ellipsis" });
   });
 
-  // On the Leader's panel the line floats: the dock is a strip exactly one line high, stuck to the
-  // rows' bottom edge, and the line sits in its bottom right corner as wide as its words — its
-  // right edge on the bubbles' right edge, its bottom the 4px a row keeps above the next — so the
-  // strip, not the line, takes the room, and the line coming or going moves nothing.
-  it("float the Leader's line in a dock one line high stuck to the rows' bottom, the line in its bottom right corner as wide as its words", () => {
+  // On the Leader's panel the line floats: the dock is a row of no height stuck to the rows'
+  // bottom edge, and the line rises from it into the last message's lower right corner, as wide as
+  // its words — its right edge on the message's right edge, its bottom on the message's bottom
+  // edge, the 4px a row keeps under it — so it takes no room and the line coming or going moves
+  // nothing. It covers that corner of the message; the User asked for that.
+  it("float the Leader's line from a dock of no height stuck to the rows' bottom, in the last message's lower right corner, as wide as its words", () => {
     const declared = (selector) => rules.find((rule) => rule.selector === selector)?.declarations;
     const dock = declared(".rows .dock");
     assert.equal(dock.position, "sticky");
     assert.equal(dock.bottom, "0");
-    assert.equal(dock.height, "calc(.76rem * 1.5 + 12px)", "the line's own height (its font at 1.5, 6px of padding, 2px of border) and the 4px under it");
+    assert.equal(dock.height, "0", "a strip of any height is an empty band under the last message");
     const line = declared(".rows .dock .line.doing");
     assert.equal(line.position, "absolute");
     assert.equal(line.right, "0");

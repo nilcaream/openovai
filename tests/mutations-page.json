@@ -2251,7 +2251,7 @@
   },
   {
     "name": "the dock scrolls away with the rows instead of sticking to their bottom",
-    "catches": "float the Leader's line in a dock one line high stuck to the rows' bottom, the line in its bottom right corner as wide as its words",
+    "catches": "float the Leader's line from a dock of no height stuck to the rows' bottom, in the last message's lower right corner, as wide as its words",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -2262,12 +2262,23 @@
   },
   {
     "name": "the floating line spans the whole width again",
-    "catches": "float the Leader's line in a dock one line high stuck to the rows' bottom, the line in its bottom right corner as wide as its words",
+    "catches": "float the Leader's line from a dock of no height stuck to the rows' bottom, in the last message's lower right corner, as wide as its words",
     "edits": [
       {
         "file": "lib/chat/page.html",
         "from": "  .rows .dock .line.doing { position: absolute; right: 0; bottom: 4px; width: auto;",
         "to": "  .rows .dock .line.doing { position: absolute; right: 0; bottom: 4px; width: 100%;"
+      }
+    ]
+  },
+  {
+    "name": "the dock keeps an empty strip one line high under the last message",
+    "catches": "float the Leader's line from a dock of no height stuck to the rows' bottom, in the last message's lower right corner, as wide as its words",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "  .rows .dock { position: sticky; bottom: 0; height: 0;",
+        "to": "  .rows .dock { position: sticky; bottom: 0; height: calc(.76rem * 1.5 + 12px);"
       }
     ]
   },

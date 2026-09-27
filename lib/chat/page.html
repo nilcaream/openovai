@@ -102,11 +102,12 @@
   .rows .line.peer { cursor: pointer; border-left: 3px solid var(--accent); }
   /* the one line that says what the seat is at: always exactly one line, cut with an ellipsis */
   .rows .line.doing { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  /* on the Leader's panel it floats in the dock, a strip exactly one line high stuck to the rows'
-     bottom edge: as wide as its words, its right edge on the bubbles' right edge and its bottom the
-     4px above the rows' edge a row keeps, so it sits where the next row would and covers no row
-     at the newest; scrolled up, it floats over the rows like the pill */
-  .rows .dock { position: sticky; bottom: 0; height: calc(.76rem * 1.5 + 12px); pointer-events: none; }
+  /* on the Leader's panel it floats from the dock, a row of no height stuck to the rows' bottom
+     edge: as wide as its words, in the lower right corner of the last message — its right edge on
+     the message's right edge, its bottom on the message's bottom edge, the 4px margin a row keeps
+     under it — covering that corner of the message on purpose, and taking no room, so nothing
+     moves when it comes or goes; scrolled up, it floats over the rows like the pill */
+  .rows .dock { position: sticky; bottom: 0; height: 0; pointer-events: none; }
   .rows .dock .line.doing { position: absolute; right: 0; bottom: 4px; width: auto; max-width: 100%; margin: 0; line-height: 1.5; box-shadow: 0 2px 8px var(--shadow); }
   /* a row is a bubble: the label row on top, the body under it; the kind of the row picks its ground */
   .msg { display: flex; margin: 4px 0; }
@@ -555,10 +556,10 @@
       });
       rows.append(jump);
     }
-    // On the Leader's panel, the dock for the line that says what the Leader is at: a strip one
-    // line high, always the last row before the pill and stuck to the rows' bottom edge, the line
-    // floating in its bottom right corner as wide as its words. The strip is there whether the
-    // line is or not, so the line coming and going never moves a row.
+    // On the Leader's panel, the dock for the line that says what the Leader is at: a row of no
+    // height, always the last before the pill and stuck to the rows' bottom edge, the line floating
+    // up from it over the last message's lower right corner, as wide as its words. It takes no
+    // room, so the line coming and going never moves a row.
     let dock = null;
     if (leads) {
       dock = document.createElement("div");
