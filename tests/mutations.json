@@ -928,17 +928,6 @@
     ]
   },
   {
-    "name": "the head keeps a margin of its own above the first row",
-    "catches": "leave between the head and the first row the gap between two rows",
-    "edits": [
-      {
-        "file": "lib/chat/page.html",
-        "from": "    flex: 0 0 auto; padding: 4px 10px 3px;",
-        "to": "    flex: 0 0 auto; margin-bottom: 3px; padding: 4px 10px 3px;"
-      }
-    ]
-  },
-  {
     "name": "the page sends its calls without the secret",
     "catches": "reads its secret off the tag, sends it on every call, and reloads when it is no longer known",
     "edits": [

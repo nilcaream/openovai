@@ -1097,6 +1097,17 @@
     ]
   },
   {
+    "name": "the head keeps a margin of its own above the first row",
+    "catches": "leave between the head and the first row the gap between two rows",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    flex: 0 0 auto; padding: 4px 10px 3px;",
+        "to": "    flex: 0 0 auto; margin-bottom: 3px; padding: 4px 10px 3px;"
+      }
+    ]
+  },
+  {
     "name": "a divider row is drawn as a bubble",
     "catches": "draws a divider row as the pill between two days, built by the one pill function",
     "edits": [
