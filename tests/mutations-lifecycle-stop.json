@@ -204,12 +204,12 @@
   },
   {
     "name": "a call stop that waited long is reported on every tick",
-    "catches": "the Leader is told once per wait: at ten minutes, the call as made, and not again at twenty",
+    "catches": "the Leader is told once when a Worker's card times out: at ten minutes, the call as made, and not again at twenty",
     "edits": [
       {
         "file": "lib/chat/permissions.mjs",
-        "from": "        entry.told = true;\n",
-        "to": "        entry.told = false;\n"
+        "from": "        held.delete(id);\n        entry.answer(decisionOf(entry.request));\n",
+        "to": "        entry.answer(decisionOf(entry.request));\n"
       }
     ]
   },
@@ -219,8 +219,8 @@
     "edits": [
       {
         "file": "lib/chat/permissions.mjs",
-        "from": "      if (!entry.told && now - entry.parkedAt >= minutes * 60_000) {",
-        "to": "      if (!entry.told) {"
+        "from": "      if (now - entry.parkedAt >= minutesOf(entry.request) * 60_000) {",
+        "to": "      if (true) {"
       }
     ]
   },
@@ -230,8 +230,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "      if (seconds >= WAIT_SAID_FROM) append(instance.root, seat, { from: SERVER, text: `Waited ${seconds} seconds for permission: ${what}` });\n",
-        "to": "      append(instance.root, seat, { from: SERVER, text: `Waited ${seconds} seconds for permission: ${what}` });\n"
+        "from": "      } else if (seconds >= WAIT_SAID_FROM) {\n",
+        "to": "      } else {\n"
       }
     ]
   },
@@ -241,8 +241,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "      if (seconds >= WAIT_SAID_FROM) append(",
-        "to": "      if (seconds > WAIT_SAID_FROM) append("
+        "from": "      } else if (seconds >= WAIT_SAID_FROM) {",
+        "to": "      } else if (seconds > WAIT_SAID_FROM) {"
       }
     ]
   },
@@ -252,8 +252,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "      if (seconds >= WAIT_SAID_FROM) append(instance.root, seat, { from: SERVER, text: `Waited ${seconds} seconds for permission: ${what}` });",
-        "to": "      if (seconds >= WAIT_SAID_FROM && roleOf(instance, seat) === WORKER) append(instance.root, seat, { from: SERVER, text: `Waited ${seconds} seconds for permission: ${what}` });"
+        "from": "      } else if (seconds >= WAIT_SAID_FROM) {",
+        "to": "      } else if (seconds >= WAIT_SAID_FROM && roleOf(instance, seat) === WORKER) {"
       }
     ]
   },

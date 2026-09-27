@@ -1648,8 +1648,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "    waiting.then((decision) => {\n      const seconds = Math.round((clock() - began) / 1000);\n      log.log(\"answered\", seat, null, `${decision.behavior} after ${seconds} s`);",
-        "to": "    log.log(\"answered\", seat, null, \"allow after 0 s\");\n    waiting.then((decision) => {\n      const seconds = Math.round((clock() - began) / 1000);"
+        "from": "    waiting.then((decision) => {\n      const seconds = Math.round((clock() - began) / 1000);\n      const timedOut = decision.message === TIMED_OUT(instance.config.user, timeoutOf(request));\n      log.log(\"answered\", seat, null, `${decision.behavior} after ${seconds} s${timedOut ? \" (timed out)\" : \"\"}`);",
+        "to": "    log.log(\"answered\", seat, null, \"allow after 0 s\");\n    waiting.then((decision) => {\n      const seconds = Math.round((clock() - began) / 1000);\n      const timedOut = decision.message === TIMED_OUT(instance.config.user, timeoutOf(request));"
       }
     ]
   },
@@ -1659,8 +1659,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "      if (seconds >= WAIT_SAID_FROM) append(instance.root, seat, { from: SERVER, text: `Waited ${seconds} seconds for permission: ${what}` });\n",
-        "to": "      append(instance.root, seat, { from: SERVER, text: `Waited ${seconds} seconds for permission: ${what}` });\n"
+        "from": "      } else if (seconds >= WAIT_SAID_FROM) {\n",
+        "to": "      } else {\n"
       }
     ]
   },
