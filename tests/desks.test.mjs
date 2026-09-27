@@ -15,7 +15,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
-import { LONGEST_STATUS, LONGEST_TITLE, POOL, REFUSED_STATUS, REFUSED_TITLE, archiveFor, conversationFile, deskHeader, headerFields, hire, nextName, personaFile, retire, writeDeskHeader } from "../lib/desks.mjs";
+import { LONGEST_STATUS, LONGEST_TITLE, POOL, REFUSED_STATUS, REFUSED_TITLE, archiveFor, conversationFile, deskHeader, headerFields, hire, isModel, nextName, personaFile, retire, splitModel, writeDeskHeader } from "../lib/desks.mjs";
 import { settingsProblems } from "./inspect.mjs";
 import { installed, remove, scratch, source } from "./helpers.mjs";
 
@@ -299,5 +299,21 @@ describe("the roster: who the next hire is called", () => {
     const name = nextName(roster);
     assert.match(name, /^Dev\d{3}$/);
     assert.equal(fs.existsSync(desk(name)), false);
+  });
+});
+
+// A model as written, taken apart into what Claude Code is started with.
+describe("a model and its effort", () => {
+  it("takes the effort from after the slash, and none when there is no slash", () => {
+    assert.deepEqual(splitModel("opus/high"), { model: "opus", effort: "high" });
+    assert.deepEqual(splitModel("claude-opus-5/low"), { model: "claude-opus-5", effort: "low" });
+    assert.deepEqual(splitModel("opus"), { model: "opus", effort: null });
+  });
+
+  it("holds a model with one effort, and nothing that could be a path", () => {
+    assert.deepEqual(
+      ["opus", "opus/high", "claude-opus-5/low", "opus/", "/high", "opus/high/x", "opus/../x", "opus high"].map(isModel),
+      [true, true, true, false, false, false, false, false],
+    );
   });
 });

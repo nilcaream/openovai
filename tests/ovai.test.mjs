@@ -614,8 +614,8 @@ describe("what the toolkit starts", () => {
   // person at the terminal. --permission-prompt-tool, because a card has to appear where that
   // person is sitting and inherited stdio does that for nothing. --mcp-config, because the
   // connector is how a seat talks to the room and an admin has no room. --settings, because those
-  // are the rules set for seats. --model, because the model is the person's own choice in their
-  // own session: this instance picks one for its seats, not for people.
+  // are the rules set for seats. --model and --effort, because the model and its effort are the
+  // person's own choice in their own session: this instance picks them for its seats, not for people.
   //
   // And the one argument it must carry, which is there to take a seat's settings away rather than
   // to add anything: --setting-sources user. Without it the door inherits the instance's project
@@ -624,7 +624,7 @@ describe("what the toolkit starts", () => {
   it("gives the admin door none of a seat's arguments, and the one that removes a seat's settings", () => {
     const door = claudes.find((one) => one.argv !== null && one.argv[0] === "--append-system-prompt");
     assert.ok(door !== undefined, "no admin door found under lib/: the walk is reading the wrong tree");
-    const carried = ["--print", "--permission-prompt-tool", "--mcp-config", "--settings", "--model"].filter((flag) =>
+    const carried = ["--print", "--permission-prompt-tool", "--mcp-config", "--settings", "--model", "--effort"].filter((flag) =>
       door.argv.includes(flag),
     );
     assert.deepEqual(
@@ -1037,6 +1037,26 @@ describe("hiring somebody onto a model of their own", () => {
   });
 });
 
+// A model may carry the effort to run it at, after one slash. It is kept as it was written, and
+// that is what anything showing the model shows.
+describe("hiring somebody onto a model with an effort", () => {
+  const AT_AN_EFFORT = "Kim";
+  const CHOSEN = "claude-opus-5/low";
+  let said;
+
+  before(() => {
+    said = hiring(AT_AN_EFFORT, CHOSEN);
+  });
+
+  it("opens the desk", () => {
+    assert.equal(said.ok, true, said.refused);
+  });
+
+  it("writes the model down as it was written", () => {
+    assert.equal(fs.readFileSync(path.join(instance, "desks", AT_AN_EFFORT, "MODEL"), "utf8").trim(), CHOSEN);
+  });
+});
+
 // And somebody hired the usual way has nothing written down at all. Absent is what "the one
 // everybody else here runs on" is made of: a workspace that changes that setting moves everybody
 // who was never named one, and a desk holding today's answer would be a person who stopped moving
@@ -1186,7 +1206,7 @@ describe("what hiring refuses", () => {
     it("says what a model identifier is rather than listing the models there are", () => {
       assert.match(
         said.refused,
-        /a model must start with a letter or digit and hold only letters, digits, '\.', '-' or '_' \(got "not a model"\)/,
+        /a model must start with a letter or digit and hold only letters, digits, '\.', '-' or '_', with an effort after one '\/' if one is given \(got "not a model"\)/,
       );
       assert.doesNotMatch(said.refused, /\b(opus|sonnet|haiku)\b/i);
     });
@@ -1204,7 +1224,7 @@ describe("what hiring refuses", () => {
   // a model has to be able to hire onto it, and two patterns would be two answers to what a model
   // identifier is the day one of them was widened.
   describe("what the installer will not take either", () => {
-    for (const value of ["a model", "-leading", "with/a/path"]) {
+    for (const value of ["a model", "-leading", "with/a/path", "opus/", "opus/../x"]) {
       it(`refuses ${JSON.stringify(value)} where installing refuses it`, () => {
         const putting = installing({
           "--root": `${instance}-never-made`,

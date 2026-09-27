@@ -234,6 +234,9 @@ describe("fable's own window", () => {
     assert.deepEqual(windowsFor("fable"), ["five_hour", "seven_day", FABLE_WINDOW]);
     assert.deepEqual(windowsFor("Fable"), ["five_hour", "seven_day", FABLE_WINDOW]);
     assert.deepEqual(windowsFor("opus"), ["five_hour", "seven_day"]);
+    // An effort after the model is not part of its name, whatever it says.
+    assert.deepEqual(windowsFor("fable/high"), ["five_hour", "seven_day", FABLE_WINDOW]);
+    assert.deepEqual(windowsFor("opus/fable"), ["five_hour", "seven_day"]);
     saw("usage", null, reading(0.5, 0.5, fable(0.99)));
     assert.equal(mayWrite("Zed", "fable")?.window, "7d-fable");
     assert.equal(mayWrite("Paul", "opus"), null);

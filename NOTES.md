@@ -20,6 +20,17 @@ again: say what is still unsaid, or reply `<noop/>`. "The user hasn't heard from
 counts calls, not the panel, and a `message` is not among them. The sentence that said to reply
 `<noop/>` to a request for a visible response is folded into this paragraph.
 
+**A model may name the effort it runs at: "opus/high".** The Leader's model, the workers' model,
+a desk's `MODEL` file and `hire`'s `model` all take "model" or "model/effort". The part before the
+slash goes to Claude Code as `--model`, as before, and the effort goes as `--effort`. With no effort
+written, no `--effort` is passed and Claude Code picks its own for the model, which is `medium` for
+Opus 5.5 on Claude Code 2.1.280. The effort is not checked against a list, and neither is the model.
+Claude Code answers an effort it does not know with a warning on stderr, which the panel shows, and
+runs at its default. Everywhere a model is shown, it is shown as written: "opus", "opus/high",
+"claude-opus-5/low". A seat no longer inherits `CLAUDE_CODE_EFFORT_LEVEL` from the shell the server
+was started from. Claude Code reads that variable before `--effort`, so a value left in that shell
+would have set every seat's effort over the one written here.
+
 ## 0.20.0
 
 **An update is finished by the version it brings in.** `ovai update` used to finish in the code it

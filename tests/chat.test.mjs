@@ -40,7 +40,7 @@ function panel(root, seat) {
   return read(root, seat).filter((row) => row.stamp !== true);
 }
 
-const LEADER_MODEL = "opus";
+const LEADER_MODEL = "opus/high";
 const WORKER_MODEL = "sonnet";
 
 const base = scratch("chat-test");
@@ -657,7 +657,8 @@ describe("starting a seat", () => {
   let paul;
 
   before(async () => {
-    superman = await seatUp(LEADER);
+    // An effort in the environment the server was started from, which the seat must not inherit.
+    superman = await seatUp(LEADER, { CLAUDE_CODE_EFFORT_LEVEL: "max" });
     paul = await seatUp(WORKER);
   });
 
@@ -705,8 +706,23 @@ describe("starting a seat", () => {
   });
 
   it("runs each seat on the model its desk resolves to", () => {
-    assert.match(callsIn(superman.log).at(-1), new RegExp(`--model ${LEADER_MODEL}\\b`));
+    assert.match(callsIn(superman.log).at(-1), /--model opus\b/);
     assert.match(callsIn(paul.log).at(-1), new RegExp(`--model ${WORKER_MODEL}\\b`));
+  });
+
+  // "opus/high" is two arguments: the model, and the effort after the slash. A model written
+  // without one is started with no --effort at all, so Claude Code's own default is what it runs at.
+  it("starts a seat at the effort written after its model, and at none when none is written", () => {
+    assert.match(callsIn(superman.log).at(-1), /--model opus --effort high\b/);
+    assert.doesNotMatch(callsIn(paul.log).at(-1), /--effort/);
+  });
+
+  // Inherited, CLAUDE_CODE_EFFORT_LEVEL would beat --effort: Claude Code reads the environment
+  // before the flag. A seat runs at the effort its model names, whatever the server's shell says.
+  it("hands a seat no effort from the environment the server runs in", () => {
+    const said = fs.readFileSync(superman.log, "utf8").split("\n").filter((line) => line.startsWith("CLAUDE_CODE_EFFORT_LEVEL: "));
+    assert.ok(said.length > 0, "no start of the seat is in its log");
+    assert.deepEqual([...new Set(said)], ["CLAUDE_CODE_EFFORT_LEVEL: <unset>"]);
   });
 
   it("renders the persona at every start", () => {
