@@ -2765,5 +2765,16 @@
         "to": "      if (decision === \"deny\" && reason !== null) {\n        acts.append(reason);\n      }\n      acts.append(button);\n    }\n"
       }
     ]
+  },
+  {
+    "name": "the panel puts a gap between the rows and the bottom area again",
+    "catches": "leave between the last row and the composer the gap between two rows, and between a card and its neighbours the same",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "display: flex; flex-direction: column; overflow: hidden; font-size: .9rem; transition: opacity .4s; }",
+        "to": "display: flex; flex-direction: column; gap: 3px; overflow: hidden; font-size: .9rem; transition: opacity .4s; }"
+      }
+    ]
   }
 ]

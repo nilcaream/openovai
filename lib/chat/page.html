@@ -45,12 +45,14 @@
     #left { order: 1; }
     #right { order: 2; }
   }
-  /* a panel is a bare slot: the head bubble first, then the rows, then the bottom area */
-  .panel { flex: 1 1 0; min-height: 160px; display: flex; flex-direction: column; gap: 3px; overflow: hidden; font-size: .9rem; transition: opacity .4s; }
+  /* a panel is a bare slot: the head bubble first, then the rows, then the bottom area. No gap
+     between the rows and the bottom area: the last row's own margin is the space above the
+     composer, the same as between two rows */
+  .panel { flex: 1 1 0; min-height: 160px; display: flex; flex-direction: column; overflow: hidden; font-size: .9rem; transition: opacity .4s; }
   #mid .panel { flex: 1 1 auto; }
   .panel.dimmed { opacity: .45; }
   .phead {
-    flex: 0 0 auto; padding: 4px 10px 3px; border: 2px solid var(--line); border-radius: var(--radius); background: var(--panel-2);
+    flex: 0 0 auto; margin-bottom: 3px; padding: 4px 10px 3px; border: 2px solid var(--line); border-radius: var(--radius); background: var(--panel-2);
     display: flex; align-items: baseline; gap: 0; min-width: 0; overflow: hidden; white-space: nowrap;
   }
   .panel.asking .phead { border-color: var(--warn); }
@@ -169,8 +171,14 @@
   /* the bottom area of a panel: the cards of its questions, then the composer. It takes its room
      from the rows in the panel's column — never over them — and no more than most of the panel,
      so a stack of cards scrolls inside it while the composer stays in sight */
-  .bottom { flex: 0 0 auto; max-height: 75%; display: flex; flex-direction: column; gap: 3px; }
+  .bottom { flex: 0 0 auto; max-height: 75%; display: flex; flex-direction: column; gap: 4px; }
+  /* no cards, no room: an empty stack would add the gap under the last row a second time; a card
+     keeps no margin of its own, so it stands as far from the last row, the next card and the
+     composer as one row from the next */
   .cards { flex: 0 1 auto; min-height: 0; overflow-y: auto; }
+  .cards:empty { display: none; }
+  .cards .msg { margin: 0; }
+  .cards .msg + .msg { margin-top: 4px; }
   /* a question is a card in the bottom area, right above the composer: the heading, the raw words of the request, the reason, then the decisions */
   .msg.perm .bubble { background: var(--panel-2); border-color: var(--warn); border-width: 2px; }
   .msg.perm .desc { font-size: .92rem; margin: 2px 0 4px; overflow-wrap: anywhere; }

@@ -246,6 +246,11 @@ into the note, or under `knowledge/files/`, and `validate` reports a source whos
 with `desks/` or `archive/`, one line each, saying why. It still checks the form only and opens
 nothing. A note that already names one is reported on the first `validate` after the update.
 
+**The space above the message box is the space between two rows.** On every panel the last row
+used to stand 9 to 10px above the box, more than twice the 3 to 4px between two rows, because the
+panel's own gap and an empty stack of cards each added one more. Now the last row's own margin is
+the whole space. A card stands 4px from the last row, from the next card and from the box.
+
 ## 0.19.0
 
 **The Leader stops and restarts Workers; a Worker only works.** A Worker no longer has
