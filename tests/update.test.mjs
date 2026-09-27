@@ -743,6 +743,13 @@ describe("going back to a version that does not take the finish", () => {
   it("hands it no finish", () => {
     assert.deepEqual([done.status, done.stderr.includes("the finish was handed over")], [0, false], done.stderr);
   });
+
+  // The settings still name this version's hook runner, which the older one does not ship, and
+  // nothing rewires them: the person is told, in the output of the command that caused it.
+  it("says the hooks name lib/hooks/run.sh and must be rewired by hand", () => {
+    assert.match(fs.readFileSync(path.join(root, ".claude", "settings.json"), "utf8"), /lib\/hooks\/run\.sh/);
+    assert.match(done.stdout, new RegExp(`^The hooks in \\.claude/settings\\.json name lib/hooks/run\\.sh, which ${OLDER.replace(/\./g, "\\.")} does not have: rewire them by hand\\.$`, "m"));
+  });
 });
 
 // A running chat is serving the code that is about to be replaced under it, and a process keeps the

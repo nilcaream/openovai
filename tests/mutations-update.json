@@ -537,5 +537,16 @@
         "to": "  if (false) {"
       }
     ]
+  },
+  {
+    "name": "a downgrade says nothing of the hooks that name lib/hooks/run.sh",
+    "catches": "says the hooks name lib/hooks/run.sh and must be rewired by hand",
+    "edits": [
+      {
+        "file": "lib/ovai.mjs",
+        "from": "    if (JSON.stringify(readSettings(root).hooks ?? {}).includes(\"lib/hooks/run.sh\")) {",
+        "to": "    if (false) {"
+      }
+    ]
   }
 ]

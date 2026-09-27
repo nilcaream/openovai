@@ -24,8 +24,10 @@ taken onto a build, with no `--downgrade` and never "Nothing to do"; another com
 the same commit replaces nothing and runs the finish, as the same release does. A directory that is
 not a checkout — an unpacked release — is taken as before. Going back with `--downgrade` to a
 version older than 0.20.0 no longer ends in "finishing it failed": the finish is not handed to a
-version that does not take it. An instance on 0.19.0 reads a checkout as the release its
-`lib/VERSION` names, so the first build is taken with the checkout's own updater:
+version that does not take it. The hooks in `.claude/settings.json` still name `lib/hooks/run.sh`,
+which the older version does not have: the downgrade says so, and they must be rewired by hand. An
+instance on 0.19.0 reads a checkout as the release its `lib/VERSION` names, so the first build is
+taken with the checkout's own updater:
 `node <checkout>/lib/ovai.mjs --root <instance> update --from <checkout>`.
 
 **`install.sh --source <checkout>` puts the instance on the commit it was installed from.** When
