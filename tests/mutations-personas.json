@@ -859,12 +859,23 @@
   },
   {
     "name": "the common frame does not say how to name a file",
-    "catches": "tells both, once and in the common frame, to name a file by its path from the instance root",
+    "catches": "tells both, once and in the common frame, to name a file or a directory by its whole path from the instance root every time",
     "edits": [
       {
         "file": "lib/templates/common.md",
-        "from": "Whenever you name a file, write its path from the instance root — `projects/openovai/lib/ovai.mjs`, `desks/Ann/notes.md` — and a file outside the instance by its absolute path.\n\n",
+        "from": "Whenever you name a file or a directory, write its whole path from the instance root every time —\n`projects/openovai/lib/ovai.mjs`, `desks/Ann/notes.md`, `temp/shots/`, and never `notes.md` under a\nline that names its directory — and one outside the instance by its absolute path.\n\n",
         "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the common frame leaves a directory out of its examples",
+    "catches": "tells both, once and in the common frame, to name a file or a directory by its whole path from the instance root every time",
+    "edits": [
+      {
+        "file": "lib/templates/common.md",
+        "from": "`desks/Ann/notes.md`, `temp/shots/`, and never `notes.md` under a\n",
+        "to": "`desks/Ann/notes.md`, and never `notes.md` under a\n"
       }
     ]
   },

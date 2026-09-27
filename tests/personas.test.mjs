@@ -505,9 +505,12 @@ describe("what both are told in ovai's common frame", () => {
 
   // The page links a backticked path by reading it from the instance root, so that is how a session
   // is told to write one. The sentence is the User's, character for character.
-  it("tells both, once and in the common frame, to name a file by its path from the instance root", () => {
-    const SENTENCE =
-      "Whenever you name a file, write its path from the instance root — `projects/openovai/lib/ovai.mjs`, `desks/Ann/notes.md` — and a file outside the instance by its absolute path.";
+  it("tells both, once and in the common frame, to name a file or a directory by its whole path from the instance root every time", () => {
+    const SENTENCE = [
+      "Whenever you name a file or a directory, write its whole path from the instance root every time —",
+      "`projects/openovai/lib/ovai.mjs`, `desks/Ann/notes.md`, `temp/shots/`, and never `notes.md` under a",
+      "line that names its directory — and one outside the instance by its absolute path.",
+    ].join("\n");
     for (const [text, role] of [[leader(), "leader"], [worker(), "worker"]]) {
       assert.equal(text.split(SENTENCE).length, 2, role);
       assert.ok(commonOf(text).includes(`\n\n${SENTENCE}\n\n`), role);

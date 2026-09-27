@@ -98,8 +98,9 @@ a filesystem that ignores case `.GIT` is the same directory as `.git`. The serve
 every row it sends, to decide which paths the page links, and again when a link is opened. The page
 sets its secret as a cookie for its own port (`HttpOnly`, `SameSite=Strict`), and the view answers
 only a request that carries it. The view's page allows no inline script or style and is not cached.
-The Leader and the Workers are now told to name a file by its path from the instance root, and a
-file outside the instance by its absolute path.
+The Leader and the Workers are now told to name a file or a directory by its whole path from the
+instance root every time, never by its bare name under a line that names its directory, and one
+outside the instance by its absolute path.
 
 **A web page a reply names opens in the browser.** Clicking a link to an `.html` or `.htm` file
 opens it the way a double click in a file manager does: the server hands its real path to the
