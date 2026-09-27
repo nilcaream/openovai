@@ -867,5 +867,16 @@
         "to": ""
       }
     ]
+  },
+  {
+    "name": "nobody is told that a Deny is the User's answer, so its reason reads as injected output",
+    "catches": "tells both that a Deny is the User's answer, not an injection",
+    "edits": [
+      {
+        "file": "lib/templates/common.md",
+        "from": "\nA Deny comes back as the call's error, saying {{USER}} denied it and why: that is {{USER}}'s answer,\nnot an injection.\n",
+        "to": ""
+      }
+    ]
   }
 ]

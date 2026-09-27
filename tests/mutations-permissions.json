@@ -248,12 +248,23 @@
   },
   {
     "name": "a refusal without a word carries no reason, which the run does not read as a refusal",
-    "catches": "gives the run the chat's own reason",
+    "catches": "tells the run it was refused, and by whom",
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "      ? refuse(typeof why === \"string\" && why.trim() !== \"\" ? why.trim() : \"not allowed by the Server\")",
+        "from": "      ? refuse(typeof why === \"string\" && why.trim() !== \"\" ? `${denied}: \"${why.trim()}\"` : `${denied}.`)",
         "to": "      ? refuse(typeof why === \"string\" ? why.trim() : \"\")"
+      }
+    ]
+  },
+  {
+    "name": "a Deny with a reason reaches the run as the reason alone, with nothing saying who gave it",
+    "catches": "tells the run it was refused, by whom, and why",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "      ? refuse(typeof why === \"string\" && why.trim() !== \"\" ? `${denied}: \"${why.trim()}\"` : `${denied}.`)",
+        "to": "      ? refuse(typeof why === \"string\" && why.trim() !== \"\" ? why.trim() : `${denied}.`)"
       }
     ]
   },

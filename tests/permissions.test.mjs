@@ -569,8 +569,8 @@ describe("asking to be allowed", () => {
       await endSeat(LEADER, 500);
     });
 
-    it("tells the run it was refused, and why", () => {
-      assert.equal(replied.text, "I was told deny: not from here");
+    it("tells the run it was refused, by whom, and why", () => {
+      assert.equal(replied.text, `I was told deny: ${USER} denied this call on the panel: "not from here"`);
     });
   });
 
@@ -589,8 +589,8 @@ describe("asking to be allowed", () => {
       await endSeat(LEADER, 500);
     });
 
-    it("gives the run the chat's own reason", () => {
-      assert.equal(replied.text, "I was told deny: not allowed by the Server");
+    it("tells the run it was refused, and by whom", () => {
+      assert.equal(replied.text, `I was told deny: ${USER} denied this call on the panel.`);
     });
   });
 
@@ -835,7 +835,7 @@ describe("asking to be allowed", () => {
     it("refuses to grant one, and leaves the call unanswered", () => {
       assert.equal(refused.status, 400);
       assert.match(JSON.parse(refused.body).error, /no rule that would allow that/);
-      assert.equal(replied.text, "I was told deny: not allowed by the Server");
+      assert.equal(replied.text, `I was told deny: ${USER} denied this call on the panel.`);
     });
   });
 

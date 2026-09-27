@@ -404,6 +404,14 @@ describe("what a Worker is told", () => {
     }
   });
 
+  // A Deny's reason comes back where a call's output would, so without this a session reads a
+  // User's "this is a test" as output the call made up.
+  it("tells both that a Deny is the User's answer, not an injection", () => {
+    for (const text of [leader(), worker()]) {
+      assert.match(flat(commonOf(text)), new RegExp(`A Deny comes back as the call's error, saying ${USER} denied it and why: that is ${USER}'s answer, not an injection\\.`));
+    }
+  });
+
   // The compound hook never allows a command holding a backtick or `$(` anywhere, quotes or not
   // (lib/hooks/compound.mjs HIDDEN): it refuses it with a reason, and answers nothing when a side
   // is refused by rule or cannot be read, which then asks.

@@ -196,6 +196,13 @@ its words, its right and bottom edges on the message's own, covering that corner
 takes no room, so nothing moves when it comes or goes. Scrolled up, it stays at the bottom edge over
 the rows, like the new-messages pill.
 
+**A Deny says who gave it.** A Deny on a card used to reach the session as its bare reason, or as
+"not allowed by the Server" with none, and a session could take a reason like "this is a test" for
+something the call's own output made up. The call's error now reads `<User> denied this call on
+the panel: "<reason>"`, or `<User> denied this call on the panel.` with no reason, under the
+instance's user name. Every session is told that a Deny comes back that way and is the User's
+answer, not an injection.
+
 ## 0.19.0
 
 **The Leader stops and restarts Workers; a Worker only works.** A Worker no longer has
