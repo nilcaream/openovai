@@ -148,7 +148,7 @@
     "edits": [
       {
         "file": "lib/chat/view.mjs",
-        "from": "<meta name=\"theme-color\" content=\"${THEME_COLOR[theme]}\">\n",
+        "from": "\n<meta name=\"theme-color\" content=\"${THEME_COLOR[theme]}\">",
         "to": ""
       }
     ]

@@ -305,6 +305,19 @@ describe("what the chat serves", () => {
     assert.equal(answered.headers["set-cookie"]?.[0], `openovai-page-${server.address().port}=${pageSecret()}; HttpOnly; SameSite=Strict; Path=/`);
   });
 
+  // The page keeps its theme in a cookie of its port too, and is served in the one it names, so an
+  // installed app's window and title bar are that theme before any stylesheet or script.
+  it("draws the page in the theme of its own port's cookie from the first paint, light without one", async () => {
+    const [host] = own();
+    const port = server.address().port;
+    for (const [cookie, theme, color] of [[`openovai-theme-${port}=dark`, "dark", "#1c232d"], [undefined, "light", "#eef1f5"], [`openovai-theme-${port + 1}=dark`, "light", "#eef1f5"], [`openovai-theme-${port}=bogus`, "light", "#eef1f5"]]) {
+      const answered = await raw("GET", "/", cookie === undefined ? { host } : { host, cookie });
+      assert.ok(answered.body.includes(`<html lang="en" data-theme="${theme}">\n<meta name="color-scheme" content="${theme}">\n<meta name="theme-color" content="${color}">\n`), String(cookie));
+      assert.ok(answered.body.indexOf("<html") < answered.body.indexOf('<link rel="stylesheet"'), String(cookie));
+      assert.equal(answered.body.split("<html").length - 1, 1, String(cookie));
+    }
+  });
+
   it("shows a file of the instance to a caller holding the cookie, read-only, with nothing inline run and nothing kept", async () => {
     fs.mkdirSync(path.join(instance, "temp"), { recursive: true });
     fs.writeFileSync(path.join(instance, "temp", "view-check.md"), "# Seen\n");

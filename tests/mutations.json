@@ -49,8 +49,19 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "  const page = Buffer.from(template.replace(SECRET_TAG, `<meta name=\"openovai-secret\" content=\"${pageSecret()}\">`));",
-        "to": "  const page = Buffer.from(template);"
+        "from": "    .replace(SECRET_TAG, `<meta name=\"openovai-secret\" content=\"${pageSecret()}\">`)\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the page is drawn light whatever theme its cookie names",
+    "catches": "draws the page in the theme of its own port's cookie from the first paint, light without one",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "    .replace(themeHead(\"light\"), themeHead(themeOf(request, port))));",
+        "to": "    );"
       }
     ]
   },
