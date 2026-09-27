@@ -401,19 +401,19 @@
     "edits": [
       {
         "file": "lib/chat/view.mjs",
-        "from": "  if (isImage(found.real)) {\n    return { ok: true, real: found.real };\n  }\n",
-        "to": ""
+        "from": "  if (found.stat.isDirectory() || isImage(found.real)) {",
+        "to": "  if (found.stat.isDirectory()) {"
       }
     ]
   },
   {
     "name": "an image is opened by the name it was asked for rather than by its real path",
-    "catches": "opens no image the view may not name: outside, in .git, missing, a directory, or another file behind an image's name",
+    "catches": "opens no image the view may not name: outside, in .git, missing, or another file behind an image's name",
     "edits": [
       {
         "file": "lib/chat/view.mjs",
-        "from": "  if (isImage(found.real)) {\n    return { ok: true, real: found.real };",
-        "to": "  if (isImage(wanted)) {\n    return { ok: true, real: found.real };"
+        "from": "  if (found.stat.isDirectory() || isImage(found.real)) {",
+        "to": "  if (found.stat.isDirectory() || isImage(wanted)) {"
       }
     ]
   },
@@ -423,8 +423,8 @@
     "edits": [
       {
         "file": "lib/chat/view.mjs",
-        "from": "  const found = where.ok && isImage(where.real) ? IMAGE : viewable(root, wanted);",
-        "to": "  const found = viewable(root, wanted);"
+        "from": "where.ok && isImage(where.real) ? IMAGE : viewable(root, wanted);",
+        "to": "viewable(root, wanted);"
       }
     ]
   },
@@ -434,8 +434,52 @@
     "edits": [
       {
         "file": "lib/chat/view.mjs",
-        "from": "viewable(root, wanted).ok || openable(root, wanted).ok);",
-        "to": "viewable(root, wanted).ok);"
+        "from": "(viewable(root, wanted).ok || openable(root, wanted).ok)) found.push(name);",
+        "to": "viewable(root, wanted).ok) found.push(name);"
+      }
+    ]
+  },
+  {
+    "name": "a directory does not open on the desktop",
+    "catches": "opens a directory of the instance by its real path, with or without a slash at its end",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "  if (found.stat.isDirectory() || isImage(found.real)) {",
+        "to": "  if (isImage(found.real)) {"
+      }
+    ]
+  },
+  {
+    "name": "a file named with a slash after it counts as a directory",
+    "catches": "opens no directory the view may not name: outside, the root, the Claude Code home, a .git directory, missing, or a file named as a directory",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "  if (wanted.endsWith(\"/\") && !stat.isDirectory()) {",
+        "to": "  if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "a row's directory is linked by the name it was written with, so one without its slash does not open",
+    "catches": "links a directory a row names with a slash at its end, however the row wrote it, and once",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "!wanted.endsWith(\"/\") ? `${wanted}/` : wanted;",
+        "to": "false ? `${wanted}/` : wanted;"
+      }
+    ]
+  },
+  {
+    "name": "a directory is shown by the view",
+    "catches": "never shows a directory, and says where it opens",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "where.ok && where.stat.isDirectory() ? DIRECTORY : ",
+        "to": ""
       }
     ]
   }

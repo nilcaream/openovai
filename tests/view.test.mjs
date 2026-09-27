@@ -67,6 +67,8 @@ fs.symlinkSync(path.join(root, "desks", "Ann", "launch.desktop"), path.join(root
 fs.symlinkSync(path.join(root, "desks", "Ann", "shot.PNG"), path.join(root, "temp", "shot-link.jpg"));
 fs.symlinkSync(path.join(outside, "shot.png"), path.join(root, "temp", "out-shot.png"));
 fs.mkdirSync(path.join(root, "temp", "folder.png"), { recursive: true });
+fs.symlinkSync(outside, path.join(root, "temp", "out-dir"));
+fs.symlinkSync(path.join(root, "desks", "Ann"), path.join(root, "temp", "ann-link"));
 
 after(() => remove(base));
 
@@ -353,13 +355,43 @@ describe("which files open on the desktop", () => {
     assert.deepEqual(openable(root, "desks/Ann/logo.svg"), { ok: true, real: fs.realpathSync(path.join(root, "desks/Ann/logo.svg")) });
   });
 
-  it("opens no image the view may not name: outside, in .git, missing, a directory, or another file behind an image's name", () => {
-    for (const [wanted, status] of [["temp/out-shot.png", 403], ["projects/demo/.git/shot.png", 403], ["temp/missing.png", 404], ["temp/folder.png", 404], ["temp/image-link.png", 415]]) {
+  it("opens no image the view may not name: outside, in .git, missing, or another file behind an image's name", () => {
+    for (const [wanted, status] of [["temp/out-shot.png", 403], ["projects/demo/.git/shot.png", 403], ["temp/missing.png", 404], ["temp/image-link.png", 415]]) {
       assert.equal(openable(root, wanted).status, status, wanted);
     }
   });
 
   it("links an image a row names, and no file the view may not name", () => {
     assert.deepEqual(viewableIn(root, "`desks/Ann/shot.PNG`, `temp/out-shot.png`, `temp/missing.png` and `desks/Ann/notes.txt`"), ["desks/Ann/shot.PNG", "desks/Ann/notes.txt"]);
+  });
+
+  // A directory opens in the file manager, whatever its name says: one named like an image is a
+  // directory all the same.
+  it("opens a directory of the instance by its real path, with or without a slash at its end", () => {
+    const ann = fs.realpathSync(path.join(root, "desks/Ann"));
+    for (const wanted of ["desks/Ann", "desks/Ann/", "temp/ann-link/"]) {
+      assert.deepEqual(openable(root, wanted), { ok: true, real: ann }, wanted);
+    }
+    assert.deepEqual(openable(root, "temp/folder.png"), { ok: true, real: fs.realpathSync(path.join(root, "temp/folder.png")) });
+  });
+
+  it("opens no directory the view may not name: outside, the root, the Claude Code home, a .git directory, missing, or a file named as a directory", () => {
+    for (const [wanted, status] of [["temp/out-dir", 403], ["temp/out-dir/", 403], ["../outside/", 403], ["./", 403], ["temp/..", 403], [".local/", 403], [".LOCAL", 403], ["projects/demo/.git/", 403], ["temp/missing/", 404], ["desks/Ann/notes.txt/", 404]]) {
+      assert.equal(openable(root, wanted).status, status, wanted);
+    }
+  });
+
+  it("links a directory a row names with a slash at its end, however the row wrote it, and once", () => {
+    const text = "`temp/a-directory`, `temp/a-directory/`, [Ann](desks/Ann/), `temp/out-dir/` and `projects/demo/.git/`";
+    assert.deepEqual(viewableIn(root, text), ["temp/a-directory/", "desks/Ann/"]);
+  });
+
+  it("never shows a directory, and says where it opens", () => {
+    for (const wanted of ["temp/a-directory", "temp/a-directory/", "temp/ann-link/"]) {
+      const answered = view(root, wanted);
+      assert.equal(answered.status, 404, wanted);
+      assert.match(answered.page, /A directory is not shown here: it opens in the file manager from its link on the ovai page\./, wanted);
+    }
+    assert.equal(view(root, "temp/out-dir/").status, 403);
   });
 });

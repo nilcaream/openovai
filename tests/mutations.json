@@ -2130,5 +2130,16 @@
         "to": "      openInBrowser(page);"
       }
     ]
+  },
+  {
+    "name": "a directory does not open by the route",
+    "catches": "opens a directory of the instance in the file manager by the same route, and none a link leads out of the instance",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "  if (found.stat.isDirectory() || isImage(found.real)) {",
+        "to": "  if (isImage(found.real)) {"
+      }
+    ]
   }
 ]

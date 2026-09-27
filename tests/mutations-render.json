@@ -335,7 +335,7 @@
     "edits": [
       {
         "file": "lib/chat/render.mjs",
-        "from": "  return file !== null && viewable.includes(file) ? file : null;",
+        "from": "  if (viewable.includes(file)) return file;",
         "to": "  return file;"
       }
     ]
@@ -401,8 +401,8 @@
     "edits": [
       {
         "file": "lib/chat/render.mjs",
-        "from": "  return PAGES.test(String(file)) || isImage(file);",
-        "to": "  return PAGES.test(String(file));"
+        "from": "  return PAGES.test(String(file)) || isImage(file) || ",
+        "to": "  return PAGES.test(String(file)) || "
       }
     ]
   },
@@ -414,6 +414,28 @@
         "file": "lib/chat/render.mjs",
         "from": "const IMAGES = /\\.(png|jpe?g|gif|webp|bmp|svg)$/i;",
         "to": "const IMAGES = /\\.(png|jpe?g|gif|webp|bmp|svg)$/;"
+      }
+    ]
+  },
+  {
+    "name": "a directory's link carries no address that opens it",
+    "catches": "gives a directory's link the address that opens it in the file manager, with or without the slash in the reply",
+    "edits": [
+      {
+        "file": "lib/chat/render.mjs",
+        "from": " || isImage(file) || String(file).endsWith(\"/\");",
+        "to": " || isImage(file);"
+      }
+    ]
+  },
+  {
+    "name": "a directory the reply wrote without its slash is not linked",
+    "catches": "gives a directory's link the address that opens it in the file manager, with or without the slash in the reply",
+    "edits": [
+      {
+        "file": "lib/chat/render.mjs",
+        "from": "  return viewable.includes(`${file}/`) ? `${file}/` : null;",
+        "to": "  return null;"
       }
     ]
   }

@@ -122,6 +122,14 @@ Claude Code home, `.git`, `.env`, `.credentials.json`), a file, and an image by 
 extension, so an image's name that leads to a `.desktop` file opens nothing. The view shows no
 image and says where it opens.
 
+**A directory a reply names opens in the file manager.** A backticked path or a link to a directory,
+with or without a slash at its end (`temp/shots/` or `temp/shots`), is a link, and clicking it opens
+the directory the way an image's link opens the image: the same POST, the same `Origin` and cookie,
+and the desktop's opener given its real path. It is held to where it is: inside the instance by its
+real path, so a symlink to a directory outside it opens nothing, and none of what the view never
+shows (the Claude Code home, `.git`). A name with a slash at its end opens only a directory. The view
+shows no directory and says where it opens.
+
 When the opener is missing or fails, the panel says so beside the link. This closes the ways in
 that the checks above name, and nothing else. A page opened this way runs as a local file in the
 browser, with whatever that browser lets a `file://` page do.

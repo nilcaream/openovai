@@ -405,6 +405,24 @@ describe("what the chat serves", () => {
     assert.equal(opener.told(), `${fs.realpathSync(image)}\n`, "opened once, for the page alone");
   });
 
+  it("opens a directory of the instance in the file manager by the same route, and none a link leads out of the instance", async () => {
+    const shots = path.join(instance, "temp", "open-shots");
+    fs.mkdirSync(shots, { recursive: true });
+    const outside = scratch("open-outside-dir");
+    fs.mkdirSync(outside, { recursive: true });
+    fs.rmSync(path.join(instance, "temp", "outside-dir"), { force: true });
+    fs.symlinkSync(outside, path.join(instance, "temp", "outside-dir"));
+    const [host] = own();
+    const origin = `http://${host}`;
+    const cookie = `openovai-page-${server.address().port}=${pageSecret()}`;
+    const opener = standInOpener(0);
+    const answered = await withPath(opener.bin, () => raw("POST", "/open/temp/open-shots/", { host, cookie, origin }));
+    assert.equal(answered.status, 204);
+    const refused = await withPath(opener.bin, () => raw("POST", "/open/temp/outside-dir/", { host, cookie, origin }));
+    assert.equal(refused.status, 403);
+    assert.equal(opener.told(), `${fs.realpathSync(shots)}\n`, "opened once, inside the instance alone");
+  });
+
   it("refuses to open anything but a web page the view would show, for anybody but the page, and opens nothing", async () => {
     const temp = path.join(instance, "temp");
     fs.writeFileSync(path.join(temp, "open-check.html"), "<!doctype html>\n");

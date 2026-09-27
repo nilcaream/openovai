@@ -112,11 +112,23 @@ describe("a file named in a reply", () => {
     }
   });
 
+  // The server names a directory with a slash at its end (view.mjs), whether or not the reply did.
+  it("gives a directory's link the address that opens it in the file manager, with or without the slash in the reply", () => {
+    assert.equal(opensOnDesktop("temp/leo-shots/"), true);
+    assert.equal(opensOnDesktop("temp/leo-shots"), false);
+    const shown = html("`temp/leo-shots/`, `temp/leo-shots` and [notes](desks/Ann/)", ["temp/leo-shots/", "desks/Ann/"]);
+    assert.equal(shown.split('data-opens="/open/temp/leo-shots/"').length - 1, 2, shown);
+    assert.match(shown, /<a href="\/view\/temp\/leo-shots\/" target="_blank" rel="noopener" data-opens="\/open\/temp\/leo-shots\/"><code>temp\/leo-shots<\/code><\/a>/);
+    assert.match(shown, /<a href="\/view\/desks\/Ann\/" target="_blank" rel="noopener" data-opens="\/open\/desks\/Ann\/">notes<\/a>/);
+    assert.equal(html("`temp/leo-shots`", ["temp/leo-shots"]).includes("data-opens"), false);
+  });
+
   it("names as a candidate a backticked path or a link's target, each once, and never an absolute path, a URL, bare words or a code block", () => {
     const text = "`projects/x/a.md:3` `/etc/hosts` `~/.ssh/id` `https://a.b/c` `node:http` bare/words.md [l](projects/x/a.md) [k](b.md)\n\n```\n`in/code.md`\n```";
     assert.deepEqual(candidates(text), ["projects/x/a.md", "b.md"]);
     assert.equal(pathOf("projects/x/a.md:3-9"), "projects/x/a.md");
     assert.equal(pathOf("has space.md"), null);
+    assert.deepEqual(candidates("`temp/leo-shots/` [shots](temp/leo-shots/) `temp/leo-shots`"), ["temp/leo-shots/", "temp/leo-shots"]);
   });
 
   it("draws the paths a row carries in every row drawn as markdown", () => {
