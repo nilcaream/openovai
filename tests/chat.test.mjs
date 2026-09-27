@@ -28,7 +28,7 @@ import { LEADER as LEADS, WORKER as WORKS } from "../lib/desks.mjs";
 import { SECRET_IN_ENVIRONMENT, end, endEvery, interrupt, recordOf, running, runningSeats, start, tell, keystroke as keyTyped } from "../lib/chat/session.mjs";
 import { BUILT_IN } from "../lib/plugins.mjs";
 import { CONFIG_FILE } from "../lib/seed.mjs";
-import { alive, callsIn, childrenOf, get as fetchPlain, heardIn, installed, leftRunningIn, notesIn, post as postPlain, queuesHeardIn, readLog, remove, repo, sansMoment, scratch, seatsIn, secretsIn, startChat, stopChat, waitFor, waitForAddress, writeStandIn } from "./helpers.mjs";
+import { alive, callsIn, childrenOf, get as fetchPlain, heardIn, installed, leftRunningIn, notesIn, post as postPlain, queuesHeardIn, readLog, remove, repo, sansMoment, scratch, seatsIn, secretsIn, source, startChat, stopChat, waitFor, waitForAddress, writeStandIn } from "./helpers.mjs";
 
 const USER = "Mike";
 const LEADER = "Superman";
@@ -64,7 +64,7 @@ process.on("exit", () => {
 function options(root) {
   return {
     "--root": root,
-    "--source": repo,
+    "--source": source(),
     "--user": USER,
     "--leader": LEADER,
     "--leader-model": LEADER_MODEL,

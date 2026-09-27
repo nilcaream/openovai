@@ -21,7 +21,7 @@ import { LEADER as LEADS, WORKER } from "../lib/desks.mjs";
 import { endEvery } from "../lib/chat/session.mjs";
 import { KNOWLEDGE_ASK_RULES, LEDGER, ruleAsked } from "../lib/desks.mjs";
 import { CONFIG_FILE } from "../lib/seed.mjs";
-import { heardIn, installed, post, remove, repo, scratch, secretsIn, waitFor, writeStandIn } from "./helpers.mjs";
+import { heardIn, installed, post, remove, repo, scratch, secretsIn, source, waitFor, writeStandIn } from "./helpers.mjs";
 import { settingsProblems } from "./inspect.mjs";
 
 const USER = "Mike";
@@ -364,7 +364,7 @@ describe("settling a rule in the settings", () => {
 function options(root) {
   return {
     "--root": root,
-    "--source": repo,
+    "--source": source(),
     "--user": USER,
     "--leader": LEADER,
     "--leader-model": "sonnet",

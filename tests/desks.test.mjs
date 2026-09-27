@@ -17,7 +17,7 @@ import { after, before, describe, it } from "node:test";
 
 import { LONGEST_STATUS, LONGEST_TITLE, POOL, REFUSED_STATUS, REFUSED_TITLE, archiveFor, conversationFile, deskHeader, headerFields, hire, nextName, personaFile, retire, writeDeskHeader } from "../lib/desks.mjs";
 import { settingsProblems } from "./inspect.mjs";
-import { installed, remove, scratch } from "./helpers.mjs";
+import { installed, remove, scratch, source } from "./helpers.mjs";
 
 const USER = "Mike";
 const LEADER = "Superman";
@@ -31,7 +31,7 @@ const allow = () => JSON.parse(fs.readFileSync(settings(), "utf8")).permissions.
 before(() => {
   installed({
     "--root": instance,
-    "--source": path.resolve(import.meta.dirname, ".."),
+    "--source": source(),
     "--user": USER,
     "--leader": LEADER,
     "--leader-model": "sonnet",
@@ -240,7 +240,7 @@ describe("the roster: who the next hire is called", () => {
   before(() => {
     installed({
       "--root": roster,
-      "--source": path.resolve(import.meta.dirname, ".."),
+      "--source": source(),
       "--user": USER,
       "--leader": LEADER,
       "--leader-model": "sonnet",

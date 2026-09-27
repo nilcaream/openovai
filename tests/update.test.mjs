@@ -14,7 +14,7 @@ import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { after, before, describe, it } from "node:test";
 
-import { installed, remove, repo, runToolLater, scratch, serveRelease, standInEnvironment, writeStandIn } from "./helpers.mjs";
+import { installed, remove, repo, runToolLater, scratch, serveRelease, source, standInEnvironment, writeStandIn } from "./helpers.mjs";
 import { PAYLOAD, RETIRED } from "../lib/payload.mjs";
 import { RELEASES } from "../lib/release.mjs";
 import { SEAT_IN_ENVIRONMENT } from "../lib/claude.mjs";
@@ -53,7 +53,7 @@ process.on("exit", () => remove(here));
 function options(root) {
   return {
     "--root": root,
-    "--source": repo,
+    "--source": source(),
     "--user": USER,
     "--leader": LEADER,
     "--leader-model": "sonnet",

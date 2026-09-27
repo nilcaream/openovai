@@ -31,6 +31,7 @@ import {
   repo,
   runOvai,
   scratch,
+  source,
   writeStandIn,
 } from "./helpers.mjs";
 import { LEDGER, settingsProblems, trustProblems } from "./inspect.mjs";
@@ -85,7 +86,7 @@ process.on("exit", () => remove(instance, inherited, standIn));
 function install(root, auth) {
   installed({
     "--root": root,
-    "--source": repo,
+    "--source": source(),
     "--user": USER,
     "--leader": LEADER,
     "--leader-model": LEADER_MODEL,
@@ -1209,7 +1210,7 @@ describe("what hiring refuses", () => {
       it(`refuses ${JSON.stringify(value)} where installing refuses it`, () => {
         const putting = installing({
           "--root": `${instance}-never-made`,
-          "--source": repo,
+          "--source": source(),
           "--user": USER,
           "--leader": LEADER,
           "--leader-model": LEADER_MODEL,
@@ -1381,7 +1382,7 @@ describe("the server commands", () => {
     remove(served);
     installed({
       "--root": served,
-      "--source": repo,
+      "--source": source(),
       "--user": USER,
       "--leader": LEADER,
       "--leader-model": LEADER_MODEL,

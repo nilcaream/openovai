@@ -19,6 +19,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { PAYLOAD } from "../lib/payload.mjs";
 import { pins } from "../lib/runtime.mjs";
 
 export const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -44,6 +45,26 @@ export function remove(...targets) {
       fs.rmSync(target, { recursive: true, force: true });
     }
   }
+}
+
+// What a suite installs from: the repository's payload, copied into scratch with no .git beside it.
+// An install from a clean checkout is put on its commit (installStamp), so installing from the
+// repository itself would give an instance its lib/VERSION while the tree has changes and a hash
+// once it is committed; a copy is on the lib/VERSION the repository carries, whatever state it is in.
+// Made on first use, once per process.
+let copied = null;
+
+export function source() {
+  if (copied === null) {
+    copied = scratch("source");
+    remove(copied);
+    for (const entry of PAYLOAD) {
+      fs.cpSync(path.join(repo, entry), path.join(copied, entry), { recursive: true });
+    }
+    const made = copied;
+    process.on("exit", () => remove(made));
+  }
+  return copied;
 }
 
 // An option map becomes a command line. A key with no value is left out, which is how a suite

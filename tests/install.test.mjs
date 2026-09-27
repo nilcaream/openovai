@@ -11,7 +11,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
-import { install, installed, remove, repo, runOvai, runtimeData, scratch } from "./helpers.mjs";
+import { install, installed, remove, repo, runOvai, runtimeData, scratch, source } from "./helpers.mjs";
 import { pins } from "../lib/runtime.mjs";
 import { configProblems, settingsProblems } from "./inspect.mjs";
 import { CUSTOMIZATION, persona } from "../lib/desks.mjs";
@@ -48,7 +48,7 @@ process.on("exit", () => remove(instance, chosen, empty, versionless, `${instanc
 function options(root, changes = {}) {
   return {
     "--root": root,
-    "--source": repo,
+    "--source": source(),
     "--user": USER,
     "--leader": LEADER,
     "--leader-model": LEADER_MODEL,
@@ -617,7 +617,7 @@ describe("installing over an instance", () => {
 
   // What is not given is not missing: the instance's own description answers for it.
   it("takes an answer left off the command line from the description the instance has", () => {
-    const fewer = install({ "--root": root, "--source": repo, "--force": true });
+    const fewer = install({ "--root": root, "--source": source(), "--force": true });
     const config = JSON.parse(fs.readFileSync(path.join(root, "openovai.json"), "utf8"));
     assert.equal(fewer.status, 0, fewer.stderr);
     assert.deepEqual([config.port, config.models.leader, config.user], [4242, "haiku", USER]);
@@ -722,7 +722,7 @@ describe("what the installer refuses", () => {
   it("refuses a command line with an option missing", () => {
     const asked = {
       "--root": instance,
-      "--source": repo,
+      "--source": source(),
       "--user": USER,
       "--leader": LEADER,
     };
@@ -951,10 +951,10 @@ function makeSource(name, { branch = null } = {}) {
   return { tree, hash: git("rev-parse", "HEAD").slice(0, 8) };
 }
 
-function installedFrom(name, source) {
+function installedFrom(name, tree) {
   const root = `${instance}-${name}`;
   remove(root);
-  installed(options(root, { "--source": source }));
+  installed(options(root, { "--source": tree }));
   return fs.readFileSync(path.join(root, "lib", "VERSION"), "utf8").trim();
 }
 

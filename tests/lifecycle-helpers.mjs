@@ -21,7 +21,7 @@ import { serve, startSeat } from "../lib/chat/server.mjs";
 import { end, endEvery, running, tell } from "../lib/chat/session.mjs";
 import { deskFile, hire } from "../lib/desks.mjs";
 import { CONFIG_FILE } from "../lib/seed.mjs";
-import { heardIn, installed, notesIn, post as postPlain, remove, repo, sansMoment, scratch, secretsIn, waitFor, writeStandIn } from "./helpers.mjs";
+import { heardIn, installed, notesIn, post as postPlain, remove, repo, sansMoment, scratch, secretsIn, source, waitFor, writeStandIn } from "./helpers.mjs";
 
 export const USER = "Mike";
 export const LEADER = "Superman";
@@ -48,7 +48,7 @@ export let unexpected = null;
 export function options(root) {
   return {
     "--root": root,
-    "--source": repo,
+    "--source": source(),
     "--user": USER,
     "--leader": LEADER,
     "--leader-model": LEADER_MODEL,

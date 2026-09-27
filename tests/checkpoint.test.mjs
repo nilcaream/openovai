@@ -15,7 +15,7 @@ import { serve, startSeat, toolsFor } from "../lib/chat/server.mjs";
 import { endEvery } from "../lib/chat/session.mjs";
 import { LEADER as LEADER_ROLE, WORKER as WORKER_ROLE, hire } from "../lib/desks.mjs";
 import { CONFIG_FILE } from "../lib/seed.mjs";
-import { heardIn, installed, notesIn, post as postPlain, remove, repo, sansMoment, scratch, secretsIn, waitFor, writeStandIn } from "./helpers.mjs";
+import { heardIn, installed, notesIn, post as postPlain, remove, repo, sansMoment, scratch, secretsIn, source, waitFor, writeStandIn } from "./helpers.mjs";
 
 const USER = "Mike";
 const LEADER = "Superman";
@@ -39,7 +39,7 @@ remove(instance, standIn);
 writeStandIn(standIn);
 installed({
   "--root": instance,
-  "--source": repo,
+  "--source": source(),
   "--user": USER,
   "--leader": LEADER,
   "--leader-model": "opus",
