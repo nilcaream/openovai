@@ -5,8 +5,19 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "              said(noop ? { text: block.text, noop: true } : { text: block.text });",
+        "from": "              said(noop ? { text: block.text, noop: true } : { text: wordsOf(block.text) });",
         "to": "              said({ text: block.text });"
+      }
+    ]
+  },
+  {
+    "name": "words that end in <noop/> are drawn with the marker",
+    "catches": "shows words that end in <noop/> as the words alone",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "              said(noop ? { text: block.text, noop: true } : { text: wordsOf(block.text) });",
+        "to": "              said(noop ? { text: block.text, noop: true } : { text: block.text });"
       }
     ]
   },
@@ -691,8 +702,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "              said(noop ? { text: block.text, noop: true } : { text: block.text });",
-        "to": "              setTimeout(() => said(noop ? { text: block.text, noop: true } : { text: block.text }), 1000);"
+        "from": "              said(noop ? { text: block.text, noop: true } : { text: wordsOf(block.text) });",
+        "to": "              setTimeout(() => said(noop ? { text: block.text, noop: true } : { text: wordsOf(block.text) }), 1000);"
       }
     ]
   },

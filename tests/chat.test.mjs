@@ -2160,10 +2160,21 @@ describe("what a seat says", () => {
   it("shows words that only mention <noop/> as words", async () => {
     await endSeat(WORKER, 500);
     remove(panelFile(instance, WORKER));
-    paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_REPLY: "nothing to add, so <noop/>" });
+    paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_REPLY: "a <noop/> turn is not drawn" });
     await tell(WORKER, userFrame("go")).answered;
     await new Promise((resolve) => setTimeout(resolve, 100));
-    assert.deepEqual(panel(instance, WORKER).map((row) => [row.from, row.text, row.noop]), [[WORKER, "nothing to add, so <noop/>", undefined]]);
+    assert.deepEqual(panel(instance, WORKER).map((row) => [row.from, row.text, row.noop]), [[WORKER, "a <noop/> turn is not drawn", undefined]]);
+  });
+
+  // A seat that says its words and then `<noop/>` has said the words: the row is the words as
+  // they were written, and the marker they end in is not drawn.
+  it("shows words that end in <noop/> as the words alone", async () => {
+    await endSeat(WORKER, 500);
+    remove(panelFile(instance, WORKER));
+    paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_REPLY: "  Desk updated.\n\n- waiting for Jane\n\n<noop/>\n" });
+    await tell(WORKER, userFrame("go")).answered;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    assert.deepEqual(panel(instance, WORKER).map((row) => [row.from, row.text, row.noop]), [[WORKER, "  Desk updated.\n\n- waiting for Jane", undefined]]);
   });
 });
 
