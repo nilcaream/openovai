@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { AMBER, CARD, CONNECTED, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, LATE_AFTER, RED, REPLY, LINE_QUEUE, SENDING, SHOWN_FOR, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, insertRef, stopEnabled, title, typingBeat, TYPING_BEAT } from "../lib/chat/panels.mjs";
+import { AMBER, CARD, CONNECTED, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, LATE_AFTER, RED, REPLY, SENDING, SHOWN_FOR, LINE_WAITING, LINE_WORKING, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, insertRef, stopEnabled, title, typingBeat, TYPING_BEAT } from "../lib/chat/panels.mjs";
 import { localAt, refTo, references } from "../lib/chat/refs.mjs";
 
 const LEADER = "Leader";
@@ -265,11 +265,11 @@ describe("marks and controls", () => {
 
   // What a seat is at is the server's word on the seat — from the snapshot, for a page opened
   // mid-turn, and from every seat event after — and null once a seat event comes without it,
-  // since the server says it only while there is one. Each word, once up, has SHOWN_FOR.
+  // since the server says it only while there is one. A call, once up, has SHOWN_FOR.
   it("what a seat is at comes with the snapshot and every seat event, and is null once the word is gone", () => {
     const state = fresh();
-    applyEvent(state, snapshot([about(LEADER, { busy: true, doing: "Thinking…" }), about("Paul", { busy: true })]), 0);
-    assert.equal(state.panels[LEADER].doing, "Thinking…");
+    applyEvent(state, snapshot([about(LEADER, { busy: true, doing: LINE_WORKING }), about("Paul", { busy: true })]), 0);
+    assert.equal(state.panels[LEADER].doing, LINE_WORKING);
     assert.equal(state.panels.Paul.doing, null);
     applyEvent(state, seat(LEADER, { busy: true, doing: "Reading lib/chat/page.html" }), SHOWN_FOR);
     assert.equal(state.panels[LEADER].doing, "Reading lib/chat/page.html");
@@ -279,73 +279,103 @@ describe("marks and controls", () => {
     assert.equal(state.panels[LEADER].doing, null, "a word that is not a string is no word");
   });
 
-  // The tool line, at the pace a reader can follow: a word up stays SHOWN_FOR; a word said while
-  // the one showing is younger waits, and goes up the moment it is due — from the event that
-  // finds it due, or from `advance`, which says when to come back.
+  // The tool line, at the pace a reader can follow: a call up stays SHOWN_FOR; a word said while
+  // it holds waits in the one place there is, and goes up the moment the call has had its time —
+  // from the event that finds it due, or from `advance`, which says when to come back.
   describe("the tool line", () => {
     const at = (state, now, doing) => applyEvent(state, seat(LEADER, { busy: true, doing }), now);
     const shows = (state) => state.panels[LEADER].doing;
     const opened = () => {
       const state = fresh();
-      applyEvent(state, snapshot([about(LEADER, { busy: true, doing: "Thinking…" })]), 0);
+      applyEvent(state, snapshot([about(LEADER, { busy: true, doing: LINE_WORKING })]), 0);
       return state;
     };
 
-    it("a word said while the one showing is younger than SHOWN_FOR waits, and goes up when it is due", () => {
+    // The User's own words, so they are literals here: a check that only read the constants back
+    // would hold whatever they became.
+    it("says Working… on a turn with no call showing, and Waiting for instructions off one", () => {
+      assert.equal(LINE_WORKING, "Working…");
+      assert.equal(LINE_WAITING, "Waiting for instructions");
+    });
+
+    it("a call stays up SHOWN_FOR, and what was said meanwhile goes up when it is due", () => {
+      assert.equal(SHOWN_FOR, 1000, "a call is up a second at least");
       const state = opened();
       at(state, 10, "Reading a");
-      assert.equal(shows(state), "Thinking…", "Thinking… has had 10 ms of its 500");
-      assert.equal(advance(state, 499), SHOWN_FOR, "not due yet, and the page is told when it is");
-      assert.equal(shows(state), "Thinking…");
-      assert.equal(advance(state, SHOWN_FOR), null, "due, up, and nothing waits behind it");
+      at(state, 20, "Reading b");
+      assert.equal(shows(state), "Reading a", "Reading a has had 10 ms of its second");
+      assert.equal(advance(state, 10 + SHOWN_FOR - 1), 10 + SHOWN_FOR, "not due yet, and the page is told when it is");
       assert.equal(shows(state), "Reading a");
-      at(state, 2 * SHOWN_FOR, "Reading b");
-      assert.equal(shows(state), "Reading b", "a word said once the one showing has had its time goes up at once");
+      assert.equal(advance(state, 10 + SHOWN_FOR), null, "due, up, and nothing waits behind it");
+      assert.equal(shows(state), "Reading b");
+      at(state, 10 + 2 * SHOWN_FOR - 1, "Reading c");
+      assert.equal(shows(state), "Reading b", "a call again once up: it holds its own second");
+      at(state, 10 + 2 * SHOWN_FOR, "Reading c");
+      assert.equal(shows(state), "Reading c", "a word said once the call showing has had its time goes up at once");
     });
 
-    it("a word that repeats the newest one known is not queued", () => {
+    it("Working… holds nothing: the call after it goes up at once", () => {
       const state = opened();
-      at(state, 10, "Thinking…");
-      assert.deepEqual(state.panels[LEADER].waiting, [], "Thinking… again is the Thinking… showing");
-      at(state, 20, "Reading a");
-      at(state, 30, "Reading a");
-      assert.deepEqual(state.panels[LEADER].waiting, ["Reading a"], "said twice, waits once");
-      at(state, 40, "Thinking…");
-      assert.deepEqual(state.panels[LEADER].waiting, ["Reading a", "Thinking…"], "not the newest known: queued, whatever the line shows");
+      at(state, 1, "Reading a");
+      assert.equal(shows(state), "Reading a");
+      at(state, 1 + SHOWN_FOR, LINE_WORKING);
+      at(state, 2 + SHOWN_FOR, "Reading b");
+      assert.equal(shows(state), "Reading b", "Working… had 1 ms, and no call waits for it");
     });
 
-    it("the turn's end drains the line at its pace and only then takes it down", () => {
+    it("nothing queues: ten calls of 10 ms show the first for SHOWN_FOR, then the newest word only", () => {
+      const tenCalls = () => {
+        const state = opened();
+        for (let call = 0; call < 10; call += 1) {
+          at(state, 20 * call, `Reading ${call}`);
+          at(state, 20 * call + 10, LINE_WORKING);
+        }
+        return state;
+      };
+      const done = tenCalls();
+      assert.equal(shows(done), "Reading 0");
+      assert.equal(done.panels[LEADER].next, LINE_WORKING, "one word waits, the newest");
+      assert.equal(advance(done, SHOWN_FOR), null, "and once it is up nothing waits behind it");
+      assert.equal(shows(done), LINE_WORKING, "nothing runs any more, and none of the calls in between is shown");
+      const running = tenCalls();
+      at(running, 200, "Reading 10");
+      assert.equal(running.panels[LEADER].next, "Reading 10", "the newest word, not the first that waited");
+      advance(running, SHOWN_FOR);
+      assert.equal(shows(running), "Reading 10", "the call out now is the one shown");
+    });
+
+    it("a word that is the one showing leaves nothing waiting", () => {
       const state = opened();
       at(state, 10, "Reading a");
-      at(state, 20, null);
-      assert.equal(shows(state), "Thinking…");
-      assert.equal(advance(state, SHOWN_FOR), 2 * SHOWN_FOR);
-      assert.equal(shows(state), "Reading a", "the call goes up though the turn is over");
-      assert.equal(advance(state, 2 * SHOWN_FOR), null);
-      assert.equal(shows(state), null, "and the line goes once it has had its time");
-      assert.deepEqual(state.panels[LEADER].waiting, [], "nothing stale behind it");
-      at(state, 2 * SHOWN_FOR + 10, "Thinking…");
-      assert.equal(shows(state), "Thinking…", "an empty line has nothing to read: the next turn's word goes up at once");
+      at(state, 20, LINE_WORKING);
+      assert.equal(state.panels[LEADER].next, LINE_WORKING);
+      at(state, 30, "Reading a");
+      assert.equal(state.panels[LEADER].next, null, "the line already says it");
+      assert.equal(advance(state, 30), null);
     });
 
-    it("no more than LINE_QUEUE words wait, the oldest dropped first", () => {
+    it("the turn's end takes the line down at once, whatever holds it, and the next turn starts clean", () => {
       const state = opened();
-      for (const word of ["a", "b", "c", "d", "e"]) at(state, 10, word);
-      assert.deepEqual(state.panels[LEADER].waiting, ["c", "d", "e"]);
-      assert.equal(state.panels[LEADER].waiting.length, LINE_QUEUE);
-      assert.equal(shows(state), "Thinking…");
-      assert.equal(advance(state, SHOWN_FOR), 2 * SHOWN_FOR);
-      assert.equal(shows(state), "c");
+      at(state, 10, "Reading a");
+      at(state, 20, "Reading b");
+      at(state, 30, null);
+      assert.equal(shows(state), null, "the call had 20 ms of its second");
+      assert.equal(state.panels[LEADER].next, null, "nothing stale behind it");
+      assert.equal(advance(state, 10 + SHOWN_FOR), null);
+      assert.equal(shows(state), null);
+      at(state, 40, LINE_WORKING);
+      assert.equal(shows(state), LINE_WORKING, "an empty line has nothing to read: the next turn's word goes up at once");
     });
 
     it("advance answers the soonest due moment over every panel", () => {
       const state = opened();
       at(state, 10, "Reading a");
-      applyEvent(state, seat("Paul", { busy: true, doing: "Thinking…" }), 200);
-      applyEvent(state, seat("Paul", { busy: true, doing: "Reading b" }), 300);
-      assert.equal(advance(state, 300), 500, "Paul's is due at 700, the Leader's at 500");
-      assert.equal(advance(state, 500), 700);
-      assert.equal(advance(state, 700), null);
+      at(state, 20, LINE_WORKING);
+      applyEvent(state, seat("Paul", { busy: true, doing: "Reading b" }), 200);
+      applyEvent(state, seat("Paul", { busy: true, doing: LINE_WORKING }), 300);
+      assert.equal(advance(state, 300), 10 + SHOWN_FOR, "Paul's is due at 1200, the Leader's at 1010");
+      assert.equal(advance(state, 10 + SHOWN_FOR), 200 + SHOWN_FOR);
+      assert.equal(advance(state, 200 + SHOWN_FOR), null);
     });
   });
 

@@ -1208,8 +1208,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, insertRef, stopEnabled, title, typingBeat } from \"./panels.mjs\";",
-        "to": "  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, prune, quotaLine, quotaTitle, insertRef, stopEnabled, title, typingBeat } from \"./panels.mjs\";\n  const place = (seats, leader, order) => ({ left: order.filter((s) => s !== leader && seats.includes(s)), mid: leader, right: [] });"
+        "from": "  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, insertRef, stopEnabled, title, typingBeat, LINE_WAITING } from \"./panels.mjs\";",
+        "to": "  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, prune, quotaLine, quotaTitle, insertRef, stopEnabled, title, typingBeat, LINE_WAITING } from \"./panels.mjs\";\n  const place = (seats, leader, order) => ({ left: order.filter((s) => s !== leader && seats.includes(s)), mid: leader, right: [] });"
       }
     ]
   },
@@ -1730,8 +1730,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "  } else if (record.doing === null) {\n    record.doing = THINKING;",
-        "to": "  } else if (false) {\n    record.doing = THINKING;"
+        "from": "  } else if (record.doing === null) {\n    record.doing = LINE_WORKING;",
+        "to": "  } else if (false) {\n    record.doing = LINE_WORKING;"
       }
     ]
   },
@@ -1752,8 +1752,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "    if (record !== undefined && record.lastCall === id && record.doing !== THINKING) {",
-        "to": "    if (record !== undefined && record.lastCall === null && record.doing !== THINKING) {"
+        "from": "    if (record !== undefined && record.lastCall === id && record.doing !== LINE_WORKING) {",
+        "to": "    if (record !== undefined && record.lastCall === null && record.doing !== LINE_WORKING) {"
       }
     ]
   },

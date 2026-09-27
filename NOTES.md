@@ -236,14 +236,17 @@ made used to reach the panel as the seat's own. The card now says so under its h
 words the session started the subagent with: `from its subagent Explore — “find the card CSS”`.
 Where the server did not see that subagent start, the card says `from a subagent`.
 
-**The Leader's "Thinking…" line floats and no longer moves the rows.** The line that says what the
-Leader is at used to be the last row of its panel, so each time it came and went every row above it
-moved up and back down. It now floats in the lower right corner of the last message, as wide as
-its words, its right and bottom edges on the message's own, covering that corner of the message. It
-takes no room, so nothing moves when it comes or goes. Scrolled up, it stays at the bottom edge over
-the rows, like the new-messages pill. It casts no shadow: nothing on the page does, the pill included. It disappears while the
-pointer is over it, so the corner of the message it covers can be read, and a click there reaches
-the message.
+**The Leader's panel always ends with a pill that says what it is at.** The line that said what
+the Leader was at used to be the last row of its panel only during a turn, so each time it came and
+went every row above it moved up and back down. It is now a pill like the one between two days,
+always there as the last row: "Waiting for instructions" between turns, "Working…" on a turn (it
+said "Thinking…"), and the call the Leader has out while it has one. It is one line high whatever
+it says, a long call cut with an ellipsis, so no row moves for it. It scrolls with the rows:
+scrolled up, it is out of view. A call stays on it for one second at least (it was half a
+second). Nothing queues behind it: when the second is up, the pill says what the Leader is at by
+then, so ten calls of 10 ms show the first for a second and then the newest word, never the ten
+in turn. When the turn ends, the pill says "Waiting for instructions" at once. Nothing on the page
+casts a shadow, the pills included.
 
 **A Deny says who gave it.** A Deny on a card used to reach the session as its bare reason, or as
 "not allowed by the Server" with none, and a session could take a reason like "this is a test" for

@@ -106,18 +106,6 @@
   .rows .line .n { color: var(--fg-faint); }
   /* a line that is one end of a message between two sessions: a click on it finds the message on the Leader's panel */
   .rows .line.peer { cursor: pointer; border-left: 3px solid var(--accent); }
-  /* the one line that says what the seat is at: always exactly one line, cut with an ellipsis */
-  .rows .line.doing { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  /* on the Leader's panel it floats from the dock, a row of no height stuck to the rows' bottom
-     edge: as wide as its words, in the lower right corner of the last message — its right edge on
-     the message's right edge, its bottom on the message's bottom edge, the 4px margin a row keeps
-     under it — covering that corner of the message on purpose, and taking no room, so nothing
-     moves when it comes or goes; scrolled up, it floats over the rows like the pill. No shadow:
-     a row has none, and one under the line reads as the line sitting below the message's edge */
-  .rows .dock { position: sticky; bottom: 0; height: 0; pointer-events: none; }
-  .rows .dock .line.doing { position: absolute; right: 0; bottom: 4px; width: auto; max-width: 100%; margin: 0; line-height: 1.5; }
-  /* while the pointer is over it: not drawn, still laid out, so the page can tell when it leaves */
-  .rows .dock.pointed .line.doing { visibility: hidden; }
   /* a row is a bubble: the label row on top, the body under it; the kind of the row picks its ground */
   .msg { display: flex; margin: 4px 0; }
   .bubble { width: 100%; max-width: 100%; border: 1px solid var(--line); border-radius: var(--radius); padding: 6px 10px 4px; background: var(--panel-2); position: relative; min-width: 120px; }
@@ -170,6 +158,9 @@
      own, so its padding and border are inside the row's height rather than over its neighbours */
   .divider { text-align: center; margin: 3px 0; color: var(--fg-faint); font-size: .78rem; font-family: var(--mono); }
   .divider span { display: inline-block; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 2px 12px; }
+  /* the Leader's pill that says what it is at: always exactly one line, cut with an ellipsis, so
+     no word it says makes it taller or shorter */
+  .divider.doing span { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; vertical-align: top; }
   /* markdown inside a reply is drawn by /md.css, shared with the file view */
   .bubble a { color: var(--accent); }
   .bubble .open-failed { margin-left: 6px; font-size: .85em; color: var(--fg-dim); }
@@ -237,7 +228,7 @@
   // draws it and carries what is typed and pressed to the server.
 
   import { answerOf, dialogOf } from "./dialog.mjs";
-  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, insertRef, stopEnabled, title, typingBeat } from "./panels.mjs";
+  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, insertRef, stopEnabled, title, typingBeat, LINE_WAITING } from "./panels.mjs";
   import { dayPillBefore, row as rowOf, unseen } from "./render.mjs";
   import { refTo, references } from "./refs.mjs";
 
@@ -581,26 +572,15 @@
       }
     });
     rows.append(jump);
-    // On the Leader's panel, the dock for the line that says what the Leader is at: a row of no
-    // height, always the last before the pill and stuck to the rows' bottom edge, the line floating
-    // up from it over the last message's lower right corner, as wide as its words. It takes no
-    // room, so the line coming and going never moves a row.
-    let dock = null;
+    // On the Leader's panel, the pill that says what the Leader is at: the pill between two days,
+    // always there and always the last row before the jump pill, among the rows and scrolled with
+    // them. Its words change in place and it is one line high whatever they say, so no row ever
+    // moves for it.
+    let doing = null;
     if (leads) {
-      dock = document.createElement("div");
-      dock.className = "dock";
-      rows.append(dock);
-      // The line hides while the pointer is over it, so the corner of the message under it can be
-      // read and clicked. It takes no pointer, so a click goes through to the message; whether the
-      // pointer is over it is read from where the line is drawn, never from :hover, so hiding it
-      // does not take the pointer off it, and it does not flicker.
-      rows.addEventListener("pointermove", (event) => {
-        const line = dock.firstElementChild;
-        if (line === null) return;
-        const at = line.getBoundingClientRect();
-        dock.classList.toggle("pointed", event.clientX >= at.left && event.clientX <= at.right && event.clientY >= at.top && event.clientY <= at.bottom);
-      });
-      rows.addEventListener("pointerleave", () => dock.classList.remove("pointed"));
+      doing = pill(LINE_WAITING);
+      doing.classList.add("doing");
+      rows.append(doing);
     }
 
     const composer = document.createElement("form");
@@ -689,10 +669,10 @@
     // the element of every tool line by the index of its row, for a failed call to find its line;
     // `waiting` the element of every row of the User's not yet delivered, by its index, for the
     // delivery to find its row; `day` the day of the row drawn last, for the pill between two days;
-    // `drawn` the card of every question on the panel, by the id of its request; `doing` the one
-    // line that says what the seat is at, while there is one; `bubbles` the element of every stamped
-    // row by its index, for a reference in a User's row to find the row it names.
-    return { name, leads, section, nameLine, info, word, fitPlaceholder, facts, composer, stop, rows, cards, jump, dock, box, view, keep, shown: 0, day: null, drawn: new Map(), loading: false, last: null, lines: new Map(), bubbles: new Map(), waiting: new Map(), doing: null };
+    // `drawn` the card of every question on the panel, by the id of its request; `doing` the pill
+    // that says what the Leader is at, null on a Worker's panel; `bubbles` the element of every
+    // stamped row by its index, for a reference in a User's row to find the row it names.
+    return { name, leads, section, nameLine, info, word, fitPlaceholder, facts, composer, stop, rows, cards, jump, doing, box, view, keep, shown: 0, day: null, drawn: new Map(), loading: false, last: null, lines: new Map(), bubbles: new Map(), waiting: new Map() };
   }
 
   // When a row was written, in the reader's own zone: `2026.09.13 Sunday 23:17:05` on the row, the
@@ -1179,7 +1159,6 @@
         panel.last = null;
         panel.lines.clear();
         panel.waiting.clear();
-        panel.doing = null;
         panel.bubbles.clear();
         // The cards are not among the rows: they stand, and leave when their question does.
       }
@@ -1279,27 +1258,13 @@
           panel.cards.append(card);
         }
       }
-      // The one line that says what the seat is at, while the server says it: put in the dock once
-      // when the word comes, its text changed in place at every change, taken out once the word is
-      // gone. It floats in the dock and takes no room among the rows, so neither its coming nor
-      // its going is a row landing, and no row moves for either.
-      if (about.doing === null) {
-        if (panel.doing !== null) {
-          panel.doing.remove();
-          panel.doing = null;
-        }
-      } else {
-        if (panel.doing === null) {
-          panel.doing = document.createElement("div");
-          panel.doing.className = "line doing";
-          (panel.dock ?? panel.rows).append(panel.doing);
-        }
-        panel.doing.textContent = about.doing;
-      }
+      // What the Leader is at, on its pill: the server's word on a turn, LINE_WAITING off one. The pill
+      // is always there and only its words change, so it is never a row landing.
+      if (panel.doing !== null) panel.doing.firstElementChild.textContent = about.doing ?? LINE_WAITING;
       // Rows are appended after the pill; it goes back to the end so it sticks to the bottom edge.
       if (panel.jump !== panel.rows.lastElementChild) panel.rows.append(panel.jump);
-      // And the dock right before it, the last row, so no row is ever drawn under the line.
-      if (panel.dock !== null && panel.dock.nextElementSibling !== panel.jump) panel.rows.insertBefore(panel.dock, panel.jump);
+      // And the Leader's pill right before it, the last row, under every row drawn.
+      if (panel.doing !== null && panel.doing.nextElementSibling !== panel.jump) panel.rows.insertBefore(panel.doing, panel.jump);
       // A row that landed while the reader is away from the newest: the pill says something
       // landed below. A panel that follows is pinned to the newest by the timer, not here.
       if (landed && !panel.view.follow && panel.leads && !near) {

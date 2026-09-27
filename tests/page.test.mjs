@@ -415,57 +415,22 @@ describe("the rules", () => {
     assert.equal(line.declarations.color, "var(--fg-dim)");
   });
 
-  // The line that says what a seat is at is a tool line — the same look — held to exactly one
-  // line whatever it says: a path that would wrap is cut with an ellipsis, so the row never
-  // changes height as its words change.
-  it("hold the line that says what a seat is at to exactly one line, cut with an ellipsis", () => {
-    const doing = rules.find((rule) => rule.selector === ".rows .line.doing");
-    assert.deepEqual(doing.declarations, { "white-space": "nowrap", overflow: "hidden", "text-overflow": "ellipsis" });
-  });
-
-  // On the Leader's panel the line floats: the dock is a row of no height stuck to the rows'
-  // bottom edge, and the line rises from it into the last message's lower right corner, as wide as
-  // its words — its right edge on the message's right edge, its bottom on the message's bottom
-  // edge, the 4px a row keeps under it — so it takes no room and the line coming or going moves
-  // nothing. It covers that corner of the message; the User asked for that.
-  it("float the Leader's line from a dock of no height stuck to the rows' bottom, in the last message's lower right corner, as wide as its words", () => {
+  // What the Leader is at is the pill between two days — the same component, the same look — held
+  // to exactly one line whatever it says: a path that would wrap is cut with an ellipsis, so the
+  // row never changes height as its words change. Nothing else is laid on it: it is a row among
+  // the rows, not stuck to an edge and not floating over them.
+  it("hold the Leader's pill to exactly one line, cut with an ellipsis, and add nothing else to the pill", () => {
     const declared = (selector) => rules.find((rule) => rule.selector === selector)?.declarations;
-    const dock = declared(".rows .dock");
-    assert.equal(dock.position, "sticky");
-    assert.equal(dock.bottom, "0");
-    assert.equal(dock.height, "0", "a strip of any height is an empty band under the last message");
-    const line = declared(".rows .dock .line.doing");
-    assert.equal(line.position, "absolute");
-    assert.equal(line.right, "0");
-    assert.equal(line.bottom, "4px");
-    assert.equal(line.width, "auto");
-    assert.equal(line["max-width"], "100%");
-    assert.equal(line.margin, "0");
-    assert.equal(line["line-height"], "1.5");
-    assert.equal(declared(".msg").margin, "4px 0", "the 4px under the line is the margin a row keeps");
-    assert.equal(declared(".rows .line").padding, "3px 8px");
-    assert.equal(declared(".rows .line")["font-size"], ".76rem");
+    assert.deepEqual(declared(".divider.doing span"), { "max-width": "100%", "white-space": "nowrap", overflow: "hidden", "text-overflow": "ellipsis", "vertical-align": "top" });
+    assert.deepEqual(rules.filter((rule) => /\.doing\b/.test(rule.selector)).map((rule) => rule.selector), [".divider.doing span"]);
+    assert.equal(rules.filter((rule) => /\.dock\b/.test(rule.selector)).length, 0, "no dock: the pill is in the rows' flow");
   });
 
-  // Nothing on the page casts a shadow: not the Leader's floating line, where one reads as the line
-  // sitting below the message's edge, and not the pill. The stop glyph's ring is the box's own
+  // Nothing on the page casts a shadow, not the pill. The stop glyph's ring is the box's own
   // ground drawn round it, not a shadow.
   it("cast no shadow anywhere on the page", () => {
     const shadows = rules.filter((rule) => rule.declarations["box-shadow"] !== undefined).map((rule) => `${rule.selector} { box-shadow: ${rule.declarations["box-shadow"]} }`);
     assert.deepEqual(shadows, [".composer .stop { box-shadow: 0 0 0 2px var(--bg) }"]);
-  });
-
-  // The Leader's line hides while the pointer is over it, so the corner of the message it covers
-  // can be read and clicked. It takes no pointer — a click goes through to the message — and the
-  // page reads whether the pointer is over it from where the line is drawn, not from :hover: a
-  // line hidden by :hover would lose the hover and come back, over and over. Hidden, it keeps its
-  // box, so the page can still tell when the pointer leaves it.
-  it("hide the Leader's line while the pointer is over it, read from where it is drawn, the click going through", () => {
-    const declared = (selector) => rules.find((rule) => rule.selector === selector)?.declarations;
-    assert.equal(declared(".rows .dock")["pointer-events"], "none", "a line that takes the pointer takes the click meant for the message");
-    assert.deepEqual(declared(".rows .dock.pointed .line.doing"), { visibility: "hidden" }, "display: none would take its box, and the pointer would never be over it again");
-    assert.equal(rules.filter((rule) => /\.doing\b[^,]*:hover|:hover[^,]*\.doing\b/.test(rule.selector)).length, 0, "a :hover that hides the line flickers");
-    assert.match(script, /rows\.addEventListener\("pointermove", \(event\) => \{\s*const line = dock\.firstElementChild;\s*if \(line === null\) return;\s*const at = line\.getBoundingClientRect\(\);\s*dock\.classList\.toggle\("pointed", event\.clientX >= at\.left && event\.clientX <= at\.right && event\.clientY >= at\.top && event\.clientY <= at\.bottom\);\s*\}\);\s*rows\.addEventListener\("pointerleave", \(\) => dock\.classList\.remove\("pointed"\)\);/);
   });
 
   // The pill sticks to the bottom edge of the rows it belongs to, not to the viewport: a pill fixed
@@ -610,7 +575,7 @@ describe("the script", () => {
     assert.match(script, /for \(const ref of references\(rows, index, text\)\) \{\s*const target = ref\.index === null \? undefined : panel\.bubbles\.get\(ref\.index\);\s*if \(target === undefined\) continue;/);
     assert.match(script, /link\.addEventListener\("click", \(\) => focusRow\(panel, target\)\);/);
     assert.match(script, /panel\.waiting\.set\(index, line\);\s*panel\.bubbles\.set\(index, line\);/);
-    assert.match(script, /panel\.doing = null;\s*panel\.bubbles\.clear\(\);/);
+    assert.match(script, /panel\.waiting\.clear\(\);\s*panel\.bubbles\.clear\(\);/);
     assert.match(script, /const line = rowElement\(entry, shown, panel, about\.rows, index\);/);
     assert.match(script, /if \(found === null\) return;\s*focusRow\(leader, found\);/, "a message's other end goes through the same focus");
     assert.match(script, /function focusRow\(panel, found\) \{\s*if \(!found\.isConnected\) return;\s*if \(hiddenTalk\(found\)\) \{\s*found\.classList\.add\("revealed"\);\s*fitFolds\(\[found\]\);\s*\}\s*found\.classList\.remove\("collapsed"\);\s*panel\.view\.away = true;\s*found\.scrollIntoView\(\{ block: "start" \}\);/);
@@ -768,24 +733,23 @@ describe("the script", () => {
     assert.match(script, /\n    const jump = document\.createElement\("button"\);\s*jump\.type = "button";\s*jump\.className = "jump";/, "every panel has its pill, a class since an id is one to a page");
     assert.match(script, /return \{ name, leads, /, "whether a panel is the Leader's is a word of its own, never read off the pill");
     assert.match(script, /\n    rows\.append\(jump\);\n/, "the pill is a child of the rows");
-    assert.match(script, /panel\.shown = about\.rows\.length;\n(?:[^\n]*\n){59}      if \(panel\.jump !== panel\.rows\.lastElementChild\) panel\.rows\.append\(panel\.jump\);\n/, "the pill is put back last AFTER the rows are appended, before the scroll is decided");
+    assert.match(script, /panel\.shown = about\.rows\.length;\n(?:[^\n]*\n){45}      if \(panel\.jump !== panel\.rows\.lastElementChild\) panel\.rows\.append\(panel\.jump\);\n/, "the pill is put back last AFTER the rows are appended, before the scroll is decided");
     assert.match(script, /if \(landed && !panel\.view\.follow && panel\.leads && !near\) \{\s*panel\.jump\.classList\.add\("show"\);\s*panel\.jump\.textContent = NEW_ROWS;\s*\}/);
     assert.match(script, /rows\.addEventListener\("scroll", \(\) => \{\s*if \(nearTheNewest\(rows\)\) jump\.classList\.remove\("show"\);\s*else if \(!jump\.classList\.contains\("show"\)\) \{\s*jump\.textContent = LATEST;\s*jump\.classList\.add\("show"\);\s*\}\s*\}\);/, "away from the newest the pill is there, and a pill already there keeps its words");
     assert.match(script, /jump\.addEventListener\("click", \(\) => \{\s*rows\.scrollTop = rows\.scrollHeight;\s*jump\.classList\.remove\("show"\);/);
   });
 
-  // The line that says what a seat is at, while the server says it: one element, made once when
-  // the word comes and taken out once it is gone — its text changed in place in between, never
-  // a second element. It floats in the dock, the strip that is always the last row before the
-  // pill, so neither its coming nor its going moves a row or counts as one landing.
-  it("draws what a seat is at as one line, made once, changed in place, floating in the dock, gone with the word", () => {
+  // What the Leader is at: the day pill, made once with the panel and never taken out — "Waiting
+  // for instructions" off a turn, the server's word on one — its words changed in place, always
+  // the last row before the jump pill. It never comes and never goes, so it moves no row and never
+  // counts as one landing. A Worker's panel has none.
+  it("draws what the Leader is at as the day pill, made with the panel, always the last row, changed in place", () => {
     const draw = script.slice(script.indexOf("function drawPanel(panel)"), script.indexOf("// ------------------------------------------------------------------------------- the page"));
-    assert.match(draw, /if \(about\.doing === null\) \{\s*if \(panel\.doing !== null\) \{\s*panel\.doing\.remove\(\);\s*panel\.doing = null;\s*\}\s*\} else \{\s*if \(panel\.doing === null\) \{\s*panel\.doing = document\.createElement\("div"\);\s*panel\.doing\.className = "line doing";\s*\(panel\.dock \?\? panel\.rows\)\.append\(panel\.doing\);\s*\}\s*panel\.doing\.textContent = about\.doing;\s*\}\s*\/\/[^\n]*\n\s*if \(panel\.jump !== panel\.rows\.lastElementChild\) panel\.rows\.append\(panel\.jump\);\s*\/\/[^\n]*\n\s*if \(panel\.dock !== null && panel\.dock\.nextElementSibling !== panel\.jump\) panel\.rows\.insertBefore\(panel\.dock, panel\.jump\);/);
-    assert.doesNotMatch(draw.slice(draw.indexOf("if (about.doing === null) {"), draw.indexOf("panel.doing.textContent = about.doing;")), /landed/, "the line's coming is not a row landing: it moves no row");
-    assert.match(script, /if \(leads\) \{\s*dock = document\.createElement\("div"\);\s*dock\.className = "dock";\s*rows\.append\(dock\);\s/, "the Leader's panel has its dock from the start, so the strip is there before any line");
-    assert.equal(draw.match(/createElement\("div"\)/g).length, 1, "the draw makes the one element for what a seat is at, and no other");
-    assert.match(script, /panel\.waiting\.clear\(\);\s*panel\.doing = null;/, "a panel drawn afresh forgets the line, which its rows no longer hold");
-    assert.match(script, /waiting: new Map\(\), doing: null \};/, "a panel starts with no such line");
+    assert.match(script, /let doing = null;\s*if \(leads\) \{\s*doing = pill\(LINE_WAITING\);\s*doing\.classList\.add\("doing"\);\s*rows\.append\(doing\);\s*\}/, "the Leader's panel has its pill from the start, the day pill's own, and a Worker's none");
+    assert.match(draw, /if \(panel\.doing !== null\) panel\.doing\.firstElementChild\.textContent = about\.doing \?\? LINE_WAITING;\s*\/\/[^\n]*\n\s*if \(panel\.jump !== panel\.rows\.lastElementChild\) panel\.rows\.append\(panel\.jump\);\s*\/\/[^\n]*\n\s*if \(panel\.doing !== null && panel\.doing\.nextElementSibling !== panel\.jump\) panel\.rows\.insertBefore\(panel\.doing, panel\.jump\);/);
+    assert.doesNotMatch(draw, /panel\.doing\.remove\(\)|panel\.doing = /, "the pill is never taken out nor made again");
+    assert.doesNotMatch(draw.slice(draw.indexOf("if (panel.doing !== null) panel.doing.firstElementChild"), draw.indexOf("panel.rows.insertBefore(panel.doing, panel.jump);")), /landed/, "its words changing is not a row landing: it moves no row");
+    assert.match(script, /jump, doing, box,/, "the panel keeps the pill it was made with");
   });
 
   // The words on that line move at panels.mjs's pace, not the server's: after every event the

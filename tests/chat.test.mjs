@@ -2036,8 +2036,8 @@ describe("what a Worker's calls draw", () => {
 // ---------------------------------------------------------------------------------------------
 
 // What the Leader is at, while it is on a turn, is a word on its seat and never a row: the page
-// is told the seat at each change — "Thinking…" as the turn is taken, the call as a Worker's line
-// would say it as the call is made, "Thinking…" again as its result comes back — and the word is
+// is told the seat at each change — "Working…" as the turn is taken, the call as a Worker's line
+// would say it as the call is made, "Working…" again as its result comes back — and the word is
 // gone from the seat with the turn. A page opened mid-turn reads it off the snapshot. A Worker's
 // seat never carries one: its calls are rows.
 describe("what the Leader is at", () => {
@@ -2077,11 +2077,11 @@ describe("what the Leader is at", () => {
     await page("POST", `/sessions/${LEADER}/message`, { text: "go" });
     const told = await seatsSince(LEADER, heard, (event) => event.data.busy === false);
     assert.deepEqual(words(told), [
-      [true, "Thinking…"],
+      [true, "Working…"],
       [true, "Reading /srv/app/lib/chat/session.mjs"],
-      [true, "Thinking…"],
+      [true, "Working…"],
       [true, "Run the suite"],
-      [true, "Thinking…"],
+      [true, "Working…"],
       [false, undefined],
     ]);
     assert.ok(panel(instance, LEADER).slice(rows).every((row) => row.line === undefined), `a row for what the Leader was at: ${JSON.stringify(panel(instance, LEADER).slice(rows))}`);

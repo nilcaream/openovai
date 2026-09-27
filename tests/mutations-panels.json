@@ -583,94 +583,6 @@
     ]
   },
   {
-    "name": "a word goes up the moment it is said",
-    "catches": "a word said while the one showing is younger than SHOWN_FOR waits, and goes up when it is due",
-    "edits": [
-      {
-        "file": "lib/chat/panels.mjs",
-        "from": "  while (panel.waiting.length > 0 && (panel.doing === null || now - panel.doingSince >= SHOWN_FOR)) {",
-        "to": "  while (panel.waiting.length > 0) {"
-      }
-    ]
-  },
-  {
-    "name": "a word due is not up until the next one is said",
-    "catches": "a word said while the one showing is younger than SHOWN_FOR waits, and goes up when it is due",
-    "edits": [
-      {
-        "file": "lib/chat/panels.mjs",
-        "from": "  while (panel.waiting.length > 0 && (panel.doing === null || now - panel.doingSince >= SHOWN_FOR)) {",
-        "to": "  while (panel.waiting.length > 0 && (panel.doing === null || now - panel.doingSince > SHOWN_FOR)) {"
-      }
-    ]
-  },
-  {
-    "name": "a word that repeats the one showing is queued again",
-    "catches": "a word that repeats the newest one known is not queued",
-    "edits": [
-      {
-        "file": "lib/chat/panels.mjs",
-        "from": "  const newest = panel.waiting.length > 0 ? panel.waiting.at(-1) : panel.doing;",
-        "to": "  const newest = panel.waiting.length > 0 ? panel.waiting.at(-1) : undefined;"
-      }
-    ]
-  },
-  {
-    "name": "a word that repeats the last waiting one is queued again",
-    "catches": "a word that repeats the newest one known is not queued",
-    "edits": [
-      {
-        "file": "lib/chat/panels.mjs",
-        "from": "  const newest = panel.waiting.length > 0 ? panel.waiting.at(-1) : panel.doing;",
-        "to": "  const newest = panel.doing;"
-      }
-    ]
-  },
-  {
-    "name": "the turn's end takes the line down at once, whatever waits",
-    "catches": "the turn's end drains the line at its pace and only then takes it down",
-    "edits": [
-      {
-        "file": "lib/chat/panels.mjs",
-        "from": "  panel.waiting.push(word);\n  if (panel.waiting.length > LINE_QUEUE) {",
-        "to": "  if (word === null) {\n    panel.waiting.length = 0;\n    panel.doing = null;\n    return;\n  }\n  panel.waiting.push(word);\n  if (panel.waiting.length > LINE_QUEUE) {"
-      }
-    ]
-  },
-  {
-    "name": "an empty line makes the next word wait its SHOWN_FOR too",
-    "catches": "the turn's end drains the line at its pace and only then takes it down",
-    "edits": [
-      {
-        "file": "lib/chat/panels.mjs",
-        "from": "  while (panel.waiting.length > 0 && (panel.doing === null || now - panel.doingSince >= SHOWN_FOR)) {",
-        "to": "  while (panel.waiting.length > 0 && now - panel.doingSince >= SHOWN_FOR) {"
-      }
-    ]
-  },
-  {
-    "name": "the queue is unbounded",
-    "catches": "no more than LINE_QUEUE words wait, the oldest dropped first",
-    "edits": [
-      {
-        "file": "lib/chat/panels.mjs",
-        "from": "  if (panel.waiting.length > LINE_QUEUE) {\n    panel.waiting.shift();\n  }",
-        "to": ""
-      }
-    ]
-  },
-  {
-    "name": "the queue drops the newest word, not the oldest",
-    "catches": "no more than LINE_QUEUE words wait, the oldest dropped first",
-    "edits": [
-      {
-        "file": "lib/chat/panels.mjs",
-        "from": "  if (panel.waiting.length > LINE_QUEUE) {\n    panel.waiting.shift();\n  }",
-        "to": "  if (panel.waiting.length > LINE_QUEUE) {\n    panel.waiting.pop();\n  }"
-      }
-    ]
-  },
-  {
     "name": "advance answers the last panel's due moment, not the soonest",
     "catches": "advance answers the soonest due moment over every panel",
     "edits": [
@@ -687,7 +599,7 @@
     "edits": [
       {
         "file": "lib/chat/panels.mjs",
-        "from": "  return panel.waiting.length > 0 ? panel.doingSince + SHOWN_FOR : null;",
+        "from": "  return panel.next !== null ? panel.doingSince + SHOWN_FOR : null;",
         "to": "  return panel.doingSince + SHOWN_FOR;"
       }
     ]
@@ -733,6 +645,116 @@
         "file": "lib/chat/panels.mjs",
         "from": "      state.version = data.version ?? \"\";",
         "to": "      state.version = \"\";"
+      }
+    ]
+  },
+  {
+    "name": "a call is up half a second, as before",
+    "catches": "a call stays up SHOWN_FOR, and what was said meanwhile goes up when it is due",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "export const SHOWN_FOR = 1000;",
+        "to": "export const SHOWN_FOR = 500;"
+      }
+    ]
+  },
+  {
+    "name": "a call is replaced the moment the next word is said",
+    "catches": "a call stays up SHOWN_FOR, and what was said meanwhile goes up when it is due",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  return panel.doing !== null && panel.doing !== LINE_WORKING && now - panel.doingSince < SHOWN_FOR;",
+        "to": "  return false;"
+      }
+    ]
+  },
+  {
+    "name": "a call that has had its second still holds the line for that moment",
+    "catches": "a call stays up SHOWN_FOR, and what was said meanwhile goes up when it is due",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  return panel.doing !== null && panel.doing !== LINE_WORKING && now - panel.doingSince < SHOWN_FOR;",
+        "to": "  return panel.doing !== null && panel.doing !== LINE_WORKING && now - panel.doingSince <= SHOWN_FOR;"
+      }
+    ]
+  },
+  {
+    "name": "Working… holds the line like a call",
+    "catches": "Working… holds nothing: the call after it goes up at once",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  return panel.doing !== null && panel.doing !== LINE_WORKING && now - panel.doingSince < SHOWN_FOR;",
+        "to": "  return panel.doing !== null && now - panel.doingSince < SHOWN_FOR;"
+      }
+    ]
+  },
+  {
+    "name": "the first word said while a call holds is the one that goes up after it",
+    "catches": "nothing queues: ten calls of 10 ms show the first for SHOWN_FOR, then the newest word only",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  panel.next = word === panel.doing ? null : word;",
+        "to": "  panel.next = panel.next ?? (word === panel.doing ? null : word);"
+      }
+    ]
+  },
+  {
+    "name": "a word that is the one showing still waits",
+    "catches": "a word that is the one showing leaves nothing waiting",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  panel.next = word === panel.doing ? null : word;",
+        "to": "  panel.next = word;"
+      }
+    ]
+  },
+  {
+    "name": "the turn's end waits for the call showing to have its second",
+    "catches": "the turn's end takes the line down at once, whatever holds it, and the next turn starts clean",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  if (word === null || !held(panel, now)) {",
+        "to": "  if (!held(panel, now)) {"
+      }
+    ]
+  },
+  {
+    "name": "the turn's end leaves the word that waited behind it",
+    "catches": "the turn's end takes the line down at once, whatever holds it, and the next turn starts clean",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "    panel.doingSince = now;\n    panel.next = null;\n    return;\n",
+        "to": "    panel.doingSince = now;\n    return;\n"
+      }
+    ]
+  },
+  {
+    "name": "the Leader is Thinking… again",
+    "catches": "says Working… on a turn with no call showing, and Waiting for instructions off one",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "export const LINE_WORKING = \"Working…\";",
+        "to": "export const LINE_WORKING = \"Thinking…\";"
+      }
+    ]
+  },
+  {
+    "name": "off a turn the pill says Idle",
+    "catches": "says Working… on a turn with no call showing, and Waiting for instructions off one",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "export const LINE_WAITING = \"Waiting for instructions\";",
+        "to": "export const LINE_WAITING = \"Idle\";"
       }
     ]
   }

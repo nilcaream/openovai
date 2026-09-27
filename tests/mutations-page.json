@@ -570,8 +570,8 @@
       },
       {
         "file": "lib/chat/page.html",
-        "from": "      }\n      // Rows are appended after the pill; it goes back to the end so it sticks to the bottom edge.\n      if (panel.jump !== panel.rows.lastElementChild) panel.rows.append(panel.jump);\n",
-        "to": "      }\n"
+        "from": "about.doing ?? LINE_WAITING;\n      // Rows are appended after the pill; it goes back to the end so it sticks to the bottom edge.\n      if (panel.jump !== panel.rows.lastElementChild) panel.rows.append(panel.jump);\n",
+        "to": "about.doing ?? LINE_WAITING;\n"
       }
     ]
   },
@@ -757,13 +757,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "  .rows .line { display: block; width: 100%; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); font-family: var(--mono); font-size: .76rem; color: var(--fg-dim); padding: 3px 8px; margin: 3px 0; overflow-wrap: anywhere; }\n  .rows .line.err { color: var(--bad); }\n  .rows .line .n { color: var(--fg-faint); }\n  /* a line that is one end of a message between two sessions: a click on it finds the message on the Leader's panel */\n  .rows .line.peer { cursor: pointer; border-left: 3px solid var(--accent); }\n  /* the one line that says what the seat is at: always exactly one line, cut with an ellipsis */\n  .rows .line.doing { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }\n",
-        "to": "  .rows .tool { display: block; width: 100%; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); font-family: var(--mono); font-size: .76rem; color: var(--fg-dim); padding: 3px 8px; margin: 3px 0; overflow-wrap: anywhere; }\n  .rows .tool.err { color: var(--bad); }\n  .rows .tool .n { color: var(--fg-faint); }\n  /* a line that is one end of a message between two sessions: a click on it finds the message on the Leader's panel */\n  .rows .tool.peer { cursor: pointer; border-left: 3px solid var(--accent); }\n  /* the one line that says what the seat is at: always exactly one line, cut with an ellipsis */\n  .rows .tool.doing { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }\n"
-      },
-      {
-        "file": "lib/chat/page.html",
-        "from": "  .rows .dock .line.doing { position: absolute; right: 0; bottom: 4px; width: auto; max-width: 100%; margin: 0; line-height: 1.5; }\n  /* while the pointer is over it: not drawn, still laid out, so the page can tell when it leaves */\n  .rows .dock.pointed .line.doing { visibility: hidden; }\n",
-        "to": "  .rows .dock .tool.doing { position: absolute; right: 0; bottom: 4px; width: auto; max-width: 100%; margin: 0; line-height: 1.5; }\n  /* while the pointer is over it: not drawn, still laid out, so the page can tell when it leaves */\n  .rows .dock.pointed .tool.doing { visibility: hidden; }\n"
+        "from": "  .rows .line { display: block; width: 100%; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); font-family: var(--mono); font-size: .76rem; color: var(--fg-dim); padding: 3px 8px; margin: 3px 0; overflow-wrap: anywhere; }\n  .rows .line.err { color: var(--bad); }\n  .rows .line .n { color: var(--fg-faint); }\n  /* a line that is one end of a message between two sessions: a click on it finds the message on the Leader's panel */\n  .rows .line.peer { cursor: pointer; border-left: 3px solid var(--accent); }\n",
+        "to": "  .rows .tool { display: block; width: 100%; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); font-family: var(--mono); font-size: .76rem; color: var(--fg-dim); padding: 3px 8px; margin: 3px 0; overflow-wrap: anywhere; }\n  .rows .tool.err { color: var(--bad); }\n  .rows .tool .n { color: var(--fg-faint); }\n  /* a line that is one end of a message between two sessions: a click on it finds the message on the Leader's panel */\n  .rows .tool.peer { cursor: pointer; border-left: 3px solid var(--accent); }\n"
       }
     ]
   },
@@ -1860,8 +1855,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "        panel.doing = null;\n        panel.bubbles.clear();\n",
-        "to": "        panel.doing = null;\n"
+        "from": "        panel.waiting.clear();\n        panel.bubbles.clear();\n",
+        "to": "        panel.waiting.clear();\n"
       }
     ]
   },
@@ -2207,105 +2202,6 @@
         "file": "lib/chat/page.html",
         "from": "        panel.bubbles.clear();\n        // The cards are not among the rows: they stand, and leave when their question does.\n",
         "to": "        panel.bubbles.clear();\n        panel.drawn.clear();\n"
-      }
-    ]
-  },
-  {
-    "name": "the line that says what a seat is at wraps",
-    "catches": "hold the line that says what a seat is at to exactly one line, cut with an ellipsis",
-    "edits": [
-      {
-        "file": "lib/chat/page.html",
-        "from": "  .rows .line.doing { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }",
-        "to": "  .rows .line.doing { white-space: normal; overflow: hidden; text-overflow: ellipsis; }"
-      }
-    ]
-  },
-  {
-    "name": "the line is made again at every draw",
-    "catches": "draws what a seat is at as one line, made once, changed in place, floating in the dock, gone with the word",
-    "edits": [
-      {
-        "file": "lib/chat/page.html",
-        "from": "        if (panel.doing === null) {\n          panel.doing = document.createElement(\"div\");",
-        "to": "        if (true) {\n          panel.doing = document.createElement(\"div\");"
-      }
-    ]
-  },
-  {
-    "name": "the line stays once the word is gone",
-    "catches": "draws what a seat is at as one line, made once, changed in place, floating in the dock, gone with the word",
-    "edits": [
-      {
-        "file": "lib/chat/page.html",
-        "from": "        if (panel.doing !== null) {\n          panel.doing.remove();\n          panel.doing = null;\n        }",
-        "to": "        if (panel.doing !== null) {\n          panel.doing.title = \"\";\n          panel.doing = null;\n        }"
-      }
-    ]
-  },
-  {
-    "name": "the line's coming counts as a row landing",
-    "catches": "draws what a seat is at as one line, made once, changed in place, floating in the dock, gone with the word",
-    "edits": [
-      {
-        "file": "lib/chat/page.html",
-        "from": "          (panel.dock ?? panel.rows).append(panel.doing);\n",
-        "to": "          (panel.dock ?? panel.rows).append(panel.doing);\n          landed = true;\n"
-      }
-    ]
-  },
-  {
-    "name": "the line is put among the rows rather than in the dock",
-    "catches": "draws what a seat is at as one line, made once, changed in place, floating in the dock, gone with the word",
-    "edits": [
-      {
-        "file": "lib/chat/page.html",
-        "from": "          (panel.dock ?? panel.rows).append(panel.doing);",
-        "to": "          panel.rows.append(panel.doing);"
-      }
-    ]
-  },
-  {
-    "name": "the dock is left where it was when rows land after it",
-    "catches": "draws what a seat is at as one line, made once, changed in place, floating in the dock, gone with the word",
-    "edits": [
-      {
-        "file": "lib/chat/page.html",
-        "from": "      if (panel.dock !== null && panel.dock.nextElementSibling !== panel.jump) panel.rows.insertBefore(panel.dock, panel.jump);\n",
-        "to": ""
-      }
-    ]
-  },
-  {
-    "name": "the dock scrolls away with the rows instead of sticking to their bottom",
-    "catches": "float the Leader's line from a dock of no height stuck to the rows' bottom, in the last message's lower right corner, as wide as its words",
-    "edits": [
-      {
-        "file": "lib/chat/page.html",
-        "from": "  .rows .dock { position: sticky; bottom: 0;",
-        "to": "  .rows .dock { position: relative; bottom: 0;"
-      }
-    ]
-  },
-  {
-    "name": "the floating line spans the whole width again",
-    "catches": "float the Leader's line from a dock of no height stuck to the rows' bottom, in the last message's lower right corner, as wide as its words",
-    "edits": [
-      {
-        "file": "lib/chat/page.html",
-        "from": "  .rows .dock .line.doing { position: absolute; right: 0; bottom: 4px; width: auto;",
-        "to": "  .rows .dock .line.doing { position: absolute; right: 0; bottom: 4px; width: 100%;"
-      }
-    ]
-  },
-  {
-    "name": "the dock keeps an empty strip one line high under the last message",
-    "catches": "float the Leader's line from a dock of no height stuck to the rows' bottom, in the last message's lower right corner, as wide as its words",
-    "edits": [
-      {
-        "file": "lib/chat/page.html",
-        "from": "  .rows .dock { position: sticky; bottom: 0; height: 0;",
-        "to": "  .rows .dock { position: sticky; bottom: 0; height: calc(.76rem * 1.5 + 12px);"
       }
     ]
   },
@@ -2794,13 +2690,13 @@
     ]
   },
   {
-    "name": "the Leader's floating line casts a shadow again",
+    "name": "the Leader's pill casts a shadow",
     "catches": "cast no shadow anywhere on the page",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "margin: 0; line-height: 1.5; }",
-        "to": "margin: 0; line-height: 1.5; box-shadow: 0 2px 8px var(--line); }"
+        "from": "text-overflow: ellipsis; vertical-align: top; }",
+        "to": "text-overflow: ellipsis; vertical-align: top; box-shadow: 0 2px 8px var(--line); }"
       }
     ]
   },
@@ -2860,24 +2756,90 @@
     ]
   },
   {
-    "name": "the Leader's line hides by :hover, and flickers",
-    "catches": "hide the Leader's line while the pointer is over it, read from where it is drawn, the click going through",
+    "name": "the Leader's pill wraps a long word onto a second line",
+    "catches": "hold the Leader's pill to exactly one line, cut with an ellipsis, and add nothing else to the pill",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "  .rows .dock.pointed .line.doing { visibility: hidden; }",
-        "to": "  .rows .dock .line.doing:hover { visibility: hidden; }"
+        "from": "  .divider.doing span { max-width: 100%; white-space: nowrap; ",
+        "to": "  .divider.doing span { max-width: 100%; "
       }
     ]
   },
   {
-    "name": "the Leader's line stays hidden once the pointer leaves the rows",
-    "catches": "hide the Leader's line while the pointer is over it, read from where it is drawn, the click going through",
+    "name": "the Leader's pill sticks to the rows' bottom edge instead of scrolling away with them",
+    "catches": "hold the Leader's pill to exactly one line, cut with an ellipsis, and add nothing else to the pill",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      rows.addEventListener(\"pointerleave\", () => dock.classList.remove(\"pointed\"));\n",
+        "from": "text-overflow: ellipsis; vertical-align: top; }",
+        "to": "text-overflow: ellipsis; vertical-align: top; position: sticky; bottom: 0; }"
+      }
+    ]
+  },
+  {
+    "name": "a Worker's panel gets the Leader's pill too",
+    "catches": "draws what the Leader is at as the day pill, made with the panel, always the last row, changed in place",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    let doing = null;\n    if (leads) {\n",
+        "to": "    let doing = null;\n    if (true) {\n"
+      }
+    ]
+  },
+  {
+    "name": "the Leader's pill is a look-alike built by hand rather than the day pill",
+    "catches": "draws what the Leader is at as the day pill, made with the panel, always the last row, changed in place",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      doing = pill(LINE_WAITING);\n",
+        "to": "      doing = document.createElement(\"div\");\n      doing.className = \"divider\";\n      doing.append(document.createElement(\"span\"));\n"
+      }
+    ]
+  },
+  {
+    "name": "the Leader's pill says nothing off a turn",
+    "catches": "draws what the Leader is at as the day pill, made with the panel, always the last row, changed in place",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "textContent = about.doing ?? LINE_WAITING;",
+        "to": "textContent = about.doing ?? \"\";"
+      }
+    ]
+  },
+  {
+    "name": "the Leader's pill is left where it was when rows land after it",
+    "catches": "draws what the Leader is at as the day pill, made with the panel, always the last row, changed in place",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      if (panel.doing !== null && panel.doing.nextElementSibling !== panel.jump) panel.rows.insertBefore(panel.doing, panel.jump);\n",
         "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the Leader's pill's words changing counts as a row landing",
+    "catches": "draws what the Leader is at as the day pill, made with the panel, always the last row, changed in place",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      if (panel.doing !== null) panel.doing.firstElementChild.textContent = about.doing ?? LINE_WAITING;\n",
+        "to": "      if (panel.doing !== null) panel.doing.firstElementChild.textContent = about.doing ?? LINE_WAITING;\n      if (panel.doing !== null) landed = true;\n"
+      }
+    ]
+  },
+  {
+    "name": "the Leader's pill is taken out when the turn ends",
+    "catches": "draws what the Leader is at as the day pill, made with the panel, always the last row, changed in place",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      if (panel.doing !== null) panel.doing.firstElementChild.textContent = about.doing ?? LINE_WAITING;\n",
+        "to": "      if (panel.doing !== null) panel.doing.firstElementChild.textContent = about.doing ?? LINE_WAITING;\n      if (panel.doing !== null && about.doing === null) panel.doing.remove();\n"
       }
     ]
   }
