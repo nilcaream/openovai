@@ -225,8 +225,8 @@
     "edits": [
       {
         "file": "lib/chat/render.mjs",
-        "from": "        return { who: `${entry.urgent === true ? \"Urgent to\" : \"To\"} ${entry.to}`, kind: \"peer-out\", ...folded(entry.text, entry.viewable), ...status, ...msg };",
-        "to": "        return { who: `${entry.urgent === true ? \"Urgent to\" : \"To\"} ${entry.to}`, kind: \"peer-out\", ...folded(entry.text, entry.viewable), ...status };"
+        "from": "        return { who: `To ${entry.to}${entry.urgent === true ? \" (urgent)\" : \"\"}`, kind: \"peer-out\", ...folded(entry.text, entry.viewable), ...status, ...msg };",
+        "to": "        return { who: `To ${entry.to}${entry.urgent === true ? \" (urgent)\" : \"\"}`, kind: \"peer-out\", ...folded(entry.text, entry.viewable), ...status };"
       }
     ]
   },

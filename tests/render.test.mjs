@@ -245,8 +245,8 @@ describe("a message between two sessions", () => {
   });
 
   // One the Leader sent urgent says so at both ends: it went into a turn under way.
-  it("a message the Leader sent urgent is Urgent to its Worker, and an urgent one the Worker received", () => {
-    assert.equal(row({ from: "Leader", to: "Paul", text: "stop that", outcome: "sent", msg: "m-6", urgent: true }, names).who, "Urgent to Paul");
+  it("a message the Leader sent urgent is To its Worker (urgent), and an urgent one the Worker received", () => {
+    assert.equal(row({ from: "Leader", to: "Paul", text: "stop that", outcome: "sent", msg: "m-6", urgent: true }, names).who, "To Paul (urgent)");
     assert.deepEqual(row({ from: "Leader", to: "Paul", text: "stop that", msg: "m-6", urgent: true }, worker), {
       who: "Leader",
       kind: "line",

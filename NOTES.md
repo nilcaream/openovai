@@ -203,6 +203,10 @@ the panel: "<reason>"`, or `<User> denied this call on the panel.` with no reaso
 instance's user name. Every session is told that a Deny comes back that way and is the User's
 answer, not an injection.
 
+**An urgent message the Leader sent reads `To <name> (urgent)` on its panel.** It used to read
+`Urgent to <name>`, which looked like a sender named Urgent. It is now a `To` row like any other,
+marked urgent after the name.
+
 ## 0.19.0
 
 **The Leader stops and restarts Workers; a Worker only works.** A Worker no longer has
