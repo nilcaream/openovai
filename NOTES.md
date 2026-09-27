@@ -172,9 +172,11 @@ rules it saves on its own label, so a rule with a long path pushed the button ou
 Worker panel, and the row broke up by the label's length: Allow on the left, Always on a row of its
 own, Deny on the right. The rules are now shown on the card under `Always allow saves:`, one to a
 line, wrapped at any character and scrolled past a few lines. The buttons read `Allow`,
-`Always allow` and `Deny`, always in that order, and share the card's width equally; a label too
-long for a very narrow panel wraps inside its button. The reason a deny needs has a whole row under
-them. A question's Send and Cancel and a rule request's three buttons share their row the same way.
+`Always allow` and `Deny`, always in that order. On a Worker's panel they share the card's width
+equally, a label too long for a very narrow panel wrapping inside its button, and the reason a deny
+needs has a whole row under them. On the Leader's wider panel they are as wide as their labels, and
+the reason takes the rest of their line. A question's Send and Cancel and a rule request's three
+buttons are laid out the same way.
 
 **A permission card says when a subagent made the call.** A call one of a session's subagents
 made used to reach the panel as the seat's own. The card now says so under its heading, in the

@@ -216,6 +216,12 @@ describe("the rules", () => {
     assert.equal(reason["min-width"], "0");
     assert.equal(declared(".msg.perm .raw")["overflow-wrap"], "anywhere");
     assert.equal(declared(".msg.perm .raw.rules")["max-height"], "6em");
+    // The Leader's panel is wide: there the buttons are as wide as their labels and the reason
+    // takes the rest of their line, wrapping to its own only where the middle column is narrow.
+    const leads = declared(".panel.leads .msg.perm .acts button");
+    assert.equal(leads.flex, "0 0 auto");
+    assert.equal(declared(".panel.leads .msg.perm .acts input").flex, "1 1 160px");
+    assert.match(script, /const leads = name === state\.leader;\s*if \(leads\) section\.classList\.add\("leads"\);/, "the Leader's panel is marked, and only it");
     assert.match(script, /acts\.append\(button\);\s*\}\s*if \(reason !== null\) \{\s*acts\.append\(reason\);\s*\}\s*return card;/, "the reason is appended after every button, never between two");
     assert.match(script, /else if \(kind === "saves"\) shown\.className = "saves";\s*else if \(kind === "rules"\) shown\.className = "raw rules";/);
   });

@@ -190,6 +190,10 @@
   .msg.perm .choice label { display: grid; grid-template-columns: auto 1fr; column-gap: .4em; align-items: baseline; }
   .msg.perm .choice input[type=text] { width: 100%; margin: 4px 0; font: .82rem var(--sans); padding: 4px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); }
   .msg.perm .acts button[data-decision=deny] { background: var(--to); border-color: var(--to-line); }
+  /* the Leader's panel is wide: its decisions are as wide as their labels, and the deny reason
+     takes what is left of their line, onto a line of its own only where the column is narrow */
+  .panel.leads .msg.perm .acts button { flex: 0 0 auto; }
+  .panel.leads .msg.perm .acts input { flex: 1 1 160px; }
   .msg.perm .acts input { flex: 1 1 100%; min-width: 0; font: .82rem var(--sans); padding: 4px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); }
   /* the composer: one row that grows with what is typed, never dragged, up to 40% of the window */
   .composer { flex: 0 0 auto; min-height: 0; padding: 0; position: relative; }
@@ -425,6 +429,7 @@
     // version the server runs and the account's usage windows, and the theme toggle last, at the
     // right edge.
     const leads = name === state.leader;
+    if (leads) section.classList.add("leads");
     const facts = leads ? { conn: document.createElement("span"), version: document.createElement("span"), quota: document.createElement("span") } : null;
     if (facts !== null) {
       facts.conn.className = "conn";
