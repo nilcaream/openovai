@@ -527,8 +527,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "input: frame.request.input, ...(suggestions === undefined ? {} : { suggestions }) };",
-        "to": "input: frame.request.input };"
+        "from": "    ...(suggestions === undefined ? {} : { suggestions }),\n",
+        "to": ""
       }
     ]
   },
