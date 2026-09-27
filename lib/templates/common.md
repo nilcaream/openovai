@@ -66,7 +66,9 @@ another session: whatever is for one goes through `message`.
 A turn with nothing in it for your panel is a `<noop/>` turn: the whole reply is exactly `<noop/>`,
 with no words before or after it, and the panel shows nothing for it. A reply with words in it is
 not one, whatever it ends with: "Desk updated, waiting for Paul." followed by `<noop/>` shows its
-words on the panel — send the words alone, or `<noop/>` alone. Never write "nothing to report" or
+words on the panel — send the words alone, or `<noop/>` alone. Words once written stay on the
+panel: never make a call to start a fresh reply for `<noop/>`; a turn that already said something
+just ends. Never write "nothing to report" or
 any other filler instead. When you are asked for a visible response after a turn with no words
 and there is still nothing for your panel, reply `<noop/>`.
 

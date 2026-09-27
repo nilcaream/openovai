@@ -493,6 +493,18 @@ describe("what both are told in ovai's common frame", () => {
     }
   });
 
+  // A session has written its words and then made a call that does nothing, only to open a fresh
+  // reply holding `<noop/>` alone. The words were already on the panel; the call was noise.
+  it("tells both that a turn which already said something just ends, with no call made to say <noop/>", () => {
+    for (const [text, role] of [[flat(leader()), "leader"], [flat(worker()), "worker"]]) {
+      const common = text.slice(0, text.indexOf("</ovai>"));
+      assert.ok(
+        common.includes("send the words alone, or `<noop/>` alone. Words once written stay on the panel: never make a call to start a fresh reply for `<noop/>`; a turn that already said something just ends."),
+        role,
+      );
+    }
+  });
+
   // What both roles are told alike is said once, in the common frame, and not again in the role's.
   it("gives both every shared paragraph exactly once, inside the common frame", () => {
     const SHARED = [

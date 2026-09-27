@@ -316,6 +316,11 @@ in the environment `ovai start` runs in: every seat inherits it.
 every path in these instructions — `desks/`, `projects/`, `temp/`, `knowledge/` — is under it."
 Told only its desk, a session had been seen to take the directory around the instance for its root.
 
+**A turn that already said something just ends.** The Leader and Workers are now told that words
+once written stay on the panel, and never to make a call only to start a fresh reply that holds
+`<noop/>` alone. A session had written its words, then run a Bash call that did nothing to get that
+fresh reply.
+
 ## 0.19.0
 
 **The Leader stops and restarts Workers; a Worker only works.** A Worker no longer has

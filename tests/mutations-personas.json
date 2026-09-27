@@ -922,5 +922,16 @@
         "to": "LEADER: leader, ROOT: path.dirname(root), DESK:"
       }
     ]
+  },
+  {
+    "name": "ovai's common frame does not say that a turn which already said something just ends",
+    "catches": "tells both that a turn which already said something just ends, with no call made to say <noop/>",
+    "edits": [
+      {
+        "file": "lib/templates/common.md",
+        "from": " Words once written stay on the\npanel: never make a call to start a fresh reply for `<noop/>`; a turn that already said something\njust ends.",
+        "to": ""
+      }
+    ]
   }
 ]
