@@ -198,6 +198,39 @@
     ]
   },
   {
+    "name": "a file of any size is drawn",
+    "catches": "opens a file larger than the largest it draws in its source view alone, with no toggle",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "  if (shown.size > DRAWN_LARGEST) {",
+        "to": "  if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "a file of exactly the largest drawn size opens in its source",
+    "catches": "opens a file larger than the largest it draws in its source view alone, with no toggle",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "  if (shown.size > DRAWN_LARGEST) {",
+        "to": "  if (shown.size >= DRAWN_LARGEST) {"
+      }
+    ]
+  },
+  {
+    "name": "the source view alone starts hidden",
+    "catches": "opens a file larger than the largest it draws in its source view alone, with no toggle",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "raw(shown.text, false)",
+        "to": "raw(shown.text)"
+      }
+    ]
+  },
+  {
     "name": "a path not shown answers 200",
     "catches": "answers a path it does not show with its status and the reason, and nothing of the file",
     "edits": [

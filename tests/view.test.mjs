@@ -10,7 +10,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { after, describe, it } from "node:test";
 
-import { HEADERS, LARGEST, fenced, highlighted, languageOf, openable, raw, unknown, view, viewable, viewableIn, withViewable } from "../lib/chat/view.mjs";
+import { DRAWN_LARGEST, HEADERS, LARGEST, fenced, highlighted, languageOf, openable, raw, unknown, view, viewable, viewableIn, withViewable } from "../lib/chat/view.mjs";
 import { remove, scratch } from "./helpers.mjs";
 
 const base = scratch("view-test");
@@ -172,6 +172,20 @@ describe("what the view draws", () => {
     assert.match(css, /^\.view \.numbered pre \{ margin: 0; padding: 0; font: \.85rem\/1\.4 var\(--mono\); \}/m);
     assert.match(css, /^\.view pre\.numbers \{[^}]*margin-right: 16px; text-align: right; color: var\(--fg-faint\); user-select: none; \}/m);
     for (let digits = 1; digits <= 7; digits += 1) assert.ok(css.includes(`.view pre.numbers.digits-${digits} { width: ${digits}ch; }`), `${digits} digits`);
+  });
+
+  // A file larger than DRAWN_LARGEST is never highlighted: it opens in its source view, numbered, and
+  // there is nothing to toggle to. One of exactly that size is still drawn.
+  it("opens a file larger than the largest it draws in its source view alone, with no toggle", () => {
+    const line = "const a = 1;\n";
+    put("temp/over.mjs", line.repeat(Math.floor(DRAWN_LARGEST / line.length)) + "x".repeat(DRAWN_LARGEST % line.length + 1));
+    put("temp/at.mjs", line.repeat(Math.floor(DRAWN_LARGEST / line.length)) + "x".repeat(DRAWN_LARGEST % line.length));
+    const over = view(root, "temp/over.mjs").page;
+    assert.match(over, /<body class="view">\n<pre class="raw digits-5"><span class="line">const a = 1;<\/span>\n/);
+    assert.ok(!over.includes("<main") && !over.includes("raw-toggle") && !over.includes("hljs") && !over.includes(" hidden"));
+    const at = view(root, "temp/at.mjs").page;
+    assert.ok(at.includes('<main class="md"><div class="numbered">') && at.includes("hljs") && at.includes("raw-toggle"));
+    assert.equal(DRAWN_LARGEST, 256 * 1024);
   });
 
   it("answers a path it does not show with its status and the reason, and nothing of the file", () => {
