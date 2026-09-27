@@ -399,5 +399,87 @@
         "to": "        const { at, where } = archiveFor(root, name);\n        closeDesk(root, name, at);\n        log(\"retired\", name, null, `${modelFor(root, name, instance.config)}, filed under ${where}`);"
       }
     ]
+  },
+  {
+    "name": "a card that timed out is denied without saying who the User is",
+    "catches": "a card nobody answers in ten minutes is a Deny that says so, and its row says it timed out",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "`${user}, the person who answers permission cards on the ovai page, did not answer this card",
+        "to": "`${user} did not answer this card"
+      }
+    ]
+  },
+  {
+    "name": "a card times out a minute early",
+    "catches": "a card nobody answers in ten minutes is a Deny that says so, and its row says it timed out",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": "      if (now - entry.parkedAt >= minutesOf(entry.request) * 60_000) {",
+        "to": "      if (now - entry.parkedAt >= (minutesOf(entry.request) - 1) * 60_000) {"
+      }
+    ]
+  },
+  {
+    "name": "a subagent's card waits the ten minutes a session's does",
+    "catches": "a subagent's card is a Deny at two minutes, and the Leader is told with minutes=\"2\"",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "const timeoutOf = (request) => (request.agent === undefined ? CARD_TIMEOUT : SUBAGENT_CARD_TIMEOUT);",
+        "to": "const timeoutOf = (request) => CARD_TIMEOUT;"
+      }
+    ]
+  },
+  {
+    "name": "a session's own card goes at a subagent's two minutes",
+    "catches": "a card nobody answers in ten minutes is a Deny that says so, and its row says it timed out",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "const timeoutOf = (request) => (request.agent === undefined ? CARD_TIMEOUT : SUBAGENT_CARD_TIMEOUT);",
+        "to": "const timeoutOf = (request) => SUBAGENT_CARD_TIMEOUT;"
+      }
+    ]
+  },
+  {
+    "name": "the Leader is told ten minutes for a subagent's card",
+    "catches": "a subagent's card is a Deny at two minutes, and the Leader is told with minutes=\"2\"",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "{ who: seat, minutes: String(timeoutOf(request)) }",
+        "to": "{ who: seat, minutes: String(CARD_TIMEOUT) }"
+      }
+    ]
+  },
+  {
+    "name": "every card's row says it timed out, answered or not",
+    "catches": "a card answered before ten minutes is not answered again when they are up",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "      if (timedOut) {\n        append(",
+        "to": "      if (true) {\n        append("
+      }
+    ]
+  },
+  {
+    "name": "the timeout takes the rule cards down too",
+    "catches": "a rule card never times out",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "import { expire, giveUp, park as parkRequest, refuse, rulesPending } from \"./permissions.mjs\";",
+        "to": "import { answerRule, expire, giveUp, park as parkRequest, refuse, rulesPending } from \"./permissions.mjs\";"
+      },
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "  const leader = leaderOf(instance);\n  // A stop is inside a turn",
+        "to": "  const leader = leaderOf(instance);\n  for (const held of rulesPending(leader)) answerRule(leader, held.id);\n  // A stop is inside a turn"
+      }
+    ]
   }
 ]

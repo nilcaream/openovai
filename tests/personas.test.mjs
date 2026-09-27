@@ -288,9 +288,9 @@ describe("what the Leader is told", () => {
     assert.match(leader(), /`permission` with no rule answers what the instance holds/);
   });
 
-  it("tells the Leader to act when a Worker has waited long on a button", () => {
+  it("tells the Leader to act when a Worker's card timed out", () => {
     assert.match(leader(), /<server-event type="permission" who="…" minutes="…">/);
-    assert.match(leader(), new RegExp(`Tell ${USER} in your next reply that\\s+somebody is waiting on their panel, or give the work to somebody else`));
+    assert.match(leader(), new RegExp(`Tell ${USER} in your next reply that the card timed out and what it asked`));
   });
 });
 

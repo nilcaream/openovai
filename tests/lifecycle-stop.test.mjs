@@ -13,7 +13,8 @@ import { SERVER, read } from "../lib/chat/conversation.mjs";
 import { subscribe } from "../lib/chat/events.mjs";
 import { userFrame } from "../lib/chat/frames.mjs";
 import { ADMIN_FILE } from "../lib/admin.mjs";
-import { BODY_CLOSING, adminTold, deliver, parkRoom, tick } from "../lib/chat/lifecycle.mjs";
+import { BODY_CLOSING, CARD_TIMEOUT, SUBAGENT_CARD_TIMEOUT, adminTold, deliver, parkRoom, tick } from "../lib/chat/lifecycle.mjs";
+import { answerRule, askedFor, parkRule, ruleAskedFor } from "../lib/chat/permissions.mjs";
 import * as quota from "../lib/chat/quota.mjs";
 import { INTERRUPT_PATIENCE, end, endEvery, recordOf, running, tell } from "../lib/chat/session.mjs";
 import { deskFile, hire } from "../lib/desks.mjs";
@@ -86,12 +87,12 @@ describe("a call stop that waits", () => {
     return stops[0];
   }
 
-  it("the Leader is told once per wait: at ten minutes, the call as made, and not again at twenty", async () => {
+  it("the Leader is told once when a Worker's card times out: at ten minutes, the call as made, and not again at twenty", async () => {
     ({ superman, paul } = await pair(KNOBS));
     await awake(LEADER);
     const from = now;
     const asking_ = tell(WORKER, userFrame("push it"));
-    const stop = await stopParked();
+    await stopParked();
     now = from + 9 * MINUTE;
     tick(chat);
     tick(chat);
@@ -100,14 +101,26 @@ describe("a call stop that waits", () => {
     now = from + 10 * MINUTE;
     tick(chat);
     assert.equal((await told(superman.log, 2)).at(-1), `<server-event type="permission" who="${WORKER}" minutes="10">Bash: git push</server-event>`);
+    await asking_.answered;
     now = from + 20 * MINUTE;
     tick(chat);
     tick(chat);
     await settle();
-    assert.equal(heardIn(superman.log).length, 2, "the wait was reported twice");
-    assert.equal(running(WORKER), true, "the wait ended the seat");
-    await page("POST", `/sessions/${WORKER}/permission`, { id: stop.id, decision: "deny", why: "not today" });
-    await asking_.answered;
+    // The Worker's turn ended with the Deny, so its idle clock runs from there: that event is its own.
+    assert.equal(heardIn(superman.log).filter((frame) => frame.includes('type="permission"')).length, 1, heardIn(superman.log).join("\n"));
+    assert.equal(running(WORKER), true, "the timeout ended the seat");
+  });
+
+  it("the Leader's own card that times out is not reported to it", async () => {
+    ({ superman, paul } = await pair({}, { ...KNOBS, OPENOVAI_STAND_IN_CALLS: JSON.stringify([[{ name: "Bash", input: { command: "git push" } }]]) }));
+    const from = now;
+    const asking_ = tell(LEADER, userFrame("push it"));
+    await stopParked(LEADER);
+    now = from + 10 * MINUTE;
+    tick(chat);
+    assert.equal((await asking_.answered).text, `I was told deny: ${chat.config.user}, the person who answers permission cards on the ovai page, did not answer this card within 10 minutes, so it was denied: try something else.`);
+    await settle();
+    assert.ok(!heardIn(superman.log).some((frame) => frame.includes('type="permission"')), heardIn(superman.log).join("\n"));
   });
 
   it("answered before ten minutes: the Leader is never told", async () => {
@@ -141,6 +154,74 @@ describe("a call stop that waits", () => {
     await asking_.answered;
     return () => panel(instance, WORKER).slice(rows).find((row) => row.from === SERVER && row.text.startsWith("Waited ")) ?? null;
   }
+
+  it("a card nobody answers in ten minutes is a Deny that says so, and its row says it timed out", async () => {
+    ({ superman, paul } = await pair(KNOBS));
+    await awake(LEADER);
+    const from = now;
+    const rows = panel(instance, WORKER).length;
+    const asking_ = tell(WORKER, userFrame("push it"));
+    const stop = await stopParked();
+    // A Worker's own card is not a subagent's: it waits past the subagent's two minutes.
+    now = from + (SUBAGENT_CARD_TIMEOUT + 1) * MINUTE;
+    tick(chat);
+    now = from + CARD_TIMEOUT * MINUTE - 1000;
+    tick(chat);
+    await settle();
+    assert.equal(askedFor(WORKER, stop.id)?.tool, "Bash", "the card went before its time");
+    now = from + CARD_TIMEOUT * MINUTE;
+    tick(chat);
+    assert.equal((await asking_.answered).text, `I was told deny: ${chat.config.user}, the person who answers permission cards on the ovai page, did not answer this card within 10 minutes, so it was denied: try something else.`);
+    const row = await waitFor(() => panel(instance, WORKER).slice(rows).find((one) => one.from === SERVER && one.text.startsWith("Waited ")) ?? null);
+    assert.equal(row?.text, "Waited 600 seconds for permission, timed out: Bash: git push");
+    const { permissions } = JSON.parse((await page("GET", `/sessions/${WORKER}/permissions`)).body);
+    assert.deepEqual(permissions, []);
+  });
+
+  it("a subagent's card is a Deny at two minutes, and the Leader is told with minutes=\"2\"", async () => {
+    ({ superman, paul } = await pair({ ...KNOBS, OPENOVAI_STAND_IN_AGENT_ID: "a1b2c3" }));
+    await awake(LEADER);
+    const from = now;
+    const rows = panel(instance, WORKER).length;
+    const asking_ = tell(WORKER, userFrame("push it"));
+    const stop = await stopParked();
+    now = from + SUBAGENT_CARD_TIMEOUT * MINUTE - 1000;
+    tick(chat);
+    await settle();
+    assert.equal(askedFor(WORKER, stop.id)?.agent?.id, "a1b2c3", "the card went before its time, or is not a subagent's");
+    now = from + SUBAGENT_CARD_TIMEOUT * MINUTE;
+    tick(chat);
+    assert.equal((await asking_.answered).text, `I was told deny: ${chat.config.user}, the person who answers permission cards on the ovai page, did not answer this card within 2 minutes, so it was denied: try something else.`);
+    const row = await waitFor(() => panel(instance, WORKER).slice(rows).find((one) => one.from === SERVER && one.text.startsWith("Waited ")) ?? null);
+    assert.equal(row?.text, "Waited 120 seconds for permission, timed out: Bash: git push");
+    const event = `<server-event type="permission" who="${WORKER}" minutes="2">Bash: git push</server-event>`;
+    assert.ok(await waitFor(() => (heardIn(superman.log).includes(event) ? true : null)), heardIn(superman.log).join("\n"));
+  });
+
+  it("a card answered before ten minutes is not answered again when they are up", async () => {
+    ({ superman, paul } = await pair(KNOBS));
+    await awake(LEADER);
+    const from = now;
+    const rows = panel(instance, WORKER).length;
+    const asking_ = tell(WORKER, userFrame("push it"));
+    const stop = await stopParked();
+    now = from + 9 * MINUTE;
+    await page("POST", `/sessions/${WORKER}/permission`, { id: stop.id, decision: "deny", why: "not today" });
+    assert.equal((await asking_.answered).text, `I was told deny: ${chat.config.user} denied this call on the panel: "not today"`);
+    now = from + 20 * MINUTE;
+    tick(chat);
+    await settle();
+    assert.ok(!notesIn(paul.log).some(([, rest]) => typeof rest === "string" && rest.includes("did not answer this card")), readLog(paul.log));
+    assert.ok(!panel(instance, WORKER).slice(rows).some((row) => row.from === SERVER && row.text.includes("timed out")), "an answered card drew a timed-out row");
+  });
+
+  it("a rule card never times out", async () => {
+    const id = parkRule(LEADER, { rule: "Bash(git push:*)", why: "to push", from: WORKER }, now);
+    now += 60 * MINUTE;
+    tick(chat);
+    assert.equal(ruleAskedFor(LEADER, id)?.rule, "Bash(git push:*)");
+    answerRule(LEADER, id);
+  });
 
   it("a card answered at nine seconds leaves no row on the panel", async () => {
     const waited = await waitOnCard(9);

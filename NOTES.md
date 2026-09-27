@@ -212,6 +212,20 @@ the panel: "<reason>"`, or `<User> denied this call on the panel.` with no reaso
 instance's user name. Every session is told that a Deny comes back that way and is the User's
 answer, not an injection.
 
+**A card nobody answers is a Deny after 10 minutes, or 2 for a subagent's.** A card that holds a
+session's call, the permission card or a question, used to hold it for as long as nobody pressed,
+and the session and everything queued behind it with it. Now it leaves the panel as an answered
+card does: after 10 minutes, or after 2 when one of the session's subagents made the call, since a
+subagent is not built to be stopped and the session's prompt cache lives 5 minutes. The session
+gets `<User>, the person who answers permission cards on the ovai page, did not answer this card
+within <N> minutes, so it was denied: try something else.` as the call's error, and the panel says
+`Waited <N> seconds for permission, timed out: <the call>`. This applies to the Leader and the
+Workers alike. The clock is read once a minute, so a card goes within a minute after its time. A
+rule card the Leader raises with `permission` holds no call and never times out. The Leader's
+`<server-event type="permission" who="…" minutes="…">` now comes when a Worker's card times out,
+with 10 or 2, not while it still waits, and the `permission.wait` setting it used to be sent on is
+gone.
+
 **An urgent message the Leader sent reads `To <name> (urgent)` on its panel.** It used to read
 `Urgent to <name>`, which looked like a sender named Urgent. It is now a `To` row like any other,
 marked urgent after the name.

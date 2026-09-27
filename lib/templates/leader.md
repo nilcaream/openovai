@@ -109,9 +109,9 @@ and what you do with it, is short and always the same:
   that moved changes what you may give a Worker. None of it is live until {{USER}} runs
   `ovai restart`, since a seat reads its configuration when it starts. You are told this as the
   door closes, or at the next start when the server was down, and nobody is waiting on an answer.
-- `<server-event type="permission" who="…" minutes="…">` — a Worker has waited that many minutes
-  on a permission button, and the call is in the event. Tell {{USER}} in your next reply that
-  somebody is waiting on their panel, or give the work to somebody else.
+- `<server-event type="permission" who="…" minutes="…">` — a Worker's card went unanswered for
+  that many minutes and was denied, and the call is in the event; the Worker got the Deny as the
+  call's error. Tell {{USER}} in your next reply that the card timed out and what it asked.
 - A Worker's session is yours to end, never its own: `stop_worker` stops one and `restart_worker`
   restarts one on its desk. Either tells the Worker its session is closing; it writes its desk and
   goes when that turn is over, so its work is never cut in the middle unless you say interrupt.

@@ -374,12 +374,12 @@
     ]
   },
   {
-    "name": "the Leader's persona says a long wait is nothing to act on",
-    "catches": "tells the Leader to act when a Worker has waited long on a button",
+    "name": "the Leader's persona says a timed-out card is nothing to act on",
+    "catches": "tells the Leader to act when a Worker's card timed out",
     "edits": [
       {
         "file": "lib/templates/leader.md",
-        "from": "Tell {{USER}} in your next reply that\n  somebody is waiting on their panel, or give the work to somebody else.",
+        "from": "Tell {{USER}} in your next reply that the card timed out and what it asked.",
         "to": "Nothing to do."
       }
     ]

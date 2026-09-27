@@ -1032,8 +1032,8 @@
     "edits": [
       {
         "file": "lib/chat/permissions.mjs",
-        "from": "    forSession(name).set(request.id, { request, answer, parkedAt: now, told: false });\n    asking(name);",
-        "to": "    forSession(name).set(request.id, { request, answer, parkedAt: now, told: false });"
+        "from": "    forSession(name).set(request.id, { request, answer, parkedAt: now });\n    asking(name);",
+        "to": "    forSession(name).set(request.id, { request, answer, parkedAt: now });"
       }
     ]
   },
