@@ -167,6 +167,15 @@ sign-in is taken from Claude Code's documentation, not seen on a Mac.
 ovai runs in WSL 2 as on Linux, with the instance kept in the Linux file system and off `/mnt/c`.
 Assumes: WSL 2 has not been tried.
 
+**A permission card stays inside its panel, however long the rule.** Always used to carry the
+rules it saves on its own label, so a rule with a long path pushed the button out of a narrow
+Worker panel, and the row broke up by the label's length: Allow on the left, Always on a row of its
+own, Deny on the right. The rules are now shown on the card under `Always allow saves:`, one to a
+line, wrapped at any character and scrolled past a few lines. The buttons read `Allow`,
+`Always allow` and `Deny`, always in that order, and share the card's width equally; a label too
+long for a very narrow panel wraps inside its button. The reason a deny needs has a whole row under
+them. A question's Send and Cancel and a rule request's three buttons share their row the same way.
+
 ## 0.19.0
 
 **The Leader stops and restarts Workers; a Worker only works.** A Worker no longer has

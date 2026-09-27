@@ -47,11 +47,20 @@ describe("a call stop", () => {
 
   it("offers Always only where a rule was composed", () => {
     assert.deepEqual(decisions(push), ["allow", "always", "deny"]);
-    assert.equal(push.buttons[1].label, "Always allow Bash(git push:*)");
-    const compound = dialogOf({ id: "r8", tool: "Bash", input: { command: "npm test && make build" }, shape: ["Bash(npm:*)", "Bash(make:*)"] }, "Paul");
-    assert.equal(compound.buttons[1].label, "Always allow Bash(npm:*) and Bash(make:*)");
     const bare = dialogOf({ id: "r6", tool: "WebFetch", input: { url: "https://x" } }, "Paul");
     assert.deepEqual(decisions(bare), ["allow", "deny"]);
+    assert.deepEqual(line(bare, "rules"), [], "no rules line without an Always to save them");
+  });
+
+  it("shows every rule the Always press saves, one to a line, and keeps the button's label short", () => {
+    assert.deepEqual(line(push, "rules"), ["Bash(git push:*)"]);
+    assert.equal(push.buttons[1].label, "Always allow");
+    const compound = dialogOf({ id: "r8", tool: "Bash", input: { command: "npm test && make build" }, shape: ["Bash(npm:*)", "Bash(make:*)"] }, "Paul");
+    assert.deepEqual(line(compound, "rules"), ["Bash(npm:*)\nBash(make:*)"]);
+    assert.equal(compound.buttons[1].label, "Always allow");
+    assert.deepEqual(compound.lines.slice(-2), [{ kind: "saves", text: "Always allow saves:" }, { kind: "rules", text: "Bash(npm:*)\nBash(make:*)" }], "the rules are the last line, right above the buttons, under what the press does with them");
+    const bare = dialogOf({ id: "r9", tool: "WebFetch", input: { url: "https://x" } }, "Paul");
+    assert.deepEqual(line(bare, "saves"), [], "no caption without rules");
   });
 });
 

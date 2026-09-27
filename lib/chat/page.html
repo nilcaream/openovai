@@ -166,8 +166,14 @@
   .msg.perm .desc { font-size: .92rem; margin: 2px 0 4px; overflow-wrap: anywhere; }
   .msg.perm .reason { font-size: .78rem; color: var(--fg-dim); font-family: var(--mono); margin: 0 0 4px; }
   .msg.perm .raw { font-family: var(--mono); font-size: .76rem; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; margin: 4px 0; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 18em; overflow: auto; }
-  .msg.perm .acts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0 2px; }
-  .msg.perm .acts button { font: 600 .82rem var(--sans); padding: 4px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); cursor: pointer; }
+  /* the rules an Always press saves, one to a line right above the buttons: wrapped at any
+     character however long the path in them, and scrolled past a few lines */
+  .msg.perm .saves { font-size: .72rem; color: var(--fg-dim); margin: 6px 0 0; }
+  .msg.perm .raw.rules { max-height: 6em; }
+  /* the decisions share the card's width equally, whatever their labels, and a label too long for
+     a narrow panel wraps inside its button; the deny reason takes a row of its own under them */
+  .msg.perm .acts { display: flex; flex-wrap: wrap; gap: 6px; align-items: stretch; margin: 6px 0 2px; }
+  .msg.perm .acts button { flex: 1 1 0; min-width: 0; overflow-wrap: anywhere; text-align: center; font: 600 .82rem var(--sans); padding: 4px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); cursor: pointer; }
   .msg.perm .acts button[data-decision=allow], .msg.perm .acts button[data-decision=answer] { background: var(--me); border-color: var(--me-line); }
   /* the questions of one card, a rule between each and the next; an option's button in a column of
      its own, its words wrapping under themselves and never under the button; Other's field the
@@ -176,7 +182,7 @@
   .msg.perm .choice label { display: grid; grid-template-columns: auto 1fr; column-gap: .4em; align-items: baseline; }
   .msg.perm .choice input[type=text] { width: 100%; margin: 4px 0; font: .82rem var(--sans); padding: 4px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); }
   .msg.perm .acts button[data-decision=deny] { background: var(--to); border-color: var(--to-line); }
-  .msg.perm .acts input { flex: 1 1 200px; min-width: 120px; font: .82rem var(--sans); padding: 4px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); }
+  .msg.perm .acts input { flex: 1 1 100%; min-width: 0; font: .82rem var(--sans); padding: 4px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); }
   /* the composer: one row that grows with what is typed, never dragged, up to 40% of the window */
   .composer { flex: 0 0 auto; min-height: 0; padding: 0; position: relative; }
   textarea { display: block; width: 100%; resize: none; min-height: 40px; max-height: 40vh; padding: 8px 10px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--bg); color: var(--fg); font: inherit; line-height: 1.5; outline: none; overflow-y: hidden; }
@@ -942,6 +948,8 @@
     for (const { kind, text } of dialog.lines) {
       const shown = document.createElement("div");
       if (kind === "reason" || kind === "why") shown.className = "reason";
+      else if (kind === "saves") shown.className = "saves";
+      else if (kind === "rules") shown.className = "raw rules";
       else shown.className = "raw";
       shown.textContent = text;
       bubble.append(shown);
@@ -1045,10 +1053,10 @@
         }
         answer({ id: request.id, decision });
       });
-      if (decision === "deny" && reason !== null) {
-        acts.append(reason);
-      }
       acts.append(button);
+    }
+    if (reason !== null) {
+      acts.append(reason);
     }
     return card;
   }

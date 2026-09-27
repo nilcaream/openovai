@@ -201,6 +201,25 @@ describe("the rules", () => {
     assert.equal(deny.declarations.background, "var(--to)");
   });
 
+  // A card's decisions fill its width in equal shares whatever their labels say, a label too long
+  // for a narrow panel wrapping inside its button rather than pushing it out of the card; the deny
+  // reason takes a whole row under them; the rules an Always press saves wrap at any character.
+  it("share a question's row equally between its buttons, wrap a label inside its button, and give the deny reason a row of its own", () => {
+    const declared = (selector) => rules.find((rule) => rule.selector === selector)?.declarations;
+    const button = declared(".msg.perm .acts button");
+    assert.equal(button.flex, "1 1 0");
+    assert.equal(button["min-width"], "0", "a button's longest word would otherwise hold it wider than the card");
+    assert.equal(button["overflow-wrap"], "anywhere");
+    assert.equal(button["text-align"], "center");
+    const reason = declared(".msg.perm .acts input");
+    assert.equal(reason.flex, "1 1 100%");
+    assert.equal(reason["min-width"], "0");
+    assert.equal(declared(".msg.perm .raw")["overflow-wrap"], "anywhere");
+    assert.equal(declared(".msg.perm .raw.rules")["max-height"], "6em");
+    assert.match(script, /acts\.append\(button\);\s*\}\s*if \(reason !== null\) \{\s*acts\.append\(reason\);\s*\}\s*return card;/, "the reason is appended after every button, never between two");
+    assert.match(script, /else if \(kind === "saves"\) shown\.className = "saves";\s*else if \(kind === "rules"\) shown\.className = "raw rules";/);
+  });
+
   it("let the composer grow with what is typed and never by a drag", () => {
     const box = rules.find((rule) => rule.selector === "textarea");
     assert.equal(box.declarations.resize, "none");

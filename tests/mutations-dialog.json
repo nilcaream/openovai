@@ -66,13 +66,24 @@
     ]
   },
   {
-    "name": "the button carries the first rule and not the rest",
-    "catches": "offers Always only where a rule was composed",
+    "name": "the card shows the first rule and not the rest",
+    "catches": "shows every rule the Always press saves, one to a line, and keeps the button's label short",
     "edits": [
       {
         "file": "lib/chat/dialog.mjs",
-        "from": "    buttons.push({ decision: \"always\", label: `Always allow ${request.shape.join(\" and \")}` });",
-        "to": "    buttons.push({ decision: \"always\", label: `Always allow ${request.shape[0]}` });"
+        "from": "{ kind: \"rules\", text: request.shape.join(\"\\n\") });",
+        "to": "{ kind: \"rules\", text: request.shape[0] });"
+      }
+    ]
+  },
+  {
+    "name": "the Always button carries the rules on its label again",
+    "catches": "shows every rule the Always press saves, one to a line, and keeps the button's label short",
+    "edits": [
+      {
+        "file": "lib/chat/dialog.mjs",
+        "from": "    buttons.push({ decision: \"always\", label: \"Always allow\" });",
+        "to": "    buttons.push({ decision: \"always\", label: `Always allow ${request.shape.join(\" and \")}` });"
       }
     ]
   },
