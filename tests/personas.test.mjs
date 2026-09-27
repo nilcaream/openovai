@@ -31,10 +31,14 @@ const flat = (text) => text.replace(/\s+/g, " ");
 const commonOf = (text) => text.slice(0, text.indexOf("</ovai>"));
 const roleOf = (text) => text.slice(text.indexOf("</ovai>"));
 
-// What a backticked word in a persona may be: a tool the server offers that role, or the type of
-// an event the server sends. Anything else backticked is a name a session would go looking for.
+// What a backticked word in a persona may be: a tool the server offers that role, the type of an
+// event the server sends, or a field of a note's head, which the session writes and never calls.
+// Anything else backticked is a name a session would go looking for.
+const NOTE_HEAD = ["summary", "tags", "sources", "updated"];
 const backticked = (text) =>
-  [...text.matchAll(/`([a-z_]+)`/g)].map((found) => found[1]).filter((word) => !EVENTS.includes(word));
+  [...text.matchAll(/`([a-z_]+)`/g)]
+    .map((found) => found[1])
+    .filter((word) => !EVENTS.includes(word) && !NOTE_HEAD.includes(word));
 const offeredTo = (role) =>
   toolsFor({ root: repo, config: { user: USER, leader: LEAD }, plugins: [] }, { seat: role === LEADER ? LEAD : PAUL, role })
     .filter((tool) => tool.offered === true)
@@ -480,6 +484,7 @@ describe("what both are told in ovai's common frame", () => {
       "It is not storage, and it is not where anything is looked up",
       "The workspace's knowledge is `knowledge/`",
       "A file a note needs of its own, a template or an image",
+      "A note never sends its reader to a desk or into `archive/`",
       "A note is its head and then the facts",
       "Tags: lowercase and hyphens, at least three",
       "Report after N tool calls",

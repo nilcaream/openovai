@@ -308,6 +308,28 @@
     ]
   },
   {
+    "name": "a source in a desk or in the archive is let through",
+    "catches": "reports a source in a desk or in the archive, one line each, saying why",
+    "edits": [
+      {
+        "file": "lib/knowledge.mjs",
+        "from": "  return first === DESKS || first === ARCHIVE;",
+        "to": "  return false;"
+      }
+    ]
+  },
+  {
+    "name": "a persona is never told that a note does not send its reader to a desk",
+    "catches": "tells both roles a note never sends its reader to a desk or into the archive",
+    "edits": [
+      {
+        "file": "lib/templates/common.md",
+        "from": "A note never sends its reader to a desk or into `archive/`, and never names either in `sources`: a\ndesk is filed away when its seat retires, and what is filed away is history. What a note needs\nfrom a desk is copied into the note, or under `knowledge/files/`.\n\n",
+        "to": ""
+      }
+    ]
+  },
+  {
     "name": "only a date that makes no instant at all is refused, so the thirty-first of February passes",
     "catches": "reports a date that is not a real YYYY-MM-DD",
     "edits": [

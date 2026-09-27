@@ -189,6 +189,18 @@ describe("validate", () => {
     ]);
   });
 
+  // A desk is filed away when its seat retires, so a path into one, or into the archive, is well
+  // formed and still sends the reader after history. Form again: neither path exists here.
+  it("reports a source in a desk or in the archive, one line each, saying why", () => {
+    const why = "and a source is never a desk or `archive/`: a desk is filed away when its seat retires; what a note needs from it is copied into the note or under `knowledge/files/`";
+    assert.deepEqual(complaintAbout("desk-source.md", head({ sources: "[desks/Ann/STATE.md, archive/2026-09-20-Ann, reference/a]" })), [
+      `knowledge/desk-source.md: \`sources\` has \`desks/Ann/STATE.md\`, ${why}`,
+      `knowledge/desk-source.md: \`sources\` has \`archive/2026-09-20-Ann\`, ${why}`,
+    ]);
+    // The first segment, not a prefix: a directory whose name merely starts the same is a source.
+    assert.deepEqual(complaintAbout("near-desk.md", head({ sources: "[desks-old/a, reference/desks/a, knowledge/files/archive/a]" })), []);
+  });
+
   it("reports a date that is not a real YYYY-MM-DD", () => {
     assert.deepEqual(complaintAbout("odd-date.md", head({ updated: "22-09-2026" })), ["knowledge/odd-date.md: `updated` is `22-09-2026`, and a date is YYYY-MM-DD"]);
     assert.deepEqual(complaintAbout("no-such-day.md", head({ updated: "2026-02-31" })), ["knowledge/no-such-day.md: `updated` is `2026-02-31`, and a date is YYYY-MM-DD"]);
@@ -330,6 +342,13 @@ describe("what a session is told about knowledge", () => {
       assert.match(text, /Before you search or write, call\n`index\(\)` for the tags in use/, role);
       assert.match(text, /Then call `validate` and fix what it\nreports before you go on\./, role);
       assert.match(text, /^tags: \[billing-service, invoicing, rounding\]$/m, role);
+    }
+  });
+
+  it("tells both roles a note never sends its reader to a desk or into the archive", () => {
+    for (const [role, name] of [["leader", "Superman"], ["worker", "Paul"]]) {
+      const text = persona(repo, name, { user: "Mike", leader: "Superman" });
+      assert.match(text, /A note never sends its reader to a desk or into `archive\/`, and never names either in `sources`: a\ndesk is filed away when its seat retires, and what is filed away is history\. What a note needs\nfrom a desk is copied into the note, or under `knowledge\/files\/`\./, role);
     }
   });
 

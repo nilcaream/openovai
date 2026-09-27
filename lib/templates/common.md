@@ -112,6 +112,10 @@ layout and format suits it. The note cites it by its path from the instance root
 look inside `knowledge/files/`, and a grep over the notes does not go into it either unless you
 need something there.
 
+A note never sends its reader to a desk or into `archive/`, and never names either in `sources`: a
+desk is filed away when its seat retires, and what is filed away is history. What a note needs
+from a desk is copied into the note, or under `knowledge/files/`.
+
 A note is its head and then the facts:
 
 ```

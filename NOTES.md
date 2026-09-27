@@ -207,6 +207,13 @@ answer, not an injection.
 `Urgent to <name>`, which looked like a sender named Urgent. It is now a `To` row like any other,
 marked urgent after the name.
 
+**A note never names a desk or the archive as its source.** A desk is filed away when its seat
+retires, and what is filed away is history, so a note that sent its reader there sent them after
+something that had moved. Every session is now told that what a note needs from a desk is copied
+into the note, or under `knowledge/files/`, and `validate` reports a source whose path starts
+with `desks/` or `archive/`, one line each, saying why. It still checks the form only and opens
+nothing. A note that already names one is reported on the first `validate` after the update.
+
 ## 0.19.0
 
 **The Leader stops and restarts Workers; a Worker only works.** A Worker no longer has
