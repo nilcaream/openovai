@@ -92,10 +92,25 @@ the machine that connects to the port directly still gets the page and its secre
 message, or a markdown link to one, is a link when the file view would show that file, and plain
 code when it would not. `path:12` links the path, and the line stays in the words. Paths are read
 from the instance root and nowhere else. The view is `/view/<path from the instance root>`:
-- a markdown file is drawn the way a reply is;
-- a code file is wrapped in one fenced block tagged with its language, from the extension, with no
-  highlighting yet;
-- any other text goes in a plain block.
+- a markdown file is drawn the way a reply is, its fenced code highlighted;
+- a code file is one block in its language, from the extension or, for `Dockerfile`, `Makefile`
+  and `CMakeLists.txt`, the whole name, highlighted with every language highlight.js ships, in
+  the theme's colours, its lines numbered in a gutter beside the code that a selection never takes;
+- any other text goes in a plain block, its lines numbered the same way.
+
+The view is the file's content alone, across the whole page. Nothing inside the page scrolls and
+no line wraps: a wide line, code block or table widens the page, and the window's two scrollbars
+are the only ones, always shown, so the toggle in the corner never moves. The toggle, fixed in the
+bottom right corner, reads `View source` and swaps the drawn file for its text as it is, in
+place, its lines numbered outside the text; the choice is kept nowhere, and a reload draws the
+file again. A file larger than 256 KB opens as that text alone, never highlighted and with no
+toggle. The view's window is titled as the page is, with the file's path from the root after it
+(`OpenOv AI ~/workspace/desks/Paul/STATE.md`), and shows the page's own icon.
+
+The page and the view are drawn in the theme the page last chose, from their first paint: the
+page keeps its theme in a cookie for its port as well as in its storage, and the server writes
+that theme into both before they are sent, the window's ground and an installed app's title bar
+included. A page kept dark no longer opens light for a moment.
 
 It shows a regular file whose real path, symlinks followed, is inside the instance, and which is
 at most 1 MiB of UTF-8 text. It never shows the instance's Claude Code home (`.local/`), a `.git`
@@ -111,9 +126,9 @@ outside the instance by its absolute path.
 **A web page a reply names opens in the browser.** Clicking a link to an `.html` or `.htm` file
 opens it the way a double click in a file manager does: the server hands its real path to the
 desktop's opener (`xdg-open`, or `open` on macOS), and the default browser opens it as a `file://`
-tab, where the files it loads beside it load too. The view of such a file still shows its source,
-and a middle click on the link opens that view. The view also has an "open in browser" button. This
-is the one route that starts a program on the machine, so it is narrowed:
+tab, where the files it loads beside it load too. The view shows no web page, its source
+included, and says where it opens. This is the one route that starts a program on the machine,
+so it is narrowed:
 - it takes only a POST whose `Origin` is the server's own and that carries the page's cookie;
 - the file must be one the view would show;
 - its real path must end in `.html` or `.htm`, so a page's name that leads to a `.desktop` file
@@ -196,6 +211,14 @@ sign-in is taken from Claude Code's documentation, not seen on a Mac.
 **Where ovai runs is written down.** The README's requirements now say Linux or macOS. On Windows,
 ovai runs in WSL 2 as on Linux, with the instance kept in the Linux file system and off `/mnt/c`.
 Assumes: WSL 2 has not been tried.
+
+**`ovai configuration` reads the credential from the exit status of `claude auth status`.** That
+status is the part Claude Code's CLI reference documents: 0 when signed in, 1 when not. The JSON
+it prints beside it used to be read, and is not any more. Any other status says `cannot tell —
+Claude Code did not answer`, as a claude that could not be started does.
+
+**The Leader says "Back in a moment", with a capital B, before it restarts itself.** A Leader
+hired before this version keeps the persona it was rendered with.
 
 **A permission card stays inside its panel, however long the rule.** Always used to carry the
 rules it saves on its own label, so a rule with a long path pushed the button out of a narrow
