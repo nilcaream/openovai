@@ -257,6 +257,12 @@ the whole space. A card stands 4px from the last row, from the next card and fro
 to stand 12 to 14px from the rows around them. They now stand 3 to 4px from them, as a tool line
 does, and a pill whose words wrap stays one pill.
 
+**Scrolled up on any panel, one click takes you back to the newest row.** The pill at the bottom of
+the Leader's rows used to come only when a row landed below where you were reading, and a Worker's
+panel had none. Every panel now shows it as soon as you are scrolled more than 80px above the
+newest row, saying `↓ latest`. On the Leader's panel it says `↓ new messages` once a row lands below
+you. A click on it takes you to the newest row either way.
+
 ## 0.19.0
 
 **The Leader stops and restarts Workers; a Worker only works.** A Worker no longer has

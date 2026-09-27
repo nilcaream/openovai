@@ -2248,7 +2248,10 @@ describe("what the page is made of", () => {
       }
     }
     const labels = [...script.matchAll(/\.textContent = "([^"]*)"/g)].map((found) => found[1]);
-    assert.deepEqual(labels, ["↓ new messages", "(double-click to see the whole message)"], "a word of the page's own other than the pill and the fold's placeholder (the dialog buttons come from dialog.mjs)");
+    assert.deepEqual(labels, ["(double-click to see the whole message)"], "a word of the page's own other than the pill and the fold's placeholder (the dialog buttons come from dialog.mjs)");
+    const pill = [...script.matchAll(/const (?:LATEST|NEW_ROWS) = "([^"]*)";/g)].map((found) => found[1]);
+    assert.deepEqual(pill, ["↓ latest", "↓ new messages"], "the pill's two words, and no lifecycle word among them");
+    assert.deepEqual([...script.matchAll(/\.textContent = ([A-Z_]+);/g)].map((found) => found[1]), ["LATEST", "LATEST", "NEW_ROWS"], "the pill says only its own two words");
     const buttons = [...script.matchAll(/\.className = "(stop|theme)";/g)].map((found) => found[1]);
     assert.deepEqual(buttons, ["theme", "stop"], "a button of the page's own other than the theme toggle and the stop glyph");
     assert.equal(source.split("<button").length - 1, 0, "a button in the markup");

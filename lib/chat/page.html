@@ -95,8 +95,8 @@
   .phead .notify.on .lit { display: block; }
   .phead .notify.on .slashed { display: none; }
   /* the pill that says rows arrived below where the reader is, on the Leader's panel */
-  #jump { position: sticky; left: 50%; transform: translateX(-50%); bottom: 24px; background: var(--panel); border: 1px solid var(--line); color: var(--fg); border-radius: 999px; padding: 6px 14px; font-size: .85rem; cursor: pointer; display: none; }
-  #jump.show { display: block; }
+  .jump { position: sticky; left: 50%; transform: translateX(-50%); bottom: 24px; background: var(--panel); border: 1px solid var(--line); color: var(--fg); border-radius: 999px; padding: 6px 14px; font-size: .85rem; cursor: pointer; display: none; }
+  .jump.show { display: block; }
   /* the rows take the focus on a click, so the keys scroll them; no ring for it, the head's border says what the keys do */
   .rows { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 0; outline: none; }
   /* a tool call is a light line: one per call, no label, no stamp */
@@ -426,6 +426,9 @@
   const sections = new Map();
   // Within 80px of the newest row: close enough to count as reading the end.
   const nearTheNewest = (rows) => rows.scrollHeight - rows.scrollTop - rows.clientHeight < 80;
+  // What the Leader's pill says: nothing new below the reader, or rows that landed there.
+  const LATEST = "↓ latest";
+  const NEW_ROWS = "↓ new messages";
   // At the newest row, give or take the few px a zoomed scroll lands off by: the reader is at
   // the end of the rows, and the panel follows what lands there.
   const atTheNewest = (rows) => rows.scrollHeight - rows.scrollTop - rows.clientHeight < 4;
@@ -554,25 +557,27 @@
       event.preventDefault();
       openInBrowser(page);
     });
-    // On the Leader's panel, a pill for rows that arrived below where the reader is: shown when a
-    // row lands while the reader is more than 80px above the newest, gone once they are near it
-    // again or click it. It is the last child of the rows and sticks to their bottom edge, so it
-    // sits above the bottom area — a card, the composer — never on it.
-    let jump = null;
-    if (leads) {
-      jump = document.createElement("button");
-      jump.type = "button";
-      jump.id = "jump";
-      jump.textContent = "↓ new messages";
-      jump.addEventListener("click", () => {
-        rows.scrollTop = rows.scrollHeight;
-        jump.classList.remove("show");
-      });
-      rows.addEventListener("scroll", () => {
-        if (nearTheNewest(rows)) jump.classList.remove("show");
-      });
-      rows.append(jump);
-    }
+    // On every panel, one pill that takes the reader to the newest row in a click: shown whenever
+    // the reader is more than 80px above it, saying LATEST, and on the Leader's panel NEW_ROWS once
+    // a row lands below them; gone once they are near the newest again or click it. A scroll never
+    // turns NEW_ROWS back into LATEST. It is the last child of the rows and sticks to their bottom
+    // edge, so it sits above the bottom area — a card, the composer — never on it.
+    const jump = document.createElement("button");
+    jump.type = "button";
+    jump.className = "jump";
+    jump.textContent = LATEST;
+    jump.addEventListener("click", () => {
+      rows.scrollTop = rows.scrollHeight;
+      jump.classList.remove("show");
+    });
+    rows.addEventListener("scroll", () => {
+      if (nearTheNewest(rows)) jump.classList.remove("show");
+      else if (!jump.classList.contains("show")) {
+        jump.textContent = LATEST;
+        jump.classList.add("show");
+      }
+    });
+    rows.append(jump);
     // On the Leader's panel, the dock for the line that says what the Leader is at: a row of no
     // height, always the last before the pill and stuck to the rows' bottom edge, the line floating
     // up from it over the last message's lower right corner, as wide as its words. It takes no
@@ -673,7 +678,7 @@
     // `drawn` the card of every question on the panel, by the id of its request; `doing` the one
     // line that says what the seat is at, while there is one; `bubbles` the element of every stamped
     // row by its index, for a reference in a User's row to find the row it names.
-    return { name, section, nameLine, info, word, fitPlaceholder, facts, composer, stop, rows, cards, jump, dock, box, view, keep, shown: 0, day: null, drawn: new Map(), loading: false, last: null, lines: new Map(), bubbles: new Map(), waiting: new Map(), doing: null };
+    return { name, leads, section, nameLine, info, word, fitPlaceholder, facts, composer, stop, rows, cards, jump, dock, box, view, keep, shown: 0, day: null, drawn: new Map(), loading: false, last: null, lines: new Map(), bubbles: new Map(), waiting: new Map(), doing: null };
   }
 
   // When a row was written, in the reader's own zone: `2026.09.13 Sunday 23:17:05` on the row, the
@@ -1173,7 +1178,7 @@
       if (about.rows.length > panel.shown) {
         // A Worker panel keeps its last hundred rows, so its first draw starts there: a long log
         // builds a hundred elements, not thousands. The Leader's panel draws every row it holds.
-        const from = panel.jump === null && panel.shown === 0 ? Math.max(panel.shown, about.rows.length - 100) : panel.shown;
+        const from = !panel.leads && panel.shown === 0 ? Math.max(panel.shown, about.rows.length - 100) : panel.shown;
         // A pill names the day between the last row of one day and the first row of the next —
         // never before the first row drawn, whatever its day, and never before a row that says when
         // a session ended or started, which names the day itself (dayPillBefore). A tool call that repeats the line
@@ -1221,7 +1226,7 @@
         panel.shown = about.rows.length;
         // A Worker panel keeps a hundred drawn rows — bubbles, lines and pills —
         // and lets the oldest go, with the lines it no longer holds.
-        if (panel.jump === null) {
+        if (!panel.leads) {
           const drawn = [...panel.rows.children].filter((child) => child.matches(".msg, .line, .divider"));
           while (drawn.length > 100) drawn.shift().remove();
           // The day pill goes with the rows before it: it is never the first thing on a panel.
@@ -1278,13 +1283,14 @@
         panel.doing.textContent = about.doing;
       }
       // Rows are appended after the pill; it goes back to the end so it sticks to the bottom edge.
-      if (panel.jump !== null && panel.jump !== panel.rows.lastElementChild) panel.rows.append(panel.jump);
+      if (panel.jump !== panel.rows.lastElementChild) panel.rows.append(panel.jump);
       // And the dock right before it, the last row, so no row is ever drawn under the line.
       if (panel.dock !== null && panel.dock.nextElementSibling !== panel.jump) panel.rows.insertBefore(panel.dock, panel.jump);
       // A row that landed while the reader is away from the newest: the pill says something
       // landed below. A panel that follows is pinned to the newest by the timer, not here.
-      if (landed && !panel.view.follow && panel.jump !== null && !near) {
+      if (landed && !panel.view.follow && panel.leads && !near) {
         panel.jump.classList.add("show");
+        panel.jump.textContent = NEW_ROWS;
       }
     }
   }

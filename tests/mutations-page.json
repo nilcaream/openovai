@@ -352,40 +352,40 @@
   },
   {
     "name": "the pill never shows: the draw that appends rows no longer marks it",
-    "catches": "shows the pill when rows land below a reader who is not near the newest, and takes them there on a click",
+    "catches": "shows the pill when the reader is not near the newest, says so when rows land below them, and takes them there on a click",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      if (landed && !panel.view.follow && panel.jump !== null && !near) {\n        panel.jump.classList.add(\"show\");\n      }\n",
+        "from": "      if (landed && !panel.view.follow && panel.leads && !near) {\n        panel.jump.classList.add(\"show\");\n        panel.jump.textContent = NEW_ROWS;\n      }\n",
         "to": ""
       }
     ]
   },
   {
     "name": "the pill stays once shown: the scroll listener that hides it near the newest is gone",
-    "catches": "shows the pill when rows land below a reader who is not near the newest, and takes them there on a click",
+    "catches": "shows the pill when the reader is not near the newest, says so when rows land below them, and takes them there on a click",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      rows.addEventListener(\"scroll\", () => {\n        if (nearTheNewest(rows)) jump.classList.remove(\"show\");\n      });\n",
-        "to": ""
+        "from": "      if (nearTheNewest(rows)) jump.classList.remove(\"show\");\n      else if",
+        "to": "      if"
       }
     ]
   },
   {
     "name": "a click on the pill hides it without going to the newest row",
-    "catches": "shows the pill when rows land below a reader who is not near the newest, and takes them there on a click",
+    "catches": "shows the pill when the reader is not near the newest, says so when rows land below them, and takes them there on a click",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "        rows.scrollTop = rows.scrollHeight;\n        jump.classList.remove(\"show\");\n",
-        "to": "        jump.classList.remove(\"show\");\n"
+        "from": "      rows.scrollTop = rows.scrollHeight;\n      jump.classList.remove(\"show\");\n",
+        "to": "      jump.classList.remove(\"show\");\n"
       }
     ]
   },
   {
     "name": "near the newest means anywhere: the 80px band is gone",
-    "catches": "shows the pill when rows land below a reader who is not near the newest, and takes them there on a click",
+    "catches": "shows the pill when the reader is not near the newest, says so when rows land below them, and takes them there on a click",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -521,8 +521,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "#jump { position: sticky; left: 50%;",
-        "to": "#jump { position: fixed; left: 50%;"
+        "from": ".jump { position: sticky; left: 50%;",
+        "to": ".jump { position: fixed; left: 50%;"
       }
     ]
   },
@@ -539,50 +539,50 @@
   },
   {
     "name": "the pill is appended to the body, outside the rows: sticky has nothing to stick to",
-    "catches": "shows the pill when rows land below a reader who is not near the newest, and takes them there on a click",
+    "catches": "shows the pill when the reader is not near the newest, says so when rows land below them, and takes them there on a click",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      rows.append(jump);\n",
-        "to": "      document.body.append(jump);\n"
+        "from": "    rows.append(jump);\n",
+        "to": "    document.body.append(jump);\n"
       }
     ]
   },
   {
     "name": "the pill is never put back last: appended rows carry it up into the panel",
-    "catches": "shows the pill when rows land below a reader who is not near the newest, and takes them there on a click",
+    "catches": "shows the pill when the reader is not near the newest, says so when rows land below them, and takes them there on a click",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      // Rows are appended after the pill; it goes back to the end so it sticks to the bottom edge.\n      if (panel.jump !== null && panel.jump !== panel.rows.lastElementChild) panel.rows.append(panel.jump);\n",
+        "from": "      // Rows are appended after the pill; it goes back to the end so it sticks to the bottom edge.\n      if (panel.jump !== panel.rows.lastElementChild) panel.rows.append(panel.jump);\n",
         "to": ""
       }
     ]
   },
   {
     "name": "the put-back-last line kept verbatim but moved ABOVE the append loop: rows appended after it carry the pill up again",
-    "catches": "shows the pill when rows land below a reader who is not near the newest, and takes them there on a click",
+    "catches": "shows the pill when the reader is not near the newest, says so when rows land below them, and takes them there on a click",
     "edits": [
       {
         "file": "lib/chat/page.html",
         "from": "      const added = [];\n      const folded = [];\n      if (about.rows.length > panel.shown) {\n",
-        "to": "      const added = [];\n      const folded = [];\n      if (panel.jump !== null && panel.jump !== panel.rows.lastElementChild) panel.rows.append(panel.jump);\n      if (about.rows.length > panel.shown) {\n"
+        "to": "      const added = [];\n      const folded = [];\n      if (panel.jump !== panel.rows.lastElementChild) panel.rows.append(panel.jump);\n      if (about.rows.length > panel.shown) {\n"
       },
       {
         "file": "lib/chat/page.html",
-        "from": "      }\n      // Rows are appended after the pill; it goes back to the end so it sticks to the bottom edge.\n      if (panel.jump !== null && panel.jump !== panel.rows.lastElementChild) panel.rows.append(panel.jump);\n",
+        "from": "      }\n      // Rows are appended after the pill; it goes back to the end so it sticks to the bottom edge.\n      if (panel.jump !== panel.rows.lastElementChild) panel.rows.append(panel.jump);\n",
         "to": "      }\n"
       }
     ]
   },
   {
-    "name": "the shown pill is made static by the .show rule: the #jump rule still says sticky, the pill sits in the flow at the end of the rows",
+    "name": "the shown pill is made static by the .show rule: the .jump rule still says sticky, the pill sits in the flow at the end of the rows",
     "catches": "keep the pill inside the rows, stuck 24px above their bottom edge",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "#jump.show { display: block; }",
-        "to": "#jump.show { display: block; position: static; }"
+        "from": ".jump.show { display: block; }",
+        "to": ".jump.show { display: block; position: static; }"
       }
     ]
   },
@@ -1987,8 +1987,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      if (landed && !panel.view.follow && panel.jump !== null && !near) {\n        panel.jump.classList.add(\"show\");\n      }",
-        "to": "      if (landed && panel.view.follow) panel.rows.scrollTop = panel.rows.scrollHeight;\n      if (landed && !panel.view.follow && panel.jump !== null && !near) {\n        panel.jump.classList.add(\"show\");\n      }"
+        "from": "      if (landed && !panel.view.follow && panel.leads && !near) {\n        panel.jump.classList.add(\"show\");\n        panel.jump.textContent = NEW_ROWS;\n      }",
+        "to": "      if (landed && panel.view.follow) panel.rows.scrollTop = panel.rows.scrollHeight;\n      if (landed && !panel.view.follow && panel.leads && !near) {\n        panel.jump.classList.add(\"show\");\n        panel.jump.textContent = NEW_ROWS;\n      }"
       }
     ]
   },
@@ -2156,8 +2156,8 @@
       },
       {
         "file": "lib/chat/page.html",
-        "from": "      if (landed && !panel.view.follow && panel.jump !== null && !near) {",
-        "to": "      if ((landed || asked) && !panel.view.follow && panel.jump !== null && !near) {"
+        "from": "      if (landed && !panel.view.follow && panel.leads && !near) {",
+        "to": "      if ((landed || asked) && !panel.view.follow && panel.leads && !near) {"
       }
     ]
   },
@@ -2299,8 +2299,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      if (landed && !panel.view.follow && panel.jump !== null && !near) {",
-        "to": "      if (added.length > 0 && !panel.view.follow && panel.jump !== null && !near) {"
+        "from": "      if (landed && !panel.view.follow && panel.leads && !near) {",
+        "to": "      if (added.length > 0 && !panel.view.follow && panel.leads && !near) {"
       }
     ]
   },
@@ -2807,6 +2807,39 @@
         "file": "lib/chat/page.html",
         "from": "  .divider { text-align: center; margin: 3px 0;",
         "to": "  .divider { text-align: center; margin: 14px 0;"
+      }
+    ]
+  },
+  {
+    "name": "a scroll away from the newest shows no pill",
+    "catches": "shows the pill when the reader is not near the newest, says so when rows land below them, and takes them there on a click",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      else if (!jump.classList.contains(\"show\")) {\n        jump.textContent = LATEST;\n        jump.classList.add(\"show\");\n      }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a Worker's panel has no pill: it is made on the Leader's alone",
+    "catches": "shows the pill when the reader is not near the newest, says so when rows land below them, and takes them there on a click",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    const jump = document.createElement(\"button\");\n",
+        "to": "    const jump = document.createElement(leads ? \"button\" : \"template\");\n"
+      }
+    ]
+  },
+  {
+    "name": "the Worker trim reads the pill again instead of the panel's own word",
+    "catches": "keeps the last hundred rows of a Worker panel and every row of the Leader's",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "        if (!panel.leads) {",
+        "to": "        if (panel.jump === null) {"
       }
     ]
   }

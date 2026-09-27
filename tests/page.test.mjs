@@ -258,7 +258,7 @@ describe("the rules", () => {
   });
 
   it("draw the pill for rows that arrived below the reader as a pill", () => {
-    const pill = rules.find((rule) => rule.selector === "#jump");
+    const pill = rules.find((rule) => rule.selector === ".jump");
     assert.equal(pill.declarations["border-radius"], "999px");
   });
 
@@ -452,10 +452,10 @@ describe("the rules", () => {
   // to the viewport sits over whatever is open below the rows — the reason input of a permission
   // card, first of all — while a sticky last child of the rows sits above it, 24px up.
   it("keep the pill inside the rows, stuck 24px above their bottom edge", () => {
-    const pill = rules.find((rule) => rule.selector === "#jump");
+    const pill = rules.find((rule) => rule.selector === ".jump");
     assert.equal(pill.declarations.position, "sticky");
     assert.equal(pill.declarations.bottom, "24px");
-    assert.deepEqual(rules.find((rule) => rule.selector === "#jump.show").declarations, { display: "block" }, "showing the pill changes its display only, never its position");
+    assert.deepEqual(rules.find((rule) => rule.selector === ".jump.show").declarations, { display: "block" }, "showing the pill changes its display only, never its position");
   });
 
   // Every pin above reads the FIRST rule under a selector while the cascade takes the LAST, so a
@@ -735,16 +735,22 @@ describe("the script", () => {
     assert.match(script, /if \(!hiddenTalk\(line\)\) landed = true;/, "a hidden row does not land");
   });
 
-  // The pill: shown by a draw that appended rows while the reader was more than 80px above the
-  // newest, gone once a scroll brings them near it or a click takes them there. It is a child of
-  // the rows (sticky needs a scrolling ancestor) and their LAST child after every draw, or the
-  // rows appended after it would carry it up into the middle of the panel.
-  it("shows the pill when rows land below a reader who is not near the newest, and takes them there on a click", () => {
+  // The pill: one control on every panel that takes the reader to the newest row. A scroll that
+  // leaves the reader more than 80px above the newest shows it saying "↓ latest"; on the Leader's
+  // panel, a draw that appended rows while they were there says "↓ new messages" on it, and a
+  // scroll never turns that back. It goes once a
+  // scroll brings them near the newest or a click takes them there. It is a child of the rows
+  // (sticky needs a scrolling ancestor) and their LAST child after every draw, or the rows
+  // appended after it would carry it up into the middle of the panel.
+  it("shows the pill when the reader is not near the newest, says so when rows land below them, and takes them there on a click", () => {
     assert.match(script, /const nearTheNewest = \(rows\) => rows\.scrollHeight - rows\.scrollTop - rows\.clientHeight < 80;/);
-    assert.match(script, /\n      rows\.append\(jump\);\n/, "the pill is a child of the rows");
-    assert.match(script, /panel\.shown = about\.rows\.length;\n(?:[^\n]*\n){59}      if \(panel\.jump !== null && panel\.jump !== panel\.rows\.lastElementChild\) panel\.rows\.append\(panel\.jump\);\n/, "the pill is put back last AFTER the rows are appended, before the scroll is decided");
-    assert.match(script, /if \(landed && !panel\.view\.follow && panel\.jump !== null && !near\) \{\s*panel\.jump\.classList\.add\("show"\);/);
-    assert.match(script, /rows\.addEventListener\("scroll", \(\) => \{\s*if \(nearTheNewest\(rows\)\) jump\.classList\.remove\("show"\);/);
+    assert.match(script, /const LATEST = "↓ latest";\s*const NEW_ROWS = "↓ new messages";/);
+    assert.match(script, /\n    const jump = document\.createElement\("button"\);\s*jump\.type = "button";\s*jump\.className = "jump";/, "every panel has its pill, a class since an id is one to a page");
+    assert.match(script, /return \{ name, leads, /, "whether a panel is the Leader's is a word of its own, never read off the pill");
+    assert.match(script, /\n    rows\.append\(jump\);\n/, "the pill is a child of the rows");
+    assert.match(script, /panel\.shown = about\.rows\.length;\n(?:[^\n]*\n){59}      if \(panel\.jump !== panel\.rows\.lastElementChild\) panel\.rows\.append\(panel\.jump\);\n/, "the pill is put back last AFTER the rows are appended, before the scroll is decided");
+    assert.match(script, /if \(landed && !panel\.view\.follow && panel\.leads && !near\) \{\s*panel\.jump\.classList\.add\("show"\);\s*panel\.jump\.textContent = NEW_ROWS;\s*\}/);
+    assert.match(script, /rows\.addEventListener\("scroll", \(\) => \{\s*if \(nearTheNewest\(rows\)\) jump\.classList\.remove\("show"\);\s*else if \(!jump\.classList\.contains\("show"\)\) \{\s*jump\.textContent = LATEST;\s*jump\.classList\.add\("show"\);\s*\}\s*\}\);/, "away from the newest the pill is there, and a pill already there keeps its words");
     assert.match(script, /jump\.addEventListener\("click", \(\) => \{\s*rows\.scrollTop = rows\.scrollHeight;\s*jump\.classList\.remove\("show"\);/);
   });
 
@@ -754,7 +760,7 @@ describe("the script", () => {
   // pill, so neither its coming nor its going moves a row or counts as one landing.
   it("draws what a seat is at as one line, made once, changed in place, floating in the dock, gone with the word", () => {
     const draw = script.slice(script.indexOf("function drawPanel(panel)"), script.indexOf("// ------------------------------------------------------------------------------- the page"));
-    assert.match(draw, /if \(about\.doing === null\) \{\s*if \(panel\.doing !== null\) \{\s*panel\.doing\.remove\(\);\s*panel\.doing = null;\s*\}\s*\} else \{\s*if \(panel\.doing === null\) \{\s*panel\.doing = document\.createElement\("div"\);\s*panel\.doing\.className = "line doing";\s*\(panel\.dock \?\? panel\.rows\)\.append\(panel\.doing\);\s*\}\s*panel\.doing\.textContent = about\.doing;\s*\}\s*\/\/[^\n]*\n\s*if \(panel\.jump !== null && panel\.jump !== panel\.rows\.lastElementChild\) panel\.rows\.append\(panel\.jump\);\s*\/\/[^\n]*\n\s*if \(panel\.dock !== null && panel\.dock\.nextElementSibling !== panel\.jump\) panel\.rows\.insertBefore\(panel\.dock, panel\.jump\);/);
+    assert.match(draw, /if \(about\.doing === null\) \{\s*if \(panel\.doing !== null\) \{\s*panel\.doing\.remove\(\);\s*panel\.doing = null;\s*\}\s*\} else \{\s*if \(panel\.doing === null\) \{\s*panel\.doing = document\.createElement\("div"\);\s*panel\.doing\.className = "line doing";\s*\(panel\.dock \?\? panel\.rows\)\.append\(panel\.doing\);\s*\}\s*panel\.doing\.textContent = about\.doing;\s*\}\s*\/\/[^\n]*\n\s*if \(panel\.jump !== panel\.rows\.lastElementChild\) panel\.rows\.append\(panel\.jump\);\s*\/\/[^\n]*\n\s*if \(panel\.dock !== null && panel\.dock\.nextElementSibling !== panel\.jump\) panel\.rows\.insertBefore\(panel\.dock, panel\.jump\);/);
     assert.doesNotMatch(draw.slice(draw.indexOf("if (about.doing === null) {"), draw.indexOf("panel.doing.textContent = about.doing;")), /landed/, "the line's coming is not a row landing: it moves no row");
     assert.match(script, /if \(leads\) \{\s*dock = document\.createElement\("div"\);\s*dock\.className = "dock";\s*rows\.append\(dock\);\s*\}/, "the Leader's panel has its dock from the start, so the strip is there before any line");
     assert.equal(draw.match(/createElement\("div"\)/g).length, 1, "the draw makes the one element for what a seat is at, and no other");
@@ -779,7 +785,7 @@ describe("the script", () => {
   it("leaves a panel that does not follow exactly where the reader has it when rows land", () => {
     const draw = script.slice(script.indexOf("function drawPanel(panel)"), script.indexOf("// ------------------------------------------------------------------------------- the page"));
     assert.doesNotMatch(draw, /scrollTop =|scrollIntoView/, "the draw writes no scroll position: the timer pins a panel that follows");
-    assert.match(draw, /if \(landed && !panel\.view\.follow && panel\.jump !== null && !near\) \{\s*panel\.jump\.classList\.add\("show"\);\s*\}/, "the pill hangs on the panel's word");
+    assert.match(draw, /if \(landed && !panel\.view\.follow && panel\.leads && !near\) \{\s*panel\.jump\.classList\.add\("show"\);\s*panel\.jump\.textContent = NEW_ROWS;\s*\}/, "the pill hangs on the panel's word");
     assert.doesNotMatch(draw, /panel\.rows\.scrollHeight - panel\.rows\.scrollTop - panel\.rows\.clientHeight < \d/, "the draw measures nothing itself: a box that grew hides the last lines, and a measure here would call a following panel gone");
   });
 
@@ -797,7 +803,7 @@ describe("the script", () => {
     assert.match(script, /rows\.addEventListener\("pointerdown", \(event\) => \{\s*if \(event\.target === rows\) view\.held = true;/, "the bar is a press on the rows themselves");
     assert.match(script, /rows\.addEventListener\("scroll", \(\) => \{\s*if \(view\.held && rows\.scrollTop < top\) movedAway\(\);\s*top = rows\.scrollTop;\s*\}\);/, "and a scroll up while it is held is the hand; any other scroll of the rows says nothing");
     assert.doesNotMatch(script, /view\.follow = (?!following\()/, "the word is decided by `following` and nowhere else");
-    assert.match(script, /return \{ name, section, [^}]*\bview\b[^}]*\bkeep\b[^}]*\};/, "the draw reads the same word the tick sets");
+    assert.match(script, /return \{ name, leads, section, [^}]*\bview\b[^}]*\bkeep\b[^}]*\};/, "the draw reads the same word the tick sets");
   });
 
   // A click that brings a row into view — a reference, a message's other end — is the reader
@@ -1024,8 +1030,8 @@ describe("the script", () => {
   // a hundred from the end rather than building every row and trimming, and every draw lets the
   // oldest go past a hundred. The Leader's panel is the User's own conversation and keeps it all.
   it("keeps the last hundred rows of a Worker panel and every row of the Leader's", () => {
-    assert.match(script, /const from = panel\.jump === null && panel\.shown === 0 \? Math\.max\(panel\.shown, about\.rows\.length - 100\) : panel\.shown;/);
-    assert.match(script, /if \(panel\.jump === null\) \{\s*const drawn = \[\.\.\.panel\.rows\.children\]\.filter\(\(child\) => child\.matches\("\.msg, \.line, \.divider"\)\);\s*while \(drawn\.length > 100\) drawn\.shift\(\)\.remove\(\);/);
+    assert.match(script, /const from = !panel\.leads && panel\.shown === 0 \? Math\.max\(panel\.shown, about\.rows\.length - 100\) : panel\.shown;/);
+    assert.match(script, /if \(!panel\.leads\) \{\s*const drawn = \[\.\.\.panel\.rows\.children\]\.filter\(\(child\) => child\.matches\("\.msg, \.line, \.divider"\)\);\s*while \(drawn\.length > 100\) drawn\.shift\(\)\.remove\(\);/);
   });
 
   // The Leader's pill says something landed on any row that landed — a bubble, a pill, a tool
@@ -1037,7 +1043,7 @@ describe("the script", () => {
     assert.match(draw, /let landed = false;\s*const added = \[\];\s*const folded = \[\];\s*if \(about\.rows\.length > panel\.shown\) \{/, "the word is set before any row is drawn, beside the stamps list and the folded list");
     assert.match(draw, /panel\.last\.n\.textContent = ` ×\$\{panel\.last\.count\}`;\s*landed = true;/, "a counter that grew is a row that landed");
     assert.match(draw, /panel\.rows\.append\(line\);\s*(?:\/\/[^\n]*\n\s*)*if \(!hiddenTalk\(line\)\) landed = true;/, "an element appended is a row that landed, unless the comms switch hides it");
-    assert.match(draw, /if \(landed && !panel\.view\.follow && panel\.jump !== null && !near\) \{\s*panel\.jump\.classList\.add\("show"\);/, "the pill hangs on the word");
+    assert.match(draw, /if \(landed && !panel\.view\.follow && panel\.leads && !near\) \{\s*panel\.jump\.classList\.add\("show"\);/, "the pill hangs on the word");
     assert.doesNotMatch(draw, /if \(added\.length > 0\)/, "the stamps list decides the pill");
   });
 
@@ -1051,7 +1057,7 @@ describe("the script", () => {
     assert.match(script, /const card = question\(panel\.name, request\);\s*panel\.drawn\.set\(request\.id, card\);\s*panel\.cards\.append\(card\);/);
     assert.doesNotMatch(script, /panel\.rows\.append\(card\)/, "a card among the rows");
     const draw = script.slice(script.indexOf("function drawPanel(panel)"), script.indexOf("// ------------------------------------------------------------------------------- the page"));
-    assert.match(draw, /if \(landed && !panel\.view\.follow && panel\.jump !== null && !near\) \{\s*panel\.jump\.classList\.add\("show"\);/, "the pill is decided on what landed in the rows, and on nothing else");
+    assert.match(draw, /if \(landed && !panel\.view\.follow && panel\.leads && !near\) \{\s*panel\.jump\.classList\.add\("show"\);/, "the pill is decided on what landed in the rows, and on nothing else");
     assert.doesNotMatch(draw, /asked/, "a card is counted as something that landed in the rows");
     assert.doesNotMatch(script, /panel\.drawn\.clear\(\)/, "rows drawn again from nothing forget their cards, which stand in the bottom area and would be drawn twice");
     assert.equal(rules.find((rule) => rule.selector === ".cards").declarations["overflow-y"], "auto", "a stack of cards scrolls inside the bottom area");
