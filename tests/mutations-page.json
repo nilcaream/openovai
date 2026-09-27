@@ -2196,7 +2196,7 @@
   },
   {
     "name": "the line is made again at every draw",
-    "catches": "draws what a seat is at as one line, made once, changed in place, last among the rows, gone with the word",
+    "catches": "draws what a seat is at as one line, made once, changed in place, floating in the dock, gone with the word",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -2207,7 +2207,7 @@
   },
   {
     "name": "the line stays once the word is gone",
-    "catches": "draws what a seat is at as one line, made once, changed in place, last among the rows, gone with the word",
+    "catches": "draws what a seat is at as one line, made once, changed in place, floating in the dock, gone with the word",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -2217,13 +2217,57 @@
     ]
   },
   {
-    "name": "a change of the word counts as a row landing",
-    "catches": "draws what a seat is at as one line, made once, changed in place, last among the rows, gone with the word",
+    "name": "the line's coming counts as a row landing",
+    "catches": "draws what a seat is at as one line, made once, changed in place, floating in the dock, gone with the word",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "        panel.doing.textContent = about.doing;\n        if (landed) panel.rows.append(panel.doing);",
-        "to": "        panel.doing.textContent = about.doing;\n        if ((landed = true)) panel.rows.append(panel.doing);"
+        "from": "          (panel.dock ?? panel.rows).append(panel.doing);\n",
+        "to": "          (panel.dock ?? panel.rows).append(panel.doing);\n          landed = true;\n"
+      }
+    ]
+  },
+  {
+    "name": "the line is put among the rows rather than in the dock",
+    "catches": "draws what a seat is at as one line, made once, changed in place, floating in the dock, gone with the word",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "          (panel.dock ?? panel.rows).append(panel.doing);",
+        "to": "          panel.rows.append(panel.doing);"
+      }
+    ]
+  },
+  {
+    "name": "the dock is left where it was when rows land after it",
+    "catches": "draws what a seat is at as one line, made once, changed in place, floating in the dock, gone with the word",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      if (panel.dock !== null && panel.dock.nextElementSibling !== panel.jump) panel.rows.insertBefore(panel.dock, panel.jump);\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the dock scrolls away with the rows instead of sticking to their bottom",
+    "catches": "float the Leader's line in a dock one line high stuck to the rows' bottom, the line in its bottom right corner as wide as its words",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "  .rows .dock { position: sticky; bottom: 0;",
+        "to": "  .rows .dock { position: relative; bottom: 0;"
+      }
+    ]
+  },
+  {
+    "name": "the floating line spans the whole width again",
+    "catches": "float the Leader's line in a dock one line high stuck to the rows' bottom, the line in its bottom right corner as wide as its words",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "  .rows .dock .line.doing { position: absolute; right: 0; bottom: 4px; width: auto;",
+        "to": "  .rows .dock .line.doing { position: absolute; right: 0; bottom: 4px; width: 100%;"
       }
     ]
   },

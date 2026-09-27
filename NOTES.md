@@ -181,6 +181,13 @@ made used to reach the panel as the seat's own. The card now says so under its h
 words the session started the subagent with: `from its subagent Explore — “find the card CSS”`.
 Where the server did not see that subagent start, the card says `from a subagent`.
 
+**The Leader's "Thinking…" line floats and no longer moves the rows.** The line that says what the
+Leader is at used to be the last row of its panel, so each time it came and went every row above it
+moved up and back down. It now floats in the bottom right corner of the panel, as wide as its words,
+its right edge on the messages' right edge. It sits in a strip one line high that is always kept
+under the newest row, so at the newest it covers nothing. Scrolled up, it stays at the bottom edge
+over the rows, like the new-messages pill.
+
 ## 0.19.0
 
 **The Leader stops and restarts Workers; a Worker only works.** A Worker no longer has
