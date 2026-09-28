@@ -9,15 +9,33 @@
 
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
-import { remove, repo, scratch } from "./helpers.mjs";
+import { aSigningKey, remove, repo, scratch, signWith } from "./helpers.mjs";
 
 const here = scratch("openovai-test");
-const script = path.join(repo, "openovai");
+
+// The releases served here are signed with a key made for this run, so what is run is a copy of the
+// script pinning that key in place of the ones it ships with — the one line that differs. The
+// script has no switch for another key, and a check must not need one.
+const keys = path.join(here, "keys");
+const signer = aSigningKey(keys, "signer");
+const stranger = aSigningKey(keys, "stranger");
+const PINNED = /^release_keys='[^']*'$/m;
+
+function aCopyPinning(line, name) {
+  const shipped = fs.readFileSync(path.join(repo, "openovai"), "utf8");
+  assert.match(shipped, PINNED, "the script has no release_keys line to put a key in");
+  const copy = path.join(here, name);
+  fs.writeFileSync(copy, shipped.replace(PINNED, `release_keys='${line}'`), { mode: 0o755 });
+  return copy;
+}
+
+const script = aCopyPinning(signer.line.trim(), "openovai");
 
 // The releases the fixture serves: not ones that exist, so a run that reached GitHub by mistake
 // would fail on a 404 rather than pass on a real download. The newest has an installer; so has the
@@ -41,7 +59,7 @@ function standIn(directory, name, body) {
 function pathWithout(...missing) {
   const toolbox = path.join(here, `toolbox-without-${missing.join("-") || "nothing"}`);
   fs.mkdirSync(toolbox, { recursive: true });
-  for (const name of ["sh", "uname", "grep", "curl", "wget", "tar", "mkdir", "rm", "mv", "chmod", "ln", "sed", "head", "cat", "dirname", "gzip"]) {
+  for (const name of ["sh", "uname", "grep", "curl", "wget", "tar", "mkdir", "rm", "mv", "chmod", "ln", "sed", "head", "cat", "dirname", "gzip", "ssh-keygen", "sha256sum", "shasum"]) {
     if (missing.includes(name)) continue;
     const found = spawnSync("sh", ["-c", `command -v ${name}`], { encoding: "utf8" }).stdout.trim();
     if (found !== "") fs.symlinkSync(found, path.join(toolbox, name));
@@ -65,10 +83,27 @@ function anArchive(version, { installer = true } = {}) {
   return made.stdout;
 }
 
+// What a release attaches: the package, SHA256SUMS naming it, and its signature by `key`, the way
+// the release workflow makes them. `change` alters what is attached after signing: `signed: false`
+// attaches no signature, `next: true` attaches it as the one a key being brought in makes, `pack`
+// swaps the package, `sums` signs other sums in place of the true ones.
+function attached(version, archive, key, change) {
+  const name = `openovai-${version}.tar.gz`;
+  const sums = change.sums ?? `${crypto.createHash("sha256").update(archive).digest("hex")}  ${name}\n`;
+  const files = { [name]: change.pack ?? archive, SHA256SUMS: sums };
+  if (change.signed !== false) {
+    files[change.next ? "SHA256SUMS.next.sig" : "SHA256SUMS.sig"] = signWith(key, sums);
+  }
+  return files;
+}
+
 // The fixture on a port, counting what was asked of it. `latest` is what releases/latest redirects
-// to; `self` is what /openovai serves — the script's own text unless a check says otherwise.
-function serve({ latest = `/releases/tag/v${LATEST}`, self = fs.readFileSync(script) } = {}) {
+// to; `self` is what /openovai serves — the script's own text unless a check says otherwise. Each
+// release is served where GitHub serves the files attached to one, signed by `key` and altered by
+// `change` (attached). GitHub's own archive of a tag is served too, and must never be asked for.
+function serve({ latest = `/releases/tag/v${LATEST}`, self = fs.readFileSync(script), key = signer, change = {} } = {}) {
   const archives = { [LATEST]: anArchive(LATEST), [OLDER]: anArchive(OLDER), [BARE]: anArchive(BARE, { installer: false }) };
+  const files = Object.fromEntries(Object.entries(archives).map(([version, archive]) => [version, attached(version, archive, key, change)]));
   const asked = [];
   const server = http.createServer((request, response) => {
     asked.push(request.url);
@@ -88,6 +123,11 @@ function serve({ latest = `/releases/tag/v${LATEST}`, self = fs.readFileSync(scr
     const tag = /^\/archive\/refs\/tags\/v(\d+\.\d+\.\d+)\.tar\.gz$/.exec(request.url);
     if (tag !== null && archives[tag[1]] !== undefined) {
       response.writeHead(200, { "content-type": "application/gzip" }).end(archives[tag[1]]);
+      return;
+    }
+    const download = /^\/releases\/download\/v(\d+\.\d+\.\d+)\/([^/]+)$/.exec(request.url);
+    if (download !== null && files[download[1]]?.[download[2]] !== undefined) {
+      response.writeHead(200, { "content-type": "application/octet-stream" }).end(files[download[1]][download[2]]);
       return;
     }
     response.writeHead(404).end();
@@ -162,7 +202,7 @@ describe("run from its place", () => {
     assert.equal(said.status, 0, said.err);
     assert.deepEqual(said.lines, [
       `openovai ${OLDER}`,
-      `Fetching release ${OLDER} from ${served.url}/archive/refs/tags/v${OLDER}.tar.gz into ${releases}/${OLDER}`,
+      `Fetching release ${OLDER} from ${served.url}/releases/download/v${OLDER}/openovai-${OLDER}.tar.gz into ${releases}/${OLDER}`,
       `Release ${OLDER} in ${releases}/${OLDER}`,
       `Handing over to ${releases}/${OLDER}/install.sh`,
       `stub install.sh in ${releases}/${OLDER}`,
@@ -196,7 +236,13 @@ describe("run from its place", () => {
     const said = await run([], { home, url: served.url });
     assert.equal(said.status, 0, said.err);
     assert.equal(said.lines[0], `openovai ${LATEST} (latest)`);
-    assert.deepEqual(served.asked.slice(before), ["/releases/latest", `/archive/refs/tags/v${LATEST}.tar.gz`]);
+    const attachedTo = `/releases/download/v${LATEST}`;
+    assert.deepEqual(served.asked.slice(before), [
+      "/releases/latest",
+      `${attachedTo}/openovai-${LATEST}.tar.gz`,
+      `${attachedTo}/SHA256SUMS`,
+      `${attachedTo}/SHA256SUMS.sig`,
+    ]);
     assert.deepEqual(handed(said), ["--source", `${releases}/${LATEST}`]);
   });
 
@@ -260,7 +306,11 @@ describe("run from its place", () => {
     const { home } = aHome("missing");
     const said = await run(["1.2.3"], { home, url: served.url });
     assert.equal(said.status, 1);
-    assert.equal(said.err, `openovai: could not download ${served.url}/archive/refs/tags/v1.2.3.tar.gz`);
+    assert.equal(
+      said.err,
+      `openovai: could not download ${served.url}/releases/download/v1.2.3/openovai-1.2.3.tar.gz; a release from before releases were signed has none, and is not installed`,
+    );
+    assert.ok(!served.asked.some((one) => one.startsWith("/archive/")), "GitHub's archive of the tag was asked for");
   });
 
   it("refuses a release directory that is there without install.sh", async () => {
@@ -293,6 +343,26 @@ describe("run from its place", () => {
     const said = await run([OLDER], { home, url: served.url, env: { PATH: pathWithout("tar") } });
     assert.equal(said.status, 1);
     assert.equal(said.err, "openovai: tar is required to unpack a release, and it is not on your PATH");
+  });
+
+  it("refuses to run without ssh-keygen", async () => {
+    const { home } = aHome("no-ssh-keygen");
+    const said = await run([OLDER], { home, url: served.url, env: { PATH: pathWithout("ssh-keygen") } });
+    assert.equal(said.status, 1);
+    assert.equal(said.err, "openovai: ssh-keygen is required to check a release's signature, and it is not on your PATH");
+  });
+
+  it("checks the package with shasum where there is no sha256sum, as on a Mac", async () => {
+    const { home } = aHome("shasum");
+    const said = await run([OLDER], { home, url: served.url, env: { PATH: pathWithout("sha256sum") } });
+    assert.equal(said.status, 0, said.err);
+  });
+
+  it("refuses to run when it pins no release key", async () => {
+    const { home } = aHome("no-key");
+    const said = await run([OLDER], { home, url: served.url, command: aCopyPinning("", "openovai-no-key") });
+    assert.equal(said.status, 1);
+    assert.equal(said.err, "openovai: this openovai pins no release key, so it can check no release");
   });
 
   it("refuses to run without curl or wget", async () => {
@@ -328,6 +398,63 @@ describe("run from its place", () => {
     const told = await run(["--root", "/somewhere"], { home, url: served.url });
     assert.equal(told.status, 0, told.err);
     assert.deepEqual(handed(told).slice(2), ["--root", "/somewhere"]);
+  });
+});
+
+// Each of these is a release that must not be installed. What is checked with each refusal is that
+// nothing stands at the release's place and nothing is left in tmp, since the next run takes a
+// release directory that is there as one already checked.
+describe("a release that is not signed as it should be", () => {
+  const refused = async (name, options) => {
+    const served = await serve(options);
+    try {
+      const { home, releases, data } = aHome(`unsigned-${name}`);
+      const said = await run([OLDER], { home, url: served.url });
+      return { ...said, installed: fs.existsSync(path.join(releases, OLDER)), left: fs.readdirSync(path.join(data, "tmp")) };
+    } finally {
+      served.close();
+    }
+  };
+
+  it("is refused when it carries no signature", async () => {
+    const said = await refused("none", { change: { signed: false } });
+    assert.equal(said.err, `openovai: release ${OLDER} is not signed by a key this openovai pins; nothing was installed`);
+    assert.deepEqual([said.status, said.installed, said.left], [1, false, []]);
+  });
+
+  it("is refused when the key that signed it is not one this openovai pins", async () => {
+    const said = await refused("stranger", { key: stranger });
+    assert.equal(said.err, `openovai: release ${OLDER} is not signed by a key this openovai pins; nothing was installed`);
+    assert.deepEqual([said.status, said.installed, said.left], [1, false, []]);
+  });
+
+  it("is refused when the package was swapped after it was signed", async () => {
+    const said = await refused("swapped", { change: { pack: anArchive(BARE) } });
+    assert.equal(said.err, `openovai: openovai-${OLDER}.tar.gz is not the package SHA256SUMS names; nothing was installed`);
+    assert.deepEqual([said.status, said.installed, said.left], [1, false, []]);
+  });
+
+  it("is refused when what was signed names another version's package", async () => {
+    const other = `${"0".repeat(64)}  openovai-${LATEST}.tar.gz\n`;
+    const said = await refused("other-version", { change: { sums: other } });
+    assert.equal(said.err, `openovai: the SHA256SUMS of release ${OLDER} does not name openovai-${OLDER}.tar.gz alone; nothing was installed`);
+    assert.deepEqual([said.status, said.installed, said.left], [1, false, []]);
+  });
+
+  it("is refused when what was signed names more than the package", async () => {
+    const archive = anArchive(OLDER);
+    const line = `${crypto.createHash("sha256").update(archive).digest("hex")}  openovai-${OLDER}.tar.gz\n`;
+    const said = await refused("two-lines", { change: { sums: `${line}${line}` } });
+    assert.equal(said.err, `openovai: the SHA256SUMS of release ${OLDER} does not name openovai-${OLDER}.tar.gz alone; nothing was installed`);
+    assert.deepEqual([said.status, said.installed], [1, false]);
+  });
+
+  // While a key is being replaced a release carries a signature by each, and this one is signed by
+  // the pinned key as the key being brought in.
+  it("is taken when the signature by a pinned key is the second one", async () => {
+    const said = await refused("next", { change: { next: true } });
+    assert.equal(said.status, 0, said.err);
+    assert.equal(said.installed, true);
   });
 });
 

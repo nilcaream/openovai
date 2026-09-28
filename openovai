@@ -25,10 +25,20 @@
 # Nothing is remembered between runs: the next instance simply gets the newest release, said out
 # loud, and how a version installs itself is that version's business.
 #
-# Needs sh, curl or wget, and tar. OPENOVAI_RELEASES points everything at another base — a mirror,
-# or a directory served for a test — in place of github.com/nilcaream/openovai.
+# A release is installed only when it is signed: its package, the SHA256SUMS naming it and a
+# signature over that by one of the keys below, all attached to the release. The signature is
+# checked with ssh-keygen and the package against SHA256SUMS before tar opens it; a release without
+# them — every one from before releases were signed — is refused, and there is no switch to skip it.
+#
+# Needs sh, curl or wget, tar, ssh-keygen (OpenSSH 8.1 or later) and sha256sum or shasum.
+# OPENOVAI_RELEASES points everything at another base — a mirror, or a directory served for a test —
+# in place of github.com/nilcaream/openovai; a release from there is checked the same way.
 
 set -eu
+
+# The keys a release may be signed with: lib/RELEASE_KEYS of the version this script comes with, in
+# the allowed_signers format `ssh-keygen -Y verify` reads.
+release_keys=''
 
 say() { printf '%s\n' "$*"; }
 die() { printf 'openovai: %s\n' "$*" >&2; exit 1; }
@@ -54,18 +64,48 @@ is_version() {
     printf '%s\n' "$1" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'
 }
 
-# curl or wget, whichever is there. Quiet either way: on failure the one line said here names the
-# URL, which is what there is to act on.
-fetch() {
+# curl or wget, whichever is there, with the status saying whether it came.
+try_fetch() {
     url="$1"
     into="$2"
     if command -v curl >/dev/null 2>&1; then
-        curl -fsL -o "${into}" "${url}" || die "could not download ${url}"
+        curl -fsL -o "${into}" "${url}"
     elif command -v wget >/dev/null 2>&1; then
-        wget -q -O "${into}" "${url}" || die "could not download ${url}"
+        wget -q -O "${into}" "${url}"
     else
         die "curl or wget is required to download ${url}, and neither is on your PATH"
     fi
+}
+
+# The same, quiet either way: on failure the one line said here names the URL, which is what there
+# is to act on.
+fetch() {
+    try_fetch "$1" "$2" || die "could not download $1"
+}
+
+# Check the checksum lines on stdin against the files they name, silently, with the status saying
+# whether all of them match: sha256sum where it is there, and the shasum a Mac ships where it is not.
+check_sums() {
+    if command -v sha256sum >/dev/null 2>&1; then
+        sha256sum -c --status -
+    else
+        shasum -a 256 -c --status -
+    fi
+}
+
+# Whether SHA256SUMS in the working directory is signed by a pinned key. A release signed while its
+# key is being replaced carries a second signature by the new key, and either one is enough.
+signed_by_a_pinned_key() {
+    base="$1"
+    printf '%s\n' "${release_keys}" >"${work}/keys"
+    for signature in SHA256SUMS.sig SHA256SUMS.next.sig; do
+        try_fetch "${base}/${signature}" "${work}/${signature}" 2>/dev/null || continue
+        if ssh-keygen -Y verify -f "${work}/keys" -I openovai-release -n openovai-release \
+            -s "${work}/${signature}" <"${work}/SHA256SUMS" >/dev/null 2>&1; then
+            return 0
+        fi
+    done
+    return 1
 }
 
 # Where URL redirects to, without following it; nothing when it does not redirect or cannot be
@@ -118,8 +158,8 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# The release's source archive, unpacked into <data>/releases/<version>/ with one rename at the end,
-# so a run that stops halfway leaves nothing at the place the next run looks.
+# The release's signed package, checked and unpacked into <data>/releases/<version>/ with one rename
+# at the end, so a run that stops halfway leaves nothing at the place the next run looks.
 ensure_release() {
     version="$1"
     target="$(data_dir)/releases/${version}"
@@ -129,14 +169,23 @@ ensure_release() {
         return 0
     fi
 
-    url="${origin}/archive/refs/tags/v${version}.tar.gz"
+    base="${origin}/releases/download/v${version}"
+    pack="openovai-${version}.tar.gz"
     work="$(data_dir)/tmp/release-${version}.$$"
     rm -rf "${work}"
     mkdir -p "${work}/unpacked"
 
-    say "Fetching release ${version} from ${url} into ${target}"
-    fetch "${url}" "${work}/release.tar.gz"
-    tar -xzf "${work}/release.tar.gz" -C "${work}/unpacked" --strip-components=1 || die "v${version}.tar.gz could not be opened"
+    say "Fetching release ${version} from ${base}/${pack} into ${target}"
+    try_fetch "${base}/${pack}" "${work}/${pack}" 2>/dev/null ||
+        die "could not download ${base}/${pack}; a release from before releases were signed has none, and is not installed"
+    fetch "${base}/SHA256SUMS" "${work}/SHA256SUMS"
+    signed_by_a_pinned_key "${base}" || die "release ${version} is not signed by a key this openovai pins; nothing was installed"
+    named="$(printf '%s' "${pack}" | sed 's/\./\\./g')"
+    if [ "$(grep -c '' "${work}/SHA256SUMS")" != 1 ] || ! grep -Eqx "[0-9a-f]{64}  ${named}" "${work}/SHA256SUMS"; then
+        die "the SHA256SUMS of release ${version} does not name ${pack} alone; nothing was installed"
+    fi
+    (cd "${work}" && check_sums <SHA256SUMS) || die "${pack} is not the package SHA256SUMS names; nothing was installed"
+    tar -xzf "${work}/${pack}" -C "${work}/unpacked" --strip-components=1 || die "${pack} could not be opened"
     [ -f "${work}/unpacked/install.sh" ] || die "release ${version} has no install.sh; there is nothing to hand over to"
 
     mkdir -p "$(data_dir)/releases"
@@ -149,6 +198,10 @@ main() {
     command -v tar >/dev/null 2>&1 || die "tar is required to unpack a release, and it is not on your PATH"
     command -v curl >/dev/null 2>&1 || command -v wget >/dev/null 2>&1 ||
         die "curl or wget is required to download a release, and neither is on your PATH"
+    command -v ssh-keygen >/dev/null 2>&1 || die "ssh-keygen is required to check a release's signature, and it is not on your PATH"
+    command -v sha256sum >/dev/null 2>&1 || command -v shasum >/dev/null 2>&1 ||
+        die "sha256sum or shasum is required to check a release's package, and neither is on your PATH"
+    [ -n "${release_keys}" ] || die "this openovai pins no release key, so it can check no release"
 
     version=""
     if [ $# -gt 0 ] && is_version "$1"; then

@@ -128,5 +128,45 @@
     "name": "a terminal with no script at $0 installs the command rather than refusing",
     "catches": "refuses a terminal with no script at $0, in one line",
     "edits": [{ "file": "openovai", "from": "elif [ -t 0 ]; then\n    die \"run this from a pipe (curl -fsSL ${self_url} | sh) or from where it is installed\"\n", "to": "" }]
+  },
+  {
+    "name": "the signature is never checked",
+    "catches": "is refused when the key that signed it is not one this openovai pins",
+    "edits": [{ "file": "openovai", "from": "    signed_by_a_pinned_key \"${base}\" || die", "to": "    true || die" }]
+  },
+  {
+    "name": "only the first signature is ever tried",
+    "catches": "is taken when the signature by a pinned key is the second one",
+    "edits": [{ "file": "openovai", "from": "    for signature in SHA256SUMS.sig SHA256SUMS.next.sig; do", "to": "    for signature in SHA256SUMS.sig; do" }]
+  },
+  {
+    "name": "the package is never checked against SHA256SUMS",
+    "catches": "is refused when the package was swapped after it was signed",
+    "edits": [{ "file": "openovai", "from": "    (cd \"${work}\" && check_sums <SHA256SUMS) || die", "to": "    true || die" }]
+  },
+  {
+    "name": "SHA256SUMS may name any package",
+    "catches": "is refused when what was signed names another version's package",
+    "edits": [{ "file": "openovai", "from": "|| ! grep -Eqx \"[0-9a-f]{64}  ${named}\" \"${work}/SHA256SUMS\"; then", "to": "; then" }]
+  },
+  {
+    "name": "SHA256SUMS may hold more than one line",
+    "catches": "is refused when what was signed names more than the package",
+    "edits": [{ "file": "openovai", "from": "    if [ \"$(grep -c '' \"${work}/SHA256SUMS\")\" != 1 ] || ", "to": "    if " }]
+  },
+  {
+    "name": "a missing ssh-keygen is found out only when a signature fails",
+    "catches": "refuses to run without ssh-keygen",
+    "edits": [{ "file": "openovai", "from": "    command -v ssh-keygen >/dev/null 2>&1 || die", "to": "    true || die" }]
+  },
+  {
+    "name": "a script with no key goes on to refuse every release as unsigned",
+    "catches": "refuses to run when it pins no release key",
+    "edits": [{ "file": "openovai", "from": "    [ -n \"${release_keys}\" ] || die", "to": "    true || die" }]
+  },
+  {
+    "name": "a Mac, with shasum and no sha256sum, cannot check a package",
+    "catches": "checks the package with shasum where there is no sha256sum, as on a Mac",
+    "edits": [{ "file": "openovai", "from": "        shasum -a 256 -c --status -\n    fi\n}\n\n# Whether SHA256SUMS", "to": "        false\n    fi\n}\n\n# Whether SHA256SUMS" }]
   }
 ]
