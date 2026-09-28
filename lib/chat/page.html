@@ -7,11 +7,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icons/192.png">
-<!-- The page's own secret, filled in by the server on every load. Every request this page makes
-     carries it, and the server answers nothing else. A bookmark or an installed app reopens this
-     one plain address and gets the current secret again, so a new server costs a reload and
-     nothing more. -->
-<meta name="openovai-secret" content="">
 <title>OpenOv AI</title>
 <script>
   // The theme before the first paint, so a page kept dark never flashes light: the stored choice,
@@ -232,14 +227,12 @@
   import { dayPillBefore, row as rowOf, unseen } from "./render.mjs";
   import { refTo, references } from "./refs.mjs";
 
-  const secret = document.querySelector('meta[name="openovai-secret"]').content;
-
   // The theme: the head script above <style> applied the stored choice before the first paint;
   // this owns the click and keeps the rest in step — the choice stored under one key, the
   // toggle's title, and the theme-color meta repainted from the head bubble's ground so an
   // installed app's title bar follows. Storage can throw (blocked site data): then the theme is
   // still applied, only not remembered. The choice is also a cookie named by the port, as the
-  // secret's is, which the server reads to draw the file view in it from the first paint.
+  // session's is, which the server reads to draw the file view in it from the first paint.
   const themeMeta = document.querySelector('meta[name="theme-color"]');
   let themeToggle = null;
   function applyTheme(theme) {
@@ -376,14 +369,12 @@
     return gauge.measureText(text).width;
   }
 
-  // Every call to the server, with the page's secret on it. The server refuses a call without it
-  // with 401, and a page that got one has been outlived by its server: reload and it has the
-  // new secret. A 503 is the instance stopping: nothing is typed into it from here on.
+  // Every call to the server. The browser carries the session cookie on it, which no script here
+  // reads. The server refuses a call without it with 401, and a page that got one is no longer
+  // signed in — its session key was replaced: reload, and the server says where a link comes
+  // from. A 503 is the instance stopping: nothing is typed into it from here on.
   async function call(path, options = {}) {
-    const answered = await fetch(path, {
-      ...options,
-      headers: { ...(options.headers ?? {}), authorization: `Bearer ${secret}` },
-    });
+    const answered = await fetch(path, options);
     if (answered.status === 401) {
       location.reload();
       throw new Error("the server no longer knows this page");
@@ -640,7 +631,7 @@
       }
     });
     // What is typed goes to the server as text and nothing else: the server knows it came from
-    // this page by the secret on the call, and frames it as the User's own words.
+    // this page by the cookie on the call, and frames it as the User's own words.
     composer.addEventListener("submit", (event) => {
       event.preventDefault();
       if (box.value.trim() === "") {
@@ -1313,17 +1304,16 @@
 
   // One stream from the server: what to draw first, then everything as it happens. The page
   // connects again itself when the stream drops, with the counts it has, so nothing arrives
-  // twice and nothing is missed; the secret rides on the address, since the stream carries no
-  // header.
+  // twice and nothing is missed. The browser carries the session cookie on it, as on every call.
   const EVENTS = ["snapshot", "rows", "row", "asking", "seat", "quota", "stopping"];
   let stream = null;
 
   function connect() {
     const since = Object.values(state.panels)
       .filter((panel) => panel.rows !== null)
-      .map((panel) => `&since=${encodeURIComponent(`${panel.name}:${panel.rows.length}`)}`)
-      .join("");
-    stream = new EventSource(`/events?page=${encodeURIComponent(secret)}${since}`);
+      .map((panel) => `since=${encodeURIComponent(`${panel.name}:${panel.rows.length}`)}`)
+      .join("&");
+    stream = new EventSource(since === "" ? "/events" : `/events?${since}`);
     for (const name of EVENTS) {
       stream.addEventListener(name, (event) => {
         const data = JSON.parse(event.data);
@@ -1347,8 +1337,8 @@
   }
 
   // A stream that dropped: the server is gone, or stopping, or the line was cut — the page has no
-  // stream either way, and says so. It asks the server about it once a second: a 401 is a new
-  // server and a new secret (reload, in call), a 503 the instance still stopping, no answer at all
+  // stream either way, and says so. It asks the server about it once a second: a 401 is a page no
+  // longer signed in (reload, in call), a 503 the instance still stopping, no answer at all
   // the server gone; anything else, the stream is opened again.
   function lost() {
     if (state.connection !== DISCONNECTED) {

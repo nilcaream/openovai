@@ -520,13 +520,9 @@ describe("a signal to the chat", () => {
     };
   }
 
-  function bearer(secret) {
-    return { authorization: `Bearer ${secret}` };
-  }
-
-  async function pageSecretOf() {
-    const page_ = await fetch(`${address}/`, { headers: { cookie: pageCookie(own, address) } }).then((answered) => answered.text());
-    return /<meta name="openovai-secret" content="([^"]*)">/.exec(page_)[1];
+  // What the page sends with a change: its browser's session cookie, and its own origin.
+  function signedIn() {
+    return { cookie: pageCookie(own, address), origin: address };
   }
 
   // Start the chat with the Leader and the Workers named running, the stand-ins answering the park
@@ -539,10 +535,10 @@ describe("a signal to the chat", () => {
     child = startChat(own, ownEnvironment(extra));
     address = await waitForAddress(child);
     assert.ok(address, `the chat never said where it was listening:\n${child.output}`);
-    const page_ = await pageSecretOf();
+    const page_ = signedIn();
     const woken = await fetch(`${address}/sessions/${LEADER}/message`, {
       method: "POST",
-      headers: { ...bearer(page_), "content-type": "application/json" },
+      headers: { ...page_, "content-type": "application/json" },
       body: JSON.stringify({ text: "hello" }),
     });
     assert.equal(woken.status, 200, await woken.text());
@@ -580,7 +576,7 @@ describe("a signal to the chat", () => {
     // asserted below) is not.
     const refusing = await waitFor(async () => {
       try {
-        const answered = await fetch(`${address}/sessions`, { headers: bearer(page_) });
+        const answered = await fetch(`${address}/sessions`, { headers: page_ });
         return answered.status === 503 ? await answered.text() : null;
       } catch {
         return null;

@@ -15,13 +15,12 @@ import { after, before, describe, it } from "node:test";
 import { subscribe } from "../lib/chat/events.mjs";
 import { sink } from "../lib/chat/log.mjs";
 import { acceptRule, shapeOf } from "../lib/chat/permissions.mjs";
-import { pageSecret } from "../lib/chat/secrets.mjs";
 import { endSeat, serve, startSeat, toolsFor } from "../lib/chat/server.mjs";
 import { LEADER as LEADS, WORKER } from "../lib/desks.mjs";
 import { endEvery } from "../lib/chat/session.mjs";
 import { KNOWLEDGE_ASK_RULES, LEDGER, ruleAsked } from "../lib/desks.mjs";
 import { CONFIG_FILE } from "../lib/seed.mjs";
-import { heardIn, installed, post, remove, repo, scratch, secretsIn, source, waitFor, writeStandIn } from "./helpers.mjs";
+import { heardIn, installed, pageCookie, post, remove, repo, scratch, secretsIn, source, waitFor, writeStandIn } from "./helpers.mjs";
 import { settingsProblems } from "./inspect.mjs";
 
 const USER = "Mike";
@@ -381,7 +380,7 @@ let url = null;
 function page(method, route, body) {
   return fetch(`${url}${route}`, {
     method,
-    headers: { authorization: `Bearer ${pageSecret()}`, ...(body === undefined ? {} : { "content-type": "application/json" }) },
+    headers: { cookie: pageCookie(instance, url), origin: url, ...(body === undefined ? {} : { "content-type": "application/json" }) },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   }).then(async (answered) => ({ status: answered.status, body: await answered.text() }));
 }

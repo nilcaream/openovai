@@ -792,11 +792,9 @@ describe("a tool of the instance's own, from its file", () => {
     const address = await waitForAddress(child);
     assert.ok(address, `the chat never said where it was listening:\n${child.output}`);
     assert.match(child.output, /^\S+ plugins - - This instance serves a tool of its own: echo$/m);
-    const page_ = await fetch(`${address}/`, { headers: { cookie: pageCookie(own, address) } }).then((answered) => answered.text());
-    const pageSecret_ = /<meta name="openovai-secret" content="([^"]*)">/.exec(page_)[1];
     const woken = await fetch(`${address}/sessions/${LEADER}/message`, {
       method: "POST",
-      headers: { authorization: `Bearer ${pageSecret_}`, "content-type": "application/json" },
+      headers: { cookie: pageCookie(own, address), origin: address, "content-type": "application/json" },
       body: JSON.stringify({ text: "hello" }),
     });
     assert.equal(woken.status, 200, await woken.text());

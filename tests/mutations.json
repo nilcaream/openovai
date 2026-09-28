@@ -55,17 +55,6 @@
     ]
   },
   {
-    "name": "the page goes out with its empty tag",
-    "catches": "serves the page with its secret in the one tag that carries it",
-    "edits": [
-      {
-        "file": "lib/chat/server.mjs",
-        "from": "    .replace(SECRET_TAG, `<meta name=\"openovai-secret\" content=\"${pageSecret()}\">`)\n",
-        "to": ""
-      }
-    ]
-  },
-  {
     "name": "the file view is titled without the instance's name",
     "catches": "shows a file of the instance to a caller holding the cookie, read-only, with nothing inline run and nothing kept",
     "edits": [
@@ -82,8 +71,8 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "    .replace(themeHead(\"light\"), themeHead(themeOf(request, port))));",
-        "to": "    );"
+        "from": "template.replace(themeHead(\"light\"), themeHead(themeOf(request, port)))",
+        "to": "template"
       }
     ]
   },
@@ -220,17 +209,6 @@
     ]
   },
   {
-    "name": "the page gate takes any bearer at all",
-    "catches": "answers an unknown secret with one body, whatever was tried",
-    "edits": [
-      {
-        "file": "lib/chat/secrets.mjs",
-        "from": "  return given.length === expected.length && crypto.timingSafeEqual(given, expected);",
-        "to": "  return presented !== \"\";"
-      }
-    ]
-  },
-  {
     "name": "an unknown secret on the tool route falls through to the routes below",
     "catches": "answers an unknown secret with one body, whatever was tried",
     "edits": [
@@ -249,17 +227,6 @@
         "file": "lib/chat/secrets.mjs",
         "from": "  const known = issued.get(secret);\n  if (known === undefined) {\n",
         "to": "  const known = issued.get(secret);\n  if (known === undefined && secret === page) {\n    return { seat: \"page\", role: \"Leader\" };\n  }\n  if (known === undefined) {\n"
-      }
-    ]
-  },
-  {
-    "name": "a session's secret opens the page routes",
-    "catches": "never lets one kind of secret open the other side",
-    "edits": [
-      {
-        "file": "lib/chat/secrets.mjs",
-        "from": "  if (typeof presented !== \"string\") {\n    return false;\n  }\n  const expected",
-        "to": "  if (typeof presented !== \"string\") {\n    return false;\n  }\n  if (issued.has(presented)) {\n    return true;\n  }\n  const expected"
       }
     ]
   },
@@ -950,28 +917,6 @@
     ]
   },
   {
-    "name": "the page secret is the same every start",
-    "catches": "starts with nothing when started again: the page secret of the last run opens nothing",
-    "edits": [
-      {
-        "file": "lib/chat/secrets.mjs",
-        "from": "    page = mint();",
-        "to": "    page = \"p\".repeat(43);"
-      }
-    ]
-  },
-  {
-    "name": "the page sends its calls without the secret",
-    "catches": "reads its secret off the tag, sends it on every call, and reloads when it is no longer known",
-    "edits": [
-      {
-        "file": "lib/chat/page.html",
-        "from": "      headers: { ...(options.headers ?? {}), authorization: `Bearer ${secret}` },",
-        "to": "      headers: { ...(options.headers ?? {}) },"
-      }
-    ]
-  },
-  {
     "name": "the page sits on a secret the server no longer knows",
     "catches": "reads its secret off the tag, sends it on every call, and reloads when it is no longer known",
     "edits": [
@@ -1078,17 +1023,6 @@
         "file": "lib/chat/permissions.mjs",
         "from": "  held.answer(decision);\n  asking(name);\n  return true;",
         "to": "  held.answer(decision);\n  return true;"
-      }
-    ]
-  },
-  {
-    "name": "the stream takes the bearer too",
-    "catches": "opens to the page secret on its query, and to nothing else — not even the bearer",
-    "edits": [
-      {
-        "file": "lib/chat/server.mjs",
-        "from": "  const carried = url.pathname === EVENTS_ROUTE ? url.searchParams.get(\"page\") : bearer(request.headers.authorization);",
-        "to": "  const carried = (url.pathname === EVENTS_ROUTE ? url.searchParams.get(\"page\") : null) ?? bearer(request.headers.authorization);"
       }
     ]
   },
@@ -2203,8 +2137,8 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "    .replace(themeHead(\"light\"), themeHead(themeOf(request, port))));",
-        "to": "    .replace(themeHead(\"light\"), themeHead(themeOf(request, port))).replace(\"</style>\", \" </style>\"));"
+        "from": "themeHead(themeOf(request, port))));",
+        "to": "themeHead(themeOf(request, port))).replace(\"</style>\", \" </style>\"));"
       }
     ]
   },
@@ -2260,6 +2194,83 @@
         "file": "lib/chat/server.mjs",
         "from": "    if (!takeLink(instance.root, url.searchParams.get(\"token\"))) {\n      sendSignIn(instance, response, theme);\n      return;\n    }",
         "to": "    takeLink(instance.root, url.searchParams.get(\"token\"));"
+      }
+    ]
+  },
+  {
+    "name": "a session's secret opens the page routes",
+    "catches": "never lets one kind of secret open the other side",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "  return signedIn(instance, port, request) ? { page: true } : null;",
+        "to": "  return signedIn(instance, port, request) || resolve(cookieOf(request, cookieName(port))) !== null ? { page: true } : null;"
+      }
+    ]
+  },
+  {
+    "name": "the page gate takes the session key as a bearer",
+    "catches": "answers an unknown secret with one body, whatever was tried",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "  return signedIn(instance, port, request) ? { page: true } : null;",
+        "to": "  return signedIn(instance, port, request) || request.headers.authorization === `Bearer ${sessionKey(instance.root)}` ? { page: true } : null;"
+      }
+    ]
+  },
+  {
+    "name": "the stream takes the session key on its query",
+    "catches": "opens to the session cookie, and to nothing else — not the key on its query, not the bearer",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "  return signedIn(instance, port, request) ? { page: true } : null;",
+        "to": "  return signedIn(instance, port, request) || url.searchParams.get(\"page\") === sessionKey(instance.root) ? { page: true } : null;"
+      }
+    ]
+  },
+  {
+    "name": "a change is taken from a request that names no origin",
+    "catches": "takes a change only from its own origins, and none from a request that names no origin",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "  if (!READS.has(request.method) && request.headers.origin === undefined) {",
+        "to": "  if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "the page sends its calls with a bearer of its own",
+    "catches": "sends no credential of its own on a call or the stream, and reloads when it is no longer known",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    const answered = await fetch(path, options);",
+        "to": "    const answered = await fetch(path, { ...options, headers: { ...(options.headers ?? {}), authorization: \"Bearer page\" } });"
+      }
+    ]
+  },
+  {
+    "name": "the page goes out with the session key in it",
+    "catches": "serves the page to a signed-in browser with no credential in it",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "  const page = Buffer.from(template.replace(",
+        "to": "  const page = Buffer.from(`<!-- ${sessionKey(instance.root)} -->` + template.replace("
+      }
+    ]
+  },
+  {
+    "name": "the session key is made only when a browser first asks",
+    "catches": "makes the session key at its start, and opens the page routes to the cookie that carries it",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "  sessionKey(instance.root);\n\n  return new Promise(",
+        "to": "  return new Promise("
       }
     ]
   }

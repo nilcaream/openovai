@@ -16,12 +16,11 @@ import { read } from "../lib/chat/conversation.mjs";
 import { userFrame } from "../lib/chat/frames.mjs";
 import { sink } from "../lib/chat/log.mjs";
 import * as quota from "../lib/chat/quota.mjs";
-import { pageSecret } from "../lib/chat/secrets.mjs";
 import { serve, startSeat } from "../lib/chat/server.mjs";
 import { end, endEvery, running, tell } from "../lib/chat/session.mjs";
 import { deskFile, hire } from "../lib/desks.mjs";
 import { CONFIG_FILE } from "../lib/seed.mjs";
-import { heardIn, installed, notesIn, post as postPlain, remove, repo, sansMoment, scratch, secretsIn, source, waitFor, writeStandIn } from "./helpers.mjs";
+import { heardIn, installed, notesIn, pageCookie, post as postPlain, remove, repo, sansMoment, scratch, secretsIn, source, waitFor, writeStandIn } from "./helpers.mjs";
 
 export const USER = "Mike";
 export const LEADER = "Superman";
@@ -190,7 +189,7 @@ export async function spawnedBy(seat, act, knobs = {}) {
 export function page(method, route, body) {
   return fetch(`${url}${route}`, {
     method,
-    headers: { authorization: `Bearer ${pageSecret()}`, ...(body === undefined ? {} : { "content-type": "application/json" }) },
+    headers: { cookie: pageCookie(instance, url), origin: url, ...(body === undefined ? {} : { "content-type": "application/json" }) },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   }).then(async (answered) => ({ status: answered.status, body: await answered.text() }));
 }

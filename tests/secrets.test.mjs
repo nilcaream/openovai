@@ -1,15 +1,14 @@
-// The secrets a session and the page are known by, asked directly.
+// The secrets a session is known by, asked directly.
 //
 // A secret is minted when a process is spawned, handed to that one process, held in the memory of
-// the process serving the chat and forgotten when the child ends. The page has one of its own,
-// which is never a session's. These checks are about the store: what it mints, what it resolves,
-// what it forgets, and that the two kinds never cross. Whether the server keys its routes by them
-// is the chat suite's question.
+// the process serving the chat and forgotten when the child ends. These checks are about the store:
+// what it mints, what it resolves, what it forgets. Whether the server keys its routes by them, and
+// that the page's key never opens a session's door, is the chat suite's question.
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { isPageSecret, issue, mint, pageSecret, resolve, revoke } from "../lib/chat/secrets.mjs";
+import { issue, mint, resolve, revoke } from "../lib/chat/secrets.mjs";
 
 const BASE64URL = /^[A-Za-z0-9_-]{43}$/;
 
@@ -67,35 +66,5 @@ describe("what is not a session's secret", () => {
     assert.equal(resolve(""), null);
     assert.equal(resolve(undefined), null);
     assert.equal(resolve("Paul"), null);
-  });
-
-  it("resolves nothing for the page's secret", () => {
-    assert.equal(resolve(pageSecret()), null);
-  });
-});
-
-describe("the page's secret", () => {
-  it("is minted once for the process", () => {
-    assert.match(pageSecret(), BASE64URL);
-    assert.equal(pageSecret(), pageSecret());
-  });
-
-  it("is known when presented", () => {
-    assert.equal(isPageSecret(pageSecret()), true);
-  });
-
-  it("is not a session's secret, and a session's is not it", () => {
-    const paul = issue("Paul", "Worker");
-    assert.equal(isPageSecret(paul), false);
-    assert.equal(resolve(pageSecret()), null);
-    revoke(paul);
-  });
-
-  it("is not matched by anything else", () => {
-    assert.equal(isPageSecret(mint()), false);
-    assert.equal(isPageSecret(""), false);
-    assert.equal(isPageSecret(null), false);
-    assert.equal(isPageSecret(pageSecret().slice(0, -1)), false);
-    assert.equal(isPageSecret(`${pageSecret()}x`), false);
   });
 });

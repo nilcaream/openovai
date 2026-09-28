@@ -20,7 +20,6 @@ import { SERVER, panelFile, read } from "../lib/chat/conversation.mjs";
 import { messageFrame, serverEvent, userFrame } from "../lib/chat/frames.mjs";
 import { localAt, refTo } from "../lib/chat/refs.mjs";
 import { listening } from "../lib/chat/runtime.mjs";
-import { pageSecret } from "../lib/chat/secrets.mjs";
 import { COOKIE_AGE, LINK_FILE, LINK_LIFETIME, sessionKey, writeLink } from "../lib/chat/signin.mjs";
 import { hire } from "../lib/desks.mjs";
 import { endSeat, serve, shownRoot, startSeat, toolsFor } from "../lib/chat/server.mjs";
@@ -181,7 +180,7 @@ async function spawnedBy(seat, act, knobs = {}) {
 function page(method, route, body) {
   return fetch(`${url}${route}`, {
     method,
-    headers: { authorization: `Bearer ${pageSecret()}`, ...(body === undefined ? {} : { "content-type": "application/json" }) },
+    headers: { cookie: signedIn(), origin: url, ...(body === undefined ? {} : { "content-type": "application/json" }) },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   }).then(async (answered) => ({ status: answered.status, body: await answered.text() }));
 }
@@ -222,12 +221,14 @@ function signedIn(root = instance, port = server.address().port) {
 describe("what the chat serves", () => {
   let answeredPage = "";
 
-  it("serves the page with its secret in the one tag that carries it", async () => {
+  // The browser's cookie is the page's one credential, and no script reads it: nothing in the page
+  // is one, so nothing a row brings into the page can carry one away.
+  it("serves the page to a signed-in browser with no credential in it", async () => {
     const answered = await fetchPlain(`${url}/`, { cookie: signedIn() });
     assert.equal(answered.status, 200);
     answeredPage = answered.body;
-    assert.ok(answered.body.includes(`<meta name="openovai-secret" content="${pageSecret()}">`), "the page has no secret in it");
-    assert.ok(!answered.body.includes('<meta name="openovai-secret" content="">'), "the empty tag is still there");
+    assert.ok(!answered.body.includes("openovai-secret"), "the page still has a secret tag");
+    assert.ok(!answered.body.includes(sessionKey(instance)), "the session key is in the page");
   });
 
   // A row is drawn as HTML the page did not write (render.mjs), so the page is sent with a policy
@@ -269,15 +270,15 @@ describe("what the chat serves", () => {
     }
   });
 
-  // The page's own script is not run here, so the two things it has to do with the secret are read
-  // off the source: carry it on every call, and reload when the server no longer knows it — a
-  // server restart mints a new page secret, and a page still holding the one before would otherwise
-  // sit on 401 for good.
-  it("reads its secret off the tag, sends it on every call, and reloads when it is no longer known", () => {
+  // The page's own script is not run here, so what it does about its credential is read off the
+  // source: nothing — the browser carries the cookie on every call and the stream — and a reload
+  // when the server no longer knows it, which lands on where a link comes from.
+  it("sends no credential of its own on a call or the stream, and reloads when it is no longer known", () => {
     const opened = answeredPage.indexOf('<script type="module">');
     const script = answeredPage.slice(opened, answeredPage.indexOf("</script>", opened));
-    assert.match(script, /querySelector\('meta\[name="openovai-secret"\]'\)\.content/);
-    assert.match(script, /authorization: `Bearer \$\{secret\}`/);
+    assert.ok(!/authorization|Bearer|secret/.test(script), "the script still carries a credential");
+    assert.match(script, /const answered = await fetch\(path, options\);/);
+    assert.match(script, /new EventSource\(since === "" \? "\/events" : `\/events\?\$\{since\}`\)/);
     assert.match(script, /status === 401[\s\S]{0,80}location\.reload\(\)/);
     assert.equal(script.split("fetch(").length - 1, 1, "the page fetches somewhere other than through call()");
   });
@@ -306,7 +307,7 @@ describe("what the chat serves", () => {
   // a seat nobody holds is a route that changes nothing: 404 when let through, the refusal when not.
   function raw(method, route, headers) {
     return new Promise((resolve, reject) => {
-      const asked = http.request(`${url}${route}`, { method, headers: { authorization: `Bearer ${pageSecret()}`, ...headers } }, (answer) => {
+      const asked = http.request(`${url}${route}`, { method, headers }, (answer) => {
         let body = "";
         answer.on("data", (chunk) => (body += chunk));
         answer.on("end", () => resolve({ status: answer.statusCode, body, headers: answer.headers }));
@@ -317,28 +318,32 @@ describe("what the chat serves", () => {
   }
   const own = () => [`127.0.0.1:${server.address().port}`, `localhost:${server.address().port}`];
 
-  it("refuses a request for any name but its own, the page and its secret included", async () => {
+  it("refuses a request for any name but its own, the page included", async () => {
     const port = server.address().port;
+    const cookie = signedIn();
     for (const host of [`attacker.example:${port}`, "127.0.0.1", `127.0.0.1:${port + 1}`]) {
-      const answered = await raw("GET", "/", { host });
+      const answered = await raw("GET", "/", { host, cookie });
       assert.equal(answered.status, 421, host);
-      assert.ok(!answered.body.includes(pageSecret()), `the secret went to ${host}`);
-      assert.equal((await raw("POST", "/sessions/Nobody/typing", { host })).status, 421, host);
+      assert.equal(answered.headers["set-cookie"], undefined, `the session key went to ${host}`);
+      assert.equal((await raw("POST", "/sessions/Nobody/typing", { host, cookie, origin: `http://${host}` })).status, 421, host);
     }
     for (const host of own()) {
-      const answered = await raw("GET", "/", { host, cookie: signedIn() });
+      const answered = await raw("GET", "/", { host, cookie });
       assert.equal(answered.status, 200, host);
-      assert.ok(answered.body.includes(pageSecret()), host);
-      assert.equal((await raw("POST", "/sessions/Nobody/typing", { host })).status, 404, host);
+      assert.equal((await raw("POST", "/sessions/Nobody/typing", { host, cookie, origin: `http://${host}` })).status, 404, host);
     }
   });
 
-  it("takes a change only from its own origins when the request names one", async () => {
+  // The cookie goes with a request any page of this address makes, another port's included, so a
+  // change has to say it comes from the server's own origin; saying nothing is not enough.
+  it("takes a change only from its own origins, and none from a request that names no origin", async () => {
     const [host] = own();
-    assert.equal((await raw("POST", "/sessions/Nobody/typing", { host, origin: "http://attacker.example" })).status, 403);
-    assert.equal((await raw("POST", "/sessions/Nobody/typing", { host, origin: `http://127.0.0.1:${server.address().port + 1}` })).status, 403);
+    const cookie = signedIn();
+    assert.equal((await raw("POST", "/sessions/Nobody/typing", { host, cookie })).status, 403);
+    assert.equal((await raw("POST", "/sessions/Nobody/typing", { host, cookie, origin: "http://attacker.example" })).status, 403);
+    assert.equal((await raw("POST", "/sessions/Nobody/typing", { host, cookie, origin: `http://127.0.0.1:${server.address().port + 1}` })).status, 403);
     for (const name of own()) {
-      assert.equal((await raw("POST", "/sessions/Nobody/typing", { host, origin: `http://${name}` })).status, 404, name);
+      assert.equal((await raw("POST", "/sessions/Nobody/typing", { host, cookie, origin: `http://${name}` })).status, 404, name);
     }
     assert.equal((await raw("GET", "/health", { host, origin: "http://attacker.example" })).status, 200);
   });
@@ -358,8 +363,7 @@ describe("what the chat serves", () => {
     for (const cookie of [undefined, `openovai-page-${server.address().port}=wrong`, `openovai-page-${server.address().port + 1}=${sessionKey(instance)}`]) {
       const answered = await raw("GET", "/", cookie === undefined ? { host } : { host, cookie });
       assert.equal(answered.status, 401, String(cookie));
-      assert.ok(!answered.body.includes(pageSecret()), String(cookie));
-      assert.ok(!answered.body.includes("openovai-secret"), String(cookie));
+      assert.ok(!answered.body.includes(sessionKey(instance)), String(cookie));
       assert.ok(answered.body.includes(`<pre><code>${path.join(instance, "bin", "ovai")} url</code></pre>`), String(cookie));
       assert.equal(answered.headers["set-cookie"], undefined, String(cookie));
     }
@@ -424,7 +428,7 @@ describe("what the chat serves", () => {
     assert.equal(shown.headers["cache-control"], "no-store");
     assert.match(shown.headers["content-security-policy"], /default-src 'none'; style-src 'self'; script-src 'self'/);
     assert.equal((await raw("GET", "/view/temp/nothing-here.md", { host, cookie })).status, 404);
-    const posted = await raw("POST", "/view/temp/view-check.md", { host, cookie });
+    const posted = await raw("POST", "/view/temp/view-check.md", { host, cookie, origin: `http://${host}` });
     assert.equal(posted.status, 404, "the view answers a read and nothing else");
     assert.ok(!posted.body.includes("Seen"));
   });
@@ -675,6 +679,8 @@ describe("the gate", () => {
       await fetchPlain(`${url}/sessions`),
       await fetch(`${url}/sessions`, { headers: { authorization: "Bearer not-the-page" } }).then(async (a) => ({ status: a.status, body: await a.text() })),
       await fetch(`${url}/sessions`, { headers: { authorization: "Basic abc" } }).then(async (a) => ({ status: a.status, body: await a.text() })),
+      // The key is taken from the cookie alone: as a bearer it is nobody.
+      await fetch(`${url}/sessions`, { headers: { authorization: `Bearer ${sessionKey(instance)}` } }).then(async (a) => ({ status: a.status, body: await a.text() })),
     ];
     for (const answered of tried) {
       assert.equal(answered.status, 401);
@@ -684,10 +690,10 @@ describe("the gate", () => {
   });
 
   it("never lets one kind of secret open the other side", async () => {
-    const asPage = await postPlain(`${url}/mcp/${pageSecret()}`, { jsonrpc: "2.0", id: 1, method: "tools/list" });
+    const asPage = await postPlain(`${url}/mcp/${sessionKey(instance)}`, { jsonrpc: "2.0", id: 1, method: "tools/list" });
     assert.equal(asPage.status, 401);
     assert.equal(asPage.body, UNKNOWN);
-    const asSession = await fetch(`${url}/sessions`, { headers: { authorization: `Bearer ${paul.secret}` } });
+    const asSession = await fetch(`${url}/sessions`, { headers: { cookie: `openovai-page-${server.address().port}=${paul.secret}` } });
     assert.equal(asSession.status, 401);
     assert.equal(await asSession.text(), UNKNOWN);
   });
@@ -726,7 +732,7 @@ describe("the gate", () => {
     for (const probe of probes) {
       assert.equal((await fetchPlain(`${url}${probe}`)).status, 401);
     }
-    const nowhere = await fetch(`${url}/nowhere/mcp/${paul.secret}`, { headers: { authorization: `Bearer ${pageSecret()}` } });
+    const nowhere = await fetch(`${url}/nowhere/mcp/${paul.secret}`, { headers: { cookie: signedIn() } });
     assert.equal(nowhere.status, 404);
     assert.equal((await nowhere.json()).error, "nothing at GET /nowhere/mcp/<secret>");
     assert.deepEqual(said.slice(before_), [], "a request was logged");
@@ -744,12 +750,13 @@ describe("the gate", () => {
     assert.equal((await call(paul.secret, "tools/list")).status, 200);
   });
 
-  it("writes no secret anywhere under the instance", async () => {
+  // The session key is on disk on purpose, in the one file that keeps it, and nowhere else.
+  it("writes no secret anywhere under the instance, and the session key in its own file alone", async () => {
     await tool(paul.secret, "room");
     const found = spawnSync("grep", ["-rF", "--", paul.secret, instance], { encoding: "utf8" });
     assert.equal(found.status, 1, `the secret is on disk:\n${found.stdout}`);
-    const pageFound = spawnSync("grep", ["-rF", "--", pageSecret(), instance], { encoding: "utf8" });
-    assert.equal(pageFound.status, 1, `the page secret is on disk:\n${pageFound.stdout}`);
+    const keyFound = spawnSync("grep", ["-rlF", "--", sessionKey(instance), instance], { encoding: "utf8" });
+    assert.equal(keyFound.stdout, `${path.join(instance, "page-session")}\n`);
   });
 });
 
@@ -1977,7 +1984,7 @@ describe("what the User types", () => {
     assert.deepEqual(JSON.parse(empty.body), { error: "a message needs some text" });
     const broken = await fetch(`${url}/sessions/${LEADER}/message`, {
       method: "POST",
-      headers: { authorization: `Bearer ${pageSecret()}` },
+      headers: { cookie: signedIn(), origin: url },
       body: "not json",
     });
     assert.equal(broken.status, 400);
@@ -1986,14 +1993,14 @@ describe("what the User types", () => {
 
 // ---------------------------------------------------------------------------------------------
 
-// The stream, read here with fetch on the body the way a browser's EventSource would read it,
-// except that a browser sends no header — which is why the secret is on the query of this one
-// route. Every client opened is closed by the describe that opened it.
+// The stream, read here with fetch on the body the way a browser's EventSource would read it, with
+// the session cookie the browser carries. `query` is `&since=…` pairs, as many as the page has
+// counts for. Every client opened is closed by the describe that opened it.
 const open = [];
 
 async function listen(query = "") {
   const controller = new AbortController();
-  const response = await fetch(`${url}/events?page=${pageSecret()}${query}`, { signal: controller.signal });
+  const response = await fetch(`${url}/events${query.replace(/^&/, "?")}`, { headers: { cookie: signedIn() }, signal: controller.signal });
   const events = [];
   const client = { status: response.status, type: response.headers.get("content-type"), events, close: () => controller.abort() };
   open.push(client);
@@ -2447,10 +2454,12 @@ describe("the stream", () => {
     await endEvery(500);
   });
 
-  it("opens to the page secret on its query, and to nothing else — not even the bearer", async () => {
+  it("opens to the session cookie, and to nothing else — not the key on its query, not the bearer", async () => {
     const bare = await fetch(`${url}/events`);
     assert.equal(bare.status, 401);
-    const bearer = await fetch(`${url}/events`, { headers: { authorization: `Bearer ${pageSecret()}` } });
+    const queried = await fetch(`${url}/events?page=${sessionKey(instance)}`);
+    assert.equal(queried.status, 401);
+    const bearer = await fetch(`${url}/events`, { headers: { authorization: `Bearer ${sessionKey(instance)}` } });
     assert.equal(bearer.status, 401);
     const client = await listen();
     assert.equal(client.status, 200);
@@ -2699,7 +2708,7 @@ describe("the stream", () => {
     stopping(chat);
     await until(client, (event) => event.name === "stopping");
     assert.equal((await page("POST", `/sessions/${LEADER}/message`, { text: "x" })).status, 503);
-    assert.equal((await fetch(`${url}/events?page=${pageSecret()}`)).status, 503);
+    assert.equal((await fetch(`${url}/events`, { headers: { cookie: signedIn() } })).status, 503);
     chat.stopping = false;
   });
 });
@@ -2722,7 +2731,6 @@ describe("the chat as a process", () => {
   const own = `${base}-own`;
   let child = null;
   let address = null;
-  let firstPage = null;
 
   before(async () => {
     remove(own);
@@ -2737,10 +2745,6 @@ describe("the chat as a process", () => {
     remove(own);
   });
 
-  function secretIn(pageText) {
-    return /<meta name="openovai-secret" content="([^"]*)">/.exec(pageText)[1];
-  }
-
   // The one row a start says: `started`, with the address and — once, here and on no other row —
   // the process's pid, host, user and version, under the moment to the millisecond with the zone's
   // offset. Not the instruction files above the instance — every session is started with that
@@ -2753,32 +2757,22 @@ describe("the chat as a process", () => {
     );
   });
 
-  it("hands the page a secret that opens the page routes", async () => {
-    firstPage = secretIn((await fetchPlain(`${address}/`, { cookie: signedIn(own, new URL(address).port) })).body);
-    assert.match(firstPage, SECRET_SHAPE);
-    const answered = await fetch(`${address}/sessions`, { headers: { authorization: `Bearer ${firstPage}` } });
+  it("makes the session key at its start, and opens the page routes to the cookie that carries it", async () => {
+    assert.match(fs.readFileSync(path.join(own, "page-session"), "utf8").trim(), SECRET_SHAPE);
+    const answered = await fetch(`${address}/sessions`, { headers: { cookie: signedIn(own, new URL(address).port) } });
     assert.equal(answered.status, 200);
   });
 
-  it("prints no request and no secret, whatever the page or a caller asks for", async () => {
-    await postPlain(`${address}/mcp/${firstPage}`, { jsonrpc: "2.0", id: 1, method: "tools/list" });
-    await fetch(`${address}/sessions`, { headers: { authorization: `Bearer ${firstPage}` } });
+  it("prints no request, no key and no link, whatever the page or a caller asks for", async () => {
+    const key = sessionKey(own);
+    const token = writeLink(own);
+    await fetch(`${address}/?token=${token}`, { redirect: "manual" });
+    await postPlain(`${address}/mcp/${key}`, { jsonrpc: "2.0", id: 1, method: "tools/list" });
+    await fetch(`${address}/sessions`, { headers: { cookie: signedIn(own, new URL(address).port) } });
     await fetch(`${address}/events?page=not-the-secret`);
     assert.doesNotMatch(child.output, /^(GET|POST) /m, child.output);
-    assert.ok(!child.output.includes(firstPage), "the page secret is in the output");
-  });
-
-  it("starts with nothing when started again: the page secret of the last run opens nothing", async () => {
-    await stopChat(child);
-    assert.equal(child.exitCode, 0, `the chat did not stop cleanly:\n${child.output}`);
-    child = startChat(own, process.env);
-    address = await waitForAddress(child);
-    assert.ok(address, `the chat never came back:\n${child.output}`);
-    const answered = await fetch(`${address}/sessions`, { headers: { authorization: `Bearer ${firstPage}` } });
-    assert.equal(answered.status, 401);
-    const secondPage = secretIn((await fetchPlain(`${address}/`, { cookie: signedIn(own, new URL(address).port) })).body);
-    assert.notEqual(secondPage, firstPage);
-    assert.equal((await fetch(`${address}/sessions`, { headers: { authorization: `Bearer ${secondPage}` } })).status, 200);
+    assert.ok(!child.output.includes(key), "the session key is in the output");
+    assert.ok(!child.output.includes(token), "the link is in the output");
   });
 
   // The key is the instance's, kept in its file, so a browser signed in before a restart or an
