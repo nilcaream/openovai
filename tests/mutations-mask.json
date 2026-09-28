@@ -192,8 +192,8 @@
     "edits": [
       {
         "file": "lib/chat/conversation.mjs",
-        "from": "const SAID = [\"text\", \"line\", \"why\"];",
-        "to": "const SAID = [\"line\", \"why\"];"
+        "from": "const SAID = { text: maskProse, line: mask, why: maskProse };",
+        "to": "const SAID = { line: mask, why: maskProse };"
       }
     ]
   },
@@ -203,8 +203,8 @@
     "edits": [
       {
         "file": "lib/chat/conversation.mjs",
-        "from": "const SAID = [\"text\", \"line\", \"why\"];",
-        "to": "const SAID = [\"text\", \"why\"];"
+        "from": "const SAID = { text: maskProse, line: mask, why: maskProse };",
+        "to": "const SAID = { text: maskProse, why: maskProse };"
       }
     ]
   },
@@ -214,7 +214,7 @@
     "edits": [
       {
         "file": "lib/chat/conversation.mjs",
-        "from": "messages[index].why = mask(why);",
+        "from": "messages[index].why = maskProse(why);",
         "to": "messages[index].why = why;"
       }
     ]
@@ -225,8 +225,74 @@
     "edits": [
       {
         "file": "lib/chat/conversation.mjs",
-        "from": "messages[index].text !== mask(text)",
+        "from": "messages[index].text !== maskProse(text)",
         "to": "messages[index].text !== text"
+      }
+    ]
+  },
+  {
+    "name": "a secret's name takes its value from the next line",
+    "catches": "takes a secret's name and its value from one line",
+    "edits": [
+      {
+        "file": "lib/mask.mjs",
+        "from": "[=:][ \\\\t]*[\"']?)${VALUE}",
+        "to": "[=:]\\\\s*[\"']?)${VALUE}"
+      }
+    ]
+  },
+  {
+    "name": "a secret flag takes its value from the next line",
+    "catches": "takes a secret's name and its value from one line",
+    "edits": [
+      {
+        "file": "lib/mask.mjs",
+        "from": "(?:${NAME})[ \\\\t]+[\"']?)(?!-)",
+        "to": "(?:${NAME})\\\\s+[\"']?)(?!-)"
+      }
+    ]
+  },
+  {
+    "name": "prose is masked by a secret's name",
+    "catches": "leaves a word after a secret's name",
+    "edits": [
+      {
+        "file": "lib/mask.mjs",
+        "from": "return masked(text, SHAPES);",
+        "to": "return masked(text, PATTERNS);"
+      }
+    ]
+  },
+  {
+    "name": "a panel row's words are masked as a command",
+    "catches": "leaves the word after a secret's name in what the User and a session say",
+    "edits": [
+      {
+        "file": "lib/chat/conversation.mjs",
+        "from": "const SAID = { text: maskProse,",
+        "to": "const SAID = { text: mask,"
+      }
+    ]
+  },
+  {
+    "name": "a failed call's reason is masked as a command",
+    "catches": "leaves the word after a secret's name in a failed call's reason",
+    "edits": [
+      {
+        "file": "lib/chat/conversation.mjs",
+        "from": "messages[index].why = maskProse(why);",
+        "to": "messages[index].why = mask(why);"
+      }
+    ]
+  },
+  {
+    "name": "a tool call's line is masked as prose",
+    "catches": "masks a secret's name's value in a tool call's line",
+    "edits": [
+      {
+        "file": "lib/chat/conversation.mjs",
+        "from": "line: mask, why",
+        "to": "line: maskProse, why"
       }
     ]
   }

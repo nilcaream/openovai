@@ -99,6 +99,16 @@ an instance that has not got them, and adds neither. The rules bind the file too
 `Bash(cat:*)` or `Bash(node:*)` still reads the file with no card. A `Bash(...)` deny would stop one
 spelling of the command out of endless ones, so none is added.
 
+**A panel no longer masks the word after "key:" or "secret:" in what is said.** Masking replaced
+the value after any word that names a secret, and it did that in replies, messages and the User's
+own prompts as well as in commands. So "public key: HTTP 403" was shown as "public key: *** 403",
+and "Actions secret: the Release job" as "Actions secret: *** Release job". It also reached across
+a line break, so a list item after a line ending in "secret:" lost its `-` and the list broke.
+Now what is said in words is masked only for a token's own shape, such as `sk-…`, `ghp_…`, a JWT or
+a Bearer value. A tool call's line and runtime.log are masked by name too, as before. A name and its
+value count only when they are on the same line. A password written in prose, "password: hunter2",
+is now kept as written.
+
 ## 0.20.0
 
 **An update is finished by the version it brings in.** `ovai update` used to finish in the code it

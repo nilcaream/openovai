@@ -8,7 +8,7 @@ import { snapshot } from "../lib/admin.mjs";
 import { amend, append, failedAsSaid, read } from "../lib/chat/conversation.mjs";
 import { subscribe } from "../lib/chat/events.mjs";
 import { called, sink } from "../lib/chat/log.mjs";
-import { mask } from "../lib/mask.mjs";
+import { mask, maskProse } from "../lib/mask.mjs";
 
 // Every token here is put together at run time, so no line of this file has a token's shape and
 // the pre-push scan reads none.
@@ -71,6 +71,27 @@ describe("what masking hides", () => {
       assert.equal(mask(given), given);
     }
   });
+
+  it("takes a secret's name and its value from one line", () => {
+    assert.equal(mask("export FOO_TOKEN=\nabc"), "export FOO_TOKEN=\nabc");
+    assert.equal(mask("mytool --password\nabc"), "mytool --password\nabc");
+  });
+});
+
+// Words that rows of a panel really carried, each masked by a secret's name before prose was
+// told apart from a command.
+const PROSE = ["public key: HTTP 403", "Actions secret: the Release job", "secret:\n- **Closes:**", "password: hunter2"];
+
+describe("what masking hides in prose", () => {
+  it("leaves a word after a secret's name", () => {
+    for (const given of PROSE) {
+      assert.equal(maskProse(given), given);
+    }
+  });
+
+  it("still masks a token by its shape", () => {
+    assert.equal(maskProse(`the key is ${"ghp" + "_" + fill(36)} for now`), "the key is *** for now");
+  });
 });
 
 describe("where masking is applied", () => {
@@ -116,6 +137,22 @@ describe("where masking is applied", () => {
 
   it("masks a tool call's line in the panel and on the page", () => {
     assert.equal(rowOf(() => append(root, "Worker", { from: "Worker", line: command, call: "toolu_line" })).line, `curl -H "Authorization: Bearer ***" https://api.example.com`);
+  });
+
+  it("masks a secret's name's value in a tool call's line", () => {
+    assert.equal(rowOf(() => append(root, "Worker", { from: "Worker", line: "FOO_TOKEN=abc", call: "toolu_named" })).line, "FOO_TOKEN=***");
+  });
+
+  it("leaves the word after a secret's name in what the User and a session say", () => {
+    for (const text of PROSE) {
+      assert.equal(rowOf(() => append(root, "Worker", { from: "User", text })).text, text);
+      assert.equal(rowOf(() => append(root, "Worker", { from: "Worker", text })).text, text);
+    }
+  });
+
+  it("leaves the word after a secret's name in a failed call's reason", () => {
+    append(root, "Worker", { from: "Worker", line: "gh release view", call: "toolu_prose" });
+    assert.equal(rowOf(() => amend(root, "Worker", "toolu_prose", PROSE[0])).why, PROSE[0]);
   });
 
   it("masks a failed call's reason in the panel and on the page", () => {
