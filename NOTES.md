@@ -12,6 +12,11 @@ the port used to get the page, and with it the right to answer cards and speak a
 it once in each browser and that browser stays signed in, across restarts and updates. A page left
 open from before the update shows where to get a link until you open one. The instance's root is
 now readable by its owner alone, and so are the files that hold its address and keys.
+The page's two keys, `page-session` and `page-link` at the root, sign a browser in as the page, so
+a new instance refuses both to the Read tool and to the tools that write files, and the file view
+refuses both names at any depth. An update names the four rules for an instance that has not got
+them, and adds none. The rules bind the file tools only: a granted `Bash(cat:*)` or `Bash(node:*)`
+still reads either file with no card.
 
 **A session's secret is no longer in its environment.** The secret a session's calls to the chat
 are known by was in the session's process environment, and every process of the same user can

@@ -414,7 +414,17 @@ describe("what the installer made", () => {
     const deny = JSON.parse(contentOf(".claude", "settings.json")).permissions.deny;
     assert.ok(deny.includes("Read(/.local/.credentials.json)"), deny.join(", "));
     assert.ok(deny.includes("Edit(/.local/.credentials.json)"), deny.join(", "));
-    assert.deepEqual(deny.filter((rule) => rule.startsWith("Read(")), ["Read(/.local/.credentials.json)"]);
+    assert.deepEqual(deny.filter((rule) => rule.startsWith("Read(")), ["Read(/.local/.credentials.json)", "Read(/page-session)", "Read(/page-link)"]);
+  });
+
+  // The page's two keys at the root sign a browser in as the page, and the page answers cards: a
+  // session that read either could answer its own. `Read(/**)` reaches them, so both are refused
+  // to the Read tool and to the tools that write files, by name.
+  it("refuses the page's session and link files to the tools that read and write files", () => {
+    const deny = JSON.parse(contentOf(".claude", "settings.json")).permissions.deny;
+    for (const rule of ["Read(/page-session)", "Edit(/page-session)", "Read(/page-link)", "Edit(/page-link)"]) {
+      assert.ok(deny.includes(rule), `${rule} not in ${deny.join(", ")}`);
+    }
   });
 
   // A desk file is edited in place with the file tools like any other file under the desk
@@ -505,7 +515,7 @@ describe("what the installer made", () => {
   // on.
   it("refuses nothing about anybody's work beyond the push, the root and the other hosts", () => {
     const deny = JSON.parse(contentOf(".claude", "settings.json")).permissions.deny;
-    assert.deepEqual(deny.filter((rule) => !rule.startsWith("Edit(/.claude") && !rule.startsWith("Edit(/.local") && rule !== "Read(/.local/.credentials.json)"), ["Bash(git push:*)", "Bash(sudo:*)", "Bash(ssh:*)"]);
+    assert.deepEqual(deny.filter((rule) => !rule.startsWith("Edit(/.claude") && !rule.startsWith("Edit(/.local") && rule !== "Read(/.local/.credentials.json)" && !/^(Read|Edit)\(\/page-(session|link)\)$/.test(rule)), ["Bash(git push:*)", "Bash(sudo:*)", "Bash(ssh:*)"]);
   });
 
   // What the harness would add to every commit and pull request — a trailer naming the model, a

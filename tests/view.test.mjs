@@ -77,6 +77,11 @@ put("desks/Ann/.npmrc", "//registry/:_authToken=x\n");
 put(".PGPASS", "host:5432:*:u:p\n");
 put("projects/nested/.local/.claude.json", "{}\n");
 put("projects/nested/.local/settings.json", "{}\n");
+// The page's keys at the root, and a nested instance's.
+put("page-session", "k\n");
+put("page-link", "t\n");
+put("projects/nested/page-session", "k\n");
+put("projects/nested/Page-Link", "t\n");
 // A second name for a file: for a denied one, and for one the view would show under its first.
 fs.linkSync(path.join(root, ".local", ".credentials.json"), path.join(root, "temp", "copy-of-cred.json"));
 put("temp/twin.txt", "one file, two names\n");
@@ -115,6 +120,13 @@ describe("which paths the view shows", () => {
 
   it("never shows a credential file by its program's name, or a Claude Code home, at any depth", () => {
     for (const wanted of [".ssh/id_rsa", "projects/demo/.aws/credentials", ".gnupg/gpg.conf", ".git-credentials", "projects/demo/.netrc", "desks/Ann/.npmrc", ".PGPASS", "projects/nested/.local/.claude.json", "projects/nested/.local/settings.json"]) {
+      assert.equal(viewable(root, wanted).status, 403, wanted);
+    }
+  });
+
+  // A browser holding either key is signed in as the page, which answers cards.
+  it("never shows the page's session or link file, the instance's own or a nested one's", () => {
+    for (const wanted of ["page-session", "page-link", "projects/nested/page-session", "projects/nested/Page-Link"]) {
       assert.equal(viewable(root, wanted).status, 403, wanted);
     }
   });

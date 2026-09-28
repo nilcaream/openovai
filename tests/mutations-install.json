@@ -38,8 +38,8 @@
     "edits": [
       {
         "file": "lib/desks.mjs",
-        "from": "  \"Edit(/.local/.credentials.json)\",\n];",
-        "to": "  \"Edit(/.local/.credentials.json)\",\n  \"Edit(/.local/projects/**)\",\n];"
+        "from": "  \"Edit(/page-link)\",\n];",
+        "to": "  \"Edit(/page-link)\",\n  \"Edit(/.local/projects/**)\",\n];"
       }
     ]
   },
@@ -851,8 +851,52 @@
     "edits": [
       {
         "file": "lib/desks.mjs",
-        "from": "  \"Edit(/.local/.credentials.json)\",\n];",
-        "to": "];"
+        "from": "  \"Edit(/.local/.credentials.json)\",\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the page's session file is left to the Read tool",
+    "catches": "refuses the page's session and link files to the tools that read and write files",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "  \"Read(/page-session)\",\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the page's session file is left to the tools that write files",
+    "catches": "refuses the page's session and link files to the tools that read and write files",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "  \"Edit(/page-session)\",\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the page's link file is left to the Read tool",
+    "catches": "refuses the page's session and link files to the tools that read and write files",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "  \"Read(/page-link)\",\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the page's link file is left to the tools that write files",
+    "catches": "refuses the page's session and link files to the tools that read and write files",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "  \"Edit(/page-link)\",\n",
+        "to": ""
       }
     ]
   },

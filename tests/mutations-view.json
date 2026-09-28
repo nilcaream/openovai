@@ -511,8 +511,30 @@
     "edits": [
       {
         "file": "lib/chat/view.mjs",
-        "from": "const DENIED_FILES = [\".credentials.json\", \".git-credentials\", \".netrc\", \".npmrc\", \".pgpass\"];",
-        "to": "const DENIED_FILES = [\".credentials.json\"];"
+        "from": "const DENIED_FILES = [\".credentials.json\", \".git-credentials\", \".netrc\", \".npmrc\", \".pgpass\", ",
+        "to": "const DENIED_FILES = [\".credentials.json\", "
+      }
+    ]
+  },
+  {
+    "name": "the page's session file is shown",
+    "catches": "never shows the page's session or link file, the instance's own or a nested one's",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "\"page-session\", \"page-link\"];",
+        "to": "\"page-link\"];"
+      }
+    ]
+  },
+  {
+    "name": "the page's link file is shown",
+    "catches": "never shows the page's session or link file, the instance's own or a nested one's",
+    "edits": [
+      {
+        "file": "lib/chat/view.mjs",
+        "from": "\"page-session\", \"page-link\"];",
+        "to": "\"page-session\"];"
       }
     ]
   },
