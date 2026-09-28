@@ -14,7 +14,7 @@ import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { after, before, describe, it } from "node:test";
 
-import { installed, remove, repo, runToolLater, scratch, serveRelease, source, standInEnvironment, writeStandIn } from "./helpers.mjs";
+import { aSigningKey, installed, remove, repo, runToolLater, scratch, serveRelease, source, standInEnvironment, writeStandIn } from "./helpers.mjs";
 import { PAYLOAD, RETIRED } from "../lib/payload.mjs";
 import { RELEASES } from "../lib/release.mjs";
 import { SEAT_IN_ENVIRONMENT } from "../lib/claude.mjs";
@@ -493,29 +493,86 @@ describe("taking a newer version into an instance from before the attribution wa
   });
 });
 
+// The keys a release is signed with here, made for this run. An instance is installed with the
+// repository's own lib/RELEASE_KEYS; the ones that take a served release are given this key instead,
+// the way an instance carries the key its releases are signed with.
+const keys = path.join(here, "keys");
+const signer = aSigningKey(keys, "signer");
+const stranger = aSigningKey(keys, "stranger");
+
+function pinning(root, key) {
+  fs.writeFileSync(path.join(root, "lib", "RELEASE_KEYS"), key.line);
+  return root;
+}
+
 describe("taking a newer version from a release", () => {
-  const root = makeInstance("from-release");
+  const root = pinning(makeInstance("from-release"), signer);
   let served;
   let done;
 
   before(async () => {
-    served = await serveRelease(makeRelease("served"), `v${NEWER}`);
+    served = await serveRelease(makeRelease("served"), `v${NEWER}`, signer);
     done = await runToolLater(root, ["update", "--from", served.latest], process.env);
   });
 
   after(() => served?.close());
 
   it("takes it", () => {
-    assert.equal(done.status, 0);
+    assert.equal(done.status, 0, done.stderr);
   });
 
   it("puts the instance on the version the release is", () => {
     assert.equal(fs.readFileSync(path.join(root, "lib", "VERSION"), "utf8").trim(), NEWER);
   });
 
+  // GitHub names its own archive of the tag on every release, and nothing vouches for it.
+  it("never asks for the archive GitHub makes of the tag", () => {
+    assert.equal(served.asked.tarball, 0);
+  });
+
   // The archive is opened somewhere inside the instance and that somewhere is not part of it.
   it("leaves nothing of the package behind", () => {
     assert.equal(fs.existsSync(path.join(root, ".release")), false);
+  });
+});
+
+// Each of these is a release an instance must not take, and each leaves the instance where it was.
+describe("a release that is not signed as it should be", () => {
+  const refusedWith = async (name, { key = signer, change = {}, version = NEWER } = {}) => {
+    const root = pinning(makeInstance(`unsigned-${name}`), signer);
+    const served = await serveRelease(makeRelease(`unsigned-${name}-release`, { version }), `v${NEWER}`, key, change);
+    try {
+      const done = await runToolLater(root, ["update", "--from", served.latest], process.env);
+      const on = fs.readFileSync(path.join(root, "lib", "VERSION"), "utf8").trim();
+      return { status: done.status, stderr: done.stderr, on, tarball: served.asked.tarball };
+    } finally {
+      served.close();
+    }
+  };
+
+  it("is refused when it carries no signature, and GitHub's archive is not taken instead", async () => {
+    const refused = await refusedWith("none", { change: { signed: false } });
+    assert.match(refused.stderr, /^ovai: v9\.9\.9 carries no signed package/m);
+    assert.deepEqual([refused.status === 0, refused.on, refused.tarball], [false, INSTALLED, 0]);
+  });
+
+  it("is refused when the key that signed it is not one the instance pins", async () => {
+    const refused = await refusedWith("stranger", { key: stranger });
+    assert.match(refused.stderr, /^ovai: the release of 9\.9\.9 is not signed by a key in lib\/RELEASE_KEYS; nothing was taken$/m);
+    assert.deepEqual([refused.status === 0, refused.on], [false, INSTALLED]);
+  });
+
+  it("is refused when the package was swapped after it was signed", async () => {
+    const other = spawnSync("tar", ["-czf", "-", "-C", here, "keys"]).stdout;
+    const refused = await refusedWith("swapped", { change: { pack: other } });
+    assert.match(refused.stderr, /^ovai: openovai-9\.9\.9\.tar\.gz is not the package SHA256SUMS names; nothing was taken$/m);
+    assert.deepEqual([refused.status === 0, refused.on], [false, INSTALLED]);
+  });
+
+  it("is refused when what is inside says it is another version than the tag", async () => {
+    const refused = await refusedWith("mislabelled", { version: "9.9.8" });
+    assert.match(refused.stderr, /^ovai: the package of 9\.9\.9 holds 9\.9\.8 in lib\/VERSION; nothing was taken$/m);
+    assert.deepEqual([refused.status === 0, refused.on], [false, INSTALLED]);
   });
 });
 

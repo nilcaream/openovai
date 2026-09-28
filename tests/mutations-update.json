@@ -559,5 +559,49 @@
         "to": "  retire(root);\n"
       }
     ]
+  },
+  {
+    "name": "a release package is opened without being checked",
+    "catches": "is refused when the key that signed it is not one the instance pins",
+    "edits": [
+      {
+        "file": "lib/release.mjs",
+        "from": "    checkRelease({ version: release.version, sums: signed, signatures: armored, pack, keys });",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a release with no signature attached is asked for its files anyway",
+    "catches": "is refused when it carries no signature, and GitHub's archive is not taken instead",
+    "edits": [
+      {
+        "file": "lib/release.mjs",
+        "from": " || signatures.length === 0) {",
+        "to": ") {"
+      }
+    ]
+  },
+  {
+    "name": "a release with no files attached falls back to GitHub's archive of the tag",
+    "catches": "is refused when it carries no signature, and GitHub's archive is not taken instead",
+    "edits": [
+      {
+        "file": "lib/release.mjs",
+        "from": "  if (!attached.has(packageName(named)) || !attached.has(\"SHA256SUMS\") || signatures.length === 0) {\n    throw",
+        "to": "  if (!attached.has(packageName(named)) || !attached.has(\"SHA256SUMS\") || signatures.length === 0) {\n    return { version: named, package: body.tarball_url, unpacked: false };\n    throw"
+      }
+    ]
+  },
+  {
+    "name": "what is inside the package is taken whatever version it says it is",
+    "catches": "is refused when what is inside says it is another version than the tag",
+    "edits": [
+      {
+        "file": "lib/release.mjs",
+        "from": "  if (inside !== release.version) {",
+        "to": "  if (false) {"
+      }
+    ]
   }
 ]

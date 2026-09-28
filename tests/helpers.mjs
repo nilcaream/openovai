@@ -13,6 +13,7 @@
 // never does is named in the log instead of hanging the suite until somebody kills it.
 
 import { spawn, spawnSync } from "node:child_process";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
@@ -983,33 +984,80 @@ export async function waitForAddress(child) {
   return waitFor(() => /http:\/\/127\.0\.0\.1:\d+/.exec(child.output)?.[0] ?? null);
 }
 
+// A key to sign releases with, made by ssh-keygen in `directory`: the private key's file, and the
+// allowed_signers line that pins it, for a test instance's lib/RELEASE_KEYS.
+export function aSigningKey(directory, name = "release-key") {
+  fs.mkdirSync(directory, { recursive: true });
+  const file = path.join(directory, name);
+  fs.rmSync(file, { force: true });
+  fs.rmSync(`${file}.pub`, { force: true });
+  spawnSync("ssh-keygen", ["-q", "-t", "ed25519", "-N", "", "-C", name, "-f", file]);
+  const [type, blob] = fs.readFileSync(`${file}.pub`, "utf8").trim().split(/\s+/);
+  return { file, line: `openovai-release namespaces="openovai-release" ${type} ${blob}\n` };
+}
+
+// A signature over `bytes`, made the way the release workflow makes one.
+export function signWith(key, bytes) {
+  const file = path.join(path.dirname(key.file), `signed-${crypto.randomUUID()}`);
+  fs.writeFileSync(file, bytes);
+  spawnSync("ssh-keygen", ["-Y", "sign", "-q", "-f", key.file, "-n", "openovai-release", file]);
+  const armored = fs.readFileSync(`${file}.sig`, "utf8");
+  fs.rmSync(file, { force: true });
+  fs.rmSync(`${file}.sig`, { force: true });
+  return armored;
+}
+
 // A release, served the way GitHub serves one.
 //
-// Two routes, because that is all an instance asks for: what the latest release is, and the archive
-// for it. The archive is made with tar from a real directory, wrapped in one directory named for it
-// — which is the shape GitHub hands out and the reason the update strips one level off. A check
-// against a hand-made shape would prove the update could read something nobody serves.
+// What an instance asks for: what the latest release is, and the files attached to it — the
+// package, SHA256SUMS naming it, and its signature by `key`. The package is made with tar from a
+// real directory, wrapped in one directory — the shape `git archive --prefix` makes and the reason
+// the update strips one level off. A check against a hand-made shape would prove the update could
+// read something nobody serves.
+//
+// The release also names a `tarball_url`, as every GitHub release does, and counts every time it is
+// asked for (`asked`): an update must never take it. `change` alters what is served after signing —
+// `{ pack }` swaps the package, `{ signed: false }` attaches no signature.
 //
 // No release is ever published from here. This is what makes the whole path checkable without one.
-export function serveRelease(tree, tag) {
+export function serveRelease(tree, tag, key, change = {}) {
   const archive = spawnSync("tar", ["-czf", "-", "-C", path.dirname(tree), path.basename(tree)], {
     maxBuffer: 64 * 1024 * 1024,
   }).stdout;
+  const name = `openovai-${tag.replace(/^v/, "")}.tar.gz`;
+  const sums = `${crypto.createHash("sha256").update(archive).digest("hex")}  ${name}\n`;
+  const files = new Map([
+    [name, change.pack ?? archive],
+    ["SHA256SUMS", Buffer.from(sums)],
+  ]);
+  if (change.signed !== false) {
+    files.set("SHA256SUMS.sig", Buffer.from(signWith(key, sums)));
+  }
+  const asked = { tarball: 0 };
 
   const server = http.createServer((request, response) => {
     const url = new URL(request.url, "http://127.0.0.1");
+    const base = `http://127.0.0.1:${server.address().port}`;
     if (url.pathname === "/releases/latest") {
       const body = JSON.stringify({
         tag_name: tag,
-        tarball_url: `http://127.0.0.1:${server.address().port}/tarball`,
+        tarball_url: `${base}/tarball`,
+        assets: [...files.keys()].map((file) => ({ name: file, browser_download_url: `${base}/download/${file}` })),
       });
       response.writeHead(200, { "content-type": "application/json" });
       response.end(body);
       return;
     }
     if (url.pathname === "/tarball") {
+      asked.tarball += 1;
       response.writeHead(200, { "content-type": "application/gzip" });
       response.end(archive);
+      return;
+    }
+    const file = url.pathname.startsWith("/download/") ? files.get(url.pathname.slice("/download/".length)) : undefined;
+    if (file !== undefined) {
+      response.writeHead(200, { "content-type": "application/octet-stream" });
+      response.end(file);
       return;
     }
     response.writeHead(404).end();
@@ -1019,6 +1067,7 @@ export function serveRelease(tree, tag) {
     server.listen(0, "127.0.0.1", () => {
       resolve({
         latest: `http://127.0.0.1:${server.address().port}/releases/latest`,
+        asked,
         close: () => server.close(),
       });
     });
