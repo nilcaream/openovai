@@ -2295,5 +2295,16 @@
         "to": "      \"set-cookie\": sessionCookie(instance, port),"
       }
     ]
+  },
+  {
+    "name": "the introduction is put on the Leader's panel at every start, whatever version it last showed",
+    "catches": "is shown at the first start, not at the next, and again once the version changes",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "  if (shown === running) {\n    return false;\n  }\n  append(instance.root, instance.config.leader,",
+        "to": "  append(instance.root, instance.config.leader,"
+      }
+    ]
   }
 ]

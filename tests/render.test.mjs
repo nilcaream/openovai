@@ -195,6 +195,14 @@ describe("every other row", () => {
     assert.deepEqual(row({ from: "Server", text: "Paul has no process" }, names), { who: "Server", kind: "chat", text: "Paul has no process" });
   });
 
+  it("the introduction is the chat's one line drawn as markdown", () => {
+    assert.deepEqual(row({ from: "Server", introduction: true, text: "# Welcome\n\n- **Ask how.**" }, names), {
+      who: "Server",
+      kind: "introduction",
+      html: "<h1>Welcome</h1>\n<ul>\n<li><strong>Ask how.</strong></li>\n</ul>\n",
+    });
+  });
+
   it("a failed turn is shown failed", () => {
     assert.deepEqual(row({ from: "Server", text: "Paul stopped before answering: x", failed: true }, names), {
       who: "Server",

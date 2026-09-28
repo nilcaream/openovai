@@ -133,6 +133,9 @@ directory is not checked, as before.
 does not do, where Claude Code's own commands go and how to ask about the tool. It is filled with
 the instance's root and the version in `lib/VERSION`: a release number, or the commit an instance
 taken from a checkout is on. An instance with no version file gets a heading that names none.
+The page shows it on the Leader's panel, as markdown and unfolded, the first time the server starts
+on a version: on a fresh instance and after each update. `introduced` at the root holds the version
+last shown. Delete it to see the introduction again at the next start.
 The Leader is handed the same text in its instructions, in a frame of its own after its role, and
 is told to answer a question about the tool from ovai's guide, in the asker's own words. Workers
 and admin mode get neither.

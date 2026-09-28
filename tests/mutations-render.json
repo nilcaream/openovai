@@ -449,5 +449,16 @@
         "to": ""
       }
     ]
+  },
+  {
+    "name": "the introduction is drawn as the chat's plain folded words",
+    "catches": "the introduction is the chat's one line drawn as markdown",
+    "edits": [
+      {
+        "file": "lib/chat/render.mjs",
+        "from": "  if (entry.from === names.chat && entry.introduction === true) {",
+        "to": "  if (entry.from === names.chat && entry.introduction === false) {"
+      }
+    ]
   }
 ]

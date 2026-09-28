@@ -22,7 +22,8 @@ import { localAt, refTo } from "../lib/chat/refs.mjs";
 import { listening } from "../lib/chat/runtime.mjs";
 import { COOKIE_AGE, LINK_FILE, LINK_LIFETIME, sessionKey, writeLink } from "../lib/chat/signin.mjs";
 import { hire } from "../lib/desks.mjs";
-import { endSeat, serve, shownRoot, startSeat, toolsFor } from "../lib/chat/server.mjs";
+import { INTRODUCED_FILE, endSeat, introduce, serve, shownRoot, startSeat, toolsFor } from "../lib/chat/server.mjs";
+import { INTRODUCTION_TEMPLATE } from "../lib/desks.mjs";
 import { close, hasLeft } from "../lib/chat/lifecycle.mjs";
 import { sink } from "../lib/chat/log.mjs";
 import { LEADER as LEADS, WORKER as WORKS, toolsFile } from "../lib/desks.mjs";
@@ -2797,5 +2798,36 @@ describe("the chat as a process", () => {
     assert.ok(address, `the chat never came back:\n${child.output}`);
     assert.equal(sessionKey(own), before);
     assert.equal((await fetchPlain(`${address}/`, { cookie: `openovai-page-${new URL(address).port}=${before}` })).status, 200);
+  });
+});
+
+// The introduction on the Leader's panel: once per version, whatever restarts come between, and
+// again after an update. A row only; nothing is started for it.
+describe("the introduction on the Leader's panel", () => {
+  const home = scratch("introduce");
+  const instance = { root: home, config: { leader: "Superman" } };
+  const introductions = () => read(home, "Superman").filter((one) => one.introduction === true);
+
+  before(() => {
+    fs.mkdirSync(path.join(home, "lib", "templates"), { recursive: true });
+    fs.copyFileSync(path.join(repo, INTRODUCTION_TEMPLATE), path.join(home, INTRODUCTION_TEMPLATE));
+    fs.writeFileSync(path.join(home, "lib", "VERSION"), "0.21.0\n");
+  });
+
+  after(() => {
+    remove(home);
+  });
+
+  it("is shown at the first start, not at the next, and again once the version changes", () => {
+    assert.equal(introduce(instance), true);
+    assert.equal(introduce(instance), false);
+    assert.equal(introductions().length, 1);
+    assert.match(introductions()[0].text, /^# Welcome to OpenOv AI 0\.21\.0 \(ovai\)/);
+    assert.equal(introductions()[0].from, SERVER);
+
+    fs.writeFileSync(path.join(home, "lib", "VERSION"), "0.22.0\n");
+    assert.equal(introduce(instance), true);
+    assert.equal(introductions().length, 2);
+    assert.equal(fs.readFileSync(path.join(home, INTRODUCED_FILE), "utf8"), "0.22.0\n");
   });
 });
