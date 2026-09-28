@@ -683,6 +683,17 @@ describe("the introduction", () => {
     assert.match(introduction(home), /^# Welcome to OpenOv AI 7198dbd0 \(ovai\)\n/);
   });
 
+  it("is handed to the Leader in a frame of its own, and to no Worker", () => {
+    assert.ok(leader().includes(`<ovai source="lib/templates/introduction.md">\n# Welcome to OpenOv AI`));
+    assert.doesNotMatch(worker(), /Welcome to OpenOv AI/);
+  });
+
+  it("tells the Leader to answer a question about the tool from the guide, in the asker's words", () => {
+    assert.match(flat(leader()), /When Mike asks about the tool rather than the work .* call the `ovai:guide` skill before you answer/);
+    assert.match(flat(leader()), /Answer in their words, not ovai's/);
+    assert.doesNotMatch(worker(), /ovai:guide/);
+  });
+
   it("names no version, and never null, when the instance carries none", () => {
     fs.rmSync(at("lib", "VERSION"), { force: true });
     const text = introduction(home);

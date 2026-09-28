@@ -966,5 +966,27 @@
         "to": ""
       }
     ]
+  },
+  {
+    "name": "the introduction is handed to every seat, Workers too",
+    "catches": "is handed to the Leader in a frame of its own, and to no Worker",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "    ...(leads ? [ovai(INTRODUCTION_TEMPLATE, introduction(root))] : []),\n",
+        "to": "    ovai(INTRODUCTION_TEMPLATE, introduction(root)),\n"
+      }
+    ]
+  },
+  {
+    "name": "the Leader's persona says nothing of when to reach for the guide",
+    "catches": "tells the Leader to answer a question about the tool from the guide, in the asker's words",
+    "edits": [
+      {
+        "file": "lib/templates/leader.md",
+        "from": "call the `ovai:guide` skill before you\nanswer, and before you read ovai's code or search the web.",
+        "to": "answer it."
+      }
+    ]
   }
 ]
