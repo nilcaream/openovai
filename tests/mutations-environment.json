@@ -60,8 +60,8 @@
     "edits": [
       {
         "file": "lib/claude.mjs",
-        "from": "const SET_ON_A_SESSION = [SEAT_IN_ENVIRONMENT, \"OPENOVAI_SESSION_SECRET\"];",
-        "to": "const SET_ON_A_SESSION = [SEAT_IN_ENVIRONMENT, \"OPENOVAI_SESSION_SECRET\", \"ENABLE_CLAUDEAI_MCP_SERVERS\"];"
+        "from": "const SET_ON_A_SESSION = [SEAT_IN_ENVIRONMENT];",
+        "to": "const SET_ON_A_SESSION = [SEAT_IN_ENVIRONMENT, \"ENABLE_CLAUDEAI_MCP_SERVERS\"];"
       }
     ]
   },

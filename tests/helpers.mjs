@@ -194,6 +194,38 @@ const value = (name) => process.env[name] || "<unset>";
 const log = process.env.OPENOVAI_STAND_IN_LOG;
 const note = (line) => fs.appendFileSync(log, line + "\\n");
 
+// The MCP address, read from the --mcp-config file once, at the start, as the real one does: the
+// chat removes the file once the run has said its first init. With it, the file's permission
+// bits, and whether any variable of the environment holds the secret in the address.
+const tools = (() => {
+  const at = argv.indexOf("--mcp-config");
+  if (at === -1) {
+    return null;
+  }
+  const raw = fs.readFileSync(argv[at + 1], "utf8");
+  const url = JSON.parse(raw).mcpServers.openovai.url;
+  const secret = url.slice(url.lastIndexOf("/") + 1);
+  return {
+    raw,
+    url,
+    mode: (fs.statSync(argv[at + 1]).mode & 0o777).toString(8),
+    inEnvironment: Object.values(process.env).some((set) => set.includes(secret)),
+  };
+})();
+
+// And it connects as it starts, before any question, as the real one does (measured on 2.1.280):
+// an initialize over that address, answered or not, logged as \`mcp-connected:\`.
+if (tools !== null) {
+  fetch(tools.url, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 0, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "stand-in", version: "0" } } }),
+  }).then(
+    (answered) => note("mcp-connected: " + answered.status),
+    (error) => note("mcp-connected: failed: " + error.message),
+  );
+}
+
 fs.appendFileSync(
   log,
   [
@@ -208,8 +240,11 @@ fs.appendFileSync(
     \`CLAUDE_CODE_PROJECT_DIR_NAME: \${value("CLAUDE_CODE_PROJECT_DIR_NAME")}\`,
     \`ANTHROPIC_API_KEY: \${value("ANTHROPIC_API_KEY")}\`,
     \`CLAUDE_CODE_OAUTH_TOKEN: \${value("CLAUDE_CODE_OAUTH_TOKEN")}\`,
-    \`OPENOVAI_SESSION_SECRET: \${value("OPENOVAI_SESSION_SECRET")}\`,
     \`OPENOVAI_SEAT: \${value("OPENOVAI_SEAT")}\`,
+    \`mcp-config: \${tools === null ? "<none>" : tools.raw}\`,
+    \`mcp-url: \${tools === null ? "<none>" : tools.url}\`,
+    \`mcp-mode: \${tools === null ? "<none>" : tools.mode}\`,
+    \`mcp-secret-in-environment: \${tools === null ? "<none>" : tools.inEnvironment}\`,
     "",
   ].join("\\n"),
 );
@@ -365,16 +400,8 @@ const perTurn = (name, turn) => {
   return parsed.length === 0 ? null : (parsed[turn - 1] ?? null);
 };
 
-// The MCP address this run was given, with the secret it refers to filled in from the environment
-// the way Claude Code does it.
-const toolAddress = () => {
-  const at = argv.indexOf("--mcp-config");
-  if (at === -1) {
-    return null;
-  }
-  const url = JSON.parse(argv[at + 1]).mcpServers.openovai.url;
-  return url.replace(/\\$\\{([A-Z_]+)\\}/g, (_, name) => process.env[name] ?? "");
-};
+// The MCP address this run was given, as it read it at the start.
+const toolAddress = () => (tools === null ? null : tools.url);
 
 async function callTool(name, args) {
   const address = toolAddress();
@@ -771,10 +798,23 @@ export function notesIn(log) {
     .map((found) => [found[1], found[2]]);
 }
 
-// The secrets the stand-in found in its environment, one per run, newest last. This is the one
-// place a test reads a session's secret from: the server never says it.
+// What the stand-in found in the --mcp-config file it was handed, one per run, newest last: the
+// file as written, its permission bits, and whether its environment held the secret as well.
+export function toolsHandedIn(log) {
+  const modes = recordedIn(log, "mcp-mode: ");
+  const inEnvironment = recordedIn(log, "mcp-secret-in-environment: ");
+  return recordedIn(log, "mcp-config: ").map((config, i) => ({ config, mode: modes[i], inEnvironment: inEnvironment[i] }));
+}
+
+// What each run's connection at its start was answered with, in the order they came back.
+export function connectionsIn(log) {
+  return recordedIn(log, "mcp-connected: ");
+}
+
+// The secrets the stand-in found in the MCP address it was handed, one per run, newest last. This
+// is the one place a test reads a session's secret from: the server never says it.
 export function secretsIn(log) {
-  return recordedIn(log, "OPENOVAI_SESSION_SECRET: ");
+  return recordedIn(log, "mcp-url: ").map((url) => url.slice(url.lastIndexOf("/") + 1));
 }
 
 // The processes the stand-in ran as, newest last. A check about a run being ended needs the

@@ -247,8 +247,8 @@
     "edits": [
       {
         "file": "lib/chat/secrets.mjs",
-        "from": "  const known = issued.get(secret);\n  return known === undefined ? null : { seat: known.seat, role: known.role };",
-        "to": "  const known = issued.get(secret);\n  if (known === undefined && secret === page) {\n    return { seat: \"page\", role: \"Leader\" };\n  }\n  return known === undefined ? null : { seat: known.seat, role: known.role };"
+        "from": "  const known = issued.get(secret);\n  if (known === undefined) {\n",
+        "to": "  const known = issued.get(secret);\n  if (known === undefined && secret === page) {\n    return { seat: \"page\", role: \"Leader\" };\n  }\n  if (known === undefined) {\n"
       }
     ]
   },
@@ -280,8 +280,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "  const secret = issue(seat, role);\n",
-        "to": "  const secret = issue(seat, role);\n  fs.writeFileSync(path.join(instance.root, \"temp\", \"secret.txt\"), secret);\n"
+        "from": "  const secret = issue(seat, role, () => takeBack(handed));\n",
+        "to": "  const secret = issue(seat, role, () => takeBack(handed));\n  fs.writeFileSync(path.join(instance.root, \"temp\", \"secret.txt\"), secret);\n"
       }
     ]
   },
@@ -297,13 +297,35 @@
     ]
   },
   {
-    "name": "the literal secret is written into the command line",
-    "catches": "hands the process its secret in the environment and never on the command line",
+    "name": "the secret is put in the environment as well",
+    "catches": "hands the process its secret in a file only this user reads, never on the command line or in its environment",
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "    args.push(\"--mcp-config\", tools);",
-        "to": "    args.push(\"--mcp-config\", tools.replace(`\\${${SECRET_IN_ENVIRONMENT}}`, secret));"
+        "from": "      env: environment(instance.root, instance.config.auth, seat),",
+        "to": "      env: { ...environment(instance.root, instance.config.auth, seat), OPENOVAI_SESSION_SECRET: secret },"
+      }
+    ]
+  },
+  {
+    "name": "the file the secret is handed over in is readable by every user",
+    "catches": "hands the process its secret in a file only this user reads, never on the command line or in its environment",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "  fs.writeFileSync(file, tools, { flag: \"wx\", mode: 0o600 });",
+        "to": "  fs.writeFileSync(file, tools, { flag: \"wx\", mode: 0o644 });"
+      }
+    ]
+  },
+  {
+    "name": "the file the secret is handed over in is left after its first use",
+    "catches": "removes that file at the secret's first use, before the process is asked anything",
+    "edits": [
+      {
+        "file": "lib/chat/secrets.mjs",
+        "from": "  used?.();",
+        "to": ""
       }
     ]
   },
@@ -313,8 +335,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "    env: { ...environment(instance.root, instance.config.auth, seat), [SECRET_IN_ENVIRONMENT]: secret },",
-        "to": "    env: { ...environment(instance.root, instance.config.auth, seat) },"
+        "from": "        url: `${chat}/mcp/${secret}`,",
+        "to": "        url: `${chat}/mcp/`,"
       }
     ]
   },
@@ -1796,8 +1818,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "const child = spawn(claudeCommand(instance.root), args, {",
-        "to": "const child = spawn(\"claude\", args, {"
+        "from": "child = spawn(claudeCommand(instance.root), args, {",
+        "to": "child = spawn(\"claude\", args, {"
       }
     ]
   },

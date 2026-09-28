@@ -25,11 +25,11 @@ import { hire } from "../lib/desks.mjs";
 import { endSeat, serve, shownRoot, startSeat, toolsFor } from "../lib/chat/server.mjs";
 import { close, hasLeft } from "../lib/chat/lifecycle.mjs";
 import { sink } from "../lib/chat/log.mjs";
-import { LEADER as LEADS, WORKER as WORKS } from "../lib/desks.mjs";
-import { SECRET_IN_ENVIRONMENT, end, endEvery, interrupt, recordOf, running, runningSeats, start, tell, keystroke as keyTyped } from "../lib/chat/session.mjs";
+import { LEADER as LEADS, WORKER as WORKS, toolsFile } from "../lib/desks.mjs";
+import { end, endEvery, interrupt, recordOf, running, runningSeats, start, tell, keystroke as keyTyped } from "../lib/chat/session.mjs";
 import { BUILT_IN } from "../lib/plugins.mjs";
 import { CONFIG_FILE } from "../lib/seed.mjs";
-import { alive, callsIn, childrenOf, get as fetchPlain, heardIn, installed, leftRunningIn, notesIn, post as postPlain, queuesHeardIn, readLog, remove, repo, sansMoment, scratch, seatsIn, secretsIn, source, startChat, stopChat, waitFor, waitForAddress, writeStandIn } from "./helpers.mjs";
+import { alive, callsIn, childrenOf, connectionsIn, get as fetchPlain, heardIn, installed, leftRunningIn, notesIn, post as postPlain, queuesHeardIn, readLog, remove, repo, sansMoment, scratch, seatsIn, secretsIn, source, startChat, stopChat, toolsHandedIn, waitFor, waitForAddress, writeStandIn } from "./helpers.mjs";
 
 const USER = "Mike";
 const LEADER = "Superman";
@@ -718,17 +718,25 @@ describe("starting a seat", () => {
     paul = again;
   });
 
-  it("hands the process its secret in the environment and never on the command line", () => {
+  it("hands the process its secret in a file only this user reads, never on the command line or in its environment", () => {
     const argv = callsIn(paul.log).at(-1);
     assert.ok(!argv.includes(paul.secret), `the secret is in argv: ${argv}`);
-    assert.ok(argv.includes(`/mcp/\${${SECRET_IN_ENVIRONMENT}}`), `no placeholder in argv: ${argv}`);
+    assert.ok(argv.includes(`--mcp-config ${toolsFile(instance, WORKER)} `), `the file is not named in argv: ${argv}`);
+    const handed = toolsHandedIn(paul.log).at(-1);
+    assert.equal(handed.mode, "600");
+    assert.equal(handed.inEnvironment, "false");
+  });
+
+  it("removes that file at the secret's first use, before the process is asked anything", async () => {
+    assert.ok(await waitFor(() => connectionsIn(paul.log).length > 0), "the process never connected");
+    assert.equal(connectionsIn(paul.log).at(-1), "200");
+    assert.ok(!fs.existsSync(toolsFile(instance, WORKER)), "the file is still there after the secret was used");
   });
 
   it("points the process at this chat, with a whole turn to wait on a colleague", () => {
-    const argv = callsIn(paul.log).at(-1);
-    const config = JSON.parse(argv.match(/--mcp-config (\{.*?\}) --settings/s)[1]);
+    const config = JSON.parse(toolsHandedIn(paul.log).at(-1).config);
     assert.equal(config.mcpServers.openovai.type, "http");
-    assert.equal(config.mcpServers.openovai.url, `${url}/mcp/\${${SECRET_IN_ENVIRONMENT}}`);
+    assert.equal(config.mcpServers.openovai.url, `${url}/mcp/${paul.secret}`);
     assert.equal(config.mcpServers.openovai.timeout, 30 * 60 * 1000);
   });
 

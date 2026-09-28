@@ -27,7 +27,6 @@ const STARTERS = {
   PWD: "/somewhere/else",
   OLDPWD: "/somewhere",
   OPENOVAI_SEAT: "Starter",
-  OPENOVAI_SESSION_SECRET: "secret",
   CLAUDE_CONFIG_DIR: "/somewhere/else/.local",
 };
 const SIGN_IN = { CLAUDE_CODE_OAUTH_TOKEN: "machine-sign-in" };

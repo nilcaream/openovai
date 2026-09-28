@@ -93,8 +93,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "  const child = spawn(claudeCommand(instance.root), args, {",
-        "to": "  const child = spawn(claudeCommand(instance.root), args.slice(), {"
+        "from": "    child = spawn(claudeCommand(instance.root), args, {",
+        "to": "    child = spawn(claudeCommand(instance.root), args.slice(), {"
       }
     ]
   },
@@ -104,8 +104,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "  const child = spawn(claudeCommand(instance.root), args, {",
-        "to": "  const own = claudeCommand(instance.root);\n  const child = spawn(own, args, {"
+        "from": "    child = spawn(claudeCommand(instance.root), args, {",
+        "to": "    const own = claudeCommand(instance.root);\n    child = spawn(own, args, {"
       }
     ]
   },

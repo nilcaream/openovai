@@ -6,6 +6,19 @@ carries only its own.
 
 ## 0.21.0
 
+**A session's secret is no longer in its environment.** The secret a session's calls to the chat
+are known by was in the session's process environment, and every process of the same user can
+read that at any time through `/proc/<pid>/environ`. One `grep` from any seat found the Leader's
+secret and could call `hire`, `retire` or `permission` as the Leader. The secret is now handed over
+in a file only this user can read, `desks/<seat>/mcp.json`, named on the command line by its path
+and removed when the session first uses it, which Claude Code does as it starts, before it is
+asked anything: about a quarter of a second after the start, measured on Claude Code 2.1.280. The environment variable `OPENOVAI_SESSION_SECRET` is gone. Three things are still
+open. A process of the same user that watches for the file can read it in that moment. A process that can read another
+process's memory can read the secret there: on Linux that takes ptrace permission, which
+`kernel.yama.ptrace_scope` set to 1 limits to a process's own descendants, and set to 0 gives to
+every process of the same user. And a seat that runs
+commands as the user can change ovai's own code, which every session runs.
+
 **The Leader is no longer told that only its words after the last tool call reach the panel.**
 The context error said so, and it was never true: every text a session writes in a turn is a row
 on its panel, before a tool call as much as after one. A Leader that believed it wrote its replies
