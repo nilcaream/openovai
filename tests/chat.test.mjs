@@ -384,6 +384,18 @@ describe("what the chat serves", () => {
     assert.equal(again.headers["set-cookie"], undefined);
   });
 
+  // The link stays in the browser's history; opened again by the browser it signed in, it is the
+  // page's address like any other, and it signs nobody in.
+  it("sends a signed-in browser that opens a used link on to the page, and sets nothing", async () => {
+    const [host] = own();
+    const token = writeLink(instance);
+    assert.equal((await raw("GET", `/?token=${token}`, { host })).status, 303);
+    const again = await raw("GET", `/?token=${token}`, { host, cookie: signedIn() });
+    assert.equal(again.status, 303);
+    assert.equal(again.headers.location, "/");
+    assert.equal(again.headers["set-cookie"], undefined);
+  });
+
   it("refuses a link that is wrong, replaced by a newer one, or out of time", async () => {
     const [host] = own();
     const first = writeLink(instance);

@@ -2192,8 +2192,8 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "    if (!takeLink(instance.root, url.searchParams.get(\"token\"))) {\n      sendSignIn(instance, response, theme);\n      return;\n    }",
-        "to": "    takeLink(instance.root, url.searchParams.get(\"token\"));"
+        "from": "    if (!taken && !signedIn(instance, port, request)) {\n      sendSignIn(instance, response, theme);\n      return;\n    }",
+        "to": ""
       }
     ]
   },
@@ -2271,6 +2271,28 @@
         "file": "lib/chat/server.mjs",
         "from": "  sessionKey(instance.root);\n\n  return new Promise(",
         "to": "  return new Promise("
+      }
+    ]
+  },
+  {
+    "name": "a used link opened by a signed-in browser is refused",
+    "catches": "sends a signed-in browser that opens a used link on to the page, and sets nothing",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "    if (!taken && !signedIn(instance, port, request)) {",
+        "to": "    if (!taken) {"
+      }
+    ]
+  },
+  {
+    "name": "a used link opened by a signed-in browser sets the cookie again",
+    "catches": "sends a signed-in browser that opens a used link on to the page, and sets nothing",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "      ...(taken ? { \"set-cookie\": sessionCookie(instance, port) } : {}),",
+        "to": "      \"set-cookie\": sessionCookie(instance, port),"
       }
     ]
   }
