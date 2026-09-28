@@ -42,5 +42,71 @@
         "to": "export const VERSION_FILE = \"VERSION\";"
       }
     ]
+  },
+  {
+    "name": "the release is published as the latest before it is signed",
+    "catches": "drafts the release, so nothing unsigned is ever the latest",
+    "edits": [
+      {
+        "file": ".github/workflows/release.yml",
+        "from": "--notes-file \"${NOTES}\" --draft --verify-tag",
+        "to": "--notes-file \"${NOTES}\" --latest --verify-tag"
+      }
+    ]
+  },
+  {
+    "name": "the sign job checks out the repository with an action",
+    "catches": "runs no action beside the key",
+    "edits": [
+      {
+        "file": ".github/workflows/release.yml",
+        "from": "    needs: release\n    runs-on: ubuntu-latest\n    steps:\n",
+        "to": "    needs: release\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v7\n\n"
+      }
+    ]
+  },
+  {
+    "name": "the job that runs the repository's own code is handed the key",
+    "catches": "is the one job that reads the key",
+    "edits": [
+      {
+        "file": ".github/workflows/release.yml",
+        "from": "      - name: Work out the tag and the notes\n        id: release\n",
+        "to": "      - name: Work out the tag and the notes\n        id: release\n        env:\n          KEY: ${{ secrets.RELEASE_SIGNING_KEY }}\n"
+      }
+    ]
+  },
+  {
+    "name": "the signatures are attached without being checked",
+    "catches": "checks every signature against the keys the tag pins before attaching anything",
+    "edits": [
+      {
+        "file": ".github/workflows/release.yml",
+        "from": "            ssh-keygen -Y verify -f src/lib/RELEASE_KEYS -I openovai-release -n openovai-release -s \"${signature}\" < SHA256SUMS\n",
+        "to": "            true\n"
+      }
+    ]
+  },
+  {
+    "name": "the sign job runs beside the release job rather than after it",
+    "catches": "signs the tag the release job pushed, once it has",
+    "edits": [
+      {
+        "file": ".github/workflows/release.yml",
+        "from": "    name: Sign\n    needs: release\n",
+        "to": "    name: Sign\n    needs: tests\n"
+      }
+    ]
+  },
+  {
+    "name": "the release is published before the package is attached",
+    "catches": "publishes the release as the latest only once the signed package is attached",
+    "edits": [
+      {
+        "file": ".github/workflows/release.yml",
+        "from": "          gh release upload \"${TAG}\" openovai-*.tar.gz SHA256SUMS SHA256SUMS*.sig --repo \"${GITHUB_REPOSITORY}\"\n          gh release edit \"${TAG}\" --draft=false --latest --repo \"${GITHUB_REPOSITORY}\"\n",
+        "to": "          gh release edit \"${TAG}\" --draft=false --latest --repo \"${GITHUB_REPOSITORY}\"\n          gh release upload \"${TAG}\" openovai-*.tar.gz SHA256SUMS SHA256SUMS*.sig --repo \"${GITHUB_REPOSITORY}\"\n"
+      }
+    ]
   }
 ]

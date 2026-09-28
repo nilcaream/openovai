@@ -271,6 +271,58 @@ describe("the workflow that runs it", () => {
   });
 });
 
+// A job of a workflow, as text: from its name to the next job's, so a check can ask what one job
+// holds without another's lines answering for it.
+function jobIn(workflow, name) {
+  const found = new RegExp(`^  ${name}:\\n((?:(?:    .*)?\\n)+)`, "m").exec(workflow);
+  assert.ok(found !== null, `no job ${name}`);
+  return found[1];
+}
+
+// What an instance takes is the package the sign job attaches, and only once it is signed. These
+// are the lines that make it so; everything else in the job is ordinary shell.
+describe("the signing of a release", () => {
+  const workflow = fs.readFileSync(path.join(repo, ".github", "workflows", "release.yml"), "utf8");
+  const release = jobIn(workflow, "release");
+  const sign = jobIn(workflow, "sign");
+  const at = (text) => {
+    const where = sign.indexOf(text);
+    assert.ok(where >= 0, `the sign job has no ${text}`);
+    return where;
+  };
+
+  it("drafts the release, so nothing unsigned is ever the latest", () => {
+    assert.match(release, /gh release create .*--draft/);
+    assert.doesNotMatch(release, /--latest/);
+  });
+
+  it("signs the tag the release job pushed, once it has", () => {
+    assert.match(sign, /^    needs: release$/m);
+    assert.match(release, /^      tag: \$\{\{ steps\.release\.outputs\.tag \}\}$/m);
+    assert.match(sign, /--branch "\$\{TAG\}"/);
+    assert.match(sign, /TAG: \$\{\{ needs\.release\.outputs\.tag \}\}/);
+  });
+
+  it("runs no action beside the key", () => {
+    assert.doesNotMatch(sign, /uses:/);
+  });
+
+  it("is the one job that reads the key", () => {
+    const outside = workflow.replace(sign, "") + fs.readFileSync(path.join(repo, ".github", "workflows", "ci.yml"), "utf8");
+    assert.match(sign, /secrets\.RELEASE_SIGNING_KEY \}\}/);
+    assert.doesNotMatch(outside, /secrets\.RELEASE_SIGNING_KEY|secrets: inherit/);
+  });
+
+  it("checks every signature against the keys the tag pins before attaching anything", () => {
+    assert.match(sign, /ssh-keygen -Y verify -f src\/lib\/RELEASE_KEYS/);
+    assert.ok(at("ssh-keygen -Y verify") < at("gh release upload"), "attaches before it checks");
+  });
+
+  it("publishes the release as the latest only once the signed package is attached", () => {
+    assert.ok(at("gh release upload") < at("--draft=false --latest"), "publishes before it attaches");
+  });
+});
+
 // CI is the other thing in .github/ that runs this repository's own checks, and it is a written
 // list of jobs beside a directory of suites — two places holding one fact, which is a thing that
 // stays true only while somebody remembers it. It did not: tests/update.test.mjs was written, was
