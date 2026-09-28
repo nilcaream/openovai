@@ -140,6 +140,12 @@ The Leader is handed the same text in its instructions, in a frame of its own af
 is told to answer a question about the tool from ovai's guide, in the asker's own words. Workers
 and admin mode get neither.
 
+**The Leader answers questions about ovai from ovai's own guide.** `lib/guide` is a Claude Code
+plugin named `ovai`, passed to the Leader's session with `--plugin-dir`. Its one skill,
+`ovai:guide`, is picked when the person asks how to do something here, in their own words or
+ovai's, and reads the topic page the question is about. It lives in `lib/`, so an update replaces it
+together with the code it describes. Workers and admin mode are not given it.
+
 ## 0.20.0
 
 **An update is finished by the version it brings in.** `ovai update` used to finish in the code it

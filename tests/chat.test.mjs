@@ -863,6 +863,11 @@ describe("starting a seat", () => {
     assert.ok(persona.includes(WORKER), "the persona does not name the seat");
   });
 
+  it("hands the Leader ovai's guide as a plugin from the instance's own lib, and no Worker", () => {
+    assert.ok(callsIn(superman.log).at(-1).includes(`--plugin-dir ${path.join(instance, "lib", "guide")}`));
+    assert.doesNotMatch(callsIn(paul.log).at(-1), /--plugin-dir/);
+  });
+
   it("hands the run the list of what is not to be read, as a settings document of its own", () => {
     const handed = callsIn(paul.log).at(-1).match(/--settings (\S+)/)[1];
     assert.equal(handed, path.join(instance, "instructions.json"));

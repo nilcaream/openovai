@@ -2306,5 +2306,16 @@
         "to": "  append(instance.root, instance.config.leader,"
       }
     ]
+  },
+  {
+    "name": "the guide is handed to Workers instead of the Leader",
+    "catches": "hands the Leader ovai's guide as a plugin from the instance's own lib, and no Worker",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "  if (role === LEADER) {\n    args.push(\"--plugin-dir\"",
+        "to": "  if (role === WORKER) {\n    args.push(\"--plugin-dir\""
+      }
+    ]
   }
 ]
