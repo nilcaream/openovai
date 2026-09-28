@@ -26,7 +26,7 @@ openovai --root ~/my-workspace --user Ana --leader Max \
          --leader-model opus/high --worker-model opus/high --port 7799 --auth login
 # sign the instance in (--auth login): opens a browser once, the credential stays inside the instance
 ~/my-workspace/bin/ovai login
-# start the server in the background: it prints http://127.0.0.1:7799 and returns
+# start the server in the background: it prints a one-time link, http://127.0.0.1:7799/?token=…, and returns
 ~/my-workspace/bin/ovai start
 ```
 
@@ -42,9 +42,12 @@ cd openovai
              --leader-model opus/high --worker-model opus/high --port 7799 --auth login
 ```
 
-Open the address `ovai start` prints. The Leader's panel is in the middle; type what you want and
-the Leader starts. `ovai status` says whether the server is running and where, `ovai stop` stops
-it. Everything the page and the command do is described at [openov.ai](https://openov.ai).
+Open the link `ovai start` prints, within ten minutes. It works once: it signs that browser in and
+takes it to the plain address, and the browser stays signed in across restarts and updates. For
+another browser, run `ovai url`, which prints a new one-time link. The Leader's panel is in the
+middle; type what you want and the Leader starts. `ovai status` says whether the server is running
+and where, `ovai stop` stops it. To sign every browser out, delete `page-session` at the root. Everything
+the page and the command do is described at [openov.ai](https://openov.ai).
 
 ## The idea
 
@@ -98,6 +101,10 @@ An instance is a directory of its own. Its root is this, and nothing else ever l
                     files above the instance it is not to read; written at every start
   runtime.json      the running server: url, pid, since
   runtime.log       what the server said, one row per line, every run appended
+  page-session      the key a signed-in browser's cookie carries, made at the first start and
+                    kept; delete it to sign every browser out
+  page-link         the one-time link `ovai start` or `ovai url` printed last, until it is
+                    opened or its ten minutes are up
   admin.json        what `ovai claude` left when the door closed: when the session ended, which
                     configuration files changed, and what moved in them, by name; a running
                     server hands it to the Leader within seconds, a stopped one at its next
@@ -117,6 +124,9 @@ An instance is a directory of its own. Its root is this, and nothing else ever l
   .claude/          Claude Code's project settings for the instance; the name is Claude Code's
   .local/           Claude Code's config dir for the instance: account, transcripts, memory
 ```
+
+The root and `.local/` are open to their owner alone (0700), whatever the umask, and `runtime.json`,
+`runtime.log`, `page-session` and `page-link` are 0600.
 
 ## What ovai relies on that Claude Code doesn't document
 

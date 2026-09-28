@@ -1372,6 +1372,13 @@ describe("the server commands", () => {
   const runtime = path.join(served, "runtime.json");
   const pidRecorded = () => JSON.parse(fs.readFileSync(runtime, "utf8")).pid;
   const ovai = (argv, changes) => run(served, log, argv, changes);
+  // A link as the commands print it, the address it is on, and the token it carries; and the token
+  // the instance holds pending.
+  const LINK = /^(already running at )?http:\/\/127\.0\.0\.1:\d+\/\?token=[A-Za-z0-9_-]{43}\n$/;
+  const lastLine = (said) => said.trim().split("\n").at(-1).replace(/^already running at /, "");
+  const addressOf = (said) => new URL(lastLine(said)).origin;
+  const tokenOf = (said) => new URL(lastLine(said)).searchParams.get("token");
+  const pendingLink = () => JSON.parse(fs.readFileSync(path.join(served, "page-link"), "utf8")).token;
   let url;
   const answering = async () => {
     try {
@@ -1440,19 +1447,61 @@ describe("the server commands", () => {
     assert.equal(asked.status, 3);
   });
 
+  it("prints no link while nothing runs: not running, and exits 3", () => {
+    const asked = ovai(["url"]);
+    assert.equal(asked.stdout, "not running\n");
+    assert.equal(asked.status, 3);
+    assert.equal(fs.existsSync(path.join(served, "page-link")), false);
+  });
+
   it("stops nothing without complaint", () => {
     const asked = ovai(["stop"]);
     assert.equal(asked.stdout, "not running\n");
     assert.equal(asked.status, 0);
   });
 
-  it("starts the server in the background and prints its address, and nothing else", async () => {
+  // The address alone opens nothing: what a person is handed is the address with a one-time link on
+  // it, the one the server takes (chat/signin.mjs).
+  it("starts the server in the background and prints a one-time link to its page, and nothing else", async () => {
     const started = ovai(["start"]);
     assert.equal(started.status, 0, started.stderr);
-    assert.match(started.stdout, /^http:\/\/127\.0\.0\.1:\d+\n$/);
+    assert.match(started.stdout, LINK);
     assert.equal(started.stderr, "");
-    url = started.stdout.trim();
+    assert.equal(tokenOf(started.stdout), pendingLink());
+    url = addressOf(started.stdout);
     assert.ok(await settled(true), "the server is not answering after start returned");
+  });
+
+  it("signs a browser in with the link it printed, once", async () => {
+    const printed = ovai(["url"]);
+    const taken = await fetch(printed.stdout.trim(), { redirect: "manual" });
+    assert.equal(taken.status, 303);
+    const cookie = taken.headers.get("set-cookie").split(";")[0];
+    assert.equal((await fetch(`${url}/`, { headers: { cookie } })).status, 200);
+    assert.equal((await fetch(printed.stdout.trim(), { redirect: "manual" })).status, 401);
+  });
+
+  it("prints a new link at every ovai url, and the one before it opens nothing", async () => {
+    const first = ovai(["url"]);
+    assert.equal(first.status, 0, first.stderr);
+    assert.match(first.stdout, LINK);
+    assert.equal(addressOf(first.stdout), url);
+    const second = ovai(["url"]);
+    assert.notEqual(tokenOf(second.stdout), tokenOf(first.stdout));
+    assert.equal(tokenOf(second.stdout), pendingLink());
+    assert.equal((await fetch(first.stdout.trim(), { redirect: "manual" })).status, 401);
+  });
+
+  it("writes the link and the session key for their owner alone", () => {
+    assert.equal(fs.statSync(path.join(served, "page-link")).mode & 0o777, 0o600);
+    assert.equal(fs.statSync(path.join(served, "page-session")).mode & 0o777, 0o600);
+  });
+
+  it("prints neither the link nor the session key anywhere but where it was asked for", () => {
+    const logged = fs.readFileSync(path.join(served, "runtime.log"), "utf8");
+    assert.ok(!logged.includes(pendingLink()), "the link is in the log");
+    assert.ok(!logged.includes(fs.readFileSync(path.join(served, "page-session"), "utf8").trim()), "the session key is in the log");
+    assert.doesNotMatch(ovai(["status"]).stdout, /token=/);
   });
 
   it("starts the server on the toolkit's own node, by path", () => {
@@ -1491,21 +1540,23 @@ describe("the server commands", () => {
     assert.match(asked.stdout, new RegExp(`^running at ${url} \\(pid ${pidRecorded()}, since \\d{4}-\\d{2}-\\d{2}T[^)]+\\)$`, "m"));
   });
 
-  it("does not start a second server over the first", () => {
+  it("does not start a second server over the first, and prints a new link to the one running", () => {
     const pid = pidRecorded();
     const again = ovai(["start"]);
     assert.equal(again.status, 0);
-    assert.equal(again.stdout, `already running at ${url}\n`);
+    assert.match(again.stdout, LINK);
+    assert.ok(again.stdout.startsWith(`already running at ${url}/?token=`), again.stdout);
+    assert.equal(tokenOf(again.stdout), pendingLink());
     assert.equal(pidRecorded(), pid);
   });
 
-  it("restarts: stops the one running, starts another, prints the address", async () => {
+  it("restarts: stops the one running, starts another, prints a link to it", async () => {
     const pid = pidRecorded();
     const restarted = ovai(["restart"]);
     assert.equal(restarted.status, 0, restarted.stderr);
-    assert.match(restarted.stdout, new RegExp(`^Stopping the server at ${url} \\(pid ${pid}\\)\\.\nStopped( \\(sessions gone after \\d+\\.\\d seconds\\))?\\.\n(http://127\\.0\\.0\\.1:\\d+)\n$`));
+    assert.match(restarted.stdout, new RegExp(`^Stopping the server at ${url} \\(pid ${pid}\\)\\.\nStopped( \\(sessions gone after \\d+\\.\\d seconds\\))?\\.\n(http://127\\.0\\.0\\.1:\\d+/\\?token=[A-Za-z0-9_-]{43})\n$`));
     assert.notEqual(pidRecorded(), pid);
-    url = restarted.stdout.trim().split("\n").at(-1);
+    url = addressOf(restarted.stdout);
     assert.ok(await settled(true));
   });
 
@@ -1554,7 +1605,7 @@ describe("the server commands", () => {
   it("returns only once every session of the instance is gone, and says how long that took", async () => {
     const started = ovai(["start"]);
     assert.equal(started.status, 0, started.stderr);
-    url = started.stdout.trim();
+    url = addressOf(started.stdout);
     assert.ok(await settled(true));
     const pid = pidRecorded();
     const session = sessionLiving(1500);
@@ -1598,7 +1649,7 @@ describe("the server commands", () => {
     try {
       const started = ovai(["start"]);
       assert.equal(started.status, 0, started.stderr);
-      url = started.stdout.trim();
+      url = addressOf(started.stdout);
       assert.ok(await settled(true));
       const stopped = ovai(["stop"]);
       assert.notEqual(stopped.status, 0);
@@ -1632,7 +1683,7 @@ describe("the server commands", () => {
   it("finds a stale record out by trying", async () => {
     const started = ovai(["start"]);
     assert.equal(started.status, 0);
-    url = started.stdout.trim();
+    url = addressOf(started.stdout);
     process.kill(pidRecorded(), "SIGKILL");
     assert.ok(await settled(false));
     assert.ok(fs.existsSync(runtime));

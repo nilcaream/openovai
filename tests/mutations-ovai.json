@@ -133,11 +133,11 @@
   },
   {
     "name": "start does not look for a server already running",
-    "catches": "does not start a second server over the first",
+    "catches": "does not start a second server over the first, and prints a new link to the one running",
     "edits": [
       {
         "file": "lib/ovai.mjs",
-        "from": "  const running = await serving(root);\n  if (running !== null) {\n    console.log(`already running at ${running.url}`);\n    return;\n  }\n\n  // Appended, never written over",
+        "from": "  const running = await serving(root);\n  if (running !== null) {\n    console.log(`already running at ${link(root, running.url)}`);\n    return;\n  }\n\n  // Appended, never written over",
         "to": "  // Appended, never written over"
       }
     ]
@@ -359,6 +359,50 @@
         "file": "lib/ovai.mjs",
         "from": "  const log = fs.openSync(where, \"a\", PRIVATE_FILE);\n  fs.fchmodSync(log, PRIVATE_FILE);",
         "to": "  const log = fs.openSync(where, \"a\");"
+      }
+    ]
+  },
+  {
+    "name": "start prints the plain address, which opens nothing",
+    "catches": "starts the server in the background and prints a one-time link to its page, and nothing else",
+    "edits": [
+      {
+        "file": "lib/ovai.mjs",
+        "from": "      console.log(link(root, record.url));",
+        "to": "      console.log(record.url);"
+      }
+    ]
+  },
+  {
+    "name": "start over a running server prints its plain address",
+    "catches": "does not start a second server over the first, and prints a new link to the one running",
+    "edits": [
+      {
+        "file": "lib/ovai.mjs",
+        "from": "    console.log(`already running at ${link(root, running.url)}`);",
+        "to": "    console.log(`already running at ${running.url}`);"
+      }
+    ]
+  },
+  {
+    "name": "url prints the link pending rather than a new one",
+    "catches": "prints a new link at every ovai url, and the one before it opens nothing",
+    "edits": [
+      {
+        "file": "lib/ovai.mjs",
+        "from": "  console.log(link(root, running.url));\n  return 0;",
+        "to": "  console.log(linkTo(running.url, JSON.parse(fs.readFileSync(path.join(root, \"page-link\"), \"utf8\")).token));\n  return 0;"
+      }
+    ]
+  },
+  {
+    "name": "url writes a link whether or not anything runs",
+    "catches": "prints no link while nothing runs: not running, and exits 3",
+    "edits": [
+      {
+        "file": "lib/ovai.mjs",
+        "from": "  const running = await serving(root);\n  if (running === null) {\n    console.log(\"not running\");\n    return NOT_RUNNING;\n  }\n  console.log(link(",
+        "to": "  const running = await serving(root);\n  if (running === null) {\n    writeLink(root);\n    console.log(\"not running\");\n    return NOT_RUNNING;\n  }\n  console.log(link("
       }
     ]
   }

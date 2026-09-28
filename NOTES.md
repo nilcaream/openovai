@@ -6,6 +6,13 @@ carries only its own.
 
 ## 0.21.0
 
+**The page now signs a browser in with a one-time link.** Anything on the machine that could reach
+the port used to get the page, and with it the right to answer cards and speak as the User. Now
+`ovai start` prints a link that works once, for ten minutes, and `ovai url` prints a new one. Open
+it once in each browser and that browser stays signed in, across restarts and updates. A page left
+open from before the update shows where to get a link until you open one. The instance's root is
+now readable by its owner alone, and so are the files that hold its address and keys.
+
 **A session's secret is no longer in its environment.** The secret a session's calls to the chat
 are known by was in the session's process environment, and every process of the same user can
 read that at any time through `/proc/<pid>/environ`. One `grep` from any seat found the Leader's
