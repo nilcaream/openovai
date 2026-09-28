@@ -109,6 +109,21 @@ a Bearer value. A tool call's line and runtime.log are masked by name too, as be
 value count only when they are on the same line. A password written in prose, "password: hunter2",
 is now kept as written.
 
+**An update takes only a signed release.** This closes a gap in how a release reaches an instance.
+`ovai update` took whatever archive the releases API named, and `openovai` whatever the tag's
+archive held, and neither checked a byte of it. A moved tag, a mirror, or anything between the
+machine and GitHub could hand an instance other code to run. Each release now carries its package,
+`SHA256SUMS` and a signature made by the release workflow. `ovai update` checks the signature with
+the keys in the instance's own `lib/RELEASE_KEYS`, checks the package against `SHA256SUMS`, and
+checks that the `lib/VERSION` inside matches the tag, all before anything is replaced. It never
+takes GitHub's own archive of the tag. `openovai` checks the same with `ssh-keygen` before it
+unpacks anything, and now needs `ssh-keygen` from OpenSSH 8.1 or later. Three things are still
+open. The update to this version is itself taken the old way, unchecked. Get the `openovai` command
+again with the `curl … | sh` line so it pins the key too, since a copy installed earlier never
+checks. And the signature proves a release was made by the repository's release workflow, not that
+anybody reviewed it: whoever controls the repository can have a release signed. `update --from` a
+directory is not checked, as before.
+
 ## 0.20.0
 
 **An update is finished by the version it brings in.** `ovai update` used to finish in the code it

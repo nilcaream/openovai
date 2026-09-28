@@ -103,8 +103,10 @@ Run them all with `node --test tests/*.test.mjs`. Continuous integration runs ea
 its own, so a red one is named.
 
 The update suite serves a release to itself — a directory for one already unpacked, and a local
-HTTP server answering the shape GitHub answers in, with a real `.tar.gz` — so no check reaches the
-network and no check needs a release to exist.
+HTTP server answering the shape GitHub answers in, with a real `.tar.gz`, its `SHA256SUMS` and a
+signature made by `ssh-keygen` with a key made for the run — so no check reaches the network and no
+check needs a release to exist. The `openovai` suite runs a copy of the command with that key in
+place of the one it pins.
 
 They need Node.js and nothing else. The install suite skips the checks that start an instance
 when Claude Code is absent, and says it skipped them rather than passing quietly. The others
@@ -181,8 +183,9 @@ Run `node tests/mutate.mjs` with no arguments for the rest of the options.
 
 ## Releases
 
-A release is a tag plus the source archive GitHub makes for it, and cutting one is a click:
-**Actions -> Release -> Run workflow -> main**.
+A release is a tag plus three files attached to it: `openovai-<version>.tar.gz`, which is
+`git archive` of the tag, `SHA256SUMS` naming it, and `SHA256SUMS.sig`, a signature over that by
+the release key. Cutting one is a click: **Actions -> Release -> Run workflow -> main**.
 
 Everything it needs is already in the repository, so there is nothing to type into that form and
 nothing to paste afterwards:
@@ -193,12 +196,30 @@ nothing to paste afterwards:
 3. Merge both to `main`.
 4. Run the workflow.
 
-It reads `lib/VERSION`, tags that commit with `v<version>`, and publishes a release named for the
+It reads `lib/VERSION`, tags that commit with `v<version>`, and drafts a release named for the
 version whose body is that section of `NOTES.md`. It refuses, loudly and before anything is
 tagged, when the version is not three numbers, when `v<version>` is already a tag, or when
-`NOTES.md` says nothing about that version. The token is the one GitHub gives the run and
-`contents: write` is the only permission it asks for, so there is nothing to set up and no
-secret anywhere.
+`NOTES.md` says nothing about that version. Then its sign job clones the tag, makes the package,
+signs `SHA256SUMS`, checks the signature against the tag's `lib/RELEASE_KEYS`, attaches the three
+files and publishes the release as the latest. That job runs no action, only git, `ssh-keygen` and
+`gh` on the runner. If it fails, the release stays a draft that nobody updates to: re-run the
+failed job.
+
+The token is the one GitHub gives the run, and `contents: write` is the only permission it asks
+for. The key is the repository secret `RELEASE_SIGNING_KEY`, an Ed25519 key with no passphrase,
+read by the sign job alone. Its public half is pinned twice, in `lib/RELEASE_KEYS` and in the
+`release_keys=` line of `openovai`, and the two must match. An instance checks an update against the
+keys it already has, and the command checks a release against the keys it was installed with.
+
+To replace the key, make a new one and set it as `RELEASE_SIGNING_KEY_NEXT`, and add its line to
+both places. Every release then carries a second signature, `SHA256SUMS.next.sig`, and either key
+is enough. Once instances have taken such a release, move the new key into `RELEASE_SIGNING_KEY`,
+delete `RELEASE_SIGNING_KEY_NEXT`, and drop the old line from both places. An instance that never
+took a release signed by both is refused from then on, and is reinstalled with the command.
+
+The signature proves that a package was made by this repository's release workflow. It does not
+prove that anybody reviewed it: whoever can push to `main` or change the workflow can have a
+release signed.
 
 The deciding half lives in `.github/tag.mjs` rather than in the workflow, so it can be run and
 checked without a runner:

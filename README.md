@@ -31,8 +31,9 @@ openovai --root ~/my-workspace --user Ana --leader Max \
 ```
 
 `openovai` says which release it resolved before doing anything — the newest on GitHub, or the
-one you name: `openovai 0.16.0 --root …` — downloads it once, fetches the Node.js and Claude Code
-it pins, and hands over to that release's installer. From a clone, the installer is called
+one you name: `openovai 0.21.0 --root …` — downloads it once, checks that it is signed by the key
+the command pins, fetches the Node.js and Claude Code it pins, and hands over to that release's
+installer. A release from before releases were signed is not installed. From a clone, the installer is called
 directly:
 
 ```sh
@@ -76,7 +77,8 @@ the page and the command do is described at [openov.ai](https://openov.ai).
 ## Requirements
 
 - Linux or macOS, x86_64 or arm64
-- `sh`, `curl` or `wget`, `tar`, `sha256sum` or `shasum`, `uname`
+- `sh`, `curl` or `wget`, `tar`, `sha256sum` or `shasum`, `uname`, `ssh-keygen` (OpenSSH 8.1 or
+  later), which checks a release's signature
 
 On Windows, use WSL 2: ovai runs there as it does on Linux. Keep the instance in the Linux file
 system, such as under `~`, and not under `/mnt/c`. The Windows drives mounted there do not keep
