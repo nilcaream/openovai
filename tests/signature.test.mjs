@@ -11,7 +11,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
-import { remove, scratch } from "./helpers.mjs";
+import { remove, repo, scratch } from "./helpers.mjs";
 import { NAMESPACE, SIGNER, SignatureError, checkRelease, digestIn, packageName, pinnedKeys, signedBy } from "../lib/signature.mjs";
 
 const here = scratch("signature-test");
@@ -119,6 +119,24 @@ describe("the digest SHA256SUMS gives", () => {
 
   it("is refused when the line is not a digest and a name", () => {
     assert.throws(() => digestIn(`not-a-digest  ${packageName(VERSION)}\n`, VERSION), /does not read as a digest/);
+  });
+});
+
+// The keys are pinned twice: in lib/RELEASE_KEYS, which an update checks with, and in the command
+// that installs, which checks before there is any Node. Two places holding one fact stay one fact
+// only while something asks.
+describe("the keys the toolkit ships", () => {
+  const shipped = pinnedKeys(fs.readFileSync(path.join(repo, "lib", "RELEASE_KEYS"), "utf8"));
+  const command = /^release_keys='([^']*)'$/m.exec(fs.readFileSync(path.join(repo, "openovai"), "utf8"));
+
+  it("pin at least one key", () => {
+    assert.ok(shipped.length > 0, "lib/RELEASE_KEYS pins no key, so no release would be taken");
+  });
+
+  it("are the keys the command that installs pins", () => {
+    assert.ok(command !== null, "openovai has no release_keys line");
+    const hex = (keys) => keys.map((key) => key.toString("hex"));
+    assert.deepEqual(hex(pinnedKeys(command[1])), hex(shipped));
   });
 });
 

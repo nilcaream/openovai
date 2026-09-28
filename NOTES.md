@@ -117,7 +117,8 @@ machine and GitHub could hand an instance other code to run. Each release now ca
 the keys in the instance's own `lib/RELEASE_KEYS`, checks the package against `SHA256SUMS`, and
 checks that the `lib/VERSION` inside matches the tag, all before anything is replaced. It never
 takes GitHub's own archive of the tag. `openovai` checks the same with `ssh-keygen` before it
-unpacks anything, and now needs `ssh-keygen` from OpenSSH 8.1 or later. Three things are still
+unpacks anything, and now needs `ssh-keygen` from OpenSSH 8.1 or later. The release key's
+fingerprint is `SHA256:aPDZIYeTixbEFoDRX5ytVJ+TvZub0hlFDreET4iB8Lk`. Three things are still
 open. The update to this version is itself taken the old way, unchecked. Get the `openovai` command
 again with the `curl … | sh` line so it pins the key too, since a copy installed earlier never
 checks. And the signature proves a release was made by the repository's release workflow, not that

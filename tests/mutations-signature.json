@@ -97,5 +97,27 @@
         "to": "  if (lines.length === 0) {"
       }
     ]
+  },
+  {
+    "name": "the command pins another key than lib/RELEASE_KEYS",
+    "catches": "are the keys the command that installs pins",
+    "edits": [
+      {
+        "file": "openovai",
+        "from": "AAAAC3NzaC1lZDI1NTE5AAAAIKOaY7cvzSx1U+uHG480WlxX0aUcx0Vs2YkBDzo99fvi'",
+        "to": "AAAAC3NzaC1lZDI1NTE5AAAAIKOaY7cvzSx1U+uHG480WlxX0aUcx0Vs2YkBDzo99fvj'"
+      }
+    ]
+  },
+  {
+    "name": "the toolkit ships no key",
+    "catches": "pin at least one key",
+    "edits": [
+      {
+        "file": "lib/RELEASE_KEYS",
+        "from": "openovai-release namespaces=\"openovai-release\" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKOaY7cvzSx1U+uHG480WlxX0aUcx0Vs2YkBDzo99fvi\n",
+        "to": ""
+      }
+    ]
   }
 ]

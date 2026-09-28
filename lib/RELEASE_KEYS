@@ -1,0 +1,3 @@
+# The keys a release of the toolkit may be signed with, in the allowed_signers format that
+# `ssh-keygen -Y verify` reads. The same lines are the release_keys= line of `openovai`.
+openovai-release namespaces="openovai-release" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKOaY7cvzSx1U+uHG480WlxX0aUcx0Vs2YkBDzo99fvi

@@ -38,7 +38,7 @@ set -eu
 
 # The keys a release may be signed with: lib/RELEASE_KEYS of the version this script comes with, in
 # the allowed_signers format `ssh-keygen -Y verify` reads.
-release_keys=''
+release_keys='openovai-release namespaces="openovai-release" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKOaY7cvzSx1U+uHG480WlxX0aUcx0Vs2YkBDzo99fvi'
 
 say() { printf '%s\n' "$*"; }
 die() { printf 'openovai: %s\n' "$*" >&2; exit 1; }
