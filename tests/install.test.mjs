@@ -171,6 +171,15 @@ describe("what the installer made", () => {
     assert.ok(fs.statSync(inside(".local")).isDirectory());
   });
 
+  // Whatever the umask: nobody else on the machine lists or reads anything in the instance.
+  it("closes the instance's root to everybody but its owner", () => {
+    assert.equal(fs.statSync(instance).mode & 0o777, 0o700);
+  });
+
+  it("closes the Claude Code home to everybody but its owner", () => {
+    assert.equal(fs.statSync(inside(".local")).mode & 0o777, 0o700);
+  });
+
   it("gives the leader a desk", () => {
     assert.ok(fs.existsSync(inside("desks", LEADER, "STATE.md")));
   });

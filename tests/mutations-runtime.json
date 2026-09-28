@@ -98,5 +98,10 @@
     "name": "a reused runtime is announced at every start",
     "catches": "reuses a node that is already there, asks the archive for nothing, and says nothing",
     "edits": [{ "file": "lib/runtime.sh", "from": "= \"v${version}\" ]; then\n            return 0", "to": "= \"v${version}\" ]; then\n            say \"Node.js ${version} already in ${target}\"\n            return 0" }]
+  },
+  {
+    "name": "the runtime is fetched under whatever umask the shell has",
+    "catches": "puts the runtime in place for its owner alone",
+    "edits": [{ "file": "lib/runtime.sh", "from": "umask 077\n", "to": "" }]
   }
 ]

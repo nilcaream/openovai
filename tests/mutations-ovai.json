@@ -170,8 +170,8 @@
     "edits": [
       {
         "file": "lib/ovai.mjs",
-        "from": "  const log = fs.openSync(where, \"a\");",
-        "to": "  const log = fs.openSync(where, \"w\");"
+        "from": "  const log = fs.openSync(where, \"a\", PRIVATE_FILE);",
+        "to": "  const log = fs.openSync(where, \"w\", PRIVATE_FILE);"
       }
     ]
   },
@@ -337,6 +337,28 @@
         "file": "lib/ovai.mjs",
         "from": "      : `CLAUDE_CODE_OAUTH_TOKEN, which is not set here — mint one with: ${runtimePaths(root).claude} setup-token`,",
         "to": "      : \"CLAUDE_CODE_OAUTH_TOKEN, which is not set here — mint one with: claude setup-token\","
+      }
+    ]
+  },
+  {
+    "name": "runtime.json is written with whatever mode the umask gives",
+    "catches": "writes runtime.json and runtime.log for their owner alone",
+    "edits": [
+      {
+        "file": "lib/private.mjs",
+        "from": "  fs.writeFileSync(file, text, { mode: PRIVATE_FILE });\n  fs.chmodSync(file, PRIVATE_FILE);",
+        "to": "  fs.writeFileSync(file, text);"
+      }
+    ]
+  },
+  {
+    "name": "runtime.log is opened with whatever mode the umask gives",
+    "catches": "writes runtime.json and runtime.log for their owner alone",
+    "edits": [
+      {
+        "file": "lib/ovai.mjs",
+        "from": "  const log = fs.openSync(where, \"a\", PRIVATE_FILE);\n  fs.fchmodSync(log, PRIVATE_FILE);",
+        "to": "  const log = fs.openSync(where, \"a\");"
       }
     ]
   }

@@ -390,8 +390,8 @@
     "edits": [
       {
         "file": "lib/ovai.mjs",
-        "from": "  retire(root);\n\n  // From the templates",
-        "to": "\n  // From the templates"
+        "from": "  retire(root);\n  keepPrivate(root);\n\n  // From the templates",
+        "to": "  keepPrivate(root);\n\n  // From the templates"
       }
     ]
   },
@@ -546,6 +546,17 @@
         "file": "lib/ovai.mjs",
         "from": "    if (JSON.stringify(readSettings(root).hooks ?? {}).includes(\"lib/hooks/run.sh\")) {",
         "to": "    if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "the finish of an update leaves the directories as it found them",
+    "catches": "closes the root and the Claude Code home to everybody but their owner",
+    "edits": [
+      {
+        "file": "lib/ovai.mjs",
+        "from": "  retire(root);\n  keepPrivate(root);\n",
+        "to": "  retire(root);\n"
       }
     ]
   }

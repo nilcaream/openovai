@@ -855,5 +855,27 @@
         "to": "];"
       }
     ]
+  },
+  {
+    "name": "the installer leaves the root as the umask made it",
+    "catches": "closes the instance's root to everybody but its owner",
+    "edits": [
+      {
+        "file": "lib/install.mjs",
+        "from": "  keepPrivate(plan.root);\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "only the root is made private, not the Claude Code home",
+    "catches": "closes the Claude Code home to everybody but its owner",
+    "edits": [
+      {
+        "file": "lib/private.mjs",
+        "from": "  for (const directory of [root, path.join(root, HOME)]) {",
+        "to": "  for (const directory of [root]) {"
+      }
+    ]
   }
 ]

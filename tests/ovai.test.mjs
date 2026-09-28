@@ -1479,6 +1479,12 @@ describe("the server commands", () => {
     assert.ok(lines.every((line) => /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}[+-]\d{2}:\d{2} \S+ \S+ \S+ /.test(line)), lines.join("\n"));
   });
 
+  // They name the address, the pid and every request the server refused: its owner's to read.
+  it("writes runtime.json and runtime.log for their owner alone", () => {
+    assert.equal(fs.statSync(runtime).mode & 0o777, 0o600);
+    assert.equal(fs.statSync(path.join(served, "runtime.log")).mode & 0o777, 0o600);
+  });
+
   it("says where it runs, with the pid the server recorded", () => {
     const asked = ovai(["status"]);
     assert.equal(asked.status, 0);

@@ -27,6 +27,9 @@
 
 set -eu
 
+# What is fetched is the user's own: nobody else on the machine reads or lists it.
+umask 077
+
 say() { printf '%s\n' "$*"; }
 die() { printf 'runtime.sh: %s\n' "$*" >&2; exit 1; }
 

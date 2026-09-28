@@ -314,7 +314,15 @@ describe("the finish of an update, run by the payload it put in place", () => {
     );
     fs.mkdirSync(path.join(root, retiredLater), { recursive: true });
     fs.writeFileSync(path.join(root, retiredLater, "SKILL.md"), "---\nname: retired-later\n---\n");
+    // As an instance installed before its directories were made private has them.
+    fs.chmodSync(root, 0o775);
+    fs.chmodSync(path.join(root, ".local"), 0o775);
     done = await update(root, tree);
+  });
+
+  it("closes the root and the Claude Code home to everybody but their owner", () => {
+    assert.equal(fs.statSync(root).mode & 0o777, 0o700);
+    assert.equal(fs.statSync(path.join(root, ".local")).mode & 0o777, 0o700);
   });
 
   it("goes through", () => {

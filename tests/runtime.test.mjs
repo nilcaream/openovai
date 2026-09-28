@@ -312,6 +312,12 @@ describe("ensure", () => {
     assert.deepEqual(served.asked, [`/v${NODE}/node-v${NODE}-${PLATFORM}.tar.gz`, `/v${NODE}/SHASUMS256.txt`]);
   });
 
+  it("puts the runtime in place for its owner alone", async () => {
+    const { tree, env, paths } = anInstance("private");
+    assert.equal((await sh(tree, ["ensure"], env)).status, 0);
+    assert.equal(fs.statSync(path.dirname(path.dirname(paths.node))).mode & 0o777, 0o700);
+  });
+
   it("leaves nothing under tmp once the runtime is in place", async () => {
     const { tree, env, paths } = anInstance("tidy");
     assert.equal((await sh(tree, ["ensure"], env)).status, 0);
