@@ -229,6 +229,7 @@ describe("what the Leader is told", () => {
     assert.match(leader(), new RegExp(`When ${USER} asks where things stand, or when you ask ${USER} what to take next, give the whole open list as it is now, every item in order\\.`));
     assert.match(leader(), /Never point back to a list you wrote earlier/);
     assert.match(leader(), /Whatever you ask them to choose from has to be in the message that asks\./);
+    assert.match(leader(), new RegExp(`The last thing you say before ${USER} next speaks is the one they read first: it stands alone — where things are now and the one question open — and nothing above it needs reading to act on it\\.`));
     assert.match(leader(), /Code formatting is for code\./);
     assert.match(leader(), /goes in a blockquote, which wraps like prose/);
   });

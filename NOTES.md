@@ -37,6 +37,10 @@ on its panel, before a tool call as much as after one. A Leader that believed it
 twice, once before its calls and once after them. The instruction is otherwise the same: write the
 desk, call `restart_session`, then "Back in a moment" as the whole reply.
 
+**The Leader's last word before the User speaks again stands alone.** The User reads it first, on
+a panel full of Workers' messages. The Leader is now told it says where things are now and the one
+question open, so that nothing above it needs reading to act on it.
+
 **Every session is told what Claude Code's two nudges mean.** Claude Code adds lines of its own
 to a turn. "[Your previous response had no visible output …]" looks at the last response of the
 turn only, so a session that had already said its words could read it as "my words were lost" and
