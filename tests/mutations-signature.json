@@ -1,0 +1,101 @@
+[
+  {
+    "name": "any key is taken, pinned or not",
+    "catches": "is refused when the key that made it is not pinned",
+    "edits": [
+      {
+        "file": "lib/signature.mjs",
+        "from": "    if (!keys.some((pinned) => pinned.equals(key))) {\n      return false;\n    }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a signature made for anything is taken as a release's",
+    "catches": "is refused when it was made for something other than a release",
+    "edits": [
+      {
+        "file": "lib/signature.mjs",
+        "from": "      wire(Buffer.from(NAMESPACE)),",
+        "to": "      wire(Buffer.from(\"git\")),"
+      }
+    ]
+  },
+  {
+    "name": "the signature is read but never checked",
+    "catches": "is refused over other bytes",
+    "edits": [
+      {
+        "file": "lib/signature.mjs",
+        "from": "    return crypto.verify(null, signed, publicKey(key), bytes);",
+        "to": "    publicKey(key);\n    return true;"
+      }
+    ]
+  },
+  {
+    "name": "a line for somebody else is pinned",
+    "catches": "leave out a line for somebody else",
+    "edits": [
+      {
+        "file": "lib/signature.mjs",
+        "from": "    if (!words[0].split(\",\").includes(SIGNER)) {\n      continue;\n    }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a line limited to other namespaces is pinned",
+    "catches": "leave out a line limited to other namespaces",
+    "edits": [
+      {
+        "file": "lib/signature.mjs",
+        "from": "    if (namespaces !== null && !namespaces[1].split(\",\").includes(NAMESPACE)) {",
+        "to": "    if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "the sums may name any package",
+    "catches": "is refused when it is served as a version it was not signed as",
+    "edits": [
+      {
+        "file": "lib/signature.mjs",
+        "from": "  if (line[2] !== packageName(version)) {",
+        "to": "  if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "the package is never hashed against the sums",
+    "catches": "is refused when the package is not the one the sums name",
+    "edits": [
+      {
+        "file": "lib/signature.mjs",
+        "from": "  if (actual !== expected) {",
+        "to": "  if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "one signature by a stranger is enough",
+    "catches": "is refused when no signature is by a pinned key",
+    "edits": [
+      {
+        "file": "lib/signature.mjs",
+        "from": "  if (!signatures.some((armored) => signedBy(signed, armored, keys))) {",
+        "to": "  if (signatures.length === 0) {"
+      }
+    ]
+  },
+  {
+    "name": "the sums may hold more than one line",
+    "catches": "is refused when there is more than one line",
+    "edits": [
+      {
+        "file": "lib/signature.mjs",
+        "from": "  if (lines.length !== 1) {",
+        "to": "  if (lines.length === 0) {"
+      }
+    ]
+  }
+]
