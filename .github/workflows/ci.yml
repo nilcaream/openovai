@@ -135,6 +135,9 @@ jobs:
       - name: Mint, resolve and revoke a secret
         run: node --test tests/secrets.test.mjs
 
+      - name: Keep the session key, write and take a one-time link
+        run: node --test tests/signin.test.mjs
+
   quota:
     name: Quota
     runs-on: ubuntu-latest

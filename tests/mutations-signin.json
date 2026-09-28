@@ -1,0 +1,58 @@
+[
+  {
+    "name": "a new session key is made at every call",
+    "catches": "is the one it was every time after, so a browser stays signed in across a restart",
+    "edits": [
+      { "file": "lib/chat/signin.mjs", "from": "    return fs.readFileSync(file, \"utf8\").trim();\n  } catch (error) {", "to": "    fs.rmSync(file);\n  } catch (error) {" }
+    ]
+  },
+  {
+    "name": "the session key is written with whatever mode the umask gives",
+    "catches": "is made the first time, 43 characters of base64url, for its owner alone",
+    "edits": [
+      { "file": "lib/chat/signin.mjs", "from": "  writePrivate(file, `${mint()}\\n`);", "to": "  fs.writeFileSync(file, `${mint()}\\n`);" }
+    ]
+  },
+  {
+    "name": "only the first value sent under the cookie's name is asked",
+    "catches": "is presented when any value sent under the cookie's name is it, and no other way",
+    "edits": [
+      { "file": "lib/chat/signin.mjs", "from": "  return values.some((value) => same(value, key));", "to": "  return values.slice(0, 1).some((value) => same(value, key));" }
+    ]
+  },
+  {
+    "name": "a link lives an hour",
+    "catches": "is written for its owner alone, good for ten minutes",
+    "edits": [
+      { "file": "lib/chat/signin.mjs", "from": "export const LINK_LIFETIME = 10 * 60_000;", "to": "export const LINK_LIFETIME = 60 * 60_000;" }
+    ]
+  },
+  {
+    "name": "a link taken is left pending",
+    "catches": "opens once: taken, it is gone",
+    "edits": [
+      { "file": "lib/chat/signin.mjs", "from": "    return false;\n  }\n  fs.rmSync(file, { force: true });\n  return true;", "to": "    return false;\n  }\n  return true;" }
+    ]
+  },
+  {
+    "name": "a wrong token spends the pending link",
+    "catches": "is left pending by a wrong token",
+    "edits": [
+      { "file": "lib/chat/signin.mjs", "from": "  if (!same(presented, String(pending.token))) {\n    return false;", "to": "  if (!same(presented, String(pending.token))) {\n    fs.rmSync(file, { force: true });\n    return false;" }
+    ]
+  },
+  {
+    "name": "a link opens whenever it is used",
+    "catches": "opens nothing once out of time, and is deleted then",
+    "edits": [
+      { "file": "lib/chat/signin.mjs", "from": "  const expired = !(Date.parse(pending?.expires) > now);", "to": "  const expired = false;" }
+    ]
+  },
+  {
+    "name": "a link opens nothing at the last moment of its time",
+    "catches": "opens just inside its time",
+    "edits": [
+      { "file": "lib/chat/signin.mjs", "from": "  const expired = !(Date.parse(pending?.expires) > now);", "to": "  const expired = !(Date.parse(pending?.expires) > now + 1);" }
+    ]
+  }
+]

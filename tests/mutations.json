@@ -2056,12 +2056,12 @@
   },
   {
     "name": "the page sets no cookie",
-    "catches": "sets the page's secret as a cookie of its own port that no script reads and no other site sends",
+    "catches": "sets the session key as a cookie of its own port that no script reads and no other site sends, at every load",
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "    \"set-cookie\": `${cookieName(port)}=${pageSecret()}; HttpOnly; SameSite=Strict; Path=/`,\n",
-        "to": ""
+        "from": "    \"set-cookie\": sessionCookie(instance, port),\n  });\n  response.end(page);",
+        "to": "  });\n  response.end(page);"
       }
     ]
   },
@@ -2071,7 +2071,7 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "  if (!isPageSecret(cookieOf(request, port))) {\n    answer = { status: 401,",
+        "from": "  if (!signedIn(instance, port, request)) {\n    answer = { status: 401,",
         "to": "  if (false) {\n    answer = { status: 401,"
       }
     ]
@@ -2137,7 +2137,7 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "  if (!isPageSecret(cookieOf(request, port))) {\n    sendJson(response, 401,",
+        "from": "  if (!signedIn(instance, port, request)) {\n    sendJson(response, 401,",
         "to": "  if (false) {\n    sendJson(response, 401,"
       }
     ]
@@ -2205,6 +2205,61 @@
         "file": "lib/chat/server.mjs",
         "from": "    .replace(themeHead(\"light\"), themeHead(themeOf(request, port))));",
         "to": "    .replace(themeHead(\"light\"), themeHead(themeOf(request, port))).replace(\"</style>\", \" </style>\"));"
+      }
+    ]
+  },
+  {
+    "name": "the page is served to anybody who asks for it",
+    "catches": "shows a caller without the cookie where a link comes from, and nothing of the page",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "  if (!signedIn(instance, port, request)) {\n    sendSignIn(instance, response, theme);\n    return;\n  }\n  sendPage(",
+        "to": "  sendPage("
+      }
+    ]
+  },
+  {
+    "name": "a link signs the browser in and serves the page at the address that carries the token",
+    "catches": "signs a browser in from a link once, and sends it on to the plain address",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "    response.writeHead(303, {\n      location: \"/\",",
+        "to": "    response.writeHead(200, {"
+      }
+    ]
+  },
+  {
+    "name": "the session cookie runs out with the browser",
+    "catches": "sets the session key as a cookie of its own port that no script reads and no other site sends, at every load",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "; Path=/; Max-Age=${COOKIE_AGE}`;",
+        "to": "; Path=/`;"
+      }
+    ]
+  },
+  {
+    "name": "the file view asks only the first cookie of the page's name",
+    "catches": "shows the file view to a signed-in browser whatever cookie of the same name another port set beside it",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "  return isSession(instance.root, cookiesOf(request, cookieName(port)));",
+        "to": "  return isSession(instance.root, cookiesOf(request, cookieName(port)).slice(0, 1));"
+      }
+    ]
+  },
+  {
+    "name": "a refused link still signs the browser in",
+    "catches": "refuses a link that is wrong, replaced by a newer one, or out of time",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "    if (!takeLink(instance.root, url.searchParams.get(\"token\"))) {\n      sendSignIn(instance, response, theme);\n      return;\n    }",
+        "to": "    takeLink(instance.root, url.searchParams.get(\"token\"));"
       }
     ]
   }

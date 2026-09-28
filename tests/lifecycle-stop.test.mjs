@@ -19,7 +19,7 @@ import * as quota from "../lib/chat/quota.mjs";
 import { INTERRUPT_PATIENCE, end, endEvery, recordOf, running, tell } from "../lib/chat/session.mjs";
 import { deskFile, hire } from "../lib/desks.mjs";
 import { CONFIG_FILE } from "../lib/seed.mjs";
-import { alive, heardIn, installed, notesIn, pidsIn, post as postPlain, readLog, remove, runToolLater, secretsIn, startChat, stopChat, waitFor, waitForAddress, writeStandIn } from "./helpers.mjs";
+import { alive, heardIn, installed, notesIn, pageCookie, pidsIn, post as postPlain, readLog, remove, runToolLater, secretsIn, startChat, stopChat, waitFor, waitForAddress, writeStandIn } from "./helpers.mjs";
 
 import { setup, LEADER, WORKER, OTHER, WORKER_MODEL, MINUTE, panel, base, instance, standIn, unexpected, options, configOf, said, chat, server, seatUp, spawnedBy, page, call, tool, asked, told, stillRunning, gone, callsThen, writesDesk, deskOf, sessionsListed, settle, pair, awake } from "./lifecycle-helpers.mjs";
 
@@ -525,7 +525,7 @@ describe("a signal to the chat", () => {
   }
 
   async function pageSecretOf() {
-    const page_ = await fetch(`${address}/`).then((answered) => answered.text());
+    const page_ = await fetch(`${address}/`, { headers: { cookie: pageCookie(own, address) } }).then((answered) => answered.text());
     return /<meta name="openovai-secret" content="([^"]*)">/.exec(page_)[1];
   }
 

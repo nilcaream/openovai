@@ -21,6 +21,7 @@ import { messageFrame, serverEvent, userFrame } from "../lib/chat/frames.mjs";
 import { localAt, refTo } from "../lib/chat/refs.mjs";
 import { listening } from "../lib/chat/runtime.mjs";
 import { pageSecret } from "../lib/chat/secrets.mjs";
+import { COOKIE_AGE, LINK_FILE, LINK_LIFETIME, sessionKey, writeLink } from "../lib/chat/signin.mjs";
 import { hire } from "../lib/desks.mjs";
 import { endSeat, serve, shownRoot, startSeat, toolsFor } from "../lib/chat/server.mjs";
 import { close, hasLeft } from "../lib/chat/lifecycle.mjs";
@@ -211,13 +212,18 @@ async function told(log, count) {
 
 const SECRET_SHAPE = /^[A-Za-z0-9_-]{43}$/;
 
+// The cookie a signed-in browser sends: the instance's session key, under the name of the port.
+function signedIn(root = instance, port = server.address().port) {
+  return `openovai-page-${port}=${sessionKey(root)}`;
+}
+
 // ---------------------------------------------------------------------------------------------
 
 describe("what the chat serves", () => {
   let answeredPage = "";
 
   it("serves the page with its secret in the one tag that carries it", async () => {
-    const answered = await fetchPlain(`${url}/`);
+    const answered = await fetchPlain(`${url}/`, { cookie: signedIn() });
     assert.equal(answered.status, 200);
     answeredPage = answered.body;
     assert.ok(answered.body.includes(`<meta name="openovai-secret" content="${pageSecret()}">`), "the page has no secret in it");
@@ -228,7 +234,7 @@ describe("what the chat serves", () => {
   // that runs its own two inline scripts and its one inline style, each by its digest, and nothing
   // else inline: no handler and no tag a row brought with it.
   it("sends the page with a policy that runs its own inline scripts and style and nothing else inline", async () => {
-    const answered = await fetch(`${url}/`);
+    const answered = await fetch(`${url}/`, { headers: { cookie: signedIn() } });
     const page = await answered.text();
     const policy = answered.headers.get("content-security-policy") ?? "";
     const directives = Object.fromEntries(policy.split(";").map((part) => part.trim().split(/\s+/)).map(([name, ...values]) => [name, values]));
@@ -249,7 +255,7 @@ describe("what the chat serves", () => {
   // it. Whatever it writes, every inline block of the page as sent is still one the policy runs.
   it("runs every inline script and style of the page as sent, in either theme", async () => {
     for (const theme of ["light", "dark"]) {
-      const answered = await fetch(`${url}/`, { headers: { cookie: `openovai-theme-${server.address().port}=${theme}` } });
+      const answered = await fetch(`${url}/`, { headers: { cookie: `${signedIn()}; openovai-theme-${server.address().port}=${theme}` } });
       const page = await answered.text();
       assert.ok(page.includes(`data-theme="${theme}"`), `not drawn ${theme}`);
       const policy = answered.headers.get("content-security-policy") ?? "";
@@ -320,7 +326,7 @@ describe("what the chat serves", () => {
       assert.equal((await raw("POST", "/sessions/Nobody/typing", { host })).status, 421, host);
     }
     for (const host of own()) {
-      const answered = await raw("GET", "/", { host });
+      const answered = await raw("GET", "/", { host, cookie: signedIn() });
       assert.equal(answered.status, 200, host);
       assert.ok(answered.body.includes(pageSecret()), host);
       assert.equal((await raw("POST", "/sessions/Nobody/typing", { host })).status, 404, host);
@@ -337,12 +343,57 @@ describe("what the chat serves", () => {
     assert.equal((await raw("GET", "/health", { host, origin: "http://attacker.example" })).status, 200);
   });
 
-  // A link opens the file view in a tab of its own, where no header can be set: the page's secret
-  // reaches it as a cookie the page sets, named by the port, which nothing on the page can read.
-  it("sets the page's secret as a cookie of its own port that no script reads and no other site sends", async () => {
+  // The session key reaches the browser as a cookie of the port, which nothing on the page can
+  // read, set again at every load so that it runs from the last one.
+  it("sets the session key as a cookie of its own port that no script reads and no other site sends, at every load", async () => {
     const [host] = own();
-    const answered = await raw("GET", "/", { host });
-    assert.equal(answered.headers["set-cookie"]?.[0], `openovai-page-${server.address().port}=${pageSecret()}; HttpOnly; SameSite=Strict; Path=/`);
+    const answered = await raw("GET", "/", { host, cookie: signedIn() });
+    assert.equal(answered.headers["set-cookie"]?.[0], `openovai-page-${server.address().port}=${sessionKey(instance)}; HttpOnly; SameSite=Strict; Path=/; Max-Age=34560000`);
+    assert.equal(COOKIE_AGE, 34560000);
+  });
+
+  // Whatever reaches the port, a curl as much as a browser: without the cookie, nothing of the page.
+  it("shows a caller without the cookie where a link comes from, and nothing of the page", async () => {
+    const [host] = own();
+    for (const cookie of [undefined, `openovai-page-${server.address().port}=wrong`, `openovai-page-${server.address().port + 1}=${sessionKey(instance)}`]) {
+      const answered = await raw("GET", "/", cookie === undefined ? { host } : { host, cookie });
+      assert.equal(answered.status, 401, String(cookie));
+      assert.ok(!answered.body.includes(pageSecret()), String(cookie));
+      assert.ok(!answered.body.includes("openovai-secret"), String(cookie));
+      assert.ok(answered.body.includes(`<pre><code>${path.join(instance, "bin", "ovai")} url</code></pre>`), String(cookie));
+      assert.equal(answered.headers["set-cookie"], undefined, String(cookie));
+    }
+  });
+
+  it("signs a browser in from a link once, and sends it on to the plain address", async () => {
+    const [host] = own();
+    const token = writeLink(instance);
+    const taken = await raw("GET", `/?token=${token}`, { host });
+    assert.equal(taken.status, 303);
+    assert.equal(taken.headers.location, "/");
+    assert.equal(taken.headers["cache-control"], "no-store");
+    assert.equal(taken.headers["referrer-policy"], "no-referrer");
+    assert.equal(taken.headers["set-cookie"]?.[0], `openovai-page-${server.address().port}=${sessionKey(instance)}; HttpOnly; SameSite=Strict; Path=/; Max-Age=34560000`);
+    assert.equal(fs.existsSync(path.join(instance, LINK_FILE)), false, "the link is still pending");
+    const again = await raw("GET", `/?token=${token}`, { host });
+    assert.equal(again.status, 401);
+    assert.equal(again.headers["set-cookie"], undefined);
+  });
+
+  it("refuses a link that is wrong, replaced by a newer one, or out of time", async () => {
+    const [host] = own();
+    const first = writeLink(instance);
+    const wrong = await raw("GET", `/?token=${first.slice(0, -1)}x`, { host });
+    assert.equal(wrong.status, 401);
+    assert.equal(wrong.headers["set-cookie"], undefined);
+    const second = writeLink(instance);
+    assert.equal((await raw("GET", `/?token=${first}`, { host })).status, 401, "the replaced link opened the page");
+    assert.equal((await raw("GET", `/?token=${second}`, { host })).status, 303, "a wrong token spent the pending link");
+    const late = writeLink(instance, Date.now() - LINK_LIFETIME - 1);
+    const expired = await raw("GET", `/?token=${late}`, { host });
+    assert.equal(expired.status, 401);
+    assert.equal(expired.headers["set-cookie"], undefined);
+    assert.equal(fs.existsSync(path.join(instance, LINK_FILE)), false, "a link out of time is left pending");
   });
 
   // The page keeps its theme in a cookie of its port too, and is served in the one it names, so an
@@ -350,8 +401,9 @@ describe("what the chat serves", () => {
   it("draws the page in the theme of its own port's cookie from the first paint, light without one", async () => {
     const [host] = own();
     const port = server.address().port;
-    for (const [cookie, theme, color] of [[`openovai-theme-${port}=dark`, "dark", "#1c232d"], [undefined, "light", "#eef1f5"], [`openovai-theme-${port + 1}=dark`, "light", "#eef1f5"], [`openovai-theme-${port}=bogus`, "light", "#eef1f5"]]) {
-      const answered = await raw("GET", "/", cookie === undefined ? { host } : { host, cookie });
+    for (const [theming, theme, color] of [[`openovai-theme-${port}=dark`, "dark", "#1c232d"], [undefined, "light", "#eef1f5"], [`openovai-theme-${port + 1}=dark`, "light", "#eef1f5"], [`openovai-theme-${port}=bogus`, "light", "#eef1f5"]]) {
+      const cookie = theming === undefined ? signedIn() : `${signedIn()}; ${theming}`;
+      const answered = await raw("GET", "/", { host, cookie });
       assert.ok(answered.body.includes(`<html lang="en" data-theme="${theme}">\n<meta name="color-scheme" content="${theme}">\n<meta name="theme-color" content="${color}">\n`), String(cookie));
       assert.ok(answered.body.indexOf("<html") < answered.body.indexOf('<link rel="stylesheet"'), String(cookie));
       assert.equal(answered.body.split("<html").length - 1, 1, String(cookie));
@@ -362,7 +414,7 @@ describe("what the chat serves", () => {
     fs.mkdirSync(path.join(instance, "temp"), { recursive: true });
     fs.writeFileSync(path.join(instance, "temp", "view-check.md"), "# Seen\n");
     const [host] = own();
-    const cookie = `openovai-page-${server.address().port}=${pageSecret()}`;
+    const cookie = signedIn();
     const shown = await raw("GET", "/view/temp/view-check.md", { host, cookie });
     assert.equal(shown.status, 200);
     assert.match(shown.body, /<h1>Seen<\/h1>/);
@@ -382,7 +434,7 @@ describe("what the chat serves", () => {
   it("draws the file view in the theme of the page's own port's cookie, light without one", async () => {
     const [host] = own();
     const port = server.address().port;
-    const secret = `openovai-page-${port}=${pageSecret()}`;
+    const secret = signedIn();
     for (const [cookie, theme] of [[`${secret}; openovai-theme-${port}=dark`, "dark"], [`openovai-theme-${port}=dark`, "dark"], [secret, "light"], [`${secret}; openovai-theme-${port + 1}=dark`, "light"]]) {
       const answered = await raw("GET", "/view/temp/view-check.md", { host, cookie });
       assert.match(answered.body, new RegExp(`<html lang="en" data-theme="${theme}">`), cookie);
@@ -391,10 +443,21 @@ describe("what the chat serves", () => {
 
   it("refuses the file view to a caller without the cookie, whatever else it carries", async () => {
     const [host] = own();
-    for (const cookie of [undefined, `openovai-page-${server.address().port}=wrong`, `openovai-page-${server.address().port + 1}=${pageSecret()}`]) {
+    for (const cookie of [undefined, `openovai-page-${server.address().port}=wrong`, `openovai-page-${server.address().port + 1}=${sessionKey(instance)}`]) {
       const answered = await raw("GET", "/view/temp/view-check.md", cookie === undefined ? { host } : { host, cookie });
       assert.equal(answered.status, 401, String(cookie));
       assert.ok(!answered.body.includes("Seen"), String(cookie));
+    }
+  });
+
+  // A page on another port of this address can set a cookie of the same name with a longer path,
+  // which the browser then sends first; the view still opens for the browser that is signed in.
+  it("shows the file view to a signed-in browser whatever cookie of the same name another port set beside it", async () => {
+    const [host] = own();
+    const planted = `openovai-page-${server.address().port}=planted`;
+    for (const cookie of [`${planted}; ${signedIn()}`, `${signedIn()}; ${planted}`]) {
+      const answered = await raw("GET", "/view/temp/view-check.md", { host, cookie });
+      assert.equal(answered.status, 200, cookie);
     }
   });
 
@@ -424,7 +487,7 @@ describe("what the chat serves", () => {
     const page = path.join(instance, "temp", "open-check.html");
     fs.writeFileSync(page, "<!doctype html><title>Opened</title>\n");
     const [host] = own();
-    const cookie = `openovai-page-${server.address().port}=${pageSecret()}`;
+    const cookie = signedIn();
     const opener = standInOpener(0);
     const answered = await withPath(opener.bin, () => raw("POST", "/open/temp/open-check.html", { host, cookie, origin: `http://${host}` }));
     assert.equal(answered.status, 204);
@@ -435,7 +498,7 @@ describe("what the chat serves", () => {
     const image = path.join(instance, "temp", "open-check.PNG");
     fs.writeFileSync(image, Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0x0d]));
     const [host] = own();
-    const cookie = `openovai-page-${server.address().port}=${pageSecret()}`;
+    const cookie = signedIn();
     const opener = standInOpener(0);
     const answered = await withPath(opener.bin, () => raw("POST", "/open/temp/open-check.PNG", { host, cookie, origin: `http://${host}` }));
     assert.equal(answered.status, 204);
@@ -454,7 +517,7 @@ describe("what the chat serves", () => {
     fs.symlinkSync(outside, path.join(instance, "temp", "outside-dir"));
     const [host] = own();
     const origin = `http://${host}`;
-    const cookie = `openovai-page-${server.address().port}=${pageSecret()}`;
+    const cookie = signedIn();
     const opener = standInOpener(0);
     const answered = await withPath(opener.bin, () => raw("POST", "/open/temp/open-shots/", { host, cookie, origin }));
     assert.equal(answered.status, 204);
@@ -477,7 +540,7 @@ describe("what the chat serves", () => {
     fs.writeFileSync(path.join(temp, "repo", ".git", "open-check.html"), "<!doctype html>\n");
     const [host] = own();
     const origin = `http://${host}`;
-    const cookie = `openovai-page-${server.address().port}=${pageSecret()}`;
+    const cookie = signedIn();
     const opener = standInOpener(0);
     const asked = [
       ["/open/temp/launch.desktop", { host, cookie, origin }, 415],
@@ -501,7 +564,7 @@ describe("what the chat serves", () => {
   it("says so when the desktop has no opener or its opener fails", async () => {
     fs.writeFileSync(path.join(instance, "temp", "open-check.html"), "<!doctype html>\n");
     const [host] = own();
-    const headers = { host, cookie: `openovai-page-${server.address().port}=${pageSecret()}`, origin: `http://${host}` };
+    const headers = { host, cookie: signedIn(), origin: `http://${host}` };
     const missing = await withPath(null, () => raw("POST", "/open/temp/open-check.html", headers));
     assert.equal(missing.status, 502);
     assert.match(JSON.parse(missing.body).error, /is not installed/);
@@ -2691,7 +2754,7 @@ describe("the chat as a process", () => {
   });
 
   it("hands the page a secret that opens the page routes", async () => {
-    firstPage = secretIn((await fetchPlain(`${address}/`)).body);
+    firstPage = secretIn((await fetchPlain(`${address}/`, { cookie: signedIn(own, new URL(address).port) })).body);
     assert.match(firstPage, SECRET_SHAPE);
     const answered = await fetch(`${address}/sessions`, { headers: { authorization: `Bearer ${firstPage}` } });
     assert.equal(answered.status, 200);
@@ -2713,8 +2776,20 @@ describe("the chat as a process", () => {
     assert.ok(address, `the chat never came back:\n${child.output}`);
     const answered = await fetch(`${address}/sessions`, { headers: { authorization: `Bearer ${firstPage}` } });
     assert.equal(answered.status, 401);
-    const secondPage = secretIn((await fetchPlain(`${address}/`)).body);
+    const secondPage = secretIn((await fetchPlain(`${address}/`, { cookie: signedIn(own, new URL(address).port) })).body);
     assert.notEqual(secondPage, firstPage);
     assert.equal((await fetch(`${address}/sessions`, { headers: { authorization: `Bearer ${secondPage}` } })).status, 200);
+  });
+
+  // The key is the instance's, kept in its file, so a browser signed in before a restart or an
+  // update is signed in after it.
+  it("keeps a browser signed in across a restart: the session key is the one it was", async () => {
+    const before = sessionKey(own);
+    await stopChat(child);
+    child = startChat(own, process.env);
+    address = await waitForAddress(child);
+    assert.ok(address, `the chat never came back:\n${child.output}`);
+    assert.equal(sessionKey(own), before);
+    assert.equal((await fetchPlain(`${address}/`, { cookie: `openovai-page-${new URL(address).port}=${before}` })).status, 200);
   });
 });

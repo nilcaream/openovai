@@ -19,6 +19,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { sessionKey } from "../lib/chat/signin.mjs";
 import { PAYLOAD } from "../lib/payload.mjs";
 import { pins } from "../lib/runtime.mjs";
 
@@ -941,8 +942,13 @@ export async function waitFor(attempt) {
   return null;
 }
 
-export async function get(url) {
-  const answered = await fetch(url);
+// The cookie a browser signed in to the instance at this address sends.
+export function pageCookie(root, address) {
+  return `openovai-page-${new URL(address).port}=${sessionKey(root)}`;
+}
+
+export async function get(url, headers = {}) {
+  const answered = await fetch(url, { headers });
   return { status: answered.status, body: await answered.text() };
 }
 

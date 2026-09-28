@@ -20,7 +20,7 @@ import { home } from "../lib/claude.mjs";
 import { end, endEvery, recordOf, running, runningSeats, tell } from "../lib/chat/session.mjs";
 import { deskFile, deskTitle, hire } from "../lib/desks.mjs";
 import { CONFIG_FILE } from "../lib/seed.mjs";
-import { alive, callsIn, childrenOf, heardIn, installed, pidsIn, post as postPlain, queuesHeardIn, readLog, remove, secretsIn, startChat, stopChat, waitFor, waitForAddress, writeStandIn } from "./helpers.mjs";
+import { alive, callsIn, childrenOf, heardIn, installed, pageCookie, pidsIn, post as postPlain, queuesHeardIn, readLog, remove, secretsIn, startChat, stopChat, waitFor, waitForAddress, writeStandIn } from "./helpers.mjs";
 
 import { setup, LEADER, WORKER, OTHER, WORKER_MODEL, MINUTE, panel, base, instance, unexpected, options, configOf, reading, said, chat, server, seatUp, spawnedBy, page, call, tool, asked, told, besideBirth, gone, callsThen, writesDesk, deskOf, sessionsListed, settle, pair } from "./lifecycle-helpers.mjs";
 
@@ -792,7 +792,7 @@ describe("a tool of the instance's own, from its file", () => {
     const address = await waitForAddress(child);
     assert.ok(address, `the chat never said where it was listening:\n${child.output}`);
     assert.match(child.output, /^\S+ plugins - - This instance serves a tool of its own: echo$/m);
-    const page_ = await fetch(`${address}/`).then((answered) => answered.text());
+    const page_ = await fetch(`${address}/`, { headers: { cookie: pageCookie(own, address) } }).then((answered) => answered.text());
     const pageSecret_ = /<meta name="openovai-secret" content="([^"]*)">/.exec(page_)[1];
     const woken = await fetch(`${address}/sessions/${LEADER}/message`, {
       method: "POST",
