@@ -329,8 +329,8 @@
     "edits": [
       {
         "file": "lib/chat/quota.mjs",
-        "from": "  const name = String(model ?? \"\").toLowerCase();",
-        "to": "  const name = String(model ?? \"\");"
+        "from": "  const name = String(model ?? \"\").split(\"/\")[0].toLowerCase();",
+        "to": "  const name = String(model ?? \"\").split(\"/\")[0];"
       }
     ]
   },
