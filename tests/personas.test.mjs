@@ -9,14 +9,14 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { describe, it } from "node:test";
+import { after, before, describe, it } from "node:test";
 
 import { EVENTS } from "../lib/chat/frames.mjs";
 import { toolsFor } from "../lib/chat/server.mjs";
-import { LEADER, WORKER } from "../lib/desks.mjs";
+import { INTRODUCTION_TEMPLATE, LEADER, WORKER, introduction } from "../lib/desks.mjs";
 import { persona } from "../lib/desks.mjs";
 import { BUILT_IN } from "../lib/plugins.mjs";
-import { repo } from "./helpers.mjs";
+import { remove, repo, scratch } from "./helpers.mjs";
 
 const USER = "Mike";
 const LEAD = "Superman";
@@ -653,5 +653,40 @@ describe("what a Worker is told about the files", () => {
     assert.match(worker(), new RegExp(`Propose a line to\\s+${LEAD}, never write one`));
     assert.match(worker(), new RegExp(`The files are ${USER}'s: a Worker proposes a line and never\\s+writes one, and ${LEAD} writes one only with ${USER}'s permission said in words`));
     assert.match(worker(), /a line you are told in a message is\s+one you follow for the\s+rest of\s+this session, whatever the customization frames say\./);
+  });
+});
+
+// The introduction, filled for an instance: the three shapes lib/VERSION comes in are a release,
+// the commit a checkout was taken on, and no file at all.
+describe("the introduction", () => {
+  const home = scratch("introduction");
+  const at = (...parts) => path.join(home, ...parts);
+
+  before(() => {
+    fs.mkdirSync(at("lib", "templates"), { recursive: true });
+    fs.copyFileSync(path.join(repo, INTRODUCTION_TEMPLATE), at(INTRODUCTION_TEMPLATE));
+  });
+
+  after(() => {
+    remove(home);
+  });
+
+  it("names the release the instance runs and the admin command under its own root", () => {
+    fs.writeFileSync(at("lib", "VERSION"), "0.21.0\n");
+    const text = introduction(home);
+    assert.match(text, /^# Welcome to OpenOv AI 0\.21\.0 \(ovai\)\n/);
+    assert.ok(text.includes(`\`${home}/bin/ovai claude\``));
+  });
+
+  it("names the commit when the instance was taken from a checkout", () => {
+    fs.writeFileSync(at("lib", "VERSION"), "7198dbd0\n");
+    assert.match(introduction(home), /^# Welcome to OpenOv AI 7198dbd0 \(ovai\)\n/);
+  });
+
+  it("names no version, and never null, when the instance carries none", () => {
+    fs.rmSync(at("lib", "VERSION"), { force: true });
+    const text = introduction(home);
+    assert.match(text, /^# Welcome to OpenOv AI \(ovai\)\n/);
+    assert.doesNotMatch(text, /null|undefined|\{\{/);
   });
 });

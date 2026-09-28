@@ -955,5 +955,16 @@
         "to": ""
       }
     ]
+  },
+  {
+    "name": "the introduction of an instance with no version fills the placeholder with what version() gave",
+    "catches": "names no version, and never null, when the instance carries none",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "  if (running === null) {\n    return render(\"introduction\", template.replace(\" {{VERSION}}\", \"\"), { ROOT: root });\n  }\n",
+        "to": ""
+      }
+    ]
   }
 ]

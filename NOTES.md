@@ -129,6 +129,11 @@ checks. And the signature proves a release was made by the repository's release 
 anybody reviewed it: whoever controls the repository can have a release signed. `update --from` a
 directory is not checked, as before.
 
+**ovai introduces itself.** `lib/templates/introduction.md` says in one screen what ovai is, what it
+does not do, where Claude Code's own commands go and how to ask about the tool. It is filled with
+the instance's root and the version in `lib/VERSION`: a release number, or the commit an instance
+taken from a checkout is on. An instance with no version file gets a heading that names none.
+
 ## 0.20.0
 
 **An update is finished by the version it brings in.** `ovai update` used to finish in the code it
