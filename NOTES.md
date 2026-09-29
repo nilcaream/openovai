@@ -156,7 +156,9 @@ open. The update to this version is itself taken the old way, unchecked. Get the
 again with the `curl … | sh` line so it pins the key too, since a copy installed earlier never
 checks. And the signature proves a release was made by the repository's release workflow, not that
 anybody reviewed it: whoever controls the repository can have a release signed. `update --from` a
-directory is not checked, as before.
+directory is not checked, as before. An instance on 0.21.0 cannot `update --downgrade` to 0.20.0
+or earlier from GitHub: those releases carry no signed package, and the updater refuses them with
+"carries no signed package". `update --from` a directory of that release still works.
 
 **ovai introduces itself.** `lib/templates/introduction.md` says in one screen what ovai is, what it
 does not do, where Claude Code's own commands go and how to ask about the tool. It is filled with

@@ -39,7 +39,7 @@ All are run from a terminal as `<instance>/bin/ovai <command>`:
 - It refuses to go backwards unless `--downgrade` is given.
 - Stop the server first. It refuses while the server or any session of the instance is running.
 - It replaces `bin/` and `lib/` only. Desks, conversations, `knowledge/`, `customization/`, `plugins/`, `openovai.json`, the settings and the Claude Code home are left alone. It then seeds only files that are missing, and names any permission rules that a fresh instance would have but this one lacks. It adds none of them.
-- There is no rollback: taking the older release again with `--downgrade` is the fix.
+- There is no rollback: taking an older release again with `--downgrade` is the fix, for a release that carries a signed package, which 0.21.0 and later do. 0.20.0 and earlier do not, so the updater refuses them from GitHub; `--from <directory>` of one still works.
 - Claude Code's own updater is off. A newer Claude Code arrives with the next ovai release.
 - After an update, the page shows the introduction once.
 
