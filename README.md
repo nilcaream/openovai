@@ -48,8 +48,8 @@ Open the link `ovai start` prints, within ten minutes. It works once: it signs t
 takes it to the plain address, and the browser stays signed in across restarts and updates. For
 another browser, run `ovai url`, which prints a new one-time link. The Leader's panel is in the
 middle; type what you want and the Leader starts. `ovai status` says whether the server is running
-and where, `ovai stop` stops it. To sign every browser out, delete `page-session` at the root. Everything
-the page and the command do is described at [openov.ai](https://openov.ai).
+and where, `ovai stop` stops it. To sign every browser out, delete `page-session` in the instance
+directory. Everything the page and the command do is described at [openov.ai](https://openov.ai).
 
 ## The idea
 
@@ -92,10 +92,10 @@ newer one reaches an instance with the next release.
 
 ## The instance
 
-An instance is a directory of its own. Its root is this, and nothing else ever lands in it:
+An instance is a directory of its own. It holds this, and nothing else ever lands in it:
 
 ```
-<root>/
+<instance>/
   bin/ovai          the one command
   lib/              everything else the release ships, its version in lib/VERSION; replaced
                     whole on update
@@ -128,15 +128,15 @@ An instance is a directory of its own. Its root is this, and nothing else ever l
   .local/           Claude Code's config dir for the instance: account, transcripts, memory
 ```
 
-The root and `.local/` are open to their owner alone (0700), whatever the umask, and `runtime.json`,
-`runtime.log`, `page-session` and `page-link` are 0600.
+The instance directory and `.local/` are open to their owner alone (0700), whatever the umask, and
+`runtime.json`, `runtime.log`, `page-session` and `page-link` are 0600.
 
 ## What ovai relies on that Claude Code doesn't document
 
 ovai runs on a pinned Claude Code release (2.1.280 in this version). A few things it needs are not in Claude Code's documentation. They work on the pinned release and are checked again whenever the pin moves. If Claude Code changes one of them, the matching ovai feature can stop working until a new ovai release adapts. ovai uses a documented way wherever one gives the same result.
 
 - **Usage percentages and the per-model weekly limit.** The usage bar and the quota guard need the 5-hour, 7-day and model-specific weekly percentages. Claude Code documents only whether a turn was allowed and when a limit resets, so ovai reads the percentages from two undocumented places: a field in the stream Claude Code prints during a turn, and an Anthropic account usage endpoint, called with the instance's own Claude Code login about every five minutes. If they change, the usage bar goes blank; sessions keep working.
-- **Answering permission prompts ("cards").** Seats run in print mode, and ovai answers their permission prompts over Claude Code's standard input and output, the way the Agent SDK does. This path hands over Claude Code's own "don't ask again" rule suggestions, which the card offers. The documented alternative for print mode, an MCP prompt tool, does not receive them. The message format is mostly documented; the name of the permission request and the option that selects this path are not.
+- **Answering permission prompts ("cards").** Seats run in print mode, and ovai answers their permission prompts over Claude Code's standard input and output, the way the Agent SDK does. This path hands over Claude Code's own "don't ask again" rule suggestions, which the permission popup offers. The documented alternative for print mode, an MCP prompt tool, does not receive them. The message format is mostly documented; the name of the permission request and the option that selects this path are not.
 - **Whether Claude Code has been set up.** The admin door reads one flag in Claude Code's state file to decide whether to show its first-time line. At worst, that line shows every time.
 - **The admin overview of plugins and connectors.** The admin overview reads Claude Code's plugin records and its list of connected claude.ai connectors from their files. Claude Code documents where these files live, not what is in them. If they change, that part of the overview comes up empty.
 

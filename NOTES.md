@@ -7,16 +7,16 @@ carries only its own.
 ## 0.21.0
 
 **The page now signs a browser in with a one-time link.** Anything on the machine that could reach
-the port used to get the page, and with it the right to answer cards and speak as the User. Now
-`ovai start` prints a link that works once, for ten minutes, and `ovai url` prints a new one. Open
-it once in each browser and that browser stays signed in, across restarts and updates. A page left
-open from before the update shows where to get a link until you open one. The instance's root is
-now readable by its owner alone, and so are the files that hold its address and keys.
-The page's two keys, `page-session` and `page-link` at the root, sign a browser in as the page, so
-a new instance refuses both to the Read tool and to the tools that write files, and the file view
-refuses both names at any depth. An update names the four rules for an instance that has not got
-them, and adds none. The rules bind the file tools only: a granted `Bash(cat:*)` or `Bash(node:*)`
-still reads either file with no card.
+the port used to get the page, and with it the right to answer permission popups and speak as the
+User. Now `ovai start` prints a link that works once, for ten minutes, and `ovai url` prints a new
+one. Open it once in each browser and that browser stays signed in, across restarts and updates. A
+page left open from before the update shows where to get a link until you open one. The instance
+directory is now readable by its owner alone, and so are the files that hold its address and keys.
+The page's two keys, `page-session` and `page-link` in the instance directory, sign a browser in as
+the page, so a new instance refuses both to the Read tool and to the tools that write files, and the
+file view refuses both names at any depth. An update names the four rules for an instance that has
+not got them, and adds none. The rules bind the file tools only: a granted `Bash(cat:*)` or
+`Bash(node:*)` still reads either file with no permission popup.
 
 **A session's secret is no longer in its environment.** The secret a session's calls to the chat
 are known by was in the session's process environment, and every process of the same user can
@@ -84,24 +84,25 @@ row brings with it is not run. Everything else comes from the page's own origin,
 view's does; nothing may frame the page, and it sets no base address and sends no form.
 
 **The file view refuses credential files by name at any depth, and a file with a second name.**
-This closes a gap in what the view shows. It refused a Claude Code home only at the instance root,
-and credentials only under two names, so a nested instance's `.local/`, `.ssh/id_rsa`,
-`.aws/credentials`, `.git-credentials`, `.netrc`, `.npmrc` and `.pgpass` were shown. It now
-refuses a Claude Code home, a `.git`, `.ssh`, `.aws` or `.gnupg` directory anywhere on the path,
-and `.credentials.json`, `.git-credentials`, `.netrc`, `.npmrc`, `.pgpass` and `.env` files at any
-depth. A hard link to a refused file could be shown under a name of its own. The view cannot see a
-file's other names, so it now refuses any regular file that has more than one. The list goes by
-name, and a copy of a credential under another name is still shown.
+This closes a gap in what the view shows. It refused a Claude Code home only at the top of the
+instance directory, and credentials only under two names, so a nested instance's `.local/`,
+`.ssh/id_rsa`, `.aws/credentials`, `.git-credentials`, `.netrc`, `.npmrc` and `.pgpass` were shown.
+It now refuses a Claude Code home, a `.git`, `.ssh`, `.aws` or `.gnupg` directory anywhere on the
+path, and `.credentials.json`, `.git-credentials`, `.netrc`, `.npmrc`, `.pgpass` and `.env` files at
+any depth. A hard link to a refused file could be shown under a name of its own. The view cannot
+see a file's other names, so it now refuses any regular file that has more than one. The list goes
+by name, and a copy of a credential under another name is still shown.
 
 **A new instance refuses the account's credential to the Read tool and the tools that write
 files.** This closes a gap in the seeded rules. `Read(/**)` reached `.local/.credentials.json`, the
-account's access and refresh token, so any session could read it with the Read tool and no card.
-A new instance now carries `Read(/.local/.credentials.json)` and `Edit(/.local/.credentials.json)`
-among its deny rules. It refuses that one file and not the rest of `.local/`, because Claude Code
-keeps large tool results and skills there for a session to read. An update names both rules for
-an instance that has not got them, and adds neither. The rules bind the file tools only: a granted
-`Bash(cat:*)` or `Bash(node:*)` still reads the file with no card. A `Bash(...)` deny would stop one
-spelling of the command out of endless ones, so none is added.
+account's access and refresh token, so any session could read it with the Read tool and no
+permission popup. A new instance now carries `Read(/.local/.credentials.json)` and
+`Edit(/.local/.credentials.json)` among its deny rules. It refuses that one file and not the rest of
+`.local/`, because Claude Code keeps large tool results and skills there for a session to read. An
+update names both rules for an instance that has not got them, and adds neither. The rules bind the
+file tools only: a granted `Bash(cat:*)` or `Bash(node:*)` still reads the file with no permission
+popup. A `Bash(...)` deny would stop one spelling of the command out of endless ones, so none is
+added.
 
 **A panel no longer masks the word after "key:" or "secret:" in what is said.** Masking replaced
 the value after any word that names a secret, and it did that in replies, messages and the User's
