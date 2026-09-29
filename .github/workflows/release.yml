@@ -154,6 +154,6 @@ jobs:
           TAG: ${{ needs.release.outputs.tag }}
         run: |
           set -euo pipefail
-          gh release upload "${TAG}" openovai-*.tar.gz SHA256SUMS SHA256SUMS*.sig --repo "${GITHUB_REPOSITORY}"
+          gh release upload "${TAG}" openovai-*.tar.gz SHA256SUMS SHA256SUMS*.sig --clobber --repo "${GITHUB_REPOSITORY}"
           gh release edit "${TAG}" --draft=false --latest --repo "${GITHUB_REPOSITORY}"
           printf 'released %s, signed\n' "${TAG}" | tee -a "${GITHUB_STEP_SUMMARY}"

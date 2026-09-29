@@ -318,6 +318,10 @@ describe("the signing of a release", () => {
     assert.ok(at("ssh-keygen -Y verify") < at("gh release upload"), "attaches before it checks");
   });
 
+  it("replaces the assets a failed run left, so a re-run completes", () => {
+    assert.match(sign, /gh release upload [^\n]* --clobber /);
+  });
+
   it("publishes the release as the latest only once the signed package is attached", () => {
     assert.ok(at("gh release upload") < at("--draft=false --latest"), "publishes before it attaches");
   });

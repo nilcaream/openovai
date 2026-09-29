@@ -104,8 +104,19 @@
     "edits": [
       {
         "file": ".github/workflows/release.yml",
-        "from": "          gh release upload \"${TAG}\" openovai-*.tar.gz SHA256SUMS SHA256SUMS*.sig --repo \"${GITHUB_REPOSITORY}\"\n          gh release edit \"${TAG}\" --draft=false --latest --repo \"${GITHUB_REPOSITORY}\"\n",
-        "to": "          gh release edit \"${TAG}\" --draft=false --latest --repo \"${GITHUB_REPOSITORY}\"\n          gh release upload \"${TAG}\" openovai-*.tar.gz SHA256SUMS SHA256SUMS*.sig --repo \"${GITHUB_REPOSITORY}\"\n"
+        "from": "          gh release upload \"${TAG}\" openovai-*.tar.gz SHA256SUMS SHA256SUMS*.sig --clobber --repo \"${GITHUB_REPOSITORY}\"\n          gh release edit \"${TAG}\" --draft=false --latest --repo \"${GITHUB_REPOSITORY}\"\n",
+        "to": "          gh release edit \"${TAG}\" --draft=false --latest --repo \"${GITHUB_REPOSITORY}\"\n          gh release upload \"${TAG}\" openovai-*.tar.gz SHA256SUMS SHA256SUMS*.sig --clobber --repo \"${GITHUB_REPOSITORY}\"\n"
+      }
+    ]
+  },
+  {
+    "name": "a re-run uploads without replacing what is already attached",
+    "catches": "replaces the assets a failed run left, so a re-run completes",
+    "edits": [
+      {
+        "file": ".github/workflows/release.yml",
+        "from": " SHA256SUMS*.sig --clobber --repo",
+        "to": " SHA256SUMS*.sig --repo"
       }
     ]
   }
