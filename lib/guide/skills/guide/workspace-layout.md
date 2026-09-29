@@ -1,6 +1,6 @@
 # Workspace layout
 
-What is at the root of an instance, and what each part is for.
+What is in the instance directory, and what each part is for.
 
 ## Where work goes
 - `projects/`: what is worked on. A repository the team should change is cloned here. Something in `reference/` that needs edits is cloned or copied fresh into `projects/`, never moved.
@@ -26,4 +26,4 @@ What is at the root of an instance, and what each part is for.
 - `.claude/settings.json`: Claude Code's project settings for every session: permission rules, the hooks ovai wires, attribution off.
 - `.local/`: the instance's own Claude Code home: account, transcripts, memory, user-level settings, MCP servers and plugins added in admin mode.
 
-The root and `.local/` are readable by their owner only. So are `runtime.json`, `runtime.log`, `page-session` and `page-link`.
+The instance directory and `.local/` are readable by their owner only. So are `runtime.json`, `runtime.log`, `page-session` and `page-link`.

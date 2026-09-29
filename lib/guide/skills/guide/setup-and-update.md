@@ -15,7 +15,7 @@ Chosen at install:
 `ANTHROPIC_API_KEY` and `ANTHROPIC_AUTH_TOKEN` are removed from what an instance runs with.
 
 ## Commands
-All are run from a terminal as `<root>/bin/ovai <command>`:
+All are run from a terminal as `<instance>/bin/ovai <command>`:
 - `start`: starts the server in the background and prints a one-time link to the page. When the server is already running, it says so and prints a fresh link.
 - `stop`: stops the server. Every session is parked first.
 - `restart`: stop, then start.
@@ -31,7 +31,7 @@ All are run from a terminal as `<root>/bin/ovai <command>`:
 - The link `start` or `url` prints works once, within ten minutes. Opening it signs that browser in with a cookie and takes it to the plain address.
 - The cookie is renewed at every load and lasts 400 days. A closed tab is reopened at the plain address `http://127.0.0.1:<port>`, with no new link needed, across restarts and updates.
 - For another browser, or after the cookie is gone, run `ovai url` for a new link.
-- To sign every browser out, delete `page-session` at the root.
+- To sign every browser out, delete `page-session` in the instance directory.
 - The page listens on 127.0.0.1 only.
 
 ## Update

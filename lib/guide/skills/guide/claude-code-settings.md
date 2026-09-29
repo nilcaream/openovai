@@ -10,14 +10,14 @@ Every session is a normal Claude Code, started by ovai with the instance as its 
 | `instructions.json` (written at every start; keeps CLAUDE.md files above the instance out) | read | not read |
 
 - A setting for every session on the page goes into `.claude/settings.json`. A setting for the page's sessions and admin mode alike goes into `.local/settings.json`.
-- No session may edit either file: both are denied to them. The Leader can add permission rules through its cards (see cards-and-permissions.md), but any other setting is changed in admin mode (`/config`, or ask it to edit the file) or in an editor.
+- No session may edit either file: both are denied to them. The Leader can add permission rules through its permission popups (see permissions.md), but any other setting is changed in admin mode (`/config`, or ask it to edit the file) or in an editor.
 - Sessions read their settings when they start. After a change, restart them: ask the Leader, or run `ovai restart`.
 
 ## The sandbox
 The sandbox is Claude Code's own; ovai adds nothing to it and changes nothing in it. Turn it on with a `"sandbox"` block in `.claude/settings.json` for the page's sessions, or in `.local/settings.json` for them and admin mode, then restart the sessions. Its keys and its platform requirements (bubblewrap on Linux; not native Windows) are on https://code.claude.com/docs/en/sandboxing, for the Claude Code version the release pins (see `lib/RUNTIME`).
 
 ## What ovai wires into .claude/settings.json
-- A hook before each Bash call. A command made of several parts runs without a card when every part is already allowed. A command that hides another program (a backtick or `$(`) is refused with a reason.
+- A hook before each Bash call. A command made of several parts runs without a permission popup when every part is already allowed. A command that hides another program (a backtick or `$(`) is refused with a reason.
 - A hook when a subagent starts. The subagent is handed `customization/common.md`.
 - Commit and pull request attribution is turned off.
 - The permission rules a fresh instance starts with.

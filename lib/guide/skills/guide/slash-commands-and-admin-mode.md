@@ -8,7 +8,7 @@ They are not supported. What is typed on a panel reaches the session as a messag
 ## Admin mode
 Run in a terminal:
 
-    <root>/bin/ovai claude
+    <instance>/bin/ovai claude
 
 It opens plain, interactive Claude Code on the instance, as the person, with the instance's Claude Code home. Everything `/mcp`, `/plugin`, `/config` or `claude mcp login` writes lands where the page's sessions will read it. The same commands run in a bare `claude` would write the person's own home instead.
 
