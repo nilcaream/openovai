@@ -555,7 +555,7 @@
     "edits": [
       {
         "file": "lib/templates/common.md",
-        "from": " Nothing goes in the\ninstance root, in the home directory or in `/tmp`: `/tmp` is outside this instance, so every read\nor write there stops on a card for {{USER}}, and a file with no named place is a file somebody\nelse has to find and clean up.",
+        "from": " Nothing goes in the\ninstance root, in the home directory or in `/tmp`: `/tmp` is outside this instance, so a read or\nwrite there with the file tools stops on a card for {{USER}}, and a file with no named place is a\nfile somebody else has to find and clean up.",
         "to": ""
       }
     ]
@@ -616,12 +616,23 @@
     ]
   },
   {
+    "name": "the /tmp clause says every read or write stops on a card again",
+    "catches": "tells the Worker the three trees, and that scratch goes under temp/ and nowhere else",
+    "edits": [
+      {
+        "file": "lib/templates/common.md",
+        "from": "so a read or\nwrite there with the file tools stops on a card for {{USER}}",
+        "to": "so every read\nor write there stops on a card for {{USER}}"
+      }
+    ]
+  },
+  {
     "name": "the Worker is not told that /tmp stops on a card",
     "catches": "tells the Worker the three trees, and that scratch goes under temp/ and nowhere else",
     "edits": [
       {
         "file": "lib/templates/common.md",
-        "from": "in the home directory or in `/tmp`: `/tmp` is outside this instance, so every read\nor write there stops on a card for {{USER}}, and a file",
+        "from": "in the home directory or in `/tmp`: `/tmp` is outside this instance, so a read or\nwrite there with the file tools stops on a card for {{USER}}, and a file",
         "to": "in the home directory: a file"
       }
     ]

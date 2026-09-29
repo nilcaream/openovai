@@ -363,7 +363,7 @@ describe("what a Worker is told", () => {
     assert.match(worker(), /`projects\/` is what is worked on/);
     assert.match(worker(), /anything throwaway — a rig, a probe, a dump, a clone made for one\s+test, a build — goes there/);
     assert.match(worker(), /Nothing goes in the\s+instance root, in the home directory or in `\/tmp`/);
-    assert.match(flat(worker()), new RegExp(`\`/tmp\` is outside this instance, so every read or write there stops on a card for ${USER}`));
+    assert.match(flat(worker()), new RegExp(`\`/tmp\` is outside this instance, so a read or write there with the file tools stops on a card for ${USER}`));
   });
 
   it("tells the Worker what each frame is, and that only the server writes one", () => {

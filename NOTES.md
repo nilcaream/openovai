@@ -190,6 +190,10 @@ loop. A turn that failed, or that the page stopped, raises none. It catches a tu
 not a turn whose words answer something else. Workers are not told: what the User types on a
 Worker's panel already reaches the Leader.
 
+**Sessions are no longer told that everything in `/tmp` stops on a permission popup.** It holds
+for the file tools only. An allowed shell command such as `cp` or `find` runs there with no popup,
+because a shell rule matches the start of the command, not the paths it names.
+
 ## 0.20.0
 
 **An update is finished by the version it brings in.** `ovai update` used to finish in the code it

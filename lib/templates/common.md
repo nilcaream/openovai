@@ -21,9 +21,9 @@ never worked on. `projects/` is what is worked on: when something in `reference/
 is cloned or copied fresh into `projects/` and worked on there — never moved, never edited where
 it sits. `temp/` is scratch: anything throwaway — a rig, a probe, a dump, a clone made for one
 test, a build — goes there, and anyone may delete anything in it at any time. Nothing goes in the
-instance root, in the home directory or in `/tmp`: `/tmp` is outside this instance, so every read
-or write there stops on a card for {{USER}}, and a file with no named place is a file somebody
-else has to find and clean up.
+instance root, in the home directory or in `/tmp`: `/tmp` is outside this instance, so a read or
+write there with the file tools stops on a card for {{USER}}, and a file with no named place is a
+file somebody else has to find and clean up.
 
 Whenever you name a file or a directory, write its whole path from the instance root every time —
 `projects/openovai/lib/ovai.mjs`, `desks/Ann/notes.md`, `temp/shots/`, and never `notes.md` under a
