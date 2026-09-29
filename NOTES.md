@@ -10,13 +10,15 @@ carries only its own.
 the port used to get the page, and with it the right to answer permission popups and speak as the
 User. Now `ovai start` prints a link that works once, for ten minutes, and `ovai url` prints a new
 one. Open it once in each browser and that browser stays signed in, across restarts and updates. A
-page left open from before the update shows where to get a link until you open one. The instance
-directory is now readable by its owner alone, and so are the files that hold its address and keys.
-The page's two keys, `page-session` and `page-link` in the instance directory, sign a browser in as
-the page, so a new instance refuses both to the Read tool and to the tools that write files, and the
-file view refuses both names at any depth. An instance that has not got the four rules is asked for
-them on cards after the update, and nothing is added without a press. The rules bind the file tools only: a granted `Bash(cat:*)` or
-`Bash(node:*)` still reads either file with no permission popup.
+page left open from before the update shows where to get a link until you open one. A `page-session`
+with nothing in it is made anew, as a missing one is, and an empty cookie never signs in. The
+instance directory is now readable by its owner alone, and so are the files that hold its address
+and keys. The page's two keys, `page-session` and `page-link` in the instance directory, sign a
+browser in as the page, so a new instance refuses both to the Read tool and to the tools that write
+files, and the file view refuses both names at any depth. An instance that has not got the four
+rules is asked for them on cards after the update, and nothing is added without a press. The rules
+bind the file tools only: a granted `Bash(cat:*)` or `Bash(node:*)` still reads either file with no
+permission popup.
 
 **A session's secret is no longer in its environment.** The secret a session's calls to the chat
 are known by was in the session's process environment, and every process of the same user can

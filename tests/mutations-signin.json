@@ -21,6 +21,13 @@
     ]
   },
   {
+    "name": "an empty session file is taken as the key",
+    "catches": "is a new one when its file is empty, and an empty cookie is not it",
+    "edits": [
+      { "file": "lib/chat/signin.mjs", "from": "    if (held !== \"\") {", "to": "    if (true) {" }
+    ]
+  },
+  {
     "name": "a link lives an hour",
     "catches": "is written for its owner alone, good for ten minutes",
     "edits": [

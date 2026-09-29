@@ -38,6 +38,16 @@ describe("the session key", () => {
     assert.equal(isSession(root, [before]), false);
   });
 
+  it("is a new one when its file is empty, and an empty cookie is not it", () => {
+    fs.writeFileSync(path.join(root, SESSION_FILE), "");
+    assert.equal(isSession(root, [""]), false);
+    assert.match(sessionKey(root), BASE64URL);
+    fs.writeFileSync(path.join(root, SESSION_FILE), "\n");
+    assert.equal(isSession(root, [""]), false);
+    assert.match(sessionKey(root), BASE64URL);
+    assert.equal(modeOf(SESSION_FILE), 0o600);
+  });
+
   it("is presented when any value sent under the cookie's name is it, and no other way", () => {
     const key = sessionKey(root);
     assert.equal(isSession(root, [key]), true);
