@@ -26,6 +26,7 @@ import { INTRODUCED_FILE, endSeat, introduce, serve, shownRoot, startSeat, tools
 import { INTRODUCTION_TEMPLATE } from "../lib/desks.mjs";
 import { close, hasLeft } from "../lib/chat/lifecycle.mjs";
 import { sink } from "../lib/chat/log.mjs";
+import { OPENER } from "../lib/chat/view.mjs";
 import { LEADER as LEADS, WORKER as WORKS, toolsFile } from "../lib/desks.mjs";
 import { end, endEvery, interrupt, recordOf, running, runningSeats, start, tell, keystroke as keyTyped } from "../lib/chat/session.mjs";
 import { BUILT_IN } from "../lib/plugins.mjs";
@@ -588,6 +589,53 @@ describe("what the chat serves", () => {
     const failing = await withPath(standInOpener(3).bin, () => raw("POST", "/open/temp/open-check.html", headers));
     assert.equal(failing.status, 502);
     assert.match(JSON.parse(failing.body).error, /exited with 3/);
+  });
+
+  // xdg-open gets the server's own environment: one with no display to open a window on is said
+  // for what it is, and the opener's exit after it. Anything else keeps the exit alone.
+  async function withDisplay(display, wayland, run) {
+    const before = { DISPLAY: process.env.DISPLAY, WAYLAND_DISPLAY: process.env.WAYLAND_DISPLAY };
+    const set = (name, value) => (value === undefined ? delete process.env[name] : (process.env[name] = value));
+    set("DISPLAY", display);
+    set("WAYLAND_DISPLAY", wayland);
+    try {
+      return await run();
+    } finally {
+      set("DISPLAY", before.DISPLAY);
+      set("WAYLAND_DISPLAY", before.WAYLAND_DISPLAY);
+    }
+  }
+
+  it("says the server runs without a desktop session when xdg-open fails with no display, and the exit after it", async () => {
+    fs.writeFileSync(path.join(instance, "temp", "open-check.html"), "<!doctype html>\n");
+    const [host] = own();
+    const headers = { host, cookie: signedIn(), origin: `http://${host}` };
+    const opener = standInOpener(3);
+    const reason = async (display, wayland) => {
+      const answered = await withDisplay(display, wayland, () => withPath(opener.bin, () => raw("POST", "/open/temp/open-check.html", headers)));
+      assert.equal(answered.status, 502);
+      return JSON.parse(answered.body).error;
+    };
+    const exited = `${OPENER} exited with 3`;
+    const desktopless = OPENER === "xdg-open" ? `the server runs without a desktop session, so nothing can open it (${exited})` : `${exited}.`;
+    assert.equal(await reason(undefined, undefined), desktopless);
+    assert.equal(await reason("", ""), desktopless);
+    assert.equal(await reason(":0", undefined), `${exited}.`);
+    assert.equal(await reason(undefined, "wayland-0"), `${exited}.`);
+  });
+
+  it("writes every failed open to the log, with the path from the instance root and the reason", async () => {
+    fs.writeFileSync(path.join(instance, "temp", "open-check.html"), "<!doctype html>\n");
+    const [host] = own();
+    const headers = { host, cookie: signedIn(), origin: `http://${host}` };
+    const from = said.length;
+    await withDisplay(":0", undefined, () => withPath(standInOpener(3).bin, () => raw("POST", "/open/temp/open-check.html", headers)));
+    await withPath(null, () => raw("POST", "/open/temp/open-check.html", headers));
+    await withPath(standInOpener(0).bin, () => raw("POST", "/open/temp/open-check.html", headers));
+    assert.deepEqual(said.slice(from).filter((line) => line.startsWith("unopened ")), [
+      `unopened - - temp/open-check.html: ${OPENER} exited with 3.`,
+      `unopened - - temp/open-check.html: ${OPENER} is not installed.`,
+    ]);
   });
 
   it("records where it is listening, for whoever starts a session", () => {

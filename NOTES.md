@@ -171,6 +171,14 @@ Values are masked before they are written: a name that says key, token, secret, 
 passphrase, headers or auth is shown as `***`, and so is every query value of a URL. A token in a
 URL's path has no name to be found by, and it is shown as it is.
 
+**A link that cannot open on the desktop says why.** The server hands a file or directory link to
+the desktop's opener in its own environment. Started outside the desktop, through `su` for
+instance, it has no display, and on Linux the page showed only "xdg-open exited with 3", with
+nothing in the log. With neither `DISPLAY` nor `WAYLAND_DISPLAY` set, the page now says "the server
+runs without a desktop session, so nothing can open it", with the opener's exit after it. Every
+open that fails writes an `unopened` line to `runtime.log`, with the path from the instance
+directory and the reason. Start the server from a terminal of the desktop session to open links.
+
 ## 0.20.0
 
 **An update is finished by the version it brings in.** `ovai update` used to finish in the code it
