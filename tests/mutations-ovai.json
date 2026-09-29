@@ -432,5 +432,16 @@
         "to": "import { gathered, record as recordVariables, recorded as variablesRecorded } from \"./variables.mjs\";"
       }
     ]
+  },
+  {
+    "name": "the Claude Code variables are written at the first start only",
+    "catches": "writes the Claude Code variables again at a restart, from the shell it was typed in",
+    "edits": [
+      {
+        "file": "lib/ovai.mjs",
+        "from": "      recordVariables(root, readConfig(root).auth);\n",
+        "to": "      if (variablesRecorded(root) === null) recordVariables(root, readConfig(root).auth);\n"
+      }
+    ]
   }
 ]

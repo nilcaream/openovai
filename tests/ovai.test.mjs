@@ -1578,6 +1578,16 @@ describe("the server commands", () => {
     assert.match(lines.at(-1), new RegExp(` started - - serving ${served} at ${url} `));
   });
 
+  // Every start writes them again, from the shell it was typed in: a restart is a start. An update
+  // starts nothing; it tells the person to restart.
+  it("writes the Claude Code variables again at a restart, from the shell it was typed in", async () => {
+    const restarted = ovai(["restart"], { ANTHROPIC_MODEL: "typed-for-the-restart" });
+    assert.equal(restarted.status, 0, restarted.stderr);
+    assert.match(fs.readFileSync(path.join(served, "claude-variables"), "utf8"), /^ {2}ANTHROPIC_MODEL = typed-for-the-restart \(overridden\)$/m);
+    url = addressOf(restarted.stdout);
+    assert.ok(await settled(true));
+  });
+
   it("stops it, and status says so after", async () => {
     const pid = pidRecorded();
     const stopped = ovai(["stop"]);
