@@ -13,12 +13,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { after, afterEach, beforeEach, describe, it } from "node:test";
 
-import { remove, scratch } from "./helpers.mjs";
+import { remove, repo, scratch } from "./helpers.mjs";
 import { home } from "../lib/claude.mjs";
 import { holderOnAMac } from "../lib/port.mjs";
 import { fromPs } from "../lib/processes.mjs";
 import { runningHere } from "../lib/running.mjs";
-import { dataDirectory } from "../lib/runtime.mjs";
+import { dataDirectory, pins } from "../lib/runtime.mjs";
 
 const here = scratch("processes-test");
 after(() => remove(here));
@@ -27,7 +27,7 @@ after(() => remove(here));
 // whole rather than up to the first space.
 const root = path.join(here, "an instance");
 const ours = home(root);
-const claude = path.join(dataDirectory(), "claude", "2.1.280", "bin", "claude");
+const claude = path.join(dataDirectory(), "claude", pins(repo).claude, "bin", "claude");
 
 // The stand-ins, and the PATH they are first on for the length of one check.
 const tools = path.join(here, "tools");

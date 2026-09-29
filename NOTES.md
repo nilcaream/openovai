@@ -61,7 +61,7 @@ in thinking.
 a desk's `MODEL` file and `hire`'s `model` all take "model" or "model/effort". The part before the
 slash goes to Claude Code as `--model`, as before, and the effort goes as `--effort`. With no effort
 written, no `--effort` is passed and Claude Code picks its own for the model, which is `medium` for
-Opus 5.5 on Claude Code 2.1.280. The effort is not checked against a list, and neither is the model.
+Opus 5.5 and Sonnet 5.5. The effort is not checked against a list, and neither is the model.
 Claude Code answers an effort it does not know with a warning on stderr, which the panel shows, and
 runs at its default. Everywhere a model is shown, it is shown as written: "opus", "opus/high",
 "claude-opus-5/low". A seat no longer inherits `CLAUDE_CODE_EFFORT_LEVEL` from the shell the server
@@ -227,6 +227,17 @@ minute, with nothing waiting for it, and the Leader is not on a turn, the Leader
 again only after a Worker has taken a turn; the Leader's own turns do not bring it back. A Worker
 waiting on a permission popup is not idle, and with no Worker running nothing is sent. The minute is
 `idle.all` in `openovai.json`.
+
+**A newer Claude Code, and Sonnet 5.5.** This version pins Claude Code 2.1.285, where the last pinned
+2.1.280; the node it brings is the one it brought before. Claude Code 2.1.284 is the first that
+knows Claude Sonnet 5.5, so a Leader or a Worker can now run on it: `sonnet` resolves to
+`claude-sonnet-5-5` on the Anthropic API, and the full name works too. Every session on the page is
+now started in Claude Code's default permission mode, `--permission-mode default`, so a call no rule
+settles still comes to a permission popup: a plain `claude -p` on 2.1.285 with no mode configured
+starts in auto mode, where Claude Code's classifier decides such a call itself, and a
+`permissions.defaultMode` in a settings file would do the same. An instance takes the new Claude
+Code the way it takes any other change to the toolkit — `ovai update`, and the sessions started
+after it run on it.
 
 ## 0.20.0
 
