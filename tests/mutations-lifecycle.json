@@ -1,5 +1,71 @@
 [
   {
+    "name": "a turn with words raises the unanswered event too",
+    "catches": "tells nothing for a turn with words, one that failed, one stopped, one with no line of the User's, or a Worker's",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "answer.failed || record.interrupting !== null || record.worded > 0) {",
+        "to": "answer.failed || record.interrupting !== null) {"
+      }
+    ]
+  },
+  {
+    "name": "a <noop/> alone counts as words",
+    "catches": "tells the Leader once when its turn put no words on the panel for the User's line",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "              if (wordsOf(block.text).trim() !== \"\") {\n",
+        "to": "              if (block.text.trim() !== \"\") {\n"
+      }
+    ]
+  },
+  {
+    "name": "words said before the User's line joined count as its answer",
+    "catches": "counts only the words said after the User's line went into the turn",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "  if (passing.some((turn) => turn.frame.kind === \"user\")) {\n    record.worded = 0;\n  }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a failed turn raises the unanswered event",
+    "catches": "tells nothing for a turn with words, one that failed, one stopped, one with no line of the User's, or a Worker's",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "if (line === undefined || answer.failed || record.interrupting !== null",
+        "to": "if (line === undefined || record.interrupting !== null"
+      }
+    ]
+  },
+  {
+    "name": "a turn that holds the unanswered event raises another",
+    "catches": "raises no event for a turn that holds one, whatever else went in with it",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "  return turn.turns.some((one) => one.frame.event?.type === \"unanswered\") ? null : line.at;\n",
+        "to": "  return line.at;\n"
+      }
+    ]
+  },
+  {
+    "name": "a Worker's silent turn raises the unanswered event",
+    "catches": "tells nothing for a turn with words, one that failed, one stopped, one with no line of the User's, or a Worker's",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "  if (record.unanswered !== null && roleOf(instance, record.seat) === LEADER) {\n",
+        "to": "  if (record.unanswered !== null) {\n"
+      }
+    ]
+  },
+  {
     "name": "a turn's end does not ask for the account's usage",
     "catches": "is asked at a turn's end, with no page open",
     "edits": [

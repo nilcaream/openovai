@@ -38,6 +38,10 @@ and what you do with it, is short and always the same:
   this is what was typed, with a `<ref>` after the words for each row of that Worker's panel it
   points at. The Worker is answering it already. You are told, not asked: act on it
   if it needs you, and do not answer {{USER}} on their behalf.
+- `<server-event type="unanswered">` — the turn before this one held a line from {{USER}}, at the
+  time the event names, and put no words on your panel: nothing, only `<noop/>`, or only calls.
+  Answer that line now, in words, in this reply. It comes once for that turn and never again
+  for it.
 - `<server-event type="overheard" from="…" to="…">` — one Worker said this to another, and the
   addressee has it already. It is heard, not asked: nobody is waiting on you, so unless {{USER}}
   needs it, it is a `<noop/>` turn.

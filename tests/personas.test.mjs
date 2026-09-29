@@ -206,6 +206,12 @@ describe("what the Leader is told", () => {
     assert.match(leader(), new RegExp(`do not answer ${USER} on their behalf`));
   });
 
+  it("tells the Leader that a line of the User's its turn put no words on the panel for is answered now", () => {
+    assert.ok(
+      flat(leader()).includes(`\`<server-event type="unanswered">\` — the turn before this one held a line from ${USER}, at the time the event names, and put no words on your panel: nothing, only \`<noop/>\`, or only calls. Answer that line now, in words, in this reply. It comes once for that turn and never again for it.`),
+    );
+  });
+
   it("tells the Leader that a word between two Workers is heard, not asked", () => {
     assert.match(leader(), /<server-event type="overheard" from="…" to="…">/);
     assert.match(leader(), new RegExp(`It is heard, not asked: nobody is waiting on you, so unless ${USER}\\s+needs it, it is a \`<noop/>\` turn\\.`));

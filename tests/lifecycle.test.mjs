@@ -11,18 +11,18 @@ import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
 import { SERVER, read } from "../lib/chat/conversation.mjs";
-import { userFrame } from "../lib/chat/frames.mjs";
-import { BODY_CLOSING, BODY_CONTEXT_ERROR, BODY_CONTEXT_WARNING, BODY_CONTEXT_WORKER, BODY_RESTARTED } from "../lib/chat/lifecycle.mjs";
+import { messageFrame, userFrame } from "../lib/chat/frames.mjs";
+import { BODY_CLOSING, BODY_CONTEXT_ERROR, BODY_CONTEXT_WARNING, BODY_CONTEXT_WORKER, BODY_RESTARTED, BODY_UNANSWERED } from "../lib/chat/lifecycle.mjs";
 import { wallClock } from "../lib/chat/log.mjs";
 import * as quota from "../lib/chat/quota.mjs";
 import * as usage from "../lib/chat/usage.mjs";
 import { home } from "../lib/claude.mjs";
-import { end, endEvery, recordOf, running, runningSeats, tell } from "../lib/chat/session.mjs";
+import { end, endEvery, interrupt, recordOf, running, runningSeats, tell } from "../lib/chat/session.mjs";
 import { deskFile, deskTitle, hire } from "../lib/desks.mjs";
 import { CONFIG_FILE } from "../lib/seed.mjs";
 import { alive, callsIn, childrenOf, heardIn, installed, pageCookie, pidsIn, post as postPlain, queuesHeardIn, readLog, remove, secretsIn, startChat, stopChat, waitFor, waitForAddress, writeStandIn } from "./helpers.mjs";
 
-import { setup, LEADER, WORKER, OTHER, WORKER_MODEL, MINUTE, panel, base, instance, unexpected, options, configOf, reading, said, chat, server, seatUp, spawnedBy, page, call, tool, asked, told, besideBirth, gone, callsThen, writesDesk, deskOf, sessionsListed, settle, pair } from "./lifecycle-helpers.mjs";
+import { setup, USER, LEADER, WORKER, OTHER, WORKER_MODEL, MINUTE, panel, base, instance, unexpected, options, configOf, reading, said, chat, server, seatUp, spawnedBy, page, call, tool, asked, told, besideBirth, gone, callsThen, writesDesk, deskOf, sessionsListed, settle, pair } from "./lifecycle-helpers.mjs";
 
 let now = Date.now();
 setup("lifecycle-test", () => now);
@@ -589,6 +589,104 @@ describe("context", () => {
   it("is what the page and the room report as the seat's context", async () => {
     const listed = (await sessionsListed()).sessions.find((seat) => seat.name === LEADER);
     assert.equal(listed.context, 211_204);
+  });
+});
+
+describe("a line of the User's with no words after it", () => {
+  after(async () => {
+    await endEvery(500);
+  });
+
+  // The event names the time of the User's line: the at= that line went in with, as the seat read it.
+  const unanswered = (log, text) => {
+    const at = new RegExp(`<user at="(\\d\\d:\\d\\d)">${text}</user>`).exec(readLog(log));
+    assert.ok(at !== null, `the seat never read "${text}"`);
+    return `<server-event type="unanswered">${BODY_UNANSWERED(USER, at[1])}</server-event>`;
+  };
+  const quiet = () => new Promise((resolve) => setTimeout(resolve, 400));
+
+  // A turn with nothing, a turn with `<noop/>` alone, a turn with calls alone. The turn that reads
+  // the event says nothing either, and raises no second one.
+  it("tells the Leader once when its turn put no words on the panel for the User's line", async () => {
+    const endings = [
+      { OPENOVAI_STAND_IN_EMPTY: "1" },
+      { OPENOVAI_STAND_IN_REPLY: "<noop/>" },
+      { OPENOVAI_STAND_IN_EMPTY: "1", OPENOVAI_STAND_IN_CALLS: JSON.stringify([[{ name: "Read", input: { file_path: "/x" } }]]) },
+    ];
+    for (const knobs of endings) {
+      await endEvery(500);
+      const superman = await seatUp(LEADER, knobs);
+      await tell(LEADER, userFrame("hello")).answered;
+      const heard = await told(superman.log, 2);
+      assert.equal(heard[1], unanswered(superman.log, "hello"), JSON.stringify(knobs));
+      await quiet();
+      assert.equal(heardIn(superman.log).length, 2, `${JSON.stringify(knobs)}: a second event`);
+    }
+  });
+
+  // "two" arrives while the turn for "one" runs, and goes in with the event that turn raised: that
+  // turn holds a line of the User's and says nothing, and still raises no second event.
+  it("raises no event for a turn that holds one, whatever else went in with it", async () => {
+    await endEvery(500);
+    const superman = await seatUp(LEADER, { OPENOVAI_STAND_IN_EMPTY: "1", OPENOVAI_STAND_IN_SLOW: "500" });
+    const one = tell(LEADER, userFrame("one"));
+    await told(superman.log, 1);
+    tell(LEADER, userFrame("two"));
+    await one.answered;
+    await waitFor(() => (queuesHeardIn(superman.log).length >= 2 ? true : null));
+    const second = childrenOf(queuesHeardIn(superman.log)[1]);
+    assert.equal(second[0], "<user>two</user>");
+    assert.match(second[1], /^<server-event type="unanswered">/);
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+    assert.equal(queuesHeardIn(superman.log).length, 2, heardIn(superman.log).join("\n"));
+  });
+
+  it("tells nothing for a turn with words, one that failed, one stopped, one with no line of the User's, or a Worker's", async () => {
+    // A seat's first turn failing ends the seat before anything is told, so the failed turn here
+    // comes after one that went through: a message, which asks nothing of the event either.
+    const cases = [
+      [LEADER, {}, [userFrame("hello")]],
+      [LEADER, { OPENOVAI_STAND_IN_EMPTY: "1", OPENOVAI_STAND_IN_FAILS: "[false, true]" }, [messageFrame(WORKER, "first"), userFrame("hello")]],
+      [LEADER, { OPENOVAI_STAND_IN_EMPTY: "1", OPENOVAI_STAND_IN_SLOW: "2000" }, [userFrame("hello")], "stopped"],
+      [LEADER, { OPENOVAI_STAND_IN_EMPTY: "1" }, [messageFrame(WORKER, "hello")]],
+      [WORKER, { OPENOVAI_STAND_IN_EMPTY: "1" }, [userFrame("hello")]],
+    ];
+    for (const [seat, knobs, frames, stopped] of cases) {
+      await endEvery(500);
+      const up = await seatUp(seat, knobs);
+      for (const frame of frames) {
+        const turn = tell(seat, frame);
+        if (stopped !== undefined) {
+          await told(up.log, 1);
+          assert.equal(await interrupt(seat, { patience: 1000 }), true);
+        }
+        await turn.answered;
+      }
+      await quiet();
+      assert.equal(heardIn(up.log).length, frames.length, `${seat} ${JSON.stringify(knobs)}: ${heardIn(up.log).join("\n")}`);
+      assert.ok(!running(LEADER) || seat === LEADER, "the Leader was started for a Worker's turn");
+    }
+  });
+
+  // A message goes in; the run says words ("thinking", the stand-in's noise) and makes a call; the
+  // User's line joins while the call is out; the turn ends with nothing more. Words said before the
+  // line went in are not an answer to it, and the event names the joined line's time.
+  it("counts only the words said after the User's line went into the turn", async () => {
+    await endEvery(500);
+    const superman = await seatUp(LEADER, {
+      OPENOVAI_STAND_IN_EMPTY: "1",
+      OPENOVAI_STAND_IN_NOISE: "1",
+      OPENOVAI_STAND_IN_CALLS: JSON.stringify([[{ name: "Read", input: { file_path: "/x" } }]]),
+      OPENOVAI_STAND_IN_CALL_HOLDS: "1500",
+    });
+    const first = tell(LEADER, messageFrame(WORKER, "look at this"));
+    await told(superman.log, 1);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    tell(LEADER, userFrame("and this?"));
+    await first.answered;
+    assert.match(readLog(superman.log), /^joined: /m, "the User's line did not join the turn");
+    const expected = unanswered(superman.log, "and this\\?");
+    assert.ok(await waitFor(() => (heardIn(superman.log).includes(expected) ? true : null)), heardIn(superman.log).join("\n"));
   });
 });
 

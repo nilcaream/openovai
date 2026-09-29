@@ -181,6 +181,15 @@ runs without a desktop session, so nothing can open it", with the opener's exit 
 open that fails writes an `unopened` line to `runtime.log`, with the path from the instance
 directory and the reason. Start the server from a terminal of the desktop session to open links.
 
+**The Leader is told when it left the User's line with no words.** Sometimes the Leader read what
+the User typed and ended its turn without a word on its panel: nothing, only `<noop/>`, or only
+calls. The User was left without an answer. Now the server tells the Leader at once, with an
+`unanswered` event that names the time of that line, and the Leader answers it in words. The
+event comes once for such a turn, and a turn that reads it never raises another, so it cannot
+loop. A turn that failed, or that the page stopped, raises none. It catches a turn with no words,
+not a turn whose words answer something else. Workers are not told: what the User types on a
+Worker's panel already reaches the Leader.
+
 ## 0.20.0
 
 **An update is finished by the version it brings in.** `ovai update` used to finish in the code it
