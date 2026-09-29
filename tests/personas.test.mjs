@@ -13,7 +13,7 @@ import { after, before, describe, it } from "node:test";
 
 import { EVENTS } from "../lib/chat/frames.mjs";
 import { toolsFor } from "../lib/chat/server.mjs";
-import { INTRODUCTION_TEMPLATE, LEADER, WORKER, introduction } from "../lib/desks.mjs";
+import { GUIDE, INTRODUCTION_TEMPLATE, LEADER, WORKER, introduction } from "../lib/desks.mjs";
 import { persona } from "../lib/desks.mjs";
 import { BUILT_IN } from "../lib/plugins.mjs";
 import { remove, repo, scratch } from "./helpers.mjs";
@@ -699,5 +699,26 @@ describe("the introduction", () => {
     const text = introduction(home);
     assert.match(text, /^# Welcome to OpenOv AI \(ovai\)\n/);
     assert.doesNotMatch(text, /null|undefined|\{\{/);
+  });
+});
+
+// ovai's guide: the plugin is named ovai so its one skill is ovai:guide, and the skill's table of
+// contents names exactly the topic pages beside it.
+describe("the guide", () => {
+  const skillDirectory = path.join(repo, GUIDE, "skills", "guide");
+  const skill = () => fs.readFileSync(path.join(skillDirectory, "SKILL.md"), "utf8");
+
+  it("is the plugin ovai with the one skill guide, whose description is its trigger", () => {
+    assert.equal(JSON.parse(fs.readFileSync(path.join(repo, GUIDE, ".claude-plugin", "plugin.json"), "utf8")).name, "ovai");
+    const head = skill().match(/^---\n([\s\S]*?)\n---\n/)[1];
+    assert.match(head, /^name: guide$/m);
+    assert.match(head, /^description: How to set up, use and change OpenOv AI \(ovai\)/m);
+  });
+
+  it("names every topic page beside it, and no page that is not there", () => {
+    const named = [...skill().matchAll(/^- `([a-z-]+\.md)`:/gm)].map((found) => found[1]).sort();
+    const present = fs.readdirSync(skillDirectory).filter((name) => name !== "SKILL.md").sort();
+    assert.equal(named.length, 9);
+    assert.deepEqual(named, present);
   });
 });

@@ -988,5 +988,27 @@
         "to": "answer it."
       }
     ]
+  },
+  {
+    "name": "the guide's plugin is named after the skill instead of ovai",
+    "catches": "is the plugin ovai with the one skill guide, whose description is its trigger",
+    "edits": [
+      {
+        "file": "lib/guide/.claude-plugin/plugin.json",
+        "from": "\"name\": \"ovai\"",
+        "to": "\"name\": \"guide\""
+      }
+    ]
+  },
+  {
+    "name": "the guide's table of contents leaves out the limits page",
+    "catches": "names every topic page beside it, and no page that is not there",
+    "edits": [
+      {
+        "file": "lib/guide/skills/guide/SKILL.md",
+        "from": "- `limits.md`: what ovai cannot do, and the nearest thing it can do for each.\n",
+        "to": ""
+      }
+    ]
   }
 ]

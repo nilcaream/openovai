@@ -144,7 +144,10 @@ and admin mode get neither.
 plugin named `ovai`, passed to the Leader's session with `--plugin-dir`. Its one skill,
 `ovai:guide`, is picked when the person asks how to do something here, in their own words or
 ovai's, and reads the topic page the question is about. It lives in `lib/`, so an update replaces it
-together with the code it describes. Workers and admin mode are not given it.
+together with the code it describes. Workers and admin mode are not given it. It has nine topic
+pages: setup and update, panels and the team, permission popups and rules, slash commands and admin
+mode, Claude Code settings (the sandbox among them), MCP servers and plugins, knowledge and
+customization, the workspace layout, and what ovai cannot do.
 
 ## 0.20.0
 
