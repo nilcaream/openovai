@@ -104,6 +104,8 @@ An instance is a directory of its own. It holds this, and nothing else ever land
                     files above the instance it is not to read; written at every start
   runtime.json      the running server: url, pid, since
   runtime.log       what the server said, one row per line, every run appended
+  claude-variables  the Claude Code variables of the shell the server was started from, and what
+                    its sessions get of each, masked; written at every start
   page-session      the key a signed-in browser's cookie carries, made at the first start and
                     kept; delete it to sign every browser out
   page-link         the one-time link `ovai start` or `ovai url` printed last, until it is
@@ -129,7 +131,7 @@ An instance is a directory of its own. It holds this, and nothing else ever land
 ```
 
 The instance directory and `.local/` are open to their owner alone (0700), whatever the umask, and
-`runtime.json`, `runtime.log`, `page-session` and `page-link` are 0600.
+`runtime.json`, `runtime.log`, `claude-variables`, `page-session` and `page-link` are 0600.
 
 ## What ovai relies on that Claude Code doesn't document
 

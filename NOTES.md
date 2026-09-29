@@ -156,6 +156,21 @@ pages: setup and update, panels and the team, permission popups and rules, slash
 mode, Claude Code settings (the sandbox among them), MCP servers and plugins, knowledge and
 customization, the workspace layout, and what ovai cannot do.
 
+**`ovai start` says what sessions get of the shell's Claude Code variables.** This closes a gap:
+what ovai removed or set for its sessions was said nowhere, and a variable left in the shell the
+server was started from could change every seat without anybody seeing it. `ovai start` now prints
+one line per Claude Code variable, sorted by name, under "Claude Code variables (values masked):",
+and `ovai configuration` prints the same lines last, under "claude variables". A variable found in
+the shell reads `(removed)`, `(overridden: <the value sessions get>)`, `(overridden)` or
+`(passed on)`; one ovai sets that the shell did not have is shown with its value alone.
+`ANTHROPIC_MODEL` reads `(overridden)`: every seat is started with `--model`, which wins over it on
+Claude Code 2.1.280. The lines are written at each start to `claude-variables` at the root, which
+only its owner can read, and both commands read that file, never the shell they are typed in. The
+variables are every `CLAUDE_` and `ANTHROPIC_` one and a short list of others Claude Code documents.
+Values are masked before they are written: a name that says key, token, secret, password,
+passphrase, headers or auth is shown as `***`, and so is every query value of a URL. A token in a
+URL's path has no name to be found by, and it is shown as it is.
+
 ## 0.20.0
 
 **An update is finished by the version it brings in.** `ovai update` used to finish in the code it
