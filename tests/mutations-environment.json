@@ -82,8 +82,8 @@
     "edits": [
       {
         "file": "lib/claude.mjs",
-        "from": "  const env = { ...process.env };\n  for (const name of [...A_SESSIONS_OWN, ...SET_ON_A_SESSION]) {",
-        "to": "  const env = Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith(\"CLAUDE_CODE_\")));\n  for (const name of [...A_SESSIONS_OWN, ...SET_ON_A_SESSION]) {"
+        "from": "  const env = { ...shell };\n  for (const name of [...A_SESSIONS_OWN, ...SET_ON_A_SESSION]) {",
+        "to": "  const env = Object.fromEntries(Object.entries(shell).filter(([name]) => !name.startsWith(\"CLAUDE_CODE_\")));\n  for (const name of [...A_SESSIONS_OWN, ...SET_ON_A_SESSION]) {"
       }
     ]
   }

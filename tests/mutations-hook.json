@@ -27,8 +27,8 @@
     "edits": [
       {
         "file": "lib/seed.mjs",
-        "from": "  const ask = held(settings.permissions?.ask);",
-        "to": "  const ask = [...CUSTOMIZATION_ASK_RULES];"
+        "from": "  const held = LISTS.flatMap((list) => (Array.isArray(settings.permissions?.[list]) ? settings.permissions[list].map(String) : []));\n  const ignored",
+        "to": "  const held = [...DEFAULT_RULES.filter((group) => group.list === \"ask\").flatMap((group) => group.rules), ...LISTS.flatMap((list) => (Array.isArray(settings.permissions?.[list]) ? settings.permissions[list].map(String) : []))];\n  const ignored"
       }
     ]
   },
@@ -202,9 +202,9 @@
     "catches": "names the rules an instance born earlier has not got, each in its own list",
     "edits": [
       {
-        "file": "lib/seed.mjs",
-        "from": "    ...[...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...KNOWLEDGE_RULES, ...SHELL_RULES].filter((rule) => !allow.includes(rule)).map((rule) => `allow ${rule}`),",
-        "to": "    ...[...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...SHELL_RULES].filter((rule) => !allow.includes(rule)).map((rule) => `allow ${rule}`),"
+        "file": "lib/desks.mjs",
+        "from": "  { list: \"allow\", rules: KNOWLEDGE_RULES, why: \"Lets every session write a note in knowledge/ the moment it learns something, instead of stopping to ask and losing it.\" },\n",
+        "to": ""
       }
     ]
   },
@@ -224,9 +224,9 @@
     "catches": "names the rules an instance born earlier has not got, each in its own list",
     "edits": [
       {
-        "file": "lib/seed.mjs",
-        "from": "    ...[...OWN_ACCOUNT_RULES, ...SHELL_DENY_RULES].filter((rule) => !deny.includes(rule)).map((rule) => `deny ${rule}`),",
-        "to": "    ...[...OWN_ACCOUNT_RULES.slice(0, 3), ...SHELL_DENY_RULES].filter((rule) => !deny.includes(rule)).map((rule) => `deny ${rule}`),"
+        "file": "lib/desks.mjs",
+        "from": "  { list: \"deny\", rules: OWN_ACCOUNT_RULES, why: \"Keeps",
+        "to": "  { list: \"deny\", rules: OWN_ACCOUNT_RULES.slice(0, 3), why: \"Keeps"
       }
     ]
   },

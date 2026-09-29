@@ -38,8 +38,8 @@
     "edits": [
       {
         "file": "lib/chat/dialog.mjs",
-        "from": "      { kind: \"why\", text: request.why },\n",
-        "to": ""
+        "from": "      { kind: \"why\", text: request.why },\n    ],\n    // Three, always:",
+        "to": "    ],\n    // Three, always:"
       }
     ]
   },

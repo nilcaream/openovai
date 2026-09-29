@@ -60,8 +60,8 @@
     "edits": [
       {
         "file": "lib/seed.mjs",
-        "from": "import { CUSTOMIZATION_ASK_RULES, DESK_TEMPLATE, KNOWLEDGE_ASK_RULES, KNOWLEDGE_RULES, OWN_ACCOUNT_RULES, READ_RULES, SHELL_DENY_RULES, SHELL_RULES, STALE_DENY_RULES, TOOL_RULES, TREE_RULES, deskFile, deskRules, readTemplate, render } from \"./desks.mjs\";",
-        "to": "import { CUSTOMIZATION_ASK_RULES, DESK_TEMPLATE, KNOWLEDGE_ASK_RULES, KNOWLEDGE_RULES, OWN_ACCOUNT_RULES, READ_RULES, SHELL_DENY_RULES, SHELL_RULES, STALE_DENY_RULES, TOOL_RULES, TREE_RULES, account, deskFile, deskRules, readTemplate, render } from \"./desks.mjs\";"
+        "from": "import { DEFAULT_RULES, DESK_TEMPLATE, IGNORED_DEFAULTS, LISTS, STALE_DENY_RULES, deskFile, deskRules, readTemplate, render } from \"./desks.mjs\";",
+        "to": "import { DEFAULT_RULES, DESK_TEMPLATE, IGNORED_DEFAULTS, LISTS, OWN_ACCOUNT_RULES, STALE_DENY_RULES, account, deskFile, deskRules, readTemplate, render } from \"./desks.mjs\";"
       },
       {
         "file": "lib/seed.mjs",
@@ -142,8 +142,8 @@
     "edits": [
       {
         "file": "lib/desks.mjs",
-        "from": "    ovai(role, render(what, readTemplate(root, what, role), values)),\n    ...customization(root, what),\n",
-        "to": "    ...customization(root, what),\n    ovai(role, render(what, readTemplate(root, what, role), values)),\n"
+        "from": "    ovai(role, render(what, readTemplate(root, what, role), values)),\n    // The Leader is who the person asks about the tool, so it is handed what the person was shown.\n    ...(leads ? [ovai(INTRODUCTION_TEMPLATE, introduction(root))] : []),\n    ...customization(root, what),\n",
+        "to": "    ...customization(root, what),\n    ovai(role, render(what, readTemplate(root, what, role), values)),\n    // The Leader is who the person asks about the tool, so it is handed what the person was shown.\n    ...(leads ? [ovai(INTRODUCTION_TEMPLATE, introduction(root))] : []),\n"
       }
     ]
   },
@@ -240,9 +240,9 @@
     "catches": "allows the tool server, the reads, the three trees, the knowledge directory, the shell commands of a seat's day, the Leader's desk directory, and nothing else",
     "edits": [
       {
-        "file": "lib/seed.mjs",
-        "from": "      allow: [...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...KNOWLEDGE_RULES, ...SHELL_RULES, ...deskRules(leader)],",
-        "to": "      allow: [...TOOL_RULES, ...TREE_RULES, ...KNOWLEDGE_RULES, ...SHELL_RULES, ...deskRules(leader)],"
+        "file": "lib/desks.mjs",
+        "from": "  { list: \"allow\", rules: READ_RULES, why: \"Lets every session read any file in this instance, so desks and knowledge are open to all of them. It grants nothing outside the instance.\" },\n",
+        "to": ""
       }
     ]
   },
@@ -252,8 +252,8 @@
     "edits": [
       {
         "file": "lib/seed.mjs",
-        "from": "      allow: [...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...KNOWLEDGE_RULES, ...SHELL_RULES, ...deskRules(leader)],",
-        "to": "      allow: [...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...KNOWLEDGE_RULES, ...SHELL_RULES],"
+        "from": "      allow: [...defaultsIn(\"allow\"), ...deskRules(leader)],",
+        "to": "      allow: [...defaultsIn(\"allow\")],"
       }
     ]
   },
@@ -263,8 +263,8 @@
     "edits": [
       {
         "file": "lib/seed.mjs",
-        "from": "      deny: [...OWN_ACCOUNT_RULES, ...SHELL_DENY_RULES],",
-        "to": "      deny: [...OWN_ACCOUNT_RULES, ...SHELL_DENY_RULES, ...STALE_DENY_RULES],"
+        "from": "      deny: defaultsIn(\"deny\"),",
+        "to": "      deny: [...defaultsIn(\"deny\"), ...STALE_DENY_RULES],"
       }
     ]
   },
@@ -274,7 +274,7 @@
     "edits": [
       {
         "file": "lib/seed.mjs",
-        "from": "      ask: [...CUSTOMIZATION_ASK_RULES, ...KNOWLEDGE_ASK_RULES],",
+        "from": "      ask: defaultsIn(\"ask\"),",
         "to": "      ask: [],"
       }
     ]
@@ -284,9 +284,9 @@
     "catches": "allows the tool server, the reads, the three trees, the knowledge directory, the shell commands of a seat's day, the Leader's desk directory, and nothing else",
     "edits": [
       {
-        "file": "lib/seed.mjs",
-        "from": "      allow: [...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...KNOWLEDGE_RULES, ...SHELL_RULES, ...deskRules(leader)],",
-        "to": "      allow: [...TOOL_RULES, ...READ_RULES, ...KNOWLEDGE_RULES, ...deskRules(leader)],"
+        "file": "lib/desks.mjs",
+        "from": "  { list: \"allow\", rules: TREE_RULES, why: \"Lets every session write in reference/, projects/ and temp/, where work is kept, worked on and thrown away, without a card for each file.\" },\n",
+        "to": ""
       }
     ]
   },
@@ -351,8 +351,8 @@
     "edits": [
       {
         "file": "lib/seed.mjs",
-        "from": "      allow: [...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...KNOWLEDGE_RULES, ...SHELL_RULES, ...deskRules(leader)],",
-        "to": "      allow: [...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...KNOWLEDGE_RULES, ...SHELL_RULES, ...deskRules(leader), ...deskRules(\"Paul\")],"
+        "from": "      allow: [...defaultsIn(\"allow\"), ...deskRules(leader)],",
+        "to": "      allow: [...defaultsIn(\"allow\"), ...deskRules(leader), ...deskRules(\"Paul\")],"
       }
     ]
   },
@@ -438,9 +438,9 @@
     "catches": "allows the tool server, the reads, the three trees, the knowledge directory, the shell commands of a seat's day, the Leader's desk directory, and nothing else",
     "edits": [
       {
-        "file": "lib/seed.mjs",
-        "from": "      allow: [...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...KNOWLEDGE_RULES, ...SHELL_RULES, ...deskRules(leader)],",
-        "to": "      allow: [...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...KNOWLEDGE_RULES, ...deskRules(leader)],"
+        "file": "lib/desks.mjs",
+        "from": "  { list: \"allow\", rules: SHELL_RULES, why: \"Lets every session run this everyday shell command without a card, so cloning, committing, copying and running a script do not stop the work.\" },\n",
+        "to": ""
       }
     ]
   },
@@ -795,9 +795,9 @@
     "catches": "allows the tool server, the reads, the three trees, the knowledge directory, the shell commands of a seat's day, the Leader's desk directory, and nothing else",
     "edits": [
       {
-        "file": "lib/seed.mjs",
-        "from": "      allow: [...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...KNOWLEDGE_RULES, ...SHELL_RULES, ...deskRules(leader)],",
-        "to": "      allow: [...TOOL_RULES, ...READ_RULES, ...TREE_RULES, ...SHELL_RULES, ...deskRules(leader)],"
+        "file": "lib/desks.mjs",
+        "from": "  { list: \"allow\", rules: KNOWLEDGE_RULES, why: \"Lets every session write a note in knowledge/ the moment it learns something, instead of stopping to ask and losing it.\" },\n",
+        "to": ""
       }
     ]
   },
@@ -806,9 +806,9 @@
     "catches": "asks before the common note is changed, inside a tree it otherwise grants",
     "edits": [
       {
-        "file": "lib/seed.mjs",
-        "from": "      ask: [...CUSTOMIZATION_ASK_RULES, ...KNOWLEDGE_ASK_RULES],",
-        "to": "      ask: [...CUSTOMIZATION_ASK_RULES],"
+        "file": "lib/desks.mjs",
+        "from": "  { list: \"ask\", rules: KNOWLEDGE_ASK_RULES, why: \"Asks you before any session changes knowledge/common.md, the note every session here is handed at its start.\" },\n",
+        "to": ""
       }
     ]
   },

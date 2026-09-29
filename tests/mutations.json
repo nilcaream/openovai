@@ -27,8 +27,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "              record.said += 1;\n              said(noop",
-        "to": "              if (!noop) record.said += 1;\n              said(noop"
+        "from": "              record.said += 1;\n              if (wordsOf(block.text).trim() !== \"\") {",
+        "to": "              if (!noop) record.said += 1;\n              if (wordsOf(block.text).trim() !== \"\") {"
       }
     ]
   },
@@ -1252,8 +1252,8 @@
     "edits": [
       {
         "file": "lib/chat/conversation.mjs",
-        "from": "  if (why !== \"\") {\n    messages[index].why = mask(why);\n  }\n  fs.writeFileSync(file(root, session), `${JSON.stringify(messages, null, 2)}\\n`);\n",
-        "to": "  if (why !== \"\") {\n    messages[index].why = mask(why);\n  }\n"
+        "from": "    messages[index].why = maskProse(why);\n  }\n  fs.writeFileSync(file(root, session), `${JSON.stringify(messages, null, 2)}\\n`);\n",
+        "to": "    messages[index].why = maskProse(why);\n  }\n"
       }
     ]
   },
@@ -2082,8 +2082,8 @@
     "edits": [
       {
         "file": "lib/chat/view.mjs",
-        "from": "resolve(code === 0 ? { ok: true } :",
-        "to": "resolve(true ? { ok: true } :"
+        "from": "      if (code === 0) {\n        resolve({ ok: true });\n",
+        "to": "      if (true) {\n        resolve({ ok: true });\n"
       }
     ]
   },

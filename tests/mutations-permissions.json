@@ -593,8 +593,8 @@
     "edits": [
       {
         "file": "lib/chat/permissions.mjs",
-        "from": "  return { id, kind, rule, why, from };",
-        "to": "  return { id, kind, rule, from };"
+        "from": "  return kind === \"default\" ? { id, kind, rule, why, from, list } : { id, kind, rule, why, from };",
+        "to": "  return kind === \"default\" ? { id, kind, rule, from, list } : { id, kind, rule, from };"
       }
     ]
   },

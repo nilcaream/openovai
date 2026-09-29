@@ -291,8 +291,8 @@
     "edits": [
       {
         "file": "lib/claude.mjs",
-        "from": "  env.CLAUDE_CONFIG_DIR = home(root);\n  return env;\n",
-        "to": "  return env;\n"
+        "from": "  return { ...inherited(shell), CLAUDE_CONFIG_DIR: home(root) };",
+        "to": "  return { ...inherited(shell) };"
       }
     ]
   },
