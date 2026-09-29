@@ -229,5 +229,38 @@
         "to": "    ...[...OWN_ACCOUNT_RULES.slice(0, 3), ...SHELL_DENY_RULES].filter((rule) => !deny.includes(rule)).map((rule) => `deny ${rule}`),"
       }
     ]
+  },
+  {
+    "name": "an ignored default is asked again",
+    "catches": "leaves out a rule the User ignored, kept in a private file",
+    "edits": [
+      {
+        "file": "lib/seed.mjs",
+        "from": "    rules.filter((rule) => !held.includes(rule) && !ignored.some((entry) => entry.list === list && entry.rule === rule)).map((rule) => ({ list, rule, why })),",
+        "to": "    rules.filter((rule) => !held.includes(rule)).map((rule) => ({ list, rule, why })),"
+      }
+    ]
+  },
+  {
+    "name": "the ignored defaults are readable by everybody",
+    "catches": "leaves out a rule the User ignored, kept in a private file",
+    "edits": [
+      {
+        "file": "lib/seed.mjs",
+        "from": "  fs.chmodSync(file, PRIVATE_FILE);\n  return [file];",
+        "to": "  fs.chmodSync(file, 0o644);\n  return [file];"
+      }
+    ]
+  },
+  {
+    "name": "a default held in another list is asked for again",
+    "catches": "takes a rule held in any list as settled",
+    "edits": [
+      {
+        "file": "lib/seed.mjs",
+        "from": "  const held = LISTS.flatMap((list) => (Array.isArray(settings.permissions?.[list]) ? settings.permissions[list].map(String) : []));",
+        "to": "  const held = [];"
+      }
+    ]
   }
 ]

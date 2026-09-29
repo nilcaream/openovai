@@ -102,6 +102,26 @@ describe("a rule request", () => {
   });
 });
 
+describe("a default", () => {
+  const card = (list) => dialogOf({ id: "d1", kind: "default", list, rule: "Bash(sudo:*)", why: "the rule's why", from: "OpenOv AI" }, "Bob");
+
+  it("says it came with the update, whoever's panel it is on", () => {
+    assert.equal(card("deny").kind, "default");
+    assert.equal(card("deny").heading, "A new ovai default rule came with the update");
+  });
+
+  it("shows the rule, its why, and what Ignore does", () => {
+    assert.deepEqual(line(card("deny"), "rule"), ["Bash(sudo:*)"]);
+    assert.deepEqual(line(card("deny"), "why"), ["the rule's why", "Ignore, and ovai never asks about this rule again."]);
+  });
+
+  it("offers two buttons: the recommended list, labelled as what it does, and Ignore", () => {
+    assert.deepEqual(card("deny").buttons, [{ decision: "deny", label: "Deny" }, { decision: "ignore", label: "Ignore" }]);
+    assert.deepEqual(card("allow").buttons, [{ decision: "allow", label: "Allow" }, { decision: "ignore", label: "Ignore" }]);
+    assert.deepEqual(card("ask").buttons, [{ decision: "ask", label: "Ask every time" }, { decision: "ignore", label: "Ignore" }]);
+  });
+});
+
 describe("a question", () => {
   const input = {
     questions: [

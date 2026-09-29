@@ -14,11 +14,13 @@ import { subscribe } from "../lib/chat/events.mjs";
 import { userFrame } from "../lib/chat/frames.mjs";
 import { ADMIN_FILE } from "../lib/admin.mjs";
 import { BODY_CLOSING, CARD_TIMEOUT, SUBAGENT_CARD_TIMEOUT, adminTold, deliver, parkRoom, tick } from "../lib/chat/lifecycle.mjs";
-import { answerRule, askedFor, parkRule, ruleAskedFor } from "../lib/chat/permissions.mjs";
+import { answerRule, askedFor, parkRule, ruleAskedFor, rulesPending } from "../lib/chat/permissions.mjs";
 import * as quota from "../lib/chat/quota.mjs";
+import { askDefaults } from "../lib/chat/server.mjs";
 import { INTERRUPT_PATIENCE, end, endEvery, recordOf, running, tell } from "../lib/chat/session.mjs";
-import { deskFile, hire } from "../lib/desks.mjs";
+import { IGNORED_DEFAULTS, LEDGER, deskFile, hire } from "../lib/desks.mjs";
 import { CONFIG_FILE } from "../lib/seed.mjs";
+import { readSettings, writeSettings } from "../lib/settings.mjs";
 import { alive, heardIn, installed, notesIn, pageCookie, pidsIn, post as postPlain, readLog, remove, runToolLater, secretsIn, startChat, stopChat, waitFor, waitForAddress, writeStandIn } from "./helpers.mjs";
 
 import { setup, LEADER, WORKER, OTHER, WORKER_MODEL, MINUTE, panel, base, instance, standIn, unexpected, options, configOf, said, chat, server, seatUp, spawnedBy, page, call, tool, asked, told, stillRunning, gone, callsThen, writesDesk, deskOf, sessionsListed, settle, pair, awake } from "./lifecycle-helpers.mjs";
@@ -252,6 +254,59 @@ describe("a call stop that waits", () => {
     await settle();
     const drawn = panel(instance, LEADER).slice(rows);
     assert.deepEqual(drawn.filter((row) => row.line !== undefined), [], `the lines on the Leader's panel: ${JSON.stringify(drawn)}`);
+  });
+});
+
+// ovai's own cards for the default rules the settings hold nowhere: raised at start on the
+// Leader's panel, one per rule, answered by the recommended list or Ignore, and told to nobody.
+describe("the default rules asked on cards", () => {
+  let kept = null;
+  const ignored = () => path.join(instance, IGNORED_DEFAULTS);
+  const cleared = () => {
+    for (const { id } of rulesPending(LEADER)) {
+      answerRule(LEADER, id);
+    }
+  };
+  before(() => {
+    kept = readSettings(instance);
+  });
+  after(() => {
+    cleared();
+    writeSettings(instance, kept);
+    fs.rmSync(ignored(), { force: true });
+  });
+
+  it("asks nothing of settings that hold every default", () => {
+    cleared();
+    assert.deepEqual(askDefaults(chat), []);
+  });
+
+  it("raises one card per default the settings lack, once, and settles a press on it for nobody's ears", async () => {
+    cleared();
+    const without = (list, gone) => (kept.permissions[list] ?? []).filter((rule) => !gone.includes(rule));
+    writeSettings(instance, { ...kept, permissions: { ...kept.permissions, allow: without("allow", ["Bash(curl:*)"]), deny: without("deny", ["Bash(sudo:*)", "Bash(ssh:*)"]) } });
+    assert.equal(askDefaults(chat).length, 3);
+    assert.deepEqual(askDefaults(chat), []);
+    const { permissions } = JSON.parse((await page("GET", `/sessions/${LEADER}/permissions`)).body);
+    const card = (rule) => permissions.find((shown) => shown.rule === rule);
+    assert.equal(card("Bash(sudo:*)").kind, "default");
+    assert.equal(card("Bash(sudo:*)").list, "deny");
+    assert.equal(card("Bash(curl:*)").list, "allow");
+
+    const wasRunning = running(LEADER);
+    assert.equal((await page("POST", `/sessions/${LEADER}/permission`, { id: card("Bash(sudo:*)").id, decision: "allow" })).status, 400);
+    assert.equal((await page("POST", `/sessions/${LEADER}/permission`, { id: card("Bash(sudo:*)").id, decision: "deny" })).status, 200);
+    assert.equal(readSettings(instance).permissions.deny.includes("Bash(sudo:*)"), true);
+    assert.match(fs.readFileSync(path.join(instance, LEDGER), "utf8"), /`Bash\(sudo:\*\)` \(deny\)/);
+    assert.equal((await page("POST", `/sessions/${LEADER}/permission`, { id: card("Bash(ssh:*)").id, decision: "ignore" })).status, 200);
+    assert.equal(readSettings(instance).permissions.deny.includes("Bash(ssh:*)"), false);
+    assert.deepEqual(JSON.parse(fs.readFileSync(ignored(), "utf8")), [{ list: "deny", rule: "Bash(ssh:*)" }]);
+    assert.equal(running(LEADER), wasRunning);
+
+    // The next start: the card left unanswered comes back, the ignored one does not.
+    cleared();
+    askDefaults(chat);
+    assert.deepEqual(rulesPending(LEADER).map(({ rule }) => rule), ["Bash(curl:*)"]);
   });
 });
 

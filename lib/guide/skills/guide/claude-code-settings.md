@@ -22,7 +22,7 @@ The sandbox is Claude Code's own; ovai adds nothing to it and changes nothing in
 - Commit and pull request attribution is turned off.
 - The permission rules a fresh instance starts with.
 
-An update wires missing hooks, and names but never adds rules a fresh instance would have.
+An update wires missing hooks, and never adds a rule a fresh instance would have. At each start the server asks the User on a card for each such rule the settings hold in no list: the recommendation (Allow, Deny or Ask every time) or Ignore, which is kept in `.claude/ignored-defaults.json` so that rule is never asked again.
 
 ## Environment
 - `ANTHROPIC_API_KEY` and `ANTHROPIC_AUTH_TOKEN` are always removed. `CLAUDE_CODE_OAUTH_TOKEN` is kept only for an instance that signs in by `inherit`.

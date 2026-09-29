@@ -481,5 +481,27 @@
         "to": "  const leader = leaderOf(instance);\n  for (const held of rulesPending(leader)) answerRule(leader, held.id);\n  // A stop is inside a turn"
       }
     ]
+  },
+  {
+    "name": "a default already on the panel is raised again at the next start",
+    "catches": "raises one card per default the settings lack, once, and settles a press on it for nobody's ears",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "    if (pending.some((held) => held.rule === rule)) {",
+        "to": "    if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "a press on a default takes any list",
+    "catches": "raises one card per default the settings lack, once, and settles a press on it for nobody's ears",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "    if (decision !== asked.list && decision !== \"ignore\") {",
+        "to": "    if (!LISTS.includes(decision) && decision !== \"ignore\") {"
+      }
+    ]
   }
 ]

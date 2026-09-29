@@ -119,5 +119,16 @@
         "to": "  if (lines.length === 0) {"
       }
     ]
+  },
+  {
+    "name": "a deny default's recommended button says Allow",
+    "catches": "offers two buttons: the recommended list, labelled as what it does, and Ignore",
+    "edits": [
+      {
+        "file": "lib/chat/dialog.mjs",
+        "from": "const RECOMMENDED = { allow: \"Allow\", deny: \"Deny\", ask: \"Ask every time\" };",
+        "to": "const RECOMMENDED = { allow: \"Allow\", deny: \"Allow\", ask: \"Ask every time\" };"
+      }
+    ]
   }
 ]

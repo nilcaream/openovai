@@ -351,6 +351,7 @@ describe("an update to the version the instance is already on", () => {
   before(async () => {
     const read = JSON.parse(fs.readFileSync(settings, "utf8"));
     delete read.hooks.SubagentStart;
+    read.permissions.deny = read.permissions.deny.filter((rule) => rule !== "Bash(sudo:*)" && rule !== "Bash(ssh:*)");
     fs.writeFileSync(settings, `${JSON.stringify(read, null, 2)}\n`);
     done = await update(root, tree);
   });
@@ -359,6 +360,13 @@ describe("an update to the version the instance is already on", () => {
     assert.equal(done.status, 0, done.stderr);
     assert.ok(Array.isArray(JSON.parse(fs.readFileSync(settings, "utf8")).hooks.SubagentStart));
     assert.match(done.stdout, /^Wired the hooks/m);
+  });
+
+  // The defaults it lacks are counted in one line and added to nothing: the page asks for them.
+  it("says in one line how many default rules the page will ask for, and adds none", () => {
+    assert.match(done.stdout, /^2 new ovai default rules will be asked on the page\.$/m);
+    assert.doesNotMatch(done.stdout, /Bash\(sudo:\*\)/);
+    assert.equal(JSON.parse(fs.readFileSync(settings, "utf8")).permissions.deny.includes("Bash(sudo:*)"), false);
   });
 
   it("replaces nothing", () => {

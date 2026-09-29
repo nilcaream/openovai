@@ -14,8 +14,8 @@ page left open from before the update shows where to get a link until you open o
 directory is now readable by its owner alone, and so are the files that hold its address and keys.
 The page's two keys, `page-session` and `page-link` in the instance directory, sign a browser in as
 the page, so a new instance refuses both to the Read tool and to the tools that write files, and the
-file view refuses both names at any depth. An update names the four rules for an instance that has
-not got them, and adds none. The rules bind the file tools only: a granted `Bash(cat:*)` or
+file view refuses both names at any depth. An instance that has not got the four rules is asked for
+them on cards after the update, and nothing is added without a press. The rules bind the file tools only: a granted `Bash(cat:*)` or
 `Bash(node:*)` still reads either file with no permission popup.
 
 **A session's secret is no longer in its environment.** The secret a session's calls to the chat
@@ -193,6 +193,17 @@ Worker's panel already reaches the Leader.
 **Sessions are no longer told that everything in `/tmp` stops on a permission popup.** It holds
 for the file tools only. An allowed shell command such as `cp` or `find` runs there with no popup,
 because a shell rule matches the start of the command, not the paths it names.
+
+**New default rules are asked on cards, not listed in the terminal.** An update used to print every
+rule a new instance starts with that yours lacked, and the Leader had to ask for each one on a card
+with Allow, Deny and Ask, which made it easy to press the wrong one. Now the update prints one line,
+and ovai itself raises a card on the Leader's panel for each such rule, at every start of the
+server. The card says that the rule came with the update, what it does and why. It has two buttons:
+what ovai recommends, labelled as what it does (Allow, Deny or Ask every time), and Ignore. Ignore
+is remembered in `.claude/ignored-defaults.json`, and that rule is never asked again. A rule you
+took out earlier gets the same card. A rule you hold in any list, even another one than ovai's, is
+left alone. A card nobody answered comes back at the next start. The Leader is not told about the
+press.
 
 ## 0.20.0
 

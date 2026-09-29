@@ -12,9 +12,13 @@ import { after, before, describe, it } from "node:test";
 
 import { COMPOUND_REASON, HIDDEN_REASON, HOOK_COMMAND, HOOK_ENTRY, answerFor, decide } from "../lib/hooks/compound.mjs";
 import { SUBAGENT_HOOK_COMMAND, SUBAGENT_HOOK_ENTRY } from "../lib/hooks/subagent.mjs";
-import { hooksWired, rulesMissing, rulesStale, wireHooks } from "../lib/seed.mjs";
+import { IGNORED_DEFAULTS } from "../lib/desks.mjs";
+import { defaultsIgnored, hooksWired, ignoreDefault, rulesMissing, rulesStale, wireHooks } from "../lib/seed.mjs";
 import { readSettings, settingsFile, writeSettings } from "../lib/settings.mjs";
 import { remove, repo, runtimeData, scratch, standInEnvironment } from "./helpers.mjs";
+
+// A missing default as the update used to print it: the list, then the rule.
+const spelt = (missing) => missing.map(({ list, rule }) => `${list} ${rule}`);
 
 // The settings a fresh instance is born with, cut down to what these checks turn on: a few of the
 // seeded commands, git by its subcommand, and the three refusals.
@@ -438,20 +442,52 @@ describe("the rules an update says are missing", () => {
       },
     });
     const text = fs.readFileSync(settingsFile(root), "utf8");
-    assert.deepEqual(rulesMissing(root), ["allow AskUserQuestion", "allow Edit(/knowledge/**)", "deny Read(/.local/.credentials.json)", "deny Edit(/.local/.credentials.json)", "deny Read(/page-session)", "deny Edit(/page-session)", "deny Read(/page-link)", "deny Edit(/page-link)", "ask Edit(/customization/**)", "ask Edit(/knowledge/common.md)"]);
+    assert.deepEqual(spelt(rulesMissing(root)), ["allow AskUserQuestion", "allow Edit(/knowledge/**)", "deny Read(/.local/.credentials.json)", "deny Edit(/.local/.credentials.json)", "deny Read(/page-session)", "deny Edit(/page-session)", "deny Read(/page-link)", "deny Edit(/page-link)", "ask Edit(/customization/**)", "ask Edit(/knowledge/common.md)"]);
     assert.equal(fs.readFileSync(settingsFile(root), "utf8"), text);
   });
 
   it("names each rule the settings lack, by the list it belongs in, and adds none", () => {
     writeSettings(root, { permissions: { allow: ["mcp__openovai", "Read(/**)", "Edit(/reference/**)", "Edit(/projects/**)", "Edit(/temp/**)"], deny: ["Edit(/.claude/**)", "Edit(/.local/settings.json)", "Edit(/.local/.claude.json)"], ask: ["Edit(/customization/**)"] } });
     const text = fs.readFileSync(settingsFile(root), "utf8");
-    const missing = rulesMissing(root);
+    const missing = spelt(rulesMissing(root));
     assert.equal(missing.length, 39);
     assert.equal(missing[0], "allow AskUserQuestion");
     assert.equal(missing.includes("deny Bash(git push:*)"), true);
     assert.equal(missing.includes("deny Bash(ssh:*)"), true);
     assert.equal(missing.some((entry) => entry.includes("desks/")), false);
     assert.equal(fs.readFileSync(settingsFile(root), "utf8"), text);
+  });
+
+  // Each default carries the words its card says, and nothing else is asked for.
+  it("gives every missing rule the why its card shows", () => {
+    writeSettings(root, { permissions: {} });
+    const missing = rulesMissing(root);
+    assert.equal(missing.every(({ why }) => typeof why === "string" && why.length > 20), true);
+    assert.equal(missing.find(({ rule }) => rule === "Bash(sudo:*)").why, "Refuses this command to every session: a push is yours to make, and sudo and ssh reach beyond this instance.");
+  });
+
+  // A default the person put in another list than the one it is born in is a decision taken:
+  // `Bash(curl:*)` asked every time and `Bash(sudo:*)` allowed are not asked for again.
+  it("takes a rule held in any list as settled", () => {
+    writeSettings(root, { permissions: { ask: ["Bash(curl:*)"], allow: ["Bash(sudo:*)"] } });
+    const missing = spelt(rulesMissing(root));
+    assert.equal(missing.includes("allow Bash(curl:*)"), false);
+    assert.equal(missing.includes("deny Bash(sudo:*)"), false);
+    assert.equal(missing.includes("allow Bash(git:*)"), true);
+  });
+
+  // Ignore is remembered, privately, once; and an ignored rule is not asked again.
+  it("leaves out a rule the User ignored, kept in a private file", () => {
+    writeSettings(root, { permissions: {} });
+    assert.deepEqual(ignoreDefault(root, { list: "deny", rule: "Bash(ssh:*)" }), [path.join(root, IGNORED_DEFAULTS)]);
+    assert.deepEqual(ignoreDefault(root, { list: "deny", rule: "Bash(ssh:*)" }), []);
+    assert.equal(fs.statSync(path.join(root, IGNORED_DEFAULTS)).mode & 0o777, 0o600);
+    assert.deepEqual(defaultsIgnored(root), [{ list: "deny", rule: "Bash(ssh:*)" }]);
+    const missing = spelt(rulesMissing(root));
+    assert.equal(missing.includes("deny Bash(ssh:*)"), false);
+    assert.equal(missing.includes("deny Bash(sudo:*)"), true);
+    fs.writeFileSync(path.join(root, IGNORED_DEFAULTS), "{ not json\n");
+    assert.equal(spelt(rulesMissing(root)).includes("deny Bash(ssh:*)"), true);
   });
 
   // The desk file was refused to the file tools by earlier releases, and an instance born then
