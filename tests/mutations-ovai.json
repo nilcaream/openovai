@@ -364,7 +364,7 @@
   },
   {
     "name": "start prints the plain address, which opens nothing",
-    "catches": "starts the server in the background and prints a one-time link to its page, and nothing else",
+    "catches": "starts the server in the background and prints the Claude Code variables it wrote down, then a one-time link to its page",
     "edits": [
       {
         "file": "lib/ovai.mjs",

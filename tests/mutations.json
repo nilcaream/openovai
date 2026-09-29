@@ -78,7 +78,7 @@
   },
   {
     "name": "a request for any name is served",
-    "catches": "refuses a request for any name but its own, the page and its secret included",
+    "catches": "refuses a request for any name but its own, the page included",
     "edits": [
       {
         "file": "lib/chat/server.mjs",
@@ -89,7 +89,7 @@
   },
   {
     "name": "localhost is not one of its names",
-    "catches": "refuses a request for any name but its own, the page and its secret included",
+    "catches": "refuses a request for any name but its own, the page included",
     "edits": [
       {
         "file": "lib/chat/server.mjs",
@@ -100,7 +100,7 @@
   },
   {
     "name": "a change is taken from any origin",
-    "catches": "takes a change only from its own origins when the request names one",
+    "catches": "takes a change only from its own origins, and none from a request that names no origin",
     "edits": [
       {
         "file": "lib/chat/server.mjs",
@@ -243,7 +243,7 @@
   },
   {
     "name": "the secret is written under the instance when it is issued",
-    "catches": "writes no secret anywhere under the instance",
+    "catches": "writes no secret anywhere under the instance, and the session key in its own file alone",
     "edits": [
       {
         "file": "lib/chat/session.mjs",
@@ -320,7 +320,7 @@
   },
   {
     "name": "the run is not verbose, so nothing but the result would come back",
-    "catches": "runs it in print mode over the streaming protocol, asking here before using a tool",
+    "catches": "runs it in print mode over the streaming protocol, asking here before using a tool, in the mode that asks",
     "edits": [
       {
         "file": "lib/chat/session.mjs",
@@ -918,7 +918,7 @@
   },
   {
     "name": "the page sits on a secret the server no longer knows",
-    "catches": "reads its secret off the tag, sends it on every call, and reloads when it is no longer known",
+    "catches": "sends no credential of its own on a call or the stream, and reloads when it is no longer known",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -929,7 +929,7 @@
   },
   {
     "name": "the page fetches the room around its own gate",
-    "catches": "reads its secret off the tag, sends it on every call, and reloads when it is no longer known",
+    "catches": "sends no credential of its own on a call or the stream, and reloads when it is no longer known",
     "edits": [
       {
         "file": "lib/chat/page.html",
