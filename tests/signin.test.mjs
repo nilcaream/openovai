@@ -10,6 +10,10 @@ import { after, describe, it } from "node:test";
 import { LINK_FILE, LINK_LIFETIME, SESSION_FILE, isSession, linkTo, sessionKey, takeLink, writeLink } from "../lib/chat/signin.mjs";
 import { remove, scratch } from "./helpers.mjs";
 
+// A mode these checks read is the one the code gave, not the one the shell's umask happens to leave:
+// under 077 a file made with no mode at all is 0600 anyway, and no check could tell.
+process.umask(0o022);
+
 const BASE64URL = /^[A-Za-z0-9_-]{43}$/;
 
 const root = scratch("signin-test");

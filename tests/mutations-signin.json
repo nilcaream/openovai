@@ -3,7 +3,7 @@
     "name": "a new session key is made at every call",
     "catches": "is the one it was every time after, so a browser stays signed in across a restart",
     "edits": [
-      { "file": "lib/chat/signin.mjs", "from": "    return fs.readFileSync(file, \"utf8\").trim();\n  } catch (error) {", "to": "    fs.rmSync(file);\n  } catch (error) {" }
+      { "file": "lib/chat/signin.mjs", "from": "    const held = fs.readFileSync(file, \"utf8\").trim();\n    if (held !== \"\") {\n      return held;\n    }\n", "to": "    fs.rmSync(file);\n" }
     ]
   },
   {
