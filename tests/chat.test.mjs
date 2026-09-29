@@ -877,9 +877,9 @@ describe("starting a seat", () => {
     assert.deepEqual([...new Set(said)], ["CLAUDE_CODE_ARTIFACT: 1"]);
   });
 
-  it("runs it in print mode over the streaming protocol, asking here before using a tool", () => {
+  it("runs it in print mode over the streaming protocol, asking here before using a tool, in the mode that asks", () => {
     const argv = callsIn(paul.log).at(-1);
-    for (const part of ["--print", "--input-format stream-json", "--output-format stream-json", "--verbose", "--permission-prompt-tool stdio"]) {
+    for (const part of ["--print", "--input-format stream-json", "--output-format stream-json", "--verbose", "--permission-prompt-tool stdio", "--permission-mode default"]) {
       assert.ok(argv.includes(part), `${part} is not in ${argv}`);
     }
   });
