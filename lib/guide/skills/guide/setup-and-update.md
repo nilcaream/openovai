@@ -38,7 +38,7 @@ All are run from a terminal as `<instance>/bin/ovai <command>`:
 - `ovai update` takes the latest signed release from GitHub. `--from <url or directory>` looks elsewhere. A git checkout is taken only on `main`, committed and clean, and its version is then the commit's first 8 characters.
 - It refuses to go backwards unless `--downgrade` is given.
 - Stop the server first. It refuses while the server or any session of the instance is running.
-- It replaces `bin/` and `lib/` only. Desks, conversations, `knowledge/`, `customization/`, `plugins/`, `openovai.json`, the settings and the Claude Code home are left alone. It then seeds only files that are missing, and names any permission rules that a fresh instance would have but this one lacks. It adds none of them.
+- It replaces `bin/` and `lib/` only. Desks, conversations, `knowledge/`, `customization/`, `plugins/`, `openovai.json`, the settings and the Claude Code home are left alone. It then seeds only files that are missing, and counts the permission rules that a fresh instance would have but this one lacks. It adds none of them: each is asked for on a permission popup on the Leader's panel at every start of the server, until the User presses the button for the list ovai recommends or Ignore.
 - There is no rollback: taking an older release again with `--downgrade` is the fix, for a release that carries a signed package, which 0.21.0 and later do. 0.20.0 and earlier do not, so the updater refuses them from GitHub; `--from <directory>` of one still works.
 - Claude Code's own updater is off. A newer Claude Code arrives with the next ovai release.
 - After an update, the page shows the introduction once.

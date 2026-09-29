@@ -121,16 +121,16 @@ any depth. A hard link to a refused file could be shown under a name of its own.
 see a file's other names, so it now refuses any regular file that has more than one. The list goes
 by name, and a copy of a credential under another name is still shown.
 
-**A new instance refuses the account's credential to the Read tool and the tools that write
-files.** This closes a gap in the seeded rules. `Read(/**)` reached `.local/.credentials.json`, the
-account's access and refresh token, so any session could read it with the Read tool and no
-permission popup. A new instance now carries `Read(/.local/.credentials.json)` and
-`Edit(/.local/.credentials.json)` among its deny rules. It refuses that one file and not the rest of
-`.local/`, because Claude Code keeps large tool results and skills there for a session to read. An
-update names both rules for an instance that has not got them, and adds neither. The rules bind the
-file tools only: a granted `Bash(cat:*)` or `Bash(node:*)` still reads the file with no permission
-popup. A `Bash(...)` deny would stop one spelling of the command out of endless ones, so none is
-added.
+**A new instance refuses the account's credential to the Read tool and the tools that write files.**
+This closes a gap in the seeded rules. `Read(/**)` reached `.local/.credentials.json`, the account's
+access and refresh token, so any session could read it with the Read tool and no permission popup. A
+new instance now carries `Read(/.local/.credentials.json)` and `Edit(/.local/.credentials.json)`
+among its deny rules. It refuses that one file and not the rest of `.local/`, because Claude Code
+keeps large tool results and skills there for a session to read. An update counts both rules for an
+instance that has not got them and adds neither: the server asks for each on a card of its own, at
+every start until it is answered, and the press decides. The rules bind the file tools only: a
+granted `Bash(cat:*)` or `Bash(node:*)` still reads the file with no permission popup. A `Bash(...)`
+deny would stop one spelling of the command out of endless ones, so none is added.
 
 **A panel no longer masks the word after "key:" or "secret:" in what is said.** Masking replaced
 the value after any word that names a secret, and it did that in replies, messages and the User's
