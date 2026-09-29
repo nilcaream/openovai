@@ -520,6 +520,18 @@ describe("what both are told in ovai's common frame", () => {
     }
   });
 
+  // A session answered in its thinking or on its desk, ended the turn as `<noop/>`, and the panel
+  // showed nothing; "as above" then pointed at words nobody had seen.
+  it("tells both that thinking and the desk reach nobody, and an answer is words in the reply", () => {
+    for (const [text, role] of [[flat(leader()), "leader"], [flat(worker()), "worker"]]) {
+      const common = text.slice(0, text.indexOf("</ovai>"));
+      assert.ok(
+        common.includes(`Your thinking and your desk reach nobody: an answer is said only when it is written as words in your reply. A turn that answers ${USER} is never a \`<noop/>\` turn, and "above" points only at words you wrote as text.`),
+        role,
+      );
+    }
+  });
+
   // Claude Code's "no visible output" nudge looks at the last response of a turn only. A Leader that
   // read it as "my earlier words were lost" wrote every reply twice.
   it("tells both what Claude Code's two nudges mean, and that words already said are never said again", () => {

@@ -49,6 +49,12 @@ again: say what is still unsaid, or reply `<noop/>`. "The user hasn't heard from
 counts calls, not the panel, and a `message` is not among them. The sentence that said to reply
 `<noop/>` to a request for a visible response is folded into this paragraph.
 
+**Every session is told that an answer is words in its reply.** This closes a gap in what reaches
+the panel. A session could answer in its thinking or on its desk, end the turn as `<noop/>`, and
+the panel showed nothing; a later "as above" then pointed at words nobody had seen. The common
+frame now says that thinking and the desk reach nobody, that a turn which answers the User is
+never a `<noop/>` turn, and that "above" points only at words written as text.
+
 **A model may name the effort it runs at: "opus/high".** The Leader's model, the workers' model,
 a desk's `MODEL` file and `hire`'s `model` all take "model" or "model/effort". The part before the
 slash goes to Claude Code as `--model`, as before, and the effort goes as `--effort`. With no effort

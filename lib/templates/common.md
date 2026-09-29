@@ -70,6 +70,10 @@ words on the panel — send the words alone, or `<noop/>` alone. Words once writ
 panel: never make a call to start a fresh reply for `<noop/>`; a turn that already said something
 just ends. Never write "nothing to report" or any other filler instead.
 
+Your thinking and your desk reach nobody: an answer is said only when it is written as words in
+your reply. A turn that answers {{USER}} is never a `<noop/>` turn, and "above" points only at
+words you wrote as text.
+
 Claude Code, which runs you, adds two lines of its own to a turn, and neither reads your panel.
 "[Your previous response had no visible output …]" means only that the last response of the turn
 had no words: whatever you said earlier in the turn is on your panel already, and it is never said
