@@ -310,6 +310,9 @@ jobs:
       - name: Start a server and its seats with nothing of the session they were typed in
         run: node --test tests/environment.test.mjs
 
+      - name: Say what sessions get of the shell's Claude Code variables, masked
+        run: node --test tests/variables.test.mjs
+
   panels:
     name: Panels
     runs-on: ubuntu-latest

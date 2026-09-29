@@ -405,5 +405,32 @@
         "to": "  const running = await serving(root);\n  if (running === null) {\n    writeLink(root);\n    console.log(\"not running\");\n    return NOT_RUNNING;\n  }\n  console.log(link("
       }
     ]
+  },
+  {
+    "name": "start prints the link and not the Claude Code variables",
+    "catches": "starts the server in the background and prints the Claude Code variables it wrote down, then a one-time link to its page",
+    "edits": [
+      {
+        "file": "lib/ovai.mjs",
+        "from": "      console.log(`Claude Code variables (values masked):\\n${variablesRecorded(root)}`);\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "configuration reads the Claude Code variables off the shell it is typed in",
+    "catches": "ends its configuration with the Claude Code variables the start wrote down",
+    "edits": [
+      {
+        "file": "lib/ovai.mjs",
+        "from": "  const variables = variablesRecorded(root);\n",
+        "to": "  const variables = gathered(root, config.auth, process.env).join(\"\\n\");\n"
+      },
+      {
+        "file": "lib/ovai.mjs",
+        "from": "import { record as recordVariables, recorded as variablesRecorded } from \"./variables.mjs\";",
+        "to": "import { gathered, record as recordVariables, recorded as variablesRecorded } from \"./variables.mjs\";"
+      }
+    ]
   }
 ]

@@ -1,0 +1,95 @@
+[
+  {
+    "name": "the variables are listed in the order the shell had them",
+    "catches": "is the User's mockup, line for line",
+    "edits": [
+      {
+        "file": "lib/variables.mjs",
+        "from": "].filter(known).sort();",
+        "to": "].filter(known);"
+      }
+    ]
+  },
+  {
+    "name": "ANTHROPIC_MODEL reads as passed on though every seat's --model outranks it",
+    "catches": "is the User's mockup, line for line",
+    "edits": [
+      {
+        "file": "lib/variables.mjs",
+        "from": "const OUTRANKED = [\"ANTHROPIC_MODEL\"];",
+        "to": "const OUTRANKED = [];"
+      }
+    ]
+  },
+  {
+    "name": "the machine's sign-in reads as passed on whatever the instance signs in by",
+    "catches": "says the machine's sign-in is removed when the instance signs in on its own",
+    "edits": [
+      {
+        "file": "lib/variables.mjs",
+        "from": "sessionEnvironment(root, auth, \"any seat\",",
+        "to": "sessionEnvironment(root, \"inherit\", \"any seat\","
+      }
+    ]
+  },
+  {
+    "name": "a passphrase is shown as it is: neither KEY nor PASSPHRASE is a credential word",
+    "catches": "masks every query value of a URL, a passphrase and a header whatever its name",
+    "edits": [
+      {
+        "file": "lib/variables.mjs",
+        "from": "(?:KEY|TOKEN|",
+        "to": "(?:TOKEN|"
+      },
+      {
+        "file": "lib/variables.mjs",
+        "from": "|PASSWORD|PASSPHRASE|",
+        "to": "|PASSWORD|"
+      }
+    ]
+  },
+  {
+    "name": "a URL's query values are masked only by their names",
+    "catches": "masks every query value of a URL, a passphrase and a header whatever its name",
+    "edits": [
+      {
+        "file": "lib/variables.mjs",
+        "from": "value.replace(/([?&][^=&#\\s]*=)[^&#\\s]+/g, `$1${MASK}`)",
+        "to": "value"
+      }
+    ]
+  },
+  {
+    "name": "a credential word is matched anywhere in a name",
+    "catches": "keeps a number whose name only counts tokens",
+    "edits": [
+      {
+        "file": "lib/variables.mjs",
+        "from": "|CREDENTIALS?|HEADERS|AUTH)(?:_|$)/;",
+        "to": "|CREDENTIALS?|HEADERS|AUTH)/;"
+      }
+    ]
+  },
+  {
+    "name": "the variables are read as the admin door's rather than a seat's",
+    "catches": "says what a seat gets over the shell's home, effort and Artifact switch, and lists nothing that is not Claude Code's",
+    "edits": [
+      {
+        "file": "lib/variables.mjs",
+        "from": "sessionEnvironment(root, auth, \"any seat\",",
+        "to": "sessionEnvironment(root, auth, null,"
+      }
+    ]
+  },
+  {
+    "name": "the variables file is written with whatever mode the umask gives",
+    "catches": "writes them for their owner alone, with no value unmasked",
+    "edits": [
+      {
+        "file": "lib/variables.mjs",
+        "from": "  writePrivate(file(root), ",
+        "to": "  fs.writeFileSync(file(root), "
+      }
+    ]
+  }
+]

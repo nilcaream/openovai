@@ -1462,10 +1462,13 @@ describe("the server commands", () => {
 
   // The address alone opens nothing: what a person is handed is the address with a one-time link on
   // it, the one the server takes (chat/signin.mjs).
-  it("starts the server in the background and prints a one-time link to its page, and nothing else", async () => {
+  it("starts the server in the background and prints the Claude Code variables it wrote down, then a one-time link to its page", async () => {
     const started = ovai(["start"]);
     assert.equal(started.status, 0, started.stderr);
-    assert.match(started.stdout, LINK);
+    const variables = fs.readFileSync(path.join(served, "claude-variables"), "utf8");
+    assert.match(variables, /^ {2}ANTHROPIC_API_KEY = \*\*\* \(removed\)$/m);
+    assert.ok(started.stdout.startsWith(`Claude Code variables (values masked):\n${variables}`), started.stdout);
+    assert.match(started.stdout.slice(`Claude Code variables (values masked):\n${variables}`.length), LINK);
     assert.equal(started.stderr, "");
     assert.equal(tokenOf(started.stdout), pendingLink());
     url = addressOf(started.stdout);
@@ -1534,6 +1537,13 @@ describe("the server commands", () => {
     assert.equal(fs.statSync(path.join(served, "runtime.log")).mode & 0o777, 0o600);
   });
 
+  // What the start wrote down, never what the shell it is typed in has now.
+  it("ends its configuration with the Claude Code variables the start wrote down", () => {
+    const variables = fs.readFileSync(path.join(served, "claude-variables"), "utf8");
+    const said = ovai(["configuration"], { ANTHROPIC_MODEL: "typed-after-the-start" }).stdout;
+    assert.ok(said.endsWith(`\nclaude variables\n${variables}`), said);
+  });
+
   it("says where it runs, with the pid the server recorded", () => {
     const asked = ovai(["status"]);
     assert.equal(asked.status, 0);
@@ -1554,7 +1564,7 @@ describe("the server commands", () => {
     const pid = pidRecorded();
     const restarted = ovai(["restart"]);
     assert.equal(restarted.status, 0, restarted.stderr);
-    assert.match(restarted.stdout, new RegExp(`^Stopping the server at ${url} \\(pid ${pid}\\)\\.\nStopped( \\(sessions gone after \\d+\\.\\d seconds\\))?\\.\n(http://127\\.0\\.0\\.1:\\d+/\\?token=[A-Za-z0-9_-]{43})\n$`));
+    assert.match(restarted.stdout, new RegExp(`^Stopping the server at ${url} \\(pid ${pid}\\)\\.\nStopped( \\(sessions gone after \\d+\\.\\d seconds\\))?\\.\nClaude Code variables \\(values masked\\):\n( {2}\\S+ = [^\n]*\n)+(http://127\\.0\\.0\\.1:\\d+/\\?token=[A-Za-z0-9_-]{43})\n$`));
     assert.notEqual(pidRecorded(), pid);
     url = addressOf(restarted.stdout);
     assert.ok(await settled(true));
