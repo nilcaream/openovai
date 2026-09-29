@@ -69,11 +69,13 @@ a desk's `MODEL` file and `hire`'s `model` all take "model" or "model/effort". T
 slash goes to Claude Code as `--model`, as before, and the effort goes as `--effort`. With no effort
 written, no `--effort` is passed and Claude Code picks its own for the model, which is `medium` for
 Opus 5.5 and Sonnet 5.5. The effort is not checked against a list, and neither is the model.
-Claude Code answers an effort it does not know with a warning on stderr, which the panel shows, and
-runs at its default. Everywhere a model is shown, it is shown as written: "opus", "opus/high",
-"claude-opus-5/low". A seat no longer inherits `CLAUDE_CODE_EFFORT_LEVEL` from the shell the server
-was started from. Claude Code reads that variable before `--effort`, so a value left in that shell
-would have set every seat's effort over the one written here.
+Claude Code answers an effort it does not know with a warning on stderr and runs at its default.
+ovai keeps a session's stderr and shows it on the panel only when the session ends before answering,
+so the warning of a session that goes on running is not shown. Everywhere a model is shown, it is
+shown as written: "opus", "opus/high", "claude-opus-5/low". A seat no longer inherits
+`CLAUDE_CODE_EFFORT_LEVEL` from the shell the server was started from. Claude Code reads that
+variable before `--effort`, so a value left in that shell would have set every seat's effort over
+the one written here.
 
 **A new workspace runs its Leader on Opus and its workers on Sonnet.** The installer now offers
 "opus" for the Leader and "sonnet" for the workers, where it offered "opus" for both. By
