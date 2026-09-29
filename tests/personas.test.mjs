@@ -366,6 +366,12 @@ describe("what a Worker is told", () => {
     assert.match(flat(worker()), new RegExp(`\`/tmp\` is outside this instance, so a read or write there with the file tools stops on a card for ${USER}`));
   });
 
+  // The scratchpad Claude Code gives a session under /tmp raises no card, and nobody else reads it:
+  // the exception is said, with what stays out of it.
+  it("tells the Worker the Claude Code scratchpad under /tmp is for what nobody else reads", () => {
+    assert.match(flat(worker()), new RegExp(`The scratchpad Claude Code gives a session under \`/tmp\` is the one exception, for what nobody but you reads again: anything another session, a later session or ${USER} needs goes in \`temp/\`\\.`));
+  });
+
   it("tells the Worker what each frame is, and that only the server writes one", () => {
     assert.match(worker(), /arrives as\s+`<user>…<\/user>`/);
     assert.match(worker(), /arrives as `<message from="…">…<\/message>`/);

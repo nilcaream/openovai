@@ -57,6 +57,13 @@ never a `<noop/>` turn, and that "above" points only at words written as text.
 It also says an answer to the User is written as text before the turn's first call, never only
 in thinking.
 
+**Every session is told the scratchpad Claude Code gives it under `/tmp` is the one exception to
+"nothing goes in `/tmp`".** With `CLAUDE_CODE_ARTIFACT=1`, Claude Code gives every seat a
+`/tmp/claude-<uid>/` scratchpad and a line in its system prompt telling it to use that instead of
+`/tmp`, and writes there raise no card. The common frame said `/tmp` stops on a card, while Claude
+Code told the seat to use it. It now says the scratchpad is for what nobody but the seat reads
+again, and that anything another session, a later session or the User needs goes in `temp/`.
+
 **A model may name the effort it runs at: "opus/high".** The Leader's model, the workers' model,
 a desk's `MODEL` file and `hire`'s `model` all take "model" or "model/effort". The part before the
 slash goes to Claude Code as `--model`, as before, and the effort goes as `--effort`. With no effort
