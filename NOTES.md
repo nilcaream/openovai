@@ -20,7 +20,9 @@ rules is asked for them on cards after the update, and nothing is added without 
 bind the file tools only, and a new instance allows `Bash(cat:*)`, `Bash(node:*)`, `Bash(bash:*)`,
 `Bash(sh:*)` and `Bash(curl:*)` itself: a session on a default instance reads either file through
 the shell with no permission popup, and so can sign in as the page. That is not new in 0.21.0, and
-it is still open.
+it is still open. So is the key's cookie: it lasts 400 days, renewed at every load of the page, and
+a browser sends it to every local port, not only the page's, so any server on the machine that the
+browser reaches under the same host name is handed it.
 
 **A session's secret is no longer in its environment.** The secret a session's calls to the chat
 are known by was in the session's process environment, and every process of the same user can
