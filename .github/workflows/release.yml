@@ -7,8 +7,10 @@ name: Release
 #
 # The token is the one GitHub gives the run: `contents: write` below is what lets it push a tag and
 # publish a release, and it is the only permission this has. The one thing stored is the key the
-# package is signed with, the repository secret RELEASE_SIGNING_KEY, read by the sign job alone —
-# and, while a key is being replaced, the new one as RELEASE_SIGNING_KEY_NEXT.
+# package is signed with, the repository secret RELEASE_SIGNING_KEY — and, while a key is being
+# replaced, the new one as RELEASE_SIGNING_KEY_NEXT. Only the sign job of this file uses them, but a
+# repository secret is readable by a workflow run from any branch that somebody with write access
+# pushes, so whoever can push a branch here can read the key.
 on:
   workflow_dispatch:
 

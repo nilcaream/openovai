@@ -158,14 +158,16 @@ the keys in the instance's own `lib/RELEASE_KEYS`, checks the package against `S
 checks that the `lib/VERSION` inside matches the tag, all before anything is replaced. It never
 takes GitHub's own archive of the tag. `openovai` checks the same with `ssh-keygen` before it
 unpacks anything, and now needs `ssh-keygen` from OpenSSH 8.1 or later. The release key's
-fingerprint is `SHA256:aPDZIYeTixbEFoDRX5ytVJ+TvZub0hlFDreET4iB8Lk`. Three things are still
-open. The update to this version is itself taken the old way, unchecked. Get the `openovai` command
-again with the `curl … | sh` line so it pins the key too, since a copy installed earlier never
-checks. And the signature proves a release was made by the repository's release workflow, not that
-anybody reviewed it: whoever controls the repository can have a release signed. `update --from` a
-directory is not checked, as before. An instance on 0.21.0 cannot `update --downgrade` to 0.20.0
-or earlier from GitHub: those releases carry no signed package, and the updater refuses them with
-"carries no signed package". `update --from` a directory of that release still works.
+fingerprint is `SHA256:aPDZIYeTixbEFoDRX5ytVJ+TvZub0hlFDreET4iB8Lk`. Three things are still open.
+The update to this version is itself taken the old way, unchecked. Get the `openovai` command again
+with the `curl … | sh` line so it pins the key too, since a copy installed earlier never checks. And
+the signature proves a release was made by the repository's release workflow, not that anybody
+reviewed it: whoever controls the repository can have a release signed, and the key is a repository
+secret, which a workflow run from any branch that somebody with write access pushes can read.
+`update --from` a directory is not checked, as before. An instance on 0.21.0 cannot
+`update --downgrade` to 0.20.0 or earlier from GitHub: those releases carry no signed package, and
+the updater refuses them with "carries no signed package". `update --from` a directory of that
+release still works.
 
 **ovai introduces itself.** `lib/templates/introduction.md` says in one screen what ovai is, what it
 does not do, where Claude Code's own commands go and how to ask about the tool. It is filled with

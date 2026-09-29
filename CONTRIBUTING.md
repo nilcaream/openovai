@@ -205,11 +205,13 @@ files and publishes the release as the latest. That job runs no action, only git
 `gh` on the runner. If it fails, the release stays a draft that nobody updates to: re-run the
 failed job.
 
-The token is the one GitHub gives the run, and `contents: write` is the only permission it asks
-for. The key is the repository secret `RELEASE_SIGNING_KEY`, an Ed25519 key with no passphrase,
-read by the sign job alone. Its public half is pinned twice, in `lib/RELEASE_KEYS` and in the
-`release_keys=` line of `openovai`, and the two must match. An instance checks an update against the
-keys it already has, and the command checks a release against the keys it was installed with.
+The token is the one GitHub gives the run, and `contents: write` is the only permission it asks for.
+The key is the repository secret `RELEASE_SIGNING_KEY`, an Ed25519 key with no passphrase, used by
+the sign job alone, but a repository secret is readable by a workflow run from any branch that
+somebody with write access pushes: whoever can push a branch can read it. Its public half is pinned
+twice, in `lib/RELEASE_KEYS` and in the `release_keys=` line of `openovai`, and the two must match.
+An instance checks an update against the keys it already has, and the command checks a release
+against the keys it was installed with.
 
 To replace the key, make a new one and set it as `RELEASE_SIGNING_KEY_NEXT`, and add its line to
 both places. Every release then carries a second signature, `SHA256SUMS.next.sig`, and either key
