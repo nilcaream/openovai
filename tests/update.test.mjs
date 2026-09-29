@@ -602,8 +602,8 @@ describe("what an update refuses", () => {
   //
   // Both read the exit status the command uses for a command line it could not make sense of, and
   // not merely a non-zero one. Anything at all handed to --from fails later anyway — a word that is
-  // neither a directory nor an address is asked for as a URL and does not answer — so a check that
-  // only asked for a failure would pass with the whole of this reading removed.
+  // no http(s) address is looked for as a directory and is not there — so a check that only asked
+  // for a failure would pass with the whole of this reading removed.
   it("refuses an argument that is not the one option, as a command line", async () => {
     assert.equal((await runToolLater(root, ["update", "somewhere"], process.env)).status, 2);
   });
@@ -619,6 +619,57 @@ describe("what an update refuses", () => {
   // would notice from the outside.
   it("looks at the releases of the toolkit itself when it is not told where", () => {
     assert.equal(RELEASES, "https://api.github.com/repos/nilcaream/openovai/releases/latest");
+  });
+});
+
+// --from is an address only when it reads as one over http or https; anything else is a directory,
+// and what is wrong with it is said by name. Handed to fetch instead, each of these answered only
+// "did not answer (ERR_INVALID_URL)", which says nothing about the path that was typed.
+describe("a --from that is not a directory to be read", () => {
+  const root = makeInstance("wrong-from");
+  const locked = path.join(here, "locked");
+  const file = path.join(here, "a-file");
+  fs.writeFileSync(file, "not a release\n");
+  // Readable but not searchable: what is inside cannot be looked at, and the directory cannot be
+  // entered, so both are refused with EACCES. Not 000: a run killed before it put the mode back
+  // leaves a directory at 000 that nothing can remove, and the mutation sweep kills a run as soon as
+  // the check it watches is red. Measured: an empty directory at 600 is removed like any other.
+  fs.mkdirSync(locked, { mode: 0o600 });
+  fs.chmodSync(locked, 0o600);
+
+  // A user who owns every directory it can reach reads through any mode, so there is nothing this
+  // could be refused for.
+  const everythingReadable = process.getuid?.() === 0 && "run as root, which reads a directory whatever its mode";
+
+  async function refusal(from) {
+    const refused = await update(root, from);
+    return [refused.status === 0, refused.stderr.trim()].join(" ");
+  }
+
+  it("says a path that is not there does not exist", async () => {
+    const missing = path.join(here, "nowhere");
+    assert.equal(await refusal(missing), `false ovai: ${missing} does not exist, and it is not an http(s) address either`);
+  });
+
+  it("takes an address that is not http or https for a path, and says it does not exist", async () => {
+    assert.equal(await refusal("ftp://127.0.0.1/release"), "false ovai: ftp://127.0.0.1/release does not exist, and it is not an http(s) address either");
+  });
+
+  it("says a path inside a directory it may not enter cannot be read, and why", { skip: everythingReadable }, async () => {
+    const inside = path.join(locked, "release");
+    assert.equal(await refusal(inside), `false ovai: ${inside} cannot be read (EACCES)`);
+  });
+
+  it("says a directory it may not read cannot be read, and why", { skip: everythingReadable }, async () => {
+    assert.equal(await refusal(locked),`false ovai: ${locked} cannot be read (EACCES)`);
+  });
+
+  it("says a file is not a directory", async () => {
+    assert.equal(await refusal(file), `false ovai: ${file} is not a directory`);
+  });
+
+  it("leaves the instance on the version it was on", () => {
+    assert.equal(fs.readFileSync(path.join(root, "lib", "VERSION"), "utf8").trim(), INSTALLED);
   });
 });
 

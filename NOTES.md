@@ -205,6 +205,12 @@ took out earlier gets the same card. A rule you hold in any list, even another o
 left alone. A card nobody answered comes back at the next start. The Leader is not told about the
 press.
 
+**`ovai update --from` says what is wrong with a path.** A path that did not exist, or that the
+user running the update could not read, was asked for as a web address, and all the update said was
+"did not answer (ERR_INVALID_URL)". Now only an http or https address is fetched. Anything else is a
+directory, and the update names it and says that it does not exist, that it cannot be read (with the
+reason, such as EACCES), or that it is not a directory.
+
 ## 0.20.0
 
 **An update is finished by the version it brings in.** `ovai update` used to finish in the code it

@@ -603,5 +603,60 @@
         "to": "  if (false) {"
       }
     ]
+  },
+  {
+    "name": "whatever --from is, it is fetched as an address",
+    "catches": "says a path that is not there does not exist",
+    "edits": [
+      {
+        "file": "lib/release.mjs",
+        "from": "    return [\"http:\", \"https:\"].includes(new URL(where).protocol);",
+        "to": "    return true;"
+      }
+    ]
+  },
+  {
+    "name": "an address in any scheme is fetched",
+    "catches": "takes an address that is not http or https for a path, and says it does not exist",
+    "edits": [
+      {
+        "file": "lib/release.mjs",
+        "from": "    return [\"http:\", \"https:\"].includes(new URL(where).protocol);",
+        "to": "    return new URL(where).protocol !== \"\";"
+      }
+    ]
+  },
+  {
+    "name": "a path that cannot be looked at is said not to exist, whatever the reason",
+    "catches": "says a path inside a directory it may not enter cannot be read, and why",
+    "edits": [
+      {
+        "file": "lib/release.mjs",
+        "from": "    if (error.code === \"ENOENT\") {\n      throw new ReleaseError(`${where} does not exist",
+        "to": "    if (true) {\n      throw new ReleaseError(`${where} does not exist"
+      }
+    ]
+  },
+  {
+    "name": "a directory is not asked whether it can be read",
+    "catches": "says a directory it may not read cannot be read, and why",
+    "edits": [
+      {
+        "file": "lib/release.mjs",
+        "from": "  try {\n    fs.accessSync(where, fs.constants.R_OK | fs.constants.X_OK);\n  } catch (error) {\n    throw new ReleaseError(`${where} cannot be read (${error.code})`);\n  }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a file is taken for a directory",
+    "catches": "says a file is not a directory",
+    "edits": [
+      {
+        "file": "lib/release.mjs",
+        "from": "  if (!found.isDirectory()) {",
+        "to": "  if (false) {"
+      }
+    ]
   }
 ]
