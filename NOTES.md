@@ -211,6 +211,13 @@ user running the update could not read, was asked for as a web address, and all 
 directory, and the update names it and says that it does not exist, that it cannot be read (with the
 reason, such as EACCES), or that it is not a directory.
 
+**The Leader is told when nobody is doing anything.** When every running Worker has been idle a
+minute, with nothing waiting for it, and the Leader is not on a turn, the Leader gets one
+`all-idle` event naming them: usually a report or a `done` it has not acted on. It comes once, and
+again only after a Worker has taken a turn; the Leader's own turns do not bring it back. A Worker
+waiting on a permission popup is not idle, and with no Worker running nothing is sent. The minute is
+`idle.all` in `openovai.json`.
+
 ## 0.20.0
 
 **An update is finished by the version it brings in.** `ovai update` used to finish in the code it

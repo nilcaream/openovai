@@ -179,5 +179,60 @@
         "to": "        if (!dead && turn.turns.length > 0) {\n          // A turn that died at the service is not a turn taken."
       }
     ]
+  },
+  {
+    "name": "a Worker on a turn counts as idle for the all-idle event",
+    "catches": "a Worker waiting on a card is not idle: nothing while the card is up",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "record.queue.length === 0 && (idleOf(seat, now) ?? -1) >= minutes;",
+        "to": "record.queue.length === 0 && Math.floor((now - record.idleSince) / 60_000) >= minutes;"
+      }
+    ]
+  },
+  {
+    "name": "the all-idle event is not remembered, so it repeats every tick",
+    "catches": "tells the Leader once when every Worker has been idle a minute, and not again every minute",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "  if (!workers.every(quiet) || workers.every(([, record]) => record.allIdleMark === record.idleSince)) {",
+        "to": "  if (!workers.every(quiet)) {"
+      }
+    ]
+  },
+  {
+    "name": "the Leader counts as one of the Workers, so its own turn brings the event back",
+    "catches": "comes back after a Worker's turn, never after the Leader's own",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "    .filter((seat) => seat !== leader)\n    .map((seat) => [seat, recordOf(seat)])",
+        "to": "    .map((seat) => [seat, recordOf(seat)])"
+      }
+    ]
+  },
+  {
+    "name": "the all-idle event does not wait for the Leader's turn to end",
+    "catches": "waits while the Leader is on a turn, and tells it at the first tick after when nobody moved",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "  if ((recordOf(leader)?.turn ?? null) !== null) {\n    return;\n  }\n  const quiet",
+        "to": "  const quiet"
+      }
+    ]
+  },
+  {
+    "name": "a Worker on its way out still counts for the all-idle event",
+    "catches": "leaves out a Worker on its way out, however busy its last turn",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "    .map((seat) => [seat, recordOf(seat)])\n    .filter(([, record]) => record.ending === null);",
+        "to": "    .map((seat) => [seat, recordOf(seat)]);"
+      }
+    ]
   }
 ]

@@ -345,3 +345,139 @@ describe("idle", () => {
     assert.equal(heardIn(paul.log).at(-1), IDLE_CLOSING);
   });
 });
+
+// Nobody doing anything: the Leader is told once when every Worker has been idle a minute.
+describe("all idle", () => {
+  let superman = null;
+  let paul = null;
+  let ann = null;
+
+  after(async () => {
+    await endEvery(500);
+  });
+
+  const allIdleIn = (log) => heardIn(log).filter((frame) => frame.startsWith('<server-event type="all-idle"'));
+  const readAllIdleIn = (log) => readIn(log).filter((frame) => frame.includes('type="all-idle"'));
+
+  // Two Workers, both idle, the Leader off a turn: the clocks start at the last of the three turns.
+  async function trio(paulKnobs = {}, leaderKnobs = {}) {
+    ({ superman, paul } = await pair(paulKnobs, leaderKnobs));
+    ann = await seatUp(OTHER);
+    await awake(WORKER);
+    await awake(OTHER);
+    return now;
+  }
+
+  it("tells the Leader once when every Worker has been idle a minute, and not again every minute", async () => {
+    const idleFrom = await trio();
+    // Ann is given work at half a minute: at one minute Paul is idle and Ann is not.
+    now = idleFrom + MINUTE / 2;
+    await awake(OTHER);
+    now = idleFrom + MINUTE;
+    tick(chat);
+    await settle();
+    assert.deepEqual(allIdleIn(superman.log), []);
+    now = idleFrom + MINUTE / 2 + MINUTE;
+    tick(chat);
+    tick(chat);
+    assert.ok(await waitFor(() => (allIdleIn(superman.log).length > 0 ? true : null)), heardIn(superman.log).join("\n"));
+    assert.deepEqual(allIdleIn(superman.log), [`<server-event type="all-idle" workers="2">${WORKER}, ${OTHER}</server-event>`]);
+    for (const minutes of [2, 3, 5]) {
+      now = idleFrom + minutes * MINUTE;
+      tick(chat);
+    }
+    await settle();
+    assert.equal(allIdleIn(superman.log).length, 1, "the all-idle event was repeated");
+  });
+
+  it("tells the Leader nothing when no Worker is running: alone, it is at rest", async () => {
+    await endEvery(500);
+    superman = await seatUp(LEADER);
+    const idleFrom = now;
+    now = idleFrom + 5 * MINUTE;
+    tick(chat);
+    tick(chat);
+    await settle();
+    assert.deepEqual(heardIn(superman.log), []);
+  });
+
+  it("a Worker waiting on a card is not idle: nothing while the card is up", async () => {
+    ({ superman, paul } = await pair({ OPENOVAI_STAND_IN_ASKS: "Bash", OPENOVAI_STAND_IN_WAITS: "2000" }));
+    await awake(LEADER);
+    const asking_ = tell(WORKER, userFrame("may I"));
+    assert.ok(await waitFor(() => (heardIn(paul.log).length === 1 ? true : null)));
+    const idleFrom = now;
+    now = idleFrom + 5 * MINUTE;
+    assert.notEqual(recordOf(WORKER).turn, null, "the card's turn ended before the clock was read");
+    tick(chat);
+    tick(chat);
+    await settle();
+    assert.deepEqual(allIdleIn(superman.log), []);
+    assert.deepEqual(readAllIdleIn(superman.log), []);
+    await asking_.answered;
+  });
+
+  // Not queued behind the Leader's turn: an event queued then would be stale by the time it is read,
+  // if a Worker moved in between.
+  it("waits while the Leader is on a turn, and tells it at the first tick after when nobody moved", async () => {
+    ({ superman, paul } = await pair({}, { OPENOVAI_STAND_IN_ASKS: "Bash", OPENOVAI_STAND_IN_WAITS: "2000" }));
+    await awake(WORKER);
+    const asking_ = tell(LEADER, userFrame("may I"));
+    assert.ok(await waitFor(() => (heardIn(superman.log).length === 1 ? true : null)));
+    const idleFrom = now;
+    now = idleFrom + 5 * MINUTE;
+    assert.notEqual(recordOf(LEADER).turn, null, "the Leader's turn ended before the clock was read");
+    tick(chat);
+    await settle();
+    assert.deepEqual(readAllIdleIn(superman.log), []);
+    // Paul moves while the Leader is still on its turn: when that turn ends, nobody is idle a minute.
+    await awake(WORKER);
+    assert.notEqual(recordOf(LEADER).turn, null, "the Leader's turn ended before Paul moved");
+    await asking_.answered;
+    tick(chat);
+    await settle();
+    assert.deepEqual(allIdleIn(superman.log), [], "an event from before Paul moved reached the Leader");
+    now = idleFrom + 6 * MINUTE;
+    tick(chat);
+    assert.ok(await waitFor(() => (allIdleIn(superman.log).length > 0 ? true : null)), heardIn(superman.log).join("\n"));
+    assert.deepEqual(allIdleIn(superman.log), [`<server-event type="all-idle" workers="1">${WORKER}</server-event>`]);
+  });
+
+  it("comes back after a Worker's turn, never after the Leader's own", async () => {
+    const idleFrom = await trio();
+    now = idleFrom + MINUTE;
+    tick(chat);
+    assert.ok(await waitFor(() => (allIdleIn(superman.log).length === 1 ? true : null)), heardIn(superman.log).join("\n"));
+    // The Leader's turn on it, and another of its own: the Workers have not moved.
+    await awake(LEADER);
+    now = idleFrom + 3 * MINUTE;
+    tick(chat);
+    tick(chat);
+    await settle();
+    assert.equal(allIdleIn(superman.log).length, 1, "the Leader's own turn brought the event back");
+    // Paul takes a turn: a minute after it, the Leader is told again.
+    await awake(WORKER);
+    now = idleFrom + 4 * MINUTE;
+    tick(chat);
+    assert.ok(await waitFor(() => (allIdleIn(superman.log).length === 2 ? true : null)), heardIn(superman.log).join("\n"));
+    await settle();
+    assert.equal(allIdleIn(superman.log).length, 2);
+  });
+
+  it("leaves out a Worker on its way out, however busy its last turn", async () => {
+    ({ superman, paul } = await pair());
+    ann = await seatUp(OTHER, { OPENOVAI_STAND_IN_ASKS: "Bash", OPENOVAI_STAND_IN_WAITS: "2000" });
+    await awake(WORKER);
+    await awake(LEADER);
+    const asking_ = tell(OTHER, userFrame("may I"));
+    assert.ok(await waitFor(() => (heardIn(ann.log).length === 1 ? true : null)));
+    // The moment between a seat's ending and its process gone: still running, and not counted.
+    recordOf(OTHER).ending = "stop";
+    const idleFrom = now;
+    now = idleFrom + MINUTE;
+    tick(chat);
+    assert.ok(await waitFor(() => (allIdleIn(superman.log).length > 0 ? true : null)), heardIn(superman.log).join("\n"));
+    assert.deepEqual(allIdleIn(superman.log), [`<server-event type="all-idle" workers="1">${WORKER}</server-event>`]);
+    await asking_.answered;
+  });
+});

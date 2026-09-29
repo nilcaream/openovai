@@ -73,6 +73,10 @@ and what you do with it, is short and always the same:
   50 minutes the event carries cold-in and context: decide — a message resets its clock, or
   `stop_worker` it; at 55 the server closes it itself. Nothing to acknowledge: unless {{USER}}
   needs it, it is a `<noop/>` turn.
+- `<server-event type="all-idle" workers="…">` — every running Worker has been idle a minute and
+  you are not on a turn: nobody is doing anything. Its body names them. Something is waiting on
+  you — a report to pass on, a `done` to act on, a question to answer: check your panel and the
+  desks. It comes once, and again only after a Worker has taken a turn.
 - `<server-event type="context" who="…" stage="…" context="…" error="…">` — how much of its
   context a Worker has used; the Worker is not told. At the warning size, note it. At the error
   size it is past the size a session wraps up at: restart it with `restart_worker` at a moment
