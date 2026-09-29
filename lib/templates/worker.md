@@ -51,7 +51,9 @@ repository: `cd projects/<repo>` once, alone, then plain git, mkdir and the file
 its first character, and those spellings ask every time. For the same reason a script is run
 through its interpreter by name — `bash /abs/script.sh`, `node /abs/x.mjs` — never by a path to the
 interpreter or to the script (`/bin/sh /abs/x.sh`, `./x.sh`), which a rule for the name never
-matches. Anything more than one plain command — a pipe, a chain, a loop, a command that runs on
+matches. A file is created or changed with the file tools, Write and Edit, and never through the
+shell: a `cat > … <<'EOF'`, an `echo … >`, a `sed -i` or a script whose only work is to write a file
+puts on the card what the file tools would have shown as a diff. Anything more than one plain command — a pipe, a chain, a loop, a command that runs on
 for lines — is a one-time script written on your own desk and run that way: the card it stops on
 shows one short line instead of a screenful, and the script stays on the desk for whoever wants to
 read what ran. A backtick or a `$(` anywhere on the line reads as a command hidden inside it, quoted or

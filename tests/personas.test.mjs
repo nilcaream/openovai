@@ -473,6 +473,12 @@ describe("what a Worker is told", () => {
     assert.match(worker(), /several alternatives\s+go as repeated `-e` rather than one pattern joined by `\\\|`/);
   });
 
+  // A heredoc through Bash reads as compliant with "a script written on your own desk" while the
+  // card shows the whole file; the sentence names how the file is written, not only where.
+  it("tells the Worker that a file is created or changed with Write and Edit, never through the shell", () => {
+    assert.match(flat(worker()), /A file is created or changed with the file tools, Write and Edit, and never through the shell: a `cat > … <<'EOF'`, an `echo … >`, a `sed -i` or a script whose only work is to write a file puts on the card what the file tools would have shown as a diff\. Anything more than one plain command/);
+  });
+
   it("tells the Worker that a compound of allowed commands runs without a stop, and one with a side nothing holds is refused toward a script", () => {
     assert.match(flat(worker()), /A compound whose every side is a command this instance allows runs without a stop; one that has a side nothing holds is refused with a reason that says how to write it as a script, unless a side is one the rules refuse, and then it asks\./);
   });
