@@ -68,9 +68,10 @@ runs at its default. Everywhere a model is shown, it is shown as written: "opus"
 was started from. Claude Code reads that variable before `--effort`, so a value left in that shell
 would have set every seat's effort over the one written here.
 
-**A new workspace runs on Opus at high effort.** The installer now offers "opus/high" for the
-Leader and for the workers, where it offered "opus". A workspace that is already installed keeps
-the model it has, and it runs as it did until somebody adds an effort to it.
+**A new workspace runs its Leader on Opus and its workers on Sonnet.** The installer now offers
+"opus" for the Leader and "sonnet" for the workers, where it offered "opus" for both. By
+benchmarks, Sonnet 5.5 on high effort performs near Opus while being cheaper. A workspace that is
+already installed keeps the models it has.
 
 **The Leader is told a hire's model may name an effort.** Its instructions and the `hire` tool say
 a model is written as "model" or "model/effort". The tool gives "opus" and "claude-opus-5/low" as

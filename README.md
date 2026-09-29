@@ -23,7 +23,7 @@ curl -fsSL https://raw.githubusercontent.com/nilcaream/openovai/main/openovai | 
 openovai
 # or say it all on one line, and nothing is asked; the directory has to be empty or new
 openovai --root ~/my-workspace --user Ana --leader Max \
-         --leader-model opus/high --worker-model opus/high --port 7799 --auth login
+         --leader-model opus --worker-model sonnet --port 7799 --auth login
 # sign the instance in (--auth login): opens a browser once, the credential stays inside the instance
 ~/my-workspace/bin/ovai login
 # start the server in the background: it prints a one-time link, http://127.0.0.1:7799/?token=…, and returns
@@ -41,7 +41,7 @@ directly:
 git clone https://github.com/nilcaream/openovai.git
 cd openovai
 ./install.sh --root ~/my-workspace --source . --user Ana --leader Max \
-             --leader-model opus/high --worker-model opus/high --port 7799 --auth login
+             --leader-model opus --worker-model sonnet --port 7799 --auth login
 ```
 
 Open the link `ovai start` prints, within ten minutes. It works once: it signs that browser in and

@@ -2,7 +2,7 @@
 
 ## Install
 - Get the command once: `curl -fsSL https://raw.githubusercontent.com/nilcaream/openovai/main/openovai | sh`. It installs itself under `~/.local/share/openovai`, linked at `~/.local/bin/openovai`. If `~/.local/bin` is not on `PATH`, it prints the line to add to the shell profile. It never edits a profile.
-- Run `openovai` to create an instance. It asks where the instance lives, who the team works for, who leads it, the Leader's and the Workers' models (Enter takes `opus/high`), the port (Enter takes `0`, a free port picked at each start) and how it signs in. Each answer can also be given on the command line.
+- Run `openovai` to create an instance. It asks where the instance lives, who the team works for, who leads it, the Leader's and the Workers' models (Enter takes `opus` for the Leader and `sonnet` for the Workers), the port (Enter takes `0`, a free port picked at each start) and how it signs in. Each answer can also be given on the command line.
 - The directory must be empty unless `--force` is given. Installing over an existing instance updates it.
 - It downloads the release, checks its signature, and fetches the Node.js and Claude Code versions the release pins, into `~/.local/share/openovai`. That is about half a gigabyte, shared by every instance of the user, with no sudo.
 - Linux or macOS, x86_64 or arm64. On Windows, use WSL 2 and keep the instance off `/mnt/c`.
