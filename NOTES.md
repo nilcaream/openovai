@@ -17,8 +17,10 @@ and keys. The page's two keys, `page-session` and `page-link` in the instance di
 browser in as the page, so a new instance refuses both to the Read tool and to the tools that write
 files, and the file view refuses both names at any depth. An instance that has not got the four
 rules is asked for them on cards after the update, and nothing is added without a press. The rules
-bind the file tools only: a granted `Bash(cat:*)` or `Bash(node:*)` still reads either file with no
-permission popup.
+bind the file tools only, and a new instance allows `Bash(cat:*)`, `Bash(node:*)`, `Bash(bash:*)`,
+`Bash(sh:*)` and `Bash(curl:*)` itself: a session on a default instance reads either file through
+the shell with no permission popup, and so can sign in as the page. That is not new in 0.21.0, and
+it is still open.
 
 **A session's secret is no longer in its environment.** The secret a session's calls to the chat
 are known by was in the session's process environment, and every process of the same user can
@@ -130,9 +132,10 @@ new instance now carries `Read(/.local/.credentials.json)` and `Edit(/.local/.cr
 among its deny rules. It refuses that one file and not the rest of `.local/`, because Claude Code
 keeps large tool results and skills there for a session to read. An update counts both rules for an
 instance that has not got them and adds neither: the server asks for each on a card of its own, at
-every start until it is answered, and the press decides. The rules bind the file tools only: a
-granted `Bash(cat:*)` or `Bash(node:*)` still reads the file with no permission popup. A `Bash(...)`
-deny would stop one spelling of the command out of endless ones, so none is added.
+every start until it is answered, and the press decides. The rules bind the file tools only, and a
+new instance allows `Bash(cat:*)` and `Bash(node:*)` itself, so a session on a default instance
+still reads the file with no permission popup. A `Bash(...)` deny would stop one spelling of the
+command out of endless ones, so none is added.
 
 **A panel no longer masks the word after "key:" or "secret:" in what is said.** Masking replaced
 the value after any word that names a secret, and it did that in replies, messages and the User's
