@@ -47,6 +47,10 @@ import { HOOK_ENTRY } from "../lib/hooks/compound.mjs";
 import { SUBAGENT_HOOK_ENTRY } from "../lib/hooks/subagent.mjs";
 import { pins } from "../lib/runtime.mjs";
 
+// A mode these checks read is the one the code gave, not the one the shell's umask happens to leave:
+// under 077 a file made with no mode at all is 0600 anyway, and no check could tell.
+process.umask(0o022);
+
 // Open a desk the way the Leader's `hire` tool does, in this process, and answer the way a command
 // would: what was written, or the refusal. The command line has no hire — a Worker joins through
 // the tool — and this suite is about the desk that opening one leaves behind.

@@ -33,6 +33,14 @@ import { BUILT_IN } from "../lib/plugins.mjs";
 import { CONFIG_FILE } from "../lib/seed.mjs";
 import { alive, callsIn, childrenOf, connectionsIn, get as fetchPlain, heardIn, installed, leftRunningIn, notesIn, post as postPlain, queuesHeardIn, readLog, remove, repo, sansMoment, scratch, seatsIn, secretsIn, source, startChat, stopChat, toolsHandedIn, waitFor, waitForAddress, writeStandIn } from "./helpers.mjs";
 
+// A mode these checks read is the one the code gave, not the one the shell's umask happens to leave:
+// under 077 a file made with no mode at all is 0600 anyway, and no check could tell.
+process.umask(0o022);
+
+// A seat's start turns the Artifact tools on, and a check that reads that must not be handed them by
+// the seat that runs the suite: this server is started with the variable unset.
+delete process.env.CLAUDE_CODE_ARTIFACT;
+
 const USER = "Mike";
 const LEADER = "Superman";
 const WORKER = "Paul";

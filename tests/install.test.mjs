@@ -21,6 +21,10 @@ import { RELEASE_NOTES } from "../lib/release.mjs";
 import { turnAttributionOff } from "../lib/seed.mjs";
 import { readSettings, settingsFile, writeSettings } from "../lib/settings.mjs";
 
+// A mode these checks read is the one the code gave, not the one the shell's umask happens to leave:
+// under 077 a file made with no mode at all is 0600 anyway, and no check could tell.
+process.umask(0o022);
+
 const USER = "Mike";
 const LEADER = "Superman";
 const LEADER_MODEL = "sonnet";

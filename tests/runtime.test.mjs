@@ -18,6 +18,10 @@ import { after, before, describe, it } from "node:test";
 import { remove, repo, scratch } from "./helpers.mjs";
 import { RUNTIME_FILE, RuntimeError, dataDirectory, pins, runtimePaths } from "../lib/runtime.mjs";
 
+// A mode these checks read is the one the code gave, not the one the shell's umask happens to leave:
+// under 077 a file made with no mode at all is 0600 anyway, and no check could tell.
+process.umask(0o022);
+
 const here = scratch("runtime-test");
 const A_VERSION = /^\d+\.\d+\.\d+$/;
 

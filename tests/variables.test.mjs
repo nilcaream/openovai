@@ -10,6 +10,10 @@ import { after, before, describe, it } from "node:test";
 import { home } from "../lib/claude.mjs";
 import { VARIABLES_FILE, gathered, record } from "../lib/variables.mjs";
 
+// A mode these checks read is the one the code gave, not the one the shell's umask happens to leave:
+// under 077 a file made with no mode at all is 0600 anyway, and no check could tell.
+process.umask(0o022);
+
 // The shell of the User's mockup, 2026-09-29 19:33.
 const MOCKUP_SHELL = {
   ANTHROPIC_API_KEY: "plainvalue123",
