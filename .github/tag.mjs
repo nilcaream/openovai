@@ -1,8 +1,9 @@
 // What a release of this tree would be: the tag, the name, and the notes it carries.
 //
 // `lib/release.mjs` is the other side of this — where a release is taken — and it says what a
-// release is: a tag plus the source archive GitHub makes for it. Nothing is built and nothing is
-// uploaded, so cutting one is deciding a tag and finding some notes. That is all this does.
+// release is: a tag plus the package made from it, with its SHA256SUMS and signature. The workflow
+// makes and signs those after this has run; nothing here is built, signed or uploaded, so what this
+// does is deciding a tag and finding some notes.
 //
 // It exists as a file rather than as lines inside the workflow because everything here can be got
 // wrong — a version nobody bumped, a tag that is already out, notes for a version that is not this
