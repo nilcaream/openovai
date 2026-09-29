@@ -152,7 +152,8 @@ describe("what the harness reads back", () => {
     assert.equal(said.hookSpecificOutput.permissionDecision, "deny");
     assert.equal(said.hookSpecificOutput.permissionDecisionReason, HIDDEN_REASON);
     assert.match(HIDDEN_REASON, /grep -f/);
-    assert.match(HIDDEN_REASON, /script on your desk/);
+    assert.match(HIDDEN_REASON, /in a file with the Write tool and pass it with grep -f/);
+    assert.match(HIDDEN_REASON, /script with the Write tool, on your desk or in temp\//);
   });
 
   it("is the deny decision with a reason naming the Write tool and bash <file> for a compound with a side nothing holds", () => {
