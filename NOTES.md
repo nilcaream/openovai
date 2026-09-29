@@ -54,6 +54,8 @@ the panel. A session could answer in its thinking or on its desk, end the turn a
 the panel showed nothing; a later "as above" then pointed at words nobody had seen. The common
 frame now says that thinking and the desk reach nobody, that a turn which answers the User is
 never a `<noop/>` turn, and that "above" points only at words written as text.
+It also says an answer to the User is written as text before the turn's first call, never only
+in thinking.
 
 **A model may name the effort it runs at: "opus/high".** The Leader's model, the workers' model,
 a desk's `MODEL` file and `hire`'s `model` all take "model" or "model/effort". The part before the
