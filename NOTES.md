@@ -76,6 +76,16 @@ the model it has, and it runs as it did until somebody adds an effort to it.
 a model is written as "model" or "model/effort". The tool gives "opus" and "claude-opus-5/low" as
 examples and names the levels Claude Code takes: low, medium, high, xhigh and max.
 
+**Fast mode stays off for the sessions on the page, and the guide says why.** Claude Code's fast
+mode runs Opus faster at a higher price per token, billed from the account's usage credits. A
+session on the page runs in print mode, where Claude Code turns fast mode off unless the `--settings`
+it is started with say `"fastMode": true`. ovai does not pass that, so fast mode is off whatever the
+person's own Claude Code setting says. Passing it would switch fast mode on for every session ovai
+starts, not only make it available. At the command line a person turns fast mode on for the one
+session in front of them. Here the Leader starts Workers on demand, and ten of them could run up a
+large bill within minutes. Fast mode may come back later as a choice per Worker, beside its model
+and effort.
+
 **The text after an inline `<code>`, `<pre>`, `<kbd>` or `<script>` in a row is escaped.** This
 closes a gap in how a row's markdown is drawn. The tag itself was escaped, but marked handed over
 the text after it as already escaped, in that paragraph and in every heading, list item, table

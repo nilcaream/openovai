@@ -18,6 +18,7 @@ Every panel on the page is one Claude Code session, called a seat. There is one 
 - The Leader's and the Workers' default models are in `openovai.json`, set at install. Changing the Workers' default changes it for every Worker without a model of its own, from their next start.
 - Ask the Leader to hire a Worker on another model, e.g. "sonnet" or "opus/low". The part after the slash is the reasoning effort (low, medium, high, xhigh, max). With none, Claude Code picks its own. The choice is kept in `desks/<Name>/MODEL`, and a later hire on that desk with a model replaces it.
 - A running session keeps the model it started on. It changes at its next start.
+- Fast mode (Claude Code's `/fast`: Opus answers faster at a higher price, billed from the account's usage credits) is off for the Leader and the Workers, whatever the person's own Claude Code setting says. It is off because ovai starts sessions on demand: at the command line fast mode applies to the one session in front of the person, but here ten Workers on fast mode could run up a large bill within minutes. It may come back later as a choice per Worker, beside its model and effort.
 
 ## Desks
 `desks/<Name>/` is one seat's directory:
