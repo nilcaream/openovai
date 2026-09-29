@@ -972,7 +972,7 @@ describe("the script", () => {
   // whole: the renderer gives them other kinds, and the fold is under the three kinds alone.
   it("folds what one Worker said to another like a message to a session or from one, and shows the User's words whole", () => {
     assert.match(script, /line\.append\(bubble\);\n(?:    \/\/[^\n]*\n)?    if \(shown\.kind === "peer-in" \|\| shown\.kind === "peer-out" \|\| shown\.kind === "overheard" \|\| shown\.kind === "chat"\) \{\n/, "the fold is under the three kinds of a message between sessions and the server's own rows, and nothing else");
-    const names = { chat: "Server", seat: "Bobby", leader: "Bobby", user: "Copter" };
+    const names = { chat: "Server", seat: "Bobby", leader: "Bobby", user: "User" };
     const folded = new Set(["peer-in", "peer-out", "overheard"]);
     assert.equal(row({ from: "Bobby", to: "Tom", msg: "m1", text: "go" }, names).kind, "peer-out");
     assert.equal(row({ from: "Tom", to: "Bobby", msg: "m2", text: "done" }, names).kind, "peer-in");
@@ -990,7 +990,7 @@ describe("the script", () => {
   // meta's style in place of the body; the row is foldable by construction, and a double click
   // opens the whole rendered markdown as on any other row. Nothing is stripped, nothing cut.
   it("folds a message that opens with a table, a list, a code block, a heading, a quote or a rule behind a placeholder, and keeps it foldable", () => {
-    const names = { chat: "Server", seat: "Bobby", leader: "Bobby", user: "Copter" };
+    const names = { chat: "Server", seat: "Bobby", leader: "Bobby", user: "User" };
     const table = "| a | b |\n|---|---|\n| 1 | 2 |";
     for (const text of [table, "- one\n- two", "* one", "+ one", "1. one", "12) twelve", "# Title", "###### Small", "> quoted", "```js\nx\n```", "~~~\nx\n~~~", "---", "***", "___", `\n\n  ${table}`]) {
       assert.equal(row({ from: "Tom", to: "Bobby", msg: "m2", text }, names).placeholder, true, `${JSON.stringify(text)} opens with a block, not a paragraph`);

@@ -157,7 +157,7 @@ describe("a frame is known by where it came from, not by its shape", () => {
 // indented.
 // A User's line whose references name rows carries each row after the words, whole, as a `<ref>`
 // the server wrote; the words stay as typed, and a `<ref>` the User typed is theirs and cannot pose
-// as one. Copter's example, character for character.
+// as one. The User's example, character for character.
 describe("a User's frame with the rows it refers to", () => {
   const refs = [
     { to: "15:08:11/123", from: "Anna", at: "2026-09-25T15:08:11.123", text: "spell-out is merged at [ahead 24]." },
