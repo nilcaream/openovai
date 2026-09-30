@@ -2886,5 +2886,82 @@
         "to": "      rows.append(doing);\n"
       }
     ]
+  },
+  {
+    "name": "the rows' observer measures on a change of height too",
+    "catches": "never scrolls a panel that does not follow on a key, a typed line, a send or a taller box",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      if (width === measuredAt) return;\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the Leader's window is settled at every tick, not when something changed",
+    "catches": "keeps the last hundred rows of a Worker panel, and the Leader's window of the rows a reader sees",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      if (!panel.crowded) return;\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the Leader's window counts the messages the switch hides",
+    "catches": "keeps the last hundred rows of a Worker panel, and the Leader's window of the rows a reader sees",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    return (index) => !unseen(about.rows, index) && !(quiet && talks(about.rows[index], names));",
+        "to": "    return (index) => !unseen(about.rows, index);"
+      }
+    ]
+  },
+  {
+    "name": "a click on a Worker's line finds nothing past the Leader's window",
+    "catches": "marks the line of a message with its id and takes a click on it to the message on the Leader's panel, opened",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      drawOlder(leader, about, index);\n      found = leader.bubbles.get(index) ?? null;",
+        "to": "      return;"
+      }
+    ]
+  },
+  {
+    "name": "the Leader's panel links only the references to rows it has drawn at the time",
+    "catches": "draws each reference in the User's row that names a drawn row as a link that focuses it",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      if (!panel.leads && !panel.bubbles.has(ref.index)) continue;",
+        "to": "      if (!panel.bubbles.has(ref.index)) continue;"
+      }
+    ]
+  },
+  {
+    "name": "a reference's row is resolved when the link is made",
+    "catches": "draws each reference in the User's row that names a drawn row as a link that focuses it",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      link.addEventListener(\"click\", () => focusIndex(panel, ref.index));",
+        "to": "      const target = panel.bubbles.get(ref.index);\n      link.addEventListener(\"click\", () => focusRow(panel, target));"
+      }
+    ]
+  },
+  {
+    "name": "a row the window let go is not drawn back for a reference",
+    "catches": "draws each reference in the User's row that names a drawn row as a link that focuses it",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      drawOlder(panel, state.panels[panel.name], index);\n      found = panel.bubbles.get(index);\n",
+        "to": ""
+      }
+    ]
   }
 ]

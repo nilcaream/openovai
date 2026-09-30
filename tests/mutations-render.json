@@ -460,5 +460,27 @@
         "to": "  if (entry.from === names.chat && entry.introduction === false) {"
       }
     ]
+  },
+  {
+    "name": "a message to a Worker counts as one the switch hides on a Worker's panel",
+    "catches": "a message to or from a Worker is never one on a Worker's panel, a line there, and one between two Workers is, overheard",
+    "edits": [
+      {
+        "file": "lib/chat/render.mjs",
+        "from": "  return entry.overheard === true || names.seat === names.leader;",
+        "to": "  return true;"
+      }
+    ]
+  },
+  {
+    "name": "a stamped row to someone counts as a message the switch hides",
+    "catches": "agrees with the kind row gives every entry, on the Leader's panel",
+    "edits": [
+      {
+        "file": "lib/chat/render.mjs",
+        "from": "  if (entry.divider === true || entry.stamp === true || entry.interrupted === true || entry.silent === true || entry.failed === true) return false;",
+        "to": "  if (entry.divider === true || entry.interrupted === true || entry.silent === true || entry.failed === true) return false;"
+      }
+    ]
   }
 ]

@@ -226,8 +226,8 @@
   // draws it and carries what is typed and pressed to the server.
 
   import { answerOf, dialogOf } from "./dialog.mjs";
-  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, insertRef, pillLine, stopEnabled, title, typingBeat, LINE_WAITING } from "./panels.mjs";
-  import { dayPillBefore, row as rowOf, unseen } from "./render.mjs";
+  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, loadsOlder, noticed, place, prune, quotaLine, quotaTitle, insertRef, pillLine, stopEnabled, title, typingBeat, windowStart, LINE_WAITING, WINDOW } from "./panels.mjs";
+  import { dayPillBefore, row as rowOf, talks, unseen } from "./render.mjs";
   import { refTo, references } from "./refs.mjs";
 
   // The theme: the head script above <style> applied the stored choice before the first paint;
@@ -519,10 +519,15 @@
       if (view.follow && !atTheNewest(rows)) rows.scrollTop = rows.scrollHeight;
     };
     showFollow();
-    // Whenever the rows change size, the stamps and the folds are measured again for the width.
-    // The height is the timer's business: the bottom area under the rows grows with a taller box
-    // or a card, the window is resized, and a panel that follows is pinned at the next tick.
-    new ResizeObserver(() => {
+    // Whenever the rows change width, the stamps and the folds are measured again for it; a change
+    // of height alone measures nothing, since neither depends on it. The height is the timer's
+    // business: the bottom area under the rows grows with a taller box or a card, the window is
+    // resized, and a panel that follows is pinned at the next tick.
+    let measuredAt = null;
+    new ResizeObserver((entries) => {
+      const width = entries[0].contentRect.width;
+      if (width === measuredAt) return;
+      measuredAt = width;
       fitStamps(rows.querySelectorAll(".t"));
       fitFolds(rows.querySelectorAll(".msg.collapsed"));
     }).observe(rows);
@@ -665,8 +670,11 @@
     // delivery to find its row; `day` the day of the row drawn last, for the pill between two days;
     // `drawn` the card of every question on the panel, by the id of its request; `doing` the pill
     // that says what the Leader is at, null on a Worker's panel; `bubbles` the element of every
-    // stamped row by its index, for a reference in a User's row to find the row it names.
-    return { name, leads, section, nameLine, info, word, fitPlaceholder, facts, composer, stop, rows, cards, jump, doing, box, view, keep, shown: 0, day: null, drawn: new Map(), loading: false, last: null, lines: new Map(), bubbles: new Map(), waiting: new Map() };
+    // stamped row by its index, for a reference in a User's row to find the row it names. On the
+    // Leader's panel `from` is the index of the oldest row drawn (`shown` is the end of them),
+    // `quiet` whether the comms switch hid the messages when the window was last settled, and
+    // `crowded` whether rows came or went since, so the window may hold more than it should.
+    return { name, leads, section, nameLine, info, word, fitPlaceholder, facts, composer, stop, rows, cards, jump, doing, box, view, keep, shown: 0, from: 0, quiet: false, crowded: false, day: null, drawn: new Map(), loading: false, last: null, lines: new Map(), bubbles: new Map(), waiting: new Map() };
   }
 
   // When a row was written, in the reader's own zone: `2026.09.13 Sunday 23:17:05` on the row, the
@@ -754,18 +762,20 @@
     if (!box.disabled) box.focus();
   }
 
-  // The User's words with every reference that names a drawn row as a link to it; the rest, and a
-  // reference that names nothing drawn, as typed.
+  // The User's words with every reference that names a row the panel has as a link to it; the
+  // rest, and a reference that names nothing, as typed. The Leader's panel has every row it
+  // holds, drawn or not: its link finds the row when it is clicked (focusIndex), so it stays a
+  // link whatever the window. A Worker's panel links the rows it has drawn.
   function linkedText(body, text, rows, index, panel) {
     let from = 0;
     for (const ref of references(rows, index, text)) {
-      const target = ref.index === null ? undefined : panel.bubbles.get(ref.index);
-      if (target === undefined) continue;
+      if (ref.index === null || unseen(rows, ref.index)) continue;
+      if (!panel.leads && !panel.bubbles.has(ref.index)) continue;
       body.append(text.slice(from, ref.start));
       const link = document.createElement("a");
       link.className = "ref";
       link.textContent = text.slice(ref.start, ref.end);
-      link.addEventListener("click", () => focusRow(panel, target));
+      link.addEventListener("click", () => focusIndex(panel, ref.index));
       body.append(link);
       from = ref.end;
     }
@@ -795,14 +805,32 @@
   }
 
   // The message a line on a Worker's panel is one end of, found on the Leader's panel by the id
-  // both carry, opened, brought into view with its label at the top, and lit for a moment. The
-  // Leader's panel draws every row it holds, so a message it has is there to find; one it has not
-  // loaded yet is nothing to do.
+  // both carry, opened, brought into view with its label at the top, and lit for a moment. A
+  // message older than the Leader's window is drawn first, with every row after it up to the
+  // window; one the Leader has not got is nothing to do.
   function focusMessage(id) {
     const leader = sections.get(state.leader);
-    const found = leader === undefined ? null : leader.rows.querySelector(`.msg[data-msg="${id}"]`);
-    if (found === null) return;
-    focusRow(leader, found);
+    if (leader === undefined) return;
+    const found = leader.rows.querySelector(`.msg[data-msg="${id}"]`);
+    if (found !== null) {
+      focusRow(leader, found);
+      return;
+    }
+    const rows = state.panels[state.leader].rows ?? [];
+    const index = rows.findIndex((entry) => entry.msg === id && typeof entry.to === "string");
+    if (index >= 0) focusIndex(leader, index);
+  }
+
+  // The row of a panel at an index, found when it is asked for, never when a link to it was made.
+  // On the Leader's panel one the window has let go, or never drew, is drawn first, with every
+  // row after it up to the window; on a Worker's, one it has let go is nothing to do.
+  function focusIndex(panel, index) {
+    let found = panel.bubbles.get(index);
+    if (found === undefined && panel.leads && index < panel.from) {
+      drawOlder(panel, state.panels[panel.name], index);
+      found = panel.bubbles.get(index);
+    }
+    if (found !== undefined) focusRow(panel, found);
   }
 
   // A row found from a click elsewhere — a message's other end, a reference — opened, brought into
@@ -1115,6 +1143,144 @@
       });
   }
 
+  // Rows `from` up to `to` of a panel's conversation drawn, each element put in by `land`. A pill
+  // names the day between the last row of one day and the first row of the next —
+  // never before the first row drawn, whatever its day, and never before a row that says when
+  // a session ended or started, which names the day itself (dayPillBefore). A tool call that repeats the line
+  // appended last counts itself into that line rather than drawing a second one; any other
+  // row — a bubble, a pill — ends the run. Answers whether any row landed — a bubble, a pill, a
+  // tool line, or a repeated call that only grew its counter — which is what decides the scroll;
+  // the stamps appended are for the fitter alone, since a tool line carries no stamp, and the rows
+  // appended folded are for the fold's measure.
+  function drawRange(panel, about, from, to, land) {
+    let landed = false;
+    const added = [];
+    const folded = [];
+    for (const [offset, entry] of about.rows.slice(from, to).entries()) {
+      const index = from + offset;
+      if (unseen(about.rows, index)) continue;
+      const when = stamp(entry.at);
+      if (entry.at !== undefined && when.day !== panel.day) {
+        if (dayPillBefore(entry, panel.day)) {
+          panel.last = null;
+          land(dayPill(when));
+        }
+        panel.day = when.day;
+      }
+      const shown = rowOf(entry, { chat: state.chat, seat: panel.name, leader: state.leader, user: state.user });
+      // A line that is one end of a message is its own: two messages are two lines, never
+      // one with a counter, since each is a click to a different row.
+      if (shown.kind === "line" && shown.msg === undefined && panel.last !== null && panel.last.text === shown.text) {
+        panel.last.count += 1;
+        panel.last.n.textContent = ` ×${panel.last.count}`;
+        landed = true;
+        panel.lines.set(index, panel.last.el);
+        continue;
+      }
+      const line = rowElement(entry, shown, panel, about.rows, index);
+      land(line);
+      // A row the comms switch hides lands nowhere the reader can see.
+      if (!hiddenTalk(line)) landed = true;
+      if (shown.kind === "line") {
+        panel.last = shown.msg === undefined ? { text: shown.text, el: line, count: 1, n: line.lastElementChild } : null;
+        panel.lines.set(index, line);
+      } else {
+        panel.last = null;
+        if (shown.kind === "user" && !shown.delivered) panel.waiting.set(index, line);
+        panel.bubbles.set(index, line);
+      }
+      const time = line.querySelector(".t");
+      if (time !== null) added.push(time);
+      if (line.classList.contains("collapsed")) folded.push(line);
+    }
+    return { landed, added, folded };
+  }
+
+  // Whether the reader sees the row at an index of the Leader's conversation: one not drawn at all
+  // (unseen) is not a row, and a message between sessions is not one while the comms switch hides
+  // them. The window counts the rows by this, whichever state the switch is in.
+  function seenBy(panel, about) {
+    const quiet = panel.rows.classList.contains("comms-hidden");
+    const names = { chat: state.chat, seat: panel.name, leader: state.leader, user: state.user };
+    return (index) => !unseen(about.rows, index) && !(quiet && talks(about.rows[index], names));
+  }
+
+  // The Leader's panel with the rows from `start` up to the first it draws, drawn above it. The row
+  // that was the first stays where the reader sees it: its place on the screen is taken before and
+  // put back after, whether or not the browser held it itself. The pill between two days goes in
+  // at the join when the days differ.
+  function drawOlder(panel, about, start) {
+    const rows = panel.rows;
+    const anchor = rows.firstElementChild;
+    const top = anchor.getBoundingClientRect().top;
+    const { day, last } = panel;
+    panel.day = null;
+    panel.last = null;
+    const drew = drawRange(panel, about, start, panel.from, (element) => rows.insertBefore(element, anchor));
+    let first = panel.from;
+    while (first < about.rows.length && unseen(about.rows, first)) first += 1;
+    const entry = about.rows[first];
+    if (entry?.at !== undefined && stamp(entry.at).day !== panel.day && dayPillBefore(entry, panel.day)) {
+      rows.insertBefore(dayPill(stamp(entry.at)), anchor);
+    }
+    panel.day = day;
+    panel.last = last;
+    panel.from = start;
+    panel.crowded = true;
+    fitStamps(drew.added);
+    fitFolds(drew.folded);
+    rows.scrollTop += anchor.getBoundingClientRect().top - top;
+  }
+
+  // The Leader's panel with the rows before `start` taken off, and the bookkeeping of the rows it
+  // no longer holds. The day pill left first goes too: it is never the first thing on a panel.
+  function trimTo(panel, start) {
+    let keep = null;
+    let at = Infinity;
+    for (const kept of [panel.bubbles, panel.lines]) {
+      for (const [index, element] of kept) {
+        if (index >= start && index < at && element.isConnected) {
+          at = index;
+          keep = element;
+        }
+      }
+    }
+    const stop = keep ?? panel.doing;
+    while (panel.rows.firstElementChild !== stop) panel.rows.firstElementChild.remove();
+    while (panel.rows.firstElementChild.dataset.day !== undefined) panel.rows.firstElementChild.remove();
+    for (const kept of [panel.bubbles, panel.lines, panel.waiting]) {
+      for (const [index, element] of kept) {
+        if (!element.isConnected) kept.delete(index);
+      }
+    }
+    panel.from = start;
+  }
+
+  // One tick of the Leader's panel's window, after `keep` has decided whether it follows. A panel
+  // that follows draws the newest WINDOW rows the reader can see and no more — rows that landed
+  // since, or an older window a reader scrolled up through, or the comms switch changing what is
+  // seen, are brought back to that — and a reader who let go, within a screen of the top, gets the
+  // WINDOW rows before the first drawn. At rest it reads nothing and writes nothing.
+  function windowPanel(panel) {
+    const about = state.panels[panel.name];
+    if (!panel.leads || about.rows === null || about.rows.length === 0) return;
+    const quiet = panel.rows.classList.contains("comms-hidden");
+    if (quiet !== panel.quiet) {
+      panel.quiet = quiet;
+      panel.crowded = true;
+    }
+    if (panel.view.follow) {
+      if (!panel.crowded) return;
+      panel.crowded = false;
+      const start = windowStart(about.rows.length, WINDOW, seenBy(panel, about));
+      if (start > panel.from) trimTo(panel, start);
+      else if (start < panel.from) drawOlder(panel, about, start);
+      if (!atTheNewest(panel.rows)) panel.rows.scrollTop = panel.rows.scrollHeight;
+    } else if (loadsOlder(false, panel.rows.scrollTop, panel.rows.clientHeight, panel.from)) {
+      drawOlder(panel, about, windowStart(panel.from, WINDOW, seenBy(panel, about)));
+    }
+  }
+
   function drawPanel(panel) {
     const about = state.panels[panel.name];
     const parts = head(state, panel.name);
@@ -1154,6 +1320,8 @@
       if (about.rows.length < panel.shown) {
         for (const child of [...panel.rows.children]) if (child !== panel.doing && child !== panel.jump) child.remove();
         panel.shown = 0;
+        panel.from = 0;
+        panel.crowded = false;
         panel.day = null;
         panel.last = null;
         panel.lines.clear();
@@ -1161,61 +1329,25 @@
         panel.bubbles.clear();
         // The cards are not among the rows: they stand, and leave when their question does.
       }
-      // Whether any row landed — a bubble, a pill, a tool line, or a repeated call that only grew
-      // its counter — is what decides the scroll; the stamps appended are for the fitter alone,
-      // since a tool line carries no stamp, and the rows appended folded are for the fold's measure.
+      // Whether any row landed is what decides the scroll (drawRange).
       let landed = false;
-      const added = [];
-      const folded = [];
       if (about.rows.length > panel.shown) {
         // A Worker panel keeps its last hundred rows, so its first draw starts there: a long log
-        // builds a hundred elements, not thousands. The Leader's panel draws every row it holds.
-        const from = !panel.leads && panel.shown === 0 ? Math.max(panel.shown, about.rows.length - 100) : panel.shown;
-        // A pill names the day between the last row of one day and the first row of the next —
-        // never before the first row drawn, whatever its day, and never before a row that says when
-        // a session ended or started, which names the day itself (dayPillBefore). A tool call that repeats the line
-        // appended last counts itself into that line rather than drawing a second one; any other
-        // row — a bubble, a pill — ends the run.
-        for (const [offset, entry] of about.rows.slice(from).entries()) {
-          const index = from + offset;
-          if (unseen(about.rows, index)) continue;
-          const when = stamp(entry.at);
-          if (entry.at !== undefined && when.day !== panel.day) {
-            if (dayPillBefore(entry, panel.day)) {
-              panel.last = null;
-              land(dayPill(when));
-            }
-            panel.day = when.day;
-          }
-          const shown = rowOf(entry, { chat: state.chat, seat: panel.name, leader: state.leader, user: state.user });
-          // A line that is one end of a message is its own: two messages are two lines, never
-          // one with a counter, since each is a click to a different row.
-          if (shown.kind === "line" && shown.msg === undefined && panel.last !== null && panel.last.text === shown.text) {
-            panel.last.count += 1;
-            panel.last.n.textContent = ` ×${panel.last.count}`;
-            landed = true;
-            panel.lines.set(index, panel.last.el);
-            continue;
-          }
-          const line = rowElement(entry, shown, panel, about.rows, index);
-          land(line);
-          // A row the comms switch hides lands nowhere the reader can see.
-          if (!hiddenTalk(line)) landed = true;
-          if (shown.kind === "line") {
-            panel.last = shown.msg === undefined ? { text: shown.text, el: line, count: 1, n: line.lastElementChild } : null;
-            panel.lines.set(index, line);
-          } else {
-            panel.last = null;
-            if (shown.kind === "user" && !shown.delivered) panel.waiting.set(index, line);
-            panel.bubbles.set(index, line);
-          }
-          const time = line.querySelector(".t");
-          if (time !== null) added.push(time);
-          if (line.classList.contains("collapsed")) folded.push(line);
+        // builds a hundred elements, not thousands. The Leader's panel starts at the oldest of its
+        // newest WINDOW rows a reader can see, and draws older ones as the reader scrolls up.
+        let from = panel.shown;
+        if (panel.shown === 0) {
+          from = panel.leads ? windowStart(about.rows.length, WINDOW, seenBy(panel, about)) : Math.max(0, about.rows.length - 100);
+          panel.from = from;
+          panel.quiet = panel.rows.classList.contains("comms-hidden");
         }
-        fitStamps(added);
-        fitFolds(folded);
+        const drew = drawRange(panel, about, from, about.rows.length, land);
+        landed = drew.landed;
+        fitStamps(drew.added);
+        fitFolds(drew.folded);
         panel.shown = about.rows.length;
+        // A Leader's panel with more rows than its window is trimmed at its next tick, when it follows.
+        panel.crowded = panel.leads;
         // A Worker panel keeps a hundred drawn rows — bubbles, lines and pills —
         // and lets the oldest go, with the lines it no longer holds.
         if (!panel.leads) {
@@ -1386,6 +1518,9 @@
   // to its newest whatever moved the bottom away — a row that landed, a taller box, a card, a
   // resize — and a panel at rest writes nothing.
   setInterval(() => {
-    for (const panel of sections.values()) panel.keep();
+    for (const panel of sections.values()) {
+      panel.keep();
+      windowPanel(panel);
+    }
   }, KEEP_EVERY);
 </script>

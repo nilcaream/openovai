@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { AMBER, CARD, CONNECTED, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, GREY, LATE_AFTER, RED, REPLY, SENDING, SHOWN_FOR, LINE_LEFT, LINE_WAITING, LINE_WORKING, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, pillLine, place, prune, quotaLine, quotaTitle, insertRef, stopEnabled, title, typingBeat, TYPING_BEAT } from "../lib/chat/panels.mjs";
+import { AMBER, CARD, CONNECTED, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, GREY, LATE_AFTER, RED, REPLY, SENDING, SHOWN_FOR, LINE_LEFT, LINE_WAITING, LINE_WORKING, WINDOW, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, loadsOlder, noticed, pillLine, place, prune, quotaLine, quotaTitle, insertRef, stopEnabled, title, typingBeat, windowStart, TYPING_BEAT } from "../lib/chat/panels.mjs";
 import { localAt, refTo, references } from "../lib/chat/refs.mjs";
 
 const LEADER = "Leader";
@@ -24,6 +24,33 @@ describe("following the newest row", () => {
   it("at the newest again, however the rows got there, a panel follows; away from it, with no hand, it stays as it was", () => {
     assert.equal(following(false, true, false), true);
     assert.equal(following(false, false, false), false);
+  });
+});
+
+describe("the Leader's window of rows", () => {
+  it("is a hundred rows", () => {
+    assert.equal(WINDOW, 100);
+  });
+  it("starts at the oldest of the newest rows counted back from the end", () => {
+    const all = () => true;
+    assert.equal(windowStart(1000, 100, all), 900);
+    assert.equal(windowStart(100, 100, all), 0);
+    assert.equal(windowStart(50, 100, all), 0, "fewer than a window: from the first row");
+    assert.equal(windowStart(0, 100, all), 0);
+    assert.equal(windowStart(300, 100, all), 200, "the window before the first row drawn ends where that row begins");
+  });
+  it("counts only the rows the reader sees, whichever way the comms switch is", () => {
+    const rows = Array.from({ length: 400 }, (_, index) => ({ index, talks: index % 2 === 0 }));
+    assert.equal(windowStart(400, 100, () => true), 300, "the switch on: every row counts");
+    assert.equal(windowStart(400, 100, (index) => !rows[index].talks), 201, "the switch off: the hundred newest rows that are not messages, with those between them drawn too");
+    assert.equal(windowStart(400, 100, (index) => index % 10 === 0), 0, "fewer rows seen than a window: everything");
+  });
+  it("loads older rows for a reader who let go near the top, and for no other", () => {
+    assert.equal(loadsOlder(false, 100, 800, 500), true);
+    assert.equal(loadsOlder(false, 799, 800, 500), true, "within a screen of the top");
+    assert.equal(loadsOlder(false, 800, 800, 500), false, "a screen away is not near");
+    assert.equal(loadsOlder(true, 0, 800, 500), false, "a panel that follows never loads: it shows its newest");
+    assert.equal(loadsOlder(false, 0, 800, 0), false, "nothing older exists");
   });
 });
 

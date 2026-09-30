@@ -845,5 +845,49 @@
         "to": "  return resets.join(\", \");"
       }
     ]
+  },
+  {
+    "name": "the window is half a hundred rows",
+    "catches": "is a hundred rows",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "export const WINDOW = 100;",
+        "to": "export const WINDOW = 50;"
+      }
+    ]
+  },
+  {
+    "name": "the window starts one row too early",
+    "catches": "starts at the oldest of the newest rows counted back from the end",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "    if (seen === count) return index;",
+        "to": "    if (seen === count + 1) return index;"
+      }
+    ]
+  },
+  {
+    "name": "the window counts rows the reader does not see",
+    "catches": "counts only the rows the reader sees, whichever way the comms switch is",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "    if (!counts(index)) continue;\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a panel that follows loads older rows too",
+    "catches": "loads older rows for a reader who let go near the top, and for no other",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  return !follow && from > 0 && scrollTop < near;",
+        "to": "  return from > 0 && scrollTop < near;"
+      }
+    ]
   }
 ]

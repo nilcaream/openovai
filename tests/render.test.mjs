@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { INTERRUPTED, SILENT, candidates, collapsed, dayPillBefore, html, opensOnDesktop, pathOf, row, unseen } from "../lib/chat/render.mjs";
+import { INTERRUPTED, SILENT, candidates, collapsed, dayPillBefore, html, opensOnDesktop, pathOf, row, talks, unseen } from "../lib/chat/render.mjs";
 
 // The Leader's panel, and a Worker's: the same rows drawn from two seats, for one User.
 const names = { chat: "Server", seat: "Leader", leader: "Leader", user: "Mike" };
@@ -247,6 +247,45 @@ describe("every other row", () => {
 // draws its whole text, compact, `To` on the way out with what became of it, `From` on the way
 // in, the id on both; a Worker's panel draws one line for a call it made or a message it got, the
 // id on it for the click that finds the message, and its own answer as its reply.
+// The comms switch hides the rows `row` draws as peer-in, peer-out and overheard; `talks` says it
+// from the entry alone, so the page can count rows without building them. Checked against `row`
+// over every shape of entry the server writes.
+describe("the rows the comms switch hides", () => {
+  const entries = [
+    { from: "Leader", to: "Paul", text: "go", outcome: "sent", msg: "m-1" },
+    { from: "Leader", to: "Paul", text: "go", outcome: "not sent", why: "no process" },
+    { from: "Paul", to: "Leader", text: "done", msg: "m-2" },
+    { from: "Paul", to: "Ann", text: "hi", overheard: true, msg: "m-3" },
+    { from: "Leader", text: "a reply" },
+    { from: "Leader", line: "Read x" },
+    { from: "user", text: "typed" },
+    { from: "user", typedTo: "Paul", text: "to Paul" },
+    { from: "Server", text: "hello" },
+    { from: "Server", text: "intro", introduction: true },
+    { from: "Server", to: "Leader", text: "chat to leader" },
+    { from: "Leader", to: "Paul", stamp: true, text: "session started", at: "2026-10-01T10:00:00Z" },
+    { from: "Server", to: "Paul", divider: true, text: "a day" },
+    { from: "Leader", to: "Paul", interrupted: true },
+    { from: "Leader", to: "Paul", silent: true },
+    { from: "Leader", to: "Paul", failed: true, text: "no" },
+    { from: "user", to: "Paul", text: "typed with a to" },
+    { from: "Server", to: "Paul", text: "the chat says" },
+    { from: "Leader", to: "Paul", line: "Read x" },
+  ];
+  it("agrees with the kind row gives every entry, on the Leader's panel", () => {
+    for (const entry of entries) {
+      const kind = row(entry, names).kind;
+      assert.equal(talks(entry, names), ["peer-in", "peer-out", "overheard"].includes(kind), JSON.stringify(entry));
+    }
+  });
+  it("a message to or from a Worker is never one on a Worker's panel, a line there, and one between two Workers is, overheard", () => {
+    for (const entry of entries) {
+      const kind = row(entry, worker).kind;
+      assert.equal(talks(entry, worker), ["peer-in", "peer-out", "overheard"].includes(kind), JSON.stringify(entry));
+    }
+  });
+});
+
 describe("a message between two sessions", () => {
   it("a message the Leader sent is To its addressee, compact, with its outcome", () => {
     assert.deepEqual(row({ from: "Leader", to: "Paul", text: "go", outcome: "sent", msg: "m-1" }, names), {
