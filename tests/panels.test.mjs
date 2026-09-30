@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { AMBER, CARD, CONNECTED, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, GREY, LATE_AFTER, RED, REPLY, SENDING, SHOWN_FOR, LINE_LEFT, LINE_WAITING, LINE_WORKING, WINDOW, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, loadsOlder, noticed, pillLine, place, prune, quotaLine, quotaTitle, insertRef, stopEnabled, title, typingBeat, windowStart, TYPING_BEAT } from "../lib/chat/panels.mjs";
+import { AMBER, CARD, CONNECTED, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, GREY, LATE_AFTER, RED, REPLY, SENDING, SHOWN_FOR, LINE_DISCONNECTED, LINE_LEFT, LINE_WAITING, LINE_WORKING, WINDOW, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, loadsOlder, noticed, pillLine, place, prune, quotaLine, quotaTitle, insertRef, stopEnabled, title, typingBeat, windowStart, TYPING_BEAT } from "../lib/chat/panels.mjs";
 import { localAt, refTo, references } from "../lib/chat/refs.mjs";
 
 const LEADER = "Leader";
@@ -207,26 +207,41 @@ describe("the Leader's panel", () => {
 
   // A park is no fault: the dot is grey, the word says there is no process, the bottom line says
   // the Leader has left. The next message starts a process: amber with the turn, green after.
-  it("with no process its dot is grey, its head says not running and its bottom line says it has left", () => {
+  it("with no process its dot is grey and its bottom line says it has left; its head has no word", () => {
     const state = fresh();
     applyEvent(state, snapshot([about(LEADER, { running: false }), about("Paul")]), 0);
     assert.equal(dot(state, LEADER), GREY);
-    assert.equal(head(state, LEADER).state, "not running");
+    assert.equal(head(state, LEADER).state, "");
     assert.equal(pillLine(state, LEADER), "Leader has left — the next message starts a fresh session");
     assert.equal(pillLine(state, LEADER), LINE_LEFT(LEADER));
     assert.equal(dot(state, "Paul"), GREEN, "a Worker's dot is its own");
     assert.equal(head(state, "Paul").state, "listening");
     applyEvent(state, seat(LEADER, { running: true, busy: true, doing: LINE_WORKING }), 1);
     assert.equal(dot(state, LEADER), AMBER);
-    assert.equal(head(state, LEADER).state, "working");
+    assert.equal(head(state, LEADER).state, "");
     assert.equal(pillLine(state, LEADER), LINE_WORKING);
     applyEvent(state, seat(LEADER, { running: true, busy: false }), 2);
     assert.equal(dot(state, LEADER), GREEN);
-    assert.equal(head(state, LEADER).state, "listening");
     assert.equal(pillLine(state, LEADER), LINE_WAITING);
     applyEvent(state, seat(LEADER, { running: false }), 3);
     assert.equal(dot(state, LEADER), GREY);
-    assert.equal(head(state, LEADER).state, "not running");
+  });
+
+  // The Leader's bottom line is the one place the page says it has lost the server, and says it
+  // over every other word, capitalized.
+  it("the Leader's bottom line says Disconnected while the page has no stream, over the other words", () => {
+    const state = fresh();
+    applyEvent(state, snapshot([about(LEADER, { running: false }), about("Paul")]), 0);
+    state.connection = DISCONNECTED;
+    assert.equal(pillLine(state, LEADER), "Disconnected");
+    assert.equal(pillLine(state, LEADER), LINE_DISCONNECTED);
+    state.connection = CONNECTED;
+    assert.equal(pillLine(state, LEADER), LINE_LEFT(LEADER));
+    applyEvent(state, seat(LEADER, { running: true, busy: true, doing: LINE_WORKING }), 1);
+    state.connection = DISCONNECTED;
+    assert.equal(pillLine(state, LEADER), LINE_DISCONNECTED);
+    applyEvent(state, { name: "stopping", data: {} }, 2);
+    assert.equal(pillLine(state, LEADER), LINE_DISCONNECTED, "a server that says it is stopping is as good as gone");
   });
 
   it("with no process, a page without a stream still says red and nothing, and a Worker gone is still red", () => {
@@ -292,9 +307,9 @@ describe("marks and controls", () => {
     applyEvent(state, { name: "asking", data: { seat: "Paul", pending: [{ id: "r1", tool: "Bash", input: { command: "ls" } }] } }, 0);
     assert.equal(anyAsking(state), true);
     assert.equal(head(state, "Paul").state, "waiting for you");
-    assert.equal(head(state, LEADER).state, "listening");
+    assert.equal(head(state, LEADER).state, "");
     applyEvent(state, { name: "asking", data: { seat: LEADER, pending: [{ id: "u1", kind: "rule", rule: "Bash(git:*)", why: "w", from: LEADER }] } }, 0);
-    assert.equal(head(state, LEADER).state, "waiting for you");
+    assert.equal(head(state, LEADER).state, "", "the Leader's head has no state word, a card on its panel or not");
     applyEvent(state, { name: "asking", data: { seat: "Paul", pending: [] } }, 0);
     assert.equal(anyAsking(state), true, "one panel still asks");
     applyEvent(state, { name: "asking", data: { seat: LEADER, pending: [] } }, 0);
@@ -306,7 +321,7 @@ describe("marks and controls", () => {
   it("the head is the name, the model and the context in k, in parts", () => {
     const state = fresh();
     applyEvent(state, snapshot([about(LEADER, { model: "opus", context: 41_200 }), about("Paul", { model: "" }), about("Ann", { model: "sonnet" })]), 0);
-    assert.deepEqual(head(state, LEADER), { name: "Leader", info: "opus 41k", state: "listening" });
+    assert.deepEqual(head(state, LEADER), { name: "Leader", info: "opus 41k", state: "" });
     assert.deepEqual(head(state, "Paul"), { name: "Paul", info: "", state: "listening" });
     assert.deepEqual(head(state, "Ann"), { name: "Ann", info: "sonnet", state: "listening" });
     applyEvent(state, seat("Ann", { model: "sonnet", context: 2_600 }), 1);
@@ -319,15 +334,15 @@ describe("marks and controls", () => {
     const state = fresh();
     applyEvent(state, snapshot([about(LEADER), about("Paul")]), 0);
     const ask = (id) => ({ id, tool: "Bash", input: { command: "ls" } });
-    applyEvent(state, { name: "asking", data: { seat: LEADER, pending: [ask("r1")] } }, 0);
-    assert.equal(head(state, LEADER).state, "waiting for you");
-    applyEvent(state, { name: "asking", data: { seat: LEADER, pending: [ask("r1"), ask("r2")] } }, 0);
-    assert.equal(head(state, LEADER).state, "waiting for you · 2 prompts");
-    applyEvent(state, { name: "asking", data: { seat: LEADER, pending: [ask("r1"), ask("r2"), ask("r3"), ask("r4"), ask("r5"), ask("r6"), ask("r7")] } }, 0);
-    assert.equal(head(state, LEADER).state, "waiting for you · 7 prompts");
+    applyEvent(state, { name: "asking", data: { seat: "Paul", pending: [ask("r1")] } }, 0);
+    assert.equal(head(state, "Paul").state, "waiting for you");
+    applyEvent(state, { name: "asking", data: { seat: "Paul", pending: [ask("r1"), ask("r2")] } }, 0);
+    assert.equal(head(state, "Paul").state, "waiting for you · 2 prompts");
+    applyEvent(state, { name: "asking", data: { seat: "Paul", pending: [ask("r1"), ask("r2"), ask("r3"), ask("r4"), ask("r5"), ask("r6"), ask("r7")] } }, 0);
+    assert.equal(head(state, "Paul").state, "waiting for you · 7 prompts");
+    assert.equal(head(state, LEADER).state, "", "the Leader's head counts nothing");
+    applyEvent(state, { name: "asking", data: { seat: "Paul", pending: [] } }, 0);
     assert.equal(head(state, "Paul").state, "listening");
-    applyEvent(state, { name: "asking", data: { seat: LEADER, pending: [] } }, 0);
-    assert.equal(head(state, LEADER).state, "listening");
   });
 
   // The word follows the turn: a seat event with busy flips it, an ask outranks it, and a dimmed
@@ -335,7 +350,7 @@ describe("marks and controls", () => {
   it("the state word is listening between turns, working while one runs, waiting for you over both, and nothing on a dimmed panel", () => {
     const state = fresh();
     applyEvent(state, snapshot([about(LEADER, { busy: true }), about("Paul")]), 0);
-    assert.equal(head(state, LEADER).state, "working");
+    assert.equal(head(state, LEADER).state, "", "the Leader's head has no state word");
     assert.equal(head(state, "Paul").state, "listening");
     applyEvent(state, seat("Paul", { busy: true }), 0);
     assert.equal(head(state, "Paul").state, "working");
@@ -487,7 +502,7 @@ describe("marks and controls", () => {
   });
 
   // A server that said it is stopping is as good as gone: the page has no server to type into,
-  // and says so the one way it says that — red dots, no state word, "disconnected" on the head.
+  // and says so the one way it says that — red dots, no state word, "Disconnected" on the Leader's pill.
   it("a server that is stopping is disconnected: nothing is typed, every dot is red, no head has a word", () => {
     const state = fresh();
     applyEvent(state, snapshot([about(LEADER), about("Paul", { busy: true })]), 0);

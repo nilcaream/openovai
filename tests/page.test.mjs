@@ -143,7 +143,7 @@ describe("the rules", () => {
     const declared = (selector) => rules.find((rule) => rule.selector === selector)?.declarations;
     assert.equal(declared(".phead").overflow, "hidden");
     assert.equal(declared(".phead")["white-space"], "nowrap");
-    for (const part of [".phead .info", ".phead .state", ".phead .conn, .phead .version, .phead .quota"]) assert.equal(declared(part).flex, "0 0 auto", part);
+    for (const part of [".phead .info", ".phead .state", ".phead .version, .phead .quota"]) assert.equal(declared(part).flex, "0 0 auto", part);
     assert.equal(declared(".phead .info")["text-overflow"], undefined, "the model and the context are shown whole or clipped, never cut to a fragment");
     assert.equal(declared(".phead .theme")["margin-left"], "auto");
   });
@@ -436,7 +436,8 @@ describe("the rules", () => {
   it("hold the Leader's pill to exactly one line, cut with an ellipsis, and add nothing else to the pill", () => {
     const declared = (selector) => rules.find((rule) => rule.selector === selector)?.declarations;
     assert.deepEqual(declared(".divider.doing span"), { "max-width": "100%", "white-space": "nowrap", overflow: "hidden", "text-overflow": "ellipsis", "vertical-align": "top" });
-    assert.deepEqual(rules.filter((rule) => /\.doing\b/.test(rule.selector)).map((rule) => rule.selector), [".divider.doing span"]);
+    assert.deepEqual(rules.filter((rule) => /\.doing\b/.test(rule.selector)).map((rule) => rule.selector), [".divider.doing span", ".divider.doing.off"]);
+    assert.equal(declared(".divider.doing.off").color, "var(--bad)", "the word of a lost stream is red");
     assert.equal(rules.filter((rule) => /\.dock\b/.test(rule.selector)).length, 0, "no dock: the pill is in the rows' flow");
   });
 
@@ -761,9 +762,9 @@ describe("the script", () => {
   it("draws what the Leader is at as the day pill, made with the panel, always the last row, changed in place", () => {
     const draw = script.slice(script.indexOf("function drawPanel(panel)"), script.indexOf("// ------------------------------------------------------------------------------- the page"));
     assert.match(script, /let doing = null;\s*if \(leads\) \{\s*doing = pill\(LINE_WAITING\);\s*doing\.classList\.add\("doing"\);\s*rows\.insertBefore\(doing, jump\);\s*\}/, "the Leader's panel has its pill from the start, the day pill's own, and a Worker's none");
-    assert.match(draw, /if \(panel\.doing !== null\) panel\.doing\.firstElementChild\.textContent = pillLine\(state, panel\.name\);\n/);
+    assert.match(draw, /if \(panel\.doing !== null\) \{\s*panel\.doing\.firstElementChild\.textContent = pillLine\(state, panel\.name\);\s*panel\.doing\.classList\.toggle\("off", state\.connection !== CONNECTED\);\s*\}\n/);
     assert.doesNotMatch(draw, /panel\.doing\.remove\(\)|panel\.doing = /, "the pill is never taken out nor made again");
-    assert.doesNotMatch(draw.slice(draw.indexOf("if (panel.doing !== null) panel.doing.firstElementChild"), draw.indexOf("if (landed && panel.view.follow")), /landed =/, "its words changing is not a row landing: it moves no row");
+    assert.doesNotMatch(draw.slice(draw.indexOf("if (panel.doing !== null) {"), draw.indexOf("if (landed && panel.view.follow")), /landed =/, "its words changing is not a row landing: it moves no row");
     assert.match(script, /jump, doing, box,/, "the panel keeps the pill it was made with");
   });
 
@@ -1089,20 +1090,23 @@ describe("the script", () => {
     assert.equal(rules.find((rule) => rule.selector === ".cards").declarations["overflow-y"], "auto", "a stack of cards scrolls inside the bottom area");
   });
 
-  // The Leader's head, after the state word: the connection word, red while the page has no
-  // stream, and the quota line with its tooltip — drawn from the words panels.mjs makes, on
-  // every draw; the theme toggle after them.
-  it("draws the connection word and the quota line on the Leader's head, and marks a lost stream", () => {
-    assert.match(script, /headLine\.append\(facts\.conn, facts\.version, facts\.quota\);[\s\S]{0,600}headLine\.append\(themeToggle\);/);
-    assert.match(script, /panel\.facts\.conn\.textContent = state\.connection;\s*panel\.facts\.conn\.classList\.toggle\("off", state\.connection !== CONNECTED\);/);
+  // The Leader's head, after the model: the version and the quota line with its tooltip — drawn
+  // from the words panels.mjs makes, on every draw; the theme toggle after them. It has no state
+  // word and no connection word: a Worker's head has the state word, and a lost stream is the
+  // Leader's bottom pill, red.
+  it("draws the version and the quota line on the Leader's head, no state or connection word, and marks a lost stream on the pill", () => {
+    assert.match(script, /headLine\.append\(facts\.version, facts\.quota\);[\s\S]{0,600}headLine\.append\(themeToggle\);/);
+    assert.match(script, /headLine\.append\(nameLine, info\);[\s\S]{0,400}else headLine\.append\(word\);/, "only a Worker's head has the state word");
+    assert.doesNotMatch(script, /facts\.conn/);
+    assert.match(script, /panel\.doing\.firstElementChild\.textContent = pillLine\(state, panel\.name\);\s*panel\.doing\.classList\.toggle\("off", state\.connection !== CONNECTED\);/);
     assert.match(script, /panel\.facts\.quota\.textContent = quotaLine\(state\.quota\);\s*panel\.facts\.quota\.classList\.toggle\("old", state\.quota !== null && state\.quota\.old === true\);\s*panel\.facts\.quota\.title = quotaTitle\(state\.quota, new Date\(\)\);/);
     assert.match(script, /document\.title = title\(state\);/);
   });
 
-  // Between the connection word and the quota line, behind the same dot, the version the server
-  // runs: a release, or the commit of a build.
-  it("draws the version the server runs between the connection word and the quota line", () => {
-    assert.match(script, /panel\.facts\.conn\.classList\.toggle\("off", state\.connection !== CONNECTED\);\s*panel\.facts\.version\.textContent = state\.version;\s*panel\.facts\.quota\.textContent/);
+  // Before the quota line, behind a dot, the version the server runs: a release, or the commit
+  // of a build.
+  it("draws the version the server runs before the quota line", () => {
+    assert.match(script, /panel\.fitPlaceholder\(\);\s*if \(panel\.facts !== null\) \{\s*panel\.facts\.version\.textContent = state\.version;\s*panel\.facts\.quota\.textContent/);
     const dotted = rules.find((rule) => rule.selector.includes(".phead .version:not(:empty)::before"));
     assert.equal(dotted?.declarations.content, '"\\00a0·\\00a0"');
   });

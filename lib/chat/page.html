@@ -73,11 +73,9 @@
   .phead .info { font-family: var(--mono); font-size: .78rem; color: var(--fg-dim); white-space: nowrap; flex: 0 0 auto; }
   .phead .state { color: var(--fg-dim); font-size: .78rem; font-family: var(--mono); white-space: nowrap; flex: 0 0 auto; }
   .phead .info:not(:empty) + .state:not(:empty)::before { content: "\00a0·\00a0"; }
-  /* on the Leader's head only: the connection word, red while the page has no stream, and the
-     account's usage windows */
-  .phead .conn, .phead .version, .phead .quota { font-family: var(--mono); font-size: .78rem; color: var(--fg-dim); white-space: nowrap; flex: 0 0 auto; }
-  .phead .conn::before, .phead .version:not(:empty)::before, .phead .quota:not(:empty)::before { content: "\00a0·\00a0"; }
-  .phead .conn.off { color: var(--bad); }
+  /* on the Leader's head only: the version and the account's usage windows */
+  .phead .version, .phead .quota { font-family: var(--mono); font-size: .78rem; color: var(--fg-dim); white-space: nowrap; flex: 0 0 auto; }
+  .phead .version:not(:empty)::before, .phead .quota:not(:empty)::before { content: "\00a0·\00a0"; }
   /* a usage reading more than a quarter of an hour old: the same words, a little nearer the head's ground */
   .phead .quota.old { color: color-mix(in srgb, var(--fg-dim) 70%, var(--panel-2)); }
   /* the theme toggle, last on the Leader's head and pushed to its right edge: one icon button
@@ -165,6 +163,8 @@
   /* the Leader's pill that says what it is at: always exactly one line, cut with an ellipsis, so
      no word it says makes it taller or shorter */
   .divider.doing span { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; vertical-align: top; }
+  /* while the page has no stream the pill says so, red */
+  .divider.doing.off { color: var(--bad); }
   /* markdown inside a reply is drawn by /md.css, shared with the file view */
   .bubble a { color: var(--accent); }
   .bubble .open-failed { margin-left: 6px; font-size: .85em; color: var(--fg-dim); }
@@ -444,18 +444,17 @@
     info.className = "info";
     const word = document.createElement("span");
     word.className = "state";
-    headLine.append(nameLine, info, word);
-    // The Leader's head carries, after the state word, how the page stands to the server, the
-    // version the server runs and the account's usage windows, and the theme toggle last, at the
-    // right edge.
+    headLine.append(nameLine, info);
+    // The Leader's head has no state word: after the model it carries the version the server runs
+    // and the account's usage windows, and the buttons last, at the right edge.
     const leads = name === state.leader;
     if (leads) section.classList.add("leads");
-    const facts = leads ? { conn: document.createElement("span"), version: document.createElement("span"), quota: document.createElement("span") } : null;
+    else headLine.append(word);
+    const facts = leads ? { version: document.createElement("span"), quota: document.createElement("span") } : null;
     if (facts !== null) {
-      facts.conn.className = "conn";
       facts.version.className = "version";
       facts.quota.className = "quota";
-      headLine.append(facts.conn, facts.version, facts.quota);
+      headLine.append(facts.version, facts.quota);
     }
     if (leads) {
       themeToggle = document.createElement("button");
@@ -1310,8 +1309,6 @@
     panel.box.disabled = !composersEnabled(state, panel.name);
     panel.fitPlaceholder();
     if (panel.facts !== null) {
-      panel.facts.conn.textContent = state.connection;
-      panel.facts.conn.classList.toggle("off", state.connection !== CONNECTED);
       panel.facts.version.textContent = state.version;
       panel.facts.quota.textContent = quotaLine(state.quota);
       panel.facts.quota.classList.toggle("old", state.quota !== null && state.quota.old === true);
@@ -1403,7 +1400,10 @@
       // What the Leader is at, on its pill: the server's word on a turn, LINE_WAITING off one, and that
       // it has left while it has no process. The pill is always there and only its words change, so
       // it is never a row landing.
-      if (panel.doing !== null) panel.doing.firstElementChild.textContent = pillLine(state, panel.name);
+      if (panel.doing !== null) {
+        panel.doing.firstElementChild.textContent = pillLine(state, panel.name);
+        panel.doing.classList.toggle("off", state.connection !== CONNECTED);
+      }
       // A panel that follows is pinned to its newest in the same task the rows landed in, before
       // the next paint: left to the timer's next tick, the rows show for a few frames with the
       // bottom pushed below the edge, the Leader's pill out of view. The scroll goes down only,
