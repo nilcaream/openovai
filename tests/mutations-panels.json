@@ -922,5 +922,16 @@
         "to": ""
       }
     ]
+  },
+  {
+    "name": "a panel trimmed to a start loses the row at that start",
+    "catches": "keeps, when trimmed to a start, the row at that index itself and the first one still on the page after it",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "      if (index >= start && index < at && element.isConnected) {",
+        "to": "      if (index > start && index < at && element.isConnected) {"
+      }
+    ]
   }
 ]

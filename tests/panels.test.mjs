@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { AMBER, CARD, CONNECTED, autoLabel, autoTitle, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, GREY, LATE_AFTER, RED, REPLY, SENDING, SHOWN_FOR, LINE_DISCONNECTED, LINE_LEFT, LINE_WAITING, LINE_WORKING, WINDOW, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, loadsOlder, noticed, pillLine, place, prune, quotaLine, quotaTitle, insertRef, stopEnabled, title, typingBeat, windowStart, TYPING_BEAT } from "../lib/chat/panels.mjs";
+import { AMBER, CARD, CONNECTED, autoLabel, autoTitle, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, GREY, LATE_AFTER, RED, REPLY, SENDING, SHOWN_FOR, LINE_DISCONNECTED, LINE_LEFT, LINE_WAITING, LINE_WORKING, WINDOW, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, loadsOlder, noticed, pillLine, place, prune, quotaLine, quotaTitle, insertRef, keptFirst, stopEnabled, title, typingBeat, windowStart, TYPING_BEAT } from "../lib/chat/panels.mjs";
 import { localAt, refTo, references } from "../lib/chat/refs.mjs";
 
 const LEADER = "Leader";
@@ -44,6 +44,17 @@ describe("the Leader's window of rows", () => {
     assert.equal(windowStart(400, 100, () => true), 300, "the switch on: every row counts");
     assert.equal(windowStart(400, 100, (index) => !rows[index].talks), 201, "the switch off: the hundred newest rows that are not messages, with those between them drawn too");
     assert.equal(windowStart(400, 100, (index) => index % 10 === 0), 0, "fewer rows seen than a window: everything");
+  });
+  it("keeps, when trimmed to a start, the row at that index itself and the first one still on the page after it", () => {
+    const on = (name) => ({ name, isConnected: true });
+    const off = (name) => ({ name, isConnected: false });
+    const bubbles = new Map([[3, on("three")], [5, on("five")], [7, on("seven")]]);
+    const lines = new Map([[4, on("four")], [6, off("six")]]);
+    assert.equal(keptFirst([bubbles, lines], 5).name, "five", "the row at the start is kept, not the one after it");
+    assert.equal(keptFirst([bubbles, lines], 4).name, "four", "from either map");
+    assert.equal(keptFirst([bubbles, lines], 6).name, "seven", "one no longer on the page is passed over");
+    assert.equal(keptFirst([bubbles, lines], 8), null, "nothing left to keep");
+    assert.equal(keptFirst([new Map(), new Map()], 0), null);
   });
   it("loads older rows for a reader who let go near the top, and for no other", () => {
     assert.equal(loadsOlder(false, 100, 800, 500), true);

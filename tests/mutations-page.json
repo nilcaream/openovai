@@ -3029,5 +3029,16 @@
         "to": ""
       }
     ]
+  },
+  {
+    "name": "older rows drawn above a row of another day are not parted from it by a day pill",
+    "catches": "keeps the newest hundred rows a reader sees on every panel, and draws older ones as they scroll up",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "      rows.insertBefore(dayPill(stamp(entry.at)), anchor);\n",
+        "to": ""
+      }
+    ]
   }
 ]

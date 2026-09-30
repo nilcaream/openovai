@@ -233,7 +233,7 @@
   // draws it and carries what is typed and pressed to the server.
 
   import { answerOf, dialogOf } from "./dialog.mjs";
-  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, autoLabel, autoTitle, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, loadsOlder, noticed, place, prune, quotaLine, quotaTitle, insertRef, pillLine, stopEnabled, title, typingBeat, windowStart, LINE_WAITING, WINDOW } from "./panels.mjs";
+  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, autoLabel, autoTitle, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, loadsOlder, noticed, place, prune, quotaLine, quotaTitle, insertRef, keptFirst, pillLine, stopEnabled, title, typingBeat, windowStart, LINE_WAITING, WINDOW } from "./panels.mjs";
   import { dayPillBefore, row as rowOf, talks, unseen } from "./render.mjs";
   import { refTo, references } from "./refs.mjs";
 
@@ -1271,17 +1271,7 @@
   // A panel with the rows before `start` taken off, and the bookkeeping of the rows it no longer
   // holds. The day pill left first goes too: it is never the first thing on a panel.
   function trimTo(panel, start) {
-    let keep = null;
-    let at = Infinity;
-    for (const kept of [panel.bubbles, panel.lines]) {
-      for (const [index, element] of kept) {
-        if (index >= start && index < at && element.isConnected) {
-          at = index;
-          keep = element;
-        }
-      }
-    }
-    const stop = keep ?? panel.doing ?? panel.jump;
+    const stop = keptFirst([panel.bubbles, panel.lines], start) ?? panel.doing ?? panel.jump;
     while (panel.rows.firstElementChild !== stop) panel.rows.firstElementChild.remove();
     while (panel.rows.firstElementChild.dataset.day !== undefined) panel.rows.firstElementChild.remove();
     for (const kept of [panel.bubbles, panel.lines, panel.waiting]) {
