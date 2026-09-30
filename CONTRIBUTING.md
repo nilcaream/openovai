@@ -89,7 +89,7 @@ node --test tests/frames.test.mjs           # frame what a session is told
 node --test tests/secrets.test.mjs          # mint, resolve and revoke a secret
 node --test tests/knowledge.test.mjs        # index and validate what the workspace knows
 node --test tests/personas.test.mjs         # tell a Leader and a Worker only what is there
-node --test tests/panels.test.mjs           # place the seats in three columns and keep their rows
+node --test tests/panels.test.mjs           # place the seats in columns (three from 1800px, then two, one below 1091px) and keep their rows
 node --test tests/page.test.mjs             # the stylesheet read as rules, one token table per theme
 node --test tests/render.test.mjs           # draw a row as markdown, and nothing a row must not do
 node --test tests/lines.test.mjs            # draw a tool call as the line its summary composes

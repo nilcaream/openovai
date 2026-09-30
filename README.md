@@ -62,7 +62,9 @@ directory. Everything the page and the command do is described at [openov.ai](ht
   do; it does no project work. Workers do the work and stop when it ships. The User steers the
   team through the Leader, in plain words.
 - **Every session is hosted on the page.** Nobody has a terminal of their own. The Leader's panel
-  is in the middle, the Workers' either side, and the User can type on any of them.
+  is in the middle and the Workers' either side from a window 1800px wide; below that the Workers
+  share one column beside it, the Leader's head says its usage short below 1240px, and below 1091px
+  the page is one column, the Leader first. The User can type on any of them.
 - **Only the server writes to a session.** A session's stdin is written by the server and by
   nobody else, and every turn carries a frame the server sets itself — `<user>`, `<message
   from="…">`, `<server-event type="…">` — so a session always knows who is speaking. Who is

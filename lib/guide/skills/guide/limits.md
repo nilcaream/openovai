@@ -3,7 +3,7 @@
 Each limit is followed by the nearest thing ovai can do instead.
 
 - **Slash commands on the page.** Ask for a skill in words. Claude Code's own commands go to admin mode, `<instance>/bin/ovai claude`.
-- **Buttons to start, stop or hire sessions.** Ask the Leader in words. The page's only control is STOP, which interrupts the running turn.
+- **Buttons to start, stop or hire sessions.** Ask the Leader in words. The page's one control over a session is the stop button, which interrupts its running turn; the Leader's head also has switches for auto mode (see `panels-and-team.md`).
 - **Choosing a new Worker's name.** Names come from a fixed list. Ask for the task, not the person.
 - **Sessions changing Claude Code's settings files.** The Leader adds permission rules through permission popups. Everything else is done in admin mode or an editor.
 - **Changes reaching running sessions.** Settings, MCP servers, plugins, `customization/` and `knowledge/common.md` are read at a session's start. Restart: `ovai restart`, or ask the Leader.

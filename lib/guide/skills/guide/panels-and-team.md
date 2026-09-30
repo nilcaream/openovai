@@ -5,7 +5,13 @@ Every panel on the page is one Claude Code session, called a seat. There is one 
 ## The Leader
 - The session the person talks to. It hires, delegates, relays, and settles what the instance may do. It does no project work itself: a check, a clone, a build or a test is a hire.
 - Its panel is always there. The next thing typed to it starts it.
-- Only the Leader can hire, stop, restart and let go of Workers, add permission rules, and park the room. All of it is asked for in words: there are no buttons for any of it. The page's only control is STOP, which interrupts the running turn.
+- Only the Leader can hire, stop, restart and let go of Workers, add permission rules, and park the room. All of it is asked for in words: there are no buttons for any of it. The page's controls are few: a stop button over the box on every panel while its turn is running, which interrupts that turn, and on the Leader's head a light/dark toggle, two notification switches (action needed, end of turn), a switch that shows or hides the messages between the Leader and the Workers, and the two auto-mode switches below.
+
+## Auto mode
+- In Claude Code's auto mode a classifier settles the calls no rule settles, instead of a permission popup. Two switches on the Leader's head, both bolt icons, turn it on: the first for the Leader's own session, the second for all the Workers' sessions.
+- The switches belong to the server, not to the browser: every open page shows the same state, and both are off whenever the server starts. Nothing about them is saved.
+- A click reaches the running sessions of that role at once, with no restart, and sessions started later start in that mode. A model that has no auto mode (Haiku) keeps asking with popups as before, without saying so.
+- A call the classifier refuses raises no popup. The session is told the call failed, and its panel gets a row, "Blocked by auto mode: <category> — <the call>", with the classifier's category and the call, cut when it is very long. A call a deny rule refuses gets no such row.
 
 ## Workers
 - A Worker has one task at a time, keeps its desk saying where it stands, and reports to the Leader when done.
@@ -31,7 +37,7 @@ Every panel on the page is one Claude Code session, called a seat. There is one 
 - Usage window: at the first threshold (90% of the 5-hour window, 97% of the weekly one), hiring is refused. At the second (95%, 99%), Workers on that model are closed and turns are held until the window resets.
 - Stopped or restarted by the Leader, or the room parked for the day.
 - `ovai stop` parks the room: every Worker is closed, the Leader writes its desk, then the server stops. Nothing restarts Workers after `ovai start`. Desks and panels stay on disk; ask the Leader to bring back who is needed.
-- A Worker's panel dims when its process ends, and is removed about 30 seconds later. The Leader's panel stays: while it has no process its dot is grey, its head says "not running" and its bottom line says "<Name> has left — the next message starts a fresh session".
+- A Worker's panel dims when its process ends, and is removed about 30 seconds later. The Leader's panel stays: while it has no process its dot is grey and its bottom line says "<Name> has left — the next message starts a fresh session".
 
 ## Typing to a Worker
 Typing on a Worker's panel speaks to that Worker directly. It answers, and the Leader is told what was said. A panel whose process is gone takes no typing.

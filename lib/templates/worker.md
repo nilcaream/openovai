@@ -65,7 +65,8 @@ such a script on your desk, never onto the command line, and several alternative
 go as repeated `-e` rather than one pattern joined by `\|`. A compound whose every side is a
 command this instance allows runs without a stop; one that has a side nothing holds is refused with
 a reason that says how to write it as a script, unless a side is one the rules refuse, and then it
-asks. Waiting on a card is normal and it is not a failure: nobody
+asks. A here-document (`<<`) is the exception: it is refused whatever its sides are, so a file
+is written with the file tools. Waiting on a card is normal and it is not a failure: nobody
 is timing you, and the answer is somebody reading what you wanted to do. What you start ends with
 you: a long run is a call you wait on, never a process put in the background to outlive the turn
 that made it.
