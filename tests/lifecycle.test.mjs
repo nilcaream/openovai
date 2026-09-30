@@ -641,6 +641,29 @@ describe("a line of the User's with no words after it", () => {
     assert.equal(queuesHeardIn(superman.log).length, 2, heardIn(superman.log).join("\n"));
   });
 
+  // The turn that ends the Leader is the one that holds the line: the event it would raise is queued
+  // on a process that closes unread, and handing it to the next Leader starts a session for it.
+  it("raises no event for a turn that ends the Leader, and no Leader is started for it", async () => {
+    await endEvery(500);
+    const stopping = await seatUp(LEADER, { OPENOVAI_STAND_IN_EMPTY: "1", ...callsThen("stop_session", "hello") });
+    await tell(LEADER, userFrame("hello")).answered;
+    await gone(LEADER);
+    await quiet();
+    assert.equal(running(LEADER), false, "a Leader was started again");
+    assert.deepEqual(heardIn(stopping.log), ["<user>hello</user>"]);
+  });
+
+  // A restart carries what was queued to the successor, which would then be told to answer a line
+  // it never read.
+  it("raises no event for a turn that restarts the Leader, and the successor is told none", async () => {
+    await endEvery(500);
+    const restarting = await seatUp(LEADER, { OPENOVAI_STAND_IN_EMPTY: "1", ...callsThen("restart_session", "hello") });
+    const successor = await spawnedBy(LEADER, () => tell(LEADER, userFrame("hello")).answered);
+    await quiet();
+    assert.deepEqual(heardIn(restarting.log), ["<user>hello</user>"]);
+    assert.ok(!heardIn(successor.log).some((one) => one.startsWith('<server-event type="unanswered"')), heardIn(successor.log).join("\n"));
+  });
+
   it("tells nothing for a turn with words, one that failed, one stopped, one with no line of the User's, or a Worker's", async () => {
     // A seat's first turn failing ends the seat before anything is told, so the failed turn here
     // comes after one that went through: a message, which asks nothing of the event either.

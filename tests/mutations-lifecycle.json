@@ -66,6 +66,17 @@
     ]
   },
   {
+    "name": "a turn that ends the Leader raises the unanswered event",
+    "catches": "raises no event for a turn that ends the Leader, and no Leader is started for it",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "  if (record.unanswered !== null && record.ending === null && roleOf(instance, record.seat) === LEADER) {\n",
+        "to": "  if (record.unanswered !== null && roleOf(instance, record.seat) === LEADER) {\n"
+      }
+    ]
+  },
+  {
     "name": "a turn's end does not ask for the account's usage",
     "catches": "is asked at a turn's end, with no page open",
     "edits": [
