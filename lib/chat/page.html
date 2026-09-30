@@ -233,7 +233,7 @@
   // draws it and carries what is typed and pressed to the server.
 
   import { answerOf, dialogOf } from "./dialog.mjs";
-  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, autoLabel, autoTitle, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, loadsOlder, noticed, place, prune, quotaLine, quotaTitle, insertRef, keptFirst, pillLine, stopEnabled, title, typingBeat, windowStart, LINE_WAITING, WINDOW } from "./panels.mjs";
+  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, autoLabel, autoTitle, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, loadsOlder, noticed, place, prune, quotaLine, replaced, quotaTitle, insertRef, keptFirst, pillLine, stopEnabled, title, typingBeat, windowStart, LINE_WAITING, WINDOW } from "./panels.mjs";
   import { dayPillBefore, row as rowOf, talks, unseen } from "./render.mjs";
   import { refTo, references } from "./refs.mjs";
 
@@ -398,6 +398,19 @@
     gauge.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
     return gauge.measureText(text).width;
   }
+
+  // What a reload for a new version leaves in sessionStorage (reloadFor): the version it went for,
+  // and the unsent text of each composer. Read once, at load; the drafts are taken out as they are read.
+  const RELOADED_FOR = "openovai-reloaded-for";
+  const DRAFTS = "openovai-drafts";
+  function kept(key) {
+    try { return sessionStorage.getItem(key) ?? ""; } catch (error) { return ""; }
+  }
+  let drafts = {};
+  try {
+    drafts = JSON.parse(kept(DRAFTS) || "{}");
+    sessionStorage.removeItem(DRAFTS);
+  } catch (error) {}
 
   // Every call to the server. The browser carries the session cookie on it, which no script here
   // reads. The server refuses a call without it with 401, and a page that got one is no longer
@@ -644,6 +657,11 @@
       box.style.overflowY = box.scrollHeight > max ? "auto" : "hidden";
     };
     box.addEventListener("input", autosize);
+    if (typeof drafts[name] === "string") {
+      box.value = drafts[name];
+      delete drafts[name];
+      requestAnimationFrame(autosize);
+    }
     box.addEventListener("keydown", (event) => {
       if (keyAction(event) === "send") {
         event.preventDefault();
@@ -1462,6 +1480,24 @@
   const EVENTS = ["snapshot", "rows", "row", "asking", "seat", "quota", "auto", "stopping"];
   let stream = null;
 
+  // The stream opened again on a server of another version — an update, then a start — and this
+  // page is the old one: it fetches the new, as a reload does. What is typed and not sent is kept
+  // across it, per panel, and put back when the panel is built; the version it reloaded for is kept
+  // too, so a server that serves the same page again is not reloaded for again. Scroll position
+  // and what is folded are not kept: the panels start from their newest rows.
+  function reloadFor(version) {
+    stream.close();
+    const unsent = {};
+    for (const [name, panel] of sections) {
+      if (panel.box.value !== "") unsent[name] = panel.box.value;
+    }
+    try {
+      sessionStorage.setItem(RELOADED_FOR, version);
+      sessionStorage.setItem(DRAFTS, JSON.stringify(unsent));
+    } catch (error) {}
+    location.reload();
+  }
+
   function connect() {
     const since = Object.values(state.panels)
       .filter((panel) => panel.rows !== null)
@@ -1471,6 +1507,10 @@
     for (const name of EVENTS) {
       stream.addEventListener(name, (event) => {
         const data = JSON.parse(event.data);
+        if (replaced(state, { name, data }, kept(RELOADED_FOR))) {
+          reloadFor(data.version);
+          return;
+        }
         // What the event is worth telling a reader who is not here, read before it is applied.
         const notice = noticed(state, { name, data });
         applyEvent(state, { name, data });
