@@ -553,6 +553,16 @@ describe("the script", () => {
     assert.match(script, /const day = `\$\{part\.year\}\.\$\{part\.month\}\.\$\{part\.day\}`;\s*const clock = `\$\{part\.hour\}:\$\{part\.minute\}:\$\{part\.second\}`;\s*return \{ whole: `\$\{day\} \$\{part\.weekday\} \$\{clock\}`, clock, day \};/);
   });
 
+  // A page left open across an update takes the new page itself: the stream's snapshot names the
+  // version the server runs, panels.mjs says whether it is not the one the page holds, and the page
+  // reloads — with what was typed and not sent put in sessionStorage per panel and back into the
+  // box when the panel is built.
+  it("reloads when a snapshot names another version, keeping each unsent draft and the version it went for", () => {
+    assert.match(script, /const data = JSON\.parse\(event\.data\);\s*if \(replaced\(state, \{ name, data \}, kept\(RELOADED_FOR\)\)\) \{\s*reloadFor\(data\.version\);\s*return;\s*\}/);
+    assert.match(script, /for \(const \[name, panel\] of sections\) \{\s*if \(panel\.box\.value !== ""\) unsent\[name\] = panel\.box\.value;\s*\}\s*try \{\s*sessionStorage\.setItem\(RELOADED_FOR, version\);\s*sessionStorage\.setItem\(DRAFTS, JSON\.stringify\(unsent\)\);\s*\} catch \(error\) \{\}\s*location\.reload\(\);/);
+    assert.match(script, /if \(typeof drafts\[name\] === "string"\) \{\s*box\.value = drafts\[name\];\s*delete drafts\[name\];/, "a panel built after the reload gets its draft back");
+  });
+
   // The pill between two days carries the whole stamp of the first row of the new day, and goes
   // in only between a row of one day and a row of the next: never before the first row drawn,
   // whatever day it was written on, and never after the last — it is appended right before the
@@ -669,7 +679,7 @@ describe("the script", () => {
   // the page's own.
   it("notifies through the browser on a card and on the Leader's reply, only while the page is not visible and the switch is on", () => {
     assert.match(script, /import \{[^}]*\bCARD\b[^}]*\bREPLY\b[^}]*\bnoticed\b[^}]*\} from "\.\/panels\.mjs"/);
-    assert.match(script, /const data = JSON\.parse\(event\.data\);\s*(?:\/\/[^\n]*\n\s*)*const notice = noticed\(state, \{ name, data \}\);\s*applyEvent\(state, \{ name, data \}\);\s*keepLines\(\);\s*draw\(\);\s*if \(notice !== null\) notified\(notice\);/, "read against the state before the event is applied, told after the draw");
+    assert.match(script, /const data = JSON\.parse\(event\.data\);\s*if \(replaced\([^\n]*\n[^\n]*\n\s*return;\s*\}\s*(?:\/\/[^\n]*\n\s*)*const notice = noticed\(state, \{ name, data \}\);\s*applyEvent\(state, \{ name, data \}\);\s*keepLines\(\);\s*draw\(\);\s*if \(notice !== null\) notified\(notice\);/, "read against the state before the event is applied, told after the draw");
     assert.match(script, /function notified\(\{ seat, kind \}\) \{\s*if \(document\.visibilityState === "visible" \|\| !notifyOn\(kind\)\) return;\s*if \(!\("Notification" in window\) \|\| Notification\.permission !== "granted"\) return;/);
     assert.match(script, /const body = kind === CARD \? `\$\{seat\} requires your action` : `\$\{seat\} finished their turn`;/, "the body names the seat and says which of the two it is");
     assert.match(script, /new Notification\(title\(state\), \{ body, tag: seat \}\)/, "one per panel at a time: the tag is the seat");

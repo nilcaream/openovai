@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { AMBER, CARD, CONNECTED, autoLabel, autoTitle, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, GREY, LATE_AFTER, RED, REPLY, SENDING, SHOWN_FOR, LINE_DISCONNECTED, LINE_LEFT, LINE_WAITING, LINE_WORKING, WINDOW, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, loadsOlder, noticed, pillLine, place, prune, quotaLine, quotaTitle, insertRef, keptFirst, stopEnabled, title, typingBeat, windowStart, TYPING_BEAT } from "../lib/chat/panels.mjs";
+import { AMBER, CARD, CONNECTED, autoLabel, autoTitle, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, GREY, LATE_AFTER, RED, REPLY, SENDING, SHOWN_FOR, LINE_DISCONNECTED, LINE_LEFT, LINE_WAITING, LINE_WORKING, WINDOW, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, loadsOlder, noticed, pillLine, place, prune, quotaLine, quotaTitle, replaced, insertRef, keptFirst, stopEnabled, title, typingBeat, windowStart, TYPING_BEAT } from "../lib/chat/panels.mjs";
 import { localAt, refTo, references } from "../lib/chat/refs.mjs";
 
 const LEADER = "Leader";
@@ -729,5 +729,26 @@ describe("the auto-mode switches", () => {
     assert.equal(autoTitle("workers", true), "Auto mode is on for the Workers — click to turn it off");
     assert.equal(autoLabel("leader"), "Auto mode for the Leader");
     assert.equal(autoLabel("workers"), "Auto mode for the Workers");
+  });
+});
+
+describe("a page left open across an update", () => {
+  it("a snapshot naming another version than the page holds says it is replaced; the same version, or the first one, does not", () => {
+    const state = fresh();
+    const first = snapshot([about(LEADER)], { version: "0.22.0" });
+    assert.equal(replaced(state, first), false, "a page holds no version before its first snapshot");
+    applyEvent(state, first, 0);
+    assert.equal(replaced(state, snapshot([about(LEADER)], { version: "0.22.0" })), false, "a plain reconnect to the same version");
+    assert.equal(replaced(state, snapshot([about(LEADER)], { version: "0.23.0" })), true, "the server was updated");
+    assert.equal(replaced(state, seat(LEADER, { version: "0.23.0" })), false, "only a snapshot says what the server runs");
+  });
+
+  it("a page that already reloaded for a version is not told to again, so a server that serves the old page twice does not loop it", () => {
+    const state = fresh();
+    applyEvent(state, snapshot([about(LEADER)], { version: "0.22.0" }), 0);
+    const later = snapshot([about(LEADER)], { version: "0.23.0" });
+    assert.equal(replaced(state, later, ""), true);
+    assert.equal(replaced(state, later, "0.23.0"), false);
+    assert.equal(replaced(state, snapshot([about(LEADER)], { version: "0.24.0" }), "0.23.0"), true, "another update after that is reloaded for");
   });
 });

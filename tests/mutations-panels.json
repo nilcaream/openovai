@@ -933,5 +933,27 @@
         "to": "      if (index > start && index < at && element.isConnected) {"
       }
     ]
+  },
+  {
+    "name": "a page with no version yet reloads at its first snapshot",
+    "catches": "a snapshot naming another version than the page holds says it is replaced; the same version, or the first one, does not",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  return name === \"snapshot\" && state.version !== \"\" && running !== state.version && running !== tried;",
+        "to": "  return name === \"snapshot\" && running !== state.version && running !== tried;"
+      }
+    ]
+  },
+  {
+    "name": "a page reloads again for a version it already reloaded for",
+    "catches": "a page that already reloaded for a version is not told to again, so a server that serves the old page twice does not loop it",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  return name === \"snapshot\" && state.version !== \"\" && running !== state.version && running !== tried;",
+        "to": "  return name === \"snapshot\" && state.version !== \"\" && running !== state.version;"
+      }
+    ]
   }
 ]
