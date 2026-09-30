@@ -4,6 +4,88 @@ For the Leader of a workspace taking this version. Short, and about what is diff
 working there — not a developer changelog. A section per release, newest first; a release page
 carries only its own.
 
+## 0.22.0
+
+**This version pins Claude Code 2.1.289, where the last pinned 2.1.285.** `lib/RUNTIME` names it,
+and the README says so where it lists what ovai relies on that Claude Code does not document.
+
+**A Worker writes a file with the file tools, never through the shell.** Its instructions now say
+that a file is created or changed with Write and Edit, and that a `cat > … <<'EOF'`, an `echo … >`,
+a `sed -i` or a script whose only work is to write a file puts on the card what the file tools
+would have shown as a diff. The sentence stands before the one about a line of more than one
+plain command, which is still a one-time script. The hook's refusal of a line with a backtick,
+`$(`, `<(` or `<<` says the same: put the pattern in a file with the Write tool and pass it with
+`grep -f`, or write the steps in a script with the Write tool, on the desk or in `temp/`, and run
+it with `node` or `bash`.
+
+**A command holding a here-document gets no Always rule, and the hook refuses it, quoted or
+bare.** Any line with `<<` in it is read neither into the rules a card would save nor into the
+sides the hook weighs: its body is text for the program that reads it, and cut at its newlines every
+line of it looked like a command. A script written out through `cat > f <<'EOF'` was offered
+`Bash(rowsSince:*)`, `Bash(shown:*)` and `Bash(EOF:*)`, rules that name no program, saved into the
+settings file for good. Now the card has Allow and Deny and no Always button for such a line, and
+the hook answers it before anything runs with the refusal above, so a session usually never raises
+the card at all. Both reasons the hook gives now say a held line stops on "a card, or auto mode's
+classifier", since a session may be in either mode.
+
+**A card has no Always button where Claude Code offers no rule.** Two kinds of call lose it. One is
+a call Claude Code itself marks as one it will not save a "don't ask again" for, such as an MCP tool
+that needs the person, or `rm -rf ~`; a press of Always that arrives for one anyway is refused with
+"Claude Code offers no always rule on that call; allow or deny it", and the card stays. The other is
+a stop on Claude Code's safety check that comes with no allow rule to save: a write to a settings
+file, or under `.git` or `.claude`. That check runs before the rules are read, so a rule saved for
+the path would never be honoured. A safety-check stop it does suggest a rule for, such as an `rm -rf`
+of `.git`, keeps its button. What is protected is Claude Code's to say; ovai keeps no list of its
+own.
+
+**Two switches on the Leader's head turn on Claude Code's auto mode.** One is for the Leader's
+session and one for the Workers'. In auto mode a classifier settles the calls no rule settles,
+where a card would have asked. Both are off at every start of the server and written down nowhere,
+and there is no switch per desk. A click asks the server, and every open page draws the answer, so
+two pages never disagree. A running session of that role is switched at once over its pipe, with no
+restart, and a session started later starts in the mode that role is in. A model with no auto mode,
+Haiku, starts in the mode it has and keeps asking as before. When the classifier refuses a call, no
+card is raised and the session is told the call failed; the panel gets a row, "Blocked by auto
+mode: Credential Exploration — the call", the call cut at 300 characters, and the log holds it
+whole. A rule's own refusal is not such a row. The hook refuses a line it holds whatever the mode
+is, so auto mode never reaches a line the hook would have refused.
+
+**A Leader with no process is grey, and the usage line stays.** A Leader that stopped itself, was
+stopped with the instance or died has its dot grey, not red, and says so on its bottom line: "<name>
+has left — the next message starts a fresh session", with the Leader's own name. The row that said
+it between the sessions is gone, and a stale context size is no longer carried over from the
+session before. The account's usage line on the Leader's head is the last reading, kept in
+`usage.json` at the instance root, so the line is there after a restart too, with no session
+running. It is drawn dimmed once it is a quarter of an hour old, its tooltip ends with "updated at"
+and the time it was taken, and a window whose reset has passed is still drawn, with no time to its
+reset. The usage endpoint is asked every
+five minutes while at least one page is open, and when a page opens or a turn ends, once the last
+reading is a minute old; with no page open the clock asks nothing.
+
+**The Leader's head has no state or connection word, and "Disconnected" is its bottom line.** After
+the model, the Leader's head holds the version, the usage line and its buttons, and nothing that says
+listening, working, waiting or connected: its dot, its bottom line and the cards in its panel say
+that. A Worker's head keeps its state word. While the page has no stream, the Leader's bottom line says
+"Disconnected" in red, over whatever it said, and every dot is red as before.
+
+**A panel draws its newest hundred rows and loads older ones as the reader scrolls up.** The
+Leader's panel and every Worker's draw the newest hundred rows a reader can see, so a long
+conversation costs a hundred rows to draw and to resize, not thousands. A reader who lets go of the
+newest and scrolls to within a screen of the top gets a hundred older rows before the first one
+drawn. A panel that follows its newest row stays at the last hundred. Rows the comms switch hides
+are not counted.
+
+**The page has fewer columns in a narrow window.** Below 1800px the Workers are one column, on the
+left, in the order their panels appeared, and the right column is gone; a window that is widened
+again gives each panel back its side. Below 1240px the Leader's head says its quota as three
+percentages, `5% / 7% / 0%`, for the session, all models and the one model with its own window;
+the tooltip keeps the labels and the resets. Below 1091px, where the Leader's head no longer fits
+beside the Workers' column, the page is one column with the Leader first.
+
+**A turn that ends the Leader's session raises no unanswered event.** The event tells a Leader that a
+line of the User's got no words on the panel, and one raised by a turn that was ending the session
+was queued on a process about to close and handed to the next Leader, which never read the line.
+
 ## 0.21.0
 
 **The page now signs a browser in with a one-time link.** Anything on the machine that could reach
