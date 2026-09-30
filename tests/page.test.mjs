@@ -375,6 +375,20 @@ describe("the rules", () => {
     assert.equal(stage.declarations["grid-template-columns"], "minmax(406px, 1fr) minmax(0, 1092px) minmax(406px, 1fr)");
   });
 
+  // From 1800px the stage has its three columns. Below it the Workers are one column, the left,
+  // and the right is taken out of the grid with the panels the script moved out of it; below 900px
+  // the page is one column. The script's ONE_SIDE is the same number as the stylesheet's, and the
+  // script draws again when a window crosses it, since it is the script that says where each
+  // panel stands (place).
+  it("takes the right column out below 1800px and draws the Workers in the left", () => {
+    const stage = rules.find((rule) => rule.selector === "#stage" && rule.media === "(max-width: 1799px)");
+    assert.equal(stage.declarations["grid-template-columns"], "minmax(406px, 1fr) minmax(0, 1092px)");
+    assert.equal(rules.find((rule) => rule.selector === "#right" && rule.media === "(max-width: 1799px)").declarations.display, "none");
+    assert.equal(rules.find((rule) => rule.selector === "#stage" && rule.media === "(max-width: 900px)").declarations["grid-template-columns"], "minmax(0, 1fr)");
+    assert.match(script, /const ONE_SIDE = 1800;\s*const oneSide = window\.matchMedia\(`\(max-width: \$\{ONE_SIDE - 1\}px\)`\);\s*oneSide\.addEventListener\("change", \(\) => draw\(\)\);/);
+    assert.match(script, /place\(\[\.\.\.sections\.keys\(\)\], state\.leader, state\.order, oneSide\.matches\)/);
+  });
+
   // The copy button sits in the top-right corner of a code block's frame, so the frame is what it
   // is placed against; it is invisible until the frame is hovered, or it has the focus, or it has
   // just copied — that state is the icon's own colour, and the tick in place of the clipboard.

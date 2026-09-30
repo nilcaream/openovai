@@ -27,13 +27,19 @@
   *::-webkit-scrollbar { display: none; }
   a { color: var(--accent); }
   /* three columns: the Leader's in the middle, up to 1092px; the Workers' either side, 406px at
-     the least and sharing the rest — so a narrower window takes from the middle, not the sides */
+     the least and sharing the rest — so a narrower window takes from the middle, not the sides.
+     Below 1800px (ONE_SIDE in the script) the Workers are one column, the left, and the right has
+     none; below 900px the page is one column, the Leader first */
   #stage {
     flex: 1 1 auto; min-height: 0;
     display: grid; grid-template-columns: minmax(406px, 1fr) minmax(0, 1092px) minmax(406px, 1fr);
   }
   .col { min-height: 0; display: flex; flex-direction: column; gap: 4px; padding: 4px; overflow-y: auto; }
   .col:empty { padding: 0; }
+  @media (max-width: 1799px) {
+    #stage { grid-template-columns: minmax(406px, 1fr) minmax(0, 1092px); }
+    #right { display: none; }
+  }
   @media (max-width: 900px) {
     #stage { grid-template-columns: minmax(0, 1fr); }
     #mid { order: 0; }
@@ -408,6 +414,11 @@
   const state = fresh();
   const columns ={ left: document.getElementById("left"), mid: document.getElementById("mid"), right: document.getElementById("right") };
   const favicon = document.querySelector('link[rel="icon"]');
+  // The window width below which the Workers are one column, the width of the stylesheet's own
+  // `@media (max-width: 1799px)`: the page draws again when a window crosses it.
+  const ONE_SIDE = 1800;
+  const oneSide = window.matchMedia(`(max-width: ${ONE_SIDE - 1}px)`);
+  oneSide.addEventListener("change", () => draw());
 
   // ------------------------------------------------------------------------------- one panel
 
@@ -1421,7 +1432,7 @@
         sections.delete(name);
       }
     }
-    const placed = place([...sections.keys()], state.leader, state.order);
+    const placed = place([...sections.keys()], state.leader, state.order, oneSide.matches);
     for (const [side, names] of [["left", placed.left], ["mid", [placed.mid]], ["right", placed.right]]) {
       const wanted = names.filter((name) => sections.has(name)).map((name) => sections.get(name).section);
       if (wanted.some((section, at) => columns[side].children[at] !== section) || columns[side].children.length !== wanted.length) {

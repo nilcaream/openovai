@@ -2963,5 +2963,27 @@
         "to": ""
       }
     ]
+  },
+  {
+    "name": "the right column stays in the grid below 1800px",
+    "catches": "takes the right column out below 1800px and draws the Workers in the left",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    #right { display: none; }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the script's one-side width is not the stylesheet's",
+    "catches": "takes the right column out below 1800px and draws the Workers in the left",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "  const ONE_SIDE = 1800;",
+        "to": "  const ONE_SIDE = 1700;"
+      }
+    ]
   }
 ]

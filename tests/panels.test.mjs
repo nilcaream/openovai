@@ -77,6 +77,13 @@ describe("placement", () => {
     assert.deepEqual(place(["W1", "W2", LEADER, "W3", "W4", "W5"], LEADER, ["W1", "W2", LEADER, "W3", "W4", "W5"]).left, ["W1", "W3", "W5"]);
   });
 
+  it("in a window too narrow for two columns of Workers they are all on the left, in hire order, and the right has none", () => {
+    const seats = ["W1", "W2", LEADER, "W3", "W4", "W5"];
+    assert.deepEqual(place(seats, LEADER, seats, true), { left: ["W1", "W2", "W3", "W4", "W5"], mid: LEADER, right: [] });
+    assert.deepEqual(place(seats, LEADER, seats, false), { left: ["W1", "W3", "W5"], mid: LEADER, right: ["W2", "W4"] }, "wide again: every panel is back on the side it had, nothing was remembered");
+    assert.deepEqual(place(seats, LEADER, seats), place(seats, LEADER, seats, false), "two columns unless told otherwise");
+  });
+
   it("the order is the order the panels appeared, not the order of a later snapshot", () => {
     const state = fresh();
     applyEvent(state, snapshot([about(LEADER), about("Paul")]), 0);

@@ -889,5 +889,16 @@
         "to": "  return from > 0 && scrollTop < near;"
       }
     ]
+  },
+  {
+    "name": "a narrow window still gives the right column its Workers",
+    "catches": "in a window too narrow for two columns of Workers they are all on the left, in hire order, and the right has none",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "(at % 2 === 0 || oneSide ? left : right)",
+        "to": "(at % 2 === 0 ? left : right)"
+      }
+    ]
   }
 ]
