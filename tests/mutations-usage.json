@@ -480,5 +480,30 @@
         "to": "    gate(live.data, Date.now());\n"
       }
     ]
+  },
+  {
+    "name": "a kept reading is taken up whatever its shape",
+    "catches": "is not taken up when it parses but cannot be drawn, and the clock goes on",
+    "edits": [{ "file": "lib/chat/usage.mjs", "from": "kept !== null && usable(kept.data) && ", "to": "kept !== null && typeof kept.data === \"object\" && kept.data !== null && " }]
+  },
+  {
+    "name": "a kept reading is taken up though it was taken at a moment that has not come",
+    "catches": "is not taken up when it was taken at a moment that has not come",
+    "edits": [{ "file": "lib/chat/usage.mjs", "from": " && kept.fetchedAt <= now)", "to": ")" }]
+  },
+  {
+    "name": "a moment no date holds is taken up",
+    "catches": "is not taken up when it parses but cannot be drawn, and the clock goes on",
+    "edits": [{ "file": "lib/chat/usage.mjs", "from": " && kept.fetchedAt >= 0", "to": "" }]
+  },
+  {
+    "name": "the reading is written with the mode the umask gives",
+    "catches": "is written for its owner alone, though the file was there with another mode",
+    "edits": [{ "file": "lib/chat/usage.mjs", "from": "    writePrivate(path.join(root, USAGE_FILE), ", "to": "    fs.writeFileSync(path.join(root, USAGE_FILE), " }]
+  },
+  {
+    "name": "an answer that cannot be drawn replaces the reading",
+    "catches": "is not replaced by an answer that cannot be drawn",
+    "edits": [{ "file": "lib/chat/usage.mjs", "from": "    if (!usable(data)) {", "to": "    if (false) {" }]
   }
 ]

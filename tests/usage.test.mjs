@@ -330,6 +330,49 @@ describe("the reading kept across a restart", () => {
     assert.equal(reading(T0), null, "no moment to go with it");
   });
 
+  it("is not taken up when it parses but cannot be drawn, and the clock goes on", () => {
+    const kept = (body) => fs.writeFileSync(path.join(root, USAGE_FILE), JSON.stringify(body));
+    const options = { now: () => T0 };
+    pageClosed();
+    for (const [why, body] of [
+      ["a moment no date holds", { fetchedAt: 1e16, data: payload() }],
+      ["a null among the limits", { fetchedAt: T0, data: { limits: [null] } }],
+      ["a moment before the epoch", { fetchedAt: -1, data: payload() }],
+      ["data that is not an object", { fetchedAt: T0, data: "8%" }],
+    ]) {
+      reset();
+      kept(body);
+      configure({ root, now: () => T0 });
+      assert.equal(reading(T0), null, why);
+      assert.doesNotThrow(() => tick({ root, config: { auth: "login" } }, options), why);
+    }
+  });
+
+  it("is not taken up when it was taken at a moment that has not come", () => {
+    fs.writeFileSync(path.join(root, USAGE_FILE), JSON.stringify({ fetchedAt: T0 + 1, data: payload() }));
+    configure({ root, now: () => T0 });
+    assert.equal(reading(T0), null);
+    configure({ root, now: () => T0 + 1 });
+    assert.equal(reading(T0 + 1).session, "8%", "taken up once its moment has come");
+  });
+
+  it("is written for its owner alone, though the file was there with another mode", async () => {
+    const file = path.join(root, USAGE_FILE);
+    fs.writeFileSync(file, "{}", { mode: 0o644 });
+    fs.chmodSync(file, 0o644);
+    await refresh(instance, { get: answering(), now: () => T0 });
+    assert.equal(fs.statSync(file).mode & 0o777, 0o600);
+  });
+
+  it("is not replaced by an answer that cannot be drawn", async () => {
+    await refresh(instance, { get: answering(), now: () => T0 });
+    const before = fs.readFileSync(path.join(root, USAGE_FILE), "utf8");
+    await refresh(instance, { get: answering({ body: { limits: [null] } }), now: () => T0 + SPACING });
+    assert.equal(fs.readFileSync(path.join(root, USAGE_FILE), "utf8"), before);
+    assert.equal(reading(T0 + SPACING).session, "8%");
+    assert.doesNotThrow(() => tick(instance, { now: () => T0 + SPACING }));
+  });
+
   it("is asked for again when a page opens on a kept reading that is a minute old", async () => {
     await refresh(instance, { get: answering(), now: () => T0 });
     reset();
