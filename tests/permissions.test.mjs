@@ -12,6 +12,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
+import { dialogOf } from "../lib/chat/dialog.mjs";
 import { subscribe } from "../lib/chat/events.mjs";
 import { sink } from "../lib/chat/log.mjs";
 import { acceptRule, shapeOf } from "../lib/chat/permissions.mjs";
@@ -234,6 +235,29 @@ describe("the rule Claude Code suggested for a call", () => {
   it("composes its own rule for a write before reading what was suggested", () => {
     const request = { id: "request-1", tool: "Write", input: { file_path: `${AT}/projects/Wren/notes.md` }, suggestions: suggesting("Edit", "/projects/Wren/notes.md") };
     assert.deepEqual(shapeOf(request, AT), ["Edit(/projects/Wren/**)"]);
+  });
+
+  // Claude Code's own `suppress_always_allow_rule` (session.mjs carries it as `suppressAlwaysAllowRule`):
+  // a call it offers no "don't ask again" on gets none here either, whatever composes for it.
+  describe("a call Claude Code says no rule is to be saved for", () => {
+    const flagged = [
+      ["a command ovai composes a rule for", "Bash", { command: "npm test" }, undefined],
+      ["a command with a rule Claude Code suggested", "Bash", { command: "~/bin/deploy --now" }, suggesting("Bash", "~/bin/deploy --now")],
+      ["a write inside the instance", "Write", { file_path: `${AT}/projects/Wren/notes.md` }, undefined],
+      ["a fetch with a rule Claude Code suggested", "WebFetch", { url: "https://example.com/" }, suggesting("WebFetch", "domain:example.com")],
+      ["a tool of the chat's own", "mcp__openovai__message", { to: LEADER }, suggesting("mcp__openovai__message")],
+    ];
+
+    for (const [what, tool, input, suggestions] of flagged) {
+      it(`offers nothing for ${what}`, () => {
+        assert.notEqual(shapeOf({ id: "request-1", tool, input, suggestions }, AT), null, "the same call without the flag composes nothing, so the check below proves nothing");
+        assert.equal(shapeOf({ id: "request-1", tool, input, suggestions, suppressAlwaysAllowRule: true }, AT), null);
+      });
+    }
+
+    it("offers the same as before for a call that is not flagged", () => {
+      assert.deepEqual(shapeOf({ id: "request-1", tool: "Bash", input: { command: "npm test" }, suppressAlwaysAllowRule: false }, AT), ["Bash(npm:*)"]);
+    });
   });
 });
 
@@ -841,6 +865,61 @@ describe("asking to be allowed", () => {
       assert.equal(refused.status, 400);
       assert.match(JSON.parse(refused.body).error, /no rule that would allow that/);
       assert.equal(replied.text, `I was told deny: ${USER} denied this call on the panel.`);
+    });
+  });
+
+  // `npm test` is a command whose rule ovai composes itself (Bash(npm:*), see above); here Claude
+  // Code's frame says it offers no "don't ask again" on the call, and ovai offers none either.
+  describe("a call Claude Code says no rule is to be saved for", () => {
+    const settings = path.join(instance, ".claude", "settings.json");
+    let shown;
+    let card;
+    let refused;
+    let settingsBefore;
+    let settingsAfter;
+    let stillWaiting;
+    let replied;
+
+    before(async () => {
+      await leaderAsking({
+        OPENOVAI_STAND_IN_ASKS: "Bash",
+        OPENOVAI_STAND_IN_ASKS_INPUT: "npm test",
+        OPENOVAI_STAND_IN_SUPPRESSES: "1",
+        OPENOVAI_STAND_IN_SUGGESTS: JSON.stringify([{ type: "addRules", destination: "localSettings", rules: [{ toolName: "Bash", ruleContent: "npm test" }], behavior: "allow" }]),
+      });
+      const reply = await say("run the tests");
+      shown = (await waitingOn())[0];
+      card = dialogOf(shown, USER);
+      settingsBefore = fs.readFileSync(settings, "utf8");
+      refused = await page("POST", `/sessions/${LEADER}/permission`, { id: shown.id, decision: "always" });
+      settingsAfter = fs.readFileSync(settings, "utf8");
+      stillWaiting = JSON.parse((await page("GET", `/sessions/${LEADER}/permissions`)).body).permissions.length;
+      await page("POST", `/sessions/${LEADER}/permission`, { id: shown.id, decision: "allow" });
+      replied = await reply();
+    });
+
+    after(async () => {
+      await endSeat(LEADER, 500);
+    });
+
+    it("sends the page no rule, neither ovai's own nor Claude Code's", () => {
+      assert.equal(shown.shape, undefined);
+    });
+
+    it("draws a card with Allow and Deny and no Always", () => {
+      assert.deepEqual(card.buttons.map((button) => button.decision), ["allow", "deny"]);
+      assert.ok(!card.lines.some((line) => line.kind === "saves" || line.kind === "rules"));
+    });
+
+    it("refuses an always answer, saying that Claude Code offers none, and writes no rule", () => {
+      assert.equal(refused.status, 400);
+      assert.match(JSON.parse(refused.body).error, /Claude Code offers no always rule on that call; allow or deny it/);
+      assert.equal(settingsAfter, settingsBefore);
+    });
+
+    it("leaves the call asked, and Allow still answers it", () => {
+      assert.equal(stillWaiting, 1);
+      assert.equal(replied.text, "I was told allow");
     });
   });
 

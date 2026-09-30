@@ -861,5 +861,49 @@
         "to": "    if (typeof command === \"string\" && HERE_DOCUMENT.test(command)) {\n      return suggested(request, root);"
       }
     ]
+  },
+  {
+    "name": "a call Claude Code flags still composes ovai's own rule for its command",
+    "catches": "offers nothing for a command ovai composes a rule for",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": "  if (request.suppressAlwaysAllowRule === true) {\n    return null;\n  }\n  if (request.tool === \"Bash\") {",
+        "to": "  if (request.tool === \"Bash\") {"
+      }
+    ]
+  },
+  {
+    "name": "the flag is only honoured for a command, so a flagged write still composes its rule",
+    "catches": "offers nothing for a write inside the instance",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": "  if (request.suppressAlwaysAllowRule === true) {\n    return null;\n  }\n  if (request.tool === \"Bash\") {",
+        "to": "  if (request.tool === \"Bash\") {\n    if (request.suppressAlwaysAllowRule === true) {\n      return null;\n    }"
+      }
+    ]
+  },
+  {
+    "name": "the flag is dropped between the frame and the parked request",
+    "catches": "sends the page no rule, neither ovai's own nor Claude Code's",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "    ...(frame.request.suppress_always_allow_rule === true ? { suppressAlwaysAllowRule: true } : {}),\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "an always answer on a flagged call falls to the composer's refusal and says nothing of Claude Code",
+    "catches": "refuses an always answer, saying that Claude Code offers none, and writes no rule",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "    if (asked.suppressAlwaysAllowRule === true) {",
+        "to": "    if (asked.suppressAlwaysAllowRule === \"never\") {"
+      }
+    ]
   }
 ]
