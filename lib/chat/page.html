@@ -439,6 +439,11 @@
   const ONE_SIDE = 1800;
   const oneSide = window.matchMedia(`(max-width: ${ONE_SIDE - 1}px)`);
   oneSide.addEventListener("change", () => draw());
+  // The window width below which the Leader's head says its quota short, `5% / 7% / 0%`: the whole
+  // line needs a Leader column of 825px, which one Workers column leaves from a window of 1239px.
+  const LITE = 1240;
+  const lite = window.matchMedia(`(max-width: ${LITE - 1}px)`);
+  lite.addEventListener("change", () => draw());
 
   // ------------------------------------------------------------------------------- one panel
 
@@ -1330,7 +1335,7 @@
     panel.fitPlaceholder();
     if (panel.facts !== null) {
       panel.facts.version.textContent = state.version;
-      panel.facts.quota.textContent = quotaLine(state.quota);
+      panel.facts.quota.textContent = quotaLine(state.quota, lite.matches);
       panel.facts.quota.classList.toggle("old", state.quota !== null && state.quota.old === true);
       panel.facts.quota.title = quotaTitle(state.quota, new Date());
       for (const [who, button] of Object.entries(panel.facts.auto)) {

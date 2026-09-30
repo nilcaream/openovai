@@ -549,6 +549,13 @@ describe("the quota line", () => {
     assert.equal(quotaLine(null), "");
   });
 
+  it("is the three percentages only, joined with a slash, when the window is narrow", () => {
+    assert.equal(quotaLine(reading, true), "8% / 86% / 20%");
+    assert.equal(quotaLine({ ...reading, allReset: null, fable: "-", fableReset: null }, true), "8% / 86% / -");
+    assert.equal(quotaLine(null, true), "");
+    assert.equal(quotaLine(reading, false), "8% (3h) · all 86% (6d) · fable 20% (6d)", "the whole line is the default");
+  });
+
   it("says in the tooltip when each window resets, each at its own moment on the page's clock, and nothing else", () => {
     assert.equal(quotaTitle(reading, now), "5h resets today at 12:12, 7d on Monday at 13:41, 7d fable tomorrow at 23:11, updated at 09:41");
     assert.equal(quotaTitle({ ...reading, resets: { "5h": local(25, 9, 5), "7d": local(26, 0, 0), "7d fable": local(32, 7, 30) } }, now), "5h resets today at 09:05, 7d tomorrow at 00:00, 7d fable on Friday at 07:30, updated at 09:41");

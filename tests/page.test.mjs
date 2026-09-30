@@ -389,6 +389,14 @@ describe("the rules", () => {
     assert.match(script, /place\(\[\.\.\.sections\.keys\(\)\], state\.leader, state\.order, oneSide\.matches\)/);
   });
 
+  // Below 1240px the Leader's head says its quota short, `5% / 7% / 0%`; the stylesheet has no rule
+  // for it (the line is text, not layout), the script draws again when a window crosses the
+  // width, and the panels' quotaLine says which line it is.
+  it("says the quota short on the Leader's head below 1240px and draws again when a window crosses it", () => {
+    assert.match(script, /const LITE = 1240;\s*const lite = window\.matchMedia\(`\(max-width: \$\{LITE - 1\}px\)`\);\s*lite\.addEventListener\("change", \(\) => draw\(\)\);/);
+    assert.equal(rules.find((rule) => rule.media === "(max-width: 900px)" && rule.selector === "#left").declarations.order, "1", "the one-column step is where it was");
+  });
+
   // The copy button sits in the top-right corner of a code block's frame, so the frame is what it
   // is placed against; it is invisible until the frame is hovered, or it has the focus, or it has
   // just copied — that state is the icon's own colour, and the tick in place of the clipboard.
@@ -1102,7 +1110,7 @@ describe("the script", () => {
     assert.match(script, /headLine\.append\(nameLine, info\);[\s\S]{0,400}else headLine\.append\(word\);/, "only a Worker's head has the state word");
     assert.doesNotMatch(script, /facts\.conn/);
     assert.match(script, /panel\.doing\.firstElementChild\.textContent = pillLine\(state, panel\.name\);\s*panel\.doing\.classList\.toggle\("off", state\.connection !== CONNECTED\);/);
-    assert.match(script, /panel\.facts\.quota\.textContent = quotaLine\(state\.quota\);\s*panel\.facts\.quota\.classList\.toggle\("old", state\.quota !== null && state\.quota\.old === true\);\s*panel\.facts\.quota\.title = quotaTitle\(state\.quota, new Date\(\)\);/);
+    assert.match(script, /panel\.facts\.quota\.textContent = quotaLine\(state\.quota, lite\.matches\);\s*panel\.facts\.quota\.classList\.toggle\("old", state\.quota !== null && state\.quota\.old === true\);\s*panel\.facts\.quota\.title = quotaTitle\(state\.quota, new Date\(\)\);/);
     assert.match(script, /document\.title = title\(state\);/);
   });
 

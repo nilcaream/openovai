@@ -900,5 +900,27 @@
         "to": "(at % 2 === 0 ? left : right)"
       }
     ]
+  },
+  {
+    "name": "the short quota keeps the dot between its percentages",
+    "catches": "is the three percentages only, joined with a slash, when the window is narrow",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "[quota.session, quota.all, quota.fable].join(\" / \")",
+        "to": "[quota.session, quota.all, quota.fable].join(\" · \")"
+      }
+    ]
+  },
+  {
+    "name": "the short quota keeps the labels and the resets",
+    "catches": "is the three percentages only, joined with a slash, when the window is narrow",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  if (lite) return [quota.session, quota.all, quota.fable].join(\" / \");\n",
+        "to": ""
+      }
+    ]
   }
 ]

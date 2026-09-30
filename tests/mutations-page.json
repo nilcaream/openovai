@@ -965,7 +965,7 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      panel.facts.quota.textContent = quotaLine(state.quota);\n",
+        "from": "      panel.facts.quota.textContent = quotaLine(state.quota, lite.matches);\n",
         "to": "      panel.facts.quota.textContent = state.quota === null ? \"\" : state.quota.session;\n"
       }
     ]
@@ -3005,6 +3005,39 @@
         "file": "lib/chat/page.html",
         "from": "  const ONE_SIDE = 1800;",
         "to": "  const ONE_SIDE = 1700;"
+      }
+    ]
+  },
+  {
+    "name": "the quota is never said short",
+    "catches": "draws the version and the quota line on the Leader's head, no state or connection word, and marks a lost stream on the pill",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "quotaLine(state.quota, lite.matches)",
+        "to": "quotaLine(state.quota)"
+      }
+    ]
+  },
+  {
+    "name": "the page does not draw again when a window crosses the short quota's width",
+    "catches": "says the quota short on the Leader's head below 1240px and draws again when a window crosses it",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "  lite.addEventListener(\"change\", () => draw());\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the short quota begins at another width",
+    "catches": "says the quota short on the Leader's head below 1240px and draws again when a window crosses it",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "  const LITE = 1240;",
+        "to": "  const LITE = 1200;"
       }
     ]
   }
