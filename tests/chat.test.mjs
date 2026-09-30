@@ -3006,6 +3006,24 @@ describe("auto mode", () => {
     assert.deepEqual(JSON.parse((await page("GET", "/sessions")).body).auto, { leader: false, workers: false });
   });
 
+  // The one page route that changes every session at once: it takes the page's cookie and an own
+  // origin, as every change does, and a request without either changes nothing.
+  it("takes a switch only from the page: not without its cookie, not without or with a foreign origin", async () => {
+    const body = JSON.stringify({ who: "leader", on: true });
+    const port = server.address().port;
+    for (const [why, headers, status] of [
+      ["no cookie", { origin: url }, 401],
+      ["a cookie of another port", { cookie: signedIn(instance, port + 1), origin: url }, 401],
+      ["no origin", { cookie: signedIn() }, 403],
+      ["a foreign origin", { cookie: signedIn(), origin: "http://attacker.example" }, 403],
+      ["another port's origin", { cookie: signedIn(), origin: `http://127.0.0.1:${port + 1}` }, 403],
+    ]) {
+      const answered = await fetch(`${url}/auto`, { method: "POST", headers: { "content-type": "application/json", ...headers }, body });
+      assert.equal(answered.status, status, why);
+      assert.deepEqual(JSON.parse((await page("GET", "/sessions")).body).auto, { leader: false, workers: false }, `${why} changed it`);
+    }
+  });
+
   it("puts a call the classifier refused on its panel as a row, with its category and the call, and nothing for a call a rule refused", async () => {
     const calls = JSON.stringify([[
       { name: "Bash", input: { command: "cat creds.txt" }, error: "Permission denied", blocked: "[Credential Exploration]" },

@@ -2295,5 +2295,37 @@
         "to": "  if (role === WORKER) {\n    args.push(\"--plugin-dir\""
       }
     ]
+  },
+  {
+    "name": "the auto switch is answered before the caller is known",
+    "catches": "takes a switch only from the page: not without its cookie, not without or with a foreign origin",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "  if (request.method === \"POST\" && url.pathname === AUTO_ROUTE) {\n    await postAuto(request, response);\n    return;\n  }\n\n",
+        "to": ""
+      },
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "  const who = whoIs(instance, port, request, url);\n  if (who === null) {",
+        "to": "  if (request.method === \"POST\" && url.pathname === AUTO_ROUTE) {\n    await postAuto(request, response);\n    return;\n  }\n  const who = whoIs(instance, port, request, url);\n  if (who === null) {"
+      }
+    ]
+  },
+  {
+    "name": "the auto switch is answered before the origin is checked",
+    "catches": "takes a switch only from the page: not without its cookie, not without or with a foreign origin",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "  if (request.method === \"POST\" && url.pathname === AUTO_ROUTE) {\n    await postAuto(request, response);\n    return;\n  }\n\n",
+        "to": ""
+      },
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "  // The browser sends the cookie on a request another page of this address makes too",
+        "to": "  if (request.method === \"POST\" && url.pathname === AUTO_ROUTE) {\n    await postAuto(request, response);\n    return;\n  }\n  // The browser sends the cookie on a request another page of this address makes too"
+      }
+    ]
   }
 ]
