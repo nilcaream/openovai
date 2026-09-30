@@ -66,7 +66,7 @@ function hiring(name, model = null) {
 }
 
 const USER = "Mike";
-const LEADER = "Superman";
+const LEADER = "Martin";
 // Two models and not one. They sit side by side in the same file and are printed on two lines of
 // the same report, so with one word in both fields a report that read the wrong one — or wrote a
 // model of its own — said the right thing anyway.

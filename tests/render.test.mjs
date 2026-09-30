@@ -223,10 +223,10 @@ describe("every other row", () => {
   // The row between two sessions on one panel — the Leader's process gone, the next row a fresh
   // one's — is a divider with its words as text, whatever else the entry carries.
   it("a word between two sessions is a divider, its words as text", () => {
-    assert.deepEqual(row({ from: "Server", divider: true, text: "Superman has left — the next message starts a fresh session" }, names), {
+    assert.deepEqual(row({ from: "Server", divider: true, text: "Martin has left — the next message starts a fresh session" }, names), {
       who: "Server",
       kind: "divider",
-      text: "Superman has left — the next message starts a fresh session",
+      text: "Martin has left — the next message starts a fresh session",
     });
     assert.equal(row({ from: "Server", divider: true, text: "x", failed: true }, names).kind, "divider");
   });

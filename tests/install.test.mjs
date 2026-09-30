@@ -26,7 +26,7 @@ import { readSettings, settingsFile, writeSettings } from "../lib/settings.mjs";
 process.umask(0o022);
 
 const USER = "Mike";
-const LEADER = "Superman";
+const LEADER = "Martin";
 const LEADER_MODEL = "sonnet";
 const WORKER_MODEL = "haiku";
 const PORT = 7801;

@@ -43,7 +43,7 @@ process.umask(0o022);
 delete process.env.CLAUDE_CODE_ARTIFACT;
 
 const USER = "Mike";
-const LEADER = "Superman";
+const LEADER = "Martin";
 const WORKER = "Paul";
 const OTHER = "Jane";
 // What was said on a panel: every row but the ones that say when a session started or ended,
@@ -833,12 +833,12 @@ describe("the gate", () => {
 // ---------------------------------------------------------------------------------------------
 
 describe("starting a seat", () => {
-  let superman;
+  let martin;
   let paul;
 
   before(async () => {
     // An effort in the environment the server was started from, which the seat must not inherit.
-    superman = await seatUp(LEADER, { CLAUDE_CODE_EFFORT_LEVEL: "max" });
+    martin = await seatUp(LEADER, { CLAUDE_CODE_EFFORT_LEVEL: "max" });
     paul = await seatUp(WORKER);
   });
 
@@ -847,14 +847,14 @@ describe("starting a seat", () => {
   });
 
   it("mints one secret per process, 43 characters of base64url, and no two alike", async () => {
-    assert.match(superman.secret, SECRET_SHAPE);
+    assert.match(martin.secret, SECRET_SHAPE);
     assert.match(paul.secret, SECRET_SHAPE);
-    assert.notEqual(superman.secret, paul.secret);
+    assert.notEqual(martin.secret, paul.secret);
     await endSeat(WORKER, 500);
     const again = await seatUp(WORKER);
     assert.match(again.secret, SECRET_SHAPE);
     assert.notEqual(again.secret, paul.secret);
-    assert.notEqual(again.secret, superman.secret);
+    assert.notEqual(again.secret, martin.secret);
     paul = again;
   });
 
@@ -894,21 +894,21 @@ describe("starting a seat", () => {
   });
 
   it("runs each seat on the model its desk resolves to", () => {
-    assert.match(callsIn(superman.log).at(-1), /--model opus\b/);
+    assert.match(callsIn(martin.log).at(-1), /--model opus\b/);
     assert.match(callsIn(paul.log).at(-1), new RegExp(`--model ${WORKER_MODEL}\\b`));
   });
 
   // "opus/high" is two arguments: the model, and the effort after the slash. A model written
   // without one is started with no --effort at all, so Claude Code's own default is what it runs at.
   it("starts a seat at the effort written after its model, and at none when none is written", () => {
-    assert.match(callsIn(superman.log).at(-1), /--model opus --effort high\b/);
+    assert.match(callsIn(martin.log).at(-1), /--model opus --effort high\b/);
     assert.doesNotMatch(callsIn(paul.log).at(-1), /--effort/);
   });
 
   // Inherited, CLAUDE_CODE_EFFORT_LEVEL would beat --effort: Claude Code reads the environment
   // before the flag. A seat runs at the effort its model names, whatever the server's shell says.
   it("hands a seat no effort from the environment the server runs in", () => {
-    const said = fs.readFileSync(superman.log, "utf8").split("\n").filter((line) => line.startsWith("CLAUDE_CODE_EFFORT_LEVEL: "));
+    const said = fs.readFileSync(martin.log, "utf8").split("\n").filter((line) => line.startsWith("CLAUDE_CODE_EFFORT_LEVEL: "));
     assert.ok(said.length > 0, "no start of the seat is in its log");
     assert.deepEqual([...new Set(said)], ["CLAUDE_CODE_EFFORT_LEVEL: <unset>"]);
   });
@@ -921,7 +921,7 @@ describe("starting a seat", () => {
   });
 
   it("hands the Leader ovai's guide as a plugin from the instance's own lib, and no Worker", () => {
-    assert.ok(callsIn(superman.log).at(-1).includes(`--plugin-dir ${path.join(instance, "lib", "guide")}`));
+    assert.ok(callsIn(martin.log).at(-1).includes(`--plugin-dir ${path.join(instance, "lib", "guide")}`));
     assert.doesNotMatch(callsIn(paul.log).at(-1), /--plugin-dir/);
   });
 
@@ -943,7 +943,7 @@ describe("starting a seat", () => {
     const leader = chat.config.leader;
     chat.config = { ...chat.config, leader: WORKER };
     try {
-      const fromLeader = JSON.parse((await tool(superman.secret, "room")).text);
+      const fromLeader = JSON.parse((await tool(martin.secret, "room")).text);
       const fromPaul = JSON.parse((await tool(paul.secret, "room")).text);
       assert.equal(fromLeader.seats.find((seat) => seat.you).role, LEADS);
       assert.equal(fromPaul.seats.find((seat) => seat.you).role, WORKS);
@@ -984,7 +984,7 @@ describe("starting a seat", () => {
     assert.equal(row.failed, true);
     assert.match(row.text, /^Claude Code \d+\.\d+\.\d+ is not at .*: run .*\/bin\/ovai start, which fetches it/);
     assert.equal(running(LEADER), false);
-    superman = await seatUp(LEADER);
+    martin = await seatUp(LEADER);
   });
 });
 
@@ -1525,11 +1525,11 @@ describe("what a seat left running", () => {
 // ---------------------------------------------------------------------------------------------
 
 describe("the tools a session is served", () => {
-  let superman;
+  let martin;
   let paul;
 
   before(async () => {
-    superman = await seatUp(LEADER);
+    martin = await seatUp(LEADER);
     paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_REPLY: "pong", OPENOVAI_STAND_IN_SLOW: "300" });
   });
 
@@ -1538,7 +1538,7 @@ describe("the tools a session is served", () => {
   });
 
   it("serves the Leader exactly what BUILT_IN names but done, and a Worker message, room, index, validate, write_desk and done", async () => {
-    assert.deepEqual(await listed(superman.secret), BUILT_IN.filter((name) => name !== "done"));
+    assert.deepEqual(await listed(martin.secret), BUILT_IN.filter((name) => name !== "done"));
     assert.deepEqual(await listed(paul.secret), ["message", "room", "index", "validate", "write_desk", "done"]);
   });
 
@@ -1551,10 +1551,10 @@ describe("the tools a session is served", () => {
   });
 
   it("says who a message is from by the secret it came over, whatever the arguments claim", async () => {
-    const before_ = heardIn(superman.log).length;
+    const before_ = heardIn(martin.log).length;
     const said_ = await tool(paul.secret, "message", { to: LEADER, text: "hello", from: LEADER });
     assert.equal(said_.refused, false, said_.text);
-    const heard = await told(superman.log, before_ + 1);
+    const heard = await told(martin.log, before_ + 1);
     assert.equal(heard.at(-1), `<message from="${WORKER}">hello</message>`);
   });
 
@@ -1565,7 +1565,7 @@ describe("the tools a session is served", () => {
     const began = Date.now();
     const before_ = panel(instance, WORKER).length;
     const heard = heardIn(paul.log).length;
-    const said_ = await tool(superman.secret, "message", { to: WORKER, text: "ping" });
+    const said_ = await tool(martin.secret, "message", { to: WORKER, text: "ping" });
     assert.equal(said_.refused, false, said_.text);
     assert.equal(said_.text, `sent to ${WORKER}`);
     assert.ok(Date.now() - began < 300, "it waited for the turn");
@@ -1589,11 +1589,11 @@ describe("the tools a session is served", () => {
   });
 
   it("refuses a message to nobody, and delivers nothing to anybody", async () => {
-    const before_ = [heardIn(superman.log).length, heardIn(paul.log).length];
+    const before_ = [heardIn(martin.log).length, heardIn(paul.log).length];
     const said_ = await tool(paul.secret, "message", { to: "Nobody", text: "hello" });
     assert.equal(said_.refused, true);
     assert.equal(said_.text, "nobody called Nobody works here");
-    assert.deepEqual([heardIn(superman.log).length, heardIn(paul.log).length], before_);
+    assert.deepEqual([heardIn(martin.log).length, heardIn(paul.log).length], before_);
   });
 
   it("records a message nobody could take as not sent, on the caller's panel only", async () => {
@@ -1649,7 +1649,7 @@ describe("the tools a session is served", () => {
   it("never starts a seat for a message: no process is a refusal", async () => {
     othersRows = panel(instance, OTHER).length;
     const logsBefore = fs.readdirSync(standIn).length;
-    const said_ = await tool(superman.secret, "message", { to: OTHER, text: "wake up" });
+    const said_ = await tool(martin.secret, "message", { to: OTHER, text: "wake up" });
     assert.equal(said_.refused, true);
     assert.equal(said_.text, `${OTHER} has no process`);
     assert.equal(running(OTHER), false);
@@ -1664,7 +1664,7 @@ describe("the tools a session is served", () => {
 
   it("says on the addressee's panel when its process ended before answering; the call itself went", async () => {
     await seatUp(OTHER, { OPENOVAI_STAND_IN_DIES: "1" });
-    const said_ = await tool(superman.secret, "message", { to: OTHER, text: "go" });
+    const said_ = await tool(martin.secret, "message", { to: OTHER, text: "go" });
     assert.equal(said_.refused, false, said_.text);
     assert.equal(said_.text, `sent to ${OTHER}`);
     await waitFor(() => (panel(instance, OTHER).at(-1)?.failed === true ? true : null));
@@ -1680,7 +1680,7 @@ describe("the tools a session is served", () => {
       if (running(OTHER)) await endSeat(OTHER, 500);
       await seatUp(OTHER, environment);
       const rows = panel(instance, OTHER).length;
-      const said_ = await tool(superman.secret, "message", { to: OTHER, text: "anything?" });
+      const said_ = await tool(martin.secret, "message", { to: OTHER, text: "anything?" });
       assert.equal(said_.refused, false, said_.text);
       await waitFor(() => (panel(instance, OTHER).slice(rows).some(ended) ? true : null));
       await new Promise((resolve) => setTimeout(resolve, 300));
@@ -1699,7 +1699,7 @@ describe("the tools a session is served", () => {
     const slow = await seatUp(OTHER, { OPENOVAI_STAND_IN_SLOW: "2000" });
     const rows = panel(instance, OTHER).length;
     for (const text of ["first", "second", "third"]) {
-      const said_ = await tool(superman.secret, "message", { to: OTHER, text });
+      const said_ = await tool(martin.secret, "message", { to: OTHER, text });
       assert.equal(said_.refused, false, said_.text);
     }
     await waitFor(() => (queuesHeardIn(slow.log).length >= 2 ? true : null));
@@ -1714,10 +1714,10 @@ describe("the tools a session is served", () => {
   // The Leader's turn asks Paul something and Paul, before answering, messages the Leader: with
   // nobody's turn held for anybody's, the message is simply the Leader's next turn.
   it("takes a message from the one it is itself messaging: nobody waits, so nothing can wait for itself", async () => {
-    const before_ = heardIn(superman.log).length;
+    const before_ = heardIn(martin.log).length;
     const said_ = await tool(paul.secret, "message", { to: LEADER, text: "one thing first" });
     assert.equal(said_.refused, false, said_.text);
-    const heard = await told(superman.log, before_ + 1);
+    const heard = await told(martin.log, before_ + 1);
     assert.equal(heard.at(-1), `<message from="${WORKER}">one thing first</message>`);
   });
 
@@ -1746,11 +1746,11 @@ describe("the tools a session is served", () => {
     };
     chat.plugins = [plugin];
     try {
-      assert.deepEqual(await listed(superman.secret), [...BUILT_IN.filter((name) => name !== "done"), "weather"]);
+      assert.deepEqual(await listed(martin.secret), [...BUILT_IN.filter((name) => name !== "done"), "weather"]);
       const said_ = await tool(paul.secret, "weather", { where: "Oslo" });
       assert.equal(said_.text, "sunny in Oslo");
       assert.deepEqual(seen, [{ args: { where: "Oslo" }, caller: { seat: WORKER, role: WORKS, root: instance, config: chat.config } }]);
-      const fromLeader = await tool(superman.secret, "weather", { where: "Rome" });
+      const fromLeader = await tool(martin.secret, "weather", { where: "Rome" });
       assert.equal(fromLeader.text, "sunny in Rome");
       assert.equal(seen.at(-1).caller.role, LEADS);
     } finally {
@@ -1822,13 +1822,13 @@ describe("the tools a session is served", () => {
 // server event on its next turn. Told, not asked; nothing waits on it; the addressee's delivery is
 // what it was. A message to or from the Leader is heard already and gets nothing more.
 describe("what one Worker says to another", () => {
-  let superman;
+  let martin;
   let paul;
   let sam;
 
   before(async () => {
     remove(panelFile(instance, LEADER), panelFile(instance, WORKER), panelFile(instance, OTHER));
-    superman = await seatUp(LEADER, { OPENOVAI_STAND_IN_REPLY: "heard" });
+    martin = await seatUp(LEADER, { OPENOVAI_STAND_IN_REPLY: "heard" });
     paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_REPLY: "on it" });
     sam = await seatUp(OTHER, { OPENOVAI_STAND_IN_REPLY: "got it" });
   });
@@ -1842,7 +1842,7 @@ describe("what one Worker says to another", () => {
     assert.equal(said_.refused, false, said_.text);
     assert.equal(said_.text, `sent to ${OTHER}`);
     assert.deepEqual(await told(sam.log, 1), [`<message from="${WORKER}">the fixture is yours</message>`]);
-    assert.deepEqual(await told(superman.log, 1), [`<server-event type="overheard" from="${WORKER}" to="${OTHER}">the fixture is yours</server-event>`]);
+    assert.deepEqual(await told(martin.log, 1), [`<server-event type="overheard" from="${WORKER}" to="${OTHER}">the fixture is yours</server-event>`]);
   });
 
   it("lands on the Leader's panel as a row from the sender to the addressee, under the id both ends carry", async () => {
@@ -1857,12 +1857,12 @@ describe("what one Worker says to another", () => {
   });
 
   it("hears nothing more for a message to or from the Leader", async () => {
-    const heard = heardIn(superman.log).length;
+    const heard = heardIn(martin.log).length;
     const rows = panel(instance, LEADER).length;
-    assert.equal((await tool(superman.secret, "message", { to: WORKER, text: "ping" })).text, `sent to ${WORKER}`);
+    assert.equal((await tool(martin.secret, "message", { to: WORKER, text: "ping" })).text, `sent to ${WORKER}`);
     assert.equal((await tool(paul.secret, "message", { to: LEADER, text: "a question" })).text, `sent to ${LEADER}`);
     await waitFor(() => (panel(instance, LEADER).length >= rows + 3 ? true : null));
-    assert.deepEqual(heardIn(superman.log).slice(heard), [`<message from="${WORKER}">a question</message>`]);
+    assert.deepEqual(heardIn(martin.log).slice(heard), [`<message from="${WORKER}">a question</message>`]);
     assert.deepEqual(
       panel(instance, LEADER).slice(rows).map((row) => [row.from, row.to, row.overheard, row.outcome]),
       [[LEADER, WORKER, undefined, "sent"], [WORKER, LEADER, undefined, undefined], [LEADER, undefined, undefined, undefined]],
@@ -1873,13 +1873,13 @@ describe("what one Worker says to another", () => {
 // ---------------------------------------------------------------------------------------------
 
 describe("what the User types", () => {
-  let superman;
+  let martin;
   let paul;
 
   before(async () => {
     // Panels are files, and the describes above wrote on them: these checks read rows by position.
     remove(panelFile(instance, LEADER), panelFile(instance, WORKER));
-    superman = await seatUp(LEADER, { OPENOVAI_STAND_IN_REPLY: "noted" });
+    martin = await seatUp(LEADER, { OPENOVAI_STAND_IN_REPLY: "noted" });
     paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_REPLY: "on it" });
   });
 
@@ -1892,7 +1892,7 @@ describe("what the User types", () => {
     assert.equal(answered.status, 200);
     assert.deepEqual(JSON.parse(answered.body), { delivered: true, leaderTold: true });
     assert.deepEqual(await told(paul.log, 1), ["<user>go</user>"]);
-    assert.deepEqual(await told(superman.log, 1), [`<server-event type="user-typed" who="${WORKER}">go</server-event>`]);
+    assert.deepEqual(await told(martin.log, 1), [`<server-event type="user-typed" who="${WORKER}">go</server-event>`]);
   });
 
   it("lands on the seat's panel as the User's row, with the reply under it", async () => {
@@ -1927,7 +1927,7 @@ describe("what the User types", () => {
     // Once the reply is on the panel the turn is over, and whatever else the Leader was going to
     // be told about this would be in its log by now.
     await waitFor(() => (panel(instance, LEADER).length >= rows + 2 ? true : null));
-    assert.deepEqual(heardIn(superman.log), [`<server-event type="user-typed" who="${WORKER}">go</server-event>`, "<user>how is it going</user>"]);
+    assert.deepEqual(heardIn(martin.log), [`<server-event type="user-typed" who="${WORKER}">go</server-event>`, "<user>how is it going</user>"]);
     assert.deepEqual(panel(instance, LEADER).slice(rows).map((row) => [row.from, row.typedTo, row.text]), [["user", undefined, "how is it going"], [LEADER, undefined, "noted"]]);
     assert.deepEqual(heardIn(paul.log), ["<user>go</user>"]);
   });
@@ -1945,10 +1945,10 @@ describe("what the User types", () => {
     const asked = before.findLast((row) => row.from === "user" && alone(row));
     assert.ok(noted !== undefined && asked !== undefined, "no reply and no line of the User's with a time of its own on the panel");
     const text = `${refTo(noted.at)} good. ${refTo(asked.at)} (ref/00:00:00/001) nothing`;
-    const queues = queuesHeardIn(superman.log).length;
+    const queues = queuesHeardIn(martin.log).length;
     await page("POST", `/sessions/${LEADER}/message`, { text });
-    await waitFor(() => (queuesHeardIn(superman.log).length > queues ? true : null));
-    const heard = queuesHeardIn(superman.log).at(-1);
+    await waitFor(() => (queuesHeardIn(martin.log).length > queues ? true : null));
+    const heard = queuesHeardIn(martin.log).at(-1);
     const clock = (row) => /^\(ref\/(.+)\)$/.exec(refTo(row.at))[1];
     const ref = (row, from) => `<ref to="${clock(row)}" from="${from}" at="${localAt(row.at).replace(".", "\\.")}">${row.text}</ref>`;
     assert.match(heard, new RegExp(`<user at="\\d\\d:\\d\\d">\\(ref/${clock(noted)}\\) good\\. \\(ref/${clock(asked)}\\) \\(ref/00:00:00/001\\) nothing\\n    ${ref(noted, LEADER)}\\n    ${ref(asked, USER)}\\n  </user>`));
@@ -1963,10 +1963,10 @@ describe("what the User types", () => {
     const onIt = before.findLast((row) => row.from === WORKER);
     const go = before.findLast((row) => row.from === "user");
     const text = `${refTo(onIt.at)} and ${refTo(go.at)}`;
-    const queues = queuesHeardIn(superman.log).length;
+    const queues = queuesHeardIn(martin.log).length;
     await page("POST", `/sessions/${WORKER}/message`, { text });
-    await waitFor(() => (queuesHeardIn(superman.log).length > queues ? true : null));
-    const heard = queuesHeardIn(superman.log).at(-1);
+    await waitFor(() => (queuesHeardIn(martin.log).length > queues ? true : null));
+    const heard = queuesHeardIn(martin.log).at(-1);
     const clock = (row) => /^\(ref\/(.+)\)$/.exec(refTo(row.at))[1];
     const ref = (row, from) => `<ref to="${clock(row)}" from="${from}" at="${localAt(row.at).replace(".", "\\.")}">${row.text}</ref>`;
     assert.match(heard, new RegExp(`<server-event type="user-typed" who="${WORKER}"[^>]*>\\(ref/${clock(onIt)}\\) and \\(ref/${clock(go)}\\)\\n    ${ref(onIt, WORKER)}\\n    ${ref(go, USER)}\\n  </server-event>`));
@@ -2041,7 +2041,7 @@ describe("what the User types", () => {
     const argv = callsIn(spawned.log)[0];
     assert.ok(!/--resume|--continue/.test(argv), argv);
     assert.deepEqual([panel(instance, LEADER)[rows].from, panel(instance, LEADER)[rows].typedTo], ["user", WORKER], "the typed line is not the first row after the Leader's last");
-    superman = spawned;
+    martin = spawned;
   });
 
   it("says when the seat itself has no process, on the panel too", async () => {
@@ -2127,7 +2127,7 @@ async function until(client, predicate) {
 // made, marked once the call's result comes back as an error; nothing for a call the summary
 // says nothing about, nothing for a subagent's call, and never anything for the Leader's own.
 describe("what a Worker's calls draw", () => {
-  let superman;
+  let martin;
   let paul;
   let client;
   const READ = { name: "Read", input: { file_path: "/srv/app/lib/chat/session.mjs" } };
@@ -2144,7 +2144,7 @@ describe("what a Worker's calls draw", () => {
   before(async () => {
     remove(panelFile(instance, LEADER), panelFile(instance, WORKER));
     logged = said.length;
-    superman = await seatUp(LEADER, { OPENOVAI_STAND_IN_REPLY: "noted", OPENOVAI_STAND_IN_CALLS: CALLS });
+    martin = await seatUp(LEADER, { OPENOVAI_STAND_IN_REPLY: "noted", OPENOVAI_STAND_IN_CALLS: CALLS });
     paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_REPLY: "on it", OPENOVAI_STAND_IN_CALLS: CALLS });
     client = await listen();
     await until(client, (event) => event.name === "asking");
@@ -2250,7 +2250,7 @@ describe("what a Worker's calls draw", () => {
 // gone from the seat with the turn. A page opened mid-turn reads it off the snapshot. A Worker's
 // seat never carries one: its calls are rows.
 describe("what the Leader is at", () => {
-  let superman;
+  let martin;
   let paul;
   let client;
   const READ = { name: "Read", input: { file_path: "/srv/app/lib/chat/session.mjs" } };
@@ -2260,7 +2260,7 @@ describe("what the Leader is at", () => {
 
   before(async () => {
     remove(panelFile(instance, LEADER), panelFile(instance, WORKER));
-    superman = await seatUp(LEADER, { OPENOVAI_STAND_IN_REPLY: "noted", OPENOVAI_STAND_IN_CALLS: CALLS, OPENOVAI_STAND_IN_SLOW: "1500" });
+    martin = await seatUp(LEADER, { OPENOVAI_STAND_IN_REPLY: "noted", OPENOVAI_STAND_IN_CALLS: CALLS, OPENOVAI_STAND_IN_SLOW: "1500" });
     paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_REPLY: "on it", OPENOVAI_STAND_IN_CALLS: CALLS });
     client = await listen();
     await until(client, (event) => event.name === "asking");
@@ -2513,12 +2513,12 @@ describe("what the page is made of", () => {
 // EventSource would read it, except that a browser sends no header — which is why the secret is
 // on the query of this one route (measured: the check below sends the bearer and is refused).
 describe("the stream", () => {
-  let superman;
+  let martin;
   let paul;
 
   before(async () => {
     remove(panelFile(instance, LEADER), panelFile(instance, WORKER), panelFile(instance, OTHER));
-    superman = await seatUp(LEADER, { OPENOVAI_STAND_IN_REPLY: "noted" });
+    martin = await seatUp(LEADER, { OPENOVAI_STAND_IN_REPLY: "noted" });
   });
 
   after(async () => {
@@ -2878,8 +2878,8 @@ describe("the chat as a process", () => {
 // again after an update. A row only; nothing is started for it.
 describe("the introduction on the Leader's panel", () => {
   const home = scratch("introduce");
-  const instance = { root: home, config: { leader: "Superman" } };
-  const introductions = () => read(home, "Superman").filter((one) => one.introduction === true);
+  const instance = { root: home, config: { leader: "Martin" } };
+  const introductions = () => read(home, "Martin").filter((one) => one.introduction === true);
 
   before(() => {
     fs.mkdirSync(path.join(home, "lib", "templates"), { recursive: true });
@@ -2912,7 +2912,7 @@ describe("the introduction on the Leader's panel", () => {
 // sessions running now with a control request over their pipe and the ones started after in their
 // arguments; a call the classifier refuses is a row on its panel.
 describe("auto mode", () => {
-  let superman = null;
+  let martin = null;
   let paul = null;
   const modesIn = (log) => fs.readFileSync(log, "utf8").split("\n").filter((line) => line.startsWith("mode: "));
   const flip = (who, on) => page("POST", "/auto", { who, on });
@@ -2934,27 +2934,27 @@ describe("auto mode", () => {
 
   it("starts a session in the mode its role's switch is in: the Workers' switch does not touch the Leader", async () => {
     assert.equal((await flip("workers", true)).status, 200);
-    superman = await seatUp(LEADER);
+    martin = await seatUp(LEADER);
     paul = await seatUp(WORKER);
-    assert.match(callsIn(superman.log).at(-1), /--permission-mode default\b/);
+    assert.match(callsIn(martin.log).at(-1), /--permission-mode default\b/);
     assert.match(callsIn(paul.log).at(-1), /--permission-mode auto\b/);
     await endEvery(500);
     await flip("workers", false);
     await flip("leader", true);
-    superman = await seatUp(LEADER);
+    martin = await seatUp(LEADER);
     paul = await seatUp(WORKER);
-    assert.match(callsIn(superman.log).at(-1), /--permission-mode auto\b/);
+    assert.match(callsIn(martin.log).at(-1), /--permission-mode auto\b/);
     assert.match(callsIn(paul.log).at(-1), /--permission-mode default\b/);
   });
 
   it("switches the running sessions of a role at once, with no restart, and leaves the other role's alone", async () => {
-    superman = await seatUp(LEADER);
+    martin = await seatUp(LEADER);
     paul = await seatUp(WORKER);
     const answered = await flip("workers", true);
     assert.deepEqual(JSON.parse(answered.body), { leader: false, workers: true });
     assert.ok(await waitFor(() => (modesIn(paul.log).length > 0 ? true : null)), "the Worker was never switched");
     assert.deepEqual(modesIn(paul.log), ["mode: auto"]);
-    assert.deepEqual(modesIn(superman.log), []);
+    assert.deepEqual(modesIn(martin.log), []);
     await flip("workers", false);
     assert.ok(await waitFor(() => (modesIn(paul.log).length > 1 ? true : null)));
     assert.deepEqual(modesIn(paul.log), ["mode: auto", "mode: default"]);
@@ -3029,7 +3029,7 @@ describe("auto mode", () => {
       { name: "Bash", input: { command: "cat creds.txt" }, error: "Permission denied", blocked: "[Credential Exploration]" },
       { name: "Bash", input: { command: "echo deny-me" }, error: "Permission denied", blocked: "rule", blockedBy: "rule" },
     ]]);
-    superman = await seatUp(LEADER, { OPENOVAI_STAND_IN_REPLY: "ok", OPENOVAI_STAND_IN_CALLS: calls });
+    martin = await seatUp(LEADER, { OPENOVAI_STAND_IN_REPLY: "ok", OPENOVAI_STAND_IN_CALLS: calls });
     const from = panel(instance, LEADER).length;
     await page("POST", `/sessions/${LEADER}/message`, { text: "go" });
     assert.ok(await waitFor(() => (panel(instance, LEADER).slice(from).some((row) => row.from === LEADER && row.text === "ok") ? true : null)));

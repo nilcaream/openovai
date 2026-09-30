@@ -25,7 +25,7 @@ describe("what is minted", () => {
 
 describe("a secret issued for a seat", () => {
   const paul = issue("Paul", "Worker");
-  const leader = issue("Superman", "Leader");
+  const leader = issue("Martin", "Leader");
 
   it("is minted, not chosen", () => {
     assert.match(paul, BASE64URL);
@@ -34,7 +34,7 @@ describe("a secret issued for a seat", () => {
 
   it("resolves to the seat and the role it was issued for", () => {
     assert.deepEqual(resolve(paul), { seat: "Paul", role: "Worker" });
-    assert.deepEqual(resolve(leader), { seat: "Superman", role: "Leader" });
+    assert.deepEqual(resolve(leader), { seat: "Martin", role: "Leader" });
   });
 
   it("resolves to nothing once revoked", () => {

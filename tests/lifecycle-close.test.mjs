@@ -32,7 +32,7 @@ const DESK_THEN_MORE = {
 };
 
 describe("close", () => {
-  let superman = null;
+  let martin = null;
   let paul = null;
 
   after(async () => {
@@ -40,7 +40,7 @@ describe("close", () => {
   });
 
   it("completes when the turn that wrote the desk is over, after everything that turn did", async () => {
-    ({ superman, paul } = await pair(DESK_THEN_MORE));
+    ({ martin, paul } = await pair(DESK_THEN_MORE));
     const from = said.length;
     await close(chat, WORKER, "stop");
     assert.ok(await gone(WORKER), `${WORKER} was not closed`);
@@ -52,7 +52,7 @@ describe("close", () => {
   });
 
   it("to restart, hands the seat to a successor that starts on the desk", async () => {
-    ({ superman, paul } = await pair(writesDesk('type="closing"')));
+    ({ martin, paul } = await pair(writesDesk('type="closing"')));
     const before_ = recordOf(WORKER);
     const successor = await spawnedBy(WORKER, async () => {
       await close(chat, WORKER, "restart");
@@ -62,11 +62,11 @@ describe("close", () => {
     assert.ok(said.includes(`stopped ${WORKER} - restart`), said.slice(-8).join("\n"));
     assert.equal(deskTitle(instance, WORKER), "a desk by the stand-in");
     // The Leader hears the restart as its outcome, once the successor has started.
-    assert.ok(await waitFor(() => (heardIn(superman.log).includes(`<server-event type="stopped" who="${WORKER}" why="restart"/>`) ? true : null)), heardIn(superman.log).join("\n"));
+    assert.ok(await waitFor(() => (heardIn(martin.log).includes(`<server-event type="stopped" who="${WORKER}" why="restart"/>`) ? true : null)), heardIn(martin.log).join("\n"));
   });
 
   it("never joins a turn under way: a line typed after it waits with it, and the close is what that turn asks", async () => {
-    ({ superman, paul } = await pair({ OPENOVAI_STAND_IN_CALLS: JSON.stringify([[{ name: "Bash", input: { command: "make" } }]]), OPENOVAI_STAND_IN_CALL_HOLDS: "600" }));
+    ({ martin, paul } = await pair({ OPENOVAI_STAND_IN_CALLS: JSON.stringify([[{ name: "Bash", input: { command: "make" } }]]), OPENOVAI_STAND_IN_CALL_HOLDS: "600" }));
     const busy = tell(WORKER, userFrame("busy"));
     assert.ok(await waitFor(() => (recordOf(WORKER)?.open.size > 0 ? true : null)), "the call never went out");
     const from = said.length;
@@ -82,68 +82,68 @@ describe("close", () => {
   });
 
   it("holds through a message, and completes at the later turn that writes the desk", async () => {
-    ({ superman, paul } = await pair(writesDesk("wrap up")));
+    ({ martin, paul } = await pair(writesDesk("wrap up")));
     await close(chat, WORKER, "stop");
     await told(paul.log, 1);
     await settle();
     assert.equal(recordOf(WORKER).askedWhy, "close:stop");
     assert.equal(running(WORKER), true, "closed with no desk written");
     const from = said.length;
-    await asked(superman.secret, WORKER, "wrap up");
+    await asked(martin.secret, WORKER, "wrap up");
     assert.ok(await gone(WORKER), `${WORKER} was not closed once its desk was written`);
     assert.ok(said.slice(from).includes(`stopped ${WORKER} - stop`), said.slice(from).join("\n"));
   });
 
   it("completes at once, the desk as it was, when the turn that reads it dies at the service", async () => {
-    ({ superman, paul } = await pair({ OPENOVAI_STAND_IN_FAILS: "[false, true]" }));
-    await asked(superman.secret, WORKER, "go");
-    await asked(superman.secret, WORKER, "again");
-    assert.ok(await waitFor(() => (heardIn(superman.log).some((frame) => frame.startsWith('<server-event type="died"')) ? true : null)), heardIn(superman.log).join("\n"));
+    ({ martin, paul } = await pair({ OPENOVAI_STAND_IN_FAILS: "[false, true]" }));
+    await asked(martin.secret, WORKER, "go");
+    await asked(martin.secret, WORKER, "again");
+    assert.ok(await waitFor(() => (heardIn(martin.log).some((frame) => frame.startsWith('<server-event type="died"')) ? true : null)), heardIn(martin.log).join("\n"));
     const from = said.length;
     await close(chat, WORKER, "stop");
     assert.ok(await gone(WORKER), `${WORKER} was left running on a close whose turn died`);
     assert.ok(said.slice(from).includes(`stopped ${WORKER} - stop`), said.slice(from).join("\n"));
-    assert.equal(heardIn(superman.log).filter((frame) => frame.startsWith('<server-event type="died"')).length, 1, "the closing turn's death was told as a death");
+    assert.equal(heardIn(martin.log).filter((frame) => frame.startsWith('<server-event type="died"')).length, 1, "the closing turn's death was told as a death");
   });
 
   it("is not what ends a seat somebody else is ending, when its last turn dies on the way out", async () => {
-    ({ superman, paul } = await pair({ OPENOVAI_STAND_IN_FAILS: "[false, true]", OPENOVAI_STAND_IN_SLOW: "600" }));
-    await asked(superman.secret, WORKER, "go");
-    await asked(superman.secret, WORKER, "again");
-    assert.ok(await waitFor(() => (heardIn(superman.log).some((frame) => frame.startsWith('<server-event type="died"')) ? true : null)), heardIn(superman.log).join("\n"));
+    ({ martin, paul } = await pair({ OPENOVAI_STAND_IN_FAILS: "[false, true]", OPENOVAI_STAND_IN_SLOW: "600" }));
+    await asked(martin.secret, WORKER, "go");
+    await asked(martin.secret, WORKER, "again");
+    assert.ok(await waitFor(() => (heardIn(martin.log).some((frame) => frame.startsWith('<server-event type="died"')) ? true : null)), heardIn(martin.log).join("\n"));
     const from = said.length;
     await close(chat, WORKER, "stop");
     assert.ok(await waitFor(() => (recordOf(WORKER)?.askedWhy === "close:stop" && recordOf(WORKER).turn !== null ? true : null)), "the close was never read");
     await end(WORKER, 3000);
     await settle();
     assert.ok(!said.slice(from).includes(`stopped ${WORKER} - stop`), said.slice(from).join("\n"));
-    assert.ok(!heardIn(superman.log).some((frame) => frame.startsWith('<server-event type="stopped"')), heardIn(superman.log).join("\n"));
+    assert.ok(!heardIn(martin.log).some((frame) => frame.startsWith('<server-event type="stopped"')), heardIn(martin.log).join("\n"));
   });
 
   // A process that goes on its own while a close is pending has no ending of its own: the Leader,
   // told the close's outcome comes as `stopped`, is told this one, with what the process said.
   it("tells the Leader of a Worker whose process ended on its own before the close completed", async () => {
-    ({ superman, paul } = await pair({ OPENOVAI_STAND_IN_SLOW: "3000" }));
+    ({ martin, paul } = await pair({ OPENOVAI_STAND_IN_SLOW: "3000" }));
     await close(chat, WORKER, "stop");
     assert.ok(await waitFor(() => (recordOf(WORKER)?.askedWhy === "close:stop" && recordOf(WORKER).turn !== null ? true : null)), "the close was never read");
     process.kill(recordOf(WORKER).child.pid, "SIGKILL");
     assert.ok(await gone(WORKER), `${WORKER} was not gone after a kill`);
-    const stopped = () => heardIn(superman.log).filter((frame) => frame.startsWith(`<server-event type="stopped" who="${WORKER}"`));
-    assert.ok(await waitFor(() => (stopped().length > 0 ? true : null)), heardIn(superman.log).join("\n"));
+    const stopped = () => heardIn(martin.log).filter((frame) => frame.startsWith(`<server-event type="stopped" who="${WORKER}"`));
+    assert.ok(await waitFor(() => (stopped().length > 0 ? true : null)), heardIn(martin.log).join("\n"));
     assert.deepEqual(stopped(), [`<server-event type="stopped" who="${WORKER}" why="exited">${WORKER} ended before answering</server-event>`]);
   });
 
   // The outcome of a restart is its successor running; one that could not start is said so, with
   // why, and never as a restart.
   it("tells the Leader a restart failed, and why, when no successor could be started", async () => {
-    ({ superman, paul } = await pair(writesDesk('type="closing"')));
+    ({ martin, paul } = await pair(writesDesk('type="closing"')));
     const data = process.env.XDG_DATA_HOME;
     process.env.XDG_DATA_HOME = path.join(instance, "no-claude-here");
     try {
       await close(chat, WORKER, "restart");
       assert.ok(await gone(WORKER), `${WORKER} was not closed`);
-      const stopped = () => heardIn(superman.log).filter((frame) => frame.startsWith(`<server-event type="stopped" who="${WORKER}"`));
-      assert.ok(await waitFor(() => (stopped().length > 0 ? true : null)), heardIn(superman.log).join("\n"));
+      const stopped = () => heardIn(martin.log).filter((frame) => frame.startsWith(`<server-event type="stopped" who="${WORKER}"`));
+      assert.ok(await waitFor(() => (stopped().length > 0 ? true : null)), heardIn(martin.log).join("\n"));
       assert.equal(stopped().length, 1, stopped().join("\n"));
       assert.match(stopped()[0], new RegExp(`^<server-event type="stopped" who="${WORKER}" why="restart-failed">Claude Code \\d+\\.\\d+\\.\\d+ is not at `));
       assert.equal(running(WORKER), false);
@@ -153,7 +153,7 @@ describe("close", () => {
   });
 
   it("has a deadline that runs from the turn that read it and waits for a turn to end", async () => {
-    ({ superman, paul } = await pair({ OPENOVAI_STAND_IN_ASKS: "Bash", OPENOVAI_STAND_IN_WAITS: "1500" }));
+    ({ martin, paul } = await pair({ OPENOVAI_STAND_IN_ASKS: "Bash", OPENOVAI_STAND_IN_WAITS: "1500" }));
     const busy = tell(WORKER, userFrame("busy"));
     await told(paul.log, 1);
     const ordered = now;

@@ -23,7 +23,7 @@ import { CONFIG_FILE } from "../lib/seed.mjs";
 import { heardIn, installed, notesIn, pageCookie, post as postPlain, remove, repo, sansMoment, scratch, secretsIn, source, waitFor, writeStandIn } from "./helpers.mjs";
 
 export const USER = "Mike";
-export const LEADER = "Superman";
+export const LEADER = "Martin";
 export const WORKER = "Paul";
 export const OTHER = "Ann";
 export const LEADER_MODEL = "opus";
@@ -299,9 +299,9 @@ export function settle(ms = 200) {
 export async function pair(paulKnobs = {}, leaderKnobs = {}) {
   await endEvery(500);
   quota.forget();
-  const superman = await seatUp(LEADER, leaderKnobs);
+  const martin = await seatUp(LEADER, leaderKnobs);
   const paul = await seatUp(WORKER, paulKnobs);
-  return { superman, paul };
+  return { martin, paul };
 }
 
 // A turn for a seat, so its idle clock starts now.

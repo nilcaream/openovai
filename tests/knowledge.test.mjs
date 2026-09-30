@@ -293,7 +293,7 @@ describe("validate", () => {
 // validated with the rest — and what is special is only that every session is handed it.
 describe("the common note in a persona", () => {
   const home = scratch("knowledge-persona");
-  const names = { user: "Mike", leader: "Superman" };
+  const names = { user: "Mike", leader: "Martin" };
 
   before(() => {
     fs.mkdirSync(path.join(home, "lib", "templates"), { recursive: true });
@@ -336,8 +336,8 @@ describe("what a session is told about knowledge", () => {
 
   // Both roles are told it in the common frame, which the persona puts before the role's own.
   it("tells both roles where knowledge is, to call index first, and to validate what they wrote", () => {
-    for (const [role, name] of [["leader", "Superman"], ["worker", "Paul"]]) {
-      const text = persona(repo, name, { user: "Mike", leader: "Superman" });
+    for (const [role, name] of [["leader", "Martin"], ["worker", "Paul"]]) {
+      const text = persona(repo, name, { user: "Mike", leader: "Martin" });
       assert.match(text, /The workspace's knowledge is `knowledge\/`: Markdown notes, one topic per file, facts only\./, role);
       assert.match(text, /Before you search or write, call\n`index\(\)` for the tags in use/, role);
       assert.match(text, /Then call `validate` and fix what it\nreports before you go on\./, role);
@@ -346,8 +346,8 @@ describe("what a session is told about knowledge", () => {
   });
 
   it("tells both roles a note never sends its reader to a desk or into the archive", () => {
-    for (const [role, name] of [["leader", "Superman"], ["worker", "Paul"]]) {
-      const text = persona(repo, name, { user: "Mike", leader: "Superman" });
+    for (const [role, name] of [["leader", "Martin"], ["worker", "Paul"]]) {
+      const text = persona(repo, name, { user: "Mike", leader: "Martin" });
       assert.match(text, /A note never sends its reader to a desk or into `archive\/`, and never names either in `sources`: a\ndesk is filed away when its seat retires, and what is filed away is history\. What a note needs\nfrom a desk is copied into the note, or under `knowledge\/files\/`\./, role);
     }
   });

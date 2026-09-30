@@ -77,11 +77,11 @@ describe("a call stop", () => {
 });
 
 describe("a rule request", () => {
-  const rule = dialogOf({ id: "q1", kind: "rule", rule: "Bash(git push:*)", why: "the User asked to push without asking", from: "Superman" }, "Superman");
+  const rule = dialogOf({ id: "q1", kind: "rule", rule: "Bash(git push:*)", why: "the User asked to push without asking", from: "Martin" }, "Martin");
 
   it("heads a rule request with who asks", () => {
     assert.equal(rule.kind, "rule");
-    assert.equal(rule.heading, "Superman asks you to settle a rule");
+    assert.equal(rule.heading, "Martin asks you to settle a rule");
   });
 
   it("shows the rule", () => {

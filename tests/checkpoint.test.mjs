@@ -18,7 +18,7 @@ import { CONFIG_FILE } from "../lib/seed.mjs";
 import { heardIn, installed, notesIn, post as postPlain, remove, repo, sansMoment, scratch, secretsIn, source, waitFor, writeStandIn } from "./helpers.mjs";
 
 const USER = "Mike";
-const LEADER = "Superman";
+const LEADER = "Martin";
 const WORKER = "Paul";
 
 const base = scratch("checkpoint-test");

@@ -41,7 +41,7 @@ describe("the row a held frame gets", () => {
 describe("the quota gate", () => {
   // A window about to reset: close enough that jumping the clock past it wakes no idle clock.
   const RESETS = () => now + 5 * MINUTE;
-  let superman = null;
+  let martin = null;
   let paul = null;
 
   function readings(...perTurn) {
@@ -60,7 +60,7 @@ describe("the quota gate", () => {
   async function fresh(paulKnobs, leaderKnobs = {}) {
     await endEvery(500);
     quota.forget();
-    superman = await seatUp(LEADER, leaderKnobs);
+    martin = await seatUp(LEADER, leaderKnobs);
     paul = await seatUp(WORKER, paulKnobs);
   }
 
@@ -70,7 +70,7 @@ describe("the quota gate", () => {
   async function closedAtTheReset() {
     assert.ok(await gone(WORKER), `${WORKER} was not closed at its deadline`);
     const stopped = `<server-event type="stopped" who="${WORKER}" why="quota"/>`;
-    assert.ok(await waitFor(() => (heardIn(superman.log).includes(stopped) ? true : null)), heardIn(superman.log).join("\n"));
+    assert.ok(await waitFor(() => (heardIn(martin.log).includes(stopped) ? true : null)), heardIn(martin.log).join("\n"));
   }
 
   it("keeps the newest reading per window from one turn, and stage one tells every seat, behind its queue, nobody interrupted", async () => {
@@ -85,9 +85,9 @@ describe("the quota gate", () => {
     const queues = queuesHeardIn(paul.log);
     assert.equal(queues.length, 2, heardIn(paul.log).join("\n"));
     assert.deepEqual(childrenOf(queues[1]), ["<user>queued</user>", warning]);
-    assert.deepEqual(await told(superman.log, 1), [warning]);
+    assert.deepEqual(await told(martin.log, 1), [warning]);
     assert.ok(!notesIn(paul.log).some(([label]) => label === "interrupt"));
-    assert.ok(!notesIn(superman.log).some(([label]) => label === "interrupt"));
+    assert.ok(!notesIn(martin.log).some(([label]) => label === "interrupt"));
   });
 
   // What the gate learned, written where it learned it: the stage was told to the seats and never
@@ -121,11 +121,11 @@ describe("the quota gate", () => {
     const labels = notesIn(paul.log).map(([label]) => label);
     assert.ok(labels.indexOf("interrupt") < labels.lastIndexOf("heard"), labels.join(","));
     assert.ok(labels.includes("interrupted"));
-    const toLeader = await told(superman.log, 1);
+    const toLeader = await told(martin.log, 1);
     assert.equal(toLeader.length, 1);
     assert.match(toLeader[0], /^<server-event type="quota-low" stage="critical" window="5h" resets="[^"]+">/);
     assert.ok(!toLeader[0].includes("interrupted="));
-    assert.ok(!notesIn(superman.log).some(([label]) => label === "interrupt"));
+    assert.ok(!notesIn(martin.log).some(([label]) => label === "interrupt"));
   });
 
   it("passes a page message at stage one, holds it at stage two, and writes it once the window has reset", async () => {
@@ -134,16 +134,16 @@ describe("the quota gate", () => {
     await tell(WORKER, userFrame("one")).answered;
     const passed = await page("POST", `/sessions/${LEADER}/message`, { text: "at one" });
     assert.deepEqual(JSON.parse(passed.body), { delivered: true });
-    assert.equal((await told(superman.log, 2)).at(-1), "<user>at one</user>");
+    assert.equal((await told(martin.log, 2)).at(-1), "<user>at one</user>");
     await tell(WORKER, userFrame("two")).answered;
     const held = await page("POST", `/sessions/${LEADER}/message`, { text: "at two" });
     assert.deepEqual(JSON.parse(held.body), { delivered: false, held: { window: "5h", resets: new Date(resets).toISOString() } });
     await new Promise((resolve) => setTimeout(resolve, 200));
-    assert.equal(heardIn(superman.log).filter((frame) => frame === "<user>at two</user>").length, 0);
+    assert.equal(heardIn(martin.log).filter((frame) => frame === "<user>at two</user>").length, 0);
     assert.deepEqual(panel(instance, LEADER).at(-1).text, `Limit exhausted (5-hour window), reset at ${quota.hhmm(resets)}, your message is waiting`);
     now = resets + 1;
     tick(chat);
-    assert.equal((await told(superman.log, 4)).at(-1), "<user>at two</user>");
+    assert.equal((await told(martin.log, 4)).at(-1), "<user>at two</user>");
     // The reply is waited for on the panel, not read off the moment the run logged the frame: the
     // log and the pipe are two channels, and the run on its own core can note "heard" before the
     // result it wrote right after has been read here.
@@ -156,14 +156,14 @@ describe("the quota gate", () => {
     const resets = RESETS();
     await fresh(readings(reading(0.91, { resets })));
     await tell(WORKER, userFrame("one")).answered;
-    assert.deepEqual(await tool(superman.secret, "hire", { name: OTHER }), {
+    assert.deepEqual(await tool(martin.secret, "hire", { name: OTHER }), {
       text: `held: quota (5h resets ${new Date(resets).toISOString()})`,
       refused: true,
       error: null,
     });
     assert.equal(running(OTHER), false);
     now = resets + 1;
-    const ann = await spawnedBy(OTHER, () => tool(superman.secret, "hire", { name: OTHER }));
+    const ann = await spawnedBy(OTHER, () => tool(martin.secret, "hire", { name: OTHER }));
     assert.equal(ann.result.refused, false);
     await end(OTHER, 500);
   });
@@ -177,7 +177,7 @@ describe("the quota gate", () => {
     assert.equal(JSON.parse(held.body).held.window, "5h");
     now = resets + 1;
     tick(chat);
-    assert.equal((await told(superman.log, 2)).at(-1), "<user>rejected</user>");
+    assert.equal((await told(martin.log, 2)).at(-1), "<user>rejected</user>");
     await closedAtTheReset();
   });
 
@@ -186,9 +186,9 @@ describe("the quota gate", () => {
     const week = new Date(now + 3 * 24 * 60 * MINUTE).toISOString();
     await fresh({ OPENOVAI_STAND_IN_SLOW: "400", ...readings(reading(0.5, { sevenDay: 0.91 }), reading(0.5, { sevenDay: 0.98 }), reading(0.5, { sevenDay: 0.99 })) });
     await tell(WORKER, userFrame("one")).answered;
-    assert.deepEqual(heardIn(superman.log), []);
+    assert.deepEqual(heardIn(martin.log), []);
     await tell(WORKER, userFrame("two")).answered;
-    assert.deepEqual(await told(superman.log, 1), [`<server-event type="quota-low" stage="warning" window="7d" resets="${week}"/>`]);
+    assert.deepEqual(await told(martin.log, 1), [`<server-event type="quota-low" stage="warning" window="7d" resets="${week}"/>`]);
     const third = tell(WORKER, userFrame("three"));
     assert.deepEqual(await third.answered, { interrupted: true, text: "interrupted" });
     const frames = await told(paul.log, 5);
@@ -202,11 +202,11 @@ describe("the quota gate", () => {
     await tell(WORKER, userFrame("one")).answered;
     await tell(WORKER, userFrame("two")).answered;
     await new Promise((resolve) => setTimeout(resolve, 200));
-    assert.equal(heardIn(superman.log).filter((frame) => frame.includes('stage="warning"')).length, 1);
+    assert.equal(heardIn(martin.log).filter((frame) => frame.includes('stage="warning"')).length, 1);
     now = resets + 1;
     await tell(WORKER, userFrame("three")).answered;
-    await told(superman.log, 2);
-    assert.equal(heardIn(superman.log).filter((frame) => frame.includes('stage="warning"')).length, 2);
+    await told(martin.log, 2);
+    assert.equal(heardIn(martin.log).filter((frame) => frame.includes('stage="warning"')).length, 2);
   });
 
   it("releases held frames the Leader's first, then the Workers', each in arrival order", async () => {
@@ -234,7 +234,7 @@ describe("the quota gate", () => {
       said.slice(before_).filter((line) => line.startsWith("released ") && line.endsWith(" - user")),
       [`released ${LEADER} - user`, `released ${WORKER} - user`, `released ${OTHER} - user`],
     );
-    assert.ok((await told(superman.log, 3)).includes("<user>to the leader</user>"));
+    assert.ok((await told(martin.log, 3)).includes("<user>to the leader</user>"));
     assert.equal((await told(paul.log, 2)).at(-1), "<user>to paul</user>");
     assert.equal((await told(ann.log, 1)).at(-1), "<user>to ann</user>");
     assert.deepEqual(typedRows(), [true, true, true], "a released row is not marked delivered");
@@ -265,13 +265,13 @@ describe("the quota gate", () => {
     const woke = () => panel(instance, LEADER).findLast((row) => row.text === "wake up").delivered;
     assert.equal(woke(), undefined, "a row held before the spawn reads delivered");
     now = resets + 1;
-    superman = await spawnedBy(LEADER, async () => {
+    martin = await spawnedBy(LEADER, async () => {
       tick(chat);
       await waitFor(() => (running(LEADER) ? true : null));
     });
-    assert.equal(callsIn(superman.log).length, 1);
+    assert.equal(callsIn(martin.log).length, 1);
     // The Worker's close for the spent window ended at its deadline meanwhile, and that is told too.
-    assert.equal((await told(superman.log, 1))[0], "<user>wake up</user>");
+    assert.equal((await told(martin.log, 1))[0], "<user>wake up</user>");
     assert.equal(woke(), true, "the row is not marked delivered once the spawn took its frame");
   });
 
@@ -283,11 +283,11 @@ describe("the quota gate", () => {
     await tell(WORKER, userFrame("one")).answered;
     await end(LEADER, 500);
     now = resets + 1;
-    superman = await spawnedBy(LEADER, async () => {
+    martin = await spawnedBy(LEADER, async () => {
       tick(chat);
       await waitFor(() => (running(LEADER) ? true : null));
     });
-    assert.deepEqual(await told(superman.log, 1), ['<server-event type="quota-reset" window="5h"/>']);
+    assert.deepEqual(await told(martin.log, 1), ['<server-event type="quota-reset" window="5h"/>']);
   });
 
   it("a park forgets the resets to come: the parked room's Leader is not started at the reset", async () => {
@@ -305,7 +305,7 @@ describe("the quota gate", () => {
   it("holds at the write what was queued behind a turn before the window closed, and releases it in arrival order", async () => {
     const resets = RESETS();
     await fresh({ OPENOVAI_STAND_IN_SLOW: "1500", ...readings(reading(0.96, { resets })) }, { OPENOVAI_STAND_IN_SLOW: "1500" });
-    const ann = await spawnedBy(OTHER, () => tool(superman.secret, "hire", { name: OTHER }));
+    const ann = await spawnedBy(OTHER, () => tool(martin.secret, "hire", { name: OTHER }));
     assert.equal(ann.result.refused, false, ann.result.text);
     const long = tell(LEADER, userFrame("long"));
     // Queued behind the Leader's turn while the window was open: the page was told it went in.
@@ -316,14 +316,14 @@ describe("the quota gate", () => {
     assert.equal(JSON.parse((await page("POST", `/sessions/${WORKER}/message`, { text: "to paul" })).body).delivered, false);
     assert.equal(JSON.parse((await page("POST", `/sessions/${OTHER}/message`, { text: "to ann" })).body).delivered, false);
     assert.equal((await long.answered).text, "a reply");
-    assert.equal((await told(superman.log, 2)).at(-1).startsWith('<server-event type="quota-low" stage="critical"'), true);
+    assert.equal((await told(martin.log, 2)).at(-1).startsWith('<server-event type="quota-low" stage="critical"'), true);
     // The Leader's critical turn over, "behind" is next — and held at the write, not written.
     // (The page's own events to the Leader about the two messages are held beside it.)
     const heldUser = (seat) => quota.held(seat).filter((entry) => entry.frame.kind === "user").length;
     assert.ok(await waitFor(() => (heldUser(LEADER) === 1 ? true : null)), "behind was not held at the write");
     assert.ok(await waitFor(() => (heldUser(WORKER) === 1 ? true : null)), "to paul was not held at the write");
     await settle();
-    assert.ok(!heardIn(superman.log).includes("<user>behind</user>"), heardIn(superman.log).join("\n"));
+    assert.ok(!heardIn(martin.log).includes("<user>behind</user>"), heardIn(martin.log).join("\n"));
     assert.ok(!heardIn(paul.log).includes("<user>to paul</user>"), heardIn(paul.log).join("\n"));
     assert.ok(!heardIn(ann.log).includes("<user>to ann</user>"), heardIn(ann.log).join("\n"));
     now = resets + 1;
@@ -337,7 +337,7 @@ describe("the quota gate", () => {
     );
     // The Leader's release is one queue in arrival order: "behind", then the page's two events;
     // the reset is told after what the window held.
-    assert.deepEqual((await told(superman.log, 3)).slice(2), [
+    assert.deepEqual((await told(martin.log, 3)).slice(2), [
       "<user>behind</user>",
       `<server-event type="user-typed" who="${WORKER}">to paul</server-event>`,
       `<server-event type="user-typed" who="${OTHER}">to ann</server-event>`,
@@ -371,7 +371,7 @@ describe("the quota gate", () => {
     assert.ok(since.findIndex((row) => row.text === "behind") < since.indexOf(lines[0]), "the line came before the row it is about");
     now = resets + 1;
     tick(chat);
-    assert.ok(await waitFor(() => (heardIn(superman.log).includes(`<message from="${WORKER}">a note</message>`) ? true : null)), heardIn(superman.log).join("\n"));
+    assert.ok(await waitFor(() => (heardIn(martin.log).includes(`<message from="${WORKER}">a note</message>`) ? true : null)), heardIn(martin.log).join("\n"));
     await closedAtTheReset();
   });
 
@@ -383,7 +383,7 @@ describe("the quota gate", () => {
     await fresh({}, { OPENOVAI_STAND_IN_SLOW: "400", ...readings(reading(0.96, { resets })), ...callsThen("restart_session", 'stage="critical"') });
     const spawns = readLog(unexpected);
     tell(LEADER, userFrame("one"));
-    assert.match((await told(superman.log, 2)).at(-1), /^<server-event type="quota-low" stage="critical"/);
+    assert.match((await told(martin.log, 2)).at(-1), /^<server-event type="quota-low" stage="critical"/);
     const carried = tell(LEADER, userFrame("carried"));
     assert.ok(await gone(LEADER), said.slice(-12).join("\n"));
     assert.equal(deskTitle(instance, LEADER), "restart_session by the stand-in");
@@ -403,7 +403,7 @@ describe("the quota gate", () => {
       await fresh({});
       // The reading below is handed over in-process once the turn is heard, so what the turn has
       // to outlast is a synchronous call.
-      const zed = await spawnedBy("Zed", () => tool(superman.secret, "hire", { name: "Zed", model: "fable" }), { OPENOVAI_STAND_IN_SLOW: "1200" });
+      const zed = await spawnedBy("Zed", () => tool(martin.secret, "hire", { name: "Zed", model: "fable" }), { OPENOVAI_STAND_IN_SLOW: "1200" });
       assert.equal(zed.result.refused, false, zed.result.text);
       assert.match(callsIn(zed.log)[0], /--model fable/);
       const busy = tell("Zed", userFrame("busy"));
@@ -414,16 +414,16 @@ describe("the quota gate", () => {
       assert.match(frames[1], /^<server-event type="closing" why="quota" window="7d-fable" resets="[^"]+" model="fable" interrupted="true" deadline="\d+">/);
       await new Promise((resolve) => setTimeout(resolve, 200));
       assert.deepEqual(heardIn(paul.log), []);
-      assert.deepEqual(heardIn(superman.log), []);
+      assert.deepEqual(heardIn(martin.log), []);
       assert.equal(JSON.parse((await page("POST", `/sessions/${LEADER}/message`, { text: "opus goes" })).body).delivered, true);
-      assert.deepEqual(await tool(superman.secret, "message", { to: "Zed", text: "fable is held" }), {
+      assert.deepEqual(await tool(martin.secret, "message", { to: "Zed", text: "fable is held" }), {
         text: `Zed has it. Limit exhausted (7-day fable window), reset at ${quota.hhmm(resets)}, your message is waiting`,
         refused: false,
         error: null,
       });
-      const bo = await spawnedBy("Bo", () => tool(superman.secret, "hire", { name: "Bo", model: "opus" }));
+      const bo = await spawnedBy("Bo", () => tool(martin.secret, "hire", { name: "Bo", model: "opus" }));
       assert.equal(bo.result.refused, false, bo.result.text);
-      assert.match((await tool(superman.secret, "hire", { name: "Cy", model: "fable" })).text, /^held: quota \(7d-fable resets /);
+      assert.match((await tool(martin.secret, "hire", { name: "Cy", model: "fable" })).text, /^held: quota \(7d-fable resets /);
       assert.equal(running("Cy"), false);
     } finally {
       await endEvery(500);

@@ -25,7 +25,7 @@ import { heardIn, installed, pageCookie, post, remove, repo, scratch, secretsIn,
 import { settingsProblems } from "./inspect.mjs";
 
 const USER = "Mike";
-const LEADER = "Superman";
+const LEADER = "Martin";
 
 const base = scratch("permissions-test");
 const instance = `${base}-instance`;

@@ -20,7 +20,7 @@ import { settingsProblems } from "./inspect.mjs";
 import { installed, remove, scratch, source } from "./helpers.mjs";
 
 const USER = "Mike";
-const LEADER = "Superman";
+const LEADER = "Martin";
 const WORKER = "Paul";
 const CHOSEN = "opus";
 

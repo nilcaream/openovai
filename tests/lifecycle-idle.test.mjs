@@ -29,7 +29,7 @@ setup("lifecycle-idle-test", () => now, { hired: [WORKER, OTHER] });
 // User's or a message still reprieves — that is the check in `idle` below, and the two rules live
 // side by side.
 describe("an advisory and a pending ask", () => {
-  let superman = null;
+  let martin = null;
   let paul = null;
 
   after(async () => {
@@ -37,7 +37,7 @@ describe("an advisory and a pending ask", () => {
   });
 
   it("a context warning behind the critical idle ask does not spare the seat", async () => {
-    ({ superman, paul } = await pair({ OPENOVAI_STAND_IN_USAGE: A_CONTEXT }));
+    ({ martin, paul } = await pair({ OPENOVAI_STAND_IN_USAGE: A_CONTEXT }));
     await awake(WORKER);
     const idleFrom = now;
     now = idleFrom + 50 * MINUTE;
@@ -59,7 +59,7 @@ describe("an advisory and a pending ask", () => {
     // The Leader is woken at 50 so that only the Worker ages to the forced ending; it has its own
     // turn and the two FYIs about the Worker behind it, so the ending is waited for, not counted.
     const stopped = `<server-event type="stopped" who="${WORKER}" why="idle-forced"/>`;
-    const frames = await toldUntil(superman.log, stopped);
+    const frames = await toldUntil(martin.log, stopped);
     assert.ok(frames.includes(stopped), frames.join("\n"));
   });
 });
@@ -67,7 +67,7 @@ describe("an advisory and a pending ask", () => {
 // The clocks are the instance's: `now` is jumped and `tick` is called by hand. The server's own
 // ticker runs on the same frozen clock, so a tick of its own in between changes nothing.
 describe("idle", () => {
-  let superman = null;
+  let martin = null;
   let paul = null;
 
   after(async () => {
@@ -75,21 +75,21 @@ describe("idle", () => {
   });
 
   it("tells the Leader at 10 and at 50, the seat at 55, and ends it at 60 with the Leader told why", async () => {
-    ({ superman, paul } = await pair({ OPENOVAI_STAND_IN_USAGE: A_CONTEXT }));
+    ({ martin, paul } = await pair({ OPENOVAI_STAND_IN_USAGE: A_CONTEXT }));
     await awake(WORKER);
     const idleFrom = now;
     now = idleFrom + 10 * MINUTE;
     tick(chat);
     tick(chat);
-    assert.deepEqual(await told(superman.log, 1), [`<server-event type="idle" who="${WORKER}" minutes="10"/>`]);
+    assert.deepEqual(await told(martin.log, 1), [`<server-event type="idle" who="${WORKER}" minutes="10"/>`]);
     await settle();
-    assert.equal(heardIn(superman.log).length, 1, "the 10-minute FYI was repeated");
+    assert.equal(heardIn(martin.log).length, 1, "the 10-minute FYI was repeated");
     now = idleFrom + 50 * MINUTE;
     tick(chat);
     tick(chat);
-    assert.equal((await told(superman.log, 2)).at(-1), `<server-event type="idle" who="${WORKER}" minutes="50" cold-in="10" context="118400"/>`);
+    assert.equal((await told(martin.log, 2)).at(-1), `<server-event type="idle" who="${WORKER}" minutes="50" cold-in="10" context="118400"/>`);
     await settle();
-    assert.equal(heardIn(superman.log).length, 2, "the 50-minute FYI was repeated");
+    assert.equal(heardIn(martin.log).length, 2, "the 50-minute FYI was repeated");
     assert.deepEqual(heardIn(paul.log), ["<user>stay awake</user>"]);
     now = idleFrom + 55 * MINUTE;
     tick(chat);
@@ -102,14 +102,14 @@ describe("idle", () => {
     tick(chat);
     assert.ok(await gone(WORKER), `${WORKER} was not ended`);
     assert.ok(await waitFor(() => !alive(pidsIn(paul.log)[0])), "the process is still alive");
-    assert.equal((await told(superman.log, 3)).at(-1), `<server-event type="stopped" who="${WORKER}" why="idle-forced"/>`);
+    assert.equal((await told(martin.log, 3)).at(-1), `<server-event type="stopped" who="${WORKER}" why="idle-forced"/>`);
     assert.ok(said.includes(`stopped ${WORKER} - idle-forced`), said.slice(-6).join("\n"));
   });
 
   it("the Leader hears a Worker's forced stop when both are ended in one tick, the Worker first", async () => {
     // The Leader does not close on its stdin, so it is still ending — taken down once patience
     // has run out — when the Worker's stop is delivered to it: the order in which the FYI was lost.
-    ({ superman, paul } = await pair({}, { OPENOVAI_STAND_IN_STUCK: "1" }));
+    ({ martin, paul } = await pair({}, { OPENOVAI_STAND_IN_STUCK: "1" }));
     await awake(WORKER);
     await awake(LEADER);
     const from = said.length;
@@ -117,7 +117,7 @@ describe("idle", () => {
     now = idleFrom + 55 * MINUTE;
     tick(chat);
     await told(paul.log, 2);
-    await told(superman.log, 2);
+    await told(martin.log, 2);
     await settle();
     now = idleFrom + (55 + IDLE_GRACE + 1) * MINUTE;
     tick(chat);
@@ -130,14 +130,14 @@ describe("idle", () => {
   });
 
   it("the stopped FYI follows a voluntary idle stop too", async () => {
-    ({ superman, paul } = await pair(writesDesk('type="closing"')));
+    ({ martin, paul } = await pair(writesDesk('type="closing"')));
     const idleFrom = now;
     now = idleFrom + 50 * MINUTE;
     await awake(LEADER);
     now = idleFrom + 55 * MINUTE;
     tick(chat);
     assert.ok(await gone(WORKER), `${WORKER} did not stop`);
-    const frames = await waitFor(() => (heardIn(superman.log).some((frame) => frame.startsWith("<server-event type=\"stopped\"")) ? heardIn(superman.log) : null));
+    const frames = await waitFor(() => (heardIn(martin.log).some((frame) => frame.startsWith("<server-event type=\"stopped\"")) ? heardIn(martin.log) : null));
     assert.ok(frames !== null, "the Leader was never told");
     assert.ok(frames.includes(`<server-event type="stopped" who="${WORKER}" why="idle"/>`), frames.join("\n"));
     assert.equal(deskTitle(instance, WORKER), "a desk by the stand-in");
@@ -150,10 +150,10 @@ describe("idle", () => {
   // A seat whose first turn dies has never worked and never will: it is ended, and the Leader
   // learns it through the event it already knows, the service's sentence as the body.
   it("tells the Leader a Worker stopped when its first turn came back an error, in the service's own words", async () => {
-    ({ superman, paul } = await pair({ OPENOVAI_STAND_IN_FAILS: "1", OPENOVAI_STAND_IN_REPLY: DEAD }));
-    const going = asked(superman.secret, WORKER, "go").catch(() => null);
+    ({ martin, paul } = await pair({ OPENOVAI_STAND_IN_FAILS: "1", OPENOVAI_STAND_IN_REPLY: DEAD }));
+    const going = asked(martin.secret, WORKER, "go").catch(() => null);
     assert.ok(await gone(WORKER), `${WORKER} was not ended`);
-    assert.deepEqual(await told(superman.log, 1), [`<server-event type="stopped" who="${WORKER}" why="first-turn-failed">${DEAD}</server-event>`]);
+    assert.deepEqual(await told(martin.log, 1), [`<server-event type="stopped" who="${WORKER}" why="first-turn-failed">${DEAD}</server-event>`]);
     assert.ok(said.includes(`died ${WORKER} - ${DEAD}`), said.slice(-6).join("\n"));
     await going;
   });
@@ -162,18 +162,18 @@ describe("idle", () => {
   // once for a run of dead turns and decides. The idle clock stays where the last answered turn
   // left it, so a seat whose turns all die still drifts to the idle ending.
   it("keeps a Worker whose later turns die, tells the Leader once for the run, and leaves the idle clock alone", async () => {
-    ({ superman, paul } = await pair({ OPENOVAI_STAND_IN_FAILS: "[false, true, true]", OPENOVAI_STAND_IN_REPLY: DEAD }));
-    assert.equal((await asked(superman.secret, WORKER, "go")).reply, DEAD);
+    ({ martin, paul } = await pair({ OPENOVAI_STAND_IN_FAILS: "[false, true, true]", OPENOVAI_STAND_IN_REPLY: DEAD }));
+    assert.equal((await asked(martin.secret, WORKER, "go")).reply, DEAD);
     const idleSince = recordOf(WORKER).idleSince;
     const from = said.length;
     now = now + 20 * MINUTE;
-    await asked(superman.secret, WORKER, "again").catch(() => null);
+    await asked(martin.secret, WORKER, "again").catch(() => null);
     assert.ok(await waitFor(() => (said.slice(from).includes(`died ${WORKER} - ${DEAD}`) ? true : null)), said.slice(from).join("\n"));
-    assert.deepEqual(await told(superman.log, 1), [`<server-event type="died" who="${WORKER}">${DEAD}</server-event>`]);
-    await asked(superman.secret, WORKER, "once more").catch(() => null);
+    assert.deepEqual(await told(martin.log, 1), [`<server-event type="died" who="${WORKER}">${DEAD}</server-event>`]);
+    await asked(martin.secret, WORKER, "once more").catch(() => null);
     assert.ok(await waitFor(() => (said.slice(from).filter((row) => row === `died ${WORKER} - ${DEAD}`).length === 2 ? true : null)), said.slice(from).join("\n"));
     await settle();
-    assert.equal(heardIn(superman.log).length, 1, "the Leader was told again within one run of dead turns");
+    assert.equal(heardIn(martin.log).length, 1, "the Leader was told again within one run of dead turns");
     assert.equal(recordOf(WORKER).idleSince, idleSince, "a dead turn put the idle clock back to now");
     assert.equal(running(WORKER), true);
   });
@@ -200,7 +200,7 @@ describe("idle", () => {
   it("a seat on a turn is not idle, however long the turn: a pending permission at 55 gets no critical frame", async () => {
     // The ask stays pending for as long as the checks below need it: two clock jumps, two ticks
     // and a settle. Waiting longer than that proves nothing further.
-    ({ superman, paul } = await pair({ OPENOVAI_STAND_IN_ASKS: "Bash", OPENOVAI_STAND_IN_WAITS: "2000" }));
+    ({ martin, paul } = await pair({ OPENOVAI_STAND_IN_ASKS: "Bash", OPENOVAI_STAND_IN_WAITS: "2000" }));
     await awake(WORKER);
     const idleFrom = now;
     now = idleFrom + 50 * MINUTE;
@@ -223,7 +223,7 @@ describe("idle", () => {
     tick(chat);
     await settle();
     assert.ok(!readIn(paul.log).some((frame) => frame.includes('type="closing"')), readIn(paul.log).join("\n"));
-    assert.ok(!heardIn(superman.log).some((frame) => frame.includes('type="idle"')), heardIn(superman.log).join("\n"));
+    assert.ok(!heardIn(martin.log).some((frame) => frame.includes('type="idle"')), heardIn(martin.log).join("\n"));
     assert.equal(recordOf(WORKER).ending, null);
     assert.equal(running(WORKER), true);
     assert.ok(alive(pidsIn(paul.log)[0]));
@@ -235,7 +235,7 @@ describe("idle", () => {
   });
 
   it("a turn after the ask is a reprieve: asked at 55, given work at 57, alive at 60 with the ask gone", async () => {
-    ({ superman, paul } = await pair());
+    ({ martin, paul } = await pair());
     await awake(WORKER);
     const idleFrom = now;
     now = idleFrom + 50 * MINUTE;
@@ -246,7 +246,7 @@ describe("idle", () => {
     await settle();
     assert.equal(recordOf(WORKER).askedWhy, "close:idle");
     now = idleFrom + 57 * MINUTE;
-    assert.equal((await asked(superman.secret, WORKER, "one more thing")).reply, "a reply");
+    assert.equal((await asked(martin.secret, WORKER, "one more thing")).reply, "a reply");
     assert.equal(recordOf(WORKER).askedWhy, null);
     assert.equal(recordOf(WORKER).askedAt, null);
     now = idleFrom + 60 * MINUTE;
@@ -256,11 +256,11 @@ describe("idle", () => {
     assert.equal(running(WORKER), true);
     assert.equal(recordOf(WORKER).ending, null);
     assert.ok(alive(pidsIn(paul.log)[0]));
-    assert.ok(!heardIn(superman.log).some((frame) => frame.startsWith('<server-event type="stopped"')), heardIn(superman.log).join("\n"));
+    assert.ok(!heardIn(martin.log).some((frame) => frame.startsWith('<server-event type="stopped"')), heardIn(martin.log).join("\n"));
   });
 
   it("the ask's own turn is never cut short: a permission pending at 60 keeps the seat, ended once the turn is over", async () => {
-    ({ superman, paul } = await pair({ OPENOVAI_STAND_IN_ASKS: "Bash", OPENOVAI_STAND_IN_WAITS: "2500" }));
+    ({ martin, paul } = await pair({ OPENOVAI_STAND_IN_ASKS: "Bash", OPENOVAI_STAND_IN_WAITS: "2500" }));
     const idleFrom = now;
     now = idleFrom + 50 * MINUTE;
     await awake(LEADER);
@@ -283,7 +283,7 @@ describe("idle", () => {
     // The Leader has its own turn and the two FYIs about the Worker behind it, so the ending is
     // waited for, not counted.
     const stopped = `<server-event type="stopped" who="${WORKER}" why="idle-forced"/>`;
-    const frames = await toldUntil(superman.log, stopped);
+    const frames = await toldUntil(martin.log, stopped);
     assert.ok(frames.includes(stopped), frames.join("\n"));
   });
 
@@ -291,12 +291,12 @@ describe("idle", () => {
   // ask runs to its end.
   it("the Leader's idle ask never cuts its own turn short: a permission pending at 60 keeps it, ended once the turn is over", async () => {
     await endEvery(500);
-    superman = await seatUp(LEADER, { OPENOVAI_STAND_IN_ASKS: "Bash", OPENOVAI_STAND_IN_WAITS: "2500" });
+    martin = await seatUp(LEADER, { OPENOVAI_STAND_IN_ASKS: "Bash", OPENOVAI_STAND_IN_WAITS: "2500" });
     const idleFrom = now;
     now = idleFrom + 55 * MINUTE;
     tick(chat);
-    assert.deepEqual(await told(superman.log, 1), [`<server-event type="idle" stage="critical" minutes="55">${BODY_IDLE(55)}</server-event>`]);
-    assert.ok(await waitFor(() => (callsIn(superman.log).length > 0 && recordOf(LEADER).turn !== null ? true : null)), "no turn on the ask");
+    assert.deepEqual(await told(martin.log, 1), [`<server-event type="idle" stage="critical" minutes="55">${BODY_IDLE(55)}</server-event>`]);
+    assert.ok(await waitFor(() => (callsIn(martin.log).length > 0 && recordOf(LEADER).turn !== null ? true : null)), "no turn on the ask");
     now = idleFrom + 60 * MINUTE;
     tick(chat);
     tick(chat);
@@ -310,34 +310,34 @@ describe("idle", () => {
 
   it("the Leader has no 10 and no 50, and the critical frame at 55", async () => {
     await endEvery(500);
-    superman = await seatUp(LEADER);
+    martin = await seatUp(LEADER);
     const idleFrom = now;
     now = idleFrom + 50 * MINUTE;
     tick(chat);
     tick(chat);
     await settle();
-    assert.deepEqual(heardIn(superman.log), []);
+    assert.deepEqual(heardIn(martin.log), []);
     assert.equal(readLog(unexpected).includes(`who="${LEADER}"`), false);
     now = idleFrom + 55 * MINUTE;
     tick(chat);
-    assert.deepEqual(await told(superman.log, 1), [`<server-event type="idle" stage="critical" minutes="55">${BODY_IDLE(55)}</server-event>`]);
+    assert.deepEqual(await told(martin.log, 1), [`<server-event type="idle" stage="critical" minutes="55">${BODY_IDLE(55)}</server-event>`]);
   });
 
   it("a message resets the idle clock", async () => {
-    ({ superman, paul } = await pair());
+    ({ martin, paul } = await pair());
     await awake(WORKER);
     const idleFrom = now;
     now = idleFrom + 40 * MINUTE;
     tick(chat);
-    await told(superman.log, 1);
-    assert.equal((await asked(superman.secret, WORKER, "still there?")).reply, "a reply");
+    await told(martin.log, 1);
+    assert.equal((await asked(martin.secret, WORKER, "still there?")).reply, "a reply");
     now = idleFrom + 60 * MINUTE;
     await awake(LEADER);
     tick(chat);
     tick(chat);
     await settle();
     assert.ok(!heardIn(paul.log).some((frame) => frame.includes('type="closing"')), heardIn(paul.log).join("\n"));
-    assert.ok(!heardIn(superman.log).some((frame) => frame.startsWith('<server-event type="stopped"')), heardIn(superman.log).join("\n"));
+    assert.ok(!heardIn(martin.log).some((frame) => frame.startsWith('<server-event type="stopped"')), heardIn(martin.log).join("\n"));
     assert.equal(running(WORKER), true);
     now = idleFrom + 40 * MINUTE + 55 * MINUTE;
     tick(chat);
@@ -348,7 +348,7 @@ describe("idle", () => {
 
 // Nobody doing anything: the Leader is told once when every Worker has been idle a minute.
 describe("all idle", () => {
-  let superman = null;
+  let martin = null;
   let paul = null;
   let ann = null;
 
@@ -361,7 +361,7 @@ describe("all idle", () => {
 
   // Two Workers, both idle, the Leader off a turn: the clocks start at the last of the three turns.
   async function trio(paulKnobs = {}, leaderKnobs = {}) {
-    ({ superman, paul } = await pair(paulKnobs, leaderKnobs));
+    ({ martin, paul } = await pair(paulKnobs, leaderKnobs));
     ann = await seatUp(OTHER);
     await awake(WORKER);
     await awake(OTHER);
@@ -376,33 +376,33 @@ describe("all idle", () => {
     now = idleFrom + MINUTE;
     tick(chat);
     await settle();
-    assert.deepEqual(allIdleIn(superman.log), []);
+    assert.deepEqual(allIdleIn(martin.log), []);
     now = idleFrom + MINUTE / 2 + MINUTE;
     tick(chat);
     tick(chat);
-    assert.ok(await waitFor(() => (allIdleIn(superman.log).length > 0 ? true : null)), heardIn(superman.log).join("\n"));
-    assert.deepEqual(allIdleIn(superman.log), [`<server-event type="all-idle" workers="2">${WORKER}, ${OTHER}</server-event>`]);
+    assert.ok(await waitFor(() => (allIdleIn(martin.log).length > 0 ? true : null)), heardIn(martin.log).join("\n"));
+    assert.deepEqual(allIdleIn(martin.log), [`<server-event type="all-idle" workers="2">${WORKER}, ${OTHER}</server-event>`]);
     for (const minutes of [2, 3, 5]) {
       now = idleFrom + minutes * MINUTE;
       tick(chat);
     }
     await settle();
-    assert.equal(allIdleIn(superman.log).length, 1, "the all-idle event was repeated");
+    assert.equal(allIdleIn(martin.log).length, 1, "the all-idle event was repeated");
   });
 
   it("tells the Leader nothing when no Worker is running: alone, it is at rest", async () => {
     await endEvery(500);
-    superman = await seatUp(LEADER);
+    martin = await seatUp(LEADER);
     const idleFrom = now;
     now = idleFrom + 5 * MINUTE;
     tick(chat);
     tick(chat);
     await settle();
-    assert.deepEqual(heardIn(superman.log), []);
+    assert.deepEqual(heardIn(martin.log), []);
   });
 
   it("a Worker waiting on a card is not idle: nothing while the card is up", async () => {
-    ({ superman, paul } = await pair({ OPENOVAI_STAND_IN_ASKS: "Bash", OPENOVAI_STAND_IN_WAITS: "2000" }));
+    ({ martin, paul } = await pair({ OPENOVAI_STAND_IN_ASKS: "Bash", OPENOVAI_STAND_IN_WAITS: "2000" }));
     await awake(LEADER);
     const asking_ = tell(WORKER, userFrame("may I"));
     assert.ok(await waitFor(() => (heardIn(paul.log).length === 1 ? true : null)));
@@ -412,60 +412,60 @@ describe("all idle", () => {
     tick(chat);
     tick(chat);
     await settle();
-    assert.deepEqual(allIdleIn(superman.log), []);
-    assert.deepEqual(readAllIdleIn(superman.log), []);
+    assert.deepEqual(allIdleIn(martin.log), []);
+    assert.deepEqual(readAllIdleIn(martin.log), []);
     await asking_.answered;
   });
 
   // Not queued behind the Leader's turn: an event queued then would be stale by the time it is read,
   // if a Worker moved in between.
   it("waits while the Leader is on a turn, and tells it at the first tick after when nobody moved", async () => {
-    ({ superman, paul } = await pair({}, { OPENOVAI_STAND_IN_ASKS: "Bash", OPENOVAI_STAND_IN_WAITS: "2000" }));
+    ({ martin, paul } = await pair({}, { OPENOVAI_STAND_IN_ASKS: "Bash", OPENOVAI_STAND_IN_WAITS: "2000" }));
     await awake(WORKER);
     const asking_ = tell(LEADER, userFrame("may I"));
-    assert.ok(await waitFor(() => (heardIn(superman.log).length === 1 ? true : null)));
+    assert.ok(await waitFor(() => (heardIn(martin.log).length === 1 ? true : null)));
     const idleFrom = now;
     now = idleFrom + 5 * MINUTE;
     assert.notEqual(recordOf(LEADER).turn, null, "the Leader's turn ended before the clock was read");
     tick(chat);
     await settle();
-    assert.deepEqual(readAllIdleIn(superman.log), []);
+    assert.deepEqual(readAllIdleIn(martin.log), []);
     // Paul moves while the Leader is still on its turn: when that turn ends, nobody is idle a minute.
     await awake(WORKER);
     assert.notEqual(recordOf(LEADER).turn, null, "the Leader's turn ended before Paul moved");
     await asking_.answered;
     tick(chat);
     await settle();
-    assert.deepEqual(allIdleIn(superman.log), [], "an event from before Paul moved reached the Leader");
+    assert.deepEqual(allIdleIn(martin.log), [], "an event from before Paul moved reached the Leader");
     now = idleFrom + 6 * MINUTE;
     tick(chat);
-    assert.ok(await waitFor(() => (allIdleIn(superman.log).length > 0 ? true : null)), heardIn(superman.log).join("\n"));
-    assert.deepEqual(allIdleIn(superman.log), [`<server-event type="all-idle" workers="1">${WORKER}</server-event>`]);
+    assert.ok(await waitFor(() => (allIdleIn(martin.log).length > 0 ? true : null)), heardIn(martin.log).join("\n"));
+    assert.deepEqual(allIdleIn(martin.log), [`<server-event type="all-idle" workers="1">${WORKER}</server-event>`]);
   });
 
   it("comes back after a Worker's turn, never after the Leader's own", async () => {
     const idleFrom = await trio();
     now = idleFrom + MINUTE;
     tick(chat);
-    assert.ok(await waitFor(() => (allIdleIn(superman.log).length === 1 ? true : null)), heardIn(superman.log).join("\n"));
+    assert.ok(await waitFor(() => (allIdleIn(martin.log).length === 1 ? true : null)), heardIn(martin.log).join("\n"));
     // The Leader's turn on it, and another of its own: the Workers have not moved.
     await awake(LEADER);
     now = idleFrom + 3 * MINUTE;
     tick(chat);
     tick(chat);
     await settle();
-    assert.equal(allIdleIn(superman.log).length, 1, "the Leader's own turn brought the event back");
+    assert.equal(allIdleIn(martin.log).length, 1, "the Leader's own turn brought the event back");
     // Paul takes a turn: a minute after it, the Leader is told again.
     await awake(WORKER);
     now = idleFrom + 4 * MINUTE;
     tick(chat);
-    assert.ok(await waitFor(() => (allIdleIn(superman.log).length === 2 ? true : null)), heardIn(superman.log).join("\n"));
+    assert.ok(await waitFor(() => (allIdleIn(martin.log).length === 2 ? true : null)), heardIn(martin.log).join("\n"));
     await settle();
-    assert.equal(allIdleIn(superman.log).length, 2);
+    assert.equal(allIdleIn(martin.log).length, 2);
   });
 
   it("leaves out a Worker on its way out, however busy its last turn", async () => {
-    ({ superman, paul } = await pair());
+    ({ martin, paul } = await pair());
     ann = await seatUp(OTHER, { OPENOVAI_STAND_IN_ASKS: "Bash", OPENOVAI_STAND_IN_WAITS: "2000" });
     await awake(WORKER);
     await awake(LEADER);
@@ -476,8 +476,8 @@ describe("all idle", () => {
     const idleFrom = now;
     now = idleFrom + MINUTE;
     tick(chat);
-    assert.ok(await waitFor(() => (allIdleIn(superman.log).length > 0 ? true : null)), heardIn(superman.log).join("\n"));
-    assert.deepEqual(allIdleIn(superman.log), [`<server-event type="all-idle" workers="1">${WORKER}</server-event>`]);
+    assert.ok(await waitFor(() => (allIdleIn(martin.log).length > 0 ? true : null)), heardIn(martin.log).join("\n"));
+    assert.deepEqual(allIdleIn(martin.log), [`<server-event type="all-idle" workers="1">${WORKER}</server-event>`]);
     await asking_.answered;
   });
 });

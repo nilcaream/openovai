@@ -72,7 +72,7 @@ describe("the page's STOP", () => {
 // A call stop is inside a turn, so the idle clocks never see it: the wait on a button is its own
 // clock, from the park time, and it reaches the Leader once.
 describe("a call stop that waits", () => {
-  let superman = null;
+  let martin = null;
   let paul = null;
   const KNOBS = { OPENOVAI_STAND_IN_ASKS: "Bash", OPENOVAI_STAND_IN_ASKS_INPUT: "git push", OPENOVAI_STAND_IN_WAITS: "600000" };
 
@@ -90,7 +90,7 @@ describe("a call stop that waits", () => {
   }
 
   it("the Leader is told once when a Worker's card times out: at ten minutes, the call as made, and not again at twenty", async () => {
-    ({ superman, paul } = await pair(KNOBS));
+    ({ martin, paul } = await pair(KNOBS));
     await awake(LEADER);
     const from = now;
     const asking_ = tell(WORKER, userFrame("push it"));
@@ -99,22 +99,22 @@ describe("a call stop that waits", () => {
     tick(chat);
     tick(chat);
     await settle();
-    assert.deepEqual(heardIn(superman.log), ["<user>stay awake</user>"]);
+    assert.deepEqual(heardIn(martin.log), ["<user>stay awake</user>"]);
     now = from + 10 * MINUTE;
     tick(chat);
-    assert.equal((await told(superman.log, 2)).at(-1), `<server-event type="permission" who="${WORKER}" minutes="10">Bash: git push</server-event>`);
+    assert.equal((await told(martin.log, 2)).at(-1), `<server-event type="permission" who="${WORKER}" minutes="10">Bash: git push</server-event>`);
     await asking_.answered;
     now = from + 20 * MINUTE;
     tick(chat);
     tick(chat);
     await settle();
     // The Worker's turn ended with the Deny, so its idle clock runs from there: that event is its own.
-    assert.equal(heardIn(superman.log).filter((frame) => frame.includes('type="permission"')).length, 1, heardIn(superman.log).join("\n"));
+    assert.equal(heardIn(martin.log).filter((frame) => frame.includes('type="permission"')).length, 1, heardIn(martin.log).join("\n"));
     assert.equal(running(WORKER), true, "the timeout ended the seat");
   });
 
   it("the Leader's own card that times out is not reported to it", async () => {
-    ({ superman, paul } = await pair({}, { ...KNOBS, OPENOVAI_STAND_IN_CALLS: JSON.stringify([[{ name: "Bash", input: { command: "git push" } }]]) }));
+    ({ martin, paul } = await pair({}, { ...KNOBS, OPENOVAI_STAND_IN_CALLS: JSON.stringify([[{ name: "Bash", input: { command: "git push" } }]]) }));
     const from = now;
     const asking_ = tell(LEADER, userFrame("push it"));
     await stopParked(LEADER);
@@ -122,11 +122,11 @@ describe("a call stop that waits", () => {
     tick(chat);
     assert.equal((await asking_.answered).text, `I was told deny: ${chat.config.user}, the person who answers permission cards on the ovai page, did not answer this card within 10 minutes, so it was denied: try something else.`);
     await settle();
-    assert.ok(!heardIn(superman.log).some((frame) => frame.includes('type="permission"')), heardIn(superman.log).join("\n"));
+    assert.ok(!heardIn(martin.log).some((frame) => frame.includes('type="permission"')), heardIn(martin.log).join("\n"));
   });
 
   it("answered before ten minutes: the Leader is never told", async () => {
-    ({ superman, paul } = await pair(KNOBS));
+    ({ martin, paul } = await pair(KNOBS));
     await awake(LEADER);
     const from = now;
     const asking_ = tell(WORKER, userFrame("push it"));
@@ -139,13 +139,13 @@ describe("a call stop that waits", () => {
     tick(chat);
     tick(chat);
     await settle();
-    assert.ok(!heardIn(superman.log).some((frame) => frame.includes('type="permission"')), heardIn(superman.log).join("\n"));
+    assert.ok(!heardIn(martin.log).some((frame) => frame.includes('type="permission"')), heardIn(martin.log).join("\n"));
   });
 
   // The panel row is there to explain a gap, so a card answered inside ten seconds draws none;
   // the log says both ends either way.
   async function waitOnCard(seconds) {
-    ({ superman, paul } = await pair(KNOBS));
+    ({ martin, paul } = await pair(KNOBS));
     await awake(LEADER);
     const from = now;
     const rows = panel(instance, WORKER).length;
@@ -158,7 +158,7 @@ describe("a call stop that waits", () => {
   }
 
   it("a card nobody answers in ten minutes is a Deny that says so, and its row says it timed out", async () => {
-    ({ superman, paul } = await pair(KNOBS));
+    ({ martin, paul } = await pair(KNOBS));
     await awake(LEADER);
     const from = now;
     const rows = panel(instance, WORKER).length;
@@ -181,7 +181,7 @@ describe("a call stop that waits", () => {
   });
 
   it("a subagent's card is a Deny at two minutes, and the Leader is told with minutes=\"2\"", async () => {
-    ({ superman, paul } = await pair({ ...KNOBS, OPENOVAI_STAND_IN_AGENT_ID: "a1b2c3" }));
+    ({ martin, paul } = await pair({ ...KNOBS, OPENOVAI_STAND_IN_AGENT_ID: "a1b2c3" }));
     await awake(LEADER);
     const from = now;
     const rows = panel(instance, WORKER).length;
@@ -197,11 +197,11 @@ describe("a call stop that waits", () => {
     const row = await waitFor(() => panel(instance, WORKER).slice(rows).find((one) => one.from === SERVER && one.text.startsWith("Waited ")) ?? null);
     assert.equal(row?.text, "Waited 120 seconds for permission, timed out: Bash: git push");
     const event = `<server-event type="permission" who="${WORKER}" minutes="2">Bash: git push</server-event>`;
-    assert.ok(await waitFor(() => (heardIn(superman.log).includes(event) ? true : null)), heardIn(superman.log).join("\n"));
+    assert.ok(await waitFor(() => (heardIn(martin.log).includes(event) ? true : null)), heardIn(martin.log).join("\n"));
   });
 
   it("a card answered before ten minutes is not answered again when they are up", async () => {
-    ({ superman, paul } = await pair(KNOBS));
+    ({ martin, paul } = await pair(KNOBS));
     await awake(LEADER);
     const from = now;
     const rows = panel(instance, WORKER).length;
@@ -241,7 +241,7 @@ describe("a call stop that waits", () => {
   // on: the Leader's calls have no rows, only the tool line, which says this one while the card
   // stands, and the wait row names it once answered. A line here would outlive the turn.
   it("says the wait on the Leader's panel too, and draws no line for the call it waited on", async () => {
-    ({ superman, paul } = await pair({}, { ...KNOBS, OPENOVAI_STAND_IN_CALLS: JSON.stringify([[{ name: "Bash", input: { command: "git push" } }]]) }));
+    ({ martin, paul } = await pair({}, { ...KNOBS, OPENOVAI_STAND_IN_CALLS: JSON.stringify([[{ name: "Bash", input: { command: "git push" } }]]) }));
     const from = now;
     const rows = panel(instance, LEADER).length;
     const asking_ = tell(LEADER, userFrame("push it"));
@@ -318,22 +318,22 @@ describe("a message to a Worker that stops before reading it", () => {
   });
 
   it("goes back to the sender as an undelivered event with the words, and a row on its panel", async () => {
-    const { superman } = await pair({ OPENOVAI_STAND_IN_SLOW: "1500", ...writesDesk('type="closing"') });
-    assert.equal((await tool(superman.secret, "stop_worker", { name: WORKER })).refused, false);
+    const { martin } = await pair({ OPENOVAI_STAND_IN_SLOW: "1500", ...writesDesk('type="closing"') });
+    assert.equal((await tool(martin.secret, "stop_worker", { name: WORKER })).refused, false);
     await waitFor(() => (recordOf(WORKER)?.turn !== null ? true : null));
-    const sent = await tool(superman.secret, "message", { to: WORKER, text: "one more order" });
+    const sent = await tool(martin.secret, "message", { to: WORKER, text: "one more order" });
     assert.equal(sent.text, `sent to ${WORKER}`);
     assert.equal(recordOf(WORKER).ending, null, "the Worker was already ending: not the case measured");
     assert.ok(await gone(WORKER), `${WORKER} did not stop`);
     const frame = `<server-event type="undelivered" to="${WORKER}">one more order</server-event>`;
-    assert.ok(await waitFor(() => (heardIn(superman.log).includes(frame) ? true : null)), heardIn(superman.log).join("\n"));
+    assert.ok(await waitFor(() => (heardIn(martin.log).includes(frame) ? true : null)), heardIn(martin.log).join("\n"));
     const row = panel(instance, LEADER).find((one) => one.from === SERVER && one.text === `Not delivered: ${WORKER} stopped before reading it`);
     assert.ok(row !== undefined, JSON.stringify(panel(instance, LEADER).slice(-5)));
   });
 });
 
 describe("park", () => {
-  let superman = null;
+  let martin = null;
   let paul = null;
 
   after(async () => {
@@ -346,14 +346,14 @@ describe("park", () => {
   }
 
   it("interrupts when asked, waits for the stops, ends the rest at the deadline, and leaves the Leader's turn alone", async () => {
-    ({ superman, paul } = await pair({ OPENOVAI_STAND_IN_SLOW: "1000", ...writesDesk('why="park"') }, { OPENOVAI_STAND_IN_SLOW: "3500" }));
+    ({ martin, paul } = await pair({ OPENOVAI_STAND_IN_SLOW: "1000", ...writesDesk('why="park"') }, { OPENOVAI_STAND_IN_SLOW: "3500" }));
     const ann = await seatUp(OTHER);
     const leaderTurn = tell(LEADER, userFrame("thinking"));
     const leaderBusy = stillRunning(leaderTurn);
     const paulTurn = tell(WORKER, userFrame("busy"));
     await told(paul.log, 1);
-    await told(superman.log, 1);
-    const parked = tool(superman.secret, "park", { interrupt: true, deadline: 5 });
+    await told(martin.log, 1);
+    const parked = tool(martin.secret, "park", { interrupt: true, deadline: 5 });
     assert.deepEqual(await paulTurn.answered, { interrupted: true, text: "interrupted" });
     assert.ok(await gone(WORKER), `${WORKER} did not stop`);
     const labels = notesIn(paul.log).map(([label]) => label);
@@ -372,8 +372,8 @@ describe("park", () => {
     assert.ok(result.text.startsWith("parked: "), result.text);
     assert.ok(result.text.includes(`${WORKER} stopped (desk ${written})`), result.text);
     assert.ok(result.text.includes(`${OTHER} ended at the deadline (no desk written)`), result.text);
-    assert.ok(!notesIn(superman.log).some(([label]) => label === "interrupt"), "the Leader was interrupted");
-    assert.deepEqual(heardIn(superman.log), ["<user>thinking</user>"]);
+    assert.ok(!notesIn(martin.log).some(([label]) => label === "interrupt"), "the Leader was interrupted");
+    assert.deepEqual(heardIn(martin.log), ["<user>thinking</user>"]);
     assert.equal(running(LEADER), true);
     const leaderAnswered = await leaderTurn.answered;
     assert.equal(leaderAnswered.text, "a reply");
@@ -381,15 +381,15 @@ describe("park", () => {
   });
 
   it("with no deadline has the instance's ceiling, says who it ended there, and the flag clears on every exit", async () => {
-    ({ superman, paul } = await pair());
+    ({ martin, paul } = await pair());
     await end(WORKER, 500);
     const ann = await seatUp(OTHER);
     const began = now;
-    const parked = tool(superman.secret, "park", {});
+    const parked = tool(martin.secret, "park", {});
     assert.deepEqual(await told(ann.log, 1), [`<server-event type="closing" why="park">${BODY_CLOSING("park", false, null)}</server-event>`]);
     await settle(400);
     assert.equal(running(OTHER), true);
-    assert.deepEqual(await tool(superman.secret, "park", {}), { text: "already parking", refused: true, error: null });
+    assert.deepEqual(await tool(martin.secret, "park", {}), { text: "already parking", refused: true, error: null });
     now = began + 29 * MINUTE;
     await settle(400);
     assert.equal(running(OTHER), true, "ended before the ceiling");
@@ -403,7 +403,7 @@ describe("park", () => {
       [`parked ${OTHER} - at the deadline, no desk written`],
     );
     // Right after: not "already parking".
-    assert.deepEqual(await tool(superman.secret, "park", {}), { text: "parked: nobody was running", refused: false, error: null });
+    assert.deepEqual(await tool(martin.secret, "park", {}), { text: "parked: nobody was running", refused: false, error: null });
     // A park that throws mid-way clears the flag too.
     await assert.rejects(
       parkRoom(
@@ -419,7 +419,7 @@ describe("park", () => {
       ),
       /the settings blew up/,
     );
-    assert.deepEqual(await tool(superman.secret, "park", {}), { text: "parked: nobody was running", refused: false, error: null });
+    assert.deepEqual(await tool(martin.secret, "park", {}), { text: "parked: nobody was running", refused: false, error: null });
   });
 });
 
@@ -427,7 +427,7 @@ describe("park", () => {
 // directory goes under archive/ whole. Refused as values, in the order the tool says; nothing is
 // ended for it — a running Worker is stopped first, by park or by itself.
 describe("retire", () => {
-  let superman = null;
+  let martin = null;
   let paul = null;
 
   after(async () => {
@@ -439,23 +439,23 @@ describe("retire", () => {
   }
 
   it("retire refuses a name that is not one, and the Leader's own", async () => {
-    ({ superman, paul } = await pair());
-    assert.deepEqual(await tool(superman.secret, "retire", { name: "not a name" }), { text: '"not a name" is not a name here', refused: true, error: null });
-    assert.deepEqual(await tool(superman.secret, "retire", {}), { text: "retire: name is required", refused: true, error: null });
-    assert.deepEqual(await tool(superman.secret, "retire", { name: LEADER }), { text: `${LEADER} is the Leader`, refused: true, error: null });
+    ({ martin, paul } = await pair());
+    assert.deepEqual(await tool(martin.secret, "retire", { name: "not a name" }), { text: '"not a name" is not a name here', refused: true, error: null });
+    assert.deepEqual(await tool(martin.secret, "retire", {}), { text: "retire: name is required", refused: true, error: null });
+    assert.deepEqual(await tool(martin.secret, "retire", { name: LEADER }), { text: `${LEADER} is the Leader`, refused: true, error: null });
     assert.ok(fs.existsSync(deskFile(instance, LEADER)));
   });
 
   it("retire refuses a name with no desk, and files nothing for it", async () => {
     assert.equal(fs.existsSync(deskFile(instance, "Zed")), false);
-    assert.deepEqual(await tool(superman.secret, "retire", { name: "Zed" }), { text: "Zed has no desk here", refused: true, error: null });
+    assert.deepEqual(await tool(martin.secret, "retire", { name: "Zed" }), { text: "Zed has no desk here", refused: true, error: null });
     assert.equal(fs.existsSync(archived("Zed", "")), false);
     assert.equal(fs.existsSync(path.join(instance, "archive", `${new Date().toISOString().slice(0, 10)}-Zed`)), false);
   });
 
   it("retire refuses a running Worker and ends nothing", async () => {
     assert.equal(running(WORKER), true);
-    assert.deepEqual(await tool(superman.secret, "retire", { name: WORKER }), { text: `${WORKER} is running; stop it first`, refused: true, error: null });
+    assert.deepEqual(await tool(martin.secret, "retire", { name: WORKER }), { text: `${WORKER} is running; stop it first`, refused: true, error: null });
     await settle(200);
     assert.equal(running(WORKER), true);
     assert.ok(fs.existsSync(deskFile(instance, WORKER)));
@@ -465,7 +465,7 @@ describe("retire", () => {
     await end(WORKER, 500);
     chat.stopping = true;
     try {
-      assert.deepEqual(await tool(superman.secret, "retire", { name: WORKER }), { text: "the server is stopping", refused: true, error: null });
+      assert.deepEqual(await tool(martin.secret, "retire", { name: WORKER }), { text: "the server is stopping", refused: true, error: null });
     } finally {
       chat.stopping = false;
     }
@@ -474,7 +474,7 @@ describe("retire", () => {
 
   it("retire is the Leader's: a Worker is refused and nothing is filed", async () => {
     paul = await seatUp(WORKER);
-    const ann = await spawnedBy(OTHER, () => tool(superman.secret, "hire", { name: OTHER }));
+    const ann = await spawnedBy(OTHER, () => tool(martin.secret, "hire", { name: OTHER }));
     assert.equal(ann.result.refused, false, ann.result.text);
     await end(OTHER, 500);
     assert.deepEqual(await tool(paul.secret, "retire", { name: OTHER }), { text: "retire is not offered to you", refused: true, error: null });
@@ -482,7 +482,7 @@ describe("retire", () => {
   });
 
   it("retire files a stopped Worker's desk under archive/, the seat leaves the room and the page, and the name is free again", async () => {
-    const ann = await spawnedBy(OTHER, () => tool(superman.secret, "hire", { name: OTHER }));
+    const ann = await spawnedBy(OTHER, () => tool(martin.secret, "hire", { name: OTHER }));
     assert.equal(ann.result.refused, false, ann.result.text);
     fs.appendFileSync(deskFile(instance, OTHER), "## State\nround done\n");
     const written = await tool(ann.secret, "write_desk", { title: "Ann by the stand-in", status: "done" });
@@ -499,7 +499,7 @@ describe("retire", () => {
     const unsubscribe = subscribe((event) => seen.push(event));
     let filed;
     try {
-      filed = await tool(superman.secret, "retire", { name: OTHER });
+      filed = await tool(martin.secret, "retire", { name: OTHER });
     } finally {
       unsubscribe();
     }
@@ -512,13 +512,13 @@ describe("retire", () => {
     assert.deepEqual(JSON.parse(fs.readFileSync(path.join(where, "conversation.json"), "utf8")), rows);
     // The room and the page no longer list the seat, and the page was told without a reload.
     assert.equal((await sessionsListed()).sessions.some((seat) => seat.name === OTHER), false);
-    const room = JSON.parse((await tool(superman.secret, "room", {})).text);
+    const room = JSON.parse((await tool(martin.secret, "room", {})).text);
     assert.equal(room.seats.some((seat) => seat.name === OTHER), false, JSON.stringify(room));
     const snapshots = seen.filter((event) => event.name === "snapshot");
     assert.equal(snapshots.length, 1, seen.map((event) => event.name).join(","));
     assert.equal(snapshots[0].data.sessions.some((seat) => seat.name === OTHER), false);
     // The name is the roster's again: a hire opens a fresh desk, the filed one untouched.
-    const again = await spawnedBy(OTHER, () => tool(superman.secret, "hire", { name: OTHER }));
+    const again = await spawnedBy(OTHER, () => tool(martin.secret, "hire", { name: OTHER }));
     assert.deepEqual(again.result, { text: `${OTHER} started on the desk desks/${OTHER} (${WORKER_MODEL})`, refused: false, error: null });
     assert.doesNotMatch(deskOf(OTHER), /round done/);
     assert.match(fs.readFileSync(path.join(where, "STATE.md"), "utf8"), /round done/);
@@ -533,11 +533,11 @@ describe("retire", () => {
     // says the workspace's default instead and is wrong.
     assert.notEqual("opus", WORKER_MODEL);
     assert.equal(fs.existsSync(deskFile(instance, "Kit")), false);
-    const kit = await spawnedBy("Kit", () => tool(superman.secret, "hire", { name: "Kit", model: "opus" }));
+    const kit = await spawnedBy("Kit", () => tool(martin.secret, "hire", { name: "Kit", model: "opus" }));
     assert.equal(kit.result.refused, false, kit.result.text);
     await end("Kit", 500);
     const logged = said.length;
-    const filed = await tool(superman.secret, "retire", { name: "Kit" });
+    const filed = await tool(martin.secret, "retire", { name: "Kit" });
     assert.equal(filed.refused, false, filed.text);
     const where = filed.text.slice("Kit filed under ".length);
     assert.match(where, /^archive\/\d{4}-\d{2}-\d{2}-Kit/);
@@ -545,12 +545,12 @@ describe("retire", () => {
   });
 
   it("retire drops what the quota gate held for the seat", async () => {
-    const ann = await spawnedBy(OTHER, () => tool(superman.secret, "hire", { name: OTHER }));
+    const ann = await spawnedBy(OTHER, () => tool(martin.secret, "hire", { name: OTHER }));
     assert.equal(ann.result.refused, false, ann.result.text);
     await end(OTHER, 500);
     quota.hold(OTHER, { frame: userFrame("held"), window: "5h", resolve: () => {} });
     assert.equal(quota.held(OTHER).length, 1);
-    const filed = await tool(superman.secret, "retire", { name: OTHER });
+    const filed = await tool(martin.secret, "retire", { name: OTHER });
     assert.equal(filed.refused, false, filed.text);
     assert.deepEqual(quota.held(OTHER), []);
     assert.deepEqual(quota.heldSeats(), []);

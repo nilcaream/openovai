@@ -23,7 +23,7 @@ import { runtimePaths } from "../lib/runtime.mjs";
 import { isOlderThan } from "../lib/version.mjs";
 
 const USER = "Mike";
-const LEADER = "Superman";
+const LEADER = "Martin";
 const NEWER = "9.9.9";
 const OLDER = "0.0.1";
 
@@ -204,8 +204,8 @@ describe("taking a newer version from a directory", () => {
     // this version had, and what the person added to every persona of that kind. The templates are
     // replaced; neither of these is, which is the whole of how a conversation keeps what it was told
     // and an addition outlives the version it was written under.
-    fs.mkdirSync(path.join(root, "desks", "Superman"), { recursive: true });
-    fs.writeFileSync(path.join(root, "desks", "Superman", "persona.md"), "You are Superman, as this version put it.\n");
+    fs.mkdirSync(path.join(root, "desks", "Martin"), { recursive: true });
+    fs.writeFileSync(path.join(root, "desks", "Martin", "persona.md"), "You are Martin, as this version put it.\n");
     fs.mkdirSync(path.join(root, "customization"), { recursive: true });
     fs.writeFileSync(path.join(root, "customization", "leader.md"), "Always answer in French.\n");
     accumulated = whatTheInstanceAccumulated(root);

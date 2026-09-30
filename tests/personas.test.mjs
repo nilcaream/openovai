@@ -19,7 +19,7 @@ import { BUILT_IN } from "../lib/plugins.mjs";
 import { remove, repo, scratch } from "./helpers.mjs";
 
 const USER = "Mike";
-const LEAD = "Superman";
+const LEAD = "Martin";
 const PAUL = "Paul";
 
 const template = (kind) => fs.readFileSync(path.join(repo, "lib", "templates", `${kind}.md`), "utf8");
