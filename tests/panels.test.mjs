@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { AMBER, CARD, CONNECTED, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, GREY, LATE_AFTER, RED, REPLY, SENDING, SHOWN_FOR, LINE_DISCONNECTED, LINE_LEFT, LINE_WAITING, LINE_WORKING, WINDOW, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, loadsOlder, noticed, pillLine, place, prune, quotaLine, quotaTitle, insertRef, stopEnabled, title, typingBeat, windowStart, TYPING_BEAT } from "../lib/chat/panels.mjs";
+import { AMBER, CARD, CONNECTED, autoLabel, autoTitle, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, GREY, LATE_AFTER, RED, REPLY, SENDING, SHOWN_FOR, LINE_DISCONNECTED, LINE_LEFT, LINE_WAITING, LINE_WORKING, WINDOW, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, loadsOlder, noticed, pillLine, place, prune, quotaLine, quotaTitle, insertRef, stopEnabled, title, typingBeat, windowStart, TYPING_BEAT } from "../lib/chat/panels.mjs";
 import { localAt, refTo, references } from "../lib/chat/refs.mjs";
 
 const LEADER = "Leader";
@@ -679,5 +679,37 @@ describe("what the page notifies about", () => {
     assert.equal(noticed(state, seat(LEADER, { busy: false })), null, "listening already");
     assert.equal(noticed(state, seat("Paul", { busy: false })), null, "a Worker's turn");
     assert.equal(noticed(state, { name: "row", data: { seat: LEADER, index: 0, row: { from: LEADER, text: "b" } } }), null, "a row");
+  });
+});
+
+// Whether auto mode is on for the Leader's session and for the Workers' is the server's word: the
+// page keeps what it was last told, and has no state of its own.
+describe("the auto-mode switches", () => {
+  it("are off before the server has said anything, and off when it says nothing", () => {
+    const state = fresh();
+    assert.deepEqual(state.auto, { leader: false, workers: false });
+    applyEvent(state, snapshot([about(LEADER)]), 0);
+    assert.deepEqual(state.auto, { leader: false, workers: false });
+  });
+
+  it("are what the snapshot says, and what the auto event says after it", () => {
+    const state = fresh();
+    applyEvent(state, snapshot([about(LEADER)], { auto: { leader: true, workers: false } }), 0);
+    assert.deepEqual(state.auto, { leader: true, workers: false });
+    applyEvent(state, { name: "auto", data: { leader: true, workers: true } }, 0);
+    assert.deepEqual(state.auto, { leader: true, workers: true });
+    applyEvent(state, { name: "auto", data: { leader: false, workers: true } }, 0);
+    assert.deepEqual(state.auto, { leader: false, workers: true });
+    applyEvent(state, snapshot([about(LEADER)]), 0);
+    assert.deepEqual(state.auto, { leader: false, workers: false }, "a snapshot without them is off");
+  });
+
+  it("say what they are in and what a click does, capitalized, and name nothing of any one panel", () => {
+    assert.equal(autoTitle("leader", false), "Auto mode is off for the Leader — click to turn it on");
+    assert.equal(autoTitle("leader", true), "Auto mode is on for the Leader — click to turn it off");
+    assert.equal(autoTitle("workers", false), "Auto mode is off for the Workers — click to turn it on");
+    assert.equal(autoTitle("workers", true), "Auto mode is on for the Workers — click to turn it off");
+    assert.equal(autoLabel("leader"), "Auto mode for the Leader");
+    assert.equal(autoLabel("workers"), "Auto mode for the Workers");
   });
 });

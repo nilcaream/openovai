@@ -14,7 +14,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
-import { after, before, describe, it } from "node:test";
+import { after, afterEach, before, describe, it } from "node:test";
 
 import { SERVER, panelFile, read } from "../lib/chat/conversation.mjs";
 import { messageFrame, serverEvent, userFrame } from "../lib/chat/frames.mjs";
@@ -2800,10 +2800,10 @@ describe("the stream", () => {
 });
 
 describe("who writes to a session", () => {
-  it("is session.mjs, through the frame writer, the two permission answers and the interrupt, and nobody else", () => {
+  it("is session.mjs, through the frame writer, the two permission answers, the interrupt and the mode switch, and nobody else", () => {
     const found = spawnSync("grep", ["-rn", "stdin.write", path.join(repo, "lib")], { encoding: "utf8" });
     const lines = found.stdout.trim().split("\n");
-    assert.equal(lines.length, 4, found.stdout);
+    assert.equal(lines.length, 5, found.stdout);
     for (const line of lines) {
       assert.match(line, /^.*lib\/chat\/session\.mjs:\d+:/, line);
     }
@@ -2902,5 +2902,120 @@ describe("the introduction on the Leader's panel", () => {
     assert.equal(introduce(instance), true);
     assert.equal(introductions().length, 2);
     assert.equal(fs.readFileSync(path.join(home, INTRODUCED_FILE), "utf8"), "0.22.0\n");
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+
+// Auto mode, asked for with two switches on the Leader's head, one for the Leader's session and
+// one for the Workers': the server's, shared by every page, off at every start. A flip reaches the
+// sessions running now with a control request over their pipe and the ones started after in their
+// arguments; a call the classifier refuses is a row on its panel.
+describe("auto mode", () => {
+  let superman = null;
+  let paul = null;
+  const modesIn = (log) => fs.readFileSync(log, "utf8").split("\n").filter((line) => line.startsWith("mode: "));
+  const flip = (who, on) => page("POST", "/auto", { who, on });
+
+  afterEach(async () => {
+    await flip("leader", false);
+    await flip("workers", false);
+    for (const opened of open.splice(0)) {
+      opened.close();
+    }
+    await endEvery(500);
+  });
+
+  it("is off for both at the start, in the snapshot every page opens with", async () => {
+    const client = await listen();
+    await until(client, (event) => event.name === "snapshot");
+    assert.deepEqual(client.events.find((event) => event.name === "snapshot").data.auto, { leader: false, workers: false });
+  });
+
+  it("starts a session in the mode its role's switch is in: the Workers' switch does not touch the Leader", async () => {
+    assert.equal((await flip("workers", true)).status, 200);
+    superman = await seatUp(LEADER);
+    paul = await seatUp(WORKER);
+    assert.match(callsIn(superman.log).at(-1), /--permission-mode default\b/);
+    assert.match(callsIn(paul.log).at(-1), /--permission-mode auto\b/);
+    await endEvery(500);
+    await flip("workers", false);
+    await flip("leader", true);
+    superman = await seatUp(LEADER);
+    paul = await seatUp(WORKER);
+    assert.match(callsIn(superman.log).at(-1), /--permission-mode auto\b/);
+    assert.match(callsIn(paul.log).at(-1), /--permission-mode default\b/);
+  });
+
+  it("switches the running sessions of a role at once, with no restart, and leaves the other role's alone", async () => {
+    superman = await seatUp(LEADER);
+    paul = await seatUp(WORKER);
+    const answered = await flip("workers", true);
+    assert.deepEqual(JSON.parse(answered.body), { leader: false, workers: true });
+    assert.ok(await waitFor(() => (modesIn(paul.log).length > 0 ? true : null)), "the Worker was never switched");
+    assert.deepEqual(modesIn(paul.log), ["mode: auto"]);
+    assert.deepEqual(modesIn(superman.log), []);
+    await flip("workers", false);
+    assert.ok(await waitFor(() => (modesIn(paul.log).length > 1 ? true : null)));
+    assert.deepEqual(modesIn(paul.log), ["mode: auto", "mode: default"]);
+    assert.equal(callsIn(paul.log).length, 1, "the process was not started again");
+  });
+
+  it("writes nothing to a session for a switch that did not change", async () => {
+    paul = await seatUp(WORKER);
+    await flip("workers", false);
+    await flip("workers", true);
+    await flip("workers", true);
+    assert.ok(await waitFor(() => (modesIn(paul.log).length > 0 ? true : null)));
+    assert.deepEqual(modesIn(paul.log), ["mode: auto"]);
+  });
+
+  it("tells every page, the one that pressed it too, and a page opened later finds the switches as they are", async () => {
+    const first = await listen();
+    const second = await listen();
+    await until(first, (event) => event.name === "snapshot");
+    await until(second, (event) => event.name === "snapshot");
+    await flip("leader", true);
+    for (const client of [first, second]) {
+      await until(client, (event) => event.name === "auto" && event.data.leader === true);
+      assert.deepEqual(client.events.findLast((event) => event.name === "auto").data, { leader: true, workers: false });
+    }
+    const later = await listen();
+    await until(later, (event) => event.name === "snapshot");
+    assert.deepEqual(later.events.find((event) => event.name === "snapshot").data.auto, { leader: true, workers: false });
+  });
+
+  it("is off again when a server starts: the switches are written down nowhere", async () => {
+    await flip("leader", true);
+    await flip("workers", true);
+    const started = await serve({ ...chat, config: { ...chat.config, port: 0 } });
+    try {
+      assert.deepEqual(JSON.parse((await page("GET", "/sessions")).body).auto, { leader: false, workers: false });
+    } finally {
+      await new Promise((resolve) => started.close(resolve));
+    }
+  });
+
+  it("refuses a switch it cannot read", async () => {
+    for (const body of [{ who: "everybody", on: true }, { who: "leader", on: "yes" }, { who: "leader" }, {}]) {
+      const answered = await page("POST", "/auto", body);
+      assert.equal(answered.status, 400, JSON.stringify(body));
+    }
+    const broken = await fetch(`${url}/auto`, { method: "POST", headers: { cookie: signedIn(), origin: url }, body: "not json" });
+    assert.equal(broken.status, 400);
+    assert.deepEqual(JSON.parse((await page("GET", "/sessions")).body).auto, { leader: false, workers: false });
+  });
+
+  it("puts a call the classifier refused on its panel as a row, with its category and the call, and nothing for a call a rule refused", async () => {
+    const calls = JSON.stringify([[
+      { name: "Bash", input: { command: "cat creds.txt" }, error: "Permission denied", blocked: "[Credential Exploration]" },
+      { name: "Bash", input: { command: "echo deny-me" }, error: "Permission denied", blocked: "rule", blockedBy: "rule" },
+    ]]);
+    superman = await seatUp(LEADER, { OPENOVAI_STAND_IN_REPLY: "ok", OPENOVAI_STAND_IN_CALLS: calls });
+    const from = panel(instance, LEADER).length;
+    await page("POST", `/sessions/${LEADER}/message`, { text: "go" });
+    assert.ok(await waitFor(() => (panel(instance, LEADER).slice(from).some((row) => row.from === LEADER && row.text === "ok") ? true : null)));
+    const rows = panel(instance, LEADER).slice(from).filter((row) => row.from === SERVER);
+    assert.deepEqual(rows.map((row) => row.text), ["Blocked by auto mode: Credential Exploration — Bash: cat creds.txt"]);
   });
 });

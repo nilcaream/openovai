@@ -712,7 +712,7 @@ describe("the script", () => {
   // the stylesheet hides by it, so a click redraws nothing; what the User typed to a Worker is
   // never among what it hides.
   it("hides the messages between sessions on the Leader's panel from a third switch, shown by default, in storage", () => {
-    assert.match(script, /rows\.className = "rows";\s*if \(leads\) headLine\.append\(commsSwitch\(rows\)\);/, "after the two switches, on the Leader's head only");
+    assert.match(script, /rows\.className = "rows";\s*if \(leads\) headLine\.append\(commsSwitch\(rows\), facts\.auto\.leader, facts\.auto\.workers\);/, "after the two switches, on the Leader's head only, with the two auto switches after it");
     assert.match(script, /const COMMS = \{ key: "openovai-comms", label: "Messages between the Leader and Workers", on: "Showing messages between the Leader and Workers — click to hide them", off: "Hiding messages between the Leader and Workers — click to show them" \};/);
     assert.match(script, /function commsShown\(\) \{\s*try \{ return localStorage\.getItem\(COMMS\.key\) !== "hidden"; \} catch \(error\) \{ return true; \}/, "shown until the store says hidden, and shown when there is no store");
     assert.match(script, /button\.addEventListener\("click", \(\) => \{\s*try \{ localStorage\.setItem\(COMMS\.key, commsShown\(\) \? "hidden" : "shown"\); \} catch \(error\) \{\}\s*show\(\);/);
@@ -1103,6 +1103,21 @@ describe("the script", () => {
     assert.match(script, /document\.title = title\(state\);/);
   });
 
+  // Two more icon buttons last on the Leader's head, after the comms switch: auto mode for the
+  // Leader and for the Workers. A click only asks the server; the button is drawn from what the
+  // server said, on every draw, with a tooltip that says what it is in — nothing is stored in the
+  // browser and no panel shows a mode.
+  it("draws two auto-mode switches on the Leader's head from the server's state, a click asking the server and nothing more", () => {
+    assert.match(script, /headLine\.append\(commsSwitch\(rows\), facts\.auto\.leader, facts\.auto\.workers\);/);
+    assert.match(script, /auto: \{ leader: autoSwitch\("leader"\), workers: autoSwitch\("workers"\) \}/);
+    assert.match(script, /call\("\/auto", \{ method: "POST", headers: \{ "content-type": "application\/json" \}, body: JSON\.stringify\(\{ who, on: !state\.auto\[who\] \}\) \}\)/);
+    assert.match(script, /for \(const \[who, button\] of Object\.entries\(panel\.facts\.auto\)\) \{\s*button\.classList\.toggle\("on", state\.auto\[who\]\);\s*button\.title = autoTitle\(who, state\.auto\[who\]\);\s*\}/);
+    const made = script.slice(script.indexOf("function autoSwitch(who)"), script.indexOf("function commsSwitch(rows)"));
+    assert.doesNotMatch(made, /localStorage|sessionStorage/, "the switches are the server's, kept in no browser");
+    assert.match(made, /button\.className = "notify";/, "drawn as the buttons beside them are, lit when on");
+    assert.doesNotMatch(script, /facts\.auto\.(leader|workers)\.(title|textContent)\b/, "no word on the button but the tooltip drawn from the state");
+  });
+
   // Before the quota line, behind a dot, the version the server runs: a release, or the commit
   // of a build.
   it("draws the version the server runs before the quota line", () => {
@@ -1135,7 +1150,7 @@ describe("the script", () => {
     assert.match(script, /call\("\/sessions"\)\.then\(\s*\(answered\) => \(answered\.status === 503 \? setTimeout\(probe, 1000\) : connect\(\)\),\s*\(\) => \{\s*lost\(\);\s*setTimeout\(probe, 1000\);/);
     assert.match(script, /if \(answered\.status === 503\) \{\s*applyEvent\(state, \{ name: "stopping", data: \{\} \}\);\s*draw\(\);/);
     assert.match(script, /stream\.addEventListener\("open", \(\) => \{\s*state\.connection = CONNECTED;\s*draw\(\);/);
-    assert.match(script, /const EVENTS = \["snapshot", "rows", "row", "asking", "seat", "quota", "stopping"\];/);
+    assert.match(script, /const EVENTS = \["snapshot", "rows", "row", "asking", "seat", "quota", "auto", "stopping"\];/);
     assert.ok(!script.includes("STOPPING"), "the page still carries a stopping word");
   });
 

@@ -232,7 +232,7 @@
   // draws it and carries what is typed and pressed to the server.
 
   import { answerOf, dialogOf } from "./dialog.mjs";
-  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, loadsOlder, noticed, place, prune, quotaLine, quotaTitle, insertRef, pillLine, stopEnabled, title, typingBeat, windowStart, LINE_WAITING, WINDOW } from "./panels.mjs";
+  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, autoLabel, autoTitle, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, loadsOlder, noticed, place, prune, quotaLine, quotaTitle, insertRef, pillLine, stopEnabled, title, typingBeat, windowStart, LINE_WAITING, WINDOW } from "./panels.mjs";
   import { dayPillBefore, row as rowOf, talks, unseen } from "./render.mjs";
   import { refTo, references } from "./refs.mjs";
 
@@ -329,6 +329,26 @@
   const TALKING = ".msg:is(.peer-in, .peer-out, .overheard)";
   function commsShown() {
     try { return localStorage.getItem(COMMS.key) !== "hidden"; } catch (error) { return true; }
+  }
+  // Last on the Leader's head, two more switches: auto mode for the Leader's session and for the
+  // Workers'. They are the server's, not the browser's: a click asks the server, and the switch is
+  // drawn from what the server then says, to this page and every other alike — so unlike the
+  // switches above they keep nothing in storage and are off at every start.
+  const BOLT = '<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>';
+  const BOLT_WORKERS = '<path d="M11 2 4 14h6l-1 8 8-12h-6z"/><path d="M20 6v4M20 14v4"/>';
+  const AUTO_ICONS = { leader: BOLT, workers: BOLT_WORKERS };
+  const AUTO_SVG = '<svg class="lit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">';
+  const AUTO_SVG_SLASHED = AUTO_SVG.replace("lit", "slashed");
+  function autoSwitch(who) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "notify";
+    button.setAttribute("aria-label", autoLabel(who));
+    button.innerHTML = `${AUTO_SVG}${AUTO_ICONS[who]}</svg>${AUTO_SVG_SLASHED}${AUTO_ICONS[who]}<path d="M1 1l22 22"/></svg>`;
+    button.addEventListener("click", async () => {
+      await call("/auto", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ who, on: !state.auto[who] }) }).catch(() => null);
+    });
+    return button;
   }
   function commsSwitch(rows) {
     const button = document.createElement("button");
@@ -450,7 +470,7 @@
     const leads = name === state.leader;
     if (leads) section.classList.add("leads");
     else headLine.append(word);
-    const facts = leads ? { version: document.createElement("span"), quota: document.createElement("span") } : null;
+    const facts = leads ? { version: document.createElement("span"), quota: document.createElement("span"), auto: { leader: autoSwitch("leader"), workers: autoSwitch("workers") } } : null;
     if (facts !== null) {
       facts.version.className = "version";
       facts.quota.className = "quota";
@@ -470,7 +490,7 @@
 
     const rows = document.createElement("div");
     rows.className = "rows";
-    if (leads) headLine.append(commsSwitch(rows));
+    if (leads) headLine.append(commsSwitch(rows), facts.auto.leader, facts.auto.workers);
     // Whether this panel follows its newest row: the panel's own word, decided by `following` at
     // every tick of the page's timer (keep, below), true from the start. Only a hand that moved
     // the rows away from the newest lets it go — a wheel up, an up key, a finger, the bar dragged
@@ -1313,6 +1333,10 @@
       panel.facts.quota.textContent = quotaLine(state.quota);
       panel.facts.quota.classList.toggle("old", state.quota !== null && state.quota.old === true);
       panel.facts.quota.title = quotaTitle(state.quota, new Date());
+      for (const [who, button] of Object.entries(panel.facts.auto)) {
+        button.classList.toggle("on", state.auto[who]);
+        button.title = autoTitle(who, state.auto[who]);
+      }
     }
 
     if (about.rows === null) {
@@ -1453,7 +1477,7 @@
   // One stream from the server: what to draw first, then everything as it happens. The page
   // connects again itself when the stream drops, with the counts it has, so nothing arrives
   // twice and nothing is missed. The browser carries the session cookie on it, as on every call.
-  const EVENTS = ["snapshot", "rows", "row", "asking", "seat", "quota", "stopping"];
+  const EVENTS = ["snapshot", "rows", "row", "asking", "seat", "quota", "auto", "stopping"];
   let stream = null;
 
   function connect() {

@@ -164,7 +164,9 @@ export function installed(options, environment) {
 //                             message's usage, the request's own) and one user frame
 //                             with its tool_result (is_error from error; error given as a
 //                             string is the words the failed result says) — the shapes measured
-//                             on the real one, one frame per block
+//                             on the real one, one frame per block; a call with `blocked` (a
+//                             reason, "[Credential Exploration]") has the system/permission_denied
+//                             frame of auto mode's classifier before its result
 //   OPENOVAI_STAND_IN_CALL_HOLDS    milliseconds each of those calls stays out between its tool_use
 //                             and its tool_result; a user frame that arrives while one is out
 //                             is read into the turn under way, logged as `joined:`, and answered
@@ -332,6 +334,11 @@ process.stdin.on("data", (chunk) => {
           onInterrupt();
         }
       }
+      continue;
+    }
+    if (said.type === "control_request" && said.request?.subtype === "set_permission_mode") {
+      note("mode: " + said.request.mode);
+      frame({ type: "control_response", response: { subtype: "success", request_id: said.request_id, response: { mode: said.request.mode } } });
       continue;
     }
     if (said.type === "user") {
@@ -524,6 +531,12 @@ for (;;) {
       callOut = true;
       await sleepUnlessInterrupted(hold);
       callOut = false;
+    }
+    // A call auto mode's classifier refused: its system/permission_denied frame comes first, then
+    // the call's error result (measured on 2.1.285). blocked is the reason it gives, a category
+    // in brackets, and blockedBy another reason type for the same frame (a rule's).
+    if (call.blocked !== undefined) {
+      frame({ type: "system", subtype: "permission_denied", tool_name: call.name, tool_use_id: id, decision_reason_type: call.blockedBy ?? "classifier", decision_reason: call.blocked, message: "Permission for this action was denied.", session_id: "test-thread" });
     }
     frame({ type: "user", message: { role: "user", content: [{ type: "tool_result", content: typeof call.error === "string" ? call.error : call.error === true ? "failed" : "done", is_error: call.error === true || typeof call.error === "string", tool_use_id: id }] }, parent_tool_use_id: parent, session_id: "test-thread" });
   }
