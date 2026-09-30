@@ -399,8 +399,8 @@ describe("restart_session and stop_session", () => {
     }
   });
 
-  // The Leader's restart is a successor on the same desk, like a Worker's: no row says it left,
-  // because it has not — the row is for a process gone for good, before a fresh session.
+  // The Leader's restart is a successor on the same desk, like a Worker's: nothing says it left,
+  // because it has not — that is for a process gone for good, before a fresh session.
   it("a Leader's restart leaves no row on its panel: the successor is the same session going on", async () => {
     await end(LEADER, 500);
     superman = await seatUp(LEADER, { OPENOVAI_STAND_IN_SLOW: "400", ...callsThen("restart_session", "restart please") });

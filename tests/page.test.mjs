@@ -746,7 +746,7 @@ describe("the script", () => {
   it("draws what the Leader is at as the day pill, made with the panel, always the last row, changed in place", () => {
     const draw = script.slice(script.indexOf("function drawPanel(panel)"), script.indexOf("// ------------------------------------------------------------------------------- the page"));
     assert.match(script, /let doing = null;\s*if \(leads\) \{\s*doing = pill\(LINE_WAITING\);\s*doing\.classList\.add\("doing"\);\s*rows\.insertBefore\(doing, jump\);\s*\}/, "the Leader's panel has its pill from the start, the day pill's own, and a Worker's none");
-    assert.match(draw, /if \(panel\.doing !== null\) panel\.doing\.firstElementChild\.textContent = about\.doing \?\? LINE_WAITING;\n/);
+    assert.match(draw, /if \(panel\.doing !== null\) panel\.doing\.firstElementChild\.textContent = pillLine\(state, panel\.name\);\n/);
     assert.doesNotMatch(draw, /panel\.doing\.remove\(\)|panel\.doing = /, "the pill is never taken out nor made again");
     assert.doesNotMatch(draw.slice(draw.indexOf("if (panel.doing !== null) panel.doing.firstElementChild"), draw.indexOf("if (landed && panel.view.follow")), /landed =/, "its words changing is not a row landing: it moves no row");
     assert.match(script, /jump, doing, box,/, "the panel keeps the pill it was made with");
@@ -1069,7 +1069,7 @@ describe("the script", () => {
   it("draws the connection word and the quota line on the Leader's head, and marks a lost stream", () => {
     assert.match(script, /headLine\.append\(facts\.conn, facts\.version, facts\.quota\);[\s\S]{0,600}headLine\.append\(themeToggle\);/);
     assert.match(script, /panel\.facts\.conn\.textContent = state\.connection;\s*panel\.facts\.conn\.classList\.toggle\("off", state\.connection !== CONNECTED\);/);
-    assert.match(script, /panel\.facts\.quota\.textContent = quotaLine\(state\.quota\);\s*panel\.facts\.quota\.title = quotaTitle\(state\.quota, new Date\(\)\);/);
+    assert.match(script, /panel\.facts\.quota\.textContent = quotaLine\(state\.quota\);\s*panel\.facts\.quota\.classList\.toggle\("old", state\.quota !== null && state\.quota\.old === true\);\s*panel\.facts\.quota\.title = quotaTitle\(state\.quota, new Date\(\)\);/);
     assert.match(script, /document\.title = title\(state\);/);
   });
 

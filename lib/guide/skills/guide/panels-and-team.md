@@ -31,7 +31,7 @@ Every panel on the page is one Claude Code session, called a seat. There is one 
 - Usage window: at the first threshold (90% of the 5-hour window, 97% of the weekly one), hiring is refused. At the second (95%, 99%), Workers on that model are closed and turns are held until the window resets.
 - Stopped or restarted by the Leader, or the room parked for the day.
 - `ovai stop` parks the room: every Worker is closed, the Leader writes its desk, then the server stops. Nothing restarts Workers after `ovai start`. Desks and panels stay on disk; ask the Leader to bring back who is needed.
-- A Worker's panel dims when its process ends, and is removed about 30 seconds later. The Leader's panel says "<Name> has left".
+- A Worker's panel dims when its process ends, and is removed about 30 seconds later. The Leader's panel stays: while it has no process its dot is grey, its head says "not running" and its bottom line says "<Name> has left — the next message starts a fresh session".
 
 ## Typing to a Worker
 Typing on a Worker's panel speaks to that Worker directly. It answers, and the Leader is told what was said. A panel whose process is gone takes no typing.

@@ -55,7 +55,7 @@
   /* a head that follows its newest row carries the left border of a clickable line; the padding gives back the border's extra px, so nothing moves */
   .phead.follow { border-left: 3px solid var(--accent); padding-left: 9px; }
   .phead .name { margin-right: 8px; flex: 0 0 auto; white-space: nowrap; font-weight: 700; font-size: 1rem; }
-  /* the dot before the name: green while the panel listens, amber while its turn runs, red once the process is gone or the page has no stream, pulsing while the panel asks */
+  /* the dot before the name: green while the panel listens, amber while its turn runs, red once the process is gone or the page has no stream, grey (no class) for a Leader with no process, pulsing while the panel asks */
   .phead .name::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--fg-faint); margin-right: 8px; vertical-align: 1px; }
   .panel.idle .phead .name::before { background: var(--ok); }
   .panel.busy .phead .name::before { background: var(--warn); }
@@ -72,6 +72,8 @@
   .phead .conn, .phead .version, .phead .quota { font-family: var(--mono); font-size: .78rem; color: var(--fg-dim); white-space: nowrap; flex: 0 0 auto; }
   .phead .conn::before, .phead .version:not(:empty)::before, .phead .quota:not(:empty)::before { content: "\00a0·\00a0"; }
   .phead .conn.off { color: var(--bad); }
+  /* a usage reading more than a quarter of an hour old: the same words, a little nearer the head's ground */
+  .phead .quota.old { color: color-mix(in srgb, var(--fg-dim) 70%, var(--panel-2)); }
   /* the theme toggle, last on the Leader's head and pushed to its right edge: one icon button
      showing the theme that is on; both icons are in the DOM and the theme picks the one drawn */
   .phead .theme { margin-left: auto; align-self: center; flex: 0 0 auto; width: 22px; height: 22px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 6px; color: var(--fg-dim); background: none; cursor: pointer; }
@@ -224,7 +226,7 @@
   // draws it and carries what is typed and pressed to the server.
 
   import { answerOf, dialogOf } from "./dialog.mjs";
-  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, insertRef, stopEnabled, title, typingBeat, LINE_WAITING } from "./panels.mjs";
+  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, insertRef, pillLine, stopEnabled, title, typingBeat, LINE_WAITING } from "./panels.mjs";
   import { dayPillBefore, row as rowOf, unseen } from "./render.mjs";
   import { refTo, references } from "./refs.mjs";
 
@@ -1122,7 +1124,7 @@
     panel.section.classList.toggle("dimmed", about.dimmed);
     panel.section.classList.toggle("asking", about.asking.length > 0);
     // The dot: green between turns, amber while one runs, red for a gone process and for every
-    // panel while the page has no stream.
+    // panel while the page has no stream, grey (none of the three) for a Leader with no process.
     const colour = dot(state, panel.name);
     panel.section.classList.toggle("idle", colour === GREEN);
     panel.section.classList.toggle("busy", colour === AMBER);
@@ -1135,6 +1137,7 @@
       panel.facts.conn.classList.toggle("off", state.connection !== CONNECTED);
       panel.facts.version.textContent = state.version;
       panel.facts.quota.textContent = quotaLine(state.quota);
+      panel.facts.quota.classList.toggle("old", state.quota !== null && state.quota.old === true);
       panel.facts.quota.title = quotaTitle(state.quota, new Date());
     }
 
@@ -1254,9 +1257,10 @@
           panel.cards.append(card);
         }
       }
-      // What the Leader is at, on its pill: the server's word on a turn, LINE_WAITING off one. The pill
-      // is always there and only its words change, so it is never a row landing.
-      if (panel.doing !== null) panel.doing.firstElementChild.textContent = about.doing ?? LINE_WAITING;
+      // What the Leader is at, on its pill: the server's word on a turn, LINE_WAITING off one, and that
+      // it has left while it has no process. The pill is always there and only its words change, so
+      // it is never a row landing.
+      if (panel.doing !== null) panel.doing.firstElementChild.textContent = pillLine(state, panel.name);
       // A panel that follows is pinned to its newest in the same task the rows landed in, before
       // the next paint: left to the timer's next tick, the rows show for a few frames with the
       // bottom pushed below the edge, the Leader's pill out of view. The scroll goes down only,

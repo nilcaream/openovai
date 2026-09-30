@@ -642,41 +642,19 @@
     ]
   },
   {
-    "name": "the Leader leaving leaves no row",
-    "catches": "leaves one row on the Leader's panel when its process is gone, and starts a fresh one for the event, the event its first line",
+    "name": "the Leader leaving leaves a row that says so",
+    "catches": "leaves no row on the Leader's panel when its process is gone, and starts a fresh one for the event, the event its first line",
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "  if (role === LEADER && ending !== \"restart\") {",
-        "to": "  if (false) {"
-      }
-    ]
-  },
-  {
-    "name": "the row says something else",
-    "catches": "leaves one row on the Leader's panel when its process is gone, and starts a fresh one for the event, the event its first line",
-    "edits": [
-      {
-        "file": "lib/chat/lifecycle.mjs",
-        "from": "  return `${seat} has left — the next message starts a fresh session`;",
-        "to": "  return `${seat} has left`;"
-      }
-    ]
-  },
-  {
-    "name": "the row is a bubble, not a divider",
-    "catches": "leaves one row on the Leader's panel when its process is gone, and starts a fresh one for the event, the event its first line",
-    "edits": [
-      {
-        "file": "lib/chat/lifecycle.mjs",
-        "from": "    append(instance.root, seat, { from: SERVER, divider: true, text: hasLeft(seat) });",
-        "to": "    append(instance.root, seat, { from: SERVER, text: hasLeft(seat) });"
+        "from": "  if (ending === \"restart\") {\n    const holding",
+        "to": "  if (role === LEADER && ending !== \"restart\") {\n    append(instance.root, seat, { from: SERVER, divider: true, text: `${seat} has left` });\n  }\n  if (ending === \"restart\") {\n    const holding"
       }
     ]
   },
   {
     "name": "the next Leader process resumes the one before it",
-    "catches": "leaves one row on the Leader's panel when its process is gone, and starts a fresh one for the event, the event its first line",
+    "catches": "leaves no row on the Leader's panel when its process is gone, and starts a fresh one for the event, the event its first line",
     "edits": [
       {
         "file": "lib/chat/session.mjs",

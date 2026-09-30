@@ -236,7 +236,7 @@
     "edits": [
       {
         "file": "lib/chat/panels.mjs",
-        "from": "  if (panel.dimmed || state.connection === DISCONNECTED) return RED;\n  return panel.busy ? AMBER : GREEN;",
+        "from": "  if (panel.dimmed || state.connection === DISCONNECTED) return RED;\n  if (notRunning(state, name)) return GREY;\n  return panel.busy ? AMBER : GREEN;",
         "to": "  if (panel.busy) return AMBER;\n  return panel.dimmed || state.connection === DISCONNECTED ? RED : GREEN;"
       }
     ]
@@ -755,6 +755,94 @@
         "file": "lib/chat/panels.mjs",
         "from": "export const LINE_WAITING = \"Waiting for instructions\";",
         "to": "export const LINE_WAITING = \"Idle\";"
+      }
+    ]
+  },
+  {
+    "name": "a Leader with no process has a green dot",
+    "catches": "with no process its dot is grey, its head says not running and its bottom line says it has left",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  if (notRunning(state, name)) return GREY;\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a Leader with no process says listening",
+    "catches": "with no process its dot is grey, its head says not running and its bottom line says it has left",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  if (notRunning(state, name)) return NOT_RUNNING;\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a Leader with no process waits for instructions",
+    "catches": "with no process its dot is grey, its head says not running and its bottom line says it has left",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  if (notRunning(state, name)) return LINE_LEFT(name);\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the line of a Leader with no process says something else",
+    "catches": "with no process its dot is grey, its head says not running and its bottom line says it has left",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "has left — the next message starts a fresh session`;",
+        "to": "has left`;"
+      }
+    ]
+  },
+  {
+    "name": "a page without a stream shows a Leader with no process in grey",
+    "catches": "with no process, a page without a stream still says red and nothing, and a Worker gone is still red",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  if (panel.dimmed || state.connection === DISCONNECTED) return RED;\n  if (notRunning(state, name)) return GREY;",
+        "to": "  if (notRunning(state, name)) return GREY;\n  if (panel.dimmed || state.connection === DISCONNECTED) return RED;"
+      }
+    ]
+  },
+  {
+    "name": "the context of the last session is kept",
+    "catches": "is the running session's own: gone when the session ends, and never the last one's before the new one's first request",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "typeof about.context === \"number\" ? about.context : null;",
+        "to": "typeof about.context === \"number\" ? about.context : panel.context;"
+      }
+    ]
+  },
+  {
+    "name": "a Worker's context stays while it is dimmed",
+    "catches": "is gone from a Worker's head while it is dimmed, and shows nothing for one not known",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "typeof about.context === \"number\" ? about.context : null;",
+        "to": "typeof about.context === \"number\" || name !== state.leader ? (about.context ?? panel.context) : null;"
+      }
+    ]
+  },
+  {
+    "name": "the tooltip does not say when the reading was taken",
+    "catches": "says in the tooltip when each window resets, each at its own moment on the page's clock, and nothing else",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  return [...resets, `updated at ${String(at.getHours()).padStart(2, \"0\")}:${String(at.getMinutes()).padStart(2, \"0\")}`].join(\", \");",
+        "to": "  return resets.join(\", \");"
       }
     ]
   }

@@ -104,6 +104,7 @@ An instance is a directory of its own. It holds this, and nothing else ever land
                     files above the instance it is not to read; written at every start
   runtime.json      the running server: url, pid, since
   runtime.log       what the server said, one row per line, every run appended
+  usage.json        the last reading of the account's usage windows, kept across restarts
   claude-variables  the Claude Code variables of the shell the server was started from, and what
                     its sessions get of each, masked; written at every start
   page-session      the key a signed-in browser's cookie carries, made at the first start and
@@ -137,7 +138,7 @@ The instance directory and `.local/` are open to their owner alone (0700), whate
 
 ovai runs on a pinned Claude Code release (2.1.285 in this version). A few things it needs are not in Claude Code's documentation. They work on the pinned release and are checked again whenever the pin moves. If Claude Code changes one of them, the matching ovai feature can stop working until a new ovai release adapts. ovai uses a documented way wherever one gives the same result.
 
-- **Usage percentages and the per-model weekly limit.** The usage bar and the quota guard need the 5-hour, 7-day and model-specific weekly percentages. Claude Code documents only whether a turn was allowed and when a limit resets, so ovai reads the percentages from two undocumented places: a field in the stream Claude Code prints during a turn, and an Anthropic account usage endpoint, called with the instance's own Claude Code login about every five minutes. If they change, the usage bar goes blank; sessions keep working.
+- **Usage percentages and the per-model weekly limit.** The usage bar and the quota guard need the 5-hour, 7-day and model-specific weekly percentages. Claude Code documents only whether a turn was allowed and when a limit resets, so ovai reads the percentages from two undocumented places: a field in the stream Claude Code prints during a turn, and an Anthropic account usage endpoint, called with the instance's own Claude Code login about every five minutes while a page is open. If they change, the usage bar keeps its last reading, dimmed once it is a quarter of an hour old; sessions keep working.
 - **Answering permission prompts ("cards").** Seats run in print mode, and ovai answers their permission prompts over Claude Code's standard input and output, the way the Agent SDK does. This path hands over Claude Code's own "don't ask again" rule suggestions, which the permission popup offers. The documented alternative for print mode, an MCP prompt tool, does not receive them. The message format is mostly documented; the name of the permission request and the option that selects this path are not.
 - **Whether Claude Code has been set up.** The admin door reads one flag in Claude Code's state file to decide whether to show its first-time line. At worst, that line shows every time.
 - **The admin overview of plugins and connectors.** The admin overview reads Claude Code's plugin records and its list of connected claude.ai connectors from their files. Claude Code documents where these files live, not what is in them. If they change, that part of the overview comes up empty.

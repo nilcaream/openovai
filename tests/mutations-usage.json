@@ -236,7 +236,7 @@
   },
   {
     "name": "the flat keys are not read",
-    "catches": "falls back on the flat keys when the limits list is not there, and is nothing when the session window has passed",
+    "catches": "falls back on the flat keys when the limits list is not there, and is nothing when there is no reading",
     "edits": [
       {
         "file": "lib/chat/usage.mjs",
@@ -246,30 +246,101 @@
     ]
   },
   {
-    "name": "a reading that outlived its window is still shown",
-    "catches": "falls back on the flat keys when the limits list is not there, and is nothing when the session window has passed",
+    "name": "a reading that outlived its window is withdrawn",
+    "catches": "is still the last reading once its session window has passed, with no time to that reset",
     "edits": [
       {
         "file": "lib/chat/usage.mjs",
-        "from": "  if (reset === null) {\n    return null;\n  }\n  return {\n    session:",
-        "to": "  return {\n    session:"
+        "from": "  return {\n    session: percent(session?.percent ?? data.five_hour?.utilization),\n    reset: until(sessionResets, now),",
+        "to": "  if (until(sessionResets, now) === null) {\n    return null;\n  }\n  return {\n    session: percent(session?.percent ?? data.five_hour?.utilization),\n    reset: until(sessionResets, now),"
       }
     ]
   },
   {
-    "name": "the clock asks while no session runs",
-    "catches": "is asked for nothing on the clock while no session runs",
+    "name": "the clock asks while no page is open",
+    "catches": "is asked for nothing on the clock while no page is open, however many sessions run, and still at a turn's end",
     "edits": [
       {
         "file": "lib/chat/usage.mjs",
-        "from": "  if (running > 0) {",
+        "from": "  if (pages > 0) {",
         "to": "  if (true) {"
       }
     ]
   },
   {
+    "name": "a page closing is not counted",
+    "catches": "is asked on the clock until the last page has closed, and again once one opens",
+    "edits": [
+      {
+        "file": "lib/chat/usage.mjs",
+        "from": "  pages = Math.max(0, pages - 1);",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "an answer is not kept at the root",
+    "catches": "is written at the root with every answer, and taken up again by the next run with the moment it was taken",
+    "edits": [
+      {
+        "file": "lib/chat/usage.mjs",
+        "from": "    keep(instance.root, live.data, live.fetchedAt);\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a kept reading needs no moment",
+    "catches": "starts from nothing when what is kept is not a reading",
+    "edits": [
+      {
+        "file": "lib/chat/usage.mjs",
+        "from": "Number.isFinite(kept.fetchedAt)",
+        "to": "true"
+      }
+    ]
+  },
+  {
+    "name": "a reading a quarter of an hour old is old already",
+    "catches": "says when it was taken, and that it is old once that is more than a quarter of an hour ago",
+    "edits": [
+      {
+        "file": "lib/chat/usage.mjs",
+        "from": "old: now - live.fetchedAt > OLD",
+        "to": "old: now - live.fetchedAt >= OLD"
+      }
+    ]
+  },
+  {
+    "name": "the page is never told a reading turned old",
+    "catches": "is told when the reading turns old, and when the time to its reset moved",
+    "edits": [
+      {
+        "file": "lib/chat/usage.mjs",
+        "from": "old: now - live.fetchedAt > OLD",
+        "to": "old: false"
+      }
+    ]
+  },
+  {
+    "name": "a fresh reading keeps the moment of the last",
+    "catches": "is told the reading once it is in, again when its words change, and not for a tick that says the same",
+    "edits": [
+      {
+        "file": "lib/chat/usage.mjs",
+        "from": "at: new Date(live.fetchedAt).toISOString()",
+        "to": "at: new Date(T_FIRST).toISOString()"
+      },
+      {
+        "file": "lib/chat/usage.mjs",
+        "from": "let pages = 0;\n",
+        "to": "let pages = 0;\nconst T_FIRST = Date.parse(\"2026-09-14T15:45:00.000Z\");\n"
+      }
+    ]
+  },
+  {
     "name": "the page is not told when the answer lands",
-    "catches": "is told the reading once it is in, again when its words change, and not for a fresh one that says the same",
+    "catches": "is told the reading once it is in, again when its words change, and not for a tick that says the same",
     "edits": [
       {
         "file": "lib/chat/usage.mjs",
@@ -280,7 +351,7 @@
   },
   {
     "name": "the page is told on every tick",
-    "catches": "is told the reading once it is in, again when its words change, and not for a fresh one that says the same",
+    "catches": "is told the reading once it is in, again when its words change, and not for a tick that says the same",
     "edits": [
       {
         "file": "lib/chat/usage.mjs",
@@ -291,7 +362,7 @@
   },
   {
     "name": "the clock asks every minute rather than every five",
-    "catches": "is asked on the clock while any session runs, with no page open, and again every five minutes",
+    "catches": "is asked on the clock while a page is open, with no session running, and again every five minutes",
     "edits": [
       {
         "file": "lib/chat/usage.mjs",
@@ -317,8 +388,8 @@
     "edits": [
       {
         "file": "lib/chat/usage.mjs",
-        "from": "export function pageOpened(instance, options = {}) {\n  ask(instance, SPACING, options);",
-        "to": "export function pageOpened(instance, options = {}) {"
+        "from": "export function pageOpened(instance, options = {}) {\n  pages += 1;\n  ask(instance, SPACING, options);",
+        "to": "export function pageOpened(instance, options = {}) {\n  pages += 1;"
       }
     ]
   },
@@ -328,8 +399,8 @@
     "edits": [
       {
         "file": "lib/chat/usage.mjs",
-        "from": "export function turnEnded(instance, options = {}) {\n  ask(instance, SPACING, options);\n}\n\n// A page has opened its stream: somebody is looking, sessions running or not.\nexport function pageOpened(instance, options = {}) {\n  ask(instance, SPACING, options);",
-        "to": "export function turnEnded(instance, options = {}) {\n  live.nextAt = 0;\n  ask(instance, SPACING, options);\n}\n\n// A page has opened its stream: somebody is looking, sessions running or not.\nexport function pageOpened(instance, options = {}) {\n  live.nextAt = 0;\n  ask(instance, SPACING, options);"
+        "from": "export function turnEnded(instance, options = {}) {\n  ask(instance, SPACING, options);\n}\n\n// A page has opened its stream: somebody is looking, sessions running or not.\nexport function pageOpened(instance, options = {}) {\n  pages += 1;\n  ask(instance, SPACING, options);",
+        "to": "export function turnEnded(instance, options = {}) {\n  live.nextAt = 0;\n  ask(instance, SPACING, options);\n}\n\n// A page has opened its stream: somebody is looking, sessions running or not.\nexport function pageOpened(instance, options = {}) {\n  pages += 1;\n  live.nextAt = 0;\n  ask(instance, SPACING, options);"
       }
     ]
   },
@@ -350,19 +421,19 @@
     "edits": [
       {
         "file": "lib/chat/usage.mjs",
-        "from": "  configured = { version };\n}",
-        "to": "}"
+        "from": "  configured = { version };\n  if (root",
+        "to": "  if (root"
       }
     ]
   },
   {
-    "name": "a reading that outlived its window is never withdrawn from the page",
-    "catches": "is told nothing once the reading has outlived its window, once",
+    "name": "a window that has passed is told with its old time to the reset",
+    "catches": "is told the reading whose session window has passed as it stands, with no time to that reset, once",
     "edits": [
       {
         "file": "lib/chat/usage.mjs",
-        "from": "  const said = reading(now);\n  const words = JSON.stringify(said);\n  if (words !== lastTold) {",
-        "to": "  const said = reading(now);\n  const words = JSON.stringify(said);\n  if (said !== null && words !== lastTold) {"
+        "from": "    reset: until(sessionResets, now),",
+        "to": "    reset: until(sessionResets, now) ?? \"0m\","
       }
     ]
   },

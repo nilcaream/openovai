@@ -12,7 +12,7 @@ import { home } from "../lib/claude.mjs";
 import { subscribe } from "../lib/chat/events.mjs";
 import { sink } from "../lib/chat/log.mjs";
 import * as quota from "../lib/chat/quota.mjs";
-import { BACKOFF, CREDENTIALS_FILE, MACHINE_TOKEN, POLL, SPACING, USAGE_URL, configure, format, noToken, pageOpened, reading, refresh, reset, tick, token, turnEnded, until } from "../lib/chat/usage.mjs";
+import { BACKOFF, CREDENTIALS_FILE, MACHINE_TOKEN, OLD, POLL, SPACING, USAGE_FILE, USAGE_URL, configure, format, noToken, pageClosed, pageOpened, reading, refresh, reset, tick, token, turnEnded, until } from "../lib/chat/usage.mjs";
 import { remove, scratch } from "./helpers.mjs";
 
 const root = scratch("usage-test");
@@ -59,10 +59,14 @@ after(() => {
   remove(root);
 });
 
+// Every check starts with one page open that asked nothing (no reading is a minute old at the
+// epoch), since the clock asks only while somebody is looking; a check about no page closes it.
 beforeEach(() => {
   reset();
   quota.reset();
   quota.configure({ clock: () => T0 });
+  remove(path.join(root, USAGE_FILE));
+  pageOpened({ root, config: { auth: "login" } }, { now: () => 0 });
 });
 
 describe("the token", () => {
@@ -138,9 +142,9 @@ describe("asking the endpoint", () => {
     await refresh(noToken, { get, now: () => T0 });
     assert.equal(get.asked.length, 0);
     credentials({ claudeAiOauth: { accessToken: "token-own" } });
-    tick(instance, 1, { get, now: () => T0 + BACKOFF - 1 });
+    tick(instance, { get, now: () => T0 + BACKOFF - 1 });
     assert.equal(get.asked.length, 0, "asked again before the backoff passed, though a token is there now");
-    tick(instance, 1, { get, now: () => T0 + BACKOFF });
+    tick(instance, { get, now: () => T0 + BACKOFF });
     assert.equal(get.asked.length, 1, "not asked once the backoff passed");
   });
 
@@ -175,20 +179,20 @@ describe("asking the endpoint", () => {
     const refused = answering({ ok: false, status: 429, headers: { "retry-after": "900" } });
     await refresh(instance, { get: refused, now: () => T0 + SPACING });
     assert.equal(reading(T0 + SPACING).session, "8%", "a refusal threw the reading away");
-    tick(instance, 1, { get: refused, now: () => T0 + SPACING + 900_000 - 1 });
+    tick(instance, { get: refused, now: () => T0 + SPACING + 900_000 - 1 });
     assert.equal(refused.asked.length, 1, "asked again before the retry-after passed");
-    tick(instance, 1, { get: refused, now: () => T0 + SPACING + 900_000 });
+    tick(instance, { get: refused, now: () => T0 + SPACING + 900_000 });
     assert.equal(refused.asked.length, 2, "not asked once the retry-after passed");
     await settle();
     const denied = answering({ ok: false, status: 401 });
     await refresh(instance, { get: denied, now: () => T0 + 2_000_000 });
     assert.equal(denied.asked.length, 1);
-    tick(instance, 1, { get: denied, now: () => T0 + 2_000_000 + BACKOFF - 1 });
+    tick(instance, { get: denied, now: () => T0 + 2_000_000 + BACKOFF - 1 });
     assert.equal(denied.asked.length, 1, "a refusal without retry-after was not left alone for the backoff");
     const soon = answering({ ok: false, status: 429, headers: { "retry-after": "60" } });
     await refresh(instance, { get: soon, now: () => T0 + 4_000_000 });
     assert.equal(soon.asked.length, 1);
-    tick(instance, 1, { get: soon, now: () => T0 + 4_000_000 + BACKOFF - 1 });
+    tick(instance, { get: soon, now: () => T0 + 4_000_000 + BACKOFF - 1 });
     assert.equal(soon.asked.length, 1, "a retry-after shorter than the backoff cut the backoff short");
   });
 
@@ -198,7 +202,7 @@ describe("asking the endpoint", () => {
     try {
       const down = answering({ fails: "fetch failed" });
       await refresh(instance, { get: down, now: () => T0 });
-      tick(instance, 1, { get: down, now: () => T0 + BACKOFF - 1 });
+      tick(instance, { get: down, now: () => T0 + BACKOFF - 1 });
       assert.equal(down.asked.length, 1, "asked again before the backoff passed");
       assert.equal(reading(T0), null);
     } finally {
@@ -257,16 +261,86 @@ describe("the reading", () => {
     assert.equal(format(payload({ allResets: "2026-09-14T15:00:00.000Z" }), T0).resets["7d"], null, "a reset already passed");
   });
 
-  it("falls back on the flat keys when the limits list is not there, and is nothing when the session window has passed", () => {
+  it("falls back on the flat keys when the limits list is not there, and is nothing when there is no reading", () => {
     const flat = payload();
     delete flat.limits;
     assert.deepEqual(format(flat, T0), {
       session: "8%", reset: "3h", all: "86%", allReset: "5d", fable: "-", fableReset: null,
       resets: { "5h": "2026-09-14T19:20:00.000Z", "7d": "2026-09-19T21:00:00.000Z", "7d fable": null },
     });
-    assert.equal(format(payload(), Date.parse("2026-09-14T19:20:00.000Z")), null, "the numbers are the last window's");
     assert.equal(format(null, T0), null);
     assert.equal(format("odd", T0), null);
+  });
+
+  it("is still the last reading once its session window has passed, with no time to that reset", () => {
+    const passed = format(payload(), Date.parse("2026-09-14T19:20:00.000Z"));
+    assert.equal(passed.session, "8%", "the reading was thrown away with its window");
+    assert.equal(passed.reset, null);
+    assert.equal(passed.resets["5h"], null);
+    assert.equal(passed.all, "86%");
+  });
+
+  it("says when it was taken, and that it is old once that is more than a quarter of an hour ago", async () => {
+    const instance = { root, config: { auth: "login" } };
+    credentials({ claudeAiOauth: { accessToken: "token-own" } });
+    assert.equal(reading(T0), null, "a reading before any was taken");
+    await refresh(instance, { get: answering(), now: () => T0 });
+    assert.equal(reading(T0).at, new Date(T0).toISOString());
+    assert.equal(reading(T0 + OLD).old, false, "old at exactly a quarter of an hour");
+    assert.equal(reading(T0 + OLD + 1).old, true);
+    assert.equal(reading(T0 + OLD + 1).session, "8%", "an old reading is still the reading");
+  });
+});
+
+describe("the reading kept across a restart", () => {
+  const instance = { root, config: { auth: "login" } };
+
+  before(() => {
+    credentials({ claudeAiOauth: { accessToken: "token-own" } });
+  });
+
+  it("is written at the root with every answer, and taken up again by the next run with the moment it was taken", async () => {
+    await refresh(instance, { get: answering(), now: () => T0 });
+    const kept = JSON.parse(fs.readFileSync(path.join(root, USAGE_FILE), "utf8"));
+    assert.equal(kept.fetchedAt, T0);
+    assert.equal(kept.data.limits[0].percent, 8);
+    reset();
+    assert.equal(reading(T0), null, "a fresh run knows nothing before it reads the root");
+    configure({ root });
+    assert.equal(reading(T0 + 60_000).session, "8%");
+    assert.equal(reading(T0 + 60_000).at, new Date(T0).toISOString());
+  });
+
+  it("is not thrown away by a failed answer, and is not rewritten by one", async () => {
+    await refresh(instance, { get: answering(), now: () => T0 });
+    const before = fs.readFileSync(path.join(root, USAGE_FILE), "utf8");
+    await refresh(instance, { get: answering({ ok: false, status: 500 }), now: () => T0 + SPACING });
+    assert.equal(fs.readFileSync(path.join(root, USAGE_FILE), "utf8"), before);
+    reset();
+    configure({ root });
+    assert.equal(reading(T0 + SPACING).session, "8%");
+  });
+
+  it("starts from nothing when what is kept is not a reading", () => {
+    fs.writeFileSync(path.join(root, USAGE_FILE), "{");
+    configure({ root });
+    assert.equal(reading(T0), null, "unparseable");
+    fs.writeFileSync(path.join(root, USAGE_FILE), JSON.stringify({ data: { limits: [] } }));
+    configure({ root });
+    assert.equal(reading(T0), null, "no moment to go with it");
+  });
+
+  it("is asked for again when a page opens on a kept reading that is a minute old", async () => {
+    await refresh(instance, { get: answering(), now: () => T0 });
+    reset();
+    configure({ root });
+    const get = answering({ body: payload({ session: 9 }) });
+    pageOpened(instance, { get, now: () => T0 + SPACING - 1 });
+    assert.equal(get.asked.length, 0, "asked for a reading not yet a minute old");
+    pageOpened(instance, { get, now: () => T0 + SPACING });
+    assert.equal(get.asked.length, 1, "not asked for a kept reading a minute old");
+    await settle();
+    assert.equal(reading(T0 + SPACING).session, "9%");
   });
 });
 
@@ -290,22 +364,40 @@ describe("when it is asked, and the page told", () => {
     unsubscribe();
   });
 
-  it("is asked for nothing on the clock while no session runs", () => {
+  it("is asked for nothing on the clock while no page is open, however many sessions run, and still at a turn's end", async () => {
     const get = answering();
-    tick(instance, 0, { get, now: () => T0 });
+    pageClosed();
+    tick(instance, { get, now: () => T0 });
+    tick(instance, { get, now: () => T0 + POLL });
     assert.equal(get.asked.length, 0);
     assert.deepEqual(told, []);
+    turnEnded(instance, { get, now: () => T0 + POLL });
+    assert.equal(get.asked.length, 1, "a turn's end asked nothing with no page open");
   });
 
-  it("is asked on the clock while any session runs, with no page open, and again every five minutes", async () => {
+  it("is asked on the clock while a page is open, with no session running, and again every five minutes", async () => {
     const get = answering();
-    tick(instance, 1, { get, now: () => T0 });
-    assert.equal(get.asked.length, 1, "not asked while a session runs");
+    tick(instance, { get, now: () => T0 });
+    assert.equal(get.asked.length, 1, "not asked while a page is open");
     await settle();
-    tick(instance, 2, { get, now: () => T0 + POLL - 1 });
+    tick(instance, { get, now: () => T0 + POLL - 1 });
     assert.equal(get.asked.length, 1, "asked again before five minutes");
-    tick(instance, 2, { get, now: () => T0 + POLL });
+    tick(instance, { get, now: () => T0 + POLL });
     assert.equal(get.asked.length, 2, "not asked again at five minutes");
+  });
+
+  it("is asked on the clock until the last page has closed, and again once one opens", async () => {
+    const get = answering();
+    pageOpened(instance, { now: () => 0 });
+    pageClosed();
+    tick(instance, { get, now: () => T0 });
+    assert.equal(get.asked.length, 1, "one page was still open");
+    await settle();
+    pageClosed();
+    tick(instance, { get, now: () => T0 + POLL });
+    assert.equal(get.asked.length, 1, "asked with no page open");
+    pageOpened(instance, { get, now: () => T0 + POLL });
+    assert.equal(get.asked.length, 2, "not asked when a page opened on a reading five minutes old");
   });
 
   it("is asked at a turn's end and when a page opens, once the last reading is a minute old", async () => {
@@ -334,36 +426,54 @@ describe("when it is asked, and the page told", () => {
     }
     turnEnded(instance, { get: down, now: () => T0 + BACKOFF - 1 });
     pageOpened(instance, { get: down, now: () => T0 + BACKOFF - 1 });
-    tick(instance, 1, { get: down, now: () => T0 + BACKOFF - 1 });
+    tick(instance, { get: down, now: () => T0 + BACKOFF - 1 });
     assert.equal(down.asked.length, 1, "asked again before the backoff passed");
   });
 
-  it("is told the reading once it is in, again when its words change, and not for a fresh one that says the same", async () => {
+  it("is told the reading once it is in, again when its words change, and not for a tick that says the same", async () => {
     const get = answering();
-    tick(instance, 1, { get, now: () => T0 });
+    tick(instance, { get, now: () => T0 });
     assert.equal(get.asked.length, 1);
     await settle();
     assert.equal(told.length, 1, "not told once the answer landed");
     assert.equal(told[0].reset, "3h");
-    tick(instance, 1, { get, now: () => T0 + 30_000 });
+    assert.equal(told[0].at, new Date(T0).toISOString());
+    tick(instance, { get, now: () => T0 + 30_000 });
     assert.equal(told.length, 1, "told a reading that says what the last one said");
-    tick(instance, 1, { get, now: () => T0 + POLL });
+    tick(instance, { get, now: () => T0 + POLL });
     assert.equal(get.asked.length, 2);
     await settle();
-    assert.equal(told.length, 1, "told a fresh reading that says what the last one said");
-    tick(instance, 1, { get, now: () => T0 + 2 * 3_600_000 });
-    assert.equal(told.length, 2, "not told when the time to the reset moved");
-    assert.equal(told[1].reset, "95m");
+    assert.equal(told.length, 2, "not told a fresh reading, whose moment is new");
+    assert.equal(told[1].at, new Date(T0 + POLL).toISOString());
+    tick(instance, { get, now: () => T0 + POLL + 100_000 });
+    assert.equal(told.length, 2, "told a tick with nothing new");
   });
 
-  it("is told nothing once the reading has outlived its window, once", () => {
+  it("is told when the reading turns old, and when the time to its reset moved", async () => {
     const get = answering();
-    tick(instance, 1, { get, now: () => T0 });
-    return settle().then(() => {
-      assert.equal(told.length, 1);
-      tick(instance, 0, { get, now: () => Date.parse("2026-09-14T19:20:00.000Z") });
-      tick(instance, 0, { get, now: () => Date.parse("2026-09-14T19:21:00.000Z") });
-      assert.deepEqual(told.slice(1), [null]);
-    });
+    tick(instance, { get, now: () => T0 });
+    await settle();
+    assert.equal(told.at(-1).old, false);
+    pageClosed();
+    tick(instance, { get, now: () => T0 + OLD });
+    assert.equal(told.length, 1, "told at exactly a quarter of an hour");
+    tick(instance, { get, now: () => T0 + OLD + 1 });
+    assert.equal(told.length, 2, "not told when the reading turned old");
+    assert.equal(told[1].old, true);
+    assert.equal(told[1].session, "8%");
+  });
+
+  it("is told the reading whose session window has passed as it stands, with no time to that reset, once", async () => {
+    const get = answering();
+    tick(instance, { get, now: () => T0 });
+    await settle();
+    assert.equal(told.length, 1);
+    pageClosed();
+    tick(instance, { get, now: () => Date.parse("2026-09-14T19:20:00.000Z") });
+    tick(instance, { get, now: () => Date.parse("2026-09-14T19:21:00.000Z") });
+    assert.equal(told.length, 2);
+    assert.equal(told[1].reset, null);
+    assert.equal(told[1].session, "8%", "the reading went with its window");
+    assert.equal(told[1].old, true);
   });
 });

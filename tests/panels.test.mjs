@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { AMBER, CARD, CONNECTED, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, LATE_AFTER, RED, REPLY, SENDING, SHOWN_FOR, LINE_WAITING, LINE_WORKING, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, insertRef, stopEnabled, title, typingBeat, TYPING_BEAT } from "../lib/chat/panels.mjs";
+import { AMBER, CARD, CONNECTED, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, GREY, LATE_AFTER, RED, REPLY, SENDING, SHOWN_FOR, LINE_LEFT, LINE_WAITING, LINE_WORKING, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, pillLine, place, prune, quotaLine, quotaTitle, insertRef, stopEnabled, title, typingBeat, TYPING_BEAT } from "../lib/chat/panels.mjs";
 import { localAt, refTo, references } from "../lib/chat/refs.mjs";
 
 const LEADER = "Leader";
@@ -169,6 +169,68 @@ describe("the Leader's panel", () => {
     assert.equal(state.panels[LEADER].dimmed, false);
     assert.deepEqual(prune(state, 200_000), []);
     assert.deepEqual(names(state), [LEADER]);
+  });
+
+  // A park is no fault: the dot is grey, the word says there is no process, the bottom line says
+  // the Leader has left. The next message starts a process: amber with the turn, green after.
+  it("with no process its dot is grey, its head says not running and its bottom line says it has left", () => {
+    const state = fresh();
+    applyEvent(state, snapshot([about(LEADER, { running: false }), about("Paul")]), 0);
+    assert.equal(dot(state, LEADER), GREY);
+    assert.equal(head(state, LEADER).state, "not running");
+    assert.equal(pillLine(state, LEADER), "Leader has left — the next message starts a fresh session");
+    assert.equal(pillLine(state, LEADER), LINE_LEFT(LEADER));
+    assert.equal(dot(state, "Paul"), GREEN, "a Worker's dot is its own");
+    assert.equal(head(state, "Paul").state, "listening");
+    applyEvent(state, seat(LEADER, { running: true, busy: true, doing: LINE_WORKING }), 1);
+    assert.equal(dot(state, LEADER), AMBER);
+    assert.equal(head(state, LEADER).state, "working");
+    assert.equal(pillLine(state, LEADER), LINE_WORKING);
+    applyEvent(state, seat(LEADER, { running: true, busy: false }), 2);
+    assert.equal(dot(state, LEADER), GREEN);
+    assert.equal(head(state, LEADER).state, "listening");
+    assert.equal(pillLine(state, LEADER), LINE_WAITING);
+    applyEvent(state, seat(LEADER, { running: false }), 3);
+    assert.equal(dot(state, LEADER), GREY);
+    assert.equal(head(state, LEADER).state, "not running");
+  });
+
+  it("with no process, a page without a stream still says red and nothing, and a Worker gone is still red", () => {
+    const state = fresh();
+    applyEvent(state, snapshot([about(LEADER, { running: false }), about("Paul")]), 0);
+    state.connection = DISCONNECTED;
+    assert.equal(dot(state, LEADER), RED);
+    assert.equal(head(state, LEADER).state, "");
+    state.connection = CONNECTED;
+    applyEvent(state, seat("Paul", { running: false }), 1);
+    assert.equal(dot(state, "Paul"), RED);
+    assert.equal(head(state, "Paul").state, "");
+  });
+});
+
+describe("the context on a head", () => {
+  it("is the running session's own: gone when the session ends, and never the last one's before the new one's first request", () => {
+    const state = fresh();
+    applyEvent(state, snapshot([about(LEADER, { context: 46_000 })]), 0);
+    assert.equal(head(state, LEADER).info, "opus 46k");
+    applyEvent(state, seat(LEADER, { running: false }), 1);
+    assert.equal(head(state, LEADER).info, "opus", "the old session's figure stayed after it ended");
+    applyEvent(state, seat(LEADER, { running: true, context: null }), 2);
+    assert.equal(head(state, LEADER).info, "opus", "the old session's figure showed between the spawn and the first request");
+    applyEvent(state, seat(LEADER, { running: true, busy: true, context: 47_034 }), 3);
+    assert.equal(head(state, LEADER).info, "opus 47k");
+    applyEvent(state, seat(LEADER, { running: true, busy: false }), 4);
+    assert.equal(head(state, LEADER).info, "opus", "a figure the server does not give is not kept");
+  });
+
+  it("is gone from a Worker's head while it is dimmed, and shows nothing for one not known", () => {
+    const state = fresh();
+    applyEvent(state, snapshot([about(LEADER), about("Paul", { context: 40_400 })]), 0);
+    assert.equal(head(state, "Paul").info, "opus 40k");
+    applyEvent(state, seat("Paul", { running: false }), 1);
+    assert.equal(state.panels.Paul.dimmed, true);
+    assert.equal(head(state, "Paul").info, "opus");
+    assert.equal(head(state, LEADER).info, "opus", "a figure not known is no placeholder");
   });
 });
 
@@ -430,7 +492,7 @@ describe("the quota line", () => {
   // Moments on the local clock, as the page's own: Friday 25 September 2026, 10:00.
   const local = (day, hours, minutes) => new Date(2026, 8, day, hours, minutes).toISOString();
   const now = new Date(2026, 8, 25, 10, 0);
-  const reading = { session: "8%", reset: "3h", all: "86%", allReset: "6d", fable: "20%", fableReset: "6d", resets: { "5h": local(25, 12, 12), "7d": local(28, 13, 41), "7d fable": local(26, 23, 11) } };
+  const reading = { session: "8%", reset: "3h", all: "86%", allReset: "6d", fable: "20%", fableReset: "6d", resets: { "5h": local(25, 12, 12), "7d": local(28, 13, 41), "7d fable": local(26, 23, 11) }, at: local(25, 9, 41), old: false };
 
   it("is the session window with its reset, then all with its reset, then fable with its reset", () => {
     assert.equal(quotaLine(reading), "8% (3h) · all 86% (6d) · fable 20% (6d)");
@@ -439,9 +501,10 @@ describe("the quota line", () => {
   });
 
   it("says in the tooltip when each window resets, each at its own moment on the page's clock, and nothing else", () => {
-    assert.equal(quotaTitle(reading, now), "5h resets today at 12:12, 7d on Monday at 13:41, 7d fable tomorrow at 23:11");
-    assert.equal(quotaTitle({ ...reading, resets: { "5h": local(25, 9, 5), "7d": local(26, 0, 0), "7d fable": local(32, 7, 30) } }, now), "5h resets today at 09:05, 7d tomorrow at 00:00, 7d fable on Friday at 07:30");
-    assert.equal(quotaTitle({ ...reading, resets: { ...reading.resets, "7d fable": null } }, now), "5h resets today at 12:12, 7d on Monday at 13:41", "a window with no reset is left out");
+    assert.equal(quotaTitle(reading, now), "5h resets today at 12:12, 7d on Monday at 13:41, 7d fable tomorrow at 23:11, updated at 09:41");
+    assert.equal(quotaTitle({ ...reading, resets: { "5h": local(25, 9, 5), "7d": local(26, 0, 0), "7d fable": local(32, 7, 30) } }, now), "5h resets today at 09:05, 7d tomorrow at 00:00, 7d fable on Friday at 07:30, updated at 09:41");
+    assert.equal(quotaTitle({ ...reading, resets: { ...reading.resets, "7d fable": null } }, now), "5h resets today at 12:12, 7d on Monday at 13:41, updated at 09:41", "a window with no reset is left out");
+    assert.equal(quotaTitle({ ...reading, resets: { "5h": null, "7d": null, "7d fable": null }, at: local(25, 0, 5) }, now), "updated at 00:05", "a reading whose resets have all passed still says when it was taken");
     assert.equal(quotaTitle(null, now), "");
   });
 

@@ -24,8 +24,9 @@ import { COOKIE_AGE, LINK_FILE, LINK_LIFETIME, sessionKey, writeLink } from "../
 import { hire } from "../lib/desks.mjs";
 import { INTRODUCED_FILE, endSeat, introduce, serve, shownRoot, startSeat, toolsFor } from "../lib/chat/server.mjs";
 import { INTRODUCTION_TEMPLATE } from "../lib/desks.mjs";
-import { close, hasLeft } from "../lib/chat/lifecycle.mjs";
+import { close } from "../lib/chat/lifecycle.mjs";
 import { sink } from "../lib/chat/log.mjs";
+import * as usage from "../lib/chat/usage.mjs";
 import { OPENER } from "../lib/chat/view.mjs";
 import { LEADER as LEADS, WORKER as WORKS, toolsFile } from "../lib/desks.mjs";
 import { end, endEvery, interrupt, recordOf, running, runningSeats, start, tell, keystroke as keyTyped } from "../lib/chat/session.mjs";
@@ -2018,28 +2019,28 @@ describe("what the User types", () => {
     assert.equal(running(WORKER), true, "a seat that had already answered was ended by one failed turn");
   });
 
-  // A Leader whose process is gone leaves one row on its panel saying so — between what that
-  // session said and what the next one will say — and the next one is a fresh run: no resume, no
-  // continue, nothing of the context it had; the desk is its only memory.
-  it("leaves one row on the Leader's panel when its process is gone, and starts a fresh one for the event, the event its first line", async () => {
+  // A Leader whose process is gone leaves no row on its panel — the head and the bottom line say so
+  // (panels.mjs) — and the next one is a fresh run: no resume, no continue, nothing of the context
+  // it had; the desk is its only memory.
+  it("leaves no row on the Leader's panel when its process is gone, and starts a fresh one for the event, the event its first line", async () => {
     // The Worker it posts to is its own: the checks above leave a seat whose turns die at the
     // service, and such a seat is now one that ends.
     if (running(WORKER)) await endSeat(WORKER, 500);
     paul = await seatUp(WORKER);
     const rows = panel(instance, LEADER).length;
+    const stamps = read(instance, LEADER).filter((row) => row.stamp === true).length;
     await endSeat(LEADER, 500);
     assert.equal(running(LEADER), false);
-    await waitFor(() => (panel(instance, LEADER).length > rows ? true : null));
-    const left = panel(instance, LEADER).slice(rows);
-    assert.deepEqual(left.map((row) => [row.from, row.divider, row.text]), [[SERVER, true, hasLeft(LEADER)]]);
-    assert.equal(hasLeft(LEADER), `${LEADER} has left — the next message starts a fresh session`);
+    await waitFor(() => (read(instance, LEADER).filter((row) => row.stamp === true).length > stamps ? true : null));
+    assert.deepEqual(panel(instance, LEADER).slice(rows), [], "a row was left on the panel of a Leader whose process ended");
+    assert.ok(!read(instance, LEADER).some((row) => row.divider === true), "a divider row says the Leader left");
     const spawned = await spawnedBy(LEADER, () => page("POST", `/sessions/${WORKER}/message`, { text: "carry on" }));
     assert.deepEqual(JSON.parse(spawned.result.body), { delivered: true, leaderTold: true });
     assert.equal((await told(paul.log, 1)).at(-1), "<user>carry on</user>");
     assert.deepEqual(await told(spawned.log, 1), [`<server-event type="user-typed" who="${WORKER}">carry on</server-event>`]);
     const argv = callsIn(spawned.log)[0];
     assert.ok(!/--resume|--continue/.test(argv), argv);
-    assert.deepEqual([panel(instance, LEADER)[rows + 1].from, panel(instance, LEADER)[rows + 1].typedTo], ["user", WORKER], "the typed line is not the first row after the one that says the Leader left");
+    assert.deepEqual([panel(instance, LEADER)[rows].from, panel(instance, LEADER)[rows].typedTo], ["user", WORKER], "the typed line is not the first row after the Leader's last");
     superman = spawned;
   });
 
@@ -2526,6 +2527,17 @@ describe("the stream", () => {
     }
     chat.stopping = false;
     await endEvery(500);
+  });
+
+  // The usage clock asks only while a page holds a stream: each stream counts itself in and, once
+  // it closes, out.
+  it("counts a page as looking for as long as its stream is open", async () => {
+    const before = usage.watching();
+    const client = await listen();
+    await until(client, (event) => event.name === "snapshot");
+    assert.equal(usage.watching(), before + 1);
+    client.close();
+    assert.ok(await waitFor(() => (usage.watching() === before ? true : null)), "a closed stream still counts as a page looking");
   });
 
   it("opens to the session cookie, and to nothing else — not the key on its query, not the bearer", async () => {

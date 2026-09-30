@@ -20,6 +20,7 @@ What is in the instance directory, and what each part is for.
 - `openovai.json`: the instance's description of itself: user, Leader, models, port, sign-in mode. It holds no paths.
 - `instructions.json`: the settings document every session is started with, written at every start.
 - `runtime.json`: the running server's address, pid and start time. `runtime.log`: what the server said, every run appended.
+- `usage.json`: the last reading of the account's usage windows and when it was taken, so the head's usage line is there after a restart.
 - `claude-variables`: the Claude Code variables of the shell the server was started from, and what sessions get of each, masked. Written at every start; `ovai start` and `ovai configuration` print it.
 - `page-session`: the key a signed-in browser's cookie carries. Delete it to sign every browser out. `page-link`: the pending one-time link.
 - `introduced`: the version whose introduction the page last showed.
