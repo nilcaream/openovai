@@ -868,7 +868,7 @@
     "edits": [
       {
         "file": "lib/chat/permissions.mjs",
-        "from": "  if (request.suppressAlwaysAllowRule === true) {\n    return null;\n  }\n  if (request.tool === \"Bash\") {",
+        "from": "  if (offersNoRule(request)) {\n    return null;\n  }\n  if (request.tool === \"Bash\") {",
         "to": "  if (request.tool === \"Bash\") {"
       }
     ]
@@ -879,14 +879,14 @@
     "edits": [
       {
         "file": "lib/chat/permissions.mjs",
-        "from": "  if (request.suppressAlwaysAllowRule === true) {\n    return null;\n  }\n  if (request.tool === \"Bash\") {",
-        "to": "  if (request.tool === \"Bash\") {\n    if (request.suppressAlwaysAllowRule === true) {\n      return null;\n    }"
+        "from": "  if (offersNoRule(request)) {\n    return null;\n  }\n  if (request.tool === \"Bash\") {",
+        "to": "  if (request.tool === \"Bash\") {\n    if (offersNoRule(request)) {\n      return null;\n    }"
       }
     ]
   },
   {
     "name": "the flag is dropped between the frame and the parked request",
-    "catches": "sends the page no rule, neither ovai's own nor Claude Code's",
+    "catches": "sends the page no rule for a call Claude Code says no rule is to be saved for, neither ovai's own nor Claude Code's",
     "edits": [
       {
         "file": "lib/chat/session.mjs",
@@ -897,12 +897,56 @@
   },
   {
     "name": "an always answer on a flagged call falls to the composer's refusal and says nothing of Claude Code",
-    "catches": "refuses an always answer, saying that Claude Code offers none, and writes no rule",
+    "catches": "refuses an always answer on a call Claude Code says no rule is to be saved for, saying that Claude Code offers none, and writes no rule",
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "    if (asked.suppressAlwaysAllowRule === true) {",
+        "from": "    if (offersNoRule(asked)) {",
         "to": "    if (asked.suppressAlwaysAllowRule === \"never\") {"
+      }
+    ]
+  },
+  {
+    "name": "the reason type is dropped between the frame and the parked request",
+    "catches": "sends the page no rule for a write to a settings file, stopped on Claude Code's safety check, neither ovai's own nor Claude Code's",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "    ...(typeof frame.request.decision_reason_type === \"string\" ? { decisionReasonType: frame.request.decision_reason_type } : {}),\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a stop on the safety check is offered the rule ovai composes for its path",
+    "catches": "offers nothing for a write to the settings file",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": "  return request.decisionReasonType === \"safetyCheck\" && !suggestsARule;",
+        "to": "  return false;"
+      }
+    ]
+  },
+  {
+    "name": "a stop on the safety check that Claude Code suggests a rule for loses its button",
+    "catches": "keeps the button for a stop it suggests a rule for",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": "  return request.decisionReasonType === \"safetyCheck\" && !suggestsARule;",
+        "to": "  return request.decisionReasonType === \"safetyCheck\";"
+      }
+    ]
+  },
+  {
+    "name": "an always answer on a safety-check stop says nothing of Claude Code",
+    "catches": "refuses an always answer on a write to a settings file, stopped on Claude Code's safety check, saying that Claude Code offers none, and writes no rule",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "    if (offersNoRule(asked)) {",
+        "to": "    if (asked.suppressAlwaysAllowRule === true) {"
       }
     ]
   }

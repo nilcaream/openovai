@@ -134,6 +134,8 @@ export function installed(options, environment) {
 //                             beside the request as permission_suggestions
 //   OPENOVAI_STAND_IN_SUPPRESSES    set: that request carries suppress_always_allow_rule: true, the
 //                             flag Claude Code puts on a call it offers no "don't ask again" on
+//   OPENOVAI_STAND_IN_REASON_TYPE   the decision_reason_type sent on that request, as Claude Code
+//                             sends "safetyCheck" for a write to a settings file or under .git
 //   OPENOVAI_STAND_IN_AGENT_ID      the agent_id sent on that request — a call a subagent made
 //   OPENOVAI_STAND_IN_TASK_STARTED  the fields of a system/task_started frame, as JSON, sent
 //                             before that request — a subagent starting
@@ -459,6 +461,7 @@ async function askPermission(turn) {
           : { file_path: process.env.OPENOVAI_STAND_IN_ASKS_FILE },
       ...((process.env.OPENOVAI_STAND_IN_SUGGESTS ?? "") === "" ? {} : { permission_suggestions: JSON.parse(process.env.OPENOVAI_STAND_IN_SUGGESTS) }),
       ...((process.env.OPENOVAI_STAND_IN_SUPPRESSES ?? "") === "" ? {} : { suppress_always_allow_rule: true }),
+      ...((process.env.OPENOVAI_STAND_IN_REASON_TYPE ?? "") === "" ? {} : { decision_reason_type: process.env.OPENOVAI_STAND_IN_REASON_TYPE }),
       ...((process.env.OPENOVAI_STAND_IN_AGENT_ID ?? "") === "" ? {} : { agent_id: process.env.OPENOVAI_STAND_IN_AGENT_ID }),
     },
   });

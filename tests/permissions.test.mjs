@@ -259,6 +259,43 @@ describe("the rule Claude Code suggested for a call", () => {
       assert.deepEqual(shapeOf({ id: "request-1", tool: "Bash", input: { command: "npm test" }, suppressAlwaysAllowRule: false }, AT), ["Bash(npm:*)"]);
     });
   });
+
+  // A stop on Claude Code's safety check (`decision_reason_type: "safetyCheck"`, session.mjs carries it
+  // as `decisionReasonType`): it runs before the allow rules are read, so a rule is never honoured on
+  // such a path, and where Claude Code suggests no rule for it none is offered here either. The first
+  // two requests are the frames measured on 2.1.285 (a Write to a settings file and to a git hook, with
+  // a `setMode` suggestion only), the third the one it does suggest a rule for.
+  describe("a stop on Claude Code's safety check", () => {
+    const setMode = [{ type: "setMode", mode: "acceptEdits", destination: "session" }];
+    const stopped = (tool, input, suggestions, decisionReasonType = "safetyCheck") => ({ id: "request-1", tool, input, suggestions, decisionReasonType });
+    const settingsWrite = [`a write to the settings file`, "Write", { file_path: `${AT}/.claude/settings.json`, content: "{}" }, setMode];
+    const hookWrite = [`a write to a git hook`, "Write", { file_path: `${AT}/.git/hooks/pre-commit`, content: "exit 0" }, setMode];
+
+    for (const [what, tool, input, suggestions] of [settingsWrite, hookWrite]) {
+      it(`offers nothing for ${what}`, () => {
+        assert.notEqual(shapeOf(stopped(tool, input, suggestions, null), AT), null, "without the reason type it composes a rule, so the check below proves nothing");
+        assert.equal(shapeOf(stopped(tool, input, suggestions), AT), null);
+      });
+    }
+
+    it("keeps the button for a stop it suggests a rule for", () => {
+      const command = `rm -rf ${AT}/.git`;
+      const suggestion = [{ type: "addRules", behavior: "allow", destination: "localSettings", rules: [{ toolName: "Bash", ruleContent: command }] }, ...setMode];
+      assert.notEqual(shapeOf(stopped("Bash", { command }, suggestion), AT), null);
+      const deploy = "~/bin/clean .git";
+      const exact = [{ type: "addRules", behavior: "allow", destination: "localSettings", rules: [{ toolName: "Bash", ruleContent: deploy }] }];
+      assert.deepEqual(shapeOf(stopped("Bash", { command: deploy }, exact), AT), [`Bash(${deploy})`], "it offers what Claude Code suggested");
+    });
+
+    it("keeps the button for a stop that is not the safety check", () => {
+      assert.deepEqual(shapeOf(stopped("Write", { file_path: `${AT}/projects/Wren/notes.md` }, setMode, "other"), AT), ["Edit(/projects/Wren/**)"]);
+    });
+
+    it("offers nothing for a safety check stop that suggests only a rule to deny", () => {
+      const deny = [{ type: "addRules", behavior: "deny", destination: "localSettings", rules: [{ toolName: "Write", ruleContent: "x" }] }];
+      assert.equal(shapeOf(stopped("Write", { file_path: `${AT}/.claude/settings.json` }, deny), AT), null);
+    });
+  });
 });
 
 // The one checker for both callers: a rule written by hand for the Leader's permission tool, and
@@ -868,60 +905,81 @@ describe("asking to be allowed", () => {
     });
   });
 
-  // `npm test` is a command whose rule ovai composes itself (Bash(npm:*), see above); here Claude
-  // Code's frame says it offers no "don't ask again" on the call, and ovai offers none either.
-  describe("a call Claude Code says no rule is to be saved for", () => {
-    const settings = path.join(instance, ".claude", "settings.json");
-    let shown;
-    let card;
-    let refused;
-    let settingsBefore;
-    let settingsAfter;
-    let stillWaiting;
-    let replied;
-
-    before(async () => {
-      await leaderAsking({
+  // Calls Claude Code offers no "don't ask again" on, however it says so; ovai offers none either.
+  // `npm test` is a command whose rule ovai composes itself (Bash(npm:*), see above). The second is a
+  // write to the instance's own settings file as Claude Code's frame carries it (measured on 2.1.285):
+  // a safety-check stop with a `setMode` suggestion only; without the reason type ovai composes
+  // `Edit(/.claude/**)` for it.
+  const NO_RULE = [
+    [
+      "a call Claude Code says no rule is to be saved for",
+      {
         OPENOVAI_STAND_IN_ASKS: "Bash",
         OPENOVAI_STAND_IN_ASKS_INPUT: "npm test",
         OPENOVAI_STAND_IN_SUPPRESSES: "1",
         OPENOVAI_STAND_IN_SUGGESTS: JSON.stringify([{ type: "addRules", destination: "localSettings", rules: [{ toolName: "Bash", ruleContent: "npm test" }], behavior: "allow" }]),
+      },
+    ],
+    [
+      "a write to a settings file, stopped on Claude Code's safety check",
+      {
+        OPENOVAI_STAND_IN_ASKS: "Write",
+        OPENOVAI_STAND_IN_ASKS_FILE: path.join(instance, ".claude", "settings.json"),
+        OPENOVAI_STAND_IN_REASON_TYPE: "safetyCheck",
+        OPENOVAI_STAND_IN_SUGGESTS: JSON.stringify([{ type: "setMode", mode: "acceptEdits", destination: "session" }]),
+      },
+    ],
+  ];
+
+  for (const [what, asks] of NO_RULE) {
+    describe(what, () => {
+      const settings = path.join(instance, ".claude", "settings.json");
+      let shown;
+      let card;
+      let refused;
+      let settingsBefore;
+      let settingsAfter;
+      let stillWaiting;
+      let replied;
+
+      before(async () => {
+        await leaderAsking(asks);
+        const reply = await say("run the tests");
+        shown = (await waitingOn())[0];
+        card = dialogOf(shown, USER);
+        settingsBefore = fs.readFileSync(settings, "utf8");
+        refused = await page("POST", `/sessions/${LEADER}/permission`, { id: shown.id, decision: "always" });
+        settingsAfter = fs.readFileSync(settings, "utf8");
+        stillWaiting = JSON.parse((await page("GET", `/sessions/${LEADER}/permissions`)).body).permissions.length;
+        await page("POST", `/sessions/${LEADER}/permission`, { id: shown.id, decision: "allow" });
+        replied = await reply();
       });
-      const reply = await say("run the tests");
-      shown = (await waitingOn())[0];
-      card = dialogOf(shown, USER);
-      settingsBefore = fs.readFileSync(settings, "utf8");
-      refused = await page("POST", `/sessions/${LEADER}/permission`, { id: shown.id, decision: "always" });
-      settingsAfter = fs.readFileSync(settings, "utf8");
-      stillWaiting = JSON.parse((await page("GET", `/sessions/${LEADER}/permissions`)).body).permissions.length;
-      await page("POST", `/sessions/${LEADER}/permission`, { id: shown.id, decision: "allow" });
-      replied = await reply();
-    });
 
-    after(async () => {
-      await endSeat(LEADER, 500);
-    });
+      after(async () => {
+        await endSeat(LEADER, 500);
+      });
 
-    it("sends the page no rule, neither ovai's own nor Claude Code's", () => {
-      assert.equal(shown.shape, undefined);
-    });
+      it(`sends the page no rule for ${what}, neither ovai's own nor Claude Code's`, () => {
+        assert.equal(shown.shape, undefined);
+      });
 
-    it("draws a card with Allow and Deny and no Always", () => {
-      assert.deepEqual(card.buttons.map((button) => button.decision), ["allow", "deny"]);
-      assert.ok(!card.lines.some((line) => line.kind === "saves" || line.kind === "rules"));
-    });
+      it(`draws a card with Allow and Deny and no Always for ${what}`, () => {
+        assert.deepEqual(card.buttons.map((button) => button.decision), ["allow", "deny"]);
+        assert.ok(!card.lines.some((line) => line.kind === "saves" || line.kind === "rules"));
+      });
 
-    it("refuses an always answer, saying that Claude Code offers none, and writes no rule", () => {
-      assert.equal(refused.status, 400);
-      assert.match(JSON.parse(refused.body).error, /Claude Code offers no always rule on that call; allow or deny it/);
-      assert.equal(settingsAfter, settingsBefore);
-    });
+      it(`refuses an always answer on ${what}, saying that Claude Code offers none, and writes no rule`, () => {
+        assert.equal(refused.status, 400);
+        assert.match(JSON.parse(refused.body).error, /Claude Code offers no always rule on that call; allow or deny it/);
+        assert.equal(settingsAfter, settingsBefore);
+      });
 
-    it("leaves the call asked, and Allow still answers it", () => {
-      assert.equal(stillWaiting, 1);
-      assert.equal(replied.text, "I was told allow");
+      it(`leaves ${what} asked, and Allow still answers it`, () => {
+        assert.equal(stillWaiting, 1);
+        assert.equal(replied.text, "I was told allow");
+      });
     });
-  });
+  }
 
   describe("a run that ends with its question up", () => {
     it("takes the question down with it", async () => {
