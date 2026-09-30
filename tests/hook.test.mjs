@@ -99,6 +99,13 @@ describe("the decision for a command", () => {
     ["a grep whose pattern holds a $(", 'grep -n "console.log($(" /x/ovai.mjs'],
     ["a substitution whose program is allowed", "ls `ls x`"],
     ["a process substitution over allowed commands", "cmp <(ls a) <(ls b)"],
+    // The shape of a script written out with a here-document: a quoted delimiter, then lines of
+    // bare words. The quoted one left the side 'EOF' unread, so it used to reach a card.
+    ["a here-document with a quoted delimiter and body lines of bare words", "cd /x && cat > g1.txt <<'EOF'\nrowsSince\nshown\nEOF\ngrep -n -f g1.txt page.html | head -5"],
+    ["a here-document with a bare delimiter", "cat <<EOF\nhello\nEOF"],
+    ["a here-document whose body names a program nothing holds", "cat > f <<'EOF'\nmake build\nEOF"],
+    ["a here-document whose body names a program the rules refuse", "cat > f <<'EOF'\nsudo ls\nEOF"],
+    ["a here-document whose body is allowed commands", "cat > f <<EOF\nls\nnpm test\nEOF"],
   ];
   for (const [name, command] of refused) {
     it(`refuses ${name}`, () => {
@@ -115,7 +122,6 @@ describe("the decision for a command", () => {
     ["a command that hides a program in a substitution", "ls $(cat x)"],
     ["a command that hides a program in backticks", "ls `cat x`"],
     ["a hidden program nothing holds, behind an allowed one", "grep x $(make build)"],
-    ["a here-document", "cat <<EOF\nhello\nEOF"],
     ["a sweep over files named in a list", "cd /x/notes/ && grep -ohE '\\b[A-Z][a-z]{2,}\\b' $(cat /x/list-D.txt) | sort | uniq -c | sort -rn | awk '{printf \"%s:%s \",$2,$1}'"],
   ];
   for (const [name, command] of compound) {

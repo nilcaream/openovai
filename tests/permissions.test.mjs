@@ -205,6 +205,12 @@ describe("the rule Claude Code suggested for a call", () => {
     ["a write outside the instance", "Write", { file_path: "/etc/hosts" }, suggesting("Edit", "//etc/hosts"), null],
     ["a command with a backtick, whose suggested prefix is read from inside it", "Bash", { command: BACKTICKED }, suggesting("Bash", "Use the:*"), null],
     ["a command with a $( ), whose suggested prefix is read from inside it", "Bash", { command: "grep -rn \"$(Use the Edit)\" lib" }, suggesting("Bash", "Use the:*"), null],
+    // A script written out with a here-document: its body lines are not commands, so nothing is
+    // composed from them and nothing Claude Code suggested for the call is offered either.
+    ["a here-document with a quoted delimiter and body lines of bare words", "Bash", { command: "cat > g1.txt <<'EOF'\nrowsSince\nshown\npanel.lines\nEOF\ngrep -n -f g1.txt page.html" }, undefined, null],
+    ["a here-document with a bare delimiter", "Bash", { command: "cat > g1.txt <<EOF\nrowsSince\nEOF" }, undefined, null],
+    ["a here-document, whose suggested rule is not nonsense", "Bash", { command: "node - <<'EOF'\nconsole.log(1);\nEOF" }, suggesting("Bash", "node -"), null],
+    ["a here-document after an allowed side nothing holds", "Bash", { command: "npm test && cat > f <<'EOF'\nx\nEOF" }, suggesting("Bash", "npm test"), null],
     ["a read of one file under the root", "Read", { file_path: `${AT}/knowledge/common.md` }, suggesting("Read", "/knowledge/common.md"), null],
     ["a suggestion the checker refuses", "WebFetch", { url: "https://example.com/" }, suggesting("WebFetch", "example.com"), null],
     ["a suggestion that is not a rule", "WebFetch", { url: "https://example.com/" }, [{ type: "setMode", mode: "acceptEdits", destination: "session" }], null],

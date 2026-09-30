@@ -828,5 +828,38 @@
         "to": ""
       }
     ]
+  },
+  {
+    "name": "a command holding a here-document is read into a rule per body line, as it was",
+    "catches": "offers nothing for a here-document with a quoted delimiter and body lines of bare words",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": "    if (typeof command === \"string\" && HERE_DOCUMENT.test(command)) {\n      return null;\n    }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "only a here-document with a quoted delimiter is passed over",
+    "catches": "offers nothing for a here-document with a bare delimiter",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": "    if (typeof command === \"string\" && HERE_DOCUMENT.test(command)) {",
+        "to": "    if (typeof command === \"string\" && HERE_DOCUMENT.test(command) && /<<['\"]/.test(command)) {"
+      }
+    ]
+  },
+  {
+    "name": "a here-document passes over its own rules and offers what Claude Code suggested",
+    "catches": "offers nothing for a here-document, whose suggested rule is not nonsense",
+    "edits": [
+      {
+        "file": "lib/chat/permissions.mjs",
+        "from": "    if (typeof command === \"string\" && HERE_DOCUMENT.test(command)) {\n      return null;",
+        "to": "    if (typeof command === \"string\" && HERE_DOCUMENT.test(command)) {\n      return suggested(request, root);"
+      }
+    ]
   }
 ]

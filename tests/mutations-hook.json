@@ -262,5 +262,27 @@
         "to": "  const held = [];"
       }
     ]
+  },
+  {
+    "name": "the hook leaves a here-document with a quoted delimiter to the harness, which asks",
+    "catches": "refuses a here-document with a quoted delimiter and body lines of bare words",
+    "edits": [
+      {
+        "file": "lib/hooks/compound.mjs",
+        "from": "  if (HERE_DOCUMENT.test(command)) {\n    return \"hidden\";",
+        "to": "  if (HERE_DOCUMENT.test(command) && !/<<['\"]/.test(command)) {\n    return \"hidden\";"
+      }
+    ]
+  },
+  {
+    "name": "the hook refuses a here-document only when its delimiter is quoted",
+    "catches": "refuses a here-document with a bare delimiter",
+    "edits": [
+      {
+        "file": "lib/hooks/compound.mjs",
+        "from": "  if (HERE_DOCUMENT.test(command)) {\n    return \"hidden\";",
+        "to": "  if (HERE_DOCUMENT.test(command) && /<<['\"]/.test(command)) {\n    return \"hidden\";"
+      }
+    ]
   }
 ]
