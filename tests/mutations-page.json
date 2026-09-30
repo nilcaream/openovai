@@ -417,30 +417,8 @@
     ]
   },
   {
-    "name": "the connection word is marked while the page HAS a stream",
-    "catches": "draws the connection word and the quota line on the Leader's head, and marks a lost stream",
-    "edits": [
-      {
-        "file": "lib/chat/page.html",
-        "from": "      panel.facts.conn.classList.toggle(\"off\", state.connection !== CONNECTED);\n",
-        "to": "      panel.facts.conn.classList.toggle(\"off\", state.connection === CONNECTED);\n"
-      }
-    ]
-  },
-  {
-    "name": "the connection word never reaches the head",
-    "catches": "draws the connection word and the quota line on the Leader's head, and marks a lost stream",
-    "edits": [
-      {
-        "file": "lib/chat/page.html",
-        "from": "      panel.facts.conn.textContent = state.connection;\n",
-        "to": ""
-      }
-    ]
-  },
-  {
     "name": "the quota line is drawn without its tooltip",
-    "catches": "draws the connection word and the quota line on the Leader's head, and marks a lost stream",
+    "catches": "draws the version and the quota line on the Leader's head, no state or connection word, and marks a lost stream on the pill",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -451,7 +429,7 @@
   },
   {
     "name": "the tooltip is not given the page's clock",
-    "catches": "draws the connection word and the quota line on the Leader's head, and marks a lost stream",
+    "catches": "draws the version and the quota line on the Leader's head, no state or connection word, and marks a lost stream on the pill",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -488,8 +466,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "  .phead .conn, .phead .version, .phead .quota { font-family: var(--mono); font-size: .78rem; color: var(--fg-dim); white-space: nowrap; flex: 0 0 auto; }",
-        "to": "  .phead .conn, .phead .version, .phead .quota { font-family: var(--mono); font-size: .78rem; color: var(--fg-dim); white-space: nowrap; flex: 0 1 auto; }"
+        "from": "  .phead .version, .phead .quota { font-family: var(--mono); font-size: .78rem; color: var(--fg-dim); white-space: nowrap; flex: 0 0 auto; }",
+        "to": "  .phead .version, .phead .quota { font-family: var(--mono); font-size: .78rem; color: var(--fg-dim); white-space: nowrap; flex: 0 1 auto; }"
       }
     ]
   },
@@ -675,8 +653,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "        fitStamps(added);\n        fitFolds(folded);\n        panel.shown = about.rows.length;",
-        "to": "        fitFolds(folded);\n        panel.shown = about.rows.length;"
+        "from": "        fitStamps(drew.added);\n        fitFolds(drew.folded);\n        panel.shown = about.rows.length;",
+        "to": "        fitFolds(drew.folded);\n        panel.shown = about.rows.length;"
       }
     ]
   },
@@ -730,8 +708,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "    new ResizeObserver(() => {\n      fitStamps(rows.querySelectorAll(\".t\"));\n",
-        "to": "    new ResizeObserver(() => {\n"
+        "from": "      measuredAt = width;\n      fitStamps(rows.querySelectorAll(\".t\"));\n",
+        "to": "      measuredAt = width;\n"
       }
     ]
   },
@@ -785,7 +763,7 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "          if (shown.kind === \"line\" && shown.msg === undefined && panel.last !== null && panel.last.text === shown.text) {\n            panel.last.count += 1;\n            panel.last.n.textContent = ` ×${panel.last.count}`;\n            landed = true;\n            panel.lines.set(index, panel.last.el);\n            continue;\n          }\n",
+        "from": "      if (shown.kind === \"line\" && shown.msg === undefined && panel.last !== null && panel.last.text === shown.text) {\n        panel.last.count += 1;\n        panel.last.n.textContent = ` ×${panel.last.count}`;\n        landed = true;\n        panel.lines.set(index, panel.last.el);\n        continue;\n      }\n",
         "to": ""
       }
     ]
@@ -829,8 +807,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "          const time = line.querySelector(\".t\");\n          if (time !== null) added.push(time);\n",
-        "to": "          added.push(line.querySelector(\".t\"));\n"
+        "from": "      const time = line.querySelector(\".t\");\n      if (time !== null) added.push(time);\n",
+        "to": "      added.push(line.querySelector(\".t\"));\n"
       }
     ]
   },
@@ -961,7 +939,7 @@
   },
   {
     "name": "the quota line is drawn without the line panels.mjs makes",
-    "catches": "draws the connection word and the quota line on the Leader's head, and marks a lost stream",
+    "catches": "draws the version and the quota line on the Leader's head, no state or connection word, and marks a lost stream on the pill",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -972,7 +950,7 @@
   },
   {
     "name": "the tab title is never drawn",
-    "catches": "draws the connection word and the quota line on the Leader's head, and marks a lost stream",
+    "catches": "draws the version and the quota line on the Leader's head, no state or connection word, and marks a lost stream on the pill",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -1174,8 +1152,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "  const EVENTS = [\"snapshot\", \"rows\", \"row\", \"asking\", \"seat\", \"quota\", \"stopping\"];",
-        "to": "  const EVENTS = [\"snapshot\", \"rows\", \"row\", \"asking\", \"seat\", \"stopping\"];"
+        "from": "  const EVENTS = [\"snapshot\", \"rows\", \"row\", \"asking\", \"seat\", \"quota\", \"auto\", \"stopping\"];",
+        "to": "  const EVENTS = [\"snapshot\", \"rows\", \"row\", \"asking\", \"seat\", \"auto\", \"stopping\"];"
       }
     ]
   },
@@ -1196,8 +1174,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "            panel.last = shown.msg === undefined ? { text: shown.text, el: line, count: 1, n: line.lastElementChild } : null;",
-        "to": "            panel.last = { text: shown.text, el: line, count: 1, n: line.lastElementChild };"
+        "from": "        panel.last = shown.msg === undefined ? { text: shown.text, el: line, count: 1, n: line.lastElementChild } : null;",
+        "to": "        panel.last = { text: shown.text, el: line, count: 1, n: line.lastElementChild };"
       }
     ]
   },
@@ -1482,8 +1460,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "        fitStamps(added);\n        fitFolds(folded);\n",
-        "to": "        fitStamps(added);\n"
+        "from": "        fitFolds(drew.folded);\n        panel.shown = about.rows.length;",
+        "to": "        panel.shown = about.rows.length;"
       }
     ]
   },
@@ -1685,8 +1663,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "            if (dayPillBefore(entry, panel.day)) {\n              panel.last = null;\n              land(dayPill(when));\n            }",
-        "to": "            panel.last = null;\n            land(dayPill(when));"
+        "from": "        if (dayPillBefore(entry, panel.day)) {\n          panel.last = null;\n          land(dayPill(when));\n        }",
+        "to": "        panel.last = null;\n        land(dayPill(when));"
       }
     ]
   },
@@ -2163,8 +2141,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      const added = [];\n",
-        "to": "      const added = []; let asked = false;\n"
+        "from": "      let landed = false;\n      if (about.rows.length > panel.shown) {",
+        "to": "      let landed = false; let asked = false;\n      if (about.rows.length > panel.shown) {"
       },
       {
         "file": "lib/chat/page.html",
@@ -2184,8 +2162,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "          if (!hiddenTalk(line)) landed = true;\n",
-        "to": "          if (!hiddenTalk(line) && line.querySelector(\".t\") !== null) landed = true;\n"
+        "from": "      if (!hiddenTalk(line)) landed = true;\n",
+        "to": "      if (!hiddenTalk(line) && line.querySelector(\".t\") !== null) landed = true;\n"
       }
     ]
   },
@@ -2195,8 +2173,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "            panel.last.n.textContent = ` ×${panel.last.count}`;\n            landed = true;\n",
-        "to": "            panel.last.n.textContent = ` ×${panel.last.count}`;\n"
+        "from": "        panel.last.n.textContent = ` ×${panel.last.count}`;\n        landed = true;\n",
+        "to": "        panel.last.n.textContent = ` ×${panel.last.count}`;\n"
       }
     ]
   },
@@ -2459,8 +2437,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "    if (leads) headLine.append(commsSwitch(rows));\n",
-        "to": "    headLine.append(commsSwitch(rows));\n"
+        "from": "    if (leads) headLine.append(commsSwitch(rows), facts.auto.leader, facts.auto.workers);\n",
+        "to": "    headLine.append(commsSwitch(rows));\n    if (leads) headLine.append(facts.auto.leader, facts.auto.workers);\n"
       }
     ]
   },
@@ -2547,8 +2525,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "          if (!hiddenTalk(line)) landed = true;\n",
-        "to": "          landed = true;\n"
+        "from": "      if (!hiddenTalk(line)) landed = true;\n",
+        "to": "      landed = true;\n"
       }
     ]
   },
@@ -2631,7 +2609,7 @@
   },
   {
     "name": "the Leader's head does not draw the version",
-    "catches": "draws the version the server runs between the connection word and the quota line",
+    "catches": "draws the version the server runs before the quota line",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -2806,17 +2784,6 @@
     ]
   },
   {
-    "name": "the Leader's pill says nothing off a turn",
-    "catches": "draws what the Leader is at as the day pill, made with the panel, always the last row, changed in place",
-    "edits": [
-      {
-        "file": "lib/chat/page.html",
-        "from": "textContent = about.doing ?? LINE_WAITING;",
-        "to": "textContent = about.doing ?? \"\";"
-      }
-    ]
-  },
-  {
     "name": "the Leader's pill is taken out and put back last after the rows land",
     "catches": "never removes or moves the pill when a row lands: rows go in before it",
     "edits": [
@@ -2838,8 +2805,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      if (panel.doing !== null) panel.doing.firstElementChild.textContent = about.doing ?? LINE_WAITING;\n",
-        "to": "      if (panel.doing !== null) panel.doing.firstElementChild.textContent = about.doing ?? LINE_WAITING;\n      if (panel.doing !== null) landed = true;\n"
+        "from": "        panel.doing.firstElementChild.textContent = pillLine(state, panel.name);\n",
+        "to": "        panel.doing.firstElementChild.textContent = pillLine(state, panel.name);\n        landed = true;\n"
       }
     ]
   },
@@ -2849,8 +2816,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      if (panel.doing !== null) panel.doing.firstElementChild.textContent = about.doing ?? LINE_WAITING;\n",
-        "to": "      if (panel.doing !== null) panel.doing.firstElementChild.textContent = about.doing ?? LINE_WAITING;\n      if (panel.doing !== null && about.doing === null) panel.doing.remove();\n"
+        "from": "        panel.doing.firstElementChild.textContent = pillLine(state, panel.name);\n",
+        "to": "        panel.doing.firstElementChild.textContent = pillLine(state, panel.name);\n        if (about.doing === null) panel.doing.remove();\n"
       }
     ]
   },
@@ -2932,12 +2899,12 @@
     ]
   },
   {
-    "name": "a click on a Worker's line finds nothing past the Leader's window",
-    "catches": "marks the line of a message with its id and takes a click on it to the message on the Leader's panel, opened",
+    "name": "a click on a link to a row finds nothing past the window: the row is not drawn back",
+    "catches": "draws each reference in the User's row that names a drawn row as a link that focuses it",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      drawOlder(leader, about, index);\n      found = leader.bubbles.get(index) ?? null;",
+        "from": "      drawOlder(panel, state.panels[panel.name], index);\n      found = panel.bubbles.get(index);",
         "to": "      return;"
       }
     ]

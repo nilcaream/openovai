@@ -852,7 +852,7 @@
   },
   {
     "name": "the server writes to a session's stdin on its own",
-    "catches": "is session.mjs, through the frame writer, the two permission answers and the interrupt, and nobody else",
+    "catches": "is session.mjs, through the frame writer, the two permission answers, the interrupt and the mode switch, and nobody else",
     "edits": [
       {
         "file": "lib/chat/server.mjs",
@@ -863,7 +863,7 @@
   },
   {
     "name": "the lifecycle writes to a session's stdin on its own",
-    "catches": "is session.mjs, through the frame writer, the two permission answers and the interrupt, and nobody else",
+    "catches": "is session.mjs, through the frame writer, the two permission answers, the interrupt and the mode switch, and nobody else",
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
@@ -1142,8 +1142,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, place, prune, quotaLine, quotaTitle, insertRef, stopEnabled, title, typingBeat, LINE_WAITING } from \"./panels.mjs\";",
-        "to": "  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, noticed, prune, quotaLine, quotaTitle, insertRef, stopEnabled, title, typingBeat, LINE_WAITING } from \"./panels.mjs\";\n  const place = (seats, leader, order) => ({ left: order.filter((s) => s !== leader && seats.includes(s)), mid: leader, right: [] });"
+        "from": "  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, autoLabel, autoTitle, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, loadsOlder, noticed, place, prune, quotaLine, quotaTitle, insertRef, pillLine, stopEnabled, title, typingBeat, windowStart, LINE_WAITING, WINDOW } from \"./panels.mjs\";",
+        "to": "  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, autoLabel, autoTitle, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, loadsOlder, noticed, prune, quotaLine, quotaTitle, insertRef, pillLine, stopEnabled, title, typingBeat, windowStart, LINE_WAITING, WINDOW } from \"./panels.mjs\";\n  const place = (seats, leader, order) => ({ left: order.filter((s) => s !== leader && seats.includes(s)), mid: leader, right: [] });"
       }
     ]
   },

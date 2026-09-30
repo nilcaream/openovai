@@ -16,8 +16,8 @@
     "edits": [
       {
         "file": "lib/chat/panels.mjs",
-        "from": "      state.quota = data.quota ?? null;\n      const listed",
-        "to": "      state.quota = data.quota ?? null;\n      state.order = data.sessions.map((about) => about.name);\n      const listed"
+        "from": "      state.auto = autoIn(data.auto);\n      const listed",
+        "to": "      state.auto = autoIn(data.auto);\n      state.order = data.sessions.map((about) => about.name);\n      const listed"
       }
     ]
   },
@@ -192,8 +192,8 @@
     "edits": [
       {
         "file": "lib/chat/panels.mjs",
-        "from": "  if (panel.dimmed || state.connection === DISCONNECTED) return \"\";\n",
-        "to": "  if (state.connection === DISCONNECTED) return \"\";\n"
+        "from": "  if (name === state.leader || panel.dimmed || state.connection === DISCONNECTED) return \"\";\n",
+        "to": "  if (name === state.leader || state.connection === DISCONNECTED) return \"\";\n"
       }
     ]
   },
@@ -269,8 +269,8 @@
     "edits": [
       {
         "file": "lib/chat/panels.mjs",
-        "from": "  if (panel.dimmed || state.connection === DISCONNECTED) return \"\";",
-        "to": "  if (panel.dimmed) return \"\";"
+        "from": "  if (name === state.leader || panel.dimmed || state.connection === DISCONNECTED) return \"\";",
+        "to": "  if (name === state.leader || panel.dimmed) return \"\";"
       }
     ]
   },
@@ -346,8 +346,8 @@
     "edits": [
       {
         "file": "lib/chat/panels.mjs",
-        "from": "      state.quota = data.quota ?? null;\n      const listed",
-        "to": "      state.quota = data.quota ?? state.quota;\n      const listed"
+        "from": "      state.quota = data.quota ?? null;\n",
+        "to": "      state.quota = data.quota ?? state.quota;\n"
       }
     ]
   },
@@ -760,7 +760,7 @@
   },
   {
     "name": "a Leader with no process has a green dot",
-    "catches": "with no process its dot is grey, its head says not running and its bottom line says it has left",
+    "catches": "with no process its dot is grey and its bottom line says it has left; its head has no word",
     "edits": [
       {
         "file": "lib/chat/panels.mjs",
@@ -770,19 +770,8 @@
     ]
   },
   {
-    "name": "a Leader with no process says listening",
-    "catches": "with no process its dot is grey, its head says not running and its bottom line says it has left",
-    "edits": [
-      {
-        "file": "lib/chat/panels.mjs",
-        "from": "  if (notRunning(state, name)) return NOT_RUNNING;\n",
-        "to": ""
-      }
-    ]
-  },
-  {
     "name": "a Leader with no process waits for instructions",
-    "catches": "with no process its dot is grey, its head says not running and its bottom line says it has left",
+    "catches": "with no process its dot is grey and its bottom line says it has left; its head has no word",
     "edits": [
       {
         "file": "lib/chat/panels.mjs",
@@ -792,8 +781,19 @@
     ]
   },
   {
+    "name": "the Leader's pill says nothing off a turn",
+    "catches": "with no process its dot is grey and its bottom line says it has left; its head has no word",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  return panel.doing ?? LINE_WAITING;",
+        "to": "  return panel.doing ?? \"\";"
+      }
+    ]
+  },
+  {
     "name": "the line of a Leader with no process says something else",
-    "catches": "with no process its dot is grey, its head says not running and its bottom line says it has left",
+    "catches": "with no process its dot is grey and its bottom line says it has left; its head has no word",
     "edits": [
       {
         "file": "lib/chat/panels.mjs",

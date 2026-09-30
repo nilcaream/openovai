@@ -60,8 +60,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "  if (record.unanswered !== null && roleOf(instance, record.seat) === LEADER) {\n",
-        "to": "  if (record.unanswered !== null) {\n"
+        "from": "  if (record.unanswered !== null && record.ending === null && roleOf(instance, record.seat) === LEADER) {\n",
+        "to": "  if (record.unanswered !== null && record.ending === null) {\n"
       }
     ]
   },
@@ -188,28 +188,6 @@
         "file": "lib/chat/server.mjs",
         "from": "  if (record.deskWrittenAt === null || record.deskWrittenAt < since) {\n    return { refused: \"write your desk first (write_desk)\" };\n  }\n",
         "to": ""
-      }
-    ]
-  },
-  {
-    "name": "a Worker gone for good leaves a row on its panel too",
-    "catches": "stop_worker ends the process once its desk is written; the desk and the log stay; hire brings it back appending",
-    "edits": [
-      {
-        "file": "lib/chat/lifecycle.mjs",
-        "from": "  if (role === LEADER && ending !== \"restart\") {",
-        "to": "  if (ending !== \"restart\") {"
-      }
-    ]
-  },
-  {
-    "name": "a Leader's restart leaves a row on its panel",
-    "catches": "a Leader's restart leaves no row on its panel: the successor is the same session going on",
-    "edits": [
-      {
-        "file": "lib/chat/lifecycle.mjs",
-        "from": "  if (role === LEADER && ending !== \"restart\") {",
-        "to": "  if (role === LEADER) {"
       }
     ]
   },
