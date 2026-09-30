@@ -791,24 +791,35 @@
     ]
   },
   {
-    "name": "a Worker panel draws every row it holds: the cap is gone",
-    "catches": "keeps the last hundred rows of a Worker panel and every row of the Leader's",
+    "name": "a Worker's window is never settled: its panel keeps every row it was given",
+    "catches": "keeps the newest hundred rows a reader sees on every panel, and draws older ones as they scroll up",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "          while (drawn.length > 100) drawn.shift().remove();\n",
-        "to": ""
+        "from": "    if (about.rows === null || about.rows.length === 0) return;\n    const quiet",
+        "to": "    if (!panel.leads || about.rows === null || about.rows.length === 0) return;\n    const quiet"
       }
     ]
   },
   {
     "name": "the first draw builds every row before trimming: the start index is gone",
-    "catches": "keeps the last hundred rows of a Worker panel and every row of the Leader's",
+    "catches": "keeps the newest hundred rows a reader sees on every panel, and draws older ones as they scroll up",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "Math.max(panel.shown, about.rows.length - 100)",
-        "to": "panel.shown"
+        "from": "          from = windowStart(about.rows.length, WINDOW, seenBy(panel, about));\n",
+        "to": "          from = 0;\n"
+      }
+    ]
+  },
+  {
+    "name": "only the Leader's panel settles its window after a draw",
+    "catches": "keeps the newest hundred rows a reader sees on every panel, and draws older ones as they scroll up",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "        panel.crowded = true;\n      }\n      // A call that failed",
+        "to": "        panel.crowded = panel.leads;\n      }\n      // A call that failed"
       }
     ]
   },
@@ -1696,7 +1707,7 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "          while (drawn.length > 0 && drawn[0].dataset.day !== undefined) drawn.shift().remove();\n",
+        "from": "    while (panel.rows.firstElementChild.dataset.day !== undefined) panel.rows.firstElementChild.remove();\n",
         "to": ""
       }
     ]
@@ -2740,13 +2751,13 @@
     ]
   },
   {
-    "name": "the Worker trim reads the pill again instead of the panel's own word",
-    "catches": "keeps the last hundred rows of a Worker panel and every row of the Leader's",
+    "name": "a trim with no row left to keep stops at the Leader's pill, which a Worker's panel has not",
+    "catches": "keeps the newest hundred rows a reader sees on every panel, and draws older ones as they scroll up",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "        if (!panel.leads) {",
-        "to": "        if (panel.jump === null) {"
+        "from": "const stop = keep ?? panel.doing ?? panel.jump;",
+        "to": "const stop = keep ?? panel.doing;"
       }
     ]
   },
@@ -2899,8 +2910,8 @@
     ]
   },
   {
-    "name": "the Leader's window is settled at every tick, not when something changed",
-    "catches": "keeps the last hundred rows of a Worker panel, and the Leader's window of the rows a reader sees",
+    "name": "a window is settled at every tick, not when something changed",
+    "catches": "keeps the newest hundred rows a reader sees on every panel, and draws older ones as they scroll up",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -2910,8 +2921,8 @@
     ]
   },
   {
-    "name": "the Leader's window counts the messages the switch hides",
-    "catches": "keeps the last hundred rows of a Worker panel, and the Leader's window of the rows a reader sees",
+    "name": "the window counts the messages the switch hides",
+    "catches": "keeps the newest hundred rows a reader sees on every panel, and draws older ones as they scroll up",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -2932,13 +2943,24 @@
     ]
   },
   {
-    "name": "the Leader's panel links only the references to rows it has drawn at the time",
+    "name": "a panel links only the references to rows it has drawn at the time",
     "catches": "draws each reference in the User's row that names a drawn row as a link that focuses it",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      if (!panel.leads && !panel.bubbles.has(ref.index)) continue;",
-        "to": "      if (!panel.bubbles.has(ref.index)) continue;"
+        "from": "      if (ref.index === null || unseen(rows, ref.index)) continue;\n",
+        "to": "      if (ref.index === null || unseen(rows, ref.index)) continue;\n      if (!panel.bubbles.has(ref.index)) continue;\n"
+      }
+    ]
+  },
+  {
+    "name": "a Worker's panel does not draw back a row its window let go",
+    "catches": "draws each reference in the User's row that names a drawn row as a link that focuses it",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    if (found === undefined && index < panel.from) {",
+        "to": "    if (found === undefined && panel.leads && index < panel.from) {"
       }
     ]
   },

@@ -700,10 +700,10 @@
     // delivery to find its row; `day` the day of the row drawn last, for the pill between two days;
     // `drawn` the card of every question on the panel, by the id of its request; `doing` the pill
     // that says what the Leader is at, null on a Worker's panel; `bubbles` the element of every
-    // stamped row by its index, for a reference in a User's row to find the row it names. On the
-    // Leader's panel `from` is the index of the oldest row drawn (`shown` is the end of them),
-    // `quiet` whether the comms switch hid the messages when the window was last settled, and
-    // `crowded` whether rows came or went since, so the window may hold more than it should.
+    // stamped row by its index, for a reference in a User's row to find the row it names. `from` is
+    // the index of the oldest row drawn (`shown` is the end of them), `quiet` whether the comms
+    // switch hid the messages when the window was last settled, and `crowded` whether rows came or
+    // went since, so the window may hold more than it should.
     return { name, leads, section, nameLine, info, word, fitPlaceholder, facts, composer, stop, rows, cards, jump, doing, box, view, keep, shown: 0, from: 0, quiet: false, crowded: false, day: null, drawn: new Map(), loading: false, last: null, lines: new Map(), bubbles: new Map(), waiting: new Map() };
   }
 
@@ -793,14 +793,13 @@
   }
 
   // The User's words with every reference that names a row the panel has as a link to it; the
-  // rest, and a reference that names nothing, as typed. The Leader's panel has every row it
-  // holds, drawn or not: its link finds the row when it is clicked (focusIndex), so it stays a
-  // link whatever the window. A Worker's panel links the rows it has drawn.
+  // rest, and a reference that names nothing, as typed. A panel has every row it holds, drawn or
+  // not: its link finds the row when it is clicked (focusIndex), so it stays a link whatever the
+  // window.
   function linkedText(body, text, rows, index, panel) {
     let from = 0;
     for (const ref of references(rows, index, text)) {
       if (ref.index === null || unseen(rows, ref.index)) continue;
-      if (!panel.leads && !panel.bubbles.has(ref.index)) continue;
       body.append(text.slice(from, ref.start));
       const link = document.createElement("a");
       link.className = "ref";
@@ -852,11 +851,11 @@
   }
 
   // The row of a panel at an index, found when it is asked for, never when a link to it was made.
-  // On the Leader's panel one the window has let go, or never drew, is drawn first, with every
-  // row after it up to the window; on a Worker's, one it has let go is nothing to do.
+  // One the window has let go, or never drew, is drawn first, with every row after it up to the
+  // window.
   function focusIndex(panel, index) {
     let found = panel.bubbles.get(index);
-    if (found === undefined && panel.leads && index < panel.from) {
+    if (found === undefined && index < panel.from) {
       drawOlder(panel, state.panels[panel.name], index);
       found = panel.bubbles.get(index);
     }
@@ -1226,16 +1225,17 @@
     return { landed, added, folded };
   }
 
-  // Whether the reader sees the row at an index of the Leader's conversation: one not drawn at all
+  // Whether the reader sees the row at an index of a panel's conversation: one not drawn at all
   // (unseen) is not a row, and a message between sessions is not one while the comms switch hides
-  // them. The window counts the rows by this, whichever state the switch is in.
+  // them (a Worker's panel has no switch). The window counts the rows by this, whichever state
+  // the switch is in.
   function seenBy(panel, about) {
     const quiet = panel.rows.classList.contains("comms-hidden");
     const names = { chat: state.chat, seat: panel.name, leader: state.leader, user: state.user };
     return (index) => !unseen(about.rows, index) && !(quiet && talks(about.rows[index], names));
   }
 
-  // The Leader's panel with the rows from `start` up to the first it draws, drawn above it. The row
+  // A panel with the rows from `start` up to the first it draws, drawn above it. The row
   // that was the first stays where the reader sees it: its place on the screen is taken before and
   // put back after, whether or not the browser held it itself. The pill between two days goes in
   // at the join when the days differ.
@@ -1262,8 +1262,8 @@
     rows.scrollTop += anchor.getBoundingClientRect().top - top;
   }
 
-  // The Leader's panel with the rows before `start` taken off, and the bookkeeping of the rows it
-  // no longer holds. The day pill left first goes too: it is never the first thing on a panel.
+  // A panel with the rows before `start` taken off, and the bookkeeping of the rows it no longer
+  // holds. The day pill left first goes too: it is never the first thing on a panel.
   function trimTo(panel, start) {
     let keep = null;
     let at = Infinity;
@@ -1275,7 +1275,7 @@
         }
       }
     }
-    const stop = keep ?? panel.doing;
+    const stop = keep ?? panel.doing ?? panel.jump;
     while (panel.rows.firstElementChild !== stop) panel.rows.firstElementChild.remove();
     while (panel.rows.firstElementChild.dataset.day !== undefined) panel.rows.firstElementChild.remove();
     for (const kept of [panel.bubbles, panel.lines, panel.waiting]) {
@@ -1286,14 +1286,14 @@
     panel.from = start;
   }
 
-  // One tick of the Leader's panel's window, after `keep` has decided whether it follows. A panel
-  // that follows draws the newest WINDOW rows the reader can see and no more — rows that landed
-  // since, or an older window a reader scrolled up through, or the comms switch changing what is
-  // seen, are brought back to that — and a reader who let go, within a screen of the top, gets the
-  // WINDOW rows before the first drawn. At rest it reads nothing and writes nothing.
+  // One tick of a panel's window, after `keep` has decided whether it follows. A panel that follows
+  // draws the newest WINDOW rows the reader can see and no more — rows that landed since, or an
+  // older window a reader scrolled up through, or the comms switch changing what is seen, are
+  // brought back to that — and a reader who let go, within a screen of the top, gets the WINDOW
+  // rows before the first drawn. At rest it reads nothing and writes nothing.
   function windowPanel(panel) {
     const about = state.panels[panel.name];
-    if (!panel.leads || about.rows === null || about.rows.length === 0) return;
+    if (about.rows === null || about.rows.length === 0) return;
     const quiet = panel.rows.classList.contains("comms-hidden");
     if (quiet !== panel.quiet) {
       panel.quiet = quiet;
@@ -1364,12 +1364,11 @@
       // Whether any row landed is what decides the scroll (drawRange).
       let landed = false;
       if (about.rows.length > panel.shown) {
-        // A Worker panel keeps its last hundred rows, so its first draw starts there: a long log
-        // builds a hundred elements, not thousands. The Leader's panel starts at the oldest of its
-        // newest WINDOW rows a reader can see, and draws older ones as the reader scrolls up.
+        // A panel's first draw starts at the oldest of its newest WINDOW rows a reader can see, so a
+        // long log builds a hundred rows, not thousands; older ones are drawn as the reader scrolls up.
         let from = panel.shown;
         if (panel.shown === 0) {
-          from = panel.leads ? windowStart(about.rows.length, WINDOW, seenBy(panel, about)) : Math.max(0, about.rows.length - 100);
+          from = windowStart(about.rows.length, WINDOW, seenBy(panel, about));
           panel.from = from;
           panel.quiet = panel.rows.classList.contains("comms-hidden");
         }
@@ -1378,21 +1377,8 @@
         fitStamps(drew.added);
         fitFolds(drew.folded);
         panel.shown = about.rows.length;
-        // A Leader's panel with more rows than its window is trimmed at its next tick, when it follows.
-        panel.crowded = panel.leads;
-        // A Worker panel keeps a hundred drawn rows — bubbles, lines and pills —
-        // and lets the oldest go, with the lines it no longer holds.
-        if (!panel.leads) {
-          const drawn = [...panel.rows.children].filter((child) => child.matches(".msg, .line, .divider"));
-          while (drawn.length > 100) drawn.shift().remove();
-          // The day pill goes with the rows before it: it is never the first thing on a panel.
-          while (drawn.length > 0 && drawn[0].dataset.day !== undefined) drawn.shift().remove();
-          for (const kept of [panel.lines, panel.waiting]) {
-            for (const [index, element] of kept) {
-              if (!element.isConnected) kept.delete(index);
-            }
-          }
-        }
+        // A panel with more rows than its window is trimmed at its next tick, when it follows.
+        panel.crowded = true;
       }
       // A call that failed after its line was drawn: the line at that row's index turns red, with
       // the reason the result gave as its tooltip. A row of the User's delivered after it was

@@ -544,14 +544,14 @@ describe("the script", () => {
   // The pill between two days carries the whole stamp of the first row of the new day, and goes
   // in only between a row of one day and a row of the next: never before the first row drawn,
   // whatever day it was written on, and never after the last — it is appended right before the
-  // row it announces. A row without a stamp keeps the day. The trim of a Worker panel takes the
+  // row it announces. A row without a stamp keeps the day. The trim of a panel takes the
   // pill with the rows before it, so it is never the first thing on a panel either.
   it("puts the pill between two days only, with the whole stamp of the first row of the new day on it, and never first", () => {
     assert.match(script, /import \{ dayPillBefore, row as rowOf, talks, unseen \} from "\.\/render\.mjs";/);
     assert.match(script, /const index = from \+ offset;\s*if \(unseen\(about\.rows, index\)\) continue;/, "a row left out of the drawing is skipped, and counted all the same");
     assert.match(script, /function dayPill\(when\) \{\s*const element = pill\(when\.whole\);\s*element\.dataset\.day = when\.day;\s*return element;\s*\}/);
     assert.match(script, /const when = stamp\(entry\.at\);\s*if \(entry\.at !== undefined && when\.day !== panel\.day\) \{\s*if \(dayPillBefore\(entry, panel\.day\)\) \{\s*panel\.last = null;\s*land\(dayPill\(when\)\);\s*\}\s*panel\.day = when\.day;\s*\}/);
-    assert.match(script, /while \(drawn\.length > 100\) drawn\.shift\(\)\.remove\(\);\s*\/\/[^\n]*\n\s*while \(drawn\.length > 0 && drawn\[0\]\.dataset\.day !== undefined\) drawn\.shift\(\)\.remove\(\);/);
+    assert.match(script, /while \(panel\.rows\.firstElementChild !== stop\) panel\.rows\.firstElementChild\.remove\(\);\s*while \(panel\.rows\.firstElementChild\.dataset\.day !== undefined\) panel\.rows\.firstElementChild\.remove\(\);/, "the trim takes a day pill left first with the rows before it");
     assert.match(script, /panel\.shown = 0;\s*panel\.from = 0;\s*panel\.crowded = false;\s*panel\.day = null;/, "a panel drawn afresh starts with no day, so its first row gets no pill");
   });
 
@@ -567,7 +567,7 @@ describe("the script", () => {
     assert.match(script, /function deliveredRow\(panel, index, entry\) \{\s*const element = panel\.waiting\.get\(index\);\s*if \(element === undefined\) return;\s*panel\.waiting\.delete\(index\);\s*element\.classList\.remove\("pending"\);\s*element\.querySelector\("\.tag"\)\.remove\(\);\s*const time = element\.querySelector\("\.t"\);\s*time\.parentElement\.append\(deliveredElement\(delivery\(true, false, panel\.name, waitedOf\(entry\)\)\)\);\s*fitStamps\(\[time\]\);\s*\}/);
     assert.match(script, /for \(const index of about\.amended\.splice\(0\)\) \{[^}]*\}\s*if \(about\.rows\[index\]\.delivered === true\) deliveredRow\(panel, index, about\.rows\[index\]\);\s*\}/);
     assert.match(script, /panel\.lines\.clear\(\);\s*panel\.waiting\.clear\(\);/, "a panel drawn afresh forgets whom it was waiting on");
-    assert.match(script, /for \(const kept of \[panel\.lines, panel\.waiting\]\) \{\s*for \(const \[index, element\] of kept\) \{\s*if \(!element\.isConnected\) kept\.delete\(index\);/, "the trim lets go of a waiting row it no longer holds");
+    assert.match(script, /for \(const kept of \[panel\.bubbles, panel\.lines, panel\.waiting\]\) \{\s*for \(const \[index, element\] of kept\) \{\s*if \(!element\.isConnected\) kept\.delete\(index\);/, "the trim lets go of a waiting row it no longer holds");
   });
 
   // Every stamp is a click that points at its row from the panel's composer: the token from
@@ -587,9 +587,10 @@ describe("the script", () => {
   // is kept by its index for it, and forgotten when the rows are drawn afresh.
   it("draws each reference in the User's row that names a drawn row as a link that focuses it", () => {
     assert.match(script, /\} else if \(shown\.kind === "user"\) \{\s*body\.className = "text";\s*linkedText\(body, shown\.text, rows, index, panel\);/);
-    assert.match(script, /for \(const ref of references\(rows, index, text\)\) \{\s*if \(ref\.index === null \|\| unseen\(rows, ref\.index\)\) continue;\s*if \(!panel\.leads && !panel\.bubbles\.has\(ref\.index\)\) continue;/, "the Leader's panel links every row it holds, a Worker's the ones it has drawn");
+    assert.match(script, /for \(const ref of references\(rows, index, text\)\) \{\s*if \(ref\.index === null \|\| unseen\(rows, ref\.index\)\) continue;\s*body\.append\(text\.slice\(from, ref\.start\)\);/, "every panel links every row it holds, drawn or not");
+    assert.doesNotMatch(script, /!panel\.bubbles\.has\(ref\.index\)/, "a Worker's panel links the rows it has drawn only");
     assert.match(script, /link\.addEventListener\("click", \(\) => focusIndex\(panel, ref\.index\)\);/, "the row is found when the link is clicked, never when it was made: the window moves");
-    assert.match(script, /function focusIndex\(panel, index\) \{\s*let found = panel\.bubbles\.get\(index\);\s*if \(found === undefined && panel\.leads && index < panel\.from\) \{\s*drawOlder\(panel, state\.panels\[panel\.name\], index\);\s*found = panel\.bubbles\.get\(index\);\s*\}\s*if \(found !== undefined\) focusRow\(panel, found\);\s*\}/, "a row the window let go is drawn back first");
+    assert.match(script, /function focusIndex\(panel, index\) \{\s*let found = panel\.bubbles\.get\(index\);\s*if \(found === undefined && index < panel\.from\) \{\s*drawOlder\(panel, state\.panels\[panel\.name\], index\);\s*found = panel\.bubbles\.get\(index\);\s*\}\s*if \(found !== undefined\) focusRow\(panel, found\);\s*\}/, "a row the window let go is drawn back first");
     assert.match(script, /panel\.waiting\.set\(index, line\);\s*panel\.bubbles\.set\(index, line\);/);
     assert.match(script, /panel\.waiting\.clear\(\);\s*panel\.bubbles\.clear\(\);/);
     assert.match(script, /const line = rowElement\(entry, shown, panel, about\.rows, index\);/);
@@ -1046,15 +1047,17 @@ describe("the script", () => {
     assert.match(script, /panel\.last = null;\s*land\(dayPill\(when\)\);/, "a pill ends the run");
   });
 
-  // A Worker panel holds a hundred drawn rows: the first draw starts
-  // a hundred from the end rather than building every row and trimming, and every draw lets the
-  // oldest go past a hundred. The Leader's panel is the User's own conversation: it draws the
-  // newest WINDOW rows a reader can see, counted after the comms switch, the older ones in windows
-  // of the same size as the reader scrolls up, and trims back to the newest once the reader is at
-  // the bottom again (panels.mjs windowStart, loadsOlder).
-  it("keeps the last hundred rows of a Worker panel, and the Leader's window of the rows a reader sees", () => {
-    assert.match(script, /from = panel\.leads \? windowStart\(about\.rows\.length, WINDOW, seenBy\(panel, about\)\) : Math\.max\(0, about\.rows\.length - 100\);/);
-    assert.match(script, /if \(!panel\.leads\) \{\s*const drawn = \[\.\.\.panel\.rows\.children\]\.filter\(\(child\) => child\.matches\("\.msg, \.line, \.divider"\)\);\s*while \(drawn\.length > 100\) drawn\.shift\(\)\.remove\(\);/);
+  // Every panel, the Leader's and a Worker's alike, draws the newest WINDOW rows a reader can see
+  // (counted after the comms switch, which only the Leader's has), the older ones in windows of
+  // the same size as the reader scrolls up, and trims back to the newest once the reader is at the
+  // bottom again (panels.mjs windowStart, loadsOlder). The first draw starts at the window rather
+  // than building every row and trimming.
+  it("keeps the newest hundred rows a reader sees on every panel, and draws older ones as they scroll up", () => {
+    assert.match(script, /from = windowStart\(about\.rows\.length, WINDOW, seenBy\(panel, about\)\);\s*panel\.from = from;/, "the first draw of any panel starts at its window");
+    assert.match(script, /panel\.shown = about\.rows\.length;\s*(?:\/\/[^\n]*\n\s*)*panel\.crowded = true;/, "every panel settles its window at the next tick");
+    assert.doesNotMatch(script, /drawn\.shift\(\)/, "a Worker's panel has no trim of its own");
+    assert.match(script, /function windowPanel\(panel\) \{\s*const about = state\.panels\[panel\.name\];\s*if \(about\.rows === null \|\| about\.rows\.length === 0\) return;/, "every panel has its window settled at the tick, a Worker's too");
+    assert.match(script, /const stop = keep \?\? panel\.doing \?\? panel\.jump;/, "a Worker's panel has no pill: the trim stops at the jump pill when no row is left to keep");
     assert.match(script, /function seenBy\(panel, about\) \{\s*const quiet = panel\.rows\.classList\.contains\("comms-hidden"\);\s*const names = \{[^}]*\};\s*return \(index\) => !unseen\(about\.rows, index\) && !\(quiet && talks\(about\.rows\[index\], names\)\);\s*\}/, "a row not drawn, and a message the switch hides, are not counted");
     assert.match(script, /if \(panel\.view\.follow\) \{\s*if \(!panel\.crowded\) return;\s*panel\.crowded = false;\s*const start = windowStart\(about\.rows\.length, WINDOW, seenBy\(panel, about\)\);\s*if \(start > panel\.from\) trimTo\(panel, start\);\s*else if \(start < panel\.from\) drawOlder\(panel, about, start\);/, "a panel that follows is brought to its newest window, and only when something changed");
     assert.match(script, /\} else if \(loadsOlder\(false, panel\.rows\.scrollTop, panel\.rows\.clientHeight, panel\.from\)\) \{\s*drawOlder\(panel, about, windowStart\(panel\.from, WINDOW, seenBy\(panel, about\)\)\);/, "a reader who let go, near the top, gets the next window");
