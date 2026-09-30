@@ -3040,5 +3040,27 @@
         "to": "  const LITE = 1200;"
       }
     ]
+  },
+  {
+    "name": "the page is one column only below 900px",
+    "catches": "takes the right column out below 1800px and draws the Workers in the left",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "  @media (max-width: 1090px) {",
+        "to": "  @media (max-width: 900px) {"
+      }
+    ]
+  },
+  {
+    "name": "the Leader is not first in the one column",
+    "catches": "takes the right column out below 1800px and draws the Workers in the left",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    #mid { order: 0; }\n",
+        "to": ""
+      }
+    ]
   }
 ]

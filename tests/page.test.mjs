@@ -376,15 +376,20 @@ describe("the rules", () => {
   });
 
   // From 1800px the stage has its three columns. Below it the Workers are one column, the left,
-  // and the right is taken out of the grid with the panels the script moved out of it; below 900px
-  // the page is one column. The script's ONE_SIDE is the same number as the stylesheet's, and the
+  // and the right is taken out of the grid with the panels the script moved out of it; below 1091px
+  // the page is one column, the Leader first, because the Leader's head (about 683px with its short
+  // quota at three digits a figure) is not whole in the column one Workers column leaves it below
+  // a window of about 1090px. The script's ONE_SIDE is the same number as the stylesheet's, and the
   // script draws again when a window crosses it, since it is the script that says where each
   // panel stands (place).
   it("takes the right column out below 1800px and draws the Workers in the left", () => {
     const stage = rules.find((rule) => rule.selector === "#stage" && rule.media === "(max-width: 1799px)");
     assert.equal(stage.declarations["grid-template-columns"], "minmax(406px, 1fr) minmax(0, 1092px)");
     assert.equal(rules.find((rule) => rule.selector === "#right" && rule.media === "(max-width: 1799px)").declarations.display, "none");
-    assert.equal(rules.find((rule) => rule.selector === "#stage" && rule.media === "(max-width: 900px)").declarations["grid-template-columns"], "minmax(0, 1fr)");
+    assert.equal(rules.find((rule) => rule.selector === "#stage" && rule.media === "(max-width: 1090px)").declarations["grid-template-columns"], "minmax(0, 1fr)");
+    assert.equal(rules.find((rule) => rule.media === "(max-width: 1090px)" && rule.selector === "#left").declarations.order, "1");
+    assert.equal(rules.find((rule) => rule.media === "(max-width: 1090px)" && rule.selector === "#mid").declarations.order, "0");
+    assert.equal(rules.some((rule) => rule.media === "(max-width: 900px)"), false, "the one-column step is not at 900px any more");
     assert.match(script, /const ONE_SIDE = 1800;\s*const oneSide = window\.matchMedia\(`\(max-width: \$\{ONE_SIDE - 1\}px\)`\);\s*oneSide\.addEventListener\("change", \(\) => draw\(\)\);/);
     assert.match(script, /place\(\[\.\.\.sections\.keys\(\)\], state\.leader, state\.order, oneSide\.matches\)/);
   });
@@ -394,7 +399,6 @@ describe("the rules", () => {
   // width, and the panels' quotaLine says which line it is.
   it("says the quota short on the Leader's head below 1240px and draws again when a window crosses it", () => {
     assert.match(script, /const LITE = 1240;\s*const lite = window\.matchMedia\(`\(max-width: \$\{LITE - 1\}px\)`\);\s*lite\.addEventListener\("change", \(\) => draw\(\)\);/);
-    assert.equal(rules.find((rule) => rule.media === "(max-width: 900px)" && rule.selector === "#left").declarations.order, "1", "the one-column step is where it was");
   });
 
   // The copy button sits in the top-right corner of a code block's frame, so the frame is what it

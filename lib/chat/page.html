@@ -29,7 +29,8 @@
   /* three columns: the Leader's in the middle, up to 1092px; the Workers' either side, 406px at
      the least and sharing the rest — so a narrower window takes from the middle, not the sides.
      Below 1800px (ONE_SIDE in the script) the Workers are one column, the left, and the right has
-     none; below 900px the page is one column, the Leader first */
+     none; below 1091px, where the Leader's head (about 683px with its short quota at three digits a
+     figure) no longer fits beside the Workers' column, the page is one column, the Leader first */
   #stage {
     flex: 1 1 auto; min-height: 0;
     display: grid; grid-template-columns: minmax(406px, 1fr) minmax(0, 1092px) minmax(406px, 1fr);
@@ -40,7 +41,7 @@
     #stage { grid-template-columns: minmax(406px, 1fr) minmax(0, 1092px); }
     #right { display: none; }
   }
-  @media (max-width: 900px) {
+  @media (max-width: 1090px) {
     #stage { grid-template-columns: minmax(0, 1fr); }
     #mid { order: 0; }
     #left { order: 1; }
