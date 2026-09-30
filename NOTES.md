@@ -33,7 +33,7 @@ a call Claude Code itself marks as one it will not save a "don't ask again" for,
 that needs the person, or `rm -rf ~`; a press of Always that arrives for one anyway is refused with
 "Claude Code offers no always rule on that call; allow or deny it", and the card stays. The other is
 a stop on Claude Code's safety check that comes with no allow rule to save: a write to a settings
-file, or under `.git` or `.claude`. That check runs before the rules are read, so a rule saved for
+file, or under `.git`. That check runs before the rules are read, so a rule saved for
 the path would never be honoured. A safety-check stop it does suggest a rule for, such as an `rm -rf`
 of `.git`, keeps its button. What is protected is Claude Code's to say; ovai keeps no list of its
 own.
@@ -47,8 +47,8 @@ restart, and a session started later starts in the mode that role is in. A model
 Haiku, starts in the mode it has and keeps asking as before. When the classifier refuses a call, no
 card is raised and the session is told the call failed; the panel gets a row, "Blocked by auto
 mode: Credential Exploration — the call", the call cut at 300 characters, and the log holds it
-whole. A rule's own refusal is not such a row. The hook refuses a line it holds whatever the mode
-is, so auto mode never reaches a line the hook would have refused.
+whole. A rule's own refusal is not such a row. The hook refuses such a line before the mode is
+looked at, so in auto mode too the classifier never sees it.
 
 **A Leader with no process is grey, and the usage line stays.** A Leader that stopped itself, was
 stopped with the instance or died has its dot grey, not red, and says so on its bottom line: "<name>
@@ -60,7 +60,7 @@ running. It is drawn dimmed once it is a quarter of an hour old, its tooltip end
 and the time it was taken, and a window whose reset has passed is still drawn, with no time to its
 reset. The usage endpoint is asked every
 five minutes while at least one page is open, and when a page opens or a turn ends, once the last
-reading is a minute old; with no page open the clock asks nothing.
+reading is a minute old; with no page open the clock asks nothing and only a turn's end asks.
 
 **The Leader's head has no state or connection word, and "Disconnected" is its bottom line.** After
 the model, the Leader's head holds the version, the usage line and its buttons, and nothing that says
