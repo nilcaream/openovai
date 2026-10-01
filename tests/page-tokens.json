@@ -36,7 +36,7 @@
     "--ok": "#3fb950",
     "--warn": "#d29922",
     "--bad": "#f85149",
-    "--accent": "#5eaeff",
+    "--accent": "#2c7770",
     "--radius": "8px",
     "--mono": "ui-monospace, SFMono-Regular, \"SF Mono\", Menlo, Consolas, monospace",
     "--sans": "system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif"
@@ -77,7 +77,7 @@
     "--ok": "#3fb950",
     "--warn": "#d29922",
     "--bad": "#f85149",
-    "--accent": "#5eaeff",
+    "--accent": "#95dad3",
     "--radius": "8px",
     "--mono": "ui-monospace, SFMono-Regular, \"SF Mono\", Menlo, Consolas, monospace",
     "--sans": "system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif"

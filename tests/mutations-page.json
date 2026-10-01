@@ -127,7 +127,7 @@
       {
         "file": "lib/chat/md.css",
         "from": ".md a { color: var(--accent); }",
-        "to": ".md a { color: #5eaeff; }"
+        "to": ".md a { color: #2c7770; }"
       }
     ]
   },
