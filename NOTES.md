@@ -17,8 +17,9 @@ It downloads nothing: Node.js and Claude Code come with the first `ovai start`, 
 way in, and `ovai update` still takes signed releases from GitHub whichever way the instance was
 made.
 `@latest` is written out because npx reuses a copy it has cached for a name given with no version.
-npm refuses a system that is not Linux or macOS, and the installer's usage text now names the
-command it was called as. The Release workflow puts the tag's package on npm with provenance.
+npm refuses a system that is not Linux or macOS, and the installer's usage text now says that the
+command is `openovai`, `npx @openovai/ovai@latest` or `./install.sh --source <dir>` in a clone.
+The Release workflow puts the tag's package on npm with provenance.
 
 **An open page loads the new version after an update.** A page that was open while the instance
 was updated and started again used to show the old page until it was reloaded by hand, with the
