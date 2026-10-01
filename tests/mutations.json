@@ -1142,8 +1142,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, autoLabel, autoTitle, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, loadsOlder, noticed, place, prune, quotaLine, quotaTitle, insertRef, pillLine, stopEnabled, title, typingBeat, windowStart, LINE_WAITING, WINDOW } from \"./panels.mjs\";",
-        "to": "  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, autoLabel, autoTitle, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, loadsOlder, noticed, prune, quotaLine, quotaTitle, insertRef, pillLine, stopEnabled, title, typingBeat, windowStart, LINE_WAITING, WINDOW } from \"./panels.mjs\";\n  const place = (seats, leader, order) => ({ left: order.filter((s) => s !== leader && seats.includes(s)), mid: leader, right: [] });"
+        "from": "  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, autoLabel, autoTitle, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, loadsOlder, noticed, place, prune, quotaLine, replaced, quotaTitle, insertRef, keptFirst, pillLine, stopEnabled, title, typingBeat, windowStart, LINE_WAITING, WINDOW } from \"./panels.mjs\";",
+        "to": "  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, autoLabel, autoTitle, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, loadsOlder, noticed, prune, quotaLine, replaced, quotaTitle, insertRef, keptFirst, pillLine, stopEnabled, title, typingBeat, windowStart, LINE_WAITING, WINDOW } from \"./panels.mjs\";\n  const place = (seats, leader, order) => ({ left: order.filter((s) => s !== leader && seats.includes(s)), mid: leader, right: [] });"
       }
     ]
   },

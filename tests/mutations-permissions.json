@@ -516,8 +516,8 @@
     "edits": [
       {
         "file": "lib/chat/permissions.mjs",
-        "from": "  return suggested(request, root);\n}\n\n// The rules Claude Code would write",
-        "to": "  return null;\n}\n\n// The rules Claude Code would write"
+        "from": "  return suggested(request, root);\n}\n\n// A call Claude Code offers no \"don't ask again\" on",
+        "to": "  return null;\n}\n\n// A call Claude Code offers no \"don't ask again\" on"
       }
     ]
   },

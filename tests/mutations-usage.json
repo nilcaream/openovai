@@ -86,8 +86,8 @@
     "edits": [
       {
         "file": "lib/chat/usage.mjs",
-        "from": "    live = { data: await answered.json(), fetchedAt: now(), nextAt: 0, inFlight: false };",
-        "to": "    live = { data: await answered.json(), fetchedAt: 0, nextAt: 0, inFlight: false };"
+        "from": "    live = { data, fetchedAt: now(), nextAt: 0, inFlight: false };",
+        "to": "    live = { data, fetchedAt: 0, nextAt: 0, inFlight: false };"
       }
     ]
   },
