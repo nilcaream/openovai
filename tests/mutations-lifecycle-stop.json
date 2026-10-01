@@ -126,8 +126,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "    return { text: `parked: ${said.length === 0 ? \"nobody was running\" : said.join(\"; \")}` };\n  } finally {\n    parking = false;\n  }",
-        "to": "    parking = false;\n    return { text: `parked: ${said.length === 0 ? \"nobody was running\" : said.join(\"; \")}` };\n  } finally {\n  }"
+        "from": "    return { text: `parked: ${result}` };\n  } finally {\n    parking = false;\n  }",
+        "to": "    parking = false;\n    return { text: `parked: ${result}` };\n  } finally {\n  }"
       }
     ]
   },

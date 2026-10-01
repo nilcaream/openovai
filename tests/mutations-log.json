@@ -5,8 +5,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "  log(\"queued\", seat, null, `${frame.kind} #${order}, ${record.queue.length} waiting`);",
-        "to": "  console.log(`queued: ${seat} ${frame.kind} #${order}, ${record.queue.length} waiting`);"
+        "from": "  log(\"queued\", seat, null, `${named(frame)} #${order}, ${record.queue.length} waiting`);",
+        "to": "  console.log(`queued: ${seat} ${named(frame)} #${order}, ${record.queue.length} waiting`);"
       }
     ]
   },
