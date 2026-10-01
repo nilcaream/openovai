@@ -20,10 +20,10 @@ in to its own account, served on one port.
 # the openovai command: installs itself under ~/.local/share/openovai, linked at ~/.local/bin/openovai
 curl -fsSL https://raw.githubusercontent.com/nilcaream/openovai/main/openovai | sh
 # create an instance: asks where it lives, who it works for, the models, the port, how it signs in
-openovai
+~/.local/bin/openovai
 # or say it all on one line, and nothing is asked; the directory has to be empty or new
-openovai --root ~/my-workspace --user Ana --leader Max \
-         --leader-model opus --worker-model sonnet --port 7799 --auth login
+~/.local/bin/openovai --root ~/my-workspace --user Ana --leader Max \
+                      --leader-model opus --worker-model sonnet --port 7799 --auth login
 # sign the instance in (--auth login): opens a browser once, the credential stays inside the instance
 ~/my-workspace/bin/ovai login
 # start the server in the background: it prints a one-time link, http://127.0.0.1:7799/?token=…, and returns
