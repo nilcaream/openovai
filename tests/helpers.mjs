@@ -171,6 +171,13 @@ export function installed(options, environment) {
 //                             on the real one, one frame per block; a call with `blocked` (a
 //                             reason, "[Credential Exploration]") has the system/permission_denied
 //                             frame of auto mode's classifier before its result
+//   OPENOVAI_STAND_IN_NOTES         a JSON list, one entry per QUESTION the same way, each a list of
+//                             { text, listed? }: the progress notes the real one writes between
+//                             its calls, each as an assistant frame of its own with one thinking
+//                             block, written before that turn's calls; the frame lists the block
+//                             in narration_block_indexes ([0], or the list `listed` gives; no field
+//                             at all when listed is false) — the shape measured on 2.1.289, where
+//                             a reasoning summary is the same block with no index
 //   OPENOVAI_STAND_IN_CALL_HOLDS    milliseconds each of those calls stays out between its tool_use
 //                             and its tool_result; a user frame that arrives while one is out
 //                             is read into the turn under way, logged as `joined:`, and answered
@@ -523,6 +530,10 @@ for (;;) {
     frame({ type: "system", subtype: "init", session_id: "test-thread" });
     process.stdout.write("this line is not a frame at all\\n");
     frame({ type: "assistant", message: { role: "assistant", content: [{ type: "text", text: "thinking" }] } });
+  }
+
+  for (const note of (isQuestion ? perTurn("OPENOVAI_STAND_IN_NOTES", question) : null) ?? []) {
+    frame({ type: "assistant", message: { role: "assistant", content: [{ type: "thinking", thinking: note.text, signature: "sig" }] }, parent_tool_use_id: null, ...(note.listed === false ? {} : { narration_block_indexes: note.listed ?? [0] }), session_id: "test-thread" });
   }
 
   // The tools the real one would say it is using in this turn: the call as its own assistant

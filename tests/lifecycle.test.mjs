@@ -664,11 +664,12 @@ describe("a line of the User's with no words after it", () => {
     assert.ok(!heardIn(successor.log).some((one) => one.startsWith('<server-event type="unanswered"')), heardIn(successor.log).join("\n"));
   });
 
-  it("tells nothing for a turn with words, one that failed, one stopped, one with no line of the User's, or a Worker's", async () => {
+  it("tells nothing for a turn with words, one whose only words are a progress note, one that failed, one stopped, one with no line of the User's, or a Worker's", async () => {
     // A seat's first turn failing ends the seat before anything is told, so the failed turn here
     // comes after one that went through: a message, which asks nothing of the event either.
     const cases = [
       [LEADER, {}, [userFrame("hello")]],
+      [LEADER, { OPENOVAI_STAND_IN_NOTES: JSON.stringify([[{ text: "Found the cause in the parser; checking the test next." }]]), OPENOVAI_STAND_IN_REPLY: "<noop/>" }, [userFrame("hello")]],
       [LEADER, { OPENOVAI_STAND_IN_EMPTY: "1", OPENOVAI_STAND_IN_FAILS: "[false, true]" }, [messageFrame(WORKER, "first"), userFrame("hello")]],
       [LEADER, { OPENOVAI_STAND_IN_EMPTY: "1", OPENOVAI_STAND_IN_SLOW: "2000" }, [userFrame("hello")], "stopped"],
       [LEADER, { OPENOVAI_STAND_IN_EMPTY: "1" }, [messageFrame(WORKER, "hello")]],

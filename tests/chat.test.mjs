@@ -2385,6 +2385,51 @@ describe("what a seat says", () => {
     await new Promise((resolve) => setTimeout(resolve, 100));
     assert.deepEqual(panel(instance, WORKER).map((row) => [row.from, row.text, row.noop]), [[WORKER, "  Desk updated.\n\n- waiting for Jane", undefined]]);
   });
+
+  // A progress note is a thinking block that the frame lists in narration_block_indexes: words the
+  // model wrote between its calls. A thinking block the frame does not list is a reasoning summary,
+  // and nothing of it is shown.
+  const NOTE = "Found the cause in the parser; checking the test next.";
+  const READING = { name: "Read", input: { file_path: "/srv/app/lib/parser.mjs" } };
+
+  async function noted(notes, extra = {}) {
+    await endSeat(WORKER, 500);
+    remove(panelFile(instance, WORKER));
+    paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_NOTES: JSON.stringify([notes]), ...extra });
+    await tell(WORKER, userFrame("go")).answered;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    return panel(instance, WORKER);
+  }
+
+  it("shows a listed progress note as words, before the call that follows it", async () => {
+    const rows = await noted([{ text: NOTE }], { OPENOVAI_STAND_IN_CALLS: JSON.stringify([[READING]]), OPENOVAI_STAND_IN_REPLY: "done" });
+    assert.deepEqual(rows.map((row) => [row.from, row.text, row.line]), [[WORKER, NOTE, undefined], [WORKER, undefined, "Reading /srv/app/lib/parser.mjs"], [WORKER, "done", undefined]]);
+  });
+
+  it("keeps a turn whose only words are a note, then <noop/>, as a said turn", async () => {
+    const rows = await noted([{ text: NOTE }], { OPENOVAI_STAND_IN_REPLY: "<noop/>" });
+    assert.deepEqual(rows.map((row) => [row.from, row.text, row.noop, row.silent]), [[WORKER, NOTE, undefined, undefined], [WORKER, "<noop/>", true, undefined]]);
+  });
+
+  it("shows nothing for a thinking block the frame does not list", async () => {
+    const rows = await noted([{ text: NOTE, listed: false }], { OPENOVAI_STAND_IN_REPLY: "done" });
+    assert.deepEqual(rows.map((row) => row.text), ["done"]);
+  });
+
+  it("shows nothing for a thinking block in a frame that lists no index", async () => {
+    const rows = await noted([{ text: NOTE, listed: [] }], { OPENOVAI_STAND_IN_REPLY: "done" });
+    assert.deepEqual(rows.map((row) => row.text), ["done"]);
+  });
+
+  it("shows nothing for a listed note with no words in it", async () => {
+    const rows = await noted([{ text: " \n" }], { OPENOVAI_STAND_IN_REPLY: "done" });
+    assert.deepEqual(rows.map((row) => row.text), ["done"]);
+  });
+
+  it("shows nothing for a listed note that is the interrupted sentinel", async () => {
+    const rows = await noted([{ text: "This part of the response was interrupted before it finished." }], { OPENOVAI_STAND_IN_REPLY: "done" });
+    assert.deepEqual(rows.map((row) => row.text), ["done"]);
+  });
 });
 
 // ---------------------------------------------------------------------------------------------

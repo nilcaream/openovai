@@ -44,6 +44,17 @@
     ]
   },
   {
+    "name": "every thinking block is taken for a progress note",
+    "catches": "shows nothing for a thinking block in a frame that lists no index",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "    listed\n      .map((index) => content[index])\n",
+        "to": "    content\n"
+      }
+    ]
+  },
+  {
     "name": "the file view is drawn without the theme the page's cookie names",
     "catches": "draws the file view in the theme of the page's own port's cookie, light without one",
     "edits": [
