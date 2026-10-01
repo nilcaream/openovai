@@ -31,7 +31,7 @@ curl -fsSL https://raw.githubusercontent.com/nilcaream/openovai/main/openovai | 
 ```
 
 `openovai` says which release it resolved before doing anything — the newest on GitHub, or the
-one you name: `openovai 0.21.0 --root …` — downloads it once, checks that it is signed by the key
+one you name: `openovai <version> --root …` — downloads it once, checks that it is signed by the key
 the command pins, fetches the Node.js and Claude Code it pins, and hands over to that release's
 installer. A release from before releases were signed is not installed. The release key's
 fingerprint is `SHA256:aPDZIYeTixbEFoDRX5ytVJ+TvZub0hlFDreET4iB8Lk` (Ed25519).
