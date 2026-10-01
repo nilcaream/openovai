@@ -6,7 +6,8 @@ carries only its own.
 
 ## 0.23.0
 
-**This version pins Claude Code 2.1.293, where the last pinned 2.1.289.**
+**This version pins Claude Code 2.1.293, where the last pinned 2.1.289.** With it, a Haiku seat runs
+in auto mode too when its auto switch is on.
 
 **`npx @openovai/ovai@latest` installs a release.** With Node.js 24 or newer, npm is a second way
 in beside the `curl` one. The package is the release, so the command takes the same flags,

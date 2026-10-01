@@ -10,7 +10,7 @@ Every panel on the page is one Claude Code session, called a seat. There is one 
 ## Auto mode
 - In Claude Code's auto mode a classifier settles the calls no rule settles, instead of a permission popup. Two switches on the Leader's head, both bolt icons, turn it on: the first for the Leader's own session, the second for all the Workers' sessions.
 - The switches belong to the server, not to the browser: every open page shows the same state, and both are off whenever the server starts. Nothing about them is saved.
-- A click reaches the running sessions of that role at once, with no restart, and sessions started later start in that mode. A model that has no auto mode (Haiku) keeps asking with popups as before, without saying so.
+- A click reaches the running sessions of that role at once, with no restart, and sessions started later start in that mode. A model that has no auto mode keeps asking with popups as before, without saying so. Haiku has auto mode, like the other models.
 - A call the classifier refuses raises no popup. The session is told the call failed, and its panel gets a row, "Blocked by auto mode: <category> — <the call>", with the classifier's category and the call, cut when it is very long. A call a deny rule refuses gets no such row.
 
 ## Workers
