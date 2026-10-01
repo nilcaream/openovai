@@ -215,9 +215,9 @@ describe("the rules", () => {
     assert.equal(rules.find((rule) => rule.selector === ".panel").declarations.gap, undefined, "a gap between the head and the rows adds to it the same way");
   });
 
-  // The pill between two days and the one between two sessions stand among the rows as a tool line
-  // does: the same margin, and a box of its own, so its padding and border are inside its row's
-  // height rather than spilling over the rows beside it.
+  // The pill between two sessions and the one that says when one started or ended stand among the
+  // rows as a tool line does: the same margin, and a box of its own, so its padding and border are
+  // inside its row's height rather than spilling over the rows beside it.
   it("space a pill among the rows as a tool line, its border inside its own row", () => {
     const declared = (selector) => rules.find((rule) => rule.selector === selector)?.declarations;
     assert.equal(declared(".divider").margin, declared(".rows .line").margin);
@@ -441,9 +441,9 @@ describe("the rules", () => {
     assert.equal(line.declarations.color, "var(--fg-dim)");
   });
 
-  // What the Leader is at is the pill between two days — the same component, the same look — held
-  // to exactly one line whatever it says: a path that would wrap is cut with an ellipsis, so the
-  // row never changes height as its words change. Nothing else is laid on it: it is a row among
+  // What the Leader is at is the same pill a stamp row is drawn with — the same component, the
+  // same look — held to exactly one line whatever it says: a path that would wrap is cut with an
+  // ellipsis, so the row never changes height as its words change. Nothing else is laid on it: it is a row among
   // the rows, not stuck to an edge and not floating over them.
   it("hold the Leader's pill to exactly one line, cut with an ellipsis, and add nothing else to the pill", () => {
     const declared = (selector) => rules.find((rule) => rule.selector === selector)?.declarations;
@@ -542,15 +542,15 @@ describe("the rules", () => {
 });
 
 describe("the script", () => {
-  it("stamps a row with the reader's own day and time, the weekday written out, on a 24-hour clock, and the day pill with the same", () => {
+  it("stamps a row with the reader's own day and time, the weekday written out, on a 24-hour clock", () => {
     const options = [...script.matchAll(/new Intl\.DateTimeFormat\("en-GB", \{([^}]*)\}\)/g)].map(([, inside]) => inside);
-    assert.equal(options.length, 1, "one formatter, for the row's stamp and the day pill alike: a second one is a second format");
+    assert.equal(options.length, 1, "one formatter, for every stamp: a second one is a second format");
     const [stamp] = options;
     assert.match(stamp, /\bweekday: "long"/);
     assert.match(stamp, /\bhourCycle: "h23"/);
     assert.match(stamp, /\bmonth: "2-digit"/, "the month is a number, never a word or a word cut short");
     assert.doesNotMatch(stamp, /timeZone/, "a zone of the page's own instead of the reader's");
-    assert.match(script, /const day = `\$\{part\.year\}\.\$\{part\.month\}\.\$\{part\.day\}`;\s*const clock = `\$\{part\.hour\}:\$\{part\.minute\}:\$\{part\.second\}`;\s*return \{ whole: `\$\{day\} \$\{part\.weekday\} \$\{clock\}`, clock, day \};/);
+    assert.match(script, /const day = `\$\{part\.year\}\.\$\{part\.month\}\.\$\{part\.day\}`;\s*const clock = `\$\{part\.hour\}:\$\{part\.minute\}:\$\{part\.second\}`;\s*return \{ whole: `\$\{day\} \$\{part\.weekday\} \$\{clock\}`, clock \};/);
   });
 
   // A page left open across an update takes the new page itself: the stream's snapshot names the
@@ -563,18 +563,13 @@ describe("the script", () => {
     assert.match(script, /if \(typeof drafts\[name\] === "string"\) \{\s*box\.value = drafts\[name\];\s*delete drafts\[name\];/, "a panel built after the reload gets its draft back");
   });
 
-  // The pill between two days carries the whole stamp of the first row of the new day, and goes
-  // in only between a row of one day and a row of the next: never before the first row drawn,
-  // whatever day it was written on, and never after the last — it is appended right before the
-  // row it announces. A row without a stamp keeps the day. The trim of a panel takes the
-  // pill with the rows before it, so it is never the first thing on a panel either.
-  it("puts the pill between two days only, with the whole stamp of the first row of the new day on it, and never first", () => {
-    assert.match(script, /import \{ dayPillBefore, row as rowOf, talks, unseen \} from "\.\/render\.mjs";/);
-    assert.match(script, /const index = from \+ offset;\s*if \(unseen\(about\.rows, index\)\) continue;/, "a row left out of the drawing is skipped, and counted all the same");
-    assert.match(script, /function dayPill\(when\) \{\s*const element = pill\(when\.whole\);\s*element\.dataset\.day = when\.day;\s*return element;\s*\}/);
-    assert.match(script, /const when = stamp\(entry\.at\);\s*if \(entry\.at !== undefined && when\.day !== panel\.day\) \{\s*if \(dayPillBefore\(entry, panel\.day\)\) \{\s*panel\.last = null;\s*land\(dayPill\(when\)\);\s*\}\s*panel\.day = when\.day;\s*\}/);
-    assert.match(script, /while \(panel\.rows\.firstElementChild !== stop\) panel\.rows\.firstElementChild\.remove\(\);\s*while \(panel\.rows\.firstElementChild\.dataset\.day !== undefined\) panel\.rows\.firstElementChild\.remove\(\);/, "the trim takes a day pill left first with the rows before it");
-    assert.match(script, /panel\.shown = 0;\s*panel\.from = 0;\s*panel\.crowded = false;\s*panel\.day = null;/, "a panel drawn afresh starts with no day, so its first row gets no pill");
+  // The page draws a pill only for a row the server stored as one (a stamp or a divider): it
+  // names no day of its own, so every row drawn is the row of the conversation and nothing else.
+  it("draws no pill of its own between two days, only the rows it is given", () => {
+    assert.match(script, /import \{ row as rowOf, talks, unseen \} from "\.\/render\.mjs";/);
+    assert.match(script, /const index = from \+ offset;\s*if \(unseen\(about\.rows, index\)\) continue;\s*const shown = rowOf\(/, "a row left out of the drawing is skipped, and counted all the same; the next row drawn is the one given");
+    assert.doesNotMatch(script, /dayPill|panel\.day|dataset\.day/, "no pill is built for a day, none is told from a row, and the panel keeps no day");
+    assert.match(script, /while \(panel\.rows\.firstElementChild !== stop\) panel\.rows\.firstElementChild\.remove\(\);\s*for \(const kept of/, "the trim takes the rows before the window and nothing else");
   });
 
   // The User's own row says what became of it, from the words panels.mjs picks: waiting — the
@@ -778,13 +773,13 @@ describe("the script", () => {
     assert.match(script, /jump\.addEventListener\("click", \(\) => \{\s*rows\.scrollTop = rows\.scrollHeight;\s*jump\.classList\.remove\("show"\);/);
   });
 
-  // What the Leader is at: the day pill, made once with the panel and never taken out — "Waiting
-  // for instructions" off a turn, the server's word on one — its words changed in place, always
-  // the last row before the jump pill. It never comes and never goes, so it moves no row and never
-  // counts as one landing. A Worker's panel has none.
-  it("draws what the Leader is at as the day pill, made with the panel, always the last row, changed in place", () => {
+  // What the Leader is at: the same pill a stamp row is drawn with, made once with the panel and
+  // never taken out — "Waiting for instructions" off a turn, the server's word on one — its words
+  // changed in place, always the last row before the jump pill. It never comes and never goes, so
+  // it moves no row and never counts as one landing. A Worker's panel has none.
+  it("draws what the Leader is at as the same pill a stamp row is drawn with, made with the panel, always the last row, changed in place", () => {
     const draw = script.slice(script.indexOf("function drawPanel(panel)"), script.indexOf("// ------------------------------------------------------------------------------- the page"));
-    assert.match(script, /let doing = null;\s*if \(leads\) \{\s*doing = pill\(LINE_WAITING\);\s*doing\.classList\.add\("doing"\);\s*rows\.insertBefore\(doing, jump\);\s*\}/, "the Leader's panel has its pill from the start, the day pill's own, and a Worker's none");
+    assert.match(script, /let doing = null;\s*if \(leads\) \{\s*doing = pill\(LINE_WAITING\);\s*doing\.classList\.add\("doing"\);\s*rows\.insertBefore\(doing, jump\);\s*\}/, "the Leader's panel has its pill from the start, the same pill a stamp row is drawn with, and a Worker's none");
     assert.match(draw, /if \(panel\.doing !== null\) \{\s*panel\.doing\.firstElementChild\.textContent = pillLine\(state, panel\.name\);\s*panel\.doing\.classList\.toggle\("off", state\.connection !== CONNECTED\);\s*\}\n/);
     assert.doesNotMatch(draw, /panel\.doing\.remove\(\)|panel\.doing = /, "the pill is never taken out nor made again");
     assert.doesNotMatch(draw.slice(draw.indexOf("if (panel.doing !== null) {"), draw.indexOf("if (landed && panel.view.follow")), /landed =/, "its words changing is not a row landing: it moves no row");
@@ -950,12 +945,11 @@ describe("the script", () => {
     assert.match(script, /if \(shown\.kind === "line"\) return lineElement\(shown\);/);
   });
 
-  // A divider row — the Leader's process gone — is the same pill as the day between two rows:
-  // one function builds both, a div of the divider class with the word in a span.
-  it("draws a divider row as the pill between two days, built by the one pill function", () => {
+  // A divider row — the Leader's process gone — and a stamp row are the same pill as what the
+  // Leader is at: one function builds them, a div of the divider class with the word in a span.
+  it("draws a divider row as the pill between two sessions, built by the one pill function", () => {
     assert.match(script, /function pill\(word\) \{\s*const element = document\.createElement\("div"\);\s*element\.className = "divider";\s*const text = document\.createElement\("span"\);\s*text\.textContent = word;\s*element\.append\(text\);\s*return element;/);
     assert.match(script, /if \(shown\.kind === "divider"\) return pill\(shown\.text\);/);
-    assert.match(script, /const element = pill\(when\.whole\);/, "the day pill is the same pill");
   });
 
   // A line that is one end of a message between two sessions carries the message's id and is a
@@ -1066,7 +1060,6 @@ describe("the script", () => {
     assert.match(script, /if \(shown\.kind === "line" && shown\.msg === undefined && panel\.last !== null && panel\.last\.text === shown\.text\) \{\s*panel\.last\.count \+= 1;\s*panel\.last\.n\.textContent = ` ×\$\{panel\.last\.count\}`;\s*landed = true;\s*panel\.lines\.set\(index, panel\.last\.el\);\s*continue;/);
     assert.match(script, /panel\.last = shown\.msg === undefined \? \{ text: shown\.text, el: line, count: 1, n: line\.lastElementChild \} : null;/, "a message's line ends the run");
     assert.match(script, /\} else \{\s*panel\.last = null;\s*if \(shown\.kind === "user" && !shown\.delivered\) panel\.waiting\.set\(index, line\);\s*panel\.bubbles\.set\(index, line\);\s*\}/, "a bubble ends the run");
-    assert.match(script, /panel\.last = null;\s*land\(dayPill\(when\)\);/, "a pill ends the run");
   });
 
   // Every panel, the Leader's and a Worker's alike, draws the newest WINDOW rows a reader can see
@@ -1080,8 +1073,6 @@ describe("the script", () => {
     assert.doesNotMatch(script, /drawn\.shift\(\)/, "a Worker's panel has no trim of its own");
     assert.match(script, /function windowPanel\(panel\) \{\s*const about = state\.panels\[panel\.name\];\s*if \(about\.rows === null \|\| about\.rows\.length === 0\) return;/, "every panel has its window settled at the tick, a Worker's too");
     assert.match(script, /const stop = keptFirst\(\[panel\.bubbles, panel\.lines\], start\) \?\? panel\.doing \?\? panel\.jump;/, "a Worker's panel has no pill: the trim stops at the jump pill when no row is left to keep, and keeps from the first row of the window (panels.mjs keptFirst)");
-    const older = script.slice(script.indexOf("function drawOlder("), script.indexOf("function trimTo("));
-    assert.match(older, /if \(entry\?\.at !== undefined && stamp\(entry\.at\)\.day !== panel\.day && dayPillBefore\(entry, panel\.day\)\) \{\s*rows\.insertBefore\(dayPill\(stamp\(entry\.at\)\), anchor\);\s*\}/, "older rows of another day than the first one drawn are parted from it by a day pill at the join");
     assert.match(script, /function seenBy\(panel, about\) \{\s*const quiet = panel\.rows\.classList\.contains\("comms-hidden"\);\s*const names = \{[^}]*\};\s*return \(index\) => !unseen\(about\.rows, index\) && !\(quiet && talks\(about\.rows\[index\], names\)\);\s*\}/, "a row not drawn, and a message the switch hides, are not counted");
     assert.match(script, /if \(panel\.view\.follow\) \{\s*if \(!panel\.crowded\) return;\s*panel\.crowded = false;\s*const start = windowStart\(about\.rows\.length, WINDOW, seenBy\(panel, about\)\);\s*if \(start > panel\.from\) trimTo\(panel, start\);\s*else if \(start < panel\.from\) drawOlder\(panel, about, start\);/, "a panel that follows is brought to its newest window, and only when something changed");
     assert.match(script, /\} else if \(loadsOlder\(false, panel\.rows\.scrollTop, panel\.rows\.clientHeight, panel\.from\)\) \{\s*drawOlder\(panel, about, windowStart\(panel\.from, WINDOW, seenBy\(panel, about\)\)\);/, "a reader who let go, near the top, gets the next window");

@@ -157,8 +157,9 @@
   /* what became of a message the Leader sent, or of the User's own once it went in: a glyph before the stamp, red when it did not go */
   .meta .st { flex: 0 0 auto; color: var(--ok); }
   .meta .st.bad { color: var(--bad); }
-  /* the pill between two days, and between two sessions: spaced as a tool line is, and a box of its
-     own, so its padding and border are inside the row's height rather than over its neighbours */
+  /* the pill between two sessions, and at a time one started or ended: spaced as a tool line is,
+     and a box of its own, so its padding and border are inside the row's height rather than over
+     its neighbours */
   .divider { text-align: center; margin: 3px 0; color: var(--fg-faint); font-size: .78rem; font-family: var(--mono); }
   .divider span { display: inline-block; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 2px 12px; }
   /* the Leader's pill that says what it is at: always exactly one line, cut with an ellipsis, so
@@ -234,7 +235,7 @@
 
   import { answerOf, dialogOf } from "./dialog.mjs";
   import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, autoLabel, autoTitle, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, loadsOlder, noticed, place, prune, quotaLine, replaced, quotaTitle, insertRef, keptFirst, pillLine, stopEnabled, title, typingBeat, windowStart, LINE_WAITING, WINDOW } from "./panels.mjs";
-  import { dayPillBefore, row as rowOf, talks, unseen } from "./render.mjs";
+  import { row as rowOf, talks, unseen } from "./render.mjs";
   import { refTo, references } from "./refs.mjs";
 
   // The theme: the head script above <style> applied the stored choice before the first paint;
@@ -620,10 +621,10 @@
       }
     });
     rows.append(jump);
-    // On the Leader's panel, the pill that says what the Leader is at: the pill between two days,
-    // always there and always the last row before the jump pill, among the rows and scrolled with
-    // them. Its words change in place and it is one line high whatever they say, so no row ever
-    // moves for it.
+    // On the Leader's panel, the pill that says what the Leader is at: the same pill a stamp row
+    // is drawn with, always there and always the last row before the jump pill, among the rows and
+    // scrolled with them. Its words change in place and it is one line high whatever they say, so
+    // no row ever moves for it.
     let doing = null;
     if (leads) {
       doing = pill(LINE_WAITING);
@@ -721,27 +722,25 @@
     // `last` is the tool line appended last, for a repeated call to count itself into; `lines` is
     // the element of every tool line by the index of its row, for a failed call to find its line;
     // `waiting` the element of every row of the User's not yet delivered, by its index, for the
-    // delivery to find its row; `day` the day of the row drawn last, for the pill between two days;
-    // `drawn` the card of every question on the panel, by the id of its request; `doing` the pill
-    // that says what the Leader is at, null on a Worker's panel; `bubbles` the element of every
-    // stamped row by its index, for a reference in a User's row to find the row it names. `from` is
-    // the index of the oldest row drawn (`shown` is the end of them), `quiet` whether the comms
-    // switch hid the messages when the window was last settled, and `crowded` whether rows came or
-    // went since, so the window may hold more than it should.
-    return { name, leads, section, nameLine, info, word, fitPlaceholder, facts, composer, stop, rows, cards, jump, doing, box, view, keep, shown: 0, from: 0, quiet: false, crowded: false, day: null, drawn: new Map(), loading: false, last: null, lines: new Map(), bubbles: new Map(), waiting: new Map() };
+    // delivery to find its row; `drawn` the card of every question on the panel, by the id of its
+    // request; `doing` the pill that says what the Leader is at, null on a Worker's panel;
+    // `bubbles` the element of every stamped row by its index, for a reference in a User's row to
+    // find the row it names. `from` is the index of the oldest row drawn (`shown` is the end of
+    // them), `quiet` whether the comms switch hid the messages when the window was last settled,
+    // and `crowded` whether rows came or went since, so the window may hold more than it should.
+    return { name, leads, section, nameLine, info, word, fitPlaceholder, facts, composer, stop, rows, cards, jump, doing, box, view, keep, shown: 0, from: 0, quiet: false, crowded: false, drawn: new Map(), loading: false, last: null, lines: new Map(), bubbles: new Map(), waiting: new Map() };
   }
 
-  // When a row was written, in the reader's own zone: `2026.09.13 Sunday 23:17:05` on the row, the
-  // same on the pill between two days, and the day alone — `2026.09.13` — to tell one day from the
-  // next.
+  // When a row was written, in the reader's own zone: `2026.09.13 Sunday 23:17:05` on the row, and
+  // the clock alone — `23:17:05` — where the row's label leaves no room for the whole.
   const timeOf = new Intl.DateTimeFormat("en-GB", { year: "numeric", month: "2-digit", day: "2-digit", weekday: "long", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" });
 
   function stamp(at) {
-    if (at === undefined) return { whole: "", clock: "", day: "" };
+    if (at === undefined) return { whole: "", clock: "" };
     const part = Object.fromEntries(timeOf.formatToParts(new Date(at)).map((piece) => [piece.type, piece.value]));
     const day = `${part.year}.${part.month}.${part.day}`;
     const clock = `${part.hour}:${part.minute}:${part.second}`;
-    return { whole: `${day} ${part.weekday} ${clock}`, clock, day };
+    return { whole: `${day} ${part.weekday} ${clock}`, clock };
   }
 
   // How long a User's row waited to go in: the clock of the write and the seconds since it was
@@ -752,7 +751,7 @@
   }
 
   // A row's stamp is the whole day and time when it sits beside the whole label on one line, and
-  // the time alone when the label would be cut to make room for it — the pill above says the day.
+  // the time alone when the label would be cut to make room for it.
   // A status beside the stamp that has a glyph goes with it: the whole word while the stamp is
   // whole, the glyph alone while the stamp is the clock alone. Every stamp is set whole first and
   // all are measured after, so a change of width costs one layout and not one per row; the label
@@ -784,22 +783,14 @@
     }
   }
 
-  // The pill between two days, and the one between two sessions: the same pill, a word on it.
+  // The pill a divider row and a stamp row are drawn with, and the one that says what the Leader is
+  // at: the same pill, a word on it.
   function pill(word) {
     const element = document.createElement("div");
     element.className = "divider";
     const text = document.createElement("span");
     text.textContent = word;
     element.append(text);
-    return element;
-  }
-
-  // The pill between two days: the stamp of the first row of the new day, whole, marked as the
-  // day's so the trim can tell it from a row. It is never the first thing on a panel and never
-  // the last: it goes in only between a row of one day and a row of the next.
-  function dayPill(when) {
-    const element = pill(when.whole);
-    element.dataset.day = when.day;
     return element;
   }
 
@@ -1196,12 +1187,9 @@
       });
   }
 
-  // Rows `from` up to `to` of a panel's conversation drawn, each element put in by `land`. A pill
-  // names the day between the last row of one day and the first row of the next —
-  // never before the first row drawn, whatever its day, and never before a row that says when
-  // a session ended or started, which names the day itself (dayPillBefore). A tool call that repeats the line
-  // appended last counts itself into that line rather than drawing a second one; any other
-  // row — a bubble, a pill — ends the run. Answers whether any row landed — a bubble, a pill, a
+  // Rows `from` up to `to` of a panel's conversation drawn, each element put in by `land`. A tool
+  // call that repeats the line appended last counts itself into that line rather than drawing a
+  // second one; any other row — a bubble, a pill — ends the run. Answers whether any row landed — a bubble, a pill, a
   // tool line, or a repeated call that only grew its counter — which is what decides the scroll;
   // the stamps appended are for the fitter alone, since a tool line carries no stamp, and the rows
   // appended folded are for the fold's measure.
@@ -1212,14 +1200,6 @@
     for (const [offset, entry] of about.rows.slice(from, to).entries()) {
       const index = from + offset;
       if (unseen(about.rows, index)) continue;
-      const when = stamp(entry.at);
-      if (entry.at !== undefined && when.day !== panel.day) {
-        if (dayPillBefore(entry, panel.day)) {
-          panel.last = null;
-          land(dayPill(when));
-        }
-        panel.day = when.day;
-      }
       const shown = rowOf(entry, { chat: state.chat, seat: panel.name, leader: state.leader, user: state.user });
       // A line that is one end of a message is its own: two messages are two lines, never
       // one with a counter, since each is a click to a different row.
@@ -1261,23 +1241,14 @@
 
   // A panel with the rows from `start` up to the first it draws, drawn above it. The row
   // that was the first stays where the reader sees it: its place on the screen is taken before and
-  // put back after, whether or not the browser held it itself. The pill between two days goes in
-  // at the join when the days differ.
+  // put back after, whether or not the browser held it itself.
   function drawOlder(panel, about, start) {
     const rows = panel.rows;
     const anchor = rows.firstElementChild;
     const top = anchor.getBoundingClientRect().top;
-    const { day, last } = panel;
-    panel.day = null;
+    const { last } = panel;
     panel.last = null;
     const drew = drawRange(panel, about, start, panel.from, (element) => rows.insertBefore(element, anchor));
-    let first = panel.from;
-    while (first < about.rows.length && unseen(about.rows, first)) first += 1;
-    const entry = about.rows[first];
-    if (entry?.at !== undefined && stamp(entry.at).day !== panel.day && dayPillBefore(entry, panel.day)) {
-      rows.insertBefore(dayPill(stamp(entry.at)), anchor);
-    }
-    panel.day = day;
     panel.last = last;
     panel.from = start;
     panel.crowded = true;
@@ -1287,11 +1258,10 @@
   }
 
   // A panel with the rows before `start` taken off, and the bookkeeping of the rows it no longer
-  // holds. The day pill left first goes too: it is never the first thing on a panel.
+  // holds.
   function trimTo(panel, start) {
     const stop = keptFirst([panel.bubbles, panel.lines], start) ?? panel.doing ?? panel.jump;
     while (panel.rows.firstElementChild !== stop) panel.rows.firstElementChild.remove();
-    while (panel.rows.firstElementChild.dataset.day !== undefined) panel.rows.firstElementChild.remove();
     for (const kept of [panel.bubbles, panel.lines, panel.waiting]) {
       for (const [index, element] of kept) {
         if (!element.isConnected) kept.delete(index);
@@ -1368,7 +1338,6 @@
         panel.shown = 0;
         panel.from = 0;
         panel.crowded = false;
-        panel.day = null;
         panel.last = null;
         panel.lines.clear();
         panel.waiting.clear();

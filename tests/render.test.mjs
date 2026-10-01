@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { INTERRUPTED, SILENT, candidates, collapsed, dayPillBefore, html, opensOnDesktop, pathOf, row, talks, unseen } from "../lib/chat/render.mjs";
+import { INTERRUPTED, SILENT, candidates, collapsed, html, opensOnDesktop, pathOf, row, talks, unseen } from "../lib/chat/render.mjs";
 
 // The Leader's panel, and a Worker's: the same rows drawn from two seats, for one User.
 const names = { chat: "Server", seat: "Leader", leader: "Leader", user: "Mike" };
@@ -34,11 +34,16 @@ describe("the row that says when a session ended or started", () => {
     assert.deepEqual(rows.map((_, index) => unseen(rows, index)), [false, true, true, false]);
   });
 
-  it("opens a new day without the day's pill, which would say the same words again", () => {
-    // A hire on a desk last used the day before: its start row is the first row of the new day.
-    assert.equal(dayPillBefore(when(0), "2026.09.22"), false);
-    assert.equal(dayPillBefore({ at: at(0), from: "Paul", text: "hi" }, "2026.09.22"), true);
-    assert.equal(dayPillBefore({ at: at(0), from: "Paul", text: "hi" }, null), false);
+  it("is the only pill a new day gets, after the message stored before the start row", () => {
+    // A park the day before; the message that wakes the Leader is stored 47 ms before its start row.
+    const rows = [
+      { at: "2026-09-22T21:10:00.000Z", from: "Server", stamp: true, text: "yesterday" },
+      { at: "2026-09-23T06:25:58.000Z", from: "user", text: "wake up" },
+      { at: "2026-09-23T06:25:58.047Z", from: "Server", stamp: true, text: "today" },
+    ];
+    const drawn = rows.filter((_, index) => !unseen(rows, index)).map((entry) => row(entry, names));
+    assert.deepEqual(drawn.map((shown) => shown.kind), ["divider", "user", "divider"]);
+    assert.deepEqual(drawn.filter((shown) => shown.kind === "divider").map((shown) => shown.text), ["yesterday", "today"]);
   });
 });
 

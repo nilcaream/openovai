@@ -100,7 +100,7 @@
   },
   {
     "name": "the row's stamp drops the weekday",
-    "catches": "stamps a row with the reader's own day and time, the weekday written out, on a 24-hour clock, and the day pill with the same",
+    "catches": "stamps a row with the reader's own day and time, the weekday written out, on a 24-hour clock",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -144,7 +144,7 @@
   },
   {
     "name": "the stamp is formatted in a zone of the page's own",
-    "catches": "stamps a row with the reader's own day and time, the weekday written out, on a 24-hour clock, and the day pill with the same",
+    "catches": "stamps a row with the reader's own day and time, the weekday written out, on a 24-hour clock",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -1093,7 +1093,7 @@
   },
   {
     "name": "a divider row is drawn as a bubble",
-    "catches": "draws a divider row as the pill between two days, built by the one pill function",
+    "catches": "draws a divider row as the pill between two sessions, built by the one pill function",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -1637,7 +1637,7 @@
   },
   {
     "name": "a second formatter for the pill",
-    "catches": "stamps a row with the reader's own day and time, the weekday written out, on a 24-hour clock, and the day pill with the same",
+    "catches": "stamps a row with the reader's own day and time, the weekday written out, on a 24-hour clock",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -1648,7 +1648,7 @@
   },
   {
     "name": "the month is a word cut short",
-    "catches": "stamps a row with the reader's own day and time, the weekday written out, on a 24-hour clock, and the day pill with the same",
+    "catches": "stamps a row with the reader's own day and time, the weekday written out, on a 24-hour clock",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -1658,35 +1658,13 @@
     ]
   },
   {
-    "name": "a pill before the first row",
-    "catches": "puts the pill between two days only, with the whole stamp of the first row of the new day on it, and never first",
+    "name": "a pill names the day when a row is of another day than the one before it",
+    "catches": "draws no pill of its own between two days, only the rows it is given",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "        if (dayPillBefore(entry, panel.day)) {\n          panel.last = null;\n          land(dayPill(when));\n        }",
-        "to": "        panel.last = null;\n        land(dayPill(when));"
-      }
-    ]
-  },
-  {
-    "name": "the pill carries the day alone",
-    "catches": "puts the pill between two days only, with the whole stamp of the first row of the new day on it, and never first",
-    "edits": [
-      {
-        "file": "lib/chat/page.html",
-        "from": "    const element = pill(when.whole);",
-        "to": "    const element = pill(when.day);"
-      }
-    ]
-  },
-  {
-    "name": "a leading pill survives the trim",
-    "catches": "puts the pill between two days only, with the whole stamp of the first row of the new day on it, and never first",
-    "edits": [
-      {
-        "file": "lib/chat/page.html",
-        "from": "    while (panel.rows.firstElementChild.dataset.day !== undefined) panel.rows.firstElementChild.remove();\n",
-        "to": ""
+        "from": "      if (unseen(about.rows, index)) continue;\n      const shown = rowOf(",
+        "to": "      if (unseen(about.rows, index)) continue;\n      if (entry.at !== undefined && stamp(entry.at).whole.slice(0, 10) !== panel.day) {\n        if (panel.day !== undefined) land(pill(stamp(entry.at).whole));\n        panel.day = stamp(entry.at).whole.slice(0, 10);\n      }\n      const shown = rowOf("
       }
     ]
   },
@@ -2763,7 +2741,7 @@
   },
   {
     "name": "a Worker's panel gets the Leader's pill too",
-    "catches": "draws what the Leader is at as the day pill, made with the panel, always the last row, changed in place",
+    "catches": "draws what the Leader is at as the same pill a stamp row is drawn with, made with the panel, always the last row, changed in place",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -2773,8 +2751,8 @@
     ]
   },
   {
-    "name": "the Leader's pill is a look-alike built by hand rather than the day pill",
-    "catches": "draws what the Leader is at as the day pill, made with the panel, always the last row, changed in place",
+    "name": "the Leader's pill is a look-alike built by hand rather than the one pill function",
+    "catches": "draws what the Leader is at as the same pill a stamp row is drawn with, made with the panel, always the last row, changed in place",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -2801,7 +2779,7 @@
   },
   {
     "name": "the Leader's pill's words changing counts as a row landing",
-    "catches": "draws what the Leader is at as the day pill, made with the panel, always the last row, changed in place",
+    "catches": "draws what the Leader is at as the same pill a stamp row is drawn with, made with the panel, always the last row, changed in place",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -2812,7 +2790,7 @@
   },
   {
     "name": "the Leader's pill is taken out when the turn ends",
-    "catches": "draws what the Leader is at as the day pill, made with the panel, always the last row, changed in place",
+    "catches": "draws what the Leader is at as the same pill a stamp row is drawn with, made with the panel, always the last row, changed in place",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -3026,17 +3004,6 @@
       {
         "file": "lib/chat/page.html",
         "from": "    #mid { order: 0; }\n",
-        "to": ""
-      }
-    ]
-  },
-  {
-    "name": "older rows drawn above a row of another day are not parted from it by a day pill",
-    "catches": "keeps the newest hundred rows a reader sees on every panel, and draws older ones as they scroll up",
-    "edits": [
-      {
-        "file": "lib/chat/page.html",
-        "from": "      rows.insertBefore(dayPill(stamp(entry.at)), anchor);\n",
         "to": ""
       }
     ]
