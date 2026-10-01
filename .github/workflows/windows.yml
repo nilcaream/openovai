@@ -1,0 +1,100 @@
+name: Windows
+
+# ovai on Windows, started by hand from the Actions tab and never by anything else: not on a push, not
+# on a pull request, and not by ci.yml or a release. Nothing here is a gate; it answers whether
+# ovai runs on this system when somebody asks.
+#
+# The README tells a Windows reader to run ovai in WSL 2 with the instance in the Linux file system,
+# and says nothing works natively. The first job is that advice, followed on a Windows runner: the
+# same measurements as the macOS job, run inside a WSL 2 distribution, then the page opened from the
+# Windows side of the machine, which is where a person's browser is. The second job is a record of
+# what native Windows does with the test suite, and is allowed to fail.
+#
+# GitHub's runner-images README lists WSL 2 (as the default WSL) on the Windows Server 2025 image,
+# which windows-latest points at; its Windows Server 2022 image lists WSL 1 only. WSL 2 needs nested
+# virtualization, so the job checks the kernel it got and fails if that is not a WSL 2 one.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  wsl2:
+    name: Linux in WSL 2 on Windows
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      # Ubuntu, version 2. Third-party, so pinned to the commit of v7.0.0 and not to a tag that can move.
+      - uses: Vampire/setup-wsl@d1da7f2c0322a5ee4f24975344f67fc0f5baf364 # v7.0.0
+        with:
+          distribution: Ubuntu-24.04
+          wsl-version: 2
+          additional-packages: ca-certificates curl git
+
+      - name: Check that this is WSL 2
+        shell: pwsh
+        run: |
+          wsl --version
+          wsl --list --verbose
+          $listed = (wsl --list --verbose | Out-String) -replace "`0", ""
+          if ($listed -notmatch '(?m)^\s*\*?\s*Ubuntu-24\.04\s+\S+\s+2\s*$') {
+            throw "MEASURED WRONG: Ubuntu-24.04 is not a WSL 2 distribution on this runner (wsl --list --verbose is above)"
+          }
+
+      # The checkout is made inside the distribution, in its own file system: the README says the
+      # instance must not sit under /mnt/c, and a Windows checkout would bring CRLF line endings.
+      - name: Check out the commit in the Linux file system
+        shell: wsl-bash {0}
+        run: |
+          uname -srv
+          case "$(uname -r)" in
+            *WSL2*) ;;
+            *) echo "MEASURED WRONG: the kernel is $(uname -r), not a WSL 2 one" >&2; exit 1 ;;
+          esac
+          git init -q "$HOME/ovai"
+          cd "$HOME/ovai"
+          git fetch -q --depth 1 "https://github.com/${{ github.repository }}" "${{ github.sha }}"
+          git checkout -q FETCH_HEAD
+          pwd
+
+      - name: Fetch and check the pinned Node.js and Claude Code
+        id: runtime
+        shell: wsl-bash {0}
+        run: |
+          export XDG_DATA_HOME="$HOME/ovai-data"
+          cd "$HOME/ovai"
+          sh tests/measure/measure-runtime.sh linux
+
+      - name: Find processes and a port's holder in the process table
+        if: ${{ !cancelled() && steps.runtime.outcome == 'success' }}
+        shell: wsl-bash {0}
+        run: |
+          export XDG_DATA_HOME="$HOME/ovai-data"
+          cd "$HOME/ovai"
+          "$(sh lib/runtime.sh node-path)" tests/measure/measure-processes.mjs
+
+      # The page's 127.0.0.1 port, opened first by a Windows program (curl.exe) started from inside
+      # the distribution, then from inside it.
+      - name: Install, serve, open the page from Windows and stop
+        if: ${{ !cancelled() && steps.runtime.outcome == 'success' }}
+        shell: wsl-bash {0}
+        run: |
+          export XDG_DATA_HOME="$HOME/ovai-data"
+          cd "$HOME/ovai"
+          sh tests/measure/measure-instance.sh windows
+
+  native:
+    name: Native Windows, a record (allowed to fail)
+    runs-on: windows-latest
+    continue-on-error: true
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+
+      - name: Run every suite
+        run: npm test

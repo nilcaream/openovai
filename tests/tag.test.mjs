@@ -379,14 +379,19 @@ describe("the checks CI runs", () => {
     }
   });
 
-  // A macOS runner is billed at about ten times a Linux one, so the run on a Mac is started by hand
-  // and by nothing else: not on a push, not on a pull request, not by a release.
-  it("runs on a Mac only when started by hand", () => {
-    const macos = fs.readFileSync(path.join(repo, ".github", "workflows", "macos.yml"), "utf8");
-    const triggers = macos.match(/^on:\n((?:[ \t]+.*\n)+)/m)?.[1] ?? "";
-    assert.equal(triggers.trim(), "workflow_dispatch:", `the macOS run starts on more than a button:\n${triggers}`);
-    assert.ok(!ci.includes("macos"), "ci.yml runs on a Mac, and a release calls it");
-  });
+  // Neither a Mac nor Windows is something a release waits for, so the run on each is started by
+  // hand and by nothing else: not on a push, not on a pull request, not by CI, not by a release.
+  for (const [system, name] of [["a Mac", "macos"], ["Windows", "windows"]]) {
+    it(`runs on ${system} only when started by hand`, () => {
+      const workflow = fs.readFileSync(path.join(repo, ".github", "workflows", `${name}.yml`), "utf8");
+      const triggers = workflow.match(/^on:\n((?:[ \t]+.*\n)+)/m)?.[1] ?? "";
+      assert.equal(triggers.trim(), "workflow_dispatch:", `the ${name} run starts on more than a button:\n${triggers}`);
+      for (const other of ["ci.yml", "release.yml"]) {
+        const text = fs.readFileSync(path.join(repo, ".github", "workflows", other), "utf8");
+        assert.doesNotMatch(text, new RegExp(`runs-on:.*${name}|${name}\\.yml`, "i"), `${other} runs on ${system} or calls the ${name} run, and a release calls CI`);
+      }
+    });
+  }
 });
 
 // A release used to be able to go out on a commit whose checks were failing, or still running, or
