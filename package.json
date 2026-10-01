@@ -3,7 +3,22 @@
   "version": "0.22.0",
   "description": "A toolkit for running a small team of AI developer sessions on one machine.",
   "license": "MIT",
-  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nilcaream/openovai.git"
+  },
+  "bin": {
+    "openovai": "npm/install.mjs"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "npm",
+    "NOTICE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "engines": {
     "node": ">=24"
   },

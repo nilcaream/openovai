@@ -11,7 +11,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
-import { install, installed, remove, repo, runOvai, runtimeData, scratch, source } from "./helpers.mjs";
+import { install, installed, optionsToArguments, remove, repo, runOvai, runtimeData, scratch, source } from "./helpers.mjs";
 import { pins } from "../lib/runtime.mjs";
 import { configProblems, settingsProblems } from "./inspect.mjs";
 import { CUSTOMIZATION, persona } from "../lib/desks.mjs";
@@ -1034,6 +1034,52 @@ describe("the version the toolkit is on", () => {
   it("says the same thing in the payload and in the package", () => {
     const declared = JSON.parse(fs.readFileSync(path.join(repo, "package.json"), "utf8")).version;
     assert.equal(fs.readFileSync(path.join(repo, "lib", "VERSION"), "utf8").trim(), declared);
+  });
+});
+
+// `npx @openovai/ovai` runs the command the package declares, through a link npm makes to it, and
+// what that command must do is the installer on the package it sits in. The package here is the
+// one npm would unpack: the payload and the wrapper, with the link made by hand.
+describe("the npm package", () => {
+  const declared = JSON.parse(fs.readFileSync(path.join(repo, "package.json"), "utf8"));
+  const wrapper = path.join(repo, declared.bin.openovai);
+  const unpacked = `${instance}-npm-package`;
+  const linked = `${instance}-npm-link`;
+  const root = `${instance}-from-npm`;
+  after(() => remove(unpacked, linked, root));
+
+  function unpackedPackage() {
+    if (!fs.existsSync(unpacked)) {
+      for (const entry of [...PAYLOAD, path.dirname(declared.bin.openovai)]) {
+        fs.cpSync(path.join(repo, entry), path.join(unpacked, entry), { recursive: true });
+      }
+      fs.mkdirSync(linked, { recursive: true });
+      fs.symlinkSync(path.join(unpacked, declared.bin.openovai), path.join(linked, "openovai"));
+    }
+    return path.join(linked, "openovai");
+  }
+
+  it("holds the payload and the command it runs, and the command is outside the payload", () => {
+    for (const entry of PAYLOAD) {
+      assert.ok(declared.files.includes(entry), `${entry} is not in files`);
+    }
+    assert.ok(declared.files.includes(path.dirname(declared.bin.openovai)));
+    assert.equal(PAYLOAD.includes(path.dirname(declared.bin.openovai)), false);
+    assert.match(fs.readFileSync(wrapper, "utf8"), /^#!\/usr\/bin\/env node\n/);
+  });
+
+  it("installs an instance when run through a link, with the arguments it was given", () => {
+    const done = spawnSync(unpackedPackage(), optionsToArguments(options(root, { "--source": undefined })), { encoding: "utf8" });
+    assert.equal(done.status, 0, done.stderr);
+    assert.ok(fs.existsSync(path.join(root, "bin", "ovai")));
+    assert.match(fs.readFileSync(path.join(root, "desks", LEADER, "STATE.md"), "utf8"), /\S/);
+    assert.equal(fs.readFileSync(path.join(root, "lib", "VERSION"), "utf8"), fs.readFileSync(path.join(repo, "lib", "VERSION"), "utf8"));
+  });
+
+  it("says what the installer refuses, and fails the way it does", () => {
+    const done = spawnSync(unpackedPackage(), ["--root", root, "--no-such-flag"], { encoding: "utf8" });
+    assert.notEqual(done.status, 0);
+    assert.match(done.stderr, /no-such-flag/);
   });
 });
 

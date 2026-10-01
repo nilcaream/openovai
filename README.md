@@ -34,8 +34,20 @@ curl -fsSL https://raw.githubusercontent.com/nilcaream/openovai/main/openovai | 
 one you name: `openovai 0.21.0 --root …` — downloads it once, checks that it is signed by the key
 the command pins, fetches the Node.js and Claude Code it pins, and hands over to that release's
 installer. A release from before releases were signed is not installed. The release key's
-fingerprint is `SHA256:aPDZIYeTixbEFoDRX5ytVJ+TvZub0hlFDreET4iB8Lk` (Ed25519). From a clone, the installer is called
-directly:
+fingerprint is `SHA256:aPDZIYeTixbEFoDRX5ytVJ+TvZub0hlFDreET4iB8Lk` (Ed25519).
+
+With Node.js 24 or newer, npm is another way in. The package is the release, so it takes the same
+flags, installs the newest release, or the one you name as `@openovai/ovai@<version>`, downloads
+nothing, and leaves Node.js and Claude Code to the first `ovai start`, as above. `@latest` is
+written out because npx reuses a copy it has cached for a name given with no version. `ovai update`
+takes releases from GitHub, signed, whichever way the instance was made:
+
+```sh
+npx @openovai/ovai@latest --root ~/my-workspace --user Ana --leader Max \
+                          --leader-model opus --worker-model sonnet --port 7799 --auth login
+```
+
+From a clone, the installer is called directly:
 
 ```sh
 git clone https://github.com/nilcaream/openovai.git
