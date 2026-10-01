@@ -4,6 +4,55 @@ For the Leader of a workspace taking this version. Short, and about what is diff
 working there — not a developer changelog. A section per release, newest first; a release page
 carries only its own.
 
+## 0.23.0
+
+**This version pins Claude Code 2.1.293, where the last pinned 2.1.289.**
+
+**`npx @openovai/ovai@latest` installs a release.** With Node.js 24 or newer, npm is a second way
+in beside the `curl` one. The package is the release, so the command takes the same flags,
+`--root`, `--user`, `--leader`, `--leader-model`, `--worker-model`, `--port` and `--auth`, and
+asks on a terminal for whatever is left off; `@openovai/ovai@<version>` installs the one you name.
+It downloads nothing: Node.js and Claude Code come with the first `ovai start`, as on the other
+way in, and `ovai update` still takes signed releases from GitHub whichever way the instance was
+made.
+`@latest` is written out because npx reuses a copy it has cached for a name given with no version.
+npm refuses a system that is not Linux or macOS, and the installer's usage text now names the
+command it was called as. The Release workflow puts the tag's package on npm with provenance.
+
+**An open page loads the new version after an update.** A page that was open while the instance
+was updated and started again used to show the old page until it was reloaded by hand, with the
+new version's buttons missing. Now, when the stream opens again on a server of another version,
+the page reloads itself once. What is typed in a composer and not yet sent is put back in its
+panel; scroll position and folded rows are not kept, and the panels start from their newest rows.
+
+**A Leader reads what waits for it before it stops.** A park ended with "Not delivered: <Leader>
+stopped before reading it" when a Worker's report arrived during the Leader's last turn and the
+Leader's `stop_session` ended the session on it. Now `stop_session` is refused while a Worker's
+message, a line of the User's or an event waits, and the answer names what waits and says to end
+the turn, read it and stop again; the Leader's instructions say so. `restart_session` is as before
+and carries the queue to the next session. The "Not delivered" row names what was lost, "<Worker>'s
+message", "your line" or "the <event> event", and `runtime.log` names the frame in its `queued`
+and `dropped` lines, has an `unread` line for a frame answered unread, and has `parking` and
+`parked` lines that say whom a park told and how it went, for the tool and for the server's stop.
+
+**Words a seat writes between its calls show on its panel.** On Opus 5.5 and Sonnet 5.5 a note
+written between two tool calls reaches ovai as a thinking block, and ovai dropped it, so a seat
+that said "now checking the log" before a call seemed silent. Claude Code lists such blocks in the
+frame, and each now becomes a row of words on the panel. A turn whose only words are a note is no
+longer taken for a silent one. A reasoning summary, an empty note and a note cut off by the output
+limit make no row.
+
+**The page draws no day pill.** After a park, the message that woke the Leader was stored a moment
+before the start stamp of its session, and the page drew a day pill on the message and another on
+the stamp, both reading the same date and time. The page now draws a time pill only where the
+server stored a stamp row, a session's start or end, and a stamp less than a minute after the last
+one drawn is still hidden. A session that runs past midnight gets no date marker. The notes of
+0.11.0, 0.19.0 and 0.20.0 describe the pill as it was then.
+
+**The page's accent is teal.** Links, the border of a focused composer and the other marks the page
+draws in its accent were blue and are now the teal of the ovai site, a deeper one on the light
+theme and a paler one on the dark.
+
 ## 0.22.0
 
 **This version pins Claude Code 2.1.289, where the last pinned 2.1.285.** `lib/RUNTIME` names it,
