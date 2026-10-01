@@ -2435,6 +2435,24 @@ describe("what a seat says", () => {
     assert.deepEqual(panel(instance, WORKER).map((row) => row.text), [undefined, NOTE]);
   });
 
+  // An interrupt that gave up waiting frees the seat while the run goes on; the run's late words
+  // and result come in with no turn open. The next turn starts afresh: a note that is all it says
+  // shows, whatever the late run said.
+  it("shows the note of a turn after an interrupt that gave up waiting on a run that went on to answer", async () => {
+    await endSeat(WORKER, 500);
+    remove(panelFile(instance, WORKER));
+    paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_SLOW: "600", OPENOVAI_STAND_IN_IGNORES_INTERRUPT: "1", OPENOVAI_STAND_IN_REPLY: "Hello", OPENOVAI_STAND_IN_EMPTY: JSON.stringify([0, 1]), OPENOVAI_STAND_IN_NOTES: JSON.stringify([[], [{ text: NOTE }]]) });
+    const deaf = tell(WORKER, userFrame("deaf")).answered;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    assert.equal(await interrupt(WORKER, { patience: 200 }), true);
+    assert.deepEqual(await deaf, { interrupted: true, text: "interrupted" });
+    await waitFor(() => panel(instance, WORKER).find((row) => row.text === "Hello") ?? null);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    await tell(WORKER, userFrame("go")).answered;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    assert.deepEqual(panel(instance, WORKER).map((row) => row.text), ["Hello", NOTE]);
+  });
+
   it("keeps a turn whose only words are a note, then <noop/>, as a said turn", async () => {
     const rows = await noted([{ text: NOTE }], { OPENOVAI_STAND_IN_REPLY: "<noop/>" });
     assert.deepEqual(rows.map((row) => [row.from, row.text, row.noop, row.silent]), [[WORKER, NOTE, undefined, undefined], [WORKER, "<noop/>", true, undefined]]);

@@ -114,7 +114,8 @@ export function installed(options, environment) {
 //   OPENOVAI_STAND_IN_NOISE         emit what the real one says beside an answer — a keep-alive, a
 //                             system notice, an assistant turn, and a line that is not a frame
 //   OPENOVAI_STAND_IN_BROKEN        fall over before framing anything, saying why on stderr
-//   OPENOVAI_STAND_IN_EMPTY         answer every turn with an empty result
+//   OPENOVAI_STAND_IN_EMPTY         answer every turn with an empty result; a JSON array says it
+//                             per turn
 //   OPENOVAI_STAND_IN_FAILS         say the answer, then result in it as an error — the shape of
 //                             a run that cannot go on (not logged in, a window spent); a JSON
 //                             array says it per turn, anything else says it of every turn
@@ -594,7 +595,7 @@ for (;;) {
   // moment it is said, then the result frame carrying the same text — as measured. A turn with
   // nothing to say says no text and results in an empty string.
   const answer =
-    (process.env.OPENOVAI_STAND_IN_EMPTY ?? "") !== ""
+    Boolean(perTurn("OPENOVAI_STAND_IN_EMPTY", question))
       ? ""
       : decided === null
         ? (process.env.OPENOVAI_STAND_IN_REPLY ?? "a reply")
