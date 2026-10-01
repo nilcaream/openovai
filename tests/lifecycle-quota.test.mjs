@@ -273,6 +273,7 @@ describe("the quota gate", () => {
     // The Worker's close for the spent window ended at its deadline meanwhile, and that is told too.
     assert.equal((await told(martin.log, 1))[0], "<user>wake up</user>");
     assert.equal(woke(), true, "the row is not marked delivered once the spawn took its frame");
+    await closedAtTheReset();
   });
 
   // The Leader went cold before the reset — idle, with a hire held on the window — and nothing
