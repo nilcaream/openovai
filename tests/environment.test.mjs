@@ -85,6 +85,20 @@ describe("what a process started here carries of its starter", () => {
     }
   });
 
+  it("turns Claude Code's silent-turn reminder off for a seat, and leaves a value the person set as it is", () => {
+    const kept = process.env.CLAUDE_CODE_SILENT_TURN_REMINDER;
+    try {
+      delete process.env.CLAUDE_CODE_SILENT_TURN_REMINDER;
+      assert.equal(environment(root, "inherit", "Paul").CLAUDE_CODE_SILENT_TURN_REMINDER, "0");
+      assert.equal(environment(root, "inherit", null).CLAUDE_CODE_SILENT_TURN_REMINDER, undefined, "nobody's start has it forced");
+      process.env.CLAUDE_CODE_SILENT_TURN_REMINDER = "1";
+      assert.equal(environment(root, "inherit", "Paul").CLAUDE_CODE_SILENT_TURN_REMINDER, "1", "the person's own value was overruled");
+    } finally {
+      if (kept === undefined) delete process.env.CLAUDE_CODE_SILENT_TURN_REMINDER;
+      else process.env.CLAUDE_CODE_SILENT_TURN_REMINDER = kept;
+    }
+  });
+
   it("leaves the claude.ai account's connectors to every start, a seat's among them, and the person's switch as it is", () => {
     const kept = process.env.ENABLE_CLAUDEAI_MCP_SERVERS;
     try {

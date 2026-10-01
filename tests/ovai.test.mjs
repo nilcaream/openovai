@@ -108,7 +108,7 @@ function install(root, auth) {
 // Every run here is nobody's session, whatever this suite was started from. Run from inside a
 // seat, it would inherit what the chat puts on a session — the seat, the switch that turns the
 // Artifact tools on — and a check on what the toolkit put there would read the seat's instead.
-const SET_ON_A_SEAT = [SEAT_IN_ENVIRONMENT, "CLAUDE_CODE_ARTIFACT"];
+const SET_ON_A_SEAT = [SEAT_IN_ENVIRONMENT, "CLAUDE_CODE_ARTIFACT", "CLAUDE_CODE_SILENT_TURN_REMINDER"];
 
 function run(root, recordIn, argv, changes = {}) {
   const inherited = { ...process.env };

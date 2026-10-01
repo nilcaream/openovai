@@ -43,6 +43,7 @@ describe("the Claude Code variables a start writes down", () => {
       "  CLAUDE_CODE_ARTIFACT = 1",
       "  CLAUDE_CODE_OAUTH_TOKEN = *** (passed on)",
       "  CLAUDE_CODE_PROJECT_DIR_NAME = workspace",
+      "  CLAUDE_CODE_SILENT_TURN_REMINDER = 0",
       "  CLAUDE_CONFIG_DIR = /home/user/openovai/.local",
       "  DISABLE_AUTOUPDATER = 0 (overridden: 1)",
     ]);
@@ -79,6 +80,7 @@ describe("the Claude Code variables a start writes down", () => {
       "  CLAUDE_CODE_ARTIFACT = 0 (passed on)",
       "  CLAUDE_CODE_EFFORT_LEVEL = max (removed)",
       "  CLAUDE_CODE_PROJECT_DIR_NAME = workspace",
+      "  CLAUDE_CODE_SILENT_TURN_REMINDER = 0",
       `  CLAUDE_CONFIG_DIR = /somewhere/else/.local (overridden: ${home(root)})`,
       "  DISABLE_AUTOUPDATER = 1",
     ]);

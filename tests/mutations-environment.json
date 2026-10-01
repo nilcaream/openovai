@@ -44,6 +44,28 @@
     ]
   },
   {
+    "name": "a seat runs with the silent-turn reminder",
+    "catches": "turns Claude Code's silent-turn reminder off for a seat, and leaves a value the person set as it is",
+    "edits": [
+      {
+        "file": "lib/claude.mjs",
+        "from": "      env.CLAUDE_CODE_SILENT_TURN_REMINDER = \"0\";\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a seat's silent-turn reminder is turned off over the person's own value",
+    "catches": "turns Claude Code's silent-turn reminder off for a seat, and leaves a value the person set as it is",
+    "edits": [
+      {
+        "file": "lib/claude.mjs",
+        "from": "    if (!env.CLAUDE_CODE_SILENT_TURN_REMINDER) {\n",
+        "to": "    {\n"
+      }
+    ]
+  },
+  {
     "name": "a seat is started without the claude.ai account's connectors",
     "catches": "leaves the claude.ai account's connectors to every start, a seat's among them, and the person's switch as it is",
     "edits": [
