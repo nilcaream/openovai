@@ -157,3 +157,48 @@ jobs:
           gh release upload "${TAG}" openovai-*.tar.gz SHA256SUMS SHA256SUMS*.sig --clobber --repo "${GITHUB_REPOSITORY}"
           gh release edit "${TAG}" --draft=false --latest --repo "${GITHUB_REPOSITORY}"
           printf 'released %s, signed\n' "${TAG}" | tee -a "${GITHUB_STEP_SUMMARY}"
+
+  # The same release on npm, made from the tag: `npx @openovai/ovai@<version>` is the installer run
+  # once more, and the package is the release, so what npm holds is what the tag holds. Nothing is
+  # stored for it. npm trusts this workflow by name (the Trusted Publisher entry on the package:
+  # nilcaream / openovai / release.yml), and the run proves who it is with the token GitHub mints
+  # for it, which is what `id-token: write` allows — in this job and nowhere else in this file. The
+  # same proof is what makes npm attach the provenance: this tarball, built by this workflow, from
+  # this tag.
+  #
+  # It waits for the sign job, so the signed release exists before the package does. When it fails
+  # before the publish, "Re-run failed jobs" runs only this job again, the way it does the sign job.
+  # A version on npm is final, though: once one is published, the number can never be used again,
+  # even removed, and a second run of this job for it is refused.
+  publish:
+    name: Publish
+    needs: [release, sign]
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.release.outputs.tag }}
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+
+      # The package says its version in package.json and the toolkit in lib/VERSION, and nothing
+      # makes one follow the other but a test and this. npm would publish what package.json says.
+      - name: Check the package says the version of the tag
+        env:
+          TAG: ${{ needs.release.outputs.tag }}
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          declared="$(node -p "require('./package.json').version")"
+          if [ "${declared}" != "${version}" ] || [ "$(cat lib/VERSION)" != "${version}" ]; then
+            echo "::error::${TAG} holds ${declared} in package.json and $(cat lib/VERSION) in lib/VERSION"
+            exit 1
+          fi
+
+      - name: Publish, with provenance
+        run: npm publish --provenance
