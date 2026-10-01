@@ -185,7 +185,8 @@ Run `node tests/mutate.mjs` with no arguments for the rest of the options.
 
 A release is a tag plus three files attached to it: `openovai-<version>.tar.gz`, which is
 `git archive` of the tag, `SHA256SUMS` naming it, and `SHA256SUMS.sig`, a signature over that by
-the release key. Cutting one is a click: **Actions -> Release -> Run workflow -> main**.
+the release key. The same version is also published on npm. Cutting one is a click:
+**Actions -> Release -> Run workflow -> main**.
 
 Everything it needs is already in the repository, so there is nothing to type into that form and
 nothing to paste afterwards:
@@ -205,7 +206,17 @@ files and publishes the release as the latest. That job runs no action, only git
 `gh` on the runner. If it fails, the release stays a draft that nobody updates to: re-run the
 failed job.
 
-The token is the one GitHub gives the run, and `contents: write` is the only permission it asks for.
+Once the release is signed, its publish job puts the same version on npm as `@openovai/ovai`, made
+from the tag: the package is the release, and `npx @openovai/ovai@<version>` installs it. It first
+checks that `package.json` and `lib/VERSION` both say the version of the tag, then runs
+`npm publish --provenance`. If it fails before the publish, re-run the failed job. A version on npm
+is final: the number can never be used again, even removed, and a second run for a version that is
+already there is refused.
+
+The token is the one GitHub gives the run, and `contents: write` is the only permission the
+workflow asks for, except in the publish job, which asks for `id-token: write` instead. Nothing is
+stored for npm: the package's Trusted Publisher entry on npmjs.com names this repository and the
+file `release.yml`, and a run of that file proves who it is with the token GitHub mints for it.
 The key is the repository secret `RELEASE_SIGNING_KEY`, an Ed25519 key with no passphrase, used by
 the sign job alone, but a repository secret is readable by a workflow run from any branch that
 somebody with write access pushes: whoever can push a branch can read it. Its public half is pinned

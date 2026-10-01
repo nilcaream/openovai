@@ -6,7 +6,8 @@ name: Release
 # the version, notes that are not the ones in the file) cannot happen.
 #
 # The token is the one GitHub gives the run: `contents: write` below is what lets it push a tag and
-# publish a release, and it is the only permission this has. The one thing stored is the key the
+# publish a release, and it is the only permission this has, but for the publish job, which asks
+# for `id-token: write` to put the same version on npm. The one thing stored is the key the
 # package is signed with, the repository secret RELEASE_SIGNING_KEY — and, while a key is being
 # replaced, the new one as RELEASE_SIGNING_KEY_NEXT. Only the sign job of this file uses them, but a
 # repository secret is readable by a workflow run from any branch that somebody with write access
