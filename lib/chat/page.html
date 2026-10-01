@@ -136,6 +136,8 @@
   .msg.overheard .bubble { background: var(--typed); border-color: var(--typed-line); overflow-wrap: anywhere; }
   /* the Leader's panel with the comms switch off: the messages between sessions are off it, save one a click revealed */
   .rows.comms-hidden .msg:is(.peer-in, .peer-out, .overheard):not(.revealed) { display: none; }
+  /* with them off, the first row is the first one drawn: the one no drawn row comes before */
+  .rows.comms-hidden > :not(.msg:is(.peer-in, .peer-out, .overheard):not(.revealed)):not(:not(.msg:is(.peer-in, .peer-out, .overheard):not(.revealed)) ~ *) { margin-top: 0; }
   /* the message a click on a line found, lit for a moment */
   .msg.focus .bubble { outline: 2px solid var(--accent); }
   .msg .text a.ref { cursor: pointer; color: var(--accent); text-decoration: underline; }

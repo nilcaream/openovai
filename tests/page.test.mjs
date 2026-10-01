@@ -205,6 +205,8 @@ describe("the rules", () => {
     for (const side of ["margin", "margin-bottom"]) assert.equal(declared(".phead")[side], undefined, `a ${side} on the head adds to the panel's gap`);
     assert.deepEqual(declared(".rows > :first-child"), { "margin-top": "0" }, "the first row's own margin adds to the panel's gap");
     assert.deepEqual(declared(".rows > :has(+ .jump)"), { "margin-bottom": "0" }, "the last row's own margin adds to the panel's gap");
+    const off = rules.find((rule) => rule.selector.startsWith(".rows.comms-hidden ") && rule.declarations.display === "none").selector.slice(".rows.comms-hidden ".length);
+    assert.deepEqual(declared(`.rows.comms-hidden > :not(${off}):not(:not(${off}) ~ *)`), { "margin-top": "0" }, "with the messages off, the first drawn row's own margin adds to the panel's gap");
     assert.match(script, /rows\.append\(jump\);/);
     assert.match(script, /rows\.insertBefore\(doing, jump\);/, "the Leader's pill is the last row, right before the jump pill");
   });
