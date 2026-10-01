@@ -973,7 +973,7 @@
     "edits": [
       {
         "file": "lib/templates/common.md",
-        "from": "\n\nYour thinking and your desk reach nobody: an answer is said only when it is written as words in\nyour reply. A turn that answers {{USER}} is never a `<noop/>` turn, and \"above\" points only at\nwords you wrote as text. An answer to {{USER}} is written as text before the turn's first call,\nnever only in thinking.",
+        "from": "\n\nYour thinking and your desk reach nobody: an answer is said only when it is written as words in\nyour reply. A turn that answers {{USER}} is never a `<noop/>` turn, and \"above\" points only at\nwords you wrote as text. An answer to {{USER}} is written once, as the turn's last text, after\nits calls — never before them, and never only in thinking.",
         "to": ""
       }
     ]
@@ -990,12 +990,12 @@
     ]
   },
   {
-    "name": "ovai's common frame does not say an answer is written as text before the turn's first call",
+    "name": "ovai's common frame does not say an answer is written once, as the turn's last text, after its calls",
     "catches": "tells both that thinking and the desk reach nobody, and an answer is words in the reply",
     "edits": [
       {
         "file": "lib/templates/common.md",
-        "from": " An answer to {{USER}} is written as text before the turn's first call,\nnever only in thinking.",
+        "from": " An answer to {{USER}} is written once, as the turn's last text, after\nits calls — never before them, and never only in thinking.",
         "to": ""
       }
     ]

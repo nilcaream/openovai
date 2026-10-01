@@ -544,7 +544,7 @@ describe("what both are told in ovai's common frame", () => {
     for (const [text, role] of [[flat(leader()), "leader"], [flat(worker()), "worker"]]) {
       const common = text.slice(0, text.indexOf("</ovai>"));
       assert.ok(
-        common.includes(`Your thinking and your desk reach nobody: an answer is said only when it is written as words in your reply. A turn that answers ${USER} is never a \`<noop/>\` turn, and "above" points only at words you wrote as text. An answer to ${USER} is written as text before the turn's first call, never only in thinking.`),
+        common.includes(`Your thinking and your desk reach nobody: an answer is said only when it is written as words in your reply. A turn that answers ${USER} is never a \`<noop/>\` turn, and "above" points only at words you wrote as text. An answer to ${USER} is written once, as the turn's last text, after its calls — never before them, and never only in thinking.`),
         role,
       );
     }
