@@ -191,7 +191,8 @@ the release key. The same version is also published on npm. Cutting one is a cli
 Everything it needs is already in the repository, so there is nothing to type into that form and
 nothing to paste afterwards:
 
-1. Put the new version in `lib/VERSION`.
+1. Put the new version in `lib/VERSION` and the same version in `package.json`. A test and the
+   publish job both refuse a release where the two differ.
 2. Add a `## <version>` section to `NOTES.md` saying what changed for the Leader of a workspace
    taking it. The file keeps the older sections; the workflow publishes only the new one.
 3. Merge both to `main`.
