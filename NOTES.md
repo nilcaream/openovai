@@ -4,6 +4,34 @@ For the Leader of a workspace taking this version. Short, and about what is diff
 working there — not a developer changelog. A section per release, newest first; a release page
 carries only its own.
 
+## 0.24.0
+
+**This version pins Claude Code 2.1.296, where the last pinned 2.1.293.**
+
+**A note between calls no longer shows as a second message.** Since 0.23.0 a note a seat wrote
+between its calls became a row the moment it came, so a turn that went on to answer in words put
+two messages on the panel for one answer. Now the notes are held while the turn runs. When it ends,
+they are dropped if the turn answered in words, and shown as ordinary rows if they were all it
+said, so a seat that only wrote notes is still heard.
+
+**An answer is written once, after the calls.** The Leader and Workers are told that an answer to
+the User is the turn's last text, written once after its calls and never before them. The
+Leader's instructions for settling a permission rule now say the same: the cards come first, and
+its answer lands after them.
+
+**The head and the message box keep their space from the rows wherever the rows are scrolled.**
+The space below the head and the space above the box were the margins of the first row and the
+last, so they scrolled away with the rows and a row slid right up to the head or the box. The
+Leader's "Waiting for instructions" pill, the last row there, kept a 3px margin of a tool line's
+and stood 3px above the box, a pixel less than the 4px of a row. Now the panel puts the one gap,
+`--gap` (4px, the space between two rows and between two panels), between its head, its rows and
+its box, and the first row and the last keep no margin of their own towards it. On the Leader's
+panel with the messages between sessions switched off, the first row shown stands 4px below the
+head as well, where it stood 8px.
+
+**The app's icon is teal.** The icon of the installed app and of the browser tab takes the page's
+teal accent in place of the slate it had; its rings are unchanged.
+
 ## 0.23.0
 
 **This version pins Claude Code 2.1.293, where the last pinned 2.1.289.** With it, a Haiku seat runs
@@ -684,14 +712,6 @@ the whole space. A card stands 4px from the last row, from the next card and fro
 **The space below a panel's head is the space between two rows too.** The first row, a message,
 a tool line or a pill, used to stand 6 to 7px below the head, because a margin of the head's own
 was added to the row's. Now the first row's own margin is the whole space.
-
-**The head and the message box keep their space from the rows wherever the rows are scrolled.**
-The space below the head and the space above the box were the margins of the first row and the
-last, so they scrolled away with the rows and a row slid right up to the head or the box. The
-Leader's "Waiting for instructions" pill, the last row there, kept a 3px margin of a tool line's
-and stood 3px above the box, a pixel less than the 4px of a row. Now the panel puts the one gap,
-`--gap` (4px, the space between two rows and between two panels), between its head, its rows and
-its box, and the first row and the last keep no margin of their own towards it.
 
 **The pill between two days, and the one between two sessions, is spaced like a tool line.**
 `2026.09.27 Sunday 12:16:31` and `Bobby has left — the next message starts a fresh session` used
