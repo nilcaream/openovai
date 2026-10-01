@@ -639,13 +639,16 @@ describe("a line of the User's with no words after it", () => {
   };
   const quiet = () => new Promise((resolve) => setTimeout(resolve, 400));
 
-  // A turn with nothing, a turn with `<noop/>` alone, a turn with calls alone. The turn that reads
-  // the event says nothing either, and raises no second one.
+  // A turn with nothing, a turn with `<noop/>` alone, a turn with calls alone, and a turn that
+  // ends in `<noop/>` after a progress note or a text a call followed, which it held and dropped.
+  // The turn that reads the event says nothing either, and raises no second one.
   it("tells the Leader once when its turn put no words on the panel for the User's line", async () => {
     const endings = [
       { OPENOVAI_STAND_IN_EMPTY: "1" },
       { OPENOVAI_STAND_IN_REPLY: "<noop/>" },
       { OPENOVAI_STAND_IN_EMPTY: "1", OPENOVAI_STAND_IN_CALLS: JSON.stringify([[{ name: "Read", input: { file_path: "/x" } }]]) },
+      { OPENOVAI_STAND_IN_NOTES: JSON.stringify([[{ text: "Found the cause in the parser; checking the test next." }]]), OPENOVAI_STAND_IN_REPLY: "<noop/>" },
+      { OPENOVAI_STAND_IN_CALLS: JSON.stringify([[{ name: "Read", input: { file_path: "/x" }, text: "Now the parser." }]]), OPENOVAI_STAND_IN_REPLY: "<noop/>" },
     ];
     for (const knobs of endings) {
       await endEvery(500);
@@ -698,12 +701,13 @@ describe("a line of the User's with no words after it", () => {
     assert.ok(!heardIn(successor.log).some((one) => one.startsWith('<server-event type="unanswered"')), heardIn(successor.log).join("\n"));
   });
 
-  it("tells nothing for a turn with words, one whose only words are a progress note, one that failed, one stopped, one with no line of the User's, or a Worker's", async () => {
+  it("tells nothing for a turn with words, one whose only words are a progress note or a text a call followed, one that failed, one stopped, one with no line of the User's, or a Worker's", async () => {
     // A seat's first turn failing ends the seat before anything is told, so the failed turn here
     // comes after one that went through: a message, which asks nothing of the event either.
     const cases = [
       [LEADER, {}, [userFrame("hello")]],
-      [LEADER, { OPENOVAI_STAND_IN_NOTES: JSON.stringify([[{ text: "Found the cause in the parser; checking the test next." }]]), OPENOVAI_STAND_IN_REPLY: "<noop/>" }, [userFrame("hello")]],
+      [LEADER, { OPENOVAI_STAND_IN_NOTES: JSON.stringify([[{ text: "Found the cause in the parser; checking the test next." }]]), OPENOVAI_STAND_IN_EMPTY: "1" }, [userFrame("hello")]],
+      [LEADER, { OPENOVAI_STAND_IN_CALLS: JSON.stringify([[{ name: "Read", input: { file_path: "/x" }, text: "Now the parser." }]]), OPENOVAI_STAND_IN_EMPTY: "1" }, [userFrame("hello")]],
       [LEADER, { OPENOVAI_STAND_IN_EMPTY: "1", OPENOVAI_STAND_IN_FAILS: "[false, true]" }, [messageFrame(WORKER, "first"), userFrame("hello")]],
       [LEADER, { OPENOVAI_STAND_IN_EMPTY: "1", OPENOVAI_STAND_IN_SLOW: "2000" }, [userFrame("hello")], "stopped"],
       [LEADER, { OPENOVAI_STAND_IN_EMPTY: "1" }, [messageFrame(WORKER, "hello")]],
@@ -734,6 +738,26 @@ describe("a line of the User's with no words after it", () => {
     const martin = await seatUp(LEADER, {
       OPENOVAI_STAND_IN_EMPTY: "1",
       OPENOVAI_STAND_IN_NOISE: "1",
+      OPENOVAI_STAND_IN_CALLS: JSON.stringify([[{ name: "Read", input: { file_path: "/x" } }]]),
+      OPENOVAI_STAND_IN_CALL_HOLDS: "1500",
+    });
+    const first = tell(LEADER, messageFrame(WORKER, "look at this"));
+    await told(martin.log, 1);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    tell(LEADER, userFrame("and this?"));
+    await first.answered;
+    assert.match(readLog(martin.log), /^joined: /m, "the User's line did not join the turn");
+    const expected = unanswered(martin.log, "and this\\?");
+    assert.ok(await waitFor(() => (heardIn(martin.log).includes(expected) ? true : null)), heardIn(martin.log).join("\n"));
+  });
+
+  // The same with a progress note before the call: it is held across the line and shown at the
+  // turn's end, which said nothing else, but it is no answer to the line.
+  it("counts a note held before the User's line went into the turn as no answer to it", async () => {
+    await endEvery(500);
+    const martin = await seatUp(LEADER, {
+      OPENOVAI_STAND_IN_EMPTY: "1",
+      OPENOVAI_STAND_IN_NOTES: JSON.stringify([[{ text: "Found the cause in the parser; checking the test next." }]]),
       OPENOVAI_STAND_IN_CALLS: JSON.stringify([[{ name: "Read", input: { file_path: "/x" } }]]),
       OPENOVAI_STAND_IN_CALL_HOLDS: "1500",
     });

@@ -38,9 +38,11 @@ import { alive, callsIn, childrenOf, connectionsIn, get as fetchPlain, heardIn, 
 // under 077 a file made with no mode at all is 0600 anyway, and no check could tell.
 process.umask(0o022);
 
-// A seat's start turns the Artifact tools on, and a check that reads that must not be handed them by
-// the seat that runs the suite: this server is started with the variable unset.
+// A seat's start turns the Artifact tools on and the silent-turn reminder off, and a check that
+// reads either must not be handed it by the seat that runs the suite: this server is started with
+// both unset.
 delete process.env.CLAUDE_CODE_ARTIFACT;
+delete process.env.CLAUDE_CODE_SILENT_TURN_REMINDER;
 
 const USER = "Mike";
 const LEADER = "Martin";
@@ -884,6 +886,12 @@ describe("starting a seat", () => {
     const said = fs.readFileSync(paul.log, "utf8").split("\n").filter((line) => line.startsWith("CLAUDE_CODE_ARTIFACT: "));
     assert.ok(said.length > 0, "no start of the seat is in its log");
     assert.deepEqual([...new Set(said)], ["CLAUDE_CODE_ARTIFACT: 1"]);
+  });
+
+  it("turns Claude Code's silent-turn reminder off in every start of a seat", () => {
+    const said = fs.readFileSync(paul.log, "utf8").split("\n").filter((line) => line.startsWith("CLAUDE_CODE_SILENT_TURN_REMINDER: "));
+    assert.ok(said.length > 0, "no start of the seat is in its log");
+    assert.deepEqual([...new Set(said)], ["CLAUDE_CODE_SILENT_TURN_REMINDER: 0"]);
   });
 
   it("runs it in print mode over the streaming protocol, asking here before using a tool, in the mode that asks", () => {
@@ -2330,13 +2338,15 @@ describe("what a seat says", () => {
     await endEvery(500);
   });
 
-  it("lands on the panel as it is said, before the turn ends", async () => {
+  // A text is a frame of its own, and whether a call follows it is known only at the turn's next
+  // block: until then it is on no panel. One no call followed is said, in the order it was written.
+  it("holds a text until the next block says no call follows it, then says it in order", async () => {
     remove(panelFile(instance, WORKER));
     paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_NOISE: "1", OPENOVAI_STAND_IN_SLOW: "400", OPENOVAI_STAND_IN_REPLY: "done" });
     const told_ = tell(WORKER, userFrame("go")).answered;
-    const early = await waitFor(() => panel(instance, WORKER).find((row) => row.from === WORKER) ?? null);
-    assert.deepEqual([early.from, early.text], [WORKER, "thinking"], "the first text of the turn is not on the panel");
-    assert.equal(panel(instance, WORKER).length, 1, "more than the first text landed before the wait");
+    await waitFor(() => (heardIn(paul.log).length > 0 ? true : null));
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    assert.deepEqual(panel(instance, WORKER).filter((row) => row.from === WORKER), [], "a text was on the panel before its next block");
     const reply = await told_;
     assert.deepEqual(reply, { text: "done", failed: false, silent: false });
     assert.deepEqual(panel(instance, WORKER).map((row) => [row.from, row.text]), [[WORKER, "thinking"], [WORKER, "done"]]);
@@ -2453,9 +2463,62 @@ describe("what a seat says", () => {
     assert.deepEqual(panel(instance, WORKER).map((row) => row.text), ["Hello", NOTE]);
   });
 
-  it("keeps a turn whose only words are a note, then <noop/>, as a said turn", async () => {
+  // A turn that ends in `<noop/>` chose to say nothing: what it held is dropped, and its `<noop/>`
+  // is what it said.
+  it("drops the note of a turn that ends in <noop/>, and keeps the turn as a said one", async () => {
     const rows = await noted([{ text: NOTE }], { OPENOVAI_STAND_IN_REPLY: "<noop/>" });
-    assert.deepEqual(rows.map((row) => [row.from, row.text, row.noop, row.silent]), [[WORKER, NOTE, undefined, undefined], [WORKER, "<noop/>", true, undefined]]);
+    assert.deepEqual(rows.map((row) => [row.from, row.text, row.noop, row.silent]), [[WORKER, "<noop/>", true, undefined]]);
+  });
+
+  // A text a call follows in the same turn is held like a note.
+  const LOOKING = "Now the parser, to see where the line breaks.";
+
+  it("shows a turn that has a text, a call and then a text as the last text alone", async () => {
+    const rows = await noted([], { OPENOVAI_STAND_IN_CALLS: JSON.stringify([[{ ...READING, text: LOOKING }]]), OPENOVAI_STAND_IN_REPLY: "done" });
+    assert.deepEqual(rows.map((row) => [row.from, row.text, row.line]), [[WORKER, undefined, "Reading /srv/app/lib/parser.mjs"], [WORKER, "done", undefined]]);
+  });
+
+  it("shows a text a call followed, at the turn's end, when the turn said nothing else", async () => {
+    const rows = await noted([], { OPENOVAI_STAND_IN_CALLS: JSON.stringify([[{ ...READING, text: LOOKING }]]), OPENOVAI_STAND_IN_EMPTY: "1" });
+    assert.deepEqual(rows.map((row) => [row.from, row.text, row.line]), [[WORKER, undefined, "Reading /srv/app/lib/parser.mjs"], [WORKER, LOOKING, undefined]]);
+    assert.deepEqual(Object.keys(rows[1]).sort(), ["at", "from", "text"]);
+  });
+
+  it("drops a text a call followed in a turn that ends in <noop/>", async () => {
+    const rows = await noted([], { OPENOVAI_STAND_IN_CALLS: JSON.stringify([[{ ...READING, text: LOOKING }]]), OPENOVAI_STAND_IN_REPLY: "<noop/>" });
+    assert.deepEqual(rows.map((row) => [row.from, row.text, row.line, row.noop]), [[WORKER, undefined, "Reading /srv/app/lib/parser.mjs", undefined], [WORKER, "<noop/>", undefined, true]]);
+  });
+
+  // A line of the User's goes in while the first call is out: the first text after it answers it,
+  // and is shown as it comes, though a call follows it; the text before it is held, and dropped
+  // for the turn's last words.
+  it("shows the first text after a line that joined the turn at once, and holds the one before", async () => {
+    await endSeat(WORKER, 500);
+    remove(panelFile(instance, WORKER));
+    const calls = [{ ...READING, text: LOOKING }, { name: "Read", input: { file_path: "/srv/app/README.md" }, text: "Yes, the README next." }];
+    paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_CALLS: JSON.stringify([calls]), OPENOVAI_STAND_IN_CALL_HOLDS: "400", OPENOVAI_STAND_IN_REPLY: "done" });
+    const told_ = tell(WORKER, userFrame("go")).answered;
+    await waitFor(() => panel(instance, WORKER).find((row) => row.line !== undefined) ?? null);
+    tell(WORKER, userFrame("and the README"));
+    await waitFor(() => panel(instance, WORKER).find((row) => row.text === "Yes, the README next.") ?? null);
+    assert.ok(!panel(instance, WORKER).some((row) => row.text === "done"), "the text after the line waited for the turn's end");
+    await told_;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    assert.deepEqual(panel(instance, WORKER).filter((row) => row.from === WORKER && row.text !== undefined).map((row) => row.text), ["Yes, the README next.", "done"]);
+  });
+
+  // A note is held across a line that joins the turn like a text is, and dropped for the turn's
+  // last words.
+  it("holds a note across a line that joined the turn, and drops it for the turn's last words", async () => {
+    await endSeat(WORKER, 500);
+    remove(panelFile(instance, WORKER));
+    paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_NOTES: JSON.stringify([[{ text: NOTE }]]), OPENOVAI_STAND_IN_CALLS: JSON.stringify([[READING]]), OPENOVAI_STAND_IN_CALL_HOLDS: "400", OPENOVAI_STAND_IN_REPLY: "done" });
+    const told_ = tell(WORKER, userFrame("go")).answered;
+    await waitFor(() => panel(instance, WORKER).find((row) => row.line !== undefined) ?? null);
+    tell(WORKER, userFrame("and the README"));
+    await told_;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    assert.deepEqual(panel(instance, WORKER).filter((row) => row.from === WORKER && row.text !== undefined).map((row) => row.text), ["done"]);
   });
 
   // The turns below say no text, so a block the filter wrongly let through would be all the turn

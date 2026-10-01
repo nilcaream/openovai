@@ -162,7 +162,7 @@ export function installed(options, environment) {
 //   OPENOVAI_STAND_IN_TOOL_ON       only turns whose question contains this text make those calls
 //                             (default: every turn)
 //   OPENOVAI_STAND_IN_CALLS         a JSON list, one entry per QUESTION the same way, each a list of
-//                             { name, input, error?, parent?, usage? }: the tools the real one
+//                             { name, input, error?, parent?, usage?, text? }: the tools the real one
 //                             would say it is using in that turn, each written before the answer
 //                             as one assistant frame with a tool_use block (id call-<turn>-<i>,
 //                             parent_tool_use_id from parent, else null, and usage as the
@@ -252,6 +252,7 @@ fs.appendFileSync(
     \`CLAUDE_CONFIG_DIR: \${value("CLAUDE_CONFIG_DIR")}\`,
     \`DISABLE_AUTOUPDATER: \${value("DISABLE_AUTOUPDATER")}\`,
     \`CLAUDE_CODE_ARTIFACT: \${value("CLAUDE_CODE_ARTIFACT")}\`,
+    \`CLAUDE_CODE_SILENT_TURN_REMINDER: \${value("CLAUDE_CODE_SILENT_TURN_REMINDER")}\`,
     \`CLAUDE_CODE_EFFORT_LEVEL: \${value("CLAUDE_CODE_EFFORT_LEVEL")}\`,
     \`CLAUDE_CODE_PROJECT_DIR_NAME: \${value("CLAUDE_CODE_PROJECT_DIR_NAME")}\`,
     \`ANTHROPIC_API_KEY: \${value("ANTHROPIC_API_KEY")}\`,
@@ -543,6 +544,9 @@ for (;;) {
   for (const [i, call] of (made ?? []).entries()) {
     const id = "call-" + turn + "-" + i;
     const parent = call.parent ?? null;
+    if (call.text !== undefined) {
+      frame({ type: "assistant", message: { role: "assistant", content: [{ type: "text", text: call.text }] }, parent_tool_use_id: parent, session_id: "test-thread" });
+    }
     frame({ type: "assistant", message: { role: "assistant", content: [{ type: "tool_use", id, name: call.name, input: call.input ?? {} }], ...(call.usage === undefined ? {} : { usage: call.usage }) }, parent_tool_use_id: parent, session_id: "test-thread" });
     const hold = Number(process.env.OPENOVAI_STAND_IN_CALL_HOLDS ?? 0);
     if (hold > 0 && !interrupted) {

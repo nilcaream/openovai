@@ -5,8 +5,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "              said(noop ? { text: block.text, noop: true } : { text: wordsOf(block.text) });",
-        "to": "              said({ text: block.text });"
+        "from": "      said(noop ? { text, noop: true } : { text: wordsOf(text) });",
+        "to": "      said({ text });"
       }
     ]
   },
@@ -16,8 +16,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "              said(noop ? { text: block.text, noop: true } : { text: wordsOf(block.text) });",
-        "to": "              said(noop ? { text: block.text, noop: true } : { text: block.text });"
+        "from": "      said(noop ? { text, noop: true } : { text: wordsOf(text) });",
+        "to": "      said(noop ? { text, noop: true } : { text });"
       }
     ]
   },
@@ -27,8 +27,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "              record.said += 1;\n              if (wordsOf(block.text).trim() !== \"\") {",
-        "to": "              if (!noop) record.said += 1;\n              if (wordsOf(block.text).trim() !== \"\") {"
+        "from": "      record.said += 1;\n      if (wordsOf(text).trim() !== \"\") {",
+        "to": "      if (!noop) record.said += 1;\n      if (wordsOf(text).trim() !== \"\") {"
       }
     ]
   },
@@ -38,8 +38,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "              const noop = block.text.trim() === NOOP;",
-        "to": "              const noop = block.text.includes(NOOP);"
+        "from": "      const noop = text.trim() === NOOP;",
+        "to": "      const noop = text.includes(NOOP);"
       }
     ]
   },
@@ -675,13 +675,90 @@
     ]
   },
   {
-    "name": "what a seat says lands only later",
-    "catches": "lands on the panel as it is said, before the turn ends",
+    "name": "a text is said the moment it arrives",
+    "catches": "holds a text until the next block says no call follows it, then says it in order",
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "              said(noop ? { text: block.text, noop: true } : { text: wordsOf(block.text) });",
-        "to": "              setTimeout(() => said(noop ? { text: block.text, noop: true } : { text: wordsOf(block.text) }), 1000);"
+        "from": "                record.pending.push(block.text);\n",
+        "to": "                record.say(block.text);\n"
+      }
+    ]
+  },
+  {
+    "name": "a text a call follows is said at the call",
+    "catches": "shows a turn that has a text, a call and then a text as the last text alone",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "              record.withheld.push(...record.pending.filter((text) => wordsOf(text).trim() !== \"\"));\n",
+        "to": "              record.pending.forEach((text) => record.say(text));\n"
+      }
+    ]
+  },
+  {
+    "name": "the held texts of a turn that said nothing else are dropped",
+    "catches": "shows a text a call followed, at the turn's end, when the turn said nothing else",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "        record.write(held.slice(earlier));\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a turn that ends in <noop/> shows its held texts",
+    "catches": "drops a text a call followed in a turn that ends in <noop/>",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "      if (ending === \"end\" && !record.spoken) {",
+        "to": "      if (ending !== \"join\" && !record.spoken) {"
+      }
+    ]
+  },
+  {
+    "name": "a turn that ends in <noop/> shows its notes",
+    "catches": "drops the note of a turn that ends in <noop/>, and keeps the turn as a said one",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "      if (ending === \"end\" && !record.spoken) {",
+        "to": "      if (ending !== \"join\" && !record.spoken) {"
+      }
+    ]
+  },
+  {
+    "name": "a note is laid at a line that joins the turn",
+    "catches": "holds a note across a line that joined the turn, and drops it for the turn's last words",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "      if (ending === \"join\") {\n        record.earlier = record.withheld.length;\n        return;\n      }\n",
+        "to": "      if (ending === \"join\") {\n        record.write(record.withheld);\n        record.withheld = [];\n        return;\n      }\n"
+      }
+    ]
+  },
+  {
+    "name": "the first text after a line that joined the turn is held like any other",
+    "catches": "shows the first text after a line that joined the turn at once, and holds the one before",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "  record.fresh = true;\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a seat runs with the silent-turn reminder",
+    "catches": "turns Claude Code's silent-turn reminder off in every start of a seat",
+    "edits": [
+      {
+        "file": "lib/claude.mjs",
+        "from": "      env.CLAUDE_CODE_SILENT_TURN_REMINDER = \"0\";\n",
+        "to": ""
       }
     ]
   },
