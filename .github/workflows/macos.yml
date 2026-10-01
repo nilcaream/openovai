@@ -1,8 +1,12 @@
 name: macOS
 
-# The whole suite on a Mac, started by hand from the Actions tab and never by anything else. A
-# macOS runner's minutes cost about ten times a Linux one's, so this is not in ci.yml, which a
-# release calls: a run here is one somebody chose to pay for.
+# ovai on a Mac, started by hand from the Actions tab and never by anything else. A release waits
+# for nothing that runs on a Mac, so this is not in ci.yml, which a release calls.
+#
+# The suite runs the Mac code against stand-ins: tests/processes.test.mjs prints what a Mac's `ps`
+# and `lsof` would print, tests/install.test.mjs a Mac's `uname` and `shasum`. The steps before it
+# ask the real Mac what those stand-ins only assume, and stop the job with a line saying which
+# assumption was wrong. No Claude sign-in is involved: nothing here starts a session.
 on:
   workflow_dispatch:
 
@@ -13,6 +17,7 @@ jobs:
   tests:
     name: Tests on macOS
     runs-on: macos-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
@@ -20,5 +25,31 @@ jobs:
         with:
           node-version-file: .node-version
 
+      # Node.js from nodejs.org (the archive name, its layout, its checksum with `shasum`) and Claude
+      # Code through that node's npm (the darwin binary), into a data directory of this job's own.
+      - name: Fetch and check the pinned Node.js and Claude Code
+        id: runtime
+        env:
+          XDG_DATA_HOME: ${{ runner.temp }}/ovai-data
+        run: sh tests/measure/measure-runtime.sh darwin
+
+      # `ps -A -ww -E` has to show a process's environment after its command, and `lsof` has to name
+      # the holder of a port: a child started here with a seat's environment and a claude-like
+      # command line has to be found again by lib/running.mjs, and a listener by lib/port.mjs.
+      - name: Find processes and a port's holder with ps and lsof
+        if: ${{ !cancelled() && steps.runtime.outcome == 'success' }}
+        env:
+          XDG_DATA_HOME: ${{ runner.temp }}/ovai-data
+        run: |
+          node_path="$(sh lib/runtime.sh node-path)"
+          "${node_path}" tests/measure/measure-processes.mjs
+
+      - name: Install, serve, open the page and stop
+        if: ${{ !cancelled() && steps.runtime.outcome == 'success' }}
+        env:
+          XDG_DATA_HOME: ${{ runner.temp }}/ovai-data
+        run: sh tests/measure/measure-instance.sh
+
       - name: Run every suite
+        if: ${{ !cancelled() }}
         run: npm test
