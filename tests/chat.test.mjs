@@ -2440,24 +2440,27 @@ describe("what a seat says", () => {
     assert.deepEqual(rows.map((row) => [row.from, row.text, row.noop, row.silent]), [[WORKER, NOTE, undefined, undefined], [WORKER, "<noop/>", true, undefined]]);
   });
 
+  // The turns below say no text, so a block the filter wrongly let through would be all the turn
+  // said, and would show.
+
   it("shows nothing for a thinking block the frame does not list", async () => {
-    const rows = await noted([{ text: NOTE, listed: false }], { OPENOVAI_STAND_IN_REPLY: "done" });
-    assert.deepEqual(rows.map((row) => row.text), ["done"]);
+    const rows = await noted([{ text: NOTE, listed: false }], { OPENOVAI_STAND_IN_EMPTY: "1" });
+    assert.deepEqual(rows.map((row) => row.text), []);
   });
 
   it("shows nothing for a thinking block in a frame that lists no index", async () => {
-    const rows = await noted([{ text: NOTE, listed: [] }], { OPENOVAI_STAND_IN_REPLY: "done" });
-    assert.deepEqual(rows.map((row) => row.text), ["done"]);
+    const rows = await noted([{ text: NOTE, listed: [] }], { OPENOVAI_STAND_IN_EMPTY: "1" });
+    assert.deepEqual(rows.map((row) => row.text), []);
   });
 
   it("shows nothing for a listed note with no words in it", async () => {
-    const rows = await noted([{ text: " \n" }], { OPENOVAI_STAND_IN_REPLY: "done" });
-    assert.deepEqual(rows.map((row) => row.text), ["done"]);
+    const rows = await noted([{ text: " \n" }], { OPENOVAI_STAND_IN_EMPTY: "1" });
+    assert.deepEqual(rows.map((row) => row.text), []);
   });
 
   it("shows nothing for a listed note that is the interrupted sentinel", async () => {
-    const rows = await noted([{ text: "This part of the response was interrupted before it finished." }], { OPENOVAI_STAND_IN_REPLY: "done" });
-    assert.deepEqual(rows.map((row) => row.text), ["done"]);
+    const rows = await noted([{ text: "This part of the response was interrupted before it finished." }], { OPENOVAI_STAND_IN_EMPTY: "1" });
+    assert.deepEqual(rows.map((row) => row.text), []);
   });
 });
 
