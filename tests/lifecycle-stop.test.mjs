@@ -16,7 +16,7 @@ import { ADMIN_FILE } from "../lib/admin.mjs";
 import { BODY_CLOSING, CARD_TIMEOUT, SUBAGENT_CARD_TIMEOUT, adminTold, deliver, parkRoom, tick } from "../lib/chat/lifecycle.mjs";
 import { answerRule, askedFor, parkRule, ruleAskedFor, rulesPending } from "../lib/chat/permissions.mjs";
 import * as quota from "../lib/chat/quota.mjs";
-import { askDefaults } from "../lib/chat/server.mjs";
+import { askDefaults, undelivered } from "../lib/chat/server.mjs";
 import { INTERRUPT_PATIENCE, end, endEvery, recordOf, running, tell } from "../lib/chat/session.mjs";
 import { IGNORED_DEFAULTS, LEDGER, deskFile, hire } from "../lib/desks.mjs";
 import { CONFIG_FILE } from "../lib/seed.mjs";
@@ -319,6 +319,7 @@ describe("a message to a Worker that stops before reading it", () => {
 
   it("goes back to the sender as an undelivered event with the words, and a row on its panel", async () => {
     const { martin } = await pair({ OPENOVAI_STAND_IN_SLOW: "1500", ...writesDesk('type="closing"') });
+    const logged = said.length;
     assert.equal((await tool(martin.secret, "stop_worker", { name: WORKER })).refused, false);
     await waitFor(() => (recordOf(WORKER)?.turn !== null ? true : null));
     const sent = await tool(martin.secret, "message", { to: WORKER, text: "one more order" });
@@ -327,8 +328,20 @@ describe("a message to a Worker that stops before reading it", () => {
     assert.ok(await gone(WORKER), `${WORKER} did not stop`);
     const frame = `<server-event type="undelivered" to="${WORKER}">one more order</server-event>`;
     assert.ok(await waitFor(() => (heardIn(martin.log).includes(frame) ? true : null)), heardIn(martin.log).join("\n"));
-    const row = panel(instance, LEADER).find((one) => one.from === SERVER && one.text === `Not delivered: ${WORKER} stopped before reading it`);
+    const row = panel(instance, LEADER).find((one) => one.from === SERVER && one.text === `Not delivered: ${WORKER} stopped before reading ${LEADER}'s message`);
     assert.ok(row !== undefined, JSON.stringify(panel(instance, LEADER).slice(-5)));
+    // The log names the frame when it waits and when it is answered unread, and the event that
+    // goes back to a sender with no process.
+    const lines = said.slice(logged);
+    assert.ok(lines.some((line) => new RegExp(`^queued ${WORKER} - message from ${LEADER} #\\d+, \\d+ waiting$`).test(line)), lines.join("\n"));
+    assert.ok(lines.some((line) => new RegExp(`^unread ${WORKER} - message from ${LEADER} #\\d+$`).test(line)), lines.join("\n"));
+  });
+
+  it("is named in the row by what it was: a seat's message, the User's line, an event", () => {
+    assert.equal(undelivered(WORKER, { kind: "message", from: LEADER, event: null }), `Not delivered: ${WORKER} stopped before reading ${LEADER}'s message`);
+    assert.equal(undelivered(LEADER, { kind: "user", from: null, event: null }), `Not delivered: ${LEADER} stopped before reading your line`);
+    assert.equal(undelivered(LEADER, { kind: "server-event", from: null, event: "idle" }), `Not delivered: ${LEADER} stopped before reading the idle event`);
+    assert.equal(undelivered(LEADER), `Not delivered: ${LEADER} stopped before reading it`);
   });
 });
 
@@ -353,6 +366,7 @@ describe("park", () => {
     const paulTurn = tell(WORKER, userFrame("busy"));
     await told(paul.log, 1);
     await told(martin.log, 1);
+    const logged = said.length;
     const parked = tool(martin.secret, "park", { interrupt: true, deadline: 5 });
     assert.deepEqual(await paulTurn.answered, { interrupted: true, text: "interrupted" });
     assert.ok(await gone(WORKER), `${WORKER} did not stop`);
@@ -370,6 +384,8 @@ describe("park", () => {
     assert.equal(leaderBusy(), true, "the Leader's turn ended before the park did, so nothing below proves it was left alone");
     assert.equal(result.refused, false, result.text);
     assert.ok(result.text.startsWith("parked: "), result.text);
+    assert.ok(said.slice(logged).includes(`parking - - 2 sessions: ${WORKER}, ${OTHER} told, deadline 5 s, interrupt`), said.slice(logged).join("\n"));
+    assert.ok(said.slice(logged).includes(`parked - - ${result.text.replace(/^parked: /, "")}`), said.slice(logged).join("\n"));
     assert.ok(result.text.includes(`${WORKER} stopped (desk ${written})`), result.text);
     assert.ok(result.text.includes(`${OTHER} ended at the deadline (no desk written)`), result.text);
     assert.ok(!notesIn(martin.log).some(([label]) => label === "interrupt"), "the Leader was interrupted");
@@ -385,6 +401,7 @@ describe("park", () => {
     await end(WORKER, 500);
     const ann = await seatUp(OTHER);
     const began = now;
+    const logged = said.length;
     const parked = tool(martin.secret, "park", {});
     assert.deepEqual(await told(ann.log, 1), [`<server-event type="closing" why="park">${BODY_CLOSING("park", false, null)}</server-event>`]);
     await settle(400);
@@ -393,14 +410,14 @@ describe("park", () => {
     now = began + 29 * MINUTE;
     await settle(400);
     assert.equal(running(OTHER), true, "ended before the ceiling");
-    const before_ = said.length;
     now = began + 30 * MINUTE;
     assert.ok(await gone(OTHER), `${OTHER} was not ended at the ceiling`);
     const result = await parked;
     assert.deepEqual(result, { text: `parked: ${OTHER} ended at the deadline (no desk written)`, refused: false, error: null });
+    // The park says in the log who it told and with what deadline, and then how it went.
     assert.deepEqual(
-      said.slice(before_).filter((line) => line.startsWith("parked ")),
-      [`parked ${OTHER} - at the deadline, no desk written`],
+      said.slice(logged).filter((line) => line.startsWith("parking ") || line.startsWith("parked ")),
+      [`parking - - 1 session: ${OTHER} told, deadline 1800 s`, "parked - - refused: already parking", `parked ${OTHER} - at the deadline, no desk written`, `parked - - ${OTHER} ended at the deadline (no desk written)`],
     );
     // Right after: not "already parking".
     assert.deepEqual(await tool(martin.secret, "park", {}), { text: "parked: nobody was running", refused: false, error: null });
@@ -642,7 +659,7 @@ describe("a signal to the chat", () => {
     const took = Date.now() - began;
     assert.equal(status, 0, child.output);
     assert.ok(took < (3 + INTERRUPT_PATIENCE / 1000 + 3) * 1000, `took ${took} ms`);
-    assert.match(child.output, /^\S+ parking - - 3 sessions$/m);
+    assert.match(child.output, /^\S+ parking - - 3 sessions: .* told, deadline 3 s, interrupt$/m);
     assert.match(child.output, new RegExp(`^\\S+ parked - - (?!parked: ).*${WORKER} stopped \\(desk \\d\\d:\\d\\d\\).*$`, "m"));
     assert.match(child.output, new RegExp(`^\\S+ parked - - .*${OTHER} stopped \\(desk \\d\\d:\\d\\d\\).*$`, "m"));
     assert.ok(!child.output.includes("ended at the deadline"), child.output);
@@ -694,7 +711,7 @@ describe("a signal to the chat", () => {
     // more often than not; when it did not, the line says how long they took.
     assert.match(stopped.stdout, /^Stopped( \(sessions gone after \d+\.\d seconds\))?\.$/m);
     assert.equal(await closed, 0, child.output);
-    assert.match(child.output, /^\S+ parking - - 3 sessions$/m);
+    assert.match(child.output, /^\S+ parking - - 3 sessions: .* told, deadline 3 s, interrupt$/m);
     assert.equal(notesIn(ownLog).filter(([label]) => label === "left").length, 3);
     await assert.rejects(fetch(`${address}/health`));
   });

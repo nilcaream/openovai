@@ -497,6 +497,40 @@ describe("restart_session and stop_session", () => {
     assert.ok(again.refused && (again.text === "already ending" || again.error !== null || (await call(martin.secret, "tools/list")).status === 401));
     await gone(LEADER);
   });
+
+  // What waits in the queue is answered unread when the process closes: a stop is refused until the
+  // session has read it. A restart is not, since its successor is handed the queue.
+  it("stop_session refuses the Leader while a frame waits, names it, and stops once it was read", async () => {
+    await endEvery(500);
+    martin = await seatUp(LEADER, { OPENOVAI_STAND_IN_SLOW: "800" });
+    const busy = tell(LEADER, userFrame("busy"));
+    await waitFor(() => (recordOf(LEADER)?.turn !== null ? true : null));
+    const report = tell(LEADER, messageFrame(WORKER, "preview stopped"));
+    assert.equal((await tool(martin.secret, "write_desk", { title: "t", status: "s" })).refused, false);
+    assert.deepEqual(await tool(martin.secret, "stop_session", {}), {
+      text: `1 waiting: message from ${WORKER} — end your turn to read it, then stop`,
+      refused: true,
+      error: null,
+    });
+    assert.equal(recordOf(LEADER).ending, null);
+    await busy.answered;
+    assert.equal((await report.answered).unread, undefined, "the report was never read");
+    assert.equal((await tool(martin.secret, "write_desk", { title: "t", status: "s" })).refused, false);
+    assert.equal((await tool(martin.secret, "stop_session", {})).refused, false);
+    await gone(LEADER);
+  });
+
+  it("restart_session is not refused for a frame that waits: the successor reads it", async () => {
+    await endEvery(500);
+    martin = await seatUp(LEADER, { OPENOVAI_STAND_IN_SLOW: "800" });
+    const busy = tell(LEADER, userFrame("busy"));
+    await waitFor(() => (recordOf(LEADER)?.turn !== null ? true : null));
+    tell(LEADER, messageFrame(WORKER, "preview stopped"));
+    assert.equal((await tool(martin.secret, "write_desk", { title: "t", status: "s" })).refused, false);
+    assert.equal((await tool(martin.secret, "restart_session", {})).refused, false);
+    await busy.answered;
+    await gone(LEADER);
+  });
 });
 
 describe("done", () => {

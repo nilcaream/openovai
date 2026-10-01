@@ -423,8 +423,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "    log(\"dropped\", seat, null, `${frame.kind}, no process`);\n    return { refused: \"no process\" };",
-        "to": "    log(\"dropped\", seat, null, `${frame.kind}, no process`);\n    const pending = held.get(seat) ?? [];\n    held.set(seat, pending);\n    return { delivered: true, answered: new Promise((resolve) => pending.push({ frame, resolve })) };"
+        "from": "    log(\"dropped\", seat, null, `${named(frame)}, no process`);\n    return { refused: \"no process\" };",
+        "to": "    log(\"dropped\", seat, null, `${named(frame)}, no process`);\n    const pending = held.get(seat) ?? [];\n    held.set(seat, pending);\n    return { delivered: true, answered: new Promise((resolve) => pending.push({ frame, resolve })) };"
       },
       {
         "file": "lib/chat/session.mjs",
@@ -444,7 +444,7 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "    log(\"dropped\", seat, null, `${frame.kind}, no process`);\n",
+        "from": "    log(\"dropped\", seat, null, `${named(frame)}, no process`);\n",
         "to": ""
       }
     ]
@@ -477,7 +477,7 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "    for (const turn of left) {\n      turn.resolve(turn === running ? { ended: true, text: why, err: record.err.trim() } : { ended: true, unread: true, text: why });\n    }\n",
+        "from": "    for (const turn of left) {\n      turn.resolve(turn === running ? { ended: true, text: why, err: record.err.trim() } : unread(seat, turn, why));\n    }\n",
         "to": ""
       }
     ]

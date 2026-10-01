@@ -5,8 +5,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "{ ended: true, unread: true, text: why });",
-        "to": "{ ended: true, text: why });"
+        "from": ": unread(seat, turn, why));",
+        "to": ": { ended: true, text: why });"
       }
     ]
   },
@@ -137,7 +137,7 @@
     "edits": [
       {
         "file": "lib/serve.mjs",
-        "from": "    if (going > 0) {\n      log(\"parking\", null, null, `${going} ${going === 1 ? \"session\" : \"sessions\"}`);\n      const parked = await parkRoom(instance, { interrupt: true, deadline: settingsIn(config).park.timeout, leaderToo: true });\n      // The tool's answer says \"parked: \" first; the row's event already does.\n      log(\"parked\", null, null, parked.refused ?? parked.text.replace(/^parked: /, \"\"));\n    }\n",
+        "from": "    if (runningSeats().length > 0) {\n      await parkRoom(instance, { interrupt: true, deadline: settingsIn(config).park.timeout, leaderToo: true });\n    }\n",
         "to": ""
       }
     ]
@@ -170,8 +170,8 @@
     "edits": [
       {
         "file": "lib/serve.mjs",
-        "from": "    stopping(instance);\n    const going = runningSeats().length;",
-        "to": "    stopping(instance);\n    server.close();\n    const going = runningSeats().length;"
+        "from": "    stopping(instance);\n    if (runningSeats().length > 0) {",
+        "to": "    stopping(instance);\n    server.close();\n    if (runningSeats().length > 0) {"
       },
       {
         "file": "lib/serve.mjs",
@@ -501,6 +501,94 @@
         "file": "lib/chat/server.mjs",
         "from": "    if (decision !== asked.list && decision !== \"ignore\") {",
         "to": "    if (!LISTS.includes(decision) && decision !== \"ignore\") {"
+      }
+    ]
+  },
+  {
+    "name": "stop_session reads the queue as empty",
+    "catches": "stop_session refuses the Leader while a frame waits, names it, and stops once it was read",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "  const waits = ending === \"stop\" ? waiting(caller.seat) : [];",
+        "to": "  const waits = [];"
+      }
+    ]
+  },
+  {
+    "name": "restart_session is refused for a waiting frame too",
+    "catches": "restart_session is not refused for a frame that waits: the successor reads it",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "  const waits = ending === \"stop\" ? waiting(caller.seat) : [];",
+        "to": "  const waits = waiting(caller.seat);"
+      }
+    ]
+  },
+  {
+    "name": "the Not delivered row does not say whose message it was",
+    "catches": "is named in the row by what it was: a seat's message, the User's line, an event",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "    : of.kind === \"message\" ? `${of.from}'s message`",
+        "to": "    : of.kind === \"message\" ? \"a message\""
+      }
+    ]
+  },
+  {
+    "name": "a frame answered unread is not said in the log",
+    "catches": "goes back to the sender as an undelivered event with the words, and a row on its panel",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "  log(\"unread\", seat, null, `${named(turn.frame)} #${turn.order}`);\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a queued frame is logged by its kind alone",
+    "catches": "goes back to the sender as an undelivered event with the words, and a row on its panel",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "  log(\"queued\", seat, null, `${named(frame)} #${order}, ${record.queue.length} waiting`);",
+        "to": "  log(\"queued\", seat, null, `${frame.kind} #${order}, ${record.queue.length} waiting`);"
+      }
+    ]
+  },
+  {
+    "name": "the park does not say who it told",
+    "catches": "with no deadline has the instance's ceiling, says who it ended there, and the flag clears on every exit",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "    log.log(\"parking\", null, null,",
+        "to": "    if (false) log.log(\"parking\", null, null,"
+      }
+    ]
+  },
+  {
+    "name": "a refused park is not said in the log",
+    "catches": "with no deadline has the instance's ceiling, says who it ended there, and the flag clears on every exit",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "    log.log(\"parked\", null, null, \"refused: already parking\");\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the park does not say how it went",
+    "catches": "with no deadline has the instance's ceiling, says who it ended there, and the flag clears on every exit",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "    log.log(\"parked\", null, null, result);\n",
+        "to": ""
       }
     ]
   }

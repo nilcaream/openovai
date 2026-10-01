@@ -1126,7 +1126,7 @@ describe("telling a seat", () => {
     const asked = [tell(WORKER, userFrame("one")), tell(WORKER, messageFrame(LEADER, "two")), tell(WORKER, serverEvent("overheard", { who: OTHER }))];
     await Promise.all(asked.map((one) => one.answered));
     const lines = said.slice(before_);
-    const queued = lines.filter((line) => line.startsWith("queued ")).map((line) => /^queued \S+ - \S+ #(\d+), \d+ waiting$/.exec(line)?.[1]);
+    const queued = lines.filter((line) => line.startsWith("queued ")).map((line) => /^queued \S+ - .+ #(\d+), \d+ waiting$/.exec(line)?.[1]);
     assert.equal(queued.length, 3, lines.join("\n"));
     assert.ok(lines.includes(`wrote ${WORKER} - queue x2 (#${queued[1]}..#${queued[2]}: message, overheard event), 0 waiting`), lines.join("\n"));
   });
@@ -1404,7 +1404,7 @@ describe("telling a seat", () => {
     const before_ = said.length;
     const asked = tell(OTHER, serverEvent("user-typed", { who: WORKER }, "go"));
     assert.deepEqual(asked, { refused: "no process" });
-    assert.ok(said.slice(before_).includes(`dropped ${OTHER} - server-event, no process`), said.slice(before_).join("\n"));
+    assert.ok(said.slice(before_).includes(`dropped ${OTHER} - user-typed event, no process`), said.slice(before_).join("\n"));
     const jane = await seatUp(OTHER);
     const first = tell(OTHER, userFrame("hello"));
     await first.answered;
@@ -1434,7 +1434,7 @@ describe("telling a seat", () => {
     const replies = await Promise.all([first.answered, second.answered]);
     assert.deepEqual(replies, [
       { ended: true, text: `${OTHER} ended before answering`, err: "" },
-      { ended: true, unread: true, text: `${OTHER} ended before answering` },
+      { ended: true, unread: true, text: `${OTHER} ended before answering`, of: { kind: "user", from: null, event: null } },
     ]);
     assert.equal(running(OTHER), false);
     assert.equal(alive(dying.pid), false);

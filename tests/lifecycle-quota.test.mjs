@@ -392,7 +392,7 @@ describe("the quota gate", () => {
     assert.equal(running(LEADER), false);
     assert.equal(readLog(unexpected), spawns, "a successor was started through the closed gate");
     assert.ok(said.includes(`restart ${LEADER} - no successor: stopped, 5h exhausted until ${new Date(resets).toISOString()}`), said.slice(-8).join("\n"));
-    assert.deepEqual(await carried.answered, { ended: true, unread: true, text: `${LEADER} stopped: the 5h window is exhausted, reset at ${quota.hhmm(resets)}` });
+    assert.deepEqual(await carried.answered, { ended: true, unread: true, text: `${LEADER} stopped: the 5h window is exhausted, reset at ${quota.hhmm(resets)}`, of: { kind: "user", from: null, event: null } });
   });
 
   // Fable's own weekly window reaches the gate from the usage endpoint (usage.mjs hands it in as
