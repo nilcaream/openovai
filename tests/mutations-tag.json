@@ -119,5 +119,49 @@
         "to": " SHA256SUMS*.sig --repo"
       }
     ]
+  },
+  {
+    "name": "the package reaches npm before the signed release exists",
+    "catches": "waits for the release and for its signature",
+    "edits": [
+      {
+        "file": ".github/workflows/release.yml",
+        "from": "    needs: [release, sign]\n",
+        "to": "    needs: release\n"
+      }
+    ]
+  },
+  {
+    "name": "the publish job asks for a permission beside the token and the read",
+    "catches": "asks for the token that proves who it is, and for nothing beside reading the repository",
+    "edits": [
+      {
+        "file": ".github/workflows/release.yml",
+        "from": "      id-token: write\n      contents: read\n",
+        "to": "      id-token: write\n      contents: write\n"
+      }
+    ]
+  },
+  {
+    "name": "the token is asked for by the whole workflow",
+    "catches": "is the one job that asks for the token",
+    "edits": [
+      {
+        "file": ".github/workflows/release.yml",
+        "from": "\npermissions:\n  contents: write\n\njobs:",
+        "to": "\npermissions:\n  contents: write\n  id-token: write\n\njobs:"
+      }
+    ]
+  },
+  {
+    "name": "the publish job reads a repository secret",
+    "catches": "uses no secret",
+    "edits": [
+      {
+        "file": ".github/workflows/release.yml",
+        "from": "        run: npm publish --provenance",
+        "to": "        env:\n          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}\n        run: npm publish --provenance"
+      }
+    ]
   }
 ]

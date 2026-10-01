@@ -248,7 +248,7 @@ describe("the workflow that runs it", () => {
     assert.match(workflow, /^on:\n  workflow_dispatch:$/m);
   });
 
-  it("asks for exactly the one permission it needs", () => {
+  it("asks, for the file as a whole, for exactly the one permission it needs", () => {
     assert.match(workflow, /^permissions:\n  contents: write$/m);
   });
 
@@ -324,6 +324,37 @@ describe("the signing of a release", () => {
 
   it("publishes the release as the latest only once the signed package is attached", () => {
     assert.ok(at("gh release upload") < at("--draft=false --latest"), "publishes before it attaches");
+  });
+});
+
+// The same release on npm waits for the signed one, and the proof of who it is, which is what npm
+// trusts it on, is asked for by this job and no other. These are the lines that make it so.
+describe("the publishing of a release to npm", () => {
+  const workflow = fs.readFileSync(path.join(repo, ".github", "workflows", "release.yml"), "utf8");
+  const publish = jobIn(workflow, "publish");
+
+  it("waits for the release and for its signature", () => {
+    const needs = /^    needs: \[(.*)\]$/m.exec(publish);
+    assert.ok(needs !== null, "the publish job does not list what it needs");
+    const names = needs[1].split(",").map((name) => name.trim());
+    assert.ok(names.includes("release") && names.includes("sign"), `it needs only ${names.join(", ")}`);
+  });
+
+  it("asks for the token that proves who it is, and for nothing beside reading the repository", () => {
+    const block = /^    permissions:\n((?:      .*\n)+)/m.exec(publish);
+    assert.ok(block !== null, "the publish job has no permissions of its own");
+    const asked = block[1].split("\n").map((line) => line.trim()).filter((line) => line !== "");
+    assert.ok(asked.includes("id-token: write"), "it does not ask for id-token: write");
+    assert.deepEqual(asked.filter((line) => line !== "id-token: write" && line !== "contents: read"), []);
+  });
+
+  it("is the one job that asks for the token", () => {
+    const outside = workflow.replace(publish, "") + fs.readFileSync(path.join(repo, ".github", "workflows", "ci.yml"), "utf8");
+    assert.doesNotMatch(outside, /^\s*id-token:/m);
+  });
+
+  it("uses no secret", () => {
+    assert.doesNotMatch(publish, /secrets\.|secrets: inherit/);
   });
 });
 
