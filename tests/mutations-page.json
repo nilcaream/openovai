@@ -1082,7 +1082,7 @@
   },
   {
     "name": "the head keeps a margin of its own above the first row",
-    "catches": "leave between the head and the first row the gap between two rows",
+    "catches": "stand the first row from the head, and the composer from the last row, the gap between two rows",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -2641,13 +2641,46 @@
     ]
   },
   {
-    "name": "the panel puts a gap between the rows and the bottom area again",
-    "catches": "leave between the last row and the composer the gap between two rows, and between a card and its neighbours the same",
+    "name": "the panel puts no gap between its head, its rows and its bottom area",
+    "catches": "stand the first row from the head, and the composer from the last row, the gap between two rows",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "display: flex; flex-direction: column; overflow: hidden; font-size: .9rem; transition: opacity .4s; }",
-        "to": "display: flex; flex-direction: column; gap: 3px; overflow: hidden; font-size: .9rem; transition: opacity .4s; }"
+        "from": "display: flex; flex-direction: column; gap: var(--gap); overflow: hidden; font-size: .9rem; transition: opacity .4s; }",
+        "to": "display: flex; flex-direction: column; overflow: hidden; font-size: .9rem; transition: opacity .4s; }"
+      }
+    ]
+  },
+  {
+    "name": "the first row keeps a margin of its own above the panel's gap",
+    "catches": "stand the first row from the head, and the composer from the last row, the gap between two rows",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "  .rows > :first-child { margin-top: 0; }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the last row keeps a margin of its own below the panel's gap",
+    "catches": "stand the first row from the head, and the composer from the last row, the gap between two rows",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "  .rows > :has(+ .jump) { margin-bottom: 0; }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a card stands a pixel nearer the next one than a row does",
+    "catches": "leave between a card and its neighbours the gap between two rows",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "  .cards .msg + .msg { margin-top: var(--gap); }",
+        "to": "  .cards .msg + .msg { margin-top: 3px; }"
       }
     ]
   },

@@ -685,6 +685,14 @@ the whole space. A card stands 4px from the last row, from the next card and fro
 a tool line or a pill, used to stand 6 to 7px below the head, because a margin of the head's own
 was added to the row's. Now the first row's own margin is the whole space.
 
+**The head and the message box keep their space from the rows wherever the rows are scrolled.**
+The space below the head and the space above the box were the margins of the first row and the
+last, so they scrolled away with the rows and a row slid right up to the head or the box. The
+Leader's "Waiting for instructions" pill, the last row there, kept a 3px margin of a tool line's
+and stood 3px above the box, a pixel less than the 4px of a row. Now the panel puts the one gap,
+`--gap` (4px, the space between two rows and between two panels), between its head, its rows and
+its box, and the first row and the last keep no margin of their own towards it.
+
 **The pill between two days, and the one between two sessions, is spaced like a tool line.**
 `2026.09.27 Sunday 12:16:31` and `Bobby has left — the next message starts a fresh session` used
 to stand 12 to 14px from the rows around them. They now stand 3 to 4px from them, as a tool line

@@ -35,7 +35,7 @@
     flex: 1 1 auto; min-height: 0;
     display: grid; grid-template-columns: minmax(406px, 1fr) minmax(0, 1092px) minmax(406px, 1fr);
   }
-  .col { min-height: 0; display: flex; flex-direction: column; gap: 4px; padding: 4px; overflow-y: auto; }
+  .col { min-height: 0; display: flex; flex-direction: column; gap: var(--gap); padding: var(--gap); overflow-y: auto; }
   .col:empty { padding: 0; }
   @media (max-width: 1799px) {
     #stage { grid-template-columns: minmax(406px, 1fr) minmax(0, 1092px); }
@@ -47,11 +47,11 @@
     #left { order: 1; }
     #right { order: 2; }
   }
-  /* a panel is a bare slot: the head bubble first, then the rows, then the bottom area. No gap
-     and no margin around the rows: the first row's own margin is the space below the head and
-     the last row's the space above the composer, the same as between two rows (the rows scroll,
-     so a row's margin never collapses into one outside them) */
-  .panel { flex: 1 1 0; min-height: 160px; display: flex; flex-direction: column; overflow: hidden; font-size: .9rem; transition: opacity .4s; }
+  /* a panel is the head bubble, the rows, then the bottom area, a gap apart: the gap between two
+     rows, and the one between two panels. It stands below the head and above the composer
+     whatever the rows have scrolled to, so the first row and the last carry no margin of their
+     own towards it (the rows scroll, so a row's margin never collapses into the gap) */
+  .panel { flex: 1 1 0; min-height: 160px; display: flex; flex-direction: column; gap: var(--gap); overflow: hidden; font-size: .9rem; transition: opacity .4s; }
   #mid .panel { flex: 1 1 auto; }
   .panel.dimmed { opacity: .45; }
   .phead {
@@ -104,12 +104,16 @@
   .rows { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 0; outline: none; }
   /* a tool call is a light line: one per call, no label, no stamp */
   .rows .line { display: block; width: 100%; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); font-family: var(--mono); font-size: .76rem; color: var(--fg-dim); padding: 3px 8px; margin: 3px 0; overflow-wrap: anywhere; }
+  /* the first row and the last (the one before the jump pill, which is always there) leave their
+     outer margin to the panel's gap */
+  .rows > :first-child { margin-top: 0; }
+  .rows > :has(+ .jump) { margin-bottom: 0; }
   .rows .line.err { color: var(--bad); }
   .rows .line .n { color: var(--fg-faint); }
   /* a line that is one end of a message between two sessions: a click on it finds the message on the Leader's panel */
   .rows .line.peer { cursor: pointer; border-left: 3px solid var(--accent); }
   /* a row is a bubble: the label row on top, the body under it; the kind of the row picks its ground */
-  .msg { display: flex; margin: 4px 0; }
+  .msg { display: flex; margin: var(--gap) 0; }
   .bubble { width: 100%; max-width: 100%; border: 1px solid var(--line); border-radius: var(--radius); padding: 6px 10px 4px; background: var(--panel-2); position: relative; min-width: 120px; }
   .msg.user .bubble { background: var(--me); border-color: var(--me-line); white-space: pre-wrap; overflow-wrap: anywhere; }
   .msg.reply .bubble { background: var(--reply); border-color: var(--reply-line); }
@@ -173,14 +177,14 @@
   /* the bottom area of a panel: the cards of its questions, then the composer. It takes its room
      from the rows in the panel's column — never over them — and no more than most of the panel,
      so a stack of cards scrolls inside it while the composer stays in sight */
-  .bottom { flex: 0 0 auto; max-height: 75%; display: flex; flex-direction: column; gap: 4px; }
-  /* no cards, no room: an empty stack would add the gap under the last row a second time; a card
-     keeps no margin of its own, so it stands as far from the last row, the next card and the
+  .bottom { flex: 0 0 auto; max-height: 75%; display: flex; flex-direction: column; gap: var(--gap); }
+  /* no cards, no room: an empty stack would add the gap under the rows a second time; a card
+     keeps no margin of its own, so it stands as far from the rows, the next card and the
      composer as one row from the next */
   .cards { flex: 0 1 auto; min-height: 0; overflow-y: auto; }
   .cards:empty { display: none; }
   .cards .msg { margin: 0; }
-  .cards .msg + .msg { margin-top: 4px; }
+  .cards .msg + .msg { margin-top: var(--gap); }
   /* a question is a card in the bottom area, right above the composer: the heading, the raw words of the request, the reason, then the decisions */
   .msg.perm .bubble { background: var(--panel-2); border-color: var(--warn); border-width: 2px; }
   .msg.perm .desc { font-size: .92rem; margin: 2px 0 4px; overflow-wrap: anywhere; }
