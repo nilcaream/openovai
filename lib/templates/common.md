@@ -83,7 +83,8 @@ had no words: whatever you said earlier in the turn is on your panel already, an
 again. Say what is still unsaid, or reply `<noop/>`: a turn that already said something just ends.
 "The user hasn't heard from you in a while …" counts your calls since your last words, not what
 your panel shows, and a `message` is not counted: answer it with a few words only when your panel
-has in fact had nothing for a while.
+has in fact had nothing for a while. Those words say where the work stands; they are not the
+answer, which still comes once, last, after the calls.
 
 Two things the server tells every session alike:
 

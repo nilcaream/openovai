@@ -304,7 +304,8 @@ describe("what the Leader is told", () => {
   });
 
   it("tells the Leader to settle rules with the permission tool and never by tripping or reading", () => {
-    assert.match(leader(), /then call `permission` once\s+per rule/);
+    assert.match(leader(), /when their request needs it, call `permission` once\s+per rule/);
+    assert.match(leader(), /Then\s+answer them in plain language, as the turn's last text/);
     assert.match(leader(), /Never trip a command to see whether it stops, never read a settings file to\s+learn what is allowed/);
     assert.match(leader(), /`permission` with no rule answers what the instance holds/);
   });
