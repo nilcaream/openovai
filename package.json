@@ -22,6 +22,10 @@
   "engines": {
     "node": ">=24"
   },
+  "os": [
+    "linux",
+    "darwin"
+  ],
   "scripts": {
     "test": "node --test tests/*.test.mjs"
   }

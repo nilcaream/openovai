@@ -1068,6 +1068,12 @@ describe("the npm package", () => {
     assert.match(fs.readFileSync(wrapper, "utf8"), /^#!\/usr\/bin\/env node\n/);
   });
 
+  // The instance's launcher is sh and the runtime fetch accepts Linux and macOS only, so npm
+  // refuses anything else before an instance exists that could not start.
+  it("is refused by npm on any system the instance cannot run on", () => {
+    assert.deepEqual([...declared.os].sort(), ["darwin", "linux"]);
+  });
+
   it("installs an instance when run through a link, with the arguments it was given", () => {
     const done = spawnSync(unpackedPackage(), optionsToArguments(options(root, { "--source": undefined })), { encoding: "utf8" });
     assert.equal(done.status, 0, done.stderr);
