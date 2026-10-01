@@ -26,6 +26,8 @@ was updated and started again used to show the old page until it was reloaded by
 new version's buttons missing. Now, when the stream opens again on a server of another version,
 the page reloads itself once. What is typed in a composer and not yet sent is put back in its
 panel; scroll position and folded rows are not kept, and the panels start from their newest rows.
+A page that was opened from 0.22.0 has no such code, so the update into 0.23.0 still needs one
+reload by hand; from the next update on, the page does it.
 
 **A Leader reads what waits for it before it stops.** A park ended with "Not delivered: <Leader>
 stopped before reading it" when a Worker's report arrived during the Leader's last turn and the
