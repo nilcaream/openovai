@@ -6,7 +6,7 @@
 - With Node.js 24 or newer there is another way in: `npx @openovai/ovai@latest`. It asks the same questions and takes the same options, and creates the instance directly, so no `openovai` command is left behind. The release is the package, so nothing is downloaded for it; Node.js and Claude Code are fetched at the first `ovai start`. `@latest` is written out because npx reuses a copy it has cached for a name given with no version. `@openovai/ovai@<version>` names a release.
 - The directory must be empty unless `--force` is given. Installing over an existing instance updates it.
 - The `openovai` command downloads the release, checks its signature, and fetches the Node.js and Claude Code versions the release pins, into `~/.local/share/openovai`. That is about half a gigabyte, shared by every instance of the user, with no sudo.
-- Linux or macOS, x86_64 or arm64. On Windows, use WSL 2 and keep the instance off `/mnt/c`.
+- Linux or macOS, x86_64 or arm64. macOS is built for and checked with stand-ins on Linux, but ovai has not yet been run on a Mac. WSL 2 has not been tried, and native Windows is not supported. To try WSL 2, keep the instance off `/mnt/c`.
 
 ## Sign in to Claude
 Chosen at install:

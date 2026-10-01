@@ -95,9 +95,10 @@ directory. Everything the page and the command do is described at [openov.ai](ht
 - `sh`, `curl` or `wget`, `tar`, `sha256sum` or `shasum`, `uname`, `ssh-keygen` (OpenSSH 8.1 or
   later), which checks a release's signature
 
-On Windows, use WSL 2: ovai runs there as it does on Linux. Keep the instance in the Linux file
-system, such as under `~`, and not under `/mnt/c`. The Windows drives mounted there do not keep
-file modes, do not tell names apart by case, and are slow.
+macOS is built for and checked with stand-ins on Linux, but ovai has not yet been run on a Mac.
+WSL 2 has not been tried, and native Windows is not supported. To try WSL 2, keep the instance in
+the Linux file system, such as under `~`, and not under `/mnt/c`: the Windows drives mounted there
+do not keep file modes, do not tell names apart by case, and are slow.
 
 Nothing else: no Node.js, no npm, no Claude Code on the machine. Each release pins the Node.js and
 Claude Code it runs on and fetches them itself, under `~/.local/share/openovai`, shared by every

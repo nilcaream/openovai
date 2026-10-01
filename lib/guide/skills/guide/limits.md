@@ -7,7 +7,7 @@ Each limit is followed by the nearest thing ovai can do instead.
 - **Choosing a new Worker's name.** Names come from a fixed list. Ask for the task, not the person.
 - **Sessions changing Claude Code's settings files.** The Leader adds permission rules through permission popups. Everything else is done in admin mode or an editor.
 - **Changes reaching running sessions.** Settings, MCP servers, plugins, `customization/` and `knowledge/common.md` are read at a session's start. Restart: `ovai restart`, or ask the Leader.
-- **Native Windows.** Use WSL 2, with the instance off `/mnt/c`.
+- **Windows.** WSL 2 has not been tried, and native Windows is not supported. To try WSL 2, keep the instance off `/mnt/c`. macOS is built for and checked with stand-ins on Linux, but ovai has not yet been run on a Mac.
 - **Updating while the server or any session runs.** `ovai stop`, then `ovai update`.
 - **Rolling back an update to 0.20.0 or earlier from GitHub.** Those releases carry no signed package, so the updater refuses them. `ovai update --downgrade` takes an older release that is signed, 0.21.0 or later, and `--from <directory>` takes any.
 - **Pushing, sudo, ssh from a session.** A fresh instance denies them. They are rules in `.claude/settings.json`, which the person may change in an editor.

@@ -497,6 +497,7 @@ describe("what the installer made", () => {
       "Bash(diff:*)",
       "Bash(cmp:*)",
       "Bash(sha256sum:*)",
+      "Bash(shasum:*)",
       "Bash(grep:*)",
       "Bash(find:*)",
       "Bash(sed:*)",

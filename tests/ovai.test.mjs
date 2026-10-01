@@ -930,6 +930,7 @@ describe("what a workspace can account for", () => {
     "Bash(diff:*)",
     "Bash(cmp:*)",
     "Bash(sha256sum:*)",
+    "Bash(shasum:*)",
     "Bash(grep:*)",
     "Bash(find:*)",
     "Bash(sed:*)",
