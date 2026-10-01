@@ -2401,9 +2401,38 @@ describe("what a seat says", () => {
     return panel(instance, WORKER);
   }
 
-  it("shows a listed progress note as words, before the call that follows it", async () => {
+  // A note is held back while its turn runs. It is a row only when it is all the turn said, and
+  // then an ordinary one; a turn that went on to answer in text shows that text and not the note.
+  it("shows a turn that has a note and then a text as the text alone", async () => {
     const rows = await noted([{ text: NOTE }], { OPENOVAI_STAND_IN_CALLS: JSON.stringify([[READING]]), OPENOVAI_STAND_IN_REPLY: "done" });
-    assert.deepEqual(rows.map((row) => [row.from, row.text, row.line]), [[WORKER, NOTE, undefined], [WORKER, undefined, "Reading /srv/app/lib/parser.mjs"], [WORKER, "done", undefined]]);
+    assert.deepEqual(rows.map((row) => [row.from, row.text, row.line]), [[WORKER, undefined, "Reading /srv/app/lib/parser.mjs"], [WORKER, "done", undefined]]);
+  });
+
+  it("shows a note of a turn that said nothing else as one ordinary row, with no mark", async () => {
+    const rows = await noted([{ text: NOTE }], { OPENOVAI_STAND_IN_CALLS: JSON.stringify([[READING]]), OPENOVAI_STAND_IN_EMPTY: "1" });
+    assert.deepEqual(rows.map((row) => [row.from, row.text, row.line]), [[WORKER, undefined, "Reading /srv/app/lib/parser.mjs"], [WORKER, NOTE, undefined]]);
+    assert.deepEqual(Object.keys(rows[1]).sort(), ["at", "from", "text"]);
+  });
+
+  it("shows the note of a turn whose process ended before a result, as an ordinary row", async () => {
+    await endSeat(WORKER, 500);
+    remove(panelFile(instance, WORKER));
+    paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_NOTES: JSON.stringify([[{ text: NOTE }]]), OPENOVAI_STAND_IN_DIES: "1" });
+    await tell(WORKER, userFrame("go")).answered;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    assert.deepEqual(panel(instance, WORKER).filter((row) => row.text === NOTE).map((row) => Object.keys(row).sort()), [["at", "from", "text"]]);
+  });
+
+  it("puts no note on the panel while its turn runs", async () => {
+    await endSeat(WORKER, 500);
+    remove(panelFile(instance, WORKER));
+    paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_NOTES: JSON.stringify([[{ text: NOTE }]]), OPENOVAI_STAND_IN_CALLS: JSON.stringify([[READING]]), OPENOVAI_STAND_IN_CALL_HOLDS: "400", OPENOVAI_STAND_IN_EMPTY: "1" });
+    const told_ = tell(WORKER, userFrame("go")).answered;
+    await waitFor(() => panel(instance, WORKER).find((row) => row.line !== undefined) ?? null);
+    assert.deepEqual(panel(instance, WORKER).map((row) => row.text), [undefined], "the call is on the panel and the note is not");
+    await told_;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    assert.deepEqual(panel(instance, WORKER).map((row) => row.text), [undefined, NOTE]);
   });
 
   it("keeps a turn whose only words are a note, then <noop/>, as a said turn", async () => {
