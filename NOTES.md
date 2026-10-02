@@ -6,6 +6,16 @@ carries only its own.
 
 ## 0.25.0
 
+**This version pins Claude Code 2.1.300, where the last pinned 2.1.296.**
+
+**Where things stand is one row above the Leader's box.** The Leader keeps its status in
+`STATUS.md` on its desk, apart from its desk file, and calls `confirm_status` at the end of every
+turn that brought it anything. The row shows the status as it stood at that call, stamped with the
+call's time, and beside the stamp whether anything has reached the Leader since: up to date,
+checking, or how many new. A click on the time asks the Leader to check it. A message on the panel
+says what happened; the status says where things are. The row appears after the Leader's first
+confirmation, and a switch on the Leader's head hides it.
+
 **A panel shows a turn's answer, not its way there.** Words a seat writes before a call are now
 held while the turn runs, like the notes between calls. When the turn ends with words of its own,
 only those words show. When it ends with no words, what it held shows as ordinary rows. When it
@@ -19,6 +29,11 @@ reminder belongs to Claude Code's own command line. A seat's panel shows the cal
 the words it writes between calls are held anyway. A `CLAUDE_CODE_SILENT_TURN_REMINDER` set in the
 shell the server starts from stands. The Leader and Workers are no longer told how to answer
 the reminder, and they are told that a plan for the next call stays in thinking.
+
+**The platform lines say what has been tried.** macOS is built for and checked with stand-ins on
+Linux, but ovai has not yet been run on a Mac. WSL 2 has not been tried, and native Windows is not
+supported. A seat may now run `shasum`, the checksum tool a Mac has, beside `sha256sum`: a
+workspace taking this version gets a card on the Leader's panel that asks to allow it.
 
 ## 0.24.0
 
