@@ -13,8 +13,10 @@ carries only its own.
 turn that brought it anything. The row shows the status as it stood at that call, stamped with the
 call's time, and beside the stamp whether anything has reached the Leader since: up to date,
 checking, or how many new. A click on the time asks the Leader to check it. A message on the panel
-says what happened; the status says where things are. The row appears after the Leader's first
-confirmation, and a switch on the Leader's head hides it.
+says what happened; the status says where things are. The Leader keeps it to a few plain
+sentences, with no title, headings or sections, and the row is as tall as its text; a heading that
+gets in anyway shows as a plain line. The row appears after the Leader's first confirmation, and a
+switch on the Leader's head hides it.
 
 **A panel shows a turn's answer, not its way there.** Words a seat writes before a call are now
 held while the turn runs, like the notes between calls. When the turn ends with words of its own,
