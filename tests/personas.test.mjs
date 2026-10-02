@@ -522,7 +522,7 @@ describe("what a Worker is told", () => {
 // renderer puts in a frame of its own before the role's; the role templates only point at it.
 describe("what both are told in ovai's common frame", () => {
   const DEFINITION = new RegExp(
-    "A turn with nothing in it for your panel is a `<noop/>` turn: the whole reply is exactly `<noop/>`,\\nwith no words before or after it, and the panel shows nothing for it\\.",
+    "A turn with nothing in it for your panel is a `<noop/>` turn\\. Its last text is exactly `<noop/>`,\\nwith no words before or after it, and the panel shows nothing for the turn\\.",
     "g",
   );
 
@@ -536,22 +536,31 @@ describe("what both are told in ovai's common frame", () => {
     }
   });
 
-  it("tells both that a reply with words is no <noop/> turn, whatever it ends with", () => {
-    for (const [text, role] of [[leader(), "leader"], [worker(), "worker"]]) {
+  it("tells both that a text with words is no <noop/> turn, whatever it ends with", () => {
+    for (const [text, role] of [[flat(leader()), "leader"], [flat(worker()), "worker"]]) {
       const common = text.slice(0, text.indexOf("</ovai>"));
-      assert.match(common, /A reply with words in it is\s+not one, whatever it ends with: "Desk updated, waiting for Paul\." followed by `<noop\/>` shows its\s+words on the panel — send the words alone, or `<noop\/>` alone\./, role);
+      assert.ok(common.includes('A text that has words and ends in `<noop/>` is not a `<noop/>` turn: "Desk updated, waiting for Paul." followed by `<noop/>` shows its words. Write the words alone, or `<noop/>` alone.'), role);
     }
   });
 
   // A session has written its words and then made a call that does nothing, only to open a fresh
-  // reply holding `<noop/>` alone. The words were already on the panel; the call was noise.
-  it("tells both that a turn which already said something just ends, with no call made to say <noop/>", () => {
+  // reply holding `<noop/>` alone. The call was noise, and with the hold it drops the words.
+  it("tells both that a turn ends once its answer is written, with no call after it", () => {
     for (const [text, role] of [[flat(leader()), "leader"], [flat(worker()), "worker"]]) {
       const common = text.slice(0, text.indexOf("</ovai>"));
-      assert.ok(
-        common.includes("send the words alone, or `<noop/>` alone. Words once written stay on the panel: never make a call to start a fresh reply for `<noop/>`; a turn that already said something just ends."),
-        role,
-      );
+      assert.ok(common.includes("Once the answer is written, the turn ends: make no call after it."), role);
+    }
+  });
+
+  // Words written before a call are held, and a `<noop/>` drops them: a session that answered,
+  // made a call, and was then told "words once written stay on the panel" ended in `<noop/>` and
+  // lost its answer. Nothing in the frame may say that words before a call are on the panel.
+  it("tells both that a <noop/> leaves held text unshown, and never that words once written stay on the panel", () => {
+    for (const [text, role] of [[flat(leader()), "leader"], [flat(worker()), "worker"]]) {
+      const common = text.slice(0, text.indexOf("</ovai>"));
+      assert.ok(common.includes("If the turn's last text is `<noop/>`, held text is never shown."), role);
+      assert.ok(!common.includes("Words once written stay on the panel"), role);
+      assert.ok(!common.includes("a turn that already said something just ends"), role);
     }
   });
 
@@ -561,7 +570,7 @@ describe("what both are told in ovai's common frame", () => {
     for (const [text, role] of [[flat(leader()), "leader"], [flat(worker()), "worker"]]) {
       const common = text.slice(0, text.indexOf("</ovai>"));
       assert.ok(
-        common.includes(`Your thinking and your desk reach nobody: an answer is said only when it is written as words in your reply. A turn that answers ${USER} is never a \`<noop/>\` turn, and "above" points only at words you wrote as text. An answer to ${USER} is written once, as the turn's last text, after its calls — never before them, and never only in thinking.`),
+        common.includes(`Your thinking and your desk reach nobody. An answer is said only when you write it as text. A turn that answers ${USER} is never a \`<noop/>\` turn. "Above" points only at words you wrote as text. Write an answer to ${USER} once, as the turn's last text, after all of the turn's calls. Never write it before a call, and never only in thinking.`),
         role,
       );
     }
@@ -576,11 +585,11 @@ describe("what both are told in ovai's common frame", () => {
       const common = text.slice(0, text.indexOf("</ovai>"));
       assert.ok(common.includes("A plan for your next call stays in thinking and is never written as text."), role);
       assert.ok(
-        common.includes("Words you write before a call are held back: the panel shows them at the turn's end only when the turn ends without words of its own, and a turn that ends in `<noop/>` shows none of them."),
+        common.includes("Text you write before a call is held back while the turn runs. At the end of the turn, held text is shown only if nothing else the turn wrote was shown."),
         role,
       );
       assert.ok(
-        common.includes('"[Your previous response had no visible output …]" means only that the last response of the turn had no words. Answer it with the turn\'s last words — the answer again, if it went out before a call — or with `<noop/>` when nothing in the turn is for the panel.'),
+        common.includes('Claude Code, which runs you, sometimes adds this line to a turn: "[Your previous response had no visible output …]". It means only that your last response had no text. It does not know what your panel shows. Answer it with your answer as the turn\'s last text, written again if you wrote it before a call. If nothing in the turn is for the panel, answer it with `<noop/>`.'),
         role,
       );
       assert.ok(!common.includes("hasn't heard from you"), role);
@@ -597,8 +606,8 @@ describe("what both are told in ovai's common frame", () => {
       "The `message` tool is how you reach anybody else here, and the `room` tool says who that is",
       "What you say in a turn lands on your own panel and nowhere else",
       "A turn with nothing in it for your panel is a `<noop/>` turn",
-      "Claude Code, which runs you, adds a line of its own to a turn",
-      "Words you write before a call are held back",
+      "Claude Code, which runs you, sometimes adds this line to a turn",
+      "Text you write before a call is held back while the turn runs",
       '`<server-event type="restarted">` — you are the session after a restart on this desk',
       '`<server-event type="undelivered" to="…">` — a message you sent was never read',
       "When you reach for a tool this workspace has not settled",
