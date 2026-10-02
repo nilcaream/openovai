@@ -100,10 +100,8 @@
   /* the pill that says rows arrived below where the reader is, on the Leader's panel */
   .jump { position: sticky; left: 50%; transform: translateX(-50%); bottom: 24px; background: var(--panel); border: 1px solid var(--line); color: var(--fg); border-radius: 999px; padding: 6px 14px; font-size: .85rem; cursor: pointer; display: none; }
   .jump.show { display: block; }
-  /* the rows take the focus on a click, so the keys scroll them; no ring for it, the head's border says what the keys do.
-     They take the room the status and the bottom area leave, from nothing, so however long they
-     are they never squeeze the status under its third */
-  .rows { flex: 1 1 0; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 0; outline: none; }
+  /* the rows take the focus on a click, so the keys scroll them; no ring for it, the head's border says what the keys do */
+  .rows { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 0; outline: none; }
   /* a tool call is a light line: one per call, no label, no stamp */
   .rows .line { display: block; width: 100%; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); font-family: var(--mono); font-size: .76rem; color: var(--fg-dim); padding: 3px 8px; margin: 3px 0; overflow-wrap: anywhere; }
   /* the first row and the last (the one before the jump pill, which is always there) leave their
@@ -178,21 +176,22 @@
   /* markdown inside a reply is drawn by /md.css, shared with the file view */
   .bubble a { color: var(--accent); }
   .bubble .open-failed { margin-left: 6px; font-size: .85em; color: var(--fg-dim); }
-  /* the Leader's status, between its rows and the bottom area: below the pill that says what the
-     Leader is at, above the cards and the composer, so it stays in sight whatever the rows have
-     scrolled to. Drawn as a message row on a ground of its own, as tall as its text: the rows take
-     what it leaves. Only a status taller than the panel with its box gives way and scrolls
-     inside, so the box stays on the panel. Gone until the first confirmation and while its
-     switch is off */
+  /* the Leader's status, first in the bottom area: below the pill that says what the Leader is
+     at, above the cards and the composer, so it stays in sight whatever the rows have scrolled
+     to. Drawn as a message row on a ground of its own, as tall as its text: the rows give it
+     their room. Only when the bottom area reaches its cap do the status and the cards give way
+     and scroll inside, so the box stays on the panel. Gone until the first confirmation and
+     while its switch is off */
   .standing { flex: 0 1 auto; min-height: 0; overflow-y: auto; }
   .standing:empty, .standing.off { display: none; }
   .standing .msg { margin: 0; }
   .msg.status .bubble { background: var(--status); border-color: var(--status-line); }
   .meta .st.muted { color: var(--fg-faint); }
   .meta .st.warn { color: var(--warn); }
-  /* the bottom area of a panel: the cards of its questions, then the composer. It takes its room
-     from the rows in the panel's column — never over them — and no more than most of the panel,
-     so a stack of cards scrolls inside it while the composer stays in sight */
+  /* the bottom area of a panel: the Leader's status, the cards of its questions, then the
+     composer. It takes its room from the rows in the panel's column — never over them — and no
+     more than most of the panel, so a long status or a stack of cards scrolls inside it while the
+     composer stays in sight */
   .bottom { flex: 0 0 auto; max-height: 75%; display: flex; flex-direction: column; gap: var(--gap); }
   /* no cards, no room: an empty stack would add the gap under the rows a second time; a card
      keeps no margin of its own, so it stands as far from the rows, the next card and the
@@ -769,15 +768,16 @@
       }).catch(() => {});
     });
 
-    // The bottom area, under the rows: the cards of the panel's questions, then the composer. It
-    // takes its room from the rows in the panel's column, so a card or a taller box never covers
-    // a row — the rows get shorter, and the timer keeps a following panel at its newest.
+    // The bottom area, under the rows: the Leader's status, the cards of the panel's questions,
+    // then the composer. It takes its room from the rows in the panel's column, so the status, a
+    // card or a taller box never covers a row — the rows get shorter, and the timer keeps a
+    // following panel at its newest.
     const bottom = document.createElement("div");
     bottom.className = "bottom";
     const cards = document.createElement("div");
     cards.className = "cards";
-    bottom.append(cards, composer);
-    section.append(...(standing === null ? [headLine, rows, bottom] : [headLine, rows, standing, bottom]));
+    bottom.append(...(standing === null ? [cards, composer] : [standing, cards, composer]));
+    section.append(headLine, rows, bottom);
     // `last` is the tool line appended last, for a repeated call to count itself into; `lines` is
     // the element of every tool line by the index of its row, for a failed call to find its line;
     // `waiting` the element of every row of the User's not yet delivered, by its index, for the

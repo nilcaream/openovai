@@ -170,10 +170,10 @@ describe("the rules", () => {
     assert.doesNotMatch(script, /stoppable/, "the composer is marked while the glyph is there: a rule under that mark would size the box");
   });
 
-  // The bottom area — the cards of the panel's questions, then the composer — is in the panel's
-  // column under the rows, never over them: the rows give it its room and shrink. It takes no
-  // more than most of the panel, and the cards scroll inside it, so a stack of cards leaves the
-  // rows and the composer in sight.
+  // The bottom area — the Leader's status, the cards of the panel's questions, then the composer —
+  // is in the panel's column under the rows, never over them: the rows give it its room and
+  // shrink. It takes no more than most of the panel, and the status and the cards scroll inside
+  // it past that, so they leave the rows and the composer in sight.
   it("keep the bottom area in the panel's column under the rows, taking its room from them", () => {
     const bottom = rules.find((rule) => rule.selector === ".bottom").declarations;
     assert.equal(bottom.position, undefined, "a position of its own takes the bottom area out of the column and over the rows");
@@ -185,10 +185,10 @@ describe("the rules", () => {
     assert.equal(cards["overflow-y"], "auto");
     assert.equal(cards["min-height"], "0");
     const rows = rules.find((rule) => rule.selector === ".rows").declarations;
-    assert.equal(rows.flex, "1 1 0");
+    assert.equal(rows.flex, "1 1 auto", "rows sized by what they hold: a narrow page's one column sizes each panel from its content");
     assert.equal(rows["min-height"], "0", "rows that cannot shrink push the bottom area out of the panel");
     assert.equal(rules.find((rule) => rule.selector === ".composer").declarations.flex, "0 0 auto");
-    assert.match(script, /bottom\.append\(cards, composer\);\s*section\.append\(\.\.\.\(standing === null \? \[headLine, rows, bottom\] : \[headLine, rows, standing, bottom\]\)\);/, "the bottom area is the panel's last child, the cards then the composer in it; the Leader's status right above it");
+    assert.match(script, /bottom\.append\(\.\.\.\(standing === null \? \[cards, composer\] : \[standing, cards, composer\]\)\);\s*section\.append\(headLine, rows, bottom\);/, "the bottom area is the panel's last child: the Leader's status, the cards, then the composer in it");
   });
 
   // The space below the head and the space above the composer are the space between two rows,
@@ -766,8 +766,8 @@ describe("the script", () => {
     assert.match(drawn, /if \(status === null\) \{\s*panel\.standing\.replaceChildren\(\);/, "nothing before the first confirmation");
     const standing = rules.find((rule) => rule.selector === ".standing").declarations;
     assert.equal(standing["max-height"], undefined, "as tall as its text: no cap, so nothing in it waits below a scroll");
-    assert.deepEqual([standing.flex, standing["min-height"], standing["overflow-y"]], ["0 1 auto", "0", "auto"], "it gives way, scrolling inside, only when the panel cannot hold it and the box");
-    assert.equal(rules.find((rule) => rule.selector === ".rows").declarations.flex, "1 1 0", "the rows take the room the status leaves, so long rows never squeeze it");
+    assert.deepEqual([standing.flex, standing["min-height"], standing["overflow-y"]], ["0 1 auto", "0", "auto"], "it gives way, scrolling inside, only when the bottom area it is in reaches its cap");
+    assert.match(script, /\[standing, cards, composer\]/, "in the bottom area, which never shrinks, so long rows never squeeze it");
     assert.match(drawn, /for \(const heading of body\.querySelectorAll\("h1, h2, h3, h4, h5, h6"\)\) \{\s*const plain = document\.createElement\("p"\);\s*plain\.append\(\.\.\.heading\.childNodes\);\s*heading\.replaceWith\(plain\);\s*\}/, "a heading in the status is a paragraph, at body size");
     assert.equal(rules.find((rule) => rule.selector === ".msg.status .bubble").declarations.background, "var(--status)", "a ground of its own");
   });
