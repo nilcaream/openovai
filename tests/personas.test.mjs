@@ -231,13 +231,19 @@ describe("what the Leader is told", () => {
 
   // Where things stand is the Leader's status, STATUS.md, which the User sees on the panel as it
   // stood at the last confirmation: kept apart from the desk, confirmed at the end of every turn
-  // that brought anything, read first by a successor. A message says what happened; a list
+  // that brought anything, read first by a successor. It is one bulleted list in a steady order,
+  // so a change moves one bullet and the User rereads only that one; what waits for the User is
+  // a bullet of its own, and a ticket is a link. A message says what happened; a list
   // pointed back to is a list the User cannot find, and a quote in inline code runs off the side
   // instead of wrapping.
   it("tells the Leader that where things stand is its status, confirmed at the end of every turn that brought anything", () => {
     assert.match(leader(), new RegExp(`Where things stand lives in your status, \`desks/${LEAD}/STATUS\\.md\`: beside your desk and apart\\s+from it, since your desk is yours and the status is ${USER}'s\\.`));
-    assert.match(leader(), /so keep it short: plain sentences that run the width\s+of the panel rather than a list, saying what is open and who is on it, and a line of its own for\s+what waits for \S+, only when something does\./);
-    assert.match(leader(), /No title, since the row already says Status;\s+no headings, no bold, code formatting only for a name or a path\. With nothing open, one sentence\s+says so\./);
+    assert.match(leader(), /so keep it short: one bulleted list, one topic and\s+one ask per bullet, each a sentence or two that run the width of the panel, saying where that\s+topic stands and who is on it\./);
+    assert.match(leader(), /Keep the bullets in the same order from one confirmation to the\s+next and change only the one that moved, so the rest stays where \S+ last read it: a new\s+topic goes last, a finished one goes\./);
+    assert.match(leader(), /starts with a bold\s+\*\*Waiting for you:\*\*, and bold is for that alone; three things that wait are three such bullets,\s+never one bullet that lists them\./);
+    assert.match(leader(), /Anything with an address, a ticket or a page, is a link with a\s+short label, such as \[BUG-123\]\(https:\/\/…\), never a bare address\./);
+    assert.match(leader(), /No title, headings, tables, code\s+blocks or nested lists; code formatting only for a name or a path\. With nothing open, one bullet\s+says so\./);
+    assert.doesNotMatch(leader(), /plain sentences|no bold/, "the status is a list, not prose");
     assert.doesNotMatch(leader(), /open list|five items|finished most recently/, "no sections asked of the status");
     assert.match(leader(), /So at the end of every turn that\s+brought you anything — a line from \S+, a\s+Worker's message, a server event — edit STATUS\.md\s+with the file tools when it is out of date, then\s+call `confirm_status` as your last call; when it\s+still holds, the call alone\./);
     assert.match(leader(), /A session that starts\s+on this desk reads STATUS\.md first\./);
