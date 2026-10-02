@@ -8,17 +8,19 @@ carries only its own.
 
 **This version pins Claude Code 2.1.300, where the last pinned 2.1.296.**
 
-**Where things stand is one row above the Leader's box.** The Leader keeps its status in
+**What waits for the User is one row above the Leader's box.** The Leader keeps its status in
 `STATUS.md` on its desk, apart from its desk file, and calls `confirm_status` at the end of every
 turn that brought it anything. The row shows the status as it stood at that call, stamped with the
 call's time, and beside the stamp whether anything has reached the Leader since: up to date,
-checking, or how many new. A click on the time asks the Leader to check it. A message on the panel
-says what happened; the status says where things are. The Leader keeps it to one short bulleted
-list, one topic or ask per bullet, in the same order from one confirmation to the next, so only the
-bullet that moved changes. A bullet that waits for the User starts with a bold "Waiting for you:",
-and a ticket or a page is a link with a short label. There is no title, headings or sections, and
-the row is as tall as its text; a heading that gets in anyway shows as a plain line. The row
-appears after the Leader's first confirmation, and a switch on the Leader's head hides it.
+checking, or how many new. A click on the time asks the Leader to check it. The status holds two
+kinds of bullet and nothing else: what only the User can do, starting with a bold "Waiting for
+you:", and the loose ends, started and stopped or found and not closed, that nobody is on. Work
+that is moving or finished, progress and housekeeping stay out of it: a message on the panel says
+what happened. A bullet goes the moment it no longer waits or is no longer loose. The Leader keeps
+it to one short bulleted list, the waits first, in the same order from one confirmation to the
+next, and a ticket or a page is a link with a short label. There is no title, headings or
+sections, and the row is as tall as its text; a heading that gets in anyway shows as a plain line.
+The row appears after the Leader's first confirmation, and a switch on the Leader's head hides it.
 
 **A panel shows a turn's answer, not its way there.** Words a seat writes before a call are now
 held while the turn runs, like the notes between calls. When the turn ends with words of its own,
