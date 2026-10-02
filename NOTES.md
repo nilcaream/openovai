@@ -39,6 +39,13 @@ Linux, but ovai has not yet been run on a Mac. WSL 2 has not been tried, and nat
 supported. A seat may now run `shasum`, the checksum tool a Mac has, beside `sha256sum`: a
 workspace taking this version gets a card on the Leader's panel that asks to allow it.
 
+**The User's rows are teal, like the accent.** The User's rows, what the User types to a Worker on
+the Leader's panel, and a card's Allow button were a bright green, so the light theme read green
+beside the teal accent. They now take the accent's teal in both themes, pale in light and deep in
+dark. The Leader's status row stands on a reply's ground instead of a colour of its own: the pill
+above it and its fixed place already set it apart. Inline code sits on a fainter grey in the light
+theme and a slightly stronger one in the dark.
+
 ## 0.24.0
 
 **This version pins Claude Code 2.1.296, where the last pinned 2.1.293.**
