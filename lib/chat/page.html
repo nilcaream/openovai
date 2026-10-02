@@ -487,10 +487,16 @@
   async function openInBrowser(link) {
     const answered = await call(link.dataset.opens, { method: "POST" }).catch(() => null);
     if (answered?.ok) return;
+    await failedBeside(link, answered, "Not opened");
+  }
+
+  // A call the server did not do, said beside what was clicked for a few seconds: the server's
+  // reason, or that it did not answer.
+  async function failedBeside(element, answered, not) {
     const said = document.createElement("span");
     said.className = "open-failed";
-    said.textContent = answered === null ? "The server did not answer." : ((await answered.json().catch(() => ({}))).error ?? `Not opened (${answered.status}).`);
-    link.after(said);
+    said.textContent = answered === null ? "The server did not answer." : ((await answered.json().catch(() => ({}))).error ?? `${not} (${answered.status}).`);
+    element.after(said);
     setTimeout(() => said.remove(), OPEN_FAILED_FOR);
   }
 
@@ -1100,8 +1106,9 @@
       time.dataset.whole = when.whole;
       time.dataset.clock = when.clock;
       time.title = STATUS_TITLE(state.leader);
-      time.addEventListener("click", () => {
-        call("/status/check", { method: "POST" }).catch(() => {});
+      time.addEventListener("click", async () => {
+        const answered = await call("/status/check", { method: "POST" }).catch(() => null);
+        if (!answered?.ok) await failedBeside(time, answered, "Not asked");
       });
       const st = document.createElement("span");
       st.className = "st";

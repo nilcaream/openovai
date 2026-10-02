@@ -2437,5 +2437,38 @@
         "to": ""
       }
     ]
+  },
+  {
+    "name": "a second click asks the Leader a second check while the first waits",
+    "catches": "asks one check for two clicks while the first waits to reach the Leader",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "  if (status.statusOf(instance.root, leader)?.checking === true) {\n    sendJson(response, 200, { asked: true });\n    return;\n  }\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a check that cannot be sent is answered 503, which the page reads as the instance stopping",
+    "catches": "refuses a check it cannot send to the Leader with 409 and the reason, and waits on nothing",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "    sendJson(response, 409, { error: sent.refused });",
+        "to": "    sendJson(response, 503, { error: sent.refused });"
+      }
+    ]
+  },
+  {
+    "name": "the status check names the User by role, not by the name the instance has for them",
+    "catches": "sends the Leader a status check from the stamp's click, checking until it reaches it, counted once it has",
+    "edits": [
+      {
+        "file": "lib/chat/status.mjs",
+        "from": "  `${user} asks you to check your status:",
+        "to": "  `The User asks you to check your status:"
+      }
+    ]
   }
 ]

@@ -3269,8 +3269,38 @@ describe("the Leader's status", () => {
     assert.equal(asked.status, 200, asked.body);
     assert.deepEqual([statusOf(instance, LEADER).checking, kept().since], [true, 1], "queued behind the turn: checking, and not counted yet");
     const frames = await told(martin.log, heard + 2);
-    assert.match(frames.at(-1), new RegExp(`<server-event type="status-check">The User asks you to check your status: edit desks/${LEADER}/STATUS\\.md if it is out of date, call confirm_status, and reply <noop/>\\.</server-event>`));
+    assert.match(frames.at(-1), new RegExp(`<server-event type="status-check">${USER} asks you to check your status: edit desks/${LEADER}/STATUS\\.md if it is out of date, call confirm_status, and reply <noop/>\\.</server-event>`));
     assert.deepEqual([statusOf(instance, LEADER).checking, kept().since], [false, 2], "written: the count says the rest");
+  });
+
+  it("asks one check for two clicks while the first waits to reach the Leader", async () => {
+    await waitFor(() => (recordOf(LEADER).turn === null ? true : null));
+    const heard = heardIn(martin.log).length;
+    tell(LEADER, messageFrame(WORKER, "busy again"));
+    await told(martin.log, heard + 1);
+    assert.equal((await page("POST", "/status/check")).status, 200);
+    assert.equal((await page("POST", "/status/check")).status, 200);
+    await told(martin.log, heard + 2);
+    await waitFor(() => (recordOf(LEADER).turn === null ? true : null));
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    assert.equal(heardIn(martin.log).slice(heard).filter((frame) => frame.includes('<server-event type="status-check">')).length, 1, heardIn(martin.log).slice(heard).join("\n"));
+  });
+
+  // A 503 tells the page the instance is stopping, so a check that cannot be sent is a 409 with
+  // the reason, which the page says beside the stamp.
+  it("refuses a check it cannot send to the Leader with 409 and the reason, and waits on nothing", async () => {
+    await endSeat(LEADER, 500);
+    const before_ = process.env.XDG_DATA_HOME;
+    process.env.XDG_DATA_HOME = nowhere;
+    let answered;
+    try {
+      answered = await page("POST", "/status/check");
+    } finally {
+      process.env.XDG_DATA_HOME = before_;
+    }
+    assert.equal(answered.status, 409, answered.body);
+    assert.match(JSON.parse(answered.body).error, /^Claude Code \d+\.\d+\.\d+ is not at .*: run .*\/bin\/ovai start, which fetches it/);
+    assert.equal(statusOf(instance, LEADER).checking, false);
   });
 });
 
