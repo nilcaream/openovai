@@ -2481,5 +2481,27 @@
         "to": "reply.text.includes(SIGN_IN_EXPIRED)"
       }
     ]
+  },
+  {
+    "name": "the sign-in's end is said again for the same sign-in",
+    "catches": "says when the sign-in expires and what to run, once, inside the days before it",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "  if (read(instance.root, leader).some((row) => row.from === SERVER && row.text === text)) {\n    return false;\n  }\n  append(instance.root, leader, { from: SERVER, text, failed: true });",
+        "to": "  append(instance.root, leader, { from: SERVER, text, failed: true });"
+      }
+    ]
+  },
+  {
+    "name": "the sign-in's end is taken in whatever kind the file holds",
+    "catches": "says nothing, and throws nothing, for a time it cannot read, a sign-in it does not keep, or one already over",
+    "edits": [
+      {
+        "file": "lib/chat/usage.mjs",
+        "from": "    return Number.isSafeInteger(at) && at > 0 ? at : null;",
+        "to": "    return at ?? null;"
+      }
+    ]
   }
 ]

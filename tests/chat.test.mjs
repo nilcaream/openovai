@@ -22,7 +22,8 @@ import { localAt, refTo } from "../lib/chat/refs.mjs";
 import { listening } from "../lib/chat/runtime.mjs";
 import { COOKIE_AGE, LINK_FILE, LINK_LIFETIME, sessionKey, writeLink } from "../lib/chat/signin.mjs";
 import { hire } from "../lib/desks.mjs";
-import { INTRODUCED_FILE, SIGN_IN_ROW, endSeat, introduce, serve, shownRoot, startSeat, toolsFor } from "../lib/chat/server.mjs";
+import { INTRODUCED_FILE, SIGN_IN_ROW, SIGN_IN_WARN, endSeat, introduce, serve, shownRoot, startSeat, toolsFor, warnSignIn } from "../lib/chat/server.mjs";
+import { wallClock } from "../lib/chat/log.mjs";
 import { INTRODUCTION_TEMPLATE } from "../lib/desks.mjs";
 import { close } from "../lib/chat/lifecycle.mjs";
 import { sink } from "../lib/chat/log.mjs";
@@ -3080,6 +3081,50 @@ describe("the introduction on the Leader's panel", () => {
     assert.equal(introduce(instance), true);
     assert.equal(introductions().length, 2);
     assert.equal(fs.readFileSync(path.join(home, INTRODUCED_FILE), "utf8"), "0.22.0\n");
+  });
+});
+
+// The sign-in's end, said on the Leader's panel some days ahead, from the time Claude Code keeps
+// in the instance's credential file; anything that cannot be read as that time says nothing.
+describe("the sign-in's end on the Leader's panel", () => {
+  const home = scratch("sign-in-end");
+  const instance = { root: home, config: { leader: "Martin", auth: "login" } };
+  const credentials = path.join(home, ".local", ".credentials.json");
+  const now = Date.parse("2026-10-19T08:00:00Z");
+  const warnings = () => read(home, "Martin").filter((one) => one.from === SERVER);
+  const kept = (oauth) => {
+    fs.mkdirSync(path.dirname(credentials), { recursive: true });
+    fs.writeFileSync(credentials, typeof oauth === "string" ? oauth : JSON.stringify({ claudeAiOauth: { accessToken: "FAKE", ...oauth } }));
+  };
+
+  afterEach(() => {
+    remove(home);
+  });
+
+  it("says when the sign-in expires and what to run, once, inside the days before it", () => {
+    const expires = now + 2 * 86_400_000;
+    kept({ refreshTokenExpiresAt: now + SIGN_IN_WARN + 60_000 });
+    assert.equal(warnSignIn(instance, now), false, "warned before the window");
+    kept({ refreshTokenExpiresAt: expires });
+    assert.equal(warnSignIn(instance, now), true);
+    assert.equal(warnSignIn(instance, now + 86_400_000), false, "warned twice for one sign-in");
+    assert.deepEqual(
+      warnings().map((row) => [row.text, row.failed]),
+      [[`The sign-in expires ${wallClock(new Date(expires)).slice(0, -3)}. Run ovai login in a terminal before then.`, true]],
+    );
+  });
+
+  it("says nothing, and throws nothing, for a time it cannot read, a sign-in it does not keep, or one already over", () => {
+    const soon = now + 86_400_000;
+    for (const oauth of [{}, { refreshTokenExpiresAt: new Date(soon).toISOString() }, { refreshTokenExpiresAt: soon / 1000 + 0.5 }, { refreshTokenExpiresAt: null }, { refreshTokenExpiresAt: now - 1 }, "not json", "null"]) {
+      kept(oauth);
+      assert.equal(warnSignIn(instance, now), false, JSON.stringify(oauth));
+    }
+    remove(path.join(home, ".local"));
+    assert.equal(warnSignIn(instance, now), false, "no file");
+    kept({ refreshTokenExpiresAt: soon });
+    assert.equal(warnSignIn({ ...instance, config: { ...instance.config, auth: "inherit" } }, now), false, "an instance on the machine's token");
+    assert.deepEqual(warnings(), []);
   });
 });
 
