@@ -220,7 +220,7 @@ describe("what the Leader is told", () => {
   it("tells the Leader that what it says lands on its own panel, and a Worker is reached through message", () => {
     assert.match(leader(), /What you say in a turn lands on your own panel and nowhere else\. Nothing you say there reaches\s+another session: whatever is for one goes through `message`\./);
     assert.match(leader(), new RegExp(`a line you address to a Worker at the end of\\s+its message's turn lands there, in front of ${USER}, and the Worker never sees it`));
-    assert.match(leader(), new RegExp(`Keep what\\s+${USER} has to know on your desk until ${USER} next speaks to you`));
+    assert.match(leader(), new RegExp(`What ${USER}\\s+has to know goes in your status, below, where they see it until it no longer holds\\.`));
   });
 
   it("points the Leader to the <noop/> turn for a turn with nothing in it for the User", () => {
@@ -229,13 +229,27 @@ describe("what the Leader is told", () => {
     assert.match(leader(), new RegExp(`Nothing to acknowledge: unless ${USER}\\s+needs it, it is a \`<noop/>\` turn\\.`));
   });
 
-  // The Leader's panel fills with Workers' messages: a list pointed back to is a list the User
-  // cannot find, and a quote in inline code runs off the side instead of wrapping.
-  it("tells the Leader to give the whole open list each time, and what code formatting is for", () => {
-    assert.match(leader(), new RegExp(`When ${USER} asks where things stand, or when you ask ${USER} what to take next, give the whole open list as it is now, every item in order\\.`));
-    assert.match(leader(), /Never point back to a list you wrote earlier/);
+  // Where things stand is the Leader's status, STATUS.md, which the User sees on the panel as it
+  // stood at the last confirmation: kept apart from the desk, confirmed at the end of every turn
+  // that brought anything, read first by a successor. A message says what happened; a list
+  // pointed back to is a list the User cannot find, and a quote in inline code runs off the side
+  // instead of wrapping.
+  it("tells the Leader that where things stand is its status, confirmed at the end of every turn that brought anything", () => {
+    assert.match(leader(), new RegExp(`Where things stand lives in your status, \`desks/${LEAD}/STATUS\\.md\`: beside your desk and apart\\s+from it, since your desk is yours and the status is ${USER}'s\\.`));
+    assert.match(leader(), /the whole open list as it is now, every item in order, the one question open to\s+them, and below it at most the five items finished most recently/);
+    assert.match(leader(), /So at the end of every turn that brought you anything — a line from \S+, a\s+Worker's message, a server event — edit STATUS\.md with the file tools when it is out of date, then\s+call `confirm_status` as your last call; when it still holds, the call alone\./);
+    assert.match(leader(), /A session that starts\s+on this desk reads STATUS\.md first\./);
+    assert.match(leader(), /A message says what happened; where things stand is the status's\./);
+    assert.doesNotMatch(leader(), /stands alone/, "the last message no longer carries where things stand");
+  });
+
+  it("tells the Leader to answer a status check with a confirmation and <noop/>", () => {
+    assert.match(leader(), new RegExp(`<server-event type="status-check">\` — ${USER} clicked the stamp of your status and asks you to\\s+check it: edit STATUS\\.md if it is out of date, call \`confirm_status\` with or without an edit,\\s+and reply \`<noop/>\`\\.`));
+  });
+
+  it("tells the Leader never to point back to an earlier list, and what code formatting is for", () => {
+    assert.match(leader(), /Never point back to a list you\s+wrote earlier/);
     assert.match(leader(), /Whatever you ask them to choose from has to be in the message that asks\./);
-    assert.match(leader(), new RegExp(`The last thing you say before ${USER} next speaks is the one they read first: it stands alone — where things are now and the one question open — and nothing above it needs reading to act on it\\.`));
     assert.match(leader(), /Code formatting is for code\./);
     assert.match(leader(), /goes in a blockquote, which wraps like prose/);
   });

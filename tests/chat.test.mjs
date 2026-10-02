@@ -28,7 +28,8 @@ import { close } from "../lib/chat/lifecycle.mjs";
 import { sink } from "../lib/chat/log.mjs";
 import * as usage from "../lib/chat/usage.mjs";
 import { OPENER } from "../lib/chat/view.mjs";
-import { LEADER as LEADS, WORKER as WORKS, toolsFile } from "../lib/desks.mjs";
+import { LEADER as LEADS, WORKER as WORKS, shownStatusFile, statusFile, toolsFile } from "../lib/desks.mjs";
+import { statusOf } from "../lib/chat/status.mjs";
 import { end, endEvery, interrupt, recordOf, running, runningSeats, start, tell, keystroke as keyTyped } from "../lib/chat/session.mjs";
 import { BUILT_IN } from "../lib/plugins.mjs";
 import { CONFIG_FILE } from "../lib/seed.mjs";
@@ -2629,7 +2630,7 @@ describe("what the page is made of", () => {
     assert.deepEqual(labels, ["(double-click to see the whole message)"], "a word of the page's own other than the pill and the fold's placeholder (the dialog buttons come from dialog.mjs)");
     const pill = [...script.matchAll(/const (?:LATEST|NEW_ROWS) = "([^"]*)";/g)].map((found) => found[1]);
     assert.deepEqual(pill, ["↓ latest", "↓ new messages"], "the pill's two words, and no lifecycle word among them");
-    assert.deepEqual([...script.matchAll(/\.textContent = ([A-Z_]+);/g)].map((found) => found[1]), ["LATEST", "LATEST", "NEW_ROWS"], "the pill says only its own two words");
+    assert.deepEqual([...script.matchAll(/\.textContent = ([A-Z_]+);/g)].map((found) => found[1]), ["LATEST", "LATEST", "STATUS_WHO", "NEW_ROWS"], "the pill says only its own two words, and the Leader's status its who");
     const buttons = [...script.matchAll(/\.className = "(stop|theme)";/g)].map((found) => found[1]);
     assert.deepEqual(buttons, ["theme", "stop"], "a button of the page's own other than the theme toggle and the stop glyph");
     assert.equal(source.split("<button").length - 1, 0, "a button in the markup");
@@ -3193,5 +3194,82 @@ describe("auto mode", () => {
     assert.ok(await waitFor(() => (panel(instance, LEADER).slice(from).some((row) => row.from === LEADER && row.text === "ok") ? true : null)));
     const rows = panel(instance, LEADER).slice(from).filter((row) => row.from === SERVER);
     assert.deepEqual(rows.map((row) => row.text), ["Blocked by auto mode: Credential Exploration — Bash: cat creds.txt"]);
+  });
+});
+
+// The Leader's status: STATUS.md as it stood when the Leader last called confirm_status, the time
+// of that call, and how much has reached the Leader since — one for each child of every queue
+// written to it — kept in the chat's own file on its desk, so a server started again shows it.
+describe("the Leader's status", () => {
+  let martin;
+  const written = () => statusFile(instance, LEADER);
+  const kept = () => JSON.parse(fs.readFileSync(shownStatusFile(instance, LEADER), "utf8"));
+  const snapshotStatus = async () => JSON.parse((await page("GET", "/sessions")).body).status;
+
+  before(async () => {
+    fs.rmSync(written(), { force: true });
+    fs.rmSync(shownStatusFile(instance, LEADER), { force: true });
+    martin = await seatUp(LEADER, { OPENOVAI_STAND_IN_REPLY: "ok", OPENOVAI_STAND_IN_SLOW: "600" });
+  });
+
+  after(async () => {
+    await endEvery(500);
+  });
+
+  it("asks no check and shows nothing before the first confirmation, and refuses one with no STATUS.md", async () => {
+    assert.equal(await snapshotStatus(), null);
+    assert.equal((await page("POST", "/status/check")).status, 409);
+    const refused = await tool(martin.secret, "confirm_status");
+    assert.deepEqual([refused.refused, refused.text], [true, `there is no desks/${LEADER}/STATUS.md: write it with the file tools first`]);
+    fs.writeFileSync(written(), "  \n");
+    assert.equal((await tool(martin.secret, "confirm_status")).refused, true, "an empty one is no status");
+    assert.equal(fs.existsSync(shownStatusFile(instance, LEADER)), false);
+  });
+
+  it("is offered to the Leader only", async () => {
+    const paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_REPLY: "pong" });
+    const refused = await tool(paul.secret, "confirm_status");
+    assert.deepEqual([refused.refused, refused.text], [true, "confirm_status is not offered to you"]);
+    await endSeat(WORKER, 500);
+  });
+
+  it("shows STATUS.md as it stood at the call, stamped with it, and not an edit made after", async () => {
+    fs.writeFileSync(written(), "Waiting on **Paul**.\n");
+    const before_ = Date.now();
+    const answered = await tool(martin.secret, "confirm_status");
+    assert.equal(answered.refused, false, answered.text);
+    fs.writeFileSync(written(), "Something unconfirmed.\n");
+    const shown = await snapshotStatus();
+    assert.deepEqual([shown.text, shown.since, shown.checking], ["Waiting on **Paul**.", 0, false]);
+    assert.ok(Date.parse(shown.at) >= before_ - 1000 && Date.parse(shown.at) <= Date.now(), "stamped with the call");
+    assert.deepEqual(kept(), { at: shown.at, text: shown.text, since: 0 }, "kept in the chat's file, so a server started again shows it");
+    assert.deepEqual(statusOf(instance, LEADER), { ...kept(), checking: false }, "read back from that file, nothing else");
+  });
+
+  it("counts one for each child of every queue written to the Leader, and nothing still waiting", async () => {
+    const heard = heardIn(martin.log).length;
+    tell(LEADER, messageFrame(WORKER, "one"));
+    await told(martin.log, heard + 1);
+    assert.equal(kept().since, 1, "one queue, one child");
+    tell(LEADER, messageFrame(WORKER, "two"));
+    tell(LEADER, serverEvent("idle", { who: WORKER }, "idle"));
+    assert.equal(kept().since, 1, "the two wait behind the turn and have not reached it");
+    await told(martin.log, heard + 3);
+    assert.equal(kept().since, 3, "one queue of two children is two");
+    await tool(martin.secret, "confirm_status");
+    assert.equal(kept().since, 0);
+  });
+
+  it("sends the Leader a status check from the stamp's click, checking until it reaches it, counted once it has", async () => {
+    await waitFor(() => (recordOf(LEADER).turn === null ? true : null));
+    const heard = heardIn(martin.log).length;
+    tell(LEADER, messageFrame(WORKER, "busy"));
+    await told(martin.log, heard + 1);
+    const asked = await page("POST", "/status/check");
+    assert.equal(asked.status, 200, asked.body);
+    assert.deepEqual([statusOf(instance, LEADER).checking, kept().since], [true, 1], "queued behind the turn: checking, and not counted yet");
+    const frames = await told(martin.log, heard + 2);
+    assert.match(frames.at(-1), new RegExp(`<server-event type="status-check">The User asks you to check your status: edit desks/${LEADER}/STATUS\\.md if it is out of date, call confirm_status, and reply <noop/>\\.</server-event>`));
+    assert.deepEqual([statusOf(instance, LEADER).checking, kept().since], [false, 2], "written: the count says the rest");
   });
 });

@@ -176,6 +176,17 @@
   /* markdown inside a reply is drawn by /md.css, shared with the file view */
   .bubble a { color: var(--accent); }
   .bubble .open-failed { margin-left: 6px; font-size: .85em; color: var(--fg-dim); }
+  /* the Leader's status, between its rows and the bottom area: below the pill that says what the
+     Leader is at, above the cards and the composer, so it stays in sight whatever the rows have
+     scrolled to. Drawn as a message row on a ground of its own; no taller than about a third of
+     the panel, scrolling inside past that. Gone until the first confirmation and while its switch
+     is off */
+  .standing { flex: 0 1 auto; min-height: 0; max-height: 33%; overflow-y: auto; }
+  .standing:empty, .standing.off { display: none; }
+  .standing .msg { margin: 0; }
+  .msg.status .bubble { background: var(--status); border-color: var(--status-line); }
+  .meta .st.muted { color: var(--fg-faint); }
+  .meta .st.warn { color: var(--warn); }
   /* the bottom area of a panel: the cards of its questions, then the composer. It takes its room
      from the rows in the panel's column — never over them — and no more than most of the panel,
      so a stack of cards scrolls inside it while the composer stays in sight */
@@ -240,8 +251,8 @@
   // draws it and carries what is typed and pressed to the server.
 
   import { answerOf, dialogOf } from "./dialog.mjs";
-  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, autoLabel, autoTitle, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, loadsOlder, noticed, place, prune, quotaLine, replaced, quotaTitle, insertRef, keptFirst, pillLine, stopEnabled, title, typingBeat, windowStart, LINE_WAITING, WINDOW } from "./panels.mjs";
-  import { row as rowOf, talks, unseen } from "./render.mjs";
+  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, autoLabel, autoTitle, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, loadsOlder, noticed, place, prune, quotaLine, replaced, quotaTitle, insertRef, keptFirst, pillLine, stopEnabled, statusLabel, title, typingBeat, windowStart, LINE_WAITING, STATUS_TITLE, STATUS_WHO, WINDOW } from "./panels.mjs";
+  import { html as markdownOf, row as rowOf, talks, unseen } from "./render.mjs";
   import { refTo, references } from "./refs.mjs";
 
   // The theme: the head script above <style> applied the stored choice before the first paint;
@@ -384,6 +395,35 @@
   function hiddenTalk(row) {
     return row.matches(`.rows.comms-hidden ${TALKING}:not(.revealed)`);
   }
+  // And one after it: whether the Leader's panel shows its status above the composer. Shown until
+  // the browser's storage says hidden, as the switch before it; the stylesheet does the hiding.
+  const STANDING = '<svg class="lit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 11.5l2 2 4-4M9 17h6"/></svg>';
+  const STANDING_SLASHED = '<svg class="slashed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 11.5l2 2 4-4M9 17h6"/><path d="M1 1l22 22"/></svg>';
+  const SHOW_STATUS = { key: "openovai-status", label: "The Leader's status", on: "Showing the Leader's status — click to hide it", off: "Hiding the Leader's status — click to show it" };
+  function statusShown() {
+    try { return localStorage.getItem(SHOW_STATUS.key) !== "hidden"; } catch (error) { return true; }
+  }
+  function statusSwitch(standing) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "notify";
+    button.setAttribute("aria-label", SHOW_STATUS.label);
+    button.innerHTML = STANDING + STANDING_SLASHED;
+    const show = () => {
+      const on = statusShown();
+      button.classList.toggle("on", on);
+      button.title = on ? SHOW_STATUS.on : SHOW_STATUS.off;
+      standing.classList.toggle("off", !on);
+      // A status drawn while hidden measured nothing, so shown again its stamp is fitted afresh.
+      if (on) fitStamps(standing.querySelectorAll(".t"));
+    };
+    button.addEventListener("click", () => {
+      try { localStorage.setItem(SHOW_STATUS.key, statusShown() ? "hidden" : "shown"); } catch (error) {}
+      show();
+    });
+    show();
+    return button;
+  }
 
   const SUN ='<svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 1.7v2.6M12 19.7v2.6M4.6 4.6l1.9 1.9M17.5 17.5l1.9 1.9M1.7 12h2.6M19.7 12h2.6M4.6 19.4l1.9-1.9M17.5 6.5l1.9-1.9"/></svg>';
   const MOON = '<svg class="moon" viewBox="0 0 24 24" fill="currentColor"><path d="M20.7 14.6A8.7 8.7 0 0 1 9.4 3.3a8.9 8.9 0 1 0 11.3 11.3z"/></svg>';
@@ -516,7 +556,13 @@
 
     const rows = document.createElement("div");
     rows.className = "rows";
-    if (leads) headLine.append(commsSwitch(rows), facts.auto.leader, facts.auto.workers);
+    // On the Leader's panel, the status: between the rows and the bottom area, empty until the
+    // first confirmation (drawStanding).
+    const standing = leads ? document.createElement("div") : null;
+    if (leads) {
+      standing.className = "standing";
+      headLine.append(commsSwitch(rows), statusSwitch(standing), facts.auto.leader, facts.auto.workers);
+    }
     // Whether this panel follows its newest row: the panel's own word, decided by `following` at
     // every tick of the page's timer (keep, below), true from the start. Only a hand that moved
     // the rows away from the newest lets it go — a wheel up, an up key, a finger, the bar dragged
@@ -586,26 +632,30 @@
       measuredAt = width;
       fitStamps(rows.querySelectorAll(".t"));
       fitFolds(rows.querySelectorAll(".msg.collapsed"));
+      // The status is as wide as the rows.
+      if (standing !== null) fitStamps(standing.querySelectorAll(".t"));
     }).observe(rows);
-    // One click handler for every copy button the rows will hold: the code inside the button's
-    // block goes to the clipboard — the code element, never the button's own markup — and the
-    // button says copied for a moment.
-    rows.addEventListener("click", (event) => {
-      const copy = event.target.closest(".copy");
-      if (copy === null) return;
-      const block = copy.parentElement;
-      navigator.clipboard.writeText((block.querySelector("code") ?? block.querySelector("pre")).textContent).then(() => {
-        copy.classList.add("copied");
-        setTimeout(() => copy.classList.remove("copied"), COPIED_FOR);
-      }, () => {});
-    });
-    // One for every link to a web page: opened by the desktop rather than followed (openInBrowser).
-    rows.addEventListener("click", (event) => {
-      const page = event.target.closest("a[data-opens]");
-      if (page === null) return;
-      event.preventDefault();
-      openInBrowser(page);
-    });
+    for (const holder of standing === null ? [rows] : [rows, standing]) {
+      // One click handler for every copy button the rows and the status will hold: the code
+      // inside the button's block goes to the clipboard — the code element, never the button's
+      // own markup — and the button says copied for a moment.
+      holder.addEventListener("click", (event) => {
+        const copy = event.target.closest(".copy");
+        if (copy === null) return;
+        const block = copy.parentElement;
+        navigator.clipboard.writeText((block.querySelector("code") ?? block.querySelector("pre")).textContent).then(() => {
+          copy.classList.add("copied");
+          setTimeout(() => copy.classList.remove("copied"), COPIED_FOR);
+        }, () => {});
+      });
+      // One for every link to a web page: opened by the desktop rather than followed (openInBrowser).
+      holder.addEventListener("click", (event) => {
+        const page = event.target.closest("a[data-opens]");
+        if (page === null) return;
+        event.preventDefault();
+        openInBrowser(page);
+      });
+    }
     // On every panel, one pill that takes the reader to the newest row in a click: shown whenever
     // the reader is more than 80px above it, saying LATEST, and on the Leader's panel NEW_ROWS once
     // a row lands below them; gone once they are near the newest again or click it. A scroll never
@@ -724,17 +774,19 @@
     const cards = document.createElement("div");
     cards.className = "cards";
     bottom.append(cards, composer);
-    section.append(headLine, rows, bottom);
+    section.append(...(standing === null ? [headLine, rows, bottom] : [headLine, rows, standing, bottom]));
     // `last` is the tool line appended last, for a repeated call to count itself into; `lines` is
     // the element of every tool line by the index of its row, for a failed call to find its line;
     // `waiting` the element of every row of the User's not yet delivered, by its index, for the
     // delivery to find its row; `drawn` the card of every question on the panel, by the id of its
     // request; `doing` the pill that says what the Leader is at, null on a Worker's panel;
+    // `standing` where the Leader's status is drawn, null on a Worker's panel, and `stood` the
+    // confirmation drawn there, so a draw that changes only the label redraws only the label;
     // `bubbles` the element of every stamped row by its index, for a reference in a User's row to
     // find the row it names. `from` is the index of the oldest row drawn (`shown` is the end of
     // them), `quiet` whether the comms switch hid the messages when the window was last settled,
     // and `crowded` whether rows came or went since, so the window may hold more than it should.
-    return { name, leads, section, nameLine, info, word, fitPlaceholder, facts, composer, stop, rows, cards, jump, doing, box, view, keep, shown: 0, from: 0, quiet: false, crowded: false, drawn: new Map(), loading: false, last: null, lines: new Map(), bubbles: new Map(), waiting: new Map() };
+    return { name, leads, section, nameLine, info, word, fitPlaceholder, facts, composer, stop, rows, cards, jump, doing, standing, stood: null, box, view, keep, shown: 0, from: 0, quiet: false, crowded: false, drawn: new Map(), loading: false, last: null, lines: new Map(), bubbles: new Map(), waiting: new Map() };
   }
 
   // When a row was written, in the reader's own zone: `2026.09.13 Sunday 23:17:05` on the row, and
@@ -1013,6 +1065,67 @@
     button.setAttribute("aria-label", "Copy");
     button.innerHTML = CLIPBOARD;
     return button;
+  }
+
+  // The Leader's status, drawn as a message row is: who, the stamp of the last confirmation on the
+  // right, the label left of it, the markdown under them on a ground of its own. The row is built
+  // again only when the confirmation changes, so its scroll stays where the reader has it; the
+  // label is set at every draw. Its stamp is no reference: a click asks the Leader for a check.
+  function drawStanding(panel) {
+    const status = state.status;
+    if (status === null) {
+      panel.standing.replaceChildren();
+      panel.stood = null;
+      return;
+    }
+    if (panel.stood === null || panel.stood.at !== status.at || panel.stood.text !== status.text) {
+      const line = document.createElement("div");
+      line.className = "msg status";
+      const bubble = document.createElement("div");
+      bubble.className = "bubble";
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      const who = document.createElement("div");
+      who.className = "who";
+      const label = document.createElement("span");
+      label.className = "lbl";
+      label.textContent = STATUS_WHO;
+      who.append(label);
+      const time = document.createElement("span");
+      time.className = "t";
+      const when = stamp(status.at);
+      time.dataset.whole = when.whole;
+      time.dataset.clock = when.clock;
+      time.title = STATUS_TITLE(state.leader);
+      time.addEventListener("click", () => {
+        call("/status/check", { method: "POST" }).catch(() => {});
+      });
+      const st = document.createElement("span");
+      st.className = "st";
+      meta.append(who, time, st);
+      const body = document.createElement("div");
+      body.className = "md";
+      body.innerHTML = markdownOf(status.text, status.viewable);
+      for (const pre of body.querySelectorAll("pre")) {
+        const block = document.createElement("div");
+        block.className = "code";
+        pre.replaceWith(block);
+        block.append(pre, copyButton());
+      }
+      bubble.append(meta, body);
+      line.append(bubble);
+      panel.standing.replaceChildren(line);
+      panel.stood = { at: status.at, text: status.text };
+    }
+    const said = statusLabel(state);
+    const st = panel.standing.querySelector(".st");
+    st.dataset.whole = said.text;
+    if (said.glyph === undefined) delete st.dataset.glyph;
+    else st.dataset.glyph = said.glyph;
+    st.textContent = said.text;
+    st.classList.toggle("muted", said.tone === "muted");
+    st.classList.toggle("warn", said.tone === "warn");
+    fitStamps([panel.standing.querySelector(".t")]);
   }
 
   // The delivered glyph beside the stamp: the whole word on it, and the glyph alone for the fit.
@@ -1328,6 +1441,7 @@
         button.title = autoTitle(who, state.auto[who]);
       }
     }
+    if (panel.standing !== null) drawStanding(panel);
 
     if (about.rows === null) {
       load(panel);
@@ -1452,7 +1566,7 @@
   // One stream from the server: what to draw first, then everything as it happens. The page
   // connects again itself when the stream drops, with the counts it has, so nothing arrives
   // twice and nothing is missed. The browser carries the session cookie on it, as on every call.
-  const EVENTS = ["snapshot", "rows", "row", "asking", "seat", "quota", "auto", "stopping"];
+  const EVENTS = ["snapshot", "rows", "row", "asking", "seat", "quota", "auto", "status", "stopping"];
   let stream = null;
 
   // The stream opened again on a server of another version — an update, then a start — and this

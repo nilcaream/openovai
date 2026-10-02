@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { AMBER, CARD, CONNECTED, autoLabel, autoTitle, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, GREY, LATE_AFTER, RED, REPLY, SENDING, SHOWN_FOR, LINE_DISCONNECTED, LINE_LEFT, LINE_WAITING, LINE_WORKING, WINDOW, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, loadsOlder, noticed, pillLine, place, prune, quotaLine, quotaTitle, replaced, insertRef, keptFirst, stopEnabled, title, typingBeat, windowStart, TYPING_BEAT } from "../lib/chat/panels.mjs";
+import { AMBER, CARD, CONNECTED, autoLabel, autoTitle, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, GREY, LATE_AFTER, RED, REPLY, SENDING, SHOWN_FOR, LINE_DISCONNECTED, LINE_LEFT, LINE_WAITING, LINE_WORKING, WINDOW, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, loadsOlder, noticed, pillLine, place, prune, quotaLine, quotaTitle, replaced, insertRef, keptFirst, stopEnabled, title, typingBeat, windowStart, TYPING_BEAT, CHECKING, LEADER_STOPPED, STATUS_TITLE, STATUS_WHO, UP_TO_DATE, statusLabel } from "../lib/chat/panels.mjs";
 import { localAt, refTo, references } from "../lib/chat/refs.mjs";
 
 const LEADER = "Leader";
@@ -80,6 +80,47 @@ function seat(name, extra = {}) {
 function names(state) {
   return Object.keys(state.panels);
 }
+
+// The Leader's status row: the confirmation the server last told, kept through a dropped stream,
+// and its label read off the count since, the check asked and the Leader's state — whole words,
+// and a glyph for the two that have one, as the User's row has.
+describe("the Leader's status", () => {
+  const confirmed = (extra = {}) => ({ at: "2026-10-15T12:00:00.000Z", text: "All quiet.", since: 0, checking: false, ...extra });
+  const stateWith = (status, leader = {}) => {
+    const state = fresh();
+    applyEvent(state, snapshot([about(LEADER, leader)], { status }));
+    return state;
+  };
+
+  it("holds nothing before the first confirmation, and the confirmation the server tells after it", () => {
+    const state = stateWith(undefined);
+    assert.equal(state.status, null);
+    applyEvent(state, { name: "status", data: confirmed({ since: 2 }) });
+    assert.deepEqual(state.status, confirmed({ since: 2 }));
+  });
+
+  it("keeps the status when the stream drops, and says the Leader stopped", () => {
+    const state = stateWith(confirmed());
+    applyEvent(state, { name: "stopping", data: {} });
+    assert.deepEqual(state.status, confirmed(), "the row stays when the server stops");
+    assert.deepEqual(statusLabel(state), { text: LEADER_STOPPED, tone: "muted" });
+  });
+
+  it("says up to date with nothing since, checking while the Leader is on something new, so many new since once it is idle, stopped with no process", () => {
+    assert.deepEqual(statusLabel(stateWith(confirmed())), { text: UP_TO_DATE, glyph: "✓", tone: "ok" });
+    assert.deepEqual(statusLabel(stateWith(confirmed({ since: 1 }), { busy: true })), { text: CHECKING, tone: "muted" });
+    assert.deepEqual(statusLabel(stateWith(confirmed({ since: 3 }))), { text: "3 new since", glyph: "+3", tone: "warn" });
+    assert.deepEqual(statusLabel(stateWith(confirmed({ since: 3 }), { running: false })), { text: LEADER_STOPPED, tone: "muted" });
+    assert.deepEqual(statusLabel(stateWith(confirmed(), { running: false })), { text: LEADER_STOPPED, tone: "muted" }, "stopped wins over up to date");
+  });
+
+  it("says checking from the click until the check reaches the Leader, though nothing has yet", () => {
+    assert.deepEqual(statusLabel(stateWith(confirmed({ checking: true }))), { text: CHECKING, tone: "muted" });
+    assert.deepEqual(statusLabel(stateWith(confirmed({ checking: true }), { busy: true })), { text: CHECKING, tone: "muted" });
+    assert.equal(STATUS_WHO, "Status");
+    assert.equal(STATUS_TITLE(LEADER), `ask ${LEADER} to check the status`);
+  });
+});
 
 describe("placement", () => {
   it("the Leader is the middle panel and the Workers alternate left and right in hire order", () => {

@@ -188,7 +188,7 @@ describe("the rules", () => {
     assert.equal(rows.flex, "1 1 auto");
     assert.equal(rows["min-height"], "0", "rows that cannot shrink push the bottom area out of the panel");
     assert.equal(rules.find((rule) => rule.selector === ".composer").declarations.flex, "0 0 auto");
-    assert.match(script, /bottom\.append\(cards, composer\);\s*section\.append\(headLine, rows, bottom\);/, "the bottom area is the panel's last child, the cards then the composer in it");
+    assert.match(script, /bottom\.append\(cards, composer\);\s*section\.append\(\.\.\.\(standing === null \? \[headLine, rows, bottom\] : \[headLine, rows, standing, bottom\]\)\);/, "the bottom area is the panel's last child, the cards then the composer in it; the Leader's status right above it");
   });
 
   // The space below the head and the space above the composer are the space between two rows,
@@ -573,7 +573,7 @@ describe("the script", () => {
   // The page draws a pill only for a row the server stored as one (a stamp or a divider): it
   // names no day of its own, so every row drawn is the row of the conversation and nothing else.
   it("draws no pill of its own between two days, only the rows it is given", () => {
-    assert.match(script, /import \{ row as rowOf, talks, unseen \} from "\.\/render\.mjs";/);
+    assert.match(script, /import \{ html as markdownOf, row as rowOf, talks, unseen \} from "\.\/render\.mjs";/);
     assert.match(script, /const index = from \+ offset;\s*if \(unseen\(about\.rows, index\)\) continue;\s*const shown = rowOf\(/, "a row left out of the drawing is skipped, and counted all the same; the next row drawn is the one given");
     assert.doesNotMatch(script, /dayPill|panel\.day|dataset\.day/, "no pill is built for a day, none is told from a row, and the panel keeps no day");
     assert.match(script, /while \(panel\.rows\.firstElementChild !== stop\) panel\.rows\.firstElementChild\.remove\(\);\s*for \(const kept of/, "the trim takes the rows before the window and nothing else");
@@ -737,7 +737,7 @@ describe("the script", () => {
   // the stylesheet hides by it, so a click redraws nothing; what the User typed to a Worker is
   // never among what it hides.
   it("hides the messages between sessions on the Leader's panel from a third switch, shown by default, in storage", () => {
-    assert.match(script, /rows\.className = "rows";\s*if \(leads\) headLine\.append\(commsSwitch\(rows\), facts\.auto\.leader, facts\.auto\.workers\);/, "after the two switches, on the Leader's head only, with the two auto switches after it");
+    assert.match(script, /rows\.className = "rows";\s*(?:\/\/[^\n]*\n\s*)*const standing = leads \? document\.createElement\("div"\) : null;\s*if \(leads\) \{\s*standing\.className = "standing";\s*headLine\.append\(commsSwitch\(rows\), statusSwitch\(standing\), facts\.auto\.leader, facts\.auto\.workers\);/, "after the two switches, on the Leader's head only, with the status's switch and the two auto switches after it");
     assert.match(script, /const COMMS = \{ key: "openovai-comms", label: "Messages between the Leader and Workers", on: "Showing messages between the Leader and Workers — click to hide them", off: "Hiding messages between the Leader and Workers — click to show them" \};/);
     assert.match(script, /function commsShown\(\) \{\s*try \{ return localStorage\.getItem\(COMMS\.key\) !== "hidden"; \} catch \(error\) \{ return true; \}/, "shown until the store says hidden, and shown when there is no store");
     assert.match(script, /button\.addEventListener\("click", \(\) => \{\s*try \{ localStorage\.setItem\(COMMS\.key, commsShown\(\) \? "hidden" : "shown"\); \} catch \(error\) \{\}\s*show\(\);/);
@@ -747,6 +747,31 @@ describe("the script", () => {
     const hide = rules.find((rule) => rule.selector === ".rows.comms-hidden .msg:is(.peer-in, .peer-out, .overheard):not(.revealed)");
     assert.equal(hide?.declarations.display, "none", "sent, received and overheard rows are off the panel while hidden, save a revealed one");
     assert.match(script, /const TALKING = "\.msg:is\(\.peer-in, \.peer-out, \.overheard\)";/, "the script names the rows as the stylesheet does");
+  });
+
+  // The Leader's status is drawn as a message row is — who, the stamp, the label beside it, the
+  // markdown — between the rows and the bottom area, so below the Leader's pill and above the
+  // composer; capped and scrolling inside. Its stamp asks the Leader for a check and is no
+  // reference: nothing goes into the box.
+  it("draws the Leader's status as a message row whose stamp asks the Leader for a check, never a reference", () => {
+    const drawn = script.slice(script.indexOf("function drawStanding(panel)"), script.indexOf("function deliveredElement(said)"));
+    assert.ok(drawn.length > 500, "drawStanding was not found");
+    assert.match(drawn, /line\.className = "msg status";/);
+    assert.match(drawn, /label\.textContent = STATUS_WHO;/);
+    assert.match(drawn, /meta\.append\(who, time, st\);/, "who, then the stamp, then the label, as a row's meta");
+    assert.match(drawn, /body\.className = "md";\s*body\.innerHTML = markdownOf\(status\.text, status\.viewable\);/, "markdown, as a reply");
+    assert.match(drawn, /time\.title = STATUS_TITLE\(state\.leader\);\s*time\.addEventListener\("click", \(\) => \{\s*call\("\/status\/check", \{ method: "POST" \}\)\.catch\(\(\) => \{\}\);\s*\}\);/);
+    assert.doesNotMatch(drawn, /pointAt|insertRef|REFERENCE/, "the stamp puts nothing in the box");
+    assert.match(drawn, /if \(status === null\) \{\s*panel\.standing\.replaceChildren\(\);/, "nothing before the first confirmation");
+    const standing = rules.find((rule) => rule.selector === ".standing").declarations;
+    assert.deepEqual([standing["max-height"], standing["overflow-y"], standing["min-height"]], ["33%", "auto", "0"], "about a third of the panel, scrolling inside");
+    assert.equal(rules.find((rule) => rule.selector === ".msg.status .bubble").declarations.background, "var(--status)", "a ground of its own");
+  });
+
+  it("shows the Leader's status from a switch on its head, shown by default, in storage", () => {
+    assert.match(script, /function statusShown\(\) \{\s*try \{ return localStorage\.getItem\(SHOW_STATUS\.key\) !== "hidden"; \} catch \(error\) \{ return true; \}/, "shown until the store says hidden, and shown when there is no store");
+    assert.match(script, /button\.title = on \? SHOW_STATUS\.on : SHOW_STATUS\.off;\s*standing\.classList\.toggle\("off", !on\);/, "the switch's state is the class on the status");
+    assert.equal(rules.find((rule) => rule.selector === ".standing:empty, .standing.off").declarations.display, "none");
   });
 
   // A row the switch hides is still reached from a click elsewhere: focusRow reveals it and
@@ -790,7 +815,7 @@ describe("the script", () => {
     assert.match(draw, /if \(panel\.doing !== null\) \{\s*panel\.doing\.firstElementChild\.textContent = pillLine\(state, panel\.name\);\s*panel\.doing\.classList\.toggle\("off", state\.connection !== CONNECTED\);\s*\}\n/);
     assert.doesNotMatch(draw, /panel\.doing\.remove\(\)|panel\.doing = /, "the pill is never taken out nor made again");
     assert.doesNotMatch(draw.slice(draw.indexOf("if (panel.doing !== null) {"), draw.indexOf("if (landed && panel.view.follow")), /landed =/, "its words changing is not a row landing: it moves no row");
-    assert.match(script, /jump, doing, box,/, "the panel keeps the pill it was made with");
+    assert.match(script, /jump, doing, standing, stood: null, box,/, "the panel keeps the pill it was made with");
   });
 
   // The pill never leaves the rows and never moves, not even within one task: every row lands
@@ -875,7 +900,7 @@ describe("the script", () => {
     const composer = script.slice(script.indexOf("const composer = document.createElement(\"form\");"), script.indexOf("const bottom = document.createElement(\"div\");"));
     assert.ok(composer.length > 500, "the composer was not found");
     assert.doesNotMatch(composer, /scrollTop|scrollIntoView|view\.follow =|movedAway/, "the composer neither scrolls the rows nor sets the word");
-    assert.match(script, /new ResizeObserver\(\(entries\) => \{\s*const width = entries\[0\]\.contentRect\.width;\s*if \(width === measuredAt\) return;\s*measuredAt = width;\s*fitStamps\(rows\.querySelectorAll\("\.t"\)\);\s*fitFolds\(rows\.querySelectorAll\("\.msg\.collapsed"\)\);\s*\}\)\.observe\(rows\);/, "rows that changed width are measured, never scrolled, and a change of height alone measures nothing");
+    assert.match(script, /new ResizeObserver\(\(entries\) => \{\s*const width = entries\[0\]\.contentRect\.width;\s*if \(width === measuredAt\) return;\s*measuredAt = width;\s*fitStamps\(rows\.querySelectorAll\("\.t"\)\);\s*fitFolds\(rows\.querySelectorAll\("\.msg\.collapsed"\)\);\s*(?:\/\/[^\n]*\n\s*)*if \(standing !== null\) fitStamps\(standing\.querySelectorAll\("\.t"\)\);\s*\}\)\.observe\(rows\);/, "rows that changed width are measured, never scrolled, and a change of height alone measures nothing");
     assert.equal(script.match(/\.scrollTop = /g).length, 4, "four scroll writes: the pill's click, the tick on a following panel, the draw on a following panel that rows landed on, the window's pin of a following panel it changed");
     assert.equal(script.match(/\.scrollTop \+= /g).length, 1, "and one that keeps the first row where it was while older rows are drawn above it (drawOlder)");
   });
@@ -1133,7 +1158,7 @@ describe("the script", () => {
   // server said, on every draw, with a tooltip that says what it is in — nothing is stored in the
   // browser and no panel shows a mode.
   it("draws two auto-mode switches on the Leader's head from the server's state, a click asking the server and nothing more", () => {
-    assert.match(script, /headLine\.append\(commsSwitch\(rows\), facts\.auto\.leader, facts\.auto\.workers\);/);
+    assert.match(script, /headLine\.append\(commsSwitch\(rows\), statusSwitch\(standing\), facts\.auto\.leader, facts\.auto\.workers\);/);
     assert.match(script, /auto: \{ leader: autoSwitch\("leader"\), workers: autoSwitch\("workers"\) \}/);
     assert.match(script, /call\("\/auto", \{ method: "POST", headers: \{ "content-type": "application\/json" \}, body: JSON\.stringify\(\{ who, on: !state\.auto\[who\] \}\) \}\)/);
     assert.match(script, /for \(const \[who, button\] of Object\.entries\(panel\.facts\.auto\)\) \{\s*button\.classList\.toggle\("on", state\.auto\[who\]\);\s*button\.title = autoTitle\(who, state\.auto\[who\]\);\s*\}/);
@@ -1175,7 +1200,7 @@ describe("the script", () => {
     assert.match(script, /call\("\/sessions"\)\.then\(\s*\(answered\) => \(answered\.status === 503 \? setTimeout\(probe, 1000\) : connect\(\)\),\s*\(\) => \{\s*lost\(\);\s*setTimeout\(probe, 1000\);/);
     assert.match(script, /if \(answered\.status === 503\) \{\s*applyEvent\(state, \{ name: "stopping", data: \{\} \}\);\s*draw\(\);/);
     assert.match(script, /stream\.addEventListener\("open", \(\) => \{\s*state\.connection = CONNECTED;\s*draw\(\);/);
-    assert.match(script, /const EVENTS = \["snapshot", "rows", "row", "asking", "seat", "quota", "auto", "stopping"\];/);
+    assert.match(script, /const EVENTS = \["snapshot", "rows", "row", "asking", "seat", "quota", "auto", "status", "stopping"\];/);
     assert.ok(!script.includes("STOPPING"), "the page still carries a stopping word");
   });
 
@@ -1204,7 +1229,7 @@ describe("the script", () => {
   // element, never the button's own markup — and says copied on the button for a moment.
   it("puts a copy button on every code block and copies the block's code on one delegated click", () => {
     assert.match(script, /body\.innerHTML = shown\.html;\s*if \(shown\.tight === true\) body\.classList\.add\("tight"\);\s*(?:\/\/[^\n]*\n\s*)*for \(const pre of body\.querySelectorAll\("pre"\)\) \{/);
-    assert.match(script, /rows\.addEventListener\("click", \(event\) => \{\s*const copy = event\.target\.closest\(".copy"\);\s*if \(copy === null\) return;\s*const block = copy\.parentElement;\s*navigator\.clipboard\.writeText\(\(block\.querySelector\("code"\) \?\? block\.querySelector\("pre"\)\)\.textContent\)\.then\(\(\) => \{\s*copy\.classList\.add\("copied"\);\s*setTimeout\(\(\) => copy\.classList\.remove\("copied"\), COPIED_FOR\);/);
+    assert.match(script, /for \(const holder of standing === null \? \[rows\] : \[rows, standing\]\) \{\s*(?:\/\/[^\n]*\n\s*)*holder\.addEventListener\("click", \(event\) => \{\s*const copy = event\.target\.closest\(".copy"\);\s*if \(copy === null\) return;\s*const block = copy\.parentElement;\s*navigator\.clipboard\.writeText\(\(block\.querySelector\("code"\) \?\? block\.querySelector\("pre"\)\)\.textContent\)\.then\(\(\) => \{\s*copy\.classList\.add\("copied"\);\s*setTimeout\(\(\) => copy\.classList\.remove\("copied"\), COPIED_FOR\);/);
     assert.match(script, /function copyButton\(\) \{\s*const button = document\.createElement\("button"\);\s*button\.type = "button";\s*button\.className = "copy";/);
   });
 
