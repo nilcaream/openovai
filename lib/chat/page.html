@@ -100,8 +100,10 @@
   /* the pill that says rows arrived below where the reader is, on the Leader's panel */
   .jump { position: sticky; left: 50%; transform: translateX(-50%); bottom: 24px; background: var(--panel); border: 1px solid var(--line); color: var(--fg); border-radius: 999px; padding: 6px 14px; font-size: .85rem; cursor: pointer; display: none; }
   .jump.show { display: block; }
-  /* the rows take the focus on a click, so the keys scroll them; no ring for it, the head's border says what the keys do */
-  .rows { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 0; outline: none; }
+  /* the rows take the focus on a click, so the keys scroll them; no ring for it, the head's border says what the keys do.
+     They take the room the status and the bottom area leave, from nothing, so however long they
+     are they never squeeze the status under its third */
+  .rows { flex: 1 1 0; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 0; outline: none; }
   /* a tool call is a light line: one per call, no label, no stamp */
   .rows .line { display: block; width: 100%; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); font-family: var(--mono); font-size: .76rem; color: var(--fg-dim); padding: 3px 8px; margin: 3px 0; overflow-wrap: anywhere; }
   /* the first row and the last (the one before the jump pill, which is always there) leave their

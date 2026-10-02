@@ -185,7 +185,7 @@ describe("the rules", () => {
     assert.equal(cards["overflow-y"], "auto");
     assert.equal(cards["min-height"], "0");
     const rows = rules.find((rule) => rule.selector === ".rows").declarations;
-    assert.equal(rows.flex, "1 1 auto");
+    assert.equal(rows.flex, "1 1 0");
     assert.equal(rows["min-height"], "0", "rows that cannot shrink push the bottom area out of the panel");
     assert.equal(rules.find((rule) => rule.selector === ".composer").declarations.flex, "0 0 auto");
     assert.match(script, /bottom\.append\(cards, composer\);\s*section\.append\(\.\.\.\(standing === null \? \[headLine, rows, bottom\] : \[headLine, rows, standing, bottom\]\)\);/, "the bottom area is the panel's last child, the cards then the composer in it; the Leader's status right above it");
@@ -765,6 +765,7 @@ describe("the script", () => {
     assert.match(drawn, /if \(status === null\) \{\s*panel\.standing\.replaceChildren\(\);/, "nothing before the first confirmation");
     const standing = rules.find((rule) => rule.selector === ".standing").declarations;
     assert.deepEqual([standing["max-height"], standing["overflow-y"], standing["min-height"]], ["33%", "auto", "0"], "about a third of the panel, scrolling inside");
+    assert.equal(rules.find((rule) => rule.selector === ".rows").declarations.flex, "1 1 0", "the rows take the room the status leaves, so long rows never squeeze it under its third");
     assert.equal(rules.find((rule) => rule.selector === ".msg.status .bubble").declarations.background, "var(--status)", "a ground of its own");
   });
 
