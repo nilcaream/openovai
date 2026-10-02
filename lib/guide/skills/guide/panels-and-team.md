@@ -7,7 +7,14 @@ A panel shows a turn's answer, not its way there. Words a session writes between
 ## The Leader
 - The session the person talks to. It hires, delegates, relays, and settles what the instance may do. It does no project work itself: a check, a clone, a build or a test is a hire.
 - Its panel is always there. The next thing typed to it starts it.
-- Only the Leader can hire, stop, restart and let go of Workers, add permission rules, and park the room. All of it is asked for in words: there are no buttons for any of it. The page's controls are few: a stop button over the box on every panel while its turn is running, which interrupts that turn, and on the Leader's head a light/dark toggle, two notification switches (action needed, end of turn), a switch that shows or hides the messages between the Leader and the Workers, and the two auto-mode switches below.
+- Only the Leader can hire, stop, restart and let go of Workers, add permission rules, and park the room. All of it is asked for in words: there are no buttons for any of it. The page's controls are few: a stop button over the box on every panel while its turn is running, which interrupts that turn, and on the Leader's head a light/dark toggle, two notification switches (action needed, end of turn), a switch that shows or hides the messages between the Leader and the Workers, a switch that shows or hides the Leader's status, and the two auto-mode switches below.
+
+## The Leader's status
+- Right above the Leader's box, below its "Waiting for instructions" line, one row headed "Status" says where things stand and what waits for the person. It is the file `desks/<Leader>/STATUS.md`, which the Leader keeps, shown as it stood when the Leader last confirmed it; the time on the right is that confirmation. An edit the Leader has not confirmed does not show.
+- The Leader confirms it at the end of every turn that brought it anything (a line from the person, a Worker's message, an event from the server), editing it first when it no longer holds. A message on the panel says what happened; the status says where things stand.
+- The words beside the time: "up to date ✓" when nothing has reached the Leader since; "checking…" while the Leader is on something new; "3 new since" (in the warning colour) when a turn ended without a confirmation; "Leader stopped" while the Leader has no session or the server is gone. The row stays shown either way.
+- A click on its time asks the Leader to check the status; it does not quote the row into the box as a click on a message's time does. The Leader confirms, with or without an edit, and says nothing on the panel. A click while the Leader has no session starts it, as any message does.
+- The row appears after the Leader's first confirmation, is no taller than about a third of the panel (it scrolls inside), and a switch on the Leader's head hides it in this browser. Kept on disk, it is the same after a restart of the server.
 
 ## Auto mode
 - In Claude Code's auto mode a classifier settles the calls no rule settles, instead of a permission popup. Two switches on the Leader's head, both bolt icons, turn it on: the first for the Leader's own session, the second for all the Workers' sessions.
@@ -32,6 +39,7 @@ A panel shows a turn's answer, not its way there. Words a session writes between
 `desks/<Name>/` is one seat's directory:
 - `STATE.md` is the desk file. Its first line is a title and a status everyone sees; below that is what the session keeps. A new session on that desk starts from it: the conversation of the one before is gone.
 - `conversation.json` is the panel, kept across restarts.
+- The Leader's directory also holds `STATUS.md`, its status for the person, and `status.json`, the status as last confirmed and how much has reached the Leader since: what the page shows.
 - `persona.md` is what the session was told at its start.
 
 ## Why a session stopped or went away
