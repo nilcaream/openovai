@@ -180,10 +180,11 @@
   .bubble .open-failed { margin-left: 6px; font-size: .85em; color: var(--fg-dim); }
   /* the Leader's status, between its rows and the bottom area: below the pill that says what the
      Leader is at, above the cards and the composer, so it stays in sight whatever the rows have
-     scrolled to. Drawn as a message row on a ground of its own; no taller than about a third of
-     the panel, scrolling inside past that. Gone until the first confirmation and while its switch
-     is off */
-  .standing { flex: 0 1 auto; min-height: 0; max-height: 33%; overflow-y: auto; }
+     scrolled to. Drawn as a message row on a ground of its own, as tall as its text: the rows take
+     what it leaves. Only a status taller than the panel with its box gives way and scrolls
+     inside, so the box stays on the panel. Gone until the first confirmation and while its
+     switch is off */
+  .standing { flex: 0 1 auto; min-height: 0; overflow-y: auto; }
   .standing:empty, .standing.off { display: none; }
   .standing .msg { margin: 0; }
   .msg.status .bubble { background: var(--status); border-color: var(--status-line); }
@@ -1108,6 +1109,13 @@
       const body = document.createElement("div");
       body.className = "md";
       body.innerHTML = markdownOf(status.text, status.viewable);
+      // A heading in the status is a plain line at body size, as a paragraph is: the row already
+      // says Status, and every line of it is room the rows give up.
+      for (const heading of body.querySelectorAll("h1, h2, h3, h4, h5, h6")) {
+        const plain = document.createElement("p");
+        plain.append(...heading.childNodes);
+        heading.replaceWith(plain);
+      }
       for (const pre of body.querySelectorAll("pre")) {
         const block = document.createElement("div");
         block.className = "code";

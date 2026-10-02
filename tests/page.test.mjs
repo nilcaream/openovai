@@ -751,8 +751,9 @@ describe("the script", () => {
 
   // The Leader's status is drawn as a message row is — who, the stamp, the label beside it, the
   // markdown — between the rows and the bottom area, so below the Leader's pill and above the
-  // composer; capped and scrolling inside. Its stamp asks the Leader for a check and is no
-  // reference: nothing goes into the box.
+  // composer; as tall as its text, the rows taking what is left, and a heading in it is a plain
+  // line as a paragraph is. Its stamp asks the Leader for a check and is no reference: nothing
+  // goes into the box.
   it("draws the Leader's status as a message row whose stamp asks the Leader for a check, never a reference", () => {
     const drawn = script.slice(script.indexOf("function drawStanding(panel)"), script.indexOf("function deliveredElement(said)"));
     assert.ok(drawn.length > 500, "drawStanding was not found");
@@ -764,8 +765,10 @@ describe("the script", () => {
     assert.doesNotMatch(drawn, /pointAt|insertRef|REFERENCE/, "the stamp puts nothing in the box");
     assert.match(drawn, /if \(status === null\) \{\s*panel\.standing\.replaceChildren\(\);/, "nothing before the first confirmation");
     const standing = rules.find((rule) => rule.selector === ".standing").declarations;
-    assert.deepEqual([standing["max-height"], standing["overflow-y"], standing["min-height"]], ["33%", "auto", "0"], "about a third of the panel, scrolling inside");
-    assert.equal(rules.find((rule) => rule.selector === ".rows").declarations.flex, "1 1 0", "the rows take the room the status leaves, so long rows never squeeze it under its third");
+    assert.equal(standing["max-height"], undefined, "as tall as its text: no cap, so nothing in it waits below a scroll");
+    assert.deepEqual([standing.flex, standing["min-height"], standing["overflow-y"]], ["0 1 auto", "0", "auto"], "it gives way, scrolling inside, only when the panel cannot hold it and the box");
+    assert.equal(rules.find((rule) => rule.selector === ".rows").declarations.flex, "1 1 0", "the rows take the room the status leaves, so long rows never squeeze it");
+    assert.match(drawn, /for \(const heading of body\.querySelectorAll\("h1, h2, h3, h4, h5, h6"\)\) \{\s*const plain = document\.createElement\("p"\);\s*plain\.append\(\.\.\.heading\.childNodes\);\s*heading\.replaceWith\(plain\);\s*\}/, "a heading in the status is a paragraph, at body size");
     assert.equal(rules.find((rule) => rule.selector === ".msg.status .bubble").declarations.background, "var(--status)", "a ground of its own");
   });
 
