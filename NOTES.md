@@ -46,6 +46,13 @@ dark. The Leader's status row stands on a reply's ground instead of a colour of 
 above it and its fixed place already set it apart. Inline code sits on a fainter grey in the light
 theme and a slightly stronger one in the dark.
 
+**An expired sign-in says what to do.** When the instance's claude.ai sign-in has run out and
+Claude Code cannot renew it, every turn fails with "Failed to authenticate: OAuth session expired
+and could not be refreshed". Under that row the panel now says, once, to run `ovai login` in a
+terminal and type again. This shows on the Leader's panel and on a Worker's, since the Leader
+fails the same way and cannot pass the word on. It shows again only after the seat has answered
+a turn in between.
+
 ## 0.24.0
 
 **This version pins Claude Code 2.1.296, where the last pinned 2.1.293.**
