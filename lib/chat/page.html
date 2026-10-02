@@ -178,14 +178,14 @@
   .bubble .open-failed { margin-left: 6px; font-size: .85em; color: var(--fg-dim); }
   /* the Leader's status, first in the bottom area: below the pill that says what the Leader is
      at, above the cards and the composer, so it stays in sight whatever the rows have scrolled
-     to. Drawn as a message row on a ground of its own, as tall as its text: the rows give it
-     their room. Only when the bottom area reaches its cap do the status and the cards give way
-     and scroll inside, so the box stays on the panel. Gone until the first confirmation and
-     while its switch is off */
+     to. Drawn as a message row on the ground of a reply, as tall as its text: the pill above it
+     and its fixed place tell it from the rows. The rows give it their room. Only when the bottom
+     area reaches its cap do the status and the cards give way and scroll inside, so the box
+     stays on the panel. Gone until the first confirmation and while its switch is off */
   .standing { flex: 0 1 auto; min-height: 0; overflow-y: auto; }
   .standing:empty, .standing.off { display: none; }
   .standing .msg { margin: 0; }
-  .msg.status .bubble { background: var(--status); border-color: var(--status-line); }
+  .msg.status .bubble { background: var(--reply); border-color: var(--reply-line); }
   .meta .st.muted { color: var(--fg-faint); }
   .meta .st.warn { color: var(--warn); }
   /* the bottom area of a panel: the Leader's status, the cards of its questions, then the

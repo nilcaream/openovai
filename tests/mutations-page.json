@@ -132,13 +132,35 @@
     ]
   },
   {
-    "name": "inline code takes a ground other than the one grey the rules allow",
+    "name": "inline code takes a raw grey instead of its token",
     "catches": "carry no raw colour outside the token blocks",
     "edits": [
       {
         "file": "lib/chat/md.css",
-        "from": "background: rgba(127,127,127,.18); padding: .1em .35em;",
-        "to": "background: rgba(0,0,0,.18); padding: .1em .35em;"
+        "from": "background: var(--code-bg); padding: .1em .35em;",
+        "to": "background: rgba(127, 127, 127, .2); padding: .1em .35em;"
+      }
+    ]
+  },
+  {
+    "name": "the dark inline-code ground is the light one",
+    "catches": "declares the light tokens in bare :root and the dark ones under the theme attribute, each with its colour-scheme",
+    "edits": [
+      {
+        "file": "lib/chat/md.css",
+        "from": "  --code-bg: rgba(127, 127, 127, .2);",
+        "to": "  --code-bg: rgba(127, 127, 127, .1);"
+      }
+    ]
+  },
+  {
+    "name": "the Leader's status keeps a ground of its own",
+    "catches": "draws the Leader's status as a message row whose stamp asks the Leader for a check, never a reference",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": ".msg.status .bubble { background: var(--reply);",
+        "to": ".msg.status .bubble { background: var(--panel-2);"
       }
     ]
   },

@@ -45,9 +45,6 @@ red rosybrown royalblue saddlebrown salmon sandybrown seagreen seashell sienna s
 slategrey snow springgreen steelblue tan teal thistle tomato turquoise violet wheat white whitesmoke yellow
 yellowgreen`.split(/\s+/));
 
-// The one colour that is not a token: the inline-code ground, made to read on both grounds.
-const INLINE_CODE_GROUND = "rgba(127,127,127,.18)";
-
 // Every class the page puts on an element, read from its source: the literals the script assigns
 // (`className = "…"`, `classList.add|toggle("…")`, `class="…"` in a template), the static head of a
 // template literal (`row ${kind}` names `row`), the row kinds that template is filled with
@@ -493,10 +490,9 @@ describe("the rules", () => {
     for (const rule of rules) {
       if (tokenBlocks.includes(rule)) continue;
       for (const [property, value] of Object.entries(rule.declarations)) {
-        const bare = value.split(INLINE_CODE_GROUND).join(" ");
         const where = `${rule.media === null ? "" : `${rule.media} `}${rule.selector} { ${property}: ${value} }`;
-        assert.doesNotMatch(bare, /#[0-9a-f]{3,8}\b|\b(rgba?|hsla?)\(/i, where);
-        for (const word of bare.toLowerCase().match(/[a-z]+/g) ?? []) assert.ok(!NAMED.has(word), where);
+        assert.doesNotMatch(value, /#[0-9a-f]{3,8}\b|\b(rgba?|hsla?)\(/i, where);
+        for (const word of value.toLowerCase().match(/[a-z]+/g) ?? []) assert.ok(!NAMED.has(word), where);
       }
     }
   });
@@ -769,7 +765,7 @@ describe("the script", () => {
     assert.deepEqual([standing.flex, standing["min-height"], standing["overflow-y"]], ["0 1 auto", "0", "auto"], "it gives way, scrolling inside, only when the bottom area it is in reaches its cap");
     assert.match(script, /\[standing, cards, composer\]/, "in the bottom area, which never shrinks, so long rows never squeeze it");
     assert.match(drawn, /for \(const heading of body\.querySelectorAll\("h1, h2, h3, h4, h5, h6"\)\) \{\s*const plain = document\.createElement\("p"\);\s*plain\.append\(\.\.\.heading\.childNodes\);\s*heading\.replaceWith\(plain\);\s*\}/, "a heading in the status is a paragraph, at body size");
-    assert.equal(rules.find((rule) => rule.selector === ".msg.status .bubble").declarations.background, "var(--status)", "a ground of its own");
+    assert.equal(rules.find((rule) => rule.selector === ".msg.status .bubble").declarations.background, "var(--reply)", "the ground of a reply");
   });
 
   it("shows the Leader's status from a switch on its head, shown by default, in storage", () => {
