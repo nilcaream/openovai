@@ -53,6 +53,12 @@ terminal and type again. This shows on the Leader's panel and on a Worker's, sin
 fails the same way and cannot pass the word on. It shows again only after the seat has answered
 a turn in between.
 
+**The Leader's panel says ahead when the sign-in runs out.** Claude Code keeps the time the
+instance's sign-in expires, and warns about it only in its own terminal. The server looks at that
+time once a day. Five days before it, the Leader's panel gets one row with the date and the hour,
+saying to run `ovai login` before then. An instance that inherits the machine's token, or whose
+time cannot be read, gets no row and nothing else changes.
+
 ## 0.24.0
 
 **This version pins Claude Code 2.1.296, where the last pinned 2.1.293.**
