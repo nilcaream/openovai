@@ -22,7 +22,7 @@ import { localAt, refTo } from "../lib/chat/refs.mjs";
 import { listening } from "../lib/chat/runtime.mjs";
 import { COOKIE_AGE, LINK_FILE, LINK_LIFETIME, sessionKey, writeLink } from "../lib/chat/signin.mjs";
 import { hire } from "../lib/desks.mjs";
-import { INTRODUCED_FILE, endSeat, introduce, serve, shownRoot, startSeat, toolsFor } from "../lib/chat/server.mjs";
+import { INTRODUCED_FILE, SIGN_IN_ROW, endSeat, introduce, serve, shownRoot, startSeat, toolsFor } from "../lib/chat/server.mjs";
 import { INTRODUCTION_TEMPLATE } from "../lib/desks.mjs";
 import { close } from "../lib/chat/lifecycle.mjs";
 import { sink } from "../lib/chat/log.mjs";
@@ -1994,6 +1994,25 @@ describe("what the User types", () => {
     await new Promise((resolve) => setTimeout(resolve, 100));
     const said = panel(instance, WORKER).filter((row) => row.from === WORKER);
     assert.deepEqual(said.map((row) => [row.text, row.failed]), [["Not logged in · Please run /login", true]], "the failed words landed twice, or not as failed");
+  });
+
+  // A sign-in Claude Code could not renew fails every turn in its documented sentence, which does
+  // not say what an instance does about it: the server says it after the failed row, once for a
+  // run of failures, and again only after a turn the seat answered.
+  it("says in plain words to run ovai login after an expired sign-in, once for a run of failures", async () => {
+    const expired = "Failed to authenticate: OAuth session expired and could not be refreshed";
+    if (running(WORKER)) await endSeat(WORKER, 500);
+    remove(panelFile(instance, WORKER));
+    paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_FAILS: "[false, true, true, false, true]", OPENOVAI_STAND_IN_REPLY: expired });
+    for (let turn = 1; turn <= 5; turn++) {
+      await page("POST", `/sessions/${WORKER}/message`, { text: `line ${turn}` });
+      await waitFor(() => (panel(instance, WORKER).filter((row) => row.from === WORKER).length === turn ? true : null));
+      await new Promise((resolve) => setTimeout(resolve, 150));
+    }
+    const shown = panel(instance, WORKER)
+      .filter((row) => row.from === WORKER || row.from === SERVER)
+      .map((row) => (row.from === SERVER ? row.text : row.failed === true ? "failed" : "answered"));
+    assert.deepEqual(shown, ["answered", "failed", SIGN_IN_ROW, "failed", "answered", "failed", SIGN_IN_ROW]);
   });
 
   // A run the service will not take at all — a model this Claude Code has not got, a key that is

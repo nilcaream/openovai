@@ -2470,5 +2470,16 @@
         "to": "  `The User asks you to check your status:"
       }
     ]
+  },
+  {
+    "name": "an expired sign-in is told again on every failed turn of a run",
+    "catches": "says in plain words to run ovai login after an expired sign-in, once for a run of failures",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "reply.text.includes(SIGN_IN_EXPIRED) && !toldSinceAnswered(root, seat, SIGN_IN_ROW)",
+        "to": "reply.text.includes(SIGN_IN_EXPIRED)"
+      }
+    ]
   }
 ]
