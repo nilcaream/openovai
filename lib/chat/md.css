@@ -3,7 +3,7 @@
 :root {
   --bg: #f8fafc; --panel: #ffffff; --panel-2: #eef1f5; --line: #d8dee4;
   --fg: #1f2328; --fg-dim: #59636e; --fg-faint: #848d97;
-  --me: #d9fdd3; --me-line: #b7e8ae;
+  --me: #ddf4f0; --me-line: #aedbd5;
   --reply: #ffffff; --reply-line: #d8dee4;
   --from: #e3f0fc; --from-line: #b6d4f2;
   --to: #fde8e8; --to-line: #f0bcbc;
@@ -25,7 +25,7 @@
 :root[data-theme="dark"] {
   --bg: #0e1116; --panel: #161b22; --panel-2: #1c232d; --line: #262d38;
   --fg: #e6edf3; --fg-dim: #9aa7b4; --fg-faint: #6b7783;
-  --me: #1f4f3a; --me-line: #2d6b4f;
+  --me: #1f4c46; --me-line: #2e6b63;
   --reply: #1c232d; --reply-line: #2a3341;
   --from: #203349; --from-line: #2b4a6d;
   --to: #3a2226; --to-line: #6b3a42;
