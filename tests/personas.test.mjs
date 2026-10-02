@@ -224,7 +224,7 @@ describe("what the Leader is told", () => {
   });
 
   it("points the Leader to the <noop/> turn for a turn with nothing in it for the User", () => {
-    assert.match(leader(), new RegExp(`A turn with nothing in it for\\s+${USER} is a \`<noop/>\` turn\\.`));
+    assert.match(leader(), new RegExp(`A turn with\\s+nothing in it for\\s+${USER} is a \`<noop/>\` turn\\.`));
     assert.match(leader(), /With nothing left in flight, do nothing:\s+it is a `<noop\/>` turn\./);
     assert.match(leader(), new RegExp(`Nothing to acknowledge: unless ${USER}\\s+needs it, it is a \`<noop/>\` turn\\.`));
   });
