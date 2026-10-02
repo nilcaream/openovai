@@ -236,8 +236,10 @@ describe("what the Leader is told", () => {
   // instead of wrapping.
   it("tells the Leader that where things stand is its status, confirmed at the end of every turn that brought anything", () => {
     assert.match(leader(), new RegExp(`Where things stand lives in your status, \`desks/${LEAD}/STATUS\\.md\`: beside your desk and apart\\s+from it, since your desk is yours and the status is ${USER}'s\\.`));
-    assert.match(leader(), /the whole open list as it is now, every item in order, the one question open to\s+them, and below it at most the five items finished most recently/);
-    assert.match(leader(), /So at the end of every turn that brought you anything — a line from \S+, a\s+Worker's message, a server event — edit STATUS\.md with the file tools when it is out of date, then\s+call `confirm_status` as your last call; when it still holds, the call alone\./);
+    assert.match(leader(), /so keep it short: plain sentences that run the width\s+of the panel rather than a list, saying what is open and who is on it, and a line of its own for\s+what waits for \S+, only when something does\./);
+    assert.match(leader(), /No title, since the row already says Status;\s+no headings, no bold, code formatting only for a name or a path\. With nothing open, one sentence\s+says so\./);
+    assert.doesNotMatch(leader(), /open list|five items|finished most recently/, "no sections asked of the status");
+    assert.match(leader(), /So at the end of every turn that\s+brought you anything — a line from \S+, a\s+Worker's message, a server event — edit STATUS\.md\s+with the file tools when it is out of date, then\s+call `confirm_status` as your last call; when it\s+still holds, the call alone\./);
     assert.match(leader(), /A session that starts\s+on this desk reads STATUS\.md first\./);
     assert.match(leader(), /A message says what happened; where things stand is the status's\./);
     assert.doesNotMatch(leader(), /stands alone/, "the last message no longer carries where things stand");
