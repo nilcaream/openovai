@@ -162,7 +162,7 @@ export function installed(options, environment) {
 //   OPENOVAI_STAND_IN_TOOL_ON       only turns whose question contains this text make those calls
 //                             (default: every turn)
 //   OPENOVAI_STAND_IN_CALLS         a JSON list, one entry per QUESTION the same way, each a list of
-//                             { name, input, error?, parent?, usage?, text? }: the tools the real one
+//                             { name, input, error?, parent?, usage?, text?, wait? }: the tools the real one
 //                             would say it is using in that turn, each written before the answer
 //                             as one assistant frame with a tool_use block (id call-<turn>-<i>,
 //                             parent_tool_use_id from parent, else null, and usage as the
@@ -171,7 +171,8 @@ export function installed(options, environment) {
 //                             string is the words the failed result says) — the shapes measured
 //                             on the real one, one frame per block; a call with `blocked` (a
 //                             reason, "[Credential Exploration]") has the system/permission_denied
-//                             frame of auto mode's classifier before its result
+//                             frame of auto mode's classifier before its result; `wait` is
+//                             milliseconds the stand-in waits before writing the call at all
 //   OPENOVAI_STAND_IN_NOTES         a JSON list, one entry per QUESTION the same way, each a list of
 //                             { text, listed? }: the progress notes the real one writes between
 //                             its calls, each as an assistant frame of its own with one thinking
@@ -544,6 +545,9 @@ for (;;) {
   for (const [i, call] of (made ?? []).entries()) {
     const id = "call-" + turn + "-" + i;
     const parent = call.parent ?? null;
+    if (call.wait !== undefined && !interrupted) {
+      await sleepUnlessInterrupted(call.wait);
+    }
     if (call.text !== undefined) {
       frame({ type: "assistant", message: { role: "assistant", content: [{ type: "text", text: call.text }] }, parent_tool_use_id: parent, session_id: "test-thread" });
     }

@@ -3273,3 +3273,53 @@ describe("the Leader's status", () => {
     assert.deepEqual([statusOf(instance, LEADER).checking, kept().since], [false, 2], "written: the count says the rest");
   });
 });
+
+// A line that joins the Leader's turn while its confirm_status call is out is read only after the
+// call's result, so the confirmation does not cover it: it stays counted whether the server sees
+// the call before the confirmation reaches it or after.
+describe("the Leader's status, confirmed while a line joins at the confirming call", () => {
+  const CONFIRM_CALL = "mcp__openovai__confirm_status";
+  let martin;
+  const kept = () => JSON.parse(fs.readFileSync(shownStatusFile(instance, LEADER), "utf8"));
+  const callOut = () => waitFor(() => (recordOf(LEADER)?.open.size > 0 ? true : null));
+
+  before(async () => {
+    fs.writeFileSync(statusFile(instance, LEADER), "Waiting on Paul.\n");
+    martin = await seatUp(LEADER, {
+      OPENOVAI_STAND_IN_CALLS: JSON.stringify([[{ name: CONFIRM_CALL }], [{ name: CONFIRM_CALL, wait: 600 }]]),
+      OPENOVAI_STAND_IN_CALL_HOLDS: "800",
+      OPENOVAI_STAND_IN_REPLY: "ok",
+    });
+    await tool(martin.secret, "confirm_status");
+  });
+
+  after(async () => {
+    await endEvery(500);
+  });
+
+  it("keeps the line counted when the call is seen before the confirmation", async () => {
+    const turn = tell(LEADER, messageFrame(WORKER, "go"));
+    await callOut();
+    tell(LEADER, userFrame("and this"));
+    assert.equal(kept().since, 2, "the turn's message and the line that joined");
+    await tool(martin.secret, "confirm_status");
+    assert.equal(kept().since, 1, "the line that joined while the call was out was confirmed away");
+    await turn.answered;
+    assert.equal(kept().since, 1);
+  });
+
+  it("keeps the line counted when the confirmation comes before the call is seen, and nothing stale after", async () => {
+    await waitFor(() => (recordOf(LEADER).turn === null ? true : null));
+    const heard = heardIn(martin.log).length;
+    const turn = tell(LEADER, messageFrame(WORKER, "again"));
+    await told(martin.log, heard + 1);
+    await tool(martin.secret, "confirm_status");
+    assert.equal(kept().since, 0, "confirmed before the call was seen");
+    await callOut();
+    tell(LEADER, userFrame("and that"));
+    await turn.answered;
+    assert.equal(kept().since, 1, "the line that joined after the confirmation");
+    await tool(martin.secret, "confirm_status");
+    assert.equal(kept().since, 0, "a call that came back leaves nothing to count against the next confirmation");
+  });
+});

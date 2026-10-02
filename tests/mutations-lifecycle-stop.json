@@ -263,8 +263,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "    called: logged(instance, seat, roleOf(instance, seat) === WORKER ? calledBy(instance, seat) : doingBy(instance, seat)),",
-        "to": "    called: logged(instance, seat, calledBy(instance, seat)),"
+        "from": "    called: confirmingOn(instance, seat, logged(instance, seat, roleOf(instance, seat) === WORKER ? calledBy(instance, seat) : doingBy(instance, seat))),",
+        "to": "    called: confirmingOn(instance, seat, logged(instance, seat, calledBy(instance, seat))),"
       }
     ]
   },

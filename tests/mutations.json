@@ -1296,8 +1296,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "    called: logged(instance, seat, roleOf(instance, seat) === WORKER ? calledBy(instance, seat) : doingBy(instance, seat)),",
-        "to": "    called: logged(instance, seat, calledBy(instance, seat)),"
+        "from": "    called: confirmingOn(instance, seat, logged(instance, seat, roleOf(instance, seat) === WORKER ? calledBy(instance, seat) : doingBy(instance, seat))),",
+        "to": "    called: confirmingOn(instance, seat, logged(instance, seat, calledBy(instance, seat))),"
       }
     ]
   },
@@ -1703,8 +1703,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "    called: logged(instance, seat, roleOf(instance, seat) === WORKER ? calledBy(instance, seat) : doingBy(instance, seat)),",
-        "to": "    called: roleOf(instance, seat) === WORKER ? logged(instance, seat, calledBy(instance, seat)) : doingBy(instance, seat),"
+        "from": "    called: confirmingOn(instance, seat, logged(instance, seat, roleOf(instance, seat) === WORKER ? calledBy(instance, seat) : doingBy(instance, seat))),",
+        "to": "    called: confirmingOn(instance, seat, roleOf(instance, seat) === WORKER ? logged(instance, seat, calledBy(instance, seat)) : doingBy(instance, seat)),"
       }
     ]
   },
@@ -1725,8 +1725,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "    returned: backFrom(seat, roleOf(instance, seat) === WORKER ? () => {} : returnedBy(instance, seat)),",
-        "to": "    returned: roleOf(instance, seat) === WORKER ? () => {} : returnedBy(instance, seat),"
+        "from": "    returned: confirmedOn(instance, seat, backFrom(seat, roleOf(instance, seat) === WORKER ? () => {} : returnedBy(instance, seat))),",
+        "to": "    returned: confirmedOn(instance, seat, roleOf(instance, seat) === WORKER ? () => {} : returnedBy(instance, seat)),"
       },
       {
         "file": "lib/chat/lifecycle.mjs",
@@ -2413,6 +2413,28 @@
         "file": "lib/chat/server.mjs",
         "from": "  // The browser sends the cookie on a request another page of this address makes too",
         "to": "  if (request.method === \"POST\" && url.pathname === AUTO_ROUTE) {\n    await postAuto(request, response);\n    return;\n  }\n  // The browser sends the cookie on a request another page of this address makes too"
+      }
+    ]
+  },
+  {
+    "name": "a confirmation zeroes what was written to the Leader while its confirming call was out",
+    "catches": "keeps the line counted when the call is seen before the confirmation",
+    "edits": [
+      {
+        "file": "lib/chat/status.mjs",
+        "from": "since: confirming.get(root)?.since ?? 0 });",
+        "to": "since: 0 });"
+      }
+    ]
+  },
+  {
+    "name": "a confirming call that came back is still counted against the next confirmation",
+    "catches": "keeps the line counted when the confirmation comes before the call is seen, and nothing stale after",
+    "edits": [
+      {
+        "file": "lib/chat/status.mjs",
+        "from": "  if (confirming.get(root)?.id === id) {\n    confirming.delete(root);\n  }\n",
+        "to": ""
       }
     ]
   }
