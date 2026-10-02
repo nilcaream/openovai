@@ -220,7 +220,7 @@ describe("what the Leader is told", () => {
   it("tells the Leader that what it says lands on its own panel, and a Worker is reached through message", () => {
     assert.match(leader(), /What you say in a turn lands on your own panel and nowhere else\. Nothing you say there reaches\s+another session: whatever is for one goes through `message`\./);
     assert.match(leader(), new RegExp(`a line you address to a Worker at the end of\\s+its message's turn lands there, in front of ${USER}, and the Worker never sees it`));
-    assert.match(leader(), new RegExp(`What ${USER}\\s+has to know goes in your status, below, where they see it until it no longer holds\\.`));
+    assert.match(leader(), new RegExp(`What ${USER}\\s+has to act on goes in your status, below, where they see it until it no longer holds\\.`));
   });
 
   it("points the Leader to the <noop/> turn for a turn with nothing in it for the User", () => {
@@ -229,25 +229,26 @@ describe("what the Leader is told", () => {
     assert.match(leader(), new RegExp(`Nothing to acknowledge: unless ${USER}\\s+needs it, it is a \`<noop/>\` turn\\.`));
   });
 
-  // Where things stand is the Leader's status, STATUS.md, which the User sees on the panel as it
-  // stood at the last confirmation: kept apart from the desk, confirmed at the end of every turn
-  // that brought anything, read first by a successor. It is one bulleted list in a steady order,
-  // so a change moves one bullet and the User rereads only that one; what waits for the User is
-  // a bullet of its own, and a ticket is a link. A message says what happened; a list
-  // pointed back to is a list the User cannot find, and a quote in inline code runs off the side
-  // instead of wrapping.
-  it("tells the Leader that where things stand is its status, confirmed at the end of every turn that brought anything", () => {
-    assert.match(leader(), new RegExp(`Where things stand lives in your status, \`desks/${LEAD}/STATUS\\.md\`: beside your desk and apart\\s+from it, since your desk is yours and the status is ${USER}'s\\.`));
-    assert.match(leader(), /so keep it short: one bulleted list, one topic and\s+one ask per bullet, each a sentence or two that run the width of the panel, saying where that\s+topic stands and who is on it\./);
-    assert.match(leader(), /Keep the bullets in the same order from one confirmation to the\s+next and change only the one that moved, so the rest stays where \S+ last read it: a new\s+topic goes last, a finished one goes\./);
-    assert.match(leader(), /starts with a bold\s+\*\*Waiting for you:\*\*, and bold is for that alone; three things that wait are three such bullets,\s+never one bullet that lists them\./);
-    assert.match(leader(), /Anything with an address, a ticket or a page, is a link with a\s+short label, such as \[BUG-123\]\(https:\/\/…\), never a bare address\./);
-    assert.match(leader(), /No title, headings, tables, code\s+blocks or nested lists; code formatting only for a name or a path\. With nothing open, one bullet\s+says so\./);
+  // What waits for the User is the Leader's status, STATUS.md, which the User sees on the panel as
+  // it stood at the last confirmation: kept apart from the desk, confirmed at the end of every turn
+  // that brought anything, read first by a successor. It holds what only the User can do and the
+  // loose ends nobody is on, and nothing else: work that moves or finished is a message's, and the
+  // desk keeps the rest, so the row stays short enough to read whole. One bulleted list in a steady
+  // order, the waits first; a ticket is a link. A message says what happened; a list pointed back
+  // to is a list the User cannot find, so where things stand is said in words in the reply.
+  it("tells the Leader that its status holds what waits for the User and the loose ends and nothing else, confirmed at the end of every turn that brought anything", () => {
+    assert.match(leader(), new RegExp(`What waits for ${USER} lives in your status, \`desks/${LEAD}/STATUS\\.md\`: beside your desk and\\s+apart from it, since your desk is yours and the status is ${USER}'s\\.`));
+    assert.match(leader(), /It holds two kinds of bullet and nothing else\. One starts with a bold\s+\*\*Waiting for you:\*\* and names something only \S+ can do, and what it holds up\. The other is\s+a loose end: something started and stopped, or found and not closed, that nobody is on\./);
+    assert.match(leader(), /Work that\s+is moving, work that is finished, progress, a measurement, who runs or is stopped, the state of a\s+repository, housekeeping: none of it goes here; a message says what happened, and your desk keeps\s+the rest\./);
+    assert.match(leader(), /A bullet goes the moment it no longer waits or is no longer loose\./);
+    assert.match(leader(), /One bulleted list,\s+one thing per bullet, a sentence or two each, the waits first, in the same order from one\s+confirmation to the next\. Bold is for \*\*Waiting for you:\*\* alone\./);
+    assert.match(leader(), /A ticket or a page is a link\s+with a short label\. No title, headings, tables, code blocks or nested lists\. With nothing waiting\s+and nothing loose, one bullet says so\./);
     assert.doesNotMatch(leader(), /plain sentences|no bold/, "the status is a list, not prose");
-    assert.doesNotMatch(leader(), /open list|five items|finished most recently/, "no sections asked of the status");
-    assert.match(leader(), /So at the end of every turn that\s+brought you anything — a line from \S+, a\s+Worker's message, a server event — edit STATUS\.md\s+with the file tools when it is out of date, then\s+call `confirm_status` as your last call; when it\s+still holds, the call alone\./);
-    assert.match(leader(), /A session that starts\s+on this desk reads STATUS\.md first\./);
-    assert.match(leader(), /A message says what happened; where things stand is the status's\./);
+    assert.doesNotMatch(leader(), /open list|five items|finished most recently|who is on it/, "no progress asked of the status");
+    assert.match(leader(), /At the end of every turn that brought you anything, edit\s+STATUS\.md when it is out of date, then call `confirm_status` as your last call\./);
+    assert.match(leader(), /A session that\s+starts on this desk reads STATUS\.md first\./);
+    assert.match(leader(), /A message says what happened; the status says only what waits\./);
+    assert.match(leader(), new RegExp(`When ${USER} asks where things\\s+stand, say it in words in that reply, then bring the status up to date and confirm it\\.`));
     assert.doesNotMatch(leader(), /stands alone/, "the last message no longer carries where things stand");
   });
 
@@ -257,7 +258,7 @@ describe("what the Leader is told", () => {
 
   it("tells the Leader never to point back to an earlier list, and what code formatting is for", () => {
     assert.match(leader(), /Never point back to a list you\s+wrote earlier/);
-    assert.match(leader(), /Whatever you ask them to choose from has to be in the message that asks\./);
+    assert.match(leader(), /Whatever\s+you ask them to choose from has to be in the message that asks\./);
     assert.match(leader(), /Code formatting is for code\./);
     assert.match(leader(), /goes in a blockquote, which wraps like prose/);
   });

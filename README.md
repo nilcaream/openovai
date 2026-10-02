@@ -77,10 +77,11 @@ directory. Everything the page and the command do is described at [openov.ai](ht
   is in the middle and the Workers' either side from a window 1800px wide; below that the Workers
   share one column beside it, the Leader's head says its usage short below 1240px, and below 1091px
   the page is one column, the Leader first. The User can type on any of them.
-- **Where things stand is one row.** Above the Leader's box, its status: a file on its desk the
-  Leader confirms at the end of every turn that brought it anything, shown with the time of that
-  confirmation and whether anything has reached the Leader since. A message says what happened;
-  the status says where things are. A click on its time asks the Leader to check it.
+- **What waits for the User is one row.** Above the Leader's box, its status: what only the User
+  can do and the loose ends nobody is on, a file on its desk the Leader confirms at the end of
+  every turn that brought it anything, shown with the time of that confirmation and whether
+  anything has reached the Leader since. A message says what happened; the status says only what
+  waits. A click on its time asks the Leader to check it.
 - **Only the server writes to a session.** A session's stdin is written by the server and by
   nobody else, and every turn carries a frame the server sets itself — `<user>`, `<message
   from="…">`, `<server-event type="…">` — so a session always knows who is speaking. Who is
