@@ -2,6 +2,8 @@
 
 Every panel on the page is one Claude Code session, called a seat. There is one Leader and any number of Workers.
 
+A panel shows a turn's answer, not its way there. Words a session writes between its calls are held back while the turn runs: they are shown at its end only when the turn said nothing else, and not at all when it ended with nothing for the panel. The first words after a line typed while the turn runs are shown at once. Until the end, the panel shows the call the session has out.
+
 ## The Leader
 - The session the person talks to. It hires, delegates, relays, and settles what the instance may do. It does no project work itself: a check, a clone, a build or a test is a hire.
 - Its panel is always there. The next thing typed to it starts it.

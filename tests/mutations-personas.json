@@ -1,5 +1,16 @@
 [
   {
+    "name": "nobody is told that words before a call are held",
+    "catches": "tells both that words before a call are held, what the nudge means, and nothing of the reminder",
+    "edits": [
+      {
+        "file": "lib/templates/common.md",
+        "from": "Words you write before a call are held back: the panel shows them at the turn's end only when the\nturn ends without words of its own, and a turn that ends in `<noop/>` shows none of them. The one\nexception is your first text after a line of {{USER}}'s or an urgent message came in during the\nturn: it is shown at once.\n\n",
+        "to": ""
+      }
+    ]
+  },
+  {
     "name": "the Leader's persona names the admin event for the role instead of the condition",
     "catches": "tells the Leader what each event asks of it",
     "edits": [
@@ -374,13 +385,13 @@
     ]
   },
   {
-    "name": "the common frame tells a session to say its words again after a no-visible-output nudge",
-    "catches": "tells both what Claude Code's two nudges mean, and that words already said are never said again",
+    "name": "the common frame does not say an answer that went out before a call is said again after a no-visible-output nudge",
+    "catches": "tells both that words before a call are held, what the nudge means, and nothing of the reminder",
     "edits": [
       {
         "file": "lib/templates/common.md",
-        "from": "whatever you said earlier in the turn is on your panel already, and it is never said\nagain.",
-        "to": "whatever you said earlier in the turn did not reach your panel, so say it\nagain."
+        "from": "Answer it with the turn's last words — the answer again, if it went out before a\ncall — or with",
+        "to": "Answer it with the turn's last words, or with"
       }
     ]
   },

@@ -551,19 +551,23 @@ describe("what both are told in ovai's common frame", () => {
     }
   });
 
-  // Claude Code's "no visible output" nudge looks at the last response of a turn only. A Leader that
-  // read it as "my earlier words were lost" wrote every reply twice.
-  it("tells both what Claude Code's two nudges mean, and that words already said are never said again", () => {
+  // Claude Code's "no visible output" nudge looks at the last response of a turn only, and words
+  // written before a call are held back and dropped by a `<noop/>`: an answer that went out before
+  // a call is said again as the last words, or it is lost. The silent-turn reminder is off in a
+  // seat, so nothing is said of it.
+  it("tells both that words before a call are held, what the nudge means, and nothing of the reminder", () => {
     for (const [text, role] of [[flat(leader()), "leader"], [flat(worker()), "worker"]]) {
       const common = text.slice(0, text.indexOf("</ovai>"));
+      assert.ok(common.includes("A plan for your next call stays in thinking and is never written as text."), role);
       assert.ok(
-        common.includes('"[Your previous response had no visible output …]" means only that the last response of the turn had no words: whatever you said earlier in the turn is on your panel already, and it is never said again. Say what is still unsaid, or reply `<noop/>`: a turn that already said something just ends.'),
+        common.includes("Words you write before a call are held back: the panel shows them at the turn's end only when the turn ends without words of its own, and a turn that ends in `<noop/>` shows none of them."),
         role,
       );
       assert.ok(
-        common.includes("\"The user hasn't heard from you in a while …\" counts your calls since your last words, not what your panel shows, and a `message` is not counted"),
+        common.includes('"[Your previous response had no visible output …]" means only that the last response of the turn had no words. Answer it with the turn\'s last words — the answer again, if it went out before a call — or with `<noop/>` when nothing in the turn is for the panel.'),
         role,
       );
+      assert.ok(!common.includes("hasn't heard from you"), role);
     }
   });
 
@@ -577,7 +581,8 @@ describe("what both are told in ovai's common frame", () => {
       "The `message` tool is how you reach anybody else here, and the `room` tool says who that is",
       "What you say in a turn lands on your own panel and nowhere else",
       "A turn with nothing in it for your panel is a `<noop/>` turn",
-      "Claude Code, which runs you, adds two lines of its own to a turn",
+      "Claude Code, which runs you, adds a line of its own to a turn",
+      "Words you write before a call are held back",
       '`<server-event type="restarted">` — you are the session after a restart on this desk',
       '`<server-event type="undelivered" to="…">` — a message you sent was never read',
       "When you reach for a tool this workspace has not settled",

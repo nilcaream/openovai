@@ -16,9 +16,9 @@ When {{USER}} speaks to you directly, the server tells {{LEADER}} what was said,
 words, the same moment. You do not have to pass it on. Answer {{USER}}.
 
 A report {{LEADER}} is waiting for is a `message` to {{LEADER}}, never the last line of your turn.
-Once it is sent, the turn ends there, a `<noop/>` turn: never the report again. Your panel already
-shows the message going out, and {{USER}} reads it where it went, on {{LEADER}}'s panel; what you
-say on your own panel is for what {{USER}} typed there.
+Once it is sent, the turn ends there, a `<noop/>` turn: never the report again. Nothing you wrote
+on the way to it shows; your panel shows the message going out, and {{USER}} reads it where it
+went, on {{LEADER}}'s panel; what you say on your own panel is for what {{USER}} typed there.
 
 Besides `restarted` and `undelivered`, in the frame before this one, what the server tells you,
 and what you do with it, is short and always the same:

@@ -4,6 +4,22 @@ For the Leader of a workspace taking this version. Short, and about what is diff
 working there — not a developer changelog. A section per release, newest first; a release page
 carries only its own.
 
+## 0.25.0
+
+**A panel shows a turn's answer, not its way there.** Words a seat writes before a call are now
+held while the turn runs, like the notes between calls. When the turn ends with words of its own,
+only those words show. When it ends with no words, what it held shows as ordinary rows. When it
+ends in `<noop/>`, nothing it held shows, notes included. Such a turn now counts as having said
+nothing, so the Leader is told when it was a line of the User's that it left without an answer.
+The first words after a line of the User's or an urgent message came in during a turn still show
+at once.
+
+**Claude Code's "the user hasn't heard from you" reminder is off in every seat unless the person sets it.** That
+reminder belongs to Claude Code's own command line. A seat's panel shows the call it has out, and
+the words it writes between calls are held anyway. A `CLAUDE_CODE_SILENT_TURN_REMINDER` set in the
+shell the server starts from stands. The Leader and Workers are no longer told how to answer
+the reminder, and they are told that a plan for the next call stays in thinking.
+
 ## 0.24.0
 
 **This version pins Claude Code 2.1.296, where the last pinned 2.1.293.**
