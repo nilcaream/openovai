@@ -661,6 +661,22 @@ describe("a line of the User's with no words after it", () => {
     }
   });
 
+  // An interrupt that gave up waiting frees the seat while the run goes on, and the run's late
+  // words come in with no turn open. They are laid when the next turn starts, as that run's: the
+  // next turn that says nothing to the User's line still raises the event.
+  it("tells the Leader of a line its turn said nothing to, whatever a run freed by an interrupt said before it", async () => {
+    await endEvery(500);
+    const martin = await seatUp(LEADER, { OPENOVAI_STAND_IN_SLOW: "600", OPENOVAI_STAND_IN_IGNORES_INTERRUPT: "1", OPENOVAI_STAND_IN_REPLY: "Hello", OPENOVAI_STAND_IN_EMPTY: JSON.stringify([0, 1]) });
+    const deaf = tell(LEADER, userFrame("deaf")).answered;
+    await told(martin.log, 1);
+    assert.equal(await interrupt(LEADER, { patience: 200 }), true);
+    await deaf;
+    assert.ok(await waitFor(() => (recordOf(LEADER).pending.length > 0 ? true : null)), "the freed run never said its late words");
+    await tell(LEADER, userFrame("hello")).answered;
+    const heard = await told(martin.log, 3);
+    assert.equal(heard.at(-1), unanswered(martin.log, "hello"), heard.join("\n"));
+  });
+
   // "two" arrives while the turn for "one" runs, and goes in with the event that turn raised: that
   // turn holds a line of the User's and says nothing, and still raises no second event.
   it("raises no event for a turn that holds one, whatever else went in with it", async () => {

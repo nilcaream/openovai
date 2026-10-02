@@ -635,5 +635,16 @@
         "to": ""
       }
     ]
+  },
+  {
+    "name": "a turn's counts start before what a freed run left is laid",
+    "catches": "tells the Leader of a line its turn said nothing to, whatever a run freed by an interrupt said before it",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "  record.lay();\n  record.said = 0;\n  record.worded = 0;\n  record.fresh = false;",
+        "to": "  record.said = 0;\n  record.worded = 0;\n  record.lay();\n  record.fresh = false;"
+      }
+    ]
   }
 ]
