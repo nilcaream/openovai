@@ -763,6 +763,8 @@ describe("what admin mode left behind", () => {
     assert.match(heard, /What changed: plugins installed: lint@corp \(enabled\); MCP servers added: linear \(user scope\)\./);
     assert.match(heard, /Files: \.claude\/settings\.json, \.mcp\.json\./);
     assert.match(heard, /until the User runs `ovai restart`/);
+    // Measured on a running seat: a rule added to or taken out of the settings applies at its next call.
+    assert.match(heard, /A permission rule in \.claude\/settings\.json applies at each seat's next call\./);
     assert.ok(await waitFor(() => (fs.existsSync(left) ? null : true)), "the record is still at the instance root");
     assert.deepEqual(
       heardIn(paul.log).filter((one) => one.includes("admin-closed")),

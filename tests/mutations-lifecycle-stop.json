@@ -60,7 +60,18 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": " None of it is live yet: a seat reads its configuration when it starts, so nothing of this reaches any seat until the User runs \\`ovai restart\\`.",
+        "from": " The rest is not live yet: a seat reads it when it starts, so it reaches no seat until the User runs \\`ovai restart\\`.",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the event says a permission rule that moved waits for a restart like the rest",
+    "catches": "tells the Leader what moved at the next start, tells no Worker, and takes the record away",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": " A permission rule in .claude/settings.json applies at each seat's next call.",
         "to": ""
       }
     ]
