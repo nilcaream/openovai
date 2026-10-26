@@ -896,9 +896,9 @@ describe("starting a seat", () => {
     assert.deepEqual([...new Set(said)], ["CLAUDE_CODE_SILENT_TURN_REMINDER: 0"]);
   });
 
-  it("runs it in print mode over the streaming protocol, asking here before using a tool, in the mode that asks", () => {
+  it("runs it in print mode over the streaming protocol, asking here for a call auto mode leaves to a person", () => {
     const argv = callsIn(paul.log).at(-1);
-    for (const part of ["--print", "--input-format stream-json", "--output-format stream-json", "--verbose", "--permission-prompt-tool stdio", "--permission-mode default"]) {
+    for (const part of ["--print", "--input-format stream-json", "--output-format stream-json", "--verbose", "--permission-prompt-tool stdio", "--permission-mode auto"]) {
       assert.ok(argv.includes(part), `${part} is not in ${argv}`);
     }
   });
@@ -3131,9 +3131,9 @@ describe("the sign-in's end on the Leader's panel", () => {
 // ---------------------------------------------------------------------------------------------
 
 // Auto mode, asked for with two switches on the Leader's head, one for the Leader's session and
-// one for the Workers': the server's, shared by every page, off at every start. A flip reaches the
-// sessions running now with a control request over their pipe and the ones started after in their
-// arguments; a call the classifier refuses is a row on its panel.
+// one for the Workers': the server's, shared by every page, on at every start, as the CLI starts in
+// auto. A flip reaches the sessions running now with a control request over their pipe and the ones
+// started after in their arguments; a call the classifier refuses is a row on its panel.
 describe("auto mode", () => {
   let martin = null;
   let paul = null;
@@ -3141,56 +3141,60 @@ describe("auto mode", () => {
   const flip = (who, on) => page("POST", "/auto", { who, on });
 
   afterEach(async () => {
-    await flip("leader", false);
-    await flip("workers", false);
+    await flip("leader", true);
+    await flip("workers", true);
     for (const opened of open.splice(0)) {
       opened.close();
     }
     await endEvery(500);
   });
 
-  it("is off for both at the start, in the snapshot every page opens with", async () => {
+  it("is on for both at the start, in the snapshot every page opens with, and a session starts in it", async () => {
     const client = await listen();
     await until(client, (event) => event.name === "snapshot");
-    assert.deepEqual(client.events.find((event) => event.name === "snapshot").data.auto, { leader: false, workers: false });
+    assert.deepEqual(client.events.find((event) => event.name === "snapshot").data.auto, { leader: true, workers: true });
+    martin = await seatUp(LEADER);
+    paul = await seatUp(WORKER);
+    assert.match(callsIn(martin.log).at(-1), /--permission-mode auto\b/);
+    assert.match(callsIn(paul.log).at(-1), /--permission-mode auto\b/);
   });
 
   it("starts a session in the mode its role's switch is in: the Workers' switch does not touch the Leader", async () => {
-    assert.equal((await flip("workers", true)).status, 200);
-    martin = await seatUp(LEADER);
-    paul = await seatUp(WORKER);
-    assert.match(callsIn(martin.log).at(-1), /--permission-mode default\b/);
-    assert.match(callsIn(paul.log).at(-1), /--permission-mode auto\b/);
-    await endEvery(500);
-    await flip("workers", false);
-    await flip("leader", true);
+    assert.equal((await flip("workers", false)).status, 200);
     martin = await seatUp(LEADER);
     paul = await seatUp(WORKER);
     assert.match(callsIn(martin.log).at(-1), /--permission-mode auto\b/);
     assert.match(callsIn(paul.log).at(-1), /--permission-mode default\b/);
+    await endEvery(500);
+    await flip("workers", true);
+    await flip("leader", false);
+    martin = await seatUp(LEADER);
+    paul = await seatUp(WORKER);
+    assert.match(callsIn(martin.log).at(-1), /--permission-mode default\b/);
+    assert.match(callsIn(paul.log).at(-1), /--permission-mode auto\b/);
   });
 
   it("switches the running sessions of a role at once, with no restart, and leaves the other role's alone", async () => {
     martin = await seatUp(LEADER);
     paul = await seatUp(WORKER);
-    const answered = await flip("workers", true);
-    assert.deepEqual(JSON.parse(answered.body), { leader: false, workers: true });
+    const answered = await flip("workers", false);
+    assert.deepEqual(JSON.parse(answered.body), { leader: true, workers: false });
     assert.ok(await waitFor(() => (modesIn(paul.log).length > 0 ? true : null)), "the Worker was never switched");
-    assert.deepEqual(modesIn(paul.log), ["mode: auto"]);
+    assert.deepEqual(modesIn(paul.log), ["mode: default"]);
     assert.deepEqual(modesIn(martin.log), []);
-    await flip("workers", false);
+    await flip("workers", true);
     assert.ok(await waitFor(() => (modesIn(paul.log).length > 1 ? true : null)));
-    assert.deepEqual(modesIn(paul.log), ["mode: auto", "mode: default"]);
+    assert.deepEqual(modesIn(paul.log), ["mode: default", "mode: auto"]);
     assert.equal(callsIn(paul.log).length, 1, "the process was not started again");
   });
 
   it("writes nothing to a session for a switch that did not change", async () => {
     paul = await seatUp(WORKER);
+    await flip("workers", true);
     await flip("workers", false);
-    await flip("workers", true);
-    await flip("workers", true);
+    await flip("workers", false);
     assert.ok(await waitFor(() => (modesIn(paul.log).length > 0 ? true : null)));
-    assert.deepEqual(modesIn(paul.log), ["mode: auto"]);
+    assert.deepEqual(modesIn(paul.log), ["mode: default"]);
   });
 
   it("tells every page, the one that pressed it too, and a page opened later finds the switches as they are", async () => {
@@ -3198,22 +3202,22 @@ describe("auto mode", () => {
     const second = await listen();
     await until(first, (event) => event.name === "snapshot");
     await until(second, (event) => event.name === "snapshot");
-    await flip("leader", true);
+    await flip("leader", false);
     for (const client of [first, second]) {
-      await until(client, (event) => event.name === "auto" && event.data.leader === true);
-      assert.deepEqual(client.events.findLast((event) => event.name === "auto").data, { leader: true, workers: false });
+      await until(client, (event) => event.name === "auto" && event.data.leader === false);
+      assert.deepEqual(client.events.findLast((event) => event.name === "auto").data, { leader: false, workers: true });
     }
     const later = await listen();
     await until(later, (event) => event.name === "snapshot");
-    assert.deepEqual(later.events.find((event) => event.name === "snapshot").data.auto, { leader: true, workers: false });
+    assert.deepEqual(later.events.find((event) => event.name === "snapshot").data.auto, { leader: false, workers: true });
   });
 
-  it("is off again when a server starts: the switches are written down nowhere", async () => {
-    await flip("leader", true);
-    await flip("workers", true);
+  it("is on again when a server starts: the switches are written down nowhere", async () => {
+    await flip("leader", false);
+    await flip("workers", false);
     const started = await serve({ ...chat, config: { ...chat.config, port: 0 } });
     try {
-      assert.deepEqual(JSON.parse((await page("GET", "/sessions")).body).auto, { leader: false, workers: false });
+      assert.deepEqual(JSON.parse((await page("GET", "/sessions")).body).auto, { leader: true, workers: true });
     } finally {
       await new Promise((resolve) => started.close(resolve));
     }
@@ -3226,13 +3230,13 @@ describe("auto mode", () => {
     }
     const broken = await fetch(`${url}/auto`, { method: "POST", headers: { cookie: signedIn(), origin: url }, body: "not json" });
     assert.equal(broken.status, 400);
-    assert.deepEqual(JSON.parse((await page("GET", "/sessions")).body).auto, { leader: false, workers: false });
+    assert.deepEqual(JSON.parse((await page("GET", "/sessions")).body).auto, { leader: true, workers: true });
   });
 
   // The one page route that changes every session at once: it takes the page's cookie and an own
   // origin, as every change does, and a request without either changes nothing.
   it("takes a switch only from the page: not without its cookie, not without or with a foreign origin", async () => {
-    const body = JSON.stringify({ who: "leader", on: true });
+    const body = JSON.stringify({ who: "leader", on: false });
     const port = server.address().port;
     for (const [why, headers, status] of [
       ["no cookie", { origin: url }, 401],
@@ -3243,7 +3247,7 @@ describe("auto mode", () => {
     ]) {
       const answered = await fetch(`${url}/auto`, { method: "POST", headers: { "content-type": "application/json", ...headers }, body });
       assert.equal(answered.status, status, why);
-      assert.deepEqual(JSON.parse((await page("GET", "/sessions")).body).auto, { leader: false, workers: false }, `${why} changed it`);
+      assert.deepEqual(JSON.parse((await page("GET", "/sessions")).body).auto, { leader: true, workers: true }, `${why} changed it`);
     }
   });
 
