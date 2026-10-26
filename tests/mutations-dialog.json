@@ -130,5 +130,82 @@
         "to": "const RECOMMENDED = { allow: \"Allow\", deny: \"Allow\", ask: \"Ask every time\" };"
       }
     ]
+  },
+  {
+    "name": "the card for a held rule leaves out where it stands now",
+    "catches": "says where the rule stands now, between the rule and the why, and keeps the three buttons",
+    "edits": [
+      {
+        "file": "lib/chat/dialog.mjs",
+        "from": "    lines: [\n      { kind: \"rule\", text: request.rule },\n      ...heldLine(request),\n      { kind: \"why\", text: request.why },\n    ],\n    // Three",
+        "to": "    lines: [\n      { kind: \"rule\", text: request.rule },\n      { kind: \"why\", text: request.why },\n    ],\n    // Three"
+      }
+    ]
+  },
+  {
+    "name": "a rule no list holds is said to stand somewhere",
+    "catches": "says nothing of where a rule stands that no list holds",
+    "edits": [
+      {
+        "file": "lib/chat/dialog.mjs",
+        "from": "Array.isArray(request.now) && request.now.length > 0 ?",
+        "to": "true ?"
+      }
+    ]
+  },
+  {
+    "name": "a removal is headed as a rule to settle",
+    "catches": "heads a removal with who asks",
+    "edits": [
+      {
+        "file": "lib/chat/dialog.mjs",
+        "from": "heading: `${who} asks you to remove a rule`,",
+        "to": "heading: `${who} asks you to settle a rule`,"
+      }
+    ]
+  },
+  {
+    "name": "the ledger's line on a removal is drawn as a line of the server's",
+    "catches": "shows the rule, where it stands, the why, and the ledger's line for it",
+    "edits": [
+      {
+        "file": "lib/chat/dialog.mjs",
+        "from": "? { kind: \"ledger\", text: request.line }",
+        "to": "? { kind: \"held\", text: request.line }"
+      }
+    ]
+  },
+  {
+    "name": "the lists a rule stands in are run together",
+    "catches": "says so when the ledger has no line for it, and names every list a hand edit put it in",
+    "edits": [
+      {
+        "file": "lib/chat/dialog.mjs",
+        "from": ".join(\" and \")",
+        "to": ".join(\", \")"
+      }
+    ]
+  },
+  {
+    "name": "a default's removal card does not say it is remembered",
+    "catches": "says what one of ovai's defaults is for, and that removing it is remembered",
+    "edits": [
+      {
+        "file": "lib/chat/dialog.mjs",
+        "from": " Removing it also means ovai does not offer it again after an update.",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "Keep is labelled Cancel",
+    "catches": "offers Remove and Keep, and nothing else",
+    "edits": [
+      {
+        "file": "lib/chat/dialog.mjs",
+        "from": "{ decision: \"keep\", label: \"Keep\" }",
+        "to": "{ decision: \"keep\", label: \"Cancel\" }"
+      }
+    ]
   }
 ]

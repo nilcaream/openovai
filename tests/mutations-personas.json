@@ -1076,5 +1076,16 @@
         "to": ""
       }
     ]
+  },
+  {
+    "name": "the Leader's persona does not say a changed rule applies at the next call",
+    "catches": "tells the Leader that a held rule is moved by `permission` and taken out by `remove_rule`",
+    "edits": [
+      {
+        "file": "lib/templates/leader.md",
+        "from": "decision remove or keep. A rule changed either way applies at every session's next call.",
+        "to": "decision remove or keep."
+      }
+    ]
   }
 ]

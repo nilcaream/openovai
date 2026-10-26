@@ -5,8 +5,8 @@ Each limit is followed by the nearest thing ovai can do instead.
 - **Slash commands on the page.** Ask for a skill in words. Claude Code's own commands go to admin mode, `<instance>/bin/ovai claude`.
 - **Buttons to start, stop or hire sessions.** Ask the Leader in words. The page's one control over a session is the stop button, which interrupts its running turn; the Leader's head also has switches for auto mode (see `panels-and-team.md`).
 - **Choosing a new Worker's name.** Names come from a fixed list. Ask for the task, not the person.
-- **Sessions changing Claude Code's settings files.** The Leader adds permission rules through permission popups. Everything else is done in admin mode or an editor.
-- **Changes reaching running sessions.** Settings, MCP servers, plugins, `customization/` and `knowledge/common.md` are read at a session's start. Restart: `ovai restart`, or ask the Leader.
+- **Sessions changing Claude Code's settings files.** The Leader adds, moves and removes permission rules through permission popups, except the rules that keep sessions out of the instance's own settings, login and page keys. Everything else is done in admin mode or an editor.
+- **Changes reaching running sessions.** A permission rule in `.claude/settings.json` applies at each session's next call, whether it came from a permission popup or an editor. Other settings, MCP servers, plugins, `customization/` and `knowledge/common.md` are read at a session's start. Restart: `ovai restart`, or ask the Leader.
 - **Windows.** WSL 2 has not been tried, and native Windows is not supported. To try WSL 2, keep the instance off `/mnt/c`. macOS is built for and checked with stand-ins on Linux, but ovai has not yet been run on a Mac.
 - **Updating while the server or any session runs.** `ovai stop`, then `ovai update`.
 - **Rolling back an update to 0.20.0 or earlier from GitHub.** Those releases carry no signed package, so the updater refuses them. `ovai update --downgrade` takes an older release that is signed, 0.21.0 or later, and `--from <directory>` takes any.

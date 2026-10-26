@@ -1189,7 +1189,7 @@
     bubble.append(heading);
     for (const { kind, text } of dialog.lines) {
       const shown = document.createElement("div");
-      if (kind === "reason" || kind === "why") shown.className = "reason";
+      if (kind === "reason" || kind === "why" || kind === "held") shown.className = "reason";
       else if (kind === "saves") shown.className = "saves";
       else if (kind === "rules") shown.className = "raw rules";
       else if (kind === "agent") shown.className = "agent";

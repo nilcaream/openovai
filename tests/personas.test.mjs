@@ -333,6 +333,12 @@ describe("what the Leader is told", () => {
     assert.match(leader(), /`permission` with no rule answers what the instance holds/);
   });
 
+  it("tells the Leader that a held rule is moved by `permission` and taken out by `remove_rule`", () => {
+    assert.match(leader(), /A rule already held is asked the same way, and the press moves it to the list\s+pressed/);
+    assert.match(leader(), /call `remove_rule` with the rule exactly as the listing\s+spells it and why: one card with Remove and Keep/);
+    assert.match(leader(), /A rule changed either way applies at every session's next call\./);
+  });
+
   it("tells the Leader to act when a Worker's card timed out", () => {
     assert.match(leader(), /<server-event type="permission" who="…" minutes="…">/);
     assert.match(leader(), new RegExp(`Tell ${USER} in your next reply that the card timed out and what it asked`));

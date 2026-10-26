@@ -329,8 +329,8 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "  permission: [LEADER],\n};",
-        "to": "  permission: [LEADER, WORKER],\n};"
+        "from": "  permission: [LEADER],\n",
+        "to": "  permission: [LEADER, WORKER],\n"
       }
     ]
   },
@@ -593,19 +593,8 @@
     "edits": [
       {
         "file": "lib/chat/permissions.mjs",
-        "from": "  return kind === \"default\" ? { id, kind, rule, why, from, list } : { id, kind, rule, why, from };",
-        "to": "  return kind === \"default\" ? { id, kind, rule, from, list } : { id, kind, rule, from };"
-      }
-    ]
-  },
-  {
-    "name": "a rule the instance already holds is asked again",
-    "catches": "refuses a rule the instance already holds, naming how it is held",
-    "edits": [
-      {
-        "file": "lib/chat/server.mjs",
-        "from": "        if (held !== undefined) {\n          return { refused: `${accepted} is already ${SETTLED_AS[held]} - say it to the User` };\n        }\n",
-        "to": ""
+        "from": "  return Object.fromEntries(Object.entries(shown).filter(([, value]) => value !== undefined));",
+        "to": "  return Object.fromEntries(Object.entries(shown).filter(([key, value]) => value !== undefined && key !== \"why\"));"
       }
     ]
   },
@@ -615,8 +604,8 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "    LISTS.map((list) => [list, (Array.isArray(permissions[list])",
-        "to": "    [\"allow\", \"ask\"].map((list) => [list, (Array.isArray(permissions[list])"
+        "from": "    LISTS.map((list) => [\n      list,\n      (Array.isArray(permissions[list])",
+        "to": "    [\"allow\", \"ask\"].map((list) => [\n      list,\n      (Array.isArray(permissions[list])"
       }
     ]
   },
@@ -648,8 +637,8 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "        if (typeof why !== \"string\" || why.trim() === \"\") {\n          return { refused: \"say why: the User reads it on the button\" };\n        }\n",
-        "to": ""
+        "from": "        if (typeof why !== \"string\" || why.trim() === \"\") {\n          return { refused: \"say why: the User reads it on the button\" };\n        }\n        const accepted",
+        "to": "        const accepted"
       }
     ]
   },
@@ -947,6 +936,171 @@
         "file": "lib/chat/server.mjs",
         "from": "    if (offersNoRule(asked)) {",
         "to": "    if (asked.suppressAlwaysAllowRule === true) {"
+      }
+    ]
+  },
+  {
+    "name": "a rule taken out leaves no line in the ledger",
+    "catches": "takes a rule out of its list with a line that says so, and a second time writes nothing",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "\n  appendLedger(root, ",
+        "to": "\n  void (root, "
+      }
+    ]
+  },
+  {
+    "name": "the ledger skips a decision any earlier line made, not only the last",
+    "catches": "writes a new line for a rule settled again in the list it was taken out of",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "  if (last !== null && last.startsWith(",
+        "to": "  if (readLedger(root)?.includes("
+      }
+    ]
+  },
+  {
+    "name": "a rule is taken out of the first list that holds it and left in the rest",
+    "catches": "takes a rule out of every list a hand edit put it in",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "  const from = LISTS.filter((list) => Array.isArray(permissions[list]) && permissions[list].includes(rule));",
+        "to": "  const from = LISTS.filter((list) => Array.isArray(permissions[list]) && permissions[list].includes(rule)).slice(0, 1);"
+      }
+    ]
+  },
+  {
+    "name": "remove_rule is offered to a Worker too",
+    "catches": "offers remove_rule to the Leader alone",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "  remove_rule: [LEADER],\n",
+        "to": "  remove_rule: [LEADER, WORKER],\n"
+      }
+    ]
+  },
+  {
+    "name": "a removal already asked on the panel is asked again",
+    "catches": "refuses a removal without a why, of a rule no list holds, or of a rule already asked",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "        if (rulesPending(caller.seat).some((pending) => pending.rule === rule)) {",
+        "to": "        if (rulesPending(caller.seat).some((pending) => pending.rule === null)) {"
+      }
+    ]
+  },
+  {
+    "name": "permission moves a rule that guards the instance's own files",
+    "catches": "refuses to remove or move the rules that guard the instance's own files",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "        if (now.length > 0 && OWN_ACCOUNT_RULES.includes(accepted)) {",
+        "to": "        if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "the card for a held rule does not say where it stands now",
+    "catches": "asks to move a held rule on one card that says where it stands now",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "turn: turnOf(caller.seat), ...(now.length === 0 ? {} : { now }) }",
+        "to": "turn: turnOf(caller.seat) }"
+      }
+    ]
+  },
+  {
+    "name": "permission refuses a rule already held, as it did before a move was a card",
+    "catches": "moves the rule to the list pressed, and tells the Leader",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "        if (now.length > 0 && OWN_ACCOUNT_RULES.includes(accepted)) {",
+        "to": "        if (now.length > 0) {"
+      }
+    ]
+  },
+  {
+    "name": "a removal is parked without the ledger's line for the rule",
+    "catches": "parks a removal with the lists that hold it, the ledger's line, and a default's why",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "...(line === null ? {} : { line }), ...(born",
+        "to": "...{}, ...(born"
+      }
+    ]
+  },
+  {
+    "name": "the listing's pending cards say nothing of their kind",
+    "catches": "lists a pending removal as a removal",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "pending: rulesPending(seat).map(({ kind, rule, why }) => ({ kind, rule, why }))",
+        "to": "pending: rulesPending(seat).map(({ rule, why }) => ({ rule, why }))"
+      }
+    ]
+  },
+  {
+    "name": "a removal takes any decision",
+    "catches": "takes nothing but remove or keep on a removal",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "    if (decision !== \"remove\" && decision !== \"keep\") {",
+        "to": "    if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "Keep takes the rule out as well",
+    "catches": "keeps the rule on Keep, and tells the Leader",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "    if (decision === \"remove\") {\n      const from = ruleRemoved(",
+        "to": "    if (decision !== \"\") {\n      const from = ruleRemoved("
+      }
+    ]
+  },
+  {
+    "name": "Remove writes the ledger's line and leaves the rule in the settings",
+    "catches": "takes the rule out on Remove, with a line in the ledger, and tells the Leader",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "  writeSettings(root, { ...settings, permissions: written });\n  return from;",
+        "to": "  return from;"
+      }
+    ]
+  },
+  {
+    "name": "a removed default is not remembered, so the update's card asks for it back",
+    "catches": "remembers a removed default as ignored, so the update's card never asks for it back",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "        ignoreDefault(instance.root, { list: asked.bornIn, rule: asked.rule });\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a rule no list held by the press is reported as removed",
+    "catches": "says a rule no list held by the press was not written",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "        said = `${asked.rule} - no list held it by then; nothing was written`;",
+        "to": "        said = asked.rule;"
       }
     ]
   }

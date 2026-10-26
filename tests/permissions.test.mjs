@@ -19,8 +19,8 @@ import { acceptRule, shapeOf } from "../lib/chat/permissions.mjs";
 import { endSeat, serve, startSeat, toolsFor } from "../lib/chat/server.mjs";
 import { LEADER as LEADS, WORKER } from "../lib/desks.mjs";
 import { endEvery } from "../lib/chat/session.mjs";
-import { KNOWLEDGE_ASK_RULES, LEDGER, ruleAsked } from "../lib/desks.mjs";
-import { CONFIG_FILE } from "../lib/seed.mjs";
+import { KNOWLEDGE_ASK_RULES, LEDGER, SHELL_DENY_RULES, ruleAsked, ruleRemoved } from "../lib/desks.mjs";
+import { CONFIG_FILE, defaultsIgnored, rulesMissing } from "../lib/seed.mjs";
 import { heardIn, installed, pageCookie, post, remove, repo, scratch, secretsIn, source, waitFor, writeStandIn } from "./helpers.mjs";
 import { settingsProblems } from "./inspect.mjs";
 
@@ -421,6 +421,37 @@ describe("settling a rule in the settings", () => {
 
   it("refuses a list that is not one of the three", () => {
     assert.throws(() => ruleAsked(root, { rule: "Bash(x:*)", list: "always", session: LEADER, call: "x", day: "d" }), /allow, deny, ask/);
+  });
+
+  // Taking a rule out is a line of its own after the line that put it in, and putting it back is
+  // another: the ledger's last line for a rule is what was last decided about it.
+  it("takes a rule out of its list with a line that says so, and a second time writes nothing", () => {
+    const before_ = ledger().length;
+    assert.deepEqual(ruleRemoved(root, { rule: "Bash(pip:*)", session: LEADER, call: "pip is fine again `now`", day: "2026-10-21" }), ["allow"]);
+    assert.deepEqual(settings().allow, ["mcp__openovai"]);
+    assert.deepEqual(settings().deny, ["Edit(/.claude/**)"]);
+    assert.equal(ledger().length, before_ + 1);
+    assert.equal(ledger().at(-1), `- \`Bash(pip:*)\` (removed from allow) — ${LEADER}, 2026-10-21, for \`pip is fine again now\``);
+    assert.deepEqual(ruleRemoved(root, { rule: "Bash(pip:*)", session: LEADER, call: "again", day: "2026-10-21" }), []);
+    assert.equal(ledger().length, before_ + 1);
+  });
+
+  it("writes a new line for a rule settled again in the list it was taken out of", () => {
+    const before_ = ledger().length;
+    ruleAsked(root, { rule: "Bash(pip:*)", list: "allow", session: LEADER, call: "pip install after all", day: "2026-10-21" });
+    assert.deepEqual(settings().allow, ["mcp__openovai", "Bash(pip:*)"]);
+    assert.equal(ledger().length, before_ + 1);
+    assert.match(ledger().at(-1), /^- `Bash\(pip:\*\)` \(allow\) — /);
+  });
+
+  it("takes a rule out of every list a hand edit put it in", () => {
+    const written = JSON.parse(fs.readFileSync(path.join(root, ".claude", "settings.json"), "utf8"));
+    written.permissions.ask = ["Bash(pip:*)"];
+    fs.writeFileSync(path.join(root, ".claude", "settings.json"), JSON.stringify(written));
+    assert.deepEqual(ruleRemoved(root, { rule: "Bash(pip:*)", session: LEADER, call: "both", day: "2026-10-21" }), ["allow", "ask"]);
+    assert.deepEqual(settings().allow, ["mcp__openovai"]);
+    assert.deepEqual(settings().ask, []);
+    assert.match(ledger().at(-1), /^- `Bash\(pip:\*\)` \(removed from allow, ask\) — /);
   });
 });
 
@@ -1017,7 +1048,6 @@ describe("asking to be allowed", () => {
       ruleAsked(instance, { rule: "Bash(git:*)", list: "deny", session: LEADER, call: "settled by hand for the check", day: "2026-09-13" });
       said.noWhy = await permission({ rule: "Bash(pip:*)" });
       said.badShape = await permission({ rule: "Write(/docs/**)", why: "anything" });
-      said.held = await permission({ rule: "Bash(git:*)", why: "the User asked" });
       said.asked = await permission({ rule: "Bash(pip:*)", why: "pip install is too much" });
       said.again = await permission({ rule: "Bash(pip:*)", why: "pip install is too much" });
       listedOnPanel = JSON.parse((await page("GET", `/sessions/${LEADER}/permissions`)).body).permissions;
@@ -1051,11 +1081,6 @@ describe("asking to be allowed", () => {
       assert.match(said.again.text, /already asked on your panel/);
     });
 
-    it("refuses a rule the instance already holds, naming how it is held", () => {
-      assert.equal(said.held.refused, true);
-      assert.match(said.held.text, /Bash\(git:\*\) is already denied/);
-    });
-
     it("answers at once that the rule is asked on the panel", () => {
       assert.equal(said.asked.refused, false, said.asked.text);
       assert.match(said.asked.text, /^asked on your panel: Bash\(pip:\*\) \(.+\)$/);
@@ -1079,7 +1104,7 @@ describe("asking to be allowed", () => {
       const denied = listing.deny.find((entry) => entry.rule === "Bash(git:*)");
       assert.ok(denied !== undefined, said.listing.text);
       assert.match(denied.line, /^- `Bash\(git:\*\)` \(deny\) — /);
-      assert.deepEqual(listing.pending, [{ rule: "Bash(pip:*)", why: "pip install is too much" }]);
+      assert.deepEqual(listing.pending, [{ kind: "rule", rule: "Bash(pip:*)", why: "pip install is too much" }]);
     });
 
     it("writes an ask decision to the ask list, and the ledger says so", () => {
@@ -1114,6 +1139,162 @@ describe("asking to be allowed", () => {
       const denied = await page("POST", `/sessions/${LEADER}/permission`, { id: request.id, decision: "deny" });
       assert.equal(denied.status, 200, denied.body);
       assert.ok(settings().deny.includes("Bash(pip3:*)"));
+    });
+  });
+
+  // A rule the settings hold: `permission` moves it on one card that says where it stands, and
+  // remove_rule takes it out on a card of its own, Remove or Keep. Both presses reach the Leader.
+  describe("moving and removing a held rule", () => {
+    const settingsFile = path.join(instance, ".claude", "settings.json");
+    const settings = () => JSON.parse(fs.readFileSync(settingsFile, "utf8")).permissions;
+    const ledger = () => fs.readFileSync(path.join(instance, LEDGER), "utf8").split("\n").filter((line) => line.startsWith("- `"));
+    const today = new Date().toISOString().slice(0, 10);
+    const DEFAULT = SHELL_DENY_RULES[0];
+    let leader;
+    const said = {};
+    let cards;
+    const heard = {};
+
+    async function call(name, args) {
+      const answered = await post(`${url}/mcp/${leader.secret}`, { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } });
+      const body = JSON.parse(answered.body);
+      return { text: body.result?.content?.[0]?.text, refused: body.result?.isError === true };
+    }
+    const pending = async () => JSON.parse((await page("GET", `/sessions/${LEADER}/permissions`)).body).permissions;
+    const cardFor = (rule, kind) => cards.find((card) => card.rule === rule && card.kind === kind);
+    // Press, and answer with the event the press sent the Leader.
+    async function press(id, decision) {
+      const before_ = heardIn(leader.log).length;
+      const pressed = await page("POST", `/sessions/${LEADER}/permission`, { id, decision });
+      assert.equal(pressed.status, 200, pressed.body);
+      assert.ok(await waitFor(() => (heardIn(leader.log).length > before_ ? true : null)), "the Leader was never told");
+      return heardIn(leader.log).at(-1);
+    }
+    function handEdit(change) {
+      const written = JSON.parse(fs.readFileSync(settingsFile, "utf8"));
+      change(written.permissions);
+      fs.writeFileSync(settingsFile, JSON.stringify(written));
+    }
+
+    before(async () => {
+      leader = await leaderAsking({});
+      leader.secret = secretsIn(leader.log)[0];
+      ruleAsked(instance, { rule: "Bash(cargo:*)", list: "ask", session: LEADER, call: "cargo builds", day: "2026-10-20" });
+      ruleAsked(instance, { rule: "Bash(make:*)", list: "allow", session: LEADER, call: "make builds", day: "2026-10-20" });
+      said.noWhy = await call("remove_rule", { rule: "Bash(make:*)" });
+      said.nowhere = await call("remove_rule", { rule: "Bash(nothing:*)", why: "x" });
+      said.account = await call("remove_rule", { rule: "Edit(/.claude/**)", why: "x" });
+      said.accountMove = await call("permission", { rule: "Edit(/.claude/**)", why: "x" });
+      said.move = await call("permission", { rule: "Bash(cargo:*)", why: "cargo is fine" });
+      said.removePending = await call("remove_rule", { rule: "Bash(cargo:*)", why: "x" });
+      said.remove = await call("remove_rule", { rule: "Bash(make:*)", why: "make is done" });
+      said.removeDefault = await call("remove_rule", { rule: DEFAULT, why: "push without asking" });
+      said.listing = await call("permission", {});
+      cards = await pending();
+      said.firstCards = cards;
+      said.wrongDecision = await page("POST", `/sessions/${LEADER}/permission`, { id: cardFor("Bash(make:*)", "remove").id, decision: "allow" });
+      heard.keep = await press(cardFor("Bash(make:*)", "remove").id, "keep");
+      said.keptHeld = settings().allow.includes("Bash(make:*)");
+      heard.move = await press(cardFor("Bash(cargo:*)", "rule").id, "allow");
+      said.removeAgain = await call("remove_rule", { rule: "Bash(make:*)", why: "make is done, really" });
+      said.cargoRemoval = await call("remove_rule", { rule: "Bash(cargo:*)", why: "cargo is gone" });
+      cards = await pending();
+      heard.remove = await press(cardFor("Bash(make:*)", "remove").id, "remove");
+      heard.removeDefault = await press(cardFor(DEFAULT, "remove").id, "remove");
+      said.cargoCard = cardFor("Bash(cargo:*)", "remove");
+      handEdit((permissions) => {
+        permissions.allow = permissions.allow.filter((rule) => rule !== "Bash(cargo:*)");
+      });
+      said.ledgerBefore = ledger().length;
+      heard.gone = await press(said.cargoCard.id, "remove");
+    });
+
+    after(async () => {
+      handEdit((permissions) => permissions.deny.push(DEFAULT));
+      await endSeat(LEADER, 500);
+    });
+
+    it("offers remove_rule to the Leader alone", () => {
+      const forWorker = toolsFor(chat, { seat: "Paul", role: WORKER }).find((tool) => tool.name === "remove_rule");
+      assert.equal(forWorker.offered, false);
+      assert.deepEqual(forWorker.run({ rule: "Bash(make:*)", why: "x" }), { refused: "remove_rule is not offered to you" });
+      assert.equal(toolsFor(chat, { seat: LEADER, role: LEADS }).find((tool) => tool.name === "remove_rule").offered, true);
+    });
+
+    it("refuses a removal without a why, of a rule no list holds, or of a rule already asked", () => {
+      assert.equal(said.noWhy.refused, true);
+      assert.match(said.noWhy.text, /say why/);
+      assert.equal(said.nowhere.refused, true);
+      assert.equal(said.nowhere.text, "Bash(nothing:*) is in none of the lists - permission with no rule says what is held");
+      assert.equal(said.removePending.refused, true);
+      assert.match(said.removePending.text, /already asked on your panel/);
+    });
+
+    it("refuses to remove or move the rules that guard the instance's own files", () => {
+      assert.equal(said.account.refused, true);
+      assert.match(said.account.text, /^Edit\(\/\.claude\/\*\*\) keeps the file tools away from this instance's own settings, login and page keys - only the User changes it/);
+      assert.equal(said.accountMove.refused, true, said.accountMove.text);
+      assert.equal(said.accountMove.text, said.account.text);
+    });
+
+    it("asks to move a held rule on one card that says where it stands now", () => {
+      assert.equal(said.move.refused, false, said.move.text);
+      assert.match(said.move.text, /^asked on your panel: Bash\(cargo:\*\) \(.+\), asked every time now$/);
+      const card = said.firstCards.find((held) => held.rule === "Bash(cargo:*)" && held.kind === "rule");
+      assert.deepEqual(card.now, ["ask"]);
+      assert.deepEqual(dialogOf(card, LEADER).lines.filter((line) => line.kind === "held"), [{ kind: "held", text: "Now: asked every time" }]);
+    });
+
+    it("moves the rule to the list pressed, and tells the Leader", () => {
+      assert.equal(heard.move, `<server-event type="permission" decision="allow" who="${LEADER}">Bash(cargo:*)</server-event>`);
+    });
+
+    it("parks a removal with the lists that hold it, the ledger's line, and a default's why", () => {
+      assert.equal(said.remove.refused, false, said.remove.text);
+      assert.match(said.remove.text, /^asked on your panel: remove Bash\(make:\*\) \(.+\)$/);
+      const { id, line, ...make } = said.firstCards.find((held) => held.rule === "Bash(make:*)" && held.kind === "remove");
+      assert.deepEqual(make, { kind: "remove", rule: "Bash(make:*)", why: "make is done", from: LEADER, now: ["allow"] });
+      assert.match(line, /^- `Bash\(make:\*\)` \(allow\) — /);
+      const born = said.firstCards.find((held) => held.rule === DEFAULT && held.kind === "remove");
+      assert.deepEqual(born.now, ["deny"]);
+      assert.equal(born.bornIn, "deny");
+      assert.match(born.default, /a push is yours to make/);
+      assert.equal(born.line, undefined, "a default the installer wrote has no line in the ledger");
+      assert.equal(said.cargoCard.line, `- \`Bash(cargo:*)\` (allow) — ${LEADER}, ${today}, for \`cargo is fine\``);
+    });
+
+    it("lists a pending removal as a removal", () => {
+      const { pending: listed } = JSON.parse(said.listing.text);
+      assert.deepEqual(listed.map(({ kind, rule }) => `${kind} ${rule}`), ["rule Bash(cargo:*)", "remove Bash(make:*)", `remove ${DEFAULT}`]);
+    });
+
+    it("takes nothing but remove or keep on a removal", () => {
+      assert.equal(said.wrongDecision.status, 400, said.wrongDecision.body);
+      assert.match(said.wrongDecision.body, /remove or keep/);
+    });
+
+    it("keeps the rule on Keep, and tells the Leader", () => {
+      assert.equal(said.keptHeld, true);
+      assert.equal(heard.keep, `<server-event type="permission" decision="keep" who="${LEADER}">Bash(make:*)</server-event>`);
+      assert.equal(said.removeAgain.refused, false, said.removeAgain.text);
+    });
+
+    it("takes the rule out on Remove, with a line in the ledger, and tells the Leader", () => {
+      assert.ok(!settings().allow.includes("Bash(make:*)"), JSON.stringify(settings()));
+      assert.ok(ledger().includes(`- \`Bash(make:*)\` (removed from allow) — ${LEADER}, ${today}, for \`make is done, really\``), ledger().join("\n"));
+      assert.equal(heard.remove, `<server-event type="permission" decision="remove" who="${LEADER}">Bash(make:*)</server-event>`);
+    });
+
+    it("remembers a removed default as ignored, so the update's card never asks for it back", () => {
+      assert.ok(!settings().deny.includes(DEFAULT));
+      assert.ok(defaultsIgnored(instance).some((entry) => entry.list === "deny" && entry.rule === DEFAULT), JSON.stringify(defaultsIgnored(instance)));
+      assert.ok(!rulesMissing(instance).some((missing) => missing.rule === DEFAULT));
+      assert.equal(heard.removeDefault, `<server-event type="permission" decision="remove" who="${LEADER}">${DEFAULT}</server-event>`);
+    });
+
+    it("says a rule no list held by the press was not written", () => {
+      assert.equal(ledger().length, said.ledgerBefore);
+      assert.equal(heard.gone, `<server-event type="permission" decision="remove" who="${LEADER}">Bash(cargo:*) - no list held it by then; nothing was written</server-event>`);
     });
   });
 

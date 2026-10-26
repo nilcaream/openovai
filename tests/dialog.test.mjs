@@ -102,6 +102,57 @@ describe("a rule request", () => {
   });
 });
 
+describe("a rule request for a rule already held", () => {
+  const moved = dialogOf({ id: "q2", kind: "rule", rule: "Bash(git push:*)", why: "push without asking", from: "Martin", now: ["deny"] }, "Martin");
+
+  it("says where the rule stands now, between the rule and the why, and keeps the three buttons", () => {
+    assert.deepEqual(moved.lines, [
+      { kind: "rule", text: "Bash(git push:*)" },
+      { kind: "held", text: "Now: denied" },
+      { kind: "why", text: "push without asking" },
+    ]);
+    assert.deepEqual(decisions(moved), ["allow", "deny", "ask"]);
+  });
+
+  it("says nothing of where a rule stands that no list holds", () => {
+    assert.deepEqual(line(dialogOf({ id: "q1", kind: "rule", rule: "Bash(x:*)", why: "w", from: "Martin" }, "Martin"), "held"), []);
+  });
+});
+
+describe("a removal", () => {
+  const card = (extra) => dialogOf({ id: "r1", kind: "remove", rule: "Bash(npm ci:*)", why: "it is not needed any more", from: "Martin", now: ["ask"], ...extra }, "Martin");
+
+  it("heads a removal with who asks", () => {
+    assert.equal(card({}).kind, "remove");
+    assert.equal(card({}).heading, "Martin asks you to remove a rule");
+  });
+
+  it("shows the rule, where it stands, the why, and the ledger's line for it", () => {
+    const shown = card({ line: "- `Bash(npm ci:*)` (ask) — Martin, 2026-10-03, for `npm ci`" });
+    assert.deepEqual(shown.lines, [
+      { kind: "rule", text: "Bash(npm ci:*)" },
+      { kind: "held", text: "Now: asked every time" },
+      { kind: "why", text: "it is not needed any more" },
+      { kind: "ledger", text: "- `Bash(npm ci:*)` (ask) — Martin, 2026-10-03, for `npm ci`" },
+    ]);
+  });
+
+  it("says so when the ledger has no line for it, and names every list a hand edit put it in", () => {
+    const shown = card({ now: ["allow", "ask"] });
+    assert.deepEqual(line(shown, "held"), ["Now: allowed and asked every time", "Not in .claude/allowed.md: written by hand, or when the instance was made."]);
+    assert.deepEqual(line(shown, "ledger"), []);
+  });
+
+  it("says what one of ovai's defaults is for, and that removing it is remembered", () => {
+    const shown = card({ default: "Refuses this command to every session." });
+    assert.equal(line(shown, "held").at(-1), "One of ovai's default rules: Refuses this command to every session. Removing it also means ovai does not offer it again after an update.");
+  });
+
+  it("offers Remove and Keep, and nothing else", () => {
+    assert.deepEqual(card({}).buttons, [{ decision: "remove", label: "Remove" }, { decision: "keep", label: "Keep" }]);
+  });
+});
+
 describe("a default", () => {
   const card = (list) => dialogOf({ id: "d1", kind: "default", list, rule: "Bash(sudo:*)", why: "the rule's why", from: "OpenOv AI" }, "Bob");
 
