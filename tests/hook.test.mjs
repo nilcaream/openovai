@@ -1,6 +1,6 @@
-// The hook that lets a compound of allowed commands through: what it answers for a command against
-// a settings object, what it says on stdout when run the way the harness runs it, and how an
-// update wires it into settings that lack it and says which rules they lack.
+// The hook the toolkit wires into an instance's settings: how an update wires it into settings that
+// lack it and takes out the hooks the toolkit no longer runs, what it hands a subagent, the node it
+// runs on, and which rules an update says the settings lack.
 //
 // Every mutation in tests/mutations-hook.json names the check it was written to redden.
 
@@ -10,7 +10,6 @@ import fs from "node:fs";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
-import { COMPOUND_REASON, HIDDEN_REASON, HOOK_COMMAND, HOOK_ENTRY, answerFor, decide } from "../lib/hooks/compound.mjs";
 import { SUBAGENT_HOOK_COMMAND, SUBAGENT_HOOK_ENTRY } from "../lib/hooks/subagent.mjs";
 import { IGNORED_DEFAULTS } from "../lib/desks.mjs";
 import { defaultsIgnored, hooksWired, ignoreDefault, rulesMissing, rulesStale, wireHooks } from "../lib/seed.mjs";
@@ -24,207 +23,10 @@ const spelt = (missing) => missing.map(({ list, rule }) => `${list} ${rule}`);
 // seeded commands, git by its subcommand, and the three refusals.
 const SETTINGS = {
   permissions: {
-    allow: ["mcp__openovai", "Read(/**)", "Edit(/projects/**)", "Bash(git:*)", "Bash(cd:*)", "Bash(npm:*)", "Bash(node:*)", "Bash(cmp:*)", "Bash(ls:*)", "Bash(echo:*)", "Bash(rm:*)", "Bash(find:*)", "Bash(grep:*)", "Bash(make test)"],
+    allow: ["mcp__openovai", "Read(/**)", "Edit(/projects/**)", "Bash(git:*)", "Bash(cd:*)", "Bash(npm:*)", "Bash(cmp:*)", "Bash(ls:*)", "Bash(echo:*)", "Bash(rm:*)", "Bash(find:*)", "Bash(grep:*)", "Bash(make test)"],
     deny: ["Edit(/.claude/**)", "Bash(git push:*)", "Bash(sudo:*)", "Bash(ssh:*)"],
   },
 };
-
-describe("the decision for a command", () => {
-  const allowed = [
-    ["one allowed command", "npm test"],
-    ["a compound of allowed commands", "cd /x && npm test"],
-    ["a compound joined every way the shell joins", "cd /x; npm ci && npm test || echo failed | grep -c failed"],
-    ["a loop over allowed commands", "for f in a b; do cmp x/$f $f; done"],
-    ["a loop written on lines", "for f in a b\ndo\n  cmp x/$f $f\ndone"],
-    ["a branch over allowed commands", "if grep -q x f; then echo yes; else echo no; fi"],
-    ["a while over an allowed command", "while cmp a b; do echo same; done"],
-    ["a negated allowed command", "! cmp a b"],
-    ["redirections around an allowed command", "npm test > out.txt 2>&1 && grep x out.txt < in.txt"],
-    ["a quoted argument with a separator in it", 'git commit -m "fix: a; b && c | d"'],
-    ["an escaped separator, which is text", "echo a \\; b"],
-    ["a redirection with its own target word", "node x.mjs 2> /dev/null"],
-    ["git by an allowed subcommand", "cd /x && git status && git log --oneline -3"],
-    ["a command put in the background", "node serve.mjs &"],
-    ["a command that ends with a semicolon", "npm test;"],
-    ["an exact rule holding exactly that command", "cd /x && make test"],
-    ["a quoted argument that closes", 'echo "a && b"'],
-  ];
-  for (const [name, command] of allowed) {
-    it(`allows ${name}`, () => {
-      assert.equal(decide(command, SETTINGS), "allow");
-    });
-  }
-
-  const silent = [
-    ["a command nothing holds", "make build"],
-    ["a side that is refused by rule", "cd /x && git push origin main"],
-    ["a refused command alone", "sudo ls"],
-    ["a refused command inside a loop", "for h in a b; do ssh $h ls; done"],
-    ["a side nothing holds beside a side that is refused", "make build && git push"],
-    ["a side nothing holds beside a side that is not read", "make build && $TOOL --go"],
-    ["git without a subcommand", "git"],
-    ["git with a subcommand that is not a word", "git -C /x status"],
-    ["a hidden program that is refused by rule", "echo `git push`"],
-    ["a quote left open", 'echo "a && rm -rf /'],
-    ["a quote left open in a compound nothing holds", "make a && make 'b"],
-    ["a first word with a slash", "./release.sh && npm test"],
-    ["a first word out of a variable", "$TOOL --go"],
-    ["a case, which is not read", "case $x in a) ls;; esac"],
-    ["a function, which is not read", "function f { ls; }"],
-    ["a timed command, which is not read", "time npm test"],
-    ["a test bracket, which is not read", "[[ -f x ]] && ls"],
-    ["a compound with nothing after the operator", "npm test &&"],
-    ["an exact rule and a longer command", "make test --verbose"],
-    ["find running what it finds", "find . -name '*.tmp' -exec rm {} ;"],
-    ["find deleting what it finds", "find . -name '*.tmp' -delete"],
-    ["a library preloaded in front of an allowed command", "LD_PRELOAD=/tmp/x.so ls"],
-    ["a path set in front of an allowed command", "PATH=/tmp/evil:$PATH git status"],
-    ["an assignment in front of an allowed command", "CI=1 NODE_ENV=test npm test"],
-    ["an assignment behind an opener", "! PATH=/tmp/evil cmp a b"],
-    ["an assignment alone", "X=1"],
-    ["an assignment the allowed command after it runs under", "PATH=/tmp/evil; git status"],
-    ["an assignment in front of a command nothing holds", "CI=1 make build"],
-    ["an assignment then a grep through a cut", "cd /x/notes/ && N='Kris|Carlos'; grep -nwE \"$N\" $(cat /x/list-D.txt) | cut -c1-400"],
-    ["nothing at all", "   "],
-    ["a command that is not a string", undefined],
-  ];
-  for (const [name, command] of silent) {
-    it(`answers nothing for ${name}`, () => {
-      assert.equal(decide(command, SETTINGS), null);
-    });
-  }
-
-  const refused = [
-    ["a grep whose double-quoted pattern holds a backtick", 'grep -n -e "content: `Use the" /x/rig.mjs'],
-    ["a grep whose pattern holds a $(", 'grep -n "console.log($(" /x/ovai.mjs'],
-    ["a substitution whose program is allowed", "ls `ls x`"],
-    ["a process substitution over allowed commands", "cmp <(ls a) <(ls b)"],
-    // The shape of a script written out with a here-document: a quoted delimiter, then lines of
-    // bare words. The quoted one left the side 'EOF' unread, so it used to reach a card.
-    ["a here-document with a quoted delimiter and body lines of bare words", "cd /x && cat > g1.txt <<'EOF'\nrowsSince\nshown\nEOF\ngrep -n -f g1.txt page.html | head -5"],
-    ["a here-document with a bare delimiter", "cat <<EOF\nhello\nEOF"],
-    ["a here-document whose body names a program nothing holds", "cat > f <<'EOF'\nmake build\nEOF"],
-    ["a here-document whose body names a program the rules refuse", "cat > f <<'EOF'\nsudo ls\nEOF"],
-    ["a here-document whose body is allowed commands", "cat > f <<EOF\nls\nnpm test\nEOF"],
-  ];
-  for (const [name, command] of refused) {
-    it(`refuses ${name}`, () => {
-      assert.equal(decide(command, SETTINGS), "hidden");
-    });
-  }
-
-  // More than one plain command, with a side no rule holds: refused toward a script, not carded.
-  const compound = [
-    ["a compound one side of which nothing holds", "cd /x && make build"],
-    ["a pipe into a program nothing holds", "grep -c x /x/f | sort"],
-    ["a loop over a command nothing holds", "for f in a b; do make $f; done"],
-    ["a negated command nothing holds", "! make build"],
-    ["a command that hides a program in a substitution", "ls $(cat x)"],
-    ["a command that hides a program in backticks", "ls `cat x`"],
-    ["a hidden program nothing holds, behind an allowed one", "grep x $(make build)"],
-    ["a sweep over files named in a list", "cd /x/notes/ && grep -ohE '\\b[A-Z][a-z]{2,}\\b' $(cat /x/list-D.txt) | sort | uniq -c | sort -rn | awk '{printf \"%s:%s \",$2,$1}'"],
-  ];
-  for (const [name, command] of compound) {
-    it(`refuses toward a script ${name}`, () => {
-      assert.equal(decide(command, SETTINGS), "compound");
-    });
-  }
-
-  it("reads the rules it is given, not a list of its own", () => {
-    assert.equal(decide("npm test", { permissions: { allow: ["Bash(cd:*)"], deny: [] } }), null);
-    assert.equal(decide("cd /x && npm test", { permissions: { allow: ["Bash(cd:*)"], deny: [] } }), "compound");
-    assert.equal(decide("cd /x && npm test", { permissions: { allow: ["Bash(cd:*)", "Bash(npm:*)"] } }), "allow");
-    assert.equal(decide("npm test", {}), null);
-  });
-
-  it("holds a side against a refusal before a grant, whichever list is longer", () => {
-    const both = { permissions: { allow: ["Bash(git:*)"], deny: ["Bash(git push:*)"] } };
-    assert.equal(decide("git push", both), null);
-    assert.equal(decide("git push --force", both), null);
-    assert.equal(decide("git pushes", both), "allow");
-  });
-});
-
-describe("what the harness reads back", () => {
-  it("is the allow decision in the PreToolUse shape for a compound of allowed commands", () => {
-    const said = JSON.parse(answerFor({ tool_name: "Bash", tool_input: { command: "cd /x && npm test" } }, SETTINGS));
-    assert.equal(said.hookSpecificOutput.hookEventName, "PreToolUse");
-    assert.equal(said.hookSpecificOutput.permissionDecision, "allow");
-    assert.equal(typeof said.hookSpecificOutput.permissionDecisionReason, "string");
-  });
-
-  it("is the deny decision with a reason naming grep -f and a script for an allowed line that hides a program", () => {
-    const said = JSON.parse(answerFor({ tool_name: "Bash", tool_input: { command: 'grep -n "a`b" /x/f' } }, SETTINGS));
-    assert.equal(said.hookSpecificOutput.permissionDecision, "deny");
-    assert.equal(said.hookSpecificOutput.permissionDecisionReason, HIDDEN_REASON);
-    assert.match(HIDDEN_REASON, /grep -f/);
-    assert.match(HIDDEN_REASON, /in a file with the Write tool and pass it with grep -f/);
-    assert.match(HIDDEN_REASON, /script with the Write tool, on your desk or in temp\//);
-  });
-
-  it("is the deny decision with a reason naming the Write tool and bash <file> for a compound with a side nothing holds", () => {
-    const said = JSON.parse(answerFor({ tool_name: "Bash", tool_input: { command: "cd /x && make build" } }, SETTINGS));
-    assert.equal(said.hookSpecificOutput.permissionDecision, "deny");
-    assert.equal(said.hookSpecificOutput.permissionDecisionReason, COMPOUND_REASON);
-    assert.match(COMPOUND_REASON, /Create the script with the Write tool, in temp\/ or on your desk, then run only `bash <file>` as its own Bash call/);
-  });
-
-  it("is nothing for a command that gets no decision", () => {
-    assert.equal(answerFor({ tool_name: "Bash", tool_input: { command: "make build" } }, SETTINGS), "");
-  });
-
-  it("is nothing for a call that is not Bash, whatever it carries", () => {
-    assert.equal(answerFor({ tool_name: "Edit", tool_input: { command: "npm test", file_path: "x" } }, SETTINGS), "");
-    assert.equal(answerFor(null, SETTINGS), "");
-  });
-});
-
-describe("run as the hook", () => {
-  // A copy of lib/ under a scratch root, so the script reads the settings of the instance it sits
-  // in — worked out from its own place — and never this checkout's.
-  const root = scratch("hook-test-instance");
-  before(() => {
-    fs.rmSync(root, { recursive: true, force: true });
-    fs.cpSync(path.join(repo, "lib"), path.join(root, "lib"), { recursive: true });
-    writeSettings(root, SETTINGS);
-  });
-  after(() => {
-    remove(root);
-  });
-
-  const run = (stdin) => spawnSync(process.execPath, [path.join(root, "lib", "hooks", "compound.mjs")], { input: stdin, encoding: "utf8", cwd: "/" });
-
-  it("prints the allow decision for a compound of allowed commands and exits 0", () => {
-    const ran = run(JSON.stringify({ hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command: "cd /x && npm test" } }));
-    assert.equal(ran.status, 0, ran.stderr);
-    assert.equal(JSON.parse(ran.stdout).hookSpecificOutput.permissionDecision, "allow");
-  });
-
-  it("prints nothing for a command with a refused side and exits 0", () => {
-    const ran = run(JSON.stringify({ hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command: "cd /x && git push" } }));
-    assert.equal(ran.status, 0, ran.stderr);
-    assert.equal(ran.stdout, "");
-  });
-
-  it("prints the deny decision for an allowed line that hides a program and exits 0", () => {
-    const ran = run(JSON.stringify({ hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command: 'grep -n "a`b" /x/f' } }));
-    assert.equal(ran.status, 0, ran.stderr);
-    assert.equal(JSON.parse(ran.stdout).hookSpecificOutput.permissionDecision, "deny");
-  });
-
-  it("prints nothing for input that is not a call and exits 0", () => {
-    const ran = run("not json");
-    assert.equal(ran.status, 0, ran.stderr);
-    assert.equal(ran.stdout, "");
-  });
-
-  it("reads the settings of the instance it sits in, so a rule taken out stops counting", () => {
-    writeSettings(root, { permissions: { allow: ["Bash(cd:*)"], deny: [] } });
-    const ran = run(JSON.stringify({ tool_name: "Bash", tool_input: { command: "npm test" } }));
-    assert.equal(ran.stdout, "");
-    writeSettings(root, SETTINGS);
-  });
-});
 
 describe("wiring the hook at update", () => {
   const root = scratch("hook-wire-instance");
@@ -235,39 +37,43 @@ describe("wiring the hook at update", () => {
     remove(root);
   });
 
-  it("names the command by the harness's own name for the root, not by a path on this machine", () => {
-    assert.equal(HOOK_COMMAND.includes("${CLAUDE_PROJECT_DIR}"), true);
-    assert.equal(HOOK_COMMAND.includes(repo), false);
-    assert.deepEqual(HOOK_ENTRY, { matcher: "Bash", hooks: [{ type: "command", command: HOOK_COMMAND }] });
-  });
+  // What the settings of an instance carry from the versions that ran a hook before every shell
+  // command, on the machine's node and then on the toolkit's, and from the version that ran the
+  // subagent hook on the machine's node.
+  const OLD_COMPOUND = 'node "${CLAUDE_PROJECT_DIR}/lib/hooks/compound.mjs"';
+  const COMPOUND = 'sh "${CLAUDE_PROJECT_DIR}/lib/hooks/run.sh" compound';
+  const COMPOUND_ENTRY = { matcher: "Bash", hooks: [{ type: "command", command: COMPOUND }] };
+  const OLD_SUBAGENT = 'node "${CLAUDE_PROJECT_DIR}/lib/hooks/subagent.mjs"';
 
-  it("adds the hooks to settings that lack them and leaves the rest as it was", () => {
+  it("adds the hook to settings that lack it, wires nothing before a tool call, and leaves the rest as it was", () => {
     writeSettings(root, { permissions: SETTINGS.permissions, hooks: { PostToolUse: [{ matcher: "Edit", hooks: [{ type: "command", command: "theirs" }] }] } });
     assert.deepEqual(wireHooks(root), [settingsFile(root)]);
     const after = readSettings(root);
     assert.equal(hooksWired(after), true);
     assert.deepEqual(after.permissions, SETTINGS.permissions);
     assert.deepEqual(after.hooks.PostToolUse, [{ matcher: "Edit", hooks: [{ type: "command", command: "theirs" }] }]);
-    assert.deepEqual(after.hooks.PreToolUse, [HOOK_ENTRY]);
+    assert.equal(after.hooks.PreToolUse, undefined);
     assert.deepEqual(after.hooks.SubagentStart, [SUBAGENT_HOOK_ENTRY]);
   });
 
-  it("keeps a PreToolUse hook of theirs beside ours", () => {
+  it("keeps a PreToolUse hook of theirs as it is", () => {
     writeSettings(root, { permissions: SETTINGS.permissions, hooks: { PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: "theirs" }] }] } });
     wireHooks(root);
-    assert.deepEqual(readSettings(root).hooks.PreToolUse, [{ matcher: "Bash", hooks: [{ type: "command", command: "theirs" }] }, HOOK_ENTRY]);
+    assert.deepEqual(readSettings(root).hooks.PreToolUse, [{ matcher: "Bash", hooks: [{ type: "command", command: "theirs" }] }]);
   });
 
-  it("adds the subagent hook to settings that carry only the compound one, and the compound one once", () => {
-    writeSettings(root, { permissions: SETTINGS.permissions, hooks: { PreToolUse: [HOOK_ENTRY] } });
+  // The hook that let a compound of allowed commands through is gone, file and all: settings that
+  // still name it would run a file that is not there before every shell command.
+  it("takes the compound hook out of settings that carry it beside the subagent one, and the event with it when nothing else is left", () => {
+    writeSettings(root, { permissions: SETTINGS.permissions, hooks: { PreToolUse: [COMPOUND_ENTRY], SubagentStart: [SUBAGENT_HOOK_ENTRY] } });
     assert.deepEqual(wireHooks(root), [settingsFile(root)]);
     const after = readSettings(root);
-    assert.deepEqual(after.hooks.PreToolUse, [HOOK_ENTRY]);
-    assert.deepEqual(after.hooks.SubagentStart, [SUBAGENT_HOOK_ENTRY]);
+    assert.deepEqual(after.hooks, { SubagentStart: [SUBAGENT_HOOK_ENTRY] });
+    assert.deepEqual(after.permissions, SETTINGS.permissions);
   });
 
-  it("writes nothing when the hooks are there", () => {
-    writeSettings(root, { permissions: SETTINGS.permissions, hooks: { PreToolUse: [HOOK_ENTRY], SubagentStart: [SUBAGENT_HOOK_ENTRY] } });
+  it("writes nothing when the hook is there and nothing retired is", () => {
+    writeSettings(root, { permissions: SETTINGS.permissions, hooks: { SubagentStart: [SUBAGENT_HOOK_ENTRY] } });
     const text = fs.readFileSync(settingsFile(root), "utf8");
     assert.deepEqual(wireHooks(root), []);
     assert.equal(fs.readFileSync(settingsFile(root), "utf8"), text);
@@ -280,33 +86,28 @@ describe("wiring the hook at update", () => {
     assert.deepEqual(rulesMissing(root), []);
   });
 
-  // What the settings of an instance from before the hooks ran on the toolkit's own node carry.
-  const OLD_COMPOUND = 'node "${CLAUDE_PROJECT_DIR}/lib/hooks/compound.mjs"';
-  const OLD_SUBAGENT = 'node "${CLAUDE_PROJECT_DIR}/lib/hooks/subagent.mjs"';
-
-  it("takes out the hooks wired to run on the machine's node and wires each one once, on the toolkit's", () => {
+  it("takes out the hooks wired to run on the machine's node and wires the subagent one once, on the toolkit's", () => {
     writeSettings(root, {
       permissions: SETTINGS.permissions,
       hooks: { PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: OLD_COMPOUND }] }], SubagentStart: [{ hooks: [{ type: "command", command: OLD_SUBAGENT }] }] },
     });
     assert.deepEqual(wireHooks(root), [settingsFile(root)]);
     const after = readSettings(root);
-    assert.deepEqual(after.hooks.PreToolUse, [HOOK_ENTRY]);
-    assert.deepEqual(after.hooks.SubagentStart, [SUBAGENT_HOOK_ENTRY]);
+    assert.deepEqual(after.hooks, { SubagentStart: [SUBAGENT_HOOK_ENTRY] });
     assert.deepEqual(after.permissions, SETTINGS.permissions);
   });
 
-  it("takes a retired hook out of settings that already carry the current ones, and keeps theirs from the same entry", () => {
+  it("takes a retired hook out of settings that already carry the current one, and keeps theirs from the same entry", () => {
     writeSettings(root, {
       permissions: SETTINGS.permissions,
       hooks: {
-        PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: "theirs" }, { type: "command", command: OLD_COMPOUND }] }, HOOK_ENTRY],
+        PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: "theirs" }, { type: "command", command: OLD_COMPOUND }] }, COMPOUND_ENTRY],
         SubagentStart: [SUBAGENT_HOOK_ENTRY],
       },
     });
     assert.deepEqual(wireHooks(root), [settingsFile(root)]);
     const after = readSettings(root);
-    assert.deepEqual(after.hooks.PreToolUse, [{ matcher: "Bash", hooks: [{ type: "command", command: "theirs" }] }, HOOK_ENTRY]);
+    assert.deepEqual(after.hooks.PreToolUse, [{ matcher: "Bash", hooks: [{ type: "command", command: "theirs" }] }]);
     assert.deepEqual(after.hooks.SubagentStart, [SUBAGENT_HOOK_ENTRY]);
   });
 
@@ -396,15 +197,6 @@ describe("the node a hook runs on", () => {
       env: standInEnvironment(runtimeData, log, { CLAUDE_PROJECT_DIR: root, PATH: `${machine}:/usr/bin:/bin` }),
     });
   };
-
-  it("runs the compound hook on the node the toolkit pins, not the one on the PATH", () => {
-    const ran = run(HOOK_COMMAND, JSON.stringify({ tool_name: "Bash", tool_input: { command: "cd /x && npm test" } }));
-    assert.equal(ran.status, 0, ran.stderr);
-    assert.equal(JSON.parse(ran.stdout).hookSpecificOutput.permissionDecision, "allow");
-    const said = fs.readFileSync(log, "utf8");
-    assert.equal(said.includes("machine node"), false, said);
-    assert.equal(said.includes(`node: ${path.join(root, "lib", "hooks", "compound.mjs")}`), true, said);
-  });
 
   it("runs the subagent hook on the node the toolkit pins, not the one on the PATH", () => {
     const ran = run(SUBAGENT_HOOK_COMMAND, JSON.stringify({ hook_event_name: "SubagentStart", agent_type: "general-purpose" }));

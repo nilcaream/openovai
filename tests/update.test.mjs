@@ -304,8 +304,8 @@ describe("the finish of an update, run by the payload it put in place", () => {
   before(async () => {
     rewrite(
       path.join(tree, "lib", "seed.mjs"),
-      '  ["SubagentStart", SUBAGENT_HOOK_ENTRY, subagentHookWired],\n',
-      '  ["SubagentStart", SUBAGENT_HOOK_ENTRY, subagentHookWired],\n  ["SessionEnd", { hooks: [{ type: "command", command: "true new-version-hook" }] }, (settings) => JSON.stringify(settings?.hooks?.SessionEnd ?? []).includes("new-version-hook")],\n',
+      'const HOOKS = [["SubagentStart", SUBAGENT_HOOK_ENTRY, subagentHookWired]];',
+      'const HOOKS = [["SubagentStart", SUBAGENT_HOOK_ENTRY, subagentHookWired], ["SessionEnd", { hooks: [{ type: "command", command: "true new-version-hook" }] }, (settings) => JSON.stringify(settings?.hooks?.SessionEnd ?? []).includes("new-version-hook")]];',
     );
     rewrite(
       path.join(tree, "lib", "payload.mjs"),
@@ -331,7 +331,7 @@ describe("the finish of an update, run by the payload it put in place", () => {
 
   it("wires a hook only the new version knows", () => {
     assert.deepEqual(JSON.parse(fs.readFileSync(settings, "utf8")).hooks.SessionEnd, [{ hooks: [{ type: "command", command: "true new-version-hook" }] }]);
-    assert.match(done.stdout, /^Wired the hooks/m);
+    assert.match(done.stdout, /^Wired the hook/m);
   });
 
   it("takes away what only the new version retires", () => {
@@ -351,6 +351,8 @@ describe("an update to the version the instance is already on", () => {
   before(async () => {
     const read = JSON.parse(fs.readFileSync(settings, "utf8"));
     delete read.hooks.SubagentStart;
+    // As an instance born when a hook ran before every shell command carries it.
+    read.hooks.PreToolUse = [{ matcher: "Bash", hooks: [{ type: "command", command: 'sh "${CLAUDE_PROJECT_DIR}/lib/hooks/run.sh" compound' }] }];
     read.permissions.deny = read.permissions.deny.filter((rule) => rule !== "Bash(sudo:*)" && rule !== "Bash(ssh:*)");
     fs.writeFileSync(settings, `${JSON.stringify(read, null, 2)}\n`);
     done = await update(root, tree);
@@ -359,7 +361,12 @@ describe("an update to the version the instance is already on", () => {
   it("wires the hook the instance was left without", () => {
     assert.equal(done.status, 0, done.stderr);
     assert.ok(Array.isArray(JSON.parse(fs.readFileSync(settings, "utf8")).hooks.SubagentStart));
-    assert.match(done.stdout, /^Wired the hooks/m);
+    assert.match(done.stdout, /^Wired the hook/m);
+  });
+
+  it("takes out the hook that ran before every shell command, whose file is gone", () => {
+    assert.equal(JSON.parse(fs.readFileSync(settings, "utf8")).hooks.PreToolUse, undefined);
+    assert.equal(fs.existsSync(path.join(root, "lib", "hooks", "compound.mjs")), false);
   });
 
   // The defaults it lacks are counted in one line and added to nothing: the page asks for them.
@@ -809,7 +816,7 @@ describe("taking a build from a checkout of main", () => {
 
     it("finishes the same commit again, wiring the hook it was left without", () => {
       assert.ok(Array.isArray(JSON.parse(fs.readFileSync(settings, "utf8")).hooks.SubagentStart));
-      assert.match(again.stdout, /^Wired the hooks/m);
+      assert.match(again.stdout, /^Wired the hook/m);
     });
   });
 });

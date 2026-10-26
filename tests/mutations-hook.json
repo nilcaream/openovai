@@ -33,94 +33,6 @@
     ]
   },
   {
-    "name": "the hook stops holding a side against the refusals, so a compound with git push in it is let through",
-    "catches": "answers nothing for a side that is refused by rule",
-    "edits": [
-      {
-        "file": "lib/hooks/compound.mjs",
-        "from": "  if (refused.some((holds) => holds(spoken))) {",
-        "to": "  if (false) {"
-      }
-    ]
-  },
-  {
-    "name": "the hook stops seeing a command substitution as hiding a program",
-    "catches": "refuses toward a script a command that hides a program in a substitution",
-    "edits": [
-      {
-        "file": "lib/hooks/compound.mjs",
-        "from": "const HIDDEN = /\\$\\(|`|<<|<\\(|>\\(/;",
-        "to": "const HIDDEN = /`|<<|<\\(|>\\(/;"
-      }
-    ]
-  },
-  {
-    "name": "the hook is silent again for an allowed line that hides a program, so the harness cards it",
-    "catches": "refuses a grep whose double-quoted pattern holds a backtick",
-    "edits": [
-      {
-        "file": "lib/hooks/compound.mjs",
-        "from": "    return hidden ? \"hidden\" : \"allow\";",
-        "to": "    return hidden ? null : \"allow\";"
-      }
-    ]
-  },
-  {
-    "name": "the hook is silent again for a compound with a side nothing holds, so the harness cards it",
-    "catches": "refuses toward a script a compound one side of which nothing holds",
-    "edits": [
-      {
-        "file": "lib/hooks/compound.mjs",
-        "from": "  return hidden || !plain(sides) ? \"compound\" : null;",
-        "to": "  return null;"
-      }
-    ]
-  },
-  {
-    "name": "the hook refuses one plain command nothing holds toward a script, so the User is never asked about a program",
-    "catches": "answers nothing for a command nothing holds",
-    "edits": [
-      {
-        "file": "lib/hooks/compound.mjs",
-        "from": "  return hidden || !plain(sides) ? \"compound\" : null;",
-        "to": "  return \"compound\";"
-      }
-    ]
-  },
-  {
-    "name": "the hook refuses toward a script a line with a side it cannot read",
-    "catches": "answers nothing for a side nothing holds beside a side that is not read",
-    "edits": [
-      {
-        "file": "lib/hooks/compound.mjs",
-        "from": "  if (verdicts.includes(\"unread\")) {\n    return null;\n  }",
-        "to": ""
-      }
-    ]
-  },
-  {
-    "name": "the hook answers for any tool that carries a command, not only Bash",
-    "catches": "is nothing for a call that is not Bash, whatever it carries",
-    "edits": [
-      {
-        "file": "lib/hooks/compound.mjs",
-        "from": "input?.tool_name === \"Bash\" ? decide(input.tool_input?.command, settings) : null;",
-        "to": "decide(input?.tool_input?.command, settings);"
-      }
-    ]
-  },
-  {
-    "name": "the hook reads the sides without minding quotes, so a quoted separator cuts a command in two",
-    "catches": "allows a quoted argument with a separator in it",
-    "edits": [
-      {
-        "file": "lib/shell.mjs",
-        "from": "    if (char === '\"' || char === \"'\") {",
-        "to": "    if (false) {"
-      }
-    ]
-  },
-  {
     "name": "the subagent hook hands a subagent nothing, so it starts knowing none of the person's rules",
     "catches": "hands the subagent customization/common.md in its frame, byte for byte, and exits 0",
     "edits": [
@@ -132,35 +44,24 @@
     ]
   },
   {
-    "name": "an update wires the compound hook only, so an instance born earlier never hands a subagent its customization",
-    "catches": "adds the subagent hook to settings that carry only the compound one, and the compound one once",
+    "name": "an update wires no hook, so an instance born earlier never hands a subagent its customization",
+    "catches": "adds the hook to settings that lack it, wires nothing before a tool call, and leaves the rest as it was",
     "edits": [
       {
         "file": "lib/seed.mjs",
-        "from": "  [\"SubagentStart\", SUBAGENT_HOOK_ENTRY, subagentHookWired],\n",
-        "to": ""
+        "from": "const HOOKS = [[\"SubagentStart\", SUBAGENT_HOOK_ENTRY, subagentHookWired]];",
+        "to": "const HOOKS = [];"
       }
     ]
   },
   {
     "name": "an update writes the hook again over settings that already carry it",
-    "catches": "writes nothing when the hooks are there",
+    "catches": "writes nothing when the hook is there and nothing retired is",
     "edits": [
       {
         "file": "lib/seed.mjs",
         "from": "  if (settings === null || (hooksWired(settings) && !carriesRetired(settings))) {",
         "to": "  if (settings === null) {"
-      }
-    ]
-  },
-  {
-    "name": "the compound hook runs on whatever node the session's PATH has",
-    "catches": "runs the compound hook on the node the toolkit pins, not the one on the PATH",
-    "edits": [
-      {
-        "file": "lib/hooks/compound.mjs",
-        "from": "export const HOOK_COMMAND = 'sh \"${CLAUDE_PROJECT_DIR}/lib/hooks/run.sh\" compound';",
-        "to": "export const HOOK_COMMAND = 'node \"${CLAUDE_PROJECT_DIR}/lib/hooks/compound.mjs\"';"
       }
     ]
   },
@@ -177,23 +78,45 @@
   },
   {
     "name": "an update leaves a hook wired the old way beside the current one, so it runs twice",
-    "catches": "takes out the hooks wired to run on the machine's node and wires each one once, on the toolkit's",
+    "catches": "takes out the hooks wired to run on the machine's node and wires the subagent one once, on the toolkit's",
     "edits": [
       {
         "file": "lib/seed.mjs",
-        "from": "      hooks[event] = withoutRetired(entries);",
-        "to": "      hooks[event] = entries;"
+        "from": "      const kept = withoutRetired(entries);",
+        "to": "      const kept = entries;"
       }
     ]
   },
   {
     "name": "an update leaves a retired hook in settings that already carry the current ones",
-    "catches": "takes a retired hook out of settings that already carry the current ones, and keeps theirs from the same entry",
+    "catches": "takes a retired hook out of settings that already carry the current one, and keeps theirs from the same entry",
     "edits": [
       {
         "file": "lib/seed.mjs",
         "from": "  if (settings === null || (hooksWired(settings) && !carriesRetired(settings))) {",
         "to": "  if (settings === null || hooksWired(settings)) {"
+      }
+    ]
+  },
+  {
+    "name": "an update leaves the compound hook wired, so every shell command runs a file that is not there",
+    "catches": "takes the compound hook out of settings that carry it beside the subagent one, and the event with it when nothing else is left",
+    "edits": [
+      {
+        "file": "lib/seed.mjs",
+        "from": "  'sh \"${CLAUDE_PROJECT_DIR}/lib/hooks/run.sh\" compound',\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "an update leaves an event with no entry behind once the retired hook is out",
+    "catches": "takes the compound hook out of settings that carry it beside the subagent one, and the event with it when nothing else is left",
+    "edits": [
+      {
+        "file": "lib/seed.mjs",
+        "from": "      if (!Array.isArray(entries) || entries.length === 0 || kept.length > 0) {",
+        "to": "      if (true) {"
       }
     ]
   },
@@ -205,17 +128,6 @@
         "file": "lib/desks.mjs",
         "from": "  { list: \"allow\", rules: KNOWLEDGE_RULES, why: \"Lets every session write a note in knowledge/ the moment it learns something, instead of stopping to ask and losing it.\" },\n",
         "to": ""
-      }
-    ]
-  },
-  {
-    "name": "the hook reads past a variable set in front, so a rule for the command lets a changed PATH through",
-    "catches": "answers nothing for a path set in front of an allowed command",
-    "edits": [
-      {
-        "file": "lib/hooks/compound.mjs",
-        "from": "  if (RESERVED.has(words[0]) || ASSIGNMENT.test(words[0])) {\n    return null;\n  }\n",
-        "to": "  if (RESERVED.has(words[0])) {\n    return null;\n  }\n  while (words.length > 0 && ASSIGNMENT.test(words[0])) {\n    words = words.slice(1);\n  }\n"
       }
     ]
   },
@@ -260,28 +172,6 @@
         "file": "lib/seed.mjs",
         "from": "  const held = LISTS.flatMap((list) => (Array.isArray(settings.permissions?.[list]) ? settings.permissions[list].map(String) : []));",
         "to": "  const held = [];"
-      }
-    ]
-  },
-  {
-    "name": "the hook leaves a here-document with a quoted delimiter to the harness, which asks",
-    "catches": "refuses a here-document with a quoted delimiter and body lines of bare words",
-    "edits": [
-      {
-        "file": "lib/hooks/compound.mjs",
-        "from": "  if (HERE_DOCUMENT.test(command)) {\n    return \"hidden\";",
-        "to": "  if (HERE_DOCUMENT.test(command) && !/<<['\"]/.test(command)) {\n    return \"hidden\";"
-      }
-    ]
-  },
-  {
-    "name": "the hook refuses a here-document only when its delimiter is quoted",
-    "catches": "refuses a here-document with a bare delimiter",
-    "edits": [
-      {
-        "file": "lib/hooks/compound.mjs",
-        "from": "  if (HERE_DOCUMENT.test(command)) {\n    return \"hidden\";",
-        "to": "  if (HERE_DOCUMENT.test(command) && /<<['\"]/.test(command)) {\n    return \"hidden\";"
       }
     ]
   }

@@ -702,7 +702,7 @@ describe("installing over an instance", () => {
   });
 });
 
-// An instance made before the attribution was off is brought up to date the way the hook is: an
+// An instance made before the attribution was off is brought up to date the way a hook is: an
 // update turns it off in settings that say nothing about it, and a settings file that says
 // something about it is the person's, whatever it says.
 describe("turning the attribution off at update", () => {

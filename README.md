@@ -89,10 +89,9 @@ directory. Everything the page and the command do is described at [openov.ai](ht
 - **The lifecycle is tools, not phrases.** A session that is idle, out of quota or being parked
   is told so in a server event and answers with one tool call. No button on the page
   starts or ends a seat; STOP interrupts a turn, and that is all.
-- **Built from ordinary Claude Code features**: two persona templates, project settings, two
-  hooks (one lets a compound of allowed commands through or refuses it toward a script, one hands a subagent
-  `customization/common.md`), an MCP server, plus a shell shim, a few Node tools and a small web
-  page to host it all on.
+- **Built from ordinary Claude Code features**: two persona templates, project settings, auto
+  mode, a hook that hands a subagent `customization/common.md`, an MCP server, plus a shell shim,
+  a few Node tools and a small web page to host it all on.
 
 ## Requirements
 
@@ -164,8 +163,6 @@ ovai runs on a pinned Claude Code release (2.1.300 in this version). A few thing
 - **Which thinking blocks are progress notes.** A panel shows the notes a model writes to the reader between its calls when they are all a turn said. The API documents that it returns them as thinking blocks; ovai tells them apart from reasoning summaries, which are thinking blocks too, by a field of Claude Code's stream, `narration_block_indexes`, which is not documented. If it changes, those notes stop showing; the words of a turn's answer are not affected.
 - **Turning the silent-turn reminder off.** Claude Code adds "The user hasn't heard from you in a while" to a turn that has made calls without words for a while. That suits its own command line, not a panel, so ovai starts every seat with `CLAUDE_CODE_SILENT_TURN_REMINDER=0` unless the person set it. The variable is not in Claude Code's list of environment variables. If it changes, the reminder comes back into seats; the panels are unaffected.
 - **The admin overview of plugins and connectors.** The admin overview reads Claude Code's plugin records and its list of connected claude.ai connectors from their files. Claude Code documents where these files live, not what is in them. If they change, that part of the overview comes up empty.
-
-Chaining allowed commands (`cd x && npm test`) without a prompt is done by an ordinary, documented PreToolUse hook. It is listed here only because it repeats Claude Code's own command matching, and it is checked against each new pin.
 
 ## Documentation
 

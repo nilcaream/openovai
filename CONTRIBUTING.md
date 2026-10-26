@@ -82,7 +82,7 @@ node --test tests/desks.test.mjs            # a desk is one directory, and filin
 node --test tests/quota.test.mjs            # read the windows, stage them, hold at the gate
 node --test tests/usage.test.mjs            # the account's usage windows, and when the page is told
 node --test tests/permissions.test.mjs      # ask to be allowed, and answer
-node --test tests/hook.test.mjs             # let a compound of allowed commands through, refuse one toward a script, hand a subagent common.md
+node --test tests/hook.test.mjs             # wire the subagent hook, take out the retired ones, hand a subagent common.md
 node --test tests/environment.test.mjs      # start a server or a seat with nothing of the session it was typed in
 node --test tests/dialog.test.mjs           # show a question in the words it was asked in
 node --test tests/frames.test.mjs           # frame what a session is told

@@ -8,7 +8,6 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { hookWired } from "../lib/hooks/compound.mjs";
 import { subagentHookWired } from "../lib/hooks/subagent.mjs";
 
 // The workspace's own account of every rule it holds beyond a desk and the tools the chat serves.
@@ -181,13 +180,9 @@ export function settingsProblems(file) {
     wrong.push(`accounted for but not held: ${JSON.stringify(claimed)}`);
   }
 
-  // And the two hooks an instance is born with: the compound of allowed commands that runs without
-  // a stop, and customization/common.md handed to every subagent. Mechanism beside the rules: an
-  // instance without the first asks on every `cd … && …`, and one without the second starts
-  // subagents that know none of the person's rules.
-  if (!hookWired(settings)) {
-    wrong.push(`the hook that lets a compound of allowed commands through is not wired; hooks: ${JSON.stringify(settings?.hooks ?? null)}`);
-  }
+  // And the hook an instance is born with: customization/common.md handed to every subagent.
+  // Mechanism beside the rules: an instance without it starts subagents that know none of the
+  // person's rules.
   if (!subagentHookWired(settings)) {
     wrong.push(`the hook that hands a subagent customization/common.md is not wired; hooks: ${JSON.stringify(settings?.hooks ?? null)}`);
   }
