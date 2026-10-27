@@ -1168,6 +1168,15 @@ describe("the script", () => {
     assert.doesNotMatch(script, /facts\.auto\.(leader|workers)\.(title|textContent)\b/, "no word on the button but the tooltip drawn from the state");
   });
 
+  // The Leader's switch is one bolt at the head's stroke 2; the Workers' is three half-size bolts,
+  // one above two, at stroke 1.25, its slash at the same weight — lit and slashed alike.
+  it("draws the Leader's auto switch as one bolt and the Workers' as three lighter ones", () => {
+    assert.match(script, /const BOLT = '<path d="M13 2 4 14h7l-1 8 9-12h-7z"\/>';/);
+    assert.match(script, /const BOLTS = '<path d="M12\.75 1\.5 8\.25 7\.5h3\.5l-\.5 4 4\.5-6h-3\.5zM6\.5 12 2 18h3\.5l-\.5 4 4\.5-6H6zM19 12l-4\.5 6H18l-\.5 4 4\.5-6h-3\.5z"\/>';/, "three bolts, one above two");
+    assert.match(script, /const AUTO_ICONS = \{ leader: \{ icon: BOLT, weight: 2 \}, workers: \{ icon: BOLTS, weight: 1\.25 \} \};/);
+    assert.match(script, /button\.innerHTML = `\$\{AUTO_SVG\}\$\{icon\}<\/svg>\$\{AUTO_SVG_SLASHED\}\$\{icon\}<path d="M1 1l22 22"\/><\/svg>`;\s*for \(const svg of button\.querySelectorAll\("svg"\)\) svg\.setAttribute\("stroke-width", weight\);/, "both drawings, the slash with them, at the icon's own weight");
+  });
+
   // Before the quota line, behind a dot, the version the server runs: a release, or the commit
   // of a build.
   it("draws the version the server runs before the quota line", () => {
