@@ -27,7 +27,9 @@ A panel shows a turn's answer, not its way there. Words a session writes between
 - Ask the Leader for help and it hires. A new Worker gets the next free name from a fixed list of thirty (Paul, Jane, Jack, …). The name cannot be chosen.
 - A hire is refused while the usage window has reached its first threshold, or while the server is stopping.
 - Stopping a Worker: it is told it is closing, writes its desk, and goes when its turn is over. Restarting: the same, then a new session starts from the desk. `hire` on a stopped Worker's name brings it back on the same desk, with its panel log kept.
-- Letting a Worker go (retire): its desk is moved whole to `archive/`, its panel leaves the page, and its name is free again. Only a stopped Worker can be retired.
+- Letting a Worker go (retire): its desk is moved whole to `archive/`, its panel leaves the page, and its name is free again. Only a stopped Worker can be retired. The Leader retires a stopped Worker once nothing open names it — no topic of the person's that is still open, no line in its status — and once `knowledge/` holds what its desk knew.
+- With every name on the list held by a desk, a new Worker gets a made-up name, Dev and three digits, and the Leader is told how many desks are stopped.
+- A topic is something the person asked for. It stays open, on the Leader's desk and in its status, until the person says it is done, accepts it, uses the result or drops it: a report closes nothing.
 
 ## Models and effort
 - The Leader's and the Workers' default models are in `openovai.json`, set at install. Changing the Workers' default changes it for every Worker without a model of its own, from their next start.
@@ -37,8 +39,10 @@ A panel shows a turn's answer, not its way there. Words a session writes between
 
 ## Desks
 `desks/<Name>/` is one seat's directory:
-- `STATE.md` is the desk file. Its first line is a title and a status everyone sees; below that is what the session keeps. A new session on that desk starts from it: the conversation of the one before is gone.
+- `STATE.md` is the desk file. Its first line is a title and a status everyone sees; below that is what the session keeps: what is true now, not how it got there. A new session on that desk starts from it: the conversation of the one before is gone.
+- `STATE-<time>.md` is a copy of the whole desk, saved by the server when the desk grows past the desk limit, 128 KB unless `openovai.json` sets `"desk": { "limit": <bytes> }`. The session that owns the desk is told once per crossing and asked to archive what current work no longer needs, or to have the limit raised when most of it is still open. The copies are kept beside the desk and go with it when it is retired.
 - `conversation.json` is the panel, kept across restarts.
+- A seat's history is its panel, the copies of its desk and the git log of each project it worked in. Ask a seat about the past and it searches them.
 - The Leader's directory also holds `STATUS.md`, its status for the person, and `status.json`, the status as last confirmed and how much has reached the Leader since: what the page shows.
 - `persona.md` is what the session was told at its start.
 

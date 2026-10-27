@@ -18,7 +18,8 @@ import * as quota from "../lib/chat/quota.mjs";
 import * as usage from "../lib/chat/usage.mjs";
 import { home } from "../lib/claude.mjs";
 import { TURN_PATIENCE, end, endEvery, interrupt, recordOf, running, runningSeats, tell } from "../lib/chat/session.mjs";
-import { deskFile, deskTitle, hire } from "../lib/desks.mjs";
+import { BODY_DESK_LIMIT } from "../lib/chat/server.mjs";
+import { POOL, deskFile, deskTitle, hire } from "../lib/desks.mjs";
 import { CONFIG_FILE } from "../lib/seed.mjs";
 import { alive, callsIn, childrenOf, heardIn, installed, pageCookie, pidsIn, post as postPlain, queuesHeardIn, readLog, remove, secretsIn, startChat, stopChat, waitFor, waitForAddress, writeStandIn } from "./helpers.mjs";
 
@@ -215,6 +216,51 @@ describe("write_desk", () => {
     assert.equal(lines.slice(1).join("\n"), edited.split("\n").slice(1).join("\n"));
     assert.equal(lines[1], `# ${WORKER}`);
     assert.equal(deskTitle(instance, WORKER), "t");
+  });
+
+  // The desk limit: the write that finds the desk past it saves the whole desk beside it, then
+  // warns the seat, once; the writes after it say nothing until one finds the desk below, and the
+  // next crossing saves and warns again. The warning names no size to reach.
+  it("saves the whole desk and warns its own seat once per upward crossing of the desk limit", async () => {
+    const copies = () => fs.readdirSync(path.join(instance, "desks", WORKER)).filter((name) => name.startsWith("STATE-")).sort();
+    const header = () => deskOf(WORKER).split("\n")[0];
+    const answer = `desk header written: desks/${WORKER}/STATE.md (title and status; the body as it stands)`;
+    chat.config.desk = { limit: 2048 };
+    try {
+      fs.writeFileSync(deskFile(instance, WORKER), `${header()}\n# ${WORKER}\n\nshort\n`);
+      assert.equal((await tool(paul.secret, "write_desk", { title: "t", status: "s" })).text, answer);
+      fs.appendFileSync(deskFile(instance, WORKER), `${"x".repeat(3000)}\n`);
+      const crossed = await tool(paul.secret, "write_desk", { title: "t", status: "s" });
+      const stamp = new Date(now).toISOString().replace(/[-:]/g, "").replace(/\.\d+Z$/, "Z");
+      assert.deepEqual(copies(), [`STATE-${stamp}.md`]);
+      assert.equal(fs.readFileSync(path.join(instance, "desks", WORKER, copies()[0]), "utf8"), deskOf(WORKER));
+      const size = fs.statSync(deskFile(instance, WORKER)).size;
+      const saved = `desks/${WORKER}/STATE-${stamp}.md`;
+      assert.equal(crossed.text, `${answer}\n\n${BODY_DESK_LIMIT({ seat: WORKER, role: "Worker", user: USER, leader: LEADER, size, limit: 2048, saved })}`);
+      assert.ok(crossed.text.includes(`tell ${LEADER}, so ${USER} can raise the limit, rather than archive again.`));
+      assert.ok(crossed.text.includes(`The server saved it whole as ${saved}, so nothing on it can be lost.`));
+      // Past the limit still: no word, no copy.
+      fs.appendFileSync(deskFile(instance, WORKER), "more\n");
+      assert.equal((await tool(paul.secret, "write_desk", { title: "t", status: "s" })).text, answer);
+      assert.equal(copies().length, 1);
+      // Below, then past again: a crossing of its own.
+      fs.writeFileSync(deskFile(instance, WORKER), `${header()}\n# ${WORKER}\n\nshort\n`);
+      assert.equal((await tool(paul.secret, "write_desk", { title: "t", status: "s" })).text, answer);
+      fs.appendFileSync(deskFile(instance, WORKER), `${"y".repeat(3000)}\n`);
+      now += 1000;
+      assert.match((await tool(paul.secret, "write_desk", { title: "t", status: "s" })).text, /past the desk limit of 2 KB \(desk\.limit in openovai\.json\)/);
+      assert.equal(copies().length, 2);
+      // The Leader is told to ask the User itself.
+      fs.appendFileSync(deskFile(instance, LEADER), `${"z".repeat(3000)}\n`);
+      assert.ok((await tool(martin.secret, "write_desk", { title: "t", status: "s" })).text.includes(`If most of the desk is still open, tell ${USER} to raise the limit rather than archive again.`));
+    } finally {
+      delete chat.config.desk;
+      for (const seat of [WORKER, LEADER]) {
+        for (const name of fs.readdirSync(path.join(instance, "desks", seat)).filter((one) => one.startsWith("STATE-"))) {
+          fs.rmSync(path.join(instance, "desks", seat, name));
+        }
+      }
+    }
   });
 
   it("puts the header back in front of a body that lost it, losing no line", async () => {
@@ -1031,5 +1077,46 @@ describe("a tool of the instance's own, from its file", () => {
     const result = JSON.parse(answered.body).result;
     assert.equal(result.isError, undefined, answered.body);
     assert.equal(result.content[0].text, `hello, said ${LEADER}`);
+  });
+});
+
+// With every name of the roster held by a desk, a hire with no name is given a made-up one, and
+// its answer says so with the count of stopped desks: the moment the Leader can free names, told
+// the moment the roster has run out.
+describe("hire past the roster", () => {
+  const made = [];
+  let martin = null;
+
+  before(async () => {
+    martin = await seatUp(LEADER);
+    for (const name of POOL.filter((one) => !fs.existsSync(deskFile(instance, one)))) {
+      hire(instance, name);
+      made.push(name);
+    }
+  });
+
+  after(async () => {
+    await endEvery(500);
+    for (const name of [...made, "Dev100"]) {
+      fs.rmSync(path.join(instance, "desks", name), { recursive: true, force: true });
+    }
+  });
+
+  it("says every name on the roster is held, and how many desks are stopped Workers", async () => {
+    assert.deepEqual(runningSeats(), [LEADER]);
+    const stopped = fs.readdirSync(path.join(instance, "desks")).filter((name) => name !== LEADER).length;
+    const random = Math.random;
+    Math.random = () => 0;
+    let dev;
+    try {
+      dev = await spawnedBy("Dev100", () => tool(martin.secret, "hire", {}));
+    } finally {
+      Math.random = random;
+    }
+    assert.deepEqual(dev.result, {
+      text: `Dev100 started on the desk desks/Dev100 (${WORKER_MODEL}). Every name on the roster is held by a desk, so this one is made up; ${stopped} of those desks are stopped Workers: retire the ones nothing open names.`,
+      refused: false,
+      error: null,
+    });
   });
 });

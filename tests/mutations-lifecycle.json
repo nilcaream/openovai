@@ -668,5 +668,27 @@
         "to": "    // A turn that ends with the process has no result to lay its held notes at.\n"
       }
     ]
+  },
+  {
+    "name": "the desk limit warns at every write past it, not once per crossing",
+    "catches": "saves the whole desk and warns its own seat once per upward crossing of the desk limit",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "  over.add(caller.seat);\n  return BODY_DESK_LIMIT(",
+        "to": "  return BODY_DESK_LIMIT("
+      }
+    ]
+  },
+  {
+    "name": "the count of stopped desks takes in the running ones",
+    "catches": "says every name on the roster is held, and how many desks are stopped Workers",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "seat.name !== instance.config.leader && !running(seat.name)",
+        "to": "seat.name !== instance.config.leader"
+      }
+    ]
   }
 ]

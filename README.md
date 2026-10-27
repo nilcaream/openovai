@@ -140,8 +140,9 @@ An instance is a directory of its own. It holds this, and nothing else ever land
                     file tools
   customization/    what you add to the personas: common.md, leader.md, worker.md; yours, never
                     touched
-  desks/<Name>/     one directory per person: STATE.md, persona.md, conversation.json, and
-                    whatever that person keeps there; the listing IS the roster
+  desks/<Name>/     one directory per person: STATE.md, persona.md, conversation.json, the
+                    STATE-<time>.md copies the server saves past the desk limit, and whatever
+                    that person keeps there; the listing IS the roster
   archive/          retired desks, moved whole: <day>-<Name>-<slug of the final title>/
   reference/        kept to look at: documents, sources, clones for analysis; never worked on
   projects/         worked on; a reference that needs edits is cloned fresh here, never moved
