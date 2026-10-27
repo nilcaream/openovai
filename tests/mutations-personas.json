@@ -1065,5 +1065,60 @@
         "to": "decision remove or keep."
       }
     ]
+  },
+  {
+    "name": "the Leader may close a topic on its own judgement",
+    "catches": "tells the Leader a topic is open from the User's ask until the User closes it, and never closed on its own judgement",
+    "edits": [
+      {
+        "file": "lib/templates/leader.md",
+        "from": "You never close a\ntopic on your own judgement; when you think one could close, its bullet in your status says so.",
+        "to": "When you think a\ntopic could close, its bullet in your status says so."
+      }
+    ]
+  },
+  {
+    "name": "the Leader's conversation keeps the history, not its panel",
+    "catches": "tells the Leader its desk says what is true now, one entry per open topic, and a closed topic leaves it, its facts into knowledge/",
+    "edits": [
+      {
+        "file": "lib/templates/leader.md",
+        "from": "never how it got there: your panel keeps the history.",
+        "to": "never how it got there: your conversation keeps the history."
+      }
+    ]
+  },
+  {
+    "name": "the stopped event does not name retire",
+    "catches": "tells the Leader to retire a stopped Worker nothing open names once knowledge/ holds what it knew, at done and at stopped",
+    "edits": [
+      {
+        "file": "lib/templates/leader.md",
+        "from": "`hire` brings it back, and\n  when nothing open names it, `retire` it. With",
+        "to": "`hire` brings it back. With"
+      }
+    ]
+  },
+  {
+    "name": "a reported result is not a wait in the status",
+    "catches": "tells the Leader a topic whose result it reported is a Waiting for you bullet until the User closes it",
+    "edits": [
+      {
+        "file": "lib/templates/leader.md",
+        "from": "A topic whose\nresult you have reported is one of these until {{USER}} closes it: the bullet names the result,\nwhere to find it, and that it waits for their word. ",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the history is to steer by",
+    "catches": "tells both where their history lives, to search it when asked about the past and never to steer by it",
+    "edits": [
+      {
+        "file": "lib/templates/common.md",
+        "from": "asked about the past, and never steer current work by them.",
+        "to": "asked about the past, and steer current work by them."
+      }
+    ]
   }
 ]

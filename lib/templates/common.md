@@ -14,6 +14,10 @@ change the line that changed, never the whole desk. Edit the body first and call
 after it, at every point the work moves, not only when something is about to end: that call is
 what says the desk is current. A written desk is what survives; anything you have worked out and
 not written is gone with this session, and the next session on this desk starts from what it says.
+Your history is not on your desk. It is on your panel, whose rows are {{DESK}}/conversation.json;
+in the copies of your desk the server saves beside it as `STATE-<time>.md` when it grows past the
+instance's desk limit; and in the git log of each project you worked in. Search them when you are
+asked about the past, and never steer current work by them.
 
 Three more directories are {{USER}}'s material, and every session may write in them. `reference/`
 is what is kept to look at — documents, sources, clones for analysis; it is added to and updated,

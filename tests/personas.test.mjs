@@ -155,8 +155,41 @@ describe("what the Leader is told", () => {
     assert.match(leader(), /write there with\s+the file tools without being asked/);
     assert.match(leader(), /Its first line is the server's header, and\s+`write_desk` is what writes it/);
     assert.match(leader(), /edited in place with the file tools like any other file:\s+change the line that changed, never the whole desk\. Edit the body first and call `write_desk`/);
-    assert.match(roleOf(leader()), new RegExp(`What you keep on your desk: notes, what you are waiting on, drafts for ${USER}`));
     assert.doesNotMatch(leader(), /no other way/);
+  });
+
+  // A topic is the User's ask, and only the User closes it: a report, a Worker's done or a quiet
+  // spell closes nothing. Without that, the Leader takes a topic for done once it has reported, and
+  // nothing ever leaves its desk, its status or the roster.
+  it("tells the Leader a topic is open from the User's ask until the User closes it, and never closed on its own judgement", () => {
+    const text = flat(roleOf(leader()));
+    assert.ok(text.includes(`Each thing ${USER} asks for is a topic, and it is open from the ask until ${USER} closes it: they say it is done, accept it, use the result, or drop it.`));
+    assert.ok(text.includes("Your report does not close it, a Worker's `done` does not, and neither does silence or a new ask about something else."));
+    assert.ok(text.includes("You never close a topic on your own judgement; when you think one could close, its bullet in your status says so."));
+  });
+
+  // The desk is the present, one entry per open topic rewritten in place, and a close takes the
+  // entry off it in the same turn, its facts into knowledge/ first: a desk that is a log grows
+  // without end and every session starts by reading all of it.
+  it("tells the Leader its desk says what is true now, one entry per open topic, and a closed topic leaves it, its facts into knowledge/", () => {
+    const text = flat(roleOf(leader()));
+    assert.ok(text.includes("Your desk says what is true now, never how it got there: your panel keeps the history."));
+    assert.ok(text.includes(`every open topic is one entry — ${USER}'s ask in their words, who is on it, where it stands, what closes it — rewritten as the topic moves, never added to;`));
+    assert.ok(text.includes("When a topic closes, in that same turn: what is worth knowing again goes into `knowledge/`, a decision that stands goes with the settled things, and the topic's entry leaves the desk, with its drafts and briefs."));
+    assert.doesNotMatch(text, /What you keep on your desk/);
+  });
+
+  // Retire is tied to the close of a topic, after knowledge/ holds what the desk knew, and both
+  // events at a round's end name it: with "not on somebody you may want back" the Leader kept
+  // every desk, and the roster ran out.
+  it("tells the Leader to retire a stopped Worker nothing open names once knowledge/ holds what it knew, at done and at stopped", () => {
+    const text = flat(roleOf(leader()));
+    assert.ok(text.includes("A seat is kept while something open names it — a topic on your desk, or a bullet in your status — and no longer."));
+    assert.ok(text.includes("When a topic closes, retire every stopped Worker that nothing open names, and only once `knowledge/` holds what its desk knew"));
+    assert.ok(text.includes("Wanting somebody back one day is no reason to keep a desk: a new Worker reads `knowledge/`."));
+    assert.ok(text.includes("or `stop_worker` it when nothing more is wanted; once it has stopped and nothing open names it, `retire` it."));
+    assert.ok(text.includes("Note it; when the work is still wanted, `hire` brings it back, and when nothing open names it, `retire` it."));
+    assert.doesNotMatch(text, /may want back/);
   });
 
   // The three trees, and the one question that decides between two of them. The question is
@@ -238,18 +271,27 @@ describe("what the Leader is told", () => {
   // to is a list the User cannot find, so where things stand is said in words in the reply.
   it("tells the Leader that its status holds what waits for the User and the loose ends and nothing else, confirmed at the end of every turn that brought anything", () => {
     assert.match(leader(), new RegExp(`What waits for ${USER} lives in your status, \`desks/${LEAD}/STATUS\\.md\`: beside your desk and\\s+apart from it, since your desk is yours and the status is ${USER}'s\\.`));
-    assert.match(leader(), /It holds two kinds of bullet and nothing else\. One starts with a bold\s+\*\*Waiting for you:\*\* and names something only \S+ can do, and what it holds up\. The other is\s+a loose end: something started and stopped, or found and not closed, that nobody is on\./);
-    assert.match(leader(), /Work that\s+is moving, work that is finished, progress, a measurement, who runs or is stopped, the state of a\s+repository, housekeeping: none of it goes here; a message says what happened, and your desk keeps\s+the rest\./);
-    assert.match(leader(), /A bullet goes the moment it no longer waits or is no longer loose\./);
-    assert.match(leader(), /One bulleted list,\s+one thing per bullet, a sentence or two each, the waits first, in the same order from one\s+confirmation to the next\. Bold is for \*\*Waiting for you:\*\* alone\./);
-    assert.match(leader(), /A ticket or a page is a link\s+with a short label\. No title, headings, tables, code blocks or nested lists\. With nothing waiting\s+and nothing loose, one bullet says so\./);
+    assert.match(leader(), /It holds two kinds of bullet and nothing else\. One starts with a bold\s+\*\*Waiting for you:\*\* and names something only \S+ can do, and what it holds up\./);
+    assert.match(leader(), /The other is a loose end: something started\s+and stopped, or found and not closed, that nobody is on\./);
+    assert.match(leader(), /Work that is moving, progress, a\s+measurement, who runs or is stopped, the state of a repository, housekeeping: none of it goes\s+here; a message says what happened, and your desk keeps the rest\./);
+    assert.match(leader(), /A bullet goes the moment it no\s+longer waits or is no longer loose\./);
+    assert.match(leader(), /One bulleted list, one thing per bullet, a sentence or two\s+each, the waits first, in the same order from one confirmation to the next\. Bold is for \*\*Waiting\s+for you:\*\* alone\./);
+    assert.match(leader(), /A ticket or a page is a link with a short label\. No title, headings, tables,\s+code blocks or nested lists\. With nothing waiting and nothing loose, one bullet says so\./);
     assert.doesNotMatch(leader(), /plain sentences|no bold/, "the status is a list, not prose");
-    assert.doesNotMatch(leader(), /open list|five items|finished most recently|who is on it/, "no progress asked of the status");
-    assert.match(leader(), /At the end of every turn that brought you anything, edit\s+STATUS\.md when it is out of date, then call `confirm_status` as your last call\./);
-    assert.match(leader(), /A session that\s+starts on this desk reads STATUS\.md first\./);
+    assert.doesNotMatch(leader(), /open list|five items|finished most recently/, "no progress asked of the status");
+    assert.match(leader(), /At the end\s+of every turn that brought you anything, edit STATUS\.md when it is out of date, then call\s+`confirm_status` as your last call\./);
+    assert.match(leader(), /A session that starts on this desk reads STATUS\.md first\./);
     assert.match(leader(), /A message says what happened; the status says only what waits\./);
     assert.match(leader(), new RegExp(`When ${USER} asks where things\\s+stand, say it in words in that reply, then bring the status up to date and confirm it\\.`));
     assert.doesNotMatch(leader(), /stands alone/, "the last message no longer carries where things stand");
+  });
+
+  // A result the Leader has reported is not closed until the User says so, and until then it is
+  // the User's to act on: a wait, in the status, rather than finished work kept off it.
+  it("tells the Leader a topic whose result it reported is a Waiting for you bullet until the User closes it", () => {
+    const text = flat(roleOf(leader()));
+    assert.ok(text.includes(`A topic whose result you have reported is one of these until ${USER} closes it: the bullet names the result, where to find it, and that it waits for their word.`));
+    assert.doesNotMatch(text, /work that is finished/);
   });
 
   it("tells the Leader to answer a status check with a confirmation and <noop/>", () => {
@@ -560,6 +602,17 @@ describe("what both are told in ovai's common frame", () => {
       assert.ok(common.includes("If the turn's last text is `<noop/>`, held text is never shown."), role);
       assert.ok(!common.includes("Words once written stay on the panel"), role);
       assert.ok(!common.includes("a turn that already said something just ends"), role);
+    }
+  });
+
+  // A desk that holds only the present needs the past somewhere a session can find it, and a place
+  // that is never mistaken for the present: the panel, the desk's saved copies, the git logs.
+  it("tells both where their history lives, to search it when asked about the past and never to steer by it", () => {
+    for (const [text, seat, role] of [[flat(leader()), LEAD, "leader"], [flat(worker()), PAUL, "worker"]]) {
+      assert.ok(
+        commonOf(text).includes(`Your history is not on your desk. It is on your panel, whose rows are ${path.join(repo, "desks", seat)}/conversation.json; in the copies of your desk the server saves beside it as \`STATE-<time>.md\` when it grows past the instance's desk limit; and in the git log of each project you worked in. Search them when you are asked about the past, and never steer current work by them.`),
+        role,
+      );
     }
   });
 
