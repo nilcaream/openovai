@@ -595,18 +595,35 @@ describe("the script", () => {
   // alone — goes into the box after a space, the box is told and takes the next keystroke; what is
   // sent is the box with every token spelled out.
   it("makes every stamp a click that puts a reference to its row into the composer at the cursor, sent as typed", () => {
-    assert.match(script, /if \(entry\.at !== undefined\) \{\s*time\.title = REFERENCE;\s*time\.addEventListener\("click", \(\) => pointAt\(panel, entry\.at\)\);\s*\}/);
+    assert.match(script, /if \(entry\.at !== undefined\) \{\s*time\.title = REFERENCE;\s*time\.addEventListener\("click", \(\) => pointAt\(panel, refTo\(entry\.at\)\)\);\s*\}/);
     assert.match(script, /const REFERENCE = "click to reference this message in your reply";/);
-    assert.match(script, /function pointAt\(panel, at\) \{\s*const box = panel\.box;\s*const put = insertRef\(box\.value, box\.selectionStart, box\.selectionEnd, refTo\(at\)\);\s*box\.value = put\.value;\s*box\.setSelectionRange\(put\.caret, put\.caret\);\s*box\.dispatchEvent\(new Event\("input"\)\);\s*if \(!box\.disabled\) box\.focus\(\);\s*\}/);
-    assert.match(script, /composer\.addEventListener\("submit", \(event\) => \{\s*event\.preventDefault\(\);\s*if \(box\.value\.trim\(\) === ""\) \{\s*return;\s*\}\s*const text = box\.value;\s*box\.value = "";/);
+    assert.match(script, /function pointAt\(panel, ref\) \{\s*const box = panel\.box;\s*const put = insertRef\(box\.value, box\.selectionStart, box\.selectionEnd, ref\);\s*box\.value = put\.value;\s*box\.setSelectionRange\(put\.caret, put\.caret\);\s*box\.dispatchEvent\(new Event\("input"\)\);\s*if \(!box\.disabled\) box\.focus\(\);\s*\}/);
+    assert.match(script, /composer\.addEventListener\("submit", \(event\) => \{\s*event\.preventDefault\(\);\s*if \(box\.value\.trim\(\) === ""\) \{\s*return;\s*\}\s*const text = withQuotes\(box\.value, quoted\);\s*box\.value = "";/, "a row's reference goes as typed; a status bullet's is spelled out");
     assert.doesNotMatch(script, /new Map\(\);\s*box\.addEventListener/, "no table is kept between the click and the send");
+  });
+
+  // A bullet of the Leader's status is a click too: its token, from panels.mjs, from the clock the
+  // status is drawn with and its number, goes in as a row's does; the line that quotes the bullet
+  // as drawn is kept by the page, in memory only, for the send. A link in the bullet stays a link,
+  // a selection stays a selection, and a nested bullet quotes itself without the list in it.
+  it("makes every bullet of the Leader's status a click that puts its token into the composer and keeps its quote for the send", () => {
+    assert.match(script, /const quoted = new Map\(\);/);
+    assert.doesNotMatch(script, /localStorage\.setItem\([^)]*quoted/, "nothing of it outlives the page");
+    assert.match(script, /pointBullets\(panel, body, when\.clock\);/, "the clock the status is drawn with");
+    assert.match(script, /body\.querySelectorAll\("li"\)\.forEach\(\(item, at\) => \{\s*item\.title = BULLET;/);
+    assert.match(script, /if \(event\.target\.closest\("a, button"\) !== null \|\| String\(getSelection\(\)\) !== ""\) return;\s*event\.stopPropagation\(\);/);
+    assert.match(script, /const own = item\.cloneNode\(true\);\s*for \(const list of own\.querySelectorAll\("ul, ol"\)\) list\.remove\(\);\s*const ref = statusRef\(clock, at \+ 1\);\s*quoted\.set\(ref, statusQuote\(clock, own\.textContent\)\);\s*pointAt\(panel, ref\);/, "the text as drawn, numbered from 1");
+    assert.equal(rules.find((rule) => rule.selector === ".standing li").declarations.cursor, "pointer");
+    assert.match(script, /quote\.className = "quote";\s*quote\.textContent = part\.text\.slice\(2\);/, "a quoting line in a User's row is drawn as a quote, its text as text");
+    assert.equal(rules.find((rule) => rule.selector === ".msg .text .quote").declarations["border-left"], "3px solid var(--me-line)");
   });
 
   // A reference in the User's row that names a drawn row is a link to it, focused the way a
   // message's other end is; one that names nothing drawn stays as typed. Every stamped row drawn
   // is kept by its index for it, and forgotten when the rows are drawn afresh.
   it("draws each reference in the User's row that names a drawn row as a link that focuses it", () => {
-    assert.match(script, /\} else if \(shown\.kind === "user"\) \{\s*body\.className = "text";\s*linkedText\(body, shown\.text, rows, index, panel\);/);
+    assert.match(script, /\} else if \(shown\.kind === "user"\) \{\s*body\.className = "text";\s*quotedText\(body, shown\.text, rows, index, panel\);/);
+    assert.match(script, /if \(!part\.quote\) \{\s*linkedText\(body, part\.text, rows, index, panel\);\s*continue;\s*\}/, "the lines that quote nothing are linked as before");
     assert.match(script, /for \(const ref of references\(rows, index, text\)\) \{\s*if \(ref\.index === null \|\| unseen\(rows, ref\.index\)\) continue;\s*body\.append\(text\.slice\(from, ref\.start\)\);/, "every panel links every row it holds, drawn or not");
     assert.doesNotMatch(script, /!panel\.bubbles\.has\(ref\.index\)/, "a Worker's panel links the rows it has drawn only");
     assert.match(script, /link\.addEventListener\("click", \(\) => focusIndex\(panel, ref\.index\)\);/, "the row is found when the link is clicked, never when it was made: the window moves");

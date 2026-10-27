@@ -141,6 +141,8 @@
   /* the message a click on a line found, lit for a moment */
   .msg.focus .bubble { outline: 2px solid var(--accent); }
   .msg .text a.ref { cursor: pointer; color: var(--accent); text-decoration: underline; }
+  /* a line of the User's that quotes a bullet of the Leader's status, drawn as a quote */
+  .msg .text .quote { border-left: 3px solid var(--me-line); padding-left: 10px; color: var(--fg-dim); }
   /* a message between sessions — to one, from one, or between two Workers — is one line of its markdown, cut with an ellipsis, until a double click opens it */
   .msg.collapsed .md, .msg.collapsed .text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }
   /* a folded message whose markdown opens with something other than a paragraph — a table, a list, a code block, a heading,
@@ -185,6 +187,8 @@
   .standing { flex: 0 1 auto; min-height: 0; overflow-y: auto; }
   .standing:empty, .standing.off { display: none; }
   .standing .msg { margin: 0; }
+  /* a bullet of the status is a click that quotes it in the reply */
+  .standing li { cursor: pointer; }
   .msg.status .bubble { background: var(--reply); border-color: var(--reply-line); }
   .meta .st.muted { color: var(--fg-faint); }
   .meta .st.warn { color: var(--warn); }
@@ -253,7 +257,7 @@
   // draws it and carries what is typed and pressed to the server.
 
   import { answerOf, dialogOf } from "./dialog.mjs";
-  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, autoLabel, autoTitle, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, loadsOlder, noticed, place, prune, quotaLine, replaced, quotaTitle, insertRef, keptFirst, pillLine, stopEnabled, statusLabel, title, typingBeat, windowStart, LINE_WAITING, STATUS_TITLE, STATUS_WHO, WINDOW } from "./panels.mjs";
+  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, autoLabel, autoTitle, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, loadsOlder, noticed, place, prune, quotaLine, replaced, quotaTitle, insertRef, keptFirst, pillLine, quoteLines, stopEnabled, statusLabel, statusQuote, statusRef, title, typingBeat, windowStart, withQuotes, LINE_WAITING, STATUS_TITLE, STATUS_WHO, WINDOW } from "./panels.mjs";
   import { html as markdownOf, row as rowOf, talks, unseen } from "./render.mjs";
   import { refTo, references } from "./refs.mjs";
 
@@ -768,7 +772,7 @@
       if (box.value.trim() === "") {
         return;
       }
-      const text = box.value;
+      const text = withQuotes(box.value, quoted);
       box.value = "";
       autosize();
       call(`/sessions/${encodeURIComponent(name)}/message`, {
@@ -869,13 +873,50 @@
   // where the cursor is (insertRef), the cursor goes after it, and the box takes the next keystroke.
   const REFERENCE = "click to reference this message in your reply";
 
-  function pointAt(panel, at) {
+  function pointAt(panel, ref) {
     const box = panel.box;
-    const put = insertRef(box.value, box.selectionStart, box.selectionEnd, refTo(at));
+    const put = insertRef(box.value, box.selectionStart, box.selectionEnd, ref);
     box.value = put.value;
     box.setSelectionRange(put.caret, put.caret);
     box.dispatchEvent(new Event("input"));
     if (!box.disabled) box.focus();
+  }
+
+  // A bullet of the Leader's status points at itself the same way, `(status/HH:MM:SS/N)`, and the
+  // line that quotes it as drawn is kept here, by its token, until the page is gone: the send
+  // spells out every token kept (withQuotes). A click on a link in the bullet, or one that ends a
+  // selection, is not one on the bullet; a bullet in a bullet is its own, without the list in it.
+  const BULLET = "click to quote this in your reply";
+  const quoted = new Map();
+
+  function pointBullets(panel, body, clock) {
+    body.querySelectorAll("li").forEach((item, at) => {
+      item.title = BULLET;
+      item.addEventListener("click", (event) => {
+        if (event.target.closest("a, button") !== null || String(getSelection()) !== "") return;
+        event.stopPropagation();
+        const own = item.cloneNode(true);
+        for (const list of own.querySelectorAll("ul, ol")) list.remove();
+        const ref = statusRef(clock, at + 1);
+        quoted.set(ref, statusQuote(clock, own.textContent));
+        pointAt(panel, ref);
+      });
+    });
+  }
+
+  // The User's words as typed, but for a line that quotes a bullet of the status, drawn as a quote
+  // without its `> `.
+  function quotedText(body, text, rows, index, panel) {
+    for (const part of quoteLines(text)) {
+      if (!part.quote) {
+        linkedText(body, part.text, rows, index, panel);
+        continue;
+      }
+      const quote = document.createElement("div");
+      quote.className = "quote";
+      quote.textContent = part.text.slice(2);
+      body.append(quote);
+    }
   }
 
   // The User's words with every reference that names a row the panel has as a link to it; the
@@ -1038,7 +1079,7 @@
       }
     } else if (shown.kind === "user") {
       body.className = "text";
-      linkedText(body, shown.text, rows, index, panel);
+      quotedText(body, shown.text, rows, index, panel);
     } else {
       body.className = "text";
       body.textContent = shown.text;
@@ -1064,7 +1105,7 @@
     }
     if (entry.at !== undefined) {
       time.title = REFERENCE;
-      time.addEventListener("click", () => pointAt(panel, entry.at));
+      time.addEventListener("click", () => pointAt(panel, refTo(entry.at)));
     }
     return line;
   }
@@ -1133,6 +1174,7 @@
         pre.replaceWith(block);
         block.append(pre, copyButton());
       }
+      pointBullets(panel, body, when.clock);
       bubble.append(meta, body);
       line.append(bubble);
       panel.standing.replaceChildren(line);

@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { AMBER, CARD, CONNECTED, autoLabel, autoTitle, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, GREY, LATE_AFTER, RED, REPLY, SENDING, SHOWN_FOR, LINE_DISCONNECTED, LINE_LEFT, LINE_WAITING, LINE_WORKING, WINDOW, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, loadsOlder, noticed, pillLine, place, prune, quotaLine, quotaTitle, replaced, insertRef, keptFirst, stopEnabled, title, typingBeat, windowStart, TYPING_BEAT, CHECKING, LEADER_STOPPED, STATUS_TITLE, STATUS_WHO, UP_TO_DATE, statusLabel } from "../lib/chat/panels.mjs";
+import { AMBER, CARD, CONNECTED, autoLabel, autoTitle, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, GREY, LATE_AFTER, RED, REPLY, SENDING, SHOWN_FOR, LINE_DISCONNECTED, LINE_LEFT, LINE_WAITING, LINE_WORKING, WINDOW, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, loadsOlder, noticed, pillLine, place, prune, quotaLine, quotaTitle, replaced, insertRef, keptFirst, quoteLines, statusQuote, statusRef, stopEnabled, title, typingBeat, windowStart, withQuotes, TYPING_BEAT, CHECKING, LEADER_STOPPED, STATUS_TITLE, STATUS_WHO, UP_TO_DATE, statusLabel } from "../lib/chat/panels.mjs";
 import { localAt, refTo, references } from "../lib/chat/refs.mjs";
 
 const LEADER = "Leader";
@@ -668,6 +668,47 @@ describe("a reference going into the box", () => {
 
   it("takes the place of what is selected", () => {
     assert.deepEqual(insertRef("see XX now", 4, 6, "(ref/15:08:11/123)"), { value: "see (ref/15:08:11/123) now", caret: 23 });
+  });
+});
+
+describe("a bullet of the Leader's status quoted in the reply", () => {
+  const PIXEL = "Pixel Peel's level menu needs grouping in tens before it grows much past 40 levels; set aside for later.";
+  const CDP = "The cdp plugin (designed 17 Sep in knowledge/cdp-plugin-design.md) was never built; ovai ships no Chrome/CDP feature, so the corporate instance has none.";
+
+  it("is a token of the status's clock and the bullet's number", () => {
+    assert.equal(statusRef("11:50:13", 5), "(status/11:50:13/5)");
+  });
+
+  it("is quoted on one line, its text as drawn", () => {
+    assert.equal(statusQuote("11:50:13", " Waiting for you: review\n  the pilot "), "> Status (11:50:13) - Waiting for you: review the pilot");
+  });
+
+  // The User's own example, character for character.
+  it("spells out each token the page holds as its line, a blank line on either side", () => {
+    const quotes = new Map([["(status/11:50:13/5)", `> Status (11:50:13) - ${PIXEL}`], ["(status/11:50:13/7)", `> Status (11:50:13) - ${CDP}`]]);
+    assert.equal(
+      withQuotes("(status/11:50:13/5) can wait.\n(status/11:50:13/7) drop it.", quotes),
+      `> Status (11:50:13) - ${PIXEL}\n\ncan wait.\n\n> Status (11:50:13) - ${CDP}\n\ndrop it.`,
+    );
+    assert.equal(withQuotes("drop (status/11:50:13/7) ", quotes), `drop\n\n> Status (11:50:13) - ${CDP}`, "nothing after it: no blank line after it");
+    assert.equal(withQuotes("(status/11:50:13/5) (status/11:50:13/7) both", quotes), `> Status (11:50:13) - ${PIXEL}\n\n> Status (11:50:13) - ${CDP}\n\nboth`);
+  });
+
+  it("leaves a token it holds nothing for, and a text with none, as typed", () => {
+    const quotes = new Map([["(status/11:50:13/5)", "> Status (11:50:13) - x"]]);
+    assert.equal(withQuotes("see (status/11:50:13/6)  ", quotes), "see (status/11:50:13/6)  ", "after a reload, or another bullet: as typed");
+    assert.equal(withQuotes("  plain\n", new Map()), "  plain\n");
+  });
+
+  it("draws a User's line that starts with the quote as a quote, and every other line as typed", () => {
+    assert.deepEqual(quoteLines(`> Status (11:50:13) - ${PIXEL}\n\ncan wait.\n\n> Status (11:50:13) - ${CDP}\n\ndrop it.`), [
+      { text: `> Status (11:50:13) - ${PIXEL}`, quote: true },
+      { text: "\ncan wait.\n\n", quote: false },
+      { text: `> Status (11:50:13) - ${CDP}`, quote: true },
+      { text: "\ndrop it.", quote: false },
+    ]);
+    assert.deepEqual(quoteLines("> a quote of my own\n>Status (11:50:13) - no"), [{ text: "> a quote of my own\n>Status (11:50:13) - no", quote: false }], "any other > stays as typed");
+    assert.deepEqual(quoteLines("ok > Status (11:50:13) - mid-line"), [{ text: "ok > Status (11:50:13) - mid-line", quote: false }]);
   });
 });
 
