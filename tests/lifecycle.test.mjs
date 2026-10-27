@@ -11,8 +11,8 @@ import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
 import { SERVER, read } from "../lib/chat/conversation.mjs";
-import { messageFrame, userFrame } from "../lib/chat/frames.mjs";
-import { BODY_CLOSING, BODY_CONTEXT_ERROR, BODY_CONTEXT_WARNING, BODY_CONTEXT_WORKER, BODY_RESTARTED, BODY_UNANSWERED } from "../lib/chat/lifecycle.mjs";
+import { messageFrame, serverEvent, userFrame } from "../lib/chat/frames.mjs";
+import { BODY_CLOSING, BODY_CONTEXT_ERROR, BODY_CONTEXT_WARNING, BODY_CONTEXT_WORKER, BODY_RESTARTED, BODY_UNANSWERED, SIGN_IN_EXPIRED, SIGN_IN_ROW, deliver } from "../lib/chat/lifecycle.mjs";
 import { wallClock } from "../lib/chat/log.mjs";
 import * as quota from "../lib/chat/quota.mjs";
 import * as usage from "../lib/chat/usage.mjs";
@@ -401,6 +401,43 @@ describe("restart_session and stop_session", () => {
       });
       assert.notEqual(successor.secret, paul.secret);
       assert.deepEqual(await told(successor.log, 1), [`<server-event type="restarted">${BODY_RESTARTED}</server-event>`]);
+    } finally {
+      await end(WORKER, 500);
+    }
+  });
+
+  // How a turn ended is drawn whatever started it. A turn on an event of the server's — here the
+  // checkpoint, as a Worker is told it — that fails on an expired sign-in says to run ovai login.
+  it("a Worker's turn on an event that fails on an expired sign-in ends in the row that says to run ovai login", async () => {
+    paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_FAILS: "1", OPENOVAI_STAND_IN_REPLY: SIGN_IN_EXPIRED });
+    try {
+      const from = panel(instance, WORKER).length;
+      deliver(chat, WORKER, serverEvent("checkpoint", { calls: "3" }, "three calls"));
+      await waitFor(() => (panel(instance, WORKER).slice(from).some((row) => row.text === SIGN_IN_ROW) ? true : null));
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      const shown = panel(instance, WORKER).slice(from).filter((row) => row.stamp !== true);
+      assert.deepEqual(shown.map((row) => [row.from, row.text, row.failed]), [[WORKER, SIGN_IN_EXPIRED, true], [SERVER, SIGN_IN_ROW, true]]);
+    } finally {
+      await end(WORKER, 500);
+    }
+  });
+
+  // The successor's birth event is a turn like any other: one that fails on an expired sign-in
+  // ends in the same row.
+  it("a successor's birth turn that fails on an expired sign-in ends in the row that says to run ovai login", async () => {
+    paul = await seatUp(WORKER, writesDesk('type="closing"'));
+    try {
+      const from = panel(instance, WORKER).length;
+      await spawnedBy(
+        WORKER,
+        async () => {
+          assert.equal((await tool(martin.secret, "restart_worker", { name: WORKER })).refused, false);
+        },
+        { OPENOVAI_STAND_IN_FAILS: "1", OPENOVAI_STAND_IN_REPLY: SIGN_IN_EXPIRED },
+      );
+      await waitFor(() => (panel(instance, WORKER).slice(from).some((row) => row.text === SIGN_IN_ROW) ? true : null));
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      assert.equal(panel(instance, WORKER).slice(from).filter((row) => row.text === SIGN_IN_ROW).length, 1);
     } finally {
       await end(WORKER, 500);
     }

@@ -690,5 +690,27 @@
         "to": "seat.name !== instance.config.leader"
       }
     ]
+  },
+  {
+    "name": "deliver draws no ending for the turn it hands in",
+    "catches": "a Worker's turn on an event that fails on an expired sign-in ends in the row that says to run ovai login",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "  const again = seat === leaderOf(instance) && frame.kind === \"server-event\" && ask === null;\n  showTheEnding(",
+        "to": "  const again = seat === leaderOf(instance) && frame.kind === \"server-event\" && ask === null;\n  Array.of("
+      }
+    ]
+  },
+  {
+    "name": "the birth turn's ending is not drawn",
+    "catches": "a successor's birth turn that fails on an expired sign-in ends in the row that says to run ovai login",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "    showTheEnding(instance.root, seat, born.answered);\n",
+        "to": ""
+      }
+    ]
   }
 ]
