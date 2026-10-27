@@ -4,6 +4,27 @@ For the Leader of a workspace taking this version. Short, and about what is diff
 working there — not a developer changelog. A section per release, newest first; a release page
 carries only its own.
 
+## 0.26.0
+
+**Every seat starts in auto mode, as the Claude Code CLI does.** The two bolt switches on the
+Leader's head are on whenever the server starts: Claude Code's classifier settles the calls no rule
+settles, and most of them run with no card. A switch turned off puts that role in Manual, where
+every such call asks on a card, until the server stops; nothing about the switches is saved. Deny
+rules still refuse what they name, `git push` inside a chain of commands included, and ask rules
+and Claude Code's protected paths still raise a card in either mode. A call the classifier blocks
+is a row on its panel, as before, and a seat is told that a block is an answer, not something to
+spell another way. The classifier's calls count toward usage the way they do in the CLI.
+
+**No hook runs before a shell command.** The hook that let a chain of allowed commands through,
+and refused other chains toward a script, is gone, and an update takes it out of
+`.claude/settings.json`. The Workers are no longer taught spellings that only served to avoid a
+card: one command per call, a `cd` alone, a pattern file for a backtick. They still write files
+with Write and Edit, never through the shell.
+
+**A new instance no longer allows `node`, `bash` or `sh` by rule.** A rule for an interpreter
+holds whatever program it is handed, so a script is the classifier's to judge, or the User's on a
+card in Manual. A workspace taking this version keeps the rules it holds.
+
 ## 0.25.0
 
 **This version pins Claude Code 2.1.300, where the last pinned 2.1.296.**
