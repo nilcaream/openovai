@@ -388,5 +388,16 @@
         "to": ""
       }
     ]
+  },
+  {
+    "name": "the release delivers a held frame on a chain of its own",
+    "catches": "a held event released to a Leader that ends unread is written once more, and draws one row",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "    const told = deliverOnce(instance, entry.seat, entry.frame, { ask: entry.ask, written: entry.written });",
+        "to": "    const told = deliver(instance, entry.seat, entry.frame, { ask: entry.ask, written: entry.written });"
+      }
+    ]
   }
 ]

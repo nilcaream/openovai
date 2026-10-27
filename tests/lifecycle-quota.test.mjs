@@ -9,14 +9,14 @@ import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
 import { SERVER } from "../lib/chat/conversation.mjs";
-import { messageFrame, userFrame } from "../lib/chat/frames.mjs";
-import { BODY_CLOSING, IDLE_GRACE, heldLine, parkRoom, tick } from "../lib/chat/lifecycle.mjs";
+import { messageFrame, serverEvent, userFrame } from "../lib/chat/frames.mjs";
+import { BODY_CLOSING, IDLE_GRACE, deliver, heldLine, parkRoom, tick } from "../lib/chat/lifecycle.mjs";
 import * as quota from "../lib/chat/quota.mjs";
 import { INTERRUPT_PATIENCE, end, endEvery, running, tell } from "../lib/chat/session.mjs";
 import { deskTitle, hire } from "../lib/desks.mjs";
 import { callsIn, childrenOf, heardIn, notesIn, queuesHeardIn, readLog, remove, waitFor } from "./helpers.mjs";
 
-import { setup, LEADER, WORKER, OTHER, MINUTE, panel, instance, unexpected, reading, said, chat, server, seatUp, spawnedBy, page, call, tool, asked, told, readIn, gone, callsThen, writesDesk, settle } from "./lifecycle-helpers.mjs";
+import { setup, LEADER, WORKER, OTHER, MINUTE, nextLog, panel, instance, unexpected, reading, said, chat, server, seatUp, spawnedBy, page, call, tool, asked, told, readIn, gone, callsThen, writesDesk, settle } from "./lifecycle-helpers.mjs";
 
 let now = Date.now();
 // Ann is hired before the first check: these checks start her without a hire of their own, as
@@ -289,6 +289,44 @@ describe("the quota gate", () => {
       await waitFor(() => (running(LEADER) ? true : null));
     });
     assert.deepEqual(await told(martin.log, 1), ['<server-event type="quota-reset" window="5h"/>']);
+  });
+
+  // A held event goes the one way any event to the Leader goes: written at the release, and once
+  // more if the Leader that took it ended before reading it. Its ending is drawn once.
+  it("a held event released to a Leader that ends unread is written once more, and draws one row", async () => {
+    const resets = RESETS();
+    await fresh(readings(reading(0.96, { resets })));
+    await tell(WORKER, userFrame("one")).answered;
+    await end(LEADER, 500);
+    const from = said.length;
+    const rowsFrom = panel(instance, LEADER).length;
+    // The first event the release writes is the turn the Leader dies in; the done event behind it
+    // is the one it never read.
+    assert.equal(deliver(chat, LEADER, serverEvent("idle", { who: WORKER, minutes: "30" })).held?.window, "5h");
+    assert.equal(deliver(chat, LEADER, serverEvent("done", { who: WORKER })).held?.window, "5h");
+    const before_ = { ...process.env };
+    process.env.OPENOVAI_STAND_IN_LOG = nextLog(LEADER);
+    process.env.OPENOVAI_STAND_IN_BROKEN = "1";
+    try {
+      now = resets + 1;
+      tick(chat);
+      const redelivered = `redelivered ${LEADER} - done event, unread by the session that ended`;
+      assert.ok(await waitFor(() => (said.slice(from).includes(redelivered) ? true : null)), said.slice(from).join("\n"));
+      await settle(1000);
+    } finally {
+      Object.assign(process.env, before_);
+      delete process.env.OPENOVAI_STAND_IN_BROKEN;
+    }
+    const written = said.slice(from).filter((line) => line.startsWith(`queued ${LEADER} - done event `));
+    assert.equal(written.length, 2, said.slice(from).join("\n"));
+    // One row per frame: the two turns the Leader died in (the idle event, the quota-reset event
+    // written again), and the two events it never read, the done event among them.
+    const rows = panel(instance, LEADER)
+      .slice(rowsFrom)
+      .filter((row) => row.from === SERVER && row.failed === true)
+      .map((row) => row.text);
+    const died = `${LEADER} stopped before answering: a model was never reached`;
+    assert.deepEqual(rows.toSorted(), [died, died, `Not delivered: ${LEADER} stopped before reading the done event`, `Not delivered: ${LEADER} stopped before reading the stopped event`].toSorted());
   });
 
   it("a park forgets the resets to come: the parked room's Leader is not started at the reset", async () => {

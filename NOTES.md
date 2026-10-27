@@ -56,7 +56,9 @@ server's, a checkpoint or a closing, and a seat's first turn after a restart, no
 turn started by a line or a message ends in: a run that failed, the row that says to run
 `ovai login` after an expired sign-in, a turn stopped from the page, a process gone before it
 answered, a frame never read. An event the Leader never read and is handed again draws no "Not
-delivered" row: the panel shows how the event's second delivery ended.
+delivered" row: the panel shows how the event's second delivery ended. That holds for an event
+held for a spent usage window too: at the reset it is handed to the Leader, and once more if that
+Leader ended before reading it, never a third time, and its panel shows one row for it.
 
 ## 0.25.0
 
