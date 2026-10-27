@@ -453,6 +453,14 @@ describe("settling a rule in the settings", () => {
     assert.deepEqual(settings().ask, []);
     assert.match(ledger().at(-1), /^- `Bash\(pip:\*\)` \(removed from allow, ask\) — /);
   });
+
+  it("takes out a rule a hand wrote with a spaced star, asked for in the `:*` spelling", () => {
+    const written = JSON.parse(fs.readFileSync(path.join(root, ".claude", "settings.json"), "utf8"));
+    written.permissions.ask = ["Bash(pip *)"];
+    fs.writeFileSync(path.join(root, ".claude", "settings.json"), JSON.stringify(written));
+    assert.deepEqual(ruleRemoved(root, { rule: "Bash(pip:*)", session: LEADER, call: "spaced", day: "2026-10-30" }), ["ask"]);
+    assert.deepEqual(settings().ask, []);
+  });
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -1147,6 +1155,7 @@ describe("asking to be allowed", () => {
     const ledger = () => fs.readFileSync(path.join(instance, LEDGER), "utf8").split("\n").filter((line) => line.startsWith("- `"));
     const today = new Date().toISOString().slice(0, 10);
     const DEFAULT = SHELL_DENY_RULES[0];
+    const OTHER_DEFAULT = SHELL_DENY_RULES[1];
     let leader;
     const said = {};
     let cards;
@@ -1204,9 +1213,28 @@ describe("asking to be allowed", () => {
       });
       said.ledgerBefore = ledger().length;
       heard.gone = await press(said.cargoCard.id, "remove");
+      said.ledgerAfter = ledger().length;
+      said.keptAgain = await page("POST", `/sessions/${LEADER}/permission`, { id: cardFor("Bash(make:*)", "remove").id, decision: "keep" });
+      // A default nobody holds by the press: only its ignore is written.
+      said.goneDefault = await call("remove_rule", { rule: OTHER_DEFAULT, why: "push tags without asking" });
+      cards = await pending();
+      handEdit((permissions) => {
+        permissions.deny = permissions.deny.filter((rule) => rule !== OTHER_DEFAULT);
+      });
+      heard.goneDefault = await press(cardFor(OTHER_DEFAULT, "remove").id, "remove");
+      // A rule a hand wrote with a spaced star is the rule the tool spells with `:*`.
+      handEdit((permissions) => permissions.deny.push("Bash(rustc *)"));
+      said.spaced = await call("permission", { rule: "Bash(rustc *)", why: "rustc is fine" });
+      cards = await pending();
+      said.spacedCard = cardFor("Bash(rustc:*)", "rule");
+      heard.spaced = await press(said.spacedCard.id, "allow");
     });
 
     after(async () => {
+      handEdit((permissions) => {
+        permissions.allow = permissions.allow.filter((rule) => rule !== "Bash(rustc:*)");
+        permissions.deny.push(OTHER_DEFAULT);
+      });
       handEdit((permissions) => permissions.deny.push(DEFAULT));
       await endSeat(LEADER, 500);
     });
@@ -1290,8 +1318,27 @@ describe("asking to be allowed", () => {
     });
 
     it("says a rule no list held by the press was not written", () => {
-      assert.equal(ledger().length, said.ledgerBefore);
+      assert.equal(said.ledgerAfter, said.ledgerBefore);
       assert.equal(heard.gone, `<server-event type="permission" decision="remove" who="${LEADER}">Bash(cargo:*) - no list held it by then; nothing was written</server-event>`);
+    });
+
+    it("says a default no list held by the press was written as ignored, and it is", () => {
+      assert.equal(said.goneDefault.refused, false, said.goneDefault.text);
+      assert.ok(defaultsIgnored(instance).some((entry) => entry.list === "deny" && entry.rule === OTHER_DEFAULT), JSON.stringify(defaultsIgnored(instance)));
+      assert.equal(heard.goneDefault, `<server-event type="permission" decision="remove" who="${LEADER}">${OTHER_DEFAULT} - no list held it by then; it was written as an ignored default, so no card asks for it back</server-event>`);
+    });
+
+    it("answers a second press of Keep or Remove as any card's: nothing is waiting on it", () => {
+      assert.equal(said.keptAgain.status, 409, said.keptAgain.body);
+      assert.match(said.keptAgain.body, /nothing is waiting on that any more/);
+    });
+
+    it("finds and moves a rule a hand wrote with a spaced star", () => {
+      assert.equal(said.spaced.refused, false, said.spaced.text);
+      assert.deepEqual(said.spacedCard.now, ["deny"]);
+      assert.ok(!settings().deny.includes("Bash(rustc *)"), JSON.stringify(settings()));
+      assert.ok(settings().allow.includes("Bash(rustc:*)"), JSON.stringify(settings()));
+      assert.equal(heard.spaced, `<server-event type="permission" decision="allow" who="${LEADER}">Bash(rustc:*)</server-event>`);
     });
   });
 

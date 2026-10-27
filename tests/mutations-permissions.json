@@ -1099,8 +1099,63 @@
     "edits": [
       {
         "file": "lib/chat/server.mjs",
-        "from": "        said = `${asked.rule} - no list held it by then; nothing was written`;",
-        "to": "        said = asked.rule;"
+        "from": "          : `${asked.rule} - no list held it by then; nothing was written`;",
+        "to": "          : asked.rule;"
+      }
+    ]
+  },
+  {
+    "name": "a default no list held by the press is reported as not written",
+    "catches": "says a default no list held by the press was written as ignored, and it is",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "          typeof asked.bornIn === \"string\" ?",
+        "to": "          false ?"
+      }
+    ]
+  },
+  {
+    "name": "a second press of Keep or Remove is a bad decision on a call",
+    "catches": "answers a second press of Keep or Remove as any card's: nothing is waiting on it",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "  if (decision === \"remove\" || decision === \"keep\") {\n    sendJson(response, 409",
+        "to": "  if (false) {\n    sendJson(response, 409"
+      }
+    ]
+  },
+  {
+    "name": "the lists that hold a rule are read as written",
+    "catches": "finds and moves a rule a hand wrote with a spaced star",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "  return LISTS.filter((list) => Array.isArray(permissions[list]) && permissions[list].some((entry) => sameRule(entry, rule)));",
+        "to": "  return LISTS.filter((list) => Array.isArray(permissions[list]) && permissions[list].includes(rule));"
+      }
+    ]
+  },
+  {
+    "name": "a rule settled leaves the other spelling in the other lists",
+    "catches": "finds and moves a rule a hand wrote with a spaced star",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "      written[other] = permissions[other].filter((entry) => !sameRule(entry, rule));",
+        "to": "      written[other] = permissions[other].filter((entry) => entry !== rule);"
+      }
+    ]
+  },
+  {
+    "name": "a removal leaves the other spelling in its list",
+    "catches": "takes out a rule a hand wrote with a spaced star, asked for in the `:*` spelling",
+    "edits": [
+      {
+        "file": "lib/desks.mjs",
+        "from": "    written[list] = permissions[list].filter((entry) => !sameRule(entry, rule));",
+        "to": "    written[list] = permissions[list].filter((entry) => entry !== rule);"
       }
     ]
   }

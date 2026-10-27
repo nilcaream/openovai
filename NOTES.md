@@ -27,6 +27,11 @@ with Write and Edit, never through the shell.
 holds whatever program it is handed, so a script is the classifier's to judge, or the User's on a
 card in Manual. A workspace taking this version keeps the rules it holds.
 
+**A rule written by hand as `Bash(npm *)` is the rule `Bash(npm:*)`.** Claude Code reads the two
+spellings as one, and so does a rule card: settling `Bash(npm:*)` in a list takes a hand-written
+`Bash(npm *)` out of the other lists, where it would still have decided, and a card that removes
+the rule takes out either spelling.
+
 **A topic stays open until the User closes it.** Each thing the User asks for is a topic, open
 until they say it is done, accept it, use the result or drop it; the Leader's report closes
 nothing. A result the Leader has reported is a **Waiting for you:** bullet in its status until
