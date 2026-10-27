@@ -615,7 +615,7 @@ describe("the script", () => {
     assert.match(script, /const own = item\.cloneNode\(true\);\s*for \(const list of own\.querySelectorAll\("ul, ol"\)\) list\.remove\(\);\s*const ref = statusRef\(clock, at \+ 1\);\s*quoted\.set\(ref, statusQuote\(clock, own\.textContent\)\);\s*pointAt\(panel, ref\);/, "the text as drawn, numbered from 1");
     assert.equal(rules.find((rule) => rule.selector === ".standing li").declarations.cursor, "pointer");
     assert.match(script, /quote\.className = "quote";\s*quote\.textContent = part\.text\.slice\(2\);/, "a quoting line in a User's row is drawn as a quote, its text as text");
-    assert.equal(rules.find((rule) => rule.selector === ".msg .text .quote").declarations["border-left"], "3px solid var(--me-line)");
+    assert.deepEqual(rules.find((rule) => rule.selector === ".msg .text .quote").declarations, { "border-left": "3px solid var(--me-line)", "padding-left": "10px", color: "var(--fg-dim)" }, "one line's height: no margin or padding above or below it");
   });
 
   // A reference in the User's row that names a drawn row is a link to it, focused the way a

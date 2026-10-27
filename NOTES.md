@@ -44,8 +44,8 @@ panel, those copies, and the git logs of its projects, searched when it is asked
 **A click on a bullet of the Leader's status quotes it in the reply.** It puts
 `(status/HH:MM:SS/N)` at the cursor, the status's time and the bullet's number, and the page keeps
 the bullet as it is drawn. At the send, the page writes each such token out as one line,
-`> Status (11:50:13) - ` and the bullet's text without its markdown, with a blank line before and
-after it, so what the Leader reads is the bullet as the User saw it, whatever the status says by
+`> Status (11:50:13) - ` and the bullet's text without its markdown, on a line of its own with no
+blank line around it, so what the Leader reads is the bullet as the User saw it, whatever the status says by
 then. A token deleted before the send quotes nothing, and after a reload one goes as typed. In the
 User's row, a line that starts that way is drawn as a quote; any other `>` stays as typed.
 

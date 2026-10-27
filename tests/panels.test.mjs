@@ -673,6 +673,8 @@ describe("a reference going into the box", () => {
 
 describe("a bullet of the Leader's status quoted in the reply", () => {
   const PIXEL = "Pixel Peel's level menu needs grouping in tens before it grows much past 40 levels; set aside for later.";
+  const REVIEW = "Waiting for you: review the pilot, four episodes tagged in full, in temp/pilot.md; nothing scales until you have.";
+  const REMOTE = "Waiting for you: remote mode stopped before questions 5–7: resume or shelve?";
   const CDP = "The cdp plugin (designed 17 Sep in knowledge/cdp-plugin-design.md) was never built; ovai ships no Chrome/CDP feature, so the corporate instance has none.";
 
   it("is a token of the status's clock and the bullet's number", () => {
@@ -684,14 +686,15 @@ describe("a bullet of the Leader's status quoted in the reply", () => {
   });
 
   // The User's own example, character for character.
-  it("spells out each token the page holds as its line, a blank line on either side", () => {
-    const quotes = new Map([["(status/11:50:13/5)", `> Status (11:50:13) - ${PIXEL}`], ["(status/11:50:13/7)", `> Status (11:50:13) - ${CDP}`]]);
+  it("spells out each token the page holds as its line, on a line of its own and no blank line", () => {
+    const quotes = new Map([["(status/12:16:00/1)", `> Status (12:16:00) - ${REVIEW}`], ["(status/12:16:00/2)", `> Status (12:16:00) - ${REMOTE}`]]);
     assert.equal(
-      withQuotes("(status/11:50:13/5) can wait.\n(status/11:50:13/7) drop it.", quotes),
-      `> Status (11:50:13) - ${PIXEL}\n\ncan wait.\n\n> Status (11:50:13) - ${CDP}\n\ndrop it.`,
+      withQuotes("I am testing UI. Just clicking stuff. No action needed. (status/12:16:00/1) hello. (status/12:16:00/2) done", quotes),
+      `I am testing UI. Just clicking stuff. No action needed.\n> Status (12:16:00) - ${REVIEW}\nhello.\n> Status (12:16:00) - ${REMOTE}\ndone`,
     );
-    assert.equal(withQuotes("drop (status/11:50:13/7) ", quotes), `drop\n\n> Status (11:50:13) - ${CDP}`, "nothing after it: no blank line after it");
-    assert.equal(withQuotes("(status/11:50:13/5) (status/11:50:13/7) both", quotes), `> Status (11:50:13) - ${PIXEL}\n\n> Status (11:50:13) - ${CDP}\n\nboth`);
+    assert.equal(withQuotes("(status/12:16:00/1) can wait.", quotes), `> Status (12:16:00) - ${REVIEW}\ncan wait.`, "at the start: no line before it");
+    assert.equal(withQuotes("drop \n(status/12:16:00/2) ", quotes), `drop\n> Status (12:16:00) - ${REMOTE}`, "at the end: no line after it");
+    assert.equal(withQuotes("(status/12:16:00/1) (status/12:16:00/2) both", quotes), `> Status (12:16:00) - ${REVIEW}\n> Status (12:16:00) - ${REMOTE}\nboth`);
   });
 
   it("leaves a token it holds nothing for, and a text with none, as typed", () => {
@@ -701,12 +704,18 @@ describe("a bullet of the Leader's status quoted in the reply", () => {
   });
 
   it("draws a User's line that starts with the quote as a quote, and every other line as typed", () => {
-    assert.deepEqual(quoteLines(`> Status (11:50:13) - ${PIXEL}\n\ncan wait.\n\n> Status (11:50:13) - ${CDP}\n\ndrop it.`), [
+    assert.deepEqual(quoteLines(`I am testing UI. Just clicking stuff. No action needed.\n> Status (12:16:00) - ${REVIEW}\nhello.\n> Status (12:16:00) - ${REMOTE}\ndone`), [
+      { text: "I am testing UI. Just clicking stuff. No action needed.\n", quote: false },
+      { text: `> Status (12:16:00) - ${REVIEW}`, quote: true },
+      { text: "hello.\n", quote: false },
+      { text: `> Status (12:16:00) - ${REMOTE}`, quote: true },
+      { text: "done", quote: false },
+    ]);
+    assert.deepEqual(quoteLines(`> Status (11:50:13) - ${PIXEL}\n\ncan wait.\n\n> Status (11:50:13) - ${CDP}`), [
       { text: `> Status (11:50:13) - ${PIXEL}`, quote: true },
       { text: "\ncan wait.\n\n", quote: false },
       { text: `> Status (11:50:13) - ${CDP}`, quote: true },
-      { text: "\ndrop it.", quote: false },
-    ]);
+    ], "a blank line the User typed stays");
     assert.deepEqual(quoteLines("> a quote of my own\n>Status (11:50:13) - no"), [{ text: "> a quote of my own\n>Status (11:50:13) - no", quote: false }], "any other > stays as typed");
     assert.deepEqual(quoteLines("ok > Status (11:50:13) - mid-line"), [{ text: "ok > Status (11:50:13) - mid-line", quote: false }]);
   });
