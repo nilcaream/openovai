@@ -25,6 +25,22 @@ with Write and Edit, never through the shell.
 holds whatever program it is handed, so a script is the classifier's to judge, or the User's on a
 card in Manual. A workspace taking this version keeps the rules it holds.
 
+**A topic stays open until the User closes it.** Each thing the User asks for is a topic, open
+until they say it is done, accept it, use the result or drop it; the Leader's report closes
+nothing. A result the Leader has reported is a **Waiting for you:** bullet in its status until
+then. The Leader's desk holds what is true now, one entry per open topic, and when a topic closes,
+its facts go into `knowledge/` and its entry leaves the desk. A stopped Worker that nothing open
+names is retired, once `knowledge/` holds what its desk knew; `done` and `stopped` both say so.
+When every name on the roster is held, the hire's answer says so, with the count of stopped desks.
+
+**A desk past 128 KB is saved whole, and its seat is told once.** When `write_desk` finds the desk
+past the limit, the server copies it beside itself as `STATE-<time>.md`, and the answer asks the
+seat to archive what current work no longer needs and to keep open topics and standing decisions
+word for word; with most of it still open, it asks for a higher limit instead. It names no size to
+reach, and it is not said again until the desk has been below the limit. The limit is
+`"desk": { "limit": <bytes> }` in `openovai.json`. Every seat is told where its history is: its
+panel, those copies, and the git logs of its projects, searched when it is asked about the past.
+
 ## 0.25.0
 
 **This version pins Claude Code 2.1.300, where the last pinned 2.1.296.**
