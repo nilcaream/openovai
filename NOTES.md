@@ -29,6 +29,16 @@ with Write and Edit, never through the shell.
 holds whatever program it is handed, so a script is the classifier's to judge, or the User's on a
 card in Manual. A workspace taking this version keeps the rules it holds.
 
+**The User takes a rule out, or moves it, on one card.** When the User wants a held rule gone,
+the Leader calls `remove_rule` with the rule and why, and its panel shows a card with the rule, the
+list that holds it, the line `.claude/allowed.md` has for it, and Remove and Keep. Only the press
+writes, and it reaches the Leader as a `permission` event, decision remove or keep; a removed rule
+stops applying at every session's next call, with no restart. One of ovai's defaults that is
+removed is not offered again after an update, and the card says so. The rules that keep the file
+tools away from the instance's own settings, login and page keys stay the User's to remove by hand.
+A held rule the Leader asks about with `permission` comes on one card that says where it stands
+now, and the press moves it to the list pressed, also at the next call.
+
 **A rule written by hand as `Bash(npm *)` is the rule `Bash(npm:*)`.** Claude Code reads the two
 spellings as one, and so does a rule card: settling `Bash(npm:*)` in a list takes a hand-written
 `Bash(npm *)` out of the other lists, where it would still have decided, and a card that removes
