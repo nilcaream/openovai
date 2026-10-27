@@ -3062,5 +3062,16 @@
         "to": ""
       }
     ]
+  },
+  {
+    "name": "the dark theme's dim text on the User's row is the panel's dim text",
+    "catches": "keep a quoted status bullet's text readable on the User's row, in both themes",
+    "edits": [
+      {
+        "file": "lib/chat/md.css",
+        "from": "--me-line: #2e6b63; --me-dim: #b1bdc8;",
+        "to": "--me-line: #2e6b63; --me-dim: #9aa7b4;"
+      }
+    ]
   }
 ]

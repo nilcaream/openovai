@@ -308,6 +308,19 @@ describe("the rules", () => {
     assert.ok(ratio >= 1.2, `dark: --from ${dark["--from"]} against --reply ${dark["--reply"]} is a contrast of ${ratio.toFixed(2)}, under 1.2`);
   });
 
+  // A quoted status bullet is text to read, on the ground of the User's row: WCAG AA, 4.5:1, in
+  // both themes, from the token values.
+  it("keep a quoted status bullet's text readable on the User's row, in both themes", () => {
+    const channel = (hex) => { const c = parseInt(hex, 16) / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+    const luminance = (hex) => 0.2126 * channel(hex.slice(1, 3)) + 0.7152 * channel(hex.slice(3, 5)) + 0.0722 * channel(hex.slice(5, 7));
+    const contrast = (a, b) => { const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x); return (hi + 0.05) / (lo + 0.05); };
+    const color = /^var\((--[a-z-]+)\)$/.exec(rules.find((rule) => rule.selector === ".msg .text .quote").declarations.color)[1];
+    for (const [theme, tokens] of [["light", tokenBlocks[0].declarations], ["dark", tokenBlocks[1].declarations]]) {
+      const ratio = contrast(tokens[color], tokens["--me"]);
+      assert.ok(ratio >= 4.5, `${theme}: ${color} ${tokens[color]} on --me ${tokens["--me"]} is a contrast of ${ratio.toFixed(2)}, under 4.5`);
+    }
+  });
+
   it("mark the line of a message as a click, and light the message a click found", () => {
     const line = rules.find((rule) => rule.selector === ".rows .line.peer");
     assert.equal(line.declarations.cursor, "pointer");
@@ -615,7 +628,7 @@ describe("the script", () => {
     assert.match(script, /const own = item\.cloneNode\(true\);\s*for \(const list of own\.querySelectorAll\("ul, ol"\)\) list\.remove\(\);\s*const ref = statusRef\(clock, at \+ 1\);\s*quoted\.set\(ref, statusQuote\(clock, own\.textContent\)\);\s*pointAt\(panel, ref\);/, "the text as drawn, numbered from 1");
     assert.equal(rules.find((rule) => rule.selector === ".standing li").declarations.cursor, "pointer");
     assert.match(script, /quote\.className = "quote";\s*quote\.textContent = part\.text\.slice\(2\);/, "a quoting line in a User's row is drawn as a quote, its text as text");
-    assert.deepEqual(rules.find((rule) => rule.selector === ".msg .text .quote").declarations, { "border-left": "3px solid var(--me-line)", "padding-left": "10px", color: "var(--fg-dim)" }, "one line's height: no margin or padding above or below it");
+    assert.deepEqual(rules.find((rule) => rule.selector === ".msg .text .quote").declarations, { "border-left": "3px solid var(--me-line)", "padding-left": "10px", color: "var(--me-dim)" }, "one line's height: no margin or padding above or below it");
   });
 
   // A reference in the User's row that names a drawn row is a link to it, focused the way a
