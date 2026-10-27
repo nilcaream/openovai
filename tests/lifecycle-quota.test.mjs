@@ -302,7 +302,10 @@ describe("the quota gate", () => {
     const rowsFrom = panel(instance, LEADER).length;
     // The first event the release writes is the turn the Leader dies in; the done event behind it
     // is the one it never read.
-    assert.equal(deliver(chat, LEADER, serverEvent("idle", { who: WORKER, minutes: "30" })).held?.window, "5h");
+    const idle = deliver(chat, LEADER, serverEvent("idle", { who: WORKER, minutes: "30" })).held;
+    assert.equal(idle?.window, "5h");
+    const heldRows = panel(instance, LEADER).slice(rowsFrom).map((row) => row.text);
+    assert.ok(heldRows.includes(heldLine(idle, "an idle event")), heldRows.join("\n"));
     assert.equal(deliver(chat, LEADER, serverEvent("done", { who: WORKER })).held?.window, "5h");
     const before_ = { ...process.env };
     process.env.OPENOVAI_STAND_IN_LOG = nextLog(LEADER);
