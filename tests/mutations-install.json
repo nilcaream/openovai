@@ -439,7 +439,7 @@
     "edits": [
       {
         "file": "lib/desks.mjs",
-        "from": "  { list: \"allow\", rules: SHELL_RULES, why: \"Lets every session run this everyday shell command without a card, so cloning, committing, copying and running a script do not stop the work.\" },\n",
+        "from": "  { list: \"allow\", rules: SHELL_RULES, why: \"Lets every session run this everyday shell command without a card, so cloning, committing, copying and comparing do not stop the work.\" },\n",
         "to": ""
       }
     ]

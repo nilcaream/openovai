@@ -17,12 +17,11 @@ Every session is a normal Claude Code, started by ovai with the instance as its 
 The sandbox is Claude Code's own; ovai adds nothing to it and changes nothing in it. Turn it on with a `"sandbox"` block in `.claude/settings.json` for the page's sessions, or in `.local/settings.json` for them and admin mode, then restart the sessions. Its keys and its platform requirements (bubblewrap on Linux; not native Windows) are on https://code.claude.com/docs/en/sandboxing, for the Claude Code version the release pins (see `lib/RUNTIME`).
 
 ## What ovai wires into .claude/settings.json
-- A hook before each Bash call. A command made of several parts runs without a permission popup when every part is already allowed. A command that hides another program (a backtick or `$(`) is refused with a reason.
 - A hook when a subagent starts. The subagent is handed `customization/common.md`.
 - Commit and pull request attribution is turned off.
 - The permission rules a fresh instance starts with.
 
-An update wires missing hooks, and never adds a rule a fresh instance would have. At each start the server asks the User on a card for each such rule the settings hold in no list: the recommendation (Allow, Deny or Ask every time) or Ignore, which is kept in `.claude/ignored-defaults.json` so that rule is never asked again.
+An update wires a missing hook and takes out the ones ovai no longer runs, and never adds a rule a fresh instance would have. At each start the server asks the User on a card for each such rule the settings hold in no list: the recommendation (Allow, Deny or Ask every time) or Ignore, which is kept in `.claude/ignored-defaults.json` so that rule is never asked again.
 
 ## Environment
 - `ANTHROPIC_API_KEY` and `ANTHROPIC_AUTH_TOKEN` are always removed. `CLAUDE_CODE_OAUTH_TOKEN` is kept only for an instance that signs in by `inherit`.

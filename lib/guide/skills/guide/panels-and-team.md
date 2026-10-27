@@ -17,9 +17,9 @@ A panel shows a turn's answer, not its way there. Words a session writes between
 - The row appears after the Leader's first confirmation and is as tall as its text, so the Leader keeps it short: one bulleted list, one thing per bullet, what waits for the person first, each starting with a bold "Waiting for you:", then the loose ends, in the same order from one confirmation to the next. Work that is moving or finished is not in it, and a bullet goes the moment it no longer waits or is no longer loose. A ticket or a page is a link with a short label. No title or headings. With nothing waiting and nothing loose, one bullet says so. A switch on the Leader's head hides it in this browser. Kept on disk, it is the same after a restart of the server.
 
 ## Auto mode
-- In Claude Code's auto mode a classifier settles the calls no rule settles, instead of a permission popup. Two switches on the Leader's head, both bolt icons, turn it on: the first for the Leader's own session, the second for all the Workers' sessions.
-- The switches belong to the server, not to the browser: every open page shows the same state, and both are off whenever the server starts. Nothing about them is saved.
-- A click reaches the running sessions of that role at once, with no restart, and sessions started later start in that mode. A model that has no auto mode keeps asking with popups as before, without saying so. Haiku has auto mode, like the other models.
+- In Claude Code's auto mode a classifier settles the calls no rule settles, instead of a permission popup. Every session starts in it, as the Claude Code CLI does. Two switches on the Leader's head, both bolt icons, turn it off (Manual, where every such call asks on a popup): the first for the Leader's own session, the second for all the Workers' sessions.
+- The switches belong to the server, not to the browser: every open page shows the same state, and both are on whenever the server starts. Nothing about them is saved, so a switch turned off lasts until the server stops.
+- A click reaches the running sessions of that role at once, with no restart, and sessions started later start in that mode. A model that has no auto mode keeps asking with popups, without saying so. Haiku has auto mode, like the other models.
 - A call the classifier refuses raises no popup. The session is told the call failed, and its panel gets a row, "Blocked by auto mode: <category> — <the call>", with the classifier's category and the call, cut when it is very long. A call a deny rule refuses gets no such row.
 
 ## Workers

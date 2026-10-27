@@ -460,14 +460,12 @@ describe("what a Worker is told", () => {
     assert.match(worker(), /all a close\s+needs from you is the desk/);
   });
 
-  // The install allows a seat plain git, mkdir and cd; a permission rule matches a command from its
-  // first character, so `cd x && git status` and `git -C x status` ask every time while
-  // `git status` from inside the repo does not.
-  it("tells the Worker one command per call, to work from inside the repository, and never cd-and or git -C", () => {
-    assert.match(worker(), /one command per call/);
-    assert.match(worker(), /Work from inside the\s+repository: `cd projects\/<repo>` once, alone, then plain git, mkdir and the file tools/);
-    assert.match(worker(), /never chain a\s+`cd …` with another command and never `git -C`/);
-    assert.match(worker(), /a permission rule matches a command from\s+its first character, and those spellings ask every time/);
+  // A seat starts in auto mode, where the classifier settles a compound as the CLI's own does: the
+  // Worker is taught no spelling of a command whose only point is to get past a card.
+  it("tells the Worker no way of spelling a command around a card", () => {
+    for (const spelling of [/one command per call/, /`cd projects\/<repo>` once, alone/, /`git -C`/, /`grep -f`/, /one plain command/, /first character/]) {
+      assert.doesNotMatch(worker(), spelling);
+    }
   });
 
   it("tells both that the harness's own directories ask whatever the rules say, and not to go round them", () => {
@@ -493,29 +491,17 @@ describe("what a Worker is told", () => {
     }
   });
 
-  // The compound hook never allows a command holding a backtick or `$(` anywhere, quotes or not
-  // (lib/hooks/compound.mjs HIDDEN): it refuses it with a reason, and answers nothing when a side
-  // is refused by rule or cannot be read, which then asks.
-  it("tells the Worker that shell syntax in an argument goes into a pattern file or a script, never onto the line", () => {
-    assert.match(worker(), /A backtick or a `\$\(` anywhere on the line reads as a command hidden inside it, quoted or\s+not: it is refused with a reason, unless a side of the line is one the rules refuse or one that\s+cannot be read, and then it asks/);
-    assert.match(worker(), /goes into a pattern file passed with `grep -f`, or into\s+such a script on your desk, never onto the command line/);
-    assert.match(worker(), /Anything more than one plain command — a pipe, a chain, a loop, a command that runs on\s+for lines — is a one-time script written on your own desk and run that way/);
-    assert.match(worker(), /several alternatives\s+go as repeated `-e` rather than one pattern joined by `\\\|`/);
-  });
-
-  // A heredoc through Bash reads as compliant with "a script written on your own desk" while the
-  // card shows the whole file; the sentence names how the file is written, not only where.
+  // A heredoc through Bash puts the whole file on the card or before the classifier; the sentence
+  // names how a file is written.
   it("tells the Worker that a file is created or changed with Write and Edit, never through the shell", () => {
-    assert.match(flat(worker()), /A file is created or changed with the file tools, Write and Edit, and never through the shell: a `cat > … <<'EOF'`, an `echo … >`, a `sed -i` or a script whose only work is to write a file puts on the card what the file tools would have shown as a diff\. Anything more than one plain command/);
+    assert.match(flat(worker()), /A file is created or changed with the file tools, Write and Edit, and never through the shell: a `cat > … <<'EOF'`, an `echo … >`, a `sed -i` or a script whose only work is to write a file puts on the card what the file tools would have shown as a diff\./);
   });
 
-  it("tells the Worker that a compound of allowed commands runs without a stop, and one with a side nothing holds is refused toward a script", () => {
-    assert.match(flat(worker()), /A compound whose every side is a command this instance allows runs without a stop; one that has a side nothing holds is refused with a reason that says how to write it as a script, unless a side is one the rules refuse, and then it asks\./);
-  });
-
-  it("tells both to say why in the call, in words a person reads", () => {
+  it("tells both they start in auto mode, that a block is an answer, when a card comes, and to say why in the call", () => {
     for (const text of [leader(), worker()]) {
-      assert.match(flat(text), /When you reach for a tool this workspace has not settled, your run stops and \S+ is asked on your panel, with the call as you made it — the command or the path, and the reason you gave with it — and Allow, Always and Deny\. Say why in the call, in words a person reads\./);
+      assert.match(flat(text), /Your session starts in Claude Code's auto mode, as the CLI does, unless \S+ has switched your role to Manual: a call no rule settles is judged by auto mode's classifier, which runs it or blocks it\./);
+      assert.match(flat(text), /A block comes back as the call's error and is an answer, like a Deny: go on without the call or say what waits on it, and never spell it again another way to get it past\./);
+      assert.match(flat(text), /A call a rule says to ask about, and in Manual every call no rule settles, stops your run and \S+ is asked on your panel, with the call as you made it — the command or the path, and the reason you gave with it — and Allow, Always and Deny\. Say why in the call, in words a person reads\./);
     }
   });
 
@@ -623,7 +609,7 @@ describe("what both are told in ovai's common frame", () => {
       "Text you write before a call is held back while the turn runs",
       '`<server-event type="restarted">` — you are the session after a restart on this desk',
       '`<server-event type="undelivered" to="…">` — a message you sent was never read',
-      "When you reach for a tool this workspace has not settled",
+      "Your session starts in Claude Code's auto mode",
       "Claude Code keeps a few directories for itself",
       "has added for this instance comes after these instructions",
       "It is not storage, and it is not where anything is looked up",

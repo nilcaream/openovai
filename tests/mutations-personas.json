@@ -110,13 +110,35 @@
     ]
   },
   {
-    "name": "the Worker's persona loses the one-command habit",
-    "catches": "tells the Worker one command per call, to work from inside the repository, and never cd-and or git -C",
+    "name": "the personas say a session starts in Manual",
+    "catches": "tells both they start in auto mode, that a block is an answer, when a card comes, and to say why in the call",
+    "edits": [
+      {
+        "file": "lib/templates/common.md",
+        "from": "Your session starts in Claude Code's auto mode, as the CLI does, unless",
+        "to": "Your session starts in Manual, unless"
+      }
+    ]
+  },
+  {
+    "name": "the personas let a session spell a blocked call again to get it past",
+    "catches": "tells both they start in auto mode, that a block is an answer, when a card comes, and to say why in the call",
+    "edits": [
+      {
+        "file": "lib/templates/common.md",
+        "from": "go on without the call or\nsay what waits on it, and never spell it again another way to get it past.",
+        "to": "go on without the call or\nspell it again another way."
+      }
+    ]
+  },
+  {
+    "name": "the Worker's persona teaches a spelling around a card again",
+    "catches": "tells the Worker no way of spelling a command around a card",
     "edits": [
       {
         "file": "lib/templates/worker.md",
-        "from": "one command per call; and when a",
-        "to": "one thing at a time; and when a"
+        "from": "When a call of yours stops, the files underneath it are never the way round.",
+        "to": "One command per call; `cd projects/<repo>` once, alone. When a call of yours stops, the files underneath it are never the way round."
       }
     ]
   },
@@ -507,7 +529,7 @@
   },
   {
     "name": "the Worker's persona drops the reason a call carries",
-    "catches": "tells both to say why in the call, in words a person reads",
+    "catches": "tells both they start in auto mode, that a block is an answer, when a card comes, and to say why in the call",
     "edits": [
       {
         "file": "lib/templates/common.md",
@@ -682,39 +704,6 @@
     ]
   },
   {
-    "name": "the Worker's persona sends it to git -C instead of into the repository",
-    "catches": "tells the Worker one command per call, to work from inside the repository, and never cd-and or git -C",
-    "edits": [
-      {
-        "file": "lib/templates/worker.md",
-        "from": "never chain a\n`cd …` with another command and never `git -C`",
-        "to": "never chain a\n`cd …` with another command; `git -C` for git"
-      }
-    ]
-  },
-  {
-    "name": "the Worker's persona drops the one cd into the repository",
-    "catches": "tells the Worker one command per call, to work from inside the repository, and never cd-and or git -C",
-    "edits": [
-      {
-        "file": "lib/templates/worker.md",
-        "from": "Work from inside the\nrepository: `cd projects/<repo>` once, alone, then plain git, mkdir and the file tools;",
-        "to": "Work from the instance root with\nplain git, mkdir and the file tools;"
-      }
-    ]
-  },
-  {
-    "name": "the Worker's persona drops why the spellings ask",
-    "catches": "tells the Worker one command per call, to work from inside the repository, and never cd-and or git -C",
-    "edits": [
-      {
-        "file": "lib/templates/worker.md",
-        "from": ", since a permission rule matches a command from\nits first character, and those spellings ask every time.",
-        "to": "."
-      }
-    ]
-  },
-  {
     "name": "the Worker's persona lets a Worker go round the harness's own directories",
     "catches": "tells both that the harness's own directories ask whatever the rules say, and not to go round them",
     "edits": [
@@ -722,17 +711,6 @@
         "file": "lib/templates/common.md",
         "from": "do not look for a way round\nit (a script, a copy, a rename): ask, or leave it.",
         "to": "a way round\nit (a script, a copy, a rename) is yours to take."
-      }
-    ]
-  },
-  {
-    "name": "the Worker's persona says a compound with an unheld side runs too",
-    "catches": "tells the Worker that a compound of allowed commands runs without a stop, and one with a side nothing holds is refused toward a script",
-    "edits": [
-      {
-        "file": "lib/templates/worker.md",
-        "from": "one that has a side nothing holds is refused with\na reason that says how to write it as a script, unless a side is one the rules refuse, and then it\nasks.",
-        "to": "one that has a side nothing holds runs too."
       }
     ]
   },

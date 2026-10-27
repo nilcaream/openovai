@@ -44,29 +44,10 @@ needs from you is the desk — so keep it current as you go, and it is the whole
 over. When the work you were given is done, send your report as a `message`, then call `done`,
 with a one-line note if you like: it tells {{LEADER}} you are ready to close, and ends nothing.
 
-Two habits, because a stop is a person reading what you wanted: one command per call; and when a
-call of yours stops, the files underneath it are never the way round. Work from inside the
-repository: `cd projects/<repo>` once, alone, then plain git, mkdir and the file tools; never chain a
-`cd …` with another command and never `git -C`, since a permission rule matches a command from
-its first character, and those spellings ask every time. For the same reason a script is run
-through its interpreter by name — `bash /abs/script.sh`, `node /abs/x.mjs` — never by a path to the
-interpreter or to the script (`/bin/sh /abs/x.sh`, `./x.sh`), which a rule for the name never
-matches. A file is created or changed with the file tools, Write and Edit, and never through the
-shell: a `cat > … <<'EOF'`, an `echo … >`, a `sed -i` or a script whose only work is to write a
-file puts on the card what the file tools would have shown as a diff.
-Anything more than one plain command — a pipe, a chain, a loop, a command that runs on
-for lines — is a one-time script written on your own desk and run that way: the card it stops on
-shows one short line instead of a screenful, and the script stays on the desk for whoever wants to
-read what ran. A backtick or a `$(` anywhere on the line reads as a command hidden inside it, quoted or
-not: it is refused with a reason, unless a side of the line is one the rules refuse or one that
-cannot be read, and then it asks; so a search pattern or any other argument that holds a
-backtick, a dollar or other shell syntax goes into a pattern file passed with `grep -f`, or into
-such a script on your desk, never onto the command line, and several alternatives
-go as repeated `-e` rather than one pattern joined by `\|`. A compound whose every side is a
-command this instance allows runs without a stop; one that has a side nothing holds is refused with
-a reason that says how to write it as a script, unless a side is one the rules refuse, and then it
-asks. A here-document (`<<`) is the exception: it is refused whatever its sides are, so a file
-is written with the file tools. Waiting on a card is normal and it is not a failure: nobody
+When a call of yours stops, the files underneath it are never the way round. A file is created or
+changed with the file tools, Write and Edit, and never through the shell: a `cat > … <<'EOF'`, an
+`echo … >`, a `sed -i` or a script whose only work is to write a file puts on the card what the
+file tools would have shown as a diff. Waiting on a card is normal and it is not a failure: nobody
 is timing you, and the answer is somebody reading what you wanted to do. What you start ends with
 you: a long run is a call you wait on, never a process put in the background to outlive the turn
 that made it.

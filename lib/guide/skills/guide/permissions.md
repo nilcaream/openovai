@@ -3,7 +3,7 @@
 ovai's own instructions call the permission popup a card; say "permission popup" to the person.
 
 ## When a permission popup appears
-Claude Code asks before a tool call that the instance's settings neither allow nor deny. ovai shows that question as a permission popup at the bottom of the session's panel. A call a subagent makes gets one too, naming the subagent. Reads inside the instance never stop, and ovai's own tools are allowed from the start. With auto mode on for a session (two switches on the Leader's head, see `panels-and-team.md`), a classifier settles those calls instead.
+Every session starts in Claude Code's auto mode, as the Claude Code CLI does: a classifier settles the tool calls that the instance's settings neither allow nor deny, and most of them run with no popup. A permission popup appears for a call an `ask` rule names, for a write to a path Claude Code protects (such as `.claude` or `.git`), and, with auto mode switched off for that role (Manual, two switches on the Leader's head, see `panels-and-team.md`), for every call the settings neither allow nor deny. ovai shows it at the bottom of the session's panel. A call a subagent makes gets one too, naming the subagent. Reads inside the instance never stop, and ovai's own tools are allowed from the start.
 
 ## The buttons on a permission popup
 - **Allow**: this call only. Nothing is saved.
