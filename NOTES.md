@@ -51,6 +51,13 @@ blank line around it, so what the Leader reads is the bullet as the User saw it,
 then. A token deleted before the send quotes nothing, and after a reload one goes as typed. In the
 User's row, a line that starts that way is drawn as a quote; any other `>` stays as typed.
 
+**A turn ends the same on the panel whatever started it.** A turn started by an event of the
+server's, a checkpoint or a closing, and a seat's first turn after a restart, now end in the rows a
+turn started by a line or a message ends in: a run that failed, the row that says to run
+`ovai login` after an expired sign-in, a turn stopped from the page, a process gone before it
+answered, a frame never read. An event the Leader never read and is handed again draws no "Not
+delivered" row: the panel shows how the event's second delivery ended.
+
 ## 0.25.0
 
 **This version pins Claude Code 2.1.300, where the last pinned 2.1.296.**
