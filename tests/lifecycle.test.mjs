@@ -17,7 +17,7 @@ import { wallClock } from "../lib/chat/log.mjs";
 import * as quota from "../lib/chat/quota.mjs";
 import * as usage from "../lib/chat/usage.mjs";
 import { home } from "../lib/claude.mjs";
-import { end, endEvery, interrupt, recordOf, running, runningSeats, tell } from "../lib/chat/session.mjs";
+import { TURN_PATIENCE, end, endEvery, interrupt, recordOf, running, runningSeats, tell } from "../lib/chat/session.mjs";
 import { deskFile, deskTitle, hire } from "../lib/desks.mjs";
 import { CONFIG_FILE } from "../lib/seed.mjs";
 import { alive, callsIn, childrenOf, heardIn, installed, pageCookie, pidsIn, post as postPlain, queuesHeardIn, readLog, remove, secretsIn, startChat, stopChat, waitFor, waitForAddress, writeStandIn } from "./helpers.mjs";
@@ -420,6 +420,35 @@ describe("restart_session and stop_session", () => {
       martin = successor;
     } finally {
       await end(WORKER, 500);
+    }
+  });
+
+  // A stop the Leader asked for is its own ending: a closing reply still out when the process is
+  // taken down at TURN_PATIENCE is no failure. The panel already shows the seat has left; what the
+  // reply had said by then is an ordinary row of the seat's, and a reply that had said nothing is none.
+  it("a Leader's stop cut at the patience limit leaves no failed row on its panel, only the words it had said", async () => {
+    for (const saying of ["Desk written; stopping.", ""]) {
+      await end(LEADER, 500);
+      martin = await seatUp(LEADER, { OPENOVAI_STAND_IN_LINGERS: "15000", OPENOVAI_STAND_IN_LINGERS_SAYING: saying, ...callsThen("stop_session", "stop please") });
+      paul = await seatUp(WORKER);
+      try {
+        const rows = panel(instance, LEADER).length;
+        const began = Date.now();
+        assert.equal((await tool(paul.secret, "message", { to: LEADER, text: "stop please" })).refused, false);
+        for (let tries = 0; running(LEADER) && tries < 150; tries += 1) {
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+        assert.equal(running(LEADER), false, "the Leader was not taken down");
+        assert.ok(Date.now() - began >= TURN_PATIENCE - 500, "the turn was not cut at the patience limit");
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        const since = panel(instance, LEADER).slice(rows);
+        assert.deepEqual(since.filter((row) => row.failed === true).map((row) => row.text), []);
+        assert.deepEqual(since.filter((row) => row.from === LEADER).map((row) => row.text), saying === "" ? [] : [saying]);
+      } finally {
+        await end(WORKER, 500);
+        await end(LEADER, 500);
+        martin = await seatUp(LEADER);
+      }
     }
   });
 

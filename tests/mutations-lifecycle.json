@@ -646,5 +646,27 @@
         "to": "  record.said = 0;\n  record.worded = 0;\n  record.lay();\n  record.fresh = false;"
       }
     ]
+  },
+  {
+    "name": "a stop the session asked for is not marked as its own",
+    "catches": "a Leader's stop cut at the patience limit leaves no failed row on its panel, only the words it had said",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "  record.endedItself = true;\n",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "a turn that ends with the process drops what it had said",
+    "catches": "a Leader's stop cut at the patience limit leaves no failed row on its panel, only the words it had said",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "    // A turn that ends with the process has no result to lay its held notes at.\n    record.lay();\n",
+        "to": "    // A turn that ends with the process has no result to lay its held notes at.\n"
+      }
+    ]
   }
 ]

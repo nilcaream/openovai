@@ -161,6 +161,10 @@ export function installed(options, environment) {
 //                             answer is logged as `tool: <name> -> <text>`
 //   OPENOVAI_STAND_IN_TOOL_ON       only turns whose question contains this text make those calls
 //                             (default: every turn)
+//   OPENOVAI_STAND_IN_LINGERS       milliseconds to wait after those calls before answering, stdin
+//                             closed or not — a reply still out when the process is taken down
+//   OPENOVAI_STAND_IN_LINGERS_SAYING  words said as a text frame before that wait: a closing reply
+//                             that had begun when the process was taken down
 //   OPENOVAI_STAND_IN_CALLS         a JSON list, one entry per QUESTION the same way, each a list of
 //                             { name, input, error?, parent?, usage?, text?, wait? }: the tools the real one
 //                             would say it is using in that turn, each written before the answer
@@ -582,6 +586,14 @@ for (;;) {
   if (!interrupted && (on === "" || asked.includes(on))) {
     for (const call of calls) {
       await callTool(call.name, call.arguments);
+    }
+    const lingers = Number(process.env.OPENOVAI_STAND_IN_LINGERS ?? 0);
+    if (calls.length > 0 && lingers > 0) {
+      const saying = process.env.OPENOVAI_STAND_IN_LINGERS_SAYING ?? "";
+      if (saying !== "") {
+        frame({ type: "assistant", message: { role: "assistant", content: [{ type: "text", text: saying }] }, session_id: "test-thread" });
+      }
+      await sleep(lingers);
     }
   }
 
