@@ -6,6 +6,8 @@ carries only its own.
 
 ## 0.26.0
 
+**This version pins Claude Code 2.1.314, where the last pinned 2.1.300.**
+
 **Every seat starts in auto mode, as the Claude Code CLI does.** The two bolt switches on the
 Leader's head are on whenever the server starts: Claude Code's classifier settles the calls no rule
 settles, and most of them run with no card. A switch turned off puts that role in Manual, where
