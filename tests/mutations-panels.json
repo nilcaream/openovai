@@ -955,5 +955,27 @@
         "to": "  return name === \"snapshot\" && state.version !== \"\" && running !== state.version;"
       }
     ]
+  },
+  {
+    "name": "a token in code is spelled out like any other",
+    "catches": "leaves a token in a code span or a fenced block as typed",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "    if (line === undefined || code.some(([start, end]) => match.index >= start && match.index < end)) continue;",
+        "to": "    if (line === undefined) continue;"
+      }
+    ]
+  },
+  {
+    "name": "the line after a token loses its indentation",
+    "catches": "keeps the indentation of the line after a token, and drops the blank lines before it",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "    from = blank === text.length || lastBreak < from ? blank : lastBreak + 1;",
+        "to": "    from = blank;"
+      }
+    ]
   }
 ]

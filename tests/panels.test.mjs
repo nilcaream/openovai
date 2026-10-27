@@ -703,6 +703,19 @@ describe("a bullet of the Leader's status quoted in the reply", () => {
     assert.equal(withQuotes("  plain\n", new Map()), "  plain\n");
   });
 
+  it("leaves a token in a code span or a fenced block as typed", () => {
+    const quotes = new Map([["(status/12:00:00/1)", "> Status (12:00:00) - x"]]);
+    assert.equal(withQuotes("x `(status/12:00:00/1)` y", quotes), "x `(status/12:00:00/1)` y");
+    assert.equal(withQuotes("```\n(status/12:00:00/1)\n```\nsee (status/12:00:00/1) z", quotes), "```\n(status/12:00:00/1)\n```\nsee\n> Status (12:00:00) - x\nz");
+    assert.equal(withQuotes("~~~\n(status/12:00:00/1)", quotes), "~~~\n(status/12:00:00/1)", "a fence never closed runs to the end");
+  });
+
+  it("keeps the indentation of the line after a token, and drops the blank lines before it", () => {
+    const quotes = new Map([["(status/12:00:00/1)", "> Status (12:00:00) - x"]]);
+    assert.equal(withQuotes("a (status/12:00:00/1)\n\n    indented", quotes), "a\n> Status (12:00:00) - x\n    indented");
+    assert.equal(withQuotes("a (status/12:00:00/1)\n   ", quotes), "a\n> Status (12:00:00) - x", "blanks alone after it are no line");
+  });
+
   it("draws a User's line that starts with the quote as a quote, and every other line as typed", () => {
     assert.deepEqual(quoteLines(`I am testing UI. Just clicking stuff. No action needed.\n> Status (12:16:00) - ${REVIEW}\nhello.\n> Status (12:16:00) - ${REMOTE}\ndone`), [
       { text: "I am testing UI. Just clicking stuff. No action needed.\n", quote: false },
