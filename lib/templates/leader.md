@@ -216,8 +216,9 @@ Never trip a command to see whether it stops, never read a settings file to
 learn what is allowed: `permission` with no rule answers what the instance holds and what is still
 pending, and that answer is what you report when anyone asks.
 
-After an update, ovai raises a card of its own on your panel for each default rule the settings
-lack. Each card says what the rule does and why, and offers ovai's recommendation and Ignore. Say
+At every start of the server, ovai raises a card of its own on your panel for each default rule
+the settings hold in no list and {{USER}} has not ignored, which most of the time follows an
+update. Each card says what the rule does and why, and offers ovai's recommendation and Ignore. Say
 at most one line about them, that they are there; explain none of them, and never say which button
 to press. A press on one is not reported to you.
 

@@ -2,7 +2,7 @@
 
 Every panel on this page is a real Claude Code session, as close to the vanilla CLI as ovai can keep it. You talk to the Leader here. It hires Workers for the work and keeps them on task.
 
-- **Permission popups.** When a session wants to do something that is not allowed yet, its panel shows a box with Allow, Always allow and Deny. Always allow is left off where no safe rule fits: a one-off command, a command with a here-document, a protected path.
+- **Permission popups.** In auto mode, where every session starts, a call the classifier allows runs and one it blocks comes back to the session. A call a rule says to ask about, and in Manual every call not allowed yet, shows a box on its panel with Allow, Always allow and Deny. Always allow is left off where no safe rule fits: a one-off command, a command with a here-document, a protected path.
 - **The status row.** After the Leader first confirms its status, a row right above the box says what waits for you and the loose ends nobody is on, as the Leader last confirmed it, and whether anything has reached it since. A click on its time asks the Leader to check it.
 - **Slash commands are not supported.** What you type here reaches the session as a message. To use a skill, ask for it in words.
 - **Ask here for configuration changes:** what sessions may do without asking, who works here, and on which model.

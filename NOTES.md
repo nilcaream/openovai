@@ -15,7 +15,9 @@ every such call asks on a card, until the server stops; nothing about the switch
 rules still refuse what they name, `git push` inside a chain of commands included, and ask rules
 and Claude Code's protected paths still raise a card in either mode. A call the classifier blocks
 is a row on its panel, as before, and a seat is told that a block is an answer, not something to
-spell another way. The classifier's calls count toward usage the way they do in the CLI.
+spell another way. The classifier's calls count toward usage the way they do in the CLI. The
+welcome a new instance opens with says so: a box with Allow, Always allow and Deny comes for a
+call a rule says to ask about, and in Manual for every call not allowed yet.
 
 **No hook runs before a shell command.** The hook that let a chain of allowed commands through,
 and refused other chains toward a script, is gone, and an update takes it out of
