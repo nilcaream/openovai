@@ -17,7 +17,7 @@ What is in the instance directory, and what each part is for.
 ## The tool
 - `bin/ovai`: the one command.
 - `lib/`: everything else a release ships, with its version in `lib/VERSION`. An update replaces it whole, including this guide.
-- `openovai.json`: the instance's description of itself: user, Leader, models, port, sign-in mode. It holds no paths.
+- `openovai.json`: the instance's description of itself: user, Leader, models, port, sign-in mode, and the optional settings in `setup-and-update.md`. It holds no paths.
 - `instructions.json`: the settings document every session is started with, written at every start.
 - `runtime.json`: the running server's address, pid and start time. `runtime.log`: what the server said, every run appended.
 - `usage.json`: the last reading of the account's usage windows and when it was taken, so the head's usage line is there after a restart.

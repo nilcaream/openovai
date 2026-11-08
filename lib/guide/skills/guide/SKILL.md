@@ -12,7 +12,7 @@ something, say so and give the nearest thing it can.
 `<instance>` in these pages is the instance directory, where ovai is installed. When you answer,
 write the real path in its place, as your instructions give it, so the person can copy the line.
 
-- `setup-and-update.md`: install, sign-in (`ovai login` or a token), start, stop, restart, a new browser link (`ovai url`), `ovai update` and `--downgrade`, and what an update replaces.
+- `setup-and-update.md`: install, sign-in (`ovai login` or a token), start, stop, restart, a new browser link (`ovai url`), `ovai update` and `--downgrade`, what an update replaces, and the settings in `openovai.json`: which apply while the server runs and which need a restart.
 - `panels-and-team.md`: the Leader and Workers, hiring and letting go, the switches on the Leader's head and auto mode, the Leader's status row, models and effort per seat, why fast mode is off, desks, and why a session closes or restarts.
 - `permissions.md`: the permission popup and its buttons, what "Always allow" writes, ask-every-time and deny rules, a popup that times out, and asking the Leader for a rule.
 - `slash-commands-and-admin-mode.md`: why panels take no slash commands, what to do instead (ask in words, or admin mode for `/mcp`, `/plugin`, `/config`), and what admin mode does and leaves out.

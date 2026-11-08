@@ -44,5 +44,22 @@ All are run from a terminal as `<instance>/bin/ovai <command>`:
 - Claude Code's own updater is off. A newer Claude Code arrives with the next ovai release.
 - After an update, the page shows the introduction once.
 
+## Settings in openovai.json
+`openovai.json` holds the answers given at install, and any of these settings, each optional:
+- `desk.limit`: the size in bytes a desk grows past before the server saves a copy and tells its session. 131072 (128 KB).
+- `idle.fyi`: the two minutes of a Worker's idleness at which the Leader is told, `[10, 50]`. `idle.force`: the minutes idle at which a session is told to write its desk and stop, 55. `idle.all`: the minutes after which the Leader is told every Worker is idle, 1.
+- `context.warning`, `context.step`, `context.error`: the context size in tokens at which a session is first told, the step it is told again at, and the size it wraps up at: 200000, 20000, 300000.
+- `park.deadline`: the seconds the Leader's `park` gives when it names none, 1800. `park.timeout`: the seconds a server stop gives sessions to write their desks, 20. `park.margin`: the seconds `ovai stop` waits past that, 15.
+- `typing.quiet`, `typing.cap`: the seconds after the last key in a panel's box that count as typing, and the longest a turn waits for them, 10 and 30; 0 turns either off.
+- `quota["5h"]`, `quota["7d"]`: the two usage percentages, warning and critical, `[90, 95]` and `[97, 99]`. The weekly pair also holds each model's own weekly window.
+
+All of them, and `models.leader` and `models.worker`, take effect while the server runs: the server reads the file again within about 5 seconds of a save, and tells the Leader the names of the keys that changed. A model applies from each session's next start; a running session keeps the one it started on.
+
+`user`, `leader`, `port` and `auth` take effect only at `ovai restart`. A save that changes them is told to the Leader as not applied.
+
+A file that does not read as JSON changes nothing: the server goes on with what it had and tells the Leader, and tells it again once the file reads.
+
+Sessions cannot edit `openovai.json`; a fresh instance denies it to their file tools. An instance made before 0.27.0 is asked for that rule on a permission popup.
+
 ## Two instances on one machine
 Yes. They share the runtimes under `~/.local/share/openovai` and nothing else: not the account, not the transcripts, not the port. Give them different ports, or `0` each. If a fixed port is taken, install over the instance with `--force` and another `--port`.
