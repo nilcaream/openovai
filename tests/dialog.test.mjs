@@ -128,13 +128,19 @@ describe("a removal", () => {
   });
 
   it("shows the rule, where it stands, the why, and the ledger's line for it", () => {
-    const shown = card({ line: "- `Bash(npm ci:*)` (ask) — Martin, 2026-10-03, for `npm ci`" });
+    const shown = card({ ledger: ["- `Bash(npm ci:*)` (ask) — Martin, 2026-10-03, for `npm ci`"] });
     assert.deepEqual(shown.lines, [
       { kind: "rule", text: "Bash(npm ci:*)" },
       { kind: "held", text: "Now: asked every time" },
       { kind: "why", text: "it is not needed any more" },
       { kind: "ledger", text: "- `Bash(npm ci:*)` (ask) — Martin, 2026-10-03, for `npm ci`" },
     ]);
+  });
+
+  it("shows the ledger's line for every list that holds it", () => {
+    const shown = card({ now: ["allow", "ask"], ledger: ["- `Bash(npm ci:*)` (allow) — Martin, 2026-10-03, for `npm ci`", "- `Bash(npm ci:*)` (ask) — Martin, 2026-10-04, for `npm ci`"] });
+    assert.deepEqual(line(shown, "ledger"), ["- `Bash(npm ci:*)` (allow) — Martin, 2026-10-03, for `npm ci`", "- `Bash(npm ci:*)` (ask) — Martin, 2026-10-04, for `npm ci`"]);
+    assert.deepEqual(line(shown, "held"), ["Now: allowed and asked every time"]);
   });
 
   it("says so when the ledger has no line for it, and names every list a hand edit put it in", () => {

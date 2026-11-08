@@ -1,5 +1,16 @@
 [
   {
+    "name": "a removal reads the ledger for the first list only",
+    "catches": "puts on a removal the ledger's line of every list that has one, not only of the first list",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "const ledger = now.map((list) => ledgerLine(root, rule, list))",
+        "to": "const ledger = now.slice(0, 1).map((list) => ledgerLine(root, rule, list))"
+      }
+    ]
+  },
+  {
     "name": "the rule composed for a write names the tool that asked rather than the one that governs writing",
     "catches": "composes the rule that governs writing, and never one that matches nothing",
     "edits": [

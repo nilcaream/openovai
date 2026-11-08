@@ -170,8 +170,8 @@
     "edits": [
       {
         "file": "lib/chat/dialog.mjs",
-        "from": "? { kind: \"ledger\", text: request.line }",
-        "to": "? { kind: \"held\", text: request.line }"
+        "from": "? request.ledger.map((text) => ({ kind: \"ledger\", text }))",
+        "to": "? request.ledger.map((text) => ({ kind: \"held\", text }))"
       }
     ]
   },

@@ -1228,11 +1228,19 @@ describe("asking to be allowed", () => {
       cards = await pending();
       said.spacedCard = cardFor("Bash(rustc:*)", "rule");
       heard.spaced = await press(said.spacedCard.id, "allow");
+      // A rule asked for in one list and written by hand into another that comes before it.
+      ruleAsked(instance, { rule: "Bash(rake:*)", list: "ask", session: LEADER, call: "rake builds", day: "2026-10-21" });
+      handEdit((permissions) => permissions.allow.push("Bash(rake:*)"));
+      said.twice = await call("remove_rule", { rule: "Bash(rake:*)", why: "rake is gone" });
+      cards = await pending();
+      said.twiceCard = cardFor("Bash(rake:*)", "remove");
+      await press(said.twiceCard.id, "keep");
     });
 
     after(async () => {
       handEdit((permissions) => {
-        permissions.allow = permissions.allow.filter((rule) => rule !== "Bash(rustc:*)");
+        permissions.allow = permissions.allow.filter((rule) => rule !== "Bash(rustc:*)" && rule !== "Bash(rake:*)");
+        permissions.ask = permissions.ask.filter((rule) => rule !== "Bash(rake:*)");
         permissions.deny.push(OTHER_DEFAULT);
       });
       handEdit((permissions) => permissions.deny.push(DEFAULT));
@@ -1277,15 +1285,23 @@ describe("asking to be allowed", () => {
     it("parks a removal with the lists that hold it, the ledger's line, and a default's why", () => {
       assert.equal(said.remove.refused, false, said.remove.text);
       assert.match(said.remove.text, /^asked on your panel: remove Bash\(make:\*\) \(.+\)$/);
-      const { id, line, ...make } = said.firstCards.find((held) => held.rule === "Bash(make:*)" && held.kind === "remove");
+      const { id, ledger: lines, ...make } = said.firstCards.find((held) => held.rule === "Bash(make:*)" && held.kind === "remove");
       assert.deepEqual(make, { kind: "remove", rule: "Bash(make:*)", why: "make is done", from: LEADER, now: ["allow"] });
-      assert.match(line, /^- `Bash\(make:\*\)` \(allow\) — /);
+      assert.equal(lines.length, 1);
+      assert.match(lines[0], /^- `Bash\(make:\*\)` \(allow\) — /);
       const born = said.firstCards.find((held) => held.rule === DEFAULT && held.kind === "remove");
       assert.deepEqual(born.now, ["deny"]);
       assert.equal(born.bornIn, "deny");
       assert.match(born.default, /a push is yours to make/);
-      assert.equal(born.line, undefined, "a default the installer wrote has no line in the ledger");
-      assert.equal(said.cargoCard.line, `- \`Bash(cargo:*)\` (allow) — ${LEADER}, ${today}, for \`cargo is fine\``);
+      assert.equal(born.ledger, undefined, "a default the installer wrote has no line in the ledger");
+      assert.deepEqual(said.cargoCard.ledger, [`- \`Bash(cargo:*)\` (allow) — ${LEADER}, ${today}, for \`cargo is fine\``]);
+    });
+
+    it("puts on a removal the ledger's line of every list that has one, not only of the first list", () => {
+      assert.equal(said.twice.refused, false, said.twice.text);
+      assert.deepEqual(said.twiceCard.now, ["allow", "ask"]);
+      assert.equal(said.twiceCard.ledger.length, 1, JSON.stringify(said.twiceCard));
+      assert.match(said.twiceCard.ledger[0], /^- `Bash\(rake:\*\)` \(ask\) — /);
     });
 
     it("lists a pending removal as a removal", () => {
