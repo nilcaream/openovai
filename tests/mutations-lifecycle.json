@@ -723,5 +723,49 @@
         "to": ""
       }
     ]
+  },
+  {
+    "name": "a cut turn is drawn as the service's words alone",
+    "catches": "a Worker's turn the service cuts after its calls becomes the server's row naming each call with its time",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "        if (dead && record.spoke && record.ending === null) {",
+        "to": "        if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "a cut turn's call with no line is listed all the same",
+    "catches": "a Worker's turn the service cuts after its calls becomes the server's row naming each call with its time",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": ".filter((call) => call.text !== null);",
+        "to": ";"
+      }
+    ]
+  },
+  {
+    "name": "a cut turn leaves the service's words as the seat's row",
+    "catches": "a Worker's turn the service cuts before any call says nothing was done and to send go on",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "      if (cutAsSaid(root, seat, reply.text, cut) === null) {\n        append(root, seat, cut);\n      }",
+        "to": "      append(root, seat, cut);"
+      }
+    ]
+  },
+  {
+    "name": "the cut row names two messages from one seat as one",
+    "catches": "the cut row names everything the turn held, as the User says it",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "    return times === 1 ? name : name === \"a notice from ovai\" ? \"notices from ovai\" : `${name}s`;",
+        "to": "    return name;"
+      }
+    ]
   }
 ]

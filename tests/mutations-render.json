@@ -471,5 +471,16 @@
         "to": "  if (entry.divider === true || entry.interrupted === true || entry.silent === true || entry.failed === true) return false;"
       }
     ]
+  },
+  {
+    "name": "a cut turn's row is drawn as a plain row of the server's",
+    "catches": "a turn the service cut is the server's row, with the service's words beside it",
+    "edits": [
+      {
+        "file": "lib/chat/render.mjs",
+        "from": "  if (entry.cut === true) {",
+        "to": "  if (false) {"
+      }
+    ]
   }
 ]

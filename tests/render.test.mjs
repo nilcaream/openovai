@@ -217,6 +217,15 @@ describe("every other row", () => {
     assert.equal(row({ from: "Paul", text: "", failed: true }, names).kind, "failed");
   });
 
+  it("a turn the service cut is the server's row, with the service's words beside it", () => {
+    assert.deepEqual(row({ from: "Server", text: "Paul got your message, but …", cut: true, why: "API Error: 403" }, names), {
+      who: "Server",
+      kind: "cut",
+      text: "Paul got your message, but …",
+      why: "API Error: 403",
+    });
+  });
+
   it("a silent turn is said so", () => {
     assert.deepEqual(row({ from: "Paul", text: "", silent: true }, names), { who: "Paul", kind: "silent", text: SILENT });
   });

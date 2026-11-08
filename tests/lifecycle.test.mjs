@@ -12,7 +12,7 @@ import { after, before, describe, it } from "node:test";
 
 import { SERVER, read } from "../lib/chat/conversation.mjs";
 import { messageFrame, serverEvent, userFrame } from "../lib/chat/frames.mjs";
-import { BODY_CLOSING, BODY_CONTEXT_ERROR, BODY_CONTEXT_WARNING, BODY_CONTEXT_WORKER, BODY_RESTARTED, BODY_UNANSWERED, SIGN_IN_EXPIRED, SIGN_IN_ROW, deliver } from "../lib/chat/lifecycle.mjs";
+import { BODY_CLOSING, BODY_CONTEXT_ERROR, BODY_CONTEXT_WARNING, BODY_CONTEXT_WORKER, BODY_RESTARTED, BODY_UNANSWERED, SIGN_IN_EXPIRED, SIGN_IN_ROW, cutWords, deliver } from "../lib/chat/lifecycle.mjs";
 import { wallClock } from "../lib/chat/log.mjs";
 import * as quota from "../lib/chat/quota.mjs";
 import * as usage from "../lib/chat/usage.mjs";
@@ -420,6 +420,59 @@ describe("restart_session and stop_session", () => {
     } finally {
       await end(WORKER, 500);
     }
+  });
+
+  // A turn the service cuts, in a seat that has answered before, is not the seat's message: the
+  // service's words, said first as if they were its own, become the server's row in place, which
+  // says what reached the seat, what it did and what to send, and keeps the service's words.
+  const CUT = "Failed to authenticate. API Error: 403 Attention Required! | Cloudflare";
+  const cutSeat = (calls) =>
+    seatUp(WORKER, {
+      OPENOVAI_STAND_IN_FAILS: JSON.stringify([false, true]),
+      OPENOVAI_STAND_IN_REPLY: CUT,
+      OPENOVAI_STAND_IN_CALLS: JSON.stringify([[], calls]),
+    });
+
+  it("a Worker's turn the service cuts after its calls becomes the server's row naming each call with its time", async () => {
+    paul = await cutSeat([{ name: "Bash", input: { command: "ls /tmp", description: "List files in /tmp" } }, { name: "ToolSearch", input: { query: "select:x" } }]);
+    try {
+      await tell(WORKER, userFrame("one")).answered;
+      const from = panel(instance, WORKER).length;
+      await deliver(chat, WORKER, messageFrame(LEADER, "do it")).answered;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      const shown = panel(instance, WORKER).slice(from).filter((row) => row.stamp !== true && row.to === undefined);
+      assert.deepEqual(shown.map((row) => [row.from, row.line ?? null, row.cut ?? null, row.why ?? null]), [[WORKER, "List files in /tmp", null, null], [SERVER, null, true, CUT]]);
+      assert.match(
+        shown[1].text,
+        new RegExp(`^${WORKER} got ${LEADER}'s message and did 1 thing:\\n- List files in /tmp \\(\\d\\d:\\d\\d:\\d\\d\\)\\n\\nThen Claude's service failed, so ${WORKER} could not reply\\. That thing is done and ${WORKER} remembers it\\. Nothing needs repeating: send "go on" to get the reply\\.$`),
+      );
+    } finally {
+      await end(WORKER, 500);
+    }
+  });
+
+  it("a Worker's turn the service cuts before any call says nothing was done and to send go on", async () => {
+    paul = await cutSeat([]);
+    try {
+      await tell(WORKER, userFrame("one")).answered;
+      const from = panel(instance, WORKER).length;
+      await deliver(chat, WORKER, userFrame("two")).answered;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      const shown = panel(instance, WORKER).slice(from).filter((row) => row.stamp !== true && row.from !== "user");
+      assert.deepEqual(shown.map((row) => [row.from, row.text, row.why]), [
+        [SERVER, `${WORKER} got your message, but Claude's service failed before ${WORKER} could act on it. Nothing was done and there is no reply yet. Send "go on" and ${WORKER} answers it.`, CUT],
+      ]);
+    } finally {
+      await end(WORKER, 500);
+    }
+  });
+
+  it("the cut row names everything the turn held, as the User says it", () => {
+    const of = [{ kind: "user" }, { kind: "message", from: "Ann" }, { kind: "message", from: "Ann" }, { kind: "server-event", event: "checkpoint" }];
+    assert.equal(
+      cutWords("Bob", { of, calls: [] }, instance),
+      `Bob got your message, Ann's messages and a notice from ovai, but Claude's service failed before Bob could act on them. Nothing was done and there is no reply yet. Send "go on" and Bob answers them.`,
+    );
   });
 
   // The successor's birth event is a turn like any other: one that fails on an expired sign-in

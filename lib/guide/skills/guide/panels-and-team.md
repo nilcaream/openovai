@@ -63,5 +63,12 @@ A panel shows a turn's answer, not its way there. Words a session writes between
 - A Worker's panel dims when its process ends, and is removed about 30 seconds later. The Leader's panel stays: while it has no process its dot is grey and its bottom line says "<Name> has left — the next message starts a fresh session".
 - When the server will start the Leader again by itself, its bottom line says when and why: "Waiting for instructions — resumes automatically at 18:40 (quota reset)", or "<Name> has left — resumes automatically at 18:40 (quota reset); a message starts it sooner". A time more than a day away carries its weekday. The why is a quota reset, or the reason the Leader gave when it set the wake-up: the Leader sets one itself when work waits on a time, such as a usage window's reset, and sets or cancels one when asked ("pick this up at 9:30"). A message starts the Leader sooner, and the wake-up still comes at its time. Parking the room, or a server stop, cancels it.
 
+## When Claude's service cuts a reply
+- Sometimes Claude's service fails in the middle of a session's turn, for example with "API Error: 403". The session does not answer then, and the panel shows a row of ovai's own, on a dashed ground, in place of a reply.
+- The row says whether the session got the message, and what it did before the failure: each action with its time, as the bottom line names it. When nothing was done, it says so.
+- The session keeps the message and the results of what it did. Send "go on" and it replies; nothing needs repeating, and nothing it did is done twice. ovai does not send it by itself.
+- Under the row, in small type, are Claude Code's own words for the failure, and a link to https://status.claude.com/ to check whether the service is down.
+- A session whose very first turn fails is ended instead, and the next message starts a fresh one; an expired sign-in says to run `ovai login`.
+
 ## Typing to a Worker
 Typing on a Worker's panel speaks to that Worker directly. It answers, and the Leader is told what was said. A panel whose process is gone takes no typing.
