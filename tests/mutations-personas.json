@@ -1,5 +1,16 @@
 [
   {
+    "name": "the guide's description grows past what a skill description may hold",
+    "catches": "keeps its description within the 1024 characters a skill description may have",
+    "edits": [
+      {
+        "file": "lib/guide/skills/guide/SKILL.md",
+        "from": "where files go. Not for the user's own project code.",
+        "to": "where files go; what the page shows, what each switch on the Leader's head does, and what every row on a panel means. Not for the user's own project code."
+      }
+    ]
+  },
+  {
     "name": "a block with no verdict is an answer like any other",
     "catches": "tells both they start in auto mode, that a block is an answer and one with no verdict is not, when a card comes, and to say why in the call",
     "edits": [

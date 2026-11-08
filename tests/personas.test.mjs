@@ -829,6 +829,12 @@ describe("the guide", () => {
     assert.match(head, /^description: How to set up, use and change OpenOv AI \(ovai\)/m);
   });
 
+  // Claude Code takes a skill description of at most 1024 characters.
+  it("keeps its description within the 1024 characters a skill description may have", () => {
+    const description = skill().match(/^description: (.*)$/m)[1];
+    assert.ok(description.length <= 1024, `the description is ${description.length} characters`);
+  });
+
   it("names every topic page beside it, and no page that is not there", () => {
     const named = [...skill().matchAll(/^- `([a-z-]+\.md)`:/gm)].map((found) => found[1]).sort();
     const present = fs.readdirSync(skillDirectory).filter((name) => name !== "SKILL.md").sort();
