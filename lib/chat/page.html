@@ -79,7 +79,8 @@
   .phead .version:not(:empty)::before, .phead .quota:not(:empty)::before { content: "\00a0·\00a0"; }
   /* the version while a newer release is out: red, and a click updates where the page can */
   .phead .version.newer { color: var(--bad); }
-  .phead .version.newer::before { color: var(--fg-dim); }
+  /* inline-block: the hover's underline is the number's alone, never the separator's */
+  .phead .version.newer::before { color: var(--fg-dim); display: inline-block; }
   .phead .version.takes { cursor: pointer; }
   .phead .version.takes:hover { text-decoration: underline; }
   /* a usage reading more than a quarter of an hour old: the same words, a little nearer the head's ground */
