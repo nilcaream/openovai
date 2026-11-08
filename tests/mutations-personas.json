@@ -1,5 +1,16 @@
 [
   {
+    "name": "a block with no verdict is an answer like any other",
+    "catches": "tells both they start in auto mode, that a block is an answer and one with no verdict is not, when a card comes, and to say why in the call",
+    "edits": [
+      {
+        "file": "lib/templates/common.md",
+        "from": " A block that says the\ncheck gave no verdict, has no result or is unavailable is not an answer about the call: do what\nits own text says about trying it again, and if it still has not run, say what did not run and\nwhat waits on it.",
+        "to": ""
+      }
+    ]
+  },
+  {
     "name": "nobody is told that words before a call are held",
     "catches": "tells both that words before a call are held, what the nudge means, and nothing of the reminder",
     "edits": [
@@ -111,7 +122,7 @@
   },
   {
     "name": "the personas say a session starts in Manual",
-    "catches": "tells both they start in auto mode, that a block is an answer, when a card comes, and to say why in the call",
+    "catches": "tells both they start in auto mode, that a block is an answer and one with no verdict is not, when a card comes, and to say why in the call",
     "edits": [
       {
         "file": "lib/templates/common.md",
@@ -122,7 +133,7 @@
   },
   {
     "name": "the personas let a session spell a blocked call again to get it past",
-    "catches": "tells both they start in auto mode, that a block is an answer, when a card comes, and to say why in the call",
+    "catches": "tells both they start in auto mode, that a block is an answer and one with no verdict is not, when a card comes, and to say why in the call",
     "edits": [
       {
         "file": "lib/templates/common.md",
@@ -529,7 +540,7 @@
   },
   {
     "name": "the Worker's persona drops the reason a call carries",
-    "catches": "tells both they start in auto mode, that a block is an answer, when a card comes, and to say why in the call",
+    "catches": "tells both they start in auto mode, that a block is an answer and one with no verdict is not, when a card comes, and to say why in the call",
     "edits": [
       {
         "file": "lib/templates/common.md",

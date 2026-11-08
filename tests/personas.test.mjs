@@ -539,10 +539,11 @@ describe("what a Worker is told", () => {
     assert.match(flat(worker()), /A file is created or changed with the file tools, Write and Edit, and never through the shell: a `cat > … <<'EOF'`, an `echo … >`, a `sed -i` or a script whose only work is to write a file puts on the card what the file tools would have shown as a diff\./);
   });
 
-  it("tells both they start in auto mode, that a block is an answer, when a card comes, and to say why in the call", () => {
+  it("tells both they start in auto mode, that a block is an answer and one with no verdict is not, when a card comes, and to say why in the call", () => {
     for (const text of [leader(), worker()]) {
       assert.match(flat(text), /Your session starts in Claude Code's auto mode, as the CLI does, unless \S+ has switched your role to Manual: a call no rule settles is judged by auto mode's classifier, which runs it or blocks it\./);
       assert.match(flat(text), /A block comes back as the call's error and is an answer, like a Deny: go on without the call or say what waits on it, and never spell it again another way to get it past\./);
+      assert.match(flat(text), /A block that says the check gave no verdict, has no result or is unavailable is not an answer about the call: do what its own text says about trying it again, and if it still has not run, say what did not run and what waits on it\./);
       assert.match(flat(text), /A call a rule says to ask about, and in Manual every call no rule settles, stops your run and \S+ is asked on your panel, with the call as you made it — the command or the path, and the reason you gave with it — and Allow, Always and Deny\. Say why in the call, in words a person reads\./);
     }
   });
