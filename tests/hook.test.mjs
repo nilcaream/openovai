@@ -221,7 +221,7 @@ describe("the rules an update says are missing", () => {
     writeSettings(root, {
       permissions: {
         allow: ["mcp__openovai", "AskUserQuestion", "Read(/**)", "Edit(/reference/**)", "Edit(/projects/**)", "Edit(/temp/**)", "Edit(/knowledge/**)", "Bash(git:*)", "Bash(mkdir:*)", "Bash(cd:*)", "Bash(cp:*)", "Bash(mv:*)", "Bash(rm:*)", "Bash(ls:*)", "Bash(cat:*)", "Bash(tar:*)", "Bash(diff:*)", "Bash(cmp:*)", "Bash(sha256sum:*)", "Bash(shasum:*)", "Bash(grep:*)", "Bash(find:*)", "Bash(sed:*)", "Bash(awk:*)", "Bash(head:*)", "Bash(tail:*)", "Bash(wc:*)", "Bash(echo:*)", "Bash(chmod:*)", "Bash(touch:*)", "Bash(curl:*)", "Bash(npm:*)", "Edit(/desks/Bob/**)"],
-        deny: ["Edit(/.claude/**)", "Edit(/.local/settings.json)", "Edit(/.local/.claude.json)", "Read(/.local/.credentials.json)", "Edit(/.local/.credentials.json)", "Read(/page-session)", "Edit(/page-session)", "Read(/page-link)", "Edit(/page-link)", "Bash(git push:*)", "Bash(sudo:*)", "Bash(ssh:*)"],
+        deny: ["Edit(/.claude/**)", "Edit(/.local/settings.json)", "Edit(/.local/.claude.json)", "Read(/.local/.credentials.json)", "Edit(/.local/.credentials.json)", "Read(/page-session)", "Edit(/page-session)", "Read(/page-link)", "Edit(/page-link)", "Edit(/openovai.json)", "Bash(git push:*)", "Bash(sudo:*)", "Bash(ssh:*)"],
         ask: ["Edit(/customization/**)", "Edit(/knowledge/common.md)"],
       },
     });
@@ -241,7 +241,7 @@ describe("the rules an update says are missing", () => {
       },
     });
     const text = fs.readFileSync(settingsFile(root), "utf8");
-    assert.deepEqual(spelt(rulesMissing(root)), ["allow AskUserQuestion", "allow Edit(/knowledge/**)", "deny Read(/.local/.credentials.json)", "deny Edit(/.local/.credentials.json)", "deny Read(/page-session)", "deny Edit(/page-session)", "deny Read(/page-link)", "deny Edit(/page-link)", "ask Edit(/customization/**)", "ask Edit(/knowledge/common.md)"]);
+    assert.deepEqual(spelt(rulesMissing(root)), ["allow AskUserQuestion", "allow Edit(/knowledge/**)", "deny Read(/.local/.credentials.json)", "deny Edit(/.local/.credentials.json)", "deny Read(/page-session)", "deny Edit(/page-session)", "deny Read(/page-link)", "deny Edit(/page-link)", "deny Edit(/openovai.json)", "ask Edit(/customization/**)", "ask Edit(/knowledge/common.md)"]);
     assert.equal(fs.readFileSync(settingsFile(root), "utf8"), text);
   });
 
@@ -249,7 +249,7 @@ describe("the rules an update says are missing", () => {
     writeSettings(root, { permissions: { allow: ["mcp__openovai", "Read(/**)", "Edit(/reference/**)", "Edit(/projects/**)", "Edit(/temp/**)"], deny: ["Edit(/.claude/**)", "Edit(/.local/settings.json)", "Edit(/.local/.claude.json)"], ask: ["Edit(/customization/**)"] } });
     const text = fs.readFileSync(settingsFile(root), "utf8");
     const missing = spelt(rulesMissing(root));
-    assert.equal(missing.length, 37);
+    assert.equal(missing.length, 38);
     assert.equal(missing[0], "allow AskUserQuestion");
     assert.equal(missing.includes("deny Bash(git push:*)"), true);
     assert.equal(missing.includes("deny Bash(ssh:*)"), true);

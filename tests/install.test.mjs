@@ -431,6 +431,14 @@ describe("what the installer made", () => {
     }
   });
 
+  // The server takes openovai.json while it runs (lib/chat/lifecycle.mjs), so a session that wrote
+  // it would set its own limits: refused to the tools that write files, and open to reading.
+  it("refuses openovai.json to the tools that write files, and leaves it readable", () => {
+    const deny = JSON.parse(contentOf(".claude", "settings.json")).permissions.deny;
+    assert.ok(deny.includes("Edit(/openovai.json)"), deny.join(", "));
+    assert.ok(!deny.includes("Read(/openovai.json)"), deny.join(", "));
+  });
+
   // A desk file is edited in place with the file tools like any other file under the desk
   // directory: nothing under desks/ is refused, and the one rule an earlier release refused the
   // file by is what an update names as stale.
@@ -517,7 +525,7 @@ describe("what the installer made", () => {
   // on.
   it("refuses nothing about anybody's work beyond the push, the root and the other hosts", () => {
     const deny = JSON.parse(contentOf(".claude", "settings.json")).permissions.deny;
-    assert.deepEqual(deny.filter((rule) => !rule.startsWith("Edit(/.claude") && !rule.startsWith("Edit(/.local") && rule !== "Read(/.local/.credentials.json)" && !/^(Read|Edit)\(\/page-(session|link)\)$/.test(rule)), ["Bash(git push:*)", "Bash(sudo:*)", "Bash(ssh:*)"]);
+    assert.deepEqual(deny.filter((rule) => !rule.startsWith("Edit(/.claude") && !rule.startsWith("Edit(/.local") && rule !== "Read(/.local/.credentials.json)" && rule !== "Edit(/openovai.json)" && !/^(Read|Edit)\(\/page-(session|link)\)$/.test(rule)), ["Bash(git push:*)", "Bash(sudo:*)", "Bash(ssh:*)"]);
   });
 
   // What the harness would add to every commit and pull request — a trailer naming the model, a

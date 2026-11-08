@@ -13,7 +13,7 @@ import { SERVER, read } from "../lib/chat/conversation.mjs";
 import { subscribe } from "../lib/chat/events.mjs";
 import { userFrame } from "../lib/chat/frames.mjs";
 import { ADMIN_FILE } from "../lib/admin.mjs";
-import { BODY_CLOSING, CARD_TIMEOUT, SUBAGENT_CARD_TIMEOUT, adminTold, deliver, parkRoom, tick, undelivered } from "../lib/chat/lifecycle.mjs";
+import { BODY_CLOSING, CARD_TIMEOUT, SUBAGENT_CARD_TIMEOUT, adminTold, changedKeys, deliver, parkRoom, rereadConfig, settingsIn, tick, undelivered } from "../lib/chat/lifecycle.mjs";
 import { answerRule, askedFor, parkRule, ruleAskedFor, rulesPending } from "../lib/chat/permissions.mjs";
 import * as quota from "../lib/chat/quota.mjs";
 import { askDefaults } from "../lib/chat/server.mjs";
@@ -714,6 +714,132 @@ describe("a signal to the chat", () => {
     assert.match(child.output, /^\S+ parking - - 3 sessions: .* told, deadline 3 s, interrupt$/m);
     assert.equal(notesIn(ownLog).filter(([label]) => label === "left").length, 3);
     await assert.rejects(fetch(`${address}/health`));
+  });
+
+  // The server's own stop read the park timeout from the configuration it started with, so a
+  // timeout changed while it ran was not the one a SIGTERM parked on.
+  it("SIGTERM parks on the timeout openovai.json holds now, not the one the server started with", async () => {
+    const file = path.join(own, CONFIG_FILE);
+    const started = fs.readFileSync(file, "utf8");
+    try {
+      await roomUp(callsThen("stop_session", '="park"'), []);
+      fs.writeFileSync(file, JSON.stringify({ ...JSON.parse(started), park: { timeout: 2 } }, null, 2));
+      // One wait is 5 s, the tick's own period, so three are two ticks and a margin.
+      let applied = null;
+      for (let wait = 0; applied === null && wait < 3; wait += 1) {
+        applied = await waitFor(() => (/^\S+ config - - applied: park\.timeout; at restart: nothing$/m.test(child.output) ? true : null));
+      }
+      assert.ok(applied, child.output);
+      const closed = new Promise((resolve) => child.once("close", resolve));
+      child.kill("SIGTERM");
+      assert.equal(await closed, 0, child.output);
+      assert.match(child.output, new RegExp(`^\\S+ parking - - 1 session: ${LEADER} told, deadline 2 s, interrupt$`, "m"));
+    } finally {
+      fs.writeFileSync(file, started);
+    }
+  });
+});
+
+// openovai.json changed while the server runs: the tick reads it again, takes what it may, and tells
+// the Leader by key name. These call the tick's own look directly, in the same synchronous step as
+// the write, so the served instance's tick never sees a write before the check does.
+describe("openovai.json changed while the server runs", () => {
+  const file = path.join(instance, CONFIG_FILE);
+  let original = null;
+  let written = 0;
+  let leader = null;
+
+  // Each write gets a modification time of its own, so two writes inside one clock tick of the
+  // filesystem are still two writes.
+  function write(content) {
+    fs.writeFileSync(file, typeof content === "string" ? content : JSON.stringify(content, null, 2));
+    written += 1;
+    const at = new Date(Date.UTC(2030, 0, 1) + written * 1000);
+    fs.utimesSync(file, at, at);
+  }
+
+  const configTold = () => heardIn(leader.log).filter((one) => one.startsWith('<server-event type="config">'));
+
+  before(async () => {
+    await endEvery(500);
+    original = fs.readFileSync(file, "utf8");
+    rereadConfig(chat);
+    leader = await seatUp(LEADER);
+  });
+
+  after(async () => {
+    write(original);
+    chat.config = JSON.parse(original);
+    chat.configRead = undefined;
+    rereadConfig(chat);
+    quota.forget();
+    quota.configure({ config: chat.config, clock: chat.clock });
+    await endEvery(500);
+  });
+
+  it("names the keys that differ, one level deep, whatever order they are written in", () => {
+    const before_ = { user: "Mike", models: { leader: "opus", worker: "sonnet" }, desk: { limit: 1 }, port: 0 };
+    assert.deepEqual(changedKeys(before_, { port: 0, desk: { limit: 1 }, models: { worker: "sonnet", leader: "opus" }, user: "Mike" }), []);
+    assert.deepEqual(changedKeys(before_, { ...before_, models: { leader: "opus", worker: "haiku" }, desk: 5, idle: { force: 30 } }), ["desk", "idle.force", "models.worker"]);
+    assert.deepEqual(changedKeys({ ...before_, typing: { quiet: 5 } }, before_), ["typing.quiet"]);
+  });
+
+  it("takes desk.limit at once and tells the running Leader the key, not the value", async () => {
+    write({ ...JSON.parse(original), desk: { limit: 96 * 1024 } });
+    assert.deepEqual(rereadConfig(chat), { live: ["desk.limit"], later: [] });
+    assert.equal(settingsIn(chat.config).desk.limit, 96 * 1024);
+    assert.ok(await waitFor(() => (configTold().length === 1 ? true : null)), heardIn(leader.log).join("\n"));
+    const [heard] = configTold();
+    assert.match(heard, /^<server-event type="config">openovai\.json changed\. Applied now, with no restart: desk\.limit\. Names only: what they hold is in the file\.<\/server-event>$/);
+    assert.doesNotMatch(heard, /98304|96/);
+  });
+
+  it("keeps who and where the instance is until a restart, says so, and moves the quota stages at once", async () => {
+    const at = chat.clock();
+    quota.saw("usage", null, { unifiedWindows: { five_hour: { utilization: 0.55, resetsAt: Math.floor(at / 1000) + 3600 } } }, at);
+    assert.equal(quota.stageOf("five_hour", at), null);
+    const port = chat.config.port;
+    write({ ...JSON.parse(original), desk: { limit: 96 * 1024 }, port: port + 1, leader: "Someone", quota: { "5h": [50, 60] } });
+    assert.deepEqual(rereadConfig(chat), { live: ["quota.5h"], later: ["leader", "port"] });
+    assert.equal(chat.config.port, port);
+    assert.equal(chat.config.leader, LEADER);
+    assert.equal(quota.stageOf("five_hour", at), quota.WARNING);
+    assert.ok(await waitFor(() => (configTold().length === 2 ? true : null)), heardIn(leader.log).join("\n"));
+    assert.match(configTold()[1], /Applied now, with no restart: quota\.5h\. Not applied: leader, port — who and where this instance is changes only when Mike runs `ovai restart`\./);
+  });
+
+  it("goes on with what it had when the file does not read as JSON, and says so once", async () => {
+    const had = structuredClone(chat.config);
+    write("{ \"desk\": ");
+    assert.match(rereadConfig(chat).unreadable, /JSON/);
+    assert.equal(rereadConfig(chat), null);
+    assert.deepEqual(chat.config, had);
+    assert.ok(await waitFor(() => (configTold().length === 3 ? true : null)), heardIn(leader.log).join("\n"));
+    assert.match(configTold()[2], /openovai\.json changed and does not read as a JSON object \(.+\), so nothing in it was taken: the server goes on with the settings it had\. Tell Mike, who edits the file\./);
+  });
+
+  it("says the file is mended once it reads again, and nothing for a write that changes no value", async () => {
+    const good = { ...JSON.parse(original), desk: { limit: 96 * 1024 }, port: chat.config.port + 1, leader: "Someone", quota: { "5h": [50, 60] } };
+    write(good);
+    assert.deepEqual(rereadConfig(chat), { live: [], later: [] });
+    assert.ok(await waitFor(() => (configTold().length === 4 ? true : null)), heardIn(leader.log).join("\n"));
+    assert.equal(configTold()[3], '<server-event type="config">openovai.json reads as JSON again and holds what the server already had: nothing changed.</server-event>');
+    write(Object.fromEntries(Object.entries(good).reverse()));
+    assert.equal(rereadConfig(chat), null);
+    await settle(300);
+    assert.equal(configTold().length, 4, heardIn(leader.log).join("\n"));
+  });
+
+  it("keeps a restart-only key absent when the server started without it and the file gains it", () => {
+    const port = chat.config.port;
+    delete chat.config.port;
+    try {
+      write({ ...JSON.parse(fs.readFileSync(file, "utf8")), port: port + 2 });
+      assert.deepEqual(rereadConfig(chat), { live: [], later: ["port"] });
+      assert.equal(Object.hasOwn(chat.config, "port"), false, JSON.stringify(chat.config));
+    } finally {
+      chat.config.port = port;
+    }
   });
 });
 
