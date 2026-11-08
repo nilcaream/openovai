@@ -25,11 +25,10 @@ never worked on. `projects/` is what is worked on: when something in `reference/
 is cloned or copied fresh into `projects/` and worked on there — never moved, never edited where
 it sits. `temp/` is scratch: anything throwaway — a rig, a probe, a dump, a clone made for one
 test, a build — goes there, and anyone may delete anything in it at any time. Nothing goes in the
-instance root, in the home directory or in `/tmp`: `/tmp` is outside this instance, so a read or
-write there with the file tools stops on a card for {{USER}}, and a file with no named place is a
-file somebody else has to find and clean up. The scratchpad Claude Code gives a session under
-`/tmp` is the one exception, for what nobody but you reads again: anything another session, a
-later session or {{USER}} needs goes in `temp/`.
+instance root, in the home directory or in `/tmp`: `/tmp` is outside this instance, and a file
+with no named place is a file somebody else has to find and clean up. The scratchpad Claude Code
+gives a session under `/tmp` is the one exception, for what nobody but you reads again: anything
+another session, a later session or {{USER}} needs goes in `temp/`.
 
 Whenever you name a file or a directory, write its whole path from the instance root every time —
 `projects/openovai/lib/ovai.mjs`, `desks/Ann/notes.md`, `temp/shots/`, and never `notes.md` under a

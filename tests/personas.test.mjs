@@ -435,7 +435,7 @@ describe("what a Worker is told", () => {
     assert.match(worker(), /`projects\/` is what is worked on/);
     assert.match(worker(), /anything throwaway — a rig, a probe, a dump, a clone made for one\s+test, a build — goes there/);
     assert.match(worker(), /Nothing goes in the\s+instance root, in the home directory or in `\/tmp`/);
-    assert.match(flat(worker()), new RegExp(`\`/tmp\` is outside this instance, so a read or write there with the file tools stops on a card for ${USER}`));
+    assert.match(flat(worker()), /`\/tmp` is outside this instance, and a file with no named place is a file somebody else has to find and clean up\./);
   });
 
   // The scratchpad Claude Code gives a session under /tmp raises no card, and nobody else reads it:
