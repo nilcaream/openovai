@@ -841,6 +841,70 @@ describe("openovai.json changed while the server runs", () => {
       chat.config.port = port;
     }
   });
+
+  // The Leader's own way to the file, which the file tools are denied: the answer is the telling.
+  it("lists every setting as the server holds it, the defaults marked, and the restart-only keys apart", async () => {
+    const listed = await tool(leader.secret, "settings", {});
+    assert.equal(listed.refused, false, listed.text);
+    assert.match(listed.text, /^Applied the moment they are written, with no restart; a model from each seat's next start:\n/);
+    assert.match(listed.text, /\ndesk\.limit: 98304\n/);
+    assert.match(listed.text, /\nidle\.force: 55 \(default\)\n/);
+    assert.match(listed.text, /\nquota\.5h: \[50,60\]\n/);
+    assert.match(listed.text, /\nAt `ovai restart` only, and changed by Mike in the file, never by this tool: user: "Mike", leader: "Martin", port: \d+, auth: /);
+  });
+
+  it("writes the Leader's change, applies it at once, and answers what applied with no config event after it", async () => {
+    const told = configTold().length;
+    const changed = await tool(leader.secret, "settings", { change: { "idle.force": 40, "quota.5h": [80, 90], "desk.limit": null } });
+    assert.deepEqual(changed, { text: "Written to openovai.json and applied now, with no restart: desk.limit, idle.force, quota.5h.", refused: false, error: null });
+    const held = JSON.parse(fs.readFileSync(file, "utf8"));
+    assert.deepEqual([held.idle, held.quota["5h"], Object.hasOwn(held, "desk")], [{ force: 40 }, [80, 90], false]);
+    assert.equal(settingsIn(chat.config).idle.force, 40);
+    assert.equal(settingsIn(chat.config).desk.limit, 128 * 1024);
+    assert.equal(rereadConfig(chat), null, "the tick has nothing left to take");
+    await settle(300);
+    assert.equal(configTold().length, told, heardIn(leader.log).join("\n"));
+    assert.deepEqual(await tool(leader.secret, "settings", { change: { "idle.force": 40 } }), { text: "Nothing to write: openovai.json already holds that.", refused: false, error: null });
+  });
+
+  it("refuses a key it does not write and a value of the wrong kind, the file untouched", async () => {
+    const had = fs.readFileSync(file, "utf8");
+    const refusals = {
+      empty: await tool(leader.secret, "settings", { change: {} }),
+      unknown: await tool(leader.secret, "settings", { change: { "idle.forever": 1 } }),
+      kind: await tool(leader.secret, "settings", { change: { "idle.force": 40, "idle.all": "1" } }),
+      order: await tool(leader.secret, "settings", { change: { "quota.7d": [99, 97] } }),
+      model: await tool(leader.secret, "settings", { change: { "models.worker": null } }),
+      port: await tool(leader.secret, "settings", { change: { port: 1 } }),
+    };
+    assert.ok(Object.values(refusals).every((answer) => answer.refused), JSON.stringify(refusals));
+    assert.match(refusals.unknown.text, /^idle\.forever is not a setting this tool writes/);
+    assert.equal(refusals.kind.text, 'idle.all takes a number of minutes above 0, or null for its default (got "1")');
+    assert.match(refusals.order.text, /^quota\.7d takes two percentages from 0 to 100, warning then critical/);
+    assert.equal(refusals.model.text, "models.worker takes a model as a hire takes it, such as opus or opus/high (got null)");
+    assert.equal(refusals.port.text, "port is who and where this instance is: Mike changes it in openovai.json by hand, and it applies at `ovai restart`");
+    assert.equal(fs.readFileSync(file, "utf8"), had);
+  });
+
+  it("refuses to write over a file that does not read as JSON", async () => {
+    const had = fs.readFileSync(file, "utf8");
+    write("{ \"idle\": ");
+    rereadConfig(chat);
+    try {
+      const refused = await tool(leader.secret, "settings", { change: { "idle.force": 30 } });
+      assert.equal(refused.refused, true);
+      assert.match(refused.text, /^openovai\.json does not read as a JSON object now \(.+\): Mike mends it by hand first$/);
+      assert.equal(fs.readFileSync(file, "utf8"), "{ \"idle\": ");
+    } finally {
+      write(had);
+      rereadConfig(chat);
+    }
+  });
+
+  it("is the Leader's alone", async () => {
+    const worker = await seatUp(WORKER);
+    assert.deepEqual(await tool(worker.secret, "settings", {}), { text: "settings is not offered to you", refused: true, error: null });
+  });
 });
 
 // What `ovai claude` left at the root, and the one thing the server says on its own account at a

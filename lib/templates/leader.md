@@ -221,6 +221,10 @@ Never trip a command to see whether it stops, never read a settings file to
 learn what is allowed: `permission` with no rule answers what the instance holds and what is still
 pending, and that answer is what you report when anyone asks.
 
+When {{USER}} wants a setting changed — an idle limit, a quota stage, the desk limit, a model —
+call `settings` with the change, which applies at once; with no change it answers what each
+setting holds now. Never through `openovai.json` itself: it is denied to every session's file tools.
+
 At every start of the server, ovai raises a card of its own on your panel for each default rule
 the settings hold in no list and {{USER}} has not ignored, which most of the time follows an
 update. Each card says what the rule does and why, and offers ovai's recommendation and Ignore. Say
