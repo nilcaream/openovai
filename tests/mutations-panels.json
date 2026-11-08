@@ -907,8 +907,19 @@
     "edits": [
       {
         "file": "lib/chat/panels.mjs",
-        "from": "[quota.session, quota.all, quota.fable].join(\" / \")",
-        "to": "[quota.session, quota.all, quota.fable].join(\" · \")"
+        "from": "[quota.session, quota.all, ...(fable ? [quota.fable] : [])].join(\" / \")",
+        "to": "[quota.session, quota.all, ...(fable ? [quota.fable] : [])].join(\" · \")"
+      }
+    ]
+  },
+  {
+    "name": "the quota line keeps fable's part on an account without it",
+    "catches": "has no fable part on an account without fable's own window",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "  const fable = quota.fable !== \"-\";",
+        "to": "  const fable = true;"
       }
     ]
   },
@@ -918,7 +929,7 @@
     "edits": [
       {
         "file": "lib/chat/panels.mjs",
-        "from": "  if (lite) return [quota.session, quota.all, quota.fable].join(\" / \");\n",
+        "from": "  if (lite) return [quota.session, quota.all, ...(fable ? [quota.fable] : [])].join(\" / \");\n",
         "to": ""
       }
     ]

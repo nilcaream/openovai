@@ -631,15 +631,20 @@ describe("the quota line", () => {
 
   it("is the session window with its reset, then all with its reset, then fable with its reset", () => {
     assert.equal(quotaLine(reading), "8% (3h) · all 86% (6d) · fable 20% (6d)");
-    assert.equal(quotaLine({ ...reading, allReset: null, fable: "-", fableReset: null }), "8% (3h) · all 86% · fable -");
+    assert.equal(quotaLine({ ...reading, allReset: null, fableReset: null }), "8% (3h) · all 86% · fable 20%");
     assert.equal(quotaLine(null), "");
   });
 
   it("is the three percentages only, joined with a slash, when the window is narrow", () => {
     assert.equal(quotaLine(reading, true), "8% / 86% / 20%");
-    assert.equal(quotaLine({ ...reading, allReset: null, fable: "-", fableReset: null }, true), "8% / 86% / -");
+    assert.equal(quotaLine({ ...reading, allReset: null, fableReset: null }, true), "8% / 86% / 20%");
     assert.equal(quotaLine(null, true), "");
     assert.equal(quotaLine(reading, false), "8% (3h) · all 86% (6d) · fable 20% (6d)", "the whole line is the default");
+  });
+
+  it("has no fable part on an account without fable's own window", () => {
+    assert.equal(quotaLine({ ...reading, fable: "-", fableReset: null }), "8% (3h) · all 86% (6d)");
+    assert.equal(quotaLine({ ...reading, fable: "-", fableReset: null }, true), "8% / 86%");
   });
 
   it("says in the tooltip when each window resets, each at its own moment on the page's clock, and nothing else", () => {
