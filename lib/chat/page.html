@@ -637,12 +637,12 @@
     // Whether this panel follows its newest row: the panel's own word, decided by `following` at
     // every tick of the page's timer (keep, below), true from the start. Only a hand that moved
     // the rows away from the newest lets it go — a wheel up, an up key, a finger, the bar dragged
-    // up, each noted here as `away` until the next tick — and being at the newest again engages
-    // it, however the rows got there. Nothing the page does on its own — a row landing, a taller
-    // box, a card, a resize, a row folding — is a word from the reader: a panel that follows is
-    // pinned back to its newest at the next tick, and one that does not is left exactly where the
-    // reader has it. Every panel has its own.
-    const view = { follow: true, away: false, held: false };
+    // up, the browser's find bringing a hit above into view, each noted here as `away` until the
+    // next tick — and being at the newest again engages it, however the rows got there. Nothing
+    // the page does on its own — a row landing, a taller box, a card, a resize, a row folding — is
+    // a word from the reader: a panel that follows is pinned back to its newest at the next tick,
+    // and one that does not is left exactly where the reader has it. Every panel has its own.
+    const view = { follow: true, away: false };
     // the head shows whether the panel follows its newest row
     const showFollow = () => headLine.classList.toggle("follow", view.follow);
     const movedAway = () => {
@@ -667,21 +667,22 @@
       if (at > finger) movedAway();
       finger = at;
     }, { passive: true });
-    // The bar is the one hand the rows report as scrolls alone: pressed on the rows themselves —
-    // never on a row, whose press has a target of its own — and released anywhere, it moves the
-    // rows away when a scroll in between took their top up.
+    // Some hands reach the rows as scrolls alone: the bar dragged, and the browser's own find
+    // bringing a hit above into view. A scroll that took the rows up, off the newest, with their
+    // height as it was, is such a hand. The page's own scrolls never are: its writes go down to
+    // the newest, or keep the first row in place while rows above it come or go (drawOlder,
+    // trimTo), which changes the height; a taller bottom area or a fold clamps the rows at the
+    // newest, not above it. Measured where the tick last left them too, since rows landing below
+    // change the height with no scroll at all.
     let top = 0;
-    rows.addEventListener("pointerdown", (event) => {
-      if (event.target === rows) view.held = true;
-    });
-    for (const done of ["pointerup", "pointercancel"]) {
-      document.addEventListener(done, () => {
-        view.held = false;
-      });
-    }
-    rows.addEventListener("scroll", () => {
-      if (view.held && rows.scrollTop < top) movedAway();
+    let height = 0;
+    const measure = () => {
       top = rows.scrollTop;
+      height = rows.scrollHeight;
+    };
+    rows.addEventListener("scroll", () => {
+      if (rows.scrollTop < top && rows.scrollHeight === height && !atTheNewest(rows)) movedAway();
+      measure();
     });
     // One tick of the page's timer: the word decided, shown, and a panel that follows pinned to
     // its newest — only when it is not there already, so a panel at rest writes nothing.
@@ -690,6 +691,7 @@
       showFollow();
       view.away = false;
       if (view.follow && !atTheNewest(rows)) rows.scrollTop = rows.scrollHeight;
+      measure();
     };
     showFollow();
     // Whenever the rows change width, the stamps and the folds are measured again for it; a change

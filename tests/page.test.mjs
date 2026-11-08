@@ -886,18 +886,21 @@ describe("the script", () => {
   });
 
   // Only a hand that moved the rows away from the newest lets a panel go: a wheel up, an up key
-  // on the rows (which hold the focus for it), a finger moving down the screen, the bar dragged
-  // up — each noted as `away` until the next tick. A scroll of the page's own — a row landing, a
-  // taller box, a resize, a fold — is no word from the reader, and a panel that follows is pinned
-  // back at the next tick; at the newest again, however the rows got there, a panel follows.
+  // on the rows (which hold the focus for it), a finger moving down the screen, and a scroll that
+  // took the rows up with their height unchanged — the bar dragged up, the browser's find — each
+  // noted as `away` until the next tick. A scroll of the page's own — a row landing, a taller
+  // box, a resize, a fold, rows drawn or taken off above — is no word from the reader, and a panel
+  // that follows is pinned back at the next tick; at the newest again, however the rows got
+  // there, a panel follows.
   it("follows its newest row until a hand moves the rows away, and again once they are back at it", () => {
     assert.match(script, /const atTheNewest = \(rows\) => rows\.scrollHeight - rows\.scrollTop - rows\.clientHeight < 4;/);
-    assert.match(script, /const view = \{ follow: true, away: false, held: false \};/, "a panel follows from the start, no hand on it yet");
+    assert.match(script, /const view = \{ follow: true, away: false \};/, "a panel follows from the start, no hand on it yet");
     assert.match(script, /rows\.addEventListener\("wheel", \(event\) => \{\s*if \(event\.deltaY < 0\) movedAway\(\);\s*\}, \{ passive: true \}\);/, "a wheel up is a hand, a wheel down is not: at the newest it moves nothing, and a row landing then must not let go");
     assert.match(script, /rows\.tabIndex = -1;\s*rows\.addEventListener\("keydown", \(event\) => \{\s*if \(\["ArrowUp", "PageUp", "Home"\]\.includes\(event\.key\)\) movedAway\(\);/, "the up keys, on the rows that hold the focus");
     assert.match(script, /rows\.addEventListener\("touchmove", \(event\) => \{\s*const at = event\.touches\[0\]\.clientY;\s*if \(at > finger\) movedAway\(\);\s*finger = at;/, "a finger moving down the screen");
-    assert.match(script, /rows\.addEventListener\("pointerdown", \(event\) => \{\s*if \(event\.target === rows\) view\.held = true;/, "the bar is a press on the rows themselves");
-    assert.match(script, /rows\.addEventListener\("scroll", \(\) => \{\s*if \(view\.held && rows\.scrollTop < top\) movedAway\(\);\s*top = rows\.scrollTop;\s*\}\);/, "and a scroll up while it is held is the hand; any other scroll of the rows says nothing");
+    assert.match(script, /rows\.addEventListener\("scroll", \(\) => \{\s*if \(rows\.scrollTop < top && rows\.scrollHeight === height && !atTheNewest\(rows\)\) movedAway\(\);\s*measure\(\);\s*\}\);/, "a scroll up off the newest with the height as it was is a hand; any other scroll of the rows says nothing");
+    assert.match(script, /const measure = \(\) => \{\s*top = rows\.scrollTop;\s*height = rows\.scrollHeight;\s*\};/);
+    assert.doesNotMatch(script, /view\.held|"pointerdown"/, "the bar needs no press of its own: its scroll is read like the find's");
     assert.doesNotMatch(script, /view\.follow = (?!following\()/, "the word is decided by `following` and nowhere else");
     assert.match(script, /return \{ name, leads, section, [^}]*\bview\b[^}]*\bkeep\b[^}]*\};/, "the draw reads the same word the tick sets");
   });
@@ -916,7 +919,7 @@ describe("the script", () => {
   // nothing, and a panel that does not follow is never touched.
   it("keeps every panel ten times a second: the word decided, a panel that follows pinned, one at rest untouched", () => {
     assert.match(script, /const KEEP_EVERY = 100;/);
-    assert.match(script, /const keep = \(\) => \{\s*view\.follow = following\(view\.follow, atTheNewest\(rows\), view\.away\);\s*showFollow\(\);\s*view\.away = false;\s*if \(view\.follow && !atTheNewest\(rows\)\) rows\.scrollTop = rows\.scrollHeight;\s*\};/);
+    assert.match(script, /const keep = \(\) => \{\s*view\.follow = following\(view\.follow, atTheNewest\(rows\), view\.away\);\s*showFollow\(\);\s*view\.away = false;\s*if \(view\.follow && !atTheNewest\(rows\)\) rows\.scrollTop = rows\.scrollHeight;\s*measure\(\);\s*\};/);
     assert.match(script, /setInterval\(\(\) => \{\s*for \(const panel of sections\.values\(\)\) \{\s*panel\.keep\(\);\s*windowPanel\(panel\);\s*\}\s*\}, KEEP_EVERY\);/, "the Leader's window is settled after the word is decided");
     assert.match(script, /import \{[^}]*\bfollowing\b[^}]*\} from "\.\/panels\.mjs"/);
   });
