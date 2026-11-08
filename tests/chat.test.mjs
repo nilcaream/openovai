@@ -3252,9 +3252,10 @@ describe("auto mode", () => {
     }
   });
 
-  it("puts a call the classifier refused on its panel as a row, with its category and the call, and nothing for a call a rule refused", async () => {
+  it("puts a call the classifier refused on its panel as a row, with its category and the call, one it could not judge as not run, and nothing for a call a rule refused", async () => {
     const calls = JSON.stringify([[
       { name: "Bash", input: { command: "cat creds.txt" }, error: "Permission denied", blocked: "[Credential Exploration]" },
+      { name: "Bash", input: { command: "ls build" }, error: "Permission denied", blocked: "Classifier unavailable" },
       { name: "Bash", input: { command: "echo deny-me" }, error: "Permission denied", blocked: "rule", blockedBy: "rule" },
     ]]);
     martin = await seatUp(LEADER, { OPENOVAI_STAND_IN_REPLY: "ok", OPENOVAI_STAND_IN_CALLS: calls });
@@ -3262,7 +3263,7 @@ describe("auto mode", () => {
     await page("POST", `/sessions/${LEADER}/message`, { text: "go" });
     assert.ok(await waitFor(() => (panel(instance, LEADER).slice(from).some((row) => row.from === LEADER && row.text === "ok") ? true : null)));
     const rows = panel(instance, LEADER).slice(from).filter((row) => row.from === SERVER);
-    assert.deepEqual(rows.map((row) => row.text), ["Blocked by auto mode: Credential Exploration — Bash: cat creds.txt"]);
+    assert.deepEqual(rows.map((row) => row.text), ["Blocked by auto mode: Credential Exploration — Bash: cat creds.txt", "Not run — auto mode's check gave no verdict — Bash: ls build"]);
   });
 });
 

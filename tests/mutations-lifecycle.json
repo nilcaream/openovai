@@ -1,5 +1,16 @@
 [
   {
+    "name": "a call auto mode could not judge is drawn as blocked",
+    "catches": "puts a call the classifier refused on its panel as a row, with its category and the call, one it could not judge as not run, and nothing for a call a rule refused",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "  if (NO_VERDICT.has(category)) return `Not run — auto mode's check gave no verdict — ${shown}`;\n",
+        "to": ""
+      }
+    ]
+  },
+  {
     "name": "a turn with words raises the unanswered event too",
     "catches": "tells nothing for a turn with words, one that failed, one stopped, one with no line of the User's, or a Worker's",
     "edits": [
