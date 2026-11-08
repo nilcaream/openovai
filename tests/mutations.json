@@ -2528,5 +2528,10 @@
     "name": "the plugins are asked for after the skills were refused",
     "catches": "does not ask for the plugins when the skills were refused, and says why",
     "edits": [{ "file": "lib/chat/server.mjs", "from": "skills?.subtype === \"success\" ? await control(", "to": "true ? await control(" }]
+  },
+  {
+    "name": "a run that cannot go on is drawn as a turn the service cut",
+    "catches": "shows a turn that failed in its own words as one failed row, not two",
+    "edits": [{ "file": "lib/chat/lifecycle.mjs", "from": "reply.cut !== undefined && reply.text.includes(SERVICE_ERROR)) {", "to": "reply.cut !== undefined) {" }]
   }
 ]

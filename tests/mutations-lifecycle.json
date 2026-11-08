@@ -767,5 +767,38 @@
         "to": "    return name;"
       }
     ]
+  },
+  {
+    "name": "a cut turn leaves a message sent out of what was done",
+    "catches": "the cut row counts a message sent as something done, and a turn with no frame as the seat's own",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "  if (text !== null || call.name === \"ToolSearch\") {",
+        "to": "  if (true) {"
+      }
+    ]
+  },
+  {
+    "name": "a cut turn with no frame reads as one that got something",
+    "catches": "the cut row counts a message sent as something done, and a turn with no frame as the seat's own",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "  const self = cut.of.length === 0;",
+        "to": "  const self = false;"
+      }
+    ]
+  },
+  {
+    "name": "a seat stopped over its first cut turn is told to go on",
+    "catches": "a Worker whose first turn the service cuts says it stopped and to send the message again",
+    "edits": [
+      {
+        "file": "lib/chat/session.mjs",
+        "from": "stopped: !record.spoke };",
+        "to": "stopped: false };"
+      }
+    ]
   }
 ]

@@ -475,6 +475,36 @@ describe("restart_session and stop_session", () => {
     );
   });
 
+  it("the cut row counts a message sent as something done, and a turn with no frame as the seat's own", () => {
+    const at = new Date(2026, 10, 13, 11, 15, 57).getTime();
+    const calls = [{ name: "ToolSearch", input: { query: "select:x" }, at }, { name: "mcp__openovai__message", input: { to: "Ann", text: "go" }, at }];
+    assert.equal(
+      cutWords("Bob", { of: [{ kind: "user" }], calls }, instance),
+      `Bob got your message and did 1 thing:\n- Sent a message to Ann (11:15:57)\n\nThen Claude's service failed, so Bob could not reply. That thing is done and Bob remembers it. Nothing needs repeating: send "go on" to get the reply.`,
+    );
+    assert.equal(
+      cutWords("Bob", { of: [], calls: [] }, instance),
+      `Bob was working on its own, but Claude's service failed before Bob could do anything. Nothing was done and there is no reply yet. Send "go on" and Bob goes on.`,
+    );
+  });
+
+  // A seat whose first turn dies is ended, and a fresh session has nothing of the turn: the row
+  // says so, and to send the line again.
+  it("a Worker whose first turn the service cuts says it stopped and to send the message again", async () => {
+    paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_FAILS: "1", OPENOVAI_STAND_IN_REPLY: CUT });
+    try {
+      const from = panel(instance, WORKER).length;
+      await deliver(chat, WORKER, userFrame("one")).answered;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      const shown = panel(instance, WORKER).slice(from).filter((row) => row.stamp !== true && row.divider !== true && row.from !== "user");
+      assert.deepEqual(shown.map((row) => [row.from, row.text, row.why]), [
+        [SERVER, `${WORKER} got your message, but Claude's service failed before ${WORKER} could act on it, and ${WORKER} stopped. Send your message again.`, CUT],
+      ]);
+    } finally {
+      await end(WORKER, 500);
+    }
+  });
+
   // The successor's birth event is a turn like any other: one that fails on an expired sign-in
   // ends in the same row.
   it("a successor's birth turn that fails on an expired sign-in ends in the row that says to run ovai login", async () => {
