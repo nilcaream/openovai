@@ -279,6 +279,26 @@ describe("the Leader's panel", () => {
     assert.equal(dot(state, LEADER), GREY);
   });
 
+  // A wake-up the server will start the Leader for — its own call, or a quota reset — is named on
+  // the two lines off a turn: the time alone within a day, with its weekday further on.
+  it("the Leader's bottom line says when the server starts it again, and why, while it will", () => {
+    const now = new Date(2030, 0, 7, 17, 0);
+    const soon = { at: new Date(2030, 0, 7, 18, 40).toISOString(), why: "quota reset" };
+    const later = { at: new Date(2030, 0, 9, 9, 5).toISOString(), why: "batch two" };
+    const state = fresh();
+    applyEvent(state, snapshot([about(LEADER, { running: false }), about("Paul")], { wake: soon }), 0);
+    assert.equal(pillLine(state, LEADER, now), "Leader has left — resumes automatically at 18:40 (quota reset); a message starts it sooner");
+    applyEvent(state, seat(LEADER, { running: true, busy: false }), 1);
+    assert.equal(pillLine(state, LEADER, now), "Waiting for instructions — resumes automatically at 18:40 (quota reset)");
+    applyEvent(state, { name: "wake", data: later }, 2);
+    assert.equal(pillLine(state, LEADER, now), "Waiting for instructions — resumes automatically on Wednesday at 09:05 (batch two)");
+    applyEvent(state, seat(LEADER, { running: true, busy: true, doing: LINE_WORKING }), 3);
+    assert.equal(pillLine(state, LEADER, now), LINE_WORKING, "on a turn the line is the turn's");
+    applyEvent(state, seat(LEADER, { running: true, busy: false }), 4);
+    applyEvent(state, { name: "wake", data: null }, 5);
+    assert.equal(pillLine(state, LEADER, now), LINE_WAITING);
+  });
+
   // The Leader's bottom line is the one place the page says it has lost the server, and says it
   // over every other word, capitalized.
   it("the Leader's bottom line says Disconnected while the page has no stream, over the other words", () => {

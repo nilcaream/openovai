@@ -10,7 +10,8 @@ import { after, before, describe, it } from "node:test";
 
 import { SERVER } from "../lib/chat/conversation.mjs";
 import { messageFrame, serverEvent, userFrame } from "../lib/chat/frames.mjs";
-import { BODY_CLOSING, IDLE_GRACE, deliver, heldLine, parkRoom, tick } from "../lib/chat/lifecycle.mjs";
+import { BODY_CLOSING, IDLE_GRACE, deliver, heldLine, parkRoom, tick, wakeOf } from "../lib/chat/lifecycle.mjs";
+import { subscribe } from "../lib/chat/events.mjs";
 import * as quota from "../lib/chat/quota.mjs";
 import { INTERRUPT_PATIENCE, end, endEvery, running, tell } from "../lib/chat/session.mjs";
 import { deskTitle, hire } from "../lib/desks.mjs";
@@ -474,5 +475,91 @@ describe("the quota gate", () => {
         remove(path.join(instance, "desks", name), path.join(instance, "desks", name));
       }
     }
+  });
+});
+
+// The Leader's own wake-up call: set with `wake`, kept until its time, told then with its why,
+// and named to the page all the while — beside a quota reset that will start the Leader anyway.
+describe("the Leader's wake-up call", () => {
+  let martin = null;
+  const shown = [];
+  let unsubscribe = null;
+  const hhmm = (at) => `${String(new Date(at).getHours()).padStart(2, "0")}:${String(new Date(at).getMinutes()).padStart(2, "0")}`;
+
+  before(async () => {
+    await endEvery(500);
+    quota.forget();
+    unsubscribe = subscribe((event) => {
+      if (event.name === "wake") shown.push(event.data);
+    });
+    martin = await seatUp(LEADER);
+  });
+
+  after(async () => {
+    unsubscribe();
+    chat.wake = null;
+    quota.forget();
+    await endEvery(500);
+  });
+
+  it("refuses a call it cannot keep, answers what is set, and is the Leader's alone", async () => {
+    const refused = {
+      noWhy: await tool(martin.secret, "wake", { at: "21:30" }),
+      long: await tool(martin.secret, "wake", { at: "21:30", why: "x".repeat(61) }),
+      time: await tool(martin.secret, "wake", { at: "25:00", why: "late" }),
+      unread: await tool(martin.secret, "wake", { at: "5h", why: "the reset" }),
+      passed: await tool(martin.secret, "wake", { at: "2020-01-01 10:00", why: "long ago" }),
+    };
+    assert.ok(Object.values(refused).every((answer) => answer.refused), JSON.stringify(refused));
+    assert.equal(refused.noWhy.text, "say why: it is what you are woken with, and it shows on your panel line");
+    assert.equal(refused.long.text, "why shows on your panel line: say it in 60 characters or fewer");
+    assert.match(refused.time.text, /^at is hh:mm, a date and time as YYYY-MM-DD hh:mm, or a quota window's key \(5h, 7d\) once its reset has been read \(got "25:00"\)$/);
+    assert.match(refused.unread.text, /^at is hh:mm/);
+    assert.match(refused.passed.text, /has passed$/);
+    assert.deepEqual(await tool(martin.secret, "wake", {}), { text: "No wake-up is set.", refused: false, error: null });
+    const paul = await seatUp(WORKER);
+    assert.deepEqual(await tool(paul.secret, "wake", { at: "21:30", why: "x" }), { text: "wake is not offered to you", refused: true, error: null });
+    await end(WORKER, 500);
+    assert.equal(chat.wake ?? null, null);
+  });
+
+  it("starts the stopped Leader at the time it set, with its why, and names it to the page until then", async () => {
+    const at = now + 10 * MINUTE;
+    const set = await tool(martin.secret, "wake", { at: hhmm(at), why: "the 5h window resets" });
+    assert.equal(set.refused, false, set.text);
+    const minute = new Date(at);
+    minute.setSeconds(0, 0);
+    assert.deepEqual(wakeOf(chat), { at: minute.toISOString(), why: "the 5h window resets" });
+    assert.deepEqual(shown.at(-1), wakeOf(chat));
+    const replaced = await tool(martin.secret, "wake", { at: hhmm(at), why: "batch two" });
+    assert.match(replaced.text, /^You will be woken .+, for: batch two\. It replaces the one of .+, for: the 5h window resets\.$/);
+    tick(chat);
+    assert.equal(heardIn(martin.log).some((one) => one.includes('type="wake"')), false, "not before its time");
+    await end(LEADER, 500);
+    now = minute.getTime() + 1;
+    martin = await spawnedBy(LEADER, async () => {
+      tick(chat);
+      await waitFor(() => (running(LEADER) ? true : null));
+    });
+    assert.deepEqual(await told(martin.log, 1), ['<server-event type="wake">batch two</server-event>']);
+    assert.equal(wakeOf(chat), null);
+    assert.equal(shown.at(-1), null);
+  });
+
+  it("wakes at a window's reset that reached no stage, names a pending reset as one, and a park forgets both", async () => {
+    const resets = now + 3 * 60 * MINUTE;
+    quota.saw("usage", null, { unifiedWindows: { five_hour: { utilization: 0.5, resetsAt: Math.floor(resets / 1000) } } }, now);
+    const set = await tool(martin.secret, "wake", { at: "5h", why: "next batch" });
+    assert.equal(set.refused, false, set.text);
+    assert.deepEqual(wakeOf(chat), { at: new Date(Math.floor(resets / 1000) * 1000).toISOString(), why: "next batch" });
+    assert.match((await tool(martin.secret, "wake", { cancel: true })).text, /^Cancelled the wake-up of .+, for: next batch\.$/);
+    quota.saw("usage", null, { unifiedWindows: { five_hour: { utilization: 0.91, resetsAt: Math.floor(resets / 1000) } } }, now);
+    assert.deepEqual(wakeOf(chat), { at: new Date(Math.floor(resets / 1000) * 1000).toISOString(), why: "quota reset" });
+    assert.deepEqual(shown.at(-1), wakeOf(chat));
+    await tool(martin.secret, "wake", { at: hhmm(now + 10 * MINUTE), why: "sooner" });
+    assert.equal(wakeOf(chat).why, "sooner", "the earlier of the two is the one named");
+    await parkRoom(chat);
+    assert.equal(wakeOf(chat), null);
+    assert.equal(shown.at(-1), null);
   });
 });

@@ -53,6 +53,7 @@ A panel shows a turn's answer, not its way there. Words a session writes between
 - Stopped or restarted by the Leader, or the room parked for the day.
 - `ovai stop` parks the room: every Worker is closed, the Leader writes its desk, then the server stops. Nothing restarts Workers after `ovai start`. Desks and panels stay on disk; ask the Leader to bring back who is needed.
 - A Worker's panel dims when its process ends, and is removed about 30 seconds later. The Leader's panel stays: while it has no process its dot is grey and its bottom line says "<Name> has left — the next message starts a fresh session".
+- When the server will start the Leader again by itself, its bottom line says when and why: "Waiting for instructions — resumes automatically at 18:40 (quota reset)", or "<Name> has left — resumes automatically at 18:40 (quota reset); a message starts it sooner". A time more than a day away carries its weekday. The why is a quota reset, or the reason the Leader gave when it asked to be woken; ask the Leader to set one ("pick this up at 9:30") or to cancel it. A park, or a server stop, forgets it.
 
 ## Typing to a Worker
 Typing on a Worker's panel speaks to that Worker directly. It answers, and the Leader is told what was said. A panel whose process is gone takes no typing.

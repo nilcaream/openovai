@@ -2639,8 +2639,9 @@ describe("what the page is made of", () => {
   });
 
   it("carries no lifecycle button and no lifecycle word, and the stop glyph is its one lifecycle control", () => {
-    const { words } = JSON.parse(fs.readFileSync(path.join(repo, "tests", "forbidden-words.json"), "utf8"));
-    for (const [name, text] of [["page.html", source], ...modules]) {
+    const { words, except } = JSON.parse(fs.readFileSync(path.join(repo, "tests", "forbidden-words.json"), "utf8"));
+    for (const [name, whole] of [["page.html", source], ...modules]) {
+      const text = except.reduce((left, phrase) => left.replaceAll(phrase, ""), whole);
       for (const word of words) {
         const found = new RegExp(`\\b${word.replace(/ /g, "\\s+")}`, "i").exec(text);
         assert.equal(found, null, `${name} carries "${word}": ${found !== null ? text.slice(Math.max(0, found.index - 40), found.index + 40) : ""}`);
