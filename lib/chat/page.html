@@ -77,9 +77,11 @@
   /* on the Leader's head only: the version and the account's usage windows */
   .phead .version, .phead .quota { font-family: var(--mono); font-size: .78rem; color: var(--fg-dim); white-space: nowrap; flex: 0 0 auto; }
   .phead .version:not(:empty)::before, .phead .quota:not(:empty)::before { content: "\00a0·\00a0"; }
-  /* the update beside a newer release's notice: a word in the version's own type, a button */
-  .phead .update { margin-left: .5ch; padding: 0 4px; font-family: var(--mono); font-size: .78rem; color: var(--fg); background: none; border: 1px solid var(--line); border-radius: 4px; cursor: pointer; white-space: nowrap; flex: 0 0 auto; }
-  .phead .update:hover { background: var(--line); }
+  /* the version while a newer release is out: red, and a click updates where the page can */
+  .phead .version.newer { color: var(--bad); }
+  .phead .version.newer::before { color: var(--fg-dim); }
+  .phead .version.takes { cursor: pointer; }
+  .phead .version.takes:hover { text-decoration: underline; }
   /* a usage reading more than a quarter of an hour old: the same words, a little nearer the head's ground */
   .phead .quota.old { color: color-mix(in srgb, var(--fg-dim) 70%, var(--panel-2)); }
   /* the theme toggle, last on the Leader's head and pushed to its right edge: one icon button
@@ -269,7 +271,7 @@
   // draws it and carries what is typed and pressed to the server.
 
   import { answerOf, dialogOf } from "./dialog.mjs";
-  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, autoLabel, autoTitle, RED, RELOAD_TITLE, RESTART_ASK, RESTART_TITLE, UPDATE_WORD, updateAsk, updateTitle,REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, loadsOlder, noticed, place, prune, quotaLine, replaced, quotaTitle, insertRef, keptFirst, pillLine, quoteLines, stopEnabled, statusLabel, statusQuote, statusRef, title, typingBeat, versionLine, versionTitle, windowStart, withQuotes, LINE_WAITING, STATUS_TITLE, STATUS_WHO, WINDOW } from "./panels.mjs";
+  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, autoLabel, autoTitle, RED, RELOAD_TITLE, RESTART_ASK, RESTART_TITLE, updateAsk, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, loadsOlder, noticed, place, prune, quotaLine, replaced, quotaTitle, insertRef, keptFirst, pillLine, quoteLines, stopEnabled, statusLabel, statusQuote, statusRef, title, typingBeat, versionTitle, windowStart, withQuotes, LINE_WAITING, STATUS_TITLE, STATUS_WHO, WINDOW } from "./panels.mjs";
   import { html as markdownOf, row as rowOf, talks, unseen } from "./render.mjs";
   import { refTo, references } from "./refs.mjs";
 
@@ -596,7 +598,6 @@
     const facts = leads
       ? {
           version: document.createElement("span"),
-          update: document.createElement("button"),
           quota: document.createElement("span"),
           auto: { leader: autoSwitch("leader"), workers: autoSwitch("workers") },
           restart: serverButton(POWER, RESTART_TITLE, "/restart", () => RESTART_ASK),
@@ -605,15 +606,12 @@
       : null;
     if (facts !== null) {
       facts.version.className = "version";
-      facts.update.type = "button";
-      facts.update.className = "update";
-      facts.update.textContent = UPDATE_WORD;
-      facts.update.addEventListener("click", async () => {
-        if (state.release === null || !confirm(updateAsk(state.release))) return;
+      facts.version.addEventListener("click", async () => {
+        if (state.release === null || !state.restartable || !confirm(updateAsk(state.release))) return;
         await call("/update", { method: "POST" }).catch(() => null);
       });
       facts.quota.className = "quota";
-      headLine.append(facts.version, facts.update, facts.quota);
+      headLine.append(facts.version, facts.quota);
     }
     if (leads) {
       themeToggle = document.createElement("button");
@@ -1553,10 +1551,10 @@
     panel.box.disabled = !composersEnabled(state, panel.name);
     panel.fitPlaceholder();
     if (panel.facts !== null) {
-      panel.facts.version.textContent = versionLine(state.version, state.release);
+      panel.facts.version.textContent = state.version;
       panel.facts.version.title = versionTitle(state.release, state.restartable);
-      panel.facts.update.hidden = state.release === null || !state.restartable;
-      if (state.release !== null) panel.facts.update.title = updateTitle(state.release);
+      panel.facts.version.classList.toggle("newer", state.release !== null);
+      panel.facts.version.classList.toggle("takes", state.release !== null && state.restartable);
       panel.facts.restart.hidden = !state.restartable;
       panel.facts.quota.textContent = quotaLine(state.quota, lite.matches);
       panel.facts.quota.classList.toggle("old", state.quota !== null && state.quota.old === true);

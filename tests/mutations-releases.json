@@ -22,6 +22,16 @@
   {
     "name": "the same release is named as newer",
     "catches": "names nothing for the version the instance is on, or an older one",
-    "edits": [{ "file": "lib/chat/releases.mjs", "from": "  show(on && latest !== null && isOlderThan(here, latest) ? latest : null);", "to": "  show(on && latest !== null && here !== latest ? latest : null);" }]
+    "edits": [{ "file": "lib/chat/releases.mjs", "from": "  show(on && latest !== null && isOlderThan(here, latest.version) ? latest : null);", "to": "  show(on && latest !== null && here !== latest.version ? latest : null);" }]
+  },
+  {
+    "name": "the release day is never read",
+    "catches": "is asked of the address ovai update asks, and named when it is newer",
+    "edits": [{ "file": "lib/release.mjs", "from": "    published: typeof body.published_at === \"string\" && !Number.isNaN(Date.parse(body.published_at)) ? body.published_at : null,", "to": "    published: null," }]
+  },
+  {
+    "name": "any release day is taken, one that is no moment too",
+    "catches": "names no release date where GitHub gives none that reads as a moment",
+    "edits": [{ "file": "lib/release.mjs", "from": " && !Number.isNaN(Date.parse(body.published_at)) ? body.published_at", "to": " ? body.published_at" }]
   }
 ]

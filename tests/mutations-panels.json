@@ -991,7 +991,7 @@
   },
   {
     "name": "the release event is not taken",
-    "catches": "a newer release is named beside the version, from the snapshot and the release event, with how to take it",
+    "catches": "a newer release is known from the snapshot and the release event, with how to take it and the question before an update",
     "edits": [
       {
         "file": "lib/chat/panels.mjs",
@@ -1009,5 +1009,10 @@
     "name": "a snapshot leaves the restart on its way",
     "catches": "the Leader's bottom line says a restart is on its way while there is no server, then where to look",
     "edits": [{ "file": "lib/chat/panels.mjs", "from": "      state.going = null;\n      state.quota = data.quota ?? null;", "to": "      state.quota = data.quota ?? null;" }]
+  },
+  {
+    "name": "the update's question names no release day",
+    "catches": "a newer release is known from the snapshot and the release event, with how to take it and the question before an update",
+    "edits": [{ "file": "lib/chat/panels.mjs", "from": "  return `${release.version} is out, released ${day}`;", "to": "  return `${release.version} is out`;" }]
   }
 ]

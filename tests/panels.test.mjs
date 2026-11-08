@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { AMBER, CARD, CONNECTED, autoLabel, autoTitle, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, GREY, LATE_AFTER, RED, REPLY, SENDING, SHOWN_FOR, LINE_DISCONNECTED, LINE_LEFT, LINE_WAITING, LINE_WORKING, WINDOW, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, loadsOlder, noticed, pillLine, place, prune, quotaLine, quotaTitle, replaced, insertRef, keptFirst, quoteLines, statusQuote, statusRef, stopEnabled, title, typingBeat, versionLine, versionTitle, windowStart, withQuotes, TYPING_BEAT, CHECKING, LEADER_STOPPED, STATUS_TITLE, STATUS_WHO, UP_TO_DATE, statusLabel } from "../lib/chat/panels.mjs";
+import { AMBER, CARD, CONNECTED, autoLabel, autoTitle, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, GREY, LATE_AFTER, RED, REPLY, SENDING, SHOWN_FOR, LINE_DISCONNECTED, LINE_LEFT, LINE_WAITING, LINE_WORKING, WINDOW, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, loadsOlder, noticed, pillLine, place, prune, quotaLine, quotaTitle, replaced, insertRef, keptFirst, quoteLines, statusQuote, statusRef, stopEnabled, title, typingBeat, updateAsk, versionTitle, windowStart, withQuotes, TYPING_BEAT, CHECKING, LEADER_STOPPED, STATUS_TITLE, STATUS_WHO, UP_TO_DATE, statusLabel } from "../lib/chat/panels.mjs";
 import { localAt, refTo, references } from "../lib/chat/refs.mjs";
 
 const LEADER = "Leader";
@@ -395,19 +395,20 @@ describe("marks and controls", () => {
     assert.equal(state.version, "12345678");
   });
 
-  it("a newer release is named beside the version, from the snapshot and the release event, with how to take it", () => {
+  // The day is the page's own: noon UTC is the same day in every time zone a test runs in.
+  it("a newer release is known from the snapshot and the release event, with how to take it and the question before an update", () => {
     const state = fresh();
     applyEvent(state, snapshot([about(LEADER)], { version: "0.26.0" }), 0);
-    assert.equal(versionLine(state.version, state.release), "0.26.0");
+    assert.equal(state.release, null);
     assert.equal(versionTitle(state.release, true), "");
-    applyEvent(state, { name: "release", data: { version: "0.27.0" } }, 1);
-    assert.equal(versionLine(state.version, state.release), "0.26.0 (0.27.0 is out)");
-    assert.equal(versionTitle(state.release, false), "0.27.0 is out. To take it: ovai stop, ovai update, ovai start. The Leader turns this notice off on your word (update.check).");
-    assert.equal(versionTitle(state.release, true), "0.27.0 is out. To take it: the update button beside this, or at a terminal ovai stop, ovai update, ovai start. The Leader turns this notice off on your word (update.check).");
+    applyEvent(state, { name: "release", data: { version: "0.27.0", published: "2026-11-12T12:00:00Z" } }, 1);
+    assert.equal(versionTitle(state.release, false), "0.27.0 is out, released 2026-11-12. To take it: ovai stop, ovai update, ovai start. The Leader turns this notice off on your word (update.check).");
+    assert.equal(versionTitle(state.release, true), "0.27.0 is out, released 2026-11-12. Click to update, or at a terminal: ovai stop, ovai update, ovai start. The Leader turns this notice off on your word (update.check).");
+    assert.equal(updateAsk(state.release), "0.27.0 is out, released 2026-11-12. Update to 0.27.0? As at ovai stop, every Worker is closed, and nothing starts them again. Then the update runs and the server starts.");
     applyEvent(state, { name: "release", data: null }, 2);
-    assert.equal(versionLine(state.version, state.release), "0.26.0");
-    applyEvent(state, snapshot([about(LEADER)], { version: "0.26.0", release: { version: "0.28.0" } }), 3);
-    assert.equal(versionLine(state.version, state.release), "0.26.0 (0.28.0 is out)");
+    assert.equal(state.release, null);
+    applyEvent(state, snapshot([about(LEADER)], { version: "0.26.0", release: { version: "0.28.0", published: null } }), 3);
+    assert.equal(updateAsk(state.release), "0.28.0 is out. Update to 0.28.0? As at ovai stop, every Worker is closed, and nothing starts them again. Then the update runs and the server starts.");
   });
 
   it("the panel that asks carries the mark, and anyAsking says whether any panel does", () => {

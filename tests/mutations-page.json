@@ -2620,11 +2620,11 @@
   },
   {
     "name": "the Leader's head does not draw the version",
-    "catches": "draws the version the server runs before the quota line, and a newer release beside it",
+    "catches": "draws the version the server runs before the quota line, red while a newer release is out",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      panel.facts.version.textContent = versionLine(state.version, state.release);",
+        "from": "      panel.facts.version.textContent = state.version;",
         "to": "      panel.facts.version.textContent = \"\";"
       }
     ]
@@ -3098,17 +3098,27 @@
   },
   {
     "name": "a hidden restart button is still drawn",
-    "catches": "draws an update beside the notice and a reload and a restart on the Leader's head; the two that park the room ask first",
+    "catches": "updates on a click on the red version, and draws a reload and a restart on the Leader's head; the two that park the room ask first",
     "edits": [{ "file": "lib/chat/page.html", "from": "  .phead .notify[hidden] { display: none; }", "to": "  .phead .notify[hidden] { display: inline-flex; }" }]
   },
   {
     "name": "the restart parks the room without asking",
-    "catches": "draws an update beside the notice and a reload and a restart on the Leader's head; the two that park the room ask first",
+    "catches": "updates on a click on the red version, and draws a reload and a restart on the Leader's head; the two that park the room ask first",
     "edits": [{ "file": "lib/chat/page.html", "from": "      if (ask !== null && !confirm(ask())) return;\n", "to": "" }]
   },
   {
     "name": "the Leader's line is not drawn again when the patience is out",
     "catches": "draws the Leader's line again once a restart's patience is out",
     "edits": [{ "file": "lib/chat/page.html", "from": "          }, data.patience * 1000);", "to": "          }, data.patience * 1000 * 1000);" }]
+  },
+  {
+    "name": "the red version updates on port 0",
+    "catches": "updates on a click on the red version, and draws a reload and a restart on the Leader's head; the two that park the room ask first",
+    "edits": [{ "file": "lib/chat/page.html", "from": "        if (state.release === null || !state.restartable || !confirm(updateAsk(state.release))) return;", "to": "        if (state.release === null || !confirm(updateAsk(state.release))) return;" }]
+  },
+  {
+    "name": "the version is not red while a newer release is out",
+    "catches": "draws the version the server runs before the quota line, red while a newer release is out",
+    "edits": [{ "file": "lib/chat/page.html", "from": "  .phead .version.newer { color: var(--bad); }", "to": "  .phead .version.newer { color: var(--fg-dim); }" }]
   }
 ]

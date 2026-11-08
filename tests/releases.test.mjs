@@ -26,8 +26,12 @@ function onVersion(text) {
 // `signed` is false.
 function release(tag, { signed = true } = {}) {
   const names = signed ? [`openovai-${tag.replace(/^v/, "")}.tar.gz`, "SHA256SUMS", "SHA256SUMS.sig"] : ["notes.txt"];
-  return { tag_name: tag, assets: names.map((name) => ({ name, browser_download_url: `https://example.invalid/${name}` })) };
+  return { tag_name: tag, published_at: PUBLISHED, assets: names.map((name) => ({ name, browser_download_url: `https://example.invalid/${name}` })) };
 }
+
+// What the head is told of the newer release in every case below: its version and when it went out.
+const PUBLISHED = "2026-11-12T19:05:00Z";
+const NEWER = { version: "0.27.0", published: PUBLISHED };
 
 // A fetch that answers every ask with `body` and counts the asks, each with its address.
 function github(body, { status = 200 } = {}) {
@@ -67,9 +71,15 @@ describe("a newer release", () => {
     const { asked, get } = github(release("v0.27.0"));
     await check({ root, on: true, now: T0, get });
     assert.deepEqual(asked, [RELEASES]);
-    assert.equal(newer(), "0.27.0");
-    assert.deepEqual(events, [{ version: "0.27.0" }]);
+    assert.deepEqual(newer(), NEWER);
+    assert.deepEqual(events, [NEWER]);
     assert.ok(rows.some((row) => row.includes("0.27.0 is out; this instance is on 0.26.0")));
+  });
+
+  it("names no release date where GitHub gives none that reads as a moment", async () => {
+    onVersion("0.26.0");
+    await check({ root, on: true, now: T0, get: github({ ...release("v0.27.0"), published_at: "soon" }).get });
+    assert.deepEqual(newer(), { version: "0.27.0", published: null });
   });
 
   it("is asked once a day, and the page is told only when what it names changes", async () => {
@@ -80,7 +90,7 @@ describe("a newer release", () => {
     assert.equal(asked.length, 1);
     await check({ root, on: true, now: T0 + CHECK_EVERY, get });
     assert.equal(asked.length, 2);
-    assert.deepEqual(events, [{ version: "0.27.0" }]);
+    assert.deepEqual(events, [NEWER]);
   });
 
   it("names nothing for the version the instance is on, or an older one", async () => {
@@ -113,13 +123,13 @@ describe("a newer release", () => {
     await check({ root, on: false, now: T0, get });
     assert.deepEqual(asked, []);
     await check({ root, on: true, now: T0, get });
-    assert.equal(newer(), "0.27.0");
+    assert.deepEqual(newer(), NEWER);
     await check({ root, on: false, now: T0 + 1, get });
     assert.equal(newer(), null);
-    assert.deepEqual(events, [{ version: "0.27.0" }, null]);
+    assert.deepEqual(events, [NEWER, null]);
     // Turned on again, the answer already held is named with no new ask.
     await check({ root, on: true, now: T0 + 2, get });
-    assert.equal(newer(), "0.27.0");
+    assert.deepEqual(newer(), NEWER);
     assert.equal(asked.length, 1);
   });
 

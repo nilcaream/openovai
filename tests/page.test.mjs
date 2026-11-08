@@ -1185,7 +1185,7 @@ describe("the script", () => {
   // word and no connection word: a Worker's head has the state word, and a lost stream is the
   // Leader's bottom pill, red.
   it("draws the version and the quota line on the Leader's head, no state or connection word, and marks a lost stream on the pill", () => {
-    assert.match(script, /headLine\.append\(facts\.version, facts\.update, facts\.quota\);[\s\S]{0,600}headLine\.append\(themeToggle\);/);
+    assert.match(script, /headLine\.append\(facts\.version, facts\.quota\);[\s\S]{0,600}headLine\.append\(themeToggle\);/);
     assert.match(script, /headLine\.append\(nameLine, info\);[\s\S]{0,400}else headLine\.append\(word\);/, "only a Worker's head has the state word");
     assert.doesNotMatch(script, /facts\.conn/);
     assert.match(script, /panel\.doing\.firstElementChild\.textContent = pillLine\(state, panel\.name\);\s*panel\.doing\.classList\.toggle\("off", state\.connection !== CONNECTED\);/);
@@ -1218,23 +1218,27 @@ describe("the script", () => {
   });
 
   // Before the quota line, behind a dot, the version the server runs: a release, or the commit
-  // of a build, with a newer release beside it and how to take it on hover.
-  it("draws the version the server runs before the quota line, and a newer release beside it", () => {
-    assert.match(script, /panel\.fitPlaceholder\(\);\s*if \(panel\.facts !== null\) \{\s*panel\.facts\.version\.textContent = versionLine\(state\.version, state\.release\);\s*panel\.facts\.version\.title = versionTitle\(state\.release, state\.restartable\);\s*panel\.facts\.update\.hidden = state\.release === null \|\| !state\.restartable;\s*if \(state\.release !== null\) panel\.facts\.update\.title = updateTitle\(state\.release\);\s*panel\.facts\.restart\.hidden = !state\.restartable;\s*panel\.facts\.quota\.textContent/);
+  // of a build — red while a newer release is out, with how to take it on hover, and taking a
+  // click where the page may update. The dot stays dim.
+  it("draws the version the server runs before the quota line, red while a newer release is out", () => {
+    assert.match(script, /panel\.fitPlaceholder\(\);\s*if \(panel\.facts !== null\) \{\s*panel\.facts\.version\.textContent = state\.version;\s*panel\.facts\.version\.title = versionTitle\(state\.release, state\.restartable\);\s*panel\.facts\.version\.classList\.toggle\("newer", state\.release !== null\);\s*panel\.facts\.version\.classList\.toggle\("takes", state\.release !== null && state\.restartable\);\s*panel\.facts\.restart\.hidden = !state\.restartable;\s*panel\.facts\.quota\.textContent/);
     const dotted = rules.find((rule) => rule.selector.includes(".phead .version:not(:empty)::before"));
     assert.equal(dotted?.declarations.content, '"\\00a0·\\00a0"');
+    assert.equal(rules.find((rule) => rule.selector === ".phead .version.newer")?.declarations.color, "var(--bad)");
+    assert.equal(rules.find((rule) => rule.selector === ".phead .version.newer::before")?.declarations.color, "var(--fg-dim)");
+    assert.equal(rules.find((rule) => rule.selector === ".phead .version.takes")?.declarations.cursor, "pointer");
   });
 
-  // The server's own buttons: the update beside a newer release's notice, and the reload and the
-  // restart last on the Leader's head. The update and the restart are drawn only where the server
-  // may be restarted from the page (not on port 0), and both ask first, since both park the room;
-  // a press asks the server once and nothing more. A restart hidden is not drawn: the head's
-  // buttons are displayed by the class, so the hidden attribute needs a rule of its own.
-  it("draws an update beside the notice and a reload and a restart on the Leader's head; the two that park the room ask first", () => {
+  // The server's own controls: the red version, and the reload and the restart last on the
+  // Leader's head. The update and the restart act only where the server may be restarted from the
+  // page (not on port 0), and both ask first, since both park the room; a press asks the server
+  // once and nothing more. A restart hidden is not drawn: the head's buttons are displayed by the
+  // class, so the hidden attribute needs a rule of its own.
+  it("updates on a click on the red version, and draws a reload and a restart on the Leader's head; the two that park the room ask first", () => {
     assert.match(script, /restart: serverButton\(POWER, RESTART_TITLE, "\/restart", \(\) => RESTART_ASK\),\s*reload: serverButton\(RELOAD, RELOAD_TITLE, "\/reload", null\),/);
     const made = script.slice(script.indexOf("function serverButton("), script.indexOf("function commsSwitch(rows)"));
     assert.match(made, /button\.addEventListener\("click", async \(\) => \{\s*if \(ask !== null && !confirm\(ask\(\)\)\) return;\s*await call\(route, \{ method: "POST" \}\)\.catch\(\(\) => null\);\s*\}\);/);
-    assert.match(script, /facts\.update\.addEventListener\("click", async \(\) => \{\s*if \(state\.release === null \|\| !confirm\(updateAsk\(state\.release\)\)\) return;\s*await call\("\/update", \{ method: "POST" \}\)\.catch\(\(\) => null\);\s*\}\);/);
+    assert.match(script, /facts\.version\.addEventListener\("click", async \(\) => \{\s*if \(state\.release === null \|\| !state\.restartable \|\| !confirm\(updateAsk\(state\.release\)\)\) return;\s*await call\("\/update", \{ method: "POST" \}\)\.catch\(\(\) => null\);\s*\}\);/);
     assert.equal(rules.find((rule) => rule.selector === ".phead .notify[hidden]")?.declarations.display, "none");
   });
 
