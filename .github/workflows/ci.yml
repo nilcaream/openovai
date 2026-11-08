@@ -167,6 +167,9 @@ jobs:
       - name: Ask the account how much of its windows is spent, say it in words
         run: node --test tests/usage.test.mjs
 
+      - name: Look once a day for a newer release, name it when there is one
+        run: node --test tests/releases.test.mjs
+
   lifecycle:
     name: Lifecycle
     runs-on: ubuntu-latest

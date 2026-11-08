@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { AMBER, CARD, CONNECTED, autoLabel, autoTitle, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, GREY, LATE_AFTER, RED, REPLY, SENDING, SHOWN_FOR, LINE_DISCONNECTED, LINE_LEFT, LINE_WAITING, LINE_WORKING, WINDOW, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, loadsOlder, noticed, pillLine, place, prune, quotaLine, quotaTitle, replaced, insertRef, keptFirst, quoteLines, statusQuote, statusRef, stopEnabled, title, typingBeat, windowStart, withQuotes, TYPING_BEAT, CHECKING, LEADER_STOPPED, STATUS_TITLE, STATUS_WHO, UP_TO_DATE, statusLabel } from "../lib/chat/panels.mjs";
+import { AMBER, CARD, CONNECTED, autoLabel, autoTitle, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, GREY, LATE_AFTER, RED, REPLY, SENDING, SHOWN_FOR, LINE_DISCONNECTED, LINE_LEFT, LINE_WAITING, LINE_WORKING, WINDOW, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, loadsOlder, noticed, pillLine, place, prune, quotaLine, quotaTitle, replaced, insertRef, keptFirst, quoteLines, statusQuote, statusRef, stopEnabled, title, typingBeat, versionLine, versionTitle, windowStart, withQuotes, TYPING_BEAT, CHECKING, LEADER_STOPPED, STATUS_TITLE, STATUS_WHO, UP_TO_DATE, statusLabel } from "../lib/chat/panels.mjs";
 import { localAt, refTo, references } from "../lib/chat/refs.mjs";
 
 const LEADER = "Leader";
@@ -370,6 +370,20 @@ describe("marks and controls", () => {
     assert.equal(state.version, "");
     applyEvent(state, snapshot([about(LEADER)], { version: "12345678" }), 0);
     assert.equal(state.version, "12345678");
+  });
+
+  it("a newer release is named beside the version, from the snapshot and the release event, with how to take it", () => {
+    const state = fresh();
+    applyEvent(state, snapshot([about(LEADER)], { version: "0.26.0" }), 0);
+    assert.equal(versionLine(state.version, state.release), "0.26.0");
+    assert.equal(versionTitle(state.release), "");
+    applyEvent(state, { name: "release", data: { version: "0.27.0" } }, 1);
+    assert.equal(versionLine(state.version, state.release), "0.26.0 (0.27.0 is out)");
+    assert.equal(versionTitle(state.release), "0.27.0 is out. To take it: ovai stop, ovai update, ovai start. The Leader turns this notice off on your word (update.check).");
+    applyEvent(state, { name: "release", data: null }, 2);
+    assert.equal(versionLine(state.version, state.release), "0.26.0");
+    applyEvent(state, snapshot([about(LEADER)], { version: "0.26.0", release: { version: "0.28.0" } }), 3);
+    assert.equal(versionLine(state.version, state.release), "0.26.0 (0.28.0 is out)");
   });
 
   it("the panel that asks carries the mark, and anyAsking says whether any panel does", () => {

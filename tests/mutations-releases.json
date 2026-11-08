@@ -1,0 +1,27 @@
+[
+  {
+    "name": "a build from a checkout asks GitHub too",
+    "catches": "is never asked on a build from a checkout, whose version is its commit",
+    "edits": [{ "file": "lib/chat/releases.mjs", "from": "  if (on && isRelease(here) && !inFlight && now >= nextAt) {", "to": "  if (on && !inFlight && now >= nextAt) {" }]
+  },
+  {
+    "name": "GitHub is asked at every tick",
+    "catches": "is asked once a day, and the page is told only when what it names changes",
+    "edits": [{ "file": "lib/chat/releases.mjs", "from": "    nextAt = now + CHECK_EVERY;", "to": "    nextAt = now;" }]
+  },
+  {
+    "name": "update.check false leaves the notice on the head",
+    "catches": "is not asked with update.check off, and a notice shown goes when it is turned off",
+    "edits": [{ "file": "lib/chat/releases.mjs", "from": "  show(on && latest !== null", "to": "  show(latest !== null" }]
+  },
+  {
+    "name": "the page is told at every look",
+    "catches": "is asked once a day, and the page is told only when what it names changes",
+    "edits": [{ "file": "lib/chat/releases.mjs", "from": "  if (next !== shown) {", "to": "  if (true) {" }]
+  },
+  {
+    "name": "the same release is named as newer",
+    "catches": "names nothing for the version the instance is on, or an older one",
+    "edits": [{ "file": "lib/chat/releases.mjs", "from": "  show(on && latest !== null && isOlderThan(here, latest) ? latest : null);", "to": "  show(on && latest !== null && here !== latest ? latest : null);" }]
+  }
+]

@@ -602,5 +602,38 @@
         "to": ""
       }
     ]
+  },
+  {
+    "name": "update.check takes anything",
+    "catches": "refuses a key it does not write and a value of the wrong kind, the file untouched",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "SETTING((value) => typeof value === \"boolean\",",
+        "to": "SETTING(() => true,"
+      }
+    ]
+  },
+  {
+    "name": "the tick never looks for a newer release",
+    "catches": "names a newer release on the snapshot once update.check is on, and none once it is off",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "        checkSignIn();\n        checkRelease();\n",
+        "to": "        checkSignIn();\n"
+      }
+    ]
+  },
+  {
+    "name": "the snapshot names no release",
+    "catches": "names a newer release on the snapshot once update.check is on, and none once it is off",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": "    release: releases.newer() === null ? null : { version: releases.newer() },",
+        "to": "    release: null,"
+      }
+    ]
   }
 ]

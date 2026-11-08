@@ -16,7 +16,9 @@ import { ADMIN_FILE } from "../lib/admin.mjs";
 import { BODY_CLOSING, CARD_TIMEOUT, SUBAGENT_CARD_TIMEOUT, adminTold, changedKeys, deliver, parkRoom, rereadConfig, settingsIn, tick, undelivered } from "../lib/chat/lifecycle.mjs";
 import { answerRule, askedFor, parkRule, ruleAskedFor, rulesPending } from "../lib/chat/permissions.mjs";
 import * as quota from "../lib/chat/quota.mjs";
+import * as releases from "../lib/chat/releases.mjs";
 import { askDefaults } from "../lib/chat/server.mjs";
+import { RELEASES } from "../lib/release.mjs";
 import { INTERRUPT_PATIENCE, end, endEvery, recordOf, running, tell } from "../lib/chat/session.mjs";
 import { IGNORED_DEFAULTS, LEDGER, deskFile, hire } from "../lib/desks.mjs";
 import { CONFIG_FILE } from "../lib/seed.mjs";
@@ -850,6 +852,7 @@ describe("openovai.json changed while the server runs", () => {
     assert.match(listed.text, /\ndesk\.limit: 98304\n/);
     assert.match(listed.text, /\nidle\.force: 55 \(default\)\n/);
     assert.match(listed.text, /\nquota\.5h: \[50,60\]\n/);
+    assert.match(listed.text, /\nupdate\.check: false\n/, "every suite's instance has the look for a newer release off");
     assert.match(listed.text, /\nAt `ovai restart` only, and changed by Mike in the file, never by this tool: user: "Mike", leader: "Martin", port: \d+, auth: /);
   });
 
@@ -876,14 +879,40 @@ describe("openovai.json changed while the server runs", () => {
       order: await tool(leader.secret, "settings", { change: { "quota.7d": [99, 97] } }),
       model: await tool(leader.secret, "settings", { change: { "models.worker": null } }),
       port: await tool(leader.secret, "settings", { change: { port: 1 } }),
+      check: await tool(leader.secret, "settings", { change: { "update.check": "no" } }),
     };
     assert.ok(Object.values(refusals).every((answer) => answer.refused), JSON.stringify(refusals));
     assert.match(refusals.unknown.text, /^idle\.forever is not a setting this tool writes/);
     assert.equal(refusals.kind.text, 'idle.all takes a number of minutes above 0, or null for its default (got "1")');
     assert.match(refusals.order.text, /^quota\.7d takes two percentages from 0 to 100, warning then critical/);
     assert.equal(refusals.model.text, "models.worker takes a model as a hire takes it, such as opus or opus/high (got null)");
+    assert.equal(refusals.check.text, 'update.check takes true or false; false stops the daily look for a newer release, or null for its default (got "no")');
     assert.equal(refusals.port.text, "port is who and where this instance is: Mike changes it in openovai.json by hand, and it applies at `ovai restart`");
     assert.equal(fs.readFileSync(file, "utf8"), had);
+  });
+
+  // The tick looks for a newer release once the setting is on, and the snapshot names what it
+  // found; the setting off takes it away again. GitHub is a fetch of this process's own here.
+  it("names a newer release on the snapshot once update.check is on, and none once it is off", async () => {
+    const realFetch = globalThis.fetch;
+    const asked = [];
+    globalThis.fetch = async (url, options) => {
+      if (url !== RELEASES) return realFetch(url, options);
+      asked.push(url);
+      const assets = ["openovai-99.0.0.tar.gz", "SHA256SUMS", "SHA256SUMS.sig"].map((name) => ({ name, browser_download_url: `https://example.invalid/${name}` }));
+      return { ok: true, status: 200, json: async () => ({ tag_name: "v99.0.0", assets }) };
+    };
+    try {
+      assert.equal((await sessionsListed()).release, null);
+      assert.equal((await tool(leader.secret, "settings", { change: { "update.check": true } })).refused, false);
+      assert.ok(await waitFor(async () => (await sessionsListed()).release?.version === "99.0.0"), "no release named within the ticks");
+      assert.equal(asked.length, 1);
+      assert.equal((await tool(leader.secret, "settings", { change: { "update.check": false } })).refused, false);
+      assert.ok(await waitFor(async () => (await sessionsListed()).release === null), "the release is still named with the look off");
+    } finally {
+      globalThis.fetch = realFetch;
+      releases.reset();
+    }
   });
 
   it("refuses to write over a file that does not read as JSON", async () => {

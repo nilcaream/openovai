@@ -1208,9 +1208,9 @@ describe("the script", () => {
   });
 
   // Before the quota line, behind a dot, the version the server runs: a release, or the commit
-  // of a build.
-  it("draws the version the server runs before the quota line", () => {
-    assert.match(script, /panel\.fitPlaceholder\(\);\s*if \(panel\.facts !== null\) \{\s*panel\.facts\.version\.textContent = state\.version;\s*panel\.facts\.quota\.textContent/);
+  // of a build, with a newer release beside it and how to take it on hover.
+  it("draws the version the server runs before the quota line, and a newer release beside it", () => {
+    assert.match(script, /panel\.fitPlaceholder\(\);\s*if \(panel\.facts !== null\) \{\s*panel\.facts\.version\.textContent = versionLine\(state\.version, state\.release\);\s*panel\.facts\.version\.title = versionTitle\(state\.release\);\s*panel\.facts\.quota\.textContent/);
     const dotted = rules.find((rule) => rule.selector.includes(".phead .version:not(:empty)::before"));
     assert.equal(dotted?.declarations.content, '"\\00a0·\\00a0"');
   });
@@ -1239,7 +1239,7 @@ describe("the script", () => {
     assert.match(script, /call\("\/sessions"\)\.then\(\s*\(answered\) => \(answered\.status === 503 \? setTimeout\(probe, 1000\) : connect\(\)\),\s*\(\) => \{\s*lost\(\);\s*setTimeout\(probe, 1000\);/);
     assert.match(script, /if \(answered\.status === 503\) \{\s*applyEvent\(state, \{ name: "stopping", data: \{\} \}\);\s*draw\(\);/);
     assert.match(script, /stream\.addEventListener\("open", \(\) => \{\s*state\.connection = CONNECTED;\s*draw\(\);/);
-    assert.match(script, /const EVENTS = \["snapshot", "rows", "row", "asking", "seat", "quota", "auto", "status", "wake", "stopping"\];/);
+    assert.match(script, /const EVENTS = \["snapshot", "rows", "row", "asking", "seat", "quota", "auto", "status", "wake", "release", "stopping"\];/);
     assert.ok(!script.includes("STOPPING"), "the page still carries a stopping word");
   });
 

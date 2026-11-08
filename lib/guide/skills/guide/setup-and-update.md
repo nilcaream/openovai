@@ -37,6 +37,7 @@ All are run from a terminal as `<instance>/bin/ovai <command>`:
 
 ## Update
 - `ovai update` takes the latest signed release from GitHub. `--from <url or directory>` looks elsewhere. A git checkout is taken only on `main`, committed and clean, and its version is then the commit's first 8 characters.
+- A newer release is named on the Leader's head beside the version, "0.26.0 (0.27.0 is out)", with how to take it on hover. The server asks GitHub once a day, at start and then every 24 hours: one request for the latest release, with nothing about the instance in it, and nothing downloaded. A release the updater would refuse is not named. An instance on a build from a checkout is never asked about. `update.check` false turns the asking off.
 - It refuses to go backwards unless `--downgrade` is given.
 - Stop the server first. It refuses while the server or any session of the instance is running.
 - It replaces `bin/` and `lib/` only. Desks, conversations, `knowledge/`, `customization/`, `plugins/`, `openovai.json`, the settings and the Claude Code home are left alone. It then seeds only files that are missing, and counts the permission rules that a fresh instance would have but this one lacks. It adds none of them: each is asked for on a permission popup on the Leader's panel at every start of the server, until the User presses the button for the list ovai recommends or Ignore.
@@ -54,6 +55,7 @@ To change a setting, ask the Leader: "raise the desk limit to 256 KB", "Workers 
 - `park.deadline`: the seconds the Leader's `park` gives when it names none, 1800. `park.timeout`: the seconds a server stop gives sessions to write their desks, 20. `park.margin`: the seconds `ovai stop` waits past that, 15.
 - `typing.quiet`, `typing.cap`: the seconds after the last key in a panel's box that count as typing, and the longest a turn waits for them, 10 and 30; 0 turns either off.
 - `quota["5h"]`, `quota["7d"]`: the two usage percentages, warning and critical, `[90, 95]` and `[97, 99]`. The weekly pair also holds each model's own weekly window.
+- `update.check`: whether the server looks once a day for a newer release to name on the Leader's head, `true`; `false` turns it off, for an instance that is offline or must not reach GitHub.
 
 All of them, and `models.leader` and `models.worker`, take effect while the server runs: the server reads the file again within about 5 seconds of a save, and tells the Leader the names of the keys that changed. A model applies from each session's next start; a running session keeps the one it started on.
 

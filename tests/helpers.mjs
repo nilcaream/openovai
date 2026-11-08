@@ -21,6 +21,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { sessionKey } from "../lib/chat/signin.mjs";
+import { configFile } from "../lib/instance.mjs";
 import { PAYLOAD } from "../lib/payload.mjs";
 import { pins } from "../lib/runtime.mjs";
 
@@ -95,11 +96,15 @@ export function install(options, environment) {
   });
 }
 
+// Install an instance, and fail the suite when that fails. No suite asks GitHub: an instance installed here has the daily look for a newer release turned
+// off, and the case that checks the look hands in its own fetch (releases.mjs).
 export function installed(options, environment) {
   const done = install(options, environment);
   if (done.status !== 0) {
     throw new Error(`installing failed: ${done.stderr || done.stdout}`);
   }
+  const file = configFile(options["--root"]);
+  fs.writeFileSync(file, `${JSON.stringify({ ...JSON.parse(fs.readFileSync(file, "utf8")), update: { check: false } }, null, 2)}\n`);
   return done;
 }
 

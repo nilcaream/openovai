@@ -257,7 +257,7 @@
   // draws it and carries what is typed and pressed to the server.
 
   import { answerOf, dialogOf } from "./dialog.mjs";
-  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, autoLabel, autoTitle, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, loadsOlder, noticed, place, prune, quotaLine, replaced, quotaTitle, insertRef, keptFirst, pillLine, quoteLines, stopEnabled, statusLabel, statusQuote, statusRef, title, typingBeat, windowStart, withQuotes, LINE_WAITING, STATUS_TITLE, STATUS_WHO, WINDOW } from "./panels.mjs";
+  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, autoLabel, autoTitle, RED, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, loadsOlder, noticed, place, prune, quotaLine, replaced, quotaTitle, insertRef, keptFirst, pillLine, quoteLines, stopEnabled, statusLabel, statusQuote, statusRef, title, typingBeat, versionLine, versionTitle, windowStart, withQuotes, LINE_WAITING, STATUS_TITLE, STATUS_WHO, WINDOW } from "./panels.mjs";
   import { html as markdownOf, row as rowOf, talks, unseen } from "./render.mjs";
   import { refTo, references } from "./refs.mjs";
 
@@ -1495,7 +1495,8 @@
     panel.box.disabled = !composersEnabled(state, panel.name);
     panel.fitPlaceholder();
     if (panel.facts !== null) {
-      panel.facts.version.textContent = state.version;
+      panel.facts.version.textContent = versionLine(state.version, state.release);
+      panel.facts.version.title = versionTitle(state.release);
       panel.facts.quota.textContent = quotaLine(state.quota, lite.matches);
       panel.facts.quota.classList.toggle("old", state.quota !== null && state.quota.old === true);
       panel.facts.quota.title = quotaTitle(state.quota, new Date());
@@ -1629,7 +1630,7 @@
   // One stream from the server: what to draw first, then everything as it happens. The page
   // connects again itself when the stream drops, with the counts it has, so nothing arrives
   // twice and nothing is missed. The browser carries the session cookie on it, as on every call.
-  const EVENTS = ["snapshot", "rows", "row", "asking", "seat", "quota", "auto", "status", "wake", "stopping"];
+  const EVENTS = ["snapshot", "rows", "row", "asking", "seat", "quota", "auto", "status", "wake", "release", "stopping"];
   let stream = null;
 
   // The stream opened again on a server of another version — an update, then a start — and this

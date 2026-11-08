@@ -977,5 +977,16 @@
         "to": "    from = blank;"
       }
     ]
+  },
+  {
+    "name": "the release event is not taken",
+    "catches": "a newer release is named beside the version, from the snapshot and the release event, with how to take it",
+    "edits": [
+      {
+        "file": "lib/chat/panels.mjs",
+        "from": "      state.release = data ?? null;",
+        "to": "      state.release = null;"
+      }
+    ]
   }
 ]
