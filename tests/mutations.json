@@ -2503,5 +2503,30 @@
         "to": "    return at ?? null;"
       }
     ]
+  },
+  {
+    "name": "the snapshot offers a restart on port 0",
+    "catches": "refuses a restart and an update on port 0, starts nothing, and the snapshot says so",
+    "edits": [{ "file": "lib/chat/server.mjs", "from": "    restartable: instance.config.port !== 0,", "to": "    restartable: true," }]
+  },
+  {
+    "name": "the plugins are reloaded whatever it costs the cache",
+    "catches": "asks every running session for its skills, then its plugins held on the cache, and writes one row per panel",
+    "edits": [{ "file": "lib/chat/server.mjs", "from": "{ subtype: \"reload_plugins\", hold_on_cache_impact: true }", "to": "{ subtype: \"reload_plugins\" }" }]
+  },
+  {
+    "name": "plugins held are said as reloaded",
+    "catches": "asks every running session for its skills, then its plugins held on the cache, and writes one row per panel",
+    "edits": [{ "file": "lib/chat/server.mjs", "from": "  if (plugins.response?.held === true) {", "to": "  if (false) {" }]
+  },
+  {
+    "name": "a control request's answer is never matched",
+    "catches": "asks every running session for its skills, then its plugins held on the cache, and writes one row per panel",
+    "edits": [{ "file": "lib/chat/session.mjs", "from": "        settled(frame.response);", "to": "        settled(null);" }]
+  },
+  {
+    "name": "the plugins are asked for after the skills were refused",
+    "catches": "does not ask for the plugins when the skills were refused, and says why",
+    "edits": [{ "file": "lib/chat/server.mjs", "from": "skills?.subtype === \"success\" ? await control(", "to": "true ? await control(" }]
   }
 ]

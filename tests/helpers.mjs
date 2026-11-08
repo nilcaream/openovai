@@ -200,6 +200,8 @@ export function installed(options, environment) {
 //                             carry on with the turn when told to interrupt it; without this an
 //                             interrupt ends the turn with an error result, as the real one does
 //                             (measured 2026-09-12: subtype error_during_execution, 13 ms after)
+//   OPENOVAI_STAND_IN_RELOAD        how reload_skills and reload_plugins are answered: "held",
+//                             "error" or "silent"; without it, both succeed
 // It records what a session was given — its arguments, the environment it can be identified
 // by, and every frame it was told — so a check can read what a seat was told rather than
 // trusting what the server says it sent.
@@ -362,6 +364,24 @@ process.stdin.on("data", (chunk) => {
     if (said.type === "control_request" && said.request?.subtype === "set_permission_mode") {
       note("mode: " + said.request.mode);
       frame({ type: "control_response", response: { subtype: "success", request_id: said.request_id, response: { mode: said.request.mode } } });
+      continue;
+    }
+    // The reloads, answered in the shapes measured on 2.1.322: "held" holds the plugins with one
+    // plugin error, "error" refuses the skills, "silent" says nothing back.
+    if (said.type === "control_request" && ["reload_skills", "reload_plugins"].includes(said.request?.subtype)) {
+      const how = process.env.OPENOVAI_STAND_IN_RELOAD ?? "";
+      note("reload: " + said.request.subtype + (said.request.hold_on_cache_impact === true ? " hold" : ""));
+      if (how === "silent") {
+        continue;
+      }
+      if (how === "error" && said.request.subtype === "reload_skills") {
+        frame({ type: "control_response", response: { subtype: "error", request_id: said.request_id, error: "skills unreadable" } });
+        continue;
+      }
+      const response = said.request.subtype === "reload_skills"
+        ? { skills: ["ovai:guide"] }
+        : { commands: [], agents: [], plugins: ["ovai"], mcpServers: [], error_count: how === "held" ? 1 : 0, held: how === "held" };
+      frame({ type: "control_response", response: { subtype: "success", request_id: said.request_id, response } });
       continue;
     }
     if (said.type === "user") {

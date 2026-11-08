@@ -999,5 +999,15 @@
         "to": "      state.release = null;"
       }
     ]
+  },
+  {
+    "name": "the restart's patience runs a moment longer",
+    "catches": "the Leader's bottom line says a restart is on its way while there is no server, then where to look",
+    "edits": [{ "file": "lib/chat/panels.mjs", "from": "  if (now - going.since < going.patience * 1000)", "to": "  if (now - going.since <= going.patience * 1000)" }]
+  },
+  {
+    "name": "a snapshot leaves the restart on its way",
+    "catches": "the Leader's bottom line says a restart is on its way while there is no server, then where to look",
+    "edits": [{ "file": "lib/chat/panels.mjs", "from": "      state.going = null;\n      state.quota = data.quota ?? null;", "to": "      state.quota = data.quota ?? null;" }]
   }
 ]

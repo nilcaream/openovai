@@ -19,7 +19,7 @@ Chosen at install:
 All are run from a terminal as `<instance>/bin/ovai <command>`:
 - `start`: starts the server in the background and prints a one-time link to the page. When the server is already running, it says so and prints a fresh link.
 - `stop`: stops the server. Every session is parked first.
-- `restart`: stop, then start.
+- `restart`: stop, then start. The restart button on the Leader's head does the same (see panels-and-team.md).
 - `status`: whether the server is running, and where.
 - `url`: a new one-time link for a browser.
 - `configuration`: what the instance is. It shows the version, the runtime, who works here, the models, the port, and how it signs in.
@@ -37,7 +37,7 @@ All are run from a terminal as `<instance>/bin/ovai <command>`:
 
 ## Update
 - `ovai update` takes the latest signed release from GitHub. `--from <url or directory>` looks elsewhere. A git checkout is taken only on `main`, committed and clean, and its version is then the commit's first 8 characters.
-- A newer release is named on the Leader's head beside the version, "0.26.0 (0.27.0 is out)", with how to take it on hover. The server asks GitHub once a day, at start and then every 24 hours: one request for the latest release, with nothing about the instance in it, and nothing downloaded. A release the updater would refuse is not named. An instance on a build from a checkout is never asked about. `update.check` false turns the asking off.
+- A newer release is named on the Leader's head beside the version, "0.26.0 (0.27.0 is out)", with how to take it on hover, and an update button beside it that stops the server, updates and starts it again (see panels-and-team.md). The server asks GitHub once a day, at start and then every 24 hours: one request for the latest release, with nothing about the instance in it, and nothing downloaded. A release the updater would refuse is not named. An instance on a build from a checkout is never asked about. `update.check` false turns the asking off.
 - It refuses to go backwards unless `--downgrade` is given.
 - Stop the server first. It refuses while the server or any session of the instance is running.
 - It replaces `bin/` and `lib/` only. Desks, conversations, `knowledge/`, `customization/`, `plugins/`, `openovai.json`, the settings and the Claude Code home are left alone. It then seeds only files that are missing, and counts the permission rules that a fresh instance would have but this one lacks. It adds none of them: each is asked for on a permission popup on the Leader's panel at every start of the server, until the User presses the button for the list ovai recommends or Ignore.

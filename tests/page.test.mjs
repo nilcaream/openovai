@@ -763,7 +763,7 @@ describe("the script", () => {
   // the stylesheet hides by it, so a click redraws nothing; what the User typed to a Worker is
   // never among what it hides.
   it("hides the messages between sessions on the Leader's panel from a third switch, shown by default, in storage", () => {
-    assert.match(script, /rows\.className = "rows";\s*(?:\/\/[^\n]*\n\s*)*const standing = leads \? document\.createElement\("div"\) : null;\s*if \(leads\) \{\s*standing\.className = "standing";\s*headLine\.append\(commsSwitch\(rows\), statusSwitch\(standing\), facts\.auto\.leader, facts\.auto\.workers\);/, "after the two switches, on the Leader's head only, with the status's switch and the two auto switches after it");
+    assert.match(script, /rows\.className = "rows";\s*(?:\/\/[^\n]*\n\s*)*const standing = leads \? document\.createElement\("div"\) : null;\s*if \(leads\) \{\s*standing\.className = "standing";\s*headLine\.append\(commsSwitch\(rows\), statusSwitch\(standing\), facts\.auto\.leader, facts\.auto\.workers, facts\.reload, facts\.restart\);/, "after the two switches, on the Leader's head only, with the status's switch, the two auto switches and the server's buttons after it");
     assert.match(script, /const COMMS = \{ key: "openovai-comms", label: "Messages between the Leader and Workers", on: "Showing messages between the Leader and Workers — click to hide them", off: "Hiding messages between the Leader and Workers — click to show them" \};/);
     assert.match(script, /function commsShown\(\) \{\s*try \{ return localStorage\.getItem\(COMMS\.key\) !== "hidden"; \} catch \(error\) \{ return true; \}/, "shown until the store says hidden, and shown when there is no store");
     assert.match(script, /button\.addEventListener\("click", \(\) => \{\s*try \{ localStorage\.setItem\(COMMS\.key, commsShown\(\) \? "hidden" : "shown"\); \} catch \(error\) \{\}\s*show\(\);/);
@@ -1185,7 +1185,7 @@ describe("the script", () => {
   // word and no connection word: a Worker's head has the state word, and a lost stream is the
   // Leader's bottom pill, red.
   it("draws the version and the quota line on the Leader's head, no state or connection word, and marks a lost stream on the pill", () => {
-    assert.match(script, /headLine\.append\(facts\.version, facts\.quota\);[\s\S]{0,600}headLine\.append\(themeToggle\);/);
+    assert.match(script, /headLine\.append\(facts\.version, facts\.update, facts\.quota\);[\s\S]{0,600}headLine\.append\(themeToggle\);/);
     assert.match(script, /headLine\.append\(nameLine, info\);[\s\S]{0,400}else headLine\.append\(word\);/, "only a Worker's head has the state word");
     assert.doesNotMatch(script, /facts\.conn/);
     assert.match(script, /panel\.doing\.firstElementChild\.textContent = pillLine\(state, panel\.name\);\s*panel\.doing\.classList\.toggle\("off", state\.connection !== CONNECTED\);/);
@@ -1198,8 +1198,8 @@ describe("the script", () => {
   // server said, on every draw, with a tooltip that says what it is in — nothing is stored in the
   // browser and no panel shows a mode.
   it("draws two auto-mode switches on the Leader's head from the server's state, a click asking the server and nothing more", () => {
-    assert.match(script, /headLine\.append\(commsSwitch\(rows\), statusSwitch\(standing\), facts\.auto\.leader, facts\.auto\.workers\);/);
-    assert.match(script, /auto: \{ leader: autoSwitch\("leader"\), workers: autoSwitch\("workers"\) \}/);
+    assert.match(script, /headLine\.append\(commsSwitch\(rows\), statusSwitch\(standing\), facts\.auto\.leader, facts\.auto\.workers, facts\.reload, facts\.restart\);/);
+    assert.match(script, /auto: \{ leader: autoSwitch\("leader"\), workers: autoSwitch\("workers"\) \},/);
     assert.match(script, /call\("\/auto", \{ method: "POST", headers: \{ "content-type": "application\/json" \}, body: JSON\.stringify\(\{ who, on: !state\.auto\[who\] \}\) \}\)/);
     assert.match(script, /for \(const \[who, button\] of Object\.entries\(panel\.facts\.auto\)\) \{\s*button\.classList\.toggle\("on", state\.auto\[who\]\);\s*button\.title = autoTitle\(who, state\.auto\[who\]\);\s*\}/);
     const made = script.slice(script.indexOf("function autoSwitch(who)"), script.indexOf("function commsSwitch(rows)"));
@@ -1220,9 +1220,28 @@ describe("the script", () => {
   // Before the quota line, behind a dot, the version the server runs: a release, or the commit
   // of a build, with a newer release beside it and how to take it on hover.
   it("draws the version the server runs before the quota line, and a newer release beside it", () => {
-    assert.match(script, /panel\.fitPlaceholder\(\);\s*if \(panel\.facts !== null\) \{\s*panel\.facts\.version\.textContent = versionLine\(state\.version, state\.release\);\s*panel\.facts\.version\.title = versionTitle\(state\.release\);\s*panel\.facts\.quota\.textContent/);
+    assert.match(script, /panel\.fitPlaceholder\(\);\s*if \(panel\.facts !== null\) \{\s*panel\.facts\.version\.textContent = versionLine\(state\.version, state\.release\);\s*panel\.facts\.version\.title = versionTitle\(state\.release, state\.restartable\);\s*panel\.facts\.update\.hidden = state\.release === null \|\| !state\.restartable;\s*if \(state\.release !== null\) panel\.facts\.update\.title = updateTitle\(state\.release\);\s*panel\.facts\.restart\.hidden = !state\.restartable;\s*panel\.facts\.quota\.textContent/);
     const dotted = rules.find((rule) => rule.selector.includes(".phead .version:not(:empty)::before"));
     assert.equal(dotted?.declarations.content, '"\\00a0·\\00a0"');
+  });
+
+  // The server's own buttons: the update beside a newer release's notice, and the reload and the
+  // restart last on the Leader's head. The update and the restart are drawn only where the server
+  // may be restarted from the page (not on port 0), and both ask first, since both park the room;
+  // a press asks the server once and nothing more. A restart hidden is not drawn: the head's
+  // buttons are displayed by the class, so the hidden attribute needs a rule of its own.
+  it("draws an update beside the notice and a reload and a restart on the Leader's head; the two that park the room ask first", () => {
+    assert.match(script, /restart: serverButton\(POWER, RESTART_TITLE, "\/restart", \(\) => RESTART_ASK\),\s*reload: serverButton\(RELOAD, RELOAD_TITLE, "\/reload", null\),/);
+    const made = script.slice(script.indexOf("function serverButton("), script.indexOf("function commsSwitch(rows)"));
+    assert.match(made, /button\.addEventListener\("click", async \(\) => \{\s*if \(ask !== null && !confirm\(ask\(\)\)\) return;\s*await call\(route, \{ method: "POST" \}\)\.catch\(\(\) => null\);\s*\}\);/);
+    assert.match(script, /facts\.update\.addEventListener\("click", async \(\) => \{\s*if \(state\.release === null \|\| !confirm\(updateAsk\(state\.release\)\)\) return;\s*await call\("\/update", \{ method: "POST" \}\)\.catch\(\(\) => null\);\s*\}\);/);
+    assert.equal(rules.find((rule) => rule.selector === ".phead .notify[hidden]")?.declarations.display, "none");
+  });
+
+  // A restart's patience out: the line is drawn again with nothing arriving, and a server still
+  // there then never went.
+  it("draws the Leader's line again once a restart's patience is out", () => {
+    assert.match(script, /if \(name === "going"\) \{\s*setTimeout\(\(\) => \{\s*if \(state\.connection === CONNECTED\) state\.going = null;\s*draw\(\);\s*\}, data\.patience \* 1000\);\s*\}/);
   });
 
   // The tab's icon carries the asking state, the title never: on every draw the icon link points
@@ -1249,7 +1268,7 @@ describe("the script", () => {
     assert.match(script, /call\("\/sessions"\)\.then\(\s*\(answered\) => \(answered\.status === 503 \? setTimeout\(probe, 1000\) : connect\(\)\),\s*\(\) => \{\s*lost\(\);\s*setTimeout\(probe, 1000\);/);
     assert.match(script, /if \(answered\.status === 503\) \{\s*applyEvent\(state, \{ name: "stopping", data: \{\} \}\);\s*draw\(\);/);
     assert.match(script, /stream\.addEventListener\("open", \(\) => \{\s*state\.connection = CONNECTED;\s*draw\(\);/);
-    assert.match(script, /const EVENTS = \["snapshot", "rows", "row", "asking", "seat", "quota", "auto", "status", "wake", "release", "stopping"\];/);
+    assert.match(script, /const EVENTS = \["snapshot", "rows", "row", "asking", "seat", "quota", "auto", "status", "wake", "release", "going", "stopping"\];/);
     assert.ok(!script.includes("STOPPING"), "the page still carries a stopping word");
   });
 

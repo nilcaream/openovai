@@ -22,7 +22,7 @@ import { localAt, refTo } from "../lib/chat/refs.mjs";
 import { listening } from "../lib/chat/runtime.mjs";
 import { COOKIE_AGE, LINK_FILE, LINK_LIFETIME, sessionKey, writeLink } from "../lib/chat/signin.mjs";
 import { hire } from "../lib/desks.mjs";
-import { INTRODUCED_FILE, SIGN_IN_WARN, endSeat, introduce, serve, shownRoot, startSeat, toolsFor, warnSignIn } from "../lib/chat/server.mjs";
+import { INTRODUCED_FILE, SIGN_IN_WARN, endSeat, introduce, reloadLine, serve, shownRoot, startSeat, toolsFor, warnSignIn } from "../lib/chat/server.mjs";
 import { wallClock } from "../lib/chat/log.mjs";
 import { INTRODUCTION_TEMPLATE } from "../lib/desks.mjs";
 import { SIGN_IN_ROW, close } from "../lib/chat/lifecycle.mjs";
@@ -2651,7 +2651,7 @@ describe("what the page is made of", () => {
     assert.deepEqual(labels, ["(double-click to see the whole message)"], "a word of the page's own other than the pill and the fold's placeholder (the dialog buttons come from dialog.mjs)");
     const pill = [...script.matchAll(/const (?:LATEST|NEW_ROWS) = "([^"]*)";/g)].map((found) => found[1]);
     assert.deepEqual(pill, ["↓ latest", "↓ new messages"], "the pill's two words, and no lifecycle word among them");
-    assert.deepEqual([...script.matchAll(/\.textContent = ([A-Z_]+);/g)].map((found) => found[1]), ["LATEST", "LATEST", "STATUS_WHO", "NEW_ROWS"], "the pill says only its own two words, and the Leader's status its who");
+    assert.deepEqual([...script.matchAll(/\.textContent = ([A-Z_]+);/g)].map((found) => found[1]), ["UPDATE_WORD", "LATEST", "LATEST", "STATUS_WHO", "NEW_ROWS"], "the pill says only its own two words, the Leader's status its who, and the update beside a newer release its one word");
     const buttons = [...script.matchAll(/\.className = "(stop|theme)";/g)].map((found) => found[1]);
     assert.deepEqual(buttons, ["theme", "stop"], "a button of the page's own other than the theme toggle and the stop glyph");
     assert.equal(source.split("<button").length - 1, 0, "a button in the markup");
@@ -2980,10 +2980,10 @@ describe("the stream", () => {
 });
 
 describe("who writes to a session", () => {
-  it("is session.mjs, through the frame writer, the two permission answers, the interrupt and the mode switch, and nobody else", () => {
+  it("is session.mjs, through the frame writer, the two permission answers, the interrupt, the mode switch and the control requests, and nobody else", () => {
     const found = spawnSync("grep", ["-rn", "stdin.write", path.join(repo, "lib")], { encoding: "utf8" });
     const lines = found.stdout.trim().split("\n");
-    assert.equal(lines.length, 5, found.stdout);
+    assert.equal(lines.length, 6, found.stdout);
     for (const line of lines) {
       assert.match(line, /^.*lib\/chat\/session\.mjs:\d+:/, line);
     }
@@ -3421,5 +3421,64 @@ describe("the Leader's status, confirmed while a line joins at the confirming ca
     assert.equal(kept().since, 1, "the line that joined after the confirmation");
     await tool(martin.secret, "confirm_status");
     assert.equal(kept().since, 0, "a call that came back leaves nothing to count against the next confirmation");
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+
+// The server's own buttons on the Leader's head. A restart and an update start a helper that
+// outlives the server, which tests/ovai.test.mjs runs for real on an instance of its own; here,
+// on port 0, both are refused and nothing is started. The reload asks every running session over
+// its pipe, the skills first, and says on each panel what it answered.
+describe("the page's restart, update and reload", () => {
+  const reloadsIn = (log) => fs.readFileSync(log, "utf8").split("\n").filter((line) => line.startsWith("reload: "));
+  const lastRow = (seat) => read(instance, seat).at(-1);
+
+  afterEach(async () => {
+    for (const opened of open.splice(0)) {
+      opened.close();
+    }
+    await endEvery(500);
+  });
+
+  it("refuses a restart and an update on port 0, starts nothing, and the snapshot says so", async () => {
+    const client = await listen();
+    await until(client, (event) => event.name === "snapshot");
+    assert.equal(client.events.find((event) => event.name === "snapshot").data.restartable, false);
+    for (const route of ["/restart", "/update"]) {
+      const answered = await page("POST", route);
+      assert.equal(answered.status, 409, route);
+      assert.match(JSON.parse(answered.body).error, /needs a fixed port: on port 0 the server comes back on another one$/);
+    }
+    assert.ok(!said.some((row) => row.startsWith("helper ")), said.filter((row) => row.includes("helper")).join("\n"));
+    assert.ok(!client.events.some((event) => event.name === "going"));
+  });
+
+  it("asks every running session for its skills, then its plugins held on the cache, and writes one row per panel", async () => {
+    const martin = await seatUp(LEADER);
+    const paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_RELOAD: "held" });
+    const answered = await page("POST", "/reload");
+    assert.equal(answered.status, 200);
+    assert.deepEqual(JSON.parse(answered.body).asked.sort(), [LEADER, WORKER].sort());
+    assert.deepEqual(reloadsIn(martin.log), ["reload: reload_skills", "reload: reload_plugins hold"]);
+    assert.deepEqual(reloadsIn(paul.log), ["reload: reload_skills", "reload: reload_plugins hold"]);
+    assert.deepEqual(lastRow(LEADER), { ...lastRow(LEADER), from: SERVER, text: "Skills and plugins reloaded" });
+    assert.equal(lastRow(WORKER).text, "Skills reloaded; plugins held, since loading them would change the tools this conversation's cache rests on — they load at the next start (1 plugin error, in /plugin)");
+    assert.equal(callsIn(martin.log).length, 1, "the process was not started again");
+  });
+
+  it("does not ask for the plugins when the skills were refused, and says why", async () => {
+    const paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_RELOAD: "error" });
+    assert.equal((await page("POST", "/reload")).status, 200);
+    assert.deepEqual(reloadsIn(paul.log), ["reload: reload_skills"]);
+    assert.equal(lastRow(WORKER).text, "Skills and plugins not reloaded: skills unreadable");
+  });
+
+  it("says a session that never answered did not, and asks nobody with no session running", async () => {
+    assert.equal(reloadLine(null, null), "Skills and plugins not reloaded: the session did not answer");
+    assert.equal(reloadLine({ subtype: "success", response: {} }, null), "Skills and plugins not reloaded: the session did not answer");
+    assert.equal(reloadLine({ subtype: "success", response: {} }, { subtype: "success", response: { error_count: 2, held: false } }), "Skills and plugins reloaded (2 plugin errors, in /plugin)");
+    const answered = await page("POST", "/reload");
+    assert.deepEqual(JSON.parse(answered.body), { asked: [] });
   });
 });

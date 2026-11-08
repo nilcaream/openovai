@@ -3095,5 +3095,20 @@
         "to": "--me-line: #2e6b63; --me-dim: #9aa7b4;"
       }
     ]
+  },
+  {
+    "name": "a hidden restart button is still drawn",
+    "catches": "draws an update beside the notice and a reload and a restart on the Leader's head; the two that park the room ask first",
+    "edits": [{ "file": "lib/chat/page.html", "from": "  .phead .notify[hidden] { display: none; }", "to": "  .phead .notify[hidden] { display: inline-flex; }" }]
+  },
+  {
+    "name": "the restart parks the room without asking",
+    "catches": "draws an update beside the notice and a reload and a restart on the Leader's head; the two that park the room ask first",
+    "edits": [{ "file": "lib/chat/page.html", "from": "      if (ask !== null && !confirm(ask())) return;\n", "to": "" }]
+  },
+  {
+    "name": "the Leader's line is not drawn again when the patience is out",
+    "catches": "draws the Leader's line again once a restart's patience is out",
+    "edits": [{ "file": "lib/chat/page.html", "from": "          }, data.patience * 1000);", "to": "          }, data.patience * 1000 * 1000);" }]
   }
 ]

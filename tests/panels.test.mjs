@@ -316,6 +316,29 @@ describe("the Leader's panel", () => {
     assert.equal(pillLine(state, LEADER), LINE_DISCONNECTED, "a server that says it is stopping is as good as gone");
   });
 
+  // A restart or an update the page asked for: the server going is what was asked, and the line
+  // says so; past the patience it says where to look and how to start one; the next snapshot is
+  // the server back, and the words go.
+  it("the Leader's bottom line says a restart is on its way while there is no server, then where to look", () => {
+    const state = fresh();
+    applyEvent(state, snapshot([about(LEADER)], { restartable: true }), 0);
+    assert.equal(state.restartable, true);
+    applyEvent(state, { name: "going", data: { what: "restart", patience: 65, log: "/i/runtime.log" } }, 1000);
+    assert.equal(pillLine(state, LEADER, new Date(2000)), LINE_WAITING, "a server still here says what it always says");
+    state.connection = DISCONNECTED;
+    assert.equal(pillLine(state, LEADER, new Date(2000)), "Restarting…");
+    assert.equal(pillLine(state, LEADER, new Date(65_999)), "Restarting…");
+    assert.equal(pillLine(state, LEADER, new Date(66_000)), "No server 65 s after the restart: /i/runtime.log says why, and ovai start starts it");
+    applyEvent(state, { name: "going", data: { what: "update", patience: 65, log: "/i/runtime.log" } }, 70_000);
+    assert.equal(pillLine(state, LEADER, new Date(70_000)), "Updating…");
+    state.connection = CONNECTED;
+    applyEvent(state, snapshot([about(LEADER)]), 71_000);
+    assert.equal(state.going, null);
+    assert.equal(state.restartable, false, "a snapshot that does not say restartable is not");
+    state.connection = DISCONNECTED;
+    assert.equal(pillLine(state, LEADER, new Date(72_000)), LINE_DISCONNECTED);
+  });
+
   it("with no process, a page without a stream still says red and nothing, and a Worker gone is still red", () => {
     const state = fresh();
     applyEvent(state, snapshot([about(LEADER, { running: false }), about("Paul")]), 0);
@@ -376,10 +399,11 @@ describe("marks and controls", () => {
     const state = fresh();
     applyEvent(state, snapshot([about(LEADER)], { version: "0.26.0" }), 0);
     assert.equal(versionLine(state.version, state.release), "0.26.0");
-    assert.equal(versionTitle(state.release), "");
+    assert.equal(versionTitle(state.release, true), "");
     applyEvent(state, { name: "release", data: { version: "0.27.0" } }, 1);
     assert.equal(versionLine(state.version, state.release), "0.26.0 (0.27.0 is out)");
-    assert.equal(versionTitle(state.release), "0.27.0 is out. To take it: ovai stop, ovai update, ovai start. The Leader turns this notice off on your word (update.check).");
+    assert.equal(versionTitle(state.release, false), "0.27.0 is out. To take it: ovai stop, ovai update, ovai start. The Leader turns this notice off on your word (update.check).");
+    assert.equal(versionTitle(state.release, true), "0.27.0 is out. To take it: the update button beside this, or at a terminal ovai stop, ovai update, ovai start. The Leader turns this notice off on your word (update.check).");
     applyEvent(state, { name: "release", data: null }, 2);
     assert.equal(versionLine(state.version, state.release), "0.26.0");
     applyEvent(state, snapshot([about(LEADER)], { version: "0.26.0", release: { version: "0.28.0" } }), 3);

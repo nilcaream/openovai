@@ -17,6 +17,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import fs from "node:fs";
+import net from "node:net";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
@@ -25,6 +26,7 @@ import {
   // for the checks that are about an install being refused rather than about what it wrote.
   install as installing,
   installed,
+  pageCookie,
   projectDirectoriesIn,
   readLog,
   remove,
@@ -1710,6 +1712,80 @@ describe("the server commands", () => {
     assert.ok(fs.existsSync(runtime));
     assert.equal(ovai(["status"]).stdout, "not running\n");
     assert.equal(ovai(["stop"]).stdout, "not running\n");
+  });
+});
+
+// The page's restart, for real: the server starts a helper that outlives it and runs `ovai
+// restart`, and the open page's cookie opens the server that comes back. On a fixed port, found
+// free a moment before the install: the one kind of instance the page restarts (port 0 is
+// refused, tests/chat.test.mjs).
+describe("the page's restart", () => {
+  const served = `${instance}-page-restart`;
+  const runtime = path.join(served, "runtime.json");
+  const pidRecorded = () => {
+    try {
+      return JSON.parse(fs.readFileSync(runtime, "utf8")).pid;
+    } catch {
+      return null;
+    }
+  };
+  const ovai = (argv, changes) => run(served, log, argv, changes);
+  const end = () => {
+    try {
+      process.kill(pidRecorded(), "SIGTERM");
+    } catch {
+      // Nothing running, or nothing recorded.
+    }
+    remove(served);
+  };
+  const freePort = () =>
+    new Promise((resolve) => {
+      const probe = net.createServer().listen(0, "127.0.0.1", () => {
+        const { port } = probe.address();
+        probe.close(() => resolve(port));
+      });
+    });
+
+  before(async () => {
+    process.on("exit", end);
+    remove(served);
+    installed({
+      "--root": served,
+      "--source": source(),
+      "--user": USER,
+      "--leader": LEADER,
+      "--leader-model": LEADER_MODEL,
+      "--worker-model": WORKER_MODEL,
+      "--port": await freePort(),
+      "--auth": "login",
+    });
+  });
+  after(end);
+
+  it("starts a helper without the instance's home, which restarts the server; the page's cookie opens the new one", async () => {
+    const started = ovai(["start"]);
+    assert.equal(started.status, 0, started.stderr);
+    const url = new URL(started.stdout.trim().split("\n").at(-1)).origin;
+    const pid = pidRecorded();
+    const cookie = pageCookie(served, url);
+
+    const asked = await fetch(`${url}/restart`, { method: "POST", headers: { cookie, origin: url } });
+    assert.equal(asked.status, 202);
+    assert.deepEqual(await asked.json(), { what: "restart", patience: 65, log: path.join(served, "runtime.log") });
+
+    // With the instance's home in its environment the helper's own shell is a session to the stop,
+    // which waits 35 s for it and fails, and nothing starts: back within 20 s is back without it.
+    let back = null;
+    for (let waited = 0; waited < 20_000 && back === null; waited += 200) {
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      const now = pidRecorded();
+      if (now !== null && now !== pid && (await fetch(`${url}/health`).then((answered) => answered.ok, () => false))) back = now;
+    }
+    const said = fs.readFileSync(path.join(served, "runtime.log"), "utf8");
+    assert.notEqual(back, null, said);
+    assert.equal((await fetch(`${url}/sessions`, { headers: { cookie } })).status, 200);
+    assert.match(said, / helper - - restart: pid \d+, "\$0" restart\n/);
+    assert.match(said, new RegExp(`^Stopping the server at ${url} \\(pid ${pid}\\)\\.$`, "m"));
   });
 });
 

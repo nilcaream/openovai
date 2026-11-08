@@ -1,6 +1,6 @@
 {
-  "about": "Strings the page never carries, case-insensitive, matched at the start of a word: the labels of lifecycle buttons and the words that would say what state a session is in. Checked over page.html, panels.mjs and render.mjs as text. The phrases under except are taken out first: the Leader's line saying when the server starts it again is a time, not a button or a state.",
-  "except": ["resumes automatically"],
+  "about": "Strings the page never carries, case-insensitive, matched at the start of a word: the labels of lifecycle buttons and the words that would say what state a session is in. Checked over page.html, panels.mjs and render.mjs as text. The phrases under except are taken out first: the Leader's line saying when the server starts it again is a time, not a button or a state; and the server's own restart button, its words and the names it is drawn by, which stop and start the server and never one session.",
+  "except": ["resumes automatically", "restartable", "RESTART_", "facts.restart", "\"/restart\"", "restart: ", "Restart the server", "Restarting…"],
   "words": [
     "hire",
     "go offline",
