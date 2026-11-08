@@ -243,6 +243,13 @@
   .composer .stop { position: absolute; right: 9px; bottom: 9px; width: 22px; height: 22px; padding: 4px; border: 0; border-radius: 6px; background: var(--bg); box-shadow: 0 0 0 2px var(--bg); color: var(--fg-dim); cursor: pointer; }
   .composer .stop:hover { color: var(--fg); background: var(--line); }
   .composer .stop svg { width: 14px; height: 14px; display: block; }
+  /* on a desktop, where a mouse moves, the glyph shows only while it moves and for 2 s after it
+     stops (the script marks the body .pointing), and while the mouse or the keyboard is on it: a
+     turn is seldom stopped, and while typing the mouse stands still. Faded, not hidden, so the
+     mouse over it still finds it. A touch screen has no such mouse, and the glyph shows as before */
+  @media (hover: hover) and (pointer: fine) {
+    body:not(.pointing) .composer .stop:not(:hover):not(:focus-visible) { opacity: 0; }
+  }
 </style>
 
 <div id="stage">
@@ -521,6 +528,15 @@
   const LITE = 1240;
   const lite = window.matchMedia(`(max-width: ${LITE - 1}px)`);
   lite.addEventListener("change", () => draw());
+  // A mouse move anywhere in the window marks the body until the mouse has stood still for
+  // STILL ms: on a desktop the stylesheet shows the stop glyph only while the body is marked.
+  const STILL = 2000;
+  let still = 0;
+  document.addEventListener("mousemove", () => {
+    document.body.classList.add("pointing");
+    clearTimeout(still);
+    still = setTimeout(() => document.body.classList.remove("pointing"), STILL);
+  });
 
   // ------------------------------------------------------------------------------- one panel
 
@@ -742,7 +758,8 @@
       }
     });
     // The stop glyph, over the box at its right edge: there while the turn can be stopped, gone
-    // otherwise. A click interrupts the turn and nothing else — the process stays.
+    // otherwise, and on a desktop faded while the mouse stands still (`pointing`, above). A click
+    // interrupts the turn and nothing else — the process stays.
     const stop = document.createElement("button");
     stop.type = "button";
     stop.className = "stop";

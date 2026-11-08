@@ -1,5 +1,16 @@
 [
   {
+    "name": "the faded stop glyph stays faded under the mouse",
+    "catches": "fades the stop glyph on a desktop until the mouse moves, for 2 s after it stops, and never while it is on it",
+    "edits": [
+      {
+        "file": "lib/chat/page.html",
+        "from": "    body:not(.pointing) .composer .stop:not(:hover):not(:focus-visible) { opacity: 0; }",
+        "to": "    body:not(.pointing) .composer .stop:not(:focus-visible) { opacity: 0; }"
+      }
+    ]
+  },
+  {
     "name": "two dark tokens swap values",
     "catches": "declares the light tokens in bare :root and the dark ones under the theme attribute, each with its colour-scheme",
     "edits": [

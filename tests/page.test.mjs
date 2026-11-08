@@ -970,6 +970,16 @@ describe("the script", () => {
     assert.doesNotMatch(script, /headLine\.append\([^)]*stop/, "the glyph is in the box, not on the head");
   });
 
+  // On a desktop the glyph is faded while the mouse stands still: any mouse move in the window
+  // marks the body for 2 s, and the glyph shows while the body is marked or the mouse or the
+  // keyboard is on it. Faded rather than hidden, so the mouse over it still finds it; a touch
+  // screen, with no hovering mouse, is outside the rule and shows the glyph as before.
+  it("fades the stop glyph on a desktop until the mouse moves, for 2 s after it stops, and never while it is on it", () => {
+    const faded = rules.filter((rule) => /\.stop/.test(rule.selector) && rule.declarations.opacity !== undefined);
+    assert.deepEqual(faded.map((rule) => [rule.media, rule.selector, rule.declarations.opacity]), [["(hover: hover) and (pointer: fine)", "body:not(.pointing) .composer .stop:not(:hover):not(:focus-visible)", "0"]]);
+    assert.match(script, /const STILL = 2000;\s*let still = 0;\s*document\.addEventListener\("mousemove", \(\) => \{\s*document\.body\.classList\.add\("pointing"\);\s*clearTimeout\(still\);\s*still = setTimeout\(\(\) => document\.body\.classList\.remove\("pointing"\), STILL\);\s*\}\);/);
+  });
+
   // The dot and the placeholder follow what the server says of the panel's turn: the page reads
   // `busy` from the panel and marks the panel with it on every draw, then refits the placeholder —
   // a ResizeObserver alone would say the idle sentence on a busy box that never changed width.
