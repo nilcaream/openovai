@@ -138,8 +138,12 @@ describe("what the Leader is told", () => {
   it("says a hire's model may name an effort, model/effort, in the persona and in the tool", () => {
     assert.match(leader(), /A\s+model beside that when not the usual one, written as model or model\/effort\./);
     const hire = toolsFor({ root: repo, config: { user: USER, leader: LEAD }, plugins: [] }, { seat: LEAD, role: LEADER }).find((tool) => tool.name === "hire");
-    assert.match(hire.description, /as "model" or "model\/effort" \("opus", "claude-opus-5\/low"\)/);
+    assert.match(hire.description, /as "model" or "model\/effort" \("opus", "sonnet\/low"\)/);
     assert.match(hire.inputSchema.properties.model.description, /"model" or "model\/effort"/);
+    // An alias follows Claude Code to the newest model of its name; a full id pins one version.
+    assert.match(leader(), /An\s+alias, the model's name with no\s+version, runs the newest model of that name the pinned Claude Code ships; a full id, its version\s+written, pins that one version, only for a task that needs exactly that one\./);
+    assert.match(hire.description, /an alias such as "opus" runs the newest model of that name the pinned Claude Code ships, so a newer one arrives with Claude Code's update, and a full id such as "claude-opus-5-5" pins that one version, only for a task that needs exactly it/);
+    assert.match(hire.inputSchema.properties.model.description, /An alias runs the newest model of that name; a full id such as "claude-opus-5-5" pins one version, only for a task that needs exactly it\./);
   });
 
   it("says who the Leader is and whose workspace it leads", () => {

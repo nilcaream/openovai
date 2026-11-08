@@ -1142,5 +1142,38 @@
         "to": "asked about the past, and steer current work by them."
       }
     ]
+  },
+  {
+    "name": "the Leader is not told an alias follows Claude Code and a full id pins",
+    "catches": "says a hire's model may name an effort, model/effort, in the persona and in the tool",
+    "edits": [
+      {
+        "file": "lib/templates/leader.md",
+        "from": " An alias, the model's name with no\nversion, runs the newest model of that name the pinned Claude Code ships; a full id, its version\nwritten, pins that one version, only for a task that needs exactly that one.",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the hire tool does not say an alias follows Claude Code and a full id pins",
+    "catches": "says a hire's model may name an effort, model/effort, in the persona and in the tool",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": " an alias such as \\\"opus\\\" runs the newest model of that name the pinned Claude Code ships, so a newer one arrives with Claude Code's update, and a full id such as \\\"claude-opus-5-5\\\" pins that one version, only for a task that needs exactly it;",
+        "to": ""
+      }
+    ]
+  },
+  {
+    "name": "the hire tool's model does not say an alias follows Claude Code and a full id pins",
+    "catches": "says a hire's model may name an effort, model/effort, in the persona and in the tool",
+    "edits": [
+      {
+        "file": "lib/chat/server.mjs",
+        "from": " An alias runs the newest model of that name; a full id such as \\\"claude-opus-5-5\\\" pins one version, only for a task that needs exactly it.",
+        "to": ""
+      }
+    ]
   }
 ]
