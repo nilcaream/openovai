@@ -67,7 +67,8 @@ A panel shows a turn's answer, not its way there. Words a session writes between
 - Sometimes Claude's service fails in the middle of a session's turn, for example with "API Error: 403". The session does not answer then, and the panel shows a row of ovai's own, on a dashed ground, in place of a reply.
 - The row says whether the session got the message, and what it did before the failure: each action with its time, as the bottom line names it. When nothing was done, it says so.
 - The session keeps the message and the results of what it did. Send "go on" and it replies; nothing needs repeating, and nothing it did is done twice. ovai does not send it by itself.
-- Under the row, in small type, are Claude Code's own words for the failure, and a link to https://status.claude.com/ to check whether the service is down.
+- The row ends with "Source:" and Claude Code's own words for the failure, then a link to https://status.claude.com/ to check whether the service is down.
+- When a session was working on its own, with no message in the turn, the row says so; send "go on" and it carries on.
 - A session whose very first turn fails is ended instead: the row says it stopped and to send the message again, since the next message starts a fresh session that never got it. An expired sign-in has a row of its own, which says to run `ovai login`.
 
 ## Typing to a Worker

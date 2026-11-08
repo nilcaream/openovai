@@ -800,5 +800,38 @@
         "to": "stopped: false };"
       }
     ]
+  },
+  {
+    "name": "a cut row leaves out the service's words and its status page",
+    "catches": "the cut row counts a message sent as something done, and a turn with no frame as the seat's own",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "  const source = ` Source: ${why}${why.endsWith(\".\") ? \"\" : \".\"} See [${new URL(STATUS_PAGE).host}](${STATUS_PAGE}).`;",
+        "to": "  const source = \"\";"
+      }
+    ]
+  },
+  {
+    "name": "a cut row ends the service's words with a second full stop",
+    "catches": "the cut row names everything the turn held, as the User says it",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "${why.endsWith(\".\") ? \"\" : \".\"}",
+        "to": "."
+      }
+    ]
+  },
+  {
+    "name": "a seat working on its own that stopped is told to go on",
+    "catches": "the cut row counts a message sent as something done, and a turn with no frame as the seat's own",
+    "edits": [
+      {
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "      return cut.stopped === true\n        ? `Claude's service failed while",
+        "to": "      return false\n        ? `Claude's service failed while"
+      }
+    ]
   }
 ]

@@ -217,13 +217,11 @@ describe("every other row", () => {
     assert.equal(row({ from: "Paul", text: "", failed: true }, names).kind, "failed");
   });
 
-  it("a turn the service cut is the server's row, with the service's words beside it", () => {
-    assert.deepEqual(row({ from: "Server", text: "Paul got your message, but …", cut: true, why: "API Error: 403" }, names), {
-      who: "Server",
-      kind: "cut",
-      text: "Paul got your message, but …",
-      why: "API Error: 403",
-    });
+  it("a turn the service cut is the server's row, in markdown like a reply", () => {
+    const text = "Paul got your message and did 1 thing:\n- Read `a.md`\n\nThen … Source: API Error: 403. See [status.claude.com](https://status.claude.com/).";
+    assert.deepEqual(row({ from: "Server", text, cut: true }, names), { who: "Server", kind: "cut", html: html(text) });
+    assert.match(html(text), /<li>Read <code>a\.md<\/code><\/li>/);
+    assert.match(html(text), /<a href="https:\/\/status\.claude\.com\/" target="_blank" rel="noopener">status\.claude\.com<\/a>/);
   });
 
   it("a silent turn is said so", () => {

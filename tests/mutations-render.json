@@ -473,13 +473,13 @@
     ]
   },
   {
-    "name": "a cut turn's row is drawn as a plain row of the server's",
-    "catches": "a turn the service cut is the server's row, with the service's words beside it",
+    "name": "a cut turn's row is drawn as plain text",
+    "catches": "a turn the service cut is the server's row, in markdown like a reply",
     "edits": [
       {
         "file": "lib/chat/render.mjs",
-        "from": "  if (entry.cut === true) {",
-        "to": "  if (false) {"
+        "from": "    return { who: names.chat, kind: \"cut\", html: html(entry.text) };",
+        "to": "    return { who: names.chat, kind: \"cut\", text: String(entry.text) };"
       }
     ]
   }

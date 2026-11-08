@@ -426,6 +426,7 @@ describe("restart_session and stop_session", () => {
   // service's words, said first as if they were its own, become the server's row in place, which
   // says what reached the seat, what it did and what to send, and keeps the service's words.
   const CUT = "Failed to authenticate. API Error: 403 Attention Required! | Cloudflare";
+  const SOURCE = ` Source: ${CUT}. See [status.claude.com](https://status.claude.com/).`;
   const cutSeat = (calls) =>
     seatUp(WORKER, {
       OPENOVAI_STAND_IN_FAILS: JSON.stringify([false, true]),
@@ -441,10 +442,10 @@ describe("restart_session and stop_session", () => {
       await deliver(chat, WORKER, messageFrame(LEADER, "do it")).answered;
       await new Promise((resolve) => setTimeout(resolve, 100));
       const shown = panel(instance, WORKER).slice(from).filter((row) => row.stamp !== true && row.to === undefined);
-      assert.deepEqual(shown.map((row) => [row.from, row.line ?? null, row.cut ?? null, row.why ?? null]), [[WORKER, "List files in /tmp", null, null], [SERVER, null, true, CUT]]);
+      assert.deepEqual(shown.map((row) => [row.from, row.line ?? null, row.cut ?? null]), [[WORKER, "List files in /tmp", null], [SERVER, null, true]]);
       assert.match(
         shown[1].text,
-        new RegExp(`^${WORKER} got ${LEADER}'s message and did 1 thing:\\n- List files in /tmp \\(\\d\\d:\\d\\d:\\d\\d\\)\\n\\nThen Claude's service failed, so ${WORKER} could not reply\\. That thing is done and ${WORKER} remembers it\\. Nothing needs repeating: send "go on" to get the reply\\.$`),
+        new RegExp(`^${WORKER} got ${LEADER}'s message and did 1 thing:\\n- List files in /tmp \\(\\d\\d:\\d\\d:\\d\\d\\)\\n\\nThen Claude's service failed, so ${WORKER} could not reply\\. That thing is done and ${WORKER} remembers it\\. Nothing needs repeating: send "go on" to get the reply\\.${SOURCE.replace(/[.|()[\]]/g, "\\$&")}$`),
       );
     } finally {
       await end(WORKER, 500);
@@ -459,8 +460,8 @@ describe("restart_session and stop_session", () => {
       await deliver(chat, WORKER, userFrame("two")).answered;
       await new Promise((resolve) => setTimeout(resolve, 100));
       const shown = panel(instance, WORKER).slice(from).filter((row) => row.stamp !== true && row.from !== "user");
-      assert.deepEqual(shown.map((row) => [row.from, row.text, row.why]), [
-        [SERVER, `${WORKER} got your message, but Claude's service failed before ${WORKER} could act on it. Nothing was done and there is no reply yet. Send "go on" and ${WORKER} answers it.`, CUT],
+      assert.deepEqual(shown.map((row) => [row.from, row.text]), [
+        [SERVER, `${WORKER} got your message, but Claude's service failed before ${WORKER} could act on it. Nothing was done and there is no reply yet. Send "go on" and ${WORKER} answers it.${SOURCE}`],
       ]);
     } finally {
       await end(WORKER, 500);
@@ -470,8 +471,8 @@ describe("restart_session and stop_session", () => {
   it("the cut row names everything the turn held, as the User says it", () => {
     const of = [{ kind: "user" }, { kind: "message", from: "Ann" }, { kind: "message", from: "Ann" }, { kind: "server-event", event: "checkpoint" }];
     assert.equal(
-      cutWords("Bob", { of, calls: [] }, instance),
-      `Bob got your message, Ann's messages and a notice from ovai, but Claude's service failed before Bob could act on them. Nothing was done and there is no reply yet. Send "go on" and Bob answers them.`,
+      cutWords("Bob", { of, calls: [] }, instance, "API Error: 500 Internal server error."),
+      `Bob got your message, Ann's messages and a notice from ovai, but Claude's service failed before Bob could act on them. Nothing was done and there is no reply yet. Send "go on" and Bob answers them. Source: API Error: 500 Internal server error. See [status.claude.com](https://status.claude.com/).`,
     );
   });
 
@@ -479,12 +480,16 @@ describe("restart_session and stop_session", () => {
     const at = new Date(2026, 10, 13, 11, 15, 57).getTime();
     const calls = [{ name: "ToolSearch", input: { query: "select:x" }, at }, { name: "mcp__openovai__message", input: { to: "Ann", text: "go" }, at }];
     assert.equal(
-      cutWords("Bob", { of: [{ kind: "user" }], calls }, instance),
-      `Bob got your message and did 1 thing:\n- Sent a message to Ann (11:15:57)\n\nThen Claude's service failed, so Bob could not reply. That thing is done and Bob remembers it. Nothing needs repeating: send "go on" to get the reply.`,
+      cutWords("Bob", { of: [{ kind: "user" }], calls }, instance, CUT),
+      `Bob got your message and did 1 thing:\n- Sent a message to Ann (11:15:57)\n\nThen Claude's service failed, so Bob could not reply. That thing is done and Bob remembers it. Nothing needs repeating: send "go on" to get the reply.${SOURCE}`,
     );
     assert.equal(
-      cutWords("Bob", { of: [], calls: [] }, instance),
-      `Bob was working on its own, but Claude's service failed before Bob could do anything. Nothing was done and there is no reply yet. Send "go on" and Bob goes on.`,
+      cutWords("Bob", { of: [], calls: [] }, instance, CUT),
+      `Claude's service failed while Bob was working on its own. Nothing was done. Send "go on" and Bob carries on.${SOURCE}`,
+    );
+    assert.equal(
+      cutWords("Bob", { of: [], calls: [], stopped: true }, instance, CUT),
+      `Claude's service failed while Bob was working on its own, and Bob stopped. Nothing was done.${SOURCE}`,
     );
   });
 
@@ -497,8 +502,8 @@ describe("restart_session and stop_session", () => {
       await deliver(chat, WORKER, userFrame("one")).answered;
       await new Promise((resolve) => setTimeout(resolve, 100));
       const shown = panel(instance, WORKER).slice(from).filter((row) => row.stamp !== true && row.divider !== true && row.from !== "user");
-      assert.deepEqual(shown.map((row) => [row.from, row.text, row.why]), [
-        [SERVER, `${WORKER} got your message, but Claude's service failed before ${WORKER} could act on it, and ${WORKER} stopped. Send your message again.`, CUT],
+      assert.deepEqual(shown.map((row) => [row.from, row.text]), [
+        [SERVER, `${WORKER} got your message, but Claude's service failed before ${WORKER} could act on it, and ${WORKER} stopped. Send your message again.${SOURCE}`],
       ]);
     } finally {
       await end(WORKER, 500);

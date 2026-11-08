@@ -558,17 +558,6 @@ describe("the rules", () => {
 });
 
 describe("the script", () => {
-  // A turn the service cut: the server's words as they are, list and all, and the service's own
-  // under them in small type, beside the link to the service's status page.
-  it("draws a cut turn's row with the service's words small under it and the status page beside them", () => {
-    assert.match(script, /if \(shown\.kind === "cut"\) \{\s*const why = document\.createElement\("div"\);\s*why\.className = "why";\s*const link = document\.createElement\("a"\);\s*link\.href = STATUS_PAGE;/);
-    assert.match(script, /why\.append\(`\$\{shown\.why\} · `, link\);\s*bubble\.append\(why\);/);
-    const declared = (selector) => rules.find((rule) => rule.selector === selector)?.declarations;
-    assert.equal(declared(".msg.cut .text")["white-space"], "pre-wrap", "the calls are one line each");
-    assert.equal(declared(".msg.cut .why")["font-size"], ".8em");
-    assert.equal(declared(".msg.cut .bubble")["border-style"], "dashed", "not a session's message");
-  });
-
   it("stamps a row with the reader's own day and time, the weekday written out, on a 24-hour clock", () => {
     const options = [...script.matchAll(/new Intl\.DateTimeFormat\("en-GB", \{([^}]*)\}\)/g)].map(([, inside]) => inside);
     assert.equal(options.length, 1, "one formatter, for every stamp: a second one is a second format");
@@ -593,7 +582,7 @@ describe("the script", () => {
   // The page draws a pill only for a row the server stored as one (a stamp or a divider): it
   // names no day of its own, so every row drawn is the row of the conversation and nothing else.
   it("draws no pill of its own between two days, only the rows it is given", () => {
-    assert.match(script, /import \{ html as markdownOf, row as rowOf, STATUS_PAGE, talks, unseen \} from "\.\/render\.mjs";/);
+    assert.match(script, /import \{ html as markdownOf, row as rowOf, talks, unseen \} from "\.\/render\.mjs";/);
     assert.match(script, /const index = from \+ offset;\s*if \(unseen\(about\.rows, index\)\) continue;\s*const shown = rowOf\(/, "a row left out of the drawing is skipped, and counted all the same; the next row drawn is the one given");
     assert.doesNotMatch(script, /dayPill|panel\.day|dataset\.day/, "no pill is built for a day, none is told from a row, and the panel keeps no day");
     assert.match(script, /while \(panel\.rows\.firstElementChild !== stop\) panel\.rows\.firstElementChild\.remove\(\);\s*for \(const kept of/, "the trim takes the rows before the window and nothing else");

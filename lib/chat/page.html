@@ -132,8 +132,6 @@
   .msg.pending .bubble { background: var(--pending); border-style: dashed; color: var(--fg-dim); }
   .msg.failed .bubble { border-color: var(--bad); }
   .msg.cut .bubble { background: var(--pending); border-color: var(--bad); border-style: dashed; }
-  .msg.cut .text { white-space: pre-wrap; overflow-wrap: anywhere; }
-  .msg.cut .why { margin: 4px 0 2px; font-size: .8em; color: var(--fg-dim); overflow-wrap: anywhere; }
   /* a message between two sessions on the Leader's panel: one ground for what went to a session, another for what came from one;
      a folded row with something under its fold — marked so once it is measured on the page — carries the pointer */
   .msg.foldable { cursor: pointer; }
@@ -276,7 +274,7 @@
 
   import { answerOf, dialogOf } from "./dialog.mjs";
   import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, autoLabel, autoTitle, RED, RELOAD_TITLE, RESTART_ASK, RESTART_TITLE, updateAsk, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, loadsOlder, noticed, place, prune, quotaLine, replaced, quotaTitle, insertRef, keptFirst, pillLine, quoteLines, stopEnabled, statusLabel, statusQuote, statusRef, title, typingBeat, versionTitle, windowStart, withQuotes, LINE_WAITING, STATUS_TITLE, STATUS_WHO, WINDOW } from "./panels.mjs";
-  import { html as markdownOf, row as rowOf, STATUS_PAGE, talks, unseen } from "./render.mjs";
+  import { html as markdownOf, row as rowOf, talks, unseen } from "./render.mjs";
   import { refTo, references } from "./refs.mjs";
 
   // The theme: the head script above <style> applied the stored choice before the first paint;
@@ -1147,19 +1145,6 @@
       body.textContent = shown.text;
     }
     bubble.append(meta, body);
-    // A turn the service cut: under the server's words, the service's own in small type, and where
-    // to see whether the service is down.
-    if (shown.kind === "cut") {
-      const why = document.createElement("div");
-      why.className = "why";
-      const link = document.createElement("a");
-      link.href = STATUS_PAGE;
-      link.target = "_blank";
-      link.rel = "noopener";
-      link.textContent = new URL(STATUS_PAGE).host;
-      why.append(`${shown.why} · `, link);
-      bubble.append(why);
-    }
     line.append(bubble);
     // The server's own rows fold too: a wait row names the whole call, and one line of it is enough.
     if (shown.kind === "peer-in" || shown.kind === "peer-out" || shown.kind === "overheard" || shown.kind === "chat") {
