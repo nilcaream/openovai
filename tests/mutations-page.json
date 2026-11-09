@@ -3130,5 +3130,15 @@
     "name": "the version is not red while a newer release is out",
     "catches": "draws the version the server runs before the quota line, red while a newer release is out",
     "edits": [{ "file": "lib/chat/page.html", "from": "  .phead .version.newer { color: var(--bad); }", "to": "  .phead .version.newer { color: var(--fg-dim); }" }]
+  },
+  {
+    "name": "a prompt brought back with Up shows a caret",
+    "catches": "browses the prompts typed on the panel, the draft set aside, a prompt taken into the box and never sent",
+    "edits": [{ "file": "lib/chat/page.html", "from": "  .composer textarea.browsing { color: var(--fg-dim); caret-color: transparent; }", "to": "  .composer textarea.browsing { color: var(--fg-dim); }" }]
+  },
+  {
+    "name": "a stamp pointed at while browsing goes into the prompt shown",
+    "catches": "makes every stamp a click that puts a reference to its row into the composer at the cursor, sent as typed",
+    "edits": [{ "file": "lib/chat/page.html", "from": "  function pointAt(panel, ref) {\n    panel.leave();\n", "to": "  function pointAt(panel, ref) {\n" }]
   }
 ]

@@ -1014,5 +1014,20 @@
     "name": "the update's question names no release day",
     "catches": "a newer release is known from the snapshot and the release event, with how to take it and the question before an update",
     "edits": [{ "file": "lib/chat/panels.mjs", "from": "  return `${release.version} is out, released ${day}`;", "to": "  return `${release.version} is out`;" }]
+  },
+  {
+    "name": "Up brings back a prompt from anywhere in the box",
+    "catches": "Up at the very start of a box goes back to the prompts typed before, and browsing takes only Up, Down, Enter and Escape",
+    "edits": [{ "file": "lib/chat/panels.mjs", "from": "  return key === \"ArrowUp\" && atStart && !shiftKey", "to": "  return key === \"ArrowUp\" && !shiftKey" }]
+  },
+  {
+    "name": "a prompt sent twice in a row is brought back twice",
+    "catches": "the prompts are the last 10 lines the User typed on the panel, newest first, one sent twice in a row counted once",
+    "edits": [{ "file": "lib/chat/panels.mjs", "from": "    if (typed.at(-1) === row.text) continue;\n", "to": "" }]
+  },
+  {
+    "name": "a line typed to a Worker is one of the Leader's prompts",
+    "catches": "the prompts are the last 10 lines the User typed on the panel, newest first, one sent twice in a row counted once",
+    "edits": [{ "file": "lib/chat/panels.mjs", "from": "    if (row?.from !== \"user\" || typeof row.typedTo === \"string\" || ", "to": "    if (row?.from !== \"user\" || " }]
   }
 ]

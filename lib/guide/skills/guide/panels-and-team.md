@@ -73,3 +73,10 @@ A panel shows a turn's answer, not its way there. Words a session writes between
 
 ## Typing to a Worker
 Typing on a Worker's panel speaks to that Worker directly. It answers, and the Leader is told what was said. A panel whose process is gone takes no typing.
+
+## Previous messages with the up arrow
+- Each input box keeps the last 10 messages typed on that panel, read from the panel itself, so they survive a page reload and differ from panel to panel. A message sent twice in a row counts once.
+- Up moves the cursor up as usual. Once the cursor is at the very start of the box, the next Up shows the previous message, greyed and with no cursor. What was being typed is set aside, not lost.
+- While a previous message shows, Up goes further back and Down comes forward. Down past the newest brings back what was being typed, and so does Escape. Other keys do nothing.
+- Enter, or a click into the box, puts the message shown into the box to edit. It is not sent. A second Enter sends it.
+- This is for a keyboard. Phones and tablets are not supported.

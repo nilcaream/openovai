@@ -575,7 +575,7 @@ describe("the script", () => {
   // box when the panel is built.
   it("reloads when a snapshot names another version, keeping each unsent draft and the version it went for", () => {
     assert.match(script, /const data = JSON\.parse\(event\.data\);\s*if \(replaced\(state, \{ name, data \}, kept\(RELOADED_FOR\)\)\) \{\s*reloadFor\(data\.version\);\s*return;\s*\}/);
-    assert.match(script, /for \(const \[name, panel\] of sections\) \{\s*if \(panel\.box\.value !== ""\) unsent\[name\] = panel\.box\.value;\s*\}\s*try \{\s*sessionStorage\.setItem\(RELOADED_FOR, version\);\s*sessionStorage\.setItem\(DRAFTS, JSON\.stringify\(unsent\)\);\s*\} catch \(error\) \{\}\s*location\.reload\(\);/);
+    assert.match(script, /for \(const \[name, panel\] of sections\) \{\s*panel\.leave\(\);\s*if \(panel\.box\.value !== ""\) unsent\[name\] = panel\.box\.value;\s*\}\s*try \{\s*sessionStorage\.setItem\(RELOADED_FOR, version\);\s*sessionStorage\.setItem\(DRAFTS, JSON\.stringify\(unsent\)\);\s*\} catch \(error\) \{\}\s*location\.reload\(\);/);
     assert.match(script, /if \(typeof drafts\[name\] === "string"\) \{\s*box\.value = drafts\[name\];\s*delete drafts\[name\];/, "a panel built after the reload gets its draft back");
   });
 
@@ -610,7 +610,7 @@ describe("the script", () => {
   it("makes every stamp a click that puts a reference to its row into the composer at the cursor, sent as typed", () => {
     assert.match(script, /if \(entry\.at !== undefined\) \{\s*time\.title = REFERENCE;\s*time\.addEventListener\("click", \(\) => pointAt\(panel, refTo\(entry\.at\)\)\);\s*\}/);
     assert.match(script, /const REFERENCE = "click to reference this message in your reply";/);
-    assert.match(script, /function pointAt\(panel, ref\) \{\s*const box = panel\.box;\s*const put = insertRef\(box\.value, box\.selectionStart, box\.selectionEnd, ref\);\s*box\.value = put\.value;\s*box\.setSelectionRange\(put\.caret, put\.caret\);\s*box\.dispatchEvent\(new Event\("input"\)\);\s*if \(!box\.disabled\) box\.focus\(\);\s*\}/);
+    assert.match(script, /function pointAt\(panel, ref\) \{\s*panel\.leave\(\);\s*const box = panel\.box;\s*const put = insertRef\(box\.value, box\.selectionStart, box\.selectionEnd, ref\);\s*box\.value = put\.value;\s*box\.setSelectionRange\(put\.caret, put\.caret\);\s*box\.dispatchEvent\(new Event\("input"\)\);\s*if \(!box\.disabled\) box\.focus\(\);\s*\}/);
     assert.match(script, /composer\.addEventListener\("submit", \(event\) => \{\s*event\.preventDefault\(\);\s*if \(box\.value\.trim\(\) === ""\) \{\s*return;\s*\}\s*const text = withQuotes\(box\.value, quoted\);\s*box\.value = "";/, "a row's reference goes as typed; a status bullet's is spelled out");
     assert.doesNotMatch(script, /new Map\(\);\s*box\.addEventListener/, "no table is kept between the click and the send");
   });
@@ -660,9 +660,23 @@ describe("the script", () => {
   // then sets it from the scroll height under the 40vh cap — without the reset the box never
   // shrinks back after a send or a deleted line.
   it("sends on Enter through the form, and grows the box with what is typed, capped at 40vh", () => {
-    assert.match(script, /box\.addEventListener\("keydown", \(event\) => \{\s*if \(keyAction\(event\) === "send"\) \{\s*event\.preventDefault\(\);\s*composer\.requestSubmit\(\);/);
+    assert.match(script, /\} else if \(browsing === null && keyAction\(event\) === "send"\) \{\s*event\.preventDefault\(\);\s*composer\.requestSubmit\(\);/);
     assert.match(script, /box\.addEventListener\("input", autosize\)/);
     assert.match(script, /box\.style\.height = "auto";\s*const max = window\.innerHeight \* 0\.4;\s*box\.style\.height = `\$\{Math\.min\(box\.scrollHeight, max\)\}px`;/);
+  });
+
+  // Up at the start of a box: the panel's own prompts, from its rows; the draft set aside and put
+  // back by Down past the newest, by Escape, and before a stamp is pointed at or the page reloads;
+  // the prompt shown is read-only, greyed and has no caret; Enter or a click takes it, unsent.
+  it("browses the prompts typed on the panel, the draft set aside, a prompt taken into the box and never sent", () => {
+    assert.match(script, /const step = historyKey\(event, browsing !== null, box\.selectionStart === 0 && box\.selectionEnd === 0\);/);
+    assert.match(script, /const list = prompts\(state\.panels\[name\]\?\.rows\);\s*if \(list\.length === 0\) return;\s*event\.preventDefault\(\);\s*browsing = \{ list, at: 0, draft: box\.value \};\s*box\.readOnly = true;/);
+    assert.match(script, /if \(browsing\.at === 0\) stopBrowsing\(browsing\.draft\);/, "Down past the newest brings the draft back");
+    assert.match(script, /\} else if \(step === "take"\) \{\s*event\.preventDefault\(\);\s*stopBrowsing\(browsing\.list\[browsing\.at\]\);/, "Enter takes the prompt and does not send");
+    assert.match(script, /box\.addEventListener\("click", \(\) => \{\s*if \(browsing !== null\) stopBrowsing\(browsing\.list\[browsing\.at\]\);/);
+    const browsing = rules.find((rule) => rule.selector === ".composer textarea.browsing")?.declarations;
+    assert.equal(browsing["caret-color"], "transparent");
+    assert.equal(browsing.color, "var(--fg-dim)");
   });
 
   // The placeholder is a property of the box, not a word of the page's own, so it is read here and

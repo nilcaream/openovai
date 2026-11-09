@@ -243,6 +243,8 @@
   .msg.perm .acts input { flex: 1 1 100%; min-width: 0; font: .82rem var(--sans); padding: 4px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); }
   /* the composer: one row that grows with what is typed, never dragged, up to 40% of the window */
   .composer { flex: 0 0 auto; min-height: 0; padding: 0; position: relative; }
+  /* an earlier prompt brought back with Up: greyed a bit, with no caret, until it is taken or left */
+  .composer textarea.browsing { color: var(--fg-dim); caret-color: transparent; }
   textarea { display: block; width: 100%; resize: none; min-height: 40px; max-height: 40vh; padding: 8px 10px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--bg); color: var(--fg); font: inherit; line-height: 1.5; outline: none; overflow-y: hidden; }
   textarea:focus { border-color: var(--accent); }
   textarea:disabled { opacity: .55; }
@@ -273,7 +275,7 @@
   // draws it and carries what is typed and pressed to the server.
 
   import { answerOf, dialogOf } from "./dialog.mjs";
-  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, autoLabel, autoTitle, RED, RELOAD_TITLE, RESTART_ASK, RESTART_TITLE, updateAsk, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, loadsOlder, noticed, place, prune, quotaLine, replaced, quotaTitle, insertRef, keptFirst, pillLine, quoteLines, stopEnabled, statusLabel, statusQuote, statusRef, title, typingBeat, versionTitle, windowStart, withQuotes, LINE_WAITING, STATUS_TITLE, STATUS_WHO, WINDOW } from "./panels.mjs";
+  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, autoLabel, autoTitle, RED, RELOAD_TITLE, RESTART_ASK, RESTART_TITLE, updateAsk, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, historyKey, keyAction, loadsOlder, noticed, place, prompts, prune, quotaLine, replaced, quotaTitle, insertRef, keptFirst, pillLine, quoteLines, stopEnabled, statusLabel, statusQuote, statusRef, title, typingBeat, versionTitle, windowStart, withQuotes, LINE_WAITING, STATUS_TITLE, STATUS_WHO, WINDOW } from "./panels.mjs";
   import { html as markdownOf, row as rowOf, talks, unseen } from "./render.mjs";
   import { refTo, references } from "./refs.mjs";
 
@@ -794,11 +796,59 @@
       delete drafts[name];
       requestAnimationFrame(autosize);
     }
+    // Up at the very start of the box brings back the prompts typed on this panel (historyKey):
+    // the draft is set aside meanwhile, the prompt shown greyed, read-only and with no caret, and
+    // a click into the box takes it as Enter does.
+    let browsing = null;
+    const showPrompt = () => {
+      box.value = browsing.list[browsing.at];
+      autosize();
+    };
+    const stopBrowsing = (text) => {
+      browsing = null;
+      box.readOnly = false;
+      box.classList.remove("browsing");
+      box.value = text;
+      autosize();
+      box.setSelectionRange(text.length, text.length);
+    };
+    const leave = () => {
+      if (browsing !== null) stopBrowsing(browsing.draft);
+    };
     box.addEventListener("keydown", (event) => {
-      if (keyAction(event) === "send") {
+      const step = historyKey(event, browsing !== null, box.selectionStart === 0 && box.selectionEnd === 0);
+      if (step === "back" && browsing === null) {
+        const list = prompts(state.panels[name]?.rows);
+        if (list.length === 0) return;
+        event.preventDefault();
+        browsing = { list, at: 0, draft: box.value };
+        box.readOnly = true;
+        box.classList.add("browsing");
+        showPrompt();
+      } else if (step === "back") {
+        event.preventDefault();
+        browsing.at = Math.min(browsing.at + 1, browsing.list.length - 1);
+        showPrompt();
+      } else if (step === "forward") {
+        event.preventDefault();
+        if (browsing.at === 0) stopBrowsing(browsing.draft);
+        else {
+          browsing.at -= 1;
+          showPrompt();
+        }
+      } else if (step === "take") {
+        event.preventDefault();
+        stopBrowsing(browsing.list[browsing.at]);
+      } else if (step === "leave") {
+        event.preventDefault();
+        leave();
+      } else if (browsing === null && keyAction(event) === "send") {
         event.preventDefault();
         composer.requestSubmit();
       }
+    });
+    box.addEventListener("click", () => {
+      if (browsing !== null) stopBrowsing(browsing.list[browsing.at]);
     });
     // The stop glyph, over the box at its right edge: there while the turn can be stopped, gone
     // otherwise, and on a desktop faded while the mouse stands still (`pointing`, above). A click
@@ -863,7 +913,8 @@
     // find the row it names. `from` is the index of the oldest row drawn (`shown` is the end of
     // them), `quiet` whether the comms switch hid the messages when the window was last settled,
     // and `crowded` whether rows came or went since, so the window may hold more than it should.
-    return { name, leads, section, nameLine, info, word, fitPlaceholder, facts, composer, stop, rows, cards, jump, doing, standing, stood: null, box, view, keep, shown: 0, from: 0, quiet: false, crowded: false, drawn: new Map(), loading: false, last: null, lines: new Map(), bubbles: new Map(), waiting: new Map() };
+    // `leave` puts the draft back in a box that shows an earlier prompt.
+    return { name, leads, section, nameLine, info, word, fitPlaceholder, facts, composer, stop, rows, cards, jump, doing, standing, stood: null, box, leave, view, keep, shown: 0, from: 0, quiet: false, crowded: false, drawn: new Map(), loading: false, last: null, lines: new Map(), bubbles: new Map(), waiting: new Map() };
   }
 
   // When a row was written, in the reader's own zone: `2026.09.13 Sunday 23:17:05` on the row, and
@@ -934,6 +985,7 @@
   const REFERENCE = "click to reference this message in your reply";
 
   function pointAt(panel, ref) {
+    panel.leave();
     const box = panel.box;
     const put = insertRef(box.value, box.selectionStart, box.selectionEnd, ref);
     box.value = put.value;
@@ -1705,6 +1757,7 @@
     stream.close();
     const unsent = {};
     for (const [name, panel] of sections) {
+      panel.leave();
       if (panel.box.value !== "") unsent[name] = panel.box.value;
     }
     try {

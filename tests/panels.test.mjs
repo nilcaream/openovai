@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { AMBER, CARD, CONNECTED, autoLabel, autoTitle, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, GREY, LATE_AFTER, RED, REPLY, SENDING, SHOWN_FOR, LINE_DISCONNECTED, LINE_LEFT, LINE_WAITING, LINE_WORKING, WINDOW, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, keyAction, loadsOlder, noticed, pillLine, place, prune, quotaLine, quotaTitle, replaced, insertRef, keptFirst, quoteLines, statusQuote, statusRef, stopEnabled, title, typingBeat, updateAsk, versionTitle, windowStart, withQuotes, TYPING_BEAT, CHECKING, LEADER_STOPPED, STATUS_TITLE, STATUS_WHO, UP_TO_DATE, statusLabel } from "../lib/chat/panels.mjs";
+import { AMBER, CARD, CONNECTED, autoLabel, autoTitle, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, GREY, LATE_AFTER, RED, REPLY, SENDING, SHOWN_FOR, LINE_DISCONNECTED, LINE_LEFT, LINE_WAITING, LINE_WORKING, WINDOW, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, HISTORY, historyKey, keyAction, loadsOlder, noticed, pillLine, place, prompts, prune, quotaLine, quotaTitle, replaced, insertRef, keptFirst, quoteLines, statusQuote, statusRef, stopEnabled, title, typingBeat, updateAsk, versionTitle, windowStart, withQuotes, TYPING_BEAT, CHECKING, LEADER_STOPPED, STATUS_TITLE, STATUS_WHO, UP_TO_DATE, statusLabel } from "../lib/chat/panels.mjs";
 import { localAt, refTo, references } from "../lib/chat/refs.mjs";
 
 const LEADER = "Leader";
@@ -181,6 +181,28 @@ describe("the keys", () => {
     assert.equal(keyAction({ key: "Enter", shiftKey: true, isComposing: false }), "newline");
     assert.equal(keyAction({ key: "a", shiftKey: false, isComposing: false }), null);
     assert.equal(keyAction({ key: "Enter", shiftKey: false, isComposing: true }), null);
+  });
+
+  it("Up at the very start of a box goes back to the prompts typed before, and browsing takes only Up, Down, Enter and Escape", () => {
+    assert.equal(historyKey({ key: "ArrowUp" }, false, true), "back");
+    assert.equal(historyKey({ key: "ArrowUp" }, false, false), null, "the caret is not at the start yet: Up moves it");
+    assert.equal(historyKey({ key: "ArrowUp", shiftKey: true }, false, true), null, "Shift+Up selects");
+    assert.equal(historyKey({ key: "ArrowUp", isComposing: true }, false, true), null);
+    assert.equal(historyKey({ key: "ArrowDown" }, false, true), null);
+    assert.equal(historyKey({ key: "Enter" }, false, true), null, "Enter is the box's own: it sends");
+    assert.deepEqual(
+      ["ArrowUp", "ArrowDown", "Enter", "Escape", "a", "Backspace"].map((key) => historyKey({ key }, true, false)),
+      ["back", "forward", "take", "leave", null, null],
+    );
+  });
+
+  it("the prompts are the last 10 lines the User typed on the panel, newest first, one sent twice in a row counted once", () => {
+    const typed = (text) => ({ from: "user", text });
+    const rows = [typed("first"), { from: "Paul", text: "reply" }, ...Array.from({ length: 10 }, (_, at) => typed(`line ${at}`)), typed("line 9"), { from: "user", typedTo: "Ann", text: "to Ann" }, { from: "Server", text: "notice" }];
+    assert.deepEqual(prompts(rows), ["line 9", "line 8", "line 7", "line 6", "line 5", "line 4", "line 3", "line 2", "line 1", "line 0"]);
+    assert.equal(HISTORY, 10);
+    assert.deepEqual(prompts([typed("a"), typed("b"), typed("a")]), ["a", "b", "a"], "only a repeat in a row is counted once");
+    assert.deepEqual(prompts(null), [], "a panel whose rows have not come yet has none");
   });
 });
 
