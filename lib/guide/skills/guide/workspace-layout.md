@@ -8,7 +8,7 @@ What is in the instance directory, and what each part is for.
 - `temp/`: scratch. Anyone may delete anything in it at any time.
 
 ## The team
-- `desks/<Name>/`: one directory per seat. `STATE.md` is the desk file the session keeps. `conversation.json` is its panel. `persona.md` is what it was told at its last start. The listing of `desks/` is the roster.
+- `desks/<Name>/`: one directory per seat. `STATE.md` is the desk file the session keeps. `conversation.json` is its panel. `persona.md` is what it was told at its last start. `runs/` holds the long runs it started with `ovai run`, one directory each with its command, log and end. The listing of `desks/` is the roster.
 - `archive/`: desks of Workers that were let go, moved whole.
 - `knowledge/`: the team's notes, one Markdown file per topic, and `knowledge/files/` for files a note needs (see knowledge-and-customization.md).
 - `customization/`: `common.md`, `leader.md`, `worker.md`, the person's standing rules. An update never touches them.

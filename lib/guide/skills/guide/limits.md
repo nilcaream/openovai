@@ -13,4 +13,5 @@ Each limit is followed by the nearest thing ovai can do instead.
 - **Pushing, sudo, ssh from a session.** A fresh instance denies them. They are rules in `.claude/settings.json`, which the person may change in an editor.
 - **Reaching the page from another machine.** It listens on 127.0.0.1 only.
 - **Answering a permission popup from a phone or when nobody is there.** A popup waits 10 minutes and is then denied. Grant the rules ahead of time instead.
+- **A long run surviving a reboot.** A run started with `ovai run` survives its session and the server, not a reboot or a kill: it is told as lost, and starting it again under the same name resumes it when its command skips what it saved (see `panels-and-team.md`).
 - **Keeping a session's conversation after it restarts.** A new session starts from the desk file. Anything not written there is gone from what it knows, though the panel still shows the old rows, and the session can search them, and the copies of its desk, when it is asked about the past.
