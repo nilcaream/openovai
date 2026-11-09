@@ -90,8 +90,8 @@ describe("a Mac's process table", () => {
   it("finds this instance's session and what its seat left, and nothing of another instance's", () => {
     aMac();
     assert.deepEqual(runningHere(root, fromPs()), [
-      { pid: 101, seat: "Eva", session: true },
-      { pid: 102, seat: "Eva", session: false },
+      { pid: 101, seat: "Eva", run: null, session: true },
+      { pid: 102, seat: "Eva", run: null, session: false },
     ]);
   });
 

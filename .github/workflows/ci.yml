@@ -99,6 +99,9 @@ jobs:
       - name: Read a Mac's process table and a port's holder, from stand-ins for ps and lsof
         run: node --test tests/processes.test.mjs
 
+      - name: Start a long run, read it back, stop it and start it again
+        run: node --test tests/runs.test.mjs
+
   knowledge:
     name: Knowledge
     runs-on: ubuntu-latest
@@ -208,6 +211,19 @@ jobs:
 
       - name: Tell about an idle seat, ask it to stop, end it
         run: node --test tests/lifecycle-idle.test.mjs
+
+  lifecycle-runs:
+    name: Lifecycle, long runs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+
+      - name: Tell a run's end to its seat or the Leader, hold it while parked, stop it at its hours
+        run: node --test tests/lifecycle-runs.test.mjs
 
   lifecycle-close:
     name: Lifecycle, a close
