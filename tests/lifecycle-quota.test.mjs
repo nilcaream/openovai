@@ -554,7 +554,7 @@ describe("the Leader's wake-up call", () => {
     assert.deepEqual(wakeOf(chat), { at: new Date(Math.floor(resets / 1000) * 1000).toISOString(), why: "next batch" });
     assert.match((await tool(martin.secret, "wake", { cancel: true })).text, /^Cancelled the wake-up of .+, for: next batch\.$/);
     quota.saw("usage", null, { unifiedWindows: { five_hour: { utilization: 0.91, resetsAt: Math.floor(resets / 1000) } } }, now);
-    assert.deepEqual(wakeOf(chat), { at: new Date(Math.floor(resets / 1000) * 1000).toISOString(), why: "quota reset" });
+    assert.deepEqual(wakeOf(chat), { at: new Date(Math.floor(resets / 1000) * 1000).toISOString(), why: "quota reset", window: "5-hour" });
     assert.deepEqual(shown.at(-1), wakeOf(chat));
     await tool(martin.secret, "wake", { at: hhmm(now + 10 * MINUTE), why: "sooner" });
     assert.equal(wakeOf(chat).why, "sooner", "the earlier of the two is the one named");

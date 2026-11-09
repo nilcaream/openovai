@@ -855,8 +855,9 @@ describe("the script", () => {
   // it moves no row and never counts as one landing. A Worker's panel has none.
   it("draws what the Leader is at as the same pill a stamp row is drawn with, made with the panel, always the last row, changed in place", () => {
     const draw = script.slice(script.indexOf("function drawPanel(panel)"), script.indexOf("// ------------------------------------------------------------------------------- the page"));
-    assert.match(script, /let doing = null;\s*if \(leads\) \{\s*doing = pill\(LINE_WAITING\);\s*doing\.classList\.add\("doing"\);\s*rows\.insertBefore\(doing, jump\);\s*\}/, "the Leader's panel has its pill from the start, the same pill a stamp row is drawn with, and a Worker's none");
-    assert.match(draw, /if \(panel\.doing !== null\) \{\s*panel\.doing\.firstElementChild\.textContent = pillLine\(state, panel\.name\);\s*panel\.doing\.classList\.toggle\("off", state\.connection !== CONNECTED\);\s*\}\n/);
+    assert.match(script, /let doing = null;\s*if \(leads\) \{\s*doing = pill\(LINE_WAITING\);\s*doing\.classList\.add\("doing"\);[^]*?rows\.insertBefore\(doing, jump\);\s*\}/, "the Leader's panel has its pill from the start, the same pill a stamp row is drawn with, and a Worker's none");
+    assert.match(script, /doing\.addEventListener\("pointerenter", \(\) => \{\s*doing\.title = pillTitle\(state, name\);\s*\}\);/, "its hover is said again as it shows, so a run's time is the time now");
+    assert.match(draw, /if \(panel\.doing !== null\) \{\s*panel\.doing\.firstElementChild\.textContent = pillLine\(state, panel\.name\);\s*panel\.doing\.title = pillTitle\(state, panel\.name\);\s*panel\.doing\.classList\.toggle\("off", state\.connection !== CONNECTED\);\s*\}\n/);
     assert.doesNotMatch(draw, /panel\.doing\.remove\(\)|panel\.doing = /, "the pill is never taken out nor made again");
     assert.doesNotMatch(draw.slice(draw.indexOf("if (panel.doing !== null) {"), draw.indexOf("if (landed && panel.view.follow")), /landed =/, "its words changing is not a row landing: it moves no row");
     assert.match(script, /jump, doing, standing, stood: null, box,/, "the panel keeps the pill it was made with");
@@ -1205,7 +1206,7 @@ describe("the script", () => {
     assert.match(script, /headLine\.append\(facts\.version, facts\.quota\);[\s\S]{0,600}headLine\.append\(themeToggle\);/);
     assert.match(script, /headLine\.append\(nameLine, info\);[\s\S]{0,400}else headLine\.append\(word\);/, "only a Worker's head has the state word");
     assert.doesNotMatch(script, /facts\.conn/);
-    assert.match(script, /panel\.doing\.firstElementChild\.textContent = pillLine\(state, panel\.name\);\s*panel\.doing\.classList\.toggle\("off", state\.connection !== CONNECTED\);/);
+    assert.match(script, /panel\.doing\.firstElementChild\.textContent = pillLine\(state, panel\.name\);\s*panel\.doing\.title = pillTitle\(state, panel\.name\);\s*panel\.doing\.classList\.toggle\("off", state\.connection !== CONNECTED\);/);
     assert.match(script, /panel\.facts\.quota\.textContent = quotaLine\(state\.quota, lite\.matches\);\s*panel\.facts\.quota\.classList\.toggle\("old", state\.quota !== null && state\.quota\.old === true\);\s*panel\.facts\.quota\.title = quotaTitle\(state\.quota, new Date\(\)\);/);
     assert.match(script, /document\.title = title\(state\);/);
   });

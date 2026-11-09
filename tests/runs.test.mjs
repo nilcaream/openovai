@@ -16,7 +16,7 @@ import { after, before, describe, it } from "node:test";
 import { remove, repo, scratch } from "./helpers.mjs";
 import { RUN_IN_ENVIRONMENT, SEAT_IN_ENVIRONMENT, home } from "../lib/claude.mjs";
 import { endLeftovers, runningHere } from "../lib/running.mjs";
-import { ENDED, GOING, LOST, RunError, STOPPED, allRuns, describeRuns, lastLines, lasted, logOf, markTold, readRun, runDirectory, startRun, stopRun } from "../lib/runs.mjs";
+import { ENDED, GOING, LOST, RunError, STOPPED, allRuns, describeRuns, lastLines, logOf, markTold, readRun, runDirectory, startRun, stopRun } from "../lib/runs.mjs";
 
 const here = scratch("runs-test");
 const root = path.join(here, "instance");
@@ -119,12 +119,6 @@ describe("what is read back", () => {
     fs.mkdirSync(at, { recursive: true });
     fs.writeFileSync(path.join(at, "log"), Array.from({ length: 20_000 }, (_, i) => `line ${i}`).join("\n") + "\n");
     assert.deepEqual(lastLines(root, SEAT, "big", 2), ["line 19998", "line 19999"]);
-  });
-
-  it("says how long in words", () => {
-    assert.equal(lasted(0, 30_000), "under a minute");
-    assert.equal(lasted(0, 25 * 60_000), "25 min");
-    assert.equal(lasted(0, (2 * 60 + 14) * 60_000), "2 h 14 min");
   });
 
   it("lists every seat's runs, each with where it stands and its log", () => {

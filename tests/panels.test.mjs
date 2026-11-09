@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { AMBER, CARD, CONNECTED, autoLabel, autoTitle, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, GREY, LATE_AFTER, RED, REPLY, SENDING, SHOWN_FOR, LINE_DISCONNECTED, LINE_LEFT, LINE_WAITING, LINE_WORKING, WINDOW, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, HISTORY, historyKey, keyAction, loadsOlder, noticed, pillLine, place, prompts, prune, quotaLine, quotaTitle, replaced, insertRef, keptFirst, quoteLines, statusQuote, statusRef, stopEnabled, title, typingBeat, updateAsk, versionTitle, windowStart, withQuotes, TYPING_BEAT, CHECKING, LEADER_STOPPED, STATUS_TITLE, STATUS_WHO, UP_TO_DATE, statusLabel } from "../lib/chat/panels.mjs";
+import { AMBER, CARD, CONNECTED, autoLabel, autoTitle, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, GREY, LATE_AFTER, RED, REPLY, SENDING, SHOWN_FOR, LINE_DISCONNECTED, LINE_LEFT, LINE_WAITING, LINE_WORKING, WINDOW, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, HISTORY, historyKey, keyAction, lasted, loadsOlder, noticed, pillLine, pillTitle, place, prompts, timeSaid, prune, quotaLine, quotaTitle, replaced, insertRef, keptFirst, quoteLines, statusQuote, statusRef, stopEnabled, title, typingBeat, updateAsk, versionTitle, windowStart, withQuotes, TYPING_BEAT, CHECKING, LEADER_STOPPED, STATUS_TITLE, STATUS_WHO, UP_TO_DATE, statusLabel } from "../lib/chat/panels.mjs";
 import { localAt, refTo, references } from "../lib/chat/refs.mjs";
 
 const LEADER = "Leader";
@@ -286,7 +286,8 @@ describe("the Leader's panel", () => {
     applyEvent(state, snapshot([about(LEADER, { running: false }), about("Paul")]), 0);
     assert.equal(dot(state, LEADER), GREY);
     assert.equal(head(state, LEADER).state, "");
-    assert.equal(pillLine(state, LEADER), "Leader has left — the next message starts a fresh session");
+    assert.equal(pillLine(state, LEADER), "Leader has left");
+    assert.equal(pillTitle(state, LEADER), "Leader is not running. The next message starts a fresh session.");
     assert.equal(pillLine(state, LEADER), LINE_LEFT(LEADER));
     assert.equal(dot(state, "Paul"), GREEN, "a Worker's dot is its own");
     assert.equal(head(state, "Paul").state, "listening");
@@ -301,24 +302,57 @@ describe("the Leader's panel", () => {
     assert.equal(dot(state, LEADER), GREY);
   });
 
-  // A wake-up the server will start the Leader for — its own call, or a quota reset — is named on
-  // the two lines off a turn: the time alone within a day, with its weekday further on.
-  it("the Leader's bottom line says when the server starts it again, and why, while it will", () => {
+  // Off a turn the line is `state · fact · fact`, in a fixed order: when the server starts the
+  // Leader next — its own wake-up or a quota reset, one slot — then the runs going, by seat. The
+  // time alone today, the full weekday within the week, the date further on. The hover says each
+  // in full, one line each, and nothing for a bare Waiting for instructions.
+  it("the Leader's bottom line names the wake-up or the reset, then the runs, and the hover says each in full", () => {
     const now = new Date(2030, 0, 7, 17, 0);
-    const soon = { at: new Date(2030, 0, 7, 18, 40).toISOString(), why: "quota reset" };
-    const later = { at: new Date(2030, 0, 9, 9, 5).toISOString(), why: "batch two" };
+    const reset = { at: new Date(2030, 0, 7, 18, 40).toISOString(), why: "quota reset", window: "5-hour" };
+    const later = { at: new Date(2030, 0, 9, 9, 5).toISOString(), why: "check Mia's S8 run" };
+    const far = { at: new Date(2030, 0, 25, 9, 0).toISOString(), why: "the review" };
+    const runs = [
+      { seat: "Axel", name: "deals", started: new Date(2030, 0, 7, 14, 46).toISOString() },
+      { seat: "Mia", name: "s08-tags", started: new Date(2030, 0, 7, 16, 35).toISOString() },
+      { seat: "Axel", name: "pages", started: new Date(2030, 0, 7, 16, 59, 30).toISOString() },
+    ];
     const state = fresh();
-    applyEvent(state, snapshot([about(LEADER, { running: false }), about("Paul")], { wake: soon }), 0);
-    assert.equal(pillLine(state, LEADER, now), "Leader has left — resumes automatically at 18:40 (quota reset); a message starts it sooner");
+    applyEvent(state, snapshot([about(LEADER, { running: false }), about("Paul")], { wake: reset }), 0);
+    assert.equal(pillLine(state, LEADER, now), "Leader has left · Quota reset: 18:40");
+    assert.equal(pillTitle(state, LEADER, now), "Leader is not running. The next message starts a fresh session.\nQuota reset at 18:40 (5-hour window). The server starts Leader then. A message starts Leader sooner.");
     applyEvent(state, seat(LEADER, { running: true, busy: false }), 1);
-    assert.equal(pillLine(state, LEADER, now), "Waiting for instructions — resumes automatically at 18:40 (quota reset)");
+    assert.equal(pillLine(state, LEADER, now), "Waiting for instructions · Quota reset: 18:40");
+    assert.equal(pillTitle(state, LEADER, now), "Quota reset at 18:40 (5-hour window). The server starts Leader then.");
     applyEvent(state, { name: "wake", data: later }, 2);
-    assert.equal(pillLine(state, LEADER, now), "Waiting for instructions — resumes automatically on Wednesday at 09:05 (batch two)");
-    applyEvent(state, seat(LEADER, { running: true, busy: true, doing: LINE_WORKING }), 3);
+    applyEvent(state, { name: "runs", data: runs }, 3);
+    assert.equal(pillLine(state, LEADER, now), "Waiting for instructions · Wake-up: Wednesday 09:05 · Runs: Axel, Mia");
+    assert.equal(
+      pillTitle(state, LEADER, now),
+      ["Wake-up at Wednesday 09:05: check Mia's S8 run.", "Axel: deals, running 2 h 14 min", "Mia: s08-tags, running 25 min", "Axel: pages, running under a minute"].join("\n"),
+    );
+    applyEvent(state, { name: "wake", data: far }, 4);
+    assert.equal(pillLine(state, LEADER, now), "Waiting for instructions · Wake-up: 2030-01-25 09:00 · Runs: Axel, Mia");
+    applyEvent(state, { name: "runs", data: ["Axel", "Mia", "Zoe", "Ivy", "Ben"].map((name) => ({ seat: name, name: "r", started: now.toISOString() })) }, 5);
+    assert.equal(pillLine(state, LEADER, now), "Waiting for instructions · Wake-up: 2030-01-25 09:00 · Runs: Axel, Mia, Zoe and 2 more");
+    applyEvent(state, seat(LEADER, { running: true, busy: true, doing: LINE_WORKING }), 6);
     assert.equal(pillLine(state, LEADER, now), LINE_WORKING, "on a turn the line is the turn's");
-    applyEvent(state, seat(LEADER, { running: true, busy: false }), 4);
-    applyEvent(state, { name: "wake", data: null }, 5);
+    assert.equal(pillTitle(state, LEADER, now), "", "and it has no hover");
+    applyEvent(state, seat(LEADER, { running: true, busy: false }), 7);
+    applyEvent(state, { name: "wake", data: null }, 8);
+    applyEvent(state, { name: "runs", data: [] }, 9);
     assert.equal(pillLine(state, LEADER, now), LINE_WAITING);
+    assert.equal(pillTitle(state, LEADER, now), "", "a bare Waiting for instructions has no hover");
+  });
+
+  it("says a time as the time today, the weekday within the week, the date further on", () => {
+    const now = new Date(2030, 0, 7, 23, 0);
+    assert.equal(timeSaid(new Date(2030, 0, 7, 23, 30).toISOString(), now), "23:30");
+    assert.equal(timeSaid(new Date(2030, 0, 8, 0, 10).toISOString(), now), "Tuesday 00:10");
+    assert.equal(timeSaid(new Date(2030, 0, 13, 9, 0).toISOString(), now), "Sunday 09:00");
+    assert.equal(timeSaid(new Date(2030, 0, 14, 9, 0).toISOString(), now), "2030-01-14 09:00");
+    assert.equal(lasted(0, 30_000), "under a minute");
+    assert.equal(lasted(0, 25 * 60_000), "25 min");
+    assert.equal(lasted(0, (2 * 60 + 14) * 60_000), "2 h 14 min");
   });
 
   // The Leader's bottom line is the one place the page says it has lost the server, and says it

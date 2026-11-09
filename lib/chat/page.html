@@ -275,7 +275,7 @@
   // draws it and carries what is typed and pressed to the server.
 
   import { answerOf, dialogOf } from "./dialog.mjs";
-  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, autoLabel, autoTitle, RED, RELOAD_TITLE, RESTART_ASK, RESTART_TITLE, updateAsk, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, historyKey, keyAction, loadsOlder, noticed, place, prompts, prune, quotaLine, replaced, quotaTitle, insertRef, keptFirst, pillLine, quoteLines, stopEnabled, statusLabel, statusQuote, statusRef, title, typingBeat, versionTitle, windowStart, withQuotes, LINE_WAITING, STATUS_TITLE, STATUS_WHO, WINDOW } from "./panels.mjs";
+  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, autoLabel, autoTitle, RED, RELOAD_TITLE, RESTART_ASK, RESTART_TITLE, updateAsk, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, historyKey, keyAction, loadsOlder, noticed, place, prompts, prune, quotaLine, replaced, quotaTitle, insertRef, keptFirst, pillLine, pillTitle, quoteLines, stopEnabled, statusLabel, statusQuote, statusRef, title, typingBeat, versionTitle, windowStart, withQuotes, LINE_WAITING, STATUS_TITLE, STATUS_WHO, WINDOW } from "./panels.mjs";
   import { html as markdownOf, row as rowOf, talks, unseen } from "./render.mjs";
   import { refTo, references } from "./refs.mjs";
 
@@ -762,6 +762,10 @@
     if (leads) {
       doing = pill(LINE_WAITING);
       doing.classList.add("doing");
+      // The hover says how long each run has gone, so it is said again whenever it is about to show.
+      doing.addEventListener("pointerenter", () => {
+        doing.title = pillTitle(state, name);
+      });
       rows.insertBefore(doing, jump);
     }
 
@@ -1694,6 +1698,7 @@
       // it is never a row landing.
       if (panel.doing !== null) {
         panel.doing.firstElementChild.textContent = pillLine(state, panel.name);
+        panel.doing.title = pillTitle(state, panel.name);
         panel.doing.classList.toggle("off", state.connection !== CONNECTED);
       }
       // A panel that follows is pinned to its newest in the same task the rows landed in, before
