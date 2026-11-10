@@ -2487,9 +2487,9 @@
     "catches": "says in plain words to run ovai login after an expired sign-in, once for a run of failures",
     "edits": [
       {
-        "file": "lib/chat/server.mjs",
-        "from": "reply.text.includes(SIGN_IN_EXPIRED) && !toldSinceAnswered(root, seat, SIGN_IN_ROW)",
-        "to": "reply.text.includes(SIGN_IN_EXPIRED)"
+        "file": "lib/chat/lifecycle.mjs",
+        "from": "SIGN_IN_EXPIRED.some((words) => reply.text.includes(words)) && !toldSinceAnswered(root, seat, SIGN_IN_ROW)",
+        "to": "SIGN_IN_EXPIRED.some((words) => reply.text.includes(words))"
       }
     ]
   },

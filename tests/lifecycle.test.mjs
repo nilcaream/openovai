@@ -407,16 +407,19 @@ describe("restart_session and stop_session", () => {
   });
 
   // How a turn ended is drawn whatever started it. A turn on an event of the server's — here the
-  // checkpoint, as a Worker is told it — that fails on an expired sign-in says to run ovai login.
-  it("a Worker's turn on an event that fails on an expired sign-in ends in the row that says to run ovai login", async () => {
-    paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_FAILS: "1", OPENOVAI_STAND_IN_REPLY: SIGN_IN_EXPIRED });
+  // checkpoint, as a Worker is told it — that fails on a login past its time limit, in Claude
+  // Code's own words for a run that is not interactive, says to run ovai login.
+  it("a Worker's turn on an event that fails on a login past its time limit ends in the row that says to run ovai login", async () => {
+    const ended =
+      "Failed to authenticate: this login reached its time limit and cannot be renewed. Run `claude auth login` to sign in again, or use `claude setup-token` and set CLAUDE_CODE_OAUTH_TOKEN for unattended jobs";
+    paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_FAILS: "1", OPENOVAI_STAND_IN_REPLY: ended });
     try {
       const from = panel(instance, WORKER).length;
       deliver(chat, WORKER, serverEvent("checkpoint", { calls: "3" }, "three calls"));
       await waitFor(() => (panel(instance, WORKER).slice(from).some((row) => row.text === SIGN_IN_ROW) ? true : null));
       await new Promise((resolve) => setTimeout(resolve, 100));
       const shown = panel(instance, WORKER).slice(from).filter((row) => row.stamp !== true);
-      assert.deepEqual(shown.map((row) => [row.from, row.text, row.failed]), [[WORKER, SIGN_IN_EXPIRED, true], [SERVER, SIGN_IN_ROW, true]]);
+      assert.deepEqual(shown.map((row) => [row.from, row.text, row.failed]), [[WORKER, ended, true], [SERVER, SIGN_IN_ROW, true]]);
     } finally {
       await end(WORKER, 500);
     }
@@ -583,7 +586,7 @@ describe("restart_session and stop_session", () => {
         async () => {
           assert.equal((await tool(martin.secret, "restart_worker", { name: WORKER })).refused, false);
         },
-        { OPENOVAI_STAND_IN_FAILS: "1", OPENOVAI_STAND_IN_REPLY: SIGN_IN_EXPIRED },
+        { OPENOVAI_STAND_IN_FAILS: "1", OPENOVAI_STAND_IN_REPLY: SIGN_IN_EXPIRED[0] },
       );
       await waitFor(() => (panel(instance, WORKER).slice(from).some((row) => row.text === SIGN_IN_ROW) ? true : null));
       await new Promise((resolve) => setTimeout(resolve, 100));

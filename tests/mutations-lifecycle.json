@@ -1,5 +1,10 @@
 [
   {
+    "name": "a login past its time limit is not an expired sign-in",
+    "catches": "a Worker's turn on an event that fails on a login past its time limit ends in the row that says to run ovai login",
+    "edits": [{ "file": "lib/chat/lifecycle.mjs", "from": "  \"Failed to authenticate: this login reached its time limit\",\n", "to": "" }]
+  },
+  {
     "name": "a seat cut while asked to close is told to send go on",
     "catches": "a Worker cut while it is asked to close says it stopped and to send the message again, not go on",
     "edits": [{ "file": "lib/chat/session.mjs", "from": "stopped: !record.spoke || closing };", "to": "stopped: !record.spoke };" }]

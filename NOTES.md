@@ -102,7 +102,9 @@ ones included. A scroll made by the browser's find (Ctrl+F) lets a panel stop fo
 row, as a scroll by hand does. On a computer with a mouse, the stop button over the box shows while
 the mouse moves, for 2 seconds after, and while the mouse is on it. An account whose usage lists no
 Fable window has no "fable" part in the usage line. The Remove card shows the line
-`.claude/allowed.md` has for the rule for every list that holds it.
+`.claude/allowed.md` has for the rule for every list that holds it. A sign-in that reached its time
+limit ("Failed to authenticate: this login reached its time limit…") is followed by the row that
+says to run `ovai login`, as one whose renewal was refused is.
 
 ## 0.26.0
 
