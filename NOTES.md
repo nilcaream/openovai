@@ -6,7 +6,7 @@ carries only its own.
 
 ## 0.27.0
 
-**This version pins Claude Code 2.1.322, where the last pinned 2.1.314.**
+**This version pins Claude Code 2.1.323, where the last pinned 2.1.314.**
 
 ## 0.26.0
 
