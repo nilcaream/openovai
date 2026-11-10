@@ -2285,7 +2285,7 @@ describe("what the Leader is at", () => {
   const READ = { name: "Read", input: { file_path: "/srv/app/lib/chat/session.mjs" } };
   const FAILING = { name: "Bash", input: { command: "npm test", description: "Run the suite" }, error: "\n  Exit code 1\nnpm error Missing script: \"test\"" };
   const SEARCH = { name: "ToolSearch", input: { query: "select:Monitor" } };
-  const CALLS = JSON.stringify([[READ, SEARCH, FAILING], [READ, SEARCH, FAILING]]);
+  const CALLS = JSON.stringify([[READ, SEARCH, FAILING], [READ, SEARCH, FAILING], [{ ...READ, retries: 2, wait: 300 }]]);
 
   before(async () => {
     remove(panelFile(instance, LEADER), panelFile(instance, WORKER));
@@ -2342,6 +2342,28 @@ describe("what the Leader is at", () => {
     await page("POST", `/sessions/${WORKER}/message`, { text: "go" });
     const told = await seatsSince(WORKER, heardOf, (event) => event.data.busy === false);
     assert.deepEqual(words(told), [[true, undefined], [false, undefined]]);
+  });
+
+  // Claude Code tries a request the service failed again by itself, saying so before each try;
+  // the next frame of the turn is the turn moving again.
+  it("says each try while Claude Code tries a failed request again, and what it said before once the turn moves", async () => {
+    const READ_LINE = "Reading /srv/app/lib/chat/session.mjs";
+    const heard = about(client, LEADER).length;
+    await page("POST", `/sessions/${LEADER}/message`, { text: "once more" });
+    // From the turn's start: the seat may be told once more of the turn before, as it settles.
+    const turnOf = (events) => events.slice(events.findIndex((event) => event.data.busy === true));
+    await seatsSince(LEADER, heard, (event) => event.data.doing === READ_LINE);
+    await until(client, () => about(client, LEADER).at(-1).data.busy === false);
+    const told = turnOf(about(client, LEADER).slice(heard));
+    assert.deepEqual(words(told), [
+      [true, "Working…"],
+      [true, "Claude's service failed, trying again (1 of 10)"],
+      [true, "Claude's service failed, trying again (2 of 10)"],
+      [true, "Working…"],
+      [true, READ_LINE],
+      [true, "Working…"],
+      [false, undefined],
+    ]);
   });
 });
 

@@ -2544,5 +2544,15 @@
     "name": "a run that cannot go on is drawn as a turn the service cut",
     "catches": "shows a turn that failed in its own words as one failed row, not two",
     "edits": [{ "file": "lib/chat/lifecycle.mjs", "from": "reply.cut !== undefined && (reply.text.includes(SERVICE_ERROR) || reply.text === SERVICE_TIMEOUT)) {", "to": "reply.cut !== undefined) {" }]
+  },
+  {
+    "name": "the retry line stays after the turn moves again",
+    "catches": "says each try while Claude Code tries a failed request again, and what it said before once the turn moves",
+    "edits": [{ "file": "lib/chat/session.mjs", "from": "        record.retrying = false;\n        retrying(null);\n", "to": "" }]
+  },
+  {
+    "name": "Claude Code's tries again are not said",
+    "catches": "says each try while Claude Code tries a failed request again, and what it said before once the turn moves",
+    "edits": [{ "file": "lib/chat/lifecycle.mjs", "from": "      record.doing = LINE_RETRYING(retry.attempt, retry.of);\n", "to": "" }]
   }
 ]

@@ -171,7 +171,7 @@ export function installed(options, environment) {
 //   OPENOVAI_STAND_IN_LINGERS_SAYING  words said as a text frame before that wait: a closing reply
 //                             that had begun when the process was taken down
 //   OPENOVAI_STAND_IN_CALLS         a JSON list, one entry per QUESTION the same way, each a list of
-//                             { name, input, error?, parent?, usage?, text?, wait? }: the tools the real one
+//                             { name, input, error?, parent?, usage?, text?, wait?, retries? }: the tools the real one
 //                             would say it is using in that turn, each written before the answer
 //                             as one assistant frame with a tool_use block (id call-<turn>-<i>,
 //                             parent_tool_use_id from parent, else null, and usage as the
@@ -181,7 +181,10 @@ export function installed(options, environment) {
 //                             on the real one, one frame per block; a call with `blocked` (a
 //                             reason, "[Credential Exploration]") has the system/permission_denied
 //                             frame of auto mode's classifier before its result; `wait` is
-//                             milliseconds the stand-in waits before writing the call at all
+//                             milliseconds the stand-in waits before writing the call at all;
+//                             `retries` is how many system/api_retry frames (attempt 1… of 10,
+//                             as measured on 2.1.322) go before that wait, as for a request
+//                             the service failed and Claude Code tried again
 //   OPENOVAI_STAND_IN_NOTES         a JSON list, one entry per QUESTION the same way, each a list of
 //                             { text, listed? }: the progress notes the real one writes between
 //                             its calls, each as an assistant frame of its own with one thinking
@@ -574,6 +577,9 @@ for (;;) {
   for (const [i, call] of (made ?? []).entries()) {
     const id = "call-" + turn + "-" + i;
     const parent = call.parent ?? null;
+    for (let attempt = 1; attempt <= (call.retries ?? 0); attempt += 1) {
+      frame({ type: "system", subtype: "api_retry", attempt, max_retries: 10, retry_delay_ms: 500, error_status: 529, error: "overloaded", session_id: "test-thread" });
+    }
     if (call.wait !== undefined && !interrupted) {
       await sleepUnlessInterrupted(call.wait);
     }
