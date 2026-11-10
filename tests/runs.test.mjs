@@ -92,8 +92,12 @@ describe("a run stopped, lost, and started again", () => {
   });
 
   it("goes on while its command does after the wrapper was killed alone: refused a second start, and stopped with its group", async () => {
-    startRun(root, SEAT, "orphan", ["sleep", "30"], { env: seatShell });
+    // The wrapper is killed only once its command is up: killed before `sh` forks it, there is
+    // nothing left of the group, and the run is rightly lost.
+    const up = path.join(here, "orphan-up");
+    startRun(root, SEAT, "orphan", ["sh", "-c", `: > "${up}"; exec sleep 30`], { env: seatShell });
     const pid = readRun(root, SEAT, "orphan").pid;
+    await until(() => fs.existsSync(up), "the command to be up");
     process.kill(pid, "SIGKILL");
     await until(() => {
       try {
