@@ -409,6 +409,19 @@ describe("park", () => {
     await settle(400);
     assert.equal(running(OTHER), true);
     assert.deepEqual(await tool(martin.secret, "park", {}), { text: "already parking", refused: true, error: null });
+    // The page's restart and update park too, and would end the desks being written: refused while
+    // this park runs. On port 0, so a refusal that is not this one starts no helper either.
+    const port = chat.config.port;
+    chat.config.port = 0;
+    try {
+      for (const what of ["restart", "update"]) {
+        const answered = await page("POST", `/${what}`);
+        assert.equal(answered.status, 409, answered.body);
+        assert.equal(JSON.parse(answered.body).error, `a ${what} waits while the room parks: the sessions are writing their desks`);
+      }
+    } finally {
+      chat.config.port = port;
+    }
     now = began + 29 * MINUTE;
     await settle(400);
     assert.equal(running(OTHER), true, "ended before the ceiling");
@@ -806,6 +819,10 @@ describe("openovai.json changed while the server runs", () => {
     assert.equal(chat.config.port, port);
     assert.equal(chat.config.leader, LEADER);
     assert.equal(quota.stageOf("five_hour", at), quota.WARNING);
+    // The threshold moved under the reading already held: told as a reading crossing it would be,
+    // and its reset kept for the wake, with no new reading needed.
+    assert.notEqual(quota.nextReset(), null);
+    assert.ok(await waitFor(() => (heardIn(leader.log).some((one) => /^<server-event type="quota-low" stage="warning" window="5h" /.test(one)) ? true : null)), heardIn(leader.log).join("\n"));
     assert.ok(await waitFor(() => (configTold().length === 2 ? true : null)), heardIn(leader.log).join("\n"));
     assert.match(configTold()[1], /Applied now, with no restart: quota\.5h\. Not applied: leader, port — who and where this instance is changes only when Mike runs `ovai restart`\./);
   });

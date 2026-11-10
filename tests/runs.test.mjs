@@ -91,6 +91,25 @@ describe("a run stopped, lost, and started again", () => {
     assert.throws(() => process.kill(-pid, 0), "nothing of the group is left");
   });
 
+  it("goes on while its command does after the wrapper was killed alone: refused a second start, and stopped with its group", async () => {
+    startRun(root, SEAT, "orphan", ["sleep", "30"], { env: seatShell });
+    const pid = readRun(root, SEAT, "orphan").pid;
+    process.kill(pid, "SIGKILL");
+    await until(() => {
+      try {
+        process.kill(pid, 0);
+        return false;
+      } catch {
+        return true;
+      }
+    }, "the wrapper to be gone");
+    assert.equal(readRun(root, SEAT, "orphan").state, GOING);
+    assert.throws(() => startRun(root, SEAT, "orphan", ["sleep", "30"], { env: seatShell }), /going already/);
+    const stopped = await stopRun(root, SEAT, "orphan", "by hand", { grace: 500 });
+    assert.equal(stopped.state, STOPPED);
+    assert.throws(() => process.kill(-pid, 0), "nothing of the group is left");
+  });
+
   it("reads a run whose process is gone with no exit as lost", () => {
     const at = runDirectory(root, SEAT, "rebooted");
     fs.mkdirSync(at, { recursive: true });

@@ -3504,4 +3504,15 @@ describe("the page's restart, update and reload", () => {
     const answered = await page("POST", "/reload");
     assert.deepEqual(JSON.parse(answered.body), { asked: [] });
   });
+
+  it("does nothing for a second press while a reload is under way", async () => {
+    const paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_RELOAD: "silent" });
+    const first = page("POST", "/reload");
+    assert.ok(await waitFor(() => (reloadsIn(paul.log).length > 0 ? true : null)), "the first reload never asked");
+    const second = await page("POST", "/reload");
+    assert.equal(second.status, 409);
+    assert.equal(JSON.parse(second.body).error, "a reload is already on its way");
+    assert.equal((await first).status, 200);
+    assert.deepEqual(reloadsIn(paul.log), ["reload: reload_skills"], "asked once");
+  });
 });

@@ -237,6 +237,10 @@ describe("what the Leader is told", () => {
     assert.match(leader(), /cannot close the frame it is in/);
   });
 
+  it("tells the Leader that openovai.json is denied to the file tools only once the rule holds, and a write applies until then", () => {
+    assert.match(flat(leader()), new RegExp(`one made before 0\\.27\\.0 only once ${USER} has accepted that rule on its card; until then, a write there by any session applies within seconds\\.`));
+  });
+
   it("tells the Leader that what was typed on another panel is told, not asked", () => {
     assert.match(leader(), /<server-event type="user-typed" who="…">/);
     assert.match(leader(), /You are told, not asked/);

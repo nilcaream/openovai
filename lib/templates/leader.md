@@ -233,7 +233,10 @@ pending, and that answer is what you report when anyone asks.
 
 When {{USER}} wants a setting changed — an idle limit, a quota stage, the desk limit, a model —
 call `settings` with the change, which applies at once; with no change it answers what each
-setting holds now. Never through `openovai.json` itself: it is denied to every session's file tools.
+setting holds now. Never through `openovai.json` itself, even where the file tools can write it: a
+fresh instance denies it to every session's file tools, and one made before 0.27.0 only once
+{{USER}} has accepted that rule on its card; until then, a write there by any session applies
+within seconds.
 
 When work waits on a time — a quota window's reset that reached no stage, an hour {{USER}} named —
 call `wake` with the time and a short why before you stop: the server starts you then, and your

@@ -135,7 +135,7 @@ describe("retire and the line", () => {
     await endEvery(500);
   });
 
-  it("refuses to retire a Worker with a run going, naming the run and how to stop it", async () => {
+  it("refuses to retire a Worker with a run going, naming the run and how to stop it, and then while its end is not told", async () => {
     await endEvery(500);
     const martin = await seatUp(LEADER);
     startRun(instance, OTHER, "sweep", ["sleep", "30"]);
@@ -147,6 +147,10 @@ describe("retire and the line", () => {
     assert.equal(going.state, GOING);
     assert.deepEqual(shown.at(-1), [{ seat: OTHER, name: "sweep", started: going.started }], "the page is told the runs going");
     await stopRun(instance, OTHER, "sweep", "test over", { grace: 200 });
+    // Ended and not told yet: the desk filed away now would take the telling with it.
+    const untold = await tool(martin.secret, "retire", { name: OTHER });
+    assert.equal(untold.refused, true);
+    assert.equal(untold.text, `${OTHER} has a run whose end is not told yet: sweep. It comes to you within a minute; retire ${OTHER} after it`);
     tick(chat);
     assert.deepEqual(shown.at(-1), []);
   });
