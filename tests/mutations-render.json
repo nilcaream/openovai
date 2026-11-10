@@ -482,5 +482,16 @@
         "to": "    return { who: names.chat, kind: \"cut\", text: String(entry.text) };"
       }
     ]
+  },
+  {
+    "name": "a stamp row is drawn from the words stored with it",
+    "catches": "is drawn the way the pill between two sessions is, with the stamp of its time and nothing else",
+    "edits": [
+      {
+        "file": "lib/chat/render.mjs",
+        "from": "text: stampOf(new Date(entry.at)).whole };",
+        "to": "text: String(entry.text) };"
+      }
+    ]
   }
 ]

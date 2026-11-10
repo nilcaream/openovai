@@ -4,6 +4,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { stampOf } from "../lib/chat/clock.mjs";
 import { INTERRUPTED, SILENT, candidates, collapsed, html, opensOnDesktop, pathOf, row, talks, unseen } from "../lib/chat/render.mjs";
 
 // The Leader's panel, and a Worker's: the same rows drawn from two seats, for one User.
@@ -14,8 +15,11 @@ describe("the row that says when a session ended or started", () => {
   const at = (seconds) => new Date(Date.UTC(2026, 8, 23, 14, 3, 40) + seconds * 1000).toISOString();
   const when = (seconds) => ({ at: at(seconds), from: "Server", stamp: true, text: at(seconds) });
 
-  it("is drawn the way the pill between two sessions is, with its words and nothing else", () => {
-    assert.deepEqual(row(when(0), worker), { who: "Server", kind: "divider", text: at(0) });
+  // Drawn from its `at`, so a row stored with the dotted date of an older version reads as today's.
+  it("is drawn the way the pill between two sessions is, with the stamp of its time and nothing else", () => {
+    const stored = { at: "2026-11-13T12:33:14.000Z", from: "Server", stamp: true, text: "2026.11.13 Friday 13:33:14" };
+    assert.deepEqual(row(stored, worker), { who: "Server", kind: "divider", text: stampOf(new Date(stored.at)).whole });
+    assert.match(row(stored, worker).text, /^2026-11-1[234] \w+day \d\d:\d\d:14$/);
   });
 
   it("draws only the first of two less than a minute apart, and both of two a minute apart", () => {
@@ -43,7 +47,7 @@ describe("the row that says when a session ended or started", () => {
     ];
     const drawn = rows.filter((_, index) => !unseen(rows, index)).map((entry) => row(entry, names));
     assert.deepEqual(drawn.map((shown) => shown.kind), ["divider", "user", "divider"]);
-    assert.deepEqual(drawn.filter((shown) => shown.kind === "divider").map((shown) => shown.text), ["yesterday", "today"]);
+    assert.deepEqual(drawn.filter((shown) => shown.kind === "divider").map((shown) => shown.text), [rows[0], rows[2]].map((entry) => stampOf(new Date(entry.at)).whole));
   });
 });
 
