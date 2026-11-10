@@ -1,5 +1,10 @@
 [
   {
+    "name": "a request that timed out is drawn as the session's own words",
+    "catches": "a Worker's turn whose request timed out is cut as well",
+    "edits": [{ "file": "lib/chat/lifecycle.mjs", "from": " || reply.text === SERVICE_TIMEOUT)) {", "to": ")) {" }]
+  },
+  {
     "name": "a call auto mode could not judge is drawn as blocked",
     "catches": "puts a call the classifier refused on its panel as a row, with its category and the call, one it could not judge as not run, and nothing for a call a rule refused",
     "edits": [

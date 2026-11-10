@@ -2543,6 +2543,6 @@
   {
     "name": "a run that cannot go on is drawn as a turn the service cut",
     "catches": "shows a turn that failed in its own words as one failed row, not two",
-    "edits": [{ "file": "lib/chat/lifecycle.mjs", "from": "reply.cut !== undefined && reply.text.includes(SERVICE_ERROR)) {", "to": "reply.cut !== undefined) {" }]
+    "edits": [{ "file": "lib/chat/lifecycle.mjs", "from": "reply.cut !== undefined && (reply.text.includes(SERVICE_ERROR) || reply.text === SERVICE_TIMEOUT)) {", "to": "reply.cut !== undefined) {" }]
   }
 ]

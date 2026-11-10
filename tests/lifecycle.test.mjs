@@ -427,10 +427,10 @@ describe("restart_session and stop_session", () => {
   // says what reached the seat, what it did and what to send, and keeps the service's words.
   const CUT = "Failed to authenticate. API Error: 403 Attention Required! | Cloudflare";
   const SOURCE = ` Source: ${CUT}. See [status.claude.com](https://status.claude.com/).`;
-  const cutSeat = (calls) =>
+  const cutSeat = (calls, reply = CUT) =>
     seatUp(WORKER, {
       OPENOVAI_STAND_IN_FAILS: JSON.stringify([false, true]),
-      OPENOVAI_STAND_IN_REPLY: CUT,
+      OPENOVAI_STAND_IN_REPLY: reply,
       OPENOVAI_STAND_IN_CALLS: JSON.stringify([[], calls]),
     });
 
@@ -462,6 +462,24 @@ describe("restart_session and stop_session", () => {
       const shown = panel(instance, WORKER).slice(from).filter((row) => row.stamp !== true && row.from !== "user");
       assert.deepEqual(shown.map((row) => [row.from, row.text]), [
         [SERVER, `${WORKER} got your message, but Claude's service failed before ${WORKER} could act on it. Nothing was done and there is no reply yet. Send "go on" and ${WORKER} answers it.${SOURCE}`],
+      ]);
+    } finally {
+      await end(WORKER, 500);
+    }
+  });
+
+  // Claude Code says a request that got no answer in time without "API Error" (measured on 2.1.322,
+  // after its ten retries); the session keeps the message all the same.
+  it("a Worker's turn whose request timed out is cut as well", async () => {
+    paul = await cutSeat([], "Request timed out");
+    try {
+      await tell(WORKER, userFrame("one")).answered;
+      const from = panel(instance, WORKER).length;
+      await deliver(chat, WORKER, userFrame("two")).answered;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      const shown = panel(instance, WORKER).slice(from).filter((row) => row.stamp !== true && row.from !== "user");
+      assert.deepEqual(shown.map((row) => [row.from, row.cut ?? null, row.text]), [
+        [SERVER, true, `${WORKER} got your message, but Claude's service failed before ${WORKER} could act on it. Nothing was done and there is no reply yet. Send "go on" and ${WORKER} answers it. Source: Request timed out. See [status.claude.com](https://status.claude.com/).`],
       ]);
     } finally {
       await end(WORKER, 500);

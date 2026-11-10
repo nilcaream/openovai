@@ -76,7 +76,8 @@ A panel shows a turn's answer, not its way there. Words a session writes between
 - `<instance>/bin/ovai runs` lists them from a terminal, `ovai run --stop <Name>/<run>` stops one. A seat has at most 8 runs going and a run is stopped after 24 hours; both are settings (`runs.most`, `runs.hours`): ask the Leader to change them.
 
 ## When Claude's service cuts a reply
-- Sometimes Claude's service fails in the middle of a session's turn, for example with "API Error: 403". The session does not answer then, and the panel shows a row of ovai's own, on a dashed ground, in place of a reply.
+- Sometimes Claude's service fails in the middle of a session's turn, for example with "API Error: 403", "API Error: 529 Overloaded" or "Request timed out". The session does not answer then, and the panel shows a row of ovai's own, on a dashed ground, in place of a reply.
+- Claude Code tries again by itself first when the service has a server error, is overloaded, loses the connection or does not answer in time: up to 10 times, waiting longer each time, so about three minutes go by before the row appears. A refused request (403) is not tried again.
 - The row says whether the session got the message, and what it did before the failure: each action with its time, as the bottom line names it. When nothing was done, it says so.
 - The session keeps the message and the results of what it did. Send "go on" and it replies; nothing needs repeating, and nothing it did is done twice. ovai does not send it by itself.
 - The row ends with "Source:" and Claude Code's own words for the failure, then a link to https://status.claude.com/ to check whether the service is down.
