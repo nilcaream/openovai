@@ -11,7 +11,7 @@ Every session is a normal Claude Code, started by ovai with the instance as its 
 
 - A setting for every session on the page goes into `.claude/settings.json`. A setting for the page's sessions and admin mode alike goes into `.local/settings.json`.
 - No session may edit either file: both are denied to them. The Leader can add permission rules through its permission popups (see permissions.md), but any other setting is changed in admin mode (`/config`, or ask it to edit the file) or in an editor.
-- Sessions read their settings when they start. After a change, restart them: ask the Leader, or run `ovai restart`.
+- Sessions read their settings when they start. After a change, restart them: ask the Leader, or run `ovai restart`. A permission rule is the exception: it applies at each session's next call (see permissions.md).
 
 ## The sandbox
 The sandbox is Claude Code's own; ovai adds nothing to it and changes nothing in it. Turn it on with a `"sandbox"` block in `.claude/settings.json` for the page's sessions, or in `.local/settings.json` for them and admin mode, then restart the sessions. Its keys and its platform requirements (bubblewrap on Linux; not native Windows) are on https://code.claude.com/docs/en/sandboxing, for the Claude Code version the release pins (see `lib/RUNTIME`).

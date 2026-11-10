@@ -8,7 +8,7 @@
 - Its tools then ask for permission like any other tool. A rule such as `mcp__github__*` can be granted from a permission popup.
 
 ## A Claude Code plugin
-Install it in admin mode with `/plugin` (a marketplace first, if it comes from one). It is recorded in the instance's `.local/settings.json` and `.local/plugins/`, so it is the instance's and not the person's own Claude Code's. Restart the sessions for them to have it. A plugin's slash commands still cannot be typed on a panel: ask for its skills in words.
+Install it in admin mode with `/plugin` (a marketplace first, if it comes from one). It is recorded in the instance's `.local/settings.json` and `.local/plugins/`, so it is the instance's and not the person's own Claude Code's. Then press the reload button on the Leader's head, and every running session loads it; a session that holds it back, as its row says, has it at its next start (see `panels-and-team.md`). A plugin's slash commands still cannot be typed on a panel: ask for its skills in words.
 
 ## A tool the workspace serves itself (an ovai plugin)
 - `<instance>/bin/ovai plugin <name>` writes `plugins/<name>.mjs` from a scaffold. A name is a letter followed by up to 31 letters, digits or hyphens, and cannot be a built-in tool's name.

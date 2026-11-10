@@ -22,4 +22,4 @@ What it leaves out, on purpose:
 - The model and effort the seats run on: admin mode uses the person's own choice.
 - ovai's guide.
 
-It may be opened while the server runs. Changes reach a session only when it starts, so restart after: `ovai restart`, or ask the Leader. When admin mode closes, ovai compares the configuration files and tells the Leader what changed: names only, never values such as tokens.
+It may be opened while the server runs. A plugin or skill added there reaches the running sessions with the reload button on the Leader's head. Other changes, such as an MCP server or a setting, reach a session only when it starts, so restart after: `ovai restart`, or ask the Leader. When admin mode closes, ovai compares the configuration files and tells the Leader what changed: names only, never values such as tokens.
