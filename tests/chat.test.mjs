@@ -31,7 +31,7 @@ import * as usage from "../lib/chat/usage.mjs";
 import { OPENER } from "../lib/chat/view.mjs";
 import { LEADER as LEADS, WORKER as WORKS, shownStatusFile, statusFile, toolsFile } from "../lib/desks.mjs";
 import { statusOf } from "../lib/chat/status.mjs";
-import { end, endEvery, interrupt, recordOf, running, runningSeats, start, tell, keystroke as keyTyped } from "../lib/chat/session.mjs";
+import { control, end, endEvery, interrupt, recordOf, running, runningSeats, start, tell, keystroke as keyTyped } from "../lib/chat/session.mjs";
 import { BUILT_IN } from "../lib/plugins.mjs";
 import { CONFIG_FILE } from "../lib/seed.mjs";
 import { alive, callsIn, childrenOf, connectionsIn, get as fetchPlain, heardIn, installed, leftRunningIn, notesIn, post as postPlain, queuesHeardIn, readLog, remove, repo, sansMoment, scratch, seatsIn, secretsIn, source, startChat, stopChat, toolsHandedIn, waitFor, waitForAddress, writeStandIn } from "./helpers.mjs";
@@ -3514,5 +3514,17 @@ describe("the page's restart, update and reload", () => {
     assert.equal(JSON.parse(second.body).error, "a reload is already on its way");
     assert.equal((await first).status, 200);
     assert.deepEqual(reloadsIn(paul.log), ["reload: reload_skills"], "asked once");
+  });
+
+  // The press waits the whole patience (10 s) for a session that never answers; the control under
+  // it is run here with a short one.
+  it("gives up on a session that does not answer its control request once the patience is over", async () => {
+    const paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_RELOAD: "silent" });
+    const asked = Date.now();
+    const answer = await Promise.race([control(WORKER, { subtype: "reload_skills" }, 200), new Promise((resolve) => setTimeout(() => resolve("still waiting"), 3000))]);
+    assert.equal(answer, null);
+    assert.ok(Date.now() - asked >= 200, `answered after ${Date.now() - asked} ms`);
+    assert.deepEqual(reloadsIn(paul.log), ["reload: reload_skills"]);
+    assert.equal(recordOf(WORKER).controls.size, 0, "the unanswered request is still waited for");
   });
 });

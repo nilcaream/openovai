@@ -448,5 +448,10 @@
     "name": "the page's restart helper keeps the instance's Claude Code home",
     "catches": "starts a helper without the instance's home, which restarts the server; the page's cookie opens the new one",
     "edits": [{ "file": "lib/chat/server.mjs", "from": "  delete env.CLAUDE_CONFIG_DIR;\n", "to": "" }]
+  },
+  {
+    "name": "the page's update starts the server only when the update went through",
+    "catches": "starts the server again after an update that failed",
+    "edits": [{ "file": "lib/chat/server.mjs", "from": "update: '\"$0\" stop && \"$0\" update; \"$0\" start',", "to": "update: '\"$0\" stop && \"$0\" update && \"$0\" start'," }]
   }
 ]

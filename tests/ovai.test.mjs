@@ -1787,6 +1787,43 @@ describe("the page's restart", () => {
     assert.match(said, / helper - - restart: pid \d+, "\$0" restart\n/);
     assert.match(said, new RegExp(`^Stopping the server at ${url} \\(pid ${pid}\\)\\.$`, "m"));
   });
+
+  // The update asks GitHub, which no suite reaches: the server is started behind a proxy that
+  // refuses, the helper inherits it, and the update fails as it would offline.
+  it("starts the server again after an update that failed", async () => {
+    ovai(["stop"]);
+    const refused = { NODE_USE_ENV_PROXY: "1", HTTPS_PROXY: "http://127.0.0.1:9", https_proxy: "http://127.0.0.1:9", NO_PROXY: "", no_proxy: "" };
+    const started = ovai(["start"], refused);
+    assert.equal(started.status, 0, started.stderr);
+    const url = new URL(started.stdout.trim().split("\n").at(-1)).origin;
+    const pid = pidRecorded();
+    const cookie = pageCookie(served, url);
+    const was = fs.readFileSync(path.join(served, "lib", "VERSION"), "utf8");
+    // This process may still hold a kept-alive connection to the server the check before ended on
+    // the same port; the first request drops it.
+    await fetch(`${url}/health`).catch(() => null);
+
+    const asked = await fetch(`${url}/update`, { method: "POST", headers: { cookie, origin: url } });
+    assert.equal(asked.status, 202);
+    assert.equal((await asked.json()).what, "update");
+
+    let back = null;
+    for (let waited = 0; waited < 20_000 && back === null; waited += 200) {
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      const now = pidRecorded();
+      if (now !== null && now !== pid && (await fetch(`${url}/health`).then((answered) => answered.ok, () => false))) back = now;
+    }
+    const said = fs.readFileSync(path.join(served, "runtime.log"), "utf8");
+    assert.notEqual(back, null, said);
+    assert.match(said, / helper - - update: pid \d+, "\$0" stop && "\$0" update; "\$0" start\n/);
+    assert.match(said, /did not answer \(ECONNREFUSED\)/);
+    assert.equal(fs.readFileSync(path.join(served, "lib", "VERSION"), "utf8"), was);
+    assert.equal((await fetch(`${url}/sessions`, { headers: { cookie } })).status, 200);
+    // Stopped here and waited for: a server killed as the suite ends may still be writing in the
+    // directory being removed.
+    const stopped = ovai(["stop"]);
+    assert.equal(stopped.status, 0, stopped.stderr);
+  });
 });
 
 describe("what the command refuses", () => {

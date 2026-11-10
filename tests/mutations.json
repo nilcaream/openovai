@@ -2559,5 +2559,10 @@
     "name": "Claude Code's tries again are not said",
     "catches": "says each try while Claude Code tries a failed request again, and what it said before once the turn moves",
     "edits": [{ "file": "lib/chat/lifecycle.mjs", "from": "      record.doing = LINE_RETRYING(retry.attempt, retry.of);\n", "to": "" }]
+  },
+  {
+    "name": "a control request nobody answers is waited for for ever",
+    "catches": "gives up on a session that does not answer its control request once the patience is over",
+    "edits": [{ "file": "lib/chat/session.mjs", "from": "      record.controls.delete(id);\n      resolve(null);\n", "to": "" }]
   }
 ]
