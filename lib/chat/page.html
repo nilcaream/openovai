@@ -275,6 +275,7 @@
   // draws it and carries what is typed and pressed to the server.
 
   import { answerOf, dialogOf } from "./dialog.mjs";
+  import { stampOf } from "./clock.mjs";
   import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, autoLabel, autoTitle, RED, RELOAD_TITLE, RESTART_ASK, RESTART_TITLE, updateAsk, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, historyKey, keyAction, loadsOlder, noticed, place, prompts, prune, quotaLine, replaced, quotaTitle, insertRef, keptFirst, pillLine, pillTitle, quoteLines, stopEnabled, statusLabel, statusQuote, statusRef, title, typingBeat, versionTitle, windowStart, withQuotes, LINE_WAITING, STATUS_TITLE, STATUS_WHO, WINDOW } from "./panels.mjs";
   import { html as markdownOf, row as rowOf, talks, unseen } from "./render.mjs";
   import { refTo, references } from "./refs.mjs";
@@ -921,16 +922,11 @@
     return { name, leads, section, nameLine, info, word, fitPlaceholder, facts, composer, stop, rows, cards, jump, doing, standing, stood: null, box, leave, view, keep, shown: 0, from: 0, quiet: false, crowded: false, drawn: new Map(), loading: false, last: null, lines: new Map(), bubbles: new Map(), waiting: new Map() };
   }
 
-  // When a row was written, in the reader's own zone: `2026.09.13 Sunday 23:17:05` on the row, and
-  // the clock alone — `23:17:05` — where the row's label leaves no room for the whole.
-  const timeOf = new Intl.DateTimeFormat("en-GB", { year: "numeric", month: "2-digit", day: "2-digit", weekday: "long", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" });
-
+  // When a row was written, in the reader's own zone (clock.mjs), and the clock alone where the
+  // row's label leaves no room for the whole.
   function stamp(at) {
     if (at === undefined) return { whole: "", clock: "" };
-    const part = Object.fromEntries(timeOf.formatToParts(new Date(at)).map((piece) => [piece.type, piece.value]));
-    const day = `${part.year}.${part.month}.${part.day}`;
-    const clock = `${part.hour}:${part.minute}:${part.second}`;
-    return { whole: `${day} ${part.weekday} ${clock}`, clock };
+    return stampOf(new Date(at));
   }
 
   // How long a User's row waited to go in: the clock of the write and the seconds since it was

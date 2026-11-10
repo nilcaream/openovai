@@ -558,15 +558,11 @@ describe("the rules", () => {
 });
 
 describe("the script", () => {
-  it("stamps a row with the reader's own day and time, the weekday written out, on a 24-hour clock", () => {
-    const options = [...script.matchAll(/new Intl\.DateTimeFormat\("en-GB", \{([^}]*)\}\)/g)].map(([, inside]) => inside);
-    assert.equal(options.length, 1, "one formatter, for every stamp: a second one is a second format");
-    const [stamp] = options;
-    assert.match(stamp, /\bweekday: "long"/);
-    assert.match(stamp, /\bhourCycle: "h23"/);
-    assert.match(stamp, /\bmonth: "2-digit"/, "the month is a number, never a word or a word cut short");
-    assert.doesNotMatch(stamp, /timeZone/, "a zone of the page's own instead of the reader's");
-    assert.match(script, /const day = `\$\{part\.year\}\.\$\{part\.month\}\.\$\{part\.day\}`;\s*const clock = `\$\{part\.hour\}:\$\{part\.minute\}:\$\{part\.second\}`;\s*return \{ whole: `\$\{day\} \$\{part\.weekday\} \$\{clock\}`, clock \};/);
+  // The format itself is clock.mjs's, checked in the log suite with the server's stamp rows.
+  it("stamps a row with the server's own format, in the reader's zone", () => {
+    assert.match(script, /import \{ stampOf \} from "\.\/clock\.mjs";/);
+    assert.doesNotMatch(script, /new Intl\.DateTimeFormat/, "a formatter of the page's own is a second format");
+    assert.match(script, /function stamp\(at\) \{\s*if \(at === undefined\) return \{ whole: "", clock: "" \};\s*return stampOf\(new Date\(at\)\);\s*\}/, "no zone: the reader's own");
   });
 
   // A page left open across an update takes the new page itself: the stream's snapshot names the

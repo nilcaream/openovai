@@ -11,6 +11,7 @@ import path from "node:path";
 import { after, describe, it } from "node:test";
 
 import { EVENTS, called, ended, failed, fullName, log, moment, returned, row, sink, tool, wallClock } from "../lib/chat/log.mjs";
+import { stampOf } from "../lib/chat/clock.mjs";
 import { repo } from "./helpers.mjs";
 
 const MOMENT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}[+-]\d{2}:\d{2}$/;
@@ -26,9 +27,17 @@ function serverFiles() {
 }
 
 describe("the moment between two sessions", () => {
-  it("reads as the User wrote it: dots, the weekday whole, the 24-hour clock with seconds", () => {
-    assert.equal(wallClock(new Date("2026-09-23T14:03:40Z"), "Europe/Prague"), "2026.09.23 Wednesday 16:03:40");
-    assert.equal(wallClock(new Date("2026-09-26T22:00:05Z"), "Europe/Prague"), "2026.09.27 Sunday 00:00:05");
+  it("reads as the User wrote it: the ISO 8601 date, the weekday whole, the 24-hour clock with seconds", () => {
+    assert.equal(wallClock(new Date("2026-09-23T14:03:40Z"), "Europe/Prague"), "2026-09-23 Wednesday 16:03:40");
+    assert.equal(wallClock(new Date("2026-09-26T22:00:05Z"), "Europe/Prague"), "2026-09-27 Sunday 00:00:05");
+  });
+
+  // The page stamps every row with the same function, in the reader's zone: no zone given.
+  it("is the page's row stamp, whole and as the clock alone, in the zone of whoever runs it when none is given", () => {
+    const at = new Date("2026-11-13T12:33:14Z");
+    assert.deepEqual(stampOf(at, "Europe/Prague"), { whole: "2026-11-13 Friday 13:33:14", clock: "13:33:14" });
+    assert.deepEqual(stampOf(at), stampOf(at, Intl.DateTimeFormat().resolvedOptions().timeZone));
+    assert.equal(wallClock(at, "Europe/Prague"), stampOf(at, "Europe/Prague").whole);
   });
 });
 

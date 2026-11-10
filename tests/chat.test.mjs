@@ -2590,7 +2590,7 @@ describe("what the page is made of", () => {
   });
 
   it("serves each module and the parser open, as the file, and nothing else on those routes", async () => {
-    for (const name of ["dialog.mjs", "panels.mjs", "render.mjs", "marked.mjs"]) {
+    for (const name of ["dialog.mjs", "clock.mjs", "panels.mjs", "render.mjs", "marked.mjs"]) {
       const answered = await fetchPlain(`${url}/${name}`);
       assert.equal(answered.status, 200, name);
       assert.equal(answered.body, fs.readFileSync(path.join(repo, "lib", "chat", name), "utf8"), name);

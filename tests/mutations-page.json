@@ -110,17 +110,6 @@
     ]
   },
   {
-    "name": "the row's stamp drops the weekday",
-    "catches": "stamps a row with the reader's own day and time, the weekday written out, on a 24-hour clock",
-    "edits": [
-      {
-        "file": "lib/chat/page.html",
-        "from": "day: \"2-digit\", weekday: \"long\", hour:",
-        "to": "day: \"2-digit\", hour:"
-      }
-    ]
-  },
-  {
     "name": "a reply's markdown is pasted as text instead of parsed into elements",
     "catches": "draws a reply's markdown as elements — a link, a code span — never as the words of the markup",
     "edits": [
@@ -177,12 +166,12 @@
   },
   {
     "name": "the stamp is formatted in a zone of the page's own",
-    "catches": "stamps a row with the reader's own day and time, the weekday written out, on a 24-hour clock",
+    "catches": "stamps a row with the server's own format, in the reader's zone",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "new Intl.DateTimeFormat(\"en-GB\", { year: \"numeric\",",
-        "to": "new Intl.DateTimeFormat(\"en-GB\", { timeZone: \"Europe/Warsaw\", year: \"numeric\","
+        "from": "    return stampOf(new Date(at));",
+        "to": "    return stampOf(new Date(at), \"Europe/Warsaw\");"
       }
     ]
   },
@@ -1670,23 +1659,12 @@
   },
   {
     "name": "a second formatter for the pill",
-    "catches": "stamps a row with the reader's own day and time, the weekday written out, on a 24-hour clock",
+    "catches": "stamps a row with the server's own format, in the reader's zone",
     "edits": [
       {
         "file": "lib/chat/page.html",
         "from": "\n  function stamp(at) {",
         "to": "\n  const dayOf = new Intl.DateTimeFormat(\"en-GB\", { weekday: \"short\", day: \"2-digit\", month: \"short\" });\n\n  function stamp(at) {"
-      }
-    ]
-  },
-  {
-    "name": "the month is a word cut short",
-    "catches": "stamps a row with the reader's own day and time, the weekday written out, on a 24-hour clock",
-    "edits": [
-      {
-        "file": "lib/chat/page.html",
-        "from": "month: \"2-digit\", day: \"2-digit\", weekday: \"long\"",
-        "to": "month: \"short\", day: \"2-digit\", weekday: \"long\""
       }
     ]
   },

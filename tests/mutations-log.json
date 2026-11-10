@@ -199,12 +199,45 @@
   },
   {
     "name": "the weekday between two sessions is short",
-    "catches": "reads as the User wrote it: dots, the weekday whole, the 24-hour clock with seconds",
+    "catches": "reads as the User wrote it: the ISO 8601 date, the weekday whole, the 24-hour clock with seconds",
     "edits": [
       {
-        "file": "lib/chat/log.mjs",
+        "file": "lib/chat/clock.mjs",
         "from": "weekday: \"long\"",
         "to": "weekday: \"short\""
+      }
+    ]
+  },
+  {
+    "name": "the date between two sessions is written with dots",
+    "catches": "reads as the User wrote it: the ISO 8601 date, the weekday whole, the 24-hour clock with seconds",
+    "edits": [
+      {
+        "file": "lib/chat/clock.mjs",
+        "from": "${part.year}-${part.month}-${part.day}",
+        "to": "${part.year}.${part.month}.${part.day}"
+      }
+    ]
+  },
+  {
+    "name": "the month is a word cut short",
+    "catches": "reads as the User wrote it: the ISO 8601 date, the weekday whole, the 24-hour clock with seconds",
+    "edits": [
+      {
+        "file": "lib/chat/clock.mjs",
+        "from": "month: \"2-digit\"",
+        "to": "month: \"short\""
+      }
+    ]
+  },
+  {
+    "name": "the page's stamp has no clock alone",
+    "catches": "is the page's row stamp, whole and as the clock alone, in the zone of whoever runs it when none is given",
+    "edits": [
+      {
+        "file": "lib/chat/clock.mjs",
+        "from": "${clock}`, clock };",
+        "to": "${clock}`, clock: \"\" };"
       }
     ]
   }

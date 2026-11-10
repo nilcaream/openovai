@@ -382,7 +382,7 @@ describe("restart_session and stop_session", () => {
       stamps.map((row) => [row.from, row.at, row.text]),
       [started, now].map((at) => [SERVER, new Date(at).toISOString(), wallClock(new Date(at))]),
     );
-    assert.match(stamps[0].text, /^\d{4}\.\d{2}\.\d{2} (Mon|Tues|Wednes|Thurs|Fri|Satur|Sun)day \d{2}:\d{2}:\d{2}$/);
+    assert.match(stamps[0].text, /^\d{4}-\d{2}-\d{2} (Mon|Tues|Wednes|Thurs|Fri|Satur|Sun)day \d{2}:\d{2}:\d{2}$/);
   });
 
   // A session is moved by a frame and by nothing else, and a restart is the one start with
