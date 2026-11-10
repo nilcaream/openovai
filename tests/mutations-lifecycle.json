@@ -1,5 +1,10 @@
 [
   {
+    "name": "a seat cut while asked to close is told to send go on",
+    "catches": "a Worker cut while it is asked to close says it stopped and to send the message again, not go on",
+    "edits": [{ "file": "lib/chat/session.mjs", "from": "stopped: !record.spoke || closing };", "to": "stopped: !record.spoke };" }]
+  },
+  {
     "name": "a request that timed out is drawn as the session's own words",
     "catches": "a Worker's turn whose request timed out is cut as well",
     "edits": [{ "file": "lib/chat/lifecycle.mjs", "from": " || reply.text === SERVICE_TIMEOUT)) {", "to": ")) {" }]

@@ -83,7 +83,7 @@ A panel shows a turn's answer, not its way there. Words a session writes between
 - The session keeps the message and the results of what it did. Send "go on" and it replies; nothing needs repeating, and nothing it did is done twice. ovai does not send it by itself.
 - The row ends with "Source:" and Claude Code's own words for the failure, then a link to https://status.claude.com/ to check whether the service is down.
 - When a session was working on its own, with no message in the turn, the row says so; send "go on" and it carries on.
-- A session whose very first turn fails is ended instead: the row says it stopped and to send the message again, since the next message starts a fresh session that never got it. An expired sign-in has a row of its own, which says to run `ovai login`.
+- A session whose very first turn fails is ended instead, and so is one that was being stopped or restarted when the failure came: the row says it stopped and to send the message again, since the next message starts a fresh session that never got it. An expired sign-in has a row of its own, which says to run `ovai login`.
 
 ## Typing to a Worker
 Typing on a Worker's panel speaks to that Worker directly. It answers, and the Leader is told what was said. A panel whose process is gone takes no typing.

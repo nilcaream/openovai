@@ -12,7 +12,7 @@ import { after, before, describe, it } from "node:test";
 
 import { SERVER, read } from "../lib/chat/conversation.mjs";
 import { messageFrame, serverEvent, userFrame } from "../lib/chat/frames.mjs";
-import { BODY_CLOSING, BODY_CONTEXT_ERROR, BODY_CONTEXT_WARNING, BODY_CONTEXT_WORKER, BODY_RESTARTED, BODY_UNANSWERED, SIGN_IN_EXPIRED, SIGN_IN_ROW, cutWords, deliver } from "../lib/chat/lifecycle.mjs";
+import { BODY_CLOSING, BODY_CONTEXT_ERROR, BODY_CONTEXT_WARNING, BODY_CONTEXT_WORKER, BODY_RESTARTED, BODY_UNANSWERED, SIGN_IN_EXPIRED, SIGN_IN_ROW, close, cutWords, deliver } from "../lib/chat/lifecycle.mjs";
 import { wallClock } from "../lib/chat/log.mjs";
 import * as quota from "../lib/chat/quota.mjs";
 import * as usage from "../lib/chat/usage.mjs";
@@ -523,6 +523,29 @@ describe("restart_session and stop_session", () => {
       assert.deepEqual(shown.map((row) => [row.from, row.text]), [
         [SERVER, `${WORKER} got your message, but Claude's service failed before ${WORKER} could act on it, and ${WORKER} stopped. Send your message again.${SOURCE}`],
       ]);
+    } finally {
+      await end(WORKER, 500);
+    }
+  });
+
+  // A dead turn completes a close, so a seat cut on a turn after it was asked to close is ended,
+  // and "go on" would reach a fresh session that holds none of it.
+  it("a Worker cut while it is asked to close says it stopped and to send the message again, not go on", async () => {
+    paul = await cutSeat([{ name: "Bash", input: { command: "ls /tmp", description: "List files in /tmp" } }]);
+    try {
+      await tell(WORKER, userFrame("one")).answered;
+      await close(chat, WORKER, "stop");
+      assert.equal(recordOf(WORKER).askedWhy, "close:stop");
+      const from = panel(instance, WORKER).length;
+      await deliver(chat, WORKER, userFrame("two")).answered;
+      assert.ok(await gone(WORKER), `${WORKER} was left running on a close whose turn was cut`);
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      const shown = panel(instance, WORKER).slice(from).filter((row) => row.cut === true);
+      assert.equal(shown.length, 1, JSON.stringify(panel(instance, WORKER).slice(from)));
+      assert.match(
+        shown[0].text,
+        new RegExp(`^${WORKER} got your message and did 1 thing:\\n- List files in /tmp \\(\\d\\d:\\d\\d:\\d\\d\\)\\n\\nThen Claude's service failed and ${WORKER} stopped, so ${WORKER} could not reply\\. That thing is done\\. Send your message again\\.${SOURCE.replace(/[.|()[\]]/g, "\\$&")}$`),
+      );
     } finally {
       await end(WORKER, 500);
     }
