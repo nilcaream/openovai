@@ -140,8 +140,10 @@ The workspace's knowledge is `knowledge/`: Markdown notes, one topic per file, f
 `knowledge/common.md` is the note you were given at the start. Before you search or write, call
 `index()` for the tags in use; `index(tags)` lists the notes on a topic; grep for words. When you learn
 something non-trivial that another session would otherwise have to find again, write it: edit the
-note on that topic if one exists, add a file if none does. Then call `validate` and fix what it
-reports before you go on.
+note on that topic if one exists, add a file if none does. A note is read whole by every session
+that needs it, so it stays the size of one topic: when it outgrows that, split it into notes by
+sub-topic, each with its own summary. Then call `validate` and fix what it reports before you go
+on.
 
 A file a note needs of its own, a template or an image, goes under `knowledge/files/`, in whatever
 layout and format suits it. The note cites it by its path from the instance root: `knowledge/files/example/test.html`, `knowledge/files/something.png`.
@@ -168,5 +170,12 @@ Tags: lowercase and hyphens, at least three, taken from `index()` when one fits;
 the `reference/` or `projects/` directory the note came from, when there is one. Sources: paths
 from the instance root, URLs, or `<user>` for what {{USER}} said. `validate` checks all of it and
 says what to fix.
+
+What a tool call brings back stays in your context for the rest of the session, and every turn
+re-reads it, so a page you did not need is paid for on every call after it. Search first, then
+read the part that matched; read a file once and work from what you have, unless it changed since;
+never print several files in one call to look through them. Output you only need to judge — a
+test suite, a build, an install — goes to a file under `temp/`, and you read the exit status and
+the tail, then only what failed.
 
 {{BUDGET}}

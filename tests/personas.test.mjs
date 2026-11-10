@@ -537,6 +537,24 @@ describe("what a Worker is told", () => {
     }
   });
 
+  // Claude Code caps one tool result (30,000 chars of Bash inline), not how many a session takes
+  // in: file content was 81% of a week's Worker results here, and every result is re-read each turn.
+  it("tells both, in the common frame, that what a call brings back stays, and how to read and judge output", () => {
+    for (const text of [leader(), worker()]) {
+      const common = flat(commonOf(text));
+      assert.match(common, /What a tool call brings back stays in your context for the rest of the session, and every turn re-reads it, so a page you did not need is paid for on every call after it\./);
+      assert.match(common, /Search first, then read the part that matched; read a file once and work from what you have, unless it changed since; never print several files in one call to look through them\./);
+      assert.match(common, /Output you only need to judge — a test suite, a build, an install — goes to a file under `temp\/`, and you read the exit status and the tail, then only what failed\./);
+    }
+  });
+
+  // A note is read whole, and one note read again and again was a fifth of a week's reads here.
+  it("tells both that a note stays the size of one topic and is split by sub-topic when it outgrows it", () => {
+    for (const text of [leader(), worker()]) {
+      assert.match(flat(commonOf(text)), /A note is read whole by every session that needs it, so it stays the size of one topic: when it outgrows that, split it into notes by sub-topic, each with its own summary\./);
+    }
+  });
+
   // A heredoc through Bash puts the whole file on the card or before the classifier; the sentence
   // names how a file is written.
   it("tells the Worker that a file is created or changed with Write and Edit, never through the shell", () => {

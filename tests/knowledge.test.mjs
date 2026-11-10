@@ -340,7 +340,7 @@ describe("what a session is told about knowledge", () => {
       const text = persona(repo, name, { user: "Mike", leader: "Martin" });
       assert.match(text, /The workspace's knowledge is `knowledge\/`: Markdown notes, one topic per file, facts only\./, role);
       assert.match(text, /Before you search or write, call\n`index\(\)` for the tags in use/, role);
-      assert.match(text, /Then call `validate` and fix what it\nreports before you go on\./, role);
+      assert.match(text.replace(/\s+/g, " "), /Then call `validate` and fix what it reports before you go on\./, role);
       assert.match(text, /^tags: \[billing-service, invoicing, rounding\]$/m, role);
     }
   });
