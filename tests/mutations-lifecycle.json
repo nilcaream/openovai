@@ -5,6 +5,16 @@
     "edits": [{ "file": "lib/chat/session.mjs", "from": "stopped: !record.spoke || closing };", "to": "stopped: !record.spoke };" }]
   },
   {
+    "name": "an interrupt nobody heard leaves the try on the seat",
+    "catches": "a seat freed from a turn while Claude Code tries again carries no try into the next turn",
+    "edits": [{ "file": "lib/chat/session.mjs", "from": "    record.calls = [];\n    record.retry = null;\n    record.beforeRetry = null;\n    turn.resolve({ interrupted: true", "to": "    record.calls = [];\n    turn.resolve({ interrupted: true" }]
+  },
+  {
+    "name": "a try with no turn open is carried",
+    "catches": "a seat freed from a turn while Claude Code tries again carries no try into the next turn",
+    "edits": [{ "file": "lib/chat/session.mjs", "from": "        if (record.turn !== null) {\n          record.retry = { attempt", "to": "        if (true) {\n          record.retry = { attempt" }]
+  },
+  {
     "name": "a request that timed out is drawn as the session's own words",
     "catches": "a Worker's turn whose request timed out is cut as well",
     "edits": [{ "file": "lib/chat/lifecycle.mjs", "from": " || reply.text === SERVICE_TIMEOUT)) {", "to": ")) {" }]

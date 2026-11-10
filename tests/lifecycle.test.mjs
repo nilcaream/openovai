@@ -551,6 +551,27 @@ describe("restart_session and stop_session", () => {
     }
   });
 
+  // An interrupt nobody heard frees the seat with the old turn still running in the process: the
+  // try it was on, and any try it says after, belong to that turn and not to the next one.
+  it("a seat freed from a turn while Claude Code tries again carries no try into the next turn", async () => {
+    const READ = { name: "Read", input: { file_path: "/srv/app/lib/chat/session.mjs" } };
+    paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_IGNORES_INTERRUPT: "1", OPENOVAI_STAND_IN_CALLS: JSON.stringify([[{ ...READ, retries: 1, wait: 800 }, { ...READ, retries: 1, wait: 1500 }]]) });
+    try {
+      const turn = tell(WORKER, userFrame("go"));
+      assert.ok(await waitFor(() => (recordOf(WORKER).retry !== null ? true : null)), "the first try was never carried");
+      assert.equal(await interrupt(WORKER, { patience: 200 }), true);
+      await turn.answered;
+      assert.equal(recordOf(WORKER).retry, null, "the try outlived the turn it was freed from");
+      // The second call's try comes about 800 ms in, and its call, which would clear it, 1500 ms
+      // after that.
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      assert.equal(recordOf(WORKER).retry, null, "a try with no turn open was carried");
+      assert.ok(await waitFor(() => (said.some((line) => line.startsWith(`unpaired ${WORKER}`)) ? true : null)), "the old turn never ended");
+    } finally {
+      await end(WORKER, 500);
+    }
+  });
+
   // The successor's birth event is a turn like any other: one that fails on an expired sign-in
   // ends in the same row.
   it("a successor's birth turn that fails on an expired sign-in ends in the row that says to run ovai login", async () => {
