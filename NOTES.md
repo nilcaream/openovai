@@ -8,6 +8,102 @@ carries only its own.
 
 **This version pins Claude Code 2.1.323, where the last pinned 2.1.314.**
 
+**Settings in `openovai.json` apply while the server runs.** The server reads the file again
+within about 5 seconds of a save and tells the Leader the names of the keys that changed. Every
+setting takes effect at once, a default model from each session's next start; `user`, `leader`,
+`port` and `auth` still wait for `ovai restart`, and a save that changes them is told to the Leader
+as not applied. A file that does not read as JSON changes nothing: the Leader is told, and told
+again once it reads. To change a setting, ask the Leader ("raise the desk limit to 256 KB",
+"Workers on sonnet"): its `settings` tool lists each setting as the server holds it, or writes a
+checked change and applies it at once. The sessions' file tools are denied this instance's
+`openovai.json`; a workspace taking this version is asked for that rule on a card on the Leader's
+panel, and until it is accepted the file stays open to them.
+
+**Long runs outlive the session that started them.** Work that may outlast a session, an overnight
+sweep or a long build, is started by a Worker in its shell with
+`<instance>/bin/ovai run <name> -- <command>`. A run survives its Worker's stop, restart, idle
+close and quota stop, and a server stop, restart or update; a reboot ends it, and it is then told
+as lost. When it ends, the Worker that started it is told, or the Leader when that Worker is not
+running. A parked room does not start anybody for it: the notice waits for the Leader's next start.
+Each run is a directory on its Worker's desk, `desks/<Name>/runs/<run>/`, with its command, its log
+and how it ended, and the Leader cannot retire a Worker with a run going or one whose end it has
+not been told. `ovai runs` lists them from a terminal and `ovai run --stop <Name>/<run>` stops one.
+A seat has at most 8 runs going and a run is stopped after 24 hours: the settings `runs.most` and
+`runs.hours`. A background command started any other way still ends with its session, and the
+sessions are told so.
+
+**The Leader sets a wake-up.** Its `wake` tool takes a time, `hh:mm`, a date and time or a usage
+window's reset, and a short reason; at that time the server starts the Leader, or tells it when it
+is running. The Leader sets one by itself when work waits on a time, or when asked ("pick this up
+at 9:30"). There is one at a time, a message still starts the Leader sooner, and parking the room
+or a server stop cancels it.
+
+**Off a turn, the Leader's bottom line says what comes next.** It is the state, then each fact
+that holds, joined by " · ": "Waiting for instructions" or "<Name> has left"; then "Wake-up: 18:40"
+or "Quota reset: 18:40", whichever comes first; then "Runs: Axel, Mia", the seats with a long run
+going. A time is the time alone today, the full weekday within the week, the date further on.
+Hovering the line says each part in full.
+
+**Restart and reload from the page.** A power button, last on the Leader's head, does what
+`ovai restart` does, after asking, since the room parks as at `ovai stop`. A circular arrow beside
+it asks every running session to read its skills and then its plugins again, with no restart: use
+it after adding a plugin or a skill in admin mode. Each panel gets one row that says what was
+applied; plugins that would change the tools the conversation's cache rests on are held until that
+session's next start. While the server is away, the bottom line says "Restarting…" or
+"Updating…", and when no server answers within the time the commands wait, it names
+`runtime.log` and `ovai start`. A press while the room parks, or while a reload runs, does
+nothing. An instance on port 0 has neither button: it comes back on another port, where the page
+cannot follow.
+
+**A newer release turns the version on the Leader's head red.** The server asks GitHub once a day
+for the latest release: one request, with nothing about the instance in it, and nothing
+downloaded. Hovering the version names the release and its date. A click asks first, then stops
+the server, updates and starts it again; the start runs even when the update failed. On port 0 the
+version is red and takes no click. `update.check` set to false turns the asking off, for an
+instance that is offline or must not reach GitHub.
+
+**A turn Claude's service cuts is a row of ovai's own.** When the service fails in the middle of a
+turn ("API Error: 529 Overloaded", "Request timed out" and the like), the panel shows, in place of
+the service's words drawn as the session's, whether the message reached the session, each thing it
+did before the failure with its time, and what to send. The session keeps the message and what its
+calls returned, so "go on" gets the reply and nothing is done twice; ovai does not send it by
+itself. A session that is ended over the failure, on its first turn or while it was being stopped,
+says it stopped and to send the message again. The row ends with Claude Code's own words and a link
+to status.claude.com. "Not logged in" and an expired sign-in keep their own rows.
+
+**While Claude Code tries a failed request again, the panel says so.** Claude Code tries a server
+error, an overload, a dropped connection or a timeout again by itself, up to 10 times over about
+three minutes, before the turn is cut. Meanwhile the Leader's bottom line reads "Claude's service
+failed, trying again (3 of 10)", and a Worker's head reads "retrying (3 of 10)", with the sentence
+on hover.
+
+**Up brings back what was typed.** Each input box keeps the last 10 messages typed on its panel.
+With the cursor at the very start of the box, Up shows the previous one, greyed; Up and Down move
+through them, and Down past the newest or Escape brings back what was being typed. Enter or a click
+puts the message shown into the box to edit; it is sent only by the next Enter.
+
+**A model written as an alias follows Claude Code.** `opus`, `opus/high` or `sonnet` runs the
+newest model of that name the pinned Claude Code ships, so a newer model arrives with an update; a
+full id such as `claude-opus-5-5` pins that one version. This holds for the default models and for
+a hire, and the Leader is told so.
+
+**The sessions keep their context lean.** They are told that what a call brings back stays for the
+rest of the session: search first and read the part that matched, read a file once unless it
+changed, and send output that is only to be judged, a test suite or a build, to a file under
+`temp/` and read its tail. A note in `knowledge/` stays the size of one topic, split by sub-topic
+as it grows.
+
+**A call auto mode's check could not judge is not a block.** Its row reads "Not run — auto mode's
+check gave no verdict — <the call>", and the session does what Claude Code says about trying it
+again, and says so if it still did not run.
+
+**Smaller changes.** A stamp row writes its date as ISO 8601, "2026-11-13 Friday 13:33:14", older
+ones included. A scroll made by the browser's find (Ctrl+F) lets a panel stop following the newest
+row, as a scroll by hand does. On a computer with a mouse, the stop button over the box shows while
+the mouse moves, for 2 seconds after, and while the mouse is on it. An account whose usage lists no
+Fable window has no "fable" part in the usage line. The Remove card shows the line
+`.claude/allowed.md` has for the rule for every list that holds it.
+
 ## 0.26.0
 
 **This version pins Claude Code 2.1.314, where the last pinned 2.1.300.**
