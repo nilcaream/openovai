@@ -2364,6 +2364,7 @@ describe("what the Leader is at", () => {
       [true, "Working…"],
       [false, undefined],
     ]);
+    assert.deepEqual(told.map((event) => event.data.retry ?? null), [null, { attempt: 1, of: 10 }, { attempt: 2, of: 10 }, null, null, null, null], "the seat carries the try, for a Worker's head word");
   });
 });
 

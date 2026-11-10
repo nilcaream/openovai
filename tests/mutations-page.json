@@ -3118,5 +3118,10 @@
     "name": "a stamp pointed at while browsing goes into the prompt shown",
     "catches": "makes every stamp a click that puts a reference to its row into the composer at the cursor, sent as typed",
     "edits": [{ "file": "lib/chat/page.html", "from": "  function pointAt(panel, ref) {\n    panel.leave();\n", "to": "  function pointAt(panel, ref) {\n" }]
+  },
+  {
+    "name": "the head's state word has no hover",
+    "catches": "draws the head's state word with the hover panels.mjs gives it",
+    "edits": [{ "file": "lib/chat/page.html", "from": "    panel.word.title = parts.stateTitle;\n", "to": "" }]
   }
 ]

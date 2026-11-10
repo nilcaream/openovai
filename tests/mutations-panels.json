@@ -1029,5 +1029,10 @@
     "name": "a line typed to a Worker is one of the Leader's prompts",
     "catches": "the prompts are the last 10 lines the User typed on the panel, newest first, one sent twice in a row counted once",
     "edits": [{ "file": "lib/chat/panels.mjs", "from": "    if (row?.from !== \"user\" || typeof row.typedTo === \"string\" || ", "to": "    if (row?.from !== \"user\" || " }]
+  },
+  {
+    "name": "a Worker's head says working while Claude Code tries again",
+    "catches": "the state word says the try while Claude Code tries a failed request again, the whole sentence on hover",
+    "edits": [{ "file": "lib/chat/panels.mjs", "from": "  if (panel.busy && panel.retry !== null) return RETRYING(panel.retry.attempt, panel.retry.of);\n", "to": "" }]
   }
 ]

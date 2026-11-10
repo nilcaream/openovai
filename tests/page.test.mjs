@@ -1310,6 +1310,11 @@ describe("the script", () => {
     assert.doesNotMatch(script, /section\.title = /, "a panel carries a tooltip");
   });
 
+  // The head's state word is panels.mjs's, and so is its hover: the whole sentence of a try.
+  it("draws the head's state word with the hover panels.mjs gives it", () => {
+    assert.match(script, /panel\.word\.textContent = parts\.state;\s*panel\.word\.title = parts\.stateTitle;/);
+  });
+
   // A copy button on every fenced code block a reply draws, and one click handler on the rows
   // for all of them: the click finds the button, copies the code inside its block — the code
   // element, never the button's own markup — and says copied on the button for a moment.

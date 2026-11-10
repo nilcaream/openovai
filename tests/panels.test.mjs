@@ -488,9 +488,9 @@ describe("marks and controls", () => {
   it("the head is the name, the model and the context in k, in parts", () => {
     const state = fresh();
     applyEvent(state, snapshot([about(LEADER, { model: "opus", context: 41_200 }), about("Paul", { model: "" }), about("Ann", { model: "sonnet" })]), 0);
-    assert.deepEqual(head(state, LEADER), { name: "Leader", info: "opus 41k", state: "" });
-    assert.deepEqual(head(state, "Paul"), { name: "Paul", info: "", state: "listening" });
-    assert.deepEqual(head(state, "Ann"), { name: "Ann", info: "sonnet", state: "listening" });
+    assert.deepEqual(head(state, LEADER), { name: "Leader", info: "opus 41k", state: "", stateTitle: "" });
+    assert.deepEqual(head(state, "Paul"), { name: "Paul", info: "", state: "listening", stateTitle: "" });
+    assert.deepEqual(head(state, "Ann"), { name: "Ann", info: "sonnet", state: "listening", stateTitle: "" });
     applyEvent(state, seat("Ann", { model: "sonnet", context: 2_600 }), 1);
     assert.equal(head(state, "Ann").info, "sonnet 3k");
   });
@@ -510,6 +510,19 @@ describe("marks and controls", () => {
     assert.equal(head(state, LEADER).state, "", "the Leader's head counts nothing");
     applyEvent(state, { name: "asking", data: { seat: "Paul", pending: [] } }, 0);
     assert.equal(head(state, "Paul").state, "listening");
+  });
+
+  // While Claude Code tries a failed request again, a Worker's word says the try, the hover the
+  // Leader's whole line; the turn moving again takes the try off the seat, and the word with it.
+  it("the state word says the try while Claude Code tries a failed request again, the whole sentence on hover", () => {
+    const state = fresh();
+    applyEvent(state, snapshot([about(LEADER, { busy: true }), about("Paul", { busy: true })]), 0);
+    applyEvent(state, seat("Paul", { busy: true, retry: { attempt: 3, of: 10 } }), 1);
+    assert.deepEqual([head(state, "Paul").state, head(state, "Paul").stateTitle], ["retrying (3 of 10)", "Claude's service failed, trying again (3 of 10)"]);
+    applyEvent(state, seat(LEADER, { busy: true, retry: { attempt: 3, of: 10 } }), 1);
+    assert.deepEqual([head(state, LEADER).state, head(state, LEADER).stateTitle], ["", ""], "the Leader's bottom line says it, not its head");
+    applyEvent(state, seat("Paul", { busy: true }), 2);
+    assert.deepEqual([head(state, "Paul").state, head(state, "Paul").stateTitle], ["working", ""]);
   });
 
   // The word follows the turn: a seat event with busy flips it, an ask outranks it, and a dimmed

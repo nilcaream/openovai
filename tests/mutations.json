@@ -2548,7 +2548,12 @@
   {
     "name": "the retry line stays after the turn moves again",
     "catches": "says each try while Claude Code tries a failed request again, and what it said before once the turn moves",
-    "edits": [{ "file": "lib/chat/session.mjs", "from": "        record.retrying = false;\n        retrying(null);\n", "to": "" }]
+    "edits": [{ "file": "lib/chat/session.mjs", "from": "        record.retry = null;\n        retrying(null);\n", "to": "" }]
+  },
+  {
+    "name": "the seat does not carry the try",
+    "catches": "says each try while Claude Code tries a failed request again, and what it said before once the turn moves",
+    "edits": [{ "file": "lib/chat/lifecycle.mjs", "from": "    ...(record === undefined || record.retry === null ? {} : { retry: record.retry }),\n", "to": "" }]
   },
   {
     "name": "Claude Code's tries again are not said",
