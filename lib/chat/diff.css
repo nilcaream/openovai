@@ -73,8 +73,11 @@ html.unified .diff table.side, html:not(.unified) .diff table.unified { display:
 .diff table.unified td.c { position: relative; padding-left: calc(8px + 2ch); }
 .diff table.unified td.c::before { content: " "; position: absolute; left: 8px; user-select: none; color: var(--fg-dim); }
 /* word wrap off: each line on one line, clipped at its cell, and moved left by the one scrollbar
-   under the file (--x, set by diff.js), every cell together; the scrollbar stays at the bottom */
-html.no-wrap .diff td.c { white-space: pre; overflow: hidden; text-indent: calc(var(--x, 0) * -1px); }
+   under the file (--x, set by diff.js), every line of both sides together, short ones too; the
+   scrollbar stays at the bottom. The move is a transform of the line's span: a text-indent on the
+   cell moved the lines in layout, but Chrome left some of them painted where they were. */
+html.no-wrap .diff td.c { white-space: pre; overflow: clip; }
+html.no-wrap .diff td.c > .l { display: inline-block; transform: translateX(calc(var(--x, 0) * -1px)); }
 html.no-wrap .diff table.side td.c { padding-left: 0; }
 html.no-wrap .diff table.unified td.c { padding-left: 2ch; }
 html.no-wrap .diff table.unified td.c::before { left: 0; }

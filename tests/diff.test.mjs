@@ -179,11 +179,27 @@ describe("what the view draws", () => {
     assert.equal(status, 200);
     assert.match(body, /<table class="side">/);
     assert.match(body, /<table class="unified">/);
-    assert.match(body, /<tr class="start"><td class="n">5<\/td><td class="c a del">[^<]*(<span[^>]*>[^<]*<\/span>[^<]*)*<\/td><td class="n">5<\/td><td class="c b add">/);
+    assert.ok(body.includes('<tr class="start"><td class="n">5</td><td class="c a del"><span class="l">line <span class="hljs-number">5</span></span></td><td class="n">5</td><td class="c b add"><span class="l">line five</span></td></tr>'), "line 5's change drawn otherwise");
     assert.match(body, /<tr class="start"><td class="n"><\/td><td class="c a none"><\/td><td class="n">26<\/td><td class="c b add">/);
     assert.match(body, /<tbody class="fold" data-fold="0"><tr><td colspan="4"><button type="button" class="unfold">⋯ 14 unchanged lines<\/button>/);
     assert.match(body, /<tbody class="folded" data-fold="0" hidden>/);
     assert.equal(diffFile(root, made.id, 99).status, 404);
+  });
+
+  // Word wrap off: the one scrollbar moves every line of both sides by the same distance, short
+  // lines too. A text-indent on each cell did so in layout, but Chrome left some lines painted where
+  // they were (measured on the lab, 2026-11-17): so each line is one span of its cell, and the
+  // scrollbar moves the spans with a transform, never the cells' text.
+  it("draws every line as one span of its cell, which is what the one scrollbar moves, with a transform", async () => {
+    const made = await capture(root, { repository: "projects/demo", from: "one", to: "two" });
+    const index = captured(root, made.id).files.findIndex((file) => file.new === "lib/a.mjs");
+    const { body } = diffFile(root, made.id, index + 1);
+    const cells = [...body.matchAll(/<td class="c[^"]*">(.*?)<\/td>/g)].map((found) => found[1]).filter((inside) => inside !== "");
+    assert.ok(cells.length > 60, `${cells.length} cells`);
+    for (const inside of cells) assert.match(inside, /^<span class="l">.*<\/span>$/, inside);
+    const css = fs.readFileSync(new URL("../lib/chat/diff.css", import.meta.url), "utf8");
+    assert.match(css, /html\.no-wrap \.diff td\.c > \.l \{[^}]*transform: translateX\(calc\(var\(--x, 0\) \* -1px\)\)/);
+    assert.ok(!/text-indent/.test(css.replace(/\/\*[\s\S]*?\*\//g, "")), "a text-indent moves the lines");
   });
 
   it("draws the page with the list of files and each file's head, its body left to be fetched", async () => {

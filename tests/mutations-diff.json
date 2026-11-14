@@ -58,5 +58,13 @@
     "name": "the bar names the sides with an arrow between them",
     "catches": "is titled by the repository and the capture as a file in it, and its bar names both sides between the head's separators",
     "edits": [{ "file": "lib/chat/diff.mjs", "from": "${SEPARATOR}${sideName(capture.from)}${SEPARATOR}${sideName(capture.to)}", "to": " ${sideName(capture.from)} → ${sideName(capture.to)}" }]
+  },
+  {
+    "name": "word wrap off moves each cell's text with a text-indent, as before the lab's paint bug",
+    "catches": "draws every line as one span of its cell, which is what the one scrollbar moves, with a transform",
+    "edits": [
+      { "file": "lib/chat/diff.css", "from": "html.no-wrap .diff td.c { white-space: pre; overflow: clip; }\nhtml.no-wrap .diff td.c > .l { display: inline-block; transform: translateX(calc(var(--x, 0) * -1px)); }", "to": "html.no-wrap .diff td.c { white-space: pre; overflow: hidden; text-indent: calc(var(--x, 0) * -1px); }" },
+      { "file": "lib/chat/diff.mjs", "from": "  const line = (html) => `<span class=\"l\">${html}</span>`;", "to": "  const line = (html) => html;" }
+    ]
   }
 ]
