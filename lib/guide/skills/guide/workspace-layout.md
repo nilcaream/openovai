@@ -5,7 +5,7 @@ What is in the instance directory, and what each part is for.
 ## Where work goes
 - `projects/`: what is worked on. A repository the team should change is cloned here. Something in `reference/` that needs edits is cloned or copied fresh into `projects/`, never moved.
 - `reference/`: what is kept to look at: documents, sources, clones for analysis. It is added to, never worked on.
-- `temp/`: scratch. Anyone may delete anything in it at any time.
+- `temp/`: scratch. Anyone may delete anything in it at any time. `temp/diffs/` holds the diff view's captures, each dropped 24 hours after it was made (see diff-view.md).
 
 ## The team
 - `desks/<Name>/`: one directory per seat. `STATE.md` is the desk file the session keeps. `conversation.json` is its panel. `persona.md` is what it was told at its last start. `runs/` holds the long runs it started with `ovai run`, one directory each with its command, log and end. The listing of `desks/` is the roster.

@@ -905,7 +905,7 @@ describe("the guide", () => {
   it("names every topic page beside it, and no page that is not there", () => {
     const named = [...skill().matchAll(/^- `([a-z-]+\.md)`:/gm)].map((found) => found[1]).sort();
     const present = fs.readdirSync(skillDirectory).filter((name) => name !== "SKILL.md").sort();
-    assert.equal(named.length, 9);
+    assert.equal(named.length, 10);
     assert.deepEqual(named, present);
   });
 });
