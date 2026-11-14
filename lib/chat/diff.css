@@ -38,6 +38,7 @@ html.no-files .diff nav.files { display: none; }
 .diff nav.files a:hover { background: var(--panel-2); }
 .diff nav.files a.active { background: var(--panel-2); border-left-color: var(--accent); }
 .diff nav.files .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; direction: rtl; text-align: left; }
+.diff nav.files .name bdi { direction: ltr; }
 .diff nav.files .dir { color: var(--fg-faint); }
 .diff main.files-shown { flex: 1; min-width: 0; overflow: auto; }
 .diff .status { font-family: var(--mono); font-size: .85em; font-weight: 600; color: var(--hl-literal); }
