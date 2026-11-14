@@ -70,7 +70,16 @@ html.unified .diff table.side, html:not(.unified) .diff table.unified { display:
 .diff table.unified td.n:has(+ td.n + td.add) { background: var(--diff-add-num); }
 .diff table.unified td.n:has(+ td.del) { background: var(--diff-del-num); }
 .diff table.unified td.n:has(+ td.n + td.del) { background: var(--diff-del-num); }
-.diff table.unified td.c::before { content: " "; display: inline-block; width: 2ch; user-select: none; color: var(--fg-dim); }
+.diff table.unified td.c { position: relative; padding-left: calc(8px + 2ch); }
+.diff table.unified td.c::before { content: " "; position: absolute; left: 8px; user-select: none; color: var(--fg-dim); }
+/* word wrap off: each line on one line, clipped at its cell, and moved left by the one scrollbar
+   under the file (--x, set by diff.js), every cell together; the scrollbar stays at the bottom */
+html.no-wrap .diff td.c { white-space: pre; overflow: hidden; text-indent: calc(var(--x, 0) * -1px); }
+html.no-wrap .diff table.side td.c { padding-left: 0; }
+html.no-wrap .diff table.unified td.c { padding-left: 2ch; }
+html.no-wrap .diff table.unified td.c::before { left: 0; }
+.diff .hscroll { position: sticky; bottom: 0; z-index: 1; overflow-x: auto; overflow-y: hidden; background: var(--panel-2); border-top: 1px solid var(--line); }
+.diff .hscroll > div { height: 1px; }
 .diff table.unified td.del::before { content: "−"; }
 .diff table.unified td.add::before { content: "+"; }
 .diff table.side[data-select="a"] td.b, .diff table.side[data-select="b"] td.a { user-select: none; }

@@ -53,5 +53,10 @@
     "name": "a file's body is fetched from the file before it",
     "catches": "draws the page with the list of files and each file's head, its body left to be fetched",
     "edits": [{ "file": "lib/chat/diff.mjs", "from": "data-src=\"/diff/${id}/${index + 1}\"", "to": "data-src=\"/diff/${id}/${index}\"" }]
+  },
+  {
+    "name": "the bar names the sides with an arrow between them",
+    "catches": "is titled by the repository and the capture as a file in it, and its bar names both sides between the head's separators",
+    "edits": [{ "file": "lib/chat/diff.mjs", "from": "${SEPARATOR}${sideName(capture.from)}${SEPARATOR}${sideName(capture.to)}", "to": " ${sideName(capture.from)} → ${sideName(capture.to)}" }]
   }
 ]

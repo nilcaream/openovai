@@ -18,9 +18,9 @@ does.
 
 ## The page
 - One file at a time. The list of files on the left can be hidden with the Files button; it can be widened by dragging its corner. Previous and next file: the ‹ › buttons, or `[` and `]`.
-- Side by side to start; the Unified button switches. The choice, and whether the list is shown, are kept in the browser.
+- Side by side to start; the Unified button switches. Long lines wrap; the Word wrap button turns that off, and then each line stays on one line with one scrollbar under the file that moves both sides together (Shift with the mouse wheel moves it too). These choices, and whether the list is shown, are kept in the browser.
 - Three unchanged lines are shown on each side of a change; a longer unchanged run is folded. A click opens a fold; Expand all and Collapse all open or fold every one.
-- Next and previous change: the ↓ ↑ buttons, `n` and `p`, or F7 and Shift+F7. Past the last change of a file, it goes on to the next file.
+- Next and previous change: the Next and Previous buttons, `n` and `p`, or F7 and Shift+F7. Past the last change of a file, it goes on to the next file.
 - Syntax highlighting with the same colours as the file view, in the page's light or dark theme, and line numbers on both sides.
 - A selection in side by side stays on the side it starts on.
 
