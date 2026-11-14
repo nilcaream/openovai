@@ -105,17 +105,29 @@
   .phead .notify.on .slashed { display: none; }
   /* the server's stop-and-start button, on an instance on port 0 */
   .phead .notify[hidden] { display: none; }
-  /* the pill that says rows arrived below where the reader is, on the Leader's panel */
-  .jump { position: sticky; left: 50%; transform: translateX(-50%); bottom: 24px; background: var(--panel); border: 1px solid var(--line); color: var(--fg); border-radius: 999px; padding: 6px 14px; font-size: .85rem; cursor: pointer; display: none; }
+  /* the pill that takes the reader to the newest row, in the look of the Leader's pill (.divider
+     span) and a click: on a Worker's panel it sticks to the rows' bottom edge at the right, on the
+     Leader's it stands at the right of the pill row */
+  .jump { position: sticky; bottom: 0; width: fit-content; margin: 0 0 0 auto; font: inherit; font-family: var(--mono); font-size: .78rem; background: var(--panel); border: 1px solid var(--line); color: var(--fg-faint); border-radius: 999px; padding: 2px 12px; cursor: pointer; display: none; }
+  .jump:hover { color: var(--fg); }
   .jump.show { display: block; }
+  /* the Leader's pill row, between the rows and the bottom area: what the Leader is at, centred,
+     and the jump pill at the right. It stands where the pill stood under the newest row, 3px
+     below the rows, whatever they are scrolled to; the jump pill only shows and hides, so neither
+     pill ever moves */
+  .pills { flex: 0 0 auto; display: grid; grid-template-columns: 1fr minmax(0, auto) 1fr; align-items: center; margin-top: calc(3px - var(--gap)); }
+  .pills .doing { grid-column: 2; margin: 0; min-width: 0; }
+  .pills .jump { grid-column: 3; justify-self: end; position: static; margin: 0; display: block; visibility: hidden; }
+  .pills .jump.show { visibility: visible; }
   /* the rows take the focus on a click, so the keys scroll them; no ring for it, the head's border says what the keys do */
   .rows { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 0; outline: none; }
   /* a tool call is a light line: one per call, no label, no stamp */
   .rows .line { display: block; width: 100%; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); font-family: var(--mono); font-size: .76rem; color: var(--fg-dim); padding: 3px 8px; margin: 3px 0; overflow-wrap: anywhere; }
-  /* the first row and the last (the one before the jump pill, which is always there) leave their
-     outer margin to the panel's gap */
+  /* the first row and the last (the one before a Worker's jump pill, which is always there, or the
+     last child on the Leader's panel) leave their outer margin to the panel's gap */
   .rows > :first-child { margin-top: 0; }
   .rows > :has(+ .jump) { margin-bottom: 0; }
+  .rows > :last-child { margin-bottom: 0; }
   .rows .line.err { color: var(--bad); }
   .rows .line .n { color: var(--fg-faint); }
   /* a line that is one end of a message between two sessions: a click on it finds the message on the Leader's panel */
@@ -147,6 +159,9 @@
   .rows.comms-hidden .msg:is(.peer-in, .peer-out, .overheard):not(.revealed) { display: none; }
   /* with them off, the first row is the first one drawn: the one no drawn row comes before */
   .rows.comms-hidden > :not(.msg:is(.peer-in, .peer-out, .overheard):not(.revealed)):not(:not(.msg:is(.peer-in, .peer-out, .overheard):not(.revealed)) ~ *) { margin-top: 0; }
+  /* and the last row is the last one drawn: the one no drawn row comes after (only the Leader's
+     panel has the switch, and its rows end with their last row, the pills being under them) */
+  .rows.comms-hidden > :not(.msg:is(.peer-in, .peer-out, .overheard):not(.revealed)):not(:has(~ :not(.msg:is(.peer-in, .peer-out, .overheard):not(.revealed)))) { margin-bottom: 0; }
   /* the message a click on a line found, lit for a moment */
   .msg.focus .bubble { outline: 2px solid var(--accent); }
   .msg .text a.ref { cursor: pointer; color: var(--accent); text-decoration: underline; }
@@ -575,9 +590,10 @@
   const sections = new Map();
   // Within 80px of the newest row: close enough to count as reading the end.
   const nearTheNewest = (rows) => rows.scrollHeight - rows.scrollTop - rows.clientHeight < 80;
-  // What the Leader's pill says: nothing new below the reader, or rows that landed there.
-  const LATEST = "↓ latest";
-  const NEW_ROWS = "↓ new messages";
+  // What the jump pill says: nothing new below the reader, or how many messages landed there
+  // since they left the newest (a tool line is not one).
+  const LATEST = "↓ Latest";
+  const NEW_ROWS = (count) => `↓ ${count} new`;
   // At the newest row, give or take the few px a zoomed scroll lands off by: the reader is at
   // the end of the rows, and the panel follows what lands there.
   const atTheNewest = (rows) => rows.scrollHeight - rows.scrollTop - rows.clientHeight < 4;
@@ -735,10 +751,10 @@
       });
     }
     // On every panel, one pill that takes the reader to the newest row in a click: shown whenever
-    // the reader is more than 80px above it, saying LATEST, and on the Leader's panel NEW_ROWS once
-    // a row lands below them; gone once they are near the newest again or click it. A scroll never
-    // turns NEW_ROWS back into LATEST. It is the last child of the rows and sticks to their bottom
-    // edge, so it sits above the bottom area — a card, the composer — never on it.
+    // the reader is more than 80px above it, saying LATEST, and on the Leader's panel NEW_ROWS
+    // with the count of messages that landed below them since; gone, and the count with it, once
+    // they are near the newest again or click it. A scroll never turns NEW_ROWS back into LATEST.
+    const unread = { count: 0 };
     const jump = document.createElement("button");
     jump.type = "button";
     jump.className = "jump";
@@ -746,20 +762,26 @@
     jump.addEventListener("click", () => {
       rows.scrollTop = rows.scrollHeight;
       jump.classList.remove("show");
+      unread.count = 0;
     });
     rows.addEventListener("scroll", () => {
-      if (nearTheNewest(rows)) jump.classList.remove("show");
-      else if (!jump.classList.contains("show")) {
+      if (nearTheNewest(rows)) {
+        jump.classList.remove("show");
+        unread.count = 0;
+      } else if (!jump.classList.contains("show")) {
         jump.textContent = LATEST;
         jump.classList.add("show");
       }
     });
-    rows.append(jump);
     // On the Leader's panel, the pill that says what the Leader is at: the same pill a stamp row
-    // is drawn with, always there and always the last row before the jump pill, among the rows and
-    // scrolled with them. Its words change in place and it is one line high whatever they say, so
-    // no row ever moves for it.
+    // is drawn with, in a row of its own under the rows with the jump pill at its right, so it
+    // stays in sight whatever the rows are scrolled to. Its words change in place and it is one
+    // line high whatever they say, so nothing ever moves for it. On a Worker's panel the jump pill
+    // is the last child of the rows and sticks to their bottom edge, so it sits above the bottom
+    // area — a card, the composer — never on it. `tail` is what every row lands before: the jump
+    // pill among a Worker's rows, nothing (the end) among the Leader's.
     let doing = null;
+    let pills = null;
     if (leads) {
       doing = pill(LINE_WAITING);
       doing.classList.add("doing");
@@ -767,8 +789,13 @@
       doing.addEventListener("pointerenter", () => {
         doing.title = pillTitle(state, name);
       });
-      rows.insertBefore(doing, jump);
+      pills = document.createElement("div");
+      pills.className = "pills";
+      pills.append(doing, jump);
+    } else {
+      rows.append(jump);
     }
+    const tail = leads ? null : jump;
 
     const composer = document.createElement("form");
     composer.className = "composer";
@@ -906,12 +933,15 @@
     const cards = document.createElement("div");
     cards.className = "cards";
     bottom.append(...(standing === null ? [cards, composer] : [standing, cards, composer]));
-    section.append(headLine, rows, bottom);
+    section.append(headLine, rows, ...(pills === null ? [] : [pills]), bottom);
     // `last` is the tool line appended last, for a repeated call to count itself into; `lines` is
     // the element of every tool line by the index of its row, for a failed call to find its line;
     // `waiting` the element of every row of the User's not yet delivered, by its index, for the
     // delivery to find its row; `drawn` the card of every question on the panel, by the id of its
-    // request; `doing` the pill that says what the Leader is at, null on a Worker's panel;
+    // request; `doing` the pill that says what the Leader is at, null on a Worker's panel; `unread`
+    // the count of messages that landed below the reader since they left the newest, for the
+    // jump pill; `tail` what every row lands before, the jump pill on a Worker's panel and null
+    // (the end of the rows) on the Leader's;
     // `standing` where the Leader's status is drawn, null on a Worker's panel, and `stood` the
     // confirmation drawn there, so a draw that changes only the label redraws only the label;
     // `bubbles` the element of every stamped row by its index, for a reference in a User's row to
@@ -919,7 +949,7 @@
     // them), `quiet` whether the comms switch hid the messages when the window was last settled,
     // and `crowded` whether rows came or went since, so the window may hold more than it should.
     // `leave` puts the draft back in a box that shows an earlier prompt.
-    return { name, leads, section, nameLine, info, word, fitPlaceholder, facts, composer, stop, rows, cards, jump, doing, standing, stood: null, box, leave, view, keep, shown: 0, from: 0, quiet: false, crowded: false, drawn: new Map(), loading: false, last: null, lines: new Map(), bubbles: new Map(), waiting: new Map() };
+    return { name, leads, section, nameLine, info, word, fitPlaceholder, facts, composer, stop, rows, cards, jump, unread, tail, doing, standing, stood: null, box, leave, view, keep, shown: 0, from: 0, quiet: false, crowded: false, drawn: new Map(), loading: false, last: null, lines: new Map(), bubbles: new Map(), waiting: new Map() };
   }
 
   // When a row was written, in the reader's own zone (clock.mjs), and the clock alone where the
@@ -1485,10 +1515,12 @@
   // call that repeats the line appended last counts itself into that line rather than drawing a
   // second one; any other row — a bubble, a pill — ends the run. Answers whether any row landed — a bubble, a pill, a
   // tool line, or a repeated call that only grew its counter — which is what decides the scroll;
-  // the stamps appended are for the fitter alone, since a tool line carries no stamp, and the rows
+  // and how many messages landed where the reader can see them, which the jump pill counts. The
+  // stamps appended are for the fitter alone, since a tool line carries no stamp, and the rows
   // appended folded are for the fold's measure.
   function drawRange(panel, about, from, to, land) {
     let landed = false;
+    let messages = 0;
     const added = [];
     const folded = [];
     for (const [offset, entry] of about.rows.slice(from, to).entries()) {
@@ -1507,7 +1539,10 @@
       const line = rowElement(entry, shown, panel, about.rows, index);
       land(line);
       // A row the comms switch hides lands nowhere the reader can see.
-      if (!hiddenTalk(line)) landed = true;
+      if (!hiddenTalk(line)) {
+        landed = true;
+        if (line.classList.contains("msg")) messages += 1;
+      }
       if (shown.kind === "line") {
         panel.last = shown.msg === undefined ? { text: shown.text, el: line, count: 1, n: line.lastElementChild } : null;
         panel.lines.set(index, line);
@@ -1520,7 +1555,7 @@
       if (time !== null) added.push(time);
       if (line.classList.contains("collapsed")) folded.push(line);
     }
-    return { landed, added, folded };
+    return { landed, messages, added, folded };
   }
 
   // Whether the reader sees the row at an index of a panel's conversation: one not drawn at all
@@ -1554,7 +1589,7 @@
   // A panel with the rows before `start` taken off, and the bookkeeping of the rows it no longer
   // holds.
   function trimTo(panel, start) {
-    const stop = keptFirst([panel.bubbles, panel.lines], start) ?? panel.doing ?? panel.jump;
+    const stop = keptFirst([panel.bubbles, panel.lines], start) ?? panel.tail;
     while (panel.rows.firstElementChild !== stop) panel.rows.firstElementChild.remove();
     for (const kept of [panel.bubbles, panel.lines, panel.waiting]) {
       for (const [index, element] of kept) {
@@ -1629,12 +1664,11 @@
       // Whether the reader is near the newest row is taken before anything lands, and on the first
       // draw they are.
       const near = panel.shown === 0 || nearTheNewest(panel.rows);
-      // Every row lands before the tail: the Leader's pill, else the jump pill. The tail is put in
-      // once with the panel and never moved, so it never leaves the rows for a frame.
-      const tail = panel.doing ?? panel.jump;
-      const land = (element) => panel.rows.insertBefore(element, tail);
+      // Every row lands before the tail: a Worker's jump pill, else at the end of the rows. The tail
+      // is put in once with the panel and never moved, so it never leaves the rows for a frame.
+      const land = (element) => panel.rows.insertBefore(element, panel.tail);
       if (about.rows.length < panel.shown) {
-        for (const child of [...panel.rows.children]) if (child !== panel.doing && child !== panel.jump) child.remove();
+        for (const child of [...panel.rows.children]) if (child !== panel.tail) child.remove();
         panel.shown = 0;
         panel.from = 0;
         panel.crowded = false;
@@ -1644,8 +1678,10 @@
         panel.bubbles.clear();
         // The cards are not among the rows: they stand, and leave when their question does.
       }
-      // Whether any row landed is what decides the scroll (drawRange).
+      // Whether any row landed is what decides the scroll, and how many messages did is what the
+      // jump pill counts (drawRange).
       let landed = false;
+      let messages = 0;
       if (about.rows.length > panel.shown) {
         // A panel's first draw starts at the oldest of its newest WINDOW rows a reader can see, so a
         // long log builds a hundred rows, not thousands; older ones are drawn as the reader scrolls up.
@@ -1657,6 +1693,7 @@
         }
         const drew = drawRange(panel, about, from, about.rows.length, land);
         landed = drew.landed;
+        messages = drew.messages;
         fitStamps(drew.added);
         fitFolds(drew.folded);
         panel.shown = about.rows.length;
@@ -1703,11 +1740,12 @@
       // bottom pushed below the edge, the Leader's pill out of view. The scroll goes down only,
       // so it is never read as a hand moving the rows away.
       if (landed && panel.view.follow && !atTheNewest(panel.rows)) panel.rows.scrollTop = panel.rows.scrollHeight;
-      // A row that landed while the reader is away from the newest: the pill says something
-      // landed below.
+      // A row that landed while the reader is away from the newest: the pill is there, and counts
+      // the messages among what landed below; tool lines alone leave it saying LATEST.
       if (landed && !panel.view.follow && panel.leads && !near) {
+        panel.unread.count += messages;
         panel.jump.classList.add("show");
-        panel.jump.textContent = NEW_ROWS;
+        panel.jump.textContent = panel.unread.count > 0 ? NEW_ROWS(panel.unread.count) : LATEST;
       }
     }
   }

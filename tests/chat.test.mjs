@@ -2708,9 +2708,10 @@ describe("what the page is made of", () => {
     }
     const labels = [...script.matchAll(/\.textContent = "([^"]*)"/g)].map((found) => found[1]);
     assert.deepEqual(labels, ["(double-click to see the whole message)"], "a word of the page's own other than the pill and the fold's placeholder (the dialog buttons come from dialog.mjs)");
-    const pill = [...script.matchAll(/const (?:LATEST|NEW_ROWS) = "([^"]*)";/g)].map((found) => found[1]);
-    assert.deepEqual(pill, ["↓ latest", "↓ new messages"], "the pill's two words, and no lifecycle word among them");
-    assert.deepEqual([...script.matchAll(/\.textContent = ([A-Z_]+);/g)].map((found) => found[1]), ["LATEST", "LATEST", "STATUS_WHO", "NEW_ROWS"], "the pill says only its own two words, and the Leader's status its who");
+    const pill = [...script.matchAll(/const (?:LATEST|NEW_ROWS) = (?:"([^"]*)"|\(count\) => `([^`]*)`);/g)].map((found) => found[1] ?? found[2]);
+    assert.deepEqual(pill, ["↓ Latest", "↓ ${count} new"], "the pill's two words, and no lifecycle word among them");
+    assert.deepEqual([...script.matchAll(/\.textContent = ([A-Z_]+);/g)].map((found) => found[1]), ["LATEST", "LATEST", "STATUS_WHO"], "the pill says only its own two words, and the Leader's status its who");
+    assert.equal([...script.matchAll(/\.textContent = panel\.unread\.count > 0 \? NEW_ROWS\(panel\.unread\.count\) : LATEST;/g)].length, 1, "the count, or LATEST when only tool lines landed");
     const buttons = [...script.matchAll(/\.className = "(stop|theme)";/g)].map((found) => found[1]);
     assert.deepEqual(buttons, ["theme", "stop"], "a button of the page's own other than the theme toggle and the stop glyph");
     assert.equal(source.split("<button").length - 1, 0, "a button in the markup");
