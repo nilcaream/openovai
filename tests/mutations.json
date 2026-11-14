@@ -609,8 +609,8 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "    said: ({ text, noop = false }) => append(instance.root, seat, noop ? { from: seat, text, noop: true } : { from: seat, text }),",
-        "to": "    said: ({ text, noop = false }) => append(instance.root, seat, { from: seat, to: instance.config.leader, text, msg: crypto.randomUUID() }),"
+        "from": "    said: ({ text, noop = false, summary = false }) => append(instance.root, seat, noop ? { from: seat, text, noop: true } : summary ? { from: seat, text, summary: true } : { from: seat, text }),",
+        "to": "    said: ({ text, noop = false, summary = false }) => append(instance.root, seat, { from: seat, to: instance.config.leader, text, msg: crypto.randomUUID() }),"
       },
       {
         "file": "lib/chat/lifecycle.mjs",
@@ -691,7 +691,7 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "              record.withheld.push(...record.pending.filter((text) => wordsOf(text).trim() !== \"\"));\n",
+        "from": "              record.withheld.push(...record.pending.filter((text) => wordsOf(text).trim() !== \"\").map((text) => ({ text })));\n",
         "to": "              record.pending.forEach((text) => record.say(text));\n"
       }
     ]
@@ -889,7 +889,7 @@
     "edits": [
       {
         "file": "lib/chat/lifecycle.mjs",
-        "from": "    said: ({ text, noop = false }) => append(instance.root, seat, noop ? { from: seat, text, noop: true } : { from: seat, text }),\n",
+        "from": "    said: ({ text, noop = false, summary = false }) => append(instance.root, seat, noop ? { from: seat, text, noop: true } : summary ? { from: seat, text, summary: true } : { from: seat, text }),\n",
         "to": ""
       }
     ]
@@ -2573,7 +2573,7 @@
   {
     "name": "the Leader under the leaderCli experiment holds a note",
     "catches": "shows the Leader's text and note before a call while the call is out, and keeps them past a <noop/>",
-    "edits": [{ "file": "lib/chat/session.mjs", "from": "              if (record.live) {\n                record.write([block.thinking.trim()], false);", "to": "              if (false) {\n                record.write([block.thinking.trim()], false);" }]
+    "edits": [{ "file": "lib/chat/session.mjs", "from": "              if (record.live) {\n                record.write([note], false);", "to": "              if (false) {\n                record.write([note], false);" }]
   },
   {
     "name": "a Worker is under the leaderCli experiment too",

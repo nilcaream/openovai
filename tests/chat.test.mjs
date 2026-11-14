@@ -2490,19 +2490,21 @@ describe("what a seat says", () => {
     assert.deepEqual(rows.map((row) => [row.from, row.text, row.line]), [[WORKER, undefined, "Reading /srv/app/lib/parser.mjs"], [WORKER, "done", undefined]]);
   });
 
-  it("shows a note of a turn that said nothing else as one ordinary row, with no mark", async () => {
+  // A note's text is the server's summary of what the model wrote, and its row is marked so.
+  it("shows a note of a turn that said nothing else as one row marked as a summary", async () => {
     const rows = await noted([{ text: NOTE }], { OPENOVAI_STAND_IN_CALLS: JSON.stringify([[READING]]), OPENOVAI_STAND_IN_EMPTY: "1" });
     assert.deepEqual(rows.map((row) => [row.from, row.text, row.line]), [[WORKER, undefined, "Reading /srv/app/lib/parser.mjs"], [WORKER, NOTE, undefined]]);
-    assert.deepEqual(Object.keys(rows[1]).sort(), ["at", "from", "text"]);
+    assert.deepEqual(Object.keys(rows[1]).sort(), ["at", "from", "summary", "text"]);
+    assert.equal(rows[1].summary, true);
   });
 
-  it("shows the note of a turn whose process ended before a result, as an ordinary row", async () => {
+  it("shows the note of a turn whose process ended before a result, as a row marked as a summary", async () => {
     await endSeat(WORKER, 500);
     remove(panelFile(instance, WORKER));
     paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_NOTES: JSON.stringify([[{ text: NOTE }]]), OPENOVAI_STAND_IN_DIES: "1" });
     await tell(WORKER, userFrame("go")).answered;
     await new Promise((resolve) => setTimeout(resolve, 100));
-    assert.deepEqual(panel(instance, WORKER).filter((row) => row.text === NOTE).map((row) => Object.keys(row).sort()), [["at", "from", "text"]]);
+    assert.deepEqual(panel(instance, WORKER).filter((row) => row.text === NOTE).map((row) => Object.keys(row).sort()), [["at", "from", "summary", "text"]]);
   });
 
   it("puts no note on the panel while its turn runs", async () => {
@@ -2605,6 +2607,8 @@ describe("what a seat says", () => {
       await told_;
       await new Promise((resolve) => setTimeout(resolve, 100));
       assert.deepEqual(words().sort(), [LOOKING, NOTE].sort(), "the <noop/> took back what was shown");
+      const marked = panel(instance, LEADER).filter((row) => row.from === LEADER && (row.text === NOTE || row.text === LOOKING));
+      assert.deepEqual(marked.map((row) => [row.text, row.summary]).sort(), [[LOOKING, undefined], [NOTE, true]].sort(), "the note's row is marked as a summary and the text's is not");
       await endSeat(LEADER, 500);
     });
 

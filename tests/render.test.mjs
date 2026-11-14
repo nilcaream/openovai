@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { stampOf } from "../lib/chat/clock.mjs";
-import { INTERRUPTED, SILENT, candidates, collapsed, html, opensOnDesktop, pathOf, row, talks, unseen } from "../lib/chat/render.mjs";
+import { INTERRUPTED, SILENT, SUMMARY,candidates, collapsed, html, opensOnDesktop, pathOf, row, talks, unseen } from "../lib/chat/render.mjs";
 
 // The Leader's panel, and a Worker's: the same rows drawn from two seats, for one User.
 const names = { chat: "Server", seat: "Leader", leader: "Leader", user: "Mike" };
@@ -103,6 +103,17 @@ describe("a reply", () => {
     assert.equal(shown.kind, "reply");
     assert.match(shown.html, /<em>hi<\/em>/);
     assert.equal(shown.text, undefined);
+    assert.equal(shown.mark, undefined);
+  });
+
+  // A progress note's row is a reply whose text is the server's summary of the note: it ends in
+  // the faint words Claude Code's terminal draws for one.
+  it("marks a progress note's row with the terminal's own words for a summary", () => {
+    const shown = row({ from: "Paul", text: "Checking the parser next.", summary: true }, names);
+    assert.equal(shown.kind, "reply");
+    assert.match(shown.html, /Checking the parser next\./);
+    assert.equal(shown.mark, " · summary");
+    assert.equal(SUMMARY, " · summary");
   });
 });
 

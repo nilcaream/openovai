@@ -141,6 +141,8 @@
   .bubble { width: 100%; max-width: 100%; border: 1px solid var(--line); border-radius: var(--radius); padding: 6px 10px 4px; background: var(--panel-2); position: relative; min-width: 120px; }
   .msg.user .bubble { background: var(--me); border-color: var(--me-line); white-space: pre-wrap; overflow-wrap: anywhere; }
   .msg.reply .bubble { background: var(--reply); border-color: var(--reply-line); }
+  /* the mark a progress note's row ends in: the row is the server's summary of the note */
+  .summary { color: var(--fg-faint); }
   .msg.chat .bubble, .msg.silent .bubble { color: var(--fg-dim); }
   .msg.introduction .bubble { background: var(--reply); border-color: var(--reply-line); }
   .msg.interrupted .bubble { background: var(--pending); border-style: dashed; color: var(--fg-dim); }
@@ -1245,6 +1247,13 @@
         block.className = "code";
         pre.replaceWith(block);
         block.append(pre, copyButton());
+      }
+      // A progress note's mark ends its last paragraph, faint, as the terminal draws it.
+      if (shown.mark !== undefined) {
+        const mark = document.createElement("span");
+        mark.className = "summary";
+        mark.textContent = shown.mark;
+        (body.lastElementChild?.tagName === "P" ? body.lastElementChild : body).append(mark);
       }
     } else if (shown.kind === "user") {
       body.className = "text";

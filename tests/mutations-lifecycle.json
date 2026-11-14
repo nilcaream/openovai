@@ -85,8 +85,8 @@
     "edits": [
       {
         "file": "lib/chat/session.mjs",
-        "from": "              record.withheld.push(block.thinking.trim());\n",
-        "to": "              record.worded += 1;\n              record.withheld.push(block.thinking.trim());\n"
+        "from": "                record.withheld.push(note);\n",
+        "to": "                record.worded += 1;\n                record.withheld.push(note);\n"
       }
     ]
   },
