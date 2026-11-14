@@ -493,5 +493,15 @@
         "to": "text: String(entry.text) };"
       }
     ]
+  },
+  {
+    "name": "a backticked diff address is not linked",
+    "catches": "links a backticked diff address and a markdown link to one, in a new tab",
+    "edits": [{ "file": "lib/chat/render.mjs", "from": "      if (diff !== null) return diff;\n", "to": "" }]
+  },
+  {
+    "name": "a diff address is matched with no end",
+    "catches": "links no other address under /diff/",
+    "edits": [{ "file": "lib/chat/render.mjs", "from": "[0-9a-f]{12}$/;", "to": "[0-9a-f]{12}/;" }]
   }
 ]

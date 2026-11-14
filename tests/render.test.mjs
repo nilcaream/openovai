@@ -108,6 +108,24 @@ describe("a reply", () => {
 
 // A file named in a reply opens in the file view only when the server said the view shows it
 // (lib/chat/view.mjs): the row carries those paths, and nothing else is linked.
+// A diff the `diff` tool captured is named in a reply by its address, /diff/<id>: backticked or as a
+// link's target, it opens in a tab of its own; any other address under /diff/ is not linked.
+describe("a diff named in a reply", () => {
+  const id = "0ad84d98-beb7-45b0-9727-49b16cb62374";
+
+  it("links a backticked diff address and a markdown link to one, in a new tab", () => {
+    const shown = html(`See \`/diff/${id}\` and [r24 vs r26](/diff/${id}).`);
+    assert.match(shown, new RegExp(`<a href="/diff/${id}" target="_blank" rel="noopener"><code>/diff/${id}</code></a>`));
+    assert.match(shown, new RegExp(`<a href="/diff/${id}" target="_blank" rel="noopener">r24 vs r26</a>`));
+  });
+
+  it("links no other address under /diff/", () => {
+    for (const other of ["/diff/main..r26", `/diff/${id}/1`, `/diff/${id.toUpperCase()}`, `/diff/${id}?x`]) {
+      assert.ok(!html(`\`${other}\` and [x](${other})`).includes("<a "), other);
+    }
+  });
+});
+
 describe("a file named in a reply", () => {
   it("links a backticked path the view shows to it in a new tab, the place in the file kept in the words only", () => {
     const shown = html("See `desks/Ann/notes.md:12` and `desks/Ann/other.md`.", ["desks/Ann/notes.md"]);
