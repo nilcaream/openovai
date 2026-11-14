@@ -485,6 +485,7 @@ describe("what the chat serves", () => {
     const shown = await raw("GET", `/diff/${id}`, { host, cookie });
     assert.equal(shown.status, 200);
     assert.match(shown.body, /<section class="file" id="f1"/);
+    assert.ok(shown.body.includes(`<title>OpenOv AI ${shownRoot(instance)}/projects/demo/${id}.diff</title>`), "titled as the page is, with the repository and the capture after it");
     assert.match(shown.headers["content-security-policy"], /default-src 'none'; style-src 'self'; script-src 'self'/);
     assert.equal(shown.headers["cache-control"], "no-store");
     const body = await raw("GET", `/diff/${id}/1`, { host, cookie });

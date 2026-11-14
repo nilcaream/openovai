@@ -203,8 +203,8 @@ describe("what the view draws", () => {
   it("is titled by the repository and the capture as a file in it, and its bar names both sides between the head's separators", async () => {
     const made = await capture(root, { repository: "projects/demo", from: "one", to: "two" });
     const kept = captured(root, made.id);
-    const { page } = diffView(root, made.id, "light", "OpenOv AI");
-    assert.ok(page.includes(`<title>OpenOv AI projects/demo/${made.id}.diff</title>`), "titled otherwise");
+    const { page } = diffView(root, made.id, "light", "OpenOv AI ~/x");
+    assert.ok(page.includes(`<title>OpenOv AI ~/x/projects/demo/${made.id}.diff</title>`), "titled otherwise");
     const what = /<span class="what">([\s\S]*?)<\/span>\n<span class="spacer">/.exec(page)[1].replace(/<[^>]+>/g, "");
     assert.equal(what, `projects/demo · one ${kept.from.id.slice(0, 7)} · two ${kept.to.id.slice(0, 7)}`);
     assert.match(page, /title="Previous change \(p, Shift\+F7\)">Previous<\/button><button type="button" data-go="change" data-by="1" title="Next change \(n, F7\)">Next<\/button>/);

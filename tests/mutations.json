@@ -2584,5 +2584,10 @@
     "name": "the diff view is served without the cookie",
     "catches": "shows a captured diff and its files' bodies only to a caller holding the cookie, under the view's headers",
     "edits": [{ "file": "lib/chat/server.mjs", "from": "  if (!signedIn(instance, port, request)) {\n    status = 401;", "to": "  if (false) {\n    status = 401;" }]
+  },
+  {
+    "name": "the diff view's title leaves out the instance root",
+    "catches": "shows a captured diff and its files' bodies only to a caller holding the cookie, under the view's headers",
+    "edits": [{ "file": "lib/chat/server.mjs", "from": "diffView(instance.root, id, theme, `${PRODUCT} ${shownRoot(instance.root)}`)", "to": "diffView(instance.root, id, theme, PRODUCT)" }]
   }
 ]
