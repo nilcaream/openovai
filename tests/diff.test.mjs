@@ -202,6 +202,16 @@ describe("what the view draws", () => {
     assert.ok(!/text-indent/.test(css.replace(/\/\*[\s\S]*?\*\//g, "")), "a text-indent moves the lines");
   });
 
+  // A lab round: under a short file the scrollbar sat right below its last line. The file
+  // area is a column, and the scrollbar's top margin takes what the file leaves, so it is at the
+  // bottom of the window whatever the file's length; sticky keeps it there under a long one.
+  it("keeps the one scrollbar at the bottom of the window, under a short file too", () => {
+    const css = fs.readFileSync(new URL("../lib/chat/diff.css", import.meta.url), "utf8");
+    assert.match(css, /\.diff main\.files-shown \{[^}]*display: flex; flex-direction: column;/);
+    assert.match(css, /\.diff main\.files-shown > \* \{ flex: none; \}/);
+    assert.match(css, /\.diff \.hscroll \{ position: sticky; bottom: 0; margin-top: auto;/);
+  });
+
   it("draws the page with the list of files and each file's head, its body left to be fetched", async () => {
     const made = await capture(root, { repository: "projects/demo", from: "one", to: "two" });
     const { status, page } = diffView(root, made.id, "dark", "OpenOv AI ~/x");

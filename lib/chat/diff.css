@@ -40,7 +40,8 @@ html.no-files .diff nav.files { display: none; }
 .diff nav.files .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; direction: rtl; text-align: left; }
 .diff nav.files .name bdi { direction: ltr; }
 .diff nav.files .dir { color: var(--fg-faint); }
-.diff main.files-shown { flex: 1; min-width: 0; overflow: auto; }
+.diff main.files-shown { flex: 1; min-width: 0; overflow: auto; display: flex; flex-direction: column; }
+.diff main.files-shown > * { flex: none; }
 .diff .status { font-family: var(--mono); font-size: .85em; font-weight: 600; color: var(--hl-literal); }
 .diff .s-A, .diff .s-N { color: var(--hl-name); }
 .diff .s-D { color: var(--hl-keyword); }
@@ -74,14 +75,15 @@ html.unified .diff table.side, html:not(.unified) .diff table.unified { display:
 .diff table.unified td.c::before { content: " "; position: absolute; left: 8px; user-select: none; color: var(--fg-dim); }
 /* word wrap off: each line on one line, clipped at its cell, and moved left by the one scrollbar
    under the file (--x, set by diff.js), every line of both sides together, short ones too; the
-   scrollbar stays at the bottom. The move is a transform of the line's span: a text-indent on the
+   scrollbar stays at the bottom of the window, under a short file too (main is a column and the
+   scrollbar's top margin takes what the file leaves). The move is a transform of the line's span: a text-indent on the
    cell moved the lines in layout, but Chrome left some of them painted where they were. */
 html.no-wrap .diff td.c { white-space: pre; overflow: clip; }
 html.no-wrap .diff td.c > .l { display: inline-block; transform: translateX(calc(var(--x, 0) * -1px)); }
 html.no-wrap .diff table.side td.c { padding-left: 0; }
 html.no-wrap .diff table.unified td.c { padding-left: 2ch; }
 html.no-wrap .diff table.unified td.c::before { left: 0; }
-.diff .hscroll { position: sticky; bottom: 0; z-index: 1; overflow-x: auto; overflow-y: hidden; background: var(--panel-2); border-top: 1px solid var(--line); }
+.diff .hscroll { position: sticky; bottom: 0; margin-top: auto; z-index: 1; overflow-x: auto; overflow-y: hidden; background: var(--panel-2); border-top: 1px solid var(--line); }
 .diff .hscroll > div { height: 1px; }
 .diff table.unified td.del::before { content: "−"; }
 .diff table.unified td.add::before { content: "+"; }
