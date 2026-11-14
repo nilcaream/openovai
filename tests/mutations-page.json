@@ -374,29 +374,29 @@
   },
   {
     "name": "the pill never shows: the draw that appends rows no longer marks it",
-    "catches": "shows the pill when the reader is not near the newest, says so when rows land below them, and takes them there on a click",
+    "catches": "shows the pill when the reader is not near the newest, counts the messages that land below them, and takes them there on a click",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      if (landed && !panel.view.follow && panel.leads && !near) {\n        panel.jump.classList.add(\"show\");\n        panel.jump.textContent = NEW_ROWS;\n      }\n",
+        "from": "      if (landed && !panel.view.follow && panel.leads && !near) {\n        panel.unread.count += messages;\n        panel.jump.classList.add(\"show\");\n        panel.jump.textContent = panel.unread.count > 0 ? NEW_ROWS(panel.unread.count) : LATEST;\n      }\n",
         "to": ""
       }
     ]
   },
   {
     "name": "the pill stays once shown: the scroll listener that hides it near the newest is gone",
-    "catches": "shows the pill when the reader is not near the newest, says so when rows land below them, and takes them there on a click",
+    "catches": "shows the pill when the reader is not near the newest, counts the messages that land below them, and takes them there on a click",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      if (nearTheNewest(rows)) jump.classList.remove(\"show\");\n      else if",
-        "to": "      if"
+        "from": "      if (nearTheNewest(rows)) {\n        jump.classList.remove(\"show\");\n",
+        "to": "      if (nearTheNewest(rows)) {\n"
       }
     ]
   },
   {
     "name": "a click on the pill hides it without going to the newest row",
-    "catches": "shows the pill when the reader is not near the newest, says so when rows land below them, and takes them there on a click",
+    "catches": "shows the pill when the reader is not near the newest, counts the messages that land below them, and takes them there on a click",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -407,7 +407,7 @@
   },
   {
     "name": "near the newest means anywhere: the 80px band is gone",
-    "catches": "shows the pill when the reader is not near the newest, says so when rows land below them, and takes them there on a click",
+    "catches": "shows the pill when the reader is not near the newest, counts the messages that land below them, and takes them there on a click",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -517,29 +517,29 @@
   },
   {
     "name": "the pill is fixed to the viewport again: it sits over an open card",
-    "catches": "keep the pill inside the rows, stuck 24px above their bottom edge",
+    "catches": "keep a Worker's jump pill inside the rows at their bottom right edge, and the Leader's in the pill row",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": ".jump { position: sticky; left: 50%;",
-        "to": ".jump { position: fixed; left: 50%;"
+        "from": ".jump { position: sticky; bottom: 0;",
+        "to": ".jump { position: fixed; bottom: 0;"
       }
     ]
   },
   {
-    "name": "the pill has no bottom offset: it sticks to the very edge of the rows",
-    "catches": "keep the pill inside the rows, stuck 24px above their bottom edge",
+    "name": "a Worker's jump pill has no bottom offset: it is not stuck to the rows' edge",
+    "catches": "keep a Worker's jump pill inside the rows at their bottom right edge, and the Leader's in the pill row",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "transform: translateX(-50%); bottom: 24px; background: var(--panel);",
-        "to": "transform: translateX(-50%); background: var(--panel);"
+        "from": ".jump { position: sticky; bottom: 0; width",
+        "to": ".jump { position: sticky; width"
       }
     ]
   },
   {
     "name": "the pill is appended to the body, outside the rows: sticky has nothing to stick to",
-    "catches": "shows the pill when the reader is not near the newest, says so when rows land below them, and takes them there on a click",
+    "catches": "shows the pill when the reader is not near the newest, counts the messages that land below them, and takes them there on a click",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -554,25 +554,25 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      const land = (element) => panel.rows.insertBefore(element, tail);\n",
+        "from": "      const land = (element) => panel.rows.insertBefore(element, panel.tail);\n",
         "to": "      const land = (element) => panel.rows.append(element);\n"
       }
     ]
   },
   {
-    "name": "rows land before the jump pill on the Leader's panel too, under its pill",
-    "catches": "shows the pill when the reader is not near the newest, says so when rows land below them, and takes them there on a click",
+    "name": "rows land before the jump pill on the Leader's panel too, which is not among its rows",
+    "catches": "shows the pill when the reader is not near the newest, counts the messages that land below them, and takes them there on a click",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      const tail = panel.doing ?? panel.jump;\n",
-        "to": "      const tail = panel.jump;\n"
+        "from": "    const tail = leads ? null : jump;\n",
+        "to": "    const tail = jump;\n"
       }
     ]
   },
   {
     "name": "the shown pill is made static by the .show rule: the .jump rule still says sticky, the pill sits in the flow at the end of the rows",
-    "catches": "keep the pill inside the rows, stuck 24px above their bottom edge",
+    "catches": "keep a Worker's jump pill inside the rows at their bottom right edge, and the Leader's in the pill row",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -1971,8 +1971,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      if (landed && !panel.view.follow && panel.leads && !near) {\n        panel.jump.classList.add(\"show\");\n        panel.jump.textContent = NEW_ROWS;\n      }",
-        "to": "      if (landed && panel.view.follow) panel.rows.scrollTop = panel.rows.scrollHeight;\n      if (landed && !panel.view.follow && panel.leads && !near) {\n        panel.jump.classList.add(\"show\");\n        panel.jump.textContent = NEW_ROWS;\n      }"
+        "from": "      if (landed && !panel.view.follow && panel.leads && !near) {\n        panel.unread.count += messages;",
+        "to": "      if (landed && panel.view.follow) panel.rows.scrollTop = panel.rows.scrollHeight;\n      if (landed && !panel.view.follow && panel.leads && !near) {\n        panel.unread.count += messages;"
       }
     ]
   },
@@ -2140,8 +2140,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      let landed = false;\n      if (about.rows.length > panel.shown) {",
-        "to": "      let landed = false; let asked = false;\n      if (about.rows.length > panel.shown) {"
+        "from": "      let landed = false;\n      let messages = 0;\n      if (about.rows.length > panel.shown) {",
+        "to": "      let landed = false; let asked = false;\n      let messages = 0;\n      if (about.rows.length > panel.shown) {"
       },
       {
         "file": "lib/chat/page.html",
@@ -2161,8 +2161,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      if (!hiddenTalk(line)) landed = true;\n",
-        "to": "      if (!hiddenTalk(line) && line.querySelector(\".t\") !== null) landed = true;\n"
+        "from": "      if (!hiddenTalk(line)) {\n        landed = true;\n",
+        "to": "      if (!hiddenTalk(line) && line.querySelector(\".t\") !== null) {\n        landed = true;\n"
       }
     ]
   },
@@ -2524,8 +2524,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      if (!hiddenTalk(line)) landed = true;\n",
-        "to": "      landed = true;\n"
+        "from": "      if (!hiddenTalk(line)) {\n        landed = true;\n",
+        "to": "      {\n        landed = true;\n"
       }
     ]
   },
@@ -2751,18 +2751,18 @@
   },
   {
     "name": "a scroll away from the newest shows no pill",
-    "catches": "shows the pill when the reader is not near the newest, says so when rows land below them, and takes them there on a click",
+    "catches": "shows the pill when the reader is not near the newest, counts the messages that land below them, and takes them there on a click",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      else if (!jump.classList.contains(\"show\")) {\n        jump.textContent = LATEST;\n        jump.classList.add(\"show\");\n      }\n",
-        "to": ""
+        "from": "      } else if (!jump.classList.contains(\"show\")) {\n        jump.textContent = LATEST;\n        jump.classList.add(\"show\");\n      }\n",
+        "to": "      }\n"
       }
     ]
   },
   {
     "name": "a Worker's panel has no pill: it is made on the Leader's alone",
-    "catches": "shows the pill when the reader is not near the newest, says so when rows land below them, and takes them there on a click",
+    "catches": "shows the pill when the reader is not near the newest, counts the messages that land below them, and takes them there on a click",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -2772,13 +2772,13 @@
     ]
   },
   {
-    "name": "a trim with no row left to keep stops at the Leader's pill, which a Worker's panel has not",
+    "name": "a trim with no row left to keep stops at the jump pill, which the Leader's rows do not hold",
     "catches": "keeps the newest hundred rows a reader sees on every panel, and draws older ones as they scroll up",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "const stop = keptFirst([panel.bubbles, panel.lines], start) ?? panel.doing ?? panel.jump;",
-        "to": "const stop = keptFirst([panel.bubbles, panel.lines], start) ?? panel.doing;"
+        "from": "const stop = keptFirst([panel.bubbles, panel.lines], start) ?? panel.tail;",
+        "to": "const stop = keptFirst([panel.bubbles, panel.lines], start) ?? panel.jump;"
       }
     ]
   },
@@ -2806,18 +2806,18 @@
   },
   {
     "name": "a Worker's panel gets the Leader's pill too",
-    "catches": "draws what the Leader is at as the same pill a stamp row is drawn with, made with the panel, always the last row, changed in place",
+    "catches": "draws what the Leader is at as the same pill a stamp row is drawn with, made with the panel, in the pill row under the rows, changed in place",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "    let doing = null;\n    if (leads) {\n",
-        "to": "    let doing = null;\n    if (true) {\n"
+        "from": "    let doing = null;\n    let tip = null;\n    let pills = null;\n    if (leads) {\n",
+        "to": "    let doing = null;\n    let tip = null;\n    let pills = null;\n    if (true) {\n"
       }
     ]
   },
   {
     "name": "the Leader's pill is a look-alike built by hand rather than the one pill function",
-    "catches": "draws what the Leader is at as the same pill a stamp row is drawn with, made with the panel, always the last row, changed in place",
+    "catches": "draws what the Leader is at as the same pill a stamp row is drawn with, made with the panel, in the pill row under the rows, changed in place",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -2827,24 +2827,19 @@
     ]
   },
   {
-    "name": "the Leader's pill is taken out and put back last after the rows land",
+    "name": "the Leader's pill is taken out of its row and put last among the rows after they land",
     "catches": "never removes or moves the pill when a row lands: rows go in before it",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      const land = (element) => panel.rows.insertBefore(element, tail);\n",
-        "to": "      const land = (element) => panel.rows.insertBefore(element, panel.jump);\n"
-      },
-      {
-        "file": "lib/chat/page.html",
         "from": "      // A row that landed while the reader is away",
-        "to": "      if (panel.doing !== null) panel.rows.insertBefore(panel.doing, panel.jump);\n      // A row that landed while the reader is away"
+        "to": "      if (panel.doing !== null) panel.rows.append(panel.doing);\n      // A row that landed while the reader is away"
       }
     ]
   },
   {
     "name": "the Leader's pill's words changing counts as a row landing",
-    "catches": "draws what the Leader is at as the same pill a stamp row is drawn with, made with the panel, always the last row, changed in place",
+    "catches": "draws what the Leader is at as the same pill a stamp row is drawn with, made with the panel, in the pill row under the rows, changed in place",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -2855,7 +2850,7 @@
   },
   {
     "name": "the Leader's pill is taken out when the turn ends",
-    "catches": "draws what the Leader is at as the same pill a stamp row is drawn with, made with the panel, always the last row, changed in place",
+    "catches": "draws what the Leader is at as the same pill a stamp row is drawn with, made with the panel, in the pill row under the rows, changed in place",
     "edits": [
       {
         "file": "lib/chat/page.html",
@@ -2865,13 +2860,13 @@
     ]
   },
   {
-    "name": "rows drawn afresh take both pills out and put them back",
+    "name": "rows drawn afresh take the tail out and put it back",
     "catches": "never removes or moves the pill when a row lands: rows go in before it",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "        for (const child of [...panel.rows.children]) if (child !== panel.doing && child !== panel.jump) child.remove();\n",
-        "to": "        panel.rows.replaceChildren(...[panel.doing, panel.jump].filter((kept) => kept !== null));\n"
+        "from": "        for (const child of [...panel.rows.children]) if (child !== panel.tail) child.remove();\n",
+        "to": "        panel.rows.replaceChildren(...[panel.tail].filter((kept) => kept !== null));\n"
       }
     ]
   },
@@ -2898,13 +2893,13 @@
     ]
   },
   {
-    "name": "the Leader's pill is appended after the jump pill, so rows land between the two",
+    "name": "the Leader's pill is among the rows again, so it scrolls away with them",
     "catches": "never removes or moves the pill when a row lands: rows go in before it",
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      rows.insertBefore(doing, jump);\n",
-        "to": "      rows.append(doing);\n"
+        "from": "      pills.append(doing, jump, tip);\n",
+        "to": "      pills.append(jump, tip);\n      rows.append(doing);\n"
       }
     ]
   },
