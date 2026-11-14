@@ -1,0 +1,94 @@
+/* The diff view (/diff/…): a bar across the top, the list of files on the left, which can be
+   hidden, and one file at a time beside it, scrolling on its own. Tokens from md.css, and the
+   diff's own below in both themes. */
+:root {
+  --diff-add-bg: #e6ffec; --diff-add-num: #ccffd8;
+  --diff-del-bg: #ffebe9; --diff-del-num: #ffd7d5;
+  --diff-fold-bg: #ddf4ff; --diff-none: #f3f5f8;
+}
+:root[data-theme="dark"] {
+  --diff-add-bg: rgba(46, 160, 67, .15); --diff-add-num: rgba(46, 160, 67, .3);
+  --diff-del-bg: rgba(248, 81, 73, .15); --diff-del-num: rgba(248, 81, 73, .3);
+  --diff-fold-bg: rgba(56, 139, 253, .12); --diff-none: #13181f;
+}
+* { box-sizing: border-box; }
+html, body.diff { height: 100%; }
+body.diff { margin: 0; display: flex; flex-direction: column; background: var(--bg); color: var(--fg); font: .9rem/1.5 var(--sans); -webkit-font-smoothing: antialiased; }
+body.diff.message main { padding: 16px; }
+
+/* the bar */
+.diff .bar { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 6px 12px; background: var(--panel-2); border-bottom: 1px solid var(--line); }
+.diff .bar .what { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.diff .bar .repo { font-weight: 600; margin-right: 6px; }
+.diff .bar .rev { font-family: var(--mono); font-size: .85em; }
+.diff .bar .id { color: var(--fg-faint); }
+.diff .bar .spacer { flex: 1; }
+.diff .bar .group { display: inline-flex; align-items: center; gap: 4px; }
+.diff .bar .position { min-width: 4.5em; text-align: center; color: var(--fg-dim); font-variant-numeric: tabular-nums; }
+.diff .bar button { padding: 2px 10px; font: .8rem/1.5 var(--sans); color: var(--fg-dim); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
+.diff .bar button:hover { color: var(--fg); }
+.diff .bar button[aria-pressed="true"] { color: var(--fg); border-color: var(--accent); }
+
+/* the list of files and the file shown */
+.diff .frame { flex: 1; min-height: 0; display: flex; }
+.diff nav.files { flex: none; width: 300px; min-width: 140px; max-width: 70vw; overflow: auto; resize: horizontal; border-right: 1px solid var(--line); background: var(--panel); font-size: .8rem; }
+html.no-files .diff nav.files { display: none; }
+.diff nav.files ol { list-style: none; margin: 0; padding: 4px 0; }
+.diff nav.files a { display: flex; gap: 6px; align-items: baseline; padding: 1px 10px; color: var(--fg); text-decoration: none; white-space: nowrap; border-left: 3px solid transparent; }
+.diff nav.files a:hover { background: var(--panel-2); }
+.diff nav.files a.active { background: var(--panel-2); border-left-color: var(--accent); }
+.diff nav.files .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; direction: rtl; text-align: left; }
+.diff nav.files .dir { color: var(--fg-faint); }
+.diff main.files-shown { flex: 1; min-width: 0; overflow: auto; }
+.diff .status { font-family: var(--mono); font-size: .85em; font-weight: 600; color: var(--hl-literal); }
+.diff .s-A, .diff .s-N { color: var(--hl-name); }
+.diff .s-D { color: var(--hl-keyword); }
+.diff .s-R, .diff .s-C { color: var(--hl-title); }
+.diff .counts { font-family: var(--mono); font-size: .85em; white-space: nowrap; }
+.diff .plus { color: var(--hl-name); }
+.diff .minus { color: var(--hl-keyword); }
+.diff .file-head { position: sticky; top: 0; z-index: 1; margin: 0; padding: 6px 12px; font-size: .9rem; font-weight: 400; background: var(--bg); border-bottom: 1px solid var(--line); }
+.diff .file-head .path { font-family: var(--mono); font-weight: 600; }
+.diff .file-head .from, .diff .file-head .mode { color: var(--fg-dim); font-size: .85em; }
+.diff .note { margin: 0; padding: 10px 12px; color: var(--fg-dim); }
+.diff .body:not(:has(table)) { padding: 0; }
+
+/* the tables: the side-by-side one and the unified one are both drawn, one is shown */
+html.unified .diff table.side, html:not(.unified) .diff table.unified { display: none; }
+.diff table { width: 100%; border-collapse: collapse; table-layout: fixed; font: .8rem/1.45 var(--mono); }
+.diff col.n { width: 6ch; }
+.diff td { padding: 0 8px; vertical-align: top; }
+.diff td.n { text-align: right; color: var(--fg-faint); user-select: none; white-space: nowrap; overflow: hidden; }
+.diff td.c { white-space: pre-wrap; overflow-wrap: anywhere; }
+.diff table.side td.n:nth-child(3) { border-left: 1px solid var(--line); }
+.diff td.del { background: var(--diff-del-bg); }
+.diff td.add { background: var(--diff-add-bg); }
+.diff td.none { background: repeating-linear-gradient(135deg, var(--diff-none), var(--diff-none) 4px, transparent 4px, transparent 8px); }
+.diff td.n:has(+ td.del) { background: var(--diff-del-num); }
+.diff td.n:has(+ td.add) { background: var(--diff-add-num); }
+.diff table.unified td.n:has(+ td.n + td.add) { background: var(--diff-add-num); }
+.diff table.unified td.n:has(+ td.del) { background: var(--diff-del-num); }
+.diff table.unified td.n:has(+ td.n + td.del) { background: var(--diff-del-num); }
+.diff table.unified td.c::before { content: " "; display: inline-block; width: 2ch; user-select: none; color: var(--fg-dim); }
+.diff table.unified td.del::before { content: "−"; }
+.diff table.unified td.add::before { content: "+"; }
+.diff table.side[data-select="a"] td.b, .diff table.side[data-select="b"] td.a { user-select: none; }
+.diff tr.current td { box-shadow: inset 0 2px 0 var(--accent); }
+.diff tbody.fold td { padding: 0; background: var(--diff-fold-bg); }
+.diff button.unfold { display: block; width: 100%; padding: 1px 12px; font: inherit; text-align: left; color: var(--fg-dim); background: none; border: 0; cursor: pointer; }
+.diff button.unfold:hover { color: var(--fg); }
+
+/* code highlight.js coloured, in the theme's --hl- tokens (md.css), as the file view has it */
+.diff .hljs-keyword, .diff .hljs-doctag, .diff .hljs-template-tag, .diff .hljs-template-variable, .diff .hljs-type, .diff .hljs-variable.language_, .diff .hljs-meta .hljs-keyword { color: var(--hl-keyword); }
+.diff .hljs-title { color: var(--hl-title); }
+.diff .hljs-attr, .diff .hljs-attribute, .diff .hljs-literal, .diff .hljs-meta, .diff .hljs-number, .diff .hljs-operator, .diff .hljs-selector-attr, .diff .hljs-selector-class, .diff .hljs-selector-id, .diff .hljs-variable { color: var(--hl-literal); }
+.diff .hljs-string, .diff .hljs-regexp, .diff .hljs-meta .hljs-string { color: var(--hl-string); }
+.diff .hljs-built_in, .diff .hljs-symbol { color: var(--hl-built-in); }
+.diff .hljs-comment, .diff .hljs-code, .diff .hljs-formula { color: var(--hl-comment); }
+.diff .hljs-name, .diff .hljs-quote, .diff .hljs-selector-tag, .diff .hljs-selector-pseudo { color: var(--hl-name); }
+.diff .hljs-section { color: var(--hl-literal); font-weight: 700; }
+.diff .hljs-bullet { color: var(--hl-bullet); }
+.diff .hljs-emphasis { font-style: italic; }
+.diff .hljs-strong { font-weight: 700; }
+.diff .hljs-addition { color: var(--hl-add); }
+.diff .hljs-deletion { color: var(--hl-del); }

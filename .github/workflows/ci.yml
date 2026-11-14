@@ -371,6 +371,9 @@ jobs:
       - name: Show a file of the instance read-only, and only the files the view shows
         run: node --test tests/view.test.mjs
 
+      - name: Capture a diff of a repository of the instance, and draw it
+        run: node --test tests/diff.test.mjs
+
   page:
     name: Page
     runs-on: ubuntu-latest

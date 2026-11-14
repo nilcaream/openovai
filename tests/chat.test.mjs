@@ -472,6 +472,33 @@ describe("what the chat serves", () => {
     }
   });
 
+  // A diff the `diff` tool captured (lib/chat/diff.mjs), gated as the file view is: the page and
+  // each file's body to a caller with the cookie, under the view's headers; nothing to one without.
+  it("shows a captured diff and its files' bodies only to a caller holding the cookie, under the view's headers", async () => {
+    const id = crypto.randomUUID();
+    fs.mkdirSync(path.join(instance, "temp", "diffs"), { recursive: true });
+    const file = { status: "M", old: "a.txt", new: "a.txt", modes: ["100644", "100644"], a: { text: "Seen before\n", state: "text" }, b: { text: "Seen after\n", state: "text" }, hunks: [[1, 1, 1, 1]] };
+    const side = (asked) => ({ asked, id: "0".repeat(40), date: "", subject: "" });
+    fs.writeFileSync(path.join(instance, "temp", "diffs", `${id}.json`), JSON.stringify({ at: "", repository: "projects/demo", from: side("one"), to: side("two"), files: [file] }));
+    const [host] = own();
+    const cookie = signedIn();
+    const shown = await raw("GET", `/diff/${id}`, { host, cookie });
+    assert.equal(shown.status, 200);
+    assert.match(shown.body, /<section class="file" id="f1"/);
+    assert.match(shown.headers["content-security-policy"], /default-src 'none'; style-src 'self'; script-src 'self'/);
+    assert.equal(shown.headers["cache-control"], "no-store");
+    const body = await raw("GET", `/diff/${id}/1`, { host, cookie });
+    assert.equal(body.status, 200);
+    assert.match(body.body, /Seen after/);
+    for (const asked of [`/diff/${id}`, `/diff/${id}/1`]) {
+      const refused = await raw("GET", asked, { host, cookie: `openovai-page-${server.address().port}=wrong` });
+      assert.equal(refused.status, 401, asked);
+      assert.ok(!refused.body.includes("Seen"), asked);
+    }
+    assert.equal((await raw("GET", `/diff/${crypto.randomUUID()}`, { host, cookie })).status, 404);
+    assert.equal((await raw("GET", "/diff.js", { host })).status, 200);
+  });
+
   it("refuses the file view to a caller without the cookie, whatever else it carries", async () => {
     const [host] = own();
     for (const cookie of [undefined, `openovai-page-${server.address().port}=wrong`, `openovai-page-${server.address().port + 1}=${sessionKey(instance)}`]) {
@@ -1547,9 +1574,9 @@ describe("the tools a session is served", () => {
     await endEvery(500);
   });
 
-  it("serves the Leader exactly what BUILT_IN names but done, and a Worker message, room, index, validate, write_desk and done", async () => {
+  it("serves the Leader exactly what BUILT_IN names but done, and a Worker message, room, index, validate, diff, write_desk and done", async () => {
     assert.deepEqual(await listed(martin.secret), BUILT_IN.filter((name) => name !== "done"));
-    assert.deepEqual(await listed(paul.secret), ["message", "room", "index", "validate", "write_desk", "done"]);
+    assert.deepEqual(await listed(paul.secret), ["message", "room", "index", "validate", "diff", "write_desk", "done"]);
   });
 
   it("binds who is calling into every tool, so none of them reads it from an argument", () => {

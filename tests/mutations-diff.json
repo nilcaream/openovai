@@ -1,0 +1,57 @@
+[
+  {
+    "name": "renames are not looked for",
+    "catches": "keeps every file two revisions differ in, both whole sides, and git's ranges, under a random id",
+    "edits": [{ "file": "lib/chat/diff.mjs", "from": "\"diff\", \"-M\", \"--histogram\"", "to": "\"diff\", \"--histogram\"" }]
+  },
+  {
+    "name": "untracked files are left out of a working-tree capture",
+    "catches": "takes the working tree as the new side, its uncommitted changes and new untracked files included",
+    "edits": [{ "file": "lib/chat/diff.mjs", "from": "  if (worktree) {", "to": "  if (false) {" }]
+  },
+  {
+    "name": "no path in a capture is checked against the deny list",
+    "catches": "never keeps a file the view never shows, by any side, and lists it by its name",
+    "edits": [{ "file": "lib/chat/diff.mjs", "from": "denied: denied([...repo.segments, ...entry.oldPath.split(\"/\")]) || denied([...repo.segments, ...entry.newPath.split(\"/\")])", "to": "denied: false" }]
+  },
+  {
+    "name": "a revision that starts with - reaches git as an option",
+    "catches": "refuses a revision that starts with -, and one git does not know, before anything is written",
+    "edits": [{ "file": "lib/chat/diff.mjs", "from": "    if (optionLike(asked)) return", "to": "    if (false) return" }]
+  },
+  {
+    "name": "any directory counts as inside the instance",
+    "catches": "refuses a repository outside the instance, by its path or by a link to it",
+    "edits": [{ "file": "lib/chat/diff.mjs", "from": "const inside = (where) => where === top || where.startsWith(top + path.sep);", "to": "const inside = () => true;" }]
+  },
+  {
+    "name": "a capture is kept for ever",
+    "catches": "is gone once it is older than it is kept, and dropped by the next capture",
+    "edits": [{ "file": "lib/chat/diff.mjs", "from": "    if (Date.now() - fs.statSync(file).mtimeMs > KEPT) return null;", "to": "" }]
+  },
+  {
+    "name": "a span a line break cut is not opened again on the next line",
+    "catches": "cuts a whole side's highlighting into lines, reopening a span a line break cut",
+    "edits": [{ "file": "lib/chat/diff.mjs", "from": "      line = open.join(\"\");", "to": "      line = \"\";" }]
+  },
+  {
+    "name": "a range with no old lines is read as starting at its old start",
+    "catches": "pairs the lines both sides share and the changes between them, from git's ranges",
+    "edits": [{ "file": "lib/chat/diff.mjs", "from": "    const a0 = oldLength === 0 ? oldStart : oldStart - 1;", "to": "    const a0 = oldStart - 1;" }]
+  },
+  {
+    "name": "a fold hides a single line",
+    "catches": "folds an unchanged run past three lines beside each change, and none that would hide one line",
+    "edits": [{ "file": "lib/chat/diff.mjs", "from": "  if (run.length - head - tail <= 1)", "to": "  if (run.length - head - tail <= 0)" }]
+  },
+  {
+    "name": "an added line has no filler beside it",
+    "catches": "draws a file side by side and unified, numbered on both sides, a filler beside an added line, folds hidden",
+    "edits": [{ "file": "lib/chat/diff.mjs", "from": "`${NO_NUMBER}<td class=\"c a none\"></td>`", "to": "`${NO_NUMBER}`" }]
+  },
+  {
+    "name": "a file's body is fetched from the file before it",
+    "catches": "draws the page with the list of files and each file's head, its body left to be fetched",
+    "edits": [{ "file": "lib/chat/diff.mjs", "from": "data-src=\"/diff/${id}/${index + 1}\"", "to": "data-src=\"/diff/${id}/${index}\"" }]
+  }
+]
