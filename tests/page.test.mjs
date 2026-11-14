@@ -208,7 +208,7 @@ describe("the rules", () => {
     assert.deepEqual(declared(`.rows.comms-hidden > :not(${off}):not(:not(${off}) ~ *)`), { "margin-top": "0" }, "with the messages off, the first drawn row's own margin adds to the panel's gap");
     assert.deepEqual(declared(`.rows.comms-hidden > :not(${off}):not(:has(~ :not(${off})))`), { "margin-bottom": "0" }, "with the messages off, the last drawn row's own margin adds to the gap above the pill row");
     assert.match(script, /\} else \{\s*rows\.append\(jump\);\s*\}/, "a Worker's jump pill is the last of its rows");
-    assert.match(script, /pills\.append\(doing, jump\);/, "the Leader's pills are in a row of their own, not among the rows");
+    assert.match(script, /pills\.append\(doing, jump, tip\);/, "the Leader's pills are in a row of their own, not among the rows");
   });
 
   // A card keeps no margin, standing a row's gap from the rows, the next card and the composer; an
@@ -471,7 +471,7 @@ describe("the rules", () => {
     assert.deepEqual(declared(".divider.doing span"), { "max-width": "100%", "white-space": "nowrap", overflow: "hidden", "text-overflow": "ellipsis", "vertical-align": "top" });
     assert.deepEqual(rules.filter((rule) => /\.doing\b/.test(rule.selector)).map((rule) => rule.selector), [".pills .doing", ".divider.doing span", ".divider.doing.off"]);
     assert.deepEqual(declared(".pills .doing"), { "grid-column": "2", margin: "0", "min-width": "0" });
-    assert.equal(declared(".pills").position, undefined, "the pill row is in the panel's column, not over the rows");
+    assert.equal(declared(".pills").position, "relative", "the pill row is in the panel's column, not over the rows");
     assert.equal(declared(".pills")["grid-template-columns"], "1fr minmax(0, auto) 1fr", "the pill centred, the jump pill's column as wide as the empty one across from it");
     assert.equal(declared(".divider.doing.off").color, "var(--bad)", "the word of a lost stream is red");
     assert.equal(rules.filter((rule) => /\.dock\b/.test(rule.selector)).length, 0, "no dock: the pill is in the rows' flow");
@@ -870,12 +870,34 @@ describe("the script", () => {
   // landing. A Worker's panel has none, and no pill row.
   it("draws what the Leader is at as the same pill a stamp row is drawn with, made with the panel, in the pill row under the rows, changed in place", () => {
     const draw = script.slice(script.indexOf("function drawPanel(panel)"), script.indexOf("// ------------------------------------------------------------------------------- the page"));
-    assert.match(script, /let doing = null;\s*let pills = null;\s*if \(leads\) \{\s*doing = pill\(LINE_WAITING\);\s*doing\.classList\.add\("doing"\);[^]*?pills = document\.createElement\("div"\);\s*pills\.className = "pills";\s*pills\.append\(doing, jump\);\s*\}/, "the Leader's panel has its pill from the start, the same pill a stamp row is drawn with, and a Worker's none");
-    assert.match(script, /doing\.addEventListener\("pointerenter", \(\) => \{\s*doing\.title = pillTitle\(state, name\);\s*\}\);/, "its hover is said again as it shows, so a run's time is the time now");
-    assert.match(draw, /if \(panel\.doing !== null\) \{\s*panel\.doing\.firstElementChild\.textContent = pillLine\(state, panel\.name\);\s*panel\.doing\.title = pillTitle\(state, panel\.name\);\s*panel\.doing\.classList\.toggle\("off", state\.connection !== CONNECTED\);\s*\}\n/);
+    assert.match(script, /let doing = null;\s*let tip = null;\s*let pills = null;\s*if \(leads\) \{\s*doing = pill\(LINE_WAITING\);\s*doing\.classList\.add\("doing"\);[^]*?pills = document\.createElement\("div"\);\s*pills\.className = "pills";\s*pills\.append\(doing, jump, tip\);\s*\}/, "the Leader's panel has its pill from the start, the same pill a stamp row is drawn with, and a Worker's none");
+    assert.match(draw, /if \(panel\.doing !== null\) \{\s*panel\.doing\.firstElementChild\.textContent = pillLine\(state, panel\.name\);\s*if \(!panel\.tip\.hidden\) \{\s*panel\.tip\.textContent = pillTitle\(state, panel\.name\);\s*panel\.tip\.hidden = panel\.tip\.textContent === "";\s*\}\s*panel\.doing\.classList\.toggle\("off", state\.connection !== CONNECTED\);\s*\}\n/, "a hover that shows is said again at every draw, and goes with nothing left to say");
     assert.doesNotMatch(draw, /panel\.doing\.remove\(\)|panel\.doing = /, "the pill is never taken out nor made again");
     assert.doesNotMatch(draw.slice(draw.indexOf("if (panel.doing !== null) {"), draw.indexOf("if (landed && panel.view.follow")), /landed =/, "its words changing is not a row landing: it moves no row");
-    assert.match(script, /jump, unread, tail, doing, standing, stood: null, box,/, "the panel keeps the pill it was made with");
+    assert.match(script, /jump, unread, tail, doing, tip, standing, stood: null, box,/, "the panel keeps the pill it was made with");
+  });
+
+  // The pill's hover is the page's own, not the browser's title: the native tooltip was seen cut
+  // and drawn past the window's bottom edge on the User's desktop. It shows HOVER_DELAY after the
+  // pointer came, says what is true then (a run's time is the time now), goes when the pointer
+  // leaves or a key is pressed, opens upward from the pill within the pill row's width, one line
+  // per item, and takes no pointer.
+  it("gives the Leader's pill a hover of the page's own, opening upward, and no title", () => {
+    const declared = (selector) => rules.find((rule) => rule.selector === selector)?.declarations;
+    assert.doesNotMatch(script, /doing\.title|\.doing\.title/, "no browser title on the pill: its tooltip can be cut by the window's edge");
+    assert.match(script, /const HOVER_DELAY = 500;/);
+    assert.match(script, /tip\.className = "tip";\s*tip\.id = `tip-\$\{name\}`;\s*tip\.setAttribute\("role", "tooltip"\);\s*tip\.hidden = true;\s*doing\.setAttribute\("aria-describedby", tip\.id\);/, "a tooltip to assistive technology, hidden until it shows");
+    assert.match(script, /doing\.addEventListener\("pointerenter", \(\) => \{\s*clearTimeout\(coming\);\s*coming = setTimeout\(\(\) => \{\s*tip\.textContent = pillTitle\(state, name\);\s*tip\.hidden = tip\.textContent === "";\s*\}, HOVER_DELAY\);\s*\}\);/, "said again as it shows, and only with something to say");
+    assert.match(script, /doing\.addEventListener\("pointerleave", hideTip\);\s*document\.addEventListener\("keydown", hideTip\);/);
+    assert.match(script, /const hideTip = \(\) => \{\s*clearTimeout\(coming\);\s*tip\.hidden = true;\s*\};/, "a pointer that left before it showed never shows it");
+    assert.equal(declared(".pills").position, "relative", "the hover is placed against the pill row");
+    const tip = declared(".pills .tip");
+    assert.equal(tip.position, "absolute");
+    assert.equal(tip.bottom, "calc(100% + 4px)", "it opens upward from the pill, over the rows, never past the window's bottom");
+    assert.equal(tip["max-width"], "100%", "never wider than the pill row, so the panel never cuts it at a side");
+    assert.equal(tip["white-space"], "pre-line", "one line per item");
+    assert.equal(tip["pointer-events"], "none", "the pointer stays on the pill");
+    assert.equal(tip.display, undefined, "a display of its own would beat the hidden attribute");
   });
 
   // A pill never leaves its place and never moves, not even within one task: every row lands
@@ -1221,7 +1243,7 @@ describe("the script", () => {
     assert.match(script, /headLine\.append\(facts\.version, facts\.quota\);[\s\S]{0,600}headLine\.append\(themeToggle\);/);
     assert.match(script, /headLine\.append\(nameLine, info\);[\s\S]{0,400}else headLine\.append\(word\);/, "only a Worker's head has the state word");
     assert.doesNotMatch(script, /facts\.conn/);
-    assert.match(script, /panel\.doing\.firstElementChild\.textContent = pillLine\(state, panel\.name\);\s*panel\.doing\.title = pillTitle\(state, panel\.name\);\s*panel\.doing\.classList\.toggle\("off", state\.connection !== CONNECTED\);/);
+    assert.match(script, /panel\.doing\.firstElementChild\.textContent = pillLine\(state, panel\.name\);[\s\S]{0,200}?panel\.doing\.classList\.toggle\("off", state\.connection !== CONNECTED\);/);
     assert.match(script, /panel\.facts\.quota\.textContent = quotaLine\(state\.quota, lite\.matches\);\s*panel\.facts\.quota\.classList\.toggle\("old", state\.quota !== null && state\.quota\.old === true\);\s*panel\.facts\.quota\.title = quotaTitle\(state\.quota, new Date\(\)\);/);
     assert.match(script, /document\.title = title\(state\);/);
   });

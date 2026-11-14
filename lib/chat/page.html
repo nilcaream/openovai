@@ -115,7 +115,11 @@
      and the jump pill at the right. It stands where the pill stood under the newest row, 3px
      below the rows, whatever they are scrolled to; the jump pill only shows and hides, so neither
      pill ever moves */
-  .pills { flex: 0 0 auto; display: grid; grid-template-columns: 1fr minmax(0, auto) 1fr; align-items: center; margin-top: calc(3px - var(--gap)); }
+  .pills { position: relative; flex: 0 0 auto; display: grid; grid-template-columns: 1fr minmax(0, auto) 1fr; align-items: center; margin-top: calc(3px - var(--gap)); }
+  /* the Leader's pill's hover, the page's own rather than the browser's title: one line per item,
+     opening upward from the pill over the rows and centred on it, never wider than the pill row,
+     so it can never be cut by the window's bottom edge. It takes no pointer, so the pill keeps it */
+  .pills .tip { position: absolute; bottom: calc(100% + 4px); left: 50%; transform: translateX(-50%); width: max-content; max-width: 100%; white-space: pre-line; text-align: left; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); color: var(--fg); font-size: .78rem; padding: 4px 8px; pointer-events: none; z-index: 1; }
   .pills .doing { grid-column: 2; margin: 0; min-width: 0; }
   .pills .jump { grid-column: 3; justify-self: end; position: static; margin: 0; display: block; visibility: hidden; }
   .pills .jump.show { visibility: visible; }
@@ -594,6 +598,8 @@
   // since they left the newest (a tool line is not one).
   const LATEST = "↓ Latest";
   const NEW_ROWS = (count) => `↓ ${count} new`;
+  // How long the pointer rests on the Leader's pill before its hover shows, about the browser's own.
+  const HOVER_DELAY = 500;
   // At the newest row, give or take the few px a zoomed scroll lands off by: the reader is at
   // the end of the rows, and the panel follows what lands there.
   const atTheNewest = (rows) => rows.scrollHeight - rows.scrollTop - rows.clientHeight < 4;
@@ -781,17 +787,38 @@
     // area — a card, the composer — never on it. `tail` is what every row lands before: the jump
     // pill among a Worker's rows, nothing (the end) among the Leader's.
     let doing = null;
+    let tip = null;
     let pills = null;
     if (leads) {
       doing = pill(LINE_WAITING);
       doing.classList.add("doing");
-      // The hover says how long each run has gone, so it is said again whenever it is about to show.
+      // The pill's hover is the page's own (.tip), not the browser's title: it shows HOVER_DELAY
+      // after the pointer came, if it has anything to say, and goes when the pointer leaves or a
+      // key is pressed, as the browser's would. It says how long each run has gone, so it is said
+      // again whenever it is about to show; a draw while it shows says it again too.
+      tip = document.createElement("div");
+      tip.className = "tip";
+      tip.id = `tip-${name}`;
+      tip.setAttribute("role", "tooltip");
+      tip.hidden = true;
+      doing.setAttribute("aria-describedby", tip.id);
+      let coming = null;
+      const hideTip = () => {
+        clearTimeout(coming);
+        tip.hidden = true;
+      };
       doing.addEventListener("pointerenter", () => {
-        doing.title = pillTitle(state, name);
+        clearTimeout(coming);
+        coming = setTimeout(() => {
+          tip.textContent = pillTitle(state, name);
+          tip.hidden = tip.textContent === "";
+        }, HOVER_DELAY);
       });
+      doing.addEventListener("pointerleave", hideTip);
+      document.addEventListener("keydown", hideTip);
       pills = document.createElement("div");
       pills.className = "pills";
-      pills.append(doing, jump);
+      pills.append(doing, jump, tip);
     } else {
       rows.append(jump);
     }
@@ -949,7 +976,7 @@
     // them), `quiet` whether the comms switch hid the messages when the window was last settled,
     // and `crowded` whether rows came or went since, so the window may hold more than it should.
     // `leave` puts the draft back in a box that shows an earlier prompt.
-    return { name, leads, section, nameLine, info, word, fitPlaceholder, facts, composer, stop, rows, cards, jump, unread, tail, doing, standing, stood: null, box, leave, view, keep, shown: 0, from: 0, quiet: false, crowded: false, drawn: new Map(), loading: false, last: null, lines: new Map(), bubbles: new Map(), waiting: new Map() };
+    return { name, leads, section, nameLine, info, word, fitPlaceholder, facts, composer, stop, rows, cards, jump, unread, tail, doing, tip, standing, stood: null, box, leave, view, keep, shown: 0, from: 0, quiet: false, crowded: false, drawn: new Map(), loading: false, last: null, lines: new Map(), bubbles: new Map(), waiting: new Map() };
   }
 
   // When a row was written, in the reader's own zone (clock.mjs), and the clock alone where the
@@ -1729,10 +1756,14 @@
       }
       // What the Leader is at, on its pill: the server's word on a turn, LINE_WAITING off one, and that
       // it has left while it has no process. The pill is always there and only its words change, so
-      // it is never a row landing.
+      // it is never a row landing. A hover that shows says what is true now, and goes when it has
+      // nothing left to say.
       if (panel.doing !== null) {
         panel.doing.firstElementChild.textContent = pillLine(state, panel.name);
-        panel.doing.title = pillTitle(state, panel.name);
+        if (!panel.tip.hidden) {
+          panel.tip.textContent = pillTitle(state, panel.name);
+          panel.tip.hidden = panel.tip.textContent === "";
+        }
         panel.doing.classList.toggle("off", state.connection !== CONNECTED);
       }
       // A panel that follows is pinned to its newest in the same task the rows landed in, before
