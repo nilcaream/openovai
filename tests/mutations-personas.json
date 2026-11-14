@@ -1175,5 +1175,20 @@
         "to": ""
       }
     ]
+  },
+  {
+    "name": "the Leader under the leaderCli experiment is told today's persona",
+    "catches": "gives the Leader under the leaderCli experiment the lean persona, and nobody else",
+    "edits": [{ "file": "lib/desks.mjs", "from": "  const cli = leads && leaderRunsLikeCli(config);", "to": "  const cli = false;" }]
+  },
+  {
+    "name": "a Worker is under the leaderCli experiment too",
+    "catches": "gives the Leader under the leaderCli experiment the lean persona, and nobody else",
+    "edits": [{ "file": "lib/desks.mjs", "from": "  const cli = leads && leaderRunsLikeCli(config);", "to": "  const cli = leaderRunsLikeCli(config);" }]
+  },
+  {
+    "name": "a passage the template no longer holds is skipped by the leaderCli experiment",
+    "catches": "refuses to swap a passage the template no longer holds",
+    "edits": [{ "file": "lib/desks.mjs", "from": "    if (!text.includes(from)) {", "to": "    if (false) {" }]
   }
 ]

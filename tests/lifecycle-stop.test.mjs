@@ -865,7 +865,8 @@ describe("openovai.json changed while the server runs", () => {
   it("lists every setting as the server holds it, the defaults marked, and the restart-only keys apart", async () => {
     const listed = await tool(leader.secret, "settings", {});
     assert.equal(listed.refused, false, listed.text);
-    assert.match(listed.text, /^Applied the moment they are written, with no restart; a model from each seat's next start:\n/);
+    assert.match(listed.text, /^Applied the moment they are written, with no restart; a model from each seat's next start, and experiment\.leaderCli from the Leader's:\n/);
+    assert.match(listed.text, /\nexperiment\.leaderCli: false \(default\)\n/, "the experiment is off unless the file turns it on");
     assert.match(listed.text, /\ndesk\.limit: 98304\n/);
     assert.match(listed.text, /\nidle\.force: 55 \(default\)\n/);
     assert.match(listed.text, /\nquota\.5h: \[50,60\]\n/);

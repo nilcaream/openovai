@@ -108,5 +108,10 @@
         "to": "  const env = Object.fromEntries(Object.entries(shell).filter(([name]) => !name.startsWith(\"CLAUDE_CODE_\")));\n  for (const name of [...A_SESSIONS_OWN, ...SET_ON_A_SESSION]) {"
       }
     ]
+  },
+  {
+    "name": "the Leader under the leaderCli experiment has the silent-turn reminder turned off",
+    "catches": "leaves Claude Code's silent-turn reminder to the Leader under the leaderCli experiment",
+    "edits": [{ "file": "lib/claude.mjs", "from": "    if (!cli && !env.CLAUDE_CODE_SILENT_TURN_REMINDER) {", "to": "    if (!env.CLAUDE_CODE_SILENT_TURN_REMINDER) {" }]
   }
 ]

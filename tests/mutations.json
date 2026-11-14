@@ -2564,5 +2564,20 @@
     "name": "a control request nobody answers is waited for for ever",
     "catches": "gives up on a session that does not answer its control request once the patience is over",
     "edits": [{ "file": "lib/chat/session.mjs", "from": "      record.controls.delete(id);\n      resolve(null);\n", "to": "" }]
+  },
+  {
+    "name": "the Leader under the leaderCli experiment holds a text a call follows",
+    "catches": "shows the Leader's text and note before a call while the call is out, and keeps them past a <noop/>",
+    "edits": [{ "file": "lib/chat/session.mjs", "from": "              if (record.live || (wordsOf(block.text).trim() !== \"\" && record.fresh)) {", "to": "              if (wordsOf(block.text).trim() !== \"\" && record.fresh) {" }]
+  },
+  {
+    "name": "the Leader under the leaderCli experiment holds a note",
+    "catches": "shows the Leader's text and note before a call while the call is out, and keeps them past a <noop/>",
+    "edits": [{ "file": "lib/chat/session.mjs", "from": "              if (record.live) {\n                record.write([block.thinking.trim()], false);", "to": "              if (false) {\n                record.write([block.thinking.trim()], false);" }]
+  },
+  {
+    "name": "a Worker is under the leaderCli experiment too",
+    "catches": "leaves a Worker holding its text a call follows",
+    "edits": [{ "file": "lib/chat/session.mjs", "from": "  const cli = role === LEADER && leaderRunsLikeCli(instance.config);", "to": "  const cli = leaderRunsLikeCli(instance.config);" }]
   }
 ]

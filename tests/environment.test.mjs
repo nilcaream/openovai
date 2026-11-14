@@ -99,6 +99,18 @@ describe("what a process started here carries of its starter", () => {
     }
   });
 
+  it("leaves Claude Code's silent-turn reminder to the Leader under the leaderCli experiment", () => {
+    const kept = process.env.CLAUDE_CODE_SILENT_TURN_REMINDER;
+    try {
+      delete process.env.CLAUDE_CODE_SILENT_TURN_REMINDER;
+      assert.equal(environment(root, "inherit", "Martin", { cli: true }).CLAUDE_CODE_SILENT_TURN_REMINDER, undefined);
+      assert.equal(environment(root, "inherit", "Martin", { cli: false }).CLAUDE_CODE_SILENT_TURN_REMINDER, "0");
+    } finally {
+      if (kept === undefined) delete process.env.CLAUDE_CODE_SILENT_TURN_REMINDER;
+      else process.env.CLAUDE_CODE_SILENT_TURN_REMINDER = kept;
+    }
+  });
+
   it("leaves the claude.ai account's connectors to every start, a seat's among them, and the person's switch as it is", () => {
     const kept = process.env.ENABLE_CLAUDEAI_MCP_SERVERS;
     try {

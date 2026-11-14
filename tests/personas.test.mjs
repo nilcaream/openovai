@@ -14,7 +14,7 @@ import { after, before, describe, it } from "node:test";
 import { EVENTS } from "../lib/chat/frames.mjs";
 import { toolsFor } from "../lib/chat/server.mjs";
 import { GUIDE, INTRODUCTION_TEMPLATE, LEADER, WORKER, introduction } from "../lib/desks.mjs";
-import { persona } from "../lib/desks.mjs";
+import { CLI_LEADER, asCli, persona } from "../lib/desks.mjs";
 import { BUILT_IN } from "../lib/plugins.mjs";
 import { remove, repo, scratch } from "./helpers.mjs";
 
@@ -673,6 +673,47 @@ describe("what both are told in ovai's common frame", () => {
       );
       assert.ok(!common.includes("hasn't heard from you"), role);
     }
+  });
+
+  // The leaderCli experiment: the Leader is told its words show as they come, and loses the lines
+  // that exist only because they are held and its own lines of style; every structural rule stays.
+  // A Worker under the same file, and a Leader with the switch false, are told what they are today.
+  it("gives the Leader under the leaderCli experiment the lean persona, and nobody else", () => {
+    const on = { user: USER, leader: LEAD, experiment: { leaderCli: true } };
+    const lean = flat(persona(repo, LEAD, on));
+    for (const gone of [
+      "Text you write before a call is held back while the turn runs",
+      "Write an answer to Mike once, as the turn's last text",
+      "A plan for your next call stays in thinking",
+      "written again if you wrote it before a call",
+      "Never point back to a list you wrote earlier",
+      "Code formatting is for code.",
+      "Ask Mike one thing at a time.",
+    ]) {
+      assert.ok(!lean.includes(gone), gone);
+    }
+    for (const kept of [
+      "Every text you write is on your panel the moment you write it, as on Claude Code's own command line",
+      "A turn that ends in `<noop/>` writes no words on its way.",
+      "what you wrote earlier in the turn is on your panel already.",
+      "What you say in a turn lands on your own panel and nowhere else. Nothing you say there reaches another session: whatever is for one goes through `message`.",
+      "A turn with nothing in it for your panel is a `<noop/>` turn.",
+      "A turn that answers Mike is never a `<noop/>` turn.",
+      "You do no project work.",
+      "a line you address to a Worker at the end of its message's turn lands there, in front of Mike, and the Worker never sees it.",
+      "A message says what happened; the status says only what waits. When Mike asks where things stand",
+      "then call `confirm_status` as your last call.",
+      "There is no other channel.",
+    ]) {
+      assert.ok(lean.includes(kept), kept);
+    }
+    assert.equal(persona(repo, PAUL, on), worker(), "a Worker is under the experiment");
+    assert.equal(persona(repo, LEAD, { ...on, experiment: { leaderCli: false } }), leader(), "the Leader with the switch off is not today's");
+  });
+
+  it("refuses to swap a passage the template no longer holds", () => {
+    const [from] = CLI_LEADER.leader[0];
+    assert.throws(() => asCli("leader", template("leader").replace(from, "")), /no longer holds a passage the leaderCli experiment swaps/);
   });
 
   // What both roles are told alike is said once, in the common frame, and not again in the role's.

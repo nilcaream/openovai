@@ -2551,6 +2551,42 @@ describe("what a seat says", () => {
     assert.deepEqual(panel(instance, WORKER).filter((row) => row.from === WORKER && row.text !== undefined).map((row) => row.text), ["Yes, the README next.", "done"]);
   });
 
+  // The leaderCli experiment: the Leader's words are rows as they come, as on Claude Code's own
+  // command line — a text a call follows is on the panel while the call is out, a note too, and a
+  // `<noop/>` at the end takes back nothing already shown. A Worker under the same file holds as
+  // before.
+  describe("under the leaderCli experiment", () => {
+    after(() => {
+      delete chat.config.experiment;
+    });
+
+    it("shows the Leader's text and note before a call while the call is out, and keeps them past a <noop/>", async () => {
+      await endSeat(LEADER, 500);
+      remove(panelFile(instance, LEADER));
+      chat.config.experiment = { leaderCli: true };
+      await seatUp(LEADER, {
+        OPENOVAI_STAND_IN_NOTES: JSON.stringify([[{ text: NOTE }]]),
+        OPENOVAI_STAND_IN_CALLS: JSON.stringify([[{ ...READING, text: LOOKING }]]),
+        OPENOVAI_STAND_IN_CALL_HOLDS: "400",
+        OPENOVAI_STAND_IN_REPLY: "<noop/>",
+      });
+      const told_ = tell(LEADER, userFrame("go")).answered;
+      const words = () => panel(instance, LEADER).filter((row) => row.from === LEADER && row.text !== undefined && row.noop !== true).map((row) => row.text);
+      assert.ok(await waitFor(() => (words().includes(LOOKING) ? true : null)), "the text before the call waited for the turn's end");
+      assert.ok(words().includes(NOTE), "the note before the call waited for the turn's end");
+      await told_;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      assert.deepEqual(words().sort(), [LOOKING, NOTE].sort(), "the <noop/> took back what was shown");
+      await endSeat(LEADER, 500);
+    });
+
+    it("leaves a Worker holding its text a call follows", async () => {
+      chat.config.experiment = { leaderCli: true };
+      const rows = await noted([], { OPENOVAI_STAND_IN_CALLS: JSON.stringify([[{ ...READING, text: LOOKING }]]), OPENOVAI_STAND_IN_REPLY: "<noop/>" });
+      assert.deepEqual(rows.map((row) => [row.from, row.text, row.line, row.noop]), [[WORKER, undefined, "Reading /srv/app/lib/parser.mjs", undefined], [WORKER, "<noop/>", undefined, true]]);
+    });
+  });
+
   // A note is held across a line that joins the turn like a text is, and dropped for the turn's
   // last words.
   it("holds a note across a line that joined the turn, and drops it for the turn's last words", async () => {
