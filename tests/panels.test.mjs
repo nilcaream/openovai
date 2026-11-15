@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { AMBER, CARD, CONNECTED, autoLabel, autoTitle, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, GREY, LATE_AFTER, RED, REPLY, SENDING, SHOWN_FOR, LINE_DISCONNECTED, LINE_LEFT, LINE_WAITING, LINE_WORKING, WINDOW, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, HISTORY, historyKey, keyAction, lasted, loadsOlder, noticed, pillLine, pillTitle, place, prompts, timeSaid, prune, quotaLine, quotaTitle, replaced, insertRef, keptFirst, quoteLines, statusQuote, statusRef, stopEnabled, title, typingBeat, updateAsk, versionTitle, voiceButton, voiceKey, voiceLine, windowStart, withQuotes, TYPING_BEAT, CHECKING, LEADER_STOPPED, STATUS_TITLE, STATUS_WHO, UP_TO_DATE, statusLabel } from "../lib/chat/panels.mjs";
+import { AMBER, CARD, CONNECTED, autoLabel, autoTitle, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, GREY, LATE_AFTER, RED, REPLY, SENDING, SHOWN_FOR, LINE_DISCONNECTED, LINE_LEFT, LINE_WAITING, LINE_WORKING, WINDOW, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, HISTORY, historyKey, keyAction, lasted, loadsOlder, noticed, pillLine, pillTitle, place, prompts, timeSaid, prune, quotaLine, quotaTitle, replaced, insertRef, keptFirst, quoteLines, statusQuote, statusRef, stopEnabled, title, typingBeat, updateAsk, versionTitle, voiceButton, voiceKey, voiceLine, CUT_BY, CUT_FROM, PAUSE_FRAMES, QUIET_DB, fillOf, pauseCut, windowStart, withQuotes, TYPING_BEAT, CHECKING, LEADER_STOPPED, STATUS_TITLE, STATUS_WHO, UP_TO_DATE, statusLabel } from "../lib/chat/panels.mjs";
 import { localAt, refTo, references } from "../lib/chat/refs.mjs";
 
 const LEADER = "Leader";
@@ -191,7 +191,7 @@ describe("the Leader's voice button", () => {
     const voice = on("ready");
     assert.deepEqual(voiceLine({ voice, phase: "recording", elapsed: 7_900 }), { look: "recording", text: "Listening... 0:07", title: "Tab or the microphone button stops it and turns it into text; Esc drops it" });
     assert.equal(voiceLine({ voice, phase: "recording", elapsed: 119_000 }).text, "Listening... 1:59");
-    assert.deepEqual(voiceLine({ voice, phase: "working", said: { text: "an old one", why: "" } }), { look: "working", text: "Turning speech into text…", title: "The microphone button, now a cross, or Esc cancels it: nothing lands in the box" });
+    assert.deepEqual(voiceLine({ voice, phase: "working", said: { text: "an old one", why: "" } }), { look: "working", text: "Turning speech into text…", title: "The microphone button, now a cross, or Esc stops it: what is already text lands in the box, the rest is dropped" });
     assert.deepEqual(voiceLine({ voice, said: { text: "Microphone appears muted", why: "No sound was heard." } }), { look: "said", text: "Microphone appears muted", title: "No sound was heard." });
     assert.equal(voiceLine({ voice, phase: "idle" }), null, "no pill");
     assert.equal(voiceLine({ voice: on("uninstalled") }), null, "no pill before the User asks for the install");
@@ -257,7 +257,7 @@ describe("the Leader's voice button", () => {
       shown: true,
       disabled: false,
       look: "cancel",
-      title: "Turning the recording into text on this machine: click, or press Esc, to cancel it",
+      title: "Turning the recording into text on this machine: click, or press Esc, to stop it and keep what is already text",
     }, "while it turns into text the button cancels it");
   });
 });
@@ -1074,5 +1074,54 @@ describe("a page left open across an update", () => {
     assert.equal(replaced(state, later, ""), true);
     assert.equal(replaced(state, later, "0.23.0"), false);
     assert.equal(replaced(state, snapshot([about(LEADER)], { version: "0.24.0" }), "0.23.0"), true, "another update after that is reloaded for");
+  });
+});
+
+// A dictation is cut at pauses while the User speaks, so each stretch is turned into text at once.
+describe("a dictation cut at pauses", () => {
+  // Levels per 30 ms: speech at -20 dBFS, a pause at -60 from `from` for `frames`.
+  const speech = (length, pauses = []) => {
+    const levels = Array.from({ length }, (_, at) => -20 + (at % 3));
+    for (const [from, frames] of pauses) for (let at = from; at < from + frames; at += 1) levels[at] = -60;
+    return levels;
+  };
+
+  it("never cuts before 20 s, and cuts in the middle of the first pause after it", () => {
+    assert.equal(CUT_FROM, 667);
+    assert.equal(pauseCut(speech(CUT_FROM - 1, [[100, 40]])), -1, "too short to cut, pause or not");
+    assert.equal(pauseCut(speech(CUT_FROM + 50, [[100, 40]])), -1, "a pause before 20 s is not one to cut at");
+    assert.equal(pauseCut(speech(800, [[100, 40], [700, 20], [760, 20]])), 700 + PAUSE_FRAMES / 2);
+    assert.equal(pauseCut(speech(705, [[700, 5]])), -1, "a pause shorter than PAUSE_FRAMES is a breath, not a pause");
+  });
+
+  it("cuts a pause that began before 20 s once its middle is past it", () => {
+    assert.equal(pauseCut(speech(CUT_FROM + 20, [[CUT_FROM - 10, 30]])), CUT_FROM);
+  });
+
+  it("hears quiet against the stretch's own loud speech, so a loud speaker in a noisy room still has pauses", () => {
+    const loud = speech(800).map((level) => level + 15);
+    for (let at = 680; at < 710; at += 1) loud[at] = -3 - QUIET_DB + 1;
+    for (let at = 720; at < 740; at += 1) loud[at] = -30;
+    assert.equal(pauseCut(loud), 720 + PAUSE_FRAMES / 2, "a dip less than QUIET_DB under the speech is no pause");
+    assert.equal(pauseCut(speech(800, [[700, 20]]).map((level) => level - 30)), 700 + PAUSE_FRAMES / 2, "a quiet speaker the same");
+  });
+
+  it("with no pause by 30 s, cuts at the quietest moment after 20 s, so a stretch is one Whisper window", () => {
+    assert.equal(CUT_BY * 30 < 30_000, true);
+    assert.equal(pauseCut(speech(CUT_BY - 1)), -1);
+    const steady = speech(CUT_BY);
+    for (let at = 850; at < 850 + PAUSE_FRAMES; at += 1) steady[at] = -30;
+    assert.equal(pauseCut(steady), 850 + PAUSE_FRAMES / 2);
+  });
+});
+
+describe("the voice pill's fill", () => {
+  it("moves from what is done at the pace measured, never past the stretch being worked on, and never back", () => {
+    const progress = { done: 0.2, upto: 0.5, pace: 0.1 };
+    assert.equal(fillOf(null, 1000), 0);
+    assert.equal(fillOf(progress, 0), 0.2);
+    assert.ok(Math.abs(fillOf(progress, 1000) - 0.3) < 1e-9);
+    assert.equal(fillOf(progress, 60_000), 0.5, "held where the stretch ends until the work says it is done");
+    assert.equal(fillOf({ done: 0.1, upto: 0.5, pace: 0 }, 0, 0.4), 0.4, "never back");
   });
 });

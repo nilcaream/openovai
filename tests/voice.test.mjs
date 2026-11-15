@@ -335,7 +335,7 @@ function standIn(answer, { ready = { ready: true } } = {}) {
         const asked = JSON.parse(buffered.slice(0, end));
         buffered = buffered.slice(end + 1);
         const answered = answer(asked);
-        if (answered !== null) child.stdout.write(`${JSON.stringify(answered)}\n`);
+        for (const line of answered === null ? [] : [answered].flat()) child.stdout.write(`${JSON.stringify(line)}\n`);
       }
     });
     return child;
@@ -394,10 +394,10 @@ describe("the speech process", () => {
       kill(...args);
     };
     await new Promise((resolve) => child.stdin.once("data", resolve));
-    assert.equal(voice.cancel(), true);
+    assert.deepEqual(voice.cancel(), { cancelled: true, text: "" });
     assert.equal(kills.length, 1, "the work stops: the process is killed");
     await assert.rejects(long, (error) => error.cancelled === true && /cancelled/.test(error.message));
-    assert.equal(voice.cancel(), false, "nothing is left to cancel");
+    assert.deepEqual(voice.cancel(), { cancelled: false, text: "" }, "nothing is left to cancel");
     const next = standIn(() => ({ text: "next" }));
     assert.equal(await voice.transcribe({ pcm: Buffer.alloc(8), language: "en", words: [], env, spawner: next.spawner }), "next");
     assert.equal(next.started.length, 1, "a new process for the next recording");
@@ -407,11 +407,11 @@ describe("the speech process", () => {
     ready();
     const loading = standIn(() => ({ text: "x" }), { ready: null });
     const early = voice.transcribe({ pcm: Buffer.alloc(8), language: "en", words: [], env, spawner: loading.spawner });
-    assert.equal(voice.cancel(), true);
+    assert.deepEqual(voice.cancel(), { cancelled: true, text: "" });
     await assert.rejects(early, (error) => error.cancelled === true);
     const idle = standIn(() => ({ text: "done" }));
     assert.equal(await voice.transcribe({ pcm: Buffer.alloc(8), language: "en", words: [], env, spawner: idle.spawner }), "done");
-    assert.equal(voice.cancel(), false);
+    assert.deepEqual(voice.cancel(), { cancelled: false, text: "" });
     assert.equal(await voice.transcribe({ pcm: Buffer.alloc(8), language: "en", words: [], env, spawner: idle.spawner }), "done");
     assert.equal(idle.started.length, 1, "not killed: it held no recording");
   });
@@ -423,6 +423,74 @@ describe("the speech process", () => {
     assert.equal(voice.warm({ env, spawner }), true);
     assert.equal(voice.warm({ env, spawner }), true);
     assert.equal(started.length, 1);
+  });
+});
+
+// A dictation is cut at pauses by the page and each stretch sent as it is cut (panels.mjs, pauseCut).
+describe("a dictation in stretches", () => {
+  const second = Buffer.alloc(32_000);
+  const stretch = (id, index, extra = {}) => voice.stretch({ id, index, pcm: second, language: "en", words: ["ovai"], env, ...extra });
+
+  it("turns each stretch into text as it comes, in order, each told the text before it, and answers the whole at the last", async () => {
+    ready();
+    const told = [];
+    const { spawner, started } = standIn((asked) => {
+      told.push(asked.previous);
+      return [{ progress: 0.5 }, { text: ` part ${told.length} ` }];
+    });
+    assert.equal(await stretch("one", 0, { spawner }), null, "taken, and left to run");
+    assert.equal(await stretch("one", 1, { spawner }), null);
+    const progress = [];
+    assert.deepEqual(await stretch("one", 2, { spawner, last: true, progress: (said) => progress.push(said) }), { text: "part 1 part 2 part 3", silent: false });
+    assert.deepEqual(told, ["", "part 1", "part 1 part 2"]);
+    assert.equal(started.length, 1, "one process for all of it");
+    assert.ok(progress.some((said) => said.done > 0 && said.done < 1), JSON.stringify(progress));
+    assert.equal(progress.at(-1).done, 1);
+    await assert.rejects(stretch("one", 3, { spawner }), (error) => error.cancelled === true, "a dictation answered takes no more");
+  });
+
+  it("sends a stretch that heard nothing to no process, and says when all of it heard nothing", async () => {
+    ready();
+    const { spawner, started } = standIn(() => ({ text: "x" }));
+    await stretch("quiet", 0, { spawner, silent: true });
+    assert.deepEqual(await stretch("quiet", 1, { spawner, silent: true, last: true }), { text: "", silent: true });
+    assert.equal(started.length, 0);
+  });
+
+  it("stops the work on a cancel, background stretches included, and answers the text already done", async () => {
+    ready();
+    const { spawner, started } = standIn((asked) => (asked.previous === "" ? { text: "first" } : null));
+    await stretch("cut", 0, { spawner });
+    await stretch("cut", 1, { spawner });
+    const last = stretch("cut", 2, { spawner, last: true });
+    const child = started[0].child;
+    let killed = 0;
+    const kill = child.kill;
+    child.kill = (...args) => {
+      killed += 1;
+      kill(...args);
+    };
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.deepEqual(voice.cancel("cut"), { cancelled: true, text: "first" });
+    assert.equal(killed, 1, "the stretch being worked on is stopped: the process is killed");
+    await assert.rejects(last, (error) => error.cancelled === true);
+    await assert.rejects(stretch("cut", 3, { spawner }), (error) => error.cancelled === true, "a stretch that comes after the cancel is refused");
+  });
+
+  it("fails a last stretch whose stretches before it never came", async () => {
+    ready();
+    const { spawner } = standIn(() => ({ text: "x" }));
+    await assert.rejects(stretch("gap", 1, { spawner, last: true }), /^Error: stretch 0 of this dictation never came$/);
+  });
+
+  it("says how far the work left at Stop has come: done, where the stretch worked on ends, and the pace", () => {
+    const left = [
+      { seconds: 10, done: true, fraction: 1 },
+      { seconds: 20, done: false, fraction: 0.5 },
+      { seconds: 10, done: false, fraction: 0 },
+    ];
+    assert.deepEqual(voice.progressOf(left, 4), { done: 0.5, upto: 0.75, pace: 0.1 });
+    assert.deepEqual(voice.progressOf([], 4), { done: 0, upto: 0, pace: 1 });
   });
 });
 
@@ -443,7 +511,7 @@ describe("the speech script", () => {
   it("keeps as many words from the front as fit in 223 of the model's tokens, and writes the first one last", (t) => {
     const script = fs.readFileSync(path.join(repo, "lib", "voice", "stt.py"), "utf8");
     assert.match(script, /^PROMPT_TOKENS = 223$/m, "faster-whisper keeps the last max_length // 2 - 1 tokens of a prompt");
-    assert.match(script, /initial_prompt=glossary\(asked\.get\("words"\) or \[\], count\)/);
+    assert.match(script, /initial = prompt\(asked\.get\("words"\) or \[\], asked\.get\("previous"\) or "", count\)\n.*initial_prompt=initial,/);
     const glossary = /^def glossary\(.*?(?=\n\n)/ms.exec(script)?.[0];
     assert.ok(glossary, "stt.py has a glossary function");
     // Counted here in characters: " Glossary: A." is 13, " Glossary: B, A." 16, " Glossary: C, B, A." 19.
@@ -455,5 +523,24 @@ describe("the speech script", () => {
     }
     assert.equal(run.stderr, "");
     assert.equal(run.stdout.trim(), "'Glossary: B, A.' None None");
+  });
+
+  // A stretch of a dictation is told the text before it: its last words go at the END, where
+  // faster-whisper keeps them, and the glossary gets what they leave of the 223.
+  it("puts the end of the text said before at the end of the prompt, and gives the glossary what is left", (t) => {
+    const script = fs.readFileSync(path.join(repo, "lib", "voice", "stt.py"), "utf8");
+    assert.match(script, /^PREVIOUS_TOKENS = 96$/m);
+    const glossary = /^def glossary\(.*?(?=\n\n)/ms.exec(script)?.[0];
+    const prompt = /^def prompt\(.*?(?=\n\n)/ms.exec(script)?.[0];
+    assert.ok(prompt, "stt.py has a prompt function");
+    // In characters: " four" is 5, " three four" 11; 21 less 5 leaves 16 for " Glossary: B, A.".
+    const probe = `PROMPT_TOKENS = 21\nPREVIOUS_TOKENS = 9\n${glossary}\n${prompt}\nprint(repr(prompt(["A", "B", "C"], "one two three four", len)), repr(prompt(["A"], "", len)), repr(prompt([], "", len)))`;
+    const run = spawnSync("python3", ["-I", "-c", probe], { encoding: "utf8" });
+    if (run.error?.code === "ENOENT") {
+      t.skip("no python3 here");
+      return;
+    }
+    assert.equal(run.stderr, "");
+    assert.equal(run.stdout.trim(), "'Glossary: B, A. four' 'Glossary: A.' None");
   });
 });

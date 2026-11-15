@@ -38,19 +38,26 @@ in the message box, where the person reads it, edits it and presses Enter as for
 
 ## Using it
 - Click the button, or press Tab in the Leader's box, and speak. Click or press Tab again to stop.
-  The text appears at the cursor in a few seconds. Esc while recording drops the recording. A
-  recording stops by itself at 2 minutes. Tab does this only in the Leader's box and only while
-  voice input is on; everywhere else it moves the focus as always.
+  The text appears at the cursor in a few seconds, however long the recording. Esc while
+  recording drops the recording. A recording has no length limit. Tab does this only in the
+  Leader's box and only while voice input is on; everywhere else it moves the focus as always.
+- The speech is turned into text while the person goes on speaking: the recording is cut at a
+  pause once it is 20 seconds long (at 30 seconds, without a pause, at its quietest moment), and
+  each part is turned into text on its own, told the text of the parts before it so it reads as
+  one. After Stop only the last part is left, and the parts' text lands in the box all at once.
 - While it records and while it turns speech into text, the box is greyed and takes no typing;
   the text lands where the cursor was, and the cursor ends after it.
 - While it turns speech into text, the microphone button is a cross: a click on it, or Esc,
-  cancels. The speech process is stopped, so the work does not go on using the CPU, nothing lands
-  in the box, and the box takes typing again at once. The next recording loads the model again,
-  a few seconds that pass while the person speaks. Tab does not cancel.
+  stops it. The speech process is stopped, so the work does not go on using the CPU; the text of
+  the parts already done lands in the box ("Dictation stopped early"), or nothing when none was
+  ("Dictation cancelled"); the box takes typing again at once. Esc while recording drops all of
+  it, the parts already turned into text included. The next recording loads the model again, a
+  few seconds that pass while the person speaks. Tab does not cancel.
 - A pill at the left of the Leader's pill row says what is happening: "Listening... 0:07" in red
-  with a running clock, then "Turning speech into text…". After, for a few seconds, what came of
-  it when no text did, with the reason in its hover: "Microphone appears muted", "No speech
-  heard", "Not turned into text", "No microphone", "Dictation cancelled".
+  with a running clock, then "Turning speech into text…", its ground filling from the left as the
+  work left after Stop goes. After, for a few seconds, what came of it when no text did, with the
+  reason in its hover: "Microphone appears muted", "No speech heard", "Not turned into text", "No
+  microphone", "Dictation cancelled", "Dictation stopped early".
 - A recording with no sound in it, as from a muted microphone, is not turned into text: Whisper
   makes up words for silence.
 - Silence and noise inside a recording are cut out by a voice-activity filter before Whisper hears
@@ -67,7 +74,8 @@ in the message box, where the person reads it, edits it and presses Enter as for
   the project directories and ovai's own words, then the unusual words (names, hyphenated or dotted
   words, words in backticks) of the last few lines on the Leader's panel, the desk titles and the
   Leader's status. It helps Whisper spell them. Whisper takes about 220 tokens of it, roughly 60
-  such words; what does not fit is left out, the oldest lines first.
+  such words; what does not fit is left out, the oldest lines first. From the second part of a
+  recording on, the last words of the parts before it (up to 96 tokens) take their room first.
 
 ## What it costs
 - Measured on an 8-core laptop CPU (i7-11850H): about 4 s of waiting after 15 s of speech, with

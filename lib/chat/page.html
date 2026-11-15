@@ -130,6 +130,8 @@
   .pills .voice-pill.recording { color: var(--bad); border-color: var(--bad); }
   .pills .voice-pill.said { color: var(--warn); }
   .pills .voice-pill.failed { color: var(--warn); border-color: var(--warn); cursor: pointer; }
+  /* while the text is made, the pill's ground fills from the left as far as the work has come */
+  .pills .voice-pill.working { background-image: linear-gradient(var(--line), var(--line)); background-repeat: no-repeat; background-size: 0% 100%; transition: background-size .1s linear; }
   /* the rows take the focus on a click, so the keys scroll them; no ring for it, the head's border says what the keys do */
   .rows { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 0; outline: none; }
   /* a tool call is a light line: one per call, no label, no stamp */
@@ -322,7 +324,7 @@
 
   import { answerOf, dialogOf } from "./dialog.mjs";
   import { stampOf } from "./clock.mjs";
-  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, autoLabel, autoTitle, RED, RELOAD_TITLE, RESTART_ASK, RESTART_TITLE, updateAsk, REPLY, advance, voiceButton, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, historyKey, keyAction, loadsOlder, noticed, place, prompts, prune, quotaLine, replaced, quotaTitle, insertRef, keptFirst, pillLine, pillTitle, quoteLines, stopEnabled, statusLabel, statusQuote, statusRef, title, typingBeat, versionTitle, windowStart, withQuotes, voiceKey, voiceLine, LINE_WAITING, STATUS_TITLE, STATUS_WHO, WINDOW } from "./panels.mjs";
+  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, autoLabel, autoTitle, RED, RELOAD_TITLE, RESTART_ASK, RESTART_TITLE, updateAsk, REPLY, advance, voiceButton, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, historyKey, keyAction, loadsOlder, noticed, place, prompts, prune, quotaLine, replaced, quotaTitle, insertRef, keptFirst, fillOf, pauseCut, FRAME_MS, pillLine, pillTitle, quoteLines, stopEnabled, statusLabel, statusQuote, statusRef, title, typingBeat, versionTitle, windowStart, withQuotes, voiceKey, voiceLine, LINE_WAITING, STATUS_TITLE, STATUS_WHO, WINDOW } from "./panels.mjs";
   import { html as markdownOf, row as rowOf, talks, unseen } from "./render.mjs";
   import { refTo, references } from "./refs.mjs";
 
@@ -1136,20 +1138,25 @@
     if (!box.disabled) box.focus();
   }
 
-  // Dictation on the Leader's panel: a click records from the microphone, a second click stops,
-  // and the recording goes to the server as 16-bit samples at 16 kHz, decoded and resampled here
-  // so the server parses no audio format; the text it answers lands in the box at the caret, for
-  // the User to read, edit and send. Esc while recording drops the recording. A recording stops
-  // by itself at the longest the server takes. One dictation at a time on the page.
-  const LONGEST_RECORDING = 120_000;
+  // Dictation on the Leader's panel: a click records from the microphone, a second click stops.
+  // While the User speaks, the recording is cut at pauses (pauseCut) and each stretch goes to the
+  // server at once as 16-bit samples at 16 kHz, resampled here so the server parses no audio
+  // format, and is turned into text there while the User goes on; at Stop the last stretch goes,
+  // and the text of the whole lands in the box at the caret, for the User to read, edit and send.
+  // Esc while recording drops it all. A dictation has no longest. One at a time on the page.
   const VOICE_SAID_FOR = 8000;
-  // `started` and `clock` time the recording for the voice pill; `said` is what came of it,
-  // `{ text, why }`, shown there until VOICE_SAID_FOR has passed, the box is typed in, or the next
-  // recording.
-  // `abort` is the AbortController of the recording being turned into text, null otherwise: its
+  // `capture` is the microphone while recording: its stream, AudioContext and worklet node, the
+  // samples of the stretch not yet sent (`blocks`, `length`), their levels (one per FRAME_MS) and
+  // the frame being summed. `id` names the dictation to the server, `sent` counts its stretches,
+  // `sending` chains their POSTs in order, and `trouble` is why one was refused. `started` and
+  // `clock` time the recording for the voice pill; `said` is what came of it, `{ text, why }`, shown
+  // there until VOICE_SAID_FOR has passed, the box is typed in, or the next recording. `progress`
+  // is how far the work left at Stop has come, `{ done, upto, pace }`, as the server last said, at
+  // `progressAt`; `filled` is what the pill shows of it (fillOf).
+  // `abort` is the AbortController of the dictation being turned into text, null otherwise: its
   // signal says that one was cancelled, so what comes of it later is ignored.
-  const dictation = { phase: "idle", recorder: null, timer: null, dropped: false, started: 0, clock: null, said: null, saidTimer: null, abort: null };
-  const microphone = () => window.isSecureContext && typeof navigator.mediaDevices?.getUserMedia === "function" && typeof MediaRecorder === "function";
+  const dictation = { phase: "idle", capture: null, id: null, sent: 0, sending: null, trouble: null, started: 0, clock: null, said: null, saidTimer: null, abort: null, progress: null, progressAt: 0, filled: 0 };
+  const microphone = () => window.isSecureContext && typeof navigator.mediaDevices?.getUserMedia === "function" && typeof AudioWorkletNode === "function";
 
   function drawVoice(panel) {
     const look = voiceButton(state.voice, { microphone: microphone(), phase: dictation.phase });
@@ -1166,8 +1173,14 @@
     panel.voicePill.classList.toggle("failed", line?.look === "failed");
     panel.voicePill.classList.toggle("recording", line?.look === "recording");
     panel.voicePill.classList.toggle("said", line?.look === "said");
+    panel.voicePill.classList.toggle("working", line?.look === "working");
     panel.voicePill.textContent = line?.text ?? "";
     panel.voicePill.title = line?.title ?? "";
+    // While the text is made, the pill's ground fills from the left as the work goes.
+    if (line?.look === "working") {
+      dictation.filled = fillOf(dictation.progress, Date.now() - dictation.progressAt, dictation.filled);
+      panel.voicePill.style.backgroundSize = `${(dictation.filled * 100).toFixed(1)}% 100%`;
+    } else if (panel.voicePill.style.backgroundSize !== "") panel.voicePill.style.backgroundSize = "";
     // While it records or transcribes the box is greyed and read-only: focus stays, so Tab still
     // works, and nothing is typed into it.
     const busy = dictation.phase !== "idle";
@@ -1197,15 +1210,178 @@
     call("/voice/install", { method: "POST" }).catch(() => {});
   }
 
-  // The recording being turned into text is cancelled, by the button or Esc: the server kills the
-  // work, what comes of it is ignored, and the box is the User's again at once.
+  // Dictated text lands in the Leader's box at the caret, marked as dictated for the send.
+  function putDictated(panel, text) {
+    const box = panel.box;
+    panel.leave();
+    const put = insertRef(box.value, box.selectionStart, box.selectionEnd, text.trim());
+    box.value = put.value;
+    box.setSelectionRange(put.caret, put.caret);
+    panel.spoken.dictated = true;
+    box.dispatchEvent(new Event("input"));
+    if (!box.disabled) box.focus();
+  }
+
+  // The dictation being turned into text is stopped, by the button or Esc: the server kills the
+  // work and answers the text of the stretches already done, which lands in the box; what comes of
+  // the rest is ignored, and the box is the User's again at once.
   function cancelDictation(panel) {
+    const id = dictation.id;
     dictation.abort?.abort();
     dictation.abort = null;
-    call("/voice/cancel", { method: "POST" }).catch(() => {});
+    dictation.id = null;
     dictation.phase = "idle";
+    clearInterval(dictation.clock);
     voiceSaid("Dictation cancelled", "The recording was dropped before it was turned into text; nothing went into the box.");
     if (panel !== undefined && !panel.box.disabled) panel.box.focus();
+    call(`/voice/cancel?dictation=${id}`, { method: "POST" })
+      .then((answered) => answered.json())
+      .then((kept) => {
+        if (panel === undefined || typeof kept.text !== "string" || kept.text.trim() === "") return;
+        putDictated(panel, kept.text);
+        voiceSaid("Dictation stopped early", "What was already turned into text is in the box; the rest of the recording was dropped.");
+      })
+      .catch(() => {});
+  }
+
+  // One stretch of the dictation to the server, after the ones before it: any but the last is only
+  // taken there; the last answers the dictation's text, read here line by line (postVoice).
+  function sendStretch(samples, last) {
+    const id = dictation.id;
+    const index = dictation.sent;
+    dictation.sent += 1;
+    const query = `/voice?dictation=${id}&stretch=${index}${last ? "&last=1" : ""}`;
+    const sent = dictation.sending.then(async () => {
+      const body = await samples;
+      if (dictation.id !== id) return null;
+      if (!last) {
+        try {
+          const answered = await call(query, { method: "POST", headers: { "content-type": "application/octet-stream" }, body });
+          const said = await answered.json().catch(() => ({}));
+          if (!answered.ok) throw new Error(said.error ?? `the server answered ${answered.status}`);
+        } catch (error) {
+          if (dictation.id === id) dictation.trouble ??= error.message;
+        }
+        return null;
+      }
+      if (dictation.trouble !== null) throw new Error(dictation.trouble);
+      return call(query, { method: "POST", headers: { "content-type": "application/octet-stream" }, body, signal: dictation.abort.signal });
+    });
+    dictation.sending = sent.catch(() => null);
+    return sent;
+  }
+
+  // The answer to the last stretch: `{ progress }` lines as the work goes, then what came of it.
+  async function dictationAnswer(answered, abort) {
+    if (!answered.headers.get("content-type")?.startsWith("application/x-ndjson")) {
+      const said = await answered.json().catch(() => ({}));
+      if (!answered.ok) throw new Error(said.error ?? `the server answered ${answered.status}`);
+      return said;
+    }
+    const reader = answered.body.pipeThrough(new TextDecoderStream()).getReader();
+    let buffered = "";
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) return {};
+      buffered += value;
+      let end;
+      while ((end = buffered.indexOf("\n")) >= 0) {
+        const said = JSON.parse(buffered.slice(0, end));
+        buffered = buffered.slice(end + 1);
+        if (said.progress === undefined) return said;
+        if (abort.signal.aborted) continue;
+        dictation.progress = said.progress;
+        dictation.progressAt = Date.now();
+        voicePanels();
+      }
+    }
+  }
+
+  // The microphone's samples as they come (voice-worklet.js): summed into levels per FRAME_MS, and
+  // the stretch so far sent the moment pauseCut finds where to cut it.
+  function heard(capture, block) {
+    capture.blocks.push(block);
+    capture.length += block.length;
+    for (const sample of block) {
+      capture.sum += sample * sample;
+      capture.count += 1;
+      if (capture.count === capture.frame) {
+        capture.levels.push(10 * Math.log10(capture.sum / capture.count));
+        capture.sum = 0;
+        capture.count = 0;
+      }
+    }
+    const cut = pauseCut(capture.levels);
+    if (cut < 0) return;
+    const all = joined(capture.blocks, capture.length);
+    const at = cut * capture.frame;
+    capture.blocks = [all.slice(at)];
+    capture.length = all.length - at;
+    capture.levels = capture.levels.slice(cut);
+    sendStretch(samplesOf(all.subarray(0, at), capture.context.sampleRate), false);
+  }
+
+  function joined(blocks, length) {
+    const all = new Float32Array(length);
+    let at = 0;
+    for (const block of blocks) {
+      all.set(block, at);
+      at += block.length;
+    }
+    return all;
+  }
+
+  function endCapture(capture) {
+    capture.node.port.onmessage = null;
+    capture.node.disconnect();
+    for (const track of capture.stream.getTracks()) track.stop();
+    capture.context.close().catch(() => {});
+    clearInterval(dictation.clock);
+    dictation.capture = null;
+  }
+
+  // Stop, by the button or Tab: the last stretch goes, and the box takes the whole text.
+  async function finishDictation(panel) {
+    const capture = dictation.capture;
+    endCapture(capture);
+    const abort = new AbortController();
+    dictation.abort = abort;
+    dictation.phase = "working";
+    dictation.progress = null;
+    dictation.filled = 0;
+    dictation.clock = setInterval(voicePanels, 100);
+    voicePanels();
+    try {
+      const answered = await sendStretch(samplesOf(joined(capture.blocks, capture.length), capture.context.sampleRate), true);
+      if (answered === null || abort.signal.aborted) return;
+      const said = await dictationAnswer(answered, abort);
+      if (abort.signal.aborted || said.cancelled === true) return;
+      if (typeof said.error === "string") throw new Error(said.error);
+      if (said.silent === true) voiceSaid("Microphone appears muted", "The recording held no sound at all. Check that the microphone is not muted.");
+      else if (typeof said.text !== "string" || said.text.trim() === "") voiceSaid("No speech heard", "The recording held sound but no speech.");
+      else putDictated(panel, said.text);
+    } catch (error) {
+      if (!abort.signal.aborted) voiceSaid("Not turned into text", error.message);
+    } finally {
+      // A cancelled one is over already, and the next recording may be on by now.
+      if (dictation.abort === abort) {
+        clearInterval(dictation.clock);
+        dictation.abort = null;
+        dictation.id = null;
+        dictation.phase = "idle";
+        voicePanels();
+      }
+    }
+  }
+
+  // Esc while recording: the recording is dropped, with what the server holds of it.
+  function dropDictation() {
+    const id = dictation.id;
+    endCapture(dictation.capture);
+    dictation.id = null;
+    dictation.phase = "idle";
+    call(`/voice/cancel?dictation=${id}`, { method: "POST" }).catch(() => {});
+    voicePanels();
   }
 
   async function dictate(name) {
@@ -1220,105 +1396,69 @@
       return;
     }
     if (dictation.phase === "recording") {
-      clearTimeout(dictation.timer);
-      dictation.recorder.stop();
+      if (dictation.capture !== null) finishDictation(panel);
       return;
     }
     if (dictation.phase !== "idle") return;
-    let stream;
+    // Starting: the microphone is asked for, and nothing else starts until it answers.
+    dictation.phase = "starting";
+    let capture;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } });
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } });
+      const context = new AudioContext();
+      try {
+        if (context.state === "suspended") await context.resume();
+        await context.audioWorklet.addModule("/voice-worklet.js");
+      } catch (error) {
+        for (const track of stream.getTracks()) track.stop();
+        context.close().catch(() => {});
+        throw error;
+      }
+      const node = new AudioWorkletNode(context, "ovai-recorder");
+      context.createMediaStreamSource(stream).connect(node);
+      node.connect(context.destination);
+      capture = { stream, context, node, blocks: [], length: 0, levels: [], sum: 0, count: 0, frame: Math.round((context.sampleRate * FRAME_MS) / 1000) };
     } catch (error) {
+      dictation.phase = "idle";
       voiceSaid("No microphone", error.message);
       return;
     }
     call("/voice/warm", { method: "POST" }).catch(() => {});
-    const chunks = [];
-    const recorder = new MediaRecorder(stream);
-    recorder.addEventListener("dataavailable", (event) => chunks.push(event.data));
-    recorder.addEventListener("stop", async () => {
-      for (const track of stream.getTracks()) track.stop();
-      clearInterval(dictation.clock);
-      if (dictation.dropped) {
-        dictation.phase = "idle";
-        voicePanels();
-        return;
-      }
-      const abort = new AbortController();
-      dictation.abort = abort;
-      dictation.phase = "working";
-      voicePanels();
-      try {
-        const samples = await samplesOf(new Blob(chunks, { type: recorder.mimeType }));
-        if (abort.signal.aborted) return;
-        const answered = await call("/voice", { method: "POST", headers: { "content-type": "application/octet-stream" }, body: samples, signal: abort.signal });
-        const said = await answered.json().catch(() => ({}));
-        if (abort.signal.aborted || said.cancelled === true) return;
-        if (!answered.ok) throw new Error(said.error ?? `the server answered ${answered.status}`);
-        if (said.silent === true) voiceSaid("Microphone appears muted", "The recording held no sound at all. Check that the microphone is not muted.");
-        else if (said.text.trim() === "") voiceSaid("No speech heard", "The recording held sound but no speech.");
-        else {
-          const box = panel.box;
-          panel.leave();
-          const put = insertRef(box.value, box.selectionStart, box.selectionEnd, said.text.trim());
-          box.value = put.value;
-          box.setSelectionRange(put.caret, put.caret);
-          panel.spoken.dictated = true;
-          box.dispatchEvent(new Event("input"));
-          if (!box.disabled) box.focus();
-        }
-      } catch (error) {
-        if (!abort.signal.aborted) voiceSaid("Not turned into text", error.message);
-      } finally {
-        // A cancelled one is over already, and the next recording may be on by now.
-        if (dictation.abort === abort) {
-          dictation.abort = null;
-          dictation.phase = "idle";
-          voicePanels();
-        }
-      }
-    });
-    dictation.recorder = recorder;
-    dictation.dropped = false;
+    capture.node.port.onmessage = (event) => heard(capture, event.data);
+    dictation.capture = capture;
+    dictation.id = crypto.randomUUID();
+    dictation.sent = 0;
+    dictation.sending = Promise.resolve();
+    dictation.trouble = null;
     panel.leave();
     dictation.phase = "recording";
     dictation.said = null;
     dictation.started = Date.now();
     dictation.clock = setInterval(voicePanels, 1000);
-    recorder.start();
-    dictation.timer = setTimeout(() => {
-      if (dictation.recorder === recorder && recorder.state === "recording") recorder.stop();
-    }, LONGEST_RECORDING);
     voicePanels();
   }
 
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && dictation.phase === "recording") {
-      dictation.dropped = true;
-      clearTimeout(dictation.timer);
-      dictation.recorder.stop();
+      dropDictation();
     } else if (event.key === "Escape" && dictation.phase === "working") {
       cancelDictation([...sections.values()].find((panel) => panel.voice !== null));
     }
   });
 
-  // A recording as the server takes it: mono, 16 kHz, 16-bit little-endian samples.
-  async function samplesOf(blob) {
-    const context = new AudioContext();
-    let decoded;
-    try {
-      decoded = await context.decodeAudioData(await blob.arrayBuffer());
-    } finally {
-      context.close();
-    }
-    const resampler = new OfflineAudioContext(1, Math.max(1, Math.ceil(decoded.duration * 16000)), 16000);
+  // Samples as the server takes them: mono, 16 kHz, 16-bit little-endian, from samples at `rate`.
+  async function samplesOf(mono, rate) {
+    const length = Math.max(1, Math.ceil((mono.length * 16000) / rate));
+    const resampler = new OfflineAudioContext(1, length, 16000);
+    const buffer = resampler.createBuffer(1, Math.max(1, mono.length), rate);
+    buffer.copyToChannel(mono, 0);
     const source = resampler.createBufferSource();
-    source.buffer = decoded;
+    source.buffer = buffer;
     source.connect(resampler.destination);
     source.start();
-    const mono = (await resampler.startRendering()).getChannelData(0);
-    const samples = new Int16Array(mono.length);
-    for (let index = 0; index < mono.length; index += 1) samples[index] = Math.round(Math.max(-1, Math.min(1, mono[index])) * 0x7fff);
+    const rendered = (await resampler.startRendering()).getChannelData(0);
+    const samples = new Int16Array(rendered.length);
+    for (let index = 0; index < rendered.length; index += 1) samples[index] = Math.round(Math.max(-1, Math.min(1, rendered[index])) * 0x7fff);
     return samples.buffer;
   }
 

@@ -3,8 +3,9 @@
 # one request per line on stdin with one answer per line on stdout, in order, until stdin closes.
 #
 #   python stt.py <model directory>
-#   in:  {"pcm": "<base64 of 16-bit little-endian mono samples at 16 kHz>", "language": "en", "words": ["Mira", "ovai", ...]}
-#   out: {"ready": true} once, when the model is loaded; then {"text": "..."} or {"error": "..."} per request
+#   in:  {"pcm": "<base64 of 16-bit little-endian mono samples at 16 kHz>", "language": "en", "words": ["Mira", "ovai", ...], "previous": "..."}
+#   out: {"ready": true} once, when the model is loaded; then per request, {"progress": <0..1>} as each
+#        segment is written (its end over the samples' length), and last {"text": "..."} or {"error": "..."}
 #
 # It opens no port and reads no file but the model: the audio comes in as samples the page already
 # decoded, so no container format is parsed here. The model is read from the directory the server
@@ -43,6 +44,23 @@ def glossary(words, count, most=PROMPT_TOKENS):
     return "Glossary: " + ", ".join(reversed(kept)) + "." if kept else None
 
 
+# A dictation is turned into text in stretches cut at pauses, each told the text before it: the last
+# PREVIOUS_TOKENS of that text, cut at a word, go at the END of the prompt, where Whisper reads them
+# as what was just said and where faster-whisper keeps them; the glossary gets what is left.
+PREVIOUS_TOKENS = 96
+
+
+def prompt(words, previous, count):
+    kept = []
+    for word in reversed(previous.split()[-PREVIOUS_TOKENS:]):
+        if count(" " + " ".join([word] + kept)) > PREVIOUS_TOKENS:
+            break
+        kept.insert(0, word)
+    tail = " ".join(kept)
+    head = glossary(words, count, PROMPT_TOKENS - (count(" " + tail) if tail else 0))
+    return " ".join(part for part in (head, tail) if part) or None
+
+
 def say(answer):
     sys.stdout.write(json.dumps(answer) + "\n")
     sys.stdout.flush()
@@ -62,8 +80,15 @@ def main():
         try:
             asked = json.loads(line)
             samples = numpy.frombuffer(base64.b64decode(asked["pcm"]), dtype="<i2").astype(numpy.float32) / 32768.0
-            segments, _ = model.transcribe(samples, language=asked["language"], initial_prompt=glossary(asked.get("words") or [], count), beam_size=5, vad_filter=VAD)
-            say({"text": " ".join(segment.text.strip() for segment in segments).strip()})
+            initial = prompt(asked.get("words") or [], asked.get("previous") or "", count)
+            segments, _ = model.transcribe(samples, language=asked["language"], initial_prompt=initial, beam_size=5, vad_filter=VAD)
+            # faster-whisper writes the segments of each 30 s window once the window is decoded.
+            seconds = max(len(samples), 1) / 16000
+            texts = []
+            for segment in segments:
+                texts.append(segment.text.strip())
+                say({"progress": round(min(1.0, segment.end / seconds), 3)})
+            say({"text": " ".join(texts).strip()})
         except Exception as error:  # one bad request is answered, and the next one is read
             say({"error": f"{type(error).__name__}: {error}"})
     return 0

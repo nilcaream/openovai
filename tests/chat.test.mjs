@@ -730,15 +730,24 @@ describe("what the chat serves", () => {
   // never reaches Whisper, which would make up text for it: the page is told nothing was heard.
   it("takes no recording while voice input is off, none that is empty, cut or too long, and answers a silent one with nothing heard", async () => {
     assert.deepEqual(JSON.parse((await page("GET", "/sessions")).body).voice, { on: false, state: "off", detail: "", language: "en" });
-    const send = (bytes) =>
-      fetch(`${url}/voice`, { method: "POST", headers: { cookie: signedIn(), origin: url, "content-type": "application/octet-stream" }, body: bytes }).then(async (answered) => ({ status: answered.status, body: await answered.json() }));
+    // The last stretch is answered line by line, progress first: what came of it is the last line.
+    const send = (bytes, query = "") =>
+      fetch(`${url}/voice${query}`, { method: "POST", headers: { cookie: signedIn(), origin: url, "content-type": "application/octet-stream" }, body: bytes }).then(async (answered) => ({
+        status: answered.status,
+        body: JSON.parse((await answered.text()).trim().split("\n").at(-1)),
+      }));
     const loud = Buffer.alloc(3200);
     for (let at = 0; at < loud.length; at += 4) loud.writeInt16LE(8000, at);
     assert.deepEqual(await send(loud), { status: 409, body: { error: "voice input is off" } });
     assert.deepEqual(await send(Buffer.alloc(3200)), { status: 200, body: { text: "", silent: true } });
     assert.equal((await send(Buffer.alloc(0))).status, 400);
     assert.equal((await send(Buffer.alloc(3201))).status, 400);
-    assert.deepEqual(await send(Buffer.alloc(120 * 16_000 * 2 + 2)), { status: 413, body: { error: "a recording is 120 seconds at most" } });
+    assert.deepEqual(await send(Buffer.alloc(60 * 16_000 * 2 + 2)), { status: 413, body: { error: "a stretch of dictation is 60 seconds at most" } });
+    // A dictation of two stretches: the first is taken at once, the last answers the whole.
+    assert.deepEqual(await send(Buffer.alloc(3200), "?dictation=quiet-1&stretch=0"), { status: 202, body: { taken: true } });
+    assert.deepEqual(await send(Buffer.alloc(3200), "?dictation=quiet-1&stretch=1&last=1"), { status: 200, body: { text: "", silent: true } });
+    assert.equal((await send(Buffer.alloc(3200), "?dictation=quiet/1&stretch=0")).status, 400, "a dictation is named in letters, digits and hyphens");
+    assert.equal((await send(Buffer.alloc(3200), "?dictation=quiet-2&stretch=-1")).status, 400);
     const anonymous = await fetch(`${url}/voice`, { method: "POST", headers: { origin: url }, body: Buffer.alloc(3200) });
     assert.equal(anonymous.status, 401, "a recording needs the page's sign-in");
   });
@@ -746,7 +755,7 @@ describe("what the chat serves", () => {
   // The cancel of a recording being turned into text (the speech process's side is voice.test.mjs).
   it("cancels nothing when no recording is being turned into text, and only for the signed-in page", async () => {
     const cancelled = await page("POST", "/voice/cancel");
-    assert.deepEqual({ status: cancelled.status, body: JSON.parse(cancelled.body) }, { status: 200, body: { cancelled: false } });
+    assert.deepEqual({ status: cancelled.status, body: JSON.parse(cancelled.body) }, { status: 200, body: { cancelled: false, text: "" } });
     const anonymous = await fetch(`${url}/voice/cancel`, { method: "POST", headers: { origin: url } });
     assert.equal(anonymous.status, 401, "a cancel needs the page's sign-in");
   });
