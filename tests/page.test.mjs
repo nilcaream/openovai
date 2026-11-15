@@ -150,10 +150,15 @@ describe("the rules", () => {
   // under any class — and the glyph sits on the box's own ground with a 2px ring of it, so it
   // reads over letters under it. It takes its default display, so the hidden attribute hides it.
   it("keep the stop glyph out of the flow, over the box on its own ground, the box the same width with it and without it", () => {
+    const group = rules.find((rule) => rule.selector === ".composer .controls").declarations;
+    assert.equal(group.position, "absolute");
+    assert.equal(group.right, "9px");
+    assert.equal(group["pointer-events"], "none", "the gap between the buttons is the box's");
+    assert.equal(rules.find((rule) => rule.selector === ".composer .controls > *").declarations["pointer-events"], "auto");
     const glyph = rules.find((rule) => rule.selector === ".composer .stop").declarations;
-    assert.equal(glyph.position, "absolute");
-    assert.equal(glyph.right, "9px");
+    assert.equal(glyph.position, undefined, "placed by its group");
     assert.equal(glyph.display, undefined, "a display of its own would outrank the hidden attribute");
+    assert.equal(rules.find((rule) => rule.selector === ".composer .voice").declarations.display, undefined);
     assert.equal(glyph.background, "var(--bg)");
     assert.equal(glyph["box-shadow"], "0 0 0 2px var(--bg)");
     assert.equal(rules.find((rule) => rule.selector === ".composer").declarations.position, "relative");
@@ -1044,7 +1049,7 @@ describe("the script", () => {
   // The stop glyph: in the composer, after the box; there while the turn can be stopped; a click
   // hides it and asks the server to stop the turn.
   it("puts the stop glyph in the box, shows it while the turn can be stopped, and stops the turn on a click", () => {
-    assert.match(script, /stop\.className = "stop";[\s\S]{0,400}composer\.append\(box, stop\);/);
+    assert.match(script, /stop\.className = "stop";[\s\S]{0,400}const controls = document\.createElement\("div"\);\s*controls\.className = "controls";\s*controls\.append\(stop\);\s*composer\.append\(box, controls\);/);
     assert.match(script, /panel\.stop\.hidden = !stopEnabled\(state, panel\.name\);/);
     assert.match(script, /stop\.addEventListener\("click", \(\) => \{\s*stop\.hidden = true;\s*call\(`\/sessions\/\$\{encodeURIComponent\(name\)\}\/stop`, \{ method: "POST" \}\)/);
     assert.doesNotMatch(script, /headLine\.append\([^)]*stop/, "the glyph is in the box, not on the head");
@@ -1054,9 +1059,13 @@ describe("the script", () => {
   // marks the body for 2 s, and the glyph shows while the body is marked or the mouse or the
   // keyboard is on it. Faded rather than hidden, so the mouse over it still finds it; a touch
   // screen, with no hovering mouse, is outside the rule and shows the glyph as before.
-  it("fades the stop glyph on a desktop until the mouse moves, for 2 s after it stops, and never while it is on it", () => {
-    const faded = rules.filter((rule) => /\.stop/.test(rule.selector) && rule.declarations.opacity !== undefined);
-    assert.deepEqual(faded.map((rule) => [rule.media, rule.selector, rule.declarations.opacity]), [["(hover: hover) and (pointer: fine)", "body:not(.pointing) .composer .stop:not(:hover):not(:focus-visible)", "0"]]);
+  // The voice button would cover the text as the stop glyph once did: the two are one group,
+  // faded and shown by the one rule, the voice button in it as the stop glyph is.
+  it("fades the composer's buttons together on a desktop until the mouse moves, for 2 s after it stops, and never while it is on one of them", () => {
+    const faded = rules.filter((rule) => rule.media !== undefined && /pointing/.test(rule.selector));
+    assert.deepEqual(faded.map((rule) => [rule.media, rule.selector, rule.declarations.opacity]), [["(hover: hover) and (pointer: fine)", "body:not(.pointing) .composer .controls:not(:hover):not(:has(:focus-visible))", "0"]]);
+    assert.match(script, /if \(voice !== null\) \{[\s\S]{0,400}controls\.append\(voice\);/, "the voice button is in the group");
+    assert.equal(rules.some((rule) => /voiced/.test(rule.selector)), false, "no second placement for the stop glyph");
     assert.match(script, /const STILL = 2000;\s*let still = 0;\s*document\.addEventListener\("mousemove", \(\) => \{\s*document\.body\.classList\.add\("pointing"\);\s*clearTimeout\(still\);\s*still = setTimeout\(\(\) => document\.body\.classList\.remove\("pointing"\), STILL\);\s*\}\);/);
   });
 

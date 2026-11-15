@@ -276,18 +276,20 @@
   textarea { display: block; width: 100%; resize: none; min-height: 40px; max-height: 40vh; padding: 8px 10px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--bg); color: var(--fg); font: inherit; line-height: 1.5; outline: none; overflow-y: hidden; }
   textarea:focus { border-color: var(--accent); }
   textarea:disabled { opacity: .55; }
-  /* the stop glyph, over the right edge of the box while a turn can be stopped and gone otherwise:
-     out of the flow, so the box and the room for what is typed are the same width with it and
-     without it; on the box's own ground with a 2px ring of it, so it reads over letters under it */
-  .composer .stop { position: absolute; right: 9px; bottom: 9px; width: 22px; height: 22px; padding: 4px; border: 0; border-radius: 6px; background: var(--bg); box-shadow: 0 0 0 2px var(--bg); color: var(--fg-dim); cursor: pointer; }
+  /* the composer's buttons, one group over the right edge of the box: the stop glyph, and at its
+     right the Leader's voice button while voice input is on. Out of the flow, so the box and the
+     room for what is typed are the same width with them and without them; the group takes no
+     pointer between its buttons, so the text under the gap is still the box's */
+  .composer .controls { position: absolute; right: 9px; bottom: 9px; display: flex; gap: 6px; pointer-events: none; }
+  .composer .controls > * { pointer-events: auto; }
+  /* the stop glyph, while a turn can be stopped and gone otherwise: on the box's own ground with
+     a 2px ring of it, so it reads over letters under it */
+  .composer .stop { width: 22px; height: 22px; padding: 4px; border: 0; border-radius: 6px; background: var(--bg); box-shadow: 0 0 0 2px var(--bg); color: var(--fg-dim); cursor: pointer; }
   .composer .stop:hover { color: var(--fg); background: var(--line); }
   .composer .stop svg { width: 14px; height: 14px; display: block; }
-  /* the Leader's voice button, while voice input is on: over the box's right edge as the stop
-     glyph is, on the box's own ground, with the stop glyph moved beside it; the box keeps its
-     width. Red and pulsing while it records, steady while it turns speech into text, faint
-     while it installs, warm when its install failed */
-  .composer.voiced .stop { right: 37px; }
-  .composer .voice { position: absolute; right: 9px; bottom: 9px; width: 22px; height: 22px; padding: 3px; border: 0; border-radius: 6px; background: var(--bg); box-shadow: 0 0 0 2px var(--bg); color: var(--fg-dim); cursor: pointer; }
+  /* the Leader's voice button, while voice input is on, on the box's own ground as the stop glyph
+     is: red and pulsing while it records, steady while it turns speech into text */
+  .composer .voice { width: 22px; height: 22px; padding: 3px; border: 0; border-radius: 6px; background: var(--bg); box-shadow: 0 0 0 2px var(--bg); color: var(--fg-dim); cursor: pointer; }
   .composer .voice:hover:not(:disabled) { color: var(--fg); background: var(--line); }
   .composer .voice svg { width: 16px; height: 16px; display: block; }
   .composer .voice:disabled { cursor: default; opacity: .45; }
@@ -297,12 +299,13 @@
   /* the Leader's box while it records or turns speech into text: greyed and read-only, with no
      caret, so nothing is typed into it and the text lands where the caret was */
   .composer textarea.dictating { color: var(--fg-dim); background: var(--panel); caret-color: transparent; cursor: default; }
-  /* on a desktop, where a mouse moves, the glyph shows only while it moves and for 2 s after it
-     stops (the script marks the body .pointing), and while the mouse or the keyboard is on it: a
-     turn is seldom stopped, and while typing the mouse stands still. Faded, not hidden, so the
-     mouse over it still finds it. A touch screen has no such mouse, and the glyph shows as before */
+  /* on a desktop, where a mouse moves, the composer's buttons show, together, only while it moves
+     and for 2 s after it stops (the script marks the body .pointing), and while the mouse or the
+     keyboard is on one of them: while typing the mouse stands still, and the buttons would cover
+     the text. Faded, not hidden, so the mouse over them still finds them. A touch screen has no
+     such mouse, and they show as before */
   @media (hover: hover) and (pointer: fine) {
-    body:not(.pointing) .composer .stop:not(:hover):not(:focus-visible) { opacity: 0; }
+    body:not(.pointing) .composer .controls:not(:hover):not(:has(:focus-visible)) { opacity: 0; }
   }
 </style>
 
@@ -605,7 +608,7 @@
   const lite = window.matchMedia(`(max-width: ${LITE - 1}px)`);
   lite.addEventListener("change", () => draw());
   // A mouse move anywhere in the window marks the body until the mouse has stood still for
-  // STILL ms: on a desktop the stylesheet shows the stop glyph only while the body is marked.
+  // STILL ms: on a desktop the stylesheet shows the composer's buttons only while the body is marked.
   const STILL = 2000;
   let still = 0;
   document.addEventListener("mousemove", () => {
@@ -943,9 +946,9 @@
     box.addEventListener("click", () => {
       if (browsing !== null) stopBrowsing(browsing.list[browsing.at]);
     });
-    // The stop glyph, over the box at its right edge: there while the turn can be stopped, gone
-    // otherwise, and on a desktop faded while the mouse stands still (`pointing`, above). A click
-    // interrupts the turn and nothing else — the process stays.
+    // The composer's buttons, one group over the box at its right edge, on a desktop faded together
+    // while the mouse stands still (`pointing`, above). The stop glyph: there while the turn can be
+    // stopped, gone otherwise. A click interrupts the turn and nothing else — the process stays.
     const stop = document.createElement("button");
     stop.type = "button";
     stop.className = "stop";
@@ -956,7 +959,10 @@
       stop.hidden = true;
       call(`/sessions/${encodeURIComponent(name)}/stop`, { method: "POST" }).catch(() => {});
     });
-    composer.append(box, stop);
+    const controls = document.createElement("div");
+    controls.className = "controls";
+    controls.append(stop);
+    composer.append(box, controls);
     // The voice button, on the Leader's panel only and drawn from the server's voice state
     // (voiceButton). `spoken` says the box holds dictated words, edited or not, until it is sent
     // or emptied: the line then goes with the voice mark. Typing in the box takes what the voice
@@ -972,7 +978,7 @@
       voice.setAttribute("aria-label", "Dictate");
       voice.innerHTML = MICROPHONE;
       voice.addEventListener("click", () => dictate(name));
-      composer.append(voice);
+      controls.append(voice);
       box.addEventListener("input", () => {
         if (box.value.trim() === "") spoken.dictated = false;
         if (dictation.said !== null) {
@@ -1149,7 +1155,6 @@
     panel.voice.title = look.title;
     panel.voice.classList.toggle("recording", look.look === "recording");
     panel.voice.classList.toggle("working", look.look === "working");
-    panel.composer.classList.toggle("voiced", look.shown);
     const line = voiceLine({ voice: state.voice, phase: dictation.phase, elapsed: Date.now() - dictation.started, said: dictation.said });
     panel.voicePill.classList.toggle("show", line !== null);
     panel.voicePill.classList.toggle("failed", line?.look === "failed");
