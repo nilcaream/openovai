@@ -234,7 +234,8 @@ describe("the install", () => {
 });
 
 describe("the state the button is drawn from", () => {
-  it("is off while the setting is, installs once when it is turned on, and is ready after", async () => {
+  // The setting shows the button; the User's click on it, or Tab, starts the install.
+  it("is off while the setting is, uninstalled when it is turned on, installs once when asked, and is ready after", async () => {
     const heard = [];
     const stop = subscribe((event) => event.name === "voice" && heard.push(event.data));
     let finish;
@@ -251,6 +252,11 @@ describe("the state the button is drawn from", () => {
       assert.deepEqual(voice.state(), { on: false, state: "off", detail: "", language: "en" });
       voice.sync({ on: true, language: "de", env, install });
       voice.sync({ on: true, language: "de", env, install });
+      assert.equal(installs, 0, "the setting on starts no install");
+      assert.deepEqual(voice.state(), { on: true, state: "uninstalled", detail: "", language: "de" });
+      voice.askInstall();
+      voice.sync({ on: true, language: "de", env, install });
+      voice.sync({ on: true, language: "de", env, install });
       assert.equal(installs, 1, "a second tick while it installs starts nothing");
       assert.deepEqual(voice.state(), { on: true, state: "installing", detail: "installing the pinned packages", language: "de" });
       fs.mkdirSync(voice.home(env), { recursive: true });
@@ -260,24 +266,46 @@ describe("the state the button is drawn from", () => {
       assert.deepEqual(voice.state(), { on: true, state: "ready", detail: "", language: "de" });
       voice.sync({ on: false, language: "de", env, install });
       assert.equal(voice.state().state, "off");
-      assert.deepEqual(heard.map((one) => one.state), ["installing", "installing", "ready", "off"]);
+      assert.deepEqual(heard.map((one) => one.state), ["uninstalled", "installing", "installing", "ready", "off"]);
     } finally {
       stop();
     }
   });
 
-  it("says why an install failed, starts no other until the button asks again, then tries again", async () => {
+  it("is ready at once with an install already on this machine, asking for none", () => {
+    fs.mkdirSync(voice.home(env), { recursive: true });
+    fs.writeFileSync(path.join(voice.home(env), "installed"), "{}\n");
+    const install = () => assert.fail("no install with one already there");
+    voice.sync({ on: true, language: "en", env, install });
+    assert.deepEqual(voice.state(), { on: true, state: "ready", detail: "", language: "en" });
+  });
+
+  it("forgets an install asked for once the setting is off, so turning it on again starts none", () => {
+    let installs = 0;
+    const install = () => {
+      installs += 1;
+      return new Promise(() => {});
+    };
+    voice.askInstall();
+    voice.sync({ on: false, language: "en", env, install });
+    voice.sync({ on: true, language: "en", env, install });
+    assert.equal(installs, 0);
+    assert.equal(voice.state().state, "uninstalled");
+  });
+
+  it("says why an install failed, starts no other until the pill asks again, then tries again", async () => {
     let installs = 0;
     const install = async () => {
       installs += 1;
       throw new Error("no Python");
     };
+    voice.askInstall();
     voice.sync({ on: true, language: "en", env, install });
     await new Promise((resolve) => setImmediate(resolve));
     voice.sync({ on: true, language: "en", env, install });
     assert.deepEqual(voice.state(), { on: true, state: "failed", detail: "no Python", language: "en" });
     assert.equal(installs, 1);
-    voice.retry();
+    voice.askInstall();
     voice.sync({ on: true, language: "en", env, install });
     assert.equal(installs, 2);
   });

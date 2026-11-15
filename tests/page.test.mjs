@@ -894,6 +894,19 @@ describe("the script", () => {
     assert.doesNotMatch(script, /document\.addEventListener\("keydown", \(event\) => \{\s*[^}]*"Tab"/, "no window-wide Tab");
   });
 
+  // The install starts on the User's click or Tab, its progress and its failure are the pill's,
+  // and the button is no busy indicator.
+  it("asks for the install from the button, Tab and a failed install's pill, and draws the pill whether or not the button shows", () => {
+    const declared = (selector) => rules.find((rule) => rule.selector === selector)?.declarations;
+    assert.match(script, /function installVoice\(\) \{\s*call\("\/voice\/install", \{ method: "POST" \}\)/);
+    assert.match(script, /if \(state\.voice\?\.state === "uninstalled" \|\| state\.voice\?\.state === "failed"\) \{\s*installVoice\(\);\s*return;\s*\}/, "the button's click and Tab install");
+    assert.match(script, /voicePill\.addEventListener\("click", \(\) => \{\s*if \(state\.voice\?\.state === "failed"\) installVoice\(\);\s*\}\);/, "a click on a failed install's pill tries again");
+    assert.match(script, /voiceKey\(event, \{ usable: !look\.disabled, /, "Tab tries again with the button gone");
+    assert.match(script, /const line = voiceLine\(\{ voice: state\.voice, /, "the pill is drawn with the button gone");
+    assert.equal(declared(".pills .voice-pill.failed").cursor, "pointer");
+    assert.equal(rules.some((rule) => rule.selector.includes(".voice.installing") || rule.selector.includes(".voice.failed")), false, "no busy or amber button");
+  });
+
   it("gives the Leader's pill a hover of the page's own, opening upward, and no title", () => {
     const declared = (selector) => rules.find((rule) => rule.selector === selector)?.declarations;
     assert.doesNotMatch(script, /doing\.title|\.doing\.title/, "no browser title on the pill: its tooltip can be cut by the window's edge");

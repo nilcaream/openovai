@@ -129,6 +129,7 @@
   .pills .voice-pill.show { visibility: visible; }
   .pills .voice-pill.recording { color: var(--bad); border-color: var(--bad); }
   .pills .voice-pill.said { color: var(--warn); }
+  .pills .voice-pill.failed { color: var(--warn); border-color: var(--warn); cursor: pointer; }
   /* the rows take the focus on a click, so the keys scroll them; no ring for it, the head's border says what the keys do */
   .rows { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 0; outline: none; }
   /* a tool call is a light line: one per call, no label, no stamp */
@@ -292,8 +293,6 @@
   .composer .voice:disabled { cursor: default; opacity: .45; }
   .composer .voice.recording { color: var(--bad); animation: voice-pulse 1.2s ease-in-out infinite; }
   .composer .voice.working { opacity: 1; color: var(--fg); cursor: progress; }
-  .composer .voice.failed { color: var(--warn); }
-  .composer .voice.installing { cursor: progress; }
   @keyframes voice-pulse { 50% { opacity: .35; } }
   /* the Leader's box while it records or turns speech into text: greyed and read-only, with no
      caret, so nothing is typed into it and the text lands where the caret was */
@@ -844,10 +843,13 @@
       doing.addEventListener("pointerleave", hideTip);
       document.addEventListener("keydown", hideTip);
       // The voice pill (voiceLine), drawn by drawVoice: at the left, shown only while there is
-      // something to say about dictation.
+      // something to say about the install or dictation. A click on it after a failed install tries again.
       voicePill = document.createElement("div");
       voicePill.className = "voice-pill";
       voicePill.setAttribute("aria-live", "polite");
+      voicePill.addEventListener("click", () => {
+        if (state.voice?.state === "failed") installVoice();
+      });
       pills = document.createElement("div");
       pills.className = "pills";
       pills.append(voicePill, doing, jump, tip);
@@ -983,7 +985,7 @@
         (event) => {
           if (event.target !== box || event.isComposing) return;
           const look = voiceButton(state.voice, { microphone: microphone(), phase: dictation.phase });
-          const does = voiceKey(event, { usable: look.shown && !look.disabled, phase: dictation.phase });
+          const does = voiceKey(event, { usable: !look.disabled, phase: dictation.phase });
           if (does === null) return;
           event.preventDefault();
           event.stopPropagation();
@@ -1145,13 +1147,12 @@
     panel.voice.hidden = !look.shown;
     panel.voice.disabled = look.disabled;
     panel.voice.title = look.title;
-    panel.voice.classList.toggle("installing", look.look === "installing");
-    panel.voice.classList.toggle("failed", look.look === "failed");
     panel.voice.classList.toggle("recording", look.look === "recording");
     panel.voice.classList.toggle("working", look.look === "working");
     panel.composer.classList.toggle("voiced", look.shown);
-    const line = look.shown ? voiceLine({ phase: dictation.phase, elapsed: Date.now() - dictation.started, said: dictation.said }) : null;
+    const line = voiceLine({ voice: state.voice, phase: dictation.phase, elapsed: Date.now() - dictation.started, said: dictation.said });
     panel.voicePill.classList.toggle("show", line !== null);
+    panel.voicePill.classList.toggle("failed", line?.look === "failed");
     panel.voicePill.classList.toggle("recording", line?.look === "recording");
     panel.voicePill.classList.toggle("said", line?.look === "said");
     panel.voicePill.textContent = line?.text ?? "";
@@ -1179,11 +1180,17 @@
     voicePanels();
   }
 
+  // The install, asked for by the User's click or Tab: the server's voice event redraws the button
+  // and the pill.
+  function installVoice() {
+    call("/voice/install", { method: "POST" }).catch(() => {});
+  }
+
   async function dictate(name) {
     const panel = sections.get(name);
     if (panel === undefined) return;
-    if (state.voice?.state === "failed") {
-      await call("/voice/retry", { method: "POST" }).catch(() => {});
+    if (state.voice?.state === "uninstalled" || state.voice?.state === "failed") {
+      installVoice();
       return;
     }
     if (dictation.phase === "recording") {

@@ -10,11 +10,16 @@ in the message box, where the person reads it, edits it and presses Enter as for
   Whisper knows works, by its code: `de`, `fr`, `pl`, `ja` and so on. The Leader sets it on request.
 - While it is off there is no button.
 
-## What turning it on installs, the first time
+## What the first click installs
 - Speech is turned into text by faster-whisper with the Whisper large-v3-turbo model, running on
   the CPU. Nothing goes to a cloud service and no model is asked to rewrite the text.
-- The server installs it in the background as soon as the setting is on. The button stays faint
-  while it does, and its tooltip says what it is at.
+- Turning the setting on installs nothing: it shows the button. The person's first click on it, or
+  Tab in the Leader's box, starts the install, and the server does it in the background. From
+  that click until it is done the button is gone and the pill at the left of the Leader's pill row
+  says what the install is at, with the percent while the model downloads ("Installing voice…
+  downloading the model: 42% of 1.6 GB"). Then the pill clears and the button is back.
+- When it is already installed on this machine, by any instance, there is no install step: the
+  button dictates at the first click.
   - Its own Python, CPython 3.13 from python-build-standalone, about 30 MB to download, checked
     against the sha256 ovai ships. The machine's Python is never used, so none needs to be there.
   - In that Python, exactly the packages `lib/voice/requirements.txt` pins, about 480 MB, from
@@ -26,8 +31,8 @@ in the message box, where the person reads it, edits it and presses Enter as for
   log is `install.log` there.
 - It runs on Linux (x86_64 and arm64) and macOS (Apple silicon and Intel), and needs `tar` to
   unpack its Python.
-- When the install fails, the button turns amber and its tooltip says why. A click on it tries
-  again.
+- When the install fails, the pill turns amber and says why, the full reason in its hover, and the
+  button stays away. A click on the pill, or Tab in the Leader's box, tries again.
 
 ## Using it
 - Click the button, or press Tab in the Leader's box, and speak. Click or press Tab again to stop.

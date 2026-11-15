@@ -918,7 +918,8 @@ describe("openovai.json changed while the server runs", () => {
   // Voice input is the User's to turn on, through the Leader: the switch and the language are two
   // settings, and the snapshot the page draws the button from follows them on the tick.
   it("turns voice input on and sets its language on the Leader's word, and settingsIn reads both", async () => {
-    // A tick while it is on would install for real: this instance's install never ends instead.
+    // The setting on installs nothing until the User clicks; should a tick install anyway, this
+    // instance's install never ends instead of installing for real.
     chat.voiceInstall = () => new Promise(() => {});
     try {
       const changed = await tool(leader.secret, "settings", { change: { "voice.on": true, "voice.language": "de" } });
