@@ -768,6 +768,16 @@ describe("what both are told in ovai's common frame", () => {
       assert.ok(commonOf(text).includes(`\n\n${SENTENCE}\n\n`), role);
     }
   });
+
+  // The page draws a copy button on a fenced code block and none on inline code, so a command the
+  // User is to run is one they can copy only from a fenced block.
+  it("tells both, once and in the common frame, to give a command for the User a fenced block of its own", () => {
+    const SENTENCE = `Whatever ${USER} is to paste into a terminal goes in a fenced code block of its own, one command per block, and never in inline code: the page draws a copy button on a fenced block and none on inline code.`;
+    for (const [text, role] of [[leader(), "leader"], [worker(), "worker"]]) {
+      assert.equal(flat(text).split(SENTENCE).length, 2, role);
+      assert.ok(flat(commonOf(text)).includes(SENTENCE), role);
+    }
+  });
 });
 
 // The frames the person's own files arrive in are put there by the renderer (tests/install.test.mjs
