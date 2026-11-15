@@ -1116,12 +1116,15 @@ describe("a dictation cut at pauses", () => {
 });
 
 describe("the voice pill's fill", () => {
-  it("moves from what is done at the pace measured, never past the stretch being worked on, and never back", () => {
+  it("moves from what is done toward the end of the stretch being worked on, slowing, never reaching it, and never back", () => {
     const progress = { done: 0.2, upto: 0.5, pace: 0.1 };
     assert.equal(fillOf(null, 1000), 0);
     assert.equal(fillOf(progress, 0), 0.2);
-    assert.ok(Math.abs(fillOf(progress, 1000) - 0.3) < 1e-9);
-    assert.equal(fillOf(progress, 60_000), 0.5, "held where the stretch ends until the work says it is done");
+    assert.ok(Math.abs(fillOf(progress, 3000) - (0.2 + 0.3 * (1 - Math.exp(-2)))) < 1e-9, "86 % of the way at the time the pace would take");
+    assert.ok(fillOf(progress, 1000) - 0.2 > fillOf(progress, 4000) - fillOf(progress, 3000), "slower as it nears the end");
+    assert.ok(fillOf(progress, 10_000) < 0.5 && fillOf(progress, 10_000) > 0.499, "short of full at three times the time the pace would take");
+    assert.ok(fillOf(progress, 60_000) <= 0.5, "never past the stretch's end");
+    assert.equal(fillOf({ done: 0.5, upto: 0.5, pace: 0.1 }, 1000), 0.5);
     assert.equal(fillOf({ done: 0.1, upto: 0.5, pace: 0 }, 0, 0.4), 0.4, "never back");
   });
 });

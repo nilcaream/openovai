@@ -56,7 +56,8 @@ in the message box, where the person reads it, edits it and presses Enter as for
   few seconds that pass while the person speaks. Tab does not cancel.
 - A pill at the left of the Leader's pill row says what is happening: "Listening... 0:07" in red
   with a running clock, then "Turning speech into text…", its ground filling from the left as the
-  work left after Stop goes. After, for a few seconds, what came of it when no text did, with the
+  work left after Stop goes. The fill slows as it nears the end of the part being worked on and
+  never stands full while work is left; it is full just before the text lands. After, for a few seconds, what came of it when no text did, with the
   reason in its hover: "Microphone appears muted", "No speech heard", "Not turned into text", "No
   microphone", "Dictation cancelled", "Dictation stopped early".
 - A recording with no sound in it, as from a muted microphone, is not turned into text: Whisper
