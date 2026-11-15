@@ -83,6 +83,10 @@ in the message box, where the person reads it, edits it and presses Enter as for
 ## What it costs
 - Measured on an 8-core laptop CPU (i7-11850H): about 4 s of waiting after 15 s of speech, with
   most cores busy meanwhile, and about 2.6 GB of memory while the model is loaded.
+- A longer dictation is mostly turned into text while it is spoken, so the wait after Stop stays
+  about the same. On the same laptop: 3.5 s after 90 s of speech and 3.5–6.9 s after 3 minutes;
+  in one piece the same recordings took 18–22 s and 45–114 s, the more the busier the machine.
+  Meanwhile the speech process works on each part as it is cut, with the cores busy in bursts.
 - The model is loaded at the first click, while the person speaks, and unloaded after 10 minutes
   with no recording.
 
