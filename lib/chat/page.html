@@ -131,7 +131,7 @@
   .pills .voice-pill.said { color: var(--warn); }
   .pills .voice-pill.failed { color: var(--warn); border-color: var(--warn); cursor: pointer; }
   /* while the text is made, the pill's ground fills from the left as far as the work has come */
-  .pills .voice-pill.working { background-image: linear-gradient(var(--line), var(--line)); background-repeat: no-repeat; background-size: 0% 100%; transition: background-size .1s linear; }
+  .pills .voice-pill.working { background-image: linear-gradient(var(--line), var(--line)); background-repeat: no-repeat; background-size: 0% 100%; transition: background-size .12s linear; }
   /* the rows take the focus on a click, so the keys scroll them; no ring for it, the head's border says what the keys do */
   .rows { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 0; outline: none; }
   /* a tool call is a light line: one per call, no label, no stamp */
@@ -1145,9 +1145,9 @@
   // and the text of the whole lands in the box at the caret, for the User to read, edit and send.
   // Esc while recording drops it all. A dictation has no longest. One at a time on the page.
   const VOICE_SAID_FOR = 8000;
-  // How long the voice pill takes to show full before the dictated text lands: just past its fill's
-  // 100 ms move, so it is seen full and the text is not held up.
-  const VOICE_FULL_FOR = 120;
+  // The rest of the voice pill is swept full when the text comes, in its fill's move (.12s in the
+  // CSS), and the text lands as the sweep ends: no wait after full.
+  const VOICE_SWEEP_FOR = 120;
   // `capture` is the microphone while recording: its stream, AudioContext and worklet node, the
   // samples of the stretch not yet sent (`blocks`, `length`), their levels (one per FRAME_MS) and
   // the frame being summed. `id` names the dictation to the server, `sent` counts its stretches,
@@ -1367,11 +1367,11 @@
       if (said.silent === true) voiceSaid("Microphone appears muted", "The recording held no sound at all. Check that the microphone is not muted.");
       else if (typeof said.text !== "string" || said.text.trim() === "") voiceSaid("No speech heard", "The recording held sound but no speech.");
       else {
-        // The text comes with the last step of the work: the pill is seen full before it lands.
+        // The text comes with the last step of the work: the pill sweeps full, then it lands.
         dictation.progress = { done: 1, upto: 1, pace: 0 };
         dictation.progressAt = Date.now();
         voicePanels();
-        await new Promise((resolve) => setTimeout(resolve, VOICE_FULL_FOR));
+        await new Promise((resolve) => setTimeout(resolve, VOICE_SWEEP_FOR));
         if (abort.signal.aborted) return;
         putDictated(panel, said.text);
       }

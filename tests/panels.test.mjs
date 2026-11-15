@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { AMBER, CARD, CONNECTED, autoLabel, autoTitle, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, GREY, LATE_AFTER, RED, REPLY, SENDING, SHOWN_FOR, LINE_DISCONNECTED, LINE_LEFT, LINE_WAITING, LINE_WORKING, WINDOW, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, HISTORY, historyKey, keyAction, lasted, loadsOlder, noticed, pillLine, pillTitle, place, prompts, timeSaid, prune, quotaLine, quotaTitle, replaced, insertRef, keptFirst, quoteLines, statusQuote, statusRef, stopEnabled, title, typingBeat, updateAsk, versionTitle, voiceButton, voiceKey, voiceLine, CUT_BY, CUT_FROM, PAUSE_FRAMES, QUIET_DB, fillOf, pauseCut, windowStart, withQuotes, TYPING_BEAT, CHECKING, LEADER_STOPPED, STATUS_TITLE, STATUS_WHO, UP_TO_DATE, statusLabel } from "../lib/chat/panels.mjs";
+import { AMBER, CARD, CONNECTED, autoLabel, autoTitle, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, GREY, LATE_AFTER, RED, REPLY, SENDING, SHOWN_FOR, LINE_DISCONNECTED, LINE_LEFT, LINE_WAITING, LINE_WORKING, WINDOW, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, HISTORY, historyKey, keyAction, lasted, loadsOlder, noticed, pillLine, pillTitle, place, prompts, timeSaid, prune, quotaLine, quotaTitle, replaced, insertRef, keptFirst, quoteLines, statusQuote, statusRef, stopEnabled, title, typingBeat, updateAsk, versionTitle, voiceButton, voiceKey, voiceLine, CUT_BY, CUT_FROM, FILL_SHORT, PAUSE_FRAMES, QUIET_DB, fillOf, pauseCut, windowStart, withQuotes, TYPING_BEAT, CHECKING, LEADER_STOPPED, STATUS_TITLE, STATUS_WHO, UP_TO_DATE, statusLabel } from "../lib/chat/panels.mjs";
 import { localAt, refTo, references } from "../lib/chat/refs.mjs";
 
 const LEADER = "Leader";
@@ -1116,14 +1116,14 @@ describe("a dictation cut at pauses", () => {
 });
 
 describe("the voice pill's fill", () => {
-  it("moves from what is done toward the end of the stretch being worked on, slowing, never reaching it, and never back", () => {
+  it("moves from what is done at the pace guessed, steadily, held short of the end of the stretch being worked on, and never back", () => {
     const progress = { done: 0.2, upto: 0.5, pace: 0.1 };
+    const near = (a, b) => Math.abs(a - b) < 1e-9;
     assert.equal(fillOf(null, 1000), 0);
     assert.equal(fillOf(progress, 0), 0.2);
-    assert.ok(Math.abs(fillOf(progress, 3000) - (0.2 + 0.3 * (1 - Math.exp(-2)))) < 1e-9, "86 % of the way at the time the pace would take");
-    assert.ok(fillOf(progress, 1000) - 0.2 > fillOf(progress, 4000) - fillOf(progress, 3000), "slower as it nears the end");
-    assert.ok(fillOf(progress, 10_000) < 0.5 && fillOf(progress, 10_000) > 0.499, "short of full at three times the time the pace would take");
-    assert.ok(fillOf(progress, 60_000) <= 0.5, "never past the stretch's end");
+    assert.ok(near(fillOf(progress, 1000), 0.3) && near(fillOf(progress, 2000), 0.4), "the same speed near the end as at the start");
+    assert.ok(near(fillOf(progress, 60_000), 0.2 + FILL_SHORT * 0.3), "held short of the stretch's end until the work says it is done");
+    assert.equal(FILL_SHORT, 0.9);
     assert.equal(fillOf({ done: 0.5, upto: 0.5, pace: 0.1 }, 1000), 0.5);
     assert.equal(fillOf({ done: 0.1, upto: 0.5, pace: 0 }, 0, 0.4), 0.4, "never back");
   });

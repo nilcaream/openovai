@@ -912,9 +912,11 @@ describe("the script", () => {
     assert.equal(rules.some((rule) => rule.selector.includes(".voice.installing") || rule.selector.includes(".voice.failed")), false, "no busy or amber button");
   });
 
-  it("shows the voice pill full before the dictated text lands, since the text comes with the work's last step", () => {
-    assert.match(script, /const VOICE_FULL_FOR = 120;/, "just past the fill's 100 ms move: seen full, the text not held up");
-    assert.match(script, /else \{\s*\/\/[^\n]*\n\s*dictation\.progress = \{ done: 1, upto: 1, pace: 0 \};\s*dictation\.progressAt = Date\.now\(\);\s*voicePanels\(\);\s*await new Promise\(\(resolve\) => setTimeout\(resolve, VOICE_FULL_FOR\)\);\s*if \(abort\.signal\.aborted\) return;\s*putDictated\(panel, said\.text\);\s*\}/);
+  it("sweeps the voice pill full when the text comes, with the work's last step, and lands the text as the sweep ends", () => {
+    const declared = (selector) => rules.find((rule) => rule.selector === selector)?.declarations;
+    assert.match(script, /const VOICE_SWEEP_FOR = 120;/);
+    assert.equal(declared(".pills .voice-pill.working").transition, "background-size .12s linear", "the sweep is the fill's own move, and the text lands as it ends");
+    assert.match(script, /else \{\s*\/\/[^\n]*\n\s*dictation\.progress = \{ done: 1, upto: 1, pace: 0 \};\s*dictation\.progressAt = Date\.now\(\);\s*voicePanels\(\);\s*await new Promise\(\(resolve\) => setTimeout\(resolve, VOICE_SWEEP_FOR\)\);\s*if \(abort\.signal\.aborted\) return;\s*putDictated\(panel, said\.text\);\s*\}/);
   });
 
   it("gives the Leader's pill a hover of the page's own, opening upward, and no title", () => {

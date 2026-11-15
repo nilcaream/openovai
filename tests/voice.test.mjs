@@ -505,14 +505,18 @@ describe("a dictation in stretches", () => {
     await assert.rejects(stretch("gap", 1, { spawner, last: true }), /^Error: stretch 0 of this dictation never came$/);
   });
 
-  it("says how far the work left at Stop has come: done, where the stretch worked on ends, and the pace", () => {
+  it("says how far the work left at Stop has come: done, where the stretch worked on ends, and the pace, guessed on the slow side", () => {
     const left = [
       { seconds: 10, done: true, fraction: 1 },
       { seconds: 20, done: false, fraction: 0.5 },
       { seconds: 10, done: false, fraction: 0 },
     ];
-    assert.deepEqual(voice.progressOf(left, 4), { done: 0.5, upto: 0.75, pace: 0.1 });
-    assert.deepEqual(voice.progressOf([], 4), { done: 0, upto: 0, pace: 1 });
+    // The half left of 20 s, after 10 s took 2 s: 4 s for the whole, longer by its length, so 2 s
+    // for the half, 1.5 times that: 10 s of the 40 in 3 s.
+    assert.deepEqual(voice.progressOf(left, { seconds: 10, took: 2 }), { done: 0.5, upto: 0.75, pace: 0.083 });
+    assert.deepEqual(voice.progressOf(left, { seconds: 40, took: 4 }), { done: 0.5, upto: 0.75, pace: 0.083 }, "a shorter one is not guessed quicker: a stretch takes about as long whatever its length");
+    assert.deepEqual(voice.progressOf(left, null), { done: 0.5, upto: 0.75, pace: 0.05 }, "before any is done, 3 s of speech a second");
+    assert.deepEqual(voice.progressOf([], null), { done: 0, upto: 0, pace: 0 });
   });
 });
 
