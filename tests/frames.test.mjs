@@ -79,6 +79,15 @@ describe("the three frames", () => {
     assert.equal(userFrame("push it").text, "<user>push it</user>");
   });
 
+  // Dictated with the voice button, edited or not: the mark is an attribute, and the queue puts
+  // the time after it as after any other.
+  it("marks a line the User dictated as voice, and only when told it was", () => {
+    assert.equal(userFrame("push it", [], { voice: true }).text, '<user voice="true">push it</user>');
+    assert.equal(userFrame("push it", [], { voice: "true" }).text, "<user>push it</user>", "only true marks it");
+    const queue = queueFrame([{ frame: userFrame("push it", [], { voice: true }), at: new Date(2026, 10, 19, 11, 5, 0).getTime() }]);
+    assert.equal(queue.text, '<queue>\n  <user voice="true" at="11:05">push it</user>\n</queue>');
+  });
+
   it("frames a message with who it is from", () => {
     assert.equal(messageFrame("Paul", "hello").text, '<message from="Paul">hello</message>');
   });

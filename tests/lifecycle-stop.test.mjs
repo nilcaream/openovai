@@ -17,6 +17,7 @@ import { BODY_CLOSING, CARD_TIMEOUT, SUBAGENT_CARD_TIMEOUT, adminTold, changedKe
 import { answerRule, askedFor, parkRule, ruleAskedFor, rulesPending } from "../lib/chat/permissions.mjs";
 import * as quota from "../lib/chat/quota.mjs";
 import * as releases from "../lib/chat/releases.mjs";
+import * as voice from "../lib/chat/voice.mjs";
 import { askDefaults } from "../lib/chat/server.mjs";
 import { RELEASES } from "../lib/release.mjs";
 import { INTERRUPT_PATIENCE, end, endEvery, recordOf, running, tell } from "../lib/chat/session.mjs";
@@ -871,6 +872,7 @@ describe("openovai.json changed while the server runs", () => {
     assert.match(listed.text, /\nidle\.force: 55 \(default\)\n/);
     assert.match(listed.text, /\nquota\.5h: \[50,60\]\n/);
     assert.match(listed.text, /\nupdate\.check: false\n/, "every suite's instance has the look for a newer release off");
+    assert.match(listed.text, /\nvoice\.on: false \(default\)\nvoice\.language: "en" \(default\)\n/, "voice input is off, and English, until the User asks");
     assert.match(listed.text, /\nAt `ovai restart` only, and changed by Mike in the file, never by this tool: user: "Mike", leader: "Martin", port: \d+, auth: /);
   });
 
@@ -898,6 +900,8 @@ describe("openovai.json changed while the server runs", () => {
       model: await tool(leader.secret, "settings", { change: { "models.worker": null } }),
       port: await tool(leader.secret, "settings", { change: { port: 1 } }),
       check: await tool(leader.secret, "settings", { change: { "update.check": "no" } }),
+      voice: await tool(leader.secret, "settings", { change: { "voice.on": "yes" } }),
+      language: await tool(leader.secret, "settings", { change: { "voice.language": "english" } }),
     };
     assert.ok(Object.values(refusals).every((answer) => answer.refused), JSON.stringify(refusals));
     assert.match(refusals.unknown.text, /^idle\.forever is not a setting this tool writes/);
@@ -906,7 +910,27 @@ describe("openovai.json changed while the server runs", () => {
     assert.equal(refusals.model.text, "models.worker takes a model as a hire takes it, such as opus or opus/high (got null)");
     assert.equal(refusals.check.text, 'update.check takes true or false; false stops the daily look for a newer release, or null for its default (got "no")');
     assert.equal(refusals.port.text, "port is who and where this instance is: Mike changes it in openovai.json by hand, and it applies at `ovai restart`");
+    assert.match(refusals.voice.text, /^voice\.on takes true or false; true shows the voice button/);
+    assert.match(refusals.language.text, /^voice\.language takes a Whisper language code such as en, de, fr, pl or ja/);
     assert.equal(fs.readFileSync(file, "utf8"), had);
+  });
+
+  // Voice input is the User's to turn on, through the Leader: the switch and the language are two
+  // settings, and the snapshot the page draws the button from follows them on the tick.
+  it("turns voice input on and sets its language on the Leader's word, and settingsIn reads both", async () => {
+    // A tick while it is on would install for real: this instance's install never ends instead.
+    chat.voiceInstall = () => new Promise(() => {});
+    try {
+      const changed = await tool(leader.secret, "settings", { change: { "voice.on": true, "voice.language": "de" } });
+      assert.deepEqual(changed, { text: "Written to openovai.json and applied now, with no restart: voice.language, voice.on.", refused: false, error: null });
+      assert.deepEqual(settingsIn(chat.config).voice, { on: true, language: "de" });
+    } finally {
+      await tool(leader.secret, "settings", { change: { "voice.on": null, "voice.language": null } });
+      delete chat.voiceInstall;
+      voice.reset();
+    }
+    assert.deepEqual(settingsIn(chat.config).voice, { on: false, language: "en" });
+    assert.deepEqual(settingsIn({ voice: { on: "yes", language: "klingon" } }).voice, { on: false, language: "en" }, "a hand-written value of the wrong kind reads as the default");
   });
 
   // The tick looks for a newer release once the setting is on, and the snapshot names what it
