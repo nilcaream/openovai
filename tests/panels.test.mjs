@@ -885,7 +885,7 @@ describe("a reference going into the box", () => {
 });
 
 describe("a bullet of the Leader's status quoted in the reply", () => {
-  const PIXEL = "Pixel Peel's level menu needs grouping in tens before it grows much past 40 levels; set aside for later.";
+  const PIXEL = "Paper Kite's level menu needs grouping in tens before it grows much past 40 levels; set aside for later.";
   const REVIEW = "Waiting for you: review the pilot, four episodes tagged in full, in temp/pilot.md; nothing scales until you have.";
   const REMOTE = "Waiting for you: remote mode stopped before questions 5–7: resume or shelve?";
   const CDP = "The cdp plugin (designed 17 Sep in knowledge/cdp-plugin-design.md) was never built; ovai ships no Chrome/CDP feature, so the corporate instance has none.";

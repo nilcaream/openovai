@@ -53,10 +53,10 @@ describe("the glossary's words", () => {
       fixed: ["Mira", "Bobby", "", "openovai"],
       idle: ["Theo", "bobby"],
       said: ["Use faster-whisper now.", "Older line about Radiolarian."],
-      room: ["Pixel Peel 351–360 merged"],
+      room: ["Paper Kite 351–360 merged"],
       status: "- Waiting for you: OE2 design",
     });
-    assert.deepEqual(words, ["Mira", "Bobby", "openovai", ...voice.COMMON_WORDS, "Theo", "faster-whisper", "Radiolarian", "Peel", "OE2"]);
+    assert.deepEqual(words, ["Mira", "Bobby", "openovai", ...voice.COMMON_WORDS, "Theo", "faster-whisper", "Radiolarian", "Kite", "OE2"]);
   });
 
   it("stops at three hundred words, which bounds the request and not what Whisper hears", () => {
