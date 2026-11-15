@@ -39,7 +39,7 @@ in the message box, where the person reads it, edits it and presses Enter as for
 ## Using it
 - Click the button, or press Tab in the Leader's box, and speak. Click or press Tab again to stop.
   The text appears at the cursor in a few seconds, however long the recording. Esc while
-  recording drops the recording. A recording has no length limit. Tab does this only in the
+  recording stops it (see the cancel below). A recording has no length limit. Tab does this only in the
   Leader's box and only while voice input is on; everywhere else it moves the focus as always.
 - The speech is turned into text while the person goes on speaking: the recording is cut at a
   pause once it is 20 seconds long (at 30 seconds, without a pause, at its quietest moment), and
@@ -50,8 +50,9 @@ in the message box, where the person reads it, edits it and presses Enter as for
 - While it turns speech into text, the microphone button is a cross: a click on it, or Esc,
   stops it. The speech process is stopped, so the work does not go on using the CPU; the text of
   the parts already done lands in the box ("Dictation stopped early"), or nothing when none was
-  ("Dictation cancelled"); the box takes typing again at once. Esc while recording drops all of
-  it, the parts already turned into text included. The next recording loads the model again, a
+  ("Dictation cancelled"); the box takes typing again at once. Esc while recording does the same:
+  it drops the audio since the last cut and the part being worked on, and the parts already done
+  land in the box. The next recording loads the model again, a
   few seconds that pass while the person speaks. Tab does not cancel.
 - A pill at the left of the Leader's pill row says what is happening: "Listening... 0:07" in red
   with a running clock, then "Turning speech into text…", its ground filling from the left as the
