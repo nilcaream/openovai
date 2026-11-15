@@ -199,17 +199,18 @@ describe("the Leader's voice button", () => {
     assert.equal(voiceLine({ voice: { on: false, state: "off", detail: "", language: "en" }, said: { text: "x", why: "" } }), null);
   });
 
-  // The install's progress in the voice pill, in percent, not on the button; a failed install
-  // says why there, and a click on it tries again.
-  it("says in the voice pill what the install is at, with its percent, and why it failed with a click to try again", () => {
-    assert.deepEqual(voiceLine({ voice: on("installing", "downloading the model: 42% of 1.6 GB") }), {
+  // The install's progress in the voice pill, not on the button, in the words the install gives
+  // (voice.step); a failed install says so there, the why in its hover, and a click on it tries
+  // again.
+  it("says in the voice pill what the install is at in the install's own words, and that it failed with a click to try again", () => {
+    assert.deepEqual(voiceLine({ voice: on("installing", "Voice 4/4: model 42%") }), {
       look: "installing",
-      text: "Installing voice… downloading the model: 42% of 1.6 GB",
+      text: "Voice 4/4: model 42%",
       title: "Voice input is being installed on this machine, once; the microphone button comes back when it is done",
     });
     assert.deepEqual(voiceLine({ voice: on("failed", "no Python") }), {
       look: "failed",
-      text: "Voice install failed, click to retry: no Python",
+      text: "Voice failed, click to retry",
       title: "Voice input could not be installed: no Python. Click here, or press Tab in the box, to try again.",
     });
   });
@@ -236,10 +237,10 @@ describe("the Leader's voice button", () => {
       shown: true,
       disabled: false,
       look: "install",
-      title: "Voice input: click, or press Tab in the box, to install it on this machine (about 2 GB, once, in the background); the pill at the left says how far it is",
+      title: "Install voice input: click, or press Tab in the box",
     });
     assert.deepEqual(voiceButton(on("uninstalled"), { microphone: false }).disabled, false, "the install is the server's: no microphone is needed to ask for it");
-    assert.deepEqual(voiceButton(on("installing", "downloading the model: 40% of 1.6 GB")), { shown: false, disabled: true, look: "installing", title: "" });
+    assert.deepEqual(voiceButton(on("installing", "Voice 4/4: model 40%")), { shown: false, disabled: true, look: "installing", title: "" });
     const deaf = voiceButton(on("ready"), { microphone: false });
     assert.equal(deaf.disabled, true);
     assert.match(deaf.title, /secure page.*http:\/\/127\.0\.0\.1 or http:\/\/localhost/);

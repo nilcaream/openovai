@@ -16,23 +16,25 @@ in the message box, where the person reads it, edits it and presses Enter as for
 - Turning the setting on installs nothing: it shows the button. The person's first click on it, or
   Tab in the Leader's box, starts the install, and the server does it in the background. From
   that click until it is done the button is gone and the pill at the left of the Leader's pill row
-  says what the install is at, with the percent while the model downloads ("Installing voice…
-  downloading the model: 42% of 1.6 GB"). Then the pill clears and the button is back.
-- When it is already installed on this machine, by any instance, there is no install step: the
-  button dictates at the first click.
-  - Its own Python, CPython 3.13 from python-build-standalone, about 30 MB to download, checked
-    against the sha256 ovai ships. The machine's Python is never used, so none needs to be there.
-  - In that Python, exactly the packages `lib/voice/requirements.txt` pins, about 480 MB, from
-    PyPI only, as prebuilt wheels: nothing is resolved and no package runs code while it installs.
-  - The model, 1.6 GB, from one pinned revision on Hugging Face. Every file is checked against the
-    sha256 ovai ships before it is kept.
+  says which of four steps the install is at, and the percent of the last:
+  - "Voice 1/4: runtime...": its own Python, CPython 3.13 from python-build-standalone, about
+    30 MB to download, checked against the sha256 ovai ships. The machine's Python is never used,
+    so none needs to be there.
+  - "Voice 2/4: dependencies...": in that Python, exactly the packages
+    `lib/voice/requirements.txt` pins, about 480 MB, from PyPI only, as prebuilt wheels: nothing
+    is resolved and no package runs code while it installs.
+  - "Voice 3/4: model files..." and "Voice 4/4: model 42%": the model, 1.6 GB, from one pinned
+    revision on Hugging Face, its small files first. Every file is checked against the sha256 ovai
+    ships before it is kept.
+- Then the pill clears and the button is back. When it is already installed on this machine, by
+  any instance, there is no install step: the button dictates at the first click.
 - Where: `~/.local/share/openovai/voice/` (`$XDG_DATA_HOME/openovai/voice/` when that is set), beside
   ovai's own Node.js and Claude Code. Every instance on the machine shares it. The last install's
   log is `install.log` there.
 - It runs on Linux (x86_64 and arm64) and macOS (Apple silicon and Intel), and needs `tar` to
   unpack its Python.
-- When the install fails, the pill turns amber and says why, the full reason in its hover, and the
-  button stays away. A click on the pill, or Tab in the Leader's box, tries again.
+- When the install fails, the pill turns amber and says "Voice failed, click to retry", with the
+  reason and the log's path in its hover, and the button stays away. A click on the pill, or Tab in the Leader's box, tries again.
 
 ## Using it
 - Click the button, or press Tab in the Leader's box, and speak. Click or press Tab again to stop.

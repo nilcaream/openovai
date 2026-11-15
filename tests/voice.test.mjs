@@ -194,8 +194,11 @@ describe("the install", () => {
     assert.equal(fs.readFileSync(path.join(voice.home(env), "model", "model.bin"), "utf8"), "the model.bin");
     assert.equal(fs.existsSync(path.join(voice.home(env), "cpython.tar.gz")), false, "the archive is not kept");
     assert.equal(fs.existsSync(part), false, "the part was renamed into place");
-    assert.deepEqual(said.slice(0, 2), [`downloading Python ${voice.PYTHON.version}`, "installing the pinned packages (about 480 MB)"]);
-    assert.ok(said.includes("downloading the model: 100% of 1.6 GB"), said.join("\n"));
+    // The voice pill's words, character for character.
+    const small = Object.keys(files).length - 1;
+    assert.deepEqual(said.slice(0, 3 + small), ["Voice 1/4: runtime...", "Voice 2/4: dependencies...", ...Array(small).fill("Voice 3/4: model files..."), "Voice 4/4: model..."]);
+    assert.ok(said.slice(3 + small).every((one) => /^Voice 4\/4: model \d{1,3}%$/.test(one)) && said.at(-1) === "Voice 4/4: model 100%", said.join("\n"));
+    assert.equal(voice.step(4, 42), "Voice 4/4: model 42%");
   });
 
   it("keeps nothing of a file whose sha256 is not the pinned one, and says so", async () => {
@@ -267,6 +270,7 @@ describe("the state the button is drawn from", () => {
       voice.sync({ on: false, language: "de", env, install });
       assert.equal(voice.state().state, "off");
       assert.deepEqual(heard.map((one) => one.state), ["uninstalled", "installing", "installing", "ready", "off"]);
+      assert.equal(heard[1].detail, "Voice 1/4: runtime...", "no starting text: straight to the first step");
     } finally {
       stop();
     }
