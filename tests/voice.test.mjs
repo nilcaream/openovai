@@ -1,9 +1,10 @@
 // Voice input (lib/chat/voice.mjs): the glossary Whisper is given, the install with its pins and
 // checksums, the state the page draws its button from, and the speech process. Nothing here
-// installs anything or reaches the network: the installer's Python runs, its probe and its fetch
-// are handed in, and the speech process is a stand-in.
+// installs anything or reaches the network: the installer's Python runs, its unpacking and its
+// fetch are handed in, and the speech process is a stand-in.
 
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import crypto from "node:crypto";
 import { EventEmitter } from "node:events";
 import fs from "node:fs";
@@ -70,56 +71,88 @@ describe("the pins", () => {
 });
 
 describe("the install", () => {
-  it("takes the first Python from 3.12 to 3.14 on the PATH, newest first", async () => {
-    const versions = { "python3.14": null, "python3.13": 313, "python3.12": 312, python3: 314 };
-    assert.deepEqual(await voice.findPython(async (command) => versions[command]), { command: "python3.13", version: 313 });
-    assert.equal(await voice.findPython(async (command) => (command === "python3" ? 311 : null)), null, "3.11 is below the pinned wheels");
-    assert.equal(await voice.findPython(async () => 315), null, "3.15 is past them");
+  it("pins one python-build-standalone CPython per platform ovai runs on, each with a sha256, and keys the install by it", () => {
+    assert.deepEqual(Object.keys(voice.PYTHON.archives), ["linux-x64", "linux-arm64", "darwin-arm64", "darwin-x64"]);
+    for (const [name, sum] of Object.values(voice.PYTHON.archives)) {
+      assert.match(name, new RegExp(`^cpython-${voice.PYTHON.version.replaceAll(".", "\\.")}\\+${voice.PYTHON.release}-[a-z0-9_]+-[a-z-]+-install_only_stripped\\.tar\\.gz$`));
+      assert.match(sum, /^[0-9a-f]{64}$/);
+    }
+    assert.ok(voice.KEY.includes(`cpython-${voice.PYTHON.version}`));
+    assert.deepEqual(voice.pythonArchive("linux-x64"), {
+      name: voice.PYTHON.archives["linux-x64"][0],
+      sum: voice.PYTHON.archives["linux-x64"][1],
+      url: `https://github.com/astral-sh/python-build-standalone/releases/download/${voice.PYTHON.release}/cpython-${voice.PYTHON.version}%2B${voice.PYTHON.release}-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz`,
+    });
+    assert.equal(voice.pythonArchive("win32-x64"), null);
+    assert.equal(voice.pythonArchive("toString"), null);
   });
 
-  it("runs a Python by name from the PATH, or the one in an install's environment", () => {
-    assert.equal(voice.pythonCommand("python3.13"), "python3.13");
-    assert.equal(voice.pythonCommand("/x/voice/k"), "/x/voice/k/venv/bin/python");
+  it("runs the Python unpacked into an install or its part", () => {
+    assert.equal(voice.pythonCommand("/x/voice/k"), "/x/voice/k/python/bin/python3");
   });
 
-  it("makes the environment, installs the pins as wheels with nothing resolved, fetches the pinned model, and marks it installed last", async () => {
+  it("fetches and unpacks its own Python, installs the pins into it as wheels with nothing resolved, fetches the pinned model, and marks it installed last", async () => {
     const runs = [];
     const run = async (where, args) => {
       runs.push([where, ...args]);
-      if (args.includes("venv")) fs.mkdirSync(args.at(-1), { recursive: true });
+    };
+    const unpacked = [];
+    const unpack = async (archive, into) => {
+      unpacked.push([archive, into, fs.readFileSync(archive, "utf8")]);
+      fs.mkdirSync(path.join(into, "python", "bin"), { recursive: true });
     };
     const files = Object.fromEntries(Object.keys(voice.MODEL.files).map((name) => [name, `the ${name}`]));
     const sums = Object.fromEntries(Object.keys(files).map((name) => [name, sha(files[name])]));
-    const { get, asked } = served((name) => files[name]);
+    const { get, asked } = served((name) => files[name] ?? "the python");
+    const python = { name: "cpython.tar.gz", sum: sha("the python"), url: "https://example.invalid/cpython.tar.gz" };
     const said = [];
-    await voice.installEngine({ env, run, probe: async (command) => (command === "python3.12" ? 312 : null), get, files: sums, at: (what) => said.push(what) });
-    const part = runs[0].at(-1).replace(/\/venv$/, "");
-    assert.deepEqual(runs[0], ["python3.12", "-I", "-m", "venv", path.join(part, "venv")]);
-    assert.deepEqual(runs[1], [
-      part, "-I", "-m", "pip", "install", "--isolated", "--disable-pip-version-check", "--no-input", "--require-virtualenv",
+    await voice.installEngine({ env, run, unpack, get, python, files: sums, at: (what) => said.push(what) });
+    const part = runs[0][0];
+    assert.match(part, new RegExp(`${voice.KEY}\\.part-${process.pid}$`));
+    assert.deepEqual(unpacked, [[path.join(part, "cpython.tar.gz"), part, "the python"]]);
+    assert.deepEqual(runs, [[
+      part, "-I", "-m", "pip", "install", "--isolated", "--disable-pip-version-check", "--no-input",
       "--index-url", "https://pypi.org/simple/", "--no-deps", "--only-binary=:all:", "-r", voice.REQUIREMENTS,
-    ]);
-    assert.deepEqual(asked, Object.keys(files).map((name) => `https://huggingface.co/${voice.MODEL.repo}/resolve/${voice.MODEL.revision}/${name}`));
+    ]]);
+    assert.deepEqual(asked, [python.url, ...Object.keys(files).map((name) => `https://huggingface.co/${voice.MODEL.repo}/resolve/${voice.MODEL.revision}/${name}`)]);
     assert.equal(voice.isInstalled(env), true);
     assert.equal(fs.readFileSync(path.join(voice.home(env), "model", "model.bin"), "utf8"), "the model.bin");
+    assert.equal(fs.existsSync(path.join(voice.home(env), "cpython.tar.gz")), false, "the archive is not kept");
     assert.equal(fs.existsSync(part), false, "the part was renamed into place");
+    assert.deepEqual(said.slice(0, 2), [`downloading Python ${voice.PYTHON.version}`, "installing the pinned packages (about 400 MB)"]);
     assert.ok(said.includes("downloading the model: 100% of 1.6 GB"), said.join("\n"));
   });
 
-  it("keeps nothing of a model file whose sha256 is not the pinned one, and says so", async () => {
+  it("keeps nothing of a file whose sha256 is not the pinned one, and says so", async () => {
     const into = path.join(data, "into");
     fs.mkdirSync(into, { recursive: true });
     const { get } = served(() => "not the model");
-    await assert.rejects(voice.fetchChecked({ name: "model.bin", sum: "0".repeat(64), into, get }), /^Error: model\.bin does not match its pinned sha256 \(got [0-9a-f]{64}\); the download is corrupt or not the pinned file$/);
+    await assert.rejects(voice.fetchChecked({ url: voice.modelUrl("model.bin"), name: "model.bin", sum: "0".repeat(64), into, get }), /^Error: model\.bin does not match its pinned sha256 \(got [0-9a-f]{64}\); the download is corrupt or not the pinned file$/);
     assert.equal(fs.existsSync(path.join(into, "model.bin")), false);
   });
 
-  it("refuses with no Python it can use, and on a failed step leaves no part behind and names the log", async () => {
-    await assert.rejects(voice.installEngine({ env, probe: async () => null }), /needs Python 3\.12, 3\.13 or 3\.14 on the PATH/);
+  it("unpacks a .tar.gz with the system's tar, and names the archive when it cannot", async () => {
+    const from = path.join(data, "from");
+    const into = path.join(data, "into");
+    fs.mkdirSync(path.join(from, "python", "bin"), { recursive: true });
+    fs.mkdirSync(into, { recursive: true });
+    fs.writeFileSync(path.join(from, "python", "bin", "python3"), "a python");
+    const archive = path.join(data, "python.tar.gz");
+    assert.equal(spawnSync("tar", ["-czf", archive, "-C", from, "python"]).status, 0);
+    await voice.untar(archive, into);
+    assert.equal(fs.readFileSync(path.join(into, "python", "bin", "python3"), "utf8"), "a python");
+    fs.writeFileSync(archive, "not an archive");
+    await assert.rejects(voice.untar(archive, into), /^Error: python\.tar\.gz could not be unpacked: tar ended with \d+: /);
+  });
+
+  it("refuses on a platform with no Python build, and on a failed step leaves no part behind and names the log", async () => {
+    await assert.rejects(voice.installEngine({ env, platform: "win32-x64" }), /^Error: voice input has no Python build for win32-x64; it runs on linux-x64, linux-arm64, darwin-arm64, darwin-x64$/);
+    const { get } = served(() => "the python");
+    const python = { name: "cpython.tar.gz", sum: sha("the python"), url: "https://example.invalid/cpython.tar.gz" };
     const run = async () => {
       throw new Error("pip ended with 1");
     };
-    await assert.rejects(voice.installEngine({ env, run, probe: async () => 313 }), /^Error: pip ended with 1 \(log: .*\/voice\/install\.log\)$/);
+    await assert.rejects(voice.installEngine({ env, run, unpack: async () => {}, get, python }), /^Error: pip ended with 1 \(log: .*\/voice\/install\.log\)$/);
     assert.deepEqual(fs.readdirSync(path.join(data, "openovai", "voice")), ["install.log"]);
     assert.equal(voice.isInstalled(env), false);
   });
@@ -225,7 +258,7 @@ describe("the speech process", () => {
     assert.equal(await voice.transcribe({ pcm: Buffer.alloc(32), language: "pl", prompt: "Glossary: ovai.", env, spawner }), "heard 32 bytes");
     assert.equal(await voice.transcribe({ pcm: Buffer.alloc(8), language: "pl", prompt: "Glossary: ovai.", env, spawner }), "heard 8 bytes");
     assert.equal(started.length, 1, "kept warm between recordings");
-    assert.equal(started[0].command, path.join(voice.home(env), "venv", "bin", "python"));
+    assert.equal(started[0].command, path.join(voice.home(env), "python", "bin", "python3"));
     assert.deepEqual(started[0].args, ["-I", voice.STT, path.join(voice.home(env), "model")]);
     assert.deepEqual(seen.map(({ language, prompt }) => [language, prompt]), [["pl", "Glossary: ovai."], ["pl", "Glossary: ovai."]]);
     assert.ok(fs.existsSync(voice.STT));

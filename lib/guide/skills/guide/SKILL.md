@@ -20,6 +20,6 @@ write the real path in its place, as your instructions give it, so the person ca
 - `mcp-and-plugins.md`: adding an MCP server and signing in to it, installing a Claude Code plugin, and a tool the workspace serves itself (`ovai plugin <name>`).
 - `knowledge-and-customization.md`: the team's notes in `knowledge/`, and standing rules in `customization/`: who writes them and when a change takes effect.
 - `diff-view.md`: seeing what changed in a repository as a code review does: asking a session for a diff in words, the `/diff/` link it answers with, what a capture holds and how long it is kept, and the page — side by side or unified, folds, next and previous change, the list of files.
-- `voice-input.md`: the microphone button on the Leader's panel: turning it on and choosing its language by asking the Leader, what it installs and where, Python it needs, the microphone and the browser, the voice mark the Leader sees, its cost, and removing it.
+- `voice-input.md`: the microphone button on the Leader's panel: turning it on and choosing its language by asking the Leader, what it installs and where, its own Python, the microphone and the browser, the voice mark the Leader sees, its cost, and removing it.
 - `workspace-layout.md`: what each directory in the instance directory is for (desks, projects, reference, temp, knowledge, customization, .local, bin, lib).
 - `limits.md`: what ovai cannot do, and the nearest thing it can do for each.

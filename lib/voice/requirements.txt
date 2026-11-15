@@ -1,8 +1,8 @@
-# What voice input installs into its own Python environment: every package faster-whisper needs to
+# What voice input installs into its own Python (PYTHON in lib/chat/voice.mjs): every package faster-whisper needs to
 # load and transcribe, each at one exact version, installed with --no-deps --only-binary=:all: so
 # nothing is resolved at install time and no package runs code while it installs. Chosen and
 # tested when a release is cut, like lib/RUNTIME. Wheels exist for Linux x86_64 and aarch64 and
-# macOS arm64 and x86_64 on CPython 3.12 to 3.14; numpy and av set the 3.12 floor. onnxruntime,
+# macOS arm64 and x86_64 on CPython 3.12 to 3.14, the 3.13 voice input runs among them. onnxruntime,
 # which faster-whisper declares for its voice-activity filter alone, is left out: that filter is
 # not used, and faster_whisper/vad.py imports it only when it is.
 faster-whisper==1.2.1

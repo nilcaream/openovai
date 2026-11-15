@@ -15,17 +15,17 @@ in the message box, where the person reads it, edits it and presses Enter as for
   the CPU. Nothing goes to a cloud service and no model is asked to rewrite the text.
 - The server installs it in the background as soon as the setting is on. The button stays faint
   while it does, and its tooltip says what it is at.
-  - A Python environment with exactly the packages `lib/voice/requirements.txt` pins, about 400 MB,
-    from PyPI only, as prebuilt wheels: nothing is resolved and no package runs code while it
-    installs.
+  - Its own Python, CPython 3.13 from python-build-standalone, about 30 MB to download, checked
+    against the sha256 ovai ships. The machine's Python is never used, so none needs to be there.
+  - In that Python, exactly the packages `lib/voice/requirements.txt` pins, about 400 MB, from
+    PyPI only, as prebuilt wheels: nothing is resolved and no package runs code while it installs.
   - The model, 1.6 GB, from one pinned revision on Hugging Face. Every file is checked against the
     sha256 ovai ships before it is kept.
 - Where: `~/.local/share/openovai/voice/` (`$XDG_DATA_HOME/openovai/voice/` when that is set), beside
   ovai's own Node.js and Claude Code. Every instance on the machine shares it. The last install's
   log is `install.log` there.
-- It needs Python 3.12, 3.13 or 3.14 on the PATH as `python3.14`, `python3.13`, `python3.12` or
-  `python3`. The Python macOS ships (3.9) and Debian 12's (3.11) are too old: on macOS
-  `brew install python@3.13`. On Debian and Ubuntu the `python3-venv` package may be needed too.
+- It runs on Linux (x86_64 and arm64) and macOS (Apple silicon and Intel), and needs `tar` to
+  unpack its Python.
 - When the install fails, the button turns amber and its tooltip says why. A click on it tries
   again.
 
