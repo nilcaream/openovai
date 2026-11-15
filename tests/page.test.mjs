@@ -913,7 +913,7 @@ describe("the script", () => {
   });
 
   it("shows the voice pill full before the dictated text lands, since the text comes with the work's last step", () => {
-    assert.match(script, /const VOICE_FULL_FOR = 300;/);
+    assert.match(script, /const VOICE_FULL_FOR = 120;/, "just past the fill's 100 ms move: seen full, the text not held up");
     assert.match(script, /else \{\s*\/\/[^\n]*\n\s*dictation\.progress = \{ done: 1, upto: 1, pace: 0 \};\s*dictation\.progressAt = Date\.now\(\);\s*voicePanels\(\);\s*await new Promise\(\(resolve\) => setTimeout\(resolve, VOICE_FULL_FOR\)\);\s*if \(abort\.signal\.aborted\) return;\s*putDictated\(panel, said\.text\);\s*\}/);
   });
 

@@ -1145,8 +1145,9 @@
   // and the text of the whole lands in the box at the caret, for the User to read, edit and send.
   // Esc while recording drops it all. A dictation has no longest. One at a time on the page.
   const VOICE_SAID_FOR = 8000;
-  // How long the voice pill shows full before the dictated text lands (its fill moves in 100 ms).
-  const VOICE_FULL_FOR = 300;
+  // How long the voice pill takes to show full before the dictated text lands: just past its fill's
+  // 100 ms move, so it is seen full and the text is not held up.
+  const VOICE_FULL_FOR = 120;
   // `capture` is the microphone while recording: its stream, AudioContext and worklet node, the
   // samples of the stretch not yet sent (`blocks`, `length`), their levels (one per FRAME_MS) and
   // the frame being summed. `id` names the dictation to the server, `sent` counts its stretches,
