@@ -743,6 +743,14 @@ describe("what the chat serves", () => {
     assert.equal(anonymous.status, 401, "a recording needs the page's sign-in");
   });
 
+  // The cancel of a recording being turned into text (the speech process's side is voice.test.mjs).
+  it("cancels nothing when no recording is being turned into text, and only for the signed-in page", async () => {
+    const cancelled = await page("POST", "/voice/cancel");
+    assert.deepEqual({ status: cancelled.status, body: JSON.parse(cancelled.body) }, { status: 200, body: { cancelled: false } });
+    const anonymous = await fetch(`${url}/voice/cancel`, { method: "POST", headers: { origin: url } });
+    assert.equal(anonymous.status, 401, "a cancel needs the page's sign-in");
+  });
+
   it("will not open a panel for somebody who does not work here", async () => {
     assert.equal((await page("GET", "/sessions/Nobody/messages")).status, 404);
     assert.equal((await page("POST", "/sessions/Nobody/message", { text: "hello" })).status, 404);

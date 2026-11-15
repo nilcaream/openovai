@@ -43,10 +43,14 @@ in the message box, where the person reads it, edits it and presses Enter as for
   voice input is on; everywhere else it moves the focus as always.
 - While it records and while it turns speech into text, the box is greyed and takes no typing;
   the text lands where the cursor was, and the cursor ends after it.
+- While it turns speech into text, the microphone button is a cross: a click on it, or Esc,
+  cancels. The speech process is stopped, so the work does not go on using the CPU, nothing lands
+  in the box, and the box takes typing again at once. The next recording loads the model again,
+  a few seconds that pass while the person speaks. Tab does not cancel.
 - A pill at the left of the Leader's pill row says what is happening: "Listening... 0:07" in red
   with a running clock, then "Turning speech into text…". After, for a few seconds, what came of
   it when no text did, with the reason in its hover: "Microphone appears muted", "No speech
-  heard", "Not turned into text", "No microphone".
+  heard", "Not turned into text", "No microphone", "Dictation cancelled".
 - A recording with no sound in it, as from a muted microphone, is not turned into text: Whisper
   makes up words for silence.
 - Silence and noise inside a recording are cut out by a voice-activity filter before Whisper hears

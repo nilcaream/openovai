@@ -316,7 +316,7 @@ describe("the state the button is drawn from", () => {
 });
 
 // A stand-in for the speech process: it says ready, then answers every request with what `answer`
-// makes of it.
+// makes of it; null is no answer, a recording it is still working on.
 function standIn(answer, { ready = { ready: true } } = {}) {
   const started = [];
   const spawner = (command, args) => {
@@ -326,7 +326,7 @@ function standIn(answer, { ready = { ready: true } } = {}) {
     child.stderr = new PassThrough();
     child.kill = () => child.emit("exit", null, "SIGTERM");
     started.push({ command, args, child });
-    setImmediate(() => child.stdout.write(`${JSON.stringify(ready)}\n`));
+    if (ready !== null) setImmediate(() => child.stdout.write(`${JSON.stringify(ready)}\n`));
     let buffered = "";
     child.stdin.on("data", (chunk) => {
       buffered += chunk;
@@ -334,7 +334,8 @@ function standIn(answer, { ready = { ready: true } } = {}) {
       while ((end = buffered.indexOf("\n")) >= 0) {
         const asked = JSON.parse(buffered.slice(0, end));
         buffered = buffered.slice(end + 1);
-        child.stdout.write(`${JSON.stringify(answer(asked))}\n`);
+        const answered = answer(asked);
+        if (answered !== null) child.stdout.write(`${JSON.stringify(answered)}\n`);
       }
     });
     return child;
@@ -379,6 +380,40 @@ describe("the speech process", () => {
     const unloaded = standIn(() => ({ text: "x" }), { ready: { error: "no model" } });
     await assert.rejects(voice.transcribe({ pcm: Buffer.alloc(4), language: "en", words: [], env, spawner: unloaded.spawner }), /^Error: no model$/);
     assert.equal(unloaded.started.length, 1);
+  });
+
+  it("is killed when the recording it is turning into text is cancelled, and the next recording starts a new one", async () => {
+    ready();
+    const busy = standIn(() => null);
+    const kills = [];
+    const long = voice.transcribe({ pcm: Buffer.alloc(64), language: "en", words: [], env, spawner: busy.spawner });
+    const child = busy.started[0].child;
+    const kill = child.kill;
+    child.kill = (...args) => {
+      kills.push(args);
+      kill(...args);
+    };
+    await new Promise((resolve) => child.stdin.once("data", resolve));
+    assert.equal(voice.cancel(), true);
+    assert.equal(kills.length, 1, "the work stops: the process is killed");
+    await assert.rejects(long, (error) => error.cancelled === true && /cancelled/.test(error.message));
+    assert.equal(voice.cancel(), false, "nothing is left to cancel");
+    const next = standIn(() => ({ text: "next" }));
+    assert.equal(await voice.transcribe({ pcm: Buffer.alloc(8), language: "en", words: [], env, spawner: next.spawner }), "next");
+    assert.equal(next.started.length, 1, "a new process for the next recording");
+  });
+
+  it("is cancelled while it still loads its model, and kept warm when nothing is being turned into text", async () => {
+    ready();
+    const loading = standIn(() => ({ text: "x" }), { ready: null });
+    const early = voice.transcribe({ pcm: Buffer.alloc(8), language: "en", words: [], env, spawner: loading.spawner });
+    assert.equal(voice.cancel(), true);
+    await assert.rejects(early, (error) => error.cancelled === true);
+    const idle = standIn(() => ({ text: "done" }));
+    assert.equal(await voice.transcribe({ pcm: Buffer.alloc(8), language: "en", words: [], env, spawner: idle.spawner }), "done");
+    assert.equal(voice.cancel(), false);
+    assert.equal(await voice.transcribe({ pcm: Buffer.alloc(8), language: "en", words: [], env, spawner: idle.spawner }), "done");
+    assert.equal(idle.started.length, 1, "not killed: it held no recording");
   });
 
   it("is warmed only when voice input is ready", () => {

@@ -191,7 +191,7 @@ describe("the Leader's voice button", () => {
     const voice = on("ready");
     assert.deepEqual(voiceLine({ voice, phase: "recording", elapsed: 7_900 }), { look: "recording", text: "Listening... 0:07", title: "Tab or the microphone button stops it and turns it into text; Esc drops it" });
     assert.equal(voiceLine({ voice, phase: "recording", elapsed: 119_000 }).text, "Listening... 1:59");
-    assert.deepEqual(voiceLine({ voice, phase: "working", said: { text: "an old one", why: "" } }), { look: "working", text: "Turning speech into text…", title: "" });
+    assert.deepEqual(voiceLine({ voice, phase: "working", said: { text: "an old one", why: "" } }), { look: "working", text: "Turning speech into text…", title: "The microphone button, now a cross, or Esc cancels it: nothing lands in the box" });
     assert.deepEqual(voiceLine({ voice, said: { text: "Microphone appears muted", why: "No sound was heard." } }), { look: "said", text: "Microphone appears muted", title: "No sound was heard." });
     assert.equal(voiceLine({ voice, phase: "idle" }), null, "no pill");
     assert.equal(voiceLine({ voice: on("uninstalled") }), null, "no pill before the User asks for the install");
@@ -223,6 +223,8 @@ describe("the Leader's voice button", () => {
     assert.equal(voiceKey(key("Tab", { shiftKey: true }), { usable: true, phase: "idle" }), null);
     assert.equal(voiceKey(key("Tab", { ctrlKey: true }), { usable: true, phase: "idle" }), null);
     assert.equal(voiceKey(key("Tab"), { usable: false, phase: "working" }), "hold", "focus stays while it transcribes");
+    assert.equal(voiceKey(key("Tab"), { usable: true, phase: "working" }), "hold", "Tab never cancels: only the button and Esc do");
+    assert.equal(voiceKey(key("Escape"), { usable: true, phase: "working" }), null, "Esc is the page's: it cancels");
     for (const name of ["Enter", "a", "ArrowUp", "Backspace"]) assert.equal(voiceKey(key(name), { usable: true, phase: "recording" }), "hold", name);
     assert.equal(voiceKey(key("Enter"), { usable: false, phase: "working" }), "hold");
     assert.equal(voiceKey(key("Escape"), { usable: true, phase: "recording" }), null, "Esc is the page's: it drops the recording");
@@ -251,7 +253,12 @@ describe("the Leader's voice button", () => {
     assert.deepEqual(voiceButton(on("ready")), { shown: true, disabled: false, look: "ready", title: "Dictate (en): click, speak, click again; the text lands in the box for you to read before you send it" });
     assert.equal(voiceButton(on("ready"), { phase: "recording" }).look, "recording");
     assert.equal(voiceButton(on("ready"), { phase: "recording" }).disabled, false, "a click stops it");
-    assert.deepEqual([voiceButton(on("ready"), { phase: "working" }).look, voiceButton(on("ready"), { phase: "working" }).disabled], ["working", true]);
+    assert.deepEqual(voiceButton(on("ready"), { phase: "working" }), {
+      shown: true,
+      disabled: false,
+      look: "cancel",
+      title: "Turning the recording into text on this machine: click, or press Esc, to cancel it",
+    }, "while it turns into text the button cancels it");
   });
 });
 

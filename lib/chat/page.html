@@ -294,7 +294,7 @@
   .composer .voice svg { width: 16px; height: 16px; display: block; }
   .composer .voice:disabled { cursor: default; opacity: .45; }
   .composer .voice.recording { color: var(--bad); animation: voice-pulse 1.2s ease-in-out infinite; }
-  .composer .voice.working { opacity: 1; color: var(--fg); cursor: progress; }
+  .composer .voice.cancel { color: var(--fg); }
   @keyframes voice-pulse { 50% { opacity: .35; } }
   /* the Leader's box while it records or turns speech into text: greyed and read-only, with no
      caret, so nothing is typed into it and the text lands where the caret was */
@@ -524,6 +524,7 @@
   const MOON = '<svg class="moon" viewBox="0 0 24 24" fill="currentColor"><path d="M20.7 14.6A8.7 8.7 0 0 1 9.4 3.3a8.9 8.9 0 1 0 11.3 11.3z"/></svg>';
   const SQUARE = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>';
   const MICROPHONE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3.5"/></svg>';
+  const CANCEL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
   // The copy button's icon: the clipboard, and the tick the stylesheet shows in its place while
   // the button says copied.
   const CLIPBOARD = '<svg class="clip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg><svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
@@ -1145,7 +1146,9 @@
   // `started` and `clock` time the recording for the voice pill; `said` is what came of it,
   // `{ text, why }`, shown there until VOICE_SAID_FOR has passed, the box is typed in, or the next
   // recording.
-  const dictation = { phase: "idle", recorder: null, timer: null, dropped: false, started: 0, clock: null, said: null, saidTimer: null };
+  // `abort` is the AbortController of the recording being turned into text, null otherwise: its
+  // signal says that one was cancelled, so what comes of it later is ignored.
+  const dictation = { phase: "idle", recorder: null, timer: null, dropped: false, started: 0, clock: null, said: null, saidTimer: null, abort: null };
   const microphone = () => window.isSecureContext && typeof navigator.mediaDevices?.getUserMedia === "function" && typeof MediaRecorder === "function";
 
   function drawVoice(panel) {
@@ -1154,7 +1157,10 @@
     panel.voice.disabled = look.disabled;
     panel.voice.title = look.title;
     panel.voice.classList.toggle("recording", look.look === "recording");
-    panel.voice.classList.toggle("working", look.look === "working");
+    const glyph = look.look === "cancel" ? CANCEL : MICROPHONE;
+    if (panel.voice.innerHTML !== glyph) panel.voice.innerHTML = glyph;
+    panel.voice.setAttribute("aria-label", look.look === "cancel" ? "Cancel the dictation" : "Dictate");
+    panel.voice.classList.toggle("cancel", look.look === "cancel");
     const line = voiceLine({ voice: state.voice, phase: dictation.phase, elapsed: Date.now() - dictation.started, said: dictation.said });
     panel.voicePill.classList.toggle("show", line !== null);
     panel.voicePill.classList.toggle("failed", line?.look === "failed");
@@ -1191,11 +1197,26 @@
     call("/voice/install", { method: "POST" }).catch(() => {});
   }
 
+  // The recording being turned into text is cancelled, by the button or Esc: the server kills the
+  // work, what comes of it is ignored, and the box is the User's again at once.
+  function cancelDictation(panel) {
+    dictation.abort?.abort();
+    dictation.abort = null;
+    call("/voice/cancel", { method: "POST" }).catch(() => {});
+    dictation.phase = "idle";
+    voiceSaid("Dictation cancelled", "The recording was dropped before it was turned into text; nothing went into the box.");
+    if (panel !== undefined && !panel.box.disabled) panel.box.focus();
+  }
+
   async function dictate(name) {
     const panel = sections.get(name);
     if (panel === undefined) return;
     if (state.voice?.state === "uninstalled" || state.voice?.state === "failed") {
       installVoice();
+      return;
+    }
+    if (dictation.phase === "working") {
+      cancelDictation(panel);
       return;
     }
     if (dictation.phase === "recording") {
@@ -1223,12 +1244,16 @@
         voicePanels();
         return;
       }
+      const abort = new AbortController();
+      dictation.abort = abort;
       dictation.phase = "working";
       voicePanels();
       try {
         const samples = await samplesOf(new Blob(chunks, { type: recorder.mimeType }));
-        const answered = await call("/voice", { method: "POST", headers: { "content-type": "application/octet-stream" }, body: samples });
+        if (abort.signal.aborted) return;
+        const answered = await call("/voice", { method: "POST", headers: { "content-type": "application/octet-stream" }, body: samples, signal: abort.signal });
         const said = await answered.json().catch(() => ({}));
+        if (abort.signal.aborted || said.cancelled === true) return;
         if (!answered.ok) throw new Error(said.error ?? `the server answered ${answered.status}`);
         if (said.silent === true) voiceSaid("Microphone appears muted", "The recording held no sound at all. Check that the microphone is not muted.");
         else if (said.text.trim() === "") voiceSaid("No speech heard", "The recording held sound but no speech.");
@@ -1243,10 +1268,14 @@
           if (!box.disabled) box.focus();
         }
       } catch (error) {
-        voiceSaid("Not turned into text", error.message);
+        if (!abort.signal.aborted) voiceSaid("Not turned into text", error.message);
       } finally {
-        dictation.phase = "idle";
-        voicePanels();
+        // A cancelled one is over already, and the next recording may be on by now.
+        if (dictation.abort === abort) {
+          dictation.abort = null;
+          dictation.phase = "idle";
+          voicePanels();
+        }
       }
     });
     dictation.recorder = recorder;
@@ -1268,6 +1297,8 @@
       dictation.dropped = true;
       clearTimeout(dictation.timer);
       dictation.recorder.stop();
+    } else if (event.key === "Escape" && dictation.phase === "working") {
+      cancelDictation([...sections.values()].find((panel) => panel.voice !== null));
     }
   });
 
