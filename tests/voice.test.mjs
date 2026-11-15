@@ -1,4 +1,4 @@
-// Voice input (lib/chat/voice.mjs): the glossary Whisper is given, the install with its pins and
+// Voice input (lib/chat/voice.mjs): the words Whisper is given, the install with its pins and
 // checksums, the state the page draws its button from, and the speech process. Nothing here
 // installs anything or reaches the network: the installer's Python runs, its unpacking and its
 // fetch are handed in, and the speech process is a stand-in.
@@ -13,6 +13,7 @@ import { PassThrough } from "node:stream";
 import { afterEach, describe, it } from "node:test";
 
 import { subscribe } from "../lib/chat/events.mjs";
+import { panelFile, readTail } from "../lib/chat/conversation.mjs";
 import * as voice from "../lib/chat/voice.mjs";
 import { remove, repo, scratch } from "./helpers.mjs";
 
@@ -37,14 +38,64 @@ function served(body) {
   return { get, asked };
 }
 
-describe("the glossary", () => {
-  it("names the team and the projects first, then ovai's own words, each once", () => {
-    assert.equal(voice.glossary(["Mira", "Bobby", "Lucy", "", "openovai", "Bobby"]), `Glossary: Mira, Bobby, Lucy, openovai, ${voice.COMMON_WORDS.join(", ")}.`);
+describe("the glossary's words", () => {
+  it("takes from a text the words a general model would spell wrong, in the order they stand", () => {
+    const text = [
+      "Ask Theo about the Radiolarian level. The fix is in `lib/chat/voice.mjs:120` and server.mjs, see InvalidDNSError.",
+      "- **Waiting** on faster-whisper, r28 and the `hotwords` flag; leaderCli, S08E01 and AWS too.",
+      "Plain words, a time 12:50, 1722/1722, a hash 3e6cb46, mail ovai@example.com, I think, Mira's call, e.g. this.",
+    ].join("\n");
+    assert.deepEqual(voice.wordsIn(text), ["Theo", "Radiolarian", "voice.mjs", "server.mjs", "InvalidDNSError", "faster-whisper", "r28", "hotwords", "leaderCli", "S08E01", "AWS", "Mira"]);
   });
 
-  it("stops at sixty words, so a crowded instance cannot crowd out what Whisper hears", () => {
-    const names = Array.from({ length: 80 }, (_, at) => `Name${at}`);
-    assert.equal(voice.glossary(names).split(", ").length, 60);
+  it("puts the fixed words first, then ovai's own, the idle desks, the newest lines, the room and the status, each once", () => {
+    const words = voice.wordList({
+      fixed: ["Mira", "Bobby", "", "openovai"],
+      idle: ["Theo", "bobby"],
+      said: ["Use faster-whisper now.", "Older line about Radiolarian."],
+      room: ["Pixel Peel 351–360 merged"],
+      status: "- Waiting for you: OE2 design",
+    });
+    assert.deepEqual(words, ["Mira", "Bobby", "openovai", ...voice.COMMON_WORDS, "Theo", "faster-whisper", "Radiolarian", "Peel", "OE2"]);
+  });
+
+  it("stops at three hundred words, which bounds the request and not what Whisper hears", () => {
+    const fixed = Array.from({ length: 400 }, (_, at) => `Name${at}`);
+    assert.equal(voice.wordList({ fixed }).length, 300);
+  });
+
+  it("reads the newest lines on the Leader's panel: the User's and the Leader's own, newest first", () => {
+    const rows = [
+      { from: "user", text: "u1" },
+      { from: "Bobby", text: "b1" },
+      { from: "Bobby", text: "to a Worker", to: "Lucy", msg: true },
+      { from: "Bobby", text: "<noop/>", noop: true },
+      { from: "Bobby", text: "cut short", failed: true },
+      { from: "Lucy", text: "a Worker's message", to: "Bobby", msg: true },
+      { from: "user", text: "u2" },
+      { from: "Bobby", text: "b2" },
+      { from: "user", text: "u3" },
+    ];
+    assert.deepEqual(voice.lastSaid(rows, "Bobby", 2), ["u3", "b2", "u2", "b1"]);
+    assert.deepEqual(voice.lastSaid(rows, "Bobby"), ["u3", "b2", "u2", "b1", "u1"]);
+  });
+});
+
+describe("the tail of a panel", () => {
+  it("reads only the last bytes of a long panel file and gives the same last rows as the whole file", () => {
+    const root = scratch("voice-panel");
+    try {
+      const rows = Array.from({ length: 200 }, (_, at) => ({ at: `t${at}`, from: at % 2 ? "Bobby" : "user", text: `line ${at}: “quoted”, ünïcode, {braces}\n  {` }));
+      fs.mkdirSync(path.dirname(panelFile(root, "Bobby")), { recursive: true });
+      fs.writeFileSync(panelFile(root, "Bobby"), `${JSON.stringify(rows, null, 2)}\n`);
+      const tail = readTail(root, "Bobby", 2000);
+      assert.ok(tail.length > 3 && tail.length < 200, `${tail.length} rows`);
+      assert.deepEqual(tail, rows.slice(-tail.length));
+      assert.deepEqual(readTail(root, "Bobby", 10_000_000), rows);
+      assert.deepEqual(readTail(root, "Nobody"), []);
+    } finally {
+      remove(root);
+    }
   });
 });
 
@@ -268,7 +319,7 @@ function ready() {
 describe("the speech process", () => {
   it("refuses a recording while voice input is off", async () => {
     const { spawner, started } = standIn(() => ({ text: "x" }));
-    await assert.rejects(voice.transcribe({ pcm: Buffer.alloc(4), language: "en", prompt: "", env, spawner }), /^Error: voice input is off$/);
+    await assert.rejects(voice.transcribe({ pcm: Buffer.alloc(4), language: "en", words: [], env, spawner }), /^Error: voice input is off$/);
     assert.equal(started.length, 0);
   });
 
@@ -279,22 +330,22 @@ describe("the speech process", () => {
       seen.push(asked);
       return { text: `heard ${Buffer.from(asked.pcm, "base64").length} bytes` };
     });
-    assert.equal(await voice.transcribe({ pcm: Buffer.alloc(32), language: "pl", prompt: "Glossary: ovai.", env, spawner }), "heard 32 bytes");
-    assert.equal(await voice.transcribe({ pcm: Buffer.alloc(8), language: "pl", prompt: "Glossary: ovai.", env, spawner }), "heard 8 bytes");
+    assert.equal(await voice.transcribe({ pcm: Buffer.alloc(32), language: "pl", words: ["ovai"], env, spawner }), "heard 32 bytes");
+    assert.equal(await voice.transcribe({ pcm: Buffer.alloc(8), language: "pl", words: ["ovai"], env, spawner }), "heard 8 bytes");
     assert.equal(started.length, 1, "kept warm between recordings");
     assert.equal(started[0].command, path.join(voice.home(env), "python", "bin", "python3"));
     assert.deepEqual(started[0].args, ["-I", voice.STT, path.join(voice.home(env), "model")]);
-    assert.deepEqual(seen.map(({ language, prompt }) => [language, prompt]), [["pl", "Glossary: ovai."], ["pl", "Glossary: ovai."]]);
+    assert.deepEqual(seen.map(({ language, words }) => [language, words]), [["pl", ["ovai"]], ["pl", ["ovai"]]]);
     assert.ok(fs.existsSync(voice.STT));
   });
 
   it("passes on what the process says went wrong, and starts afresh once it is gone", async () => {
     ready();
     const failing = standIn(() => ({ error: "ValueError: bad samples" }));
-    await assert.rejects(voice.transcribe({ pcm: Buffer.alloc(4), language: "en", prompt: "", env, spawner: failing.spawner }), /^Error: ValueError: bad samples$/);
+    await assert.rejects(voice.transcribe({ pcm: Buffer.alloc(4), language: "en", words: [], env, spawner: failing.spawner }), /^Error: ValueError: bad samples$/);
     failing.started[0].child.emit("exit", 1, null);
     const unloaded = standIn(() => ({ text: "x" }), { ready: { error: "no model" } });
-    await assert.rejects(voice.transcribe({ pcm: Buffer.alloc(4), language: "en", prompt: "", env, spawner: unloaded.spawner }), /^Error: no model$/);
+    await assert.rejects(voice.transcribe({ pcm: Buffer.alloc(4), language: "en", words: [], env, spawner: unloaded.spawner }), /^Error: no model$/);
     assert.equal(unloaded.started.length, 1);
   });
 
@@ -320,5 +371,22 @@ describe("the speech script", () => {
     const script = fs.readFileSync(path.join(repo, "lib", "voice", "stt.py"), "utf8");
     assert.match(script, /^VAD = importlib\.util\.find_spec\("onnxruntime"\) is not None$/m);
     assert.match(script, /model\.transcribe\([^\n]*, vad_filter=VAD\)/);
+  });
+
+  it("keeps as many words from the front as fit in 223 of the model's tokens, and writes the first one last", (t) => {
+    const script = fs.readFileSync(path.join(repo, "lib", "voice", "stt.py"), "utf8");
+    assert.match(script, /^PROMPT_TOKENS = 223$/m, "faster-whisper keeps the last max_length // 2 - 1 tokens of a prompt");
+    assert.match(script, /initial_prompt=glossary\(asked\.get\("words"\) or \[\], count\)/);
+    const glossary = /^def glossary\(.*?(?=\n\n)/ms.exec(script)?.[0];
+    assert.ok(glossary, "stt.py has a glossary function");
+    // Counted here in characters: " Glossary: A." is 13, " Glossary: B, A." 16, " Glossary: C, B, A." 19.
+    const probe = `PROMPT_TOKENS = 223\n${glossary}\nprint(repr(glossary(["A", "B", "C"], len, 16)), repr(glossary(["A", "B"], len, 12)), repr(glossary([], len)))`;
+    const run = spawnSync("python3", ["-I", "-c", probe], { encoding: "utf8" });
+    if (run.error?.code === "ENOENT") {
+      t.skip("no python3 here");
+      return;
+    }
+    assert.equal(run.stderr, "");
+    assert.equal(run.stdout.trim(), "'Glossary: B, A.' None None");
   });
 });

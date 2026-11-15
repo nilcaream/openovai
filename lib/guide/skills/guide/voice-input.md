@@ -52,8 +52,11 @@ in the message box, where the person reads it, edits it and presses Enter as for
 - A line sent after dictating, edited or not, reaches the Leader marked as voice
   (`<user voice="true">`), so the Leader reads it as transcribed speech: it may hold sound-alike
   words.
-- The team's names, the project directories and ovai's own words are given to Whisper as a glossary,
-  which helps it spell them.
+- Whisper is given a glossary, built anew for each recording without any AI call: the team's names,
+  the project directories and ovai's own words, then the unusual words (names, hyphenated or dotted
+  words, words in backticks) of the last few lines on the Leader's panel, the desk titles and the
+  Leader's status. It helps Whisper spell them. Whisper takes about 220 tokens of it, roughly 60
+  such words; what does not fit is left out, the oldest lines first.
 
 ## What it costs
 - Measured on an 8-core laptop CPU (i7-11850H): about 4 s of waiting after 15 s of speech, with
