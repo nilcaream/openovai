@@ -477,7 +477,29 @@ describe("a dictation in stretches", () => {
     await assert.rejects(stretch("cut", 3, { spawner }), (error) => error.cancelled === true, "a stretch that comes after the cancel is refused");
   });
 
-  it("fails a last stretch whose stretches before it never came", async () => {
+  it("lets a dictation left half-way go no further once another one starts", async () => {
+    ready();
+    const asked = [];
+    const { spawner, started } = standIn((one) => {
+      asked.push(one);
+      return null;
+    });
+    const answer = (text) => started[0].child.stdout.write(`${JSON.stringify({ text })}\n`);
+    const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
+    await stretch("left", 0, { spawner });
+    await stretch("left", 1, { spawner });
+    await settle();
+    const next = stretch("next", 0, { spawner, last: true });
+    await settle();
+    answer("left 0");
+    answer("next 0");
+    assert.deepEqual(await next, { text: "next 0", silent: false });
+    await settle();
+    assert.equal(asked.length, 2, "stretch 1 of the dictation left is never turned into text");
+    await assert.rejects(stretch("left", 2, { spawner, last: true }), (error) => error.cancelled === true);
+  });
+
+  it("fails a last stretch whose stretches before it never came", { timeout: 2000 }, async () => {
     ready();
     const { spawner } = standIn(() => ({ text: "x" }));
     await assert.rejects(stretch("gap", 1, { spawner, last: true }), /^Error: stretch 0 of this dictation never came$/);
