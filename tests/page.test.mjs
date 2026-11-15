@@ -912,6 +912,11 @@ describe("the script", () => {
     assert.equal(rules.some((rule) => rule.selector.includes(".voice.installing") || rule.selector.includes(".voice.failed")), false, "no busy or amber button");
   });
 
+  it("shows the voice pill full before the dictated text lands, since the text comes with the work's last step", () => {
+    assert.match(script, /const VOICE_FULL_FOR = 300;/);
+    assert.match(script, /else \{\s*\/\/[^\n]*\n\s*dictation\.progress = \{ done: 1, upto: 1, pace: 0 \};\s*dictation\.progressAt = Date\.now\(\);\s*voicePanels\(\);\s*await new Promise\(\(resolve\) => setTimeout\(resolve, VOICE_FULL_FOR\)\);\s*if \(abort\.signal\.aborted\) return;\s*putDictated\(panel, said\.text\);\s*\}/);
+  });
+
   it("gives the Leader's pill a hover of the page's own, opening upward, and no title", () => {
     const declared = (selector) => rules.find((rule) => rule.selector === selector)?.declarations;
     assert.doesNotMatch(script, /doing\.title|\.doing\.title/, "no browser title on the pill: its tooltip can be cut by the window's edge");

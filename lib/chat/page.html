@@ -1145,6 +1145,8 @@
   // and the text of the whole lands in the box at the caret, for the User to read, edit and send.
   // Esc while recording drops it all. A dictation has no longest. One at a time on the page.
   const VOICE_SAID_FOR = 8000;
+  // How long the voice pill shows full before the dictated text lands (its fill moves in 100 ms).
+  const VOICE_FULL_FOR = 300;
   // `capture` is the microphone while recording: its stream, AudioContext and worklet node, the
   // samples of the stretch not yet sent (`blocks`, `length`), their levels (one per FRAME_MS) and
   // the frame being summed. `id` names the dictation to the server, `sent` counts its stretches,
@@ -1363,7 +1365,15 @@
       if (typeof said.error === "string") throw new Error(said.error);
       if (said.silent === true) voiceSaid("Microphone appears muted", "The recording held no sound at all. Check that the microphone is not muted.");
       else if (typeof said.text !== "string" || said.text.trim() === "") voiceSaid("No speech heard", "The recording held sound but no speech.");
-      else putDictated(panel, said.text);
+      else {
+        // The text comes with the last step of the work: the pill is seen full before it lands.
+        dictation.progress = { done: 1, upto: 1, pace: 0 };
+        dictation.progressAt = Date.now();
+        voicePanels();
+        await new Promise((resolve) => setTimeout(resolve, VOICE_FULL_FOR));
+        if (abort.signal.aborted) return;
+        putDictated(panel, said.text);
+      }
     } catch (error) {
       if (!abort.signal.aborted) voiceSaid("Not turned into text", error.message);
     } finally {
