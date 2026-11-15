@@ -70,6 +70,29 @@ describe("the pins", () => {
   });
 });
 
+describe("the silence gate", () => {
+  // 16-bit samples at 16 kHz: `seconds` of silence with a 30 ms sine burst at `dbfs` RMS in the middle.
+  function burst(dbfs, seconds = 2) {
+    const pcm = Buffer.alloc(seconds * 16_000 * 2);
+    const amplitude = Math.round(Math.SQRT2 * 32768 * 10 ** (dbfs / 20));
+    const from = 480 * Math.floor((seconds * 16_000) / 2 / 480);
+    for (let i = 0; i < 480; i += 1) pcm.writeInt16LE(Math.round(amplitude * Math.sin((2 * Math.PI * 440 * i) / 16_000)), (from + i) * 2);
+    return pcm;
+  }
+
+  it("reads a recording's loudest 30 ms in dBFS, and digital silence as -Infinity", () => {
+    assert.equal(voice.loudest(Buffer.alloc(32_000)), -Infinity);
+    assert.ok(Math.abs(voice.loudest(burst(-20)) - -20) < 1, String(voice.loudest(burst(-20))));
+  });
+
+  it("heard nothing below SILENCE_DBFS, and something above it, however short", () => {
+    assert.equal(voice.heardNothing(Buffer.alloc(32_000)), true, "a muted microphone");
+    assert.equal(voice.heardNothing(burst(voice.SILENCE_DBFS - 3)), true);
+    assert.equal(voice.heardNothing(burst(voice.SILENCE_DBFS + 3)), false);
+    assert.equal(voice.heardNothing(Buffer.from([0x00, 0x40])), false, "one loud sample is a recording");
+  });
+});
+
 describe("the install", () => {
   it("pins one python-build-standalone CPython per platform ovai runs on, each with a sha256, and keys the install by it", () => {
     assert.deepEqual(Object.keys(voice.PYTHON.archives), ["linux-x64", "linux-arm64", "darwin-arm64", "darwin-x64"]);

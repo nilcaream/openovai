@@ -32,6 +32,8 @@ in the message box, where the person reads it, edits it and presses Enter as for
 ## Using it
 - Click the button and speak. Click again to stop. The text appears at the cursor in a few
   seconds. Esc while recording drops the recording. A recording stops by itself at 2 minutes.
+- A recording with no sound in it, as from a muted microphone, is not turned into text: Whisper
+  makes up words for silence. The panel says that no sound was heard.
 - The browser asks once whether the page may use the microphone. Browsers allow a microphone only
   on a secure page, and the page's own address, `http://127.0.0.1:<port>` or
   `http://localhost:<port>`, is one. Through an SSH tunnel the microphone is the one at the

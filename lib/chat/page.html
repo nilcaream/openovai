@@ -1160,7 +1160,8 @@
         const answered = await call("/voice", { method: "POST", headers: { "content-type": "application/octet-stream" }, body: samples });
         const said = await answered.json().catch(() => ({}));
         if (!answered.ok) throw new Error(said.error ?? `the server answered ${answered.status}`);
-        if (said.text.trim() !== "") {
+        if (said.silent === true) voiceSaid(panel, "No sound was heard. Check that the microphone is not muted.");
+        else if (said.text.trim() !== "") {
           const box = panel.box;
           panel.leave();
           const put = insertRef(box.value, box.selectionStart, box.selectionEnd, said.text.trim());

@@ -726,12 +726,16 @@ describe("what the chat serves", () => {
   });
 
   // Voice input is off until the User asks the Leader for it: the snapshot says so, and a
-  // recording is refused — empty or cut first, too long before any of it is kept.
-  it("takes no recording while voice input is off, and none that is empty, cut or too long", async () => {
+  // recording is refused — empty or cut first, too long before any of it is kept. A silent one
+  // never reaches Whisper, which would make up text for it: the page is told nothing was heard.
+  it("takes no recording while voice input is off, none that is empty, cut or too long, and answers a silent one with nothing heard", async () => {
     assert.deepEqual(JSON.parse((await page("GET", "/sessions")).body).voice, { on: false, state: "off", detail: "", language: "en" });
     const send = (bytes) =>
       fetch(`${url}/voice`, { method: "POST", headers: { cookie: signedIn(), origin: url, "content-type": "application/octet-stream" }, body: bytes }).then(async (answered) => ({ status: answered.status, body: await answered.json() }));
-    assert.deepEqual(await send(Buffer.alloc(3200)), { status: 409, body: { error: "voice input is off" } });
+    const loud = Buffer.alloc(3200);
+    for (let at = 0; at < loud.length; at += 4) loud.writeInt16LE(8000, at);
+    assert.deepEqual(await send(loud), { status: 409, body: { error: "voice input is off" } });
+    assert.deepEqual(await send(Buffer.alloc(3200)), { status: 200, body: { text: "", silent: true } });
     assert.equal((await send(Buffer.alloc(0))).status, 400);
     assert.equal((await send(Buffer.alloc(3201))).status, 400);
     assert.deepEqual(await send(Buffer.alloc(120 * 16_000 * 2 + 2)), { status: 413, body: { error: "a recording is 120 seconds at most" } });
