@@ -1,10 +1,14 @@
-# What voice input installs into its own Python (PYTHON in lib/chat/voice.mjs): every package faster-whisper needs to
-# load and transcribe, each at one exact version, installed with --no-deps --only-binary=:all: so
-# nothing is resolved at install time and no package runs code while it installs. Chosen and
-# tested when a release is cut, like lib/RUNTIME. Wheels exist for Linux x86_64 and aarch64 and
-# macOS arm64 and x86_64 on CPython 3.12 to 3.14, the 3.13 voice input runs among them. onnxruntime,
-# which faster-whisper declares for its voice-activity filter alone, is left out: that filter is
-# not used, and faster_whisper/vad.py imports it only when it is.
+# What voice input installs into its own Python (PYTHON in lib/chat/voice.mjs): every package
+# faster-whisper needs to load and transcribe, each at one exact version, installed with --no-deps
+# --only-binary=:all: so nothing is resolved at install time and no package runs code while it
+# installs. Chosen and tested when a release is cut, like lib/RUNTIME; a change here installs anew
+# (KEY). Wheels exist for Linux x86_64 and aarch64 and macOS arm64 and x86_64 on CPython 3.13.
+#
+# onnxruntime runs faster-whisper's voice-activity filter, which keeps silence and noise away from
+# Whisper: on them large-v3-turbo writes confident text ("Closed Captioning by …") and its no-speech
+# probability stays 0. It has no macOS x86_64 wheel, so an Intel Mac goes without the filter. Its
+# declared flatbuffers and protobuf are not needed to run the filter and are left out.
+onnxruntime==1.32.0 ; sys_platform != "darwin" or platform_machine != "x86_64"
 faster-whisper==1.2.1
 ctranslate2==4.9.0
 numpy==2.5.5

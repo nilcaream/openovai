@@ -49,18 +49,19 @@ describe("the glossary", () => {
 });
 
 describe("the pins", () => {
-  it("names every package at one exact version, and leaves the voice-activity filter's onnxruntime out", () => {
+  it("names every package at one exact version, with the voice-activity filter's onnxruntime everywhere but an Intel Mac", () => {
     const lines = fs.readFileSync(voice.REQUIREMENTS, "utf8").split("\n").filter((line) => line !== "" && !line.startsWith("#"));
     assert.ok(lines.length >= 15, lines.join("\n"));
-    for (const line of lines) assert.match(line, /^[a-z][a-z0-9-]*==\d[\w.]*$/, line);
+    for (const line of lines.filter((line) => !line.startsWith("onnxruntime"))) assert.match(line, /^[a-z][a-z0-9-]*==\d[\w.]*$/, line);
     assert.ok(lines.includes("faster-whisper==1.2.1"));
-    assert.ok(!lines.some((line) => line.startsWith("onnxruntime")));
+    assert.deepEqual(lines.filter((line) => line.startsWith("onnxruntime")), ['onnxruntime==1.32.0 ; sys_platform != "darwin" or platform_machine != "x86_64"']);
   });
 
-  it("pins the model to one revision with a sha256 for every file, and keys the install by both", () => {
+  it("pins the model to one revision with a sha256 for every file, and keys the install by it and by the packages' pins", () => {
     assert.match(voice.MODEL.revision, /^[0-9a-f]{40}$/);
     for (const sum of Object.values(voice.MODEL.files)) assert.match(sum, /^[0-9a-f]{64}$/);
     assert.ok(voice.KEY.endsWith(voice.MODEL.revision.slice(0, 8)));
+    assert.ok(voice.KEY.startsWith(`faster-whisper-${sha(fs.readFileSync(voice.REQUIREMENTS)).slice(0, 8)}-`), voice.KEY);
     assert.equal(voice.home(env), path.join(data, "openovai", "voice", voice.KEY));
   });
 
@@ -142,7 +143,7 @@ describe("the install", () => {
     assert.equal(fs.readFileSync(path.join(voice.home(env), "model", "model.bin"), "utf8"), "the model.bin");
     assert.equal(fs.existsSync(path.join(voice.home(env), "cpython.tar.gz")), false, "the archive is not kept");
     assert.equal(fs.existsSync(part), false, "the part was renamed into place");
-    assert.deepEqual(said.slice(0, 2), [`downloading Python ${voice.PYTHON.version}`, "installing the pinned packages (about 400 MB)"]);
+    assert.deepEqual(said.slice(0, 2), [`downloading Python ${voice.PYTHON.version}`, "installing the pinned packages (about 480 MB)"]);
     assert.ok(said.includes("downloading the model: 100% of 1.6 GB"), said.join("\n"));
   });
 
@@ -313,5 +314,11 @@ describe("the speech script", () => {
     assert.match(script, /os\.environ\["HF_HUB_OFFLINE"\] = "1"\n\nimport numpy/, "set before faster_whisper is imported");
     assert.match(script, /local_files_only=True/);
     assert.doesNotMatch(script, /\bsocket\b|decode_audio|import av\b/);
+  });
+
+  it("filters out what is not speech wherever onnxruntime is installed", () => {
+    const script = fs.readFileSync(path.join(repo, "lib", "voice", "stt.py"), "utf8");
+    assert.match(script, /^VAD = importlib\.util\.find_spec\("onnxruntime"\) is not None$/m);
+    assert.match(script, /model\.transcribe\([^\n]*, vad_filter=VAD\)/);
   });
 });

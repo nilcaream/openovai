@@ -11,6 +11,7 @@
 # names, with the Hugging Face hub kept offline, so nothing goes on the network.
 
 import base64
+import importlib.util
 import json
 import os
 import sys
@@ -19,6 +20,11 @@ os.environ["HF_HUB_OFFLINE"] = "1"
 
 import numpy  # noqa: E402
 from faster_whisper import WhisperModel  # noqa: E402
+
+# faster-whisper's voice-activity filter (Silero VAD) cuts silence and noise out before Whisper,
+# which writes confident text for them ("Closed Captioning by …"); speech comes through unchanged.
+# It runs on onnxruntime, which requirements.txt leaves out on an Intel Mac: there, no filter.
+VAD = importlib.util.find_spec("onnxruntime") is not None
 
 
 def say(answer):
@@ -37,7 +43,7 @@ def main():
         try:
             asked = json.loads(line)
             samples = numpy.frombuffer(base64.b64decode(asked["pcm"]), dtype="<i2").astype(numpy.float32) / 32768.0
-            segments, _ = model.transcribe(samples, language=asked["language"], initial_prompt=asked.get("prompt") or None, beam_size=5)
+            segments, _ = model.transcribe(samples, language=asked["language"], initial_prompt=asked.get("prompt") or None, beam_size=5, vad_filter=VAD)
             say({"text": " ".join(segment.text.strip() for segment in segments).strip()})
         except Exception as error:  # one bad request is answered, and the next one is read
             say({"error": f"{type(error).__name__}: {error}"})

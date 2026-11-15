@@ -1186,7 +1186,8 @@
         const said = await answered.json().catch(() => ({}));
         if (!answered.ok) throw new Error(said.error ?? `the server answered ${answered.status}`);
         if (said.silent === true) voiceSaid("No sound was heard. Check that the microphone is not muted.");
-        else if (said.text.trim() !== "") {
+        else if (said.text.trim() === "") voiceSaid("No speech was heard.");
+        else {
           const box = panel.box;
           panel.leave();
           const put = insertRef(box.value, box.selectionStart, box.selectionEnd, said.text.trim());

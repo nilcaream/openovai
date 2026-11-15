@@ -17,7 +17,7 @@ in the message box, where the person reads it, edits it and presses Enter as for
   while it does, and its tooltip says what it is at.
   - Its own Python, CPython 3.13 from python-build-standalone, about 30 MB to download, checked
     against the sha256 ovai ships. The machine's Python is never used, so none needs to be there.
-  - In that Python, exactly the packages `lib/voice/requirements.txt` pins, about 400 MB, from
+  - In that Python, exactly the packages `lib/voice/requirements.txt` pins, about 480 MB, from
     PyPI only, as prebuilt wheels: nothing is resolved and no package runs code while it installs.
   - The model, 1.6 GB, from one pinned revision on Hugging Face. Every file is checked against the
     sha256 ovai ships before it is kept.
@@ -37,6 +37,9 @@ in the message box, where the person reads it, edits it and presses Enter as for
   said there too.
 - A recording with no sound in it, as from a muted microphone, is not turned into text: Whisper
   makes up words for silence. The panel says that no sound was heard.
+- Silence and noise inside a recording are cut out by a voice-activity filter before Whisper hears
+  them, and a recording with no speech in it says that no speech was heard. On an Intel Mac there
+  is no filter (its onnxruntime has no build there), so noise alone can come back as made-up text.
 - The browser asks once whether the page may use the microphone. Browsers allow a microphone only
   on a secure page, and the page's own address, `http://127.0.0.1:<port>` or
   `http://localhost:<port>`, is one. Through an SSH tunnel the microphone is the one at the
