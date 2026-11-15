@@ -42,6 +42,11 @@ export function scratch(name) {
 export const runtimeData = scratch("runtime-data");
 process.env.XDG_DATA_HOME = runtimeData;
 
+// A suite started as a run (`ovai run … -- npm test`) carries that run's name, and every session it
+// stands in would carry it too: lib/running.mjs would count them as runs, not sessions. The suites
+// start their own runs, each with its own name.
+delete process.env.OPENOVAI_RUN;
+
 export function remove(...targets) {
   for (const target of targets) {
     if (target !== undefined && target !== "") {
