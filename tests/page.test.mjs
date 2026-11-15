@@ -481,7 +481,7 @@ describe("the rules", () => {
   // ground drawn round it, not a shadow.
   it("cast no shadow anywhere on the page", () => {
     const shadows = rules.filter((rule) => rule.declarations["box-shadow"] !== undefined).map((rule) => `${rule.selector} { box-shadow: ${rule.declarations["box-shadow"]} }`);
-    assert.deepEqual(shadows, [".composer .stop { box-shadow: 0 0 0 2px var(--bg) }"]);
+    assert.deepEqual(shadows, [".composer .stop { box-shadow: 0 0 0 2px var(--bg) }", ".composer .voice { box-shadow: 0 0 0 2px var(--bg) }"]);
   });
 
   // A Worker's jump pill sticks to the bottom edge of the rows it belongs to, at their right, not to
@@ -1327,7 +1327,7 @@ describe("the script", () => {
     assert.match(script, /call\("\/sessions"\)\.then\(\s*\(answered\) => \(answered\.status === 503 \? setTimeout\(probe, 1000\) : connect\(\)\),\s*\(\) => \{\s*lost\(\);\s*setTimeout\(probe, 1000\);/);
     assert.match(script, /if \(answered\.status === 503\) \{\s*applyEvent\(state, \{ name: "stopping", data: \{\} \}\);\s*draw\(\);/);
     assert.match(script, /stream\.addEventListener\("open", \(\) => \{\s*state\.connection = CONNECTED;\s*draw\(\);/);
-    assert.match(script, /const EVENTS = \["snapshot", "rows", "row", "asking", "seat", "quota", "auto", "status", "wake", "release", "going", "stopping"\];/);
+    assert.match(script, /const EVENTS = \["snapshot", "rows", "row", "asking", "seat", "quota", "auto", "status", "wake", "release", "voice", "going", "stopping"\];/);
     assert.ok(!script.includes("STOPPING"), "the page still carries a stopping word");
   });
 

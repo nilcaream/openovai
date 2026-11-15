@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { AMBER, CARD, CONNECTED, autoLabel, autoTitle, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, GREY, LATE_AFTER, RED, REPLY, SENDING, SHOWN_FOR, LINE_DISCONNECTED, LINE_LEFT, LINE_WAITING, LINE_WORKING, WINDOW, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, HISTORY, historyKey, keyAction, lasted, loadsOlder, noticed, pillLine, pillTitle, place, prompts, timeSaid, prune, quotaLine, quotaTitle, replaced, insertRef, keptFirst, quoteLines, statusQuote, statusRef, stopEnabled, title, typingBeat, updateAsk, versionTitle, windowStart, withQuotes, TYPING_BEAT, CHECKING, LEADER_STOPPED, STATUS_TITLE, STATUS_WHO, UP_TO_DATE, statusLabel } from "../lib/chat/panels.mjs";
+import { AMBER, CARD, CONNECTED, autoLabel, autoTitle, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, GREY, LATE_AFTER, RED, REPLY, SENDING, SHOWN_FOR, LINE_DISCONNECTED, LINE_LEFT, LINE_WAITING, LINE_WORKING, WINDOW, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, HISTORY, historyKey, keyAction, lasted, loadsOlder, noticed, pillLine, pillTitle, place, prompts, timeSaid, prune, quotaLine, quotaTitle, replaced, insertRef, keptFirst, quoteLines, statusQuote, statusRef, stopEnabled, title, typingBeat, updateAsk, versionTitle, voiceButton, windowStart, withQuotes, TYPING_BEAT, CHECKING, LEADER_STOPPED, STATUS_TITLE, STATUS_WHO, UP_TO_DATE, statusLabel } from "../lib/chat/panels.mjs";
 import { localAt, refTo, references } from "../lib/chat/refs.mjs";
 
 const LEADER = "Leader";
@@ -172,6 +172,36 @@ describe("the desk title", () => {
     applyEvent(state, seat("Paul", { title: "On the tests" }), 1);
     assert.equal("title" in state.panels[LEADER], false);
     assert.equal("title" in state.panels.Paul, false);
+  });
+});
+
+describe("the Leader's voice button", () => {
+  const on = (state, detail = "") => ({ on: true, state, detail, language: "en" });
+
+  it("follows the server's voice state from the snapshot and from a voice event", () => {
+    const state = fresh();
+    assert.equal(state.voice, null);
+    applyEvent(state, snapshot([about(LEADER)], { voice: on("ready") }), 0);
+    assert.deepEqual(state.voice, on("ready"));
+    applyEvent(state, { name: "voice", data: { on: false, state: "off", detail: "", language: "en" } }, 1);
+    assert.equal(state.voice.on, false);
+  });
+
+  it("is absent while voice input is off, and not clickable while it installs or with no microphone", () => {
+    assert.equal(voiceButton(null).shown, false);
+    assert.equal(voiceButton({ on: false, state: "off", detail: "", language: "en" }).shown, false);
+    assert.deepEqual(voiceButton(on("installing", "downloading the model: 40% of 1.6 GB")), { shown: true, disabled: true, look: "installing", title: "Voice input is being installed on this machine: downloading the model: 40% of 1.6 GB" });
+    const deaf = voiceButton(on("ready"), { microphone: false });
+    assert.equal(deaf.disabled, true);
+    assert.match(deaf.title, /secure page.*http:\/\/127\.0\.0\.1 or http:\/\/localhost/);
+  });
+
+  it("says a failed install's reason and that a click tries again, and what a click does while ready, recording and working", () => {
+    assert.deepEqual(voiceButton(on("failed", "no Python")), { shown: true, disabled: false, look: "failed", title: "Voice input could not be installed: no Python. Click to try again." });
+    assert.deepEqual(voiceButton(on("ready")), { shown: true, disabled: false, look: "ready", title: "Dictate (en): click, speak, click again; the text lands in the box for you to read before you send it" });
+    assert.equal(voiceButton(on("ready"), { phase: "recording" }).look, "recording");
+    assert.equal(voiceButton(on("ready"), { phase: "recording" }).disabled, false, "a click stops it");
+    assert.deepEqual([voiceButton(on("ready"), { phase: "working" }).look, voiceButton(on("ready"), { phase: "working" }).disabled], ["working", true]);
   });
 });
 

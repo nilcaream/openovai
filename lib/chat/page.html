@@ -275,6 +275,21 @@
   .composer .stop { position: absolute; right: 9px; bottom: 9px; width: 22px; height: 22px; padding: 4px; border: 0; border-radius: 6px; background: var(--bg); box-shadow: 0 0 0 2px var(--bg); color: var(--fg-dim); cursor: pointer; }
   .composer .stop:hover { color: var(--fg); background: var(--line); }
   .composer .stop svg { width: 14px; height: 14px; display: block; }
+  /* the Leader's voice button, while voice input is on: over the box's right edge as the stop
+     glyph is, on the box's own ground, with the stop glyph moved beside it; the box keeps its
+     width. Red and pulsing while it records, pulsing while it turns speech into text, faint
+     while it installs, warm when its install failed */
+  .composer.voiced .stop { right: 37px; }
+  .composer .voice { position: absolute; right: 9px; bottom: 9px; width: 22px; height: 22px; padding: 3px; border: 0; border-radius: 6px; background: var(--bg); box-shadow: 0 0 0 2px var(--bg); color: var(--fg-dim); cursor: pointer; }
+  .composer .voice:hover:not(:disabled) { color: var(--fg); background: var(--line); }
+  .composer .voice svg { width: 16px; height: 16px; display: block; }
+  .composer .voice:disabled { cursor: default; opacity: .45; }
+  .composer .voice.recording { color: var(--bad); animation: voice-pulse 1.2s ease-in-out infinite; }
+  .composer .voice.working { opacity: 1; animation: voice-pulse 1.2s ease-in-out infinite; }
+  .composer .voice.failed { color: var(--warn); }
+  .composer .voice.installing { cursor: progress; }
+  @keyframes voice-pulse { 50% { opacity: .35; } }
+  .voice-said { font-size: .8rem; color: var(--bad); padding: 2px 4px; }
   /* on a desktop, where a mouse moves, the glyph shows only while it moves and for 2 s after it
      stops (the script marks the body .pointing), and while the mouse or the keyboard is on it: a
      turn is seldom stopped, and while typing the mouse stands still. Faded, not hidden, so the
@@ -297,7 +312,7 @@
 
   import { answerOf, dialogOf } from "./dialog.mjs";
   import { stampOf } from "./clock.mjs";
-  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, autoLabel, autoTitle, RED, RELOAD_TITLE, RESTART_ASK, RESTART_TITLE, updateAsk, REPLY, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, historyKey, keyAction, loadsOlder, noticed, place, prompts, prune, quotaLine, replaced, quotaTitle, insertRef, keptFirst, pillLine, pillTitle, quoteLines, stopEnabled, statusLabel, statusQuote, statusRef, title, typingBeat, versionTitle, windowStart, withQuotes, LINE_WAITING, STATUS_TITLE, STATUS_WHO, WINDOW } from "./panels.mjs";
+  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, autoLabel, autoTitle, RED, RELOAD_TITLE, RESTART_ASK, RESTART_TITLE, updateAsk, REPLY, advance, voiceButton, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, historyKey, keyAction, loadsOlder, noticed, place, prompts, prune, quotaLine, replaced, quotaTitle, insertRef, keptFirst, pillLine, pillTitle, quoteLines, stopEnabled, statusLabel, statusQuote, statusRef, title, typingBeat, versionTitle, windowStart, withQuotes, LINE_WAITING, STATUS_TITLE, STATUS_WHO, WINDOW } from "./panels.mjs";
   import { html as markdownOf, row as rowOf, talks, unseen } from "./render.mjs";
   import { refTo, references } from "./refs.mjs";
 
@@ -498,6 +513,7 @@
   const SUN ='<svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 1.7v2.6M12 19.7v2.6M4.6 4.6l1.9 1.9M17.5 17.5l1.9 1.9M1.7 12h2.6M19.7 12h2.6M4.6 19.4l1.9-1.9M17.5 6.5l1.9-1.9"/></svg>';
   const MOON = '<svg class="moon" viewBox="0 0 24 24" fill="currentColor"><path d="M20.7 14.6A8.7 8.7 0 0 1 9.4 3.3a8.9 8.9 0 1 0 11.3 11.3z"/></svg>';
   const SQUARE = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>';
+  const MICROPHONE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3.5"/></svg>';
   // The copy button's icon: the clipboard, and the tick the stylesheet shows in its place while
   // the button says copied.
   const CLIPBOARD = '<svg class="clip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg><svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
@@ -925,6 +941,23 @@
       call(`/sessions/${encodeURIComponent(name)}/stop`, { method: "POST" }).catch(() => {});
     });
     composer.append(box, stop);
+    // The voice button, on the Leader's panel only and drawn from the server's voice state
+    // (voiceButton). `spoken` says the box holds dictated words, edited or not, until it is sent
+    // or emptied: the line then goes with the voice mark.
+    const voice = leads ? document.createElement("button") : null;
+    const spoken = { dictated: false };
+    if (voice !== null) {
+      voice.type = "button";
+      voice.className = "voice";
+      voice.hidden = true;
+      voice.setAttribute("aria-label", "Dictate");
+      voice.innerHTML = MICROPHONE;
+      voice.addEventListener("click", () => dictate(name));
+      composer.append(voice);
+      box.addEventListener("input", () => {
+        if (box.value.trim() === "") spoken.dictated = false;
+      });
+    }
     // When the server was last told a key went in, for the typing hold: a key that changes what is
     // in the box is told, at most once a beat, and nothing else is.
     let beat = null;
@@ -946,10 +979,12 @@
       const text = withQuotes(box.value, quoted);
       box.value = "";
       autosize();
+      const dictated = spoken.dictated;
+      spoken.dictated = false;
       call(`/sessions/${encodeURIComponent(name)}/message`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify(dictated ? { text, voice: true } : { text }),
       }).catch(() => {});
     });
 
@@ -978,7 +1013,7 @@
     // them), `quiet` whether the comms switch hid the messages when the window was last settled,
     // and `crowded` whether rows came or went since, so the window may hold more than it should.
     // `leave` puts the draft back in a box that shows an earlier prompt.
-    return { name, leads, section, nameLine, info, word, fitPlaceholder, facts, composer, stop, rows, cards, jump, unread, tail, doing, tip, standing, stood: null, box, leave, view, keep, shown: 0, from: 0, quiet: false, crowded: false, drawn: new Map(), loading: false, last: null, lines: new Map(), bubbles: new Map(), waiting: new Map() };
+    return { name, leads, section, nameLine, info, word, fitPlaceholder, facts, composer, stop, voice, spoken, rows, cards, jump, unread, tail, doing, tip, standing, stood: null, box, leave, view, keep, shown: 0, from: 0, quiet: false, crowded: false, drawn: new Map(), loading: false, last: null, lines: new Map(), bubbles: new Map(), waiting: new Map() };
   }
 
   // When a row was written, in the reader's own zone (clock.mjs), and the clock alone where the
@@ -1051,6 +1086,133 @@
     box.setSelectionRange(put.caret, put.caret);
     box.dispatchEvent(new Event("input"));
     if (!box.disabled) box.focus();
+  }
+
+  // Dictation on the Leader's panel: a click records from the microphone, a second click stops,
+  // and the recording goes to the server as 16-bit samples at 16 kHz, decoded and resampled here
+  // so the server parses no audio format; the text it answers lands in the box at the caret, for
+  // the User to read, edit and send. Esc while recording drops the recording. A recording stops
+  // by itself at the longest the server takes. One dictation at a time on the page.
+  const LONGEST_RECORDING = 120_000;
+  const VOICE_SAID_FOR = 8000;
+  const dictation = { phase: "idle", recorder: null, timer: null, dropped: false };
+  const microphone = () => window.isSecureContext && typeof navigator.mediaDevices?.getUserMedia === "function" && typeof MediaRecorder === "function";
+
+  function drawVoice(panel) {
+    const look = voiceButton(state.voice, { microphone: microphone(), phase: dictation.phase });
+    panel.voice.hidden = !look.shown;
+    panel.voice.disabled = look.disabled;
+    panel.voice.title = look.title;
+    panel.voice.classList.toggle("installing", look.look === "installing");
+    panel.voice.classList.toggle("failed", look.look === "failed");
+    panel.voice.classList.toggle("recording", look.look === "recording");
+    panel.voice.classList.toggle("working", look.look === "working");
+    panel.composer.classList.toggle("voiced", look.shown);
+  }
+
+  function voicePanels() {
+    for (const panel of sections.values()) if (panel.voice !== null) drawVoice(panel);
+  }
+
+  function voiceSaid(panel, text) {
+    const said = document.createElement("div");
+    said.className = "voice-said";
+    said.textContent = text;
+    panel.composer.before(said);
+    setTimeout(() => said.remove(), VOICE_SAID_FOR);
+  }
+
+  async function dictate(name) {
+    const panel = sections.get(name);
+    if (panel === undefined) return;
+    if (state.voice?.state === "failed") {
+      await call("/voice/retry", { method: "POST" }).catch(() => {});
+      return;
+    }
+    if (dictation.phase === "recording") {
+      clearTimeout(dictation.timer);
+      dictation.recorder.stop();
+      return;
+    }
+    if (dictation.phase !== "idle") return;
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } });
+    } catch (error) {
+      voiceSaid(panel, `No microphone: ${error.message}`);
+      return;
+    }
+    call("/voice/warm", { method: "POST" }).catch(() => {});
+    const chunks = [];
+    const recorder = new MediaRecorder(stream);
+    recorder.addEventListener("dataavailable", (event) => chunks.push(event.data));
+    recorder.addEventListener("stop", async () => {
+      for (const track of stream.getTracks()) track.stop();
+      if (dictation.dropped) {
+        dictation.phase = "idle";
+        voicePanels();
+        return;
+      }
+      dictation.phase = "working";
+      voicePanels();
+      try {
+        const samples = await samplesOf(new Blob(chunks, { type: recorder.mimeType }));
+        const answered = await call("/voice", { method: "POST", headers: { "content-type": "application/octet-stream" }, body: samples });
+        const said = await answered.json().catch(() => ({}));
+        if (!answered.ok) throw new Error(said.error ?? `the server answered ${answered.status}`);
+        if (said.text.trim() !== "") {
+          const box = panel.box;
+          panel.leave();
+          const put = insertRef(box.value, box.selectionStart, box.selectionEnd, said.text.trim());
+          box.value = put.value;
+          box.setSelectionRange(put.caret, put.caret);
+          panel.spoken.dictated = true;
+          box.dispatchEvent(new Event("input"));
+          if (!box.disabled) box.focus();
+        }
+      } catch (error) {
+        voiceSaid(panel, `Not turned into text: ${error.message}`);
+      } finally {
+        dictation.phase = "idle";
+        voicePanels();
+      }
+    });
+    dictation.recorder = recorder;
+    dictation.dropped = false;
+    dictation.phase = "recording";
+    recorder.start();
+    dictation.timer = setTimeout(() => {
+      if (dictation.recorder === recorder && recorder.state === "recording") recorder.stop();
+    }, LONGEST_RECORDING);
+    voicePanels();
+  }
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && dictation.phase === "recording") {
+      dictation.dropped = true;
+      clearTimeout(dictation.timer);
+      dictation.recorder.stop();
+    }
+  });
+
+  // A recording as the server takes it: mono, 16 kHz, 16-bit little-endian samples.
+  async function samplesOf(blob) {
+    const context = new AudioContext();
+    let decoded;
+    try {
+      decoded = await context.decodeAudioData(await blob.arrayBuffer());
+    } finally {
+      context.close();
+    }
+    const resampler = new OfflineAudioContext(1, Math.max(1, Math.ceil(decoded.duration * 16000)), 16000);
+    const source = resampler.createBufferSource();
+    source.buffer = decoded;
+    source.connect(resampler.destination);
+    source.start();
+    const mono = (await resampler.startRendering()).getChannelData(0);
+    const samples = new Int16Array(mono.length);
+    for (let index = 0; index < mono.length; index += 1) samples[index] = Math.round(Math.max(-1, Math.min(1, mono[index])) * 0x7fff);
+    return samples.buffer;
   }
 
   // A bullet of the Leader's status points at itself the same way, `(status/HH:MM:SS/N)`, and the
@@ -1676,6 +1838,7 @@
     panel.section.classList.toggle("busy", colour === AMBER);
     panel.section.classList.toggle("gone", colour === RED);
     panel.stop.hidden = !stopEnabled(state, panel.name);
+    if (panel.voice !== null) drawVoice(panel);
     panel.box.disabled = !composersEnabled(state, panel.name);
     panel.fitPlaceholder();
     if (panel.facts !== null) {
@@ -1825,7 +1988,7 @@
   // One stream from the server: what to draw first, then everything as it happens. The page
   // connects again itself when the stream drops, with the counts it has, so nothing arrives
   // twice and nothing is missed. The browser carries the session cookie on it, as on every call.
-  const EVENTS = ["snapshot", "rows", "row", "asking", "seat", "quota", "auto", "status", "wake", "release", "going", "stopping"];
+  const EVENTS = ["snapshot", "rows", "row", "asking", "seat", "quota", "auto", "status", "wake", "release", "voice", "going", "stopping"];
   let stream = null;
 
   // The stream opened again on a server of another version — an update, then a start — and this
