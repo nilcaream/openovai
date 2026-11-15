@@ -8,7 +8,8 @@ in the message box, where the person reads it, edits it and presses Enter as for
   with its `settings` tool. Asking again turns it off the same way.
 - The language is `voice.language`, English (`en`) unless the person asks for another. Any language
   Whisper knows works, by its code: `de`, `fr`, `pl`, `ja` and so on. The Leader sets it on request.
-- While it is off there is no button.
+- While it is off the microphone button is still in the Leader's box, greyed, and its hover says
+  "Voice input is off: ask the Leader to turn it on". A click on it does nothing.
 
 ## What the first click installs
 - Speech is turned into text by faster-whisper with the Whisper large-v3-turbo model, running on

@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { AMBER, CARD, CONNECTED, autoLabel, autoTitle, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, GREY, LATE_AFTER, RED, REPLY, SENDING, SHOWN_FOR, LINE_DISCONNECTED, LINE_LEFT, LINE_WAITING, LINE_WORKING, WINDOW, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, HISTORY, historyKey, keyAction, lasted, loadsOlder, noticed, pillLine, pillTitle, place, prompts, timeSaid, prune, quotaLine, quotaTitle, replaced, insertRef, keptFirst, quoteLines, statusQuote, statusRef, stopEnabled, title, typingBeat, updateAsk, versionTitle, voiceButton, voiceKey, voiceLine, CUT_BY, CUT_FROM, FILL_SHORT, PAUSE_FRAMES, QUIET_DB, fillOf, pauseCut, windowStart, withQuotes, TYPING_BEAT, CHECKING, LEADER_STOPPED, STATUS_TITLE, STATUS_WHO, UP_TO_DATE, statusLabel } from "../lib/chat/panels.mjs";
+import { AMBER, CARD, CONNECTED, autoLabel, autoTitle, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, GREY, LATE_AFTER, RED, REPLY, SENDING, SHOWN_FOR, LINE_DISCONNECTED, LINE_LEFT, LINE_WAITING, LINE_WORKING, WINDOW, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, HISTORY, historyKey, keyAction, lasted, loadsOlder, noticed, pillLine, pillTitle, place, prompts, timeSaid, prune, quotaLine, quotaTitle, replaced, insertRef, keptFirst, quoteLines, statusQuote, statusRef, stopEnabled, title, typingBeat, updateAsk, versionTitle, voiceButton, voiceKey, voiceLine, VOICE_OFF_TITLE, CUT_BY, CUT_FROM, FILL_SHORT, PAUSE_FRAMES, QUIET_DB, fillOf, pauseCut, windowStart, withQuotes, TYPING_BEAT, CHECKING, LEADER_STOPPED, STATUS_TITLE, STATUS_WHO, UP_TO_DATE, statusLabel } from "../lib/chat/panels.mjs";
 import { localAt, refTo, references } from "../lib/chat/refs.mjs";
 
 const LEADER = "Leader";
@@ -232,9 +232,10 @@ describe("the Leader's voice button", () => {
     assert.equal(voiceKey(key("a"), { usable: true, phase: "idle" }), null);
   });
 
-  it("is absent while voice input is off, clickable to install with none yet, absent while it installs, and not clickable with no microphone", () => {
+  it("is greyed while voice input is off, saying to ask the Leader, clickable to install with none yet, absent while it installs, and not clickable with no microphone", () => {
     assert.deepEqual(voiceButton(null), { shown: false, disabled: true, look: "off", title: "" });
-    assert.equal(voiceButton({ on: false, state: "off", detail: "", language: "en" }).shown, false);
+    assert.deepEqual(voiceButton({ on: false, state: "off", detail: "", language: "en" }), { shown: true, disabled: true, look: "off", title: VOICE_OFF_TITLE });
+    assert.equal(VOICE_OFF_TITLE, "Voice input is off: ask the Leader to turn it on");
     assert.deepEqual(voiceButton(on("uninstalled")), {
       shown: true,
       disabled: false,
