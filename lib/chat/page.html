@@ -123,6 +123,12 @@
   .pills .doing { grid-column: 2; margin: 0; min-width: 0; }
   .pills .jump { grid-column: 3; justify-self: end; position: static; margin: 0; display: block; visibility: hidden; }
   .pills .jump.show { visibility: visible; }
+  /* the voice pill, at the left of the row, in the jump pill's look: what dictation is doing
+     (voiceLine), red while listening, warm for what came of it; its hover says why */
+  .pills .voice-pill { grid-column: 1; justify-self: start; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); font-size: .78rem; background: var(--panel); border: 1px solid var(--line); color: var(--fg-faint); border-radius: 999px; padding: 2px 12px; visibility: hidden; }
+  .pills .voice-pill.show { visibility: visible; }
+  .pills .voice-pill.recording { color: var(--bad); border-color: var(--bad); }
+  .pills .voice-pill.said { color: var(--warn); }
   /* the rows take the focus on a click, so the keys scroll them; no ring for it, the head's border says what the keys do */
   .rows { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 0; outline: none; }
   /* a tool call is a light line: one per call, no label, no stamp */
@@ -289,11 +295,9 @@
   .composer .voice.failed { color: var(--warn); }
   .composer .voice.installing { cursor: progress; }
   @keyframes voice-pulse { 50% { opacity: .35; } }
-  /* what dictation is doing, in words, over the box itself on the box's own ground, left of the
-     glyphs (voiceLine): red while listening, plain while turning it into text, red for what went
-     wrong. Clicks go through it to the box */
-  .composer .voice-line { position: absolute; left: 1px; right: 62px; bottom: 1px; height: 38px; padding: 8px 10px; border-radius: var(--radius); background: var(--bg); line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; color: var(--fg); }
-  .composer .voice-line.recording, .composer .voice-line.said { color: var(--bad); }
+  /* the Leader's box while it records or turns speech into text: greyed and read-only, with no
+     caret, so nothing is typed into it and the text lands where the caret was */
+  .composer textarea.dictating { color: var(--fg-dim); background: var(--panel); caret-color: transparent; cursor: default; }
   /* on a desktop, where a mouse moves, the glyph shows only while it moves and for 2 s after it
      stops (the script marks the body .pointing), and while the mouse or the keyboard is on it: a
      turn is seldom stopped, and while typing the mouse stands still. Faded, not hidden, so the
@@ -316,7 +320,7 @@
 
   import { answerOf, dialogOf } from "./dialog.mjs";
   import { stampOf } from "./clock.mjs";
-  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, autoLabel, autoTitle, RED, RELOAD_TITLE, RESTART_ASK, RESTART_TITLE, updateAsk, REPLY, advance, voiceButton, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, historyKey, keyAction, loadsOlder, noticed, place, prompts, prune, quotaLine, replaced, quotaTitle, insertRef, keptFirst, pillLine, pillTitle, quoteLines, stopEnabled, statusLabel, statusQuote, statusRef, title, typingBeat, versionTitle, windowStart, withQuotes, voiceLine, LINE_WAITING, STATUS_TITLE, STATUS_WHO, WINDOW } from "./panels.mjs";
+  import { AMBER, CARD, CONNECTED, DISCONNECTED, GREEN, autoLabel, autoTitle, RED, RELOAD_TITLE, RESTART_ASK, RESTART_TITLE, updateAsk, REPLY, advance, voiceButton, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, historyKey, keyAction, loadsOlder, noticed, place, prompts, prune, quotaLine, replaced, quotaTitle, insertRef, keptFirst, pillLine, pillTitle, quoteLines, stopEnabled, statusLabel, statusQuote, statusRef, title, typingBeat, versionTitle, windowStart, withQuotes, voiceKey, voiceLine, LINE_WAITING, STATUS_TITLE, STATUS_WHO, WINDOW } from "./panels.mjs";
   import { html as markdownOf, row as rowOf, talks, unseen } from "./render.mjs";
   import { refTo, references } from "./refs.mjs";
 
@@ -811,6 +815,7 @@
     let doing = null;
     let tip = null;
     let pills = null;
+    let voicePill = null;
     if (leads) {
       doing = pill(LINE_WAITING);
       doing.classList.add("doing");
@@ -838,9 +843,14 @@
       });
       doing.addEventListener("pointerleave", hideTip);
       document.addEventListener("keydown", hideTip);
+      // The voice pill (voiceLine), drawn by drawVoice: at the left, shown only while there is
+      // something to say about dictation.
+      voicePill = document.createElement("div");
+      voicePill.className = "voice-pill";
+      voicePill.setAttribute("aria-live", "polite");
       pills = document.createElement("div");
       pills.className = "pills";
-      pills.append(doing, jump, tip);
+      pills.append(voicePill, doing, jump, tip);
     } else {
       rows.append(jump);
     }
@@ -947,10 +957,11 @@
     composer.append(box, stop);
     // The voice button, on the Leader's panel only and drawn from the server's voice state
     // (voiceButton). `spoken` says the box holds dictated words, edited or not, until it is sent
-    // or emptied: the line then goes with the voice mark. `voiceSays` is what dictation is doing,
-    // in words over the box (voiceLine); typing in the box takes a said error away.
+    // or emptied: the line then goes with the voice mark. Typing in the box takes what the voice
+    // pill said away. Tab in the box starts and stops a recording (voiceKey), read before the box's
+    // own keys, which take nothing while it records or transcribes; a press in the box then keeps
+    // the caret where it was, so the text lands there.
     const voice = leads ? document.createElement("button") : null;
-    const voiceSays = leads ? document.createElement("div") : null;
     const spoken = { dictated: false };
     if (voice !== null) {
       voice.type = "button";
@@ -959,16 +970,29 @@
       voice.setAttribute("aria-label", "Dictate");
       voice.innerHTML = MICROPHONE;
       voice.addEventListener("click", () => dictate(name));
-      voiceSays.className = "voice-line";
-      voiceSays.hidden = true;
-      voiceSays.setAttribute("aria-live", "polite");
-      composer.append(voiceSays, voice);
+      composer.append(voice);
       box.addEventListener("input", () => {
         if (box.value.trim() === "") spoken.dictated = false;
         if (dictation.said !== null) {
           dictation.said = null;
           voicePanels();
         }
+      });
+      composer.addEventListener(
+        "keydown",
+        (event) => {
+          if (event.target !== box || event.isComposing) return;
+          const look = voiceButton(state.voice, { microphone: microphone(), phase: dictation.phase });
+          const does = voiceKey(event, { usable: look.shown && !look.disabled, phase: dictation.phase });
+          if (does === null) return;
+          event.preventDefault();
+          event.stopPropagation();
+          if (does === "toggle") dictate(name);
+        },
+        true,
+      );
+      box.addEventListener("mousedown", (event) => {
+        if (dictation.phase !== "idle") event.preventDefault();
       });
     }
     // When the server was last told a key went in, for the typing hold: a key that changes what is
@@ -1026,7 +1050,7 @@
     // them), `quiet` whether the comms switch hid the messages when the window was last settled,
     // and `crowded` whether rows came or went since, so the window may hold more than it should.
     // `leave` puts the draft back in a box that shows an earlier prompt.
-    return { name, leads, section, nameLine, info, word, fitPlaceholder, facts, composer, stop, voice, voiceSays, spoken, rows, cards, jump, unread, tail, doing, tip, standing, stood: null, box, leave, view, keep, shown: 0, from: 0, quiet: false, crowded: false, drawn: new Map(), loading: false, last: null, lines: new Map(), bubbles: new Map(), waiting: new Map() };
+    return { name, leads, section, nameLine, info, word, fitPlaceholder, facts, composer, stop, voice, voicePill, spoken, rows, cards, jump, unread, tail, doing, tip, standing, stood: null, box, leave, view, keep, shown: 0, from: 0, quiet: false, crowded: false, drawn: new Map(), loading: false, last: null, lines: new Map(), bubbles: new Map(), waiting: new Map() };
   }
 
   // When a row was written, in the reader's own zone (clock.mjs), and the clock alone where the
@@ -1092,6 +1116,8 @@
   const REFERENCE = "click to reference this message in your reply";
 
   function pointAt(panel, ref) {
+    // Nothing goes into the Leader's box while it records or transcribes.
+    if (panel.voice !== null && dictation.phase !== "idle") return;
     panel.leave();
     const box = panel.box;
     const put = insertRef(box.value, box.selectionStart, box.selectionEnd, ref);
@@ -1108,8 +1134,9 @@
   // by itself at the longest the server takes. One dictation at a time on the page.
   const LONGEST_RECORDING = 120_000;
   const VOICE_SAID_FOR = 8000;
-  // `started` and `clock` time the recording for the line over the box; `said` is what went wrong,
-  // shown there until VOICE_SAID_FOR has passed, the box is typed in, or the next recording.
+  // `started` and `clock` time the recording for the voice pill; `said` is what came of it,
+  // `{ text, why }`, shown there until VOICE_SAID_FOR has passed, the box is typed in, or the next
+  // recording.
   const dictation = { phase: "idle", recorder: null, timer: null, dropped: false, started: 0, clock: null, said: null, saidTimer: null };
   const microphone = () => window.isSecureContext && typeof navigator.mediaDevices?.getUserMedia === "function" && typeof MediaRecorder === "function";
 
@@ -1124,11 +1151,17 @@
     panel.voice.classList.toggle("working", look.look === "working");
     panel.composer.classList.toggle("voiced", look.shown);
     const line = look.shown ? voiceLine({ phase: dictation.phase, elapsed: Date.now() - dictation.started, said: dictation.said }) : null;
-    panel.voiceSays.hidden = line === null;
-    if (line !== null) {
-      panel.voiceSays.classList.toggle("recording", line.look === "recording");
-      panel.voiceSays.classList.toggle("said", line.look === "said");
-      panel.voiceSays.textContent = line.text;
+    panel.voicePill.classList.toggle("show", line !== null);
+    panel.voicePill.classList.toggle("recording", line?.look === "recording");
+    panel.voicePill.classList.toggle("said", line?.look === "said");
+    panel.voicePill.textContent = line?.text ?? "";
+    panel.voicePill.title = line?.title ?? "";
+    // While it records or transcribes the box is greyed and read-only: focus stays, so Tab still
+    // works, and nothing is typed into it.
+    const busy = dictation.phase !== "idle";
+    if (panel.box.classList.contains("dictating") !== busy) {
+      panel.box.classList.toggle("dictating", busy);
+      panel.box.readOnly = busy;
     }
   }
 
@@ -1136,8 +1169,8 @@
     for (const panel of sections.values()) if (panel.voice !== null) drawVoice(panel);
   }
 
-  function voiceSaid(text) {
-    dictation.said = text;
+  function voiceSaid(text, why) {
+    dictation.said = { text, why };
     clearTimeout(dictation.saidTimer);
     dictation.saidTimer = setTimeout(() => {
       dictation.said = null;
@@ -1163,7 +1196,7 @@
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } });
     } catch (error) {
-      voiceSaid(`No microphone: ${error.message}`);
+      voiceSaid("No microphone", error.message);
       return;
     }
     call("/voice/warm", { method: "POST" }).catch(() => {});
@@ -1185,8 +1218,8 @@
         const answered = await call("/voice", { method: "POST", headers: { "content-type": "application/octet-stream" }, body: samples });
         const said = await answered.json().catch(() => ({}));
         if (!answered.ok) throw new Error(said.error ?? `the server answered ${answered.status}`);
-        if (said.silent === true) voiceSaid("No sound was heard. Check that the microphone is not muted.");
-        else if (said.text.trim() === "") voiceSaid("No speech was heard.");
+        if (said.silent === true) voiceSaid("Microphone appears muted", "The recording held no sound at all. Check that the microphone is not muted.");
+        else if (said.text.trim() === "") voiceSaid("No speech heard", "The recording held sound but no speech.");
         else {
           const box = panel.box;
           panel.leave();
@@ -1198,7 +1231,7 @@
           if (!box.disabled) box.focus();
         }
       } catch (error) {
-        voiceSaid(`Not turned into text: ${error.message}`);
+        voiceSaid("Not turned into text", error.message);
       } finally {
         dictation.phase = "idle";
         voicePanels();
@@ -1206,6 +1239,7 @@
     });
     dictation.recorder = recorder;
     dictation.dropped = false;
+    panel.leave();
     dictation.phase = "recording";
     dictation.said = null;
     dictation.started = Date.now();

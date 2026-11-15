@@ -2898,8 +2898,8 @@
     "edits": [
       {
         "file": "lib/chat/page.html",
-        "from": "      pills.append(doing, jump, tip);\n",
-        "to": "      pills.append(jump, tip);\n      rows.append(doing);\n"
+        "from": "      pills.append(voicePill, doing, jump, tip);\n",
+        "to": "      pills.append(voicePill, jump, tip);\n      rows.append(doing);\n"
       }
     ]
   },
@@ -3112,7 +3112,7 @@
   {
     "name": "a stamp pointed at while browsing goes into the prompt shown",
     "catches": "makes every stamp a click that puts a reference to its row into the composer at the cursor, sent as typed",
-    "edits": [{ "file": "lib/chat/page.html", "from": "  function pointAt(panel, ref) {\n    panel.leave();\n", "to": "  function pointAt(panel, ref) {\n" }]
+    "edits": [{ "file": "lib/chat/page.html", "from": "    if (panel.voice !== null && dictation.phase !== \"idle\") return;\n    panel.leave();\n", "to": "    if (panel.voice !== null && dictation.phase !== \"idle\") return;\n" }]
   },
   {
     "name": "the head's state word has no hover",

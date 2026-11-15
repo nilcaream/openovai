@@ -208,7 +208,7 @@ describe("the rules", () => {
     assert.deepEqual(declared(`.rows.comms-hidden > :not(${off}):not(:not(${off}) ~ *)`), { "margin-top": "0" }, "with the messages off, the first drawn row's own margin adds to the panel's gap");
     assert.deepEqual(declared(`.rows.comms-hidden > :not(${off}):not(:has(~ :not(${off})))`), { "margin-bottom": "0" }, "with the messages off, the last drawn row's own margin adds to the gap above the pill row");
     assert.match(script, /\} else \{\s*rows\.append\(jump\);\s*\}/, "a Worker's jump pill is the last of its rows");
-    assert.match(script, /pills\.append\(doing, jump, tip\);/, "the Leader's pills are in a row of their own, not among the rows");
+    assert.match(script, /pills\.append\(voicePill, doing, jump, tip\);/, "the Leader's pills are in a row of their own, not among the rows");
   });
 
   // A card keeps no margin, standing a row's gap from the rows, the next card and the composer; an
@@ -622,7 +622,7 @@ describe("the script", () => {
   it("makes every stamp a click that puts a reference to its row into the composer at the cursor, sent as typed", () => {
     assert.match(script, /if \(entry\.at !== undefined\) \{\s*time\.title = REFERENCE;\s*time\.addEventListener\("click", \(\) => pointAt\(panel, refTo\(entry\.at\)\)\);\s*\}/);
     assert.match(script, /const REFERENCE = "click to reference this message in your reply";/);
-    assert.match(script, /function pointAt\(panel, ref\) \{\s*panel\.leave\(\);\s*const box = panel\.box;\s*const put = insertRef\(box\.value, box\.selectionStart, box\.selectionEnd, ref\);\s*box\.value = put\.value;\s*box\.setSelectionRange\(put\.caret, put\.caret\);\s*box\.dispatchEvent\(new Event\("input"\)\);\s*if \(!box\.disabled\) box\.focus\(\);\s*\}/);
+    assert.match(script, /function pointAt\(panel, ref\) \{\s*\/\/ Nothing goes into the Leader's box while it records or transcribes\.\s*if \(panel\.voice !== null && dictation\.phase !== "idle"\) return;\s*panel\.leave\(\);\s*const box = panel\.box;\s*const put = insertRef\(box\.value, box\.selectionStart, box\.selectionEnd, ref\);\s*box\.value = put\.value;\s*box\.setSelectionRange\(put\.caret, put\.caret\);\s*box\.dispatchEvent\(new Event\("input"\)\);\s*if \(!box\.disabled\) box\.focus\(\);\s*\}/);
     assert.match(script, /composer\.addEventListener\("submit", \(event\) => \{\s*event\.preventDefault\(\);\s*if \(box\.value\.trim\(\) === ""\) \{\s*return;\s*\}\s*const text = withQuotes\(box\.value, quoted\);\s*box\.value = "";/, "a row's reference goes as typed; a status bullet's is spelled out");
     assert.doesNotMatch(script, /new Map\(\);\s*box\.addEventListener/, "no table is kept between the click and the send");
   });
@@ -870,7 +870,7 @@ describe("the script", () => {
   // landing. A Worker's panel has none, and no pill row.
   it("draws what the Leader is at as the same pill a stamp row is drawn with, made with the panel, in the pill row under the rows, changed in place", () => {
     const draw = script.slice(script.indexOf("function drawPanel(panel)"), script.indexOf("// ------------------------------------------------------------------------------- the page"));
-    assert.match(script, /let doing = null;\s*let tip = null;\s*let pills = null;\s*if \(leads\) \{\s*doing = pill\(LINE_WAITING\);\s*doing\.classList\.add\("doing"\);[^]*?pills = document\.createElement\("div"\);\s*pills\.className = "pills";\s*pills\.append\(doing, jump, tip\);\s*\}/, "the Leader's panel has its pill from the start, the same pill a stamp row is drawn with, and a Worker's none");
+    assert.match(script, /let doing = null;\s*let tip = null;\s*let pills = null;\s*let voicePill = null;\s*if \(leads\) \{\s*doing = pill\(LINE_WAITING\);\s*doing\.classList\.add\("doing"\);[^]*?pills = document\.createElement\("div"\);\s*pills\.className = "pills";\s*pills\.append\(voicePill, doing, jump, tip\);\s*\}/, "the Leader's panel has its pill from the start, the same pill a stamp row is drawn with, and a Worker's none");
     assert.match(draw, /if \(panel\.doing !== null\) \{\s*panel\.doing\.firstElementChild\.textContent = pillLine\(state, panel\.name\);\s*if \(!panel\.tip\.hidden\) \{\s*panel\.tip\.textContent = pillTitle\(state, panel\.name\);\s*panel\.tip\.hidden = panel\.tip\.textContent === "";\s*\}\s*panel\.doing\.classList\.toggle\("off", state\.connection !== CONNECTED\);\s*\}\n/, "a hover that shows is said again at every draw, and goes with nothing left to say");
     assert.doesNotMatch(draw, /panel\.doing\.remove\(\)|panel\.doing = /, "the pill is never taken out nor made again");
     assert.doesNotMatch(draw.slice(draw.indexOf("if (panel.doing !== null) {"), draw.indexOf("if (landed && panel.view.follow")), /landed =/, "its words changing is not a row landing: it moves no row");
@@ -882,6 +882,18 @@ describe("the script", () => {
   // pointer came, says what is true then (a run's time is the time now), goes when the pointer
   // leaves or a key is pressed, opens upward from the pill within the pill row's width, one line
   // per item, and takes no pointer.
+  it("says what dictation is doing in a voice pill at the left of the pill row, never in the box, and holds the box read-only meanwhile", () => {
+    const declared = (selector) => rules.find((rule) => rule.selector === selector)?.declarations;
+    assert.equal(declared(".pills .voice-pill")["grid-column"], "1");
+    assert.equal(declared(".pills .voice-pill")["justify-self"], "start");
+    assert.equal(rules.some((rule) => rule.selector.includes("voice-line")), false, "nothing is drawn over the box");
+    assert.match(script, /panel\.voicePill\.textContent = line\?\.text \?\? "";/);
+    assert.match(script, /panel\.box\.classList\.toggle\("dictating", busy\);\s*panel\.box\.readOnly = busy;/, "read-only, not disabled: focus stays");
+    assert.doesNotMatch(script, /box\.disabled = busy/);
+    assert.match(script, /composer\.addEventListener\(\s*"keydown",\s*\(event\) => \{\s*if \(event\.target !== box \|\| event\.isComposing\) return;[^]*?voiceKey\(event, [^]*?\},\s*true,\s*\);/, "Tab is read in the Leader's box only, before the box's own keys");
+    assert.doesNotMatch(script, /document\.addEventListener\("keydown", \(event\) => \{\s*[^}]*"Tab"/, "no window-wide Tab");
+  });
+
   it("gives the Leader's pill a hover of the page's own, opening upward, and no title", () => {
     const declared = (selector) => rules.find((rule) => rule.selector === selector)?.declarations;
     assert.doesNotMatch(script, /doing\.title|\.doing\.title/, "no browser title on the pill: its tooltip can be cut by the window's edge");

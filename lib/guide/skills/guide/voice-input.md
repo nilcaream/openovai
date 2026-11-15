@@ -30,16 +30,21 @@ in the message box, where the person reads it, edits it and presses Enter as for
   again.
 
 ## Using it
-- Click the button and speak. Click again to stop. The text appears at the cursor in a few
-  seconds. Esc while recording drops the recording. A recording stops by itself at 2 minutes.
-- The box says what is happening: "Listening… 0:07" in red with a running clock while it
-  records, then "Turning speech into text…" until the text lands. Anything that went wrong is
-  said there too.
+- Click the button, or press Tab in the Leader's box, and speak. Click or press Tab again to stop.
+  The text appears at the cursor in a few seconds. Esc while recording drops the recording. A
+  recording stops by itself at 2 minutes. Tab does this only in the Leader's box and only while
+  voice input is on; everywhere else it moves the focus as always.
+- While it records and while it turns speech into text, the box is greyed and takes no typing;
+  the text lands where the cursor was, and the cursor ends after it.
+- A pill at the left of the Leader's pill row says what is happening: "Listening... 0:07" in red
+  with a running clock, then "Turning speech into text…". After, for a few seconds, what came of
+  it when no text did, with the reason in its hover: "Microphone appears muted", "No speech
+  heard", "Not turned into text", "No microphone".
 - A recording with no sound in it, as from a muted microphone, is not turned into text: Whisper
-  makes up words for silence. The panel says that no sound was heard.
+  makes up words for silence.
 - Silence and noise inside a recording are cut out by a voice-activity filter before Whisper hears
-  them, and a recording with no speech in it says that no speech was heard. On an Intel Mac there
-  is no filter (its onnxruntime has no build there), so noise alone can come back as made-up text.
+  them. On an Intel Mac there is no filter (its onnxruntime has no build there), so noise alone
+  can come back as made-up text.
 - The browser asks once whether the page may use the microphone. Browsers allow a microphone only
   on a secure page, and the page's own address, `http://127.0.0.1:<port>` or
   `http://localhost:<port>`, is one. Through an SSH tunnel the microphone is the one at the

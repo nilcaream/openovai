@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { AMBER, CARD, CONNECTED, autoLabel, autoTitle, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, GREY, LATE_AFTER, RED, REPLY, SENDING, SHOWN_FOR, LINE_DISCONNECTED, LINE_LEFT, LINE_WAITING, LINE_WORKING, WINDOW, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, HISTORY, historyKey, keyAction, lasted, loadsOlder, noticed, pillLine, pillTitle, place, prompts, timeSaid, prune, quotaLine, quotaTitle, replaced, insertRef, keptFirst, quoteLines, statusQuote, statusRef, stopEnabled, title, typingBeat, updateAsk, versionTitle, voiceButton, voiceLine, windowStart, withQuotes, TYPING_BEAT, CHECKING, LEADER_STOPPED, STATUS_TITLE, STATUS_WHO, UP_TO_DATE, statusLabel } from "../lib/chat/panels.mjs";
+import { AMBER, CARD, CONNECTED, autoLabel, autoTitle, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, GREY, LATE_AFTER, RED, REPLY, SENDING, SHOWN_FOR, LINE_DISCONNECTED, LINE_LEFT, LINE_WAITING, LINE_WORKING, WINDOW, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, HISTORY, historyKey, keyAction, lasted, loadsOlder, noticed, pillLine, pillTitle, place, prompts, timeSaid, prune, quotaLine, quotaTitle, replaced, insertRef, keptFirst, quoteLines, statusQuote, statusRef, stopEnabled, title, typingBeat, updateAsk, versionTitle, voiceButton, voiceKey, voiceLine, windowStart, withQuotes, TYPING_BEAT, CHECKING, LEADER_STOPPED, STATUS_TITLE, STATUS_WHO, UP_TO_DATE, statusLabel } from "../lib/chat/panels.mjs";
 import { localAt, refTo, references } from "../lib/chat/refs.mjs";
 
 const LEADER = "Leader";
@@ -187,12 +187,27 @@ describe("the Leader's voice button", () => {
     assert.equal(state.voice.on, false);
   });
 
-  it("says in the box what dictation is doing: listening with a running clock, then turning it into text, then what went wrong", () => {
-    assert.deepEqual(voiceLine({ phase: "recording", elapsed: 7_900 }), { look: "recording", text: "Listening… 0:07 · click the mic to stop, Esc to drop it" });
-    assert.equal(voiceLine({ phase: "recording", elapsed: 119_000 }).text.split(" · ")[0], "Listening… 1:59");
-    assert.deepEqual(voiceLine({ phase: "working", said: "an old error" }), { look: "working", text: "Turning speech into text…" });
-    assert.deepEqual(voiceLine({ said: "No sound was heard. Check that the microphone is not muted." }), { look: "said", text: "No sound was heard. Check that the microphone is not muted." });
-    assert.equal(voiceLine({ phase: "idle" }), null, "the box is the box again");
+  it("says in the voice pill what dictation is doing, in the User's words: listening with a running clock, turning it into text, then what came of it", () => {
+    assert.deepEqual(voiceLine({ phase: "recording", elapsed: 7_900 }), { look: "recording", text: "Listening... 0:07", title: "Tab or the microphone button stops it and turns it into text; Esc drops it" });
+    assert.equal(voiceLine({ phase: "recording", elapsed: 119_000 }).text, "Listening... 1:59");
+    assert.deepEqual(voiceLine({ phase: "working", said: { text: "an old one", why: "" } }), { look: "working", text: "Turning speech into text…", title: "" });
+    assert.deepEqual(voiceLine({ said: { text: "Microphone appears muted", why: "No sound was heard." } }), { look: "said", text: "Microphone appears muted", title: "No sound was heard." });
+    assert.equal(voiceLine({ phase: "idle" }), null, "no pill");
+  });
+
+  it("makes Tab start and stop a recording in the Leader's box, and holds every other key there while it records or transcribes", () => {
+    const key = (name, more = {}) => ({ key: name, shiftKey: false, ctrlKey: false, altKey: false, metaKey: false, ...more });
+    assert.equal(voiceKey(key("Tab"), { usable: true, phase: "idle" }), "toggle");
+    assert.equal(voiceKey(key("Tab"), { usable: true, phase: "recording" }), "toggle");
+    assert.equal(voiceKey(key("Tab"), { usable: false, phase: "idle" }), null, "voice off or not ready: Tab moves focus as ever");
+    assert.equal(voiceKey(key("Tab", { shiftKey: true }), { usable: true, phase: "idle" }), null);
+    assert.equal(voiceKey(key("Tab", { ctrlKey: true }), { usable: true, phase: "idle" }), null);
+    assert.equal(voiceKey(key("Tab"), { usable: false, phase: "working" }), "hold", "focus stays while it transcribes");
+    for (const name of ["Enter", "a", "ArrowUp", "Backspace"]) assert.equal(voiceKey(key(name), { usable: true, phase: "recording" }), "hold", name);
+    assert.equal(voiceKey(key("Enter"), { usable: false, phase: "working" }), "hold");
+    assert.equal(voiceKey(key("Escape"), { usable: true, phase: "recording" }), null, "Esc is the page's: it drops the recording");
+    assert.equal(voiceKey(key("Tab", { shiftKey: true }), { usable: true, phase: "recording" }), null, "Shift+Tab still leaves the box");
+    assert.equal(voiceKey(key("a"), { usable: true, phase: "idle" }), null);
   });
 
   it("is absent while voice input is off, and not clickable while it installs or with no microphone", () => {
