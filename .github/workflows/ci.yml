@@ -345,6 +345,9 @@ jobs:
       - name: Place the seats in three columns and keep their rows
         run: node --test tests/panels.test.mjs
 
+      - name: Install voice input from its pins, and turn a recording into text on this machine
+        run: node --test tests/voice.test.mjs
+
   render:
     name: Render
     runs-on: ubuntu-latest

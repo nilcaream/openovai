@@ -469,9 +469,9 @@ function saidLiterally(text) {
 }
 
 // The command a run names: a literal, or one of the two resolvers in lib/runtime.mjs — the
-// toolkit's own node and its own claude, by path — read by name. Anything else is a command this
-// cannot read.
-const OWN_RUNTIME = /^\s*(node|claude)Command\s*\(/;
+// toolkit's own node and its own claude, by path — or the one in lib/chat/voice.mjs, the Python
+// voice input runs on, read by name. Anything else is a command this cannot read.
+const OWN_RUNTIME = /^\s*(node|claude|python)Command\s*\(/;
 
 function commandNamed(text) {
   const own = OWN_RUNTIME.exec(text ?? "");

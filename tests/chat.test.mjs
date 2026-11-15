@@ -725,6 +725,20 @@ describe("what the chat serves", () => {
     );
   });
 
+  // Voice input is off until the User asks the Leader for it: the snapshot says so, and a
+  // recording is refused — empty or cut first, too long before any of it is kept.
+  it("takes no recording while voice input is off, and none that is empty, cut or too long", async () => {
+    assert.deepEqual(JSON.parse((await page("GET", "/sessions")).body).voice, { on: false, state: "off", detail: "", language: "en" });
+    const send = (bytes) =>
+      fetch(`${url}/voice`, { method: "POST", headers: { cookie: signedIn(), origin: url, "content-type": "application/octet-stream" }, body: bytes }).then(async (answered) => ({ status: answered.status, body: await answered.json() }));
+    assert.deepEqual(await send(Buffer.alloc(3200)), { status: 409, body: { error: "voice input is off" } });
+    assert.equal((await send(Buffer.alloc(0))).status, 400);
+    assert.equal((await send(Buffer.alloc(3201))).status, 400);
+    assert.deepEqual(await send(Buffer.alloc(120 * 16_000 * 2 + 2)), { status: 413, body: { error: "a recording is 120 seconds at most" } });
+    const anonymous = await fetch(`${url}/voice`, { method: "POST", headers: { origin: url }, body: Buffer.alloc(3200) });
+    assert.equal(anonymous.status, 401, "a recording needs the page's sign-in");
+  });
+
   it("will not open a panel for somebody who does not work here", async () => {
     assert.equal((await page("GET", "/sessions/Nobody/messages")).status, 404);
     assert.equal((await page("POST", "/sessions/Nobody/message", { text: "hello" })).status, 404);
@@ -1002,6 +1016,20 @@ describe("starting a seat", () => {
     await assert.rejects(seatUp(WORKER, {}, { command: null }), /^Error: Claude Code \d+\.\d+\.\d+ is not at .*\/claude: run .*\/bin\/ovai start, which fetches it, or: sh .*\/lib\/runtime\.sh ensure$/);
     assert.equal(running(WORKER), false);
     paul = await seatUp(WORKER);
+  });
+
+  // A line dictated with the voice button goes to the Leader marked, on its row and in its frame;
+  // the mark is the Leader's only, where the button is, so a Worker's line never carries it.
+  it("marks a dictated line to the Leader as voice, row and frame, and never a Worker's", async () => {
+    const answered = await page("POST", `/sessions/${LEADER}/message`, { text: "push it", voice: true });
+    assert.equal(answered.status, 200, answered.body);
+    assert.equal(panel(instance, LEADER).findLast((row) => row.from === "user" && row.text === "push it")?.voice, true);
+    assert.ok(await waitFor(() => heardIn(martin.log).includes('<user voice="true">push it</user>')), heardIn(martin.log).join("\n"));
+    await page("POST", `/sessions/${WORKER}/message`, { text: "merge it", voice: true });
+    assert.equal(Object.hasOwn(panel(instance, WORKER).findLast((row) => row.text === "merge it"), "voice"), false);
+    assert.ok(await waitFor(() => heardIn(paul.log).includes("<user>merge it</user>")), heardIn(paul.log).join("\n"));
+    await page("POST", `/sessions/${LEADER}/message`, { text: "typed", voice: "yes" });
+    assert.equal(Object.hasOwn(panel(instance, LEADER).findLast((row) => row.text === "typed"), "voice"), false, "only true marks it");
   });
 
   // The Leader is spawned by the chat itself for a message to it; with no claude to spawn, the
@@ -2744,8 +2772,8 @@ describe("what the page is made of", () => {
     assert.deepEqual(pill, ["↓ Latest", "↓ ${count} new"], "the pill's two words, and no lifecycle word among them");
     assert.deepEqual([...script.matchAll(/\.textContent = ([A-Z_]+);/g)].map((found) => found[1]), ["LATEST", "LATEST", "STATUS_WHO"], "the pill says only its own two words, and the Leader's status its who");
     assert.equal([...script.matchAll(/\.textContent = panel\.unread\.count > 0 \? NEW_ROWS\(panel\.unread\.count\) : LATEST;/g)].length, 1, "the count, or LATEST when only tool lines landed");
-    const buttons = [...script.matchAll(/\.className = "(stop|theme)";/g)].map((found) => found[1]);
-    assert.deepEqual(buttons, ["theme", "stop"], "a button of the page's own other than the theme toggle and the stop glyph");
+    const buttons = [...script.matchAll(/\.className = "(stop|theme|voice)";/g)].map((found) => found[1]);
+    assert.deepEqual(buttons, ["theme", "stop", "voice"], "a button of the page's own other than the theme toggle, the stop glyph and the Leader's voice button");
     assert.equal(source.split("<button").length - 1, 0, "a button in the markup");
   });
 
@@ -3074,7 +3102,12 @@ describe("the stream", () => {
 describe("who writes to a session", () => {
   it("is session.mjs, through the frame writer, the two permission answers, the interrupt, the mode switch and the control requests, and nobody else", () => {
     const found = spawnSync("grep", ["-rn", "stdin.write", path.join(repo, "lib")], { encoding: "utf8" });
-    const lines = found.stdout.trim().split("\n");
+    // voice.mjs writes to the speech process it starts, which is no session: one line, and only there.
+    const all = found.stdout.trim().split("\n");
+    const speech = all.filter((line) => /lib\/chat\/voice\.mjs:\d+:/.test(line));
+    assert.equal(speech.length, 1, found.stdout);
+    assert.match(speech[0], /own\.child\.stdin\.write\(`\$\{JSON\.stringify\(\{ pcm: /, "the speech process is written one recording at a time");
+    const lines = all.filter((line) => !speech.includes(line));
     assert.equal(lines.length, 6, found.stdout);
     for (const line of lines) {
       assert.match(line, /^.*lib\/chat\/session\.mjs:\d+:/, line);
