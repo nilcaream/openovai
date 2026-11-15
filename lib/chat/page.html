@@ -1222,17 +1222,21 @@
     if (!box.disabled) box.focus();
   }
 
-  // The dictation being turned into text is stopped, by the button or Esc: the server kills the
-  // work and answers the text of the stretches already done, which lands in the box; what comes of
-  // the rest is ignored, and the box is the User's again at once.
+  // The dictation is stopped: by the button or Esc while it is turned into text, or by Esc while
+  // recording, which drops the audio since the last cut. The server kills the work and answers the
+  // text of the stretches already done, which lands in the box; what comes of the rest is ignored,
+  // and the box is the User's again at once. With none done, a recording dropped says nothing.
   function cancelDictation(panel) {
     const id = dictation.id;
+    const recording = dictation.capture !== null;
+    if (recording) endCapture(dictation.capture);
     dictation.abort?.abort();
     dictation.abort = null;
     dictation.id = null;
     dictation.phase = "idle";
     clearInterval(dictation.clock);
-    voiceSaid("Dictation cancelled", "The recording was dropped before it was turned into text; nothing went into the box.");
+    if (recording) voicePanels();
+    else voiceSaid("Dictation cancelled", "The recording was dropped before it was turned into text; nothing went into the box.");
     if (panel !== undefined && !panel.box.disabled) panel.box.focus();
     call(`/voice/cancel?dictation=${id}`, { method: "POST" })
       .then((answered) => answered.json())
@@ -1374,15 +1378,6 @@
     }
   }
 
-  // Esc while recording: the recording is dropped, with what the server holds of it.
-  function dropDictation() {
-    const id = dictation.id;
-    endCapture(dictation.capture);
-    dictation.id = null;
-    dictation.phase = "idle";
-    call(`/voice/cancel?dictation=${id}`, { method: "POST" }).catch(() => {});
-    voicePanels();
-  }
 
   async function dictate(name) {
     const panel = sections.get(name);
@@ -1439,9 +1434,7 @@
   }
 
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && dictation.phase === "recording") {
-      dropDictation();
-    } else if (event.key === "Escape" && dictation.phase === "working") {
+    if (event.key === "Escape" && (dictation.phase === "recording" || dictation.phase === "working")) {
       cancelDictation([...sections.values()].find((panel) => panel.voice !== null));
     }
   });

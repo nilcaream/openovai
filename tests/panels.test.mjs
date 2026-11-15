@@ -189,7 +189,7 @@ describe("the Leader's voice button", () => {
 
   it("says in the voice pill what dictation is doing, in the User's words: listening with a running clock, turning it into text, then what came of it", () => {
     const voice = on("ready");
-    assert.deepEqual(voiceLine({ voice, phase: "recording", elapsed: 7_900 }), { look: "recording", text: "Listening... 0:07", title: "Tab or the microphone button stops it and turns it into text; Esc drops it" });
+    assert.deepEqual(voiceLine({ voice, phase: "recording", elapsed: 7_900 }), { look: "recording", text: "Listening... 0:07", title: "Tab or the microphone button stops it and turns it into text; Esc drops what is not text yet" });
     assert.equal(voiceLine({ voice, phase: "recording", elapsed: 119_000 }).text, "Listening... 1:59");
     assert.deepEqual(voiceLine({ voice, phase: "working", said: { text: "an old one", why: "" } }), { look: "working", text: "Turning speech into text…", title: "The microphone button, now a cross, or Esc stops it: what is already text lands in the box, the rest is dropped" });
     assert.deepEqual(voiceLine({ voice, said: { text: "Microphone appears muted", why: "No sound was heard." } }), { look: "said", text: "Microphone appears muted", title: "No sound was heard." });
