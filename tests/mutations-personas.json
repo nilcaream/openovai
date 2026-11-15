@@ -924,6 +924,17 @@
     ]
   },
   {
+    "name": "the introduction's admin command is inline code again",
+    "catches": "names the release the instance runs and the admin command under its own root",
+    "edits": [
+      {
+        "file": "lib/templates/introduction.md",
+        "from": "  ```\n  {{ROOT}}/bin/ovai claude\n  ```\n",
+        "to": "  `{{ROOT}}/bin/ovai claude`\n"
+      }
+    ]
+  },
+  {
     "name": "the common frame does not say where a command for the User goes",
     "catches": "tells both, once and in the common frame, to give a command for the User a fenced block of its own",
     "edits": [

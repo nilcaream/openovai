@@ -866,7 +866,7 @@ describe("the introduction", () => {
     fs.writeFileSync(at("lib", "VERSION"), "0.21.0\n");
     const text = introduction(home);
     assert.match(text, /^# Welcome to OpenOv AI 0\.21\.0 \(ovai\)\n/);
-    assert.ok(text.includes(`\`${home}/bin/ovai claude\``));
+    assert.ok(text.includes(`terminal:\n  \`\`\`\n  ${home}/bin/ovai claude\n  \`\`\`\n  It is plain`), "the admin command in a fenced block of its own, which the page gives a copy button");
   });
 
   it("names the commit when the instance was taken from a checkout", () => {
