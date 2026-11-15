@@ -503,5 +503,25 @@
     "name": "a diff address is matched with no end",
     "catches": "links no other address under /diff/",
     "edits": [{ "file": "lib/chat/render.mjs", "from": "[0-9a-f]{12}$/;", "to": "[0-9a-f]{12}/;" }]
+  },
+  {
+    "name": "a bare path in plain words is not linked",
+    "catches": "links a bare path in plain words the view shows, its punctuation left outside the link, and no other word",
+    "edits": [{ "file": "lib/chat/render.mjs", "from": "      return at === 0 ? false : shown + escape(token.text.slice(at));", "to": "      return false;" }]
+  },
+  {
+    "name": "a bare path takes the punctuation around it into its link",
+    "catches": "links a bare path in plain words the view shows, its punctuation left outside the link, and no other word",
+    "edits": [{ "file": "lib/chat/render.mjs", "from": "const AROUND = /^([(\\[{\"'<]*)(.*?)([)\\]}\"'>.,;:!?]*)$/s;", "to": "const AROUND = /^()(.*?)()$/s;" }]
+  },
+  {
+    "name": "an absolute path is linked under any root it starts with, slash or not",
+    "catches": "links an absolute path under the root the row carries by its path from that root, and none outside it",
+    "edits": [{ "file": "lib/chat/render.mjs", "from": "text.startsWith(`${root}/`) ? text.slice(root.length + 1) : text;", "to": "text.startsWith(root) ? text.slice(root.length).replace(/^\\//, \"\") : text;" }]
+  },
+  {
+    "name": "a candidate is taken from a link's own words",
+    "catches": "names as a candidate a backticked path, a link's target or a bare word with a slash in it, each once, and never an absolute path, a URL or a code block",
+    "edits": [{ "file": "lib/chat/render.mjs", "from": " && !inLinks.has(token)) {", "to": ") {" }]
   }
 ]

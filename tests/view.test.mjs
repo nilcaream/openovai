@@ -165,6 +165,17 @@ describe("which paths the view shows", () => {
     const plain = { from: "Ann", text: "nothing to open" };
     assert.equal(withViewable(root, plain), plain);
   });
+
+  // A bare path is asked of the view as a backticked one is, and an absolute path under the root by
+  // its path from the root; the row then carries the root, so the page links it the same way.
+  it("finds a bare path and an absolute path under the root the same way, and gives the row the root only for an absolute one", () => {
+    const text = `Read desks/Ann/notes.txt, ${root}/projects/demo/README.md:2, and/or temp/nul.txt, /etc/hosts and ${root}/projects/demo/.env.`;
+    assert.deepEqual(viewableIn(root, text), ["desks/Ann/notes.txt", "projects/demo/README.md"]);
+    const row = { from: "Ann", text };
+    assert.deepEqual(withViewable(root, row), { ...row, viewable: ["desks/Ann/notes.txt", "projects/demo/README.md"], root });
+    const bare = { from: "Ann", text: "Read desks/Ann/notes.txt." };
+    assert.deepEqual(withViewable(root, bare), { ...bare, viewable: ["desks/Ann/notes.txt"] });
+  });
 });
 
 describe("what the view draws", () => {

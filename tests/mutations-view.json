@@ -559,5 +559,15 @@
         "to": "  if (stat.nlink > 1) {"
       }
     ]
+  },
+  {
+    "name": "an absolute path is never asked of the view by its path from the root",
+    "catches": "finds a bare path and an absolute path under the root the same way, and gives the row the root only for an absolute one",
+    "edits": [{ "file": "lib/chat/view.mjs", "from": "  for (const wanted of candidates(text, root)) {", "to": "  for (const wanted of candidates(text)) {" }]
+  },
+  {
+    "name": "every row with a link carries the root",
+    "catches": "finds a bare path and an absolute path under the root the same way, and gives the row the root only for an absolute one",
+    "edits": [{ "file": "lib/chat/view.mjs", "from": "  return row.text.includes(`${root}/`) ? { ...row, viewable: found, root } : { ...row, viewable: found };", "to": "  return { ...row, viewable: found, root };" }]
   }
 ]

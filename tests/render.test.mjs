@@ -185,12 +185,42 @@ describe("a file named in a reply", () => {
     assert.equal(html("`temp/leo-shots`", ["temp/leo-shots"]).includes("data-opens"), false);
   });
 
-  it("names as a candidate a backticked path or a link's target, each once, and never an absolute path, a URL, bare words or a code block", () => {
-    const text = "`projects/x/a.md:3` `/etc/hosts` `~/.ssh/id` `https://a.b/c` `node:http` bare/words.md [l](projects/x/a.md) [k](b.md)\n\n```\n`in/code.md`\n```";
-    assert.deepEqual(candidates(text), ["projects/x/a.md", "b.md"]);
+  it("names as a candidate a backticked path, a link's target or a bare word with a slash in it, each once, and never an absolute path, a URL or a code block", () => {
+    const text = "`projects/x/a.md:3` `/etc/hosts` `~/.ssh/id` `https://a.b/c` `node:http` bare/words.md, (and/or) /etc/passwd README.md [l](projects/x/a.md) [k](b.md) [in/link.md](c.md) https://a.b/d\n\n```\n`in/code.md` in/code.md\n```";
+    assert.deepEqual(candidates(text), ["projects/x/a.md", "bare/words.md", "and/or", "b.md", "c.md"]);
     assert.equal(pathOf("projects/x/a.md:3-9"), "projects/x/a.md");
     assert.equal(pathOf("has space.md"), null);
     assert.deepEqual(candidates("`temp/leo-shots/` [shots](temp/leo-shots/) `temp/leo-shots`"), ["temp/leo-shots/", "temp/leo-shots"]);
+  });
+
+  // A session names a path in plain words as often as in backticks; the same list decides, so a
+  // word with a slash in it that the server did not name — and/or, opus/high — stays a word.
+  it("links a bare path in plain words the view shows, its punctuation left outside the link, and no other word", () => {
+    const shown = html("Read knowledge/foo.md, (desks/Bobby/STATUS.md:3) and temp/x/ — and/or opus/high.\n\n- in a list: knowledge/foo.md\n\n```\nknowledge/foo.md\n```", ["knowledge/foo.md", "desks/Bobby/STATUS.md", "temp/x/"]);
+    assert.match(shown, /Read <a href="\/view\/knowledge\/foo\.md" target="_blank" rel="noopener">knowledge\/foo\.md<\/a>, \(/);
+    assert.match(shown, /\(<a href="\/view\/desks\/Bobby\/STATUS\.md" target="_blank" rel="noopener">desks\/Bobby\/STATUS\.md:3<\/a>\) and /);
+    assert.match(shown, /<a href="\/view\/temp\/x\/" target="_blank" rel="noopener" data-opens="\/open\/temp\/x\/">temp\/x\/<\/a> — and\/or opus\/high\./);
+    assert.equal(shown.split('href="/view/knowledge/foo.md"').length - 1, 2, shown);
+    assert.match(shown, /<code>knowledge\/foo\.md\n<\/code>/);
+    assert.ok(!html("Read knowledge/foo.md.").includes("<a "), "linked with no word from the server");
+    assert.equal(html("a <b> & knowledge/foo.md", ["knowledge/foo.md"]).split("&lt;b&gt; &amp; ")[0], "<p>a ");
+  });
+
+  // The view is asked for a path from the instance root and nothing else: an absolute path is
+  // linked by the part after the root the row carries, and one outside it is not linked at all.
+  it("links an absolute path under the root the row carries by its path from that root, and none outside it", () => {
+    const viewable = ["knowledge/foo.md", "temp/x/"];
+    const shown = html("See /r/knowledge/foo.md:3, `/r/temp/x/`, [x](/r/knowledge/foo.md), /other/knowledge/foo.md and /rknowledge/foo.md", viewable, "/r");
+    assert.match(shown, /See <a href="\/view\/knowledge\/foo\.md" target="_blank" rel="noopener">\/r\/knowledge\/foo\.md:3<\/a>,/);
+    assert.match(shown, /<a href="\/view\/temp\/x\/" target="_blank" rel="noopener" data-opens="\/open\/temp\/x\/"><code>\/r\/temp\/x\/<\/code><\/a>/);
+    assert.equal(shown.split('href="/view/').length - 1, 3, shown);
+    assert.ok(!html("See /r/knowledge/foo.md", viewable).includes("<a "), "linked with no root on the row");
+    assert.deepEqual(candidates("/r/knowledge/foo.md `/r/temp/x/` /other/a.md /r", "/r"), ["knowledge/foo.md", "temp/x/"]);
+  });
+
+  // gfm links a bare web address on its own; a path's rule adds nothing to it.
+  it("links a bare web address in plain words, in a new tab, with nothing from the server", () => {
+    assert.match(html("See https://status.claude.com/x."), /See <a href="https:\/\/status\.claude\.com\/x" target="_blank" rel="noopener">https:\/\/status\.claude\.com\/x<\/a>\./);
   });
 
   it("draws the paths a row carries in every row drawn as markdown", () => {

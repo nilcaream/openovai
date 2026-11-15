@@ -812,7 +812,7 @@ describe("the script", () => {
     assert.match(drawn, /line\.className = "msg status";/);
     assert.match(drawn, /label\.textContent = STATUS_WHO;/);
     assert.match(drawn, /meta\.append\(who, time, st\);/, "who, then the stamp, then the label, as a row's meta");
-    assert.match(drawn, /body\.className = "md";\s*body\.innerHTML = markdownOf\(status\.text, status\.viewable\);/, "markdown, as a reply");
+    assert.match(drawn, /body\.className = "md";\s*body\.innerHTML = markdownOf\(status\.text, status\.viewable, status\.root\);/, "markdown, as a reply");
     assert.match(drawn, /time\.title = STATUS_TITLE\(state\.leader\);\s*time\.addEventListener\("click", async \(\) => \{\s*const answered = await call\("\/status\/check", \{ method: "POST" \}\)\.catch\(\(\) => null\);\s*if \(!answered\?\.ok\) await failedBeside\(time, answered, "Not asked"\);\s*\}\);/, "a check that was not asked is said beside the stamp");
     assert.doesNotMatch(drawn, /pointAt|insertRef|REFERENCE/, "the stamp puts nothing in the box");
     assert.match(drawn, /if \(status === null\) \{\s*panel\.standing\.replaceChildren\(\);/, "nothing before the first confirmation");
