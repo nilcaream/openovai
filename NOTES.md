@@ -4,6 +4,10 @@ For the Leader of a workspace taking this version. Short, and about what is diff
 working there — not a developer changelog. A section per release, newest first; a release page
 carries only its own.
 
+## 0.28.0
+
+**This version pins Claude Code 2.1.329, where the last pinned 2.1.323.**
+
 ## 0.27.0
 
 **This version pins Claude Code 2.1.323, where the last pinned 2.1.314.**
