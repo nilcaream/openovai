@@ -32,6 +32,9 @@ in the message box, where the person reads it, edits it and presses Enter as for
 ## Using it
 - Click the button and speak. Click again to stop. The text appears at the cursor in a few
   seconds. Esc while recording drops the recording. A recording stops by itself at 2 minutes.
+- The box says what is happening: "Listening… 0:07" in red with a running clock while it
+  records, then "Turning speech into text…" until the text lands. Anything that went wrong is
+  said there too.
 - A recording with no sound in it, as from a muted microphone, is not turned into text: Whisper
   makes up words for silence. The panel says that no sound was heard.
 - The browser asks once whether the page may use the microphone. Browsers allow a microphone only

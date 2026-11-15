@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { AMBER, CARD, CONNECTED, autoLabel, autoTitle, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, GREY, LATE_AFTER, RED, REPLY, SENDING, SHOWN_FOR, LINE_DISCONNECTED, LINE_LEFT, LINE_WAITING, LINE_WORKING, WINDOW, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, HISTORY, historyKey, keyAction, lasted, loadsOlder, noticed, pillLine, pillTitle, place, prompts, timeSaid, prune, quotaLine, quotaTitle, replaced, insertRef, keptFirst, quoteLines, statusQuote, statusRef, stopEnabled, title, typingBeat, updateAsk, versionTitle, voiceButton, windowStart, withQuotes, TYPING_BEAT, CHECKING, LEADER_STOPPED, STATUS_TITLE, STATUS_WHO, UP_TO_DATE, statusLabel } from "../lib/chat/panels.mjs";
+import { AMBER, CARD, CONNECTED, autoLabel, autoTitle, DELIVERED, DELIVERED_GLYPH, DISCONNECTED, GONE_AFTER, GREEN, GREY, LATE_AFTER, RED, REPLY, SENDING, SHOWN_FOR, LINE_DISCONNECTED, LINE_LEFT, LINE_WAITING, LINE_WORKING, WINDOW, advance, anyAsking, applyEvent, composersEnabled, delivery, dot, following, fresh, head, HISTORY, historyKey, keyAction, lasted, loadsOlder, noticed, pillLine, pillTitle, place, prompts, timeSaid, prune, quotaLine, quotaTitle, replaced, insertRef, keptFirst, quoteLines, statusQuote, statusRef, stopEnabled, title, typingBeat, updateAsk, versionTitle, voiceButton, voiceLine, windowStart, withQuotes, TYPING_BEAT, CHECKING, LEADER_STOPPED, STATUS_TITLE, STATUS_WHO, UP_TO_DATE, statusLabel } from "../lib/chat/panels.mjs";
 import { localAt, refTo, references } from "../lib/chat/refs.mjs";
 
 const LEADER = "Leader";
@@ -185,6 +185,14 @@ describe("the Leader's voice button", () => {
     assert.deepEqual(state.voice, on("ready"));
     applyEvent(state, { name: "voice", data: { on: false, state: "off", detail: "", language: "en" } }, 1);
     assert.equal(state.voice.on, false);
+  });
+
+  it("says in the box what dictation is doing: listening with a running clock, then turning it into text, then what went wrong", () => {
+    assert.deepEqual(voiceLine({ phase: "recording", elapsed: 7_900 }), { look: "recording", text: "Listening… 0:07 · click the mic to stop, Esc to drop it" });
+    assert.equal(voiceLine({ phase: "recording", elapsed: 119_000 }).text.split(" · ")[0], "Listening… 1:59");
+    assert.deepEqual(voiceLine({ phase: "working", said: "an old error" }), { look: "working", text: "Turning speech into text…" });
+    assert.deepEqual(voiceLine({ said: "No sound was heard. Check that the microphone is not muted." }), { look: "said", text: "No sound was heard. Check that the microphone is not muted." });
+    assert.equal(voiceLine({ phase: "idle" }), null, "the box is the box again");
   });
 
   it("is absent while voice input is off, and not clickable while it installs or with no microphone", () => {
