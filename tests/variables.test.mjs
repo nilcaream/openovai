@@ -49,6 +49,14 @@ describe("the Claude Code variables a start writes down", () => {
     ]);
   });
 
+  // Under the experiment the Leader keeps Claude Code's own turn reminder (lib/claude.mjs).
+  it("names the leaderCli experiment on a variable the Leader goes without while it is on", () => {
+    const line = (lines) => lines.find((one) => one.startsWith("  CLAUDE_CODE_SILENT_TURN_REMINDER ="));
+    assert.equal(line(gathered("/home/user/openovai", "inherit", MOCKUP_SHELL, { leaderCli: true })), "  CLAUDE_CODE_SILENT_TURN_REMINDER = 0 (not for the Leader: experiment.leaderCli is on)");
+    assert.equal(line(gathered("/home/user/openovai", "inherit", MOCKUP_SHELL)), "  CLAUDE_CODE_SILENT_TURN_REMINDER = 0");
+    assert.equal(line(gathered("/home/user/openovai", "inherit", { ...MOCKUP_SHELL, CLAUDE_CODE_SILENT_TURN_REMINDER: "1" }, { leaderCli: true })), "  CLAUDE_CODE_SILENT_TURN_REMINDER = 1 (passed on)", "a value the shell set stands for every seat");
+  });
+
   it("says the machine's sign-in is removed when the instance signs in on its own", () => {
     assert.ok(gathered(root, "login", MOCKUP_SHELL).includes("  CLAUDE_CODE_OAUTH_TOKEN = *** (removed)"));
   });
