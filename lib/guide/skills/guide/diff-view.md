@@ -14,6 +14,7 @@ does.
 - A capture is kept for 24 hours, in `<instance>/temp/diffs/`, and then dropped. An old link says the diff is gone.
 - A file the file view never shows (anything under a `.git` directory or a Claude Code home, keys, a `.env` or credentials file) is listed by its name, and its content is never captured.
 - A file that is not UTF-8 text, or larger than 1 MiB, is listed with a note instead of its lines. A side larger than 256 KiB is drawn without colours.
+- A capture keeps at most 32 MiB of text in all. A file past that is listed with a note that the capture had reached its size; ask for a narrower diff to see it.
 - A diff of more than 1000 files is refused; ask for a narrower one.
 
 ## The page
