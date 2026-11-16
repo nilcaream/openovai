@@ -12,6 +12,12 @@ carries only its own.
 whatever it started that is still running, such as a server, is ended too, and the run's log says
 what was ended. `ovai stop` and `ovai update` name only the runs still going.
 
+**Old runtimes are removed once no instance uses them.** Every server start removes the Claude
+Code and Node.js versions, and the voice installs, under `~/.local/share/openovai` that no
+instance of the user pins and no running process uses, one log row each. Instances taking this
+version record themselves there when they start; one still on an older version is counted while
+it runs, and if a stopped one lost a version it pins, its next `ovai start` fetches it again.
+
 ## 0.27.0
 
 **This version pins Claude Code 2.1.323, where the last pinned 2.1.314.**
