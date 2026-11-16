@@ -403,9 +403,10 @@ describe("what a Worker is told", () => {
   });
 
   // ovai ends what a run's command leaves running once the command ends (lib/run-ended.mjs), so a
-  // Worker that wants a server kept up past the command it came from is told to make it a run.
-  it("tells the Worker that what a run leaves in the background ends with the run", () => {
-    assert.ok(flat(worker()).includes("What a run leaves in the background ends with the run: a service that has to stay up is a run of its own."));
+  // Worker that wants a server kept up past the command it came from is told to make it a run. It
+  // finds what to end by the run in its environment (lib/running.mjs), and the line says no more.
+  it("tells the Worker that what a run leaves in the background ends with the run, if it still carries the run's environment", () => {
+    assert.ok(flat(worker()).includes("What a run leaves in the background ends with the run, if it still carries the run's environment: a service that has to stay up is a run of its own."));
   });
 
   // A desk named by `desks/<Name>/` alone leaves the session to work out what it is under, and a
