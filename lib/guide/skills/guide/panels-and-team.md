@@ -64,9 +64,10 @@ A panel shows a turn's answer, not its way there. Words a session writes between
 - A Worker's panel dims when its process ends, and is removed about 30 seconds later. The Leader's panel stays: while it has no process its dot is grey and its bottom line says "<Name> has left"; the next message starts a fresh session.
 
 ## The Leader's bottom line
+- It is a pill in a row of its own under the Leader's rows, and it stays there whatever the rows are scrolled to. While the panel is scrolled up, a second pill at its right says "↓ Latest", or "↓ 2 new" when messages have landed below since; a click on it goes to the newest row. Calls alone leave it at "↓ Latest". A Worker's panel has no bottom line; its "↓ Latest" pill sits at the bottom right of its rows.
 - On a turn it says what the Leader is doing. Off a turn it is the state, then each fact that holds, in this order, joined by " · ": "Waiting for instructions" or "<Name> has left"; then "Wake-up: 18:40" or "Quota reset: 18:40", whichever comes first; then "Runs: Axel, Mia", the seats with a long run going (three names, then "and 2 more").
 - A time is the time alone today, the full weekday within the week ("Friday 09:00"), the date further on ("2026-11-25 09:00").
-- Hovering the line says each part in full, one line each: that the Leader is not running and the next message starts a fresh session; the wake-up's reason, or the quota window that resets; each run going, with its seat and how long it has run.
+- Hovering the line for half a second opens a box above it, drawn by the page itself, that says each part in full, one line each; a key or moving off the pill closes it. It says: that the Leader is not running and the next message starts a fresh session; the wake-up's reason, or the quota window that resets; each run going, with its seat and how long it has run.
 - The wake-up is set by the Leader: by itself when work waits on a time, such as a usage window's reset, or when asked ("pick this up at 9:30"); a quota reset after a window was spent starts it too. A message starts the Leader sooner, and the wake-up still comes at its time. Parking the room, or a server stop, cancels it.
 
 ## Long runs
