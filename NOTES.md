@@ -17,6 +17,8 @@ Code and Node.js versions, and the voice installs, under `~/.local/share/openova
 instance of the user pins and no running process uses, one log row each. Instances taking this
 version record themselves there when they start; one still on an older version is counted while
 it runs, and if a stopped one lost a version it pins, its next `ovai start` fetches it again.
+Anything fetched within the last hour is kept as well. This version changes what voice input installs, so
+voice input installs again, about 2.1 GB, the first time it is used.
 
 ## 0.27.0
 

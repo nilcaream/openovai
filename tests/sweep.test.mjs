@@ -2,8 +2,11 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
-import { inUse, record, recordFile, sweep } from "../lib/sweep.mjs";
+import { FRESH, inUse, record, recordFile, sweep } from "../lib/sweep.mjs";
 import { remove, scratch } from "./helpers.mjs";
+
+// A sweep run two hours from now, when every entry the suite lays out is old enough to go.
+const later = Date.now() + 2 * FRESH;
 
 const base = scratch("sweep");
 const data = path.join(base, "data", "openovai");
@@ -45,7 +48,7 @@ afterEach(() => remove(base));
 describe("old runtimes", () => {
   it("removes every directory no instance and no process uses, and keeps the instance's own, a part install and the files", async () => {
     const own = instance("own", "24.21.0", "2.1.329");
-    const removed = await sweep(own, { voice: "faster-whisper-new" }, { env, listed: [] });
+    const removed = await sweep(own, { voice: "faster-whisper-new" }, { env, listed: [], now: later });
     assert.deepEqual(left(), ["claude/2.1.329", "node/24.21.0", "voice/faster-whisper-new", "voice/faster-whisper-new.part-77", "voice/install.log"]);
     assert.deepEqual(
       removed.map(({ kind, name }) => `${kind}/${name}`),
@@ -60,7 +63,7 @@ describe("old runtimes", () => {
     const lab = instance("lab", "24.20.0", "2.1.300");
     record(lab, { voice: "faster-whisper-old" }, env);
     fs.writeFileSync(path.join(lab, "lib", "RUNTIME"), "node 24.20.0\nclaude 2.1.323\n");
-    await sweep(instance("own", "24.21.0", "2.1.329"), { voice: "faster-whisper-new" }, { env, listed: [] });
+    await sweep(instance("own", "24.21.0", "2.1.329"), { voice: "faster-whisper-new" }, { env, listed: [], now: later });
     assert.deepEqual(left(), ["claude/2.1.323", "claude/2.1.329", "node/24.20.0", "node/24.21.0", "voice/faster-whisper-new", "voice/faster-whisper-new.part-77", "voice/faster-whisper-old", "voice/install.log"]);
   });
 
@@ -68,7 +71,7 @@ describe("old runtimes", () => {
     const gone = instance("gone", "24.20.0", "2.1.300");
     record(gone, { voice: "faster-whisper-old" }, env);
     fs.rmSync(gone, { recursive: true });
-    await sweep(instance("own", "24.21.0", "2.1.329"), { voice: "faster-whisper-new" }, { env, listed: [] });
+    await sweep(instance("own", "24.21.0", "2.1.329"), { voice: "faster-whisper-new" }, { env, listed: [], now: later });
     assert.ok(!fs.existsSync(recordFile(gone, env)));
     assert.ok(!left().includes("claude/2.1.300") && !left().includes("voice/faster-whisper-old"));
   });
@@ -82,14 +85,34 @@ describe("old runtimes", () => {
       mac(`${path.join(data, "voice", "faster-whisper-old", "python", "bin", "python3")} -I stt.py`),
       linux("node", path.join(old, "lib", "serve.mjs"), "--root", old),
     ];
-    await sweep(instance("own", "24.21.0", "2.1.329"), { voice: "faster-whisper-new" }, { env, listed });
+    await sweep(instance("own", "24.21.0", "2.1.329"), { voice: "faster-whisper-new" }, { env, listed, now: later });
     assert.deepEqual(left(), ["claude/2.1.300", "claude/2.1.323", "claude/2.1.329", "node/24.20.0", "node/24.21.0", "voice/faster-whisper-new", "voice/faster-whisper-new.part-77", "voice/faster-whisper-old", "voice/install.log"]);
     assert.deepEqual([...inUse(env, [mac(`/x/node ${path.join(old, "lib", "ovai.mjs")} --root ${old} status`)]).claude].sort(), ["2.1.300", "2.1.329"]);
   });
 
+  // A long run's sh wrapper: the node it reports the end with sits in quotes inside its script.
+  it("keeps what a command line names inside an argument, quoted in an sh -c script", async () => {
+    const node = path.join(data, "node", "24.20.0", "bin", "node");
+    const listed = [linux("sh", "-c", `npm test; '${node}' '/x/lib/run-ended.mjs' "$?"`, "wrapper")];
+    await sweep(instance("own", "24.21.0", "2.1.329"), { voice: "faster-whisper-new" }, { env, listed, now: later });
+    assert.ok(left().includes("node/24.20.0"), left().join(" "));
+    assert.ok(!left().includes("claude/2.1.300"));
+  });
+
+  // An `ovai update` fetches what its new lib/RUNTIME pins before that file is in place.
+  it("keeps every entry put in place within the hour, by the newer of its mtime and ctime", async () => {
+    const own = instance("own", "24.21.0", "2.1.329");
+    // What tar leaves an unpacked Node.js: the archive's mtime, while the ctime is the fetch's.
+    const months = new Date(Date.now() - 90 * 24 * 3_600_000);
+    fs.utimesSync(path.join(data, "node", "24.20.0"), months, months);
+    assert.deepEqual(await sweep(own, { voice: "faster-whisper-new" }, { env, listed: [] }), []);
+    assert.deepEqual(await sweep(own, { voice: "faster-whisper-new" }, { env, listed: [], now: Date.now() + FRESH - 60_000 }), []);
+    assert.equal((await sweep(own, { voice: "faster-whisper-new" }, { env, listed: [], now: later })).length, 4);
+  });
+
   it("passes over another user's process, whose environment cannot be read", async () => {
     const theirs = { ...linux(path.join(data, "claude", "2.1.323", "bin", "claude")), environment: () => null };
-    await sweep(instance("own", "24.21.0", "2.1.329"), { voice: "faster-whisper-new" }, { env, listed: [theirs] });
+    await sweep(instance("own", "24.21.0", "2.1.329"), { voice: "faster-whisper-new" }, { env, listed: [theirs], now: later });
     assert.ok(!left().includes("claude/2.1.323"));
   });
 
@@ -98,7 +121,7 @@ describe("old runtimes", () => {
     record(broken, { voice: "" }, env);
     fs.writeFileSync(path.join(broken, "lib", "RUNTIME"), "node 24\n");
     const before = left();
-    await assert.rejects(sweep(instance("own", "24.21.0", "2.1.329"), { voice: "faster-whisper-new" }, { env, listed: [] }), /RUNTIME/);
+    await assert.rejects(sweep(instance("own", "24.21.0", "2.1.329"), { voice: "faster-whisper-new" }, { env, listed: [], now: later }), /RUNTIME/);
     assert.deepEqual(left(), before);
   });
 });
