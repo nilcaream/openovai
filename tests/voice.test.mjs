@@ -100,12 +100,39 @@ describe("the tail of a panel", () => {
 });
 
 describe("the pins", () => {
+  // A requirement with its hashes is one line to pip, continued with a backslash.
+  const requirements = () =>
+    fs
+      .readFileSync(voice.REQUIREMENTS, "utf8")
+      .replace(/ \\\n {4}/g, " ")
+      .split("\n")
+      .filter((line) => line !== "" && !line.startsWith("#"))
+      .map((line) => {
+        const [requirement, ...hashes] = line.split(" --hash=");
+        return { requirement, hashes };
+      });
+
   it("names every package at one exact version, with the voice-activity filter's onnxruntime everywhere but an Intel Mac", () => {
-    const lines = fs.readFileSync(voice.REQUIREMENTS, "utf8").split("\n").filter((line) => line !== "" && !line.startsWith("#"));
+    const lines = requirements().map(({ requirement }) => requirement);
     assert.ok(lines.length >= 15, lines.join("\n"));
     for (const line of lines.filter((line) => !line.startsWith("onnxruntime"))) assert.match(line, /^[a-z][a-z0-9-]*==\d[\w.]*$/, line);
     assert.ok(lines.includes("faster-whisper==1.2.1"));
     assert.deepEqual(lines.filter((line) => line.startsWith("onnxruntime")), ['onnxruntime==1.32.0 ; sys_platform != "darwin" or platform_machine != "x86_64"']);
+  });
+
+  // pip refuses the whole install under --require-hashes when one line has no hash, so this is what
+  // keeps a moved pin from shipping without its sums. A compiled package has a wheel per platform:
+  // two for Linux at the least, and one or more per Mac.
+  it("gives every package the sha256 of each wheel pip may pick, and a compiled one a wheel per platform", () => {
+    for (const { requirement, hashes } of requirements()) {
+      assert.ok(hashes.length >= 1, `${requirement} has no --hash`);
+      for (const hash of hashes) assert.match(hash, /^sha256:[0-9a-f]{64}$/, requirement);
+      assert.equal(new Set(hashes).size, hashes.length, requirement);
+    }
+    const count = Object.fromEntries(requirements().map(({ requirement, hashes }) => [requirement.split("==")[0], hashes.length]));
+    for (const compiled of ["ctranslate2", "numpy", "pyyaml", "tokenizers", "av", "hf-xet"]) assert.ok(count[compiled] >= 4, `${compiled}: ${count[compiled]}`);
+    assert.equal(count.onnxruntime, 3);
+    assert.equal(count["faster-whisper"], 1);
   });
 
   it("pins the model to one revision with a sha256 for every file, and keys the install by it and by the packages' pins", () => {
@@ -187,7 +214,7 @@ describe("the install", () => {
     assert.deepEqual(unpacked, [[path.join(part, "cpython.tar.gz"), part, "the python"]]);
     assert.deepEqual(runs, [[
       part, "-I", "-m", "pip", "install", "--isolated", "--disable-pip-version-check", "--no-input",
-      "--index-url", "https://pypi.org/simple/", "--no-deps", "--only-binary=:all:", "-r", voice.REQUIREMENTS,
+      "--index-url", "https://pypi.org/simple/", "--no-deps", "--only-binary=:all:", "--require-hashes", "-r", voice.REQUIREMENTS,
     ]]);
     assert.deepEqual(asked, [python.url, ...Object.keys(files).map((name) => `https://huggingface.co/${voice.MODEL.repo}/resolve/${voice.MODEL.revision}/${name}`)]);
     assert.equal(voice.isInstalled(env), true);
