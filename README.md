@@ -95,7 +95,7 @@ directory. Everything the page and the command do is described at [openov.ai](ht
 
 ## Requirements
 
-- Linux or macOS, x86_64 or arm64
+- Linux, x86_64 or arm64
 - `sh`, `curl` or `wget`, `tar`, `sha256sum` or `shasum`, `uname`, `ssh-keygen` (OpenSSH 8.1 or
   later), which checks a release's signature
 
