@@ -1585,8 +1585,9 @@ describe("what a seat left running", () => {
 
   it("ends with its session, however the session ended, and is said in the log", async () => {
     const paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_LEAVES: "1" });
-    const [left] = leftRunningIn(paul.log);
-    assert.ok(left !== undefined, "the run left nothing running");
+    // The stand-in logs what it left after the secret seatUp waits for, so the pid is waited for too.
+    const left = await waitFor(() => leftRunningIn(paul.log)[0]);
+    assert.ok(left !== null, "the run left nothing running");
     assert.equal(alive(left), true);
     const logged = said.length;
     assert.equal(await end(WORKER, 2000), true);
@@ -1599,7 +1600,8 @@ describe("what a seat left running", () => {
 
   it("is ended when the session ends on its own, with nobody asking for it", async () => {
     const paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_LEAVES: "1", OPENOVAI_STAND_IN_DIES: "1" });
-    const [left] = leftRunningIn(paul.log);
+    const left = await waitFor(() => leftRunningIn(paul.log)[0]);
+    assert.ok(left !== null, "the run left nothing running");
     assert.equal(alive(left), true);
     await tell(WORKER, userFrame("go")).answered;
     assert.ok(await waitFor(() => (running(WORKER) ? null : true)), "the seat is still running");

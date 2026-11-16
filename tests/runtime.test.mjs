@@ -25,8 +25,13 @@ process.umask(0o022);
 const here = scratch("runtime-test");
 const A_VERSION = /^\d+\.\d+\.\d+$/;
 
-// The platform the script will name for this machine, in the words nodejs.org uses.
-const PLATFORM = `linux-${{ x64: "x64", arm64: "arm64" }[process.arch]}`;
+// The platform the script will name for this machine, in the words nodejs.org uses, and one it
+// will not: the checksum file names both, as nodejs.org's names every platform.
+const PLATFORM = `${process.platform}-${{ x64: "x64", arm64: "arm64" }[process.arch]}`;
+const ANOTHER = PLATFORM === "darwin-arm64" ? "linux-x64" : "darwin-arm64";
+
+// A checksum file whose line for this machine's archive no longer matches it.
+const mismatched = (lines) => lines.map((line) => (line.endsWith(`node-v${NODE}-${PLATFORM}.tar.gz`) ? `${"f".repeat(64)}  node-v${NODE}-${PLATFORM}.tar.gz` : line));
 
 // The versions the fixture pins: not ones that exist, so a test that reached the real archive by
 // mistake would fail on a 404 rather than pass on a real download.
@@ -88,7 +93,7 @@ function anArchive(name, { npm = true, sums = (lines) => lines } = {}) {
   assert.equal(made.status, 0, made.stderr);
   const sum = crypto.createHash("sha256").update(fs.readFileSync(tarball)).digest("hex");
   const lines = [
-    `${"0".repeat(64)}  node-v${NODE}-darwin-arm64.tar.gz`,
+    `${"0".repeat(64)}  node-v${NODE}-${ANOTHER}.tar.gz`,
     `${sum}  ${unpacked}.tar.gz`,
     `${"1".repeat(64)}  node-v${NODE}.tar.xz`,
   ];
@@ -229,14 +234,14 @@ describe("verify", () => {
   });
 
   it("refuses an archive whose checksum does not match", async () => {
-    const archive = anArchive("verify-bad", { sums: (lines) => lines.map((line) => line.replace(/^[0-9a-f]{64}  node-v.*linux/, `${"f".repeat(64)}  node-v${NODE}-linux`)) });
+    const archive = anArchive("verify-bad", { sums: mismatched });
     const said = await sh(repo, ["verify", archive.tarball, archive.sums]);
     assert.equal(said.status, 1);
     assert.match(said.err, /does not match its checksum in SHASUMS256\.txt; the download is corrupt or tampered with/);
   });
 
   it("refuses a checksum file that does not name the archive", async () => {
-    const archive = anArchive("verify-unnamed", { sums: (lines) => lines.filter((line) => !line.includes("linux")) });
+    const archive = anArchive("verify-unnamed", { sums: (lines) => lines.filter((line) => !line.includes(PLATFORM)) });
     const said = await sh(repo, ["verify", archive.tarball, archive.sums]);
     assert.equal(said.status, 1);
     assert.match(said.err, /has 0 lines naming node-v.*, not one; nothing was verified/);
@@ -267,7 +272,7 @@ describe("verify", () => {
     assert.equal(said.status, 0, said.err);
     assert.equal(fs.readFileSync(asked, "utf8"), "-a 256 -c --status -\n");
 
-    const bad = anArchive("verify-shasum-bad", { sums: (lines) => lines.map((line) => line.replace(/^[0-9a-f]{64}  node-v.*linux/, `${"f".repeat(64)}  node-v${NODE}-linux`)) });
+    const bad = anArchive("verify-shasum-bad", { sums: mismatched });
     const refused = await sh(repo, ["verify", bad.tarball, bad.sums], { PATH });
     assert.equal(refused.status, 1);
     assert.match(refused.err, /does not match its checksum in SHASUMS256\.txt/);
@@ -349,7 +354,7 @@ describe("ensure", () => {
   });
 
   it("refuses a download that does not match its checksum and leaves nothing behind", async () => {
-    const tampered = anArchive("tampered", { sums: (lines) => lines.map((line) => line.replace(/^[0-9a-f]{64}  node-v.*linux/, `${"f".repeat(64)}  node-v${NODE}-linux`)) });
+    const tampered = anArchive("tampered", { sums: mismatched });
     const bad = await serve(tampered.root);
     try {
       const { tree, env, paths } = anInstance("corrupt");

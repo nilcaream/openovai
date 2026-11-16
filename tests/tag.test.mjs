@@ -199,7 +199,7 @@ describe("the command the workflow runs", () => {
 
   it("hands the workflow the tag, the name and the notes file", () => {
     const tree = aRepository("outputs");
-    const where = path.join(tree, "notes.md");
+    const where = path.join(tree, "release-notes.md");
     const done = run(tree, ["--notes-file", where]);
     assert.match(done.outputs, /^tag=v1\.2\.0$/m);
     assert.match(done.outputs, /^name=1\.2\.0$/m);
@@ -214,11 +214,13 @@ describe("the command the workflow runs", () => {
 
   it("fails, says why, and writes nothing when the version is already out", () => {
     const tree = aRepository("command-tagged", { tags: ["v1.2.0"] });
-    const done = run(tree, ["--notes-file", path.join(tree, "notes.md")]);
+    // Not notes.md: on a file system that does not tell names apart by case, as a Mac's does not,
+    // that is the NOTES.md the repository already has.
+    const done = run(tree, ["--notes-file", path.join(tree, "release-notes.md")]);
     assert.equal(done.code, 1);
     assert.match(done.err, /already a tag/);
     assert.equal(done.outputs, "");
-    assert.equal(fs.existsSync(path.join(tree, "notes.md")), false);
+    assert.equal(fs.existsSync(path.join(tree, "release-notes.md")), false);
   });
 
   it("says it in the shape Actions marks up, when it is Actions asking", () => {
