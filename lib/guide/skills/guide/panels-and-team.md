@@ -4,6 +4,8 @@ Every panel on the page is one Claude Code session, called a seat. There is one 
 
 A panel shows a turn's answer, not its way there. Words a session writes between its calls are held back while the turn runs: they are shown at its end only when the turn said nothing else, and not at all when it ended with nothing for the panel. The first words after a line typed while the turn runs are shown at once. Until the end, the panel shows the call the session has out. A row of such words that ends in a faint " · summary" is a progress note: Claude's service returns only its own short summary of the longer note the session wrote, and no client receives the original words.
 
+When the Leader runs like Claude Code's command line (`experiment.leaderCli`, an experiment, off unless asked for: see `setup-and-update.md`), nothing on the Leader's panel is held: its words and its progress notes are rows as they come, as in the terminal. It applies from the Leader's next start. Workers are never under it.
+
 ## The Leader
 - The session the person talks to. It hires, delegates, relays, and settles what the instance may do. It does no project work itself: a check, a clone, a build or a test is a hire.
 - Its panel is always there. The next thing typed to it starts it.

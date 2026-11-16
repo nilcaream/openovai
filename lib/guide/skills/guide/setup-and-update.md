@@ -57,8 +57,10 @@ To change a setting, ask the Leader: "raise the desk limit to 256 KB", "Workers 
 - `quota["5h"]`, `quota["7d"]`: the two usage percentages, warning and critical, `[90, 95]` and `[97, 99]`. The weekly pair also holds each model's own weekly window.
 - `update.check`: whether the server looks once a day for a newer release to name on the Leader's head, `true`; `false` turns it off, for an instance that is offline or must not reach GitHub.
 - `runs.most`, `runs.hours`: how many long runs (`ovai run`) one seat may have going at once, 8, and the hours a run may go before the server stops it, 24 (see panels-and-team.md).
+- `voice.on`, `voice.language`: whether the microphone button on the Leader's panel dictates, `false`, and the language it listens for, `en` (see voice-input.md).
+- `experiment.leaderCli`: `true` runs the Leader like Claude Code's command line, its words shown as they come and none held back, `false`. It is an experiment and may change or go in a later release (see panels-and-team.md).
 
-All of them, and `models.leader` and `models.worker`, take effect while the server runs: the server reads the file again within about 5 seconds of a save, and tells the Leader the names of the keys that changed. A model applies from each session's next start; a running session keeps the one it started on.
+All of them, and `models.leader` and `models.worker`, take effect while the server runs: the server reads the file again within about 5 seconds of a save, and tells the Leader the names of the keys that changed. A model applies from each session's next start; a running session keeps the one it started on. `experiment.leaderCli` applies from the Leader's next start.
 
 `user`, `leader`, `port` and `auth` take effect only at `ovai restart`, and only by hand: the Leader does not change them. A save that changes them is told to the Leader as not applied.
 
