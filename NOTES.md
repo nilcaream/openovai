@@ -8,6 +8,10 @@ carries only its own.
 
 **This version pins Claude Code 2.1.329, where the last pinned 2.1.323.**
 
+**What a long run leaves running ends with it.** When a run's command ends or the run is stopped,
+whatever it started that is still running, such as a server, is ended too, and the run's log says
+what was ended. `ovai stop` and `ovai update` name only the runs still going.
+
 ## 0.27.0
 
 **This version pins Claude Code 2.1.323, where the last pinned 2.1.314.**
