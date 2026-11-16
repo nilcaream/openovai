@@ -13,7 +13,7 @@ import { SERVER, read } from "../lib/chat/conversation.mjs";
 import { subscribe } from "../lib/chat/events.mjs";
 import { userFrame } from "../lib/chat/frames.mjs";
 import { ADMIN_FILE } from "../lib/admin.mjs";
-import { BODY_CLOSING, CARD_TIMEOUT, SUBAGENT_CARD_TIMEOUT, adminTold, changedKeys, deliver, parkRoom, rereadConfig, settingsIn, tick, undelivered } from "../lib/chat/lifecycle.mjs";
+import { BODY_CLOSING, BODY_CONFIG, CARD_TIMEOUT, SUBAGENT_CARD_TIMEOUT, adminTold, changedKeys, deliver, parkRoom, rereadConfig, settingsIn, tick, undelivered } from "../lib/chat/lifecycle.mjs";
 import { answerRule, askedFor, parkRule, ruleAskedFor, rulesPending } from "../lib/chat/permissions.mjs";
 import * as quota from "../lib/chat/quota.mjs";
 import * as releases from "../lib/chat/releases.mjs";
@@ -888,6 +888,21 @@ describe("openovai.json changed while the server runs", () => {
     await settle(300);
     assert.equal(configTold().length, told, heardIn(leader.log).join("\n"));
     assert.deepEqual(await tool(leader.secret, "settings", { change: { "idle.force": 40 } }), { text: "Nothing to write: openovai.json already holds that.", refused: false, error: null });
+  });
+
+  // The experiment is read when the Leader starts: the answer says so, as it does for a model.
+  it("says experiment.leaderCli applies from the Leader's next start, not now", async () => {
+    try {
+      const changed = await tool(leader.secret, "settings", { change: { "experiment.leaderCli": true } });
+      assert.deepEqual(changed, {
+        text: "Written to openovai.json and applied now, with no restart: experiment.leaderCli. experiment.leaderCli applies from the Leader's next start; the Leader running now keeps how it started.",
+        refused: false,
+        error: null,
+      });
+    } finally {
+      await tool(leader.secret, "settings", { change: { "experiment.leaderCli": null } });
+    }
+    assert.match(BODY_CONFIG("Mike", ["experiment.leaderCli", "idle.force"], []), /Applied now, with no restart: experiment\.leaderCli, idle\.force\. experiment\.leaderCli applies from the Leader's next start;/);
   });
 
   it("refuses a key it does not write and a value of the wrong kind, the file untouched", async () => {
