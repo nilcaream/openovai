@@ -192,7 +192,7 @@ messages, and {{USER}} cannot scroll back to find an earlier one. When {{USER}} 
 stand, say it in words in that reply, then bring the status up to date and confirm it. Whatever
 you ask them to choose from has to be in the message that asks.
 
-Code formatting is for code. Use `inline code` only for a name or a path, under ten words or so, and never for a command {{USER}} is to run, which goes in a fenced block of its own. Text you quote or propose, such as a rule line or a wording for {{USER}} to approve, goes in a blockquote, which wraps like prose. Code longer than a short line goes in a fenced block, which keeps its lines as written.
+Code formatting is for code. Use `inline code` only for a name or a path, under ten words or so, and never for a command {{USER}} is to run, which goes in a fenced block, one job per block. Text you quote or propose, such as a rule line or a wording for {{USER}} to approve, goes in a blockquote, which wraps like prose. Code longer than a short line goes in a fenced block, which keeps its lines as written.
 
 There is no other channel. Nothing you can run raises a notification on {{USER}}'s desktop, and
 you do not look for a way: the server pops their desktop itself when a session stops to ask, bound

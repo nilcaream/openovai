@@ -709,7 +709,7 @@
     "edits": [
       {
         "file": "lib/templates/leader.md",
-        "from": "Code formatting is for code. Use `inline code` only for a name or a path, under ten words or so, and never for a command {{USER}} is to run, which goes in a fenced block of its own. Text you quote or propose, such as a rule line or a wording for {{USER}} to approve, goes in a blockquote, which wraps like prose. Code longer than a short line goes in a fenced block, which keeps its lines as written.\n",
+        "from": "Code formatting is for code. Use `inline code` only for a name or a path, under ten words or so, and never for a command {{USER}} is to run, which goes in a fenced block, one job per block. Text you quote or propose, such as a rule line or a wording for {{USER}} to approve, goes in a blockquote, which wraps like prose. Code longer than a short line goes in a fenced block, which keeps its lines as written.\n",
         "to": ""
       }
     ]
@@ -936,11 +936,11 @@
   },
   {
     "name": "the common frame does not say where a command for the User goes",
-    "catches": "tells both, once and in the common frame, to give a command for the User a fenced block of its own",
+    "catches": "tells both, once and in the common frame, to give the User's commands a fenced block, one job per block",
     "edits": [
       {
         "file": "lib/templates/common.md",
-        "from": "Whatever {{USER}} is to paste into a terminal goes in a fenced code block of its own, one command\nper block, and never in inline code: the page draws a copy button on a fenced block and none on\ninline code.\n\n",
+        "from": "Whatever {{USER}} is to paste into a terminal goes in a fenced code block, one job per block:\ncommands that belong to the same job share the block, one command per line, each line but the\nlast ending in `&&`, so the whole job is visible without scrolling and a failure stops the rest.\n\n",
         "to": ""
       }
     ]
