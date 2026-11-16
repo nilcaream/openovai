@@ -15,8 +15,8 @@ import { after, before, describe, it } from "node:test";
 
 import { remove, repo, scratch } from "./helpers.mjs";
 import { RUN_IN_ENVIRONMENT, SEAT_IN_ENVIRONMENT, home } from "../lib/claude.mjs";
-import { endLeftovers, runningHere } from "../lib/running.mjs";
-import { ENDED, GOING, LOST, RunError, STOPPED, allRuns, describeRuns, lastLines, logOf, markTold, readRun, runDirectory, startRun, stopRun } from "../lib/runs.mjs";
+import { describeLeftovers, endLeftovers, runningHere, runsGoingOn } from "../lib/running.mjs";
+import { ENDED, GOING, LOST, RunError, STOPPED, allRuns, describeRuns, lastLines, logOf, markTold, readRun, runDirectory, runsAsTheyStand, startRun, stopRun } from "../lib/runs.mjs";
 
 const here = scratch("runs-test");
 const root = path.join(here, "instance");
@@ -182,5 +182,61 @@ describe("ovai run and ovai runs", () => {
     for (const name of ["l2", "l3"]) {
       await stopRun(root, SEAT, name, "test over", { grace: 200 });
     }
+  });
+});
+
+// What a run's command leaves behind is what `adb` did: a server forked into a session of its own,
+// out of the run's process group, reparented to init, carrying the run in its environment. It is
+// started here the same way, by a node that spawns it detached and says its pid in a file.
+function escapee(file, more = "") {
+  return ["sh", "-c", `node -e "const one = require('node:child_process').spawn('sleep', ['30'], { detached: true, stdio: 'ignore' }); require('node:fs').writeFileSync('${file}', String(one.pid)); one.unref()"${more}`];
+}
+
+function alive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+describe("what a run leaves behind", () => {
+  it("is ended once its command ends, before the exit is written, and said in its log", async () => {
+    const file = path.join(here, "escapee-ended");
+    startRun(root, SEAT, "leaves", escapee(file), { env: seatShell });
+    await until(() => readRun(root, SEAT, "leaves").state !== GOING, "the run to end");
+    const pid = Number(fs.readFileSync(file, "utf8"));
+    assert.equal(alive(pid), false, "the run reads as ended with what it left still running");
+    assert.equal(readRun(root, SEAT, "leaves").exit.code, 0);
+    assert.match(lastLines(root, SEAT, "leaves").join("\n"), new RegExp(`^ovai ended what the run left running: sleep 30 \\(pid ${pid}\\)$`, "m"));
+  });
+
+  it("is ended when the run is stopped, outside its group as well", async () => {
+    const file = path.join(here, "escapee-stopped");
+    startRun(root, SEAT, "leaves-stopped", escapee(file, "; sleep 30"), { env: seatShell });
+    await until(() => fs.existsSync(file) && fs.readFileSync(file, "utf8") !== "", "the escapee to be up");
+    const pid = Number(fs.readFileSync(file, "utf8"));
+    const stopped = await stopRun(root, SEAT, "leaves-stopped", "by hand", { grace: 500 });
+    assert.equal(stopped.state, STOPPED);
+    assert.equal(alive(pid), false);
+  });
+
+  it("is named by its run as a leftover by a stop or an update, never as a run going on", async () => {
+    startRun(root, SEAT, "done", ["true"], { env: seatShell });
+    await until(() => readRun(root, SEAT, "done").state === ENDED, "the run to end");
+    startRun(root, SEAT, "going", ["sleep", "30"], { env: seatShell });
+    const found = runsAsTheyStand(root, [
+      { pid: process.pid, seat: null, run: `${SEAT}/done`, session: false },
+      { pid: process.pid, seat: null, run: `${SEAT}/going`, session: false },
+      { pid: process.pid, seat: null, run: `${SEAT}/../going`, session: false },
+      { pid: process.pid, seat: SEAT, run: null, session: true },
+    ]);
+    assert.equal(runsGoingOn(found), `Runs going on, untouched: ${SEAT}/going (ovai runs says where each stands).`);
+    assert.deepEqual(
+      describeLeftovers(found).split("\n").map((line) => line.replace(/: .*\(pid/, ": … (pid")),
+      [`${SEAT}/done left this running: … (pid ${process.pid})`, `${SEAT}/../going left this running: … (pid ${process.pid})`, `  kill ${process.pid} ${process.pid}`],
+    );
+    await stopRun(root, SEAT, "going", "test over", { grace: 200 });
   });
 });

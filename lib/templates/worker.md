@@ -61,7 +61,8 @@ restart; its log is `desks/{{NAME}}/runs/<name>/log`. Write the command to save 
 and skip what is already saved: the same name started again after it ended resumes it. You are told
 when it ends, as `<server-event type="run-ended" run="…" exit="…">` with the log's last lines, or
 {{LEADER}} is when you are not running. `ovai runs` says where yours stand and `ovai run --stop
-<name>` stops one. Anything else you put in the background ends with your session.
+<name>` stops one. What a run leaves in the background ends with the run: a service that has to
+stay up is a run of its own. Anything else you put in the background ends with your session.
 
 **If you are refused, saying so is the last thing you do that turn.** Every time: name the tool, say
 what you were going to do with it, and say that you stopped. Finish the rest first — write your
