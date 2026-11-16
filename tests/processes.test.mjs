@@ -9,6 +9,7 @@
 // space apart, is what the stand-in assumes; it has not been run on a Mac.
 
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { after, afterEach, beforeEach, describe, it } from "node:test";
@@ -111,5 +112,23 @@ describe("a port's holder on a Mac", () => {
   it("is nobody when lsof names nobody", () => {
     standIn("lsof", "exit 1");
     assert.equal(holderOnAMac(7910), null);
+  });
+});
+
+// tests/measure/measure-processes.mjs is what macos.yml and windows.yml run on the real machine, and
+// nothing else runs it: started by hand, it can fall behind what lib/running.mjs returns and fail
+// there for a reason that has nothing to do with the machine. Here it runs on this machine's own
+// table, so it fails here first.
+describe("the measure the OS workflows run", () => {
+  it("goes all the way through on this machine", () => {
+    fs.mkdirSync(here, { recursive: true });
+    const measured = spawnSync(process.execPath, [path.join(repo, "tests", "measure", "measure-processes.mjs")], {
+      encoding: "utf8",
+      // The machine's own ps and lsof, not the stand-ins the checks above put first on the PATH.
+      env: { ...process.env, PATH: pathBefore, TMPDIR: here },
+      timeout: 30000,
+    });
+    assert.equal(measured.status, 0, `${measured.stdout}${measured.stderr}`);
+    assert.match(measured.stdout, /descendants\(\): pid \d+ has pid \d+ under it/);
   });
 });

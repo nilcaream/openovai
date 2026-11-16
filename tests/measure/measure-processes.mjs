@@ -17,7 +17,7 @@ import path from "node:path";
 
 import { home } from "../../lib/claude.mjs";
 import { holderOf } from "../../lib/port.mjs";
-import { commandOf, processes } from "../../lib/processes.mjs";
+import { commandOf, descendants, processes } from "../../lib/processes.mjs";
 import { endLeftovers, runningHere } from "../../lib/running.mjs";
 import { dataDirectory } from "../../lib/runtime.mjs";
 
@@ -75,12 +75,13 @@ async function main() {
   const session = start(fake, ["--print", "--output-format", "stream-json"], aSeat);
   const leftover = start(process.execPath, ["-e", STAYS, "left-by-a-seat"], aSeat);
   const stranger = start(fake, ["--print"], { CLAUDE_CONFIG_DIR: another, OPENOVAI_SEAT: "", ...onPath });
+  const aRun = start(process.execPath, ["-e", STAYS, "a-run"], { ...aSeat, OPENOVAI_RUN: `${SEAT}/measure` });
   const listener = start(
     process.execPath,
     ["-e", "const s = require('node:net').createServer().listen(0, '127.0.0.1', () => { process.stdout.write(s.address().port + '\\nready\\n'); }); setInterval(() => {}, 1000);"],
     onPath,
   );
-  const [, , , listening] = await Promise.all([session.ready, leftover.ready, stranger.ready, listener.ready]);
+  const [, , , listening] = await Promise.all([session.ready, leftover.ready, stranger.ready, listener.ready, aRun.ready]);
   const port = Number(listening.split("\n")[0]);
 
   // 1. The table lists a process, its environment and its command line.
@@ -103,11 +104,12 @@ async function main() {
   // 2. What makes a process an instance's, and a session rather than a leftover.
   const running = runningHere(root);
   const byPid = new Map(running.map((one) => [one.pid, one]));
-  assert.deepEqual(byPid.get(session.pid), { pid: session.pid, seat: SEAT, session: true }, `runningHere() on the session: ${JSON.stringify(byPid.get(session.pid))}${rawPs(session.pid)}`);
-  assert.deepEqual(byPid.get(leftover.pid), { pid: leftover.pid, seat: SEAT, session: false }, `runningHere() on the leftover: ${JSON.stringify(byPid.get(leftover.pid))}${rawPs(leftover.pid)}`);
+  assert.deepEqual(byPid.get(session.pid), { pid: session.pid, seat: SEAT, run: null, session: true }, `runningHere() on the session: ${JSON.stringify(byPid.get(session.pid))}${rawPs(session.pid)}`);
+  assert.deepEqual(byPid.get(leftover.pid), { pid: leftover.pid, seat: SEAT, run: null, session: false }, `runningHere() on the leftover: ${JSON.stringify(byPid.get(leftover.pid))}${rawPs(leftover.pid)}`);
+  assert.deepEqual(byPid.get(aRun.pid), { pid: aRun.pid, seat: null, run: `${SEAT}/measure`, session: false }, `runningHere() on the run: ${JSON.stringify(byPid.get(aRun.pid))}${rawPs(aRun.pid)}`);
   assert.ok(!byPid.has(stranger.pid), "runningHere() reports a session of another instance");
   assert.ok(!byPid.has(listener.pid), "runningHere() reports a process with no instance environment");
-  console.log("runningHere(): the session is a session, the seat's other process a leftover, another instance's session and a bare process are not listed");
+  console.log("runningHere(): the session is a session, the seat's other process a leftover, a run a run, another instance's session and a bare process are not listed");
 
   // 3. The holder of a port.
   const holder = holderOf(port);
@@ -129,7 +131,21 @@ async function main() {
   ]);
   assert.equal(stranger.child.exitCode, null, "endLeftovers() ended another instance's session");
   console.log("endLeftovers(): ended the seat's processes and left the other instance's");
+
+  // 5. What is under a process: a child with no terminal, as a session's tool shell has none.
+  const parent = start(
+    process.execPath,
+    ["-e", `const c = require('node:child_process').spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' }); process.stdout.write(c.pid + '\\nready\\n'); ${STAYS}`],
+    onPath,
+  );
+  const below = Number((await parent.ready).split("\n")[0]);
+  strays.push(below);
+  assert.deepEqual(descendants(parent.pid), [below], `descendants(${parent.pid}) is ${JSON.stringify(descendants(parent.pid))}, and pid ${below} is its child`);
+  console.log(`descendants(): pid ${parent.pid} has pid ${below} under it`);
 }
+
+// What a check started that is nobody's child here: ended with the rest.
+const strays = [];
 
 try {
   await main();
@@ -139,6 +155,13 @@ try {
 } finally {
   for (const child of children) {
     child.kill("SIGKILL");
+  }
+  for (const pid of strays) {
+    try {
+      process.kill(pid, "SIGKILL");
+    } catch {
+      // Already gone.
+    }
   }
   fs.rmSync(base, { recursive: true, force: true });
 }
