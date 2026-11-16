@@ -33,8 +33,9 @@ in the message box, where the person reads it, edits it and presses Enter as for
 - Where: `~/.local/share/openovai/voice/` (`$XDG_DATA_HOME/openovai/voice/` when that is set), beside
   ovai's own Node.js and Claude Code. Every instance on the machine shares it. The last install's
   log is `install.log` there.
-- It runs on Linux (x86_64 and arm64) and macOS (Apple silicon on macOS 14 or later, Intel on
-  macOS 11 or later: the oldest its packages are built for), and needs `tar` to unpack its Python.
+- Its pinned packages are built for Linux on x86_64 and arm64. On a Mac they need macOS 14 or
+  later on Apple silicon and macOS 11 or later on Intel, the oldest they are built for. It needs
+  `tar` to unpack its Python.
 - When the install fails, the pill turns amber and says "Voice failed, click to retry", with the
   reason and the log's path in its hover, and the button stays away. A click on the pill, or Tab in the Leader's box, tries again.
 
