@@ -468,6 +468,9 @@ jobs:
       - name: Read the pin, fetch a node from a served archive, verify it, reuse it, refuse it
         run: node --test tests/runtime.test.mjs
 
+      - name: Remove the runtimes no instance and no process uses, and keep every other
+        run: node --test tests/sweep.test.mjs
+
   openovai:
     name: Openovai
     runs-on: ubuntu-latest

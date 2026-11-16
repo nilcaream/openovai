@@ -23,7 +23,8 @@ in the message box, where the person reads it, edits it and presses Enter as for
     so none needs to be there.
   - "Voice 2/4: dependencies...": in that Python, exactly the packages
     `lib/voice/requirements.txt` pins, about 480 MB, from PyPI only, as prebuilt wheels: nothing
-    is resolved and no package runs code while it installs.
+    is resolved and no package runs code while it installs. Every wheel is checked against the
+    sha256 the file gives for it, and one that does not match stops the install.
   - "Voice 3/4: model files..." and "Voice 4/4: model 42%": the model, 1.6 GB, from one pinned
     revision on Hugging Face, its small files first. Every file is checked against the sha256 ovai
     ships before it is kept.
@@ -32,8 +33,8 @@ in the message box, where the person reads it, edits it and presses Enter as for
 - Where: `~/.local/share/openovai/voice/` (`$XDG_DATA_HOME/openovai/voice/` when that is set), beside
   ovai's own Node.js and Claude Code. Every instance on the machine shares it. The last install's
   log is `install.log` there.
-- It runs on Linux (x86_64 and arm64) and macOS (Apple silicon and Intel), and needs `tar` to
-  unpack its Python.
+- It runs on Linux (x86_64 and arm64) and macOS (Apple silicon on macOS 14 or later, Intel on
+  macOS 11 or later: the oldest its packages are built for), and needs `tar` to unpack its Python.
 - When the install fails, the pill turns amber and says "Voice failed, click to retry", with the
   reason and the log's path in its hover, and the button stays away. A click on the pill, or Tab in the Leader's box, tries again.
 
@@ -94,6 +95,9 @@ in the message box, where the person reads it, edits it and presses Enter as for
 ## Removing it
 - Turning it off stops the speech process and leaves the install where it is, so turning it on
   again is instant. To free the space, turn it off and delete `~/.local/share/openovai/voice/`.
+- An update that changes what voice input installs installs it anew beside the old one. A server
+  start removes the old install once no instance of the user uses it any more ("Old runtimes" in
+  setup-and-update.md).
 
 ## What it does not do
 - No button on a Worker's panel: dictation is for the Leader.

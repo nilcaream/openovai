@@ -68,3 +68,10 @@ Sessions cannot edit `openovai.json`; a fresh instance denies it to their file t
 
 ## Two instances on one machine
 Yes. They share the runtimes under `~/.local/share/openovai` and nothing else: not the account, not the transcripts, not the port. Give them different ports, or `0` each. If a fixed port is taken, install over the instance with `--force` and another `--port`.
+
+## Old runtimes
+An update that moves a pin fetches the new Node.js, Claude Code or voice install beside the old one. Every time a server starts, it removes the old ones no instance of the user still uses, each named on a `runtime` row in the log. A runtime is kept while either of these holds:
+- An instance pins it. Each server records its instance in `~/.local/share/openovai/instances/` when it starts. An instance whose directory is gone stops counting.
+- A running process uses it, such as a session still on the version before an update. A running server also keeps its own instance's pins, even before that instance has written a record.
+
+When anything it needs cannot be read, the server keeps everything. Only a stopped instance from before 0.28.0 is not counted: if a runtime it pins was removed, its next `ovai start` fetches it again.
