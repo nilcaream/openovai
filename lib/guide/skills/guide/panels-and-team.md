@@ -6,6 +6,8 @@ A panel shows a turn's answer, not its way there. Words a session writes between
 
 When the Leader runs like Claude Code's command line (`experiment.leaderCli`, an experiment, off unless asked for: see `setup-and-update.md`), nothing on the Leader's panel is held: its words and its progress notes are rows as they come, as in the terminal. It applies from the Leader's next start. Workers are never under it.
 
+A file a row names is a link that opens it: a path in backticks, a link's target, and a bare path in plain words with a slash in it, such as projects/site/index.html; an absolute path is linked when it is inside the instance directory. A path is linked only when the file is there and the file view may show it, so words like and/or never link. Nothing in a code block is linked, nor a path outside the instance, nor anything in the person's own rows.
+
 ## The Leader
 - The session the person talks to. It hires, delegates, relays, and settles what the instance may do. It does no project work itself: a check, a clone, a build or a test is a hire.
 - Its panel is always there. The next thing typed to it starts it.
