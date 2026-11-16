@@ -13,6 +13,7 @@ Every session starts in Claude Code's auto mode, as the Claude Code CLI does: a 
   - Other tools get the rule Claude Code itself suggests.
   - The button is left off when no safe rule fits: a single file, a write outside the instance, or a long or shell-heavy one-off command.
   - It is also left off for a command that holds a here-document (`<<`), for a call Claude Code itself marks as one it offers no "don't ask again" on (its `suppress_always_allow_rule`), and for a stop on Claude Code's safety check (a protected path, such as a settings file or `.git`) when it suggests no rule for it. Allow and Deny answer those.
+  - Claude Code suggests a rule only when saving it would let that same command run again with no popup, so a command whose rule would not match it next time comes with Allow and Deny alone.
 - **Deny**: this call is refused, and the session is told so and tries something else.
 
 A permission popup waits 10 minutes, or 2 for a subagent's call. After that it is denied with a message saying nobody answered. When it was a Worker's popup, the Leader is told. A popup also goes away when the session that asked ends.
