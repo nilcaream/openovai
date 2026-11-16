@@ -204,6 +204,8 @@ describe("a file named in a reply", () => {
     assert.match(shown, /<code>knowledge\/foo\.md\n<\/code>/);
     assert.ok(!html("Read knowledge/foo.md.").includes("<a "), "linked with no word from the server");
     assert.equal(html("a <b> & knowledge/foo.md", ["knowledge/foo.md"]).split("&lt;b&gt; &amp; ")[0], "<p>a ");
+    // An entity is drawn as marked draws it in a sentence with no path: once, not escaped again.
+    assert.match(html("AT&amp;T &copy; knowledge/foo.md", ["knowledge/foo.md"]), /^<p>AT&amp;T &copy; <a href="\/view\/knowledge\/foo\.md"/);
   });
 
   // The view is asked for a path from the instance root and nothing else: an absolute path is
