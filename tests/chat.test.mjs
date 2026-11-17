@@ -3644,14 +3644,15 @@ describe("the page's restart, update and reload", () => {
   // The press waits the whole patience (10 s) for a session that never answers; the control under
   // it is run here with a short one. The wait is read on the monotonic clock, to the fraction of a
   // millisecond, and a timer counts whole milliseconds from the loop's own reading of that clock,
-  // taken a moment before this one: a 200 ms patience can be over at 199.x ms of this reading.
+  // taken a moment before this one: a 200 ms patience can be over at 199.x ms of this reading. The
+  // bound keeps a millisecond more than that floor; a patience cut by 5 ms still fails it.
   it("gives up on a session that does not answer its control request once the patience is over", async () => {
     const paul = await seatUp(WORKER, { OPENOVAI_STAND_IN_RELOAD: "silent" });
     const asked = performance.now();
     const answer = await Promise.race([control(WORKER, { subtype: "reload_skills" }, 200), new Promise((resolve) => setTimeout(() => resolve("still waiting"), 3000))]);
     const waited = performance.now() - asked;
     assert.equal(answer, null);
-    assert.ok(waited >= 199, `answered after ${waited.toFixed(1)} ms`);
+    assert.ok(waited >= 198, `answered after ${waited.toFixed(1)} ms`);
     assert.deepEqual(reloadsIn(paul.log), ["reload: reload_skills"]);
     assert.equal(recordOf(WORKER).controls.size, 0, "the unanswered request is still waited for");
   });
