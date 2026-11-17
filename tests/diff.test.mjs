@@ -6,11 +6,12 @@
 
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { after, describe, it } from "node:test";
 
-import { CAPTURES, KEPT, capture, captured, diffFile, diffView, drawnLines, folds, runs, splitHighlighted } from "../lib/chat/diff.mjs";
+import { CAPTURES, KEPT, capture, captured, clearCaptures, diffFile, diffView, drawnLines, folds, runs, splitHighlighted } from "../lib/chat/diff.mjs";
 import { remove, scratch } from "./helpers.mjs";
 
 const base = scratch("diff-test");
@@ -59,6 +60,28 @@ fs.writeFileSync(path.join(outside, "secret.txt"), "outside the instance\n");
 git(outside, "add", "-A");
 git(outside, "commit", "-q", "-m", "outside");
 fs.writeFileSync(path.join(outside, "secret.txt"), "outside the instance, changed\n");
+
+// A repository of sizes: a file larger than the view shows, and 34 files of three-byte characters
+// just under it each, 33.7 MB in all past the 32 MiB a capture reads though 11 million UTF-16 units;
+// then a submodule, with the log format for submodules in the repository's own configuration.
+const big = path.join(root, "projects", "big");
+const HUGE = 1536 * 1024;
+const WIDE = "語".repeat(330_000) + "\n";
+fs.mkdirSync(big, { recursive: true });
+git(big, "init", "-q", "-b", "main");
+fs.writeFileSync(path.join(big, "README"), "sizes\n");
+git(big, "add", "-A");
+git(big, "commit", "-q", "-m", "first");
+git(big, "tag", "one");
+fs.writeFileSync(path.join(big, "huge.txt"), "x".repeat(HUGE));
+for (let i = 1; i <= 34; i += 1) fs.writeFileSync(path.join(big, `c${String(i).padStart(2, "0")}.txt`), WIDE);
+git(big, "add", "-A");
+git(big, "commit", "-q", "-m", "sizes");
+git(big, "tag", "two");
+git(big, "update-index", "--add", "--cacheinfo", `160000,${git(big, "rev-parse", "one")},sm`);
+git(big, "commit", "-q", "-m", "submodule");
+git(big, "tag", "three");
+git(big, "config", "diff.submodule", "log");
 
 after(() => remove(base));
 
@@ -130,6 +153,66 @@ describe("a capture", () => {
     }
   });
 
+  // A repository's history is wherever its `.git` file says: there, it must be inside too. A linked
+  // worktree's history is its main checkout's, inside, and is captured.
+  it("refuses a repository whose .git file names a git directory outside the instance", async () => {
+    const linked = path.join(root, "projects", "gf");
+    fs.mkdirSync(linked, { recursive: true });
+    fs.writeFileSync(path.join(linked, ".git"), `gitdir: ${path.join(outside, ".git")}\n`);
+    const made = await capture(root, { repository: "projects/gf", from: "main", to: "worktree" });
+    assert.equal(made.ok, false, made.text);
+    assert.equal(made.why, "The git directory of projects/gf is not inside the instance.");
+    git(repo, "worktree", "add", "-q", path.join(root, "projects", "demo-tree"), "two");
+    const tree = await capture(root, { repository: "projects/demo-tree", from: "one", to: "worktree" });
+    assert.equal(tree.ok, true, tree.why);
+  });
+
+  // git is asked for sizes first; a blob larger than the view shows is never read, and the capture
+  // stops reading where its bytes, not its characters, reach CAPTURE_LARGEST.
+  it("reads no blob larger than the view shows, and counts what it reads in bytes", async () => {
+    const shim = path.join(base, "shim");
+    const asked = path.join(base, "batch-asked");
+    const real = spawnSync("sh", ["-c", "command -v git"], { encoding: "utf8" }).stdout.trim();
+    fs.mkdirSync(shim, { recursive: true });
+    fs.writeFileSync(path.join(shim, "git"), `#!/bin/sh\nif [ "$1" = cat-file ] && [ "$2" = --batch ]; then tee -a '${asked}' | '${real}' "$@"; exit $?; fi\nexec '${real}' "$@"\n`, { mode: 0o755 });
+    const PATH = process.env.PATH;
+    process.env.PATH = `${shim}:${PATH}`;
+    let made;
+    try {
+      made = await capture(root, { repository: "projects/big", from: "one", to: "two" });
+    } finally {
+      process.env.PATH = PATH;
+    }
+    assert.equal(made.ok, true, made.why);
+    const kept = captured(root, made.id);
+    const huge = byName(kept, "huge.txt");
+    assert.deepEqual(huge.b, { text: null, state: "large", size: HUGE });
+    const states = kept.files.filter((file) => /^c\d+\.txt$/.test(file.new)).map((file) => file.b.state);
+    assert.deepEqual(states, [...Array(33).fill("text"), "skipped"]);
+    assert.ok(!fs.readFileSync(asked, "utf8").includes(git(big, "rev-parse", "two:huge.txt")), "the large blob was read whole");
+  });
+
+  // `diff.submodule=log` drops a submodule's `diff --git` line; a capture asks for the short form.
+  it("captures a submodule whatever format the repository's configuration gives submodules", async () => {
+    const made = await capture(root, { repository: "projects/big", from: "two", to: "three" });
+    assert.equal(made.ok, true, made.why);
+    assert.match(byName(captured(root, made.id), "sm").b.text, /^Subproject commit [0-9a-f]{40}\n$/);
+  });
+
+  it("drops a capture a failed write left half written, at the next capture and at a start", async () => {
+    const part = path.join(root, CAPTURES, `${crypto.randomUUID()}.json.part`);
+    fs.writeFileSync(part, "{");
+    await capture(root, { repository: "projects/demo", from: "one", to: "two" });
+    assert.equal(fs.existsSync(part), false, "the next capture left the part");
+    const old = path.join(root, CAPTURES, `${crypto.randomUUID()}.json`);
+    fs.writeFileSync(old, "{}");
+    const then = new Date(Date.now() - KEPT - 60_000);
+    fs.utimesSync(old, then, then);
+    fs.writeFileSync(part, "{");
+    assert.equal(clearCaptures(root), fs.realpathSync(path.join(root, CAPTURES)));
+    assert.deepEqual([fs.existsSync(part), fs.existsSync(old)], [false, false]);
+  });
+
   it("is gone once it is older than it is kept, and dropped by the next capture", async () => {
     const old = await capture(root, { repository: "projects/demo", from: "one", to: "two" });
     const file = path.join(root, CAPTURES, `${old.id}.json`);
@@ -143,6 +226,19 @@ describe("a capture", () => {
 });
 
 describe("what the view draws", () => {
+  // A capture is a file under temp/, which anybody here may write: each field is escaped as drawn.
+  it("escapes every field of a capture file it draws, and takes its ranges as numbers", () => {
+    const id = crypto.randomUUID();
+    const X = "<b>X</b>";
+    const file = { status: X, old: "a.txt", new: "a.txt", modes: [X, "100644"], a: { text: "a\n", state: "text" }, b: { text: "b\n", state: "text" }, hunks: [[1, 1, 1, X]] };
+    const made = { at: "", repository: "projects/demo", from: { asked: "one", id: `${X}0123456789`, date: "", subject: "" }, to: { asked: "worktree", id: null }, files: [file] };
+    fs.mkdirSync(path.join(root, CAPTURES), { recursive: true });
+    fs.writeFileSync(path.join(root, CAPTURES, `${id}.json`), JSON.stringify(made));
+    const drawn = diffView(root, id, "light", "ovai").page + diffFile(root, id, 1).body;
+    assert.ok(!drawn.includes("<b>"), drawn);
+    assert.match(drawn, /<span class="plus">\+0<\/span>/);
+  });
+
   it("cuts a whole side's highlighting into lines, reopening a span a line break cut", () => {
     const text = "const a = 1;\n/* one\ntwo */\nconst b = `x\ny`;\n";
     const lines = drawnLines(text, "x.mjs");
