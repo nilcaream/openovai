@@ -17,7 +17,7 @@ import { INTERRUPT_PATIENCE, end, endEvery, running, tell } from "../lib/chat/se
 import { deskTitle, hire } from "../lib/desks.mjs";
 import { callsIn, childrenOf, heardIn, notesIn, queuesHeardIn, readLog, remove, waitFor } from "./helpers.mjs";
 
-import { setup, LEADER, WORKER, OTHER, MINUTE, nextLog, panel, instance, unexpected, reading, said, chat, server, seatUp, spawnedBy, page, call, tool, asked, told, readIn, gone, callsThen, writesDesk, settle } from "./lifecycle-helpers.mjs";
+import { setup, LEADER, WORKER, OTHER, MINUTE, nextLog, panel, instance, unexpected, reading, said, chat, server, seatUp, spawnedBy, page, call, tool, asked, told, toldUntil, readIn, gone, callsThen, writesDesk, settle } from "./lifecycle-helpers.mjs";
 
 let now = Date.now();
 // Ann is hired before the first check: these checks start her without a hire of their own, as
@@ -543,6 +543,26 @@ describe("the Leader's wake-up call", () => {
     });
     assert.deepEqual(await told(martin.log, 1), ['<server-event type="wake">batch two</server-event>']);
     assert.equal(wakeOf(chat), null);
+    assert.equal(shown.at(-1), null);
+  });
+
+  // A Leader that runs is told as a stopped one is, and the line drops the time the same tick.
+  it("leaves the line when a wake-up or a reset passes while the Leader runs", async () => {
+    const at = now + 10 * MINUTE;
+    assert.equal((await tool(martin.secret, "wake", { at: hhmm(at), why: "while it runs" })).refused, false);
+    const minute = new Date(at);
+    minute.setSeconds(0, 0);
+    now = minute.getTime() + 1;
+    tick(chat);
+    assert.equal(running(LEADER), true);
+    assert.ok((await toldUntil(martin.log, '<server-event type="wake">while it runs</server-event>')).length > 0);
+    assert.equal(shown.at(-1), null);
+    const resets = Math.floor((now + 30 * MINUTE) / 1000);
+    quota.saw("usage", null, { unifiedWindows: { five_hour: { utilization: 0.91, resetsAt: resets } } }, now);
+    assert.deepEqual(shown.at(-1), { at: new Date(resets * 1000).toISOString(), why: "quota reset", window: "5-hour" });
+    now = resets * 1000 + 1;
+    tick(chat);
+    assert.ok((await toldUntil(martin.log, '<server-event type="quota-reset" window="5h"/>')).length > 0);
     assert.equal(shown.at(-1), null);
   });
 

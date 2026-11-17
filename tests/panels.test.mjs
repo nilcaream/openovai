@@ -1076,6 +1076,19 @@ describe("a page left open across an update", () => {
     assert.equal(replaced(state, later, "0.23.0"), false);
     assert.equal(replaced(state, snapshot([about(LEADER)], { version: "0.24.0" }), "0.23.0"), true, "another update after that is reloaded for");
   });
+
+  // The page's stream handler asks `replaced` and `noticed` of every event before it applies it,
+  // so an event whose data is null — the wake-up or reset that has passed — gets through both.
+  it("an event that carries null is no update and no notice, and a passed reset leaves the Leader's line", () => {
+    const state = fresh();
+    const reset = { at: new Date(2030, 0, 7, 18, 40).toISOString(), why: "quota reset", window: "5-hour" };
+    applyEvent(state, snapshot([about(LEADER, { running: true, busy: false })], { version: "0.22.0", wake: reset }), 0);
+    const passed = { name: "wake", data: null };
+    assert.equal(replaced(state, passed), false);
+    assert.equal(noticed(state, passed), null);
+    applyEvent(state, passed, 1);
+    assert.equal(pillLine(state, LEADER, new Date(2030, 0, 7, 19, 0)), LINE_WAITING);
+  });
 });
 
 // A dictation is cut at pauses while the User speaks, so each stretch is turned into text at once.
