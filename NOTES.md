@@ -6,7 +6,82 @@ carries only its own.
 
 ## 0.28.0
 
-**This version pins Claude Code 2.1.329, where the last pinned 2.1.323.**
+**This version pins Claude Code 2.1.329, where the last pinned 2.1.323.** Two of its changes show
+on the page. Claude Code suggests a rule only when saving it would let the same command run again
+with no popup, so a command whose rule would not match it next time comes to a permission popup
+with Allow and Deny alone. And auto mode sets some allow rules aside and lets its classifier judge
+those calls: a rule that runs any package, such as `Bash(pnpm dlx *)`, and wildcard shell rules
+that name no program or start with `$HOME`. It also stops some shell commands that ran before, and
+may block a git command that discards changes until the working tree has been checked. Such a call
+can get the "Blocked by auto mode" row with an allow rule in place; ask the Leader for an `ask`
+rule to answer it on a popup instead.
+
+**Voice input on the Leader's panel.** A microphone button in the Leader's box turns speech into
+text on this machine, with faster-whisper and the Whisper large-v3-turbo model on the CPU: nothing
+goes to a cloud service and no model rewrites the text, which lands at the cursor to read, edit and
+send. It is off until the person asks the Leader to turn it on (`voice.on`, and `voice.language`,
+English unless another is asked for); while it is off the button is there, greyed, and its hover
+says to ask the Leader. Turning it on installs nothing: the first click on the button, or Tab in
+the Leader's box, installs it, about 2.1 GB under `~/.local/share/openovai/voice/`, shared by every
+instance on the machine: its own Python, the packages, every wheel pinned by its sha256, and the
+model, every file checked against a sha256 ovai ships. Meanwhile a voice pill at the left of the
+Leader's pill row says which step it is at, "Voice 1/4: runtime..." to "Voice 4/4: model 42%", or
+"Voice failed, click to retry" with the reason in its hover.
+
+**Dictation is turned into text as you speak, with no length limit.** Click the button or press
+Tab in the Leader's box, speak, then click or press Tab again. The recording is cut at pauses and
+each part is turned into text while you go on speaking, so the wait after Stop is a few seconds
+however long you spoke. Meanwhile the box takes no typing and the voice pill says "Listening...
+0:07", then "Turning speech into text…", its ground filling as the work goes; after a recording
+that gave no text it says why for a few seconds, such as "No speech heard" or "Microphone appears
+muted". While speech is turned into text the microphone button is a cross: a click on it, or Esc,
+stops the work, and the text of the parts already done lands in the box. Esc while recording does
+the same. One dictation runs at a time: one started in another tab takes the voice, and the tab
+that had it ends its recording and says "Another tab took the voice". A line sent after dictating
+reaches the Leader marked as voice, so it reads it as transcribed speech, and Whisper is given a
+glossary of the team's names, the projects and the words on the Leader's panel, to spell them.
+
+**Ask any session to show a change, and its reply links a diff view.** "Show me the ovai work from
+last week", "r24 vs r26", "what is uncommitted in projects/site": the session turns the words into
+exact revisions and its `diff` tool captures both sides of every file that differs, the working
+tree's uncommitted and untracked files included. The `/diff/<id>` link opens in a tab of its own:
+one file at a time with the list of files beside it, side by side or unified, three unchanged lines
+around each change and the rest folded, Next and Previous for changes (`n` and `p`, or F7 and
+Shift+F7) and for files (`[` and `]`), word wrap on or off, and highlighting in the page's theme.
+It only shows: no comments on lines, no editing, no marks inside a changed line, no blame. A
+capture is what the repository held when the session asked, and it is kept 24 hours under
+`temp/diffs/`. A file the file view never shows, such as a key or a `.env`, is listed by its name
+with no content; one that is not UTF-8 text or is larger than 1 MiB is listed with a note, as is
+every file past 32 MiB in all; a diff of more than 1000 files is refused.
+
+**The Leader's bottom line is a pill that stays under the rows.** It sits in a row of its own
+whatever the rows are scrolled to. While a panel is scrolled up, a jump pill says "↓ Latest", or
+"↓ 2 new" when messages have landed below since, and a click on it goes to the newest row: on the
+Leader's panel at the right of the bottom line, on a Worker's at the bottom right of its rows.
+Hovering the bottom line opens a box above it, drawn by the page itself, that says each part in
+full.
+
+**A path in plain words is a link.** A file a row names opens with a click when it is a bare path
+with a slash in it, such as projects/site/index.html, as it does in backticks; an absolute path is
+linked when it is inside the instance. A path is linked only when the file is there and the file
+view may show it, so words like and/or never link, and nothing in a code block or in the person's
+own rows is.
+
+**Commands to paste come in fenced blocks, one job per block.** A command the person is to paste
+into a terminal comes in a code block, which has a copy button, and never as inline code. The
+commands of one job, such as a stop, an update and a start, share one block, one command per line,
+each line but the last ending in `&&`, so the block pastes whole and stops at the first command
+that fails. The admin command in the introduction is such a block too.
+
+**A progress note ends in a faint " · summary".** For the words a session writes between its calls,
+Claude's service returns only its own short summary of the longer note, and no client receives the
+original words. The mark says the row is that summary, as the terminal draws it.
+
+**An experiment: the Leader run like Claude Code's command line.** With `experiment.leaderCli` set
+to true, nothing on the Leader's panel is held back until the turn ends: its words and its progress
+notes are rows as they come, as in the terminal. It is off unless asked for, applies from the
+Leader's next start, and Workers are never under it. It is an experiment and may change or go in a
+later release.
 
 **What a long run leaves running ends with it.** When a run's command ends or the run is stopped,
 whatever it started that is still running, such as a server, is ended too, and the run's log says
@@ -17,8 +92,11 @@ Code and Node.js versions, and the voice installs, under `~/.local/share/openova
 instance of the user pins and no running process uses, one log row each. Instances taking this
 version record themselves there when they start; one still on an older version is counted while
 it runs, and if a stopped one lost a version it pins, its next `ovai start` fetches it again.
-Anything fetched within the last hour is kept as well. This version changes what voice input installs, so
-voice input installs again, about 2.1 GB, the first time it is used.
+Anything fetched within the last hour is kept as well.
+
+**Smaller changes.** The stop button and the Leader's microphone button are one group over the
+box's right edge, faded and shown together on a computer with a mouse, so the microphone never
+covers what is being typed.
 
 ## 0.27.0
 
