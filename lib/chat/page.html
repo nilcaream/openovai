@@ -980,7 +980,11 @@
       voice.hidden = true;
       voice.setAttribute("aria-label", "Dictate");
       voice.innerHTML = MICROPHONE;
-      voice.addEventListener("click", () => dictate(name));
+      // The second click of a double click does nothing: it would cancel the dictation its first
+      // click stopped, as Tab never does (voiceKey).
+      voice.addEventListener("click", (event) => {
+        if (event.detail < 2) dictate(name);
+      });
       controls.append(voice);
       box.addEventListener("input", () => {
         if (box.value.trim() === "") spoken.dictated = false;
@@ -1265,6 +1269,10 @@
         try {
           const answered = await call(query, { method: "POST", headers: { "content-type": "application/octet-stream" }, body });
           const said = await answered.json().catch(() => ({}));
+          if (said.taken === true) {
+            if (dictation.id === id) dictationTaken();
+            return null;
+          }
           if (!answered.ok) throw new Error(said.error ?? `the server answered ${answered.status}`);
         } catch (error) {
           if (dictation.id === id) dictation.trouble ??= error.message;
@@ -1362,7 +1370,12 @@
       const answered = await sendStretch(samplesOf(joined(capture.blocks, capture.length), capture.context.sampleRate), true);
       if (answered === null || abort.signal.aborted) return;
       const said = await dictationAnswer(answered, abort);
-      if (abort.signal.aborted || said.cancelled === true) return;
+      if (abort.signal.aborted) return;
+      if (said.taken === true) {
+        dictationTaken();
+        return;
+      }
+      if (said.cancelled === true) return;
       if (typeof said.error === "string") throw new Error(said.error);
       if (said.silent === true) voiceSaid("Microphone appears muted", "The recording held no sound at all. Check that the microphone is not muted.");
       else if (typeof said.text !== "string" || said.text.trim() === "") voiceSaid("No speech heard", "The recording held sound but no speech.");
@@ -1411,19 +1424,21 @@
     let capture;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } });
-      const context = new AudioContext();
+      // Whatever throws once the microphone is open releases it.
+      let context = null;
       try {
+        context = new AudioContext();
         if (context.state === "suspended") await context.resume();
         await context.audioWorklet.addModule("/voice-worklet.js");
+        const node = new AudioWorkletNode(context, "ovai-recorder");
+        context.createMediaStreamSource(stream).connect(node);
+        node.connect(context.destination);
+        capture = { stream, context, node, blocks: [], length: 0, levels: [], sum: 0, count: 0, frame: Math.round((context.sampleRate * FRAME_MS) / 1000) };
       } catch (error) {
         for (const track of stream.getTracks()) track.stop();
-        context.close().catch(() => {});
+        context?.close().catch(() => {});
         throw error;
       }
-      const node = new AudioWorkletNode(context, "ovai-recorder");
-      context.createMediaStreamSource(stream).connect(node);
-      node.connect(context.destination);
-      capture = { stream, context, node, blocks: [], length: 0, levels: [], sum: 0, count: 0, frame: Math.round((context.sampleRate * FRAME_MS) / 1000) };
     } catch (error) {
       dictation.phase = "idle";
       voiceSaid("No microphone", error.message);
@@ -1442,6 +1457,28 @@
     dictation.started = Date.now();
     dictation.clock = setInterval(voicePanels, 1000);
     voicePanels();
+  }
+
+  // Voice turned off, or no longer ready, while recording: the recording ends, and the microphone
+  // with it, as Esc would; the button is greyed and could not stop it.
+  function voiceChanged() {
+    if (dictation.phase === "recording" && state.voice?.state !== "ready") {
+      cancelDictation([...sections.values()].find((panel) => panel.voice !== null));
+    }
+  }
+
+  // Another tab started a dictation, which took the voice from this one (voice.stretch): the
+  // recording ends, and the box keeps what it holds.
+  const VOICE_TAKEN = "Another tab took the voice";
+
+  function dictationTaken() {
+    if (dictation.capture !== null) endCapture(dictation.capture);
+    dictation.abort?.abort();
+    dictation.abort = null;
+    dictation.id = null;
+    dictation.phase = "idle";
+    clearInterval(dictation.clock);
+    voiceSaid(VOICE_TAKEN, "A dictation started in another tab, and one runs at a time: this one ended there. What is in the box stays.");
   }
 
   document.addEventListener("keydown", (event) => {
@@ -2280,6 +2317,7 @@
         keepLines();
         draw();
         if (notice !== null) notified(notice);
+        if (name === "voice") voiceChanged();
         // Once the patience is out the Leader's line has new words with nothing arriving to draw
         // them; and a server still here then never went, so nothing is on its way.
         if (name === "going") {

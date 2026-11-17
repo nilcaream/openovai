@@ -919,6 +919,24 @@ describe("the script", () => {
     assert.match(script, /else \{\s*\/\/[^\n]*\n\s*dictation\.progress = \{ done: 1, upto: 1, pace: 0 \};\s*dictation\.progressAt = Date\.now\(\);\s*voicePanels\(\);\s*await new Promise\(\(resolve\) => setTimeout\(resolve, VOICE_SWEEP_FOR\)\);\s*if \(abort\.signal\.aborted\) return;\s*putDictated\(panel, said\.text\);\s*\}/);
   });
 
+  // A double click on Stop, voice turned off while recording, the worklet's wiring throwing, and a
+  // second tab: none of them drops a dictation or leaves the microphone open.
+  it("never cancels on a double click's second click, releases the microphone whatever ends the recording, and says when another tab took the voice", () => {
+    assert.match(script, /voice\.addEventListener\("click", \(event\) => \{\s*if \(event\.detail < 2\) dictate\(name\);\s*\}\);/);
+    assert.match(
+      script,
+      /try \{\s*context = new AudioContext\(\);(?:(?!\} catch)[^])*new AudioWorkletNode(?:(?!\} catch)[^])*node\.connect\(context\.destination\);(?:(?!\} catch)[^])*\} catch \(error\) \{\s*for \(const track of stream\.getTracks\(\)\) track\.stop\(\);\s*context\?\.close\(\)/,
+      "the wiring sits inside the try whose catch stops the tracks",
+    );
+    assert.match(script, /function voiceChanged\(\) \{\s*if \(dictation\.phase === "recording" && state\.voice\?\.state !== "ready"\) \{\s*cancelDictation\(/);
+    assert.match(script, /draw\(\);\s*if \(notice !== null\) notified\(notice\);\s*if \(name === "voice"\) voiceChanged\(\);/);
+    // Another tab took the voice: told at this one's next stretch, or in its last one's answer.
+    assert.match(script, /const VOICE_TAKEN = "Another tab took the voice";/);
+    assert.match(script, /function dictationTaken\(\) \{\s*if \(dictation\.capture !== null\) endCapture\(dictation\.capture\);\s*dictation\.abort\?\.abort\(\);[^]*?dictation\.phase = "idle";[^]*?voiceSaid\(VOICE_TAKEN, "[^"]*What is in the box stays\."\);/);
+    assert.match(script, /if \(said\.taken === true\) \{\s*if \(dictation\.id === id\) dictationTaken\(\);\s*return null;\s*\}\s*if \(!answered\.ok\)/);
+    assert.match(script, /if \(abort\.signal\.aborted\) return;\s*if \(said\.taken === true\) \{\s*dictationTaken\(\);\s*return;\s*\}\s*if \(said\.cancelled === true\) return;/);
+  });
+
   it("gives the Leader's pill a hover of the page's own, opening upward, and no title", () => {
     const declared = (selector) => rules.find((rule) => rule.selector === selector)?.declarations;
     assert.doesNotMatch(script, /doing\.title|\.doing\.title/, "no browser title on the pill: its tooltip can be cut by the window's edge");
@@ -1071,7 +1089,7 @@ describe("the script", () => {
   it("fades the composer's buttons together on a desktop until the mouse moves, for 2 s after it stops, and never while it is on one of them", () => {
     const faded = rules.filter((rule) => rule.media !== undefined && /pointing/.test(rule.selector));
     assert.deepEqual(faded.map((rule) => [rule.media, rule.selector, rule.declarations.opacity]), [["(hover: hover) and (pointer: fine)", "body:not(.pointing) .composer .controls:not(:hover):not(:has(:focus-visible))", "0"]]);
-    assert.match(script, /if \(voice !== null\) \{[\s\S]{0,400}controls\.append\(voice\);/, "the voice button is in the group");
+    assert.match(script, /if \(voice !== null\) \{[\s\S]{0,600}controls\.append\(voice\);/, "the voice button is in the group");
     assert.equal(rules.some((rule) => /voiced/.test(rule.selector)), false, "no second placement for the stop glyph");
     assert.match(script, /const STILL = 2000;\s*let still = 0;\s*document\.addEventListener\("mousemove", \(\) => \{\s*document\.body\.classList\.add\("pointing"\);\s*clearTimeout\(still\);\s*still = setTimeout\(\(\) => document\.body\.classList\.remove\("pointing"\), STILL\);\s*\}\);/);
   });
