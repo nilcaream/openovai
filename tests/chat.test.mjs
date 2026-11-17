@@ -748,6 +748,14 @@ describe("what the chat serves", () => {
     assert.deepEqual(await send(Buffer.alloc(3200), "?dictation=quiet-1&stretch=1&last=1"), { status: 200, body: { text: "", silent: true } });
     assert.equal((await send(Buffer.alloc(3200), "?dictation=quiet/1&stretch=0")).status, 400, "a dictation is named in letters, digits and hyphens");
     assert.equal((await send(Buffer.alloc(3200), "?dictation=quiet-2&stretch=-1")).status, 400);
+    // Another tab's dictation takes the voice: the old one's next stretch is refused, and so is its
+    // last, each saying the voice was taken from it; an accepted stretch never says so.
+    const replaced = { error: "another dictation took voice input, in another tab", replaced: true };
+    assert.deepEqual(await send(Buffer.alloc(3200), "?dictation=tab-a&stretch=0"), { status: 202, body: { taken: true } });
+    assert.deepEqual(await send(Buffer.alloc(3200), "?dictation=tab-b&stretch=0"), { status: 202, body: { taken: true } });
+    assert.deepEqual(await send(Buffer.alloc(3200), "?dictation=tab-a&stretch=1"), { status: 409, body: replaced });
+    assert.deepEqual(await send(Buffer.alloc(3200), "?dictation=tab-a&stretch=2&last=1"), { status: 200, body: replaced });
+    assert.deepEqual(await send(Buffer.alloc(3200), "?dictation=tab-b&stretch=1&last=1"), { status: 200, body: { text: "", silent: true } });
     const anonymous = await fetch(`${url}/voice`, { method: "POST", headers: { origin: url }, body: Buffer.alloc(3200) });
     assert.equal(anonymous.status, 401, "a recording needs the page's sign-in");
   });

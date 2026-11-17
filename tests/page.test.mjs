@@ -933,8 +933,9 @@ describe("the script", () => {
     // Another tab took the voice: told at this one's next stretch, or in its last one's answer.
     assert.match(script, /const VOICE_TAKEN = "Another tab took the voice";/);
     assert.match(script, /function dictationTaken\(\) \{\s*if \(dictation\.capture !== null\) endCapture\(dictation\.capture\);\s*dictation\.abort\?\.abort\(\);[^]*?dictation\.phase = "idle";[^]*?voiceSaid\(VOICE_TAKEN, "[^"]*What is in the box stays\."\);/);
-    assert.match(script, /if \(said\.taken === true\) \{\s*if \(dictation\.id === id\) dictationTaken\(\);\s*return null;\s*\}\s*if \(!answered\.ok\)/);
-    assert.match(script, /if \(abort\.signal\.aborted\) return;\s*if \(said\.taken === true\) \{\s*dictationTaken\(\);\s*return;\s*\}\s*if \(said\.cancelled === true\) return;/);
+    assert.match(script, /if \(said\.replaced === true\) \{\s*if \(dictation\.id === id\) dictationTaken\(\);\s*return null;\s*\}\s*if \(!answered\.ok\)/);
+    assert.doesNotMatch(script, /said\.taken/, "`taken` is the word of a stretch accepted (202), never of one refused");
+    assert.match(script, /if \(abort\.signal\.aborted\) return;\s*if \(said\.replaced === true\) \{\s*dictationTaken\(\);\s*return;\s*\}\s*if \(said\.cancelled === true\) return;/);
   });
 
   it("gives the Leader's pill a hover of the page's own, opening upward, and no title", () => {

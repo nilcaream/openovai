@@ -1269,7 +1269,7 @@
         try {
           const answered = await call(query, { method: "POST", headers: { "content-type": "application/octet-stream" }, body });
           const said = await answered.json().catch(() => ({}));
-          if (said.taken === true) {
+          if (said.replaced === true) {
             if (dictation.id === id) dictationTaken();
             return null;
           }
@@ -1371,7 +1371,7 @@
       if (answered === null || abort.signal.aborted) return;
       const said = await dictationAnswer(answered, abort);
       if (abort.signal.aborted) return;
-      if (said.taken === true) {
+      if (said.replaced === true) {
         dictationTaken();
         return;
       }
