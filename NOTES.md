@@ -96,7 +96,8 @@ Anything fetched within the last hour is kept as well.
 
 **Smaller changes.** The stop button and the Leader's microphone button are one group over the
 box's right edge, faded and shown together on a computer with a mouse, so the microphone never
-covers what is being typed.
+covers what is being typed. A wake-up or a quota reset that has passed leaves the Leader's bottom
+line without a reload of the page.
 
 ## 0.27.0
 
