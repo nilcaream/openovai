@@ -12,6 +12,9 @@ const base = scratch("sweep");
 const data = path.join(base, "data", "openovai");
 const env = { XDG_DATA_HOME: path.join(base, "data") };
 
+// A voice install being built by the server that sweeps: the process listing leaves that one out.
+const WRITING = `voice/faster-whisper-new.part-${process.pid}`;
+
 // An instance at base/NAME pinning node and claude in its lib/RUNTIME.
 function instance(name, node, claude) {
   const root = path.join(base, name);
@@ -40,7 +43,7 @@ function mac(line) {
 
 beforeEach(() => {
   remove(base);
-  entries("claude/2.1.300", "claude/2.1.323", "claude/2.1.329", "node/24.20.0", "node/24.21.0", "voice/faster-whisper-old", "voice/faster-whisper-new", "voice/faster-whisper-new.part-77");
+  entries("claude/2.1.300", "claude/2.1.323", "claude/2.1.329", "node/24.20.0", "node/24.21.0", "voice/faster-whisper-old", "voice/faster-whisper-new", WRITING);
   fs.writeFileSync(path.join(data, "voice", "install.log"), "");
 });
 afterEach(() => remove(base));
@@ -49,7 +52,7 @@ describe("old runtimes", () => {
   it("removes every directory no instance and no process uses, and keeps the instance's own, a part install and the files", async () => {
     const own = instance("own", "24.21.0", "2.1.329");
     const removed = await sweep(own, { voice: "faster-whisper-new" }, { env, listed: [], now: later });
-    assert.deepEqual(left(), ["claude/2.1.329", "node/24.21.0", "voice/faster-whisper-new", "voice/faster-whisper-new.part-77", "voice/install.log"]);
+    assert.deepEqual(left(), ["claude/2.1.329", "node/24.21.0", "voice/faster-whisper-new", WRITING, "voice/install.log"]);
     assert.deepEqual(
       removed.map(({ kind, name }) => `${kind}/${name}`),
       ["claude/2.1.300", "claude/2.1.323", "node/24.20.0", "voice/faster-whisper-old"],
@@ -64,7 +67,7 @@ describe("old runtimes", () => {
     record(lab, { voice: "faster-whisper-old" }, env);
     fs.writeFileSync(path.join(lab, "lib", "RUNTIME"), "node 24.20.0\nclaude 2.1.323\n");
     await sweep(instance("own", "24.21.0", "2.1.329"), { voice: "faster-whisper-new" }, { env, listed: [], now: later });
-    assert.deepEqual(left(), ["claude/2.1.323", "claude/2.1.329", "node/24.20.0", "node/24.21.0", "voice/faster-whisper-new", "voice/faster-whisper-new.part-77", "voice/faster-whisper-old", "voice/install.log"]);
+    assert.deepEqual(left(), ["claude/2.1.323", "claude/2.1.329", "node/24.20.0", "node/24.21.0", "voice/faster-whisper-new", WRITING, "voice/faster-whisper-old", "voice/install.log"]);
   });
 
   it("drops the record of an instance that is gone, and what only it used", async () => {
@@ -86,7 +89,7 @@ describe("old runtimes", () => {
       linux("node", path.join(old, "lib", "serve.mjs"), "--root", old),
     ];
     await sweep(instance("own", "24.21.0", "2.1.329"), { voice: "faster-whisper-new" }, { env, listed, now: later });
-    assert.deepEqual(left(), ["claude/2.1.300", "claude/2.1.323", "claude/2.1.329", "node/24.20.0", "node/24.21.0", "voice/faster-whisper-new", "voice/faster-whisper-new.part-77", "voice/faster-whisper-old", "voice/install.log"]);
+    assert.deepEqual(left(), ["claude/2.1.300", "claude/2.1.323", "claude/2.1.329", "node/24.20.0", "node/24.21.0", "voice/faster-whisper-new", WRITING, "voice/faster-whisper-old", "voice/install.log"]);
     assert.deepEqual([...inUse(env, [mac(`/x/node ${path.join(old, "lib", "ovai.mjs")} --root ${old} status`)]).claude].sort(), ["2.1.300", "2.1.329"]);
   });
 
@@ -108,6 +111,28 @@ describe("old runtimes", () => {
     assert.deepEqual(await sweep(own, { voice: "faster-whisper-new" }, { env, listed: [] }), []);
     assert.deepEqual(await sweep(own, { voice: "faster-whisper-new" }, { env, listed: [], now: Date.now() + FRESH - 60_000 }), []);
     assert.equal((await sweep(own, { voice: "faster-whisper-new" }, { env, listed: [], now: later })).length, 4);
+  });
+
+  // An `ovai stop` or a crash in the middle of a voice install: its part stays with no process to
+  // finish it, and the next install is built under another pid.
+  it("removes a part install whose process is gone, once it is an hour old, and keeps one whose process runs", async () => {
+    entries("voice/faster-whisper-new.part-77", "voice/faster-whisper-new.part-78");
+    const own = instance("own", "24.21.0", "2.1.329");
+    assert.deepEqual(await sweep(own, { voice: "faster-whisper-new" }, { env, listed: [] }), [], "a fresh one stays");
+    const listed = [{ ...linux("node", "/x/lib/serve.mjs"), pid: 78 }];
+    await sweep(own, { voice: "faster-whisper-new" }, { env, listed, now: later });
+    assert.deepEqual(left().filter((name) => name.includes(".part-")), [WRITING, "voice/faster-whisper-new.part-78"]);
+  });
+
+  // A server killed while it deleted what it had renamed into tmp/.
+  it("removes what a sweep killed half-way left in tmp/, and keeps what a running one is deleting", async () => {
+    const own = instance("own", "24.21.0", "2.1.329");
+    for (const name of ["gone-node-24.19.0.77", "gone-node-24.18.0.78", `gone-claude-2.1.200.${process.pid}`]) {
+      fs.mkdirSync(path.join(data, "tmp", name, "bin"), { recursive: true });
+    }
+    const listed = [{ ...linux("node", "/x/lib/serve.mjs"), pid: 78 }];
+    await sweep(own, { voice: "faster-whisper-new" }, { env, listed, now: later });
+    assert.deepEqual(fs.readdirSync(path.join(data, "tmp")).sort(), [`gone-claude-2.1.200.${process.pid}`, "gone-node-24.18.0.78"]);
   });
 
   it("passes over another user's process, whose environment cannot be read", async () => {
