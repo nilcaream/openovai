@@ -645,10 +645,13 @@ describe("restart_session and stop_session", () => {
       const rows = panel(instance, LEADER).length;
       tell(LEADER, userFrame("restart please"));
       await told(martin.log, 1);
+      // The first reply after the message can be the predecessor's to "restart please", still in
+      // its slow turn, so `asked`'s reply says nothing of the successor; and the stand-in notes a
+      // frame heard before it answers. Both replies are waited for as rows on the panel.
       const successor = await spawnedBy(LEADER, () => asked(paul.secret, LEADER, "after the restart"));
-      assert.equal(successor.result.reply, "a reply");
       assert.notEqual(successor.secret, martin.secret);
       assert.deepEqual(besideBirth(await told(successor.log, 2)), [`<message from="${WORKER}">after the restart</message>`]);
+      await waitFor(() => panel(instance, LEADER).slice(rows).filter((row) => row.from === LEADER).length >= 2 || null);
       assert.deepEqual(
         panel(instance, LEADER).slice(rows).map((row) => [row.from, row.text, row.divider]),
         [[WORKER, "after the restart", undefined], [LEADER, "a reply", undefined], [LEADER, "a reply", undefined]],
