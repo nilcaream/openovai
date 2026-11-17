@@ -14,7 +14,7 @@ in the message box, where the person reads it, edits it and presses Enter as for
 ## What the first click installs
 - Speech is turned into text by faster-whisper with the Whisper large-v3-turbo model, running on
   the CPU. Nothing goes to a cloud service and no model is asked to rewrite the text.
-- Turning the setting on installs nothing: it shows the button. The person's first click on it, or
+- Turning the setting on installs nothing: the greyed button can be clicked. The person's first click on it, or
   Tab in the Leader's box, starts the install, and the server does it in the background. From
   that click until it is done the button is gone and the pill at the left of the Leader's pill row
   says which of four steps the install is at, and the percent of the last:

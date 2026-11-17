@@ -264,7 +264,7 @@ describe("the install", () => {
 });
 
 describe("the state the button is drawn from", () => {
-  // The setting shows the button; the User's click on it, or Tab, starts the install.
+  // The setting makes the greyed button clickable; the User's click on it, or Tab, starts the install.
   it("is off while the setting is, uninstalled when it is turned on, installs once when asked, and is ready after", async () => {
     const heard = [];
     const stop = subscribe((event) => event.name === "voice" && heard.push(event.data));
