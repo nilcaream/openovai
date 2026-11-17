@@ -409,11 +409,12 @@ describe("the speech process", () => {
     assert.equal(unloaded.started.length, 1);
   });
 
-  it("is killed when the recording it is turning into text is cancelled, and the next recording starts a new one", async () => {
+  it("is killed when the dictation it is turning into text is cancelled, and the next recording starts a new one", async () => {
     ready();
     const busy = standIn(() => null);
     const kills = [];
-    const long = voice.transcribe({ pcm: Buffer.alloc(64), language: "en", words: [], env, spawner: busy.spawner });
+    const long = voice.stretch({ id: "long", index: 0, last: true, pcm: Buffer.alloc(64), language: "en", words: [], env, spawner: busy.spawner });
+    await new Promise((resolve) => setImmediate(resolve));
     const child = busy.started[0].child;
     const kill = child.kill;
     child.kill = (...args) => {
@@ -421,10 +422,10 @@ describe("the speech process", () => {
       kill(...args);
     };
     await new Promise((resolve) => child.stdin.once("data", resolve));
-    assert.deepEqual(voice.cancel(), { cancelled: true, text: "" });
+    assert.deepEqual(voice.cancel("long"), { cancelled: true, text: "" });
     assert.equal(kills.length, 1, "the work stops: the process is killed");
     await assert.rejects(long, (error) => error.cancelled === true && /cancelled/.test(error.message));
-    assert.deepEqual(voice.cancel(), { cancelled: false, text: "" }, "nothing is left to cancel");
+    assert.deepEqual(voice.cancel("long"), { cancelled: false, text: "" }, "nothing is left to cancel");
     const next = standIn(() => ({ text: "next" }));
     assert.equal(await voice.transcribe({ pcm: Buffer.alloc(8), language: "en", words: [], env, spawner: next.spawner }), "next");
     assert.equal(next.started.length, 1, "a new process for the next recording");
@@ -433,14 +434,39 @@ describe("the speech process", () => {
   it("is cancelled while it still loads its model, and kept warm when nothing is being turned into text", async () => {
     ready();
     const loading = standIn(() => ({ text: "x" }), { ready: null });
-    const early = voice.transcribe({ pcm: Buffer.alloc(8), language: "en", words: [], env, spawner: loading.spawner });
-    assert.deepEqual(voice.cancel(), { cancelled: true, text: "" });
+    const early = voice.stretch({ id: "early", index: 0, last: true, pcm: Buffer.alloc(8), language: "en", words: [], env, spawner: loading.spawner });
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.deepEqual(voice.cancel("early"), { cancelled: true, text: "" });
     await assert.rejects(early, (error) => error.cancelled === true);
     const idle = standIn(() => ({ text: "done" }));
     assert.equal(await voice.transcribe({ pcm: Buffer.alloc(8), language: "en", words: [], env, spawner: idle.spawner }), "done");
-    assert.deepEqual(voice.cancel(), { cancelled: false, text: "" });
+    assert.deepEqual(voice.cancel("other"), { cancelled: false, text: "" });
     assert.equal(await voice.transcribe({ pcm: Buffer.alloc(8), language: "en", words: [], env, spawner: idle.spawner }), "done");
     assert.equal(idle.started.length, 1, "not killed: it held no recording");
+  });
+
+  // A dictation started a little before the idle mark: the stretch in hand is not killed under it.
+  it("is never stopped for idleness while it turns a recording into text, and is once it has been idle that long", async (t) => {
+    ready();
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    const { spawner, started } = standIn(() => null);
+    voice.warm({ env, spawner });
+    const child = started[0].child;
+    let kills = 0;
+    child.kill = () => {
+      kills += 1;
+      child.emit("exit", null, "SIGTERM");
+    };
+    const work = voice.transcribe({ pcm: Buffer.alloc(8), language: "en", words: [], env, spawner });
+    await new Promise((resolve) => child.stdin.once("data", resolve));
+    t.mock.timers.tick(voice.IDLE_STOP);
+    assert.equal(kills, 0, "busy at the idle mark: kept");
+    child.stdout.write(`${JSON.stringify({ text: "kept" })}\n`);
+    assert.equal(await work, "kept");
+    t.mock.timers.tick(voice.IDLE_STOP - 1);
+    assert.equal(kills, 0);
+    t.mock.timers.tick(1);
+    assert.equal(kills, 1, "idle that long after its last answer, it is stopped");
   });
 
   it("is warmed only when voice input is ready", () => {
@@ -504,7 +530,18 @@ describe("a dictation in stretches", () => {
     await assert.rejects(stretch("cut", 3, { spawner }), (error) => error.cancelled === true, "a stretch that comes after the cancel is refused");
   });
 
-  it("lets a dictation left half-way go no further once another one starts", async () => {
+  // Esc right after the first cut, before that stretch reached the server.
+  it("refuses a stretch of a dictation cancelled before the stretch came", async () => {
+    ready();
+    const { spawner, started } = standIn(() => ({ text: "x" }));
+    assert.deepEqual(voice.cancel("early"), { cancelled: false, text: "" });
+    await assert.rejects(stretch("early", 0, { spawner }), (error) => error.cancelled === true);
+    assert.equal(started.length, 0, "nothing goes to Whisper");
+  });
+
+  // A page reloaded half-way, or a second tab: the new dictation takes the voice, and the one held
+  // goes no further; its tab is told at its next stretch, and its cancel stops nothing of the new one.
+  it("lets a new dictation take the voice from the one held, refuses the old one's next stretch as taken, and its cancel touches the new one in nothing", async () => {
     ready();
     const asked = [];
     const { spawner, started } = standIn((one) => {
@@ -518,12 +555,35 @@ describe("a dictation in stretches", () => {
     await settle();
     const next = stretch("next", 0, { spawner, last: true });
     await settle();
+    let killed = 0;
+    started[0].child.kill = () => {
+      killed += 1;
+    };
+    await assert.rejects(stretch("left", 2, { spawner }), (error) => error.taken === true && error.message === "another dictation took voice input, in another tab");
+    assert.deepEqual(voice.cancel("left"), { cancelled: false, text: "" });
+    assert.equal(killed, 0, "the new dictation's work is not stopped");
     answer("left 0");
     answer("next 0");
     assert.deepEqual(await next, { text: "next 0", silent: false });
     await settle();
     assert.equal(asked.length, 2, "stretch 1 of the dictation left is never turned into text");
-    await assert.rejects(stretch("left", 2, { spawner, last: true }), (error) => error.cancelled === true);
+    await assert.rejects(stretch("left", 3, { spawner, last: true }), (error) => error.taken === true);
+  });
+
+  // The old tab already at Stop: the stretch in hand ends, the one after it is dropped, and the last
+  // stretch's answer says the voice was taken.
+  it("answers a last stretch whose dictation another took the voice from as taken", async () => {
+    ready();
+    const { spawner, started } = standIn(() => null);
+    const answer = (text) => started[0].child.stdout.write(`${JSON.stringify({ text })}\n`);
+    await stretch("first", 0, { spawner });
+    const stopped = stretch("first", 1, { spawner, last: true });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const next = stretch("second", 0, { spawner, last: true });
+    answer("first 0");
+    await assert.rejects(stopped, (error) => error.taken === true);
+    answer("second 0");
+    assert.deepEqual(await next, { text: "second 0", silent: false });
   });
 
   it("fails a last stretch whose stretches before it never came", { timeout: 2000 }, async () => {
